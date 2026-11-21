@@ -57,10 +57,37 @@ interface AnswerEntry {
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
 
-/** True when every choice kept its letter: each is unchanged, or new text replaced old. */
+const grams = (s: string) => {
+  const chars = Array.from(s);
+  return new Set([...chars, ...chars.slice(1).map((c, i) => chars[i] + c)]);
+};
+
+/** Dice similarity of two normalized texts over their characters and character pairs, 0..1. */
+function similarity(a: string, b: string): number {
+  const x = grams(a);
+  const y = grams(b);
+  let shared = 0;
+  for (const g of x) if (y.has(g)) shared++;
+  return x.size + y.size === 0 ? 0 : (2 * shared) / (x.size + y.size);
+}
+
+/** Bare letters, in any order: a paper stub's choices carry no wording. */
+const isLetterStub = (order: readonly string[]) =>
+  order.length > 0 &&
+  order
+    .map((t) => t.trim().toUpperCase())
+    .sort()
+    .join('') === 'ABCDEFGH'.slice(0, order.length);
+
+/** A changed choice moved when another changed slot's old text beats its own by this much, or when two changed choices each lean to the other's. */
+const MOVE_MARGIN = 0.25;
+
+// Mirrors isRewordOnly in utils/paperImportPlan.ts, plus blank and duplicate guards.
+/** True when every choice kept its letter: unchanged, or reworded without looking like another changed choice's old text (a letter stub has no wording to compare). */
 export function isRewordOnly(
   recorded: readonly string[],
-  current: readonly string[]
+  current: readonly string[],
+  stub = isLetterStub(recorded)
 ): boolean {
   if (recorded.length !== current.length || recorded.length === 0) return false;
   const was = recorded.map(norm);
@@ -68,9 +95,20 @@ export function isRewordOnly(
   if (now.some((t) => t === '') || new Set(now).size !== now.length) {
     return false;
   }
-  return now.every(
-    (text, i) =>
-      text === was[i] || (!was.includes(text) && !now.includes(was[i]))
+  const changed = now.flatMap((text, i) => (text === was[i] ? [] : [i]));
+  if (changed.some((i) => was.includes(now[i]) || now.includes(was[i]))) {
+    return false;
+  }
+  if (changed.length < 2 || stub) return true;
+  // How much closer a changed choice sits to slot j's old text than to its own.
+  const pull = (i: number, j: number) =>
+    similarity(now[i], was[j]) - similarity(now[i], was[i]);
+  return changed.every((i) =>
+    changed.every(
+      (j) =>
+        j === i ||
+        (pull(i, j) < MOVE_MARGIN && !(pull(i, j) > 0 && pull(j, i) > 0))
+    )
   );
 }
 
@@ -115,9 +153,6 @@ export function parsePaperRewordInput(raw: unknown): PaperRewordInput {
   return { quizId, questions };
 }
 
-const isLetterStub = (order: readonly string[]) =>
-  order.every((text, i) => text.trim().toUpperCase() === 'ABCDEFGH'[i]);
-
 /** The questions on this batch that kept every choice at its letter. */
 function slotsFor(
   choiceOrder: Record<string, string[]> | undefined,
@@ -133,7 +168,7 @@ function slotsFor(
       stub && choices.length < recorded.length
         ? recorded.slice(0, choices.length)
         : recorded;
-    if (!isRewordOnly(from, choices)) continue;
+    if (!isRewordOnly(from, choices, stub)) continue;
     out.set(questionId, {
       from,
       to: choices.map((c) => c.trim()),
@@ -329,7 +364,7 @@ export const paperRewordSyncV1 = onCall(
       Date.now(),
       async () => {
         if (!caller) return false;
-        const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+        const { isGlobalFeatureGranted } = await import('./featureGrant');
         return isGlobalFeatureGranted(
           admin.firestore(),
           PAPER_REWORD_SYNC_FEATURE,

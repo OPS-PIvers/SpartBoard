@@ -8,6 +8,7 @@ import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
 import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
+import { useWritingAssignmentSessions } from '@/hooks/useWritingAssignmentSessions';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { useAssignmentRosterStatus } from '@/hooks/useAssignmentRosterStatus';
 
@@ -32,6 +33,9 @@ vi.mock('@/hooks/useMiniAppAssignments', () => ({
 vi.mock('@/hooks/useFlashcardAssignments', () => ({
   useFlashcardAssignments: vi.fn(),
 }));
+vi.mock('@/hooks/useWritingAssignmentSessions', () => ({
+  useWritingAssignmentSessions: vi.fn(),
+}));
 vi.mock('@/hooks/useAssignmentPseudonyms', async () => {
   const actual = await vi.importActual<
     typeof import('@/hooks/useAssignmentPseudonyms')
@@ -40,6 +44,11 @@ vi.mock('@/hooks/useAssignmentPseudonyms', async () => {
 });
 vi.mock('@/hooks/useAssignmentRosterStatus', () => ({
   useAssignmentRosterStatus: vi.fn(),
+}));
+vi.mock('@/components/assignmentsHub/HubAssignedList', () => ({
+  HubAssignedList: ({ rows }: { rows: { id: string }[] }) => (
+    <div data-testid="hub-assigned-list">{rows.map((r) => r.id).join(',')}</div>
+  ),
 }));
 
 const quizAssignment = {
@@ -68,14 +77,21 @@ function setupHooks({
   quizAssignments = [quizAssignment],
   vaAssignments = [vaAssignment],
   flashcardAssignments = [],
+  writingRecords = [],
+  writingOn = true,
+  assignedOn = false,
 }: {
   quizAssignments?: unknown[];
   vaAssignments?: unknown[];
   flashcardAssignments?: unknown[];
+  writingRecords?: unknown[];
+  writingOn?: boolean;
+  assignedOn?: boolean;
 } = {}) {
   (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     user: { uid: 'teacher-1' },
-    canAccessFeature: () => false,
+    canAccessFeature: (id: string) => assignedOn && id === 'assigned-tab',
+    canAccessWidget: () => writingOn,
   });
   (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     rosters: [],
@@ -99,6 +115,9 @@ function setupHooks({
   (
     useFlashcardAssignments as unknown as ReturnType<typeof vi.fn>
   ).mockReturnValue({ ...emptyReturn, assignments: flashcardAssignments });
+  (
+    useWritingAssignmentSessions as unknown as ReturnType<typeof vi.fn>
+  ).mockReturnValue({ records: writingRecords, loading: false });
   (
     useAssignmentPseudonymsMulti as unknown as ReturnType<typeof vi.fn>
   ).mockReturnValue({
@@ -127,6 +146,44 @@ describe('AssignmentsHubModal', () => {
     expect(screen.getByText('Volcano Video')).toBeInTheDocument();
     expect(screen.getByText('Individual')).toBeInTheDocument();
     expect(screen.getByText('2 skipped')).toBeInTheDocument();
+  });
+
+  it('with the Assigned tab on, shows the shared Assigned list and drops the status filter', () => {
+    setupHooks({ assignedOn: true });
+    render(<AssignmentsHubModal onClose={vi.fn()} />);
+    expect(screen.getByTestId('hub-assigned-list')).toHaveTextContent(
+      'quiz-1,va-1'
+    );
+    expect(screen.queryByText('Any status')).not.toBeInTheDocument();
+    expect(screen.getByText('All types')).toBeInTheDocument();
+  });
+
+  it('lists Writing assignments from the teacher records', () => {
+    setupHooks({
+      writingRecords: [
+        {
+          id: 'w-1',
+          sessionId: 'w-1',
+          itemId: 'item-1',
+          title: 'Argument essay',
+          teacherUid: 'teacher-1',
+          status: 'active',
+          createdAt: 200,
+          updatedAt: 200,
+          periodNames: ['Period 4'],
+        },
+      ],
+    });
+    render(<AssignmentsHubModal onClose={vi.fn()} />);
+    expect(screen.getByText('Argument essay')).toBeInTheDocument();
+    expect(screen.getAllByText('Writing').length).toBeGreaterThan(0);
+  });
+
+  it('skips the Writing listener and filter when the Writing widget is off', () => {
+    setupHooks({ writingOn: false });
+    render(<AssignmentsHubModal onClose={vi.fn()} />);
+    expect(useWritingAssignmentSessions).toHaveBeenCalledWith(undefined);
+    expect(screen.queryByText('Writing')).not.toBeInTheDocument();
   });
 
   it('lists flashcard assignments with a Check or Study badge', () => {

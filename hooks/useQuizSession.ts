@@ -7,6 +7,8 @@
  * useQuizSessionStudent — Student joins and submits answers.
  */
 
+import { calcAnswerAccepted, calcAttemptKey } from '@/utils/quizCalculated';
+import { fillCalcPublicQuestion } from '@/utils/quizCalcResponse';
 import { isAnswerKeyboard } from '@/config/studentKeyboards';
 import { alignedOrderingImages } from '@/utils/quizOrderingImages';
 import {
@@ -26,6 +28,7 @@ import {
   useRef,
   useMemo,
   useReducer,
+  useLayoutEffect,
   MutableRefObject,
 } from 'react';
 import {
@@ -39,16 +42,13 @@ import {
   getDoc,
   writeBatch,
   increment,
+  arrayUnion,
   deleteField,
   runTransaction,
   serverTimestamp,
-  type DocumentSnapshot,
   type FieldValue,
 } from 'firebase/firestore';
-import {
-  encodeResponseKeySegment,
-  quizPinKeySegment,
-} from '@/utils/quizResponseKey';
+export { encodeResponseKeySegment } from '@/utils/quizResponseKey';
 import {
   LIVE_LEADERBOARD_COLLECTION,
   LIVE_LEADERBOARD_DOC,
@@ -74,8 +74,6 @@ import {
   LocalizedQuestionStrings,
   QuizAttemptLedger,
   GradeResult,
-  ResponseArtifact,
-  TakeMicState,
   ArtifactUploadState,
   UnrespondedReason,
   TabExit,
@@ -95,9 +93,10 @@ import {
   buildTeacherSubmitUpdate,
   canTeacherSubmit,
 } from '@/utils/quizTeacherSubmit';
-import { acceptsStudents, endSessionPatch } from '@/utils/sessionLifecycle';
+import { acceptsStudents } from '@/utils/sessionLifecycle';
 import {
   checkedQuizSessionWrite,
+  endQuizPatch,
   quizSessionWrite,
   type QuizSessionEvent,
   type QuizSessionWrite,
@@ -154,6 +153,11 @@ import {
   scoreFibBlanks,
 } from '@/utils/quizFibBlanks';
 import {
+  fibExtrasParts,
+  fibLenientAccepts,
+  type FibExtras,
+} from '@/utils/quizFibMatch';
+import {
   ANONYMOUS_JOIN_BLOCKED_MESSAGE,
   isAnonymousJoinBlocked,
 } from '@/utils/anonymousJoin';
@@ -163,11 +167,77 @@ import {
   staffResponseFields,
 } from '@/utils/staffAudience';
 export type { QuizSessionOptions } from '@/types';
+import {
+  committedFromPatch,
+  isAnswerLocked,
+  isHistoryDocInRemovalWindow,
+  isUnsafeBlankDraft,
+  isUnsafeStatusDowngrade,
+  isWriteAtAfter,
+  quizLedgerKey,
+  servedSnapshotPatch,
+  settleDraftsWithin,
+  shouldSnapshotHistory,
+  snapshotAtToMillis,
+  takeArtifacts,
+  type CommitRecordingTakeInput,
+  type CommittedAnswers,
+} from '@/hooks/quizSession/draftHelpers';
+export {
+  committedFromPatch,
+  HISTORY_REMOVAL_WINDOW_SKEW_MS,
+  isAnswerLocked,
+  isHistoryDocInRemovalWindow,
+  isUnsafeBlankDraft,
+  isUnsafeStatusDowngrade,
+  isWriteAtAfter,
+  quizLedgerKey,
+  servedSnapshotPatch,
+  settleDraftsWithin,
+  shouldSnapshotHistory,
+  snapshotAtToMillis,
+  takeArtifacts,
+} from '@/hooks/quizSession/draftHelpers';
+export type {
+  CommitRecordingTakeInput,
+  CommittedAnswers,
+} from '@/hooks/quizSession/draftHelpers';
 
-export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
-export const QUIZ_LIVE_COLLECTION = 'live';
-export const QUIZ_LIVE_STATE_DOC = 'state';
-export const RESPONSES_COLLECTION = 'responses';
+import {
+  AttemptLimitReachedError,
+  computeQuizResponseKey,
+  computeResponseKey,
+  retakeKeyStrip,
+  SessionEndedError,
+} from '@/hooks/quizSession/responseKeys';
+export {
+  AttemptLimitReachedError,
+  computeQuizResponseKey,
+  computeResponseKey,
+  getResponseDocKey,
+  retakeKeyStrip,
+  SessionEndedError,
+} from '@/hooks/quizSession/responseKeys';
+export type { ResponseDocKey } from '@/hooks/quizSession/responseKeys';
+
+import {
+  ARCHIVED_RESPONSES_COLLECTION,
+  QUIZ_ATTEMPT_LEDGER_COLLECTION,
+  QUIZ_LIVE_COLLECTION,
+  QUIZ_LIVE_STATE_DOC,
+  QUIZ_SESSIONS_COLLECTION,
+  RESPONSE_HISTORY_COLLECTION,
+  RESPONSES_COLLECTION,
+} from '@/hooks/quizSession/collections';
+export {
+  ARCHIVED_RESPONSES_COLLECTION,
+  QUIZ_ATTEMPT_LEDGER_COLLECTION,
+  QUIZ_LIVE_COLLECTION,
+  QUIZ_LIVE_STATE_DOC,
+  QUIZ_SESSIONS_COLLECTION,
+  RESPONSE_HISTORY_COLLECTION,
+  RESPONSES_COLLECTION,
+} from '@/hooks/quizSession/collections';
 
 /** `unresponded` reasons only the recording flow emits; gated on the session marker. */
 const RECORDING_UNRESPONDED_REASONS = new Set<UnrespondedReason>([
@@ -176,332 +246,11 @@ const RECORDING_UNRESPONDED_REASONS = new Set<UnrespondedReason>([
   'capture-unavailable',
   'device-gated',
 ]);
-/**
- * Archive subcollection for responses removed by the teacher. Holds a
- * copy of the original response doc plus archive metadata
- * (`archivedAt`, `archivedBy`, `archiveReason`). The live doc is deleted
- * so the deterministic key is freed for a fresh rejoin; the archive
- * preserves partial answers for teacher recovery + dev queries beyond
- * the 48h window the user asked for. Cleanup is intentionally not
- * scheduled — retention is currently indefinite; revisit if storage
- * cost becomes a concern.
- */
-export const ARCHIVED_RESPONSES_COLLECTION = 'archived_responses';
-/**
- * Append-only per-response snapshot log. Each entry captures the prior
- * value of a question's answer just before it gets overwritten in the
- * `responses/{rid}.answers` array, so a teacher (or admin) can recover
- * text that was lost to a race, a stray empty draft, or a student who
- * retyped over their own work. Writes are fire-and-forget and throttled
- * per-question (see `HISTORY_SNAPSHOT_THROTTLE_MS`) to keep storage and
- * write costs bounded — typical essay quiz has a low double-digit
- * count per student.
- */
-export const RESPONSE_HISTORY_COLLECTION = 'history';
-/**
- * Minimum interval between history snapshots for the same questionId on
- * the same response. The autosave debounce is 500 ms; without throttling
- * a long essay would fan out to hundreds of near-identical history docs.
- * 5 s gives "enough resolution to recover meaningful state" without
- * making history a per-keystroke audit log.
- */
-const HISTORY_SNAPSHOT_THROTTLE_MS = 5000;
-/**
- * Top-level cross-launch attempt ledger. Sits alongside `/quiz_sessions/`
- * and accumulates a student's completed-attempt count across every LAUNCH of a
- * single ASSIGNMENT. It is scoped per (assignment, student) — NOT per quiz
- * template — so a student can complete every assignment a teacher builds from
- * the same library quiz; the cap only stops re-attempts of the SAME assignment
- * across re-launches (where the per-session `responses/{key}` counter resets
- * each launch and a teacher's "1 attempt" intent would otherwise be bypassed).
- *
- * Doc id: `${assignmentId}__${studentUid}` (see `quizLedgerKey`), where
- * `assignmentId` is the session id — a deep-link/Classroom attach is 1:1 with a
- * session, and re-launching the same assignment resolves to the same session by
- * code. Schema: `QuizAttemptLedger` in types.ts.
- */
-export const QUIZ_ATTEMPT_LEDGER_COLLECTION = 'quiz_attempt_ledger';
-
-/**
- * Deterministic ledger doc id. Two underscores keep us safe even if a future
- * id contains a single underscore (Firestore doc ids allow underscores).
- * assignmentIds/sessionIds are UUIDs and HMAC pseudonyms are hex, so collisions
- * are not realistic, but the separator is cheap insurance.
- */
-export function quizLedgerKey(
-  assignmentId: string,
-  studentUid: string
-): string {
-  return `${assignmentId}__${studentUid}`;
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Mirrors the rules: a student cannot change a turned-in attempt's answers unless the teacher unlocked it. */
-export function isAnswerLocked(
-  r: Pick<QuizResponse, 'status' | 'unlocked'>
-): boolean {
-  return r.status === 'completed' && r.unlocked !== true;
-}
-
-/**
- * Build the `servedQuestionIds` portion of an answer-write patch (M17).
- * Returns {} when the doc already matches the live served subset, the ids
- * when it needs (re)writing, or a deleteField() when a mid-attempt override
- * removal must clear a stale snapshot. `served === undefined` means the
- * pointer subscription hasn't resolved yet — leave the doc untouched rather
- * than clearing a valid snapshot mid-load. Exported for unit tests.
- */
-export function servedSnapshotPatch(
-  served: string[] | null | undefined,
-  onDoc: string[] | undefined
-): { servedQuestionIds?: string[] | ReturnType<typeof deleteField> } {
-  if (served === undefined) return {};
-  if (served && served.length > 0) {
-    const same =
-      Array.isArray(onDoc) &&
-      onDoc.length === served.length &&
-      served.every((id, i) => onDoc[i] === id);
-    return same ? {} : { servedQuestionIds: served };
-  }
-  return Array.isArray(onDoc) && onDoc.length > 0
-    ? { servedQuestionIds: deleteField() }
-    : {};
-}
-
-interface CommitRecordingTakeBase {
-  questionId: string;
-  /** Tennessen acknowledgment time, stamped on the take it authorised. */
-  noticeAckedAt?: number;
-  /** BCP-47 code the student was reading. Display hint only; never grades. */
-  locale?: string;
-  /** Mic state during the take (QUIZ_WHITEBOARD_RESPONSE D18). */
-  micState?: TakeMicState;
-}
-
-/** A spoken take carries one artifact; a whiteboard take carries up to three (D19). */
-export type CommitRecordingTakeInput = CommitRecordingTakeBase &
-  (
-    | { artifact: ResponseArtifact; artifacts?: never }
-    | { artifacts: ResponseArtifact[]; artifact?: never }
-  );
-
-/** The artifacts a take commits, whichever shape the caller used. */
-export function takeArtifacts(
-  input: CommitRecordingTakeInput
-): ResponseArtifact[] {
-  return input.artifacts ?? [input.artifact];
-}
-
-/**
- * Defensive predicate: refuse a draft autosave that would overwrite a
- * non-empty saved answer with the empty string. Almost always indicates
- * a race (editor briefly emitted '' after a remount or a hydration miss)
- * rather than a deliberate clear. Explicit submits (`isDraft=false`)
- * bypass this — a student who really wants to clear an answer can still
- * submit empty.
- */
-export function isUnsafeBlankDraft(
-  answer: string,
-  isDraft: boolean,
-  priorEntry: QuizResponseAnswer | undefined
-): boolean {
-  return isDraft && answer === '' && !!priorEntry && priorEntry.answer !== '';
-}
-
 // How long a transaction waits for in-flight draft autosaves before going ahead.
 const DRAFT_SETTLE_MS = 4000;
-
-export interface CommittedAnswers {
-  answers: QuizResponseAnswer[];
-  status: QuizResponse['status'];
-  baseWriteAt: unknown;
-}
-
-// What a transactional answers write leaves on the doc, keyed to the stamp it read.
-export function committedFromPatch(
-  read: QuizResponse,
-  patch: Record<string, unknown>
-): CommittedAnswers {
-  return {
-    answers:
-      (patch.answers as QuizResponseAnswer[] | undefined) ?? read.answers ?? [],
-    status:
-      typeof patch.status === 'string'
-        ? (patch.status as QuizResponse['status'])
-        : read.status,
-    baseWriteAt: read.lastWriteAt,
-  };
-}
-
-// Resolves once every pending draft write settles, or after `ms` so an offline queue can't hang a submit.
-export function settleDraftsWithin(
-  drafts: Iterable<Promise<unknown>>,
-  ms: number
-): Promise<void> {
-  const pending = [...drafts];
-  if (pending.length === 0) return Promise.resolve();
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  return Promise.race([
-    Promise.allSettled(pending).then(() => undefined),
-    new Promise<void>((resolve) => {
-      timer = setTimeout(resolve, ms);
-    }),
-  ]).finally(() => clearTimeout(timer));
-}
-
-// True when server stamp `a` is strictly later than `b`; a missing or pending (null) `a` never is.
-export function isWriteAtAfter(a: unknown, b: unknown): boolean {
-  const parts = (t: unknown): [number, number] | null => {
-    if (!t || typeof t !== 'object') return null;
-    const { seconds, nanoseconds } = t as {
-      seconds?: unknown;
-      nanoseconds?: unknown;
-    };
-    return typeof seconds === 'number' && typeof nanoseconds === 'number'
-      ? [seconds, nanoseconds]
-      : null;
-  };
-  const pa = parts(a);
-  if (!pa) return false;
-  const pb = parts(b);
-  if (!pb) return true;
-  return pa[0] !== pb[0] ? pa[0] > pb[0] : pa[1] > pb[1];
-}
-
-/**
- * Defensive predicate: refuse a draft autosave that would downgrade an
- * already-submitted answer's status to 'draft'. The cache-driven
- * autosave path can re-fire for the same question during the SSO
- * listener-fast race window (back-nav before the response listener
- * echoes the just-submitted answer back, so the local `submitted` state
- * briefly flips false), and without this guard the autosave silently
- * flips status 'submitted' → 'draft' and drops the question from the
- * teacher's "Finished" view. Explicit submits (`isDraft=false`) still
- * pass through.
- */
-export function isUnsafeStatusDowngrade(
-  isDraft: boolean,
-  priorEntry: QuizResponseAnswer | undefined
-): boolean {
-  // Use `!== 'draft'` rather than `=== 'submitted'` so legacy entries
-  // with `status === undefined` (predate the draft flag — treated as
-  // submitted everywhere else via `isAnswerSubmitted`) are also
-  // protected from being silently downgraded to draft.
-  return isDraft && priorEntry !== undefined && priorEntry.status !== 'draft';
-}
-
-/**
- * Decide whether to snapshot the prior answer entry to the history
- * subcollection before overwriting. Captures any prior non-empty value
- * the incoming write is about to lose — either because the text
- * changed, or because the status is being destructively downgraded
- * from 'submitted' to 'draft' (which can erase grading state even
- * with identical text). The per-question throttle keeps a long essay
- * from fanning out to hundreds of near-identical docs.
- */
-export function shouldSnapshotHistory(
-  priorEntry: QuizResponseAnswer | undefined,
-  newAnswer: string,
-  newIsDraft: boolean,
-  lastSnapshotAt: number,
-  now: number,
-  throttleMs: number = HISTORY_SNAPSHOT_THROTTLE_MS
-): boolean {
-  if (!priorEntry) return false;
-  if (priorEntry.answer === '') return false;
-  const textChanged = priorEntry.answer !== newAnswer;
-  // Mirror `isUnsafeStatusDowngrade`: treat legacy entries with
-  // `status === undefined` as submitted so a downgrade attempt on a
-  // legacy answer still gets a forensic snapshot.
-  const statusDowngrade = priorEntry.status !== 'draft' && newIsDraft;
-  if (!textChanged && !statusDowngrade) return false;
-  return now - lastSnapshotAt >= throttleMs;
-}
-
-/**
- * Clock-skew tolerance applied to the history-removal window. History
- * `snapshotAt` is a Firestore server timestamp while the response doc's
- * `joinedAt` is a client `Date.now()` from a (possibly skewed) Chromebook,
- * so the two clocks can disagree by a few seconds. We pad the window by this
- * amount on both ends so the current occupant's own early/late snapshots are
- * never accidentally left behind — without widening it so far that a colliding
- * classmate's neighbouring entries get swept in. A prior occupant of a
- * `pin-{period}-{pin}` key joined and answered an entire session earlier (far
- * more than this pad), so they remain safely outside the window.
- */
-export const HISTORY_REMOVAL_WINDOW_SKEW_MS = 60_000;
-
-/**
- * Coerce a history doc's `snapshotAt` (Firestore Timestamp), or any
- * Timestamp/number/null shape, to epoch milliseconds. Returns `null` when the
- * value can't be interpreted as a time — callers treat that as "owner
- * unknown" and conservatively keep the doc rather than risk clobbering a
- * PIN-mate's entry.
- */
-export function snapshotAtToMillis(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (value && typeof value === 'object') {
-    const maybe = value as {
-      toMillis?: () => number;
-      seconds?: number;
-    };
-    if (typeof maybe.toMillis === 'function') {
-      const ms = maybe.toMillis();
-      return Number.isFinite(ms) ? ms : null;
-    }
-    if (typeof maybe.seconds === 'number' && Number.isFinite(maybe.seconds)) {
-      return maybe.seconds * 1000;
-    }
-  }
-  return null;
-}
-
-/**
- * Decide whether a single history doc belongs to the removed student's own
- * occupancy of the (possibly shared) response key, and may therefore be
- * deleted.
- *
- * Anonymous PIN joiners share a deterministic `pin-{period}-{pin}` response
- * doc (and its `/history` subcollection) with any roster-mate on the same
- * normalized period+PIN. Deleting the *entire* subcollection on
- * `removeStudent` would clobber a still-present classmate's recovery history.
- * We bound the delete to `[joinedAt - skew, removalTime + skew]` — the window
- * during which the removed student occupied the doc. `joinedAt` is immutable
- * once set and is stamped only when the response doc is (re)created, i.e. after
- * any prior occupant's doc was deleted and the key freed. So a prior occupant's
- * orphaned snapshots were all written before this occupant's `joinedAt`, fall
- * outside the window, and survive.
- *
- * Callers only invoke this when a `joinedAt` lower bound is actually known
- * (the removed student's response doc was resolved). Without that anchor there
- * is no basis to define the occupant's window, so the caller falls back to the
- * legacy whole-subcollection delete instead of calling this.
- *
- * Robustness:
- *  - `snapshotAtMs === null` (legacy/unreadable timestamp): KEEP the doc. The
- *    `create` rule has always stamped `snapshotAt == request.time`, so a
- *    genuinely missing server timestamp means a malformed/legacy doc whose
- *    owner we can't prove on a shared key — leave it rather than risk deleting
- *    a classmate's entry. Worst case is a small orphan tail (teacher/admin can
- *    sweep), never cross-student data loss.
- *  - The `skewMs` pad absorbs client/server clock disagreement (server
- *    `snapshotAt` vs. client `joinedAt`) so the current occupant's own
- *    boundary entries aren't stranded.
- */
-export function isHistoryDocInRemovalWindow(
-  snapshotAtMs: number | null,
-  joinedAtMs: number,
-  removalTimeMs: number,
-  skewMs: number = HISTORY_REMOVAL_WINDOW_SKEW_MS
-): boolean {
-  // Unknown ownership → conservatively keep (never clobber a PIN-mate whose
-  // snapshot we can't time-bound).
-  if (snapshotAtMs === null) return false;
-  const lower = joinedAtMs - skewMs;
-  const upper = removalTimeMs + skewMs;
-  return snapshotAtMs >= lower && snapshotAtMs <= upper;
-}
 
 /**
  * Unbiased Fisher-Yates over indices. Returned as a permutation rather than a
@@ -589,11 +338,18 @@ export function toPublicQuestion(
     timeLimit: q.timeLimit,
   };
   if (q.targets?.length) base.targets = q.targets.map((t) => ({ ...t }));
+  if (q.modifiedText?.trim()) base.modifiedText = q.modifiedText.trim();
+  if (q.promptAudio?.driveFileId) base.promptAudio = { ...q.promptAudio };
   if (
     (q.type === 'FIB' || isFreeResponseType(q.type)) &&
     isAnswerKeyboard(q.answerKeyboard)
   )
     base.answerKeyboard = q.answerKeyboard;
+  // Ranges only: each student works out their own numbers. The formula stays private.
+  if (q.type === 'FIB' && q.calc?.variables.length) {
+    base.calcVariables = q.calc.variables.map((v) => ({ ...v }));
+    base.calcSeed = q.calc.seed;
+  }
   if (q.type === 'MC') {
     const english = [q.correctAnswer, ...q.incorrectAnswers.filter(Boolean)];
     const permutation = randomPermutation(english.length);
@@ -710,6 +466,10 @@ export function toPublicQuestion(
         ? rubricForScoredResults(q.rubricSnapshot)
         : stripRubricExamples(q.rubricSnapshot);
       if (hideRubric) base.rubricHidden = true;
+      if (q.modifiedRubricSnapshot)
+        base.modifiedRubricSnapshot = hideRubric
+          ? rubricForScoredResults(q.modifiedRubricSnapshot)
+          : stripRubricExamples(q.modifiedRubricSnapshot);
     }
     for (const [loc, tr] of entries) {
       if (base.placeholder && tr.placeholder)
@@ -815,7 +575,7 @@ function longestOrderedSubsequenceLength(
  * A grade with no `rubricScores` at all is a plain manual score, not partial.
  */
 function isPartialRubricGrade(
-  question: Pick<QuizQuestion, 'rubricSnapshot'>,
+  question: Pick<QuizQuestion, 'rubricSnapshot' | 'modifiedRubricSnapshot'>,
   grade: import('@/types').WrittenAnswerGrade
 ): boolean {
   const criteria = question.rubricSnapshot?.criteria;
@@ -823,7 +583,13 @@ function isPartialRubricGrade(
   const scores = grade.rubricScores;
   if (!scores || scores.length === 0) return false;
   const scoredIds = new Set(scores.map((s) => s.criterionId));
-  return criteria.some((c) => !scoredIds.has(c.id));
+  const covers = (rubric: Rubric | undefined) =>
+    !!rubric?.criteria?.length &&
+    rubric.criteria.every((c) => scoredIds.has(c.id));
+  // A modified-group student is scored on the modified rubric instead.
+  return (
+    !covers(question.rubricSnapshot) && !covers(question.modifiedRubricSnapshot)
+  );
 }
 
 /**
@@ -834,14 +600,22 @@ function isPartialRubricGrade(
  * response across whole-class grading loops.
  */
 export function hasSubmittedContent(studentAnswer: string): boolean {
-  let stripped = studentAnswer ?? '';
-  // `[^<>]` (not `[^>]`) so a bare `<` in prose can't swallow the rest of the
-  // answer, looped to a fixpoint so nested markup like `<<p>>` fully strips.
-  let previous: string;
-  do {
-    previous = stripped;
-    stripped = stripped.replace(/<[^<>]*>/g, '');
-  } while (stripped !== previous);
+  // One linear pass that strips nested tags; a regex fixpoint loop is quadratic on `<<<…>>>`.
+  const input = studentAnswer ?? '';
+  const out: string[] = [];
+  const open: number[] = [];
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (ch === '<') {
+      open.push(out.length);
+      out.push(ch);
+    } else if (ch === '>' && open.length > 0) {
+      out.length = open.pop() as number;
+    } else {
+      out.push(ch);
+    }
+  }
+  const stripped = out.join('');
   return (
     stripped
       .replace(/&nbsp;/gi, ' ')
@@ -858,7 +632,8 @@ export function hasSubmittedContent(studentAnswer: string): boolean {
  * check and partial-rubric rule instead of re-deriving them.
  */
 export function isWrittenAnswerAwaitingGrade(
-  question: Pick<QuizQuestion, 'rubricSnapshot'> | undefined,
+  question:
+    Pick<QuizQuestion, 'rubricSnapshot' | 'modifiedRubricSnapshot'> | undefined,
   studentAnswer: string,
   grade: import('@/types').WrittenAnswerGrade | undefined,
   paperTranscript?: import('@/types').PaperTranscriptState
@@ -913,13 +688,12 @@ export function hasPaperWrittenAwaiting(
   );
 }
 
-/** The `paperTranscript` state of a response's answer to one question, if any. */
-export function paperTranscriptFor(
+/** A response's answer to one question, if any. */
+export function paperAnswerFor(
   response: { answers?: readonly QuizResponseAnswer[] } | undefined,
   questionId: string
-): import('@/types').PaperTranscriptState | undefined {
-  return response?.answers?.find((a) => a.questionId === questionId)
-    ?.paperTranscript;
+): QuizResponseAnswer | undefined {
+  return response?.answers?.find((a) => a.questionId === questionId);
 }
 
 export function gradeAnswer(
@@ -935,8 +709,8 @@ export function gradeAnswer(
    * FIB only: translated accepted answers for this question, snapshotted on the
    * assignment doc. Normalized the same way the English comparison is.
    */
-  acceptedAnswers?: readonly string[],
-  /** Paper written answers only: the answer's public `paperTranscript` state. */
+  acceptedAnswers?: FibExtras,
+  /** Paper written answers only: the answer's public `paperTranscript` state, via `gradingPaperTranscript` in utils/paperWritten. */
   paperTranscript?: import('@/types').PaperTranscriptState
 ): GradeResult {
   const max = question.points ?? 1;
@@ -972,7 +746,42 @@ export function gradeAnswer(
     };
   }
 
+  // Paper fill-in-the-blank not read yet: owed a grade until the teacher's mark.
+  if (
+    question.type === 'FIB' &&
+    (paperTranscript === 'pending' || paperTranscript === 'image')
+  ) {
+    if (!manualGrade) {
+      return {
+        isCorrect: false,
+        pointsEarned: 0,
+        pointsMax: max,
+        state: 'awaiting-grade',
+      };
+    }
+    const awarded = Math.min(max, Math.max(0, manualGrade.pointsAwarded));
+    return {
+      isCorrect: awarded === max && max > 0,
+      pointsEarned: awarded,
+      pointsMax: max,
+      state: 'scored',
+    };
+  }
+
   const state: GradeResult['state'] = attempted ? 'scored' : 'not-attempted';
+  // Random numbers: graded from this student's own numbers; a copy without them can't be graded.
+  if (question.type === 'FIB' && question.calc) {
+    const isCorrect =
+      attempted &&
+      !!question.calcValues &&
+      calcAnswerAccepted(question.calc, question.calcValues, studentAnswer);
+    return {
+      isCorrect,
+      pointsEarned: isCorrect ? max : 0,
+      pointsMax: max,
+      state,
+    };
+  }
   const correct = normalizeAnswer(question.correctAnswer);
   const given = normalizeAnswer(studentAnswer);
 
@@ -992,13 +801,23 @@ export function gradeAnswer(
     };
   }
   if (question.type === 'MC' || question.type === 'FIB') {
+    const extras = fibExtrasParts(acceptedAnswers);
     const isCorrect =
       correct === given ||
       (question.type === 'FIB' &&
         given !== '' &&
-        [...(question.alternateAnswers ?? []), ...(acceptedAnswers ?? [])].some(
-          (a) => normalizeAnswer(a) === given
-        ));
+        (extras.lenientLocale
+          ? fibLenientAccepts(
+              studentAnswer,
+              [question.correctAnswer, ...(question.alternateAnswers ?? [])],
+              extras,
+              normalizeAnswer
+            )
+          : [
+              ...(question.alternateAnswers ?? []),
+              ...extras.answers,
+              ...extras.exact,
+            ].some((a) => normalizeAnswer(a) === given)));
     return {
       isCorrect,
       pointsEarned: isCorrect ? max : 0,
@@ -1108,224 +927,13 @@ export function gradeAnswer(
   }
   return { isCorrect: false, pointsEarned: 0, pointsMax: max, state };
 }
-
-/**
- * Thrown by `joinQuizSession` when a student attempts to join a session they've
- * already completed and the assignment's attempt limit has been reached. The
- * UI should catch this and render a friendly "ask your teacher" message; the
- * teacher can reset by removing the student from the live monitor.
- */
-export class AttemptLimitReachedError extends Error {
-  constructor() {
-    super(
-      "You've already submitted this quiz. Talk to your teacher if you need another attempt."
-    );
-    this.name = 'AttemptLimitReachedError';
-  }
-}
-
-/**
- * Thrown by `joinQuizSession` when the resolved code maps only to ended
- * sessions. Callers (notably the SSO auto-join in `QuizStudentApp`) use
- * this as a sentinel to fall back to read-only review mode via
- * `subscribeForReview`, rather than string-matching the error message.
- */
-export class SessionEndedError extends Error {
-  constructor() {
-    super('This quiz session has already ended.');
-    this.name = 'SessionEndedError';
-  }
-}
-
-export { encodeResponseKeySegment };
-
-/**
- * Compute the deterministic response-doc key.
- *
- * For studentRole (real SSO) auth, we continue to key by `auth.uid` because
- * the uid is stable per-user. For anonymous PIN auth the uid rotates every
- * time the student clears storage or switches device, which would let them
- * bypass attempt limits — so we derive a key from `pin + classPeriod` that
- * is stable per-roster-student.
- *
- * Known limitation: two rosters assigned to the same session with overlapping
- * PINs under the same (normalized) classPeriod would collide on the same doc
- * key. Rosters are normally period-scoped, so this is expected to be rare.
- */
-export function computeResponseKey(
-  authUid: string,
-  isAnonymous: boolean,
-  pin: string,
-  classPeriod: string | undefined
-): string {
-  if (!isAnonymous) return authUid;
-  return `pin-${encodeResponseKeySegment(classPeriod)}-${encodeResponseKeySegment(pin)}`;
-}
-
-/** Quiz response key: like `computeResponseKey`, with the PIN in its canonical `quizPinKeySegment` form. */
-export function computeQuizResponseKey(
-  authUid: string,
-  isAnonymous: boolean,
-  pin: string,
-  classPeriod: string | undefined
-): string {
-  if (!isAnonymous) return authUid;
-  return `pin-${encodeResponseKeySegment(classPeriod)}-${quizPinKeySegment(pin)}`;
-}
-
-/**
- * Branded type for the deterministic response-doc key (computed by
- * `computeResponseKey` / read off `_responseKey`). Pure type-level brand —
- * no wire-format change. Lets call sites (delete-confirm state, exported-id
- * sets) enforce that they never accidentally store a raw `string` where a
- * keyed-by-response-doc value is expected.
- *
- * The Firestore wire format stays `string[]` for backwards compatibility;
- * cast at the boundary (read from / write to assignment doc).
- */
-export type ResponseDocKey = string & { readonly __brand: 'ResponseDocKey' };
-
-/**
- * Resolve the Firestore doc id for a given response. The snapshot listeners
- * attach `_responseKey` to every row so teacher-side UI can target the
- * underlying doc without knowing the keying scheme; legacy rows predating
- * that field still equate the key with `studentUid`, hence the fallback.
- */
-export function getResponseDocKey(response: QuizResponse): ResponseDocKey {
-  return (response._responseKey ?? response.studentUid) as ResponseDocKey;
-}
-
-// Safe extraction of FirestoreError.code (or any error-like object's `code`
-// field). Returns undefined when err isn't an object or has no string `code`,
-// so callers don't blow up on non-Error throws or stringly-typed values.
-function getErrorCode(err: unknown): string | undefined {
-  if (typeof err !== 'object' || err === null) return undefined;
-  const code = (err as { code?: unknown }).code;
-  return typeof code === 'string' ? code : undefined;
-}
-
-// Phase-A diagnostic helper: when a Firestore op inside joinQuizSession
-// rejects, emit a structured breadcrumb naming the op + the join's auth/PIN
-// state, then re-throw. The outer catch in joinQuizSession only sees
-// `err.message`, which is "Missing or insufficient permissions" verbatim —
-// the breadcrumb is the only place we can correlate the denial back to which
-// of the (lookup / read-existing / create / update-reset / update-period /
-// update-classid) operations actually tripped, and what the request shape
-// looked like at that moment.
-//
-// Always re-throws so callers' control flow is unchanged. Type is `never`
-// so TS narrows correctly when used in `catch` blocks that don't want a
-// dangling promise return path.
-/** `seats/{uid}` points the content rule at the caller's response (anonymous keys aren't the uid). */
-function seatRef(sessionId: string, uid: string) {
-  return doc(db, QUIZ_SESSIONS_COLLECTION, sessionId, 'seats', uid);
-}
-
-function logQuizJoinFirestoreError(
-  op: string,
-  err: unknown,
-  ctx: Record<string, unknown>
-): never {
-  const code = getErrorCode(err);
-  if (code === 'permission-denied') {
-    console.warn(
-      `[useQuizSession] permission-denied during joinQuizSession op=${op}:`,
-      { op, code, ...ctx, err }
-    );
-  }
-  throw err;
-}
-
-/**
- * Look up the student's response doc for a session, trying the deterministic
- * key first and falling back to the legacy auth-uid key for anonymous PIN
- * joiners whose in-progress doc was written under the old keying scheme.
- * Returns the resolved key and the snapshot (existent or not) so the caller
- * can branch on `snap.exists()` without re-fetching.
- */
-async function findExistingResponseDoc(
-  sessionId: string,
-  authUid: string,
-  isAnonymous: boolean,
-  deterministicKey: string,
-  // Pre-canonical key (leading zeros kept): a doc this device made before the change still resumes.
-  paddedKey: string = deterministicKey
-): Promise<{ key: string; snap: DocumentSnapshot | null }> {
-  // Probe the deterministic key. For anonymous joiners, `permission-denied`
-  // here means either no doc yet or a doc written by a different anon UID
-  // (a PIN collision, or the same student on a fresh browser session): the
-  // read rule denies both alike so the key can't be used to probe PINs.
-  // Treat it as "no doc from here" so the caller falls through to the
-  // legacy probe / create path; a create on a taken key is then denied and
-  // surfaces through joinQuizSession's outer catch.
-  //
-  // For SSO/studentRole users, `permission-denied` is a legitimate
-  // class-gate denial (and `deterministicKey === authUid`, so the legacy
-  // probe wouldn't run anyway) — let it propagate so the join fails fast
-  // instead of attempting a doomed write.
-  let deterministicSnap: DocumentSnapshot | null = null;
-  try {
-    deterministicSnap = await getDoc(
-      doc(
-        db,
-        QUIZ_SESSIONS_COLLECTION,
-        sessionId,
-        RESPONSES_COLLECTION,
-        deterministicKey
-      )
-    );
-  } catch (err) {
-    if (!isAnonymous || getErrorCode(err) !== 'permission-denied') throw err;
-  }
-  if (deterministicSnap?.exists()) {
-    return { key: deterministicKey, snap: deterministicSnap };
-  }
-  if (isAnonymous && paddedKey !== deterministicKey) {
-    try {
-      const paddedSnap = await getDoc(
-        doc(
-          db,
-          QUIZ_SESSIONS_COLLECTION,
-          sessionId,
-          RESPONSES_COLLECTION,
-          paddedKey
-        )
-      );
-      if (paddedSnap.exists()) return { key: paddedKey, snap: paddedSnap };
-    } catch (err) {
-      if (getErrorCode(err) !== 'permission-denied') throw err;
-    }
-  }
-  if (isAnonymous && deterministicKey !== authUid) {
-    // Probe the legacy authUid-keyed slot. The doc, if it exists, was created
-    // by a previous device/session whose anon UID is no longer ours, so its
-    // `studentUid` field will not match `request.auth.uid` — and the response
-    // read rule rejects with permission-denied. Treat that rejection as
-    // "no legacy doc here" rather than letting it bubble out as a generic
-    // joinQuizSession error toast on the student side.
-    try {
-      const legacySnap = await getDoc(
-        doc(
-          db,
-          QUIZ_SESSIONS_COLLECTION,
-          sessionId,
-          RESPONSES_COLLECTION,
-          authUid
-        )
-      );
-      if (legacySnap.exists()) {
-        return { key: authUid, snap: legacySnap };
-      }
-    } catch (err) {
-      if (getErrorCode(err) !== 'permission-denied') throw err;
-      console.warn(
-        '[useQuizSession] permission-denied on legacy response probe; treating as no doc.',
-        { sessionId, authUid, err }
-      );
-    }
-  }
-  return { key: deterministicKey, snap: deterministicSnap };
-}
+import {
+  findExistingResponseDoc,
+  claimScannedResponse,
+  getErrorCode,
+  logQuizJoinFirestoreError,
+  seatRef,
+} from '@/hooks/quizSession/joinHelpers';
 
 // ─── Teacher hook ─────────────────────────────────────────────────────────────
 
@@ -1992,13 +1600,14 @@ export const useQuizSessionTeacher = (
 
   const revealAnswer = useCallback(
     async (questionId: string, correctAnswer: string) => {
-      if (!sessionId) return;
+      // An ended run keeps no answer key on the doc students can read.
+      if (!sessionId || session?.status === 'ended') return;
       const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, sessionId);
       await updateDoc(sessionRef, {
         [`revealedAnswers.${questionId}`]: correctAnswer,
       });
     },
-    [sessionId]
+    [sessionId, session?.status]
   );
 
   const hideAnswer = useCallback(
@@ -2042,7 +1651,7 @@ export const useQuizSessionTeacher = (
     if (!sessionId) return;
     await updateDoc(
       doc(db, QUIZ_SESSIONS_COLLECTION, sessionId),
-      endSessionPatch('quiz', Date.now())
+      endQuizPatch(Date.now())
     );
     // Mark all active students as completed so their data is preserved in results.
     await finalizeAllResponses();
@@ -2190,6 +1799,8 @@ export interface UseQuizSessionStudentResult {
       locale?: string;
       /** A revisit draft while Live view watches: a changed one saves over the submitted answer. */
       liveRevisit?: boolean;
+      /** Part of this answer was dictated with Speech to text; recorded on the response once. */
+      dictated?: boolean;
     }
   ) => Promise<void>;
   /**
@@ -2334,6 +1945,16 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const paperWrittenIdsRef = useRef<readonly string[]>([]);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   paperWrittenIdsRef.current = session?.paperWrittenQuestionIds ?? [];
+  // A device write for a paper-answered question is refused by the rules; skip it.
+  const isPaperAnswered = useCallback(
+    (existing: QuizResponse, questionId: string) =>
+      !!existing.answers?.some(
+        (a) => a.questionId === questionId && a.paperScanId
+      ) ||
+      (!!existing.paperWrittenBatchId &&
+        paperWrittenIdsRef.current.includes(questionId)),
+    []
+  );
 
   // Per-questionId timestamp of the most recent history snapshot write.
   // Used to throttle snapshots — see HISTORY_SNAPSHOT_THROTTLE_MS.
@@ -2345,6 +1966,8 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   // Starts `undefined` (pointer not yet resolved) so a submit racing the
   // pointer load leaves any existing snapshot untouched.
   const servedQuestionIdsRef = useRef<string[] | null | undefined>(undefined);
+  // Dictated markers already sent this page load, as session/response/question.
+  const dictatedSentRef = useRef<Set<string>>(new Set());
   const setServedQuestionIds = useCallback((ids: string[] | null) => {
     servedQuestionIdsRef.current = ids && ids.length > 0 ? ids : null;
   }, []);
@@ -2616,15 +2239,31 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     boardNames && boardNames.sessionId === sessionIdState
       ? boardNames.names
       : null;
+  // Random numbers change with each attempt.
+  const myCalcKey = myResponse?._responseKey
+    ? calcAttemptKey(myResponse._responseKey, myResponse)
+    : undefined;
   const mergedSession = useMemo(() => {
-    const merged = mergeQuizSessionContent(session, content, readAloudPaths);
+    const content_ = mergeQuizSessionContent(session, content, readAloudPaths);
+    // Random numbers: this student's own numbers written into each prompt.
+    const merged =
+      content_ &&
+      myCalcKey &&
+      content_.publicQuestions?.some((q) => q.calcVariables?.length)
+        ? {
+            ...content_,
+            publicQuestions: content_.publicQuestions.map((q) =>
+              fillCalcPublicQuestion(q, myCalcKey)
+            ),
+          }
+        : content_;
     return merged?.liveLeaderboard && names
       ? {
           ...merged,
           liveLeaderboard: withLeaderboardNames(merged.liveLeaderboard, names),
         }
       : merged;
-  }, [session, content, readAloudPaths, names]);
+  }, [session, content, readAloudPaths, names, myCalcKey]);
 
   const lookupSession = useCallback(
     async (
@@ -2683,6 +2322,17 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     []
   );
 
+  // Set after a paper-row claim so the second join can't claim again.
+  const claimRejoinRef = useRef(false);
+  const joinAgainRef = useRef<
+    | ((
+        code: string,
+        pin?: string,
+        classPeriod?: string,
+        teacherUid?: string
+      ) => Promise<string>)
+    | null
+  >(null);
   const joinQuizSession = useCallback(
     async (
       code: string,
@@ -2793,7 +2443,13 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         const sessionHasRosters =
           Array.isArray(sessionData.rosterIds) &&
           sessionData.rosterIds.length > 0;
-        if (isAnonymous && sanitizedPin && sessionHasRosters) {
+        // The rejoin after a paper-row claim already ran the bridge once.
+        if (
+          isAnonymous &&
+          sanitizedPin &&
+          sessionHasRosters &&
+          !claimRejoinRef.current
+        ) {
           try {
             const callable = httpsCallable<
               {
@@ -3063,6 +2719,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 ? { partsDone: deleteField() }
                 : {}),
               ...(existing.partHeld != null ? { partHeld: deleteField() } : {}),
+              ...retakeKeyStrip(existing),
               // A bank-draw session rolls a fresh draw for the next attempt.
               ...(Array.isArray(sessionData.bankSlots) &&
               sessionData.bankSlots.length > 0
@@ -3087,6 +2744,17 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 hasClassPeriod: !!classPeriod,
               })
             );
+            // The new attempt starts with nothing dictated.
+            dictatedSentRef.current.clear();
+            if ((existing.dictated ?? []).length > 0) {
+              void updateDoc(responseRef, { dictated: [] }).catch(
+                (err: unknown) =>
+                  console.error(
+                    '[useQuizSession] dictated marker reset failed:',
+                    err
+                  )
+              );
+            }
           } else if (
             (classPeriod && existing.classPeriod !== classPeriod) ||
             needsAttemptClock(sessionData, existing)
@@ -3305,23 +2973,59 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                   .commit()
               : setDoc(responseRef, row);
           };
-          await retryWithFreshClock(studentUid, create).catch((err: unknown) =>
-            logQuizJoinFirestoreError('create-response', err, {
-              sessionId: sessionDoc.id,
-              responseKey,
-              studentUid,
-              isAnonymous,
-              hasPin: !!sanitizedPin,
-              hasClassPeriod: !!finalClassPeriod,
-              hasResolvedClassId: !!resolvedClassId,
-              sessionClassIds: Array.isArray(sessionData.classIds)
-                ? sessionData.classIds
-                : undefined,
-              sessionClassId: sessionData.classId,
-              sessionTeacherUid: sessionData.teacherUid,
-              sessionStatus: sessionData.status,
-            })
+          // A refused create on a hybrid session may be a sheet scanned before this join, at this PIN key.
+          const canClaim =
+            isAnonymous &&
+            !claimRejoinRef.current &&
+            responseKey.startsWith('pin-') &&
+            (sessionData.paperWrittenQuestionIds?.length ?? 0) > 0;
+          let claimed = false;
+          await retryWithFreshClock(studentUid, create).catch(
+            async (err: unknown) => {
+              if (
+                canClaim &&
+                getErrorCode(err) === 'permission-denied' &&
+                (await claimScannedResponse(
+                  sessionDoc.id,
+                  sanitizedPin,
+                  classPeriod,
+                  periodKey
+                ))
+              ) {
+                claimed = true;
+                return;
+              }
+              logQuizJoinFirestoreError('create-response', err, {
+                sessionId: sessionDoc.id,
+                responseKey,
+                studentUid,
+                isAnonymous,
+                hasPin: !!sanitizedPin,
+                hasClassPeriod: !!finalClassPeriod,
+                hasResolvedClassId: !!resolvedClassId,
+                sessionClassIds: Array.isArray(sessionData.classIds)
+                  ? sessionData.classIds
+                  : undefined,
+                sessionClassId: sessionData.classId,
+                sessionTeacherUid: sessionData.teacherUid,
+                sessionStatus: sessionData.status,
+              });
+            }
           );
+          // The row is ours now: join again so the existing-row path picks it up.
+          if (claimed && joinAgainRef.current) {
+            claimRejoinRef.current = true;
+            try {
+              return await joinAgainRef.current(
+                code,
+                pin,
+                classPeriod,
+                teacherUid
+              );
+            } finally {
+              claimRejoinRef.current = false;
+            }
+          }
         } else if (resolvedPeriodName) {
           // Backfill classPeriod on an existing SSO response that joined
           // before this code shipped (or before the teacher retargeted),
@@ -3435,6 +3139,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     },
     []
   );
+  useLayoutEffect(() => {
+    joinAgainRef.current = joinQuizSession;
+  }, [joinQuizSession]);
 
   const submitAnswer = useCallback(
     async (
@@ -3446,6 +3153,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         timedOutUnderMinimum?: boolean;
         locale?: string;
         liveRevisit?: boolean;
+        dictated?: boolean;
       }
     ) => {
       const sessionId = sessionIdRef.current;
@@ -3460,6 +3168,24 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         RESPONSES_COLLECTION,
         responseKey
       );
+
+      // Its own small write: the rules take one new id at a time, and the answer write is near their size limit.
+      const dictatedKey = `${sessionId}/${responseKey}/${questionId}`;
+      if (
+        opts?.dictated === true &&
+        !dictatedSentRef.current.has(dictatedKey) &&
+        myResponseRef.current != null &&
+        !isAnswerLocked(myResponseRef.current) &&
+        !(myResponseRef.current.dictated ?? []).includes(questionId)
+      ) {
+        dictatedSentRef.current.add(dictatedKey);
+        void updateDoc(responseRef, {
+          dictated: arrayUnion(questionId),
+        }).catch((err: unknown) => {
+          dictatedSentRef.current.delete(dictatedKey);
+          console.error('[useQuizSession] dictated marker write failed:', err);
+        });
+      }
 
       // Pure given a live `existing` doc — shared by both the draft and
       // submit paths below so the guard/rewrite logic can't drift between
@@ -3493,12 +3219,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           (a) => a.questionId === questionId
         );
         // An imported paper answer is server-written; the rules refuse a student rewrite of it.
-        if (
-          priorEntry?.paperScanId ||
-          (existing.paperWrittenBatchId &&
-            paperWrittenIdsRef.current.includes(questionId))
-        )
+        if (isPaperAnswered(existing, questionId)) {
           return { skip: true, snapshot: null };
+        }
 
         // #1 guard — see `isUnsafeBlankDraft` doc. Refuses a draft autosave
         // that would silently clobber a non-empty saved answer with ''.
@@ -3749,7 +3472,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         });
       }
     },
-    [runAnswersTx]
+    [runAnswersTx, isPaperAnswered]
   );
 
   /**
@@ -3791,6 +3514,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           if (!snap.exists()) return;
           const existing = snap.data() as QuizResponse;
           if (isAnswerLocked(existing)) return;
+          if (isPaperAnswered(existing, input.questionId)) return;
           const existingAnswers = existing.answers ?? [];
           // Symmetric to markUnresponded: a closed slot never accepts a take.
           if (isRecordingSlotClosed(existingAnswers, input.questionId)) return;
@@ -3834,7 +3558,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       );
       return writtenTakeIndex;
     },
-    [runAnswersTx]
+    [runAnswersTx, isPaperAnswered]
   );
 
   /**
@@ -3953,6 +3677,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           if (!snap.exists()) return;
           const existing = snap.data() as QuizResponse;
           if (isAnswerLocked(existing)) return;
+          if (isPaperAnswered(existing, questionId)) return;
           const existingAnswers = existing.answers ?? [];
           // Never overwrite a real response — a student who already recorded a
           // take on this question has answered it.
@@ -3992,7 +3717,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         })
       );
     },
-    [runAnswersTx]
+    [runAnswersTx, isPaperAnswered]
   );
 
   const completeQuiz = useCallback(async (opts?: { timeUp?: boolean }) => {

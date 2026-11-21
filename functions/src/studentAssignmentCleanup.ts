@@ -76,12 +76,40 @@ export async function deletePointersForAssignment(
   return removed;
 }
 
+/** Deletes a Mini App session's student receipts, only when the session belongs to the deleted assignment's owner. */
+export async function deleteMiniAppReceipts(
+  db: admin.firestore.Firestore,
+  sessionId: unknown,
+  ownerUid: string
+): Promise<boolean> {
+  if (typeof sessionId !== 'string' || !sessionId || sessionId.includes('/'))
+    return false;
+  const sessionRef = db.collection('mini_app_sessions').doc(sessionId);
+  const session = await sessionRef.get();
+  if (!session.exists || session.get('teacherUid') !== ownerUid) return false;
+  await db.recursiveDelete(sessionRef.collection('receipts'));
+  return true;
+}
+
 async function handleAssignmentDeleted(
   assignmentId: string,
   ownerUid: string,
   kind: AssignmentKind,
   data: Record<string, unknown> | undefined
 ): Promise<void> {
+  if (kind === 'mini-app' && ownerUid) {
+    // A failed receipt sweep must not strand the pointers below.
+    await deleteMiniAppReceipts(
+      admin.firestore(),
+      data?.sessionId,
+      ownerUid
+    ).catch((err: unknown) =>
+      logger.warn('studentAssignmentCleanup: receipt cleanup failed', {
+        assignmentId,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    );
+  }
   const refs = pointerRefsFromAssignment(data);
   if (refs.length === 0) return;
   const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
@@ -163,6 +191,17 @@ export const cleanupFlashcardAssignmentPointers = onDocumentDeleted(
       event.params.assignmentId,
       event.params.userId,
       'flashcards',
+      event.data?.data()
+    )
+);
+
+export const cleanupWritingAssignmentPointers = onDocumentDeleted(
+  triggerOptions('users/{userId}/writing_assignment_records/{assignmentId}'),
+  (event) =>
+    handleAssignmentDeleted(
+      event.params.assignmentId,
+      event.params.userId,
+      'writing',
       event.data?.data()
     )
 );

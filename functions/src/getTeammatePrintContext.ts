@@ -20,7 +20,10 @@ import * as admin from './firebaseAdmin';
 import axios from 'axios';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
-import { refreshGoogleAccessTokenForUid } from './googleOAuth';
+import {
+  DRIVE_FILE_SCOPE,
+  refreshGoogleAccessTokenForUid,
+} from './googleOAuth';
 import {
   GOOGLE_OAUTH_CLIENT_ID,
   GOOGLE_OAUTH_CLIENT_SECRET,
@@ -659,7 +662,11 @@ export async function handleGetTeammatePrintContext(
 export function buildLiveDeps(): TeammatePrintDeps {
   return {
     getAccessToken: async (uid) =>
-      (await refreshGoogleAccessTokenForUid(uid)).accessToken,
+      (
+        await refreshGoogleAccessTokenForUid(uid, {
+          scope: DRIVE_FILE_SCOPE,
+        })
+      ).accessToken,
     readDriveJson: async (accessToken, fileId) => {
       const res = await axios.get<unknown>(
         `${DRIVE_API}/files/${encodeURIComponent(fileId)}`,

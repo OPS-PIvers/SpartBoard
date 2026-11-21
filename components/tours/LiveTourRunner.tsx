@@ -88,7 +88,7 @@ import {
   tourQuickAccess,
 } from './tourSession';
 import { endTourFrame, startTourFrame, useTourFrameHold } from './tourFrame';
-import { ANCHOR_SEARCH_MS, useAnchorElement } from './useAnchorElement';
+import { ANCHOR_SEARCH_MS, inRow, useAnchorElement } from './useAnchorElement';
 import {
   findTourAnchor,
   findTourAnchors,
@@ -139,11 +139,14 @@ import {
   type SavedTour,
 } from './tourResume';
 import { recordTourFinished } from '@/utils/gettingStartedProgress';
-import { usePrefersReducedMotion } from './usePrefersReducedMotion';
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 import {
   isInPopup,
+  isBlankField,
+  isTypingField,
   openPopupBoxes,
   shieldTourUi,
+  withLabel,
   withNearbyPopups,
 } from './popups';
 import { startTourRunLog, type TourRunLog } from './tourRuns';
@@ -398,12 +401,12 @@ const readViewport = () =>
     : { w: window.innerWidth, h: window.innerHeight };
 
 /** The dock, Sidebar pill, FABs and open menus, which the callout keeps clear of. */
-const tourObstacles = () => [
+const tourObstacles = (inside?: Element | null) => [
   ...Array.from(document.querySelectorAll('[data-tour-obstacle]'))
     .map((el) => el.getBoundingClientRect())
     .filter((r) => r.width > 0 && r.height > 0)
     .map((r) => ({ x: r.x, y: r.y, w: r.width, h: r.height })),
-  ...openPopupBoxes(),
+  ...openPopupBoxes(inside),
 ];
 
 const SHAKE: Keyframe[] = [
@@ -755,13 +758,23 @@ export const LiveTourRunner: React.FC = () => {
   const binding = step?.tour ?? null;
 
   const rect = anchor.status === 'found' ? anchor.rect : null;
-  const target = rect
+  const bare = rect
     ? { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
     : null;
-  // A menu the step's control opened is lit and kept clear along with it.
+  // A checkbox in a menu is lit and clickable with its label, so a click on the name counts.
+  const target =
+    bare && tour && anchor.element && isInPopup(anchor.element)
+      ? withLabel(bare, anchor.element)
+      : bare;
+  // A menu the step's control opened is lit along with it; a menu the control sits in is not.
   const spot = target
-    ? withNearbyPopups(target, tour ? openPopupBoxes() : [])
+    ? withNearbyPopups(target, tour ? openPopupBoxes(anchor.element, true) : [])
     : null;
+  // The tip still keeps clear of the whole menu the control sits in.
+  const tipTarget =
+    target && tour
+      ? withNearbyPopups(target, openPopupBoxes(anchor.element))
+      : spot;
   // Settle, tick, glide, tip on a paced run (P1); editor and test runs keep their own pace.
   const paced = tour?.phase === 'running' && !tour.edit && !tour.test;
   const rhythm = useStepRhythm({
@@ -1742,7 +1755,7 @@ export const LiveTourRunner: React.FC = () => {
     if (!rows || rows.length < 2 || !box || !(e instanceof MouseEvent)) return;
     const hit = e.target instanceof Element ? e.target : null;
     if (!hit || hit.closest('[data-tour-ignore]') || isInPopup(hit)) return;
-    if (rows.some((r) => r.contains(hit))) return;
+    if (rows.some((r) => inRow(r, hit))) return;
     const { clientX: x, clientY: y } = e;
     if (x < box.left || x > box.right || y < box.top || y > box.bottom) return;
     e.preventDefault();
@@ -1779,7 +1792,7 @@ export const LiveTourRunner: React.FC = () => {
     if (!hit || hit.closest('[data-tour-ignore]')) return;
     const inAnchor = (
       anchor.matches ?? (anchor.element ? [anchor.element] : [])
-    ).some((m) => m.contains(hit));
+    ).some((m) => inRow(m, hit));
     // The current step's own listener handles its control, even when a later step reuses it.
     if (inAnchor && tour.steps[tour.index]?.tour?.action !== 'observe') return;
     // While a step is lit the dim swallows clicks outside its control and any menu beside it.
@@ -2003,9 +2016,11 @@ export const LiveTourRunner: React.FC = () => {
   // Re-places the tip after the bar is dragged.
   const [, setBarMoves] = useState(0);
   const onBarPlace = useCallback(() => setBarMoves((n) => n + 1), []);
-  const obstacles = tour ? [...tourObstacles(), ...dialogBoxes] : [];
-  const placement = spot
-    ? placeCallout({ box, target: spot, container: viewport, obstacles })
+  const obstacles = tour
+    ? [...tourObstacles(anchor.element), ...dialogBoxes]
+    : [];
+  const placement = tipTarget
+    ? placeCallout({ box, target: tipTarget, container: viewport, obstacles })
     : null;
   const tether =
     placement && target
@@ -2606,16 +2621,24 @@ export const LiveTourRunner: React.FC = () => {
     if (hintOn) playCursor();
   };
 
-  // Every step moves focus to its heading so keyboard and screen reader users land on it.
+  // Each step moves focus to its heading so keyboard and screen reader users land on it.
   const headingRef = useRef<HTMLDivElement | null>(null);
   // A paced tip mounts after the ring settles, so focus waits for it.
   const showingStep = running && !!step && rhythm.tipShown;
-  useEffect(() => {
-    if (!showingStep) return;
+  const focusStep = useEffectEvent(() => {
     // A dropdown the teacher just opened keeps focus, or the browser closes its list.
     const open = openPopup.current;
     if (open && open === document.activeElement) return;
+    // An empty box, or the one this step types into, keeps focus; the live region reads the step.
+    const active = document.activeElement;
+    if (isTypingField(active) && !active.closest('[data-tour-ignore]')) {
+      if (isBlankField(active)) return;
+      if (action === 'type' && anchor.element?.contains(active)) return;
+    }
     headingRef.current?.focus({ preventScroll: true });
+  });
+  useEffect(() => {
+    if (showingStep) focusStep();
   }, [showingStep, stepIndex]);
 
   const canRead = !!step && (!!step.narration?.url || speechAvailable());

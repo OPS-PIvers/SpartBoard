@@ -19,7 +19,10 @@ import { GradebookGrid } from './GradebookGrid';
 import { GradebookSubBar } from './GradebookSubBar';
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature: () => false }),
+  useAuth: () => ({
+    canAccessFeature: () => false,
+    canAccessWidget: () => true,
+  }),
 }));
 
 const NOW = new Date(2026, 9, 1).getTime();

@@ -4,6 +4,7 @@ import { ChevronDown, Search, User, Users } from 'lucide-react';
 import type { ClassRoster, StudentTargetRef } from '@/types';
 import { studentTargetRefKey } from '@/utils/studentTargetRef';
 import {
+  classLabel,
   studentCountLabel,
   withClassStudents,
   type AssignClassesValue,
@@ -24,7 +25,7 @@ export interface StudentPickMenuProps {
   value: AssignClassesValue;
   onChange: (next: AssignClassesValue) => void;
   /** Live-tour anchor for one class's student menu button, keyed by class id. */
-  rowAnchor?: (classId: string) => TourAnchorAttrs;
+  rowAnchor?: (classId: string, rowIndex: number) => TourAnchorAttrs;
   /** Paper sheets need no sign-in, so the caller can make every student pickable. */
   refFor?: StudentRefFor;
 }
@@ -45,8 +46,9 @@ export const StudentPickMenu: React.FC<StudentPickMenuProps> = ({
         <ClassStudentRow
           key={roster.id}
           roster={roster}
+          label={classLabel(roster, rosters)}
           rowKey={`row-${rowIndex + 1}`}
-          anchor={rowAnchor?.(roster.id)}
+          anchor={rowAnchor?.(roster.id, rowIndex)}
           refs={value.studentsByClass[roster.id] ?? null}
           refFor={refFor}
           onChange={(refs) =>
@@ -60,20 +62,26 @@ export const StudentPickMenu: React.FC<StudentPickMenuProps> = ({
 
 const ClassStudentRow: React.FC<{
   roster: ClassRoster;
+  label: string;
   rowKey: string;
   refs: StudentTargetRef[] | null;
   onChange: (refs: StudentTargetRef[] | null) => void;
   anchor?: TourAnchorAttrs;
   refFor?: StudentRefFor;
-}> = ({ roster, rowKey, refs, onChange, anchor, refFor }) => {
+}> = ({ roster, label, rowKey, refs, onChange, anchor, refFor }) => {
   const { open, setOpen, rootRef, onKeyDown } = usePickMenu();
   const menuId = useId();
   const narrowed = !!refs && refs.length > 0;
 
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="min-w-0 truncate text-sm text-slate-700">
+      <span className="min-w-0 text-sm text-slate-700 wrap-anywhere">
         {roster.name}
+        {label !== roster.name && (
+          <span className="ml-1.5 whitespace-nowrap text-xs text-slate-400">
+            {studentCountLabel(roster.studentCount)}
+          </span>
+        )}
       </span>
       <div
         ref={rootRef}
@@ -88,7 +96,7 @@ const ClassStudentRow: React.FC<{
           aria-expanded={open}
           aria-controls={open ? menuId : undefined}
           {...tourFieldAttr('assign-students.trigger', 'assign', rowKey)}
-          aria-label={`${roster.name}: ${narrowed ? studentCountLabel(refs.length) : 'All students'}`}
+          aria-label={`${label}: ${narrowed ? studentCountLabel(refs.length) : 'All students'}`}
           className={`flex h-8 w-full items-center gap-2 rounded-lg border px-2.5 text-sm hover:border-slate-400 ${
             narrowed
               ? 'border-brand-blue-primary/50 bg-brand-blue-lighter/40 font-semibold text-brand-blue-dark'
@@ -174,7 +182,7 @@ const StudentMenu: React.FC<{
           <div className="px-2 pt-1.5 pb-0.5 text-xxs font-bold uppercase tracking-widest text-slate-400">
             Groups
           </div>
-          {groups.map((group) => {
+          {groups.map((group, rowIndex) => {
             const { targetable } = rosterGroupMembers(roster, group, refFor);
             const added =
               targetable.length > 0 &&
@@ -188,7 +196,11 @@ const StudentMenu: React.FC<{
                 disabled={targetable.length === 0}
                 title={targetable.length === 0 ? NO_SIGN_IN_TITLE : undefined}
                 aria-pressed={added}
-                {...tourFieldAttr('assign-students.group', 'assign', group.id)}
+                {...tourFieldAttr(
+                  'assign-students.group',
+                  'assign',
+                  `row-${rowIndex + 1}`
+                )}
                 onClick={() => {
                   if (added) {
                     const drop = new Set(

@@ -35,6 +35,7 @@ import {
   toMillis,
   trustedTurnInMs,
   type QuizContext,
+  scoreWritingResponse,
 } from './gradeRowMath';
 import type { RowScore } from './types';
 
@@ -151,6 +152,24 @@ describe('trustedTurnInMs', () => {
 });
 
 describe('scoreQuizResponse', () => {
+  it('marks a scan from a printed group copy as on paper', () => {
+    const response = {
+      status: 'completed',
+      studentUid: 's1',
+      answers,
+      completedAttempts: 1,
+      submittedAt: 5,
+    };
+    const ctx = { ...quizCtx(), paperCopyBatchIds: new Set(['b1']) };
+    expect(
+      scoreQuizResponse({}, { ...response, paperBatchId: 'b1' }, ctx).onPaper
+    ).toBe(true);
+    // A whole-class paper stack keeps its usual Late and Missing.
+    expect(
+      scoreQuizResponse({}, { ...response, paperBatchId: 'b2' }, ctx).onPaper
+    ).toBeUndefined();
+  });
+
   it('waits for the teacher while a written answer is ungraded', () => {
     const r = scoreQuizResponse(
       {},
@@ -295,6 +314,35 @@ describe('scoreQuestions: written answers on paper', () => {
             : a
         ),
       }).awaiting
+    ).toBe(true);
+  });
+
+  it('holds a paper FIB as owed only on a scanned answer of an imported paper response', () => {
+    const questions = keyQuestions(key.slice(0, 2));
+    const unscanned = [
+      { questionId: 'q1', answer: 'A' },
+      { questionId: 'q2', answer: '', paperTranscript: 'pending' as const },
+    ];
+    expect(
+      scoreQuestions({ questions, answers: unscanned, paperAttested: true })
+        .awaiting
+    ).toBe(false);
+    const fib = [
+      { questionId: 'q1', answer: 'A' },
+      {
+        questionId: 'q2',
+        answer: '',
+        paperTranscript: 'pending' as const,
+        paperScanId: 's1',
+      },
+    ];
+    expect(scoreQuestions({ questions, answers: fib })).toMatchObject({
+      awaiting: false,
+      earned: 2,
+      max: 3,
+    });
+    expect(
+      scoreQuestions({ questions, answers: fib, paperAttested: true }).awaiting
     ).toBe(true);
   });
 
@@ -970,5 +1018,57 @@ describe('scoreMiniAppBest', () => {
         'c1'
       )
     ).toMatchObject({ published: false });
+  });
+});
+
+describe('scoreWritingResponse', () => {
+  it('scores the returned grade out of its own total', () => {
+    expect(
+      scoreWritingResponse(20, {
+        status: 'returned',
+        classId: 'c1',
+        turnedInAt: 1_000,
+        grade: { draftId: '2', pointsAwarded: 15, maxPoints: 20 },
+      })
+    ).toMatchObject({
+      state: 'scored',
+      points: 15,
+      max: 20,
+      rawPct: 75,
+      submittedAt: 1_000,
+      classId: 'c1',
+      published: true,
+    });
+  });
+
+  it('awaits a grade once turned in, and is in progress before', () => {
+    expect(
+      scoreWritingResponse(20, { status: 'turned-in', turnedInAt: 5 })
+    ).toMatchObject({ state: 'awaiting-grade', points: null, max: 20 });
+    expect(scoreWritingResponse(20, { status: 'draft' })).toMatchObject({
+      state: 'in-progress',
+      submittedAt: null,
+    });
+  });
+
+  it('keeps an excused piece out of the average', () => {
+    expect(
+      scoreWritingResponse(20, {
+        status: 'returned',
+        turnedInAt: 5,
+        grade: { draftId: '1', excused: true },
+      })
+    ).toMatchObject({
+      state: 'scored',
+      points: null,
+      rawPct: null,
+      excused: true,
+    });
+  });
+
+  it('shows a piece under revision as in progress until it is scored', () => {
+    expect(
+      scoreWritingResponse(20, { status: 'revising', turnedInAt: 5 })
+    ).toMatchObject({ state: 'in-progress' });
   });
 });

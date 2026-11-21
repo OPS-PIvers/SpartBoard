@@ -6,6 +6,7 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import {
   AGGREGATE_SCHEMA_VERSION,
+  capAnswer,
   computeAssessmentAggregate,
   parseTargets,
   resolveGroupQuestions,
@@ -26,6 +27,7 @@ import {
 } from './plcFlashcardAggregate';
 import { activePlcMemberUids } from './plcActiveMembers';
 import { sessionClassPredicate } from './sessionClassFilter';
+import { calcAttemptKey } from './quizCalculated';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -42,7 +44,7 @@ function parseAnswer(raw: unknown): RawAnswer | null {
   if (questionId.length === 0) return null;
   return {
     questionId,
-    answer: asString(r.answer),
+    answer: capAnswer(asString(r.answer)),
     answeredAt: typeof r.answeredAt === 'number' ? r.answeredAt : undefined,
     status: r.status === 'draft' ? 'draft' : undefined,
     unresponded: r.unresponded ?? undefined,
@@ -54,6 +56,9 @@ function parseAnswer(raw: unknown): RawAnswer | null {
       r.paperTranscript === 'image'
         ? r.paperTranscript
         : undefined,
+    ...(typeof r.paperScanId === 'string'
+      ? { paperScanId: r.paperScanId }
+      : {}),
   };
 }
 
@@ -172,6 +177,13 @@ export function syncedGroupEntitled(
   return false;
 }
 
+/** Assignment-doc `lenientFibLocales`; strings only. */
+export function parseLenientFibLocales(raw: unknown): string[] {
+  return Array.isArray(raw)
+    ? raw.filter((l): l is string => typeof l === 'string' && l !== '')
+    : [];
+}
+
 /** `{ [questionId]: { [locale]: string[] } }` from the teacher-owned assignment doc. */
 export function parseLocalizedFibAnswers(
   raw: unknown
@@ -207,19 +219,42 @@ export function parsePaperWrittenQuestionIds(
 
 /** Only the served `language` off each student override; the rest is irrelevant here. */
 export function parseServedLanguages(
-  raw: unknown
-): Record<string, { language?: string }> | undefined {
+  raw: unknown,
+  /** Student-paced, the only pace that shows the modified prompt. */
+  modifiedWording = false
+):
+  | Record<string, { language?: string; modifiedQuestions?: boolean }>
+  | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined;
-  const out: Record<string, { language?: string }> = {};
+  const out: Record<
+    string,
+    { language?: string; modifiedQuestions?: boolean }
+  > = {};
   for (const [uid, override] of Object.entries(
     raw as Record<string, unknown>
   )) {
     if (typeof override !== 'object' || override === null) continue;
-    const language = (override as Record<string, unknown>).language;
+    const { language, modifiedQuestions } = override as Record<string, unknown>;
+    const entry: { language?: string; modifiedQuestions?: boolean } = {};
     if (typeof language === 'string' && language.length > 0)
-      out[uid] = { language };
+      entry.language = language;
+    if (modifiedWording && modifiedQuestions === true)
+      entry.modifiedQuestions = true;
+    if (Object.keys(entry).length > 0) out[uid] = entry;
   }
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** A teacher-written id that is one valid Firestore document id, so `.doc()` can't throw or reject on it. */
+export function isSingleDocId(id: string): boolean {
+  return (
+    id.length > 0 &&
+    id.length <= 1500 &&
+    !id.includes('/') &&
+    id !== '.' &&
+    id !== '..' &&
+    !/^__.*__$/.test(id)
+  );
 }
 
 /** Negates a pending mark before any source read, so a later trigger writes a new mark instead of relying on this run. */
@@ -282,7 +317,7 @@ async function flashcardAggregateFor(
     const key = `${teacherUid}/${setId}`;
     let pending = setTargets.get(key);
     if (!pending) {
-      pending = setId
+      pending = isSingleDocId(setId)
         ? db
             .doc(`users/${teacherUid}/flashcard_sets/${setId}`)
             .get()
@@ -383,12 +418,13 @@ export async function recomputeOnePlcAssessment(
     const s = await withQuizSessionContent(sessionDoc.ref, sessionDoc.data());
     const teacherUid = asString(s.teacherUid);
     const assignmentId = asString(s.assignmentId) || sessionDoc.id;
+    const assignmentOk = !!teacherUid && isSingleDocId(assignmentId);
     const [responsesSnap, assignmentSnap, keySnap] = await Promise.all([
       sessionDoc.ref
         .collection('responses')
         .where('status', '==', 'completed')
         .get(),
-      teacherUid
+      assignmentOk
         ? db
             .collection('users')
             .doc(teacherUid)
@@ -396,7 +432,7 @@ export async function recomputeOnePlcAssessment(
             .doc(assignmentId)
             .get()
         : Promise.resolve(null),
-      teacherUid
+      assignmentOk
         ? db
             .collection('users')
             .doc(teacherUid)
@@ -426,14 +462,21 @@ export async function recomputeOnePlcAssessment(
       // A class the teacher removed from the quiz leaves the team totals; its responses stay.
       responses: responsesSnap.docs
         .filter((d) => keepClass(d.data()))
-        .map((d) => parseCompletedResponse(d.data())),
+        .map((d) => ({
+          ...parseCompletedResponse(d.data()),
+          responseKey: calcAttemptKey(d.id, d.data()),
+        })),
       scorePublishedAt:
         typeof s.scorePublishedAt === 'number' ? s.scorePublishedAt : null,
       localizedFibAnswers: parseLocalizedFibAnswers(
         assignmentData?.localizedFibAnswers
       ),
+      lenientFibLocales: parseLenientFibLocales(
+        assignmentData?.lenientFibLocales
+      ),
       overridesByStudentUid: parseServedLanguages(
-        assignmentData?.overridesByStudentUid
+        assignmentData?.overridesByStudentUid,
+        s.sessionMode === 'student'
       ),
       sections: parseChooseSections(s.sections),
       paperWrittenQuestionIds: parsePaperWrittenQuestionIds(
@@ -477,6 +520,106 @@ export interface RecomputeCounts {
   failed: number;
 }
 
+/** Consecutive failures after which an assessment stops retrying until a new trigger marks it dirty. */
+export const RECOMPUTE_MAX_FAILURES = 12;
+
+/** Most stale aggregates one run looks at, skipped ones included. */
+const STALE_SCAN_LIMIT = 500;
+
+/** Server-only failure count; the assessment doc can't take new fields without a rules change. */
+function failureRef(
+  db: Firestore,
+  plcId: string,
+  assessmentId: string
+): admin.firestore.DocumentReference {
+  return db.doc(
+    `plc_recompute_failures/${plcId}/recompute_failures/${assessmentId}`
+  );
+}
+
+/** Drops the failure and unfinished-attempt counts after a recompute that finished. */
+export async function clearRecomputeFailures(
+  db: Firestore,
+  plcId: string,
+  assessmentId: string
+): Promise<void> {
+  const ref = failureRef(db, plcId, assessmentId);
+  if ((await ref.get()).exists) await ref.delete();
+}
+
+/** Moves a failed assessment to the back of the dirty queue, or parks it once it has failed too often. */
+async function requeueFailed(
+  db: Firestore,
+  plcId: string,
+  assessmentId: string,
+  seen: unknown
+): Promise<boolean> {
+  const ref = db.doc(`plcs/${plcId}/assessments/${assessmentId}`);
+  const failRef = failureRef(db, plcId, assessmentId);
+  return db.runTransaction(async (tx) => {
+    const [snap, failSnap] = await Promise.all([tx.get(ref), tx.get(failRef)]);
+    const current: unknown = snap.data()?.dirtyAt;
+    const prior: unknown = failSnap.data()?.count;
+    // A parked assessment that a new trigger marked dirty starts a fresh run of retries.
+    const base =
+      typeof prior === 'number' && prior < RECOMPUTE_MAX_FAILURES ? prior : 0;
+    const count = base + 1;
+    const now = Date.now();
+    tx.set(failRef, { plcId, assessmentId, count, lastFailedAt: now });
+    // A claimed (negated) mark or the one this batch read moves; a newer trigger's mark is left alone.
+    if (typeof current !== 'number' || (current > 0 && current !== seen))
+      return false;
+    const parked = count >= RECOMPUTE_MAX_FAILURES;
+    tx.update(ref, { dirtyAt: parked ? null : now });
+    return parked;
+  });
+}
+
+/** Unfinished attempts (a run killed mid-compute) after which an assessment is parked instead of retried first again. */
+export const RECOMPUTE_MAX_UNFINISHED = 3;
+
+/** Records an attempt before the compute; true when earlier attempts never finished and the assessment is parked instead. */
+async function recordAttempt(
+  db: Firestore,
+  plcId: string,
+  assessmentId: string
+): Promise<boolean> {
+  const ref = db.doc(`plcs/${plcId}/assessments/${assessmentId}`);
+  const failRef = failureRef(db, plcId, assessmentId);
+  return db.runTransaction(async (tx) => {
+    const [snap, failSnap] = await Promise.all([tx.get(ref), tx.get(failRef)]);
+    const prior: unknown = failSnap.data()?.attempts;
+    const current: unknown = snap.data()?.dirtyAt;
+    // A positive mark other than the one the last attempt saw is a new trigger, so it restarts the count.
+    const fresh =
+      typeof current === 'number' &&
+      current > 0 &&
+      current !== failSnap.data()?.lastMark;
+    const attempts = !fresh && typeof prior === 'number' ? prior : 0;
+    if (attempts >= RECOMPUTE_MAX_UNFINISHED) {
+      tx.set(failRef, {
+        plcId,
+        assessmentId,
+        count: RECOMPUTE_MAX_FAILURES,
+        lastFailedAt: Date.now(),
+      });
+      if (typeof current === 'number') tx.update(ref, { dirtyAt: null });
+      return true;
+    }
+    tx.set(
+      failRef,
+      {
+        plcId,
+        assessmentId,
+        attempts: attempts + 1,
+        ...(typeof current === 'number' ? { lastMark: Math.abs(current) } : {}),
+      },
+      { merge: true }
+    );
+    return false;
+  });
+}
+
 /** Oldest-dirty-first pass over every PLC; per-item failures are logged and skipped. */
 export async function runRecomputePlcAssessments(
   db: Firestore,
@@ -497,8 +640,25 @@ export async function runRecomputePlcAssessments(
     const plcId = doc.ref.parent.parent?.id;
     if (!plcId) return;
     try {
+      if (await recordAttempt(db, plcId, doc.id)) {
+        logger.error('recomputePlcAssessments: parked after unfinished runs', {
+          plcId,
+          assessmentId: doc.id,
+        });
+        return;
+      }
       await recomputeOnePlcAssessment(db, plcId, doc.id);
       counts.recomputed++;
+      // A stuck clear would let unfinished-attempt counts park a healthy assessment, so retry once and log.
+      await clearRecomputeFailures(db, plcId, doc.id)
+        .catch(() => clearRecomputeFailures(db, plcId, doc.id))
+        .catch((err: unknown) =>
+          logger.warn('recomputePlcAssessments: could not clear attempts', {
+            plcId,
+            assessmentId: doc.id,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        );
     } catch (err) {
       counts.failed++;
       logger.error('recomputePlcAssessments: recompute failed', {
@@ -506,19 +666,50 @@ export async function runRecomputePlcAssessments(
         assessmentId: doc.id,
         error: err instanceof Error ? err.message : String(err),
       });
+      const seen: unknown =
+        doc.ref.parent.id === 'assessments' ? doc.data().dirtyAt : undefined;
+      const parked = await requeueFailed(db, plcId, doc.id, seen).catch(
+        () => false
+      );
+      if (parked)
+        logger.error(
+          'recomputePlcAssessments: gave up after repeated failures',
+          {
+            plcId,
+            assessmentId: doc.id,
+          }
+        );
     }
   };
   for (const doc of dirtySnap.docs) await recompute(doc);
 
-  // Spare budget refreshes aggregates written by an older schema.
-  const remaining = limit - dirtySnap.docs.length;
-  if (remaining > 0) {
-    const staleSnap = await db
+  // Spare budget refreshes aggregates written by an older schema; capped ones are paged past, not counted.
+  let remaining = limit - dirtySnap.docs.length;
+  let after: admin.firestore.QueryDocumentSnapshot | undefined;
+  let staleScanned = 0;
+  while (remaining > 0 && staleScanned < STALE_SCAN_LIMIT) {
+    const pageSize = remaining;
+    let query = db
       .collectionGroup('aggregates')
       .where('schemaVersion', '<', AGGREGATE_SCHEMA_VERSION)
-      .limit(remaining)
-      .get();
-    for (const doc of staleSnap.docs) await recompute(doc);
+      .limit(pageSize);
+    if (after) query = query.startAfter(after);
+    const staleSnap = await query.get();
+    if (staleSnap.empty) break;
+    for (const doc of staleSnap.docs) {
+      staleScanned++;
+      const plcId = doc.ref.parent.parent?.id;
+      const failures: unknown = plcId
+        ? (await failureRef(db, plcId, doc.id).get()).data()?.count
+        : undefined;
+      // A stale aggregate that keeps failing waits for a new dirty mark instead.
+      if (typeof failures === 'number' && failures >= RECOMPUTE_MAX_FAILURES)
+        continue;
+      remaining--;
+      await recompute(doc);
+    }
+    if (staleSnap.docs.length < pageSize) break;
+    after = staleSnap.docs[staleSnap.docs.length - 1];
   }
   return counts;
 }

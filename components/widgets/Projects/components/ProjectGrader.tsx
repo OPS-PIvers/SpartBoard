@@ -33,6 +33,7 @@ import { rubricMaxPoints } from '@/utils/rubricPoints';
 import { clampPoints } from '@/utils/gradeDraft';
 import { Toggle } from '@/components/common/Toggle';
 import { tourAttr } from '@/config/tourAnchors';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 /** The editable half of a grade; everything else is derived on save. */
 interface GradeDraft {
@@ -98,7 +99,8 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
   // Re-seed while rendering when the queue moves or a save lands, rather than
   // in an effect: an effect would paint the previous group's score first.
   const [hydrationKey, setHydrationKey] = useState('');
-  const nextKey = `${group?.id ?? ''}:${saved?.gradedAt ?? 0}`;
+  // Overrides load from their own docs after the grade, so they are part of the key.
+  const nextKey = `${group?.id ?? ''}:${saved?.gradedAt ?? 0}:${JSON.stringify(saved?.overridesByUid ?? {})}`;
   if (hydrationKey !== nextKey) {
     setHydrationKey(nextKey);
     setDraft(draftFrom(saved));
@@ -212,6 +214,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
     return (
       <EditorModalShell
         isOpen
+        headerAccent={LIBRARY_HEADER_ACCENTS.projects}
         title={`Grade — ${run.title}`}
         isDirty={false}
         hideSaveButton
@@ -287,6 +290,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
   return (
     <EditorModalShell
       isOpen
+      headerAccent={LIBRARY_HEADER_ACCENTS.projects}
       title={`Grade — ${run.title}`}
       subtitle={`Group ${index + 1} of ${ordered.length} · ${gradedCount} graded`}
       isDirty={false}

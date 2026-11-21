@@ -204,6 +204,30 @@ describe('useQuizAssignments — per-period sessions', () => {
     });
   });
 
+  it('marks a Manual due date with late work as not locking, with no close', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    let id = '';
+    await act(async () => {
+      ({ id } = await result.current.createAssignment(
+        QUIZ,
+        { sessionMode: 'student', sessionOptions: {}, dueAt: 2_000 },
+        {
+          accessMode: 'assessment',
+          periodAccess: PERIODS,
+          closeAt: null,
+          manualLate: true,
+        }
+      ));
+    });
+    const session = setAt(`quiz_sessions/${id}`);
+    expect(session).toMatchObject({ dueLocks: false, dueAt: 2_000 });
+    expect(session).not.toHaveProperty('closeAt');
+    expect(setAt(`users/${TEACHER_UID}/quiz_assignments/${id}`)).toMatchObject({
+      dueLocks: false,
+      dueAt: 2_000,
+    });
+  });
+
   it('drops a shared close on an assignment-mode session', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     let id = '';
@@ -256,5 +280,27 @@ describe('useQuizAssignments — per-period sessions', () => {
       );
     });
     expect(batchDelete).not.toHaveBeenCalledWith('quiz_sessions/a-1');
+  });
+
+  it("deletes each response's Live view position doc with the response", async () => {
+    mockGetDocs.mockResolvedValue({
+      docs: [
+        { id: 'r-1', ref: 'quiz_sessions/a-1/responses/r-1' },
+        { id: 'r-2', ref: 'quiz_sessions/a-1/responses/r-2' },
+      ],
+      empty: false,
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.deleteAssignment('a-1');
+    });
+    expect(batchDelete).toHaveBeenCalledWith(
+      'quiz_sessions/a-1/responses/r-1/live/state'
+    );
+    expect(batchDelete).toHaveBeenCalledWith(
+      'quiz_sessions/a-1/responses/r-2/live/state'
+    );
+    expect(batchDelete).toHaveBeenCalledWith('quiz_sessions/a-1/responses/r-1');
+    expect(batchDelete).toHaveBeenCalledWith('quiz_sessions/a-1');
   });
 });

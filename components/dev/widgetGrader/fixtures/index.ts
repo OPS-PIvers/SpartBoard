@@ -2,6 +2,7 @@ import type { WidgetType } from '@/types';
 import type { WidgetFixtureSet } from './types';
 import { artsLettersAgendaFixtures } from './arts-letters-agenda';
 import { focusFixtures } from './focus';
+import { agendaFixtures } from './agenda';
 import { blendingBoardFixtures } from './blending-board';
 import { carRiderProFixtures } from './car-rider-pro';
 import { conceptWebFixtures } from './concept-web';
@@ -46,6 +47,7 @@ import { first5Fixtures } from './first-5';
 import { flashcardsFixtures } from './flashcards';
 import { needDoPutThenFixtures } from './need-do-put-then';
 import { projectsFixtures } from './projects';
+import { writingFixtures } from './writing';
 import { reviewFixtures } from './review';
 import { routineGuideFixtures } from './routineGuide';
 import { soundboardFixtures } from './soundboard';
@@ -129,6 +131,7 @@ export const WIDGET_FIXTURES: Partial<Record<WidgetType, WidgetFixtureSet>> = {
   flashcards: flashcardsFixtures,
   'need-do-put-then': needDoPutThenFixtures,
   projects: projectsFixtures,
+  writing: writingFixtures,
   review: reviewFixtures,
   routineGuide: routineGuideFixtures,
   soundboard: soundboardFixtures,
@@ -155,6 +158,8 @@ export const WIDGET_FIXTURES: Partial<Record<WidgetType, WidgetFixtureSet>> = {
   // New widgets
   'arts-letters-agenda': artsLettersAgendaFixtures,
   focus: focusFixtures,
+  // Course and Agenda slice D
+  agenda: agendaFixtures,
 };
 
 // Types the harness can't grade, with the reason.

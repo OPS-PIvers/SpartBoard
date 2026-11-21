@@ -3,6 +3,7 @@
  * Teachers navigate through questions and see correct/incorrect highlighting.
  */
 
+import { QuestionAudioButton } from '@/components/quiz/QuestionAudioButton';
 import { MathText } from '@/components/common/MathText';
 import { PromptText } from '@/components/common/PromptText';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 import { QuizData, QuizQuestion } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
+import { sampleCalcQuestion } from '@/utils/quizCalcResponse';
 import {
   encodeMultiAnswer,
   multiAnswerCorrectOptions,
@@ -64,7 +66,12 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [prevIndex, setPrevIndex] = useState(currentIndex);
 
-  const question = quiz.questions[currentIndex];
+  const rawQuestion = quiz.questions[currentIndex];
+  // Random-number questions preview with one sample student's numbers.
+  const question = useMemo(
+    () => (rawQuestion ? sampleCalcQuestion(rawQuestion) : rawQuestion),
+    [rawQuestion]
+  );
 
   const reset = useCallback(() => {
     setSelectedAnswer(null);
@@ -147,6 +154,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
         {onBack && (
           <button
             onClick={onBack}
+            aria-label="Back"
             {...tourTypeAttr('quiz-library.preview-back', 'quiz')}
             className="hover:bg-brand-blue-primary/10 rounded-lg transition-colors text-brand-blue-primary"
             style={{ padding: 'min(6px, 1.5cqmin)' }}
@@ -252,6 +260,12 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
                 <PromptText text={question.text} />
               )}
             </p>
+            {question.promptAudio && (
+              <QuestionAudioButton
+                audio={question.promptAudio}
+                className="mt-2"
+              />
+            )}
           </div>
 
           {(question.stimulusIds?.length ?? 0) > 0 && (
@@ -387,6 +401,8 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
             <button
               key={i}
               onClick={() => setCurrentIndex(i)}
+              aria-label={`Question ${i + 1}`}
+              aria-current={i === currentIndex ? 'step' : undefined}
               {...tourFieldAttr(
                 'quiz-library.preview-dot',
                 'quiz',

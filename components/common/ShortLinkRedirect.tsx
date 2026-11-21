@@ -20,7 +20,9 @@ export const ShortLinkRedirect: React.FC = () => {
   // `/` is robust against trailing slashes (`/r/code/`) and stray
   // sub-segments (`/r/code/extra`) — we always take the first segment
   // after `/r/`.
-  const code = window.location.pathname.split('/')[2] ?? '';
+  // The code as typed wins; a miss retries it lowercase, since slugs are stored lowercase.
+  const rawCode = window.location.pathname.split('/')[2] ?? '';
+  const code = rawCode.toLowerCase();
   const [state, setState] = useState<ResolveState>(() =>
     code ? { status: 'resolving' } : { status: 'not-found' }
   );
@@ -31,7 +33,12 @@ export const ShortLinkRedirect: React.FC = () => {
 
     void (async () => {
       try {
-        const link = await resolveShortLink(code);
+        let linkCode = rawCode;
+        let link = await resolveShortLink(rawCode);
+        if (!link && rawCode !== code) {
+          linkCode = code;
+          link = await resolveShortLink(code);
+        }
         if (cancelled) return;
         if (!link) {
           setState({ status: 'not-found' });
@@ -62,7 +69,7 @@ export const ShortLinkRedirect: React.FC = () => {
         // Fire-and-forget — never block the redirect on the counter write.
         // The security rule explicitly permits this update from anonymous
         // sessions.
-        recordShortLinkClick(code).catch((err) => {
+        recordShortLinkClick(linkCode).catch((err) => {
           // Counter failure is non-fatal — log via the shared seam so
           // any future Sentry/Bugsnag wiring catches it.
           logError('ShortLinkRedirect.clickCounter', err, { code });
@@ -81,7 +88,7 @@ export const ShortLinkRedirect: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [code]);
+  }, [code, rawCode]);
 
   if (state.status === 'resolving' || state.status === 'redirecting') {
     return (

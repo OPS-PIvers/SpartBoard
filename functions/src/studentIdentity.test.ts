@@ -1205,6 +1205,14 @@ describe('getStudentClassDirectoryV1', () => {
       expect(calls).toHaveLength(4);
     });
 
+    it('shares one ClassLink lookup per owner across sign-ins that land at once', async () => {
+      const calls: string[] = [];
+      seedOwner('staff', { roleId: 'teacher', status: 'active' });
+      stubClassLink(['CL4'], calls);
+      await Promise.all([names(), names(), names()]);
+      expect(calls).toHaveLength(2);
+    });
+
     it('drops a staff owner whose roster names a section ClassLink does not list for them', async () => {
       seedOwner('staff', { roleId: 'teacher', status: 'active' });
       h.docStore.set('users/real/rosters/r1', {
@@ -2892,8 +2900,9 @@ describe('getPseudonymsForAssignmentV1', () => {
   it('resolves a test ref for a super admin, keyed by lowercased email', async () => {
     seedOneRoster();
     seedDomain('org-orono', '@orono.k12.mn.us');
-    h.docStore.set('admin_settings/user_roles', {
-      superAdmins: ['teacher@orono.k12.mn.us'],
+    h.docStore.set('organizations/orono/members/teacher@orono.k12.mn.us', {
+      roleId: 'super_admin',
+      status: 'active',
     });
     h.docStore.set('users/teacher1/rosters/r1', { testClassId: 'tc1' });
     h.docStore.set('organizations/org-orono/testClasses/tc1', {
@@ -2957,8 +2966,9 @@ describe('getPseudonymsForAssignmentV1', () => {
 
     it('resolves the test class for a super admin', async () => {
       seedTestClass();
-      h.docStore.set('admin_settings/user_roles', {
-        superAdmins: ['teacher@orono.k12.mn.us'],
+      h.docStore.set('organizations/orono/members/teacher@orono.k12.mn.us', {
+        roleId: 'super_admin',
+        status: 'active',
       });
       const res = await ask();
       expect(Object.keys(res.pseudonyms)).toEqual(['kid@orono.k12.mn.us']);

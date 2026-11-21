@@ -180,4 +180,60 @@ describe('useProjectRun — ensureRun clearing an already-imported rubric/dueAt'
       (mockSetDoc.mock.calls[1][1] as Record<string, unknown>).createdAt
     ).toBe(42);
   });
+
+  describe('studentSubmit', () => {
+    const existingRun = (acceptingUpdates: boolean) =>
+      act(() => {
+        runDocListener?.({
+          exists: () => true,
+          id: RUN_ID,
+          data: () => ({
+            id: RUN_ID,
+            projectId: PROJECT_ID,
+            teacherUid: TEACHER_UID,
+            title: baseProject.title,
+            steps: baseProject.steps,
+            classIds: [],
+            approvalStepIds: [],
+            acceptingUpdates,
+            updatedAt: 0,
+          }),
+        });
+      });
+
+    it('stamps a new run', async () => {
+      const { result } = renderHook(() =>
+        useProjectRun(TEACHER_UID, PROJECT_ID, TEACHER_UID)
+      );
+      await act(async () => {
+        await result.current.ensureRun(baseProject);
+      });
+      const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload.studentSubmit).toBe(true);
+    });
+
+    it('never stamps a closed run, so its groups stay Turned in', async () => {
+      const { result } = renderHook(() =>
+        useProjectRun(TEACHER_UID, PROJECT_ID, TEACHER_UID)
+      );
+      existingRun(false);
+      await act(async () => {
+        await result.current.ensureRun(baseProject);
+      });
+      const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload.studentSubmit).toBeUndefined();
+    });
+
+    it('stamps an open run made before submissions existed', async () => {
+      const { result } = renderHook(() =>
+        useProjectRun(TEACHER_UID, PROJECT_ID, TEACHER_UID)
+      );
+      existingRun(true);
+      await act(async () => {
+        await result.current.ensureRun(baseProject);
+      });
+      const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload.studentSubmit).toBe(true);
+    });
+  });
 });

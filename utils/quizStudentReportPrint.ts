@@ -241,6 +241,8 @@ export interface ResultsPrintJob {
   writtenMode?: WrittenReturnMode;
   /** The teacher has `paper-image-markup`: image markup prints with the written feedback. */
   imageMarkup?: boolean;
+  /** `results-print-v2`: one-choice picks leave right or wrong to the row label. */
+  compactMarks?: boolean;
 }
 
 const NO_PERIOD_LABEL = 'No class period';
@@ -293,6 +295,7 @@ const STIMULUS_KIND: Record<QuizStimulus['type'], string> = {
   youtube: 'Video',
   'gdoc-embed': 'Google Doc',
   calculator: 'Calculator',
+  'word-bank': 'Word bank',
 };
 
 const keyApplies = (line: StudentQuestionLine, mode: ResultsKeyMode): boolean =>
@@ -337,6 +340,12 @@ const markCell = (
   return `<div class="mark">${label}${pts}</div>`;
 };
 
+const VERDICT_MARKS: ReadonlySet<StudentOutcome> = new Set([
+  'correct',
+  'partial',
+  'incorrect',
+]);
+
 const tick = (correct: boolean) =>
   `<span class="tick">${correct ? '✓' : '✗'}</span>`;
 
@@ -344,20 +353,29 @@ function mcAnswer(
   line: StudentQuestionLine,
   student: ResultsPrintStudent,
   options: QuizResultsPrintOptions,
-  showKey: boolean
+  showKey: boolean,
+  compactMarks: boolean
 ): string {
   const multi = line.type === 'MA';
   const opts = line.options ?? [];
+  // Only a Correct, Partial or Incorrect row label already speaks for the pick.
+  const verdict = compactMarks && VERDICT_MARKS.has(line.mark);
   const items = opts
     .map((opt, i) => {
       const letter =
         student.lettered && CHOICE_LETTERS[i]
           ? `<span class="letter">${CHOICE_LETTERS[i]}.</span> `
           : '';
+      // One choice: the row's Correct/Incorrect already marks the pick, so only several choices tick each one.
       const mark =
-        opt.picked && options.markAnswers ? ` ${tick(opt.correct)}` : '';
+        opt.picked && options.markAnswers && (multi || !verdict)
+          ? ` ${tick(opt.correct)}`
+          : '';
+      // A marked pick already says it was right, so the tag only points at the ones missed.
       const key =
-        showKey && opt.correct
+        showKey &&
+        opt.correct &&
+        !(opt.picked && options.markAnswers && verdict)
           ? ' <span class="keytag">Correct answer</span>'
           : '';
       const bullet = multi ? (opt.picked ? '☑' : '☐') : opt.picked ? '●' : '○';
@@ -580,10 +598,9 @@ function writtenAnswer(
             const level = score
               ? c.levels.find((l) => l.id === score.levelId)
               : undefined;
-            const cell =
-              score && level
-                ? `${escapeHtml(level.label)} · ${formatExportPoints(score.points)} pt${score.points === 1 ? '' : 's'}`
-                : '<em>not scored</em>';
+            const cell = score
+              ? `${level ? `${escapeHtml(level.label)} · ` : ''}${formatExportPoints(score.points)} pt${score.points === 1 ? '' : 's'}`
+              : '<em>not scored</em>';
             const note = score?.note?.trim()
               ? `<div class="pts">${escapeHtml(score.note.trim())}</div>`
               : '';
@@ -617,7 +634,8 @@ function answerBlock(
   student: ResultsPrintStudent,
   options: QuizResultsPrintOptions,
   writtenMode?: WrittenReturnMode,
-  imageMarkup = false
+  imageMarkup = false,
+  compactMarks = false
 ): string {
   const showKey = keyApplies(line, options.keyMode);
   const keyLine = (label: string, text: string) =>
@@ -635,7 +653,7 @@ function answerBlock(
     return `<div class="answer">${line.answerText ? answerTextHtml(line.answerText, line) : '<em>No answer</em>'}</div>${keyLine('Correct answer', answerTextHtml(line.correctAnswerText ?? '', line))}`;
   }
   if (line.type === 'MC' || line.type === 'MA')
-    return mcAnswer(line, student, options, showKey);
+    return mcAnswer(line, student, options, showKey, compactMarks);
   if (line.type === 'Matching') return matchingAnswer(line, options, showKey);
   if (line.type === 'Ordering' && line.order) {
     const given =
@@ -714,7 +732,7 @@ function studentReport(
       const text = options.includeQuestions
         ? `<div class="text">${promptPrintHtml(line.text)}</div>`
         : '';
-      return `${stim}<li data-unit><span class="qn">${line.number}.</span><div>${text}${answerBlock(line, student, options, job.writtenMode, job.imageMarkup)}${explanationHtml(line, options)}</div>${markCell(line, options)}</li>`;
+      return `${stim}<li data-unit><span class="qn">${line.number}.</span><div>${text}${answerBlock(line, student, options, job.writtenMode, job.imageMarkup, job.compactMarks)}${explanationHtml(line, options)}</div>${markCell(line, options)}</li>`;
     })
     .join('');
   const questions =
@@ -974,30 +992,34 @@ export const RESULTS_PRINT_STYLES = `
   @page { size: letter; margin: 16mm 18mm; }
   * { box-sizing: border-box; }
   html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 10.5pt; }
+  body { margin: 0; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #111; font-size: 10.5pt; line-height: 1.4; }
   .block + .block, .pad + .block { break-before: page; }
+  .sheet { line-height: normal; }
   .pad { break-before: page; height: 1px; }
-  h1 { font-size: 13pt; margin: 0 0 1mm; }
-  .student { font-size: 14pt; font-weight: bold; margin: 0 0 1mm; }
-  .sub { margin: 0 0 1mm; color: #333; }
+  .head { display: grid; grid-template-columns: 1fr auto; column-gap: 6mm; align-items: start; border-bottom: 0.5mm solid #111; padding-bottom: 3mm; margin-bottom: 3mm; }
+  .head > * { grid-column: 1; }
+  .head > .score { grid-column: 2; grid-row: 1 / span 3; margin: 0; font-size: 15pt; text-align: right; white-space: nowrap; }
+  h1 { font-size: 11pt; font-weight: normal; color: #333; margin: 0; }
+  .student { font-size: 16pt; font-weight: bold; margin: 0 0 0.5mm; }
+  .sub { margin: 0.5mm 0 0; color: #555; font-size: 9.5pt; }
   .score { font-weight: bold; margin: 1mm 0; }
-  .head { margin-bottom: 4mm; }
-  h2 { font-size: 11pt; margin: 5mm 0 2mm; }
+  h2 { font-size: 10pt; text-transform: uppercase; letter-spacing: 0.06em; color: #333; margin: 5mm 0 1.5mm; }
   ol.q { list-style: none; padding: 0; margin: 0; }
-  ol.q > li { break-inside: avoid; border-top: 1px solid #bbb; padding: 2mm 0; display: grid; grid-template-columns: 8mm 1fr auto; gap: 2mm; }
+  ol.q > li { break-inside: avoid; border-top: 0.25mm solid #d4d4d4; padding: 2.5mm 0; display: grid; grid-template-columns: 8mm 1fr auto; gap: 2mm; }
+  ol.q > li:first-child { border-top: 0; }
   ol.q > li.q-stim { display: block; }
   .qn { font-weight: bold; }
-  .text { white-space: pre-wrap; margin-bottom: 1mm; }
+  .text { white-space: pre-wrap; margin-bottom: 1.5mm; }
   .answer { white-space: pre-wrap; }
-  .key { margin-top: 0.5mm; font-style: italic; }
-  .keytag { font-weight: bold; font-style: italic; border: 1px solid #000; padding: 0 1mm; }
-  .mark { text-align: right; white-space: nowrap; font-weight: bold; }
-  .pts { font-weight: normal; color: #444; }
+  .key { margin-top: 0.5mm; color: #333; }
+  .keytag { display: inline-block; margin-left: 1.5mm; font-size: 8pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.04em; border: 0.25mm solid #555; border-radius: 1mm; padding: 0 1.2mm; vertical-align: 0.2mm; }
+  .mark { text-align: right; white-space: nowrap; font-weight: bold; font-size: 9.5pt; }
+  .pts { font-weight: normal; color: #555; }
   .tick { font-weight: bold; }
   ul.opts, ul.pairs { list-style: none; padding: 0; margin: 0; }
-  li.opt { padding: 0.3mm 0; }
+  li.opt { padding: 0.4mm 0; }
   li.opt.picked { font-weight: bold; }
-  .bullet { display: inline-block; width: 4mm; }
+  .bullet { display: inline-block; width: 4mm; color: #555; }
   .letter { font-weight: bold; }
   .written p { margin: 0 0 1.5mm; }
   mark.hl { color: inherit; text-decoration: underline; }
@@ -1007,22 +1029,22 @@ export const RESULTS_PRINT_STYLES = `
   .hl-blue { background: #bae6fd; }
   sup.fn { font-weight: bold; }
   ol.notes { margin: 1mm 0 0; padding-left: 6mm; font-size: 9.5pt; }
-  .feedback { margin-top: 1.5mm; }
+  .feedback { margin-top: 1.5mm; padding-left: 3mm; border-left: 0.5mm solid #999; }
   .feedback-pts { font-weight: bold; }
   .comment { margin-top: 1mm; white-space: pre-wrap; }
   table { border-collapse: collapse; width: 100%; }
-  td { border-top: 1px solid #ccc; padding: 1.2mm 0; vertical-align: top; }
+  td { border-top: 0.25mm solid #d4d4d4; padding: 1.2mm 0; vertical-align: top; }
   td.pct { text-align: right; white-space: nowrap; padding-left: 3mm; }
   table.rubric { margin-top: 1mm; }
-  img.hw { display: block; max-width: 100%; max-height: 120mm; margin: 1mm 0; border: 1px solid #bbb; }
-  .hw-missing { margin: 1mm 0; padding: 3mm; border: 1px dashed #666; font-style: italic; color: #333; }
+  img.hw { display: block; max-width: 100%; max-height: 120mm; margin: 1mm 0; border: 0.25mm solid #bbb; }
+  .hw-missing { margin: 1mm 0; padding: 3mm; border: 0.25mm dashed #666; font-style: italic; color: #333; }
   .q-stim img { display: block; max-width: 100%; max-height: 110mm; margin: 0 auto; }
-  .passage { white-space: pre-wrap; border: 1px solid #999; padding: 2mm; }
+  .passage { white-space: pre-wrap; border: 0.25mm solid #999; border-radius: 1mm; padding: 2.5mm 3mm; }
   .stim-label { font-style: italic; }
   .targets, .comment-box { break-inside: avoid; }
-  .comment-box { margin-top: 5mm; border: 1px solid #000; padding: 2mm 3mm 3mm; }
+  .comment-box { margin-top: 5mm; border: 0.25mm solid #333; border-radius: 1mm; padding: 2mm 3mm 3mm; }
   .comment-box p { margin: 0 0 1mm; font-weight: bold; }
-  .rule { border-bottom: 1px solid #999; height: 8mm; }
+  .rule { border-bottom: 0.25mm solid #999; height: 8mm; }
   .sep { text-align: center; padding-top: 70mm; }
   .sep-period { font-size: 24pt; font-weight: bold; margin: 0 0 4mm; }
   .sep-title { font-size: 14pt; margin: 0 0 2mm; }
@@ -1096,7 +1118,8 @@ const stylesFor = (body: string): string =>
 /** The whole document, for the modal's preview iframe. */
 export function buildResultsPreviewDocument(body: string): string {
   return `<!doctype html><html><head><meta charset="utf-8"><style>${stylesFor(body)}
-  body { padding: 12mm 14mm; background: #fff; }
+  html { background: #e2e8f0; }
+  body { max-width: 216mm; margin: 4mm auto; padding: 12mm 14mm 16mm; background: #fff; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18); }
   .pad, .sep + .pad { display: none; }
 </style></head><body>${body}</body></html>`;
 }

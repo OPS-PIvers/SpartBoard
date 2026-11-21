@@ -111,6 +111,9 @@ export interface FriendlyQuestion {
   option_explanations?: { option: string; explanation: string }[] | null;
   /** free_response: library rubric to attach; null removes the attached one. */
   rubric_id?: string | null;
+  /** A picture ref to attach to this question as a new image. */
+  add_picture?: string;
+  picture_placement?: 'beside' | 'in_question';
 }
 
 const TO_STORED: Record<FriendlyType, StoredQuestionType> = {
@@ -154,9 +157,12 @@ const TYPE_BOUND_EXTRAS = [
   'rubricId',
   'rubricSnapshot',
   'rubricVisibleToStudents',
+  'modifiedRubricId',
+  'modifiedRubricSnapshot',
   'enforceWordLimit',
   'noSpellCheck',
   'answerKeyboard',
+  'calc',
   'paperBoxSize',
   'paperBoxStyle',
   'paperBoxImage',
@@ -267,7 +273,9 @@ export function toStoredQuestion(
 ): StoredQuestion {
   const type = TO_STORED[input.type];
   const text = input.text.trim();
-  if (!text) throw new ToolError(`Question ${n}: text is required.`);
+  // A teacher's recorded prompt stands in for text; it is kept from `existing`.
+  if (!text && !existing?.promptAudio)
+    throw new ToolError(`Question ${n}: text is required.`);
   const base: StoredQuestion = {
     id: existing?.id ?? newId(),
     timeLimit: input.time_limit_seconds ?? existing?.timeLimit ?? 0,
@@ -286,6 +294,9 @@ export function toStoredQuestion(
         continue;
       base[k] = v;
     }
+    // A rewritten prompt makes the teacher's modified wording stale.
+    if (existing.text !== text || existing.type !== type)
+      delete base.modifiedText;
   }
   if (input.points !== undefined) base.points = input.points;
   if (input.dok === null) delete base.dok;
@@ -418,14 +429,24 @@ export function toStoredQuestion(
 }
 
 /** Stored question → tool output (inverse of toStoredQuestion). */
-export function toFriendlyQuestion(
-  q: StoredQuestion
-): FriendlyQuestion & { needs_answer_key?: boolean } {
-  const out: FriendlyQuestion & { needs_answer_key?: boolean } = {
+export function toFriendlyQuestion(q: StoredQuestion): FriendlyQuestion & {
+  needs_answer_key?: boolean;
+  attached_media?: number;
+  recorded_prompt?: boolean;
+} {
+  const out: FriendlyQuestion & {
+    needs_answer_key?: boolean;
+    attached_media?: number;
+    recorded_prompt?: boolean;
+  } = {
     id: q.id,
     type: TO_FRIENDLY[q.type] ?? 'free_response',
     text: q.text,
   };
+  // The teacher recorded this prompt; empty text is on purpose and stays empty.
+  if (q.promptAudio) out.recorded_prompt = true;
+  if (Array.isArray(q.stimulusIds) && q.stimulusIds.length > 0)
+    out.attached_media = q.stimulusIds.length;
   if (q.points !== undefined) out.points = q.points;
   if (q.timeLimit) out.time_limit_seconds = q.timeLimit;
   const standards = standardCodes(q.targets);

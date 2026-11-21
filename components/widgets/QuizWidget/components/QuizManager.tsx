@@ -85,6 +85,7 @@ import {
   QuizWidgetKind,
 } from '@/types';
 import type { BankSource } from '@/hooks/useBankSources';
+import type { StudentViewVersion } from '@/utils/quizStudentViewVersions';
 import { QuizBanksTab } from './QuizBanksTab';
 import { useBankMenuActions } from './useBankMenuActions';
 import { LibraryKindIcon } from './LibraryKindIcon';
@@ -147,6 +148,7 @@ import { earliestDueAt } from '@/utils/perClassDueDates';
 import { AssignmentClassNames } from '@/components/common/library/AssignmentClassNames';
 import { applyWhen } from '@/utils/assignAvailability';
 import { QuizAssignStepper } from './QuizAssignStepper';
+import type { PrintedGroupPick } from '@/components/common/library/assignStepper/modificationGroups';
 import {
   DEFAULT_WRITTEN_ANSWERS,
   type WrittenAnswersValue,
@@ -156,6 +158,8 @@ import {
   paperWrittenQuestionIds,
 } from '@/utils/paperWrittenHybrid';
 import {
+  PAPER_MAX_BOX_PAGES,
+  PAPER_MULTI_PAGE_FEATURE,
   paperBoxImageChoices,
   withPaperBoxSizes,
   withPaperBoxStyles,
@@ -184,6 +188,8 @@ import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { quizNeedsManualGrading } from '@/utils/quizScoreOnSubmit';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
+import type { QuizLifecycle } from '@/hooks/useQuizClassActions';
+import { QuizAssignedTab } from './QuizAssignedTab';
 
 export interface PlcOptions {
   plcMode: boolean;
@@ -217,6 +223,8 @@ export interface QuizStepperAssign {
     boxSizes: Record<string, PaperBoxSize>;
     boxStyles: Record<string, PaperBoxStylePick>;
   };
+  /** Modification groups that print their version at assign (`paper-printed-versions`). */
+  printedGroups?: PrintedGroupPick[];
 }
 
 interface QuizAssignOptions {
@@ -244,8 +252,8 @@ function resolveEffectivePeriodNames(
 
 /**
  * Pre-check "Share results" when the quiz came from one of the teacher's
- * PLCs (its synced group carries that PLC's id). Falls back to the widget's
- * remembered `plcMode` when no sync info is known.
+ * PLCs (its synced group carries that PLC's id) or the teacher has one PLC.
+ * Falls back to the widget's remembered `plcMode` otherwise.
  */
 function resolveDefaultPlcSelection(
   quiz: QuizMetadata | null,
@@ -258,6 +266,9 @@ function resolveDefaultPlcSelection(
   if (groupPlcId && plcs.some((p) => p.id === groupPlcId)) {
     return { plcMode: true, plcId: groupPlcId };
   }
+  // Sharing starts on when there is one PLC, unless the quiz came from a different one.
+  if (plcs.length === 1 && !groupPlcId)
+    return { plcMode: true, plcId: plcs[0].id };
   return { plcMode: config.plcMode ?? false, plcId: '' };
 }
 
@@ -329,19 +340,35 @@ interface QuizManagerProps {
   /** Open the paper assign flow for a library quiz. Absent when the feature is off. */
   onAssignOnPaper?: (quiz: QuizMetadata) => void;
   /** Open the scan import for a paper assignment. */
-  onImportPaperResponses?: (assignment: QuizAssignment) => void;
+  onImportPaperResponses?: (
+    assignment: QuizAssignment,
+    opts?: PaperStackChoice
+  ) => void;
   /** Print a paper assignment's sheets again, same seats, for lost sheets. */
-  onReprintPaperSheets?: (assignment: QuizAssignment) => void;
+  onReprintPaperSheets?: (
+    assignment: QuizAssignment,
+    opts?: PaperStackChoice
+  ) => void;
   /** Import a stack with no Paper card (a teammate's print, or one from before Assign on paper). */
   onImportLooseStack?: (quiz: QuizMetadata) => void;
   /** The quiz has a printed stack that no paper assignment owns. */
   hasLooseStack?: (quizId: string) => boolean;
   /** Assign can put written questions on paper (`paper-written-hybrid` and the paper gates). */
   writtenOnPaperAvailable?: boolean;
+  /** A modification group can print its version at assign (`paper-printed-versions` and the paper gates). */
+  printedVersionsAvailable?: boolean;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
   /** Take the quiz as students see it. Absent when the feature is off. */
-  onStudentView?: (quiz: QuizMetadata) => void;
+  onStudentView?: (
+    quiz: QuizMetadata,
+    /** From Assign: the settings being picked and each modification group's version. */
+    preview?: {
+      behavior: QuizBehaviorSettings;
+      versions: StudentViewVersion[];
+      initialVersionId: string;
+    }
+  ) => void;
   /**
    * Assign callback. `behavior` is the per-assignment behavior snapshot —
    * seeded from the quiz's saved settings and possibly overridden by the
@@ -376,7 +403,7 @@ interface QuizManagerProps {
     dueAtByRosterId?: Record<string, number>,
     /** Set only by the assign stepper: per-class student picks and Manual start. */
     stepper?: QuizStepperAssign
-  ) => void;
+  ) => void | Promise<void>;
   /**
    * Loads full quiz content (questions) for the assign modal's B2 override
    * editor (question subset / MC-option hider / rubric swap need question
@@ -407,6 +434,8 @@ interface QuizManagerProps {
   onCreateViewOnlyShare?: (quiz: QuizMetadata) => Promise<string>;
   onResults: (quiz: QuizMetadata) => void;
   onDelete: (quiz: QuizMetadata) => void | Promise<void>;
+  /** Extra consequence line for a quiz's one delete confirm. */
+  deleteDetail?: (quiz: QuizMetadata) => string | undefined;
   /**
    * Phase 5 — duplicate kebab item. Owns the actual `duplicateQuiz` call
    * (the widget already has the hook). When omitted, the Duplicate entry
@@ -460,6 +489,8 @@ interface QuizManagerProps {
   config: QuizConfig;
 
   managerTab?: QuizManagerTab;
+  /** Whole-assignment writes the Assigned tab's class actions drive (ASSIGNED_TAB.md D21). */
+  classLifecycle?: QuizLifecycle;
   /** Opens the preview pane on this quiz; a new object reopens it. */
   revealRequest?: { quizId: string } | null;
   onTabChange?: (tab: QuizManagerTab) => void;
@@ -545,6 +576,10 @@ interface QuizManagerProps {
   /** Reopens an ended per-class quiz for picked students only. */
   onArchiveReopenStudents?: (assignment: QuizAssignment) => void;
   onArchiveDelete?: (assignment: QuizAssignment) => void | Promise<void>;
+  /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
+  onArchiveDeleteMany?: (assignments: QuizAssignment[]) => Promise<number>;
+  /** Opens the publish dialog once for several closed assignments. */
+  onArchivePublishMany?: (assignments: QuizAssignment[]) => void;
   /** Signed-in teacher's display name; default `teacherName` on new assignments. */
   defaultTeacherName?: string;
   /**
@@ -601,6 +636,35 @@ interface QuizManagerProps {
   onError?: (message: string) => void;
 }
 
+/* ─── Printed group copies on a device assignment card ─────────────────────── */
+
+/** `copies` picks the printed versions over the written-answer stack on the same card. */
+export interface PaperStackChoice {
+  copies?: boolean;
+}
+
+const importCopiesAction = (
+  a: QuizAssignment,
+  onImport: (a: QuizAssignment, opts?: PaperStackChoice) => void
+): LibraryMenuAction => ({
+  id: 'import-copies',
+  label: 'Import paper responses',
+  icon: ScanLine,
+  anchor: tourTypeAttr('quiz-library.import-paper-copies', 'quiz'),
+  onClick: () => onImport(a, { copies: true }),
+});
+
+const reprintCopiesAction = (
+  a: QuizAssignment,
+  onReprint: (a: QuizAssignment, opts?: PaperStackChoice) => void
+): LibraryMenuAction => ({
+  id: 'reprint-copies',
+  label: 'Print paper copies',
+  icon: Printer,
+  anchor: tourTypeAttr('quiz-library.reprint-paper-copies', 'quiz'),
+  onClick: () => onReprint(a, { copies: true }),
+});
+
 /* ─── Status resolver for archive cards ───────────────────────────────────── */
 
 /** Folds related In Progress and Completed menu rows into side menus; a group of one stays a plain row. */
@@ -620,6 +684,8 @@ function groupArchiveSecondaries(
         'import-written',
         'reprint-paper',
         'reprint-written',
+        'import-copies',
+        'reprint-copies',
       ],
       id: 'paper',
       label: 'Paper',
@@ -784,6 +850,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onImportLooseStack,
   hasLooseStack,
   writtenOnPaperAvailable = false,
+  printedVersionsAvailable = false,
   onEdit,
   onPreview,
   onStudentView,
@@ -792,6 +859,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   skippedTargetsByAssignmentId,
   onResults,
   onDelete,
+  deleteDetail,
   onDuplicate,
   isDuplicating,
   onBulkDelete,
@@ -803,7 +871,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onMergeQuizzes,
   rosters,
   config,
-  managerTab = 'library',
+  managerTab: managerTabProp = 'library',
+  classLifecycle,
   revealRequest = null,
   onTabChange,
   banks,
@@ -845,6 +914,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onArchiveReopen,
   onArchiveReopenStudents,
   onArchiveDelete,
+  onArchiveDeleteMany,
+  onArchivePublishMany,
   defaultTeacherName,
   syncedGroups,
   onPullSyncedQuiz,
@@ -866,6 +937,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 }) => {
   const isReview = variant === 'review';
   const { canAccessFeature } = useAuth();
+  // ASSIGNED_TAB.md D12/D19: Library and Assigned, Quiz only, behind the preview flag.
+  const assignedOn =
+    !isReview && !!classLifecycle && canAccessFeature('assigned-tab');
+  const managerTab: QuizManagerTab =
+    assignedOn && managerTabProp === 'archive' ? 'active' : managerTabProp;
   // Banks open from the Library sidebar instead of their own tab; Archive reads Completed.
   const banksInLibrary = !isReview && Boolean(banks && onNewBank && onEditBank);
   // Plan D12: the stepper always prefills last-used rules.
@@ -1025,6 +1101,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const [assignWritten, setAssignWritten] = useState<WrittenAnswersValue>(
     DEFAULT_WRITTEN_ANSWERS
   );
+  const assignWaitsForSave = canAccessFeature('quiz-assign-waits-for-save');
+  const [assignError, setAssignError] = useState<string | null>(null);
   const assignAudience = useAssignAudience();
   const assignToStaff = assignAudience.audience === 'staff';
   // Tracks the quiz id whose full content has been loaded/in-flight for the
@@ -1556,6 +1634,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         const ok = await confirmDelete({
           titles: [quiz.title],
           noun: LIBRARY_ITEM_NOUNS.quiz,
+          detail: deleteDetail?.(quiz),
         });
         if (ok) await onDelete(quiz);
       },
@@ -1597,7 +1676,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       statusBadges.push({
         label: pausedCount === 1 ? 'Assigned' : `Assigned · ${pausedCount}`,
         tone: 'info',
-        actionLabel: 'View in In Progress',
+        actionLabel: assignedOn ? 'View in Assigned' : 'View in In Progress',
         ...(onTabChange ? { onClick: () => onTabChange('active') } : {}),
       });
     }
@@ -1915,7 +1994,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onClick: () => onImportPaperResponses(a),
         });
       }
-      if (a.hasPaperResponses && !a.paper && onImportPaperResponses) {
+      if (a.paperCopyBatchIds?.length || a.paperCopyGroups?.length) {
+        if (onImportPaperResponses && a.paperCopyBatchIds?.length)
+          secondaries.push(importCopiesAction(a, onImportPaperResponses));
+        if (onReprintPaperSheets)
+          secondaries.push(reprintCopiesAction(a, onReprintPaperSheets));
+      } else if (a.hasPaperResponses && !a.paper && onImportPaperResponses) {
         secondaries.push({
           id: 'import-paper',
           label: 'Import responses',
@@ -2046,8 +2130,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onClick: () => onImportPaperResponses(a),
       });
     }
+    if (a.paperCopyBatchIds?.length || a.paperCopyGroups?.length) {
+      if (onImportPaperResponses && a.paperCopyBatchIds?.length)
+        secondaries.push(importCopiesAction(a, onImportPaperResponses));
+      if (onReprintPaperSheets)
+        secondaries.push(reprintCopiesAction(a, onReprintPaperSheets));
+    }
     // More scans from the same stack (another class, make-ups) still import here.
-    if ((a.paper || a.hasPaperResponses) && onImportPaperResponses) {
+    else if ((a.paper || a.hasPaperResponses) && onImportPaperResponses) {
       secondaries.push({
         id: 'import-paper',
         label: 'Import responses',
@@ -2237,6 +2327,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   const resetAssign = (): void => {
     setAssignTarget(null);
+    setAssignError(null);
     setAssignBehavior(null);
     setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
     setAssignQuizData(null);
@@ -2266,7 +2357,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     () => paperBoxImageChoices(assignQuizData?.stimuli ?? []),
     [assignQuizData]
   );
-  const handleStepperAssign = (): void => {
+  const handleStepperAssign = (extra?: {
+    printedGroups: PrintedGroupPick[];
+    overridesByKey?: AssignTargetingValue['overridesByKey'];
+  }): void | Promise<void> => {
     if (!assignTarget) return;
     if (plcs.length > 0 && sharingNeedsPlc(assignOptions, plcs)) return;
     const behavior: QuizBehaviorSettings = {
@@ -2297,7 +2391,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     const bellWindow = periodAccess?.bellWindow;
     const applied = applyWhen(
       {
-        ...(assignToStaff ? EMPTY_ASSIGN_TARGETING_VALUE : assignTargeting),
+        ...(assignToStaff
+          ? EMPTY_ASSIGN_TARGETING_VALUE
+          : extra?.overridesByKey
+            ? { ...assignTargeting, overridesByKey: extra.overridesByKey }
+            : assignTargeting),
         availability: assignToStaff
           ? { ...assignWhen.availability, manualDue: undefined }
           : assignWhen.availability,
@@ -2315,7 +2413,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         validRosterIds.includes(id)
       )
     );
-    onAssign(
+    if (assignWaitsForSave) setAssignError(null);
+    const saved = onAssign(
       assignTarget,
       behavior,
       plcOptions,
@@ -2339,10 +2438,28 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               },
             }
           : {}),
+        ...(!assignToStaff && extra?.printedGroups.length
+          ? { printedGroups: extra.printedGroups }
+          : {}),
       }
     );
-    if (!assignToStaff) assignWhenState.remember(assignWhen);
-    resetAssign();
+    if (!assignWaitsForSave) {
+      if (!assignToStaff) assignWhenState.remember(assignWhen);
+      resetAssign();
+      return;
+    }
+    // Flag on: the stepper keeps its spinner until the save settles and stays open on failure.
+    return Promise.resolve(saved).then(
+      () => {
+        if (!assignToStaff) assignWhenState.remember(assignWhen);
+        resetAssign();
+      },
+      (err: unknown) => {
+        setAssignError(
+          err instanceof Error ? err.message : 'Failed to create assignment'
+        );
+      }
+    );
   };
 
   // ─── Drop-to-folder handler ───────────────────────────────────────────────
@@ -2861,8 +2978,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const tabCounts = {
     library: quizzes.length,
     ...(banks && !banksInLibrary ? { banks: banks.length } : {}),
-    active: activeAssignments.length,
-    archive: inactiveAssignments.length,
+    // The Assigned tab's Active section depends on grading, so it shows no count.
+    active: assignedOn ? undefined : activeAssignments.length,
+    archive: assignedOn ? undefined : inactiveAssignments.length,
   };
   const tabLabels =
     isViewOnly || banksInLibrary
@@ -2898,6 +3016,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           counts: tabCounts,
           tabLabels,
           clearsConnectionTab,
+          assignedLayout: assignedOn,
         }}
         headerAction={banksInLibrary ? primaryAction : undefined}
         libraryFolders={
@@ -2927,39 +3046,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     );
   }
 
-  // ─── Loading/error shell content ──────────────────────────────────────────
-  if (loading && managerTab === 'library') {
-    return (
-      <LibraryShell
-        widgetLabel={shellLabel}
-        widgetType={variant}
-        clearsConnectionTab={clearsConnectionTab}
-        tab={managerTab}
-        onTabChange={(t) => onTabChange?.(t)}
-        counts={tabCounts}
-        tabLabels={tabLabels}
-        primaryAction={primaryAction}
-        toolbarSlot={toolbar}
-        filterSidebarSlot={folderSidebarSlot}
-      >
-        <div
-          className="flex flex-col items-center justify-center h-full text-brand-blue-primary"
-          style={{ gap: 'min(12px, 3cqmin)', padding: 'min(40px, 10cqmin) 0' }}
-        >
-          <Loader2
-            className="animate-spin"
-            style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}
-          />
-          <span
-            className="font-medium"
-            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
-          >
-            Loading quizzes…
-          </span>
-        </div>
-      </LibraryShell>
-    );
-  }
+  // Loading renders inside the same shell tree so an open New menu survives the load.
+  const libraryLoading = loading && managerTab === 'library';
 
   // ─── Ordered ids for LibraryDndContext (for overlay + reorder routing) ───
   const orderedIds = reorder.orderedItems.map(QUIZ_GET_ID);
@@ -3004,13 +3092,31 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       onTabChange={(t) => onTabChange?.(t)}
       counts={tabCounts}
       tabLabels={tabLabels}
+      assignedLayout={assignedOn}
       primaryAction={primaryAction}
       toolbarSlot={toolbar}
       filterSidebarSlot={folderSidebarSlot}
-      folderView={libraryView.folderView}
+      folderView={libraryLoading ? undefined : libraryView.folderView}
       folderViewMode={libraryView.state.viewMode}
     >
-      {managerTab === 'library' && (
+      {libraryLoading && (
+        <div
+          className="flex flex-col items-center justify-center h-full text-brand-blue-primary"
+          style={{ gap: 'min(12px, 3cqmin)', padding: 'min(40px, 10cqmin) 0' }}
+        >
+          <Loader2
+            className="animate-spin"
+            style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}
+          />
+          <span
+            className="font-medium"
+            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+          >
+            Loading quizzes…
+          </span>
+        </div>
+      )}
+      {managerTab === 'library' && !libraryLoading && (
         <LibraryTabContent
           tourWidgetType={variant}
           error={error}
@@ -3051,7 +3157,57 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         />
       )}
 
-      {managerTab === 'active' && (
+      {managerTab === 'active' && assignedOn && classLifecycle && (
+        <QuizAssignedTab
+          assignments={assignments}
+          loading={assignmentsLoading}
+          quizzes={quizzes}
+          loadQuizData={onLoadQuizData}
+          rosters={rosters}
+          lifecycle={classLifecycle}
+          pinnedId={config.activeAssignmentId ?? null}
+          onBulkDelete={onArchiveDeleteMany}
+          onBulkPublish={onArchivePublishMany}
+          emptyTitle="Nothing active"
+          emptySub={
+            isViewOnly
+              ? 'Share a quiz from the Library.'
+              : 'Assign a quiz from the Library.'
+          }
+          onMonitor={(a) => void (onArchiveMonitor ?? noop)(a)}
+          onResults={(a) => void (onArchiveResults ?? noop)(a)}
+          onPublish={
+            onArchivePublishScores
+              ? (a) => void onArchivePublishScores(a)
+              : undefined
+          }
+          legacyPrimary={(a) => {
+            const { primary } = buildArchiveActions(a, 'active');
+            return primary
+              ? { label: primary.label, onClick: primary.onClick }
+              : null;
+          }}
+          menu={(a) =>
+            buildArchiveActionsRaw(
+              a,
+              a.status === 'inactive' ? 'archive' : 'active'
+            ).secondaries
+          }
+          monitorBadge={(a) =>
+            a.id === config.activeAssignmentId &&
+            activeAssignmentLockedCount > 0
+              ? {
+                  count: activeAssignmentLockedCount,
+                  label: `${activeAssignmentLockedCount} student${
+                    activeAssignmentLockedCount === 1 ? '' : 's'
+                  } locked`,
+                }
+              : null
+          }
+        />
+      )}
+
+      {managerTab === 'active' && !assignedOn && (
         <AssignmentsList
           assignments={activeAssignments}
           loading={assignmentsLoading}
@@ -3200,6 +3356,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             targeting: assignTargeting,
             onTargetingChange: setAssignTargeting,
             quizContext: assignQuizContext,
+            hasQuestionTimeLimits: (assignQuizData?.questions ?? []).some(
+              (q) => q.timeLimit > 0
+            ),
+            // A bank draw may bring modified questions in too.
+            hasModifiedQuestions:
+              (assignQuizData?.questions ?? []).some(
+                (q) => !!q.modifiedText?.trim() || !!q.modifiedRubricSnapshot
+              ) || (assignQuizData?.bankSlots?.length ?? 0) > 0,
           }}
           sharing={{
             value: assignOptions,
@@ -3222,6 +3386,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   count: writtenStepCount,
                   rows: writtenStepRows,
                   images: writtenStepImages,
+                  maxPages: canAccessFeature(PAPER_MULTI_PAGE_FEATURE)
+                    ? PAPER_MAX_BOX_PAGES
+                    : 1,
                 },
               }
             : {})}
@@ -3234,8 +3401,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 },
               }
             : {})}
+          // A bank draw differs per student, so there is no one version to print.
+          printedVersionsAvailable={
+            printedVersionsAvailable &&
+            !!assignQuizData &&
+            !assignQuizData.bankSlots?.length
+          }
           onClose={resetAssign}
           onSubmit={handleStepperAssign}
+          error={assignError}
         />
       )}
 
@@ -3746,18 +3920,11 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   const periods = a.periodNames ?? (a.periodName ? [a.periodName] : []);
   const urlLive = a.status !== 'inactive';
   const noPeriods = periods.length === 0 && mode === 'active';
-  const periodLabel =
-    periods.length === 1
-      ? periods[0]
-      : periods.length > 0
-        ? `${periods.length} classes`
-        : null;
 
   // Admin-only by default — view-count display fires one Firestore
   // aggregation per visible card per dashboard tab-focus, gated behind the
   // `share-link-tracking` global permission.
   const { canSeeShareTracking, canAccessFeature } = useAuth();
-  const classList = canAccessFeature('assignment-class-list');
   const trackingEnabled = canSeeShareTracking();
   const showJoinCode =
     urlLive && !a.paper && canAccessFeature('anonymous-join');
@@ -3837,24 +4004,6 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
         {showJoinCode && (
           <span className="font-mono tracking-wider">{a.code}</span>
         )}
-        {!classList &&
-          (noPeriods && a.audience === 'staff' ? (
-            <span className="font-semibold">Staff</span>
-          ) : noPeriods ? (
-            <span
-              className="font-semibold text-amber-600 truncate"
-              style={{ maxWidth: 'min(120px, 30cqmin)' }}
-            >
-              No classes
-            </span>
-          ) : periodLabel != null ? (
-            <span
-              className="font-semibold truncate"
-              style={{ maxWidth: 'min(120px, 30cqmin)' }}
-            >
-              {periodLabel}
-            </span>
-          ) : null)}
         {status.tone === 'success' && (
           <span className="inline-flex items-center">
             <Radio
@@ -3954,14 +4103,13 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
           </span>
         )}
         {/* Last, so a long class list wraps under the shorter items. */}
-        {classList &&
-          (noPeriods && a.audience === 'staff' ? (
-            <span className="font-semibold">Staff</span>
-          ) : noPeriods ? (
-            <span className="font-semibold text-amber-600">No classes</span>
-          ) : (
-            <AssignmentClassNames names={periods} />
-          ))}
+        {noPeriods && a.audience === 'staff' ? (
+          <span className="font-semibold">Staff</span>
+        ) : noPeriods ? (
+          <span className="font-semibold text-amber-600">No classes</span>
+        ) : (
+          <AssignmentClassNames names={periods} />
+        )}
       </>
     );
   }

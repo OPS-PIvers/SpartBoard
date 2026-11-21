@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="margin:0">
+<title>Assigned Tab Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=Roboto+Mono:wght@400&display=swap">
+<style>
+/* Layout: SpartBoard's real quiz library window (green tab bar, white body, hairline rows) beside a short "try this" column. Light only, like the real library. */
+:root {
+  --page: #f1f5f9; --white: #ffffff; --accent: #047857; --accent-soft: #d1fae5;
+  --navy: #2d3f89; --navy-dark: #1d2a5d; --navy-lighter: #eaecf5;
+  --slate-700: #334155; --slate-500: #64748b; --slate-400: #94a3b8; --slate-200: #e2e8f0; --slate-100: #f1f5f9;
+  --amber-bg: #fef3c7; --amber-fg: #b45309; --red-bg: #fee2e2; --red-fg: #b91c1c; --green-dot: #10b981;
+  --sans: "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif; --mono: "Roboto Mono", ui-monospace, monospace;
+  color-scheme: light;
+}
+body { background: var(--page); color: var(--slate-700); font-family: var(--sans); font-size: 14px; line-height: 1.4;
+  padding-block: 24px 96px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+h1 { font-size: 20px; font-weight: 700; color: var(--navy-dark); margin: 0; }
+.sub { color: var(--slate-500); max-width: 70ch; margin: 0; }
+button, select { font-family: inherit; }
+button { cursor: pointer; }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+
+.sim { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; background: var(--white); border: 1px dashed var(--slate-400); border-radius: 12px; padding: 10px 14px; }
+.sim-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--slate-500); }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 2px; background: var(--slate-100); border-radius: 10px; padding: 3px; }
+.seg button { border: 0; background: transparent; padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: 13px; color: var(--slate-500); }
+.seg button[aria-pressed="true"] { background: var(--white); color: var(--navy-dark); box-shadow: 0 1px 2px rgba(15,23,42,.15); }
+.link { border: 0; background: none; color: var(--navy); font-weight: 600; text-decoration: underline; padding: 4px; font-size: 13px; }
+
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 20px; align-items: start; }
+@media (max-width: 900px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+
+.win { background: var(--white); border-radius: 16px; box-shadow: 0 4px 16px rgba(15,23,42,.12); min-width: 0; }
+.bar { background: var(--accent); border-radius: 16px 16px 0 0; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tabs { display: inline-flex; gap: 2px; background: rgba(255,255,255,.16); border-radius: 10px; padding: 3px; }
+.tab { border: 0; background: transparent; color: #fff; font-weight: 700; font-size: 13px; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 8px; }
+.tab .n { font-size: 10px; background: rgba(255,255,255,.22); border-radius: 999px; padding: 1px 7px; }
+.tab[aria-selected="true"] { background: var(--white); color: var(--accent); }
+.tab[aria-selected="true"] .n { background: var(--accent); color: #fff; }
+.body { padding: 10px 18px 28px; min-height: 420px; }
+
+.flag { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; background: var(--amber-bg); color: var(--amber-fg); border-radius: 10px; padding: 9px 12px; margin: 6px 0; font-weight: 600; }
+.flag span { flex: 1 1 220px; min-width: 0; }
+.sec { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--slate-500); padding: 14px 0 4px; border: 0; background: none; }
+.sec .n { background: var(--slate-100); border-radius: 999px; padding: 1px 7px; }
+
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 13px 6px; border-bottom: 1px solid var(--slate-200); position: relative; }
+.row:last-child { border-bottom: 0; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dot.on { background: var(--green-dot); box-shadow: 0 0 6px rgba(16,185,129,.5); }
+.main { flex: 1 1 260px; min-width: 0; }
+.title { font-weight: 700; color: var(--navy-dark); font-size: 14px; }
+.meta { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 12px; color: var(--slate-500); margin-top: 2px; }
+.meta .code { font-family: var(--mono); color: var(--slate-400); }
+.line { display: flex; flex-wrap: wrap; gap: 3px 14px; font-size: 12.5px; font-weight: 500; margin-top: 5px; font-variant-numeric: tabular-nums; }
+.st { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; color: var(--slate-500); }
+.st i { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; flex: none; }
+.st.open { color: var(--accent); font-weight: 700; } .st.open i { background: currentColor; }
+.st.paused { color: var(--amber-fg); font-weight: 700; } .st.paused i { background: currentColor; border-radius: 1px; }
+.st.ready { color: var(--navy-dark); }
+.st.scheduled i { border-style: dashed; }
+.st.closed i { background: currentColor; }
+.done .title { color: var(--slate-500); font-weight: 600; }
+.main { cursor: pointer; }
+.sum { font-size: 12.5px; color: var(--slate-500); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.s-open { color: var(--accent); font-weight: 700; } .s-amber { color: var(--amber-fg); font-weight: 700; } .s-red { color: var(--red-fg); font-weight: 700; }
+.panel { flex: 1 1 100%; background: var(--slate-100); border-radius: 12px; padding: 6px 8px; margin: 2px 0 4px 18px; }
+.panel .mrow { flex-wrap: wrap; }
+.foot { margin: 4px 8px 6px; font-size: 11.5px; color: var(--slate-500); }
+
+.badge { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+.badge.red { background: var(--red-bg); color: var(--red-fg); }
+.badge.amber { background: var(--amber-bg); color: var(--amber-fg); }
+.badge.grey { background: var(--slate-200); color: var(--slate-500); }
+.acts { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.split { display: inline-flex; }
+.btn { border: 0; background: var(--navy); color: #fff; font-weight: 700; font-size: 12px; padding: 8px 12px; border-radius: 8px; white-space: nowrap; min-width: 108px; }
+.btn:hover { background: var(--navy-dark); }
+.split .btn { border-radius: 8px 0 0 8px; }
+.caret { border: 0; border-left: 1px solid rgba(255,255,255,.35); background: var(--navy); color: #fff; border-radius: 0 8px 8px 0; padding: 0 9px; font-size: 11px; }
+.btn.soft { background: var(--navy-lighter); color: var(--navy-dark); min-width: 0; }
+.btn.soft:hover { background: #dcdff0; }
+.btn.warn { background: var(--white); color: var(--amber-fg); min-width: 0; }
+.kebab { border: 0; background: none; color: var(--slate-500); font-size: 18px; line-height: 1; padding: 6px 8px; border-radius: 8px; }
+.kebab:hover { background: var(--slate-100); }
+
+.menu { position: absolute; right: 6px; top: calc(100% - 6px); z-index: 5; background: var(--white); border: 1px solid var(--slate-200); border-radius: 12px; box-shadow: 0 10px 30px rgba(15,23,42,.18); padding: 6px; min-width: 250px; max-width: calc(100vw - 48px); }
+.mrow { display: flex; align-items: center; gap: 8px; padding: 6px 8px; }
+.mrow .who { flex: 1; min-width: 0; }
+.mrow .who b { color: var(--navy-dark); font-weight: 600; display: block; }
+.mrow .who small { color: var(--slate-500); font-size: 11.5px; }
+.mitem { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 8px; font-weight: 500; color: var(--slate-700); font-size: 13px; }
+.mitem:hover { background: var(--slate-100); }
+.mitem.danger { color: var(--red-fg); }
+.msep { height: 1px; background: var(--slate-200); margin: 4px 0; }
+
+.mon-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 0 12px; border-bottom: 1px solid var(--slate-200); }
+.mon-head select { font-size: 13px; font-weight: 600; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--slate-200); background: var(--white); color: var(--navy-dark); }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.tile { background: var(--slate-100); border-radius: 12px; padding: 12px; }
+.tile b { display: block; font-size: 22px; color: var(--navy-dark); font-variant-numeric: tabular-nums; }
+.tile small { color: var(--slate-500); font-weight: 600; }
+.empty { color: var(--slate-500); padding: 28px 6px; }
+
+.notes { display: flex; flex-direction: column; gap: 12px; font-size: 13px; }
+.notes h2 { font-size: 13px; font-weight: 700; color: var(--navy-dark); margin: 0; }
+.notes ol, .notes ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; color: var(--slate-700); }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--navy-dark); color: #fff; padding: 10px 14px; border-radius: 10px; font-weight: 500; display: flex; gap: 12px; align-items: center; box-shadow: 0 8px 24px rgba(15,23,42,.3); max-width: calc(100vw - 32px); z-index: 20; }
+.toast button { border: 0; background: none; color: #fff; font-weight: 700; text-decoration: underline; padding: 2px; }
+</style>
+
+<div class="wrap">
+  <h1>Assigned tab prototype</h1>
+  <p class="sub">The Quiz widget with two tabs, Library and Assigned, in the app's real look. Sample data for three classes on a Tuesday. Every button works.</p>
+
+  <div class="sim">
+    <span class="sim-label">Prototype only · pretend it is</span>
+    <div class="seg" id="clock"></div>
+    <button class="link" data-act="reset">Start over</button>
+  </div>
+
+  <div class="stage">
+    <div class="win">
+      <div class="bar">
+        <div class="tabs" role="tablist" aria-label="Quiz library tabs">
+          <button class="tab" role="tab" aria-selected="false" data-act="libtab">Library <span class="n">24</span></button>
+          <button class="tab" role="tab" aria-selected="true" data-act="asgtab">Assigned <span class="n" id="count"></span></button>
+        </div>
+      </div>
+      <div class="body" id="body"></div>
+    </div>
+    <aside class="notes">
+      <h2>Try this</h2>
+      <ol>
+        <li>It is Period 2. Ecosystems Pretest offers <b>Open for P2</b> without you choosing a class. Click a row to see every class.</li>
+        <li>Switch the clock to <b>Period 5</b>. Cells Quiz ends by hand, so a "still open" flag appears for P2. Nothing was hidden.</li>
+        <li>Close every class of a quiz. It stays in Active until its scores are published, then moves to Done.</li>
+        <li>Open the ⋯ menu for <b>Close for all classes</b> and <b>Move to Done</b>.</li>
+        <li>Open Done and reopen a quiz for one class. It opens straight away; there is no second Start.</li>
+      </ol>
+      <h2>What changed from today</h2>
+      <ul>
+        <li>Two tabs. Done is a section inside Assigned.</li>
+        <li>One plain line per quiz. Click the row for each class.</li>
+        <li>Open, Pause, Resume, Close, Reopen. Each one names the class.</li>
+        <li>The Monitor never starts anything; it shows the same buttons.</li>
+      </ul>
+    </aside>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const CLASSES = [{ id: 'P1', name: 'Period 1', time: '8:05 to 8:55', n: 28 }, { id: 'P2', name: 'Period 2', time: '9:55 to 10:40', n: 27 }, { id: 'P5', name: 'Period 5', time: '1:10 to 2:00', n: 26 }];
+const TIMES = [['before', 'Before school'], ['P1', 'Period 1'], ['P2', 'Period 2'], ['P5', 'Period 5'], ['after', 'After school']];
+const tIdx = id => TIMES.findIndex(t => t[0] === id);
+const cls = id => CLASSES.find(c => c.id === id);
+const mk = (s, done, extra) => Object.assign({ s, done: done || 0 }, extra || {});
+const seed = () => ({
+  now: 'P2', view: { t: 'list' }, menu: null, doneOpen: false, dismissed: {},
+  items: [
+    { id: 'cells', title: 'Cells Quiz', date: 'Nov 17', code: 'QZ418', end: 'manual', c: { P1: mk('closed', 28), P2: mk('open', 19, { since: 'P2' }), P5: mk('ready') }, grade: 0, pub: false },
+    { id: 'photo', title: 'Photosynthesis Check', date: 'Nov 17', code: 'QZ422', end: 'bell', c: { P1: mk('closed', 26), P2: mk('ready'), P5: mk('ready') }, grade: 0, pub: false },
+    { id: 'eco', title: 'Ecosystems Pretest', date: 'Nov 18', code: 'QZ431', end: 'manual', c: { P1: mk('ready'), P2: mk('ready'), P5: mk('ready') }, grade: 0, pub: false },
+    { id: 'safety', title: 'Lab Safety Exit Ticket', date: 'Nov 18', code: 'QZ433', end: 'bell', c: { P1: mk('scheduled', 0, { at: 'Thu 8:05' }), P2: mk('scheduled', 0, { at: 'Thu 9:55' }), P5: mk('scheduled', 0, { at: 'Thu 1:10' }) }, grade: 0, pub: false },
+    { id: 'osmosis', title: 'Osmosis Lab Quiz', date: 'Nov 12', code: 'QZ397', end: 'bell', c: { P1: mk('closed', 27), P2: mk('closed', 26), P5: mk('closed', 25) }, grade: 12, pub: false },
+    { id: 'micro', title: 'Microscope Parts Quiz', date: 'Nov 10', code: 'QZ390', end: 'bell', c: { P1: mk('closed', 28), P2: mk('closed', 27), P5: mk('closed', 26) }, grade: 0, pub: false },
+    { id: 'atoms', title: 'Atoms and Elements Quiz', date: 'Nov 5', code: 'QZ371', end: 'bell', c: { P1: mk('closed', 28), P2: mk('closed', 27), P5: mk('closed', 26) }, grade: 0, pub: true },
+    { id: 'metric', title: 'Metric Units Check', date: 'Oct 29', code: 'QZ352', end: 'bell', c: { P1: mk('closed', 27), P2: mk('closed', 27), P5: mk('closed', 24) }, grade: 0, pub: true },
+  ],
+});
+let S = seed(), prev = null, toastTimer;
+
+const WORD = { open: 'Open', paused: 'Paused', ready: 'Ready', scheduled: 'Scheduled', closed: 'Closed' };
+const RANK = { open: 0, paused: 1, ready: 2, scheduled: 3, closed: 4 };
+const item = id => S.items.find(a => a.id === id);
+const allClosed = a => CLASSES.every(c => a.c[c.id].s === 'closed');
+const isDone = a => a.forceDone || (allClosed(a) && a.grade === 0 && a.pub);
+const rank = a => Math.min(...CLASSES.map(c => RANK[a.c[c.id].s]));
+const focus = () => (cls(S.now) ? S.now : null);
+const stale = (a, c) => a.c[c].s === 'open' && S.now !== c && tIdx(S.now) > tIdx(c) && !S.dismissed[a.id + c];
+
+function toast(msg, undo) {
+  clearTimeout(toastTimer);
+  document.getElementById('toast').innerHTML = `<div class="toast" role="status"><span>${msg}</span>${undo ? '<button data-act="undo">Undo</button>' : ''}</div>`;
+  toastTimer = setTimeout(() => { document.getElementById('toast').innerHTML = ''; }, 5000);
+}
+const snap = () => { prev = JSON.stringify(S); };
+
+function primary(a) {
+  const f = focus(), s = f && a.c[f].s;
+  if (s === 'open') return ['Monitor', 'monitor', f];
+  if (s === 'paused') return [`Resume ${f}`, 'resume', f];
+  if (s === 'ready' || s === 'scheduled') return [`Open for ${f}`, 'open', f];
+  const live = CLASSES.find(c => a.c[c.id].s === 'open');
+  if (live) return ['Monitor', 'monitor', live.id];
+  if (allClosed(a)) return a.grade ? [`Grade (${a.grade})`, 'grade', ''] : !a.pub ? ['Publish scores', 'publish', ''] : ['Results', 'results', ''];
+  return ['Choose class', 'menu-class', ''];
+}
+
+function summary(a) {
+  const by = st => CLASSES.filter(c => a.c[c.id].s === st);
+  const open = by('open'), paused = by('paused'), closed = by('closed'), sched = by('scheduled');
+  const left = CLASSES.length - closed.length - open.length - paused.length;
+  if (allClosed(a)) return a.grade ? `<span class="s-red">Needs grading</span>` : !a.pub ? `<span class="s-amber">Scores not published</span>` : 'Scores published';
+  const parts = [];
+  open.forEach(c => parts.push(`<span class="s-open">Open for ${c.id}</span> ${a.c[c.id].done} of ${c.n} turned in`));
+  paused.forEach(c => parts.push(`<span class="s-amber">Paused for ${c.id}</span>`));
+  if (!parts.length) {
+    if (sched.length === CLASSES.length) return `Opens ${a.c[sched[0].id].at}`;
+    return closed.length ? `${closed.length} of ${CLASSES.length} classes done` : `Ready for ${CLASSES.length} classes`;
+  }
+  if (left) parts.push(`${left} ${left === 1 ? 'class' : 'classes'} to go`);
+  return parts.join(' · ');
+}
+
+function classPanel(a) {
+  const b = (label, act, c, soft) => `<button class="btn${soft ? ' soft' : ''}" data-act="${act}" data-id="${a.id}" data-c="${c}">${label}</button>`;
+  const rows = CLASSES.map(c => {
+    const k = a.c[c.id], s = k.s;
+    const acts = s === 'open' ? b('Pause', 'pause', c.id, 1) + b('Close', 'close', c.id, 1) + b('Monitor', 'monitor', c.id, 1)
+      : s === 'paused' ? b('Resume', 'resume', c.id, 1) + b('Close', 'close', c.id, 1)
+      : s === 'closed' ? b('Reopen', 'reopen', c.id, 1) : b('Open', 'open', c.id, 1);
+    const detail = s === 'scheduled' ? `opens ${k.at}` : s === 'ready' ? c.time : `${k.done} of ${c.n} turned in`;
+    return `<div class="mrow"><span class="st ${s}"><i></i></span><div class="who"><b>${c.name}</b><small>${WORD[s]} · ${detail}</small></div>${acts}</div>`;
+  }).join('');
+  return `<div class="panel">${rows}<p class="foot">${a.end === 'bell' ? 'Closes at the end of each class' : 'Stays open until you close it'} · Assigned ${a.date} · ${a.code}</p></div>`;
+}
+function moreMenu(a) {
+  const i = (label, act, cl) => `<button class="mitem ${cl || ''}" data-act="${act}" data-id="${a.id}">${label}</button>`;
+  return `<div class="menu">${i('Monitor', 'monitor')}${i('Results', 'results')}${i('Settings', 'inert')}<div class="msep"></div>${allClosed(a) ? '' : i('Close for all classes', 'closeall')}${isDone(a) ? '' : i('Move to Done', 'movedone')}<div class="msep"></div>${i('Delete', 'inert', 'danger')}</div>`;
+}
+
+function row(a, done) {
+  const [label, act, c] = primary(a);
+  const live = CLASSES.some(k => a.c[k.id].s === 'open');
+  const openPanel = S.menu && S.menu.id === a.id && S.menu.k === 'class';
+  const more = S.menu && S.menu.id === a.id && S.menu.k === 'more' ? moreMenu(a) : '';
+  return `<div class="row${done ? ' done' : ''}"><span class="dot${live ? ' on' : ''}" aria-hidden="true"></span>
+    <div class="main" data-act="menu-class" data-id="${a.id}"><div class="title">${a.title}</div><div class="sum">${summary(a)}</div></div>
+    <div class="acts"><button class="btn" data-act="${act}" data-id="${a.id}" data-c="${c}">${label}</button>
+      <button class="kebab" aria-label="Classes for ${a.title}" aria-expanded="${!!openPanel}" data-act="menu-class" data-id="${a.id}">${openPanel ? '▴' : '▾'}</button>
+      <button class="kebab" aria-label="More for ${a.title}" data-act="menu-more" data-id="${a.id}">⋯</button></div>${more}${openPanel ? classPanel(a) : ''}</div>`;
+}
+
+function listView() {
+  const active = S.items.filter(a => !isDone(a)).sort((x, y) => rank(x) - rank(y));
+  const done = S.items.filter(isDone);
+  const flags = S.items.flatMap(a => CLASSES.filter(c => stale(a, c.id)).map(c =>
+    `<div class="flag"><span>${a.title} is still open for ${c.name}.</span><button class="btn" data-act="close" data-id="${a.id}" data-c="${c.id}">Close ${c.id}</button><button class="btn warn" data-act="dismiss" data-id="${a.id}" data-c="${c.id}">Leave open</button></div>`)).join('');
+  document.getElementById('count').textContent = active.length;
+  return flags + `<div class="sec">Active <span class="n">${active.length}</span></div>`
+    + (active.length ? active.map(a => row(a, false)).join('') : '<p class="empty">Nothing active. Assign a quiz from the Library.</p>')
+    + `<button class="sec" data-act="toggledone" aria-expanded="${S.doneOpen}">${S.doneOpen ? '▾' : '▸'} Done <span class="n">${done.length + 12}</span></button>`
+    + (S.doneOpen ? done.map(a => row(a, true)).join('') + '<p class="empty" style="padding:10px 6px">12 older quizzes not shown in this prototype.</p>' : '');
+}
+
+function monitorView() {
+  const a = item(S.view.id), c = cls(S.view.c), k = a.c[c.id];
+  const b = (label, act, soft) => `<button class="btn${soft ? ' soft' : ''}" data-act="${act}" data-id="${a.id}" data-c="${c.id}">${label}</button>`;
+  const acts = k.s === 'open' ? b('Pause', 'pause', 1) + b(`Close ${c.id}`, 'close') : k.s === 'paused' ? b('Resume', 'resume') + b(`Close ${c.id}`, 'close', 1) : k.s === 'closed' ? b(`Reopen for ${c.id}`, 'reopen') : b(`Open for ${c.id}`, 'open');
+  const started = k.s === 'ready' || k.s === 'scheduled' ? 0 : Math.min(c.n - k.done, k.s === 'closed' ? 0 : 6);
+  return `<div class="mon-head"><button class="btn soft" data-act="back">← Assigned</button><div class="title" style="flex:1 1 140px">${a.title}</div>
+      <select id="mon-class" aria-label="Class">${CLASSES.map(x => `<option value="${x.id}"${x.id === c.id ? ' selected' : ''}>${x.name} · ${WORD[a.c[x.id].s]}</option>`).join('')}</select>${acts}</div>
+    <div class="tiles"><div class="tile"><b>${c.n - k.done - started}</b><small>Not started</small></div><div class="tile"><b>${started}</b><small>In progress</small></div><div class="tile"><b>${k.done}</b><small>Turned in</small></div></div>
+    <p class="empty" style="padding:6px">The student list goes here, unchanged. The buttons above are the same ones as on the Assigned tab, for the class in the menu.</p>`;
+}
+
+function render() {
+  document.getElementById('clock').innerHTML = TIMES.map(([id, l]) => `<button data-act="time" data-c="${id}" aria-pressed="${S.now === id}">${l}</button>`).join('');
+  document.getElementById('body').innerHTML = S.view.t === 'monitor' ? monitorView() : listView();
+}
+
+function setState(a, c, s, msg) {
+  snap(); const k = a.c[c]; k.s = s; if (s === 'open') k.since = S.now; a.forceDone = false; S.menu = null; toast(msg, true);
+}
+const ACT = {
+  time(_, c) {
+    S.now = c; S.menu = null; const closed = [];
+    S.items.forEach(a => CLASSES.forEach(k => { if (a.end === 'bell' && a.c[k.id].s !== 'closed' && a.c[k.id].s !== 'ready' && a.c[k.id].s !== 'scheduled' && tIdx(c) > tIdx(k.id)) { a.c[k.id].s = 'closed'; closed.push(`${a.title} closed for ${k.id} at the bell`); } }));
+    if (closed.length) toast(closed.join('. ') + '.');
+  },
+  reset() { S = seed(); prev = null; toast('Back to the start.'); },
+  undo() { if (prev) { S = JSON.parse(prev); prev = null; document.getElementById('toast').innerHTML = ''; } },
+  'menu-class'(a) { S.menu = S.menu && S.menu.id === a.id && S.menu.k === 'class' ? null : { id: a.id, k: 'class' }; },
+  'menu-more'(a) { S.menu = S.menu && S.menu.id === a.id && S.menu.k === 'more' ? null : { id: a.id, k: 'more' }; },
+  open(a, c) { setState(a, c, 'open', `${a.title} is open for ${c}. Students can start.`); },
+  pause(a, c) { setState(a, c, 'paused', `Paused for ${c}. Answers are saved.`); },
+  resume(a, c) { setState(a, c, 'open', `Resumed for ${c}.`); },
+  close(a, c) { setState(a, c, 'closed', `Closed for ${c}.`); },
+  reopen(a, c) { setState(a, c, 'open', `Reopened for ${c}. Students can get back in now.`); },
+  closeall(a) { snap(); CLASSES.forEach(k => { a.c[k.id].s = 'closed'; }); S.menu = null; toast(`${a.title} is closed for all classes.`, true); },
+  movedone(a) { snap(); CLASSES.forEach(k => { a.c[k.id].s = 'closed'; }); a.forceDone = true; S.menu = null; toast(`${a.title} moved to Done.`, true); },
+  dismiss(a, c) { S.dismissed[a.id + c] = true; },
+  grade(a) { snap(); const n = a.grade; a.grade = 0; toast(`Pretend you graded ${n} written answers.`, true); },
+  publish(a) { snap(); a.pub = true; toast(`Scores published. ${a.title} moved to Done.`, true); },
+  monitor(a, c) { S.menu = null; S.view = { t: 'monitor', id: a.id, c: c || focus() || 'P1' }; },
+  back() { S.view = { t: 'list' }; },
+  toggledone() { S.doneOpen = !S.doneOpen; },
+  results(a) { S.menu = null; toast('Results would open here, unchanged.'); },
+  inert() { S.menu = null; toast('Not part of this prototype.'); },
+  libtab() { toast('The Library tab stays as it is today.'); },
+  asgtab() { S.view = { t: 'list' }; },
+};
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el) { if (S.menu && !e.target.closest('.menu')) { S.menu = null; render(); } return; }
+  ACT[el.dataset.act](item(el.dataset.id), el.dataset.c);
+  render();
+});
+document.addEventListener('change', e => { if (e.target.id === 'mon-class') { S.view.c = e.target.value; render(); } });
+render();
+</script>
+
+</body>
+</html>

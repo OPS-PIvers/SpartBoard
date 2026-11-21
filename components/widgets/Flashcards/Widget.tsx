@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { Layers, LogIn } from 'lucide-react';
 import { deleteField, doc, setDoc, updateDoc } from 'firebase/firestore';
@@ -15,6 +21,11 @@ import {
   type WidgetData,
 } from '@/types';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
+import {
+  assignmentCount,
+  runBulkPublish,
+  sharedVisibility,
+} from '@/components/common/library/assigned/bulkPublish';
 import { flashcardClassVisibility } from '@/utils/flashcardResultsVisibility';
 import { logError } from '@/utils/logError';
 import { db, functions } from '@/config/firebase';
@@ -82,6 +93,8 @@ import {
   peekPastedFlashcards,
 } from './utils/pastedDrafts';
 import { FlashcardLibrary } from './FlashcardLibrary';
+import { flashcardLifecycle } from './utils/flashcardClassLifecycle';
+import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import { FlashcardResultsView } from './results';
 import {
   createFlashcardImportAdapter,
@@ -144,6 +157,10 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const config = widget.config as FlashcardsConfig;
+  const configRef = useRef(config);
+  useLayoutEffect(() => {
+    configRef.current = config;
+  }, [config]);
   const {
     user,
     ensureGoogleScope,
@@ -174,6 +191,21 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     updateAssignmentSettings,
     setPlcShare,
   } = useFlashcardAssignments(inShare ? undefined : user?.uid);
+  const { setAssignmentTargets } = useSetAssignmentTargets();
+  const uid = user?.uid;
+  // ASSIGNED_TAB.md D21: the Assigned tab's class actions drive these whole-run writes.
+  const classLifecycle = useMemo(
+    () =>
+      uid && !inShare
+        ? flashcardLifecycle(uid, {
+            endAssignment,
+            reopenAssignment,
+            setAssignmentTargets,
+          })
+        : undefined,
+    [uid, inShare, endAssignment, reopenAssignment, setAssignmentTargets]
+  );
+  const assignedOn = !!classLifecycle && canAccessFeature('assigned-tab');
   const plcSharing = useFlashcardPlcSharing({
     enabled: !inShare,
     addToast,
@@ -221,6 +253,9 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const [assigningSet, setAssigningSet] = useState<FlashcardSet | null>(null);
   const [publishTarget, setPublishTarget] =
     useState<FlashcardAssignment | null>(null);
+  const [bulkPublishing, setBulkPublishing] = useState<
+    FlashcardAssignment[] | null
+  >(null);
   const [settingsTarget, setSettingsTarget] =
     useState<FlashcardAssignment | null>(null);
   const openResults = useMemo(
@@ -522,11 +557,17 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         }
       }
 
-      const nextRosterMap = { ...(config.lastRosterIdsBySetId ?? {}) };
+      const nextRosterMap = {
+        ...(configRef.current.lastRosterIdsBySetId ?? {}),
+      };
       if (rosterIds.length > 0) nextRosterMap[set.id] = rosterIds;
       else delete nextRosterMap[set.id];
+      // D17: after assigning, the teacher lands on Assigned with the new row on top.
       updateWidget(widget.id, {
-        config: { ...config, lastRosterIdsBySetId: nextRosterMap },
+        config: {
+          lastRosterIdsBySetId: nextRosterMap,
+          ...(assignedOn ? { libraryTab: 'active' as const } : {}),
+        },
       });
       setAssigningSet(null);
 
@@ -635,6 +676,20 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       `“${assignment.setTitle}” deleted.`,
       'Assignment could not be deleted.'
     );
+  };
+
+  // Already confirmed; a PLC share that can't be stopped keeps its assignment.
+  const handleAssignmentDeleteMany = async (
+    list: FlashcardAssignment[]
+  ): Promise<number> => {
+    const results = await Promise.allSettled(
+      list.map(async (a) => {
+        if (a.plcShare && !(await plcSharing.stopSharingResults(a)))
+          throw new Error('PLC results could not be removed.');
+        await deleteAssignment(a.id);
+      })
+    );
+    return results.filter((r) => r.status === 'rejected').length;
   };
 
   const showLibrary = (): void => {
@@ -864,7 +919,10 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onAssignmentMonitor={(a) => showResults(a, 'monitor')}
                 onAssignmentSettings={setSettingsTarget}
                 onBulkDelete={handleBulkDelete}
+                classLifecycle={assignedOn ? classLifecycle : undefined}
+                rosters={rosters}
                 onAssignmentPublishScores={setPublishTarget}
+                onAssignmentPublishMany={setBulkPublishing}
                 onAssignmentUnpublishScores={(a) =>
                   void handleUnpublishScores(a)
                 }
@@ -878,6 +936,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 }
                 onError={(message) => addToast(message, 'error')}
                 onAssignmentDelete={(a) => void handleAssignmentDelete(a)}
+                onAssignmentDeleteMany={handleAssignmentDeleteMany}
                 onShareWithPlc={
                   plcSharing.enabled ? plcSharing.shareSet : undefined
                 }
@@ -953,6 +1012,41 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
             );
             setPublishTarget(null);
             if (protection) {
+              try {
+                await updateAppSettings({ lastResultsProtection: protection });
+              } catch (err) {
+                logError('Flashcards.updateAppSettings.lastProtection', err);
+              }
+            }
+          }}
+        />
+      )}
+
+      {bulkPublishing && (
+        <PublishScoresModal
+          assignmentTitle={assignmentCount(bulkPublishing.length)}
+          currentVisibility={flashcardClassVisibility(
+            sharedVisibility(bulkPublishing)
+          )}
+          showProtection
+          initialProtection={
+            appSettings?.lastResultsProtection ?? RESULTS_PROTECTION_DEFAULTS
+          }
+          onClose={() => setBulkPublishing(null)}
+          onConfirm={async (visibility, protection) => {
+            const ok = await runBulkPublish({
+              targets: bulkPublishing,
+              unpublish: visibility === 'none',
+              publishOne: async (t) => {
+                if (visibility === 'none') await unpublishScores(t.id);
+                else await publishScores(t.id, visibility, protection);
+                return true;
+              },
+              addToast,
+              logKey: 'Flashcards.bulkPublishScores',
+            });
+            setBulkPublishing(null);
+            if (ok > 0 && protection && visibility !== 'none') {
               try {
                 await updateAppSettings({ lastResultsProtection: protection });
               } catch (err) {

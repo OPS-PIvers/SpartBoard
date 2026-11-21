@@ -14,7 +14,7 @@ import {
   placeInZone,
 } from './boardEngine.gen';
 
-vi.mock('../quizMediaArchive', () => ({
+vi.mock('../featureGrant', () => ({
   deriveTeacherTier: vi.fn(() => Promise.resolve('internal')),
   isBetaTeacher: vi.fn(() => Promise.resolve(false)),
   meetsMinTierServer: () => true,
@@ -28,17 +28,27 @@ function fakeDb(seed: Record<string, Data> = {}) {
     Object.entries(seed).map(([k, v]) => [k, structuredClone(v)])
   );
   const times = new Map<string, number>();
+  const created = new Map<string, number>();
   let clock = 1;
-  const touch = (path: string) => times.set(path, clock++);
+  const touch = (path: string) => {
+    if (!created.has(path)) created.set(path, clock);
+    times.set(path, clock++);
+  };
   for (const path of docs.keys()) touch(path);
   let seq = 0;
-  const failNext = { commits: 0 };
+  const failNext: { commits: number; code: unknown } = {
+    commits: 0,
+    code: 9,
+  };
   const commits: { path: string; kind: string; data: Data }[][] = [];
 
   const snap = (path: string) => ({
     id: path.split('/').pop(),
     exists: docs.has(path),
     updateTime: times.get(path),
+    createTime: created.has(path)
+      ? { toMillis: () => created.get(path) ?? 0 }
+      : undefined,
     data: () => (docs.has(path) ? structuredClone(docs.get(path)) : undefined),
     get: (k: string) => docs.get(path)?.[k],
   });
@@ -111,7 +121,9 @@ function fakeDb(seed: Record<string, Data> = {}) {
       commit: () => {
         if (failNext.commits > 0) {
           failNext.commits -= 1;
-          return Promise.reject(Object.assign(new Error('stale'), { code: 9 }));
+          return Promise.reject(
+            Object.assign(new Error('stale'), { code: failNext.code })
+          );
         }
         for (const op of ops) {
           if (op.kind === 'create' && docs.has(op.path))
@@ -586,6 +598,71 @@ describe('edit_board', () => {
     expect(docs.get(BOARD)?.name).toBe('Again');
   });
 
+  const usageOf = (docs: Map<string, Data>) =>
+    docs.get(`users/u1/claude_usage/${new Date().toISOString().slice(0, 10)}`);
+  const rename = (call: Awaited<ReturnType<typeof connect>>) =>
+    call('edit_board', {
+      board_id: 'b1',
+      changes: [{ op: 'rename', name: 'Never' }],
+    });
+
+  it('gives the allowance back once when the save never lands', async () => {
+    const { db, docs, failNext } = fakeDb(seed());
+    failNext.commits = 3;
+    const out = await rename(await connect(db));
+    expect(out.error).toMatch(/Nothing was changed/);
+    expect(usageOf(docs)).toMatchObject({ boardOps: 0 });
+  });
+
+  it('refunds after a retry that ends in a write-refusing error', async () => {
+    const { db, docs, failNext } = fakeDb(seed());
+    failNext.commits = 2;
+    const call = await connect(db);
+    failNext.code = 9;
+    // The second attempt fails with a refusal instead of a conflict.
+    const original = db.batch;
+    let n = 0;
+    db.batch = () => {
+      const b = original();
+      const commit = b.commit;
+      b.commit = () => {
+        if (++n === 2) failNext.code = 7;
+        return commit();
+      };
+      return b;
+    };
+    const out = await rename(call);
+    expect(out.error).toBeDefined();
+    expect(usageOf(docs)).toMatchObject({ boardOps: 0 });
+  });
+
+  it('keeps the allowance spent when the save may have landed', async () => {
+    const { db, docs, failNext } = fakeDb(seed());
+    failNext.commits = 1;
+    failNext.code = 4;
+    const out = await rename(await connect(db));
+    expect(out.error).toBeDefined();
+    expect(usageOf(docs)).toMatchObject({ boardOps: 1 });
+  });
+
+  it('gives the allowance back when create_board cannot save', async () => {
+    const { db, docs, failNext } = fakeDb(seed());
+    failNext.commits = 1;
+    failNext.code = 7;
+    const call = await connect(db);
+    const out = await call('create_board', {
+      boards: [
+        {
+          name: 'Fresh',
+          template_id: 'launch',
+          widgets: [{ type: 'text', zone_id: 'main' }],
+        },
+      ],
+    });
+    expect(out.error).toBeDefined();
+    expect(usageOf(docs)).toMatchObject({ boardOps: 0 });
+  });
+
   it("refuses boards another teacher shares into this teacher's list", async () => {
     const s = seed();
     s[BOARD] = { ...s[BOARD], linkedShareId: 'sh', linkedShareRole: 'editor' };
@@ -617,6 +694,31 @@ describe('edit_board', () => {
     docs.delete('shared_boards/sh3');
     expect((await rename('b3')).error).toBeUndefined();
     expect(docs.get('users/u1/dashboards/b3')?.name).toBe('X');
+  });
+
+  it('treats a share re-created after a host-less guest copy as gone', async () => {
+    const s = seed();
+    const guest = (shareId: string) => ({
+      name: 'Old guest copy',
+      linkedShareId: shareId,
+      linkedShareRole: 'collaborator',
+      linkedShareEnded: true,
+      widgets: [],
+    });
+    // sh4 predates its board; sh5 was made at the old id after the board.
+    s['shared_boards/sh4'] = { originalAuthor: 'u2', widgets: [] };
+    s['users/u1/dashboards/b4'] = guest('sh4');
+    s['users/u1/dashboards/b5'] = guest('sh5');
+    s['shared_boards/sh5'] = { originalAuthor: 'u9', widgets: [] };
+    const { db, docs } = fakeDb(s);
+    const call = await connect(db);
+    const rename = (board_id: string) =>
+      call('edit_board', { board_id, changes: [{ op: 'rename', name: 'X' }] });
+    expect((await rename('b4')).error).toMatch(
+      /Another teacher owns this board/
+    );
+    expect((await rename('b5')).error).toBeUndefined();
+    expect(docs.get('users/u1/dashboards/b5')?.name).toBe('X');
   });
 
   it("starts from a live share's content and mirrors the change to co-teachers, scrubbed", async () => {

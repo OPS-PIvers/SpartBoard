@@ -126,20 +126,23 @@ async function readKind(
 export function useClassStudentPagePreview(
   teacherUid: string | null | undefined,
   classId: string,
-  projectsEnabled: boolean
+  projectsEnabled: boolean,
+  writingEnabled = true
 ): { status: ClassPreviewStatus; assignments: AssignmentSummary[] } {
   const [result, setResult] = useState<{
     key: string;
     status: 'ready' | 'error';
     assignments: AssignmentSummary[];
   } | null>(null);
-  const key = `${teacherUid ?? ''}|${classId}`;
+  const key = `${teacherUid ?? ''}|${classId}|${writingEnabled ? 'w' : ''}`;
 
   useEffect(() => {
     if (isAuthBypass || !teacherUid || !classId) return;
     let cancelled = false;
     void Promise.allSettled(
-      SESSION_KINDS.map((k) => readKind(k, teacherUid, classId))
+      SESSION_KINDS.filter((k) => writingEnabled || k !== 'writing').map((k) =>
+        readKind(k, teacherUid, classId)
+      )
     ).then((perKind) => {
       if (cancelled) return;
       const failed = perKind.filter((r) => r.status === 'rejected');
@@ -158,7 +161,7 @@ export function useClassStudentPagePreview(
     return () => {
       cancelled = true;
     };
-  }, [key, teacherUid, classId]);
+  }, [key, teacherUid, classId, writingEnabled]);
 
   if (isAuthBypass || !teacherUid) return { status: 'ready', assignments: [] };
   if (!result || result.key !== key)

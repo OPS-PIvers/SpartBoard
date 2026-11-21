@@ -1471,6 +1471,36 @@ describe('QuizStudentApp — review before submit', () => {
     await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalledTimes(1));
   });
 
+  it('warns about blanks on the review Submit and lets the student submit anyway', async () => {
+    const user = userEvent.setup();
+    mockShowConfirm.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    hookState.session = { ...buildSession(), reviewStep: true };
+    hookState.myResponse = buildResponse({ _responseKey: 'sso-uid-1' });
+    appendAnswer('q1', '4');
+    appendAnswer('q3', 'Blue');
+    window.sessionStorage.setItem(
+      reviewStateKey('session-1', 'sso-uid-1', 0) ?? '',
+      JSON.stringify({ marked: [], open: true, returnTo: false })
+    );
+    render(<QuizStudentApp />);
+    expect(
+      await screen.findByRole('heading', { name: /Review before you submit/i })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /SUBMIT QUIZ/i }));
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalledTimes(1));
+    expect(String(mockShowConfirm.mock.calls[0][0])).toMatch(
+      /1 question has no answer/
+    );
+    expect(mockCompleteQuiz).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('heading', { name: /Review before you submit/i })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /SUBMIT QUIZ/i }));
+    await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalledTimes(1));
+  });
+
   it('jumps back to a question and returns to the review screen after it', async () => {
     const user = userEvent.setup();
     hookState.session = { ...buildSession(), reviewStep: true };

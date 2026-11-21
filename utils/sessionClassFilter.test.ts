@@ -106,7 +106,8 @@ describe('nextRemovedClasses', () => {
           periodNames: ['Period 1', 'New name'],
           periodAccessKeys: [],
         },
-        ['Period 5']
+        ['Period 5'],
+        ['cl-B', 'roster:r5']
       )
     ).toEqual({
       classIds: ['cl-C', 'cl-B', 'roster:r5'],
@@ -119,7 +120,8 @@ describe('nextRemovedClasses', () => {
       nextRemovedClasses(
         { classIds: ['classroom:77', 'schoology:1'] },
         { classIds: [], periodNames: [], periodAccessKeys: [] },
-        []
+        [],
+        ['classroom:77', 'schoology:1']
       )
     ).toEqual({ classIds: [], periodNames: [] });
   });
@@ -133,9 +135,21 @@ describe('nextRemovedClasses', () => {
           periodNames: ['Period 1', 'Period 2', 'Period 3'],
           periodAccessKeys: ['roster:r5'],
         },
+        [],
         []
       )
     ).toEqual({ classIds: [], periodNames: [] });
+  });
+
+  it('does not record a class dropped without being unchecked', () => {
+    expect(
+      nextRemovedClasses(
+        current,
+        { classIds: ['cl-A'], periodNames: ['Period 1'], periodAccessKeys: [] },
+        [],
+        []
+      )
+    ).toEqual({ classIds: ['cl-C'], periodNames: ['Period 3'] });
   });
 });
 

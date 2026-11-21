@@ -92,7 +92,19 @@ function quizPublicQuestions(): QuizPublicQuestion[] {
   ];
 }
 
+/** A Quiz assignment as teachers run it: self-paced, so the monitor offers Live view. */
 export function makeQuizSession(
+  status: QuizSessionStatus = 'active'
+): QuizSession {
+  return {
+    ...makeReviewSession(status),
+    sessionMode: 'student',
+    widgetKind: 'quiz',
+  };
+}
+
+/** A teacher-paced Review, where the board sets the question. */
+export function makeReviewSession(
   status: QuizSessionStatus = 'active'
 ): QuizSession {
   return {
@@ -103,6 +115,7 @@ export function makeQuizSession(
     teacherUid: 'mock-user-id',
     status,
     sessionMode: 'teacher',
+    widgetKind: 'review',
     currentQuestionIndex:
       status === 'waiting' ? -1 : status === 'ended' ? 1 : 0,
     startedAt: status === 'waiting' ? null : NOW - 600_000,
@@ -1159,6 +1172,77 @@ export function makeOrderingResponses(): QuizResponse[] {
   });
 }
 
+/* ─── Translated fill-in-the-blank results ───────────────────────────────── */
+
+/** Two FIB questions with a Spanish key, as the assign step snapshots it. */
+export function makeTranslatedFibQuizData(): QuizData {
+  return {
+    id: QUIZ_ID,
+    title: 'Gr. 7 Circumference',
+    createdAt: NOW - 86_400_000,
+    updatedAt: NOW - 3_600_000,
+    questions: [
+      {
+        id: 'q-fib-1',
+        type: 'FIB',
+        text: 'The distance around a circle is called the _________.',
+        timeLimit: 0,
+        correctAnswer: 'circumference',
+        incorrectAnswers: [],
+        points: 1,
+      },
+      {
+        id: 'q-fib-2',
+        type: 'FIB',
+        text: 'A circle has a diameter of 10 meters. Its circumference is about _________.',
+        timeLimit: 0,
+        correctAnswer: '31.4 meters',
+        incorrectAnswers: [],
+        points: 1,
+      },
+    ],
+  };
+}
+
+export const TRANSLATED_FIB_ANSWERS = {
+  'q-fib-1': { es: ['circunferencia'] },
+  'q-fib-2': { es: ['31.4 metros'] },
+};
+
+/** Spanish-served students at 201-203; 204 took it in English. */
+export function makeTranslatedFibResponses(): QuizResponse[] {
+  const rows: [string, string][] = [
+    ['la circunferencia', '31.4 metros'],
+    ['circunferensia', '31.4 m'],
+    ['el radio', '31,4 metros'],
+    ['circumferance', '31.4 meters'],
+  ];
+  return rows.map(([a1, a2], i) => {
+    const key = `pin-Period 3-20${i + 1}`;
+    return {
+      _responseKey: key,
+      studentUid: key,
+      pin: `20${i + 1}`,
+      joinedAt: NOW - 540_000,
+      status: 'completed',
+      answers: [
+        { questionId: 'q-fib-1', answer: a1, answeredAt: NOW - 420_000 },
+        { questionId: 'q-fib-2', answer: a2, answeredAt: NOW - 410_000 },
+      ],
+      score: null,
+      submittedAt: NOW - 400_000,
+      classPeriod: 'Period 3',
+      completedAttempts: 1,
+    };
+  });
+}
+
+export const TRANSLATED_FIB_OVERRIDES = {
+  'pin-Period 3-201': { language: 'es' },
+  'pin-Period 3-202': { language: 'es' },
+  'pin-Period 3-203': { language: 'es' },
+};
+
 /* ─── Quiz results: Free Response answers across two classes ─────────────── */
 
 const QUIZ_FR_ID = 'q-fr';
@@ -1341,5 +1425,84 @@ export function makeQuizMonitorRoster(): ClassRoster {
       lastName,
       pin: String(1001 + i),
     })),
+  };
+}
+
+/** Five questions where one student was dealt three of them from a bank, in draw order. */
+export function makeBankDrawQuizData(): QuizData {
+  const base = makeQuizData();
+  const texts = [
+    'What is 1/2 + 1/4?',
+    'What is 3/4 - 1/2?',
+    'What is 2/3 of 9?',
+    'What is 1/5 + 2/5?',
+    'What is 5/6 - 1/3?',
+  ];
+  const answers = ['3/4', '1/4', '6', '3/5', '1/2'];
+  return {
+    ...base,
+    questions: texts.map((text, i) => ({
+      ...base.questions[0],
+      id: `bank-q${i + 1}`,
+      text,
+      correctAnswer: answers[i],
+      incorrectAnswers: ['1/8', '2/3', '7/8'],
+    })),
+  };
+}
+
+export function makeBankDrawResponses(): QuizResponse[] {
+  return [
+    {
+      _responseKey: 'pin-Period 3-1001',
+      studentUid: 'pin-Period 3-1001',
+      pin: '1001',
+      joinedAt: NOW - 540_000,
+      status: 'completed',
+      servedQuestionIds: ['bank-q1', 'bank-q4', 'bank-q3'],
+      answers: [
+        { questionId: 'bank-q1', answer: '3/4', answeredAt: NOW - 480_000 },
+        { questionId: 'bank-q4', answer: '3/5', answeredAt: NOW - 450_000 },
+        { questionId: 'bank-q3', answer: '7/8', answeredAt: NOW - 420_000 },
+      ],
+      score: null,
+      submittedAt: NOW - 400_000,
+      classPeriod: 'Period 3',
+      completedAttempts: 1,
+    },
+  ];
+}
+
+/** A vocab quiz: a word bank passage beside typed or drag blanks. */
+export function makeVocabQuizSession(blankType?: 'drag'): QuizSession {
+  const base = makeTimedQuizSession('active');
+  const [first, ...rest] = base.publicQuestions;
+  const words = ['protagonist', 'setting', 'conflict', 'resolution', 'theme'];
+  return {
+    ...base,
+    stimuli: [
+      {
+        id: 'dev-stim-wordbank',
+        type: 'word-bank',
+        url: '',
+        label: 'Word bank',
+        wordBankColumns: 2,
+        text: 'Actor-Observer Bias\nBelief Perseverance\nCognitive Dissonance\nDiscrimination\nDispositional Attribution\nDownward Social Comparison\n\nEthnocentrism\nExternal Locus of Control\nFundamental Attribution Error\nImplicit Attitudes\nIn-Group Bias\nInternal Locus of Control\n\nJust-World Phenomenon\nMere Exposure Effect\nOptimistic Explanatory Style\nOut-Group Homogeneity\nPessimistic Explanatory Style\nPrejudice\n\nRelative Deprivation\nSelf-Fulfilling Prophecy\nSelf-Serving Bias\nSituational Attribution\nStereotype\nUpward Social Comparison',
+      },
+    ],
+    publicQuestions: [
+      {
+        ...first,
+        type: 'FIB',
+        timeLimit: 0,
+        text: blankType
+          ? 'The ____ is the time and place where a story happens.'
+          : "Blaming a classmate's bad grade on laziness, while ignoring that they work nights, is an example of the ____.",
+        choices: undefined,
+        stimulusIds: blankType ? undefined : ['dev-stim-wordbank'],
+        ...(blankType ? { blankType, wordBank: words } : {}),
+      },
+      ...rest,
+    ],
   };
 }

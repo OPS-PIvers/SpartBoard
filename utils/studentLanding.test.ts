@@ -11,6 +11,7 @@ import {
   periodLabel,
   periodSquare,
   upNextRows,
+  workAvailability,
 } from './studentLanding';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -69,6 +70,32 @@ describe('landingRowState', () => {
     ).toBe('missing');
   });
 
+  it('never marks a printed copy Missing before its scan', () => {
+    const open = a({
+      dueAt: NOW - DAY,
+      closeAt: NOW + DAY,
+      override: { onPaper: true },
+    });
+    expect(landingRowState(open, checked(open, 'not-started'), NOW)).toBe(
+      'open'
+    );
+    const closed = a({
+      dueAt: NOW - 2 * DAY,
+      endedAt: NOW - DAY,
+      override: { onPaper: true },
+    });
+    expect(landingRowState(closed, checked(closed, 'not-started'), NOW)).toBe(
+      null
+    );
+    expect(landingRowState(closed, checked(closed, 'turned-in'), NOW)).toBe(
+      'turned-in'
+    );
+    // A device attempt left unsubmitted still shows as closed.
+    expect(landingRowState(closed, checked(closed, 'in-progress'), NOW)).toBe(
+      'closed'
+    );
+  });
+
   it('marks past-due open work as missing still open, never before its check', () => {
     const row = a({ dueAt: NOW - DAY, closeAt: NOW + DAY });
     expect(landingRowState(row, {}, NOW)).toBe('open');
@@ -77,7 +104,20 @@ describe('landingRowState', () => {
     );
   });
 
+  it('never marks a paused or not-yet-open quiz missing', () => {
+    for (const held of ['paused', 'not-open'] as const) {
+      const row = a({ dueAt: NOW - DAY, held });
+      expect(landingRowState(row, checked(row, 'not-started'), NOW)).toBe(
+        'open'
+      );
+    }
+  });
+
   it('moves closed, unsubmitted work with a due date to missing and drops it without one', () => {
+    const started = a({ channel: 'ended', endedAt: NOW - DAY });
+    expect(landingRowState(started, checked(started, 'in-progress'), NOW)).toBe(
+      'missing'
+    );
     const due = a({
       channel: 'ended',
       endedAt: NOW - DAY,
@@ -108,6 +148,65 @@ describe('landingRowState', () => {
   });
 });
 
+describe('landingRowState for projects', () => {
+  const project = (over: Partial<AssignmentSummary> = {}) =>
+    a({
+      kind: 'projects',
+      compositeId: 'projects:r1',
+      sessionId: 'r1',
+      acceptingResponses: true,
+      ...over,
+    });
+
+  it('keeps a closed run without submissions under Completed as before', () => {
+    const row = project({ acceptingResponses: false });
+    expect(landingRowState(row, {}, NOW)).toBe('turned-in');
+  });
+
+  it('moves a submitted group to Completed while the run stays open', () => {
+    const row = project({ studentSubmit: true });
+    expect(landingRowState(row, checked(row, 'turned-in'), NOW)).toBe(
+      'turned-in'
+    );
+    expect(landingRowState(row, checked(row, 'in-progress'), NOW)).toBe(
+      'in-progress'
+    );
+  });
+
+  it('never marks a student in no group Missing', () => {
+    const open = project({ studentSubmit: true, dueAt: NOW - DAY });
+    expect(landingRowState(open, checked(open, 'not-started'), NOW)).toBe(
+      'open'
+    );
+    const closed = project({
+      studentSubmit: true,
+      dueAt: NOW - DAY,
+      acceptingResponses: false,
+    });
+    expect(landingRowState(closed, checked(closed, 'not-started'), NOW)).toBe(
+      'turned-in'
+    );
+  });
+
+  it('shows Missing past due, open or closed', () => {
+    const open = project({ studentSubmit: true, dueAt: NOW - DAY });
+    expect(landingRowState(open, checked(open, 'in-progress'), NOW)).toBe(
+      'missing-open'
+    );
+    const closed = project({
+      studentSubmit: true,
+      dueAt: NOW - DAY,
+      acceptingResponses: false,
+    });
+    expect(landingRowState(closed, checked(closed, 'in-progress'), NOW)).toBe(
+      'missing'
+    );
+    expect(landingRowState(closed, checked(closed, 'turned-in'), NOW)).toBe(
+      'turned-in'
+    );
+  });
+});
+
 describe('partitionLanding', () => {
   it('sorts Missing still open first, then by due date, then no due date', () => {
     const later = a({ sessionId: 'later', dueAt: NOW + 3 * DAY });
@@ -127,7 +226,54 @@ describe('partitionLanding', () => {
     ]);
   });
 
-  it('puts closed Missing ahead of finished work, newest first', () => {
+  it('puts open work above paused, not-open-yet and locked work, even with no due date', () => {
+    const access = (state: 'open' | 'paused' | 'closed') => ({
+      state,
+      openAt: null,
+      closeAt: null,
+      bellPeriodId: null,
+      verified: true,
+      label: 'P1',
+    });
+    const gate = (state: 'open' | 'paused' | 'closed') => ({
+      accessMode: 'assessment' as const,
+      periodAccess: { p1: access(state) },
+      periodKeys: ['p1'],
+    });
+    const notOpen = a({ sessionId: 'not-open', held: 'not-open' });
+    const paused = a({ sessionId: 'paused', dueAt: NOW + DAY, held: 'paused' });
+    const classPaused = a({
+      sessionId: 'class-paused',
+      periodGate: gate('paused'),
+    });
+    const upcoming = a({ sessionId: 'upcoming', openAt: NOW + DAY });
+    const live = a({ sessionId: 'live', periodGate: gate('open') });
+    const open = a({ sessionId: 'open', dueAt: NOW + 2 * DAY });
+    const p = partitionLanding(
+      [notOpen, paused, classPaused, upcoming, open, live],
+      {},
+      NOW,
+      'stu'
+    );
+    expect(p.work.map((r) => r.assignment.sessionId)).toEqual([
+      'live',
+      'open',
+      'paused',
+      'not-open',
+      'class-paused',
+      'upcoming',
+    ]);
+    expect(p.work.map((r) => workAvailability(r, NOW, 'stu'))).toEqual([
+      'live',
+      'open',
+      'locked',
+      'locked',
+      'locked',
+      'locked',
+    ]);
+  });
+
+  it('moves closed work never turned in to Expired, out of Completed', () => {
     const old = a({ sessionId: 'old', dueAt: NOW - 9 * DAY });
     const recent = a({ sessionId: 'recent', dueAt: NOW - 2 * DAY });
     const gone = a({
@@ -136,20 +282,48 @@ describe('partitionLanding', () => {
       endedAt: NOW - DAY,
       dueAt: NOW - 20 * DAY,
     });
+    const started = a({
+      sessionId: 'started',
+      channel: 'ended',
+      endedAt: NOW - 3 * DAY,
+    });
+    const late = a({
+      sessionId: 'late',
+      dueAt: NOW - DAY,
+      closeAt: NOW + DAY,
+    });
     const p = partitionLanding(
-      [old, recent, gone],
+      [old, recent, gone, started, late],
       {
         ...checked(old, 'turned-in'),
         ...checked(recent, 'turned-in'),
         ...checked(gone, 'not-started'),
+        ...checked(started, 'in-progress'),
+        ...checked(late, 'not-started'),
       },
       NOW
     );
     expect(p.done.map((r) => r.assignment.sessionId)).toEqual([
-      'gone',
       'recent',
       'old',
     ]);
+    expect(p.expired.map((r) => r.assignment.sessionId)).toEqual([
+      'started',
+      'gone',
+    ]);
+    expect(p.work.map((r) => r.assignment.sessionId)).toEqual(['late']);
+  });
+
+  it('keeps a printed copy waiting for its scan in Completed', () => {
+    const paper = a({
+      sessionId: 'paper',
+      dueAt: NOW - 2 * DAY,
+      endedAt: NOW - DAY,
+      override: { onPaper: true },
+    });
+    const p = partitionLanding([paper], checked(paper, 'in-progress'), NOW);
+    expect(p.done.map((r) => r.state)).toEqual(['closed']);
+    expect(p.expired).toEqual([]);
   });
 });
 
@@ -166,6 +340,27 @@ describe('upNextRows', () => {
       'w1',
       'w2',
       'w3',
+    ]);
+  });
+  it('keeps the list order, so a locked row due today stays below open ones', () => {
+    const locked = {
+      assignment: a({
+        sessionId: 'locked',
+        dueAt: NOW + 60_000,
+        held: 'paused',
+      }),
+      state: 'open' as const,
+    };
+    const open = [1, 2, 3, 4].map((i) => ({
+      assignment: a({ sessionId: `o${i}`, dueAt: NOW + i * DAY }),
+      state: 'open' as const,
+    }));
+    const { shown } = upNextRows([...open, locked], NOW);
+    expect(shown.map((r) => r.assignment.sessionId)).toEqual([
+      'o1',
+      'o2',
+      'o3',
+      'locked',
     ]);
   });
 });
@@ -285,8 +480,8 @@ describe('completedItems', () => {
       dueAt: NOW - 2 * DAY,
     });
     const p = partitionLanding([missed], checked(missed, 'not-started'), NOW);
-    expect(completedItems(p.done).map((i) => [i.sessionId, i.missing])).toEqual(
-      [['m', true]]
-    );
+    expect(
+      completedItems(p.expired).map((i) => [i.sessionId, i.missing])
+    ).toEqual([['m', true]]);
   });
 });

@@ -20,7 +20,7 @@ vi.mock('./firebaseAdmin', () => ({
 const { isGlobalFeatureGranted } = vi.hoisted(() => ({
   isGlobalFeatureGranted: vi.fn(() => Promise.resolve(true)),
 }));
-vi.mock('./quizMediaArchive', () => ({ isGlobalFeatureGranted }));
+vi.mock('./featureGrant', () => ({ isGlobalFeatureGranted }));
 
 vi.mock('firebase-functions/v2/https', () => ({
   onCall: (_opts: unknown, handler: unknown) => handler,
@@ -1089,6 +1089,32 @@ describe('findAnswerField', () => {
 });
 
 describe('publicQuestionFromKey', () => {
+  it('carries a recorded prompt and drops a malformed one', () => {
+    const audio = {
+      driveFileId: 'f1',
+      durationSec: 3.5,
+      mimeType: 'audio/mp4',
+    };
+    expect(
+      publicQuestionFromKey({
+        id: 'a1',
+        type: 'MC',
+        text: '',
+        correctAnswer: 'x',
+        promptAudio: audio,
+      }).promptAudio
+    ).toEqual(audio);
+    expect(
+      publicQuestionFromKey({
+        id: 'a2',
+        type: 'MC',
+        text: 'x',
+        correctAnswer: 'x',
+        promptAudio: { durationSec: 3 },
+      }).promptAudio
+    ).toBeUndefined();
+  });
+
   it('carries a known answer keyboard on typed questions only', () => {
     expect(
       publicQuestionFromKey({
@@ -1343,6 +1369,28 @@ describe('resolveTargeting', () => {
     await expect(
       resolveTargeting(stub(docs), 'h', SHARED, ['r1'])
     ).rejects.toThrow('no class a student can sign in to');
+  });
+
+  it('keeps one unlisted LMS class in first place before enforce, as the rule does', async () => {
+    const docs = {
+      ...DOCS,
+      'users/h/rosters/r4': { name: 'LTI', classlinkClassId: 'schoology:7' },
+      'verified_classes/h': { ids: ['test-2'], classlinkAt: 1 },
+    };
+    const shared = [...SHARED, { id: 'r4' }];
+    const first = await resolveTargeting(stub(docs), 'h', shared, ['r4', 'r2']);
+    expect(first.classIds).toEqual(['schoology:7', 'test-2']);
+    const later = await resolveTargeting(stub(docs), 'h', shared, ['r2', 'r4']);
+    expect(later.classIds).toEqual(['test-2']);
+    const enforced = {
+      ...docs,
+      'admin_settings/verified_classes_fill': { enforce: true },
+    };
+    const off = await resolveTargeting(stub(enforced), 'h', shared, [
+      'r4',
+      'r2',
+    ]);
+    expect(off.classIds).toEqual(['test-2']);
   });
 });
 

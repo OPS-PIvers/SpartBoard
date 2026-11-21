@@ -416,6 +416,20 @@ describe('resolveOrgForUser auto-enrollment', () => {
     });
   });
 
+  it('never creates a member doc for a deactivated account (security #10)', async () => {
+    scriptDocs({ memberExists: false });
+    docCreateMock.mockResolvedValue(undefined);
+    const res = await handler({
+      auth: {
+        ...verifiedAuth,
+        token: { ...verifiedAuth.token, deactivated: true },
+      },
+      data: {},
+    });
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(docCreateMock).not.toHaveBeenCalled();
+  });
+
   it('does not re-enroll staff an admin removed from the org', async () => {
     scriptDocs({ memberExists: false, removed: true });
     const res = await handler({ auth: verifiedAuth, data: {} });
@@ -700,7 +714,7 @@ describe('resolveOrgForUser auto-enrollment', () => {
     expect(res).toMatchObject({ orgId: 'orono', claimCleared: true });
   });
 
-  it('still tells the client to refresh when enrollment fails after the claim is cleared', async () => {
+  it('lifts a stale claim and leaves activation for the refreshed token (security #10)', async () => {
     authMock.getUser
       .mockReset()
       .mockResolvedValueOnce({
@@ -733,11 +747,8 @@ describe('resolveOrgForUser auto-enrollment', () => {
       },
       data: {},
     });
-    expect(res).toEqual({
-      orgId: 'orono',
-      enrollFailed: true,
-      claimCleared: true,
-    });
+    expect(res).toEqual({ orgId: 'orono', claimCleared: true });
+    expect(docUpdateMock).not.toHaveBeenCalled();
     errorSpy.mockRestore();
   });
 

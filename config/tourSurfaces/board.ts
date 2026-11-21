@@ -257,7 +257,7 @@ export const SURFACES: TourSurfaceMap = {
   },
   'board.web-tours-page': {
     label:
-      'Web tours page (list, health and public links; opened from Manage tours in the extension)',
+      'Web tours page (list, search, fix issues and sharing; opened from Manage tours in the extension)',
     kind: 'page',
     url: '/web-tours',
     needs: ['admin'],
@@ -265,8 +265,13 @@ export const SURFACES: TourSurfaceMap = {
       'components/tours/web/WebToursPage.tsx',
       'components/tours/web/WebToursGate.tsx',
       'components/tours/web/WebTourList.tsx',
-      'components/tours/web/WebTourHealthSection.tsx',
     ],
+    inner: {
+      'web-tours.share-tour-url': 'web-tours.copy-link:web-tours',
+      'web-tours.share-steps-url': 'web-tours.copy-link:web-tours',
+      'web-tours.share-html-file': 'web-tours.copy-link:web-tours',
+      'web-tours.share-freshservice': 'web-tours.copy-link:web-tours',
+    },
   },
   'board.web-tour-editor': {
     label:
@@ -285,6 +290,7 @@ export const SURFACES: TourSurfaceMap = {
     ],
     inner: {
       'web-tour-editor.rewrite-all': 'web-tour-editor.menu',
+      'web-tour-editor.copy-for-claude': 'web-tour-editor.menu',
       'web-tour-editor.copy-link': 'web-tour-editor.menu',
       'web-tour-editor.duplicate': 'web-tour-editor.menu',
       'web-tour-editor.delete': 'web-tour-editor.menu',
@@ -503,6 +509,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/layout/sidebar/SidebarClasses.tsx',
       'components/layout/sidebar/SidebarClassRow.tsx',
+      'components/classes/course/',
     ],
     opensWith: 'sidebar.classes',
     parent: 'board.sidebar',
@@ -512,6 +519,32 @@ export const SURFACES: TourSurfaceMap = {
       'classes.classroom-confirm': 'classes.link-classroom:classes',
       'classes.classroom-retry': 'classes.link-classroom:classes',
       'classes.classroom-course-row': 'classes.link-classroom:classes',
+      'classes.family-link-deck-private': 'classes.family-link-toggle',
+      'classes.family-link-cancel': 'classes.family-link-toggle',
+      'classes.family-link-confirm': 'classes.family-link-toggle',
+    },
+  },
+  // Course and Agenda (thread B): the Agenda line under each class or Course, and its dialog.
+  'board.course-agenda': {
+    label: 'Agenda line in My Classes',
+    kind: 'sidebar',
+    files: ['components/classes/course/AgendaSetup.tsx'],
+    opensWith: 'sidebar.classes',
+    parent: 'board.sidebar',
+    needs: ['class'],
+  },
+  'board.course-agenda-dialog': {
+    label: 'Agenda dialog',
+    kind: 'modal',
+    files: ['components/classes/course/agenda/'],
+    opensWith: 'classes.agenda-open',
+    parent: 'board.course-agenda',
+    needs: ['class'],
+    inner: {
+      'classes.agenda-link-title': 'classes.agenda-link-add',
+      'classes.agenda-link-url': 'classes.agenda-link-add',
+      'classes.agenda-link-cancel': 'classes.agenda-link-add',
+      'classes.agenda-link-save': 'classes.agenda-link-add',
     },
   },
   'board.sidebar-plcs': {
@@ -553,13 +586,26 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'classes.edit-roster:classes',
     alsoOpensWith: ['classes.new-class', 'classes.new-class-empty'],
     needs: ['class'],
-    inner: { 'classes.restrictions-filter': 'classes.restrictions-trigger' },
+    inner: {
+      'classes.restrictions-filter': 'classes.restrictions-trigger',
+      'roster-editor.accommodations-search': 'roster-editor.accommodations-add',
+      'roster-editor.accommodations-pick-group':
+        'roster-editor.accommodations-add',
+      'roster-editor.accommodations-pick-student':
+        'roster-editor.accommodations-add',
+      'roster-editor.accommodations-done': 'roster-editor.accommodations-add',
+      'roster-accommodations.back':
+        'roster-accommodations.edit:roster-accommodations',
+      'roster-accommodations.done':
+        'roster-accommodations.edit:roster-accommodations',
+    },
   },
   'board.roster-groups': {
     label: 'Roster editor Groups tab',
     kind: 'panel',
     files: [
       'components/classes/GroupRemindersPanel.tsx',
+      'components/classes/RosterGroupsPanel.tsx',
       'components/classes/SplitClassFooter.tsx',
     ],
     opensWith: 'roster-editor.tab:roster-editor#groups',
@@ -569,12 +615,18 @@ export const SURFACES: TourSurfaceMap = {
       'roster-groups.split-name': 'roster-groups.split',
       'roster-groups.split-cancel': 'roster-groups.split',
       'roster-groups.split-create': 'roster-groups.split',
+      'roster-groups.back': 'roster-groups.edit:roster-groups',
+      'roster-groups.name': 'roster-groups.edit:roster-groups',
+      'roster-groups.delete': 'roster-groups.edit:roster-groups',
+      'roster-groups.search': 'roster-groups.edit:roster-groups',
+      'roster-groups.select-all': 'roster-groups.edit:roster-groups',
+      'roster-groups.clear': 'roster-groups.edit:roster-groups',
+      'roster-groups.done': 'roster-groups.edit:roster-groups',
+      'roster-groups.show-in-widgets': 'roster-groups.edit:roster-groups',
       'group-wizard.preview': GROUP_WIZARD,
       'group-wizard.steps': GROUP_WIZARD,
       'group-wizard.step': GROUP_WIZARD,
       'group-wizard.cancel': GROUP_WIZARD,
-      'group-wizard.back': GROUP_WIZARD,
-      'group-wizard.save-now': GROUP_WIZARD,
       'group-wizard.finish': GROUP_WIZARD,
       'group-wizard.next': GROUP_WIZARD,
       'group-wizard.name': GROUP_WIZARD,

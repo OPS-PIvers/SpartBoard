@@ -21,7 +21,7 @@ export interface TourAnchorScope {
 /** The `id:type#row-N` ref a wildcard click landed on, read from the clicked element. */
 export function pickedRowRef(ref: string, el: Element): string | null {
   if (!isRowWildcardRef(ref)) return null;
-  const key = el.getAttribute('data-tour-field');
+  const key = rowKeyOf(el);
   return key ? `${ref.slice(0, ref.indexOf('#'))}#${key}` : null;
 }
 
@@ -36,10 +36,136 @@ export function notePickedRow(
   const at = ref.slice(0, ref.indexOf('#'));
   delete picks[at];
   picks[at] = picked;
+  // Two widgets of one type each count their own rows, so the pick keeps its widget.
+  const widget =
+    el.closest('[data-tour-widget]')?.getAttribute('data-tour-widget') ?? '';
+  delete picks[PICKED_WIDGET + at];
+  if (widget) picks[PICKED_WIDGET + at] = widget;
   return true;
 }
 
+/** Key prefix in the picks record for the widget a pick was made in. */
+const PICKED_WIDGET = '@widget ';
+
 const ROW_KEY = /^row-(\d+)(?=$|-)/;
+const ROW_ONLY = /^row-([1-9]\d*)$/;
+
+const defOf = (id: string): TourAnchorDef | null => {
+  if (!isTourAnchorId(id)) return null;
+  const def: TourAnchorDef = TOUR_ANCHORS[id];
+  return def;
+};
+
+/** A list anchor whose keys the app computes freely, so its rows may be keyed by record instead of row-N. */
+const countsRows = (def: TourAnchorDef | null): boolean =>
+  !!def && (!!def.rows || !!def.rowList) && !def.keyPattern;
+
+const fieldOf = (el: Element) => el.getAttribute('data-tour-field') ?? '';
+
+/** Every element of a list anchor in page order, shown or not. */
+function rowElements(
+  id: string,
+  widgetType: string | undefined,
+  root: ParentNode
+): HTMLElement[] {
+  const selector =
+    `[data-tour=${quote(id)}]` +
+    (widgetType ? `[data-tour-widget-type=${quote(widgetType)}]` : '');
+  return Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(
+    (el) => !el.closest('[data-tour-ignore]')
+  );
+}
+
+const widgetHolding = (el: Element): string =>
+  el.closest('[data-tour-widget]')?.getAttribute('data-tour-widget') ?? '';
+
+/** A list anchor's elements split by the widget they sit in, so each widget counts its own rows. */
+function byWidget(els: readonly HTMLElement[]): HTMLElement[][] {
+  const groups = new Map<string, HTMLElement[]>();
+  for (const el of els) {
+    const widget = widgetHolding(el);
+    groups.set(widget, [...(groups.get(widget) ?? []), el]);
+  }
+  return [...groups.values()];
+}
+
+/** Whether a list keys its rows by record, so row-N is the Nth on the page. */
+const keyedByRecord = (els: readonly Element[]): boolean =>
+  els.length > 0 && !els.some((el) => ROW_KEY.test(fieldOf(el)));
+
+/** An element's field key; a row keyed by record reads as its `row-N` place on the page. */
+export function rowKeyOf(el: Element): string | null {
+  const field = el.getAttribute('data-tour-field');
+  if (!field || ROW_KEY.test(field)) return field;
+  const id = el.getAttribute('data-tour') ?? '';
+  if (!countsRows(defOf(id))) return field;
+  const type = el.getAttribute('data-tour-widget-type') ?? undefined;
+  const els = rowElements(id, type, el.ownerDocument);
+  const mine = els.filter((o) => widgetHolding(o) === widgetHolding(el));
+  const at = mine.indexOf(el as HTMLElement);
+  return keyedByRecord(els) && at >= 0 ? `row-${at + 1}` : field;
+}
+
+/** Row N of a list keyed by record, one per widget: the picked row's record (null when it lacks this control), else the Nth in that widget. */
+function rowByOrder(
+  anchor: string,
+  picks: Readonly<Record<string, string>> | undefined,
+  root: ParentNode
+): HTMLElement[] | null | undefined {
+  const { id, widgetType, fieldKey } = parseTourAnchorRef(anchor);
+  const n = Number(ROW_ONLY.exec(fieldKey ?? '')?.[1]);
+  const def = defOf(id);
+  if (!n || !countsRows(def)) return undefined;
+  const els = rowElements(id, widgetType, root);
+  if (!keyedByRecord(els)) return undefined;
+  // Only the newest pick on the list names the row; an older one counted a different list.
+  const newest = def?.rowList
+    ? Object.values(picks ?? {})
+        .map(parseTourAnchorRef)
+        .reverse()
+        .find(
+          (p) =>
+            !!p.fieldKey &&
+            p.widgetType === widgetType &&
+            rowListOf(p.id) === def.rowList
+        )
+    : undefined;
+  const picked =
+    newest && newest.id !== id && newest.fieldKey === fieldKey
+      ? newest
+      : undefined;
+  const theirs = picked ? rowElements(picked.id, widgetType, root) : [];
+  const byRecord = picked !== undefined && keyedByRecord(theirs);
+  // The widget the newest pick was made in comes first, so an unbound step lands there.
+  const pickedIn =
+    newest && newest.fieldKey === fieldKey
+      ? picks?.[`${PICKED_WIDGET}${newest.id}:${newest.widgetType}`]
+      : undefined;
+  const found: HTMLElement[] = [];
+  let lacksControl = false;
+  for (const mine of byWidget(els)) {
+    const widget = widgetHolding(mine[0]);
+    const record = byRecord
+      ? theirs.filter((o) => widgetHolding(o) === widget)[n - 1]
+      : undefined;
+    // While a pick is followed, a widget without the picked row adds none of its own.
+    if (byRecord && !record) continue;
+    const shared =
+      record &&
+      mine.some((el) => theirs.some((o) => fieldOf(o) === fieldOf(el)));
+    // Lists that share record keys match by record; a row without this control has no match.
+    const row =
+      record && shared
+        ? mine.find((el) => fieldOf(el) === fieldOf(record))
+        : mine[n - 1];
+    if (row && widget === pickedIn) found.unshift(row);
+    else if (row) found.push(row);
+    else if (record && shared) lacksControl = true;
+  }
+  // The pick doesn't say which widget it was in, so one widget's missing control stops the step.
+  if (lacksControl) return null;
+  return found.length > 0 ? found : undefined;
+}
 
 /** A ref with no key or a row key, moved to the row the teacher picked earlier on its list. */
 export function followPickedRow(
@@ -254,11 +380,16 @@ function taggedAnchors(
   root: ParentNode
 ): HTMLElement[] {
   const followed = pickedRef(ref, scope);
-  const found = taggedAs(followed, usable, root);
+  const find = (anchor: string): HTMLElement[] | null => {
+    const byOrder = rowByOrder(anchor, scope.picks, root);
+    if (byOrder === null) return null;
+    return byOrder ? byOrder.filter(usable) : taggedAs(anchor, usable, root);
+  };
+  const found = find(followed);
+  // The picked record has no such control, so no other row stands in for it.
+  if (!found) return [];
   // A followed row that isn't on screen, like another tab's list, leaves the step as written.
-  return found.length > 0 || followed === ref
-    ? found
-    : taggedAs(ref, usable, root);
+  return found.length > 0 || followed === ref ? found : (find(ref) ?? []);
 }
 
 function taggedAs(

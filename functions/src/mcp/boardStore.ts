@@ -17,6 +17,7 @@ import {
 import { renderBoardWireframe, type WireframeImage } from './boardWireframe';
 import { WIDGET_CATALOGUE } from './widgetCatalogue.gen';
 import { partialWidgetSchema } from './widgetConfigValidator';
+import { safeErr } from '../safeLog';
 
 type Doc = Record<string, unknown>;
 
@@ -95,7 +96,7 @@ export async function resolveBoardScreen(
   } catch (err) {
     console.error('[mcpServer] board screen read failed', {
       uid: ctx.uid,
-      err,
+      err: safeErr(err),
     });
   }
   return { ...normalizeScreen(), source: 'default' };
@@ -153,6 +154,7 @@ const PII_KEYS = new Set([
   'names',
   'roster',
   'customRoster',
+  'lastSubmittedDetails',
   'assignments',
 ]);
 // Student, class and session state; Claude never sees or writes it (D18).

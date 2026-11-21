@@ -1,4 +1,7 @@
+import { questionForResponse } from '@/utils/quizCalcResponse';
+import { isCalcQuestion } from '@/utils/quizCalculated';
 import React from 'react';
+import { promptLabel } from '@/utils/quizPromptText';
 import { MathText } from '@/components/common/MathText';
 import { ChevronRight, Lock } from 'lucide-react';
 import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
@@ -100,7 +103,7 @@ export const QuestionResults: React.FC<QuestionResultsProps> = ({
     items={quizData.questions.map((q, i) => ({
       id: q.id,
       label: `Q${i + 1}`,
-      text: q.text,
+      text: promptLabel(q),
       answered: responses.filter((r) =>
         r.answers.some((a) => a.questionId === q.id)
       ).length,
@@ -209,15 +212,27 @@ export const QuestionDetail: React.FC<QuestionDetailProps> = ({
   const { totalAnswered, rows } = buildDistribution(
     question,
     responses,
-    (q, a) =>
-      gradeAnswer(
-        q,
-        a,
-        undefined,
-        [...(localesByAnswer.get(a) ?? [])].flatMap((locale) =>
-          fibAcceptedAnswers(fibGrading?.answers, q.id, locale)
-        )
-      )
+    (q, a) => {
+      const grades = [undefined, ...(localesByAnswer.get(a) ?? [])].map(
+        (locale) =>
+          gradeAnswer(
+            q,
+            a,
+            undefined,
+            fibAcceptedAnswers(
+              fibGrading?.answers,
+              q.id,
+              locale,
+              fibGrading?.lenientLocales
+            )
+          )
+      );
+      return grades.find((g) => g.isCorrect) ?? grades[0];
+    },
+    isCalcQuestion(question)
+      ? (r, a) =>
+          gradeAnswer(questionForResponse(question, r, fibGrading), a).isCorrect
+      : undefined
   );
   const pictures = imageOnlyPictures(question);
   const hasDistribution =
@@ -229,7 +244,7 @@ export const QuestionDetail: React.FC<QuestionDetailProps> = ({
   return (
     <ItemDetailView
       heading={`Question ${index + 1}`}
-      text={question.text}
+      text={promptLabel(question)}
       totalAnswered={totalAnswered}
       rows={rows}
       live={live}

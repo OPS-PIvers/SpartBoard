@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { ShieldAlert } from 'lucide-react';
-import { auth } from '@/config/firebase';
 import type { ResultsProtection } from '@/types';
 import { useResultsTabWarnings } from '@/hooks/useResultsTabWarnings';
 import { ResultsWatermark } from '@/components/quiz/ResultsWatermark';
 import { ResultsTabWarningModal } from '@/components/quiz/ResultsTabWarningModal';
+import { useWatermarkStudentName } from './useWatermarkStudentName';
 
 interface ResultsProtectionGateProps {
   protection: ResultsProtection | undefined;
@@ -34,6 +34,7 @@ export const ResultsProtectionGate: React.FC<ResultsProtectionGateProps> = ({
   children,
 }) => {
   const [mountedAt] = useState(() => Date.now());
+  const studentName = useWatermarkStudentName(undefined, pin);
   const tabWarningEnabled =
     protection?.tabWarningEnabled === true && !!responseDocPath;
   const threshold = protection?.tabWarningThreshold ?? 3;
@@ -84,14 +85,6 @@ export const ResultsProtectionGate: React.FC<ResultsProtectionGateProps> = ({
       </div>
     );
   }
-
-  const displayName = auth.currentUser?.displayName?.trim();
-  const studentName =
-    displayName && displayName.length > 0
-      ? displayName
-      : pin
-        ? `PIN ${pin}`
-        : 'Student';
 
   return (
     <>

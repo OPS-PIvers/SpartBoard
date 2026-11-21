@@ -35,6 +35,7 @@ describe('withRememberedWhen', () => {
       {
         mode: 'manual',
         allowLate: false,
+        manualLate: false,
         opens: 'now',
         due: 'ended',
         dueTime: '14:30',
@@ -52,7 +53,8 @@ describe('withRememberedWhen', () => {
       seed,
       {
         mode: 'manual',
-        allowLate: true,
+        allowLate: false,
+        manualLate: true,
         opens: 'date',
         due: 'date',
         dueTime: '15:10',
@@ -70,6 +72,43 @@ describe('withRememberedWhen', () => {
   });
 });
 
+describe('withRememberedWhen late work', () => {
+  it('never carries a Scheduled late choice onto a remembered Manual due', () => {
+    const when = withRememberedWhen(
+      seed,
+      {
+        mode: 'manual',
+        allowLate: true,
+        manualLate: false,
+        opens: 'now',
+        due: 'date',
+        dueTime: '15:10',
+      },
+      now
+    );
+    expect(when.availability.allowLate).toBe(false);
+  });
+
+  it('keeps the Manual late choice out of the Scheduled one when saving', () => {
+    const saved = lastWhenFrom(
+      {
+        mode: 'manual',
+        availability: { ...seed.availability, allowLate: true },
+      },
+      {
+        mode: 'scheduled',
+        allowLate: false,
+        manualLate: false,
+        opens: 'now',
+        due: 'ended',
+        dueTime: '23:59',
+      }
+    );
+    expect(saved.allowLate).toBe(false);
+    expect(saved.manualLate).toBe(true);
+  });
+});
+
 describe('withRememberedWhen after the due time', () => {
   it('moves a remembered due time that has passed today to tomorrow', () => {
     const when = withRememberedWhen(
@@ -77,6 +116,7 @@ describe('withRememberedWhen after the due time', () => {
       {
         mode: 'manual',
         allowLate: false,
+        manualLate: false,
         opens: 'now',
         due: 'date',
         dueTime: '08:00',
@@ -98,6 +138,7 @@ describe('withRememberedWhen without the Manual due date', () => {
       {
         mode: 'manual',
         allowLate: false,
+        manualLate: false,
         opens: 'now',
         due: 'date',
         dueTime: '15:00',
@@ -124,6 +165,7 @@ describe('lastWhenFrom', () => {
       {
         mode: 'manual',
         allowLate: false,
+        manualLate: false,
         opens: 'now',
         due: 'date',
         dueTime: '14:00',
@@ -132,6 +174,7 @@ describe('lastWhenFrom', () => {
     expect(saved).toEqual({
       mode: 'manual',
       allowLate: false,
+      manualLate: false,
       opens: 'now',
       due: 'ended',
       dueTime: '14:00',
@@ -163,6 +206,7 @@ describe('parseLastAssignWhen', () => {
     expect(parseLastAssignWhen({ mode: 'manual', dueTime: '25:00' })).toEqual({
       mode: 'manual',
       allowLate: false,
+      manualLate: false,
       opens: 'now',
       due: 'ended',
       dueTime: '23:59',

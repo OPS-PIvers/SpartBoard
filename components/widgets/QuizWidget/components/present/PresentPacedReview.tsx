@@ -1,10 +1,14 @@
 import React from 'react';
+import { promptLabel } from '@/utils/quizPromptText';
+import { QuestionAudioButton } from '@/components/quiz/QuestionAudioButton';
 import { MathText } from '@/components/common/MathText';
 import { PromptText } from '@/components/common/PromptText';
 import { Check } from 'lucide-react';
 import { QuizLeaderboardEntry, QuizQuestion, QuizResponse } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { buildDistribution } from '@/utils/answerDistribution';
+import { isCalcQuestion } from '@/utils/quizCalculated';
+import { questionForResponse } from '@/utils/quizCalcResponse';
 import { PresentStandings } from './PresentStandings';
 import { PresentPodium } from './PresentPodium';
 import { usePresentTheme } from './presentTheme';
@@ -39,7 +43,10 @@ export const PresentPacedReview: React.FC<PresentPacedReviewProps> = ({
   const { totalAnswered, rows } = buildDistribution(
     question,
     responses,
-    gradeAnswer
+    gradeAnswer,
+    isCalcQuestion(question)
+      ? (r, a) => gradeAnswer(questionForResponse(question, r), a).isCorrect
+      : undefined
   );
 
   const questionAndBars = (
@@ -48,8 +55,15 @@ export const PresentPacedReview: React.FC<PresentPacedReviewProps> = ({
         className={`font-sans font-semibold max-w-[80vw] leading-snug ${t.strong}`}
         style={{ fontSize: 'clamp(1.2rem, 3.2vw, 3rem)', textWrap: 'balance' }}
       >
-        <PromptText text={question.text} />
+        <PromptText text={promptLabel(question)} />
       </p>
+      {question.promptAudio && (
+        <QuestionAudioButton
+          key={question.id}
+          audio={question.promptAudio}
+          light={t.strong !== 'text-white'}
+        />
+      )}
       <div
         className="w-full max-w-[70vw] flex flex-col"
         style={{ gap: '1.4vh' }}

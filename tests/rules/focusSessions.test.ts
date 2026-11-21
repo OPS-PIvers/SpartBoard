@@ -154,8 +154,8 @@ beforeEach(async () => {
       roleId: 'building_admin',
     });
     await setDoc(doc(db, `admins/${SUPER_EMAIL}`), {});
-    await setDoc(doc(db, 'admin_settings/user_roles'), {
-      superAdmins: [SUPER_EMAIL],
+    await setDoc(doc(db, `organizations/orono/members/${SUPER_EMAIL}`), {
+      roleId: 'super_admin',
     });
   });
   await seed();
@@ -220,6 +220,70 @@ describe('focus_sessions reads', () => {
     await seed({ subMonitorUids: [SUB_UID], subMonitorUntil: Date.now() - 1 });
     await assertFails(getDoc(doc(asSub(), SESSION)));
     await assertFails(getDoc(doc(asSub(), STUDENT)));
+  });
+
+  describe('a stamp that names its share (AB-97)', () => {
+    const SHARE = 'shared_collections/share-1';
+    const stamped = () =>
+      seed({
+        subMonitorUids: [SUB_UID],
+        subMonitorUntil: Date.now() + 60 * 60_000,
+        subMonitorShares: { [SUB_UID]: 'share-1' },
+      });
+    const putShare = (extra: Record<string, unknown> = {}) =>
+      testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), SHARE), {
+          hostUid: TEACHER_UID,
+          intendedMode: 'substitute',
+          expiresAt: Date.now() + 60 * 60_000,
+          subEmails: ['sub@school.edu'],
+          ...extra,
+        });
+      });
+
+    it('lets the sub read while the share is live and names them', async () => {
+      await stamped();
+      await putShare();
+      await assertSucceeds(getDoc(doc(asSub(), SESSION)));
+      await assertSucceeds(getDoc(doc(asSub(), STUDENT)));
+      await assertSucceeds(getDocs(collection(asSub(), `${SESSION}/students`)));
+    });
+
+    it('denies the sub once the share has ended', async () => {
+      await stamped();
+      await putShare({ expiresAt: Date.now() - 1 });
+      await assertFails(getDoc(doc(asSub(), SESSION)));
+      await assertFails(getDoc(doc(asSub(), STUDENT)));
+    });
+
+    it('denies the sub once the share is deleted', async () => {
+      await stamped();
+      await assertFails(getDoc(doc(asSub(), SESSION)));
+      await assertFails(getDoc(doc(asSub(), STUDENT)));
+    });
+
+    it('denies a sub removed from the share', async () => {
+      await stamped();
+      await putShare({ subEmails: ['someone-else@school.edu'] });
+      await assertFails(getDoc(doc(asSub(), SESSION)));
+      await assertFails(getDoc(doc(asSub(), STUDENT)));
+      await assertFails(getDocs(collection(asSub(), `${SESSION}/students`)));
+    });
+
+    it('still lets the teachers read whatever the share says', async () => {
+      await stamped();
+      await putShare({ expiresAt: Date.now() - 1 });
+      await assertSucceeds(getDoc(doc(asTeacher(), SESSION)));
+      await assertSucceeds(getDoc(doc(asCoTeacher(), STUDENT)));
+    });
+
+    it('refuses a teacher writing the share map', async () => {
+      await assertFails(
+        updateDoc(doc(asTeacher(), SESSION), {
+          subMonitorShares: { [SUB_UID]: 'share-1' },
+        })
+      );
+    });
   });
 
   it('denies a sub with no stamp', async () => {

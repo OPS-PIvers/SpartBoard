@@ -63,7 +63,7 @@
       "note": "At 150x100 the inch ruler stays readable but the cm ruler is squeezed into a strip of ticks with its numbers cut off, so the secondary ruler crowds the primary one instead of collapsing.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:26:07.464Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 2,
@@ -253,7 +253,7 @@
       "note": "The pale yellow and mint rulers are clean, but tiny 8 px monospace numbers and the boxed strips look dated.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:26:07.464Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 3,
@@ -290,7 +290,7 @@
       "note": "The inch and cm rulers have equal weight and size, so neither stands out as the main element.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:26:07.464Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 3,
@@ -342,7 +342,7 @@
       "note": "The face labels are plain ('in', 'cm', numbers), but the tool-type picker in the drawer uses emoji as icons and the face labels are tiny.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:26:07.464Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 3,

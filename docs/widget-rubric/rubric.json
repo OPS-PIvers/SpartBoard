@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "source": "docs/plans/WIDGET_RUBRIC.md",
   "scale": {
     "0": "missing or broken",
@@ -100,8 +100,8 @@
           "descriptors": {
             "0": "Gate G1 or G2 fails at the minimum size.",
             "1": "Everything fits but has shrunk uniformly to the point of being unreadable or untappable.",
-            "2": "Readable and usable, but secondary content crowds the primary content.",
-            "3": "Secondary content collapses, hides or moves into an overflow so the primary content stays dominant and readable.",
+            "2": "Readable and usable, but secondary content crowds the primary content, or controls stay large while the primary content shrinks.",
+            "3": "Labels and decoration collapse or hide, and controls shrink, wrap or move, so the primary content stays dominant and readable. Every control from the default view is still on the card.",
             "4": "The small layout is a deliberate design of its own (a compact mode) that a teacher would choose on purpose."
           }
         },
@@ -131,7 +131,7 @@
           "method": "both",
           "methodNotes": "Script: dead band area at the widest and tallest aspect. Judge: reflow and fit to shape.",
           "descriptors": {
-            "1": "One layout at every aspect ratio; wide or tall shapes leave large dead bands.",
+            "1": "One layout at every aspect ratio; wide or tall shapes leave large dead bands, or heavy padding wastes space even at a square.",
             "2": "Content centers sensibly but does not reflow.",
             "3": "Layout reflows between row and column arrangements at the extremes of the envelope.",
             "4": "Each aspect ratio looks designed for that shape."
@@ -374,7 +374,7 @@
             "rule": "Applies to all widgets."
           },
           "method": "judge",
-          "methodNotes": "Judge, against Paul's exemplar widgets for each level and the ban list.",
+          "methodNotes": "Judge, against Paul's exemplar widgets for each level and the ban list. Colour-coded zones on K-5 student-touched widgets (Lunch Count) are function, not decoration.",
           "descriptors": {
             "1": "Three or more ban-list hits; reads as 2005.",
             "2": "One or two ban-list hits, or clean but dated.",
@@ -390,7 +390,9 @@
             "everything centered",
             "inconsistent corner radii",
             "crowded rows of pills or chips",
-            "decorative helper text"
+            "decorative helper text",
+            "purple or violet gradients, or large purple fills",
+            "decorative accent bars, coloured edge strips or heavy coloured banners"
           ]
         },
         {
@@ -423,8 +425,8 @@
           "methodNotes": "Judge.",
           "descriptors": {
             "1": "No primary element; everything competes.",
-            "2": "A primary element exists but secondary elements are equally heavy.",
-            "3": "One clear primary element; secondary and tertiary elements step down in size and weight.",
+            "2": "A primary element exists but secondary elements, including controls, are equally heavy.",
+            "3": "One clear primary element; secondary and tertiary elements step down in size and weight, and controls never grow to compete with the primary content.",
             "4": "As 3, and the eye path matches the order a teacher uses it."
           }
         },
@@ -471,8 +473,8 @@
           "methodNotes": "Script: tests/copyGuard.test.ts rules, icon library use. Judge: wording.",
           "descriptors": {
             "1": "Copy guard violations or mixed icon styles.",
-            "2": "Compliant but wordy or unclear labels.",
-            "3": "Short, plain labels; one icon style.",
+            "2": "Compliant but wordy or unclear labels, or legacy terms such as \"Flip\".",
+            "3": "Short, plain labels in the app's own words (Select, attempts, Submitted, Missing); one icon style.",
             "4": "Labels a teacher would write; icons need no label to be understood where used alone."
           }
         }
@@ -511,7 +513,7 @@
           "descriptors": {
             "1": "One long unordered list.",
             "2": "Grouped, but advanced options mixed in with common ones.",
-            "3": "Common settings first, advanced ones collapsed; standard sections and controls.",
+            "3": "Common settings first, advanced ones collapsed; standard sections and app controls, with no native browser dropdowns or bare checkboxes.",
             "4": "As 3, and a teacher finds any setting in one look."
           }
         },

@@ -1,5 +1,13 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Copy, Link2, RefreshCw, Trash2, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  ClipboardCopy,
+  Copy,
+  Link2,
+  RefreshCw,
+  Trash2,
+  X,
+} from 'lucide-react';
 import type {
   GuidedLearningSet,
   GuidedLearningStep,
@@ -15,6 +23,10 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { logError } from '@/utils/logError';
 import { focusRing, headerIconBtn } from '@/components/common/lightChrome';
 import { buildNameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
+import {
+  buildWebTourPrompt,
+  isDevProject,
+} from '@/components/widgets/GuidedLearning/utils/claudePrompt';
 import {
   deleteWebTourDraft,
   duplicateWebTourDraft,
@@ -83,6 +95,8 @@ import {
 import { PublishCheck } from './webEditorParts';
 import { usePublicLinkControls } from '@/components/tours/publicLink/usePublicLinkControls';
 import { PictureCache } from './webPictures';
+import { FRESHSERVICE_FEATURE, sendTourToFreshservice } from './freshservice';
+import { useStepsLabels } from '@/components/tours/steps/useStepsLabels';
 import {
   CHECK_LABEL,
   insertAt,
@@ -144,7 +158,9 @@ const insertAfter = (
 export const WebTourEditor: React.FC<{
   initial: GuidedLearningSet;
   onClose: () => void;
-}> = ({ initial, onClose }) => {
+  /** The step selected when the editor opens; the first step when unset. */
+  initialStepId?: string;
+}> = ({ initial, onClose, initialStepId }) => {
   // Duplicate swaps the editor onto the copy.
   const [current, setCurrent] = useState(initial);
   return (
@@ -153,6 +169,7 @@ export const WebTourEditor: React.FC<{
       initial={current}
       onClose={onClose}
       onOpen={setCurrent}
+      initialStepId={current.id === initial.id ? initialStepId : undefined}
     />
   );
 };
@@ -161,9 +178,15 @@ const WebTourEditorBody: React.FC<{
   initial: GuidedLearningSet;
   onClose: () => void;
   onOpen: (set: GuidedLearningSet) => void;
-}> = ({ initial, onClose, onOpen }) => {
-  const { user } = useAuth();
+  initialStepId?: string;
+}> = ({ initial, onClose, onOpen, initialStepId }) => {
+  const { user, isAdmin, canAccessFeature } = useAuth();
+  const canFresh = !!isAdmin && canAccessFeature(FRESHSERVICE_FEATURE);
+  const stepsLabels = useStepsLabels();
   const uid = user?.uid ?? '';
+  const canCopyForClaude =
+    canAccessFeature('claude-connector') &&
+    canAccessFeature('claude-connector-guided-learning');
   const { showConfirm } = useDialog();
   const rosters = useContext(DashboardContext)?.rosters;
   const matcher = useMemo(
@@ -171,13 +194,17 @@ const WebTourEditorBody: React.FC<{
     [rosters]
   );
   const pictureCache = useMemo(() => new Map<string, Promise<Blob>>(), []);
-  const draft = useWebTourDraft(initial);
-  const { set, latest, change, saveNow, saveCheck, saveFixes } = draft;
   const [status, setStatus] = useState('');
+  const draft = useWebTourDraft(initial, () =>
+    setStatus('Loaded new changes to this tour.')
+  );
+  const { set, latest, change, saveNow, saveCheck, saveFixes } = draft;
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<'steps' | 'settings'>('steps');
-  const [selectedId, setSelectedId] = useState<string | null>(
-    initial.steps[0]?.id ?? null
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    initialStepId && initial.steps.some((s) => s.id === initialStepId)
+      ? initialStepId
+      : (initial.steps[0]?.id ?? null)
   );
   const [pictureSelected, setPictureSelected] = useState(false);
   const [check, setCheck] = useState<{
@@ -471,6 +498,18 @@ const WebTourEditorBody: React.FC<{
     );
   };
 
+  // The help article follows each publish; a site with no FreshService settings skips it quietly.
+  const sendAfterPublish = async (setId: string) => {
+    try {
+      const res = await sendTourToFreshservice(setId, stepsLabels);
+      if (res.kind === 'sent')
+        setStatus('Published. FreshService article updated.');
+    } catch (err) {
+      logError('web tour freshservice', err, { setId });
+      setStatus("Published. FreshService couldn't be updated.");
+    }
+  };
+
   const doPublish = async (toPublish: GuidedLearningSet) => {
     if (!uid) return;
     setCheck(null);
@@ -490,6 +529,7 @@ const WebTourEditorBody: React.FC<{
       );
       setStatus('Published.');
       void draft.sweepAfterPublish();
+      if (canFresh) void sendAfterPublish(toPublish.id);
     } catch (err) {
       logError('web tour publish', err, { setId: toPublish.id });
       setStatus("The tour couldn't be published.");
@@ -559,6 +599,26 @@ const WebTourEditorBody: React.FC<{
       return;
     }
     if (await copyLink(set.id, set.title)) setStatus('Link copied.');
+  };
+
+  // Saves first so Claude reads exactly what the admin sees.
+  const copyForClaude = async (stepId?: string) => {
+    let saved: GuidedLearningSet;
+    try {
+      saved = await draft.flush();
+    } catch (err) {
+      logError('web tour copy for Claude', err, { setId: set.id });
+      setStatus("Couldn't save. Nothing was copied.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(
+        buildWebTourPrompt(saved, stepId, { dev: isDevProject() })
+      );
+      setStatus('Saved. Prompt copied for Claude.');
+    } catch {
+      setStatus("Couldn't copy to the clipboard.");
+    }
   };
 
   const seed = webTourEditorDevSeed();
@@ -633,6 +693,17 @@ const WebTourEditorBody: React.FC<{
       onSelect: () => void writing.run('all'),
       anchor: tourAttr('web-tour-editor.rewrite-all'),
     },
+    ...(canCopyForClaude
+      ? [
+          {
+            id: 'copy-for-claude' as const,
+            label: 'Copy for Claude',
+            icon: ClipboardCopy,
+            onSelect: () => void copyForClaude(),
+            anchor: tourAttr('web-tour-editor.copy-for-claude'),
+          },
+        ]
+      : []),
     {
       id: 'copy-link',
       label: publicLink.publicUrl ? 'Copy public link' : 'Copy link',
@@ -733,6 +804,21 @@ const WebTourEditorBody: React.FC<{
         />
       );
     },
+    rowAction: canCopyForClaude
+      ? (stepId) => (
+          // no-tour-anchor: per-step control repeats on every step
+          <button
+            type="button"
+            onClick={() => void copyForClaude(stepId)}
+            aria-label="Copy for Claude"
+            title="Copy for Claude"
+            data-testid="web-tour-step-copy-for-claude"
+            className={`mt-1.5 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 ${focusRing}`}
+          >
+            <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )
+      : undefined,
     onAddStep: addStep,
     onAddMessage: addMessage,
     addMessageLabel: 'Add a message',

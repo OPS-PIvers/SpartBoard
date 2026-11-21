@@ -112,11 +112,9 @@ describe('FreeResponseGrader — By-Student mode', () => {
     expect(screen.getByText('Student 1 of 2')).toBeTruthy();
   });
 
-  it('steps students from the rail without leaving the question', () => {
+  it('picks a student from the rail without leaving the question', () => {
     renderGrader({ graderMode: 'student' });
-    fireEvent.click(
-      within(rail()).getByRole('button', { name: /next student/i })
-    );
+    fireEvent.click(within(rail()).getByRole('button', { name: /^Grace/ }));
     expect(screen.getByText('Student 2 of 2')).toBeTruthy();
     expect(screen.getByText('Question 1 of 2')).toBeTruthy();
   });
@@ -163,6 +161,6 @@ describe('FreeResponseGrader — By-Student mode', () => {
     expect(
       screen.getByText('Grace', { selector: '[aria-current="true"] span' })
     ).toBeTruthy();
-    expect(screen.getByLabelText(/Points awarded/i)).toHaveValue(8);
+    expect(screen.getByLabelText(/^Score$/)).toHaveValue(8);
   });
 });

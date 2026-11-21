@@ -13,8 +13,9 @@ import {
   fetchTokenInfo,
   verifiedTokenEmail,
   type TokenInfo,
-} from './webTourExtension';
+} from './extensionAuth';
 import { trustedUidForEmail } from './trustedSignIn';
+import { safeErr } from './safeLog';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -444,7 +445,7 @@ function defaultDeps(db: Firestore): ImporterDeps {
         (await isDistrictStaffEmail(db, email)) ||
         (await db.collection('admins').doc(email).get()).exists;
       if (!staff) return false;
-      const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+      const { isGlobalFeatureGranted } = await import('./featureGrant');
       return isGlobalFeatureGranted(
         db,
         SCHOOLOGY_QUIZ_IMPORT_FEATURE,
@@ -508,7 +509,7 @@ const importerEndpoint = (handler: Handler, memory: '256MiB' | '1GiB') =>
           res.status(error.status).json({ error: error.message });
           return;
         }
-        console.error('[schoologyQuizImport] failed:', error);
+        console.error('[schoologyQuizImport] failed:', safeErr(error));
         res.status(500).json({ error: 'Something went wrong.' });
       }
     }

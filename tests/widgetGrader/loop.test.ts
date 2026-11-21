@@ -187,7 +187,9 @@ describe('queue: ordering', () => {
     expect(needsRegrade(rubric, card('ok', 1))).toBe(false);
     const q = buildQueue({ rubric, scorecards: [stale, oldMajor, oneStale] });
     expect(q.regrade).toEqual(['c', 'o', 's']);
-    expect(q.items).toEqual([]);
+    expect(q.items.map((i) => ('widgetType' in i ? i.widgetType : ''))).toEqual(
+      ['c']
+    );
   });
 
   it('queues Platform gaps ahead of the first loop on a criterion the Platform lifts', () => {

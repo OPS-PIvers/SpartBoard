@@ -110,7 +110,7 @@ export const WidgetAnnotateToolbar: React.FC<WidgetAnnotateToolbarProps> = ({
   );
 
   const popoverClass =
-    'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max flex flex-wrap items-center justify-center gap-1.5 p-1.5 bg-white shadow-lg rounded-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150';
+    'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max flex flex-wrap items-center justify-center gap-1.5 p-1.5 bg-white shadow-lg rounded-2xl border border-slate-200 origin-bottom animate-in fade-in zoom-in-95 duration-150';
 
   return (
     <div

@@ -32,6 +32,7 @@ import { LAYOUT_OPTIONS } from './editor/layoutOptions';
 import { activityWallSessionId } from '@/utils/activityWallLinks';
 import { clearWallSubmissions } from './hooks/useActivityWallSession';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 interface WallLibraryModalProps {
   open: boolean;
@@ -176,7 +177,6 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
       }
       try {
         const sessionId = activityWallSessionId(uid, entry.id);
-        await clearWallSubmissions(sessionId);
         await onDelete(entry.id);
         await deleteDoc(doc(db, 'activity_wall_sessions', sessionId)).catch(
           () => {
@@ -211,6 +211,7 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
 
   return (
     <Modal
+      accent={LIBRARY_HEADER_ACCENTS['activity-wall']}
       isOpen
       onClose={onClose}
       title="Activity Walls"

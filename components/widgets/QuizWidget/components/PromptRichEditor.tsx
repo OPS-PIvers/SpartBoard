@@ -12,6 +12,7 @@ import { toggleList } from '@/utils/contentEditableLists';
 import { installDragSelectEnhancer } from '@/utils/contentEditableDragSelect';
 import { fillPromptEditor, readPromptEditor } from '@/utils/promptEditorDom';
 import { type TourAnchorAttrs, tourTypeAttr } from '@/config/tourAnchors';
+import type { SharedEditorTourType } from './stimulusTourType';
 
 export interface PromptRichEditorHandle {
   /** Types text at the teacher's last caret spot (or the end), with a space before it when needed. */
@@ -28,6 +29,13 @@ interface PromptRichEditorProps {
   placeholder?: string;
   anchor: TourAnchorAttrs;
   ref?: React.Ref<PromptRichEditorHandle>;
+  /** Widget type the toolbar's tour anchors are scoped to. */
+  tourWidgetType?: SharedEditorTourType;
+  ariaLabel?: string;
+  /** Extra controls at the end of the toolbar, each set off by a divider. */
+  toolbarEnd?: React.ReactElement[];
+  /** A hairline row inside the box, under the text. */
+  footer?: React.ReactNode;
 }
 
 function selectionIn(editor: HTMLElement): Range | null {
@@ -58,37 +66,52 @@ const TOOLS: {
   id: Tool;
   label: string;
   icon: React.ElementType;
-  anchor: TourAnchorAttrs;
+  anchor: Record<SharedEditorTourType, TourAnchorAttrs>;
 }[] = [
   {
     id: 'bold',
     label: 'Bold',
     icon: Bold,
-    anchor: tourTypeAttr('quiz-editor.prompt-bold', 'quiz'),
+    anchor: {
+      quiz: tourTypeAttr('quiz-editor.prompt-bold', 'quiz'),
+      writing: tourTypeAttr('quiz-editor.prompt-bold', 'writing'),
+    },
   },
   {
     id: 'italic',
     label: 'Italic',
     icon: Italic,
-    anchor: tourTypeAttr('quiz-editor.prompt-italic', 'quiz'),
+    anchor: {
+      quiz: tourTypeAttr('quiz-editor.prompt-italic', 'quiz'),
+      writing: tourTypeAttr('quiz-editor.prompt-italic', 'writing'),
+    },
   },
   {
     id: 'underline',
     label: 'Underline',
     icon: Underline,
-    anchor: tourTypeAttr('quiz-editor.prompt-underline', 'quiz'),
+    anchor: {
+      quiz: tourTypeAttr('quiz-editor.prompt-underline', 'quiz'),
+      writing: tourTypeAttr('quiz-editor.prompt-underline', 'writing'),
+    },
   },
   {
     id: 'ul',
     label: 'Bulleted list',
     icon: List,
-    anchor: tourTypeAttr('quiz-editor.prompt-bullets', 'quiz'),
+    anchor: {
+      quiz: tourTypeAttr('quiz-editor.prompt-bullets', 'quiz'),
+      writing: tourTypeAttr('quiz-editor.prompt-bullets', 'writing'),
+    },
   },
   {
     id: 'ol',
     label: 'Numbered list',
     icon: ListOrdered,
-    anchor: tourTypeAttr('quiz-editor.prompt-numbers', 'quiz'),
+    anchor: {
+      quiz: tourTypeAttr('quiz-editor.prompt-numbers', 'quiz'),
+      writing: tourTypeAttr('quiz-editor.prompt-numbers', 'writing'),
+    },
   },
 ];
 
@@ -100,6 +123,10 @@ export const PromptRichEditor: React.FC<PromptRichEditorProps> = ({
   placeholder,
   anchor,
   ref,
+  tourWidgetType = 'quiz',
+  ariaLabel = 'Question prompt',
+  toolbarEnd,
+  footer,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   // The text the DOM shows now; a different value came from outside and is redrawn.
@@ -207,7 +234,7 @@ export const PromptRichEditor: React.FC<PromptRichEditorProps> = ({
       <div
         role="toolbar"
         aria-label="Prompt formatting"
-        className="flex items-center gap-0.5 border-b border-slate-200 px-1.5 py-0.5"
+        className="flex flex-wrap items-center gap-0.5 border-b border-slate-200 px-1.5 py-0.5"
       >
         {TOOLS.map((tool, i) => {
           const Icon = tool.icon;
@@ -231,20 +258,26 @@ export const PromptRichEditor: React.FC<PromptRichEditorProps> = ({
                     ? 'bg-slate-100 text-slate-900'
                     : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'
                 }`}
-                {...tool.anchor}
+                {...tool.anchor[tourWidgetType]}
               >
                 <Icon className="h-3.5 w-3.5" aria-hidden />
               </button>
             </React.Fragment>
           );
         })}
+        {toolbarEnd?.map((control) => (
+          <React.Fragment key={control.key}>
+            <span className="mx-1 h-4 w-px bg-slate-200" aria-hidden />
+            {control}
+          </React.Fragment>
+        ))}
       </div>
       <div className="relative">
         <div
           ref={editorRef}
           role="textbox"
           aria-multiline="true"
-          aria-label="Question prompt"
+          aria-label={ariaLabel}
           aria-placeholder={placeholder}
           aria-readonly={readOnly}
           contentEditable={!readOnly}
@@ -268,6 +301,11 @@ export const PromptRichEditor: React.FC<PromptRichEditorProps> = ({
           </div>
         )}
       </div>
+      {footer && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-slate-200 px-3 py-1.5">
+          {footer}
+        </div>
+      )}
     </div>
   );
 };

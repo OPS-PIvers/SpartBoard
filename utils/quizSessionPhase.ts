@@ -2,6 +2,7 @@
 
 import { deleteField } from 'firebase/firestore';
 import type { QuizSession } from '@/types';
+import { isReviewGame } from './quizWidgetKind';
 import {
   deriveRunState,
   endSessionPatch,
@@ -34,6 +35,7 @@ export type QuizSessionPhaseFields = Pick<
   | 'questionPhase'
   | 'autoProgressAt'
   | 'showPodiumBetweenQuestions'
+  | 'widgetKind'
 >;
 
 export type QuizSessionEvent =
@@ -102,6 +104,11 @@ export function quizRunState(phase: QuizSessionPhase): RunState {
   }
 }
 
+/** A quiz End also drops the live answer reveals, since any signed-in user can read the session doc. */
+export function endQuizPatch(now: number): Record<string, unknown> {
+  return { ...endSessionPatch('quiz', now), revealedAnswers: deleteField() };
+}
+
 /** The write a teacher event makes, or null when the event isn't allowed from the session's phase. */
 export function quizSessionWrite(
   session: QuizSessionPhaseFields,
@@ -114,7 +121,7 @@ export function quizSessionWrite(
       return phase ? advanceWrite(session, phase, now) : null;
     case 'end':
       // End from ended still rewrites and finalizes, so a second End finishes an interrupted finalize.
-      return { patch: endSessionPatch('quiz', now), finalize: true };
+      return { patch: endQuizPatch(now), finalize: true };
     case 'everyoneAnswered':
       if (
         phase?.kind !== 'question' ||
@@ -127,13 +134,16 @@ export function quizSessionWrite(
       return {
         patch: {
           autoProgressAt: now + AUTO_ADVANCE_DELAY_MS,
-          ...(session.showPodiumBetweenQuestions
-            ? { questionPhase: 'reviewing' }
-            : {}),
+          ...(podiumOn(session) ? { questionPhase: 'reviewing' } : {}),
         },
         finalize: false,
       };
   }
+}
+
+/** The podium pause between questions is a Review game feature only. */
+function podiumOn(session: QuizSessionPhaseFields): boolean {
+  return session.showPodiumBetweenQuestions === true && isReviewGame(session);
 }
 
 function advanceWrite(
@@ -146,7 +156,7 @@ function advanceWrite(
   if (
     (phase.kind === 'question' || phase.kind === 'game') &&
     phase.step === 'answering' &&
-    session.showPodiumBetweenQuestions
+    podiumOn(session)
   ) {
     return {
       patch: { questionPhase: 'reviewing', autoProgressAt: null },
@@ -157,7 +167,7 @@ function advanceWrite(
   if (nextIndex >= session.totalQuestions) {
     return {
       patch: {
-        ...endSessionPatch('quiz', now),
+        ...endQuizPatch(now),
         currentQuestionIndex: session.totalQuestions,
         questionPhase: deleteField(),
       },

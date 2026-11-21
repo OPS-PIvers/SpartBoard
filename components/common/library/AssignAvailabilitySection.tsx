@@ -58,7 +58,7 @@ export const PointField: React.FC<{
   const timeValue =
     point.time !== 'bell' ? point.time : side === 'opens' ? '00:00' : '23:59';
   const text = cqScaled ? '' : 'text-sm';
-  return (
+  const row = (
     <div className="flex items-center gap-2">
       <label
         htmlFor={dateId}
@@ -68,10 +68,10 @@ export const PointField: React.FC<{
         {label}
       </label>
       <div
-        className={`flex h-8 items-stretch rounded-lg border border-slate-300 bg-white text-slate-800 focus-within:border-brand-blue-primary ${text}`}
+        className={`flex h-8 items-stretch rounded-lg border border-slate-300 bg-white text-slate-800 focus-within:border-brand-blue-primary [@container(max-width:26rem)]:h-auto [@container(max-width:26rem)]:min-w-0 [@container(max-width:26rem)]:flex-1 [@container(max-width:26rem)]:flex-wrap ${text}`}
         style={scaledFont(cqScaled, 14, 5.5)}
       >
-        <span className="flex items-center border-r border-slate-200 pl-2.5 pr-1.5">
+        <span className="flex items-center border-r border-slate-200 pl-2.5 pr-1.5 [@container(max-width:26rem)]:h-8 [@container(max-width:26rem)]:flex-1 [@container(max-width:26rem)]:border-r-0">
           <input
             id={dateId}
             type="date"
@@ -85,7 +85,7 @@ export const PointField: React.FC<{
             className="w-33 bg-transparent focus:outline-hidden"
           />
         </span>
-        <span className="relative flex w-40 items-center gap-1.5 pl-2.5 pr-2">
+        <span className="relative flex w-40 items-center gap-1.5 pl-2.5 pr-2 [@container(max-width:26rem)]:h-8 [@container(max-width:26rem)]:w-full [@container(max-width:26rem)]:border-t [@container(max-width:26rem)]:border-slate-200">
           {usesBell ? (
             <>
               <Clock className="h-3.5 w-3.5 shrink-0 text-slate-500" />
@@ -171,6 +171,12 @@ export const PointField: React.FC<{
         </button>
       )}
     </div>
+  );
+  // On a narrow card the time field wraps under the date instead of running past the edge.
+  return cqScaled ? (
+    row
+  ) : (
+    <div className="[container-type:inline-size]">{row}</div>
   );
 };
 
@@ -591,8 +597,13 @@ export const AssignAvailabilitySection: React.FC<{
       )}
 
       {periodAccess &&
-        untagged.map((roster) => (
-          <TagPrompt key={roster.id} roster={roster} context={periodAccess} />
+        untagged.map((roster, rowIndex) => (
+          <TagPrompt
+            key={roster.id}
+            roster={roster}
+            context={periodAccess}
+            rowIndex={rowIndex}
+          />
         ))}
 
       <div className="flex items-center justify-between gap-2 pt-1">

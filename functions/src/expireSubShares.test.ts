@@ -27,6 +27,7 @@
 //   db.batch() -> { delete(ref), commit() }
 
 import { describe, it, expect, vi } from 'vitest';
+import type { GrantRevoker } from './expireSubShares';
 
 vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
@@ -67,6 +68,7 @@ function makeStubDb(seed: {
   subcollections?: Record<string, Record<string, string[]>>;
 }) {
   // Sub-docs the sweep is expected to reap, keyed `${parentId}/${name}/${id}`.
+  const failPrecondition = new Set<string>();
   const subDocs = new Set<string>();
   for (const [parentId, byName] of Object.entries(seed.subcollections ?? {})) {
     for (const [name, ids] of Object.entries(byName)) {
@@ -178,8 +180,20 @@ function makeStubDb(seed: {
           docs: sliced.map(([id, data]) => ({
             id,
             data: () => data,
+            updateTime: { id },
             ref: {
               id,
+              delete: () => {
+                if (failPrecondition.has(id)) {
+                  return Promise.reject(
+                    Object.assign(new Error('FAILED_PRECONDITION'), {
+                      code: 9,
+                    })
+                  );
+                }
+                store.delete(id);
+                return Promise.resolve();
+              },
               collection: (subName: string) => {
                 if (!['boards', 'content', 'keys'].includes(subName)) {
                   throw new Error(
@@ -241,6 +255,7 @@ function makeStubDb(seed: {
     db: db as unknown as Parameters<typeof runExpireSubShares>[0],
     stores,
     subDocs,
+    failPrecondition,
   };
 }
 
@@ -289,7 +304,7 @@ describe('runExpireSubShares', () => {
 
   // Bundled content and answer keys are read-gated by the parent's expiresAt,
   // so a parent deleted without them leaves docs nothing will ever reap.
-  it('reaps boards, content and keys before deleting the parent', async () => {
+  it('reaps boards, content and keys when deleting the parent', async () => {
     const { db, stores, subDocs } = makeStubDb({
       shared_collections: [
         {
@@ -338,7 +353,7 @@ describe('runExpireSubShares', () => {
     expect(stores.shared_boards.has('share-1')).toBe(true);
   });
 
-  it('force-deletes a share with driveGrants once the grace window has elapsed', async () => {
+  it('keeps an unrevokable share with driveGrants once the grace window has elapsed', async () => {
     const { db, stores } = makeStubDb({
       shared_boards: [
         {
@@ -357,11 +372,11 @@ describe('runExpireSubShares', () => {
     const result = await runExpireSubShares(db, NOW);
 
     expect(result.boards).toEqual({
-      deleted: 1,
+      deleted: 0,
       inGrace: 0,
       orphanedGrants: 1,
     });
-    expect(stores.shared_boards.has('share-1')).toBe(false);
+    expect(stores.shared_boards.has('share-1')).toBe(true);
   });
 
   it('leaves a not-yet-expired substitute share untouched', async () => {
@@ -455,5 +470,387 @@ describe('runExpireSubShares — pagination past the first page', () => {
     expect(result.boards.deleted).toBe(1);
     expect(result.boards.inGrace).toBe(SWEEP_PAGE_SIZE);
     expect(stores.shared_boards.has('share-zzz-target')).toBe(false);
+  });
+});
+
+describe('runExpireSubShares — server-side Drive revoke', () => {
+  const grant = (fileId: string, permissionId: string) => ({
+    email: 'sub@example.com',
+    fileId,
+    permissionId,
+  });
+
+  function fakeRevoker(over: Partial<GrantRevoker> = {}) {
+    const deleted: string[] = [];
+    const trashed: string[] = [];
+    const revoker: GrantRevoker = {
+      getAccessToken: vi.fn((uid: string) => Promise.resolve(`tok-${uid}`)),
+      getPermission: vi.fn(() =>
+        Promise.resolve({ type: 'user', role: 'reader' })
+      ),
+      deletePermission: vi.fn((_t: string, f: string, p: string) => {
+        deleted.push(`${f}:${p}`);
+        return Promise.resolve();
+      }),
+      getFileName: vi.fn(() => Promise.resolve('col-1-names.json')),
+      trashFile: vi.fn((_t: string, f: string) => {
+        trashed.push(f);
+        return Promise.resolve();
+      }),
+      notifyHost: vi.fn(() => Promise.resolve(true)),
+      ...over,
+    };
+    return { revoker, deleted, trashed };
+  }
+
+  it('revokes an expired share grant as the host and deletes the doc without waiting for the host', async () => {
+    const { db, stores } = makeStubDb({
+      shared_boards: [
+        {
+          id: 'share-1',
+          data: {
+            intendedMode: 'substitute',
+            originalAuthor: 'host-1',
+            expiresAt: NOW - 60_000,
+            driveGrants: [grant('f1', 'p1')],
+          },
+        },
+      ],
+    });
+    const { revoker, deleted } = fakeRevoker();
+
+    const result = await runExpireSubShares(db, NOW, revoker);
+
+    expect(revoker.getAccessToken).toHaveBeenCalledWith('host-1');
+    expect(deleted).toEqual(['f1:p1']);
+    expect(result.boards.deleted).toBe(1);
+    expect(stores.shared_boards.has('share-1')).toBe(false);
+  });
+
+  it('skips a permission a live share of the same host still uses, across collections', async () => {
+    const { db, stores } = makeStubDb({
+      shared_boards: [
+        {
+          id: 'share-1',
+          data: {
+            intendedMode: 'substitute',
+            originalAuthor: 'host-1',
+            expiresAt: NOW - 60_000,
+            driveGrants: [grant('f1', 'p1'), grant('f2', 'p2')],
+          },
+        },
+      ],
+      shared_collections: [
+        {
+          id: 'col-live',
+          data: {
+            intendedMode: 'substitute',
+            hostUid: 'host-1',
+            expiresAt: NOW + DAY,
+            driveGrants: [grant('f1', 'p1')],
+          },
+        },
+      ],
+    });
+    const { revoker, deleted } = fakeRevoker();
+
+    await runExpireSubShares(db, NOW, revoker);
+
+    expect(deleted).toEqual(['f2:p2']);
+    expect(stores.shared_boards.has('share-1')).toBe(false);
+    expect(stores.shared_collections.has('col-live')).toBe(true);
+  });
+
+  it('leaves a permission that is not a user reader grant alone', async () => {
+    const { db } = makeStubDb({
+      shared_boards: [
+        {
+          id: 'share-1',
+          data: {
+            intendedMode: 'substitute',
+            originalAuthor: 'host-1',
+            expiresAt: NOW - 60_000,
+            driveGrants: [grant('f1', 'p1')],
+          },
+        },
+      ],
+    });
+    const { revoker, deleted } = fakeRevoker({
+      getPermission: vi.fn(() =>
+        Promise.resolve({ type: 'user', role: 'writer' })
+      ),
+    });
+
+    await runExpireSubShares(db, NOW, revoker);
+
+    expect(deleted).toEqual([]);
+  });
+
+  it('trashes a Collection share names file only when it is that share own file', async () => {
+    const { db, stores } = makeStubDb({
+      shared_collections: [
+        {
+          id: 'col-1',
+          data: {
+            intendedMode: 'substitute',
+            hostUid: 'host-1',
+            expiresAt: NOW - 60_000,
+            namesFileId: 'names-1',
+            driveGrants: [grant('names-1', 'p1')],
+          },
+        },
+        {
+          id: 'col-2',
+          data: {
+            intendedMode: 'substitute',
+            hostUid: 'host-1',
+            expiresAt: NOW - 60_000,
+            namesFileId: 'other-file',
+            driveGrants: [grant('other-file', 'p1')],
+          },
+        },
+      ],
+    });
+    const { revoker, trashed } = fakeRevoker();
+
+    await runExpireSubShares(db, NOW, revoker);
+
+    expect(trashed).toEqual(['names-1']);
+    expect(stores.shared_collections.size).toBe(0);
+  });
+
+  it('keeps the doc when the host has no stored Drive grant', async () => {
+    const { db, stores } = makeStubDb({
+      shared_boards: [
+        {
+          id: 'share-1',
+          data: {
+            intendedMode: 'substitute',
+            originalAuthor: 'host-1',
+            expiresAt: NOW - 60_000,
+            driveGrants: [grant('f1', 'p1')],
+          },
+        },
+      ],
+    });
+    const { revoker } = fakeRevoker({
+      getAccessToken: vi.fn(() => Promise.resolve(null)),
+    });
+
+    const result = await runExpireSubShares(db, NOW, revoker);
+
+    expect(result.boards).toEqual({
+      deleted: 0,
+      inGrace: 1,
+      orphanedGrants: 0,
+    });
+    expect(stores.shared_boards.has('share-1')).toBe(true);
+  });
+
+  it('keeps the doc when a Drive revoke fails, even past the grace window', async () => {
+    const { db, stores } = makeStubDb({
+      shared_boards: [
+        {
+          id: 'share-1',
+          data: {
+            intendedMode: 'substitute',
+            originalAuthor: 'host-1',
+            expiresAt: NOW - 8 * DAY,
+            driveGrants: [grant('f1', 'p1')],
+          },
+        },
+      ],
+    });
+    const { revoker } = fakeRevoker({
+      deletePermission: vi.fn(() => Promise.reject(new Error('Drive 500'))),
+    });
+
+    const result = await runExpireSubShares(db, NOW, revoker);
+
+    expect(result.boards).toEqual({
+      deleted: 0,
+      inGrace: 0,
+      orphanedGrants: 1,
+    });
+    expect(stores.shared_boards.has('share-1')).toBe(true);
+  });
+
+  it('fetches one token per host per run', async () => {
+    const { db } = makeStubDb({
+      shared_boards: ['a', 'b'].map((id) => ({
+        id,
+        data: {
+          intendedMode: 'substitute',
+          originalAuthor: 'host-1',
+          expiresAt: NOW - 60_000,
+          driveGrants: [grant(`f-${id}`, `p-${id}`)],
+        },
+      })),
+    });
+    const { revoker } = fakeRevoker();
+
+    await runExpireSubShares(db, NOW, revoker);
+
+    expect(revoker.getAccessToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('revokes an expired grant when a live share holds the same sub on another file', async () => {
+    const { db, stores } = makeStubDb({
+      shared_boards: [
+        {
+          id: 'share-a',
+          data: {
+            intendedMode: 'substitute',
+            originalAuthor: 'host-1',
+            expiresAt: NOW - 60_000,
+            driveGrants: [grant('roster-1', 'sub-perm')],
+          },
+        },
+        {
+          id: 'share-b',
+          data: {
+            intendedMode: 'substitute',
+            originalAuthor: 'host-1',
+            expiresAt: NOW + DAY,
+            driveGrants: [grant('roster-3', 'sub-perm')],
+          },
+        },
+      ],
+    });
+    const { revoker, deleted } = fakeRevoker();
+
+    await runExpireSubShares(db, NOW, revoker);
+
+    expect(deleted).toEqual(['roster-1:sub-perm']);
+    expect(stores.shared_boards.has('share-a')).toBe(false);
+    expect(stores.shared_boards.has('share-b')).toBe(true);
+  });
+
+  it('emails the host about a share kept past the grace window', async () => {
+    const { db, stores } = makeStubDb({
+      shared_boards: [
+        {
+          id: 'share-1',
+          data: {
+            intendedMode: 'substitute',
+            originalAuthor: 'host-1',
+            expiresAt: NOW - 8 * DAY,
+            driveGrants: [grant('f1', 'p1')],
+          },
+        },
+      ],
+    });
+    const { revoker } = fakeRevoker({
+      getAccessToken: vi.fn(() => Promise.resolve(null)),
+    });
+
+    await runExpireSubShares(db, NOW, revoker);
+
+    expect(revoker.notifyHost).toHaveBeenCalledWith(
+      'host-1',
+      'shared_boards-share-1',
+      1
+    );
+    expect(stores.shared_boards.has('share-1')).toBe(true);
+  });
+
+  it('does not email the host while the share is still in the grace window', async () => {
+    const { db } = makeStubDb({
+      shared_boards: [
+        {
+          id: 'share-1',
+          data: {
+            intendedMode: 'substitute',
+            originalAuthor: 'host-1',
+            expiresAt: NOW - DAY,
+            driveGrants: [grant('f1', 'p1')],
+          },
+        },
+      ],
+    });
+    const { revoker } = fakeRevoker({
+      getAccessToken: vi.fn(() => Promise.resolve(null)),
+    });
+
+    await runExpireSubShares(db, NOW, revoker);
+
+    expect(revoker.notifyHost).not.toHaveBeenCalled();
+  });
+
+  const pastGrace = () => ({
+    intendedMode: 'substitute',
+    originalAuthor: 'host-1',
+    expiresAt: NOW - 8 * DAY,
+    driveGrants: [grant('f1', 'p1')],
+  });
+
+  it('logs the unrevoked grant list when the host user is deleted and cannot be emailed', async () => {
+    const { db } = makeStubDb({
+      shared_boards: [{ id: 'share-1', data: pastGrace() }],
+    });
+    const { revoker } = fakeRevoker({
+      getAccessToken: vi.fn(() => Promise.resolve(null)),
+      notifyHost: vi.fn(() => Promise.reject(new Error('user not found'))),
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await runExpireSubShares(db, NOW, revoker);
+
+    const logged = warn.mock.calls.map((c) => String(c[0])).join('\n');
+    warn.mockRestore();
+    expect(logged).toContain('sub@example.com@f1:p1');
+  });
+
+  it('keeps a past-grace share without emailing when the Drive budget ran out', async () => {
+    const { db, stores } = makeStubDb({
+      shared_boards: [{ id: 'share-1', data: pastGrace() }],
+    });
+    const { revoker } = fakeRevoker();
+    const base = Date.now();
+    const spy = vi
+      .spyOn(Date, 'now')
+      .mockReturnValueOnce(base)
+      .mockReturnValue(base + 301_000);
+
+    await runExpireSubShares(db, NOW, revoker);
+    spy.mockRestore();
+
+    expect(revoker.getAccessToken).not.toHaveBeenCalled();
+    expect(revoker.notifyHost).not.toHaveBeenCalled();
+    expect(stores.shared_boards.has('share-1')).toBe(true);
+  });
+
+  it('keeps a past-grace share without emailing when the token fetch fails transiently', async () => {
+    const { db, stores } = makeStubDb({
+      shared_boards: [{ id: 'share-1', data: pastGrace() }],
+    });
+    const { revoker } = fakeRevoker({
+      getAccessToken: vi.fn(() => Promise.reject(new Error('503'))),
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await runExpireSubShares(db, NOW, revoker);
+    warn.mockRestore();
+
+    expect(revoker.notifyHost).not.toHaveBeenCalled();
+    expect(stores.shared_boards.has('share-1')).toBe(true);
+  });
+
+  it('skips a doc that changed since the query and still deletes the others', async () => {
+    const expired = { intendedMode: 'substitute', expiresAt: NOW - 60_000 };
+    const { db, stores, failPrecondition } = makeStubDb({
+      shared_boards: ['a', 'b', 'c'].map((id) => ({
+        id,
+        data: { ...expired },
+      })),
+    });
+    failPrecondition.add('b');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const result = await runExpireSubShares(db, NOW);
+    warn.mockRestore();
+
+    expect(result.boards.deleted).toBe(2);
+    expect([...stores.shared_boards.keys()]).toEqual(['b']);
   });
 });

@@ -82,4 +82,17 @@ describe('StudentAnswerLine', () => {
     // Once as the mark, once in the answer field.
     expect(screen.getAllByText('No answer')).toHaveLength(2);
   });
+
+  it('marks a dictated answer with a neutral chip', () => {
+    const { unmount } = render(
+      <ul>
+        <StudentAnswerLine line={written} dictated />
+      </ul>
+    );
+    const chip = screen.getByText('Dictated');
+    expect(chip.className).not.toMatch(/amber|red|rose/);
+    unmount();
+    renderLine(written);
+    expect(screen.queryByText('Dictated')).toBeNull();
+  });
 });

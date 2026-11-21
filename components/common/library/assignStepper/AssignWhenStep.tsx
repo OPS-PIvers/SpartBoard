@@ -166,6 +166,22 @@ export const AssignWhenStep: React.FC<{
   const allowLateLabel = t('assignWhen.allowLate', {
     defaultValue: 'Allow submissions after close',
   });
+  const allowLateRow = (
+    <div className="flex min-h-8 items-center justify-between gap-3">
+      <span className="text-sm font-medium text-slate-700">
+        {allowLateLabel}
+      </span>
+      <Toggle
+        size="sm"
+        checked={availability.allowLate}
+        onChange={(allowLate) =>
+          setAvailability({ ...availability, allowLate })
+        }
+        label={allowLateLabel}
+        anchor={tourAttr('assign-when.allow-late')}
+      />
+    </div>
+  );
 
   return (
     <div className="space-y-3">
@@ -226,6 +242,7 @@ export const AssignWhenStep: React.FC<{
               openedAt={openedAt}
             />
           )}
+          {availability.manualDue?.kind === 'date' && !staff && allowLateRow}
         </>
       ) : (
         <>
@@ -313,11 +330,12 @@ export const AssignWhenStep: React.FC<{
           )}
 
           {periodAccess &&
-            untagged.map((roster) => (
+            untagged.map((roster, rowIndex) => (
               <TagPrompt
                 key={roster.id}
                 roster={roster}
                 context={periodAccess}
+                rowIndex={rowIndex}
               />
             ))}
 
@@ -359,22 +377,7 @@ export const AssignWhenStep: React.FC<{
             </button>
           )}
 
-          {!available && (
-            <div className="flex min-h-8 items-center justify-between gap-3">
-              <span className="text-sm font-medium text-slate-700">
-                {allowLateLabel}
-              </span>
-              <Toggle
-                size="sm"
-                checked={availability.allowLate}
-                onChange={(allowLate) =>
-                  setAvailability({ ...availability, allowLate })
-                }
-                label={allowLateLabel}
-                anchor={tourAttr('assign-when.allow-late')}
-              />
-            </div>
-          )}
+          {!available && allowLateRow}
         </>
       )}
     </div>

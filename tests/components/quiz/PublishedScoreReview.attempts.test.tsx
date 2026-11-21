@@ -122,4 +122,37 @@ describe('PublishedScoreReview attempt picker', () => {
     expect(screen.getByText('100%')).toBeInTheDocument();
     expect(screen.queryByText(/fully correct/)).toBeNull();
   });
+
+  it('labels attempts by points and shows an earlier attempt in points', async () => {
+    const loader = vi.fn<MyQuizAttemptsLoader>(() =>
+      Promise.resolve({
+        attempts: [
+          {
+            n: 1,
+            submittedAt: 1,
+            score: 0,
+            points: { earned: 0, possible: 1 },
+            answers: [{ questionId: 'q1', answer: 'B', isCorrect: false }],
+          },
+        ],
+      })
+    );
+    render(
+      <MyQuizAttemptsLoaderContext.Provider value={loader}>
+        <PublishedScoreReview
+          session={session}
+          myResponse={{
+            ...live(2),
+            scorePoints: { earned: 1, possible: 1, attempt: 2 },
+          }}
+          visibility="score-and-responses"
+          pin=""
+        />
+      </MyQuizAttemptsLoaderContext.Provider>
+    );
+    const first = await screen.findByRole('button', { name: '1 · 0/1' });
+    expect(screen.getByRole('button', { name: '2 · 1/1' })).toBeInTheDocument();
+    fireEvent.click(first);
+    expect(screen.getByText('0 out of 1 points')).toBeInTheDocument();
+  });
 });

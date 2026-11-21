@@ -47,11 +47,14 @@ import {
   FolderMinus,
   Send,
   Users,
+  Monitor,
+  Calendar,
 } from 'lucide-react';
 import { EDIT_CLASSES_LABEL } from '@/components/common/library/AssignmentClassesModal';
 import { canEditAssignmentClasses } from '@/utils/assignmentClassEdit';
 import type {
   AssignmentMode,
+  ClassRoster,
   MiniAppItem,
   GlobalMiniAppItem,
   MiniAppAssignment,
@@ -65,6 +68,13 @@ import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArc
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
+import { AuthContext } from '@/context/AuthContextValue';
+import { RunAssignedTab } from '@/components/common/library/assigned/RunAssignedTab';
+import type { AssignmentLifecycle } from '@/hooks/useAssignmentClassActions';
+import { miniAppAssignedInput } from '@/utils/assignedAdapters';
+import { MINI_APP_CLASS_COLLECTIONS } from '../utils/miniAppClassLifecycle';
+import { miniAppRowResponses } from '../utils/miniAppAssignedResponses';
+import { AssignmentClassNames } from '@/components/common/library/AssignmentClassNames';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
@@ -167,8 +177,21 @@ export interface MiniAppManagerProps {
   /** Opens Publish scores for an ended submissions assignment; unset hides the item. */
   onArchivePublishScores?: (assignment: MiniAppAssignment) => void;
   onArchiveDelete: (assignment: MiniAppAssignment) => void;
+  /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
+  onArchiveDeleteMany?: (assignments: MiniAppAssignment[]) => Promise<number>;
+  /** Opens the publish dialog once for several closed assignments. */
+  onArchivePublishMany?: (assignments: MiniAppAssignment[]) => void;
   /** Optional — open the underlying app in the widget. */
   onArchiveOpenApp?: (assignment: MiniAppAssignment) => void;
+  /** Opens the live monitor (Start, Pause, who has submitted); unset keeps Copy link as the row button. */
+  onArchiveMonitor?: (assignment: MiniAppAssignment) => void;
+  /** Opens an assignment's results; unset keeps Copy link as the Completed row button. */
+  onArchiveResults?: (assignment: MiniAppAssignment) => void;
+  /** Names of the classes an assignment went to, for the row's class list. */
+  assignmentClassNames?: (assignment: MiniAppAssignment) => string[];
+  /** Whole-run writes the Assigned tab drives (ASSIGNED_TAB.md D21); unset keeps the old tabs. */
+  classLifecycle?: AssignmentLifecycle | null;
+  rosters?: readonly ClassRoster[];
 
   /** Org-wide assignment mode. Drives Assign-vs-Share button labels and the
    *  In-Progress-vs-Shared tab label. Defaults to `'submissions'`. */
@@ -215,6 +238,8 @@ function getRowId(row: UnifiedRow): string {
 }
 
 const APP_NOUN = ['Mini app', 'Mini apps'] as const;
+
+const NO_ROSTERS: readonly ClassRoster[] = [];
 
 // District apps can't be filed yet, so they sit at the top level.
 function rowFolderId(row: UnifiedRow): string | null {
@@ -282,6 +307,9 @@ const MiniAppArchiveRow: React.FC<{
   primaryAction?: LibraryPrimaryAction;
   secondaryActions: LibraryMenuAction[];
   tourIndex?: number;
+  /** The Quiz-style row: date and class list in the meta line. */
+  aligned: boolean;
+  classNamesFor?: (assignment: MiniAppAssignment) => string[];
 }> = ({
   assignment,
   mode,
@@ -289,6 +317,8 @@ const MiniAppArchiveRow: React.FC<{
   primaryAction,
   secondaryActions,
   tourIndex,
+  aligned,
+  classNamesFor,
 }) => {
   const isViewOnly = assignment.mode === 'view-only';
   // Admin-only by default — view-count display fires one Firestore
@@ -302,15 +332,39 @@ const MiniAppArchiveRow: React.FC<{
     assignment.sessionId,
     isViewOnly && trackingEnabled
   );
+  const classList = !!classNamesFor && !isViewOnly;
+  const appTitle = (assignment.appTitle ?? '').trim().toLowerCase();
+  const sameTitle =
+    !!appTitle &&
+    appTitle === (assignment.assignmentName ?? '').trim().toLowerCase();
   return (
     <AssignmentArchiveCard<MiniAppAssignment>
       assignment={assignment}
       mode={mode}
       status={status}
       title={assignment.assignmentName}
-      subtitle={assignment.appTitle}
+      subtitle={sameTitle ? undefined : assignment.appTitle}
       meta={
         <>
+          {aligned && (
+            <span
+              className="inline-flex items-center"
+              style={{ gap: 'min(2px, 0.5cqmin)' }}
+            >
+              <Calendar
+                aria-hidden
+                style={{
+                  width: 'min(12px, 3cqmin)',
+                  height: 'min(12px, 3cqmin)',
+                }}
+              />
+              {new Date(assignment.createdAt).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+            </span>
+          )}
           {isViewOnly && trackingEnabled && <ViewCountBadge count={count} />}
           {!!assignment.targetSkippedCount &&
             assignment.targetSkippedCount > 0 && (
@@ -321,6 +375,9 @@ const MiniAppArchiveRow: React.FC<{
                 {assignment.targetSkippedCount} skipped
               </span>
             )}
+          {aligned && classList && (
+            <AssignmentClassNames names={classNamesFor(assignment)} />
+          )}
         </>
       }
       primaryAction={primaryAction}
@@ -336,7 +393,7 @@ const MiniAppArchiveRow: React.FC<{
 export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   userId,
   clearsConnectionTab = false,
-  tab,
+  tab: tabProp,
   onTabChange,
   personalLibrary,
   globalLibrary,
@@ -363,11 +420,27 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   onArchiveEditClasses,
   onArchivePublishScores,
   onArchiveDelete,
+  onArchiveDeleteMany,
+  onArchivePublishMany,
   onArchiveOpenApp,
+  onArchiveMonitor,
+  onArchiveResults,
+  assignmentClassNames,
+  classLifecycle,
+  rosters = NO_ROSTERS,
   assignmentMode = 'submissions',
   readOnly = false,
 }) => {
   const isViewOnly = assignmentMode === 'view-only';
+  // Some hosts mount the manager outside AuthProvider, so read the context softly.
+  const auth = React.useContext(AuthContext);
+  // ASSIGNED_TAB.md D12/D19: Library and Assigned, behind the preview flag.
+  const assignedOn =
+    classLifecycle !== undefined && !!auth?.canAccessFeature('assigned-tab');
+  const tab: LibraryTab =
+    assignedOn && tabProp === 'archive' ? 'active' : tabProp;
+  // The host wires the monitor only behind the Mini App submissions flag.
+  const aligned = !!onArchiveMonitor;
   // Apps with older submissions assignments keep View assignments in view-only mode.
   const appsWithSubmissions = useMemo(
     () =>
@@ -1100,7 +1173,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         className="font-black uppercase tracking-widest text-slate-500"
         style={{ fontSize: 'min(14px, 5.5cqmin)' }}
       >
-        {isViewOnly ? 'No archived shares' : 'No archived assignments'}
+        {isViewOnly ? 'No ended shares' : 'No completed assignments'}
       </p>
       <p
         className="font-medium text-slate-400"
@@ -1153,7 +1226,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     if (!isViewOnly) {
       actions.push({
         id: 'copy-url',
-        label: 'Copy student link',
+        label: aligned ? 'Copy link' : 'Copy student link',
         icon: Copy,
         onClick: () => onArchiveCopyUrl(assignment),
       });
@@ -1187,6 +1260,16 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         label: isViewOnly ? 'End share' : 'End assignment',
         icon: Box,
         onClick: () => onArchiveEnd(assignment),
+      });
+    }
+
+    if (!isViewOnly && onArchiveResults) {
+      actions.push({
+        id: 'results',
+        label: 'Results',
+        icon: BarChart3,
+        onClick: () => onArchiveResults(assignment),
+        anchor: tourTypeAttr('mini-app.archive-results', 'miniApp'),
       });
     }
 
@@ -1239,7 +1322,53 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   /* ── Tab content ──────────────────────────────────────────────────────── */
 
   let tabContent: React.ReactElement;
-  if (tab === 'active') {
+  if (tab === 'active' && assignedOn) {
+    tabContent = (
+      <RunAssignedTab<MiniAppAssignment>
+        assignments={assignments}
+        loading={assignmentsLoading}
+        rosters={rosters}
+        collections={MINI_APP_CLASS_COLLECTIONS}
+        lifecycle={classLifecycle ?? null}
+        tourWidgetType="miniApp"
+        emptyTitle="Nothing active"
+        emptySub={
+          isViewOnly
+            ? 'Share a mini app from the Library.'
+            : 'Assign a mini app from the Library.'
+        }
+        title={(a) =>
+          a.assignmentName?.trim() ? a.assignmentName : a.appTitle
+        }
+        viewOnly={(a) => a.mode === 'view-only'}
+        toInput={miniAppAssignedInput}
+        responsesPath={(a) => `mini_app_sessions/${a.sessionId}/submissions`}
+        toResponses={miniAppRowResponses}
+        classCounts={(a) => Object.keys(a.periodAccess ?? {}).length <= 1}
+        onMonitor={onArchiveMonitor}
+        onResults={onArchiveResults}
+        onPublish={
+          onArchivePublishScores
+            ? (a) => {
+                if (a.resultsVersion === 2) onArchivePublishScores(a);
+                else onArchiveResults?.(a);
+              }
+            : undefined
+        }
+        fallbackPrimary={(a) => ({
+          label: 'Copy link',
+          onClick: () => onArchiveCopyUrl(a),
+        })}
+        menu={(a) =>
+          assignmentSecondary(a, a.status === 'inactive' ? 'archive' : 'active')
+        }
+        replacedMenuIds={['end', 'reactivate']}
+        publishes={(a) => a.resultsVersion === 2}
+        onBulkDelete={onArchiveDeleteMany}
+        onBulkPublish={onArchivePublishMany}
+      />
+    );
+  } else if (tab === 'active') {
     if (assignmentsLoading) {
       tabContent = (
         <div
@@ -1266,13 +1395,23 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
               assignment={a}
               mode="active"
               status={statusBadge(a, 'active')}
-              primaryAction={{
-                label: 'Copy link',
-                icon: Copy,
-                onClick: () => onArchiveCopyUrl(a),
-              }}
+              primaryAction={
+                a.mode !== 'view-only' && onArchiveMonitor
+                  ? {
+                      label: 'Monitor',
+                      icon: Monitor,
+                      onClick: () => onArchiveMonitor(a),
+                    }
+                  : {
+                      label: 'Copy link',
+                      icon: Copy,
+                      onClick: () => onArchiveCopyUrl(a),
+                    }
+              }
               secondaryActions={assignmentSecondary(a, 'active')}
               tourIndex={index}
+              aligned={aligned}
+              classNamesFor={assignmentClassNames}
             />
           ))}
         </div>
@@ -1315,14 +1454,22 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
                 primaryAction={
                   archiveIsViewOnly
                     ? undefined
-                    : {
-                        label: 'Copy link',
-                        icon: Copy,
-                        onClick: () => onArchiveCopyUrl(a),
-                      }
+                    : onArchiveResults
+                      ? {
+                          label: 'Results',
+                          icon: BarChart3,
+                          onClick: () => onArchiveResults(a),
+                        }
+                      : {
+                          label: 'Copy link',
+                          icon: Copy,
+                          onClick: () => onArchiveCopyUrl(a),
+                        }
                 }
                 secondaryActions={assignmentSecondary(a, 'archive')}
                 tourIndex={index}
+                aligned={aligned}
+                classNamesFor={assignmentClassNames}
               />
             );
           })}
@@ -1511,10 +1658,15 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       onTabChange={onTabChange}
       counts={{
         library: personalLibrary.length + globalLibrary.length,
-        active: activeAssignments.length,
-        archive: archivedAssignments.length,
+        // The Assigned tab's Active section depends on grading, so it shows no count.
+        active: assignedOn ? undefined : activeAssignments.length,
+        archive: assignedOn ? undefined : archivedAssignments.length,
       }}
-      tabLabels={isViewOnly ? { active: 'Shared' } : undefined}
+      assignedLayout={assignedOn}
+      tabLabels={{
+        ...(isViewOnly ? { active: 'Shared' } : {}),
+        archive: 'Completed',
+      }}
       primaryAction={primaryAction}
       secondaryActions={secondaryActions}
       filterSidebarSlot={folderSidebarSlot}

@@ -31,7 +31,7 @@
       "note": "At 150x100 the panel and its neighbours spill past the card edges, the empty state is unreadable gray-on-gray, and the script measures 2.7 px text and 7.81 px tap targets.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:34:52.274Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 2,
@@ -72,7 +72,7 @@
       "note": "Both aspects keep the same single-column list: the tallest leaves big gaps between the rows, the widest stretches rules edge to edge, and neighbour panels bleed in at the sides.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:34:52.274Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 2,
@@ -287,7 +287,7 @@
       "note": "The empty state is gray-on-gray, and the default face shows panels overflowing the card with the side neighbours bleeding into view.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:34:52.274Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 2,
@@ -324,7 +324,7 @@
       "note": "The step list is the primary element, but the coloured neighbour slivers and the half-visible 'Where it goes' footer compete with it.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:34:52.274Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 2,
@@ -376,7 +376,7 @@
       "note": "The section titles 'What you do' and 'Where it goes' are plain teacher wording with lucide icons, though the left chevron points right and the right chevron points left.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:34:52.274Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 2,

@@ -569,12 +569,17 @@ export const FlashcardAssignmentPage: React.FC<{
     progressListenReducer,
     initialProgressListen
   );
+  const rawSession = sessionState.kind === 'ready' ? sessionState.value : null;
   const pointer = useStudentAssignmentPointer(
     pseudonymUid,
     assignmentId,
-    !staff
+    !staff,
+    {
+      sessionId: assignmentId,
+      teacherUid: rawSession?.teacherUid,
+      kind: 'flashcards',
+    }
   );
-  const rawSession = sessionState.kind === 'ready' ? sessionState.value : null;
   const perPeriod = hasPeriodAccess(rawSession);
   const { periodKeys, content, contentPending, takeSeat } =
     useSeatedPeriodContent<FlashcardSessionContent>({

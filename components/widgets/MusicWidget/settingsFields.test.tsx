@@ -8,6 +8,15 @@ vi.mock('@/hooks/useMusicStations', () => ({
   useMusicStations: () => ({ stations: [], isLoading: false }),
 }));
 
+vi.mock('@/hooks/useMySongs', () => ({
+  useMySongs: () => ({
+    songs: [],
+    loading: false,
+    addSong: vi.fn(),
+    removeSong: vi.fn(),
+  }),
+}));
+
 vi.mock('./PersonalSpotifyPanel', () => ({
   PersonalSpotifyPanel: () => <div data-testid="personal-spotify-panel" />,
 }));

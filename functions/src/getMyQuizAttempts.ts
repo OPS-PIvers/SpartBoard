@@ -4,7 +4,12 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { loadSessionContext } from './gradebook/gradeIndex';
-import { gradeGroupAnswer } from './plcAssessmentMath';
+import {
+  calcAttemptKey,
+  formatCalcAnswer,
+  withCalcValues,
+} from './quizCalculated';
+import { gradeGroupAnswer, trustedPaperTranscript } from './plcAssessmentMath';
 import { parseCompletedResponse } from './recomputePlcAssessments';
 import { representativeAnswers } from './quizScoreOnSubmit';
 import {
@@ -35,9 +40,13 @@ export interface MyAttempt {
   submittedAt: number | null;
   /** Percent, or null while a written answer still needs a grade. */
   score: number | null;
+  /** Point total behind `score`, when the attempt list has one. */
+  points?: { earned: number; possible: number };
   answers?: MyAttemptAnswer[];
   grading?: Doc;
   servedQuestionIds?: string[];
+  /** Random-number answers from this attempt's own numbers, when answers are shown. */
+  calcAnswers?: Record<string, string>;
 }
 
 /** Auth token claims that limit which classes a student caller proved. */
@@ -88,12 +97,29 @@ function passesClassGate(session: Doc, claims: MyAttemptsClaims): boolean {
 }
 
 /** The scored list entry for attempt `n`, which follows teacher grading of earlier attempts. */
-function listScore(list: Doc | undefined, n: number): number | null {
+function listEntry(list: Doc | undefined, n: number): Doc | null {
   const entries: unknown = list?.attempts;
   if (!Array.isArray(entries)) return null;
   const hit = entries.map(asRecord).find((e) => e.n === n);
-  if (!hit || hit.state !== 'scored') return null;
-  return pctOf(num(hit.points), num(hit.max));
+  return hit && hit.state === 'scored' ? hit : null;
+}
+
+function listScore(list: Doc | undefined, n: number): number | null {
+  const hit = listEntry(list, n);
+  return hit ? pctOf(num(hit.points), num(hit.max)) : null;
+}
+
+/** Earned and possible points for attempt `n`, only when they make its percent. */
+function listPoints(
+  list: Doc | undefined,
+  n: number
+): { earned: number; possible: number } | null {
+  const hit = listEntry(list, n);
+  const earned = num(hit?.points);
+  const possible = num(hit?.max);
+  if (earned === null || possible === null || !(possible > 0)) return null;
+  if (earned < 0 || earned > possible) return null;
+  return { earned, possible };
 }
 
 export async function handleGetMyQuizAttempts(
@@ -106,6 +132,7 @@ export async function handleGetMyQuizAttempts(
   const data = asRecord(raw);
   if (!isId(data.sessionId) || !isId(data.responseKey))
     throw new HttpsError('invalid-argument', 'Missing quiz or response.');
+  const responseKey: string = data.responseKey;
   const sessionRef = deps.db.collection('quiz_sessions').doc(data.sessionId);
   const responseRef = sessionRef.collection('responses').doc(data.responseKey);
   const [sessionSnap, responseSnap] = await Promise.all([
@@ -166,17 +193,32 @@ export async function handleGetMyQuizAttempts(
     : null;
   const byId = new Map((ctx?.quiz?.questions ?? []).map((q) => [q.id, q]));
   const fib = ctx?.quiz?.fibAnswersByStudent(callerUid) ?? {};
+  const modified = ctx?.quiz?.modifiedStudent?.(callerUid) === true;
   const list = listSnap.data();
 
   const attempts = copies.map((c): MyAttempt => {
     const n = Number(c.n);
+    const points = listPoints(list, n);
     const base: MyAttempt = {
       n,
       submittedAt: num(c.submittedAt),
       score: listScore(list, n) ?? num(c.score),
+      ...(points ? { points } : {}),
     };
     if (!withResponses) return base;
     const parsed = parseCompletedResponse(c);
+    const attemptKey = calcAttemptKey(responseKey, {
+      joinedAt: response.joinedAt,
+      status: 'completed',
+      completedAttempts: n,
+    });
+    const calcAnswers: Record<string, string> = {};
+    if (visibility === 'score-responses-and-answers')
+      for (const q of byId.values()) {
+        const own = withCalcValues(q, attemptKey, modified);
+        if (own.calc && own.calcValues)
+          calcAnswers[q.id] = formatCalcAnswer(own.calc, own.calcValues);
+      }
     const representative = representativeAnswers(parsed.answers);
     const served = parsed.servedQuestionIds?.length
       ? new Set(parsed.servedQuestionIds)
@@ -190,10 +232,11 @@ export async function handleGetMyQuizAttempts(
       const g =
         q && judged
           ? gradeGroupAnswer(
-              q,
+              withCalcValues(q, attemptKey, modified),
               a.answer,
               parsed.manualGrades?.[q.id],
-              q.type === 'FIB' ? fib[q.id] : undefined
+              q.type === 'FIB' ? fib[q.id] : undefined,
+              trustedPaperTranscript(q, parsed.paperAttested, a)
             )
           : null;
       return {
@@ -215,6 +258,7 @@ export async function handleGetMyQuizAttempts(
       ...(parsed.servedQuestionIds
         ? { servedQuestionIds: parsed.servedQuestionIds }
         : {}),
+      ...(Object.keys(calcAnswers).length > 0 ? { calcAnswers } : {}),
     };
   });
   return { attempts };

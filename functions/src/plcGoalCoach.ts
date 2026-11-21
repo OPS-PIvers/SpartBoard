@@ -33,6 +33,8 @@ import {
 import { assertViewAsAllowed } from './viewAsGuard';
 import { isAiTeacherCaller, type AiCallerToken } from './aiCallerGate';
 import { generateAi } from './aiRouter';
+import { isExcludedFrom } from './permissionExclusion';
+import { safeErr } from './safeLog';
 
 type Firestore = admin.firestore.Firestore;
 type Data = Record<string, unknown>;
@@ -158,7 +160,7 @@ export async function runGoalCoach(
   } catch (error) {
     if (charge) await deps.refund(charge).catch(() => undefined);
     if (error instanceof HttpsError) throw error;
-    console.error('[plcGoalCoachV1] failed:', error);
+    console.error('[plcGoalCoachV1] failed:', safeErr(error));
     throw new HttpsError(
       'internal',
       'The goal coach could not check this goal.'
@@ -178,7 +180,10 @@ export async function adminSkipsGoalCoachQuota(
       db.collection('global_permissions').doc(id).get()
     )
   );
-  return flags.every((d) => d.data()?.enabled !== false);
+  // An excluded admin falls to the teacher gate, which refuses them.
+  return flags.every(
+    (d) => d.data()?.enabled !== false && !isExcludedFrom(d.data(), token.email)
+  );
 }
 
 function defaultDeps(): GoalCoachDeps {

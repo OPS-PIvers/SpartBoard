@@ -30,6 +30,7 @@ import * as admin from './firebaseAdmin';
 import * as crypto from 'crypto';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { isRevokedMemberStatus, isStrictSuperAdmin } from './authz';
+import { safeErr } from './safeLog';
 
 // Guard against double-initialization. The main index.ts module calls
 // initializeApp() at load time; if that module is loaded first (normal
@@ -905,7 +906,7 @@ export const createOrganizationInvites = onCall(
         const message = err instanceof Error ? err.message : 'Unknown error.';
         console.error(
           `[organizationInvites] Failed to create invite for ${invite.email}:`,
-          err
+          safeErr(err)
         );
         errors.push({ email: invite.email, reason: message });
       }
@@ -985,19 +986,6 @@ async function writeInvitation(
       // Re-inviting rewrites roleId, so it would demote a super admin.
       if (existing?.roleId === 'super_admin' && !(await callerIsSuperAdmin())) {
         throw new Error(SUPER_ADMIN_ONLY_REASON);
-      }
-      // Reactivating a deactivated legacy-list address restores its super admin grant, like the rules' legacyStatusSafe().
-      if (existing && isRevokedMemberStatus(existing.status)) {
-        const legacy: unknown = (
-          await tx.get(db.doc('admin_settings/user_roles'))
-        ).get('superAdmins');
-        if (
-          Array.isArray(legacy) &&
-          legacy.includes(invite.email) &&
-          !(await callerIsSuperAdmin())
-        ) {
-          throw new Error(SUPER_ADMIN_ONLY_REASON);
-        }
       }
 
       tx.set(memberRef, plan.patch, { merge: true });

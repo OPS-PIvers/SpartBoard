@@ -9,7 +9,7 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'widget',
     widgetType: 'quiz',
     needs: ['widget-on-stage'],
-    files: [Q, `${C}QuizManager.tsx`],
+    files: [Q, `${C}QuizManager.tsx`, `${C}QuizAssignedTab.tsx`],
     inner: {
       'quiz-library.bulk-merge': 'quiz.select-mode',
       'quiz-library.bulk-share-plc': 'quiz.select-mode',
@@ -27,6 +27,10 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-library.import-written-answers':
         'library-shell.archive-menu:quiz#row-1',
       'quiz-library.reprint-written-sheets':
+        'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.import-paper-copies':
+        'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.reprint-paper-copies':
         'library-shell.archive-menu:quiz#row-1',
       'quiz-library.import-questions': 'library-shell.card-menu:quiz#row-1',
       'quiz-library.make-own-copy': 'library-shell.card-menu:quiz#row-1',
@@ -95,7 +99,9 @@ export const SURFACES: TourSurfaceMap = {
       `${C}AnswerKeyboardControls.tsx`,
       `${C}AnswerKeyKeyboard.tsx`,
       `${C}PromptEquations.tsx`,
+      `${C}CalcQuestionFields.tsx`,
       `${C}PromptRichEditor.tsx`,
+      `${C}PromptAudioField.tsx`,
       `${C}ChoiceOptionsEditor.tsx`,
       `${C}FibBlanksEditor.tsx`,
       `${C}FibBlankTypeEditor.tsx`,
@@ -115,6 +121,7 @@ export const SURFACES: TourSurfaceMap = {
     ],
     inner: {
       'quiz-editor.ai-close': 'quiz-editor.draft-ai:quiz',
+      'quiz-editor.modified-text': 'quiz-editor.modified:quiz',
       'quiz-editor.ai-generate': 'quiz-editor.draft-ai:quiz',
       'quiz-editor.ai-prompt': 'quiz-editor.draft-ai:quiz',
       'quiz-editor.ai-count-dec': 'quiz-editor.draft-ai:quiz',
@@ -138,6 +145,9 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-stimuli.card-label': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.card-delete': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.passage-text': 'quiz-editor.tab-stimuli:quiz',
+      'quiz-stimuli.add-word-bank': 'quiz-editor.tab-stimuli:quiz',
+      'quiz-stimuli.word-bank-text': 'quiz-editor.tab-stimuli:quiz',
+      'quiz-stimuli.word-bank-columns': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.play-limit': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.tab-label': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.placement': 'quiz-editor.tab-stimuli:quiz',
@@ -154,6 +164,12 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-library.language-reviewed': 'quiz-editor.tab-languages:quiz',
       'quiz-library.language-translated-text': 'quiz-editor.tab-languages:quiz',
     },
+  },
+  'quiz.editor.stimulus-picker': {
+    label: 'Stimulus picker dialog',
+    kind: 'modal',
+    opensWith: 'quiz-stimuli.attach-toggle:quiz',
+    files: [`${C}StimulusPickerModal.tsx`],
   },
   'quiz.editor.bank-picker': {
     label: 'Add from question bank dialog',
@@ -268,6 +284,14 @@ export const SURFACES: TourSurfaceMap = {
     needs: ['library-item'],
     files: [`${C}PaperReprintModal.tsx`],
   },
+  'quiz.paper-copies-reprint': {
+    label: 'Print paper copies again dialog',
+    kind: 'modal',
+    opensWith: 'quiz-library.reprint-paper-copies:quiz',
+    parent: 'quiz.face',
+    needs: ['library-item'],
+    files: [`${C}PaperGroupReprintModal.tsx`],
+  },
   'quiz.paper-import': {
     label: 'Import paper responses dialog',
     kind: 'modal',
@@ -338,7 +362,16 @@ export const SURFACES: TourSurfaceMap = {
     label: 'Print results dialog',
     kind: 'modal',
     opensWith: 'quiz-results.print:quiz',
-    files: [`${C}ResultsPrintModal.tsx`],
+    files: [`${C}ResultsPrintModal.tsx`, `${C}PrintStudentTree.tsx`],
+    inner: {
+      'quiz-print.results-clear': 'quiz-print.results-tab:quiz#students',
+      'quiz-print.results-course': 'quiz-print.results-tab:quiz#students',
+      'quiz-print.results-course-expand':
+        'quiz-print.results-tab:quiz#students',
+      'quiz-print.results-section': 'quiz-print.results-tab:quiz#students',
+      'quiz-print.results-section-expand':
+        'quiz-print.results-tab:quiz#students',
+    },
   },
   'quiz.grader': {
     label: 'Written answer grader',
@@ -359,7 +392,17 @@ export const SURFACES: TourSurfaceMap = {
   'quiz.rubric-scoring': {
     label: 'Rubric scoring panel',
     kind: 'shared',
-    files: [`${C}RubricScoringPanel.tsx`],
+    files: [
+      `${C}RubricScoringPanel.tsx`,
+      `${C}RubricGradingPanel.tsx`,
+      `${C}RubricGradingSettings.tsx`,
+      `${C}RubricTableModal.tsx`,
+    ],
+    inner: {
+      'quiz-grading.rubric-auto-advance': 'quiz-grading.rubric-settings:quiz',
+      'quiz-grading.rubric-open-next': 'quiz-grading.rubric-settings:quiz',
+      'quiz-grading.rubric-order': 'quiz-grading.rubric-settings:quiz',
+    },
   },
   'quiz.student-results-control': {
     label: 'Per-student results visibility control',

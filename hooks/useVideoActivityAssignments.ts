@@ -43,7 +43,12 @@ import {
   pullSyncedVideoActivityContent,
 } from './useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
-import { gradeVideoActivityResponseForPublish } from '@/utils/studentResultsPublish';
+import { importedPlcLinkage } from '@/utils/plc';
+import {
+  gradeVideoActivityResponseForPublish,
+  vaPublishPatch,
+  vaSessionShowsResults,
+} from '@/utils/studentResultsPublish';
 import {
   isLiveVideoActivitySession,
   scoredVideoActivityQuestions,
@@ -55,9 +60,9 @@ import {
 import type {
   AssignmentMode,
   PlcAssignmentIndexEntry,
+  PlcLinkage,
   ResultsProtection,
   SharedVideoActivityAssignment,
-  VideoActivityAnswer,
   VideoActivityAssignment,
   VideoActivityAssignmentSettings,
   VideoActivityAssignmentSyncLinkage,
@@ -294,6 +299,8 @@ export interface ImportSharedAssignmentOptions {
   ) => Promise<void>;
   /** True when the importer belongs to this PLC (checked against their own PLC list). */
   isPlcMember?: (plcId: string) => boolean;
+  /** The importer's own view of the live PLC; the share's sheet, name and roster are never kept. */
+  livePlcLinkage?: (plcId: string) => PlcLinkage | undefined;
 }
 
 export const useVideoActivityAssignments = (
@@ -1079,6 +1086,13 @@ export const useVideoActivityAssignments = (
         // author's identity / single-class targeting). PLC linkage is kept
         // only for a verified member of that PLC.
         const sourceSettings = sharedDoc.assignmentSettings;
+        const livePlc =
+          sourceSettings.plc && options.isPlcMember?.(sourceSettings.plc.id)
+            ? options.livePlcLinkage?.(sourceSettings.plc.id)
+            : undefined;
+        const importedPlc = livePlc
+          ? importedPlcLinkage(livePlc, sourceSettings.plc)
+          : undefined;
         const importedSettings: VideoActivityAssignmentSettings = {
           className: sourceSettings.className,
           sessionSettings: sourceSettings.sessionSettings,
@@ -1092,9 +1106,7 @@ export const useVideoActivityAssignments = (
           sourceSettings.periodNames.length > 0
             ? { periodNames: sourceSettings.periodNames }
             : {}),
-          ...(sourceSettings.plc && options.isPlcMember?.(sourceSettings.plc.id)
-            ? { plc: sourceSettings.plc }
-            : {}),
+          ...(importedPlc ? { plc: importedPlc } : {}),
           ...(syncedFromLinkage ? { sync: syncedFromLinkage } : {}),
         };
         const created = await createAssignment(
@@ -1196,6 +1208,7 @@ export const useVideoActivityAssignments = (
       );
       const questionsById = new Map(scoredQuestions.map((q) => [q.id, q]));
       const live = isLiveVideoActivitySession(sessionSnap.data());
+      const sessionShowsResults = vaSessionShowsResults(sessionSnap.data());
 
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
@@ -1213,16 +1226,23 @@ export const useVideoActivityAssignments = (
 
       interface ResponseUpdate {
         ref: ReturnType<typeof doc>;
-        patch: { score: number | null; answers: VideoActivityAnswer[] };
+        patch: Record<string, unknown>;
       }
       const updates: ResponseUpdate[] = [];
       for (const d of responseDocs) {
         const data = d.data() as VideoActivityResponse;
-        const { score, answers: gradedAnswers } =
-          gradeVideoActivityResponseForPublish(data, questionsById, live);
         updates.push({
           ref: d.ref,
-          patch: { score, answers: gradedAnswers },
+          patch: vaPublishPatch(
+            data,
+            gradeVideoActivityResponseForPublish(data, questionsById, live),
+            {
+              visibility,
+              now,
+              sessionShowsResults,
+              responseKey: d.id,
+            }
+          ),
         });
       }
 

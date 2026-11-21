@@ -37,6 +37,8 @@ export interface PrintableDocument {
    * no margin to print its own header and footer (the "about:blank" URL) in.
    */
   marginMm?: { vertical: number; horizontal: number };
+  /** HTML repeated in the bottom margin of every page; needs `marginMm`. */
+  footer?: string;
   /** Runs after fonts load and images decode, just before the dialog opens; may reflow the page. */
   beforePrint?: (win: Window) => void | Promise<void>;
 }
@@ -47,11 +49,12 @@ const marginStyles = (m: { vertical: number; horizontal: number }): string => `
   @page { margin: 0; }
   table.page-margins { width: 100%; border-collapse: collapse; }
   table.page-margins > thead td, table.page-margins > tfoot td { height: ${m.vertical}mm; padding: 0; }
+  table.page-margins > tfoot td { vertical-align: middle; }
   table.page-margins > tbody > tr > td { padding: 0 ${m.horizontal}mm; }
 `;
 
-const withDrawnMargins = (body: string): string =>
-  `<table class="page-margins"><thead><tr><td></td></tr></thead><tfoot><tr><td></td></tr></tfoot><tbody><tr><td>${body}</td></tr></tbody></table>`;
+const withDrawnMargins = (body: string, footer = ''): string =>
+  `<table class="page-margins"><thead><tr><td></td></tr></thead><tfoot><tr><td>${footer}</td></tr></tfoot><tbody><tr><td>${body}</td></tr></tbody></table>`;
 
 /** Throws the same pop-up message as `exportPdf` when the window is blocked. */
 export function printHtmlDocument(
@@ -71,7 +74,7 @@ export function printHtmlDocument(
     <title>${escapeHtml(doc.title)}</title>
     <style>${doc.styles}${doc.marginMm ? marginStyles(doc.marginMm) : ''}</style>
   </head>
-  <body>${doc.marginMm ? withDrawnMargins(doc.body) : doc.body}</body>
+  <body>${doc.marginMm ? withDrawnMargins(doc.body, doc.footer) : doc.body}</body>
 </html>`);
   printWindow.document.close();
 

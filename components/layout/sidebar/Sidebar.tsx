@@ -443,7 +443,7 @@ export const Sidebar: React.FC = () => {
           onClose={() => setSettingsModalSection(null)}
         />
       )}
-      {showAssignmentsHub && (
+      {showAssignmentsHub && canAccessFeature('assignments-hub') && (
         <AssignmentsHubModal onClose={() => setShowAssignmentsHub(false)} />
       )}
 
@@ -546,7 +546,7 @@ export const Sidebar: React.FC = () => {
             <div className="flex-1 relative overflow-clip bg-white">
               {/* MAIN MENU */}
               <nav
-                className={`absolute inset-0 pt-3 pb-3 flex flex-col overflow-y-auto transition-[transform,opacity] duration-300 ease-in-out ${
+                className={`absolute inset-0 pt-3 pb-3 flex flex-col overflow-y-auto transition-[translate,opacity,visibility] duration-200 ease-out-strong motion-reduce:transition-[opacity,visibility] motion-reduce:translate-x-0 ${
                   activeSection === 'main'
                     ? 'translate-x-0 opacity-100 visible'
                     : '-translate-x-full opacity-0 invisible'
@@ -615,7 +615,7 @@ export const Sidebar: React.FC = () => {
                       </span>
                       <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                     </button>
-                  ) : (
+                  ) : canAccessFeature('assignments-hub') ? (
                     <button
                       {...tourAttr('sidebar.assignments')}
                       onClick={() => {
@@ -634,7 +634,7 @@ export const Sidebar: React.FC = () => {
                       </span>
                       <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                     </button>
-                  )}
+                  ) : null}
                   {/* Org-only surfaces: My Classes (incl. ClassLink import),
                       My Teams, and My Building(s). Hidden for external (no-org/
                       free-tier) users — buildings/PLCs/ClassLink are all org

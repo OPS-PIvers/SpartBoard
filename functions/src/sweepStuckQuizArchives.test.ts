@@ -47,6 +47,7 @@ import {
   safeMailToken,
   STUCK_ARCHIVE_AGE_MS,
   MAX_LISTED_STRAGGLERS,
+  SWEEP_WORK_BUDGET_MS,
   type SweepDeps,
 } from './sweepStuckQuizArchives';
 
@@ -208,6 +209,39 @@ describe('pure helpers', () => {
 });
 
 describe('runSweepStuckQuizArchives', () => {
+  it('starts no retry past its work budget and still mails what failed', async () => {
+    const stuck = (id: string, artifactId: string) => ({
+      sessionId: 's1',
+      id,
+      data: {
+        hasStuckArchive: true,
+        answers: answersWith('q1', artifactId),
+        artifactArchive: {
+          [artifactId]: { archiveStatus: 'syncing', archiveStartedAt: OLD },
+        },
+      },
+    });
+    const { db, mailWrites } = makeStubDb(
+      [stuck('r1', 'a1'), stuck('r2', 'a2')],
+      { s1: { teacherUid: 't1', quizTitle: 'Unit 3' } }
+    );
+    let clock = NOW;
+    const deps = makeDeps({
+      now: () => clock,
+      archiveOne: vi.fn(() => {
+        clock += SWEEP_WORK_BUDGET_MS;
+        return Promise.reject(new Error('Audio transcode timed out.'));
+      }),
+    });
+    const summary = await runSweepStuckQuizArchives(
+      db as unknown as Parameters<typeof runSweepStuckQuizArchives>[0],
+      deps
+    );
+    expect(deps.archiveOne).toHaveBeenCalledTimes(1);
+    expect(summary).toMatchObject({ retried: 1, stillStuck: 1 });
+    expect(mailWrites).toHaveLength(1);
+  });
+
   it('retries an artifact stuck past 2 hours', async () => {
     const { db } = makeStubDb(
       [

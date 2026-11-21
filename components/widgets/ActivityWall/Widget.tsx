@@ -1,5 +1,6 @@
 // Activity Wall front face — a live preview of the active wall plus its toolbar.
 
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -44,6 +45,7 @@ import {
 import { followConnection } from '@/utils/connectionEngine';
 import { hasConnectionTab } from '@/components/connections/connectionSummary';
 import { usePublishWidgetShareLink } from '@/utils/widgetShareLinks';
+import { copyText } from '@/utils/copyText';
 import {
   useLinkedShareHost,
   useLinkedShareMemberName,
@@ -81,6 +83,7 @@ import {
   sharedWallClassLock,
 } from './sharedWallEdit';
 import { normalizeActivityWallLibraryEntry } from '@/utils/activityWallNormalize';
+import { teacherPostTypes } from '@/utils/activityWallTypes';
 import { useSubShareActivityWall } from './useSubShareActivityWall';
 import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMigration';
 import { tourAttr } from '@/config/tourAnchors';
@@ -124,7 +127,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
   const { user, canAccessFeature, featurePermissions, selectedBuildings } =
     useAuth();
-  const connectionsFlag = canAccessFeature('widget-connections');
+  const connectionsFlag = useConnectionsEnabled();
   // Only the wall on the board itself, not a student or announcement copy.
   const isOnBoard = useDashboardCanvasSelector(
     (s) =>
@@ -183,15 +186,13 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   // On a Synced or View-Only board the wall may be in another member's library.
   const boardShareId = useBoardLinkedShareId();
   const stampedOwner = config.activeActivityOwnerUid ?? null;
-  // The host recorded at join wins; the live share doc must still exist and agree (boards joined earlier use it alone).
+  // The recorded host must exist and match the live share doc; a host-less board waits for its host to be recorded.
   const recordedHostUid = useBoardLinkedShareHostUid();
   const liveHostUid = useLinkedShareHost(inSubShare ? null : boardShareId);
   const shareHostUid =
-    inSubShare || !liveHostUid
+    inSubShare || !liveHostUid || recordedHostUid !== liveHostUid
       ? null
-      : recordedHostUid && recordedHostUid !== liveHostUid
-        ? null
-        : liveHostUid;
+      : liveHostUid;
   // The owner lists the board as "shareId/hostUid"; rules check the host so a re-created share id grants nothing.
   const boardShareEntry =
     boardShareId && shareHostUid ? `${boardShareId}/${shareHostUid}` : null;
@@ -414,18 +415,12 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     });
   }, [activeEntry, addToast, isVisibleWall, setStudentsCanSeePosts]);
 
-  // Storage takes uploads only from the owner, students and guests, so a co-teacher posts text and links.
   const composerSession = useMemo(
     () =>
-      session && linked.moderating && composer?.kind === 'create'
+      session && composer?.kind === 'create'
         ? {
             ...session,
-            allowedTypes: {
-              photo: false,
-              file: false,
-              video: false,
-              link: session.allowedTypes?.link === true,
-            },
+            allowedTypes: teacherPostTypes(session, linked.moderating),
           }
         : session,
     [session, linked.moderating, composer?.kind]
@@ -504,11 +499,12 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 
   const copyStudentLink = useCallback(async () => {
     if (!studentUrl) return;
-    try {
-      await navigator.clipboard.writeText(studentUrl);
+    if (await copyText(studentUrl)) {
       addToast('Student link copied!', 'success');
-    } catch {
+    } else {
+      // Open Share so the link stays on screen to select; a toast closes in 3s.
       addToast('Could not copy link. Please copy manually.', 'error');
+      setShareOpen(true);
     }
   }, [addToast, studentUrl]);
 

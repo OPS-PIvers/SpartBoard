@@ -231,4 +231,41 @@ describe('buildResultsSheetData rubric columns', () => {
     expect(headers.filter((h) => h.startsWith('Q1 Rubric'))).toHaveLength(4);
     expect(headers.filter((h) => h.startsWith('Q2 Rubric'))).toHaveLength(0);
   });
+
+  it('exports a modified-rubric score in its own columns', () => {
+    const modified: Rubric = {
+      ...rubric,
+      id: 'r2',
+      criteria: [{ ...rubric.criteria[0], id: 'crit-mod', name: 'Work' }],
+    };
+    const questions: ExportableQuestion[] = [
+      {
+        id: 'q1',
+        text: 'Essay',
+        points: 6,
+        rubricSnapshot: rubric,
+        modifiedRubricSnapshot: modified,
+      },
+    ];
+    const { headers, dataRows } = buildResultsSheetData(
+      [
+        makeResponse({
+          answers: [{ questionId: 'q1', answer: 'text' }],
+          grading: {
+            q1: {
+              rubricScores: [
+                { criterionId: 'crit-mod', levelId: 'lvl-meets', points: 3 },
+              ],
+            },
+          },
+        }),
+      ],
+      questions,
+      gradeFn
+    );
+    const idx = headers.indexOf('Q1 Modified rubric - Work');
+    expect(idx).toBeGreaterThan(-1);
+    expect(dataRows[0][idx]).toBe('Meets');
+    expect(dataRows[0][headers.indexOf('Q1 Rubric - Thesis')]).toBe('');
+  });
 });

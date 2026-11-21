@@ -200,9 +200,13 @@ beforeEach(async () => {
       heroText: 'Hi',
     });
 
-    // Super admin list (legacy)
-    await setDoc(doc(db, 'admin_settings/user_roles'), {
-      superAdmins: [SUPER_EMAIL],
+    // Super admin: an operator-org super_admin member doc.
+    await setDoc(doc(db, `organizations/${ORG_ID}/members/${SUPER_EMAIL}`), {
+      email: SUPER_EMAIL,
+      orgId: ORG_ID,
+      roleId: 'super_admin',
+      buildingIds: [],
+      status: 'active',
     });
     // Legacy admin record used by the unchanged isAdmin() rule.
     await setDoc(doc(db, `admins/${DOMAIN_ADMIN_EMAIL}`), {
@@ -285,7 +289,7 @@ describe('organizations — reads (Phase 1)', () => {
     await assertFails(byUid(asOutsider()));
   });
 
-  it('super admin (legacy user_roles) can read every org', async () => {
+  it('super admin (operator-org member role) can read every org', async () => {
     await assertSucceeds(getDoc(doc(asSuper(), `organizations/${ORG_ID}`)));
     await assertSucceeds(
       getDoc(doc(asSuper(), `organizations/${OTHER_ORG_ID}`))
@@ -334,6 +338,40 @@ describe('organizations — super admin writes (Phase 3)', () => {
         name: 'New',
         plan: 'basic',
         aiEnabled: false,
+      })
+    );
+  });
+
+  it('super admin can create an org only with a well-formed Claude sign-in issuer', async () => {
+    await assertSucceeds(
+      setDoc(doc(asSuper(), 'organizations/issuer-ok'), {
+        id: 'issuer-ok',
+        name: 'Issuer OK',
+        claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
+      })
+    );
+    for (const [i, bad] of [
+      { enabled: true, issuer: 'http://x.example' },
+      { enabled: 'yes', issuer: 'https://x.example' },
+      { enabled: true, issuer: 'https://x.example', extra: 1 },
+      'https://x.example',
+      null,
+    ].entries()) {
+      await assertFails(
+        setDoc(doc(asSuper(), `organizations/issuer-bad-${i}`), {
+          id: `issuer-bad-${i}`,
+          name: 'Bad',
+          claudeManagedAuth: bad,
+        })
+      );
+    }
+  });
+
+  it('domain admin cannot create an org carrying a Claude sign-in issuer', async () => {
+    await assertFails(
+      setDoc(doc(asDomainAdmin(), 'organizations/nope-issuer'), {
+        name: 'Nope',
+        claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
       })
     );
   });

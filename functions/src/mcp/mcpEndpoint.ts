@@ -10,8 +10,8 @@ import {
 } from './config';
 import { verifyAccessToken, type AccessClaims } from './tokens';
 import {
+  isActiveOrgMemberOrAdmin,
   isConnectorFeatureGranted,
-  isDeactivatedOperatorMember,
 } from './eligibility';
 import { grantRef } from './grants';
 import { BoundedLruMap } from '../utils/boundedLruMap';
@@ -20,6 +20,7 @@ import {
   GOOGLE_OAUTH_CLIENT_SECRET,
   GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
 } from '../secrets';
+import { safeErr } from '../safeLog';
 
 type Firestore = admin.firestore.Firestore;
 type Response = Parameters<Parameters<typeof onRequest>[0]>[1];
@@ -31,7 +32,7 @@ const callCounts = new BoundedLruMap<string, { day: string; count: number }>(
   5000
 );
 
-/** Grant still live, teacher not deactivated and the gate still open; cached per instance so a normal call reads nothing (CC-D16). */
+/** Grant still live, caller still active staff or admin and the gate still open; cached per instance so a normal call reads nothing (CC-D16). */
 export async function isGrantActive(
   db: Firestore,
   claims: AccessClaims,
@@ -44,7 +45,7 @@ export async function isGrantActive(
   const ok =
     grant.exists &&
     grant.get('revokedAt') == null &&
-    !(await isDeactivatedOperatorMember(db, claims.email)) &&
+    (await isActiveOrgMemberOrAdmin(db, claims.email)).ok &&
     (await isConnectorFeatureGranted(db, claims.email, claims.uid));
   statusCache.set(key, { ok, at: now });
   return ok;
@@ -87,8 +88,51 @@ async function uploadTourPictures(
       res.status(403).json({ error: err.message });
       return;
     }
-    console.error('[mcpServer] tour pictures failed', err);
+    console.error('[mcpServer] tour pictures failed', safeErr(err));
     res.status(500).json({ error: 'The pictures could not be saved.' });
+  }
+}
+
+/** A picture from a Claude chat or the upload page; the ticket in Authorization is its only credential. */
+async function uploadChatPicture(
+  db: Firestore,
+  req: {
+    method: string;
+    headers: Record<string, string | string[] | undefined>;
+    rawBody?: Buffer;
+  },
+  res: Response
+): Promise<void> {
+  if (req.method !== 'POST') {
+    res.status(405).set('Allow', 'POST').json({ error: 'Use POST.' });
+    return;
+  }
+  const auth = req.headers.authorization;
+  const header = typeof auth === 'string' ? auth : '';
+  const ticket = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  if (ticket.length < 20 || ticket.length > 200) {
+    res
+      .status(401)
+      .json({ error: 'Send the upload ticket as a Bearer token.' });
+    return;
+  }
+  const { savePictureUpload } = await import('./pictureUploads');
+  const { ToolError } = await import('./activity');
+  const name = req.headers['x-file-name'];
+  try {
+    const outcome = await savePictureUpload(db, {
+      ticket,
+      body: req.rawBody,
+      fileName: typeof name === 'string' ? name : undefined,
+    });
+    res.status(outcome.status).json(outcome.body);
+  } catch (err) {
+    if (err instanceof ToolError) {
+      res.status(403).json({ error: err.message });
+      return;
+    }
+    console.error('[mcpServer] picture upload failed', safeErr(err));
+    res.status(500).json({ error: 'The picture could not be saved.' });
   }
 }
 
@@ -121,7 +165,7 @@ export const mcpServer = onRequest(
     res.set('Access-Control-Allow-Origin', '*');
     res.set(
       'Access-Control-Allow-Headers',
-      'Content-Type, Authorization, MCP-Protocol-Version, Mcp-Session-Id, Last-Event-ID'
+      'Content-Type, Authorization, MCP-Protocol-Version, Mcp-Session-Id, Last-Event-ID, X-File-Name'
     );
     res.set(
       'Access-Control-Expose-Headers',
@@ -136,6 +180,10 @@ export const mcpServer = onRequest(
     const db = admin.firestore();
     if ((req.path ?? '').endsWith('/tour-pictures')) {
       await uploadTourPictures(db, req.method, req.body, res);
+      return;
+    }
+    if ((req.path ?? '').endsWith('/picture-uploads')) {
+      await uploadChatPicture(db, req, res);
       return;
     }
     const header = req.headers.authorization ?? '';
@@ -184,7 +232,7 @@ export const mcpServer = onRequest(
       { registerTools, hiddenToolsFor, SERVER_INSTRUCTIONS },
       { registerPrompts },
       { slimToolListing },
-      { appsOn, registerAppResources },
+      { registerAppResources },
     ] = await Promise.all([
       import('@modelcontextprotocol/sdk/server/mcp.js'),
       import('@modelcontextprotocol/sdk/server/streamableHttp.js'),
@@ -218,11 +266,7 @@ export const mcpServer = onRequest(
     registerTools(server, ctx);
     registerPrompts(server);
     registerAppResources(server);
-    slimToolListing(
-      server,
-      () => hiddenToolsFor(ctx),
-      () => appsOn(ctx)
-    );
+    slimToolListing(server, () => hiddenToolsFor(ctx));
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
@@ -235,7 +279,10 @@ export const mcpServer = onRequest(
       await server.connect(transport);
       await transport.handleRequest(req, res, req.body);
     } catch (err) {
-      console.error('[mcpServer] request failed', { uid: claims.uid, err });
+      console.error('[mcpServer] request failed', {
+        uid: claims.uid,
+        err: safeErr(err),
+      });
       if (!res.headersSent) {
         res.status(500).json({
           jsonrpc: '2.0',

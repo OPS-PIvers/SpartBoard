@@ -25,7 +25,7 @@ import {
 } from '@/hooks/useSyncedQuizGroups';
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
-import { getPlcMemberEmails } from '@/utils/plc';
+import { canEditPlcContent, getPlcMemberEmails } from '@/utils/plc';
 import { PlcAssignmentImportModal } from '../PlcAssignmentImportModal';
 import { PlcAssignmentSessionModal } from '@/components/plc/assignments/PlcAssignmentSessionModal';
 import { PlcQuizPickupStepper } from '@/components/plc/PlcQuizPickupStepper';
@@ -33,6 +33,7 @@ import {
   applyPlcStepperStudentPicks,
   savePlcStepperFinalScore,
   plcStepperCreateFields,
+  withPlanAnswerChoices,
   type PlcQuizStepperPlan,
 } from '@/components/plc/plcQuizStepperAssign';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
@@ -287,7 +288,11 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
           savedMeta.driveFileId,
           { loadBankContentsForQuiz, saveDriveSnapshot }
         );
-        const fields = plcStepperCreateFields(plan, rosters);
+        const quizPlan: PlcQuizStepperPlan = {
+          ...plan,
+          mixed: withPlanAnswerChoices(plan.mixed, content.questions),
+        };
+        const fields = plcStepperCreateFields(quizPlan, rosters);
         const created = await createAssignment(
           {
             id: savedMeta.id,
@@ -340,7 +345,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
         });
         await applyPlcStepperStudentPicks({
           assignmentId: created.id,
-          plan,
+          plan: quizPlan,
           setAssignmentTargets,
           setAssignmentTargetSkippedCount,
           addToast,
@@ -521,6 +526,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
           sharedByName={importTarget.sharedByName}
           onPick={(mode) => void handlePickMode(importTarget, mode)}
           onClose={() => setImportTarget(null)}
+          canSync={canEditPlcContent(plc, user?.uid ?? '')}
         />
       )}
 

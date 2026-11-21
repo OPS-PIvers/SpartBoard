@@ -235,6 +235,7 @@ describe('Synced board concurrent edits', () => {
     createdAt: 1,
     linkedShareId: 'share-race',
     linkedShareRole: 'collaborator',
+    linkedShareHostUid: 'host-a',
   });
 
   // Two open tabs echoed every applied snapshot back as a write, so they kept
@@ -379,5 +380,43 @@ describe('Synced board concurrent edits', () => {
         timeout: 2000,
       }
     );
+  });
+
+  it('resends the accepted payload when an edit is undone while a write is in flight', async () => {
+    let settle: (d: Dashboard) => void = () => undefined;
+    mockMirrorSharedBoard.mockImplementationOnce(
+      () =>
+        new Promise<Dashboard>((resolve) => {
+          settle = resolve;
+        })
+    );
+    mockMirrorSharedBoard.mockImplementation((_id: string, d: Dashboard) =>
+      Promise.resolve(d)
+    );
+    const linked = linkedBoard([widget('w1')]);
+    await mount(linked);
+    act(() => {
+      emit?.({ ...linked, updatedBy: 'other-user' } as unknown as Dashboard);
+    });
+    act(() => {
+      ctx?.updateWidget('w1', { z: 5 });
+    });
+    await waitFor(
+      () => expect(mockMirrorSharedBoard).toHaveBeenCalledTimes(1),
+      { timeout: 2000 }
+    );
+    act(() => {
+      ctx?.updateWidget('w1', { z: 1 });
+    });
+    await waitFor(
+      () => expect(mockMirrorSharedBoard).toHaveBeenCalledTimes(2),
+      { timeout: 2000 }
+    );
+    const last = mockMirrorSharedBoard.mock.calls.at(-1)?.[1] as Dashboard;
+    expect(last.widgets[0].z).toBe(1);
+    await act(async () => {
+      settle(mockMirrorSharedBoard.mock.calls[0][1] as Dashboard);
+      await Promise.resolve();
+    });
   });
 });

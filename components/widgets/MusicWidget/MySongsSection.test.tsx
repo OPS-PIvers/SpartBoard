@@ -3,11 +3,20 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import type { MySong } from '@/types';
-import { MySongsSection } from './MySongsSection';
+import { MusicStationField } from './settingsFields';
 
 const addSong = vi.fn<(song: MySong) => Promise<void>>();
 const removeSong = vi.fn<(id: string) => Promise<void>>();
 let songs: MySong[] = [];
+
+vi.mock('@/hooks/useMusicStations', () => ({
+  useMusicStations: () => ({
+    stations: [
+      { id: 'curated-1', title: 'Jazz', genre: 'Jazz', url: '', thumbnail: '' },
+    ],
+    isLoading: false,
+  }),
+}));
 
 vi.mock('@/hooks/useMySongs', () => ({
   useMySongs: () => ({ songs, loading: false, addSong, removeSong }),
@@ -18,6 +27,7 @@ const makeCtx = (updateConfig = vi.fn(), stationId = '') =>
   ({
     config: { stationId },
     widget: { id: 'w1', type: 'music', config: {} },
+    canAccessFeature: (id: string) => id === 'music-my-songs',
     t: (key: string) => key.split('.').pop(),
     id: 'station',
     updateConfig,
@@ -30,9 +40,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('MySongsSection', () => {
+describe('Music station list with my songs', () => {
   it('rejects a link that is not a YouTube video', () => {
-    render(<MySongsSection ctx={makeCtx()} />);
+    render(<MusicStationField ctx={makeCtx()} />);
     fireEvent.change(screen.getByPlaceholderText('mySongsLinkPlaceholder'), {
       target: { value: 'https://example.com/song' },
     });
@@ -53,7 +63,7 @@ describe('MySongsSection', () => {
       )
     );
     const updateConfig = vi.fn();
-    render(<MySongsSection ctx={makeCtx(updateConfig)} />);
+    render(<MusicStationField ctx={makeCtx(updateConfig)} />);
     fireEvent.change(screen.getByPlaceholderText('mySongsLinkPlaceholder'), {
       target: { value: `https://youtu.be/${ID}?si=x` },
     });
@@ -86,7 +96,7 @@ describe('MySongsSection', () => {
       },
     ];
     const updateConfig = vi.fn();
-    render(<MySongsSection ctx={makeCtx(updateConfig)} />);
+    render(<MusicStationField ctx={makeCtx(updateConfig)} />);
     fireEvent.change(screen.getByPlaceholderText('mySongsLinkPlaceholder'), {
       target: { value: `https://www.youtube.com/watch?v=${ID}` },
     });
@@ -110,7 +120,7 @@ describe('MySongsSection', () => {
       createdAt: i,
     }));
     const updateConfig = vi.fn();
-    render(<MySongsSection ctx={makeCtx(updateConfig)} />);
+    render(<MusicStationField ctx={makeCtx(updateConfig)} />);
     const input = screen.getByPlaceholderText('mySongsLinkPlaceholder');
     fireEvent.change(input, { target: { value: `https://youtu.be/${ID}` } });
     fireEvent.click(screen.getByText('mySongsAdd'));
@@ -130,7 +140,7 @@ describe('MySongsSection', () => {
       'fetch',
       vi.fn(() => Promise.resolve(new Response('', { status: 401 })))
     );
-    render(<MySongsSection ctx={makeCtx()} />);
+    render(<MusicStationField ctx={makeCtx()} />);
     fireEvent.change(screen.getByPlaceholderText('mySongsLinkPlaceholder'), {
       target: { value: `https://youtu.be/${ID}` },
     });
@@ -139,6 +149,50 @@ describe('MySongsSection', () => {
       'mySongsUnavailable'
     );
     expect(addSong).not.toHaveBeenCalled();
+  });
+
+  it('lists saved songs as rows in the station list', () => {
+    songs = [
+      {
+        id: 's1',
+        title: 'Saved',
+        channel: 'Lofi Girl',
+        url: `https://www.youtube.com/watch?v=${ID}`,
+        thumbnail: '',
+        createdAt: 1,
+      },
+    ];
+    const updateConfig = vi.fn();
+    render(<MusicStationField ctx={makeCtx(updateConfig, 'curated-1')} />);
+    const radios = screen.getAllByRole('radio');
+    expect(radios.map((radio) => radio.textContent)).toEqual([
+      'JazzJazz',
+      'SavedLofi Girl',
+    ]);
+    expect(radios[0]).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(radios[1]);
+    expect(updateConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ stationId: 's1' })
+    );
+  });
+
+  it('ignores arrow keys on a song remove button', () => {
+    songs = [
+      {
+        id: 's1',
+        title: 'Saved',
+        channel: '',
+        url: `https://www.youtube.com/watch?v=${ID}`,
+        thumbnail: '',
+        createdAt: 1,
+      },
+    ];
+    const updateConfig = vi.fn();
+    render(<MusicStationField ctx={makeCtx(updateConfig, 's1')} />);
+    const remove = screen.getByLabelText('mySongsRemove: Saved');
+    remove.focus();
+    fireEvent.keyDown(remove, { key: 'ArrowDown' });
+    expect(updateConfig).not.toHaveBeenCalled();
   });
 
   it('clears the widget pick when the selected song is removed', async () => {
@@ -154,7 +208,7 @@ describe('MySongsSection', () => {
     ];
     removeSong.mockResolvedValue();
     const updateConfig = vi.fn();
-    render(<MySongsSection ctx={makeCtx(updateConfig, 's1')} />);
+    render(<MusicStationField ctx={makeCtx(updateConfig, 's1')} />);
     fireEvent.click(screen.getByLabelText('mySongsRemove: Saved'));
     await waitFor(() =>
       expect(updateConfig).toHaveBeenCalledWith({
@@ -177,7 +231,7 @@ describe('MySongsSection', () => {
     ];
     removeSong.mockResolvedValue();
     const updateConfig = vi.fn();
-    render(<MySongsSection ctx={makeCtx(updateConfig, 'curated-1')} />);
+    render(<MusicStationField ctx={makeCtx(updateConfig, 'curated-1')} />);
     fireEvent.click(screen.getByLabelText('mySongsRemove: Saved'));
     await waitFor(() => expect(removeSong).toHaveBeenCalledWith('s1'));
     expect(updateConfig).not.toHaveBeenCalled();
@@ -202,10 +256,10 @@ describe('MySongsSection', () => {
     );
     const updateConfig = vi.fn();
     const { rerender } = render(
-      <MySongsSection ctx={makeCtx(updateConfig, 's1')} />
+      <MusicStationField ctx={makeCtx(updateConfig, 's1')} />
     );
     fireEvent.click(screen.getByLabelText('mySongsRemove: Saved'));
-    rerender(<MySongsSection ctx={makeCtx(updateConfig, 'curated-2')} />);
+    rerender(<MusicStationField ctx={makeCtx(updateConfig, 'curated-2')} />);
     finish?.();
     await waitFor(() => expect(removeSong).toHaveBeenCalledWith('s1'));
     await Promise.resolve();

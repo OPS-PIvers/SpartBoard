@@ -39,12 +39,12 @@ vi.mock('firebase-functions/v2/https', () => {
 
 vi.mock('./functionsInit', () => ({}));
 vi.mock('./classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
-vi.mock('./quizMediaArchive', () => ({
+vi.mock('./featureGrant', () => ({
   isGlobalFeatureGranted: vi.fn(() => Promise.resolve(true)),
 }));
 
 import type { Firestore } from 'firebase-admin/firestore';
-import { isGlobalFeatureGranted } from './quizMediaArchive';
+import { isGlobalFeatureGranted } from './featureGrant';
 import {
   DOCUMENT_MAP_PROMPT,
   MAX_DOCUMENT_BYTES,

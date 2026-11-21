@@ -5,7 +5,12 @@ import base from './vite.config';
 
 const plugins = (base.plugins ?? []).filter(
   (p: PluginOption) =>
-    !(p && typeof p === 'object' && 'name' in p && p.name === 'pdfjs-wasm')
+    !(
+      p &&
+      typeof p === 'object' &&
+      'name' in p &&
+      (p.name === 'pdfjs-wasm' || p.name === 'self-hosted-assets')
+    )
 );
 
 export default defineConfig({

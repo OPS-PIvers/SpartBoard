@@ -7,7 +7,7 @@ Moved from the retired GEMINI.md. Code comments in `config/geminiModels.ts` and 
   Credentials — there is no Gemini API key. See `docs/gemini-api-terms-audit.md`.
 - **Location:** `global`. The Gemini 3.x models are served from the global endpoint;
   regional endpoints such as `us-central1` return model-not-found for them.
-- **Models:** `gemini-3.7-flash` (High Complexity, the default; Gemini 3.8 Flash and Gemini 4 Hydrogen, Carbon and Argon can be picked in the Gemini Models card) and `gemini-3.5-flash-lite` (Standard/OCR).
+- **Models:** `gemini-3.7-flash` (High Complexity, the default; Gemini 3.8 Flash and Gemini 4 Hydrogen and Neon can be picked on the AI tab; Gemini 4 Argon and Carbon were retired on 2026-11-19, and `normalizeModelName` runs a saved pick of either as `gemini-4-neon`) and `gemini-3.5-flash-lite` (Standard/OCR).
 - **Selection Logic:**
   - `gemini-3.7-flash`: Used for complex code generation (`mini-app`) and deep multimodal analysis (`guided-learning`).
   - `gemini-3.5-flash-lite`: Used for standard JSON tasks (polls, quizzes, layouts) and high-speed multimodal tasks like `ocr`.
@@ -40,6 +40,9 @@ Moved from the retired GEMINI.md. Code comments in `config/geminiModels.ts` and 
   limit, when set, replaces the call's own token budget on Claude and Gemini.
 - **Monitoring.** Each call increments `ai_call_log/{date}__{integration}__{model}` (calls, tokens,
   fallbacks, errors), which the AI tab shows for the last 30 days. Quotas still live in `ai_usage`.
+
+- **Transcription models.** `gemini-3.5-transcribe` (`AUDIO_ONLY_MODEL_IDS`, `AUDIO_ONLY_GEMINI_MODELS`) is offered on the AI tab for audio-only integrations and never as a tier default. It accepts no system instruction, thinking or schema, so `callTranscriber` in `aiRouter.ts` sends only the audio parts and `audioTranscriptionConfig` (language codes and mode from `AiRequest.transcription`). See `docs/plans/shipped/SPEECH_TO_TEXT.md` D8a.
+- **Student-called AI.** `transcribeSpeechV1` and `tidyDictationV1` are called by students: access comes from the assigning teacher's flags, and usage is counted per student in `ai_usage/{studentUid}_{featureId}_{date}` against the flag row's `dailyLimit`, without the overall per-user counter (`docs/plans/shipped/SPEECH_TO_TEXT.md` D20-D21).
 
 ## Pronunciation models (the one exception to `generateAi`)
 

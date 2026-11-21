@@ -1,4 +1,5 @@
 // Dev only: functions may write only Drive files under the dev folder or made by this instance, never a prod file. Mirrors utils/devDriveWriteGuard.ts.
+import { safeErr } from './safeLog';
 
 function projectId(): string | undefined {
   if (process.env.GCLOUD_PROJECT) return process.env.GCLOUD_PROJECT;
@@ -52,6 +53,14 @@ export class DevProdDriveWriteError extends Error {
       'Dev can only change Drive files in the "SpartBoard Dev" folder. This file belongs to the live site.'
     );
     this.name = 'DevProdDriveWriteError';
+  }
+}
+
+// Drive couldn't say where the file is, so the write is refused without claiming it is a prod file.
+export class DevDriveCheckError extends Error {
+  constructor() {
+    super('Could not check this Drive file. Try again.');
+    this.name = 'DevDriveCheckError';
   }
 }
 
@@ -195,7 +204,7 @@ export function installDevDriveWriteGuard(
       if (!res.ok) throw new Error(`Drive metadata ${res.status}`);
     } catch (err) {
       // The file still works in this instance; only a restart would lose it.
-      console.warn('Could not mark a new Drive file as dev-made', err);
+      console.warn('Could not mark a new Drive file as dev-made', safeErr(err));
     }
   };
 
@@ -230,13 +239,13 @@ export function installDevDriveWriteGuard(
       await rememberNewFile(res, authHeader(input, init));
       return res;
     }
-    let ok = false;
+    let ok: boolean;
     try {
       ok = await canWrite(fileId, authHeader(input, init));
     } catch (err) {
       // An expired token fails the write itself too, and the caller's refresh-on-401 needs to see it.
       if (err instanceof MetadataAuthError) return original(input, init);
-      ok = false;
+      throw new DevDriveCheckError();
     }
     if (!ok) throw new DevProdDriveWriteError();
     return original(input, init);

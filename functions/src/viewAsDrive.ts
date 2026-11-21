@@ -6,6 +6,7 @@ import {
   GOOGLE_OAUTH_CLIENT_ID,
   GOOGLE_OAUTH_CLIENT_SECRET,
   GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
+  DRIVE_FILE_SCOPE,
   refreshGoogleAccessTokenForUid,
 } from './googleOAuth';
 import { assertViewAsAllowed } from './viewAsGuard';
@@ -43,13 +44,19 @@ export const getViewAsDriveTokenV1 = onCall(
     try {
       const token = await refreshGoogleAccessTokenForUid(uid, {
         keepStoredOnFailure: true,
+        scope: DRIVE_FILE_SCOPE,
+        exactScope: true,
       });
       console.info('[viewAsDrive] token issued', {
         sid: claim.sid,
         by: claim.by,
         targetUid: uid,
       });
-      return { available: true, ...token };
+      return {
+        available: true,
+        accessToken: token.accessToken,
+        expiresIn: token.expiresIn,
+      };
     } catch (err) {
       if (isNeedsConsent(err)) return { available: false };
       throw err;

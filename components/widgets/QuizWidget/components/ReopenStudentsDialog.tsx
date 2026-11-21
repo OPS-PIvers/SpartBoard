@@ -2,9 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { tourAttr } from '@/config/tourAnchors';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 export type ReopenStudentStatus =
-  'not-started' | 'absent' | 'in-progress' | 'turned-in';
+  'not-started' | 'absent' | 'in-progress' | 'turned-in' | 'on-paper';
 
 export interface ReopenStudentOption {
   key: string;
@@ -26,6 +27,7 @@ const STATUS_LABEL: Record<ReopenStudentStatus, string> = {
   absent: 'Absent',
   'in-progress': 'In progress',
   'turned-in': 'Submitted',
+  'on-paper': 'On paper',
 };
 
 const byName = (a: ReopenStudentOption, b: ReopenStudentOption) =>
@@ -55,7 +57,14 @@ export const ReopenStudentsDialog: React.FC<ReopenStudentsDialogProps> = ({
       {
         id: 'open',
         label: 'Missing',
-        rows: shown.filter((s) => s.status !== 'turned-in').sort(byName),
+        rows: shown
+          .filter((s) => s.status !== 'turned-in' && s.status !== 'on-paper')
+          .sort(byName),
+      },
+      {
+        id: 'paper',
+        label: 'On paper',
+        rows: shown.filter((s) => s.status === 'on-paper').sort(byName),
       },
       {
         id: 'done',
@@ -87,6 +96,7 @@ export const ReopenStudentsDialog: React.FC<ReopenStudentsDialogProps> = ({
 
   return (
     <Modal
+      accent={LIBRARY_HEADER_ACCENTS.quiz}
       isOpen={isOpen}
       onClose={busy ? () => undefined : onClose}
       title={title}

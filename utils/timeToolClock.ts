@@ -192,6 +192,21 @@ export const normalizeTimerStartSeconds = (value: unknown): number =>
     ? Math.min(TIME_TOOL_MAX_DURATION_SECONDS, Math.round(value))
     : 0;
 
+// A new stopwatch starts at zero and a new timer full, whichever layer chose the mode.
+export const fitTimeToolClock = <L extends Record<string, unknown>>(
+  layer: L | undefined
+): L | Record<string, unknown> | undefined => {
+  if (layer?.mode === 'stopwatch') return { ...layer, elapsedTime: 0 };
+  if (layer?.mode === 'timer' && !layer.elapsedTime) {
+    const full =
+      typeof layer.duration === 'number' && layer.duration > 0
+        ? layer.duration
+        : 600;
+    return { ...layer, duration: full, elapsedTime: full };
+  }
+  return layer;
+};
+
 // Layers a teacher's starting length over the building default for a new Time Tool; stopwatch defaults keep zero.
 export const withTimerStartSeconds = <L extends Record<string, unknown>>(
   layer: L | undefined,

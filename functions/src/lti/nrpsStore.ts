@@ -56,6 +56,7 @@ import type * as admin from '../firebaseAdmin';
 import { normalizeQuizCode } from '../quizCode';
 import { quizJoinCodeOwner } from '../quizJoinCodeOwner';
 import { readTeacherLink } from './courseLinkStore';
+import { safeErr } from '../safeLog';
 
 type Db = admin.firestore.Firestore;
 
@@ -352,7 +353,7 @@ export async function contextOwnedBy(
     }
     if (!evidence) return false;
   } catch (err) {
-    console.warn('[lti] context owner check failed', err);
+    console.warn('[lti] context owner check failed', safeErr(err));
     return false;
   }
   try {
@@ -363,7 +364,7 @@ export async function contextOwnedBy(
       .doc(contextId)
       .set({ teacherUid: ownerUid }, { merge: true });
   } catch (err) {
-    console.warn('[lti] context owner stamp failed', err);
+    console.warn('[lti] context owner stamp failed', safeErr(err));
   }
   return true;
 }

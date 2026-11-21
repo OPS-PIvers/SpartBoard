@@ -15,8 +15,10 @@ import type {
   ActivityWallSubmissionType,
 } from '@/types';
 import type { WallPlacement } from '@/components/activityWall/render';
+import { labelForWall } from '@/components/activityWall/engagement/participantLabel';
 import { isUploadType, safeFileName, validateUpload } from './uploadLimits';
 import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
+import { WALL_POST_TYPES, wallTypeOn } from '@/utils/activityWallTypes';
 
 /** Everything the composer collects; the layout decides which fields are written. */
 export interface PostDraft {
@@ -49,15 +51,8 @@ const assertCanPost = (): void => {
 
 export const availableTypes = (
   session: ActivityWallSession
-): Exclude<ActivityWallSubmissionType, 'word'>[] => {
-  const allowed = session.allowedTypes;
-  const types: Exclude<ActivityWallSubmissionType, 'word'>[] = ['text'];
-  if (allowed?.photo) types.push('photo');
-  if (allowed?.link) types.push('link');
-  if (allowed?.file) types.push('file');
-  if (allowed?.video) types.push('video');
-  return types;
-};
+): Exclude<ActivityWallSubmissionType, 'word'>[] =>
+  WALL_POST_TYPES.filter((type) => wallTypeOn(session.allowedTypes, type));
 
 /** Matches only the numeric `${uid}__${n}` capped-slot id shape (never the uncapped `${uid}__${random}` shape). */
 const cappedSlotIdPattern = (uid: string): RegExp =>
@@ -292,7 +287,9 @@ export const createPost = async ({
     content,
     authorUid: uid,
     isGuest,
-    participantLabel,
+    participantLabel: isTeacher
+      ? participantLabel
+      : labelForWall(session.showNames, participantLabel),
     submittedAt: Date.now(),
     status: session.moderationEnabled && !isTeacher ? 'pending' : 'approved',
   };

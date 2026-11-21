@@ -1,12 +1,14 @@
 import {
   isClosedProjectRun,
+  isClosedUnsubmittableRun,
   type AssignmentSummary,
   type SessionKind,
 } from '@/hooks/useStudentAssignments';
 import type { TurnInMap } from '@/hooks/useStudentTurnIns';
 import { getWindowState, isResourceAvailable } from '@/utils/assignmentWindow';
 import { isMissingStillOpen, type TurnInState } from '@/utils/studentTurnIn';
-import { hasResponseDoc } from '@/utils/studentResponseDoc';
+import { effectivePeriodState, studentCanEnter } from '@/utils/periodAccess';
+import { readsTurnIn } from '@/utils/studentResponseDoc';
 import { listBellPeriods, normalizePeriodKey } from '@/utils/bellSchedule';
 import type { ScheduleLookup } from '@/utils/studentClassOrder';
 import type { RosterBellPeriod } from '@/types';
@@ -31,11 +33,13 @@ export interface LandingRow {
 
 export interface LandingPartition {
   live: LandingRow[];
-  /** Assignments tab: Missing-still-open first, then by due date, then no due date (D15). */
+  /** Assignments tab: live, then open, then locked; within each, Missing-still-open, then by due date, then no due date (D15). */
   work: LandingRow[];
   resources: LandingRow[];
-  /** Completed tab: Missing (closed) first, then newest first (D18). */
+  /** Completed tab: turned in, plus printed copies waiting for their scan; newest first (D18). */
   done: LandingRow[];
+  /** Expired: not turned in and can no longer be turned in; newest first. */
+  expired: LandingRow[];
 }
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -58,22 +62,34 @@ export function landingRowState(
     return isResourceAvailable(a, nowMs) ? 'resource' : null;
   }
   const check = checks[a.compositeId];
-  const checkable = hasResponseDoc(a.kind);
+  const checkable = readsTurnIn(a);
   const turnIn: TurnInState | undefined = check?.turnIn;
-  if (isClosedProjectRun(a) || turnIn === 'turned-in') return 'turned-in';
+  if (isClosedUnsubmittableRun(a) || turnIn === 'turned-in') return 'turned-in';
+  // A printed copy waits for its scan, so it is never Missing; a closed untouched one stays off the page until then.
+  const onPaper = a.kind === 'quiz' && a.override?.onPaper === true;
+  // In no group yet, so nothing to submit: never Missing.
+  if (a.kind === 'projects' && turnIn === 'not-started')
+    return isClosedProjectRun(a) ? 'turned-in' : 'open';
 
-  if (isClosed(a, nowMs)) {
+  if (isClosed(a, nowMs) || isClosedProjectRun(a)) {
     if (check?.reopened && a.channel !== 'ended' && a.endedAt === undefined)
       return 'in-progress';
     // Ended rows wait for their check; one the student never opened needs a deadline to count as Missing.
     if (!checkable || !check) return null;
+    if (onPaper) return turnIn === 'in-progress' ? 'closed' : null;
     const deadline = a.dueAt ?? a.closeAt;
     if (deadline !== undefined && nowMs > deadline) return 'missing';
-    return turnIn === 'in-progress' ? 'closed' : null;
+    return turnIn === 'in-progress' ? 'missing' : null;
   }
   if (a.live) return 'live';
   if (getWindowState(a, nowMs) === 'upcoming') return 'upcoming';
-  if (check && isMissingStillOpen(a, check.turnIn, nowMs)) {
+  // A paused or not-yet-open quiz can't be done now, so it is never Missing.
+  if (
+    check &&
+    !onPaper &&
+    !a.held &&
+    isMissingStillOpen(a, check.turnIn, nowMs)
+  ) {
     return 'missing-open';
   }
   return turnIn === 'in-progress' ? 'in-progress' : 'open';
@@ -86,25 +102,59 @@ const dueKey = (a: AssignmentSummary): number => a.dueAt ?? Infinity;
 
 const closeKey = (a: AssignmentSummary): number => a.closeAt ?? Infinity;
 
+/** Whether a work row can be opened now: 'live' when its class has been started, 'locked' when paused, not open yet or upcoming. */
+export function workAvailability(
+  row: LandingRow,
+  nowMs: number,
+  uid: string | null
+): 'live' | 'open' | 'locked' {
+  const a = row.assignment;
+  if (row.state === 'upcoming' || a.held !== undefined) return 'locked';
+  const gate = a.periodGate;
+  if (!gate) return 'open';
+  if (!studentCanEnter(gate, gate.periodKeys, uid, nowMs)) return 'locked';
+  // A Manual start class the teacher has started (not a Let in now pass on a closed class).
+  const started =
+    gate.accessMode === 'assessment' &&
+    (row.state === 'open' || row.state === 'in-progress') &&
+    gate.periodKeys.some((k) => {
+      const access = gate.periodAccess?.[k];
+      return !!access && effectivePeriodState(access, nowMs) === 'open';
+    });
+  return started ? 'live' : 'open';
+}
+
+const AVAILABILITY_RANK = { live: 0, open: 1, locked: 2 } as const;
+
 /** Splits the student's assignments into the landing page's sections, sorted. */
 export function partitionLanding(
   assignments: readonly AssignmentSummary[],
   checks: TurnInMap,
-  nowMs: number
+  nowMs: number,
+  uid: string | null = null
 ): LandingPartition {
-  const out: LandingPartition = { live: [], work: [], resources: [], done: [] };
+  const out: LandingPartition = {
+    live: [],
+    work: [],
+    resources: [],
+    done: [],
+    expired: [],
+  };
   for (const assignment of assignments) {
     const state = landingRowState(assignment, checks, nowMs);
     if (!state) continue;
     const row = { assignment, state };
     if (state === 'live') out.live.push(row);
     else if (state === 'resource') out.resources.push(row);
-    else if (state === 'turned-in' || state === 'missing' || state === 'closed')
-      out.done.push(row);
+    else if (state === 'missing') out.expired.push(row);
+    else if (state === 'turned-in' || state === 'closed') out.done.push(row);
     else out.work.push(row);
   }
+  const rank = (r: LandingRow) =>
+    AVAILABILITY_RANK[workAvailability(r, nowMs, uid)];
   out.work.sort(
     (x, y) =>
+      rank(x) - rank(y) ||
       Number(y.state === 'missing-open') - Number(x.state === 'missing-open') ||
       dueKey(x.assignment) - dueKey(y.assignment) ||
       (y.assignment.createdAt ?? 0) - (x.assignment.createdAt ?? 0) ||
@@ -115,11 +165,10 @@ export function partitionLanding(
       closeKey(x.assignment) - closeKey(y.assignment) ||
       x.assignment.title.localeCompare(y.assignment.title)
   );
-  out.done.sort(
-    (x, y) =>
-      Number(y.state === 'missing') - Number(x.state === 'missing') ||
-      doneSortKey(y.assignment) - doneSortKey(x.assignment)
-  );
+  const newestFirst = (x: LandingRow, y: LandingRow) =>
+    doneSortKey(y.assignment) - doneSortKey(x.assignment);
+  out.done.sort(newestFirst);
+  out.expired.sort(newestFirst);
   return out;
 }
 
@@ -156,23 +205,23 @@ const sortKeyOf = (item: DoneItem): number =>
     ? doneSortKey(item.row.assignment)
     : (item.grade?.dueAt ?? item.grade?.updatedAt ?? 0);
 
-/** Completed tab rows, in the partition's order. */
-export function completedItems(done: readonly LandingRow[]): DoneItem[] {
-  return done.map((row) => itemFromRow(row));
+/** Completed or Expired tab rows, in the partition's order. */
+export function completedItems(rows: readonly LandingRow[]): DoneItem[] {
+  return rows.map((row) => itemFromRow(row));
 }
 
-/** D17, D18: done rows joined to their grades, plus grades whose session left the list; open work stays out. */
+/** D17, D18: done and expired rows joined to their grades, plus grades whose session left the list; open work stays out. */
 export function gradebookItems(
   p: LandingPartition,
   grades: readonly StudentGradeRow[]
 ): DoneItem[] {
   const bySession = new Map(grades.map((g) => [g.sessionId, g]));
   const listed = new Set(
-    [...p.live, ...p.work, ...p.resources, ...p.done].map(
+    [...p.live, ...p.work, ...p.resources, ...p.done, ...p.expired].map(
       (r) => r.assignment.sessionId
     )
   );
-  const items = p.done.map((row) =>
+  const items = [...p.done, ...p.expired].map((row) =>
     itemFromRow(row, bySession.get(row.assignment.sessionId))
   );
   for (const g of grades) {
@@ -206,6 +255,7 @@ export function partitionForClass(
     work: p.work.filter(inClass),
     resources: p.resources.filter(inClass),
     done: p.done.filter(inClass),
+    expired: p.expired.filter(inClass),
   };
 }
 
@@ -225,9 +275,11 @@ export function upNextRows(
     r.state === 'missing-open' ||
     (r.assignment.dueAt !== undefined &&
       sameDay(new Date(r.assignment.dueAt), today));
-  const first = work.filter(priority);
-  const rest = work.filter((r) => !priority(r)).slice(0, extra);
-  return { shown: [...first, ...rest], total: work.length };
+  const rest = new Set(work.filter((r) => !priority(r)).slice(0, extra));
+  return {
+    shown: work.filter((r) => priority(r) || rest.has(r)),
+    total: work.length,
+  };
 }
 
 /** D21: the one plain line under a class in the class list. */

@@ -52,7 +52,7 @@ describe('OverrideEditorRow language options', () => {
     enabledCodes.current = ['es', 'so', 'hmn'];
     renderRow();
     expect(optionLabels()).toEqual(
-      expect.arrayContaining(['Español', 'Soomaali', 'Hmoob'])
+      expect.arrayContaining(['Spanish', 'Somali', 'Hmong'])
     );
   });
 
@@ -60,16 +60,16 @@ describe('OverrideEditorRow language options', () => {
     enabledCodes.current = ['es'];
     renderRow();
     const labels = optionLabels();
-    expect(labels).toContain('Español');
-    expect(labels).not.toContain('Soomaali');
-    expect(labels).not.toContain('Hmoob');
+    expect(labels).toContain('Spanish');
+    expect(labels).not.toContain('Somali');
+    expect(labels).not.toContain('Hmong');
   });
 
   it('still renders a student already assigned a now-disabled language', () => {
     enabledCodes.current = ['es'];
     renderRow({ language: 'so' });
-    expect(optionLabels()).toContain('Soomaali');
-    const select = screen.getByDisplayValue('Soomaali');
+    expect(optionLabels()).toContain('Somali');
+    const select = screen.getByDisplayValue('Somali');
     expect((select as HTMLSelectElement).value).toBe('so');
     fireEvent.change(select, { target: { value: 'es' } });
   });

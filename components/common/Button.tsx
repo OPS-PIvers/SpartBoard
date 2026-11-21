@@ -32,7 +32,7 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    'transition flex items-center justify-center gap-2 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:opacity-50 disabled:cursor-not-allowed';
+    'transition duration-160 ease-out enabled:active:scale-[0.97] flex items-center justify-center gap-2 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:opacity-50 disabled:cursor-not-allowed';
 
   const variantStyles: Record<ButtonVariant, string> = {
     primary:
@@ -43,7 +43,7 @@ export const Button: React.FC<ButtonProps> = ({
     'ghost-danger': 'text-red-500 hover:bg-red-50 hover:text-red-600',
     ghost:
       'text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter',
-    hero: 'bg-brand-blue-primary text-white shadow-lg shadow-brand-blue-primary/30 hover:bg-brand-blue-dark active:scale-95 hover:-translate-y-1',
+    hero: 'bg-brand-blue-primary text-white shadow-lg shadow-brand-blue-primary/30 hover:bg-brand-blue-dark hover:-translate-y-1',
     dark: 'bg-brand-gray-dark text-white shadow-xs hover:bg-brand-gray-darkest',
   };
 

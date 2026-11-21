@@ -39,7 +39,7 @@
       "note": "At 150×100 the tick labels thin to every other number, but labels and markers shrink to about 6px, and in the stress case long marker labels pile on top of each other above the line.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-27T04:10:38.020Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 2,
@@ -80,7 +80,7 @@
       "note": "The layout is a single horizontal line at every shape; at 225×900 it is a thin strip in the middle with tiny labels and most of the tall card empty, despite the script's 10% dead-band figure.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-27T04:10:38.020Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 3,
@@ -313,7 +313,7 @@
       "note": "The axis and its numbers are primary, while the marker labels and jump label sit above it, smaller and in accent colors.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-27T04:10:38.020Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 1,

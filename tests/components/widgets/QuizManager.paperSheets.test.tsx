@@ -315,6 +315,70 @@ describe('QuizManager — written answers on paper card', () => {
   });
 });
 
+const COPIES: QuizAssignment = {
+  ...PAPER,
+  id: 'qa-copies',
+  status: 'active',
+  paper: undefined,
+  paperBatchId: undefined,
+  hasPaperResponses: true,
+  paperCopyBatchIds: ['b-g1', 'b-g2'],
+};
+
+describe('QuizManager — printed group copies card', () => {
+  it('offers Import paper responses and Print paper copies under Paper', () => {
+    const onImportPaperResponses = vi.fn();
+    const onReprintPaperSheets = vi.fn();
+    renderTab('active', COPIES, {
+      onImportPaperResponses,
+      onReprintPaperSheets,
+    });
+    openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Paper' }));
+    expect(screen.queryByText('Import responses')).toBeNull();
+    fireEvent.click(screen.getByText('Print paper copies'));
+    expect(onReprintPaperSheets).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'qa-copies' }),
+      { copies: true }
+    );
+  });
+
+  it('tells written answers and printed copies apart on one card', () => {
+    const onImportPaperResponses = vi.fn();
+    const onReprintPaperSheets = vi.fn();
+    renderTab(
+      'active',
+      { ...HYBRID, paperBatchId: 'b-written', paperCopyBatchIds: ['b-g1'] },
+      { onImportPaperResponses, onReprintPaperSheets }
+    );
+    openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Paper' }));
+    fireEvent.click(screen.getByText('Import written answers'));
+    expect(onImportPaperResponses).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 'qa-hybrid' })
+    );
+    openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Paper' }));
+    fireEvent.click(screen.getByText('Import paper responses'));
+    expect(onImportPaperResponses).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 'qa-hybrid' }),
+      { copies: true }
+    );
+  });
+
+  it('still imports after the assignment ends', () => {
+    const onImportPaperResponses = vi.fn();
+    renderTab(
+      'archive',
+      { ...COPIES, status: 'inactive' },
+      { onImportPaperResponses }
+    );
+    openRowMenu();
+    fireEvent.click(screen.getByText('Import paper responses'));
+    expect(onImportPaperResponses).toHaveBeenCalledOnce();
+  });
+});
+
 describe('QuizManager — row menu', () => {
   it('keeps Assign on paper in the menu for view-only libraries', () => {
     const onAssignOnPaper = vi.fn();

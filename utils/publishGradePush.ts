@@ -46,6 +46,7 @@ import {
   type LtiGradeEntry,
   type LtiPushGradesData,
   type LtiPushGradesRequest,
+  LTI_PUSH_GRADES_CALL_OPTS,
 } from '@/utils/ltiGradePush';
 import {
   formatToolColumnPushToast,
@@ -265,7 +266,8 @@ export async function runPublishGradePush<R>({
       if (grades.length > 0) {
         const push = httpsCallable<LtiPushGradesRequest, LtiPushGradesData>(
           functions,
-          'ltiPushGradesForAssignmentV1'
+          'ltiPushGradesForAssignmentV1',
+          LTI_PUSH_GRADES_CALL_OPTS
         );
         const { data } = await push({
           sessionId,

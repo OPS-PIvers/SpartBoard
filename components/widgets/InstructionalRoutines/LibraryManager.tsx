@@ -161,8 +161,10 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
 
       const url =
         type === 'sticker'
-          ? await uploadSticker(user.uid, finalFile)
-          : await uploadDisplayImage(user.uid, finalFile);
+          ? await uploadSticker(user.uid, finalFile, { districtAsset: true })
+          : await uploadDisplayImage(user.uid, finalFile, {
+              districtAsset: true,
+            });
 
       const nextSteps = [...routine.steps];
       nextSteps[index] = {

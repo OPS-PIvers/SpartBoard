@@ -126,6 +126,7 @@ describe('useVideoActivityAssignments — publishAssignmentScores duplicate ques
           ref: refStudent,
           data: () => ({
             studentUid: 's1',
+            completedAt: 5,
             answers: [
               { questionId: 'q0', answer: 'a', answeredAt: 1 },
               { questionId: 'q1', answer: 'wrong', answeredAt: 2 },
@@ -142,7 +143,7 @@ describe('useVideoActivityAssignments — publishAssignmentScores duplicate ques
       await result.current.publishAssignmentScores(
         ASSIGNMENT_ID,
         activityData,
-        'score-only'
+        'score-and-responses'
       );
     });
 
@@ -159,6 +160,46 @@ describe('useVideoActivityAssignments — publishAssignmentScores duplicate ques
     expect(patch.score).toBe(50);
     const q0Answer = patch.answers.find((a) => a.questionId === 'q0');
     expect(q0Answer?.isCorrect).toBe(true);
+  });
+
+  it('a hidden-results score-only publish writes no isCorrect', async () => {
+    const refStudent = { id: 'r-flag' };
+    (getDoc as Mock).mockResolvedValue({
+      data: () => ({
+        sessionOptions: { answerRulesSet: true, showResultToStudent: false },
+      }),
+    });
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          id: 's1',
+          ref: refStudent,
+          data: () => ({
+            studentUid: 's1',
+            completedAt: 5,
+            answers: [{ questionId: 'q1', answer: 'x', answeredAt: 1 }],
+          }),
+        },
+      ],
+    });
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        activityData,
+        'score-only'
+      );
+    });
+    const patch = batchUpdate.mock.calls.find(
+      ([ref]) => ref === refStudent
+    )?.[1] as {
+      answers: Array<{ isCorrect?: boolean }>;
+      verdictsWithheld?: unknown;
+    };
+    expect(patch.answers[0].isCorrect).toBeUndefined();
+    expect(patch.verdictsWithheld).toBe(true);
   });
 
   it.each(['score-only', 'score-responses-and-answers'] as const)(

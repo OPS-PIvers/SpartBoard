@@ -27,7 +27,6 @@ vi.mock('firebase/firestore', () => ({
 // `[user, isSuperAdmin, orgId]` effect's dependencies on every commit and
 // spin it into an infinite re-render loop instead of testing our fix.
 const mockUser = { email: 'admin@example.com', uid: 'admin-uid' };
-const mockUserRoles = { superAdmins: ['admin@example.com'] };
 const mockBuildings = [
   { id: 'b1', name: 'North Elementary', gradeLabel: 'K-5' },
 ];
@@ -35,9 +34,8 @@ const mockBuildings = [
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: mockUser,
-    orgId: null,
-    roleId: null,
-    userRoles: mockUserRoles,
+    orgId: 'orono',
+    roleId: 'super_admin',
   }),
 }));
 

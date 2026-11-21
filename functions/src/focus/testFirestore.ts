@@ -144,6 +144,10 @@ export function createMemoryFirestore(): admin.firestore.Firestore & {
           ops.push(() => ref.update(d));
           return b;
         },
+        delete: (ref: { delete: () => Promise<void> }) => {
+          ops.push(() => ref.delete());
+          return b;
+        },
         commit: async () => {
           for (const op of ops) await op();
         },

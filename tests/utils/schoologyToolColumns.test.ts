@@ -160,7 +160,7 @@ describe('formatToolColumnPushToast', () => {
       )
     );
     expect(message).toBe(
-      'Pushed 0 grades to Schoology (1 marked Missing). 1 cell kept as set in Schoology. Add a grading category to the Schoology course, then push again. Some Missing marks were added as comments. 1 failed to push. Try again.'
+      'Pushed 0 grades to Schoology (1 marked Missing). 1 cell kept as set in Schoology. Add a grading category to the Schoology course, then push again. Some Missing marks were added as comments. 1 not sent.'
     );
     expect(failed).toBe(1);
   });

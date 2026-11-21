@@ -636,6 +636,69 @@ describe('runFinalizeIdleQuizAttempts - past a Scheduled close', () => {
   });
 });
 
+describe('runFinalizeIdleQuizAttempts - a class the teacher closed (ASSIGNED_TAB D6)', () => {
+  const row = (extra: Record<string, unknown>) => ({
+    state: 'closed',
+    openAt: null,
+    closeAt: null,
+    bellPeriodId: null,
+    verified: true,
+    label: 'x',
+    ...extra,
+  });
+  const stale = (id: string, extra: Record<string, unknown>) => ({
+    id,
+    sid: 'sess1',
+    data: {
+      status: 'in-progress',
+      classId: 'A',
+      studentUid: id,
+      lastWriteAt: tsVal(NOW - IDLE_MS - MIN),
+      answers: [{ questionId: 'q1', status: 'draft' }],
+      ...extra,
+    },
+  });
+
+  // A let-in student is not frozen, so the plain idle rule turns them in like any idle row.
+  it('turns in a closed class past the grace, but not a reopened or unlocked student', async () => {
+    const { db, responses } = makeStubDb({
+      responses: [
+        stale('plain', {}),
+        stale('pass', {}),
+        stale('picked', {}),
+        stale('unlocked', { unlocked: true }),
+        stale('ready', { classId: 'R' }),
+        stale('recent', { classId: 'J' }),
+      ],
+      sessions: {
+        sess1: {
+          status: 'active',
+          createdAt: NOW - 2 * IDLE_MS,
+          studentAccess: { pass: NOW + MIN },
+          reopenedFor: ['picked'],
+          periodAccess: {
+            A: row({ closedAt: NOW - 5 * MIN }),
+            R: row({}),
+            J: row({ closedAt: NOW - 30_000 }),
+          },
+        },
+      },
+    });
+    const result = await runFinalizeIdleQuizAttempts(db, NOW);
+    expect(result.finalized).toBe(2);
+    expect(
+      Object.fromEntries(responses.map((r) => [r.id, r.data.status]))
+    ).toEqual({
+      plain: 'completed',
+      pass: 'completed',
+      picked: 'in-progress',
+      unlocked: 'in-progress',
+      ready: 'in-progress',
+      recent: 'in-progress',
+    });
+  });
+});
+
 describe('runFinalizeIdleQuizAttempts - Manual due date', () => {
   const T = CLOSE_SWEEP_SINCE_MS + 30 * 24 * 60 * MIN;
   const DUE = T - 10 * MIN;

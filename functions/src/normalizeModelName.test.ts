@@ -79,6 +79,13 @@ describe('normalizeModelName — rejected values', () => {
     );
   });
 
+  it.each([['gemini-4-argon'], ['gemini-4-carbon'], [' gemini-4-carbon ']])(
+    'runs the retired id %s as Gemini 4 Neon',
+    (model) => {
+      expect(normalizeModelName(model)).toBe('gemini-4-neon');
+    }
+  );
+
   it('warns when discarding a deprecated override so the fallback is traceable', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     normalizeModelName('gemini-2.0-flash');

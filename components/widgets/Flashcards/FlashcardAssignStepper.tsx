@@ -379,11 +379,11 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
               'flashcards.stepper-class-picker',
               'flashcards'
             )}
-            rowAnchor={(classId) =>
+            rowAnchor={(_classId, rowIndex) =>
               tourFieldAttr(
                 'flashcards.stepper-class-row',
                 'flashcards',
-                classId
+                `row-${rowIndex + 1}`
               )
             }
           />
@@ -391,11 +391,11 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
             rosters={rosters}
             value={classes}
             onChange={setClasses}
-            rowAnchor={(classId) =>
+            rowAnchor={(_classId, rowIndex) =>
               tourFieldAttr(
                 'flashcards.stepper-student-menu',
                 'flashcards',
-                classId
+                `row-${rowIndex + 1}`
               )
             }
           />

@@ -1185,15 +1185,15 @@ export const Dock: React.FC = () => {
       <div className="relative group/dock flex items-center justify-center">
         {/* Expanded View */}
         <div
-          className={`transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+          className={`transition-[opacity,scale,translate] duration-200 ease-out-strong motion-reduce:transition-opacity ${
             isExpanded
               ? 'scale-100 opacity-100'
-              : `scale-50 opacity-0 pointer-events-none absolute ${
+              : `scale-95 opacity-0 pointer-events-none absolute motion-reduce:scale-100 motion-reduce:translate-x-0 motion-reduce:translate-y-0 ${
                   dockPosition === 'left'
-                    ? '-translate-x-12'
+                    ? '-translate-x-2'
                     : dockPosition === 'right'
-                      ? 'translate-x-12'
-                      : 'translate-y-12'
+                      ? 'translate-x-2'
+                      : 'translate-y-2'
                 }`
           }`}
         >
@@ -1282,7 +1282,6 @@ export const Dock: React.FC = () => {
                   }
                   onRemoveFromDock={() => undefined}
                   isEditMode={false}
-                  onLongPress={() => undefined}
                   globalStyle={globalStyle}
                   customLabel={getToolLabel(type)}
                   dockPosition={dockPosition}
@@ -1607,7 +1606,7 @@ export const Dock: React.FC = () => {
                         }
                       }}
                       aria-label={t('dock.viewLiveSession')}
-                      className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x relative focus-visible:outline-hidden"
+                      className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform duration-160 ease-out active:scale-95 touch-pan-x relative focus-visible:outline-hidden"
                     >
                       <DockIcon
                         color="bg-red-500"
@@ -1631,10 +1630,10 @@ export const Dock: React.FC = () => {
                         position: 'fixed',
                         left: livePopoverPos.left,
                         bottom: livePopoverPos.bottom,
-                        transform: 'translateX(-50%)',
+                        translate: '-50% 0',
                         zIndex: Z_INDEX.popover,
                       }}
-                      className="w-64 overflow-hidden animate-in slide-in-from-bottom-2 duration-200"
+                      className="w-64 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
                     >
                       {' '}
                       <div className="p-4 flex flex-col items-center gap-2 text-center">
@@ -1710,7 +1709,7 @@ export const Dock: React.FC = () => {
                           updateWidget(cw.id, { minimized: false })
                         }
                         {...tourAttr('dock.restore-custom')}
-                        className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x shrink-0"
+                        className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform duration-160 ease-out active:scale-95 touch-pan-x shrink-0"
                         title={`Restore: ${customWidgetTitleById.get((cw.config as { customWidgetId?: string }).customWidgetId ?? '') ?? 'Custom Widget'}`}
                       >
                         <DockIcon
@@ -1756,7 +1755,6 @@ export const Dock: React.FC = () => {
                       }
                       onRemoveFromDock={() => undefined}
                       isEditMode={false}
-                      onLongPress={() => undefined}
                       globalStyle={globalStyle}
                       customLabel={getToolLabel(type)}
                       dockPosition={dockPosition}
@@ -1784,7 +1782,7 @@ export const Dock: React.FC = () => {
               ref={moreButtonRef}
               onClick={() => setShowMoreMenu(!showMoreMenu)}
               {...tourAttr('dock.more-widgets')}
-              className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x shrink-0"
+              className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform duration-160 ease-out active:scale-95 touch-pan-x shrink-0"
               title={t('sidebar.header.moreWidgets')}
             >
               <DockIcon
@@ -1806,10 +1804,10 @@ export const Dock: React.FC = () => {
 
         {/* Collapsed View (Floating Icon) */}
         <div
-          className={`transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+          className={`transition-[opacity,scale,translate] duration-200 ease-out-strong motion-reduce:transition-opacity ${
             !isExpanded
               ? 'scale-100 opacity-100'
-              : 'scale-150 opacity-0 pointer-events-none absolute'
+              : 'scale-105 opacity-0 pointer-events-none absolute motion-reduce:scale-100'
           }`}
         >
           {/* Compressed down to a single icon (plus quick access) */}
@@ -1844,7 +1842,7 @@ export const Dock: React.FC = () => {
             <button
               onClick={() => setIsExpanded(true)}
               {...tourAttr('dock.open-tools')}
-              className={`w-14 h-14 flex items-center justify-center bg-brand-blue-primary text-white active:scale-90 transition shadow-xl shadow-brand-blue-primary/40 ${
+              className={`w-14 h-14 flex items-center justify-center bg-brand-blue-primary text-white active:scale-95 transition duration-160 ease-out shadow-xl shadow-brand-blue-primary/40 ${
                 globalStyle.dockBorderRadius === 'none'
                   ? 'rounded-none'
                   : globalStyle.dockBorderRadius === 'full'

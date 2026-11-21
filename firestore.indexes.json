@@ -676,6 +676,48 @@
       "density": "SPARSE_ALL"
     },
     {
+      "collectionGroup": "writing_assignment_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "classIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "writing_assignment_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "classIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "endedAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
       "collectionGroup": "quiz_sessions",
       "queryScope": "COLLECTION",
       "fields": [
@@ -1032,6 +1074,48 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "quizzes",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "sharedBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "syncGroupId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assignments",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "sharedBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "syncGroupId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "video_activities",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "sharedBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "syncGroupId",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -1217,6 +1301,12 @@
       "indexes": []
     },
     {
+      "collectionGroup": "mcp_picture_upload_tickets",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "mcp_oauth_jti",
       "fieldPath": "expireAt",
       "ttl": true,
@@ -1242,6 +1332,12 @@
     },
     {
       "collectionGroup": "focus_sessions",
+      "fieldPath": "focusExpiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "focus_push_subscriptions",
       "fieldPath": "focusExpiresAt",
       "ttl": true,
       "indexes": []

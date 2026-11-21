@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import {
   ArrowUpDown,
   CalendarDays,
@@ -92,12 +93,23 @@ const buildDefaultSchedule = (items: ScheduleItem[]): DailySchedule => ({
   days: [],
 });
 
+// Starter and older items carry no id, which hid them from the editor; the first edit saves these ids.
+const withItemIds = (schedule: DailySchedule): DailySchedule =>
+  schedule.items.every((item) => item.id)
+    ? schedule
+    : {
+        ...schedule,
+        items: schedule.items.map((item, index) =>
+          item.id ? item : { ...item, id: `${schedule.id}-item-${index + 1}` }
+        ),
+      };
+
 const resolvedSchedules = (config: ScheduleConfig): DailySchedule[] => {
   const schedules = [...(config.schedules ?? [])];
   if (schedules.length === 0 && (config.items?.length ?? 0) > 0) {
     schedules.push(buildDefaultSchedule(config.items ?? []));
   }
-  return schedules;
+  return schedules.map(withItemIds);
 };
 
 const selectedScheduleId = (
@@ -217,6 +229,7 @@ export const ScheduleCalendarImportField: React.FC<{
 export const ScheduleListField: React.FC<{
   ctx: CustomRenderCtx;
 }> = ({ ctx }) => {
+  const connectionsOn = useConnectionsEnabled();
   const { addToast } = useDashboard();
   const { showConfirm } = useDialog();
   const { subscribeToPermission } = useFeaturePermissions();
@@ -661,6 +674,7 @@ export const ScheduleListField: React.FC<{
                           })
                         }
                         autoFocus={item.id === autoFocusItem?.itemId}
+                        showWarning={connectionsOn}
                       />
                     ))}
                   </SortableContext>

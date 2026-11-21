@@ -180,6 +180,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
   const variant = live ? 'live' : 'when';
 
   const bodies: Record<AssignStepId, () => AssignStepDef | null> = {
+    modifications: () => null,
     classes: () => ({
       id: 'classes',
       title: getAssignStepTitle('classes', 'video', ctx),
@@ -245,6 +246,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
     study: () => null,
     sheets: () => null,
     written: () => null,
+    writing: () => null,
     cards: () => null,
   };
   const steps = getAssignSteps('video', ctx)

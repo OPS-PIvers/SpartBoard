@@ -1,6 +1,6 @@
 // Guards plan-deploy.sh: per-branch hosting sites and the shared-backend guard.
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync } from 'fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -12,10 +12,22 @@ const script = resolve(repoRoot, '.github/scripts/plan-deploy.sh');
 function plan(
   branch: string,
   files: string[],
-  { containsDevPaul = true, full = false, otherDeployedLast = false } = {}
+  {
+    containsDevPaul = true,
+    full = false,
+    otherDeployedLast = false,
+    oldIndex = undefined as string | undefined,
+    codebase = '',
+    oldFeatureMissingDoc = undefined as string | undefined,
+  } = {}
 ): Record<string, string> {
   const dir = mkdtempSync(join(tmpdir(), 'plan-deploy-'));
   const out = join(dir, 'out');
+  const oldIndexFile = join(dir, 'old-index.ts');
+  if (oldIndex !== undefined) writeFileSync(oldIndexFile, oldIndex);
+  const oldFlagsFile = join(dir, 'old-feature-missing-doc.ts');
+  if (oldFeatureMissingDoc !== undefined)
+    writeFileSync(oldFlagsFile, oldFeatureMissingDoc);
   try {
     const result = spawnSync('bash', [script, branch, 'abc', String(full)], {
       env: {
@@ -24,6 +36,10 @@ function plan(
         CHANGED_FILES: files.join('\n'),
         CONTAINS_DEV_PAUL: String(containsDevPaul),
         OTHER_BRANCH_DEPLOYED_LAST: String(otherDeployedLast),
+        OLD_INDEX_FILE: oldIndex === undefined ? '' : oldIndexFile,
+        CODEBASE: codebase,
+        OLD_FEATURE_MISSING_DOC_FILE:
+          oldFeatureMissingDoc === undefined ? '' : oldFlagsFile,
       },
     });
     expect(result.status).toBe(0);
@@ -109,8 +125,37 @@ describe('plan-deploy.sh', () => {
       plan('dev-paul', ['functions/src/linkPreview.ts', 'storage.rules'])
     ).toMatchObject({
       backend: 'true',
-      deploy_only: 'functions:fetchLinkPreview,storage',
+      deploy_only: 'functions:content:fetchLinkPreview,storage',
     });
+  });
+
+  it('names just the new export when index.ts only added one', () => {
+    const index = readFileSync(
+      join(repoRoot, 'functions/src/index.ts'),
+      'utf-8'
+    );
+    const oldIndex = index.replace(/^.*\bfetchLinkPreview\b.*$/m, '');
+    expect(oldIndex).not.toBe(index);
+    expect(
+      plan('main', ['functions/src/index.ts'], { oldIndex }).deploy_only
+    ).toBe('functions:content:fetchLinkPreview');
+  });
+
+  it('passes the deployed featureMissingDoc.ts, so a list reorder deploys no function', () => {
+    const flags = readFileSync(
+      join(repoRoot, 'functions/src/featureMissingDoc.ts'),
+      'utf-8'
+    );
+    const reordered = flags.replace(
+      /(ADMIN_PREVIEW_FEATURES[^=]*=\s*\[\n)(\s*'[^']+',\n)(\s*'[^']+',\n)/,
+      '$1$3$2'
+    );
+    expect(reordered).not.toBe(flags);
+    expect(
+      plan('main', ['functions/src/featureMissingDoc.ts'], {
+        oldFeatureMissingDoc: reordered,
+      })
+    ).toMatchObject({ functions: 'false' });
   });
 
   it('deploys every function from other dev branches, which diff against dev-paul', () => {
@@ -146,6 +191,8 @@ describe('plan-deploy.sh', () => {
       '.github/scripts/affected-functions.mjs',
       '.github/scripts/function-targets.mjs',
       '.github/scripts/firebase-deploy-with-retry.sh',
+      '.github/scripts/codebases.mjs',
+      '.github/scripts/function-delete-check.mjs',
     ]) {
       expect(plan('main', [script]).deploy_only).toBe(
         'functions,firestore:indexes,storage'
@@ -172,5 +219,64 @@ describe('plan-deploy.sh', () => {
       deploy_only: 'functions,firestore:indexes,storage',
       release_rules: 'true',
     });
+  });
+
+  it('deploys every codebase together when the manifest or firebase.json changes', () => {
+    for (const file of ['functions/codebases.json', 'firebase.json']) {
+      expect(
+        plan('dev-paul', [file, 'functions/src/linkPreview.ts']).deploy_only
+      ).toBe('functions');
+      expect(plan('main', [file]).deploy_only).toBe('functions');
+    }
+  });
+
+  it('deploys one whole codebase on a codebase dispatch', () => {
+    expect(
+      plan('dev-paul', ['components/a.tsx'], { codebase: 'default' })
+    ).toMatchObject({
+      backend: 'true',
+      functions: 'true',
+      deploy_only: 'functions:default',
+    });
+    expect(
+      plan('main', ['storage.rules'], { codebase: 'default' }).deploy_only
+    ).toBe('functions:default,storage');
+    // Changes the diff already needs still deploy alongside it.
+    expect(
+      plan('dev-paul', ['functions/src/linkPreview.ts'], {
+        codebase: 'default',
+      }).deploy_only
+    ).toBe('functions:default,functions:content:fetchLinkPreview');
+    expect(
+      plan('dev-paul', ['functions/src/index.ts'], { codebase: 'default' })
+        .deploy_only
+    ).toBe('functions');
+    // A full-backend dispatch already deploys every codebase.
+    expect(
+      plan('dev-paul', [], { codebase: 'default', full: true }).deploy_only
+    ).toBe('functions,firestore:indexes,storage');
+  });
+
+  it('refuses a codebase firebase.json does not deploy', () => {
+    const injected = spawnSync('bash', [script, 'dev-paul', 'abc', 'false'], {
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: '/dev/null',
+        CHANGED_FILES: '',
+        CODEBASE: 'default\nbackend=true',
+      },
+    });
+    expect(injected.status).toBe(1);
+    const result = spawnSync('bash', [script, 'dev-paul', 'abc', 'false'], {
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: '/dev/null',
+        CHANGED_FILES: '',
+        CODEBASE: 'nope',
+      },
+      encoding: 'utf-8',
+    });
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("no functions codebase named 'nope'");
   });
 });

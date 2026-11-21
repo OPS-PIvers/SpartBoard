@@ -309,7 +309,7 @@ describe('useVideoActivityAssignments — updateAssignmentSettings mirrors polic
     );
 
     vi.mocked(getDoc).mockResolvedValueOnce({
-      data: () => ({ classIds: ['old-cl', 'classroom:c1'] }),
+      data: () => ({ classIds: ['old-cl', 'stale-cl', 'classroom:c1'] }),
     } as unknown as Awaited<ReturnType<typeof getDoc>>);
     await act(async () => {
       await result.current.setAssignmentClasses('assignment-1', {
@@ -317,6 +317,7 @@ describe('useVideoActivityAssignments — updateAssignmentSettings mirrors polic
         classIds: ['cl-1'],
         periodNames: ['Period 1', 'Period 2'],
         classPeriodByClassId: { 'cl-1': 'Period 1' },
+        removedClassIds: ['old-cl'],
       });
     });
 
@@ -810,12 +811,21 @@ describe('useVideoActivityAssignments — shareAssignment + import', () => {
           mode: 'copy',
           saveActivity,
           isPlcMember: (id) => member && id === 'plc-x',
+          livePlcLinkage: (id) => ({
+            id,
+            name: 'X',
+            sheetUrl: 'https://docs.google.com/spreadsheets/d/live',
+            memberEmails: [],
+          }),
         });
       });
       expect(set).toHaveBeenCalled();
       const written = JSON.stringify(set.mock.calls);
       if (member) expect(written).toContain('plc-x');
       else expect(written).not.toContain('plc-x');
+      // Security #16: the share's sheet URL is never kept.
+      expect(written).not.toContain('spreadsheets/d/s"');
+      if (member) expect(written).toContain('spreadsheets/d/live');
     }
   );
 

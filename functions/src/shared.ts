@@ -23,6 +23,7 @@ export interface GlobalPermission {
   enabled: boolean;
   accessLevel: 'admin' | 'beta' | 'all';
   betaUsers?: string[];
+  excludedUsers?: string[];
   minTier?: unknown;
   buildings?: unknown;
   config?: GlobalPermConfig;
@@ -45,8 +46,14 @@ export function normalizeModelName(raw: unknown): string | undefined {
     );
     return undefined;
   }
-  return trimmed;
+  return RETIRED_GEMINI_REPLACEMENTS[trimmed] ?? trimmed;
 }
+
+// Taken off the AI tab; a saved pick runs the replacement. Mirrors RETIRED_GEMINI_MODELS in config/geminiModels.ts.
+export const RETIRED_GEMINI_REPLACEMENTS: Readonly<Record<string, string>> = {
+  'gemini-4-argon': 'gemini-4-neon',
+  'gemini-4-carbon': 'gemini-4-neon',
+};
 
 // Deprecated per docs/AI_MODELS.md; rejecting them makes a stale Firestore override self-heal to the default instead of needing a manual sweep.
 const RETIRED_MODEL_ID_PREFIXES = ['gemini-1.', 'gemini-2.0-'];
@@ -56,19 +63,4 @@ function isDeprecatedModelId(model: string): boolean {
     RETIRED_MODEL_ID_PREFIXES.some((prefix) => model.startsWith(prefix)) ||
     /-preview(?:-|$)/.test(model)
   );
-}
-
-/**
- * Splits an array into fixed-size chunks (last chunk may be short).
- * Used to bound fan-out parallelism — both for Firestore `in` queries
- * (10-item limit per query) and for external HTTP fan-outs (ClassLink,
- * etc.) where unbounded `Promise.all` can OOM the function instance or
- * hammer the upstream API.
- */
-export function chunk<T>(arr: readonly T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size));
-  }
-  return chunks;
 }

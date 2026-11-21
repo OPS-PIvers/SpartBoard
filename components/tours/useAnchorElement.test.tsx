@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ANCHOR_SEARCH_MS,
   ANCHOR_SEARCH_THROTTLE_MS,
+  inRow,
   useAnchorElement,
 } from './useAnchorElement';
 
@@ -447,6 +448,28 @@ describe('useAnchorElement with a #row-* ref', () => {
     expect(result.current.rect?.width).toBe(140);
   });
 
+  it('lights each checkbox row with its label, not just the box', async () => {
+    const labelled = (n: number, labelX: number) => {
+      const label = document.createElement('label');
+      label.dataset.x = String(labelX);
+      const el = addRow(n);
+      el.dataset.x = String(labelX);
+      label.appendChild(el);
+      document.body.appendChild(label);
+      return label;
+    };
+    labelled(1, 50);
+    const last = labelled(2, 100);
+    // The last label runs past its checkbox, as a name beside a box does.
+    last.getBoundingClientRect = () => new DOMRect(100, 10, 200, 40);
+    const { result } = renderHook(() =>
+      useAnchorElement({ anchor: 'plcs.open-plc:plcs#row-*' }, scope)
+    );
+    await advance(50);
+    expect(result.current.rect?.x).toBe(50);
+    expect(result.current.rect?.width).toBe(250);
+  });
+
   it('stays found on another row when the first one scrolls out of its panel', async () => {
     const panel = document.createElement('div');
     panel.style.overflowY = 'auto';
@@ -474,5 +497,17 @@ describe('useAnchorElement with a #row-* ref', () => {
     expect(result.current.status).toBe('found');
     expect(result.current.element).toBe(second);
     expect(result.current.matches).toEqual([second]);
+  });
+});
+
+describe('inRow', () => {
+  it('counts a press on a wrapping label or one tied by id as the row', () => {
+    document.body.innerHTML =
+      '<label><input id="a" type="checkbox" /><span id="a-name">Ada</span></label>' +
+      '<input id="b" type="checkbox" /><label for="b"><span id="b-name">Bo</span></label>';
+    const at = (id: string) => document.getElementById(id) as HTMLElement;
+    expect(inRow(at('a'), at('a-name'))).toBe(true);
+    expect(inRow(at('b'), at('b-name'))).toBe(true);
+    expect(inRow(at('a'), at('b-name'))).toBe(false);
   });
 });

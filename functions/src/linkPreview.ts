@@ -18,6 +18,7 @@ import {
 import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { decodeHtmlEntities } from './htmlEntities';
+import { safeErr } from './safeLog';
 
 const MAX_REDIRECTS = 2;
 const MAX_RESPONSE_BYTES = 1_048_576;
@@ -220,7 +221,7 @@ export const fetchLinkPreview = onCall(
           }
           continue;
         }
-        console.error('Link preview fetch error:', error);
+        console.error('Link preview fetch error:', safeErr(error));
         // Generic message: the detail is an SSRF signal channel for anonymous callers.
         throw new HttpsError('internal', 'Failed to fetch URL.');
       }

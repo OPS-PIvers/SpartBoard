@@ -117,6 +117,12 @@ class FakeAxiosError extends Error {
   }
 }
 
+// A View as claim the guard hands back; null for an ordinary token.
+let viewAsClaim: Record<string, unknown> | null = null;
+vi.mock('./viewAsGuard', () => ({
+  assertViewAsAllowed: () => Promise.resolve(viewAsClaim),
+}));
+
 vi.mock('axios', () => ({
   default: {
     post: (url: string, body: string) => axiosHandler(url, body),
@@ -588,6 +594,133 @@ describe('refreshGoogleAccessToken', () => {
     );
     expect(err.code).toBe('internal');
     expect((err.details as { reason: string }).reason).toBe('transient');
+  });
+});
+
+describe('refreshGoogleAccessTokenForUid down-scoping', () => {
+  const DRIVE_FILE = 'https://www.googleapis.com/auth/drive.file';
+  async function seed() {
+    setAxiosHandler(async () => ({
+      data: {
+        access_token: 'access-1',
+        expires_in: 3600,
+        refresh_token: 'refresh-1',
+        scope: `${ALL_SCOPES} https://www.googleapis.com/auth/tasks`,
+        token_type: 'Bearer',
+      },
+    }));
+    await callAuthed(exchangeGoogleAuthCode, {
+      code: 'c',
+      redirectUri: 'postmessage',
+    });
+  }
+
+  it('sends the requested scope to Google', async () => {
+    await seed();
+    let sent = '';
+    setAxiosHandler(async (_url, body) => {
+      sent = body;
+      return {
+        data: { access_token: 'narrow', expires_in: 3600, scope: DRIVE_FILE },
+      };
+    });
+    const res = await refreshGoogleAccessTokenForUid(TEST_UID, {
+      scope: DRIVE_FILE,
+      exactScope: true,
+    });
+    expect(res.accessToken).toBe('narrow');
+    expect(new URLSearchParams(sent).get('scope')).toBe(DRIVE_FILE);
+  });
+
+  it('sends no scope when none is asked for', async () => {
+    await seed();
+    let sent = '';
+    setAxiosHandler(async (_url, body) => {
+      sent = body;
+      return {
+        data: { access_token: 'a', expires_in: 3600, scope: ALL_SCOPES },
+      };
+    });
+    await refreshGoogleAccessTokenForUid(TEST_UID);
+    expect(new URLSearchParams(sent).has('scope')).toBe(false);
+  });
+
+  it('refuses a wider token than asked for with exactScope', async () => {
+    await seed();
+    setAxiosHandler(async () => ({
+      data: { access_token: 'wide', expires_in: 3600, scope: ALL_SCOPES },
+    }));
+    const err = await expectThrows(() =>
+      refreshGoogleAccessTokenForUid(TEST_UID, {
+        scope: DRIVE_FILE,
+        exactScope: true,
+      })
+    );
+    expect(err.code).toBe('permission-denied');
+    expect(deletedPaths).toEqual([]);
+  });
+
+  it('refuses a token with no reported scope under exactScope', async () => {
+    await seed();
+    setAxiosHandler(async () => ({
+      data: { access_token: 'x', expires_in: 3600 },
+    }));
+    const err = await expectThrows(() =>
+      refreshGoogleAccessTokenForUid(TEST_UID, {
+        scope: DRIVE_FILE,
+        exactScope: true,
+      })
+    );
+    expect(err.code).toBe('permission-denied');
+  });
+
+  it('reports needs-consent and keeps the grant when Google rejects the asked scope', async () => {
+    await seed();
+    setAxiosHandler(async () => {
+      throw new FakeAxiosError('Bad Request', { error: 'invalid_scope' });
+    });
+    const err = await expectThrows(() =>
+      refreshGoogleAccessTokenForUid(TEST_UID, { scope: DRIVE_FILE })
+    );
+    expect((err.details as { reason: string }).reason).toBe('needs-consent');
+    expect(deletedPaths).toEqual([]);
+  });
+
+  it('down-scopes the callable for a View as token', async () => {
+    await seed();
+    let sent = '';
+    setAxiosHandler(async (_url, body) => {
+      sent = body;
+      return {
+        data: { access_token: 'narrow', expires_in: 3600, scope: DRIVE_FILE },
+      };
+    });
+    viewAsClaim = {
+      by: 'boss@x',
+      sid: 's1',
+      ro: false,
+      adminTarget: false,
+      exp: Date.now() + 60_000,
+    };
+    try {
+      await callAuthed(refreshGoogleAccessToken, {});
+    } finally {
+      viewAsClaim = null;
+    }
+    expect(new URLSearchParams(sent).get('scope')).toBe(DRIVE_FILE);
+  });
+
+  it('leaves the callable unscoped for the teacher themselves', async () => {
+    await seed();
+    let sent = '';
+    setAxiosHandler(async (_url, body) => {
+      sent = body;
+      return {
+        data: { access_token: 'a', expires_in: 3600, scope: ALL_SCOPES },
+      };
+    });
+    await callAuthed(refreshGoogleAccessToken, {});
+    expect(new URLSearchParams(sent).has('scope')).toBe(false);
   });
 });
 

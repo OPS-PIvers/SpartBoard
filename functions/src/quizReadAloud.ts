@@ -17,7 +17,7 @@ import * as admin from './firebaseAdmin';
 import { createHash } from 'node:crypto';
 import { v1beta1, protos } from '@google-cloud/text-to-speech';
 import { ALLOWED_ORIGINS } from './classlinkShared';
-import { isGlobalFeatureGranted } from './quizMediaArchive';
+import { isGlobalFeatureGranted } from './featureGrant';
 import './functionsInit';
 import { LANGUAGE_TAG_RE } from './languageTag';
 import { ttsLanguageForTranslationLocale } from './quizReadAloudVoices';
@@ -25,6 +25,8 @@ import { mp3DurationMs, storedDurationMs } from './mp3Duration';
 import { isPeriodFrozen, withQuizSessionContent } from './quizSessionContent';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { assertAiTeacherCaller } from './aiCallerGate';
+import { isForeignPointer } from './pointerOwnership';
+import { safeErr } from './safeLog';
 
 export { ttsLanguageForTranslationLocale };
 
@@ -508,7 +510,9 @@ export function localizedSessionQuestion(
   if (typeof raw !== 'object' || raw === null) return null;
   const entry = raw as Record<string, unknown>;
   const text = typeof entry.text === 'string' ? entry.text : '';
-  if (!text) return null;
+  // An audio-only prompt has an empty stem in every language; mirrors serveLocalizedQuestion.
+  const english = typeof question.text === 'string' ? question.text : '';
+  if (!text.trim() && english.trim()) return null;
   if (question.placeholder && !entry.placeholder) return null;
   if (question.rubricSnapshot && !entry.rubricSnapshot) return null;
   const out: SessionQuestion = {
@@ -897,7 +901,11 @@ export async function synthesizePart(
       languageCode,
     }));
   } catch (error) {
-    console.error('[quizReadAloud] Cloud TTS failed', { voice, chars, error });
+    console.error('[quizReadAloud] Cloud TTS failed', {
+      voice,
+      chars,
+      error: safeErr(error),
+    });
     throw new HttpsError('unavailable', 'Read-aloud is unavailable right now.');
   }
   const timings =
@@ -1088,7 +1096,10 @@ export async function prepareQuizReadAloud(
         chars += result.chars;
       }
     } catch (error) {
-      console.error('[quizReadAloud] part failed', { key: part.key, error });
+      console.error('[quizReadAloud] part failed', {
+        key: part.key,
+        error: safeErr(error),
+      });
       failedKeys.push(part.key);
     }
   });
@@ -1146,7 +1157,7 @@ export async function prepareQuizReadAloud(
         console.error('[quizReadAloud] localized part failed', {
           key: part.key,
           locale,
-          error,
+          error: safeErr(error),
         });
         entry.failedKeys.push(part.key);
       }
@@ -1198,7 +1209,7 @@ export async function prepareQuizReadAloud(
     // An oversize manifest must not leave the session stuck on `preparing`.
     console.error('[quizReadAloud] manifest write failed', {
       sessionId: input.sessionId,
-      error,
+      error: safeErr(error),
     });
     await sessionRef.set(
       {
@@ -1239,7 +1250,7 @@ export async function prepareReadAloudAfterTargets(
   } catch (error) {
     console.error('[quizReadAloud] prepare after targets failed', {
       sessionId,
-      error,
+      error: safeErr(error),
     });
   }
 }
@@ -1314,18 +1325,26 @@ export async function synthesizeQuizAudio(
     .collection('items')
     .doc(request.sessionId)
     .get();
-  const pointer = pointerSnap.data() ?? {};
   const sessionRef = db.collection('quiz_sessions').doc(request.sessionId);
   const sessionSnap = await sessionRef.get();
   if (!sessionSnap.exists)
     throw new HttpsError('not-found', 'Quiz session not found.');
+  // A pointer stamped for another session or teacher is treated as absent.
+  const ownPointer =
+    pointerSnap.exists &&
+    !isForeignPointer(pointerSnap.data(), {
+      sessionId: request.sessionId,
+      teacherUid: sessionSnap.get('teacherUid') as string | null,
+      kind: 'quiz',
+    });
+  const pointer = ownPointer ? (pointerSnap.data() ?? {}) : {};
   const session = await withQuizSessionContent(
     sessionRef,
     sessionSnap.data() ?? {}
   );
   // Class-wide assignments write no pointer docs; the token's classIds claim
   // is the same membership proof the student app uses to list them.
-  if (!pointerSnap.exists && !inSessionClass(session, caller.classIds))
+  if (!ownPointer && !inSessionClass(session, caller.classIds))
     throw new HttpsError(
       'permission-denied',
       'Assignment not found for this student.'
@@ -1446,7 +1465,7 @@ export async function synthesizeQuizAudio(
     } catch (error) {
       console.warn('[quizReadAloud] manifest patch failed', {
         sessionId: request.sessionId,
-        error,
+        error: safeErr(error),
       });
     }
   };

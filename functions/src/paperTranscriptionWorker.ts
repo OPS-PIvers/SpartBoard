@@ -2,6 +2,7 @@
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
+import { isExcludedFrom } from './permissionExclusion';
 import type {
   DocumentReference,
   DocumentSnapshot,
@@ -28,6 +29,7 @@ import {
 } from './paperHandwritingQuota';
 import {
   buildDefaultPaperTranscribeDeps,
+  blankAnswerFromTranscript,
   transcribePaperPage,
   type PaperPageTranscript,
   type PaperTranscribeBox,
@@ -39,12 +41,14 @@ import {
   PAPER_PRIVATE_SUBCOLLECTION,
   PAPER_TRANSCRIPTION_JOBS,
   PAPER_WRITTEN_CROP_PREFIX,
+  cleanBlanks,
   paperTranscriptionJobId,
   type PaperPrivateStatus,
   type PaperTranscriptionJob,
   type PaperTranscriptionJobStatus,
 } from './paperWrittenTypes';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { safeErr } from './safeLog';
 
 /** Longer than the 300 s function timeout, so a live run never loses its lease. */
 export const JOB_LEASE_MS = 6 * 60 * 1000;
@@ -139,7 +143,7 @@ export function parseJob(
     return null;
   }
   const cleanBoxes = boxes.filter(
-    (b): b is { questionId: string; storagePath: string } =>
+    (b): b is { questionId: string; storagePath: string; blanks?: unknown } =>
       !!b &&
       typeof (b as { questionId?: unknown }).questionId === 'string' &&
       typeof (b as { storagePath?: unknown }).storagePath === 'string'
@@ -149,10 +153,14 @@ export function parseJob(
     responseKey,
     scanId,
     page,
-    boxes: cleanBoxes.map((b) => ({
-      questionId: b.questionId,
-      storagePath: b.storagePath,
-    })),
+    boxes: cleanBoxes.map((b) => {
+      const blanks = cleanBlanks(b.blanks);
+      return {
+        questionId: b.questionId,
+        storagePath: b.storagePath,
+        ...(blanks ? { blanks } : {}),
+      };
+    }),
     status: status as PaperTranscriptionJobStatus,
     attempt,
     leaseUntil:
@@ -416,7 +424,11 @@ async function archiveBoxes(
         expectedStoragePath: box.storagePath,
       });
     } catch (error) {
-      console.error('[paperTranscriptionWorker] archive failed', jobId, error);
+      console.error(
+        '[paperTranscriptionWorker] archive failed',
+        jobId,
+        safeErr(error)
+      );
     }
   }
 }
@@ -440,7 +452,10 @@ export async function runPaperTranscriptionJob(
     if (!job.charged) return;
     await releasePaperPage(db, { uid, jobRef, nowMs: deps.now() }).catch(
       (releaseError) =>
-        console.error('[paperTranscriptionWorker] release failed', releaseError)
+        console.error(
+          '[paperTranscriptionWorker] release failed',
+          safeErr(releaseError)
+        )
     );
   };
 
@@ -543,10 +558,17 @@ export async function runPaperTranscriptionJob(
   try {
     transcript = await transcribePresentCrops(live, quota.modelTier, deps);
   } catch (error) {
-    console.error('[paperTranscriptionWorker] transcribe failed', jobId, error);
+    console.error(
+      '[paperTranscriptionWorker] transcribe failed',
+      jobId,
+      safeErr(error)
+    );
     await releasePaperPage(db, { uid, jobRef, nowMs: deps.now() }).catch(
       (releaseError) =>
-        console.error('[paperTranscriptionWorker] release failed', releaseError)
+        console.error(
+          '[paperTranscriptionWorker] release failed',
+          safeErr(releaseError)
+        )
     );
     await settleWithoutTranscript(
       db,
@@ -575,6 +597,11 @@ export async function runPaperTranscriptionJob(
       nowMs: now,
     });
     const freshAnswers = answersOf(fresh.data());
+    const gradedQuestionIds = new Set(
+      Object.keys(
+        (fresh.data()?.grading as Record<string, unknown> | undefined) ?? {}
+      )
+    );
     const done: PaperTranscribeBox[] = [];
     let failedBoxes = 0;
     const nextAnswers = freshAnswers.map((a) => ({ ...a }));
@@ -603,11 +630,19 @@ export async function runPaperTranscriptionJob(
       const index = nextAnswers.findIndex(
         (a) => a?.questionId === box.questionId
       );
-      nextAnswers[index] = {
-        ...nextAnswers[index],
-        answer: result.html,
-        paperTranscript: 'done',
-      };
+      // A box the teacher already marked keeps that mark; the read stays private.
+      const marked = box.blanks && gradedQuestionIds.has(box.questionId);
+      if (!marked)
+        nextAnswers[index] = {
+          ...nextAnswers[index],
+          // A fill-in-the-blank box stores plain blanks, so it scores like a typed answer.
+          answer: box.blanks
+            ? blankAnswerFromTranscript(result.rawTranscript, box.blanks)
+            : result.html,
+          // An unreadable blank is never auto-scored; the teacher marks it from the picture.
+          paperTranscript:
+            box.blanks && result.illegibleCount > 0 ? 'image' : 'done',
+        };
       tx.set(
         privateRef,
         {
@@ -884,13 +919,23 @@ export function buildDefaultWorkerDeps(): WorkerDeps {
       };
     },
   };
-  const grantedFor = async (featureId: string, uid: string) => {
+  const grantedFor = async (featureId: string, uid: string, ai = false) => {
     try {
       const user = await admin.auth().getUser(uid);
+      const email = user.emailVerified ? (user.email ?? null) : null;
+      // Someone on the gemini-functions exclude list gets no AI transcription.
+      if (ai) {
+        const gemini = await admin
+          .firestore()
+          .collection('global_permissions')
+          .doc('gemini-functions')
+          .get();
+        if (isExcludedFrom(gemini.data(), email)) return false;
+      }
       return await isGlobalFeatureGranted(
         admin.firestore(),
         featureId,
-        user.emailVerified ? (user.email ?? null) : null,
+        email,
         uid
       );
     } catch {
@@ -904,7 +949,7 @@ export function buildDefaultWorkerDeps(): WorkerDeps {
     isAdmin: isVerifiedAdmin,
     featureGranted: (uid) => grantedFor(PAPER_HANDWRITTEN_FEATURE, uid),
     transcriptionGranted: (uid) =>
-      grantedFor(PAPER_HANDWRITING_AI_FEATURE, uid),
+      grantedFor(PAPER_HANDWRITING_AI_FEATURE, uid, true),
     transcribe: (boxes, tier) =>
       transcribePaperPage(boxes, tier, transcribeDeps),
     archive: (input) =>

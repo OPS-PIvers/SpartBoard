@@ -130,6 +130,32 @@ describe('lead time', () => {
   });
 });
 
+describe('midnight crossing', () => {
+  const rosterWith = (patch: Partial<RosterGroupReminder>) => [
+    roster([
+      { id: 'g1', name: 'Speech', studentIds: [], reminder: reminder(patch) },
+    ]),
+  ];
+
+  it('shows an early-morning alert during its lead on the evening before', () => {
+    const rosters = rosterWith({
+      days: [2],
+      alerts: [{ time: '00:05', leadMinutes: 10 }],
+    });
+    const due = dueReminders(rosters, at('2026-09-28', '23:56').getTime());
+    expect(due.map((d) => d.key)).toEqual(['r1:g1:2026-09-29:00:05']);
+  });
+
+  it('keeps a late-evening alert within its late window after midnight', () => {
+    const rosters = rosterWith({
+      days: [1],
+      alerts: [{ time: '23:55', leadMinutes: 0 }],
+    });
+    const due = dueReminders(rosters, at('2026-09-29', '00:03').getTime());
+    expect(due.map((d) => d.key)).toEqual(['r1:g1:2026-09-28:23:55']);
+  });
+});
+
 describe('parsing', () => {
   it('keeps a valid reminder and normalises its fields', () => {
     expect(

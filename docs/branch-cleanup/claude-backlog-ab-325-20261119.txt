@@ -1,0 +1,1 @@
+claude/backlog-ab-325-20261119 (AB-325: keep vouched Grades entries after a roster change)

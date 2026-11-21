@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useTranslation } from 'react-i18next';
 import { Link, Music, Pause, Play, Radio, Timer } from 'lucide-react';
 import { WidgetData, MusicConfig, MusicSource, TimeToolConfig } from '@/types';
@@ -120,7 +121,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     updateDashboard,
     isActiveBoardReadOnly,
   } = useDashboard();
-  const { canAccessFeature, canAccessWidget } = useAuth();
+  const { canAccessWidget } = useAuth();
   const { t } = useTranslation();
   const config = widget.config as MusicConfig;
   const {
@@ -136,7 +137,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Nexus connection: watch Time Tool running state
   const widgets = activeDashboard?.widgets ?? [];
   // A Follow names the Timer; otherwise the old toggle applies unless this widget was migrated.
-  const connectionsOn = canAccessFeature('widget-connections');
+  const connectionsOn = useConnectionsEnabled();
   const useLegacy = usesLegacyToggles(connectionsOn, config);
   const leaderId = connectionsOn
     ? followLeaderId(activeDashboard?.connections, widgets, widget.id)
@@ -453,7 +454,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <img
                     src={activeStation.thumbnail}
                     alt={activeStation.title}
-                    className={`w-full h-full rounded-xl object-cover shadow-lg transition-all duration-500 ${isPlaying ? 'animate-pulse-slow' : ''}`}
+                    className="w-full h-full rounded-xl object-cover shadow-lg"
                   />
                 ) : (
                   <div
@@ -599,7 +600,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <img
                     src={activeStation.thumbnail}
                     alt={activeStation.title}
-                    className={`w-full h-full rounded-2xl object-cover shadow-2xl transition-all duration-500 group-hover:scale-105 ${isPlaying ? 'animate-pulse-slow' : ''}`}
+                    className="w-full h-full rounded-2xl object-cover shadow-2xl transition-[scale] duration-500 group-hover:scale-105"
                     style={{
                       border: `min(2px, 0.5cqmin) solid ${activeStation.color || '#e2e8f0'}22`,
                     }}

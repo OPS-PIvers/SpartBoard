@@ -58,6 +58,7 @@ vi.mock('@/hooks/useGuidedLearningSession', () => ({
   useGuidedLearningSessionStudent: () => ({
     session: {
       id: 'session-1',
+      teacherUid: 'teacher-1',
       title: 'Test Set',
       imageUrls: [],
       publicSteps: [],
@@ -147,6 +148,11 @@ describe('GuidedLearningStudentApp — pointer-override gate', () => {
     expect(lastCallArgs[0]).toBe('sso-uid-1');
     expect(lastCallArgs[1]).toBe('session-1');
     expect(lastCallArgs[2]).toBe(true);
+    expect(lastCallArgs[3]).toEqual({
+      sessionId: 'session-1',
+      teacherUid: 'teacher-1',
+      kind: 'guided-learning',
+    });
   });
 
   it('non-SSO authenticated users without the studentRole claim keep the hook disabled', async () => {

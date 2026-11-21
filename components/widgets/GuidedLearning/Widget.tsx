@@ -62,6 +62,8 @@ import { openHelpCenterTourId } from './utils/helpCenterSets';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
+import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
+import { guidedLearningLifecycle } from './utils/glClassLifecycle';
 import { useFolders } from '@/hooks/useFolders';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
@@ -72,6 +74,11 @@ import {
   type AssignTargetingValue,
 } from '@/components/common/library';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
+import {
+  assignmentCount,
+  runBulkPublish,
+  sharedVisibility,
+} from '@/components/common/library/assigned/bulkPublish';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { logError } from '@/utils/logError';
 import {
@@ -266,7 +273,6 @@ const TeacherGuidedLearningWidget: React.FC<{
     getAssignmentMode,
     canAccessFeature,
     appSettings,
-    userRoles,
     orgId,
     roleId,
   } = useAuth();
@@ -345,7 +351,21 @@ const TeacherGuidedLearningWidget: React.FC<{
     publishAssignmentScores,
     unpublishAssignmentScores,
     setAssignmentClasses,
-  } = useGuidedLearningAssignments(user?.uid);
+  } = useGuidedLearningAssignments(user?.uid, canAccessFeature('assigned-tab'));
+  const { setAssignmentTargets: setTargets } = useSetAssignmentTargets();
+  const uid = user?.uid;
+  // ASSIGNED_TAB.md D21: the whole-run writes the Assigned tab's class actions drive.
+  const classLifecycle = useMemo(
+    () =>
+      uid
+        ? guidedLearningLifecycle(uid, {
+            archiveAssignment,
+            setAssignmentTargets: setTargets,
+          })
+        : null,
+    [uid, archiveAssignment, setTargets]
+  );
+  const [assignedFocus, setAssignedFocus] = useState(0);
 
   // Local component state
   const [loadingSet, setLoadingSet] = useState(false);
@@ -405,6 +425,9 @@ const TeacherGuidedLearningWidget: React.FC<{
   // Mirrors the QuizWidget / VideoActivityWidget pattern.
   const [publishingAssignment, setPublishingAssignment] =
     useState<GuidedLearningAssignment | null>(null);
+  const [bulkPublishing, setBulkPublishing] = useState<
+    GuidedLearningAssignment[] | null
+  >(null);
   const [editingClasses, setEditingClasses] =
     useState<GuidedLearningAssignment | null>(null);
   const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
@@ -529,6 +552,25 @@ const TeacherGuidedLearningWidget: React.FC<{
         return null;
       } finally {
         setLoadingSet(false);
+      }
+    },
+    [fetchSetCached, addToast]
+  );
+
+  // Publish loads the set without the loading pane, which would unmount the open Publish dialog.
+  const loadSetQuietly = useCallback(
+    async (
+      setId: string,
+      driveFileId?: string,
+      buildingEntry?: GuidedLearningBuildingSetIndex
+    ): Promise<GuidedLearningSet | null> => {
+      if (!buildingEntry && !driveFileId) return null;
+      try {
+        return await fetchSetCached(setId, driveFileId, buildingEntry);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to load set';
+        addToast(msg, 'error');
+        return null;
       }
     },
     [fetchSetCached, addToast]
@@ -755,12 +797,7 @@ const TeacherGuidedLearningWidget: React.FC<{
           uid: user.uid,
           email: user.email,
           orgId,
-          isSuperAdmin: isSuperAdminActor(
-            user.email,
-            userRoles?.superAdmins,
-            roleId,
-            orgId
-          ),
+          isSuperAdmin: isSuperAdminActor(user.email, roleId, orgId),
         }
       : null;
 
@@ -958,6 +995,8 @@ const TeacherGuidedLearningWidget: React.FC<{
               answerKeys: answerKeysForSteps(data.steps),
               stepTargets: stepTargetsForSteps(data.steps),
             });
+            // D17: the teacher lands on Assigned with the new row on top.
+            setAssignedFocus((n) => n + 1);
           } catch (err) {
             console.warn('[GuidedLearning] Failed to record assignment:', err);
           }
@@ -1634,6 +1673,9 @@ const TeacherGuidedLearningWidget: React.FC<{
                   assignmentsLoading={assignmentsLoading}
                   hasOlderAssignments={hasOlderAssignments}
                   onShowOlderAssignments={showOlderAssignments}
+                  classLifecycle={classLifecycle}
+                  rosters={rosters}
+                  assignedFocusCounter={assignedFocus}
                   isDriveConnected={isDriveConnected}
                   isAdmin={isAdmin ?? false}
                   onPlay={(setId, driveFileId, buildingEntry) => {
@@ -1818,9 +1860,17 @@ const TeacherGuidedLearningWidget: React.FC<{
                   onAssignmentDelete={(a) => {
                     void handleAssignmentDelete(a);
                   }}
+                  onAssignmentDeleteMany={async (list) => {
+                    const results = await Promise.allSettled(
+                      list.map((a) => deleteAssignment(a.id))
+                    );
+                    return results.filter((r) => r.status === 'rejected')
+                      .length;
+                  }}
                   onAssignmentPublishScores={(a) => {
                     setPublishingAssignment(a);
                   }}
+                  onAssignmentPublishMany={setBulkPublishing}
                   onAssignmentUnpublishScores={async (a) => {
                     // One-click unpublish — `unpublishAssignmentScores`
                     // is a cheap two-write batch (no set lookup, no
@@ -2089,6 +2139,52 @@ const TeacherGuidedLearningWidget: React.FC<{
         />
       )}
 
+      {bulkPublishing && (
+        <PublishScoresModal
+          assignmentTitle={assignmentCount(bulkPublishing.length)}
+          currentVisibility={sharedVisibility(bulkPublishing)}
+          showProtection={gradebookOn}
+          initialProtection={
+            appSettings?.lastResultsProtection ?? RESULTS_PROTECTION_DEFAULTS
+          }
+          onClose={() => setBulkPublishing(null)}
+          onConfirm={async (visibility, protection) => {
+            await runBulkPublish({
+              targets: bulkPublishing,
+              unpublish: visibility === 'none',
+              publishOne: async (t) => {
+                if (visibility === 'none') {
+                  await unpublishAssignmentScores(t.id);
+                  return true;
+                }
+                const driveFileId = sets.find(
+                  (x) => x.id === t.setId
+                )?.driveFileId;
+                const building = buildingSets.find((x) => x.id === t.setId);
+                if (!driveFileId && !building)
+                  throw new Error('Set is no longer in the library.');
+                const data = await loadSetQuietly(
+                  t.setId,
+                  driveFileId,
+                  building
+                );
+                if (!data) return false;
+                await publishAssignmentScores(
+                  t.id,
+                  withFrozenAnswerKeys(data, t.answerKeys),
+                  visibility,
+                  protection
+                );
+                return true;
+              },
+              addToast,
+              logKey: 'GuidedLearningWidget.bulkPublishScores',
+            });
+            setBulkPublishing(null);
+          }}
+        />
+      )}
+
       {publishingAssignment && (
         <PublishScoresModal
           assignmentTitle={publishingAssignment.setTitle}
@@ -2116,7 +2212,7 @@ const TeacherGuidedLearningWidget: React.FC<{
               const buildingEntry = buildingSets.find(
                 (s) => s.id === target.setId
               );
-              const data = await loadSet(
+              const data = await loadSetQuietly(
                 target.setId,
                 personalMeta?.driveFileId,
                 buildingEntry

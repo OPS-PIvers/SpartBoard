@@ -1,0 +1,214 @@
+import { describe, expect, it } from 'vitest';
+import {
+  SAVE_IDLE_MS,
+  saveDelayMs,
+  BIG_LOG_BYTES,
+  BIG_LOG_EVERY_MS,
+  DICTATION_PENDING_MS,
+  DictationTracker,
+  isDictatedInsert,
+  INSERT_APPROVAL_MS,
+  LOG_EVERY_MS,
+  insertApproved,
+  isLogDue,
+  refusedSaveAction,
+  saveKeyOf,
+  saveStateOf,
+  turnInFlush,
+} from './writingSaveFlow';
+
+describe('saveKeyOf', () => {
+  it('ties a save to its tab and counter, as the rules check', () => {
+    expect(saveKeyOf('tab-1', 7)).toBe('tab-1:7');
+  });
+});
+
+describe('isLogDue', () => {
+  const base = {
+    logDirty: true,
+    closing: false,
+    force: false,
+    now: 100_000,
+    lastLogAt: 100_000 - LOG_EVERY_MS,
+    logBytes: 10,
+  };
+
+  it('sends a dirty log every 20 s', () => {
+    expect(isLogDue(base)).toBe(true);
+    expect(isLogDue({ ...base, lastLogAt: base.now - 1_000 })).toBe(false);
+    expect(isLogDue({ ...base, logDirty: false, force: true })).toBe(false);
+  });
+
+  it('slows to once a minute for a big log (AB-201)', () => {
+    const big = { ...base, logBytes: BIG_LOG_BYTES + 1 };
+    expect(isLogDue(big)).toBe(false);
+    expect(isLogDue({ ...big, lastLogAt: base.now - BIG_LOG_EVERY_MS })).toBe(
+      true
+    );
+  });
+
+  it('sends at once for a full chunk or a forced save', () => {
+    const recent = { ...base, lastLogAt: base.now };
+    expect(isLogDue({ ...recent, closing: true })).toBe(true);
+    expect(isLogDue({ ...recent, force: true })).toBe(true);
+  });
+});
+
+describe('refusedSaveAction', () => {
+  const server = { tabId: 'me', status: 'draft' as const, saveCount: 9 };
+
+  it('retries from the server counter while the piece is still ours and open', () => {
+    expect(refusedSaveAction(server, 'me', false)).toBe('retry');
+    expect(
+      refusedSaveAction({ ...server, status: 'revising' }, 'me', false)
+    ).toBe('retry');
+  });
+
+  it('lets go once another tab claimed it, it locked, or it closed', () => {
+    expect(refusedSaveAction({ ...server, tabId: 'other' }, 'me', false)).toBe(
+      'lost'
+    );
+    expect(
+      refusedSaveAction({ ...server, status: 'turned-in' }, 'me', false)
+    ).toBe('lost');
+    expect(refusedSaveAction(server, 'me', true)).toBe('lost');
+    expect(refusedSaveAction(null, 'me', false)).toBe('lost');
+  });
+});
+
+describe('saveStateOf', () => {
+  const base = {
+    dirty: true,
+    online: true,
+    slow: false,
+    refused: false,
+    copyOk: true,
+  };
+
+  it('is saved once the server has the text, whatever the log', () => {
+    expect(saveStateOf({ ...base, dirty: false, copyOk: false })).toBe('saved');
+  });
+
+  it('is saving while a save is on its way', () => {
+    expect(saveStateOf(base)).toBe('saving');
+  });
+
+  it('claims the device copy only when it was written', () => {
+    expect(saveStateOf({ ...base, online: false })).toBe('device');
+    expect(saveStateOf({ ...base, slow: true })).toBe('device');
+    expect(saveStateOf({ ...base, refused: true })).toBe('device');
+    expect(saveStateOf({ ...base, online: false, copyOk: false })).toBe(
+      'failed'
+    );
+    expect(saveStateOf({ ...base, refused: true, copyOk: false })).toBe(
+      'failed'
+    );
+  });
+});
+
+describe('turnInFlush', () => {
+  it('sends the text on screen under the next counter when it changed', () => {
+    expect(
+      turnInFlush({ html: '<p>b</p>', savedHtml: '<p>a</p>', confirmed: 4 })
+    ).toEqual({ html: '<p>b</p>', saveCount: 5 });
+  });
+
+  it('resends the saved counter when nothing changed, which carries nothing new', () => {
+    expect(
+      turnInFlush({ html: '<p>a</p>', savedHtml: '<p>a</p>', confirmed: 4 })
+    ).toEqual({ html: '<p>a</p>', saveCount: 4 });
+  });
+});
+
+describe('insertApproved (D8)', () => {
+  it('lets typing and other inputs through', () => {
+    expect(insertApproved('insertText', null, 0)).toBe(true);
+    expect(insertApproved('deleteContentBackward', null, 0)).toBe(true);
+  });
+
+  it('cancels a native paste, drop or yank the page never approved', () => {
+    for (const t of [
+      'insertFromPaste',
+      'insertFromPasteAsQuotation',
+      'insertFromDrop',
+      'insertFromYank',
+    ])
+      expect(insertApproved(t, null, 5_000)).toBe(false);
+  });
+
+  it('takes an approval only from the last second', () => {
+    expect(insertApproved('insertFromPaste', 5_000, 5_500)).toBe(true);
+    expect(
+      insertApproved('insertFromPaste', 5_000, 5_000 + INSERT_APPROVAL_MS)
+    ).toBe(false);
+  });
+});
+
+describe('saveDelayMs (D15)', () => {
+  const base = { firstAt: 0, watchedUntil: 0, serverNow: 0 };
+  it('saves 1.5 s after typing stops, at least every 10 s while typing', () => {
+    expect(saveDelayMs({ ...base, now: 0 })).toBe(SAVE_IDLE_MS);
+    expect(saveDelayMs({ ...base, now: 9_000 })).toBe(1_000);
+    expect(saveDelayMs({ ...base, now: 12_000 })).toBe(0);
+  });
+  it('saves at least every 2 s while the teacher watches, and stops when the watch ends', () => {
+    const watched = { ...base, watchedUntil: 60_000, serverNow: 30_000 };
+    expect(saveDelayMs({ ...watched, now: 1_000 })).toBe(1_000);
+    expect(saveDelayMs({ ...watched, now: 2_500 })).toBe(0);
+    expect(saveDelayMs({ ...watched, serverNow: 61_000, now: 1_000 })).toBe(
+      SAVE_IDLE_MS
+    );
+  });
+});
+
+describe('DictationTracker (Speech to text)', () => {
+  it('labels the change made in the announcing turn, whatever the editor inserted', () => {
+    const t = new DictationTracker();
+    t.announce('hello there', 'I say ', 1_000);
+    expect(t.landing).toBe(true);
+    expect(t.active(1_000)).toBe(true);
+    expect(t.settle('I say Hello there. ')).toEqual({
+      prev: 'I say ',
+      next: 'I say Hello there. ',
+    });
+    expect(t.landing).toBe(false);
+    expect(t.active(1_001)).toBe(false);
+    expect(t.settle('anything')).toBeNull();
+  });
+
+  it('waits for a passage that lands after the turn, then claims it once', () => {
+    const t = new DictationTracker();
+    t.announce('the cat sat', 'a ', 1_000);
+    expect(t.settle('a ')).toBeNull();
+    expect(t.landing).toBe(false);
+    expect(t.claim('a ', 'a x', 1_100)).toBe(false);
+    expect(t.claim('a x', 'a x the cat sat ', 1_200)).toBe(true);
+    expect(
+      t.claim('a x the cat sat ', 'a x the cat sat the cat sat', 1_300)
+    ).toBe(false);
+  });
+
+  it('drops an announcement nothing followed', () => {
+    const t = new DictationTracker();
+    t.announce('the cat sat', '', 1_000);
+    t.settle('');
+    expect(t.active(1_000 + DICTATION_PENDING_MS)).toBe(false);
+    expect(t.claim('', 'the cat sat', 1_000 + DICTATION_PENDING_MS)).toBe(
+      false
+    );
+  });
+});
+
+describe('isDictatedInsert', () => {
+  it('allows for spacing, case and a diff that shares its edges', () => {
+    expect(isDictatedInsert('the cat', ' The cat ')).toBe(true);
+    expect(isDictatedInsert('cat sat', ' sat')).toBe(true);
+    expect(isDictatedInsert('it was the best', 'was the best it')).toBe(true);
+  });
+
+  it('refuses unrelated or empty text', () => {
+    expect(isDictatedInsert('the cat', 'x')).toBe(false);
+    expect(isDictatedInsert('ok', 'no')).toBe(false);
+    expect(isDictatedInsert('the cat', '  ')).toBe(false);
+  });
+});

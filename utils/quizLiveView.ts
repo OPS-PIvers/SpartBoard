@@ -144,6 +144,23 @@ const lastActivity = (
   return Number.isFinite(newest) ? Math.min(newest, now) : null;
 };
 
+const placeIn = (order: QuizPublicQuestion[], questionId: string | null) => {
+  const index = questionId ? order.findIndex((q) => q.id === questionId) : -1;
+  return {
+    questionNumber: index >= 0 ? index + 1 : null,
+    questionCount: order.length,
+  };
+};
+
+/** Where the student is in their own order; no clock, so it doesn't tick. */
+export const liveViewPlace = (
+  session: QuizSession,
+  response: QuizResponse,
+  questionId: string | null,
+  override?: StudentOverride
+): { questionNumber: number | null; questionCount: number } =>
+  placeIn(studentQuestionOrder(session, response, override), questionId);
+
 export function liveViewStats(
   session: QuizSession,
   response: QuizResponse,
@@ -153,7 +170,7 @@ export function liveViewStats(
   reported?: QuizLiveState | null
 ): LiveViewStats {
   const order = studentQuestionOrder(session, response, override);
-  const index = questionId ? order.findIndex((q) => q.id === questionId) : -1;
+  const { questionNumber, questionCount } = placeIn(order, questionId);
   const attempt = response.completedAttempts ?? 0;
   const exits = (response.tabExits ?? []).filter((e) => e.attempt === attempt);
   const startedAt =
@@ -169,8 +186,8 @@ export function liveViewStats(
             override?.timeMultiplier,
             session.pauseSpans
           ),
-    questionNumber: index >= 0 ? index + 1 : null,
-    questionCount: order.length,
+    questionNumber,
+    questionCount,
     answeredCount: countAnsweredQuestions(
       response.answers,
       order.map((q) => q.id),
@@ -193,3 +210,10 @@ export function liveViewStats(
         : null,
   };
 }
+
+/** "2:30 PM", the Live view's Started time. */
+export const liveViewClock = (ms: number): string =>
+  new Date(ms).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });

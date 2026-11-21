@@ -122,7 +122,7 @@ describe('SidebarClasses — Link to Google Classroom course list', () => {
     openLinkModal();
 
     expect(
-      await screen.findByText('Could not load courses')
+      await screen.findByText('Could not load Classroom courses')
     ).toBeInTheDocument();
     expect(screen.getByText(/Timed out/)).toBeInTheDocument();
     expect(

@@ -3,7 +3,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor, act } from '@testing-library/react';
+import {
+  render,
+  waitFor,
+  act,
+  screen,
+  fireEvent,
+} from '@testing-library/react';
 import type { WidgetData } from '@/types';
 
 const addWidget = vi.fn();
@@ -18,9 +24,7 @@ let pendingQuizShareId: string | null = 'share-1';
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'uid-1' },
-    isAdmin: false,
-    globalPermissionsLoaded: true,
-    canAccessFeature: () => false,
+    orgId: 'orono',
   }),
 }));
 
@@ -74,6 +78,12 @@ vi.mock('@/hooks/useVideoActivityAssignments', () => ({
 vi.mock('@/hooks/useQuestionBanks', () => ({
   useQuestionBanks: () => ({ saveBank: vi.fn() }),
 }));
+vi.mock('@/utils/shareImportPeek', () => ({
+  peekShareHeader: () =>
+    Promise.resolve({ title: 'Cells', originalAuthor: 'teammate-uid' }),
+  lookupOrgSharer: () => Promise.resolve(null),
+  describeSharer: () => 'A teammate',
+}));
 vi.mock('@/hooks/usePlcs', () => ({
   usePlcs: () => ({ plcs: [], loading: false }),
 }));
@@ -95,6 +105,7 @@ describe('DeepLinkShareImporter — stale board at import resolve', () => {
       })
     );
     const { rerender } = render(<DeepLinkShareImporter />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Import' }));
     await waitFor(() => expect(importSharedQuiz).toHaveBeenCalledTimes(1));
 
     widgets = [

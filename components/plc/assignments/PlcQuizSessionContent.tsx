@@ -24,6 +24,7 @@ import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useQuizSessionTeacher } from '@/hooks/useQuizSession';
 import { logError } from '@/utils/logError';
+import { assignmentFrozenFileId } from '@/utils/quizAssignBankDraw';
 import { QuizLiveMonitor } from '@/components/widgets/QuizWidget/components/QuizLiveMonitor';
 import { QuizResults } from '@/components/widgets/QuizWidget/components/QuizResults';
 
@@ -63,7 +64,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { addToast, rosters } = useDashboard();
   const { loadQuizData } = useQuiz(user?.uid);
   const {
@@ -118,7 +119,9 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
   );
 
   // Hydrate the answer key from Drive once the assignment doc is known.
-  const driveFileId = assignment?.quizDriveFileId;
+  // Frozen assignments grade against the copy saved at assign.
+  const driveFileId =
+    assignmentFrozenFileId(assignment) ?? assignment?.quizDriveFileId;
   useEffect(() => {
     if (!driveFileId) return;
     let cancelled = false;
@@ -310,11 +313,17 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
       responses={responses}
       config={config}
       session={session}
+      paperCopyBatchIds={
+        canAccessFeature('paper-printed-versions')
+          ? assignment.paperCopyBatchIds
+          : undefined
+      }
       tabWarningsEnabled={session?.tabWarningsEnabled ?? true}
       onBack={onClose}
       onDeleteResponse={removeStudent}
       onUnlockResultsForStudent={unlockResultsForStudent}
       localizedFibAnswers={assignment.localizedFibAnswers ?? null}
+      lenientFibLocales={assignment.lenientFibLocales ?? null}
       overridesByStudentUid={assignment.overridesByStudentUid ?? null}
       servedLanguageByStudentUid={assignment.servedLanguageByStudentUid ?? null}
       overridesBySourcedId={assignment.overridesBySourcedId ?? null}
@@ -328,15 +337,9 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
       }
       studentResultsActions={{
         publish: async (keys, visibility, expiresAt, protection) => {
-          // Bank-draw assignments grade against their frozen Drive copy.
-          const answerKey =
-            assignment.resolvedDriveFileId &&
-            assignment.resolvedDriveFileId !== assignment.quizDriveFileId
-              ? await loadQuizData(assignment.resolvedDriveFileId)
-              : quizData;
           return publishResultsForStudents(
             assignment.id,
-            answerKey,
+            quizData,
             keys,
             visibility,
             expiresAt,
@@ -345,12 +348,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
         },
         hide: (keys) => hideResultsForStudents(assignment.id, keys),
         clear: async (keys) => {
-          const answerKey =
-            assignment.resolvedDriveFileId &&
-            assignment.resolvedDriveFileId !== assignment.quizDriveFileId
-              ? await loadQuizData(assignment.resolvedDriveFileId)
-              : quizData;
-          return clearResultsOverride(assignment.id, keys, answerKey);
+          return clearResultsOverride(assignment.id, keys, quizData);
         },
       }}
       onPlcSheetUrlReplaced={async (newUrl) => {

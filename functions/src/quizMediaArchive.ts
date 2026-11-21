@@ -24,13 +24,20 @@ import * as os from 'os';
 import * as path from 'path';
 import ffmpegStatic from 'ffmpeg-static';
 import ffmpeg from 'fluent-ffmpeg';
-import { missingDocAccess } from './featureMissingDoc';
 import {
-  ALLOWED_ORIGINS,
-  normalizeEmailDomain,
-  resolveOrgIdForDomain,
-} from './classlinkShared';
-import { refreshGoogleAccessTokenForUid } from './googleOAuth';
+  deriveTeacherTier,
+  isBetaTeacher,
+  isGlobalFeatureGranted,
+  loadTeacherBuildings,
+  meetsMinTierServer,
+  permissionAudienceAllows,
+} from './featureGrant';
+import { isNeedsConsentError } from './needsConsent';
+import { ALLOWED_ORIGINS } from './classlinkShared';
+import {
+  DRIVE_FILE_SCOPE,
+  refreshGoogleAccessTokenForUid,
+} from './googleOAuth';
 import { defaultDriveUploader } from './driveUpload';
 import {
   PAPER_PAGE_PREFIX,
@@ -57,6 +64,7 @@ import './functionsInit';
 import { withQuizSessionContent } from './quizSessionContent';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { canonicalizeBuildingIdsServer } from './buildingIds';
+import { safeErr } from './safeLog';
 
 const GOOGLE_OAUTH_CLIENT_SECRET = defineSecret('GOOGLE_OAUTH_CLIENT_SECRET');
 const GOOGLE_OAUTH_REFRESH_TOKEN_KEY = defineSecret(
@@ -133,6 +141,8 @@ export const STUCK_ARCHIVE_AGE_MS = 2 * 60 * 60 * 1000;
  * every hourly sweep forever (GitHub issue #2735).
  */
 export const MAX_ARCHIVE_ATTEMPTS = 5;
+const ABANDONED_ARCHIVE_MESSAGE =
+  'Archiving never finished after repeated attempts.';
 const QUIZ_DRIVE_FOLDER = 'Quiz Responses';
 /** Kept scan pages file one level below the quiz's own folder. */
 const KEPT_PAGES_DRIVE_FOLDER = 'Pages';
@@ -372,15 +382,6 @@ export function isArtifactStoragePathValid(input: {
     input.responseKey,
     input.studentUid
   );
-}
-
-/** A missing or revoked Drive grant, as `refreshGoogleAccessTokenForUid` reports it. */
-export function isNeedsConsentError(error: unknown): boolean {
-  if (error instanceof HttpsError) {
-    const details = error.details as { reason?: unknown } | undefined;
-    if (details?.reason === 'needs-consent') return true;
-  }
-  return error instanceof Error && error.message.startsWith('needs-consent');
 }
 
 /** Committed takes (answer entries) for a question, excluding the take that holds this artifact. */
@@ -646,8 +647,28 @@ export const deleteQuizArchiveDriveFile = (
     3
   );
 
+// Twice the longest recording a question allows (AUDIO_LIMIT_SECONDS_MAX, 300 s), so real takes never hit it.
+export const MAX_TRANSCODE_AUDIO_SECONDS = 600;
+// 64 kbps for the ceiling is about 4.8 MB; the cap only stops a runaway encode.
+const MAX_TRANSCODE_OUTPUT_BYTES = 8 * 1024 * 1024;
+// Well inside the 120 s callable and the sweep's per-run budget.
+export const TRANSCODE_WALL_CLOCK_MS = 60_000;
+
+/** A take that decodes past MAX_TRANSCODE_AUDIO_SECONDS; no retry can archive it. */
+export class AudioTooLongError extends Error {}
+
+/** Seconds in the last `time=HH:MM:SS.xx` ffmpeg printed, or 0. */
+export function lastTranscodedSeconds(stderr: string): number {
+  const marks = [...stderr.matchAll(/time=(\d+):(\d{2}):(\d{2}(?:\.\d+)?)/g)];
+  const last = marks[marks.length - 1];
+  return last ? +last[1] * 3600 + +last[2] * 60 + +last[3] : 0;
+}
+
 /** webm never survives to Drive; AAC in an M4A container always previews. */
-export async function transcodeBufferToM4a(input: Buffer): Promise<Buffer> {
+export async function transcodeBufferToM4a(
+  input: Buffer,
+  wallClockMs = TRANSCODE_WALL_CLOCK_MS
+): Promise<Buffer> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'quizmedia-'));
   const inputPath = path.join(dir, 'in.bin');
   const outputPath = path.join(dir, 'out.m4a');
@@ -659,15 +680,42 @@ export async function transcodeBufferToM4a(input: Buffer): Promise<Buffer> {
     }
     ffmpeg.setFfmpegPath(ffmpegStatic);
     await new Promise<void>((resolve, reject) => {
-      ffmpeg(inputPath)
+      let settled = false;
+      const settle = (err?: Error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (err) reject(err);
+        else resolve();
+      };
+      const command = ffmpeg(inputPath)
         .noVideo()
         .audioCodec('aac')
         .audioBitrate(ARCHIVE_AUDIO_BITRATE)
         .format('mp4')
-        .outputOptions('-movflags', '+faststart')
-        .on('error', (err: Error) => reject(err))
-        .on('end', () => resolve())
-        .save(outputPath);
+        .outputOptions(
+          '-movflags',
+          '+faststart',
+          '-t',
+          String(MAX_TRANSCODE_AUDIO_SECONDS + 1),
+          '-fs',
+          String(MAX_TRANSCODE_OUTPUT_BYTES)
+        )
+        .on('error', (err: Error) => settle(err))
+        .on('end', (_stdout: string | null, stderr: string | null) =>
+          settle(
+            lastTranscodedSeconds(stderr ?? '') > MAX_TRANSCODE_AUDIO_SECONDS
+              ? new AudioTooLongError(
+                  'Recording is longer than any take allows.'
+                )
+              : undefined
+          )
+        );
+      const timer = setTimeout(() => {
+        settle(new Error('Audio transcode timed out.'));
+        command.kill('SIGKILL');
+      }, wallClockMs);
+      command.save(outputPath);
     });
     return await fs.readFile(outputPath);
   } finally {
@@ -675,87 +723,16 @@ export async function transcodeBufferToM4a(input: Buffer): Promise<Buffer> {
   }
 }
 
-/** Mirrors `INTERNAL_TIER_DOMAINS` in `utils/userTier.ts`. */
-const INTERNAL_TIER_DOMAINS: readonly string[] = ['orono.k12.mn.us'];
-
-/** Mirrors the `free < org < internal` ordering in `utils/userTier.ts`. */
-const TIER_RANK: Readonly<Record<string, number>> = {
-  free: 0,
-  org: 1,
-  internal: 2,
+export {
+  canonicalizeBuildingIdsServer,
+  isNeedsConsentError,
+  deriveTeacherTier,
+  isBetaTeacher,
+  isGlobalFeatureGranted,
+  loadTeacherBuildings,
+  meetsMinTierServer,
+  permissionAudienceAllows,
 };
-
-export { canonicalizeBuildingIdsServer };
-
-/** Server twin of `meetsMinTier` — an unset floor imposes no restriction. */
-export function meetsMinTierServer(tier: string, minTier: unknown): boolean {
-  if (typeof minTier !== 'string' || !minTier) return true;
-  return (TIER_RANK[tier] ?? 0) >= (TIER_RANK[minTier] ?? 0);
-}
-
-/** The teacher's `selectedBuildings`, canonicalized the way AuthContext does. */
-export async function loadTeacherBuildings(
-  db: Firestore,
-  teacherUid: string
-): Promise<string[]> {
-  if (!teacherUid) return [];
-  const snap = await db
-    .doc(`users/${teacherUid}/userProfile/profile`)
-    .get()
-    .catch(() => null);
-  const raw: unknown = snap?.data()?.selectedBuildings;
-  return Array.isArray(raw) ? canonicalizeBuildingIdsServer(raw) : [];
-}
-
-/** Server twin of `deriveUserTier` — internal domain, else org member, else free. */
-export async function deriveTeacherTier(
-  db: Firestore,
-  teacherEmail: string
-): Promise<string> {
-  const domain = teacherEmail.split('@')[1] ?? '';
-  if (domain && INTERNAL_TIER_DOMAINS.includes(domain)) return 'internal';
-  const domainWithAt = normalizeEmailDomain(teacherEmail);
-  if (!domainWithAt) return 'free';
-  const orgId = await resolveOrgIdForDomain(db, domainWithAt).catch(() => null);
-  if (!orgId) return 'free';
-  const member = await db
-    .doc(`organizations/${orgId}/members/${teacherEmail}`)
-    .get()
-    .catch(() => null);
-  return member?.exists ? 'org' : 'free';
-}
-
-/** Server twin of `utils/betaAccess.isBetaUser` — same four grant sources. */
-export async function isBetaTeacher(
-  db: Firestore,
-  betaUsers: readonly unknown[],
-  emailLower: string
-): Promise<boolean> {
-  if (!emailLower) return false;
-  const listHas = (list: unknown): boolean =>
-    Array.isArray(list) &&
-    list.some((e) => typeof e === 'string' && e.toLowerCase() === emailLower);
-  if (listHas(betaUsers)) return true;
-  const roles = await db
-    .doc('admin_settings/user_roles')
-    .get()
-    .catch(() => null);
-  if (roles?.exists) {
-    if (listHas(roles.get('betaTeachers'))) return true;
-    if (listHas(roles.get('superAdmins'))) return true;
-  }
-  const domain = normalizeEmailDomain(emailLower);
-  const orgId = domain
-    ? await resolveOrgIdForDomain(db, domain).catch(() => null)
-    : null;
-  if (!orgId) return false;
-  const member = await db
-    .doc(`organizations/${orgId}/members/${emailLower}`)
-    .get()
-    .catch(() => null);
-  const roleId: unknown = member?.exists ? member.get('roleId') : null;
-  return typeof roleId === 'string' && roleId.trim() === 'super_admin';
-}
 
 /**
  * Fail-closed gate, mirroring `resolvePermissionAccess` in
@@ -793,63 +770,6 @@ export async function isQuizWhiteboardResponseGranted(
     teacherEmail,
     teacherUid
   );
-}
-
-/** Same gate for any `global_permissions/{featureId}` record; a missing doc follows the client's `FEATURE_DEFAULTS`. */
-export async function isGlobalFeatureGranted(
-  db: Firestore,
-  featureId: string,
-  teacherEmail: string | null,
-  teacherUid: string
-): Promise<boolean> {
-  const snap = await db.collection('global_permissions').doc(featureId).get();
-  const email = (teacherEmail ?? '').toLowerCase();
-  const isAdmin = async (): Promise<boolean> =>
-    !!email && (await db.collection('admins').doc(email).get()).exists;
-  if (!snap.exists) {
-    const access = missingDocAccess(featureId);
-    if (access.audience === 'nobody') return false;
-    if (await isAdmin()) return true;
-    if (access.audience === 'admins') return false;
-    return permissionAudienceAllows(
-      db,
-      { minTier: access.minTier },
-      email,
-      teacherUid
-    );
-  }
-  const data = snap.data() ?? {};
-  if (data.enabled !== true) return false;
-  if (await isAdmin()) return true;
-  if (data.accessLevel === 'beta') {
-    if (!email) return false;
-    const betaUsers = Array.isArray(data.betaUsers) ? data.betaUsers : [];
-    if (!(await isBetaTeacher(db, betaUsers, email))) return false;
-  } else if (data.accessLevel !== 'public') {
-    return false;
-  }
-  return permissionAudienceAllows(db, data, email, teacherUid);
-}
-
-/** A permission doc's `minTier` and `buildings` limits, applied as the client's `resolvePermissionAccess` does. */
-export async function permissionAudienceAllows(
-  db: Firestore,
-  perm: { minTier?: unknown; buildings?: unknown },
-  teacherEmail: string,
-  teacherUid: string
-): Promise<boolean> {
-  if (perm.minTier !== undefined && perm.minTier !== null) {
-    const tier = teacherEmail
-      ? await deriveTeacherTier(db, teacherEmail.toLowerCase())
-      : 'free';
-    if (!meetsMinTierServer(tier, perm.minTier)) return false;
-  }
-  if (Array.isArray(perm.buildings) && perm.buildings.length > 0) {
-    const allowed = new Set(canonicalizeBuildingIdsServer(perm.buildings));
-    const selected = await loadTeacherBuildings(db, teacherUid);
-    if (!selected.some((b) => allowed.has(b))) return false;
-  }
-  return true;
 }
 
 /**
@@ -929,7 +849,9 @@ export function buildDefaultArchiveDeps(): ArchiveDeps {
     },
     transcodeToM4a: transcodeBufferToM4a,
     getAccessToken: async (teacherUid) => {
-      const { accessToken } = await refreshGoogleAccessTokenForUid(teacherUid);
+      const { accessToken } = await refreshGoogleAccessTokenForUid(teacherUid, {
+        scope: DRIVE_FILE_SCOPE,
+      });
       rememberTokenOwner(accessToken, teacherUid);
       return accessToken;
     },
@@ -1303,23 +1225,47 @@ export async function archiveQuizArtifactCore(
       return { kind: 'archived' as const, driveFileId: entry.driveFileId };
     }
     if (hasLiveOwner(entry, startedAt)) return { kind: 'inflight' as const };
-    archive[artifactId] = { archiveStatus: 'syncing' };
+    // An earlier claim that never wrote its outcome (killed mid-run) counts as an attempt.
+    const abandoned =
+      entry?.archiveStatus === 'syncing' &&
+      typeof entry.archiveStartedAt === 'number';
+    const attemptCount =
+      (typeof entry?.attemptCount === 'number' ? entry.attemptCount : 0) +
+      (abandoned ? 1 : 0);
+    const lost = abandoned && attemptCount >= MAX_ARCHIVE_ATTEMPTS;
+    archive[artifactId] = {
+      ...entry,
+      archiveStatus: lost ? 'lost' : 'syncing',
+    };
     tx.set(
       responseRef,
       {
         artifactArchive: {
-          [artifactId]: {
-            archiveStatus: 'syncing',
-            archiveStartedAt: startedAt,
-            archiveError: admin.firestore.FieldValue.delete(),
-          },
+          [artifactId]: lost
+            ? {
+                archiveStatus: 'lost',
+                attemptCount,
+                archiveError: ABANDONED_ARCHIVE_MESSAGE,
+                lastAttemptAt: startedAt,
+              }
+            : {
+                archiveStatus: 'syncing',
+                archiveStartedAt: startedAt,
+                archiveError: admin.firestore.FieldValue.delete(),
+                ...(abandoned ? { attemptCount } : {}),
+              },
         },
         hasStuckArchive: computeHasStuckArchive(archive),
       },
       { merge: true }
     );
-    return { kind: 'claimed' as const };
+    return { kind: lost ? ('lost' as const) : ('claimed' as const) };
   });
+  if (claim.kind === 'lost')
+    throw toArchiveFailure(
+      new HttpsError('deadline-exceeded', ABANDONED_ARCHIVE_MESSAGE),
+      true
+    );
   if (claim.kind === 'deleted') return { archiveStatus: 'deleted' };
   if (claim.kind === 'archived') return finalizeArchived(claim.driveFileId);
   if (claim.kind === 'inflight') return { archiveStatus: 'syncing' };
@@ -1500,7 +1446,13 @@ export async function archiveQuizArtifactCore(
 
     const sourceBytes = await deps.downloadObject(storagePath);
     const archiveBytes =
-      kind === 'audio' ? await deps.transcodeToM4a(sourceBytes) : sourceBytes;
+      kind === 'audio'
+        ? await deps.transcodeToM4a(sourceBytes).catch((err: unknown) => {
+            if (!(err instanceof AudioTooLongError)) throw err;
+            unrecoverable = true;
+            throw new HttpsError('invalid-argument', err.message);
+          })
+        : sourceBytes;
 
     const name = await deps.resolveStudentName(teacherUid, studentUid);
     const fallbackLabel =
@@ -1592,7 +1544,7 @@ async function discardArchivedCopy(
     console.error(
       '[quizMediaArchive] orphaned Drive copy after delete race',
       artifactId,
-      error
+      safeErr(error)
     );
   }
   let storagePending = false;
@@ -1604,7 +1556,7 @@ async function discardArchivedCopy(
       console.error(
         '[quizMediaArchive] orphaned transit object after delete race',
         artifactId,
-        error
+        safeErr(error)
       );
     }
   }

@@ -19,7 +19,11 @@ import {
   nextScheduledOpen,
   studentCanEnter,
 } from '@/utils/periodAccess';
-import type { DoneItem, LandingRow } from '@/utils/studentLanding';
+import {
+  workAvailability,
+  type DoneItem,
+  type LandingRow,
+} from '@/utils/studentLanding';
 import {
   formatPoints,
   type StudentGradeRow,
@@ -35,6 +39,7 @@ const KIND_INK: Record<SessionKind, string> = {
   'activity-wall': 'text-orange-700',
   flashcards: 'text-pink-700',
   projects: 'text-blue-700',
+  writing: 'text-teal-700',
 };
 
 export const KindIcon: React.FC<{ kind: SessionKind }> = ({ kind }) => {
@@ -204,6 +209,20 @@ function dueLine(row: LandingRow, nowMs: number): React.ReactNode {
   return <span className="text-slate-500">{label}</span>;
 }
 
+/** D22: a locked class reads Paused, its scheduled open, or Not open yet. */
+function periodLockLine(
+  gate: NonNullable<AssignmentSummary['periodGate']>,
+  nowMs: number
+): string {
+  const paused = gate.periodKeys.some((k) => {
+    const access = gate.periodAccess?.[k];
+    return !!access && effectivePeriodState(access, nowMs) === 'paused';
+  });
+  if (paused) return 'Paused';
+  const opensAt = nextScheduledOpen(gate, gate.periodKeys, nowMs);
+  return opensAt != null ? formatOpensLabel(opensAt) : 'Not open yet';
+}
+
 interface WorkRowProps {
   row: LandingRow;
   nowMs: number;
@@ -222,25 +241,20 @@ export const WorkRow: React.FC<WorkRowProps> = ({
   const gate = a.periodGate;
   const periodLocked =
     !!gate && !studentCanEnter(gate, gate.periodKeys, pseudonymUid, nowMs);
-  const periodOpensAt = periodLocked
-    ? nextScheduledOpen(gate, gate.periodKeys, nowMs)
-    : null;
-  // A Manual start class the teacher has started (not a Let in now pass on a closed class).
-  const started =
-    !!gate &&
-    gate.accessMode === 'assessment' &&
-    (row.state === 'open' || row.state === 'in-progress') &&
-    gate.periodKeys.some((k) => {
-      const access = gate.periodAccess?.[k];
-      return !!access && effectivePeriodState(access, nowMs) === 'open';
-    });
+  const locked = periodLocked || a.held !== undefined;
+  const lockLine = a.held
+    ? a.held === 'paused'
+      ? 'Paused'
+      : 'Not open yet'
+    : periodLocked
+      ? periodLockLine(gate, nowMs)
+      : null;
+  const live = workAvailability(row, nowMs, pseudonymUid) === 'live';
   const body = (
     <>
       <KindIcon kind={a.kind} />
       <span className="min-w-0 flex-1">
-        <Title muted={row.state === 'upcoming' || periodLocked}>
-          {a.title}
-        </Title>
+        <Title muted={row.state === 'upcoming' || locked}>{a.title}</Title>
         <span className="mt-0.5 flex flex-col items-start gap-y-0.5 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1.5">
           {cls && (
             <>
@@ -257,14 +271,10 @@ export const WorkRow: React.FC<WorkRowProps> = ({
               <span className="text-sky-700">In progress</span>
             </>
           )}
-          {periodLocked && (
+          {lockLine && (
             <>
               <RowDot />
-              <span className="text-slate-500">
-                {periodOpensAt != null
-                  ? formatOpensLabel(periodOpensAt)
-                  : 'Not started yet'}
-              </span>
+              <span className="text-slate-500">{lockLine}</span>
             </>
           )}
         </span>
@@ -280,7 +290,7 @@ export const WorkRow: React.FC<WorkRowProps> = ({
   }
   // A class not started yet still opens, to the waiting screen where the teacher sees the student.
   return (
-    <OpenRow href={a.openHref} available={!periodLocked} live={started}>
+    <OpenRow href={a.openHref} available={!locked} live={live}>
       {body}
     </OpenRow>
   );
@@ -385,11 +395,16 @@ const FLAG_INK: Record<string, string> = {
 const extraFlags = (grade: StudentGradeRow | undefined) =>
   (grade?.flags ?? []).filter((f) => f.id !== 'missing' && f.id !== 'excused');
 
+/** Closed and never turned in: it can no longer be done, so it is not "Missing". */
+const NotSubmitted: React.FC = () => (
+  <span className="text-xs font-semibold text-slate-500">Not submitted</span>
+);
+
 function gradebookRight(item: DoneItem, isNew: boolean): React.ReactNode {
   if (item.missing) {
     return (
       <>
-        <span className="text-xs font-semibold text-rose-700">Missing</span>
+        <NotSubmitted />
         {item.grade?.status === 'scored' && (
           <span className="w-14 text-right text-sm font-semibold tabular-nums text-slate-400">
             {formatPoints(item.grade.points ?? 0)}
@@ -399,7 +414,7 @@ function gradebookRight(item: DoneItem, isNew: boolean): React.ReactNode {
     );
   }
   if (item.row?.state === 'closed' && !item.grade) {
-    return <span className="text-xs text-slate-500">Not turned in</span>;
+    return <span className="text-xs text-slate-500">Not graded yet</span>;
   }
   return (
     <>
@@ -433,15 +448,20 @@ function completedRight(
   check: TurnInCheck | undefined,
   nowMs: number
 ): React.ReactNode {
-  if (item.missing)
-    return <span className="text-xs font-semibold text-rose-700">Missing</span>;
+  if (item.missing) return <NotSubmitted />;
   if (item.row?.state === 'closed')
-    return <span className="text-xs text-slate-500">Not turned in</span>;
+    return <span className="text-xs text-slate-500">Not graded yet</span>;
   if (check?.lockedOut)
     return (
       <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-700">
         <Lock className="h-3 w-3" aria-hidden="true" />
         Locked
+      </span>
+    );
+  if (item.kind === 'writing')
+    return (
+      <span className="text-xs text-slate-500">
+        {check?.returned ? 'Returned' : 'Turned in'}
       </span>
     );
   return item.row && areResultsShared(item.row.assignment, check, nowMs) ? (
@@ -463,7 +483,7 @@ const missingMessage = (item: DoneItem, teachers: string): string => {
   return `${closed} before you turned it in. Talk to ${teachers || 'your teacher'} if you need it reopened.`;
 };
 
-/** D17, D18: a Completed or Gradebook row; every one opens the student's own work, or says why it is Missing. */
+/** D17, D18: a Completed or Gradebook row; every one opens the student's own work, or says why it was not submitted. */
 export const DoneRow: React.FC<DoneRowProps> = ({
   item,
   check,

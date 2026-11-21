@@ -171,6 +171,34 @@ describe('startVoiceFill', () => {
     expect(stored.cards[0].speak?.g2pVersion).toBe(SPEAK_G2P_VOICES_PENDING);
   });
 
+  it('stops for the day once the daily voice limit is reached', async () => {
+    const cards = Array.from({ length: 30 }, (_, i) => card(i));
+    const { calls, call } = controlledCall();
+    startVoiceFill(makeSet(cards), vi.fn(), call);
+    expect(calls).toHaveLength(VOICE_PARALLEL_CALLS);
+    const exhausted = Object.assign(new Error('limit'), {
+      code: 'functions/resource-exhausted',
+      details: { reason: 'speakVoiceDaily' },
+    });
+    calls.forEach((pending) => pending.reject(exhausted));
+    await flush();
+    expect(calls).toHaveLength(VOICE_PARALLEL_CALLS);
+    startVoiceFill({ ...makeSet([card(99)]), id: 's2' }, vi.fn(), call);
+    expect(calls).toHaveLength(VOICE_PARALLEL_CALLS);
+  });
+
+  it('keeps filling after a resource-exhausted that is not the daily limit', async () => {
+    const cards = Array.from({ length: 30 }, (_, i) => card(i));
+    const { calls, call } = controlledCall();
+    startVoiceFill(makeSet(cards), vi.fn(), call);
+    const busy = Object.assign(new Error('429'), {
+      code: 'functions/resource-exhausted',
+    });
+    calls.forEach((pending) => pending.reject(busy));
+    await flush();
+    expect(calls.length).toBeGreaterThan(VOICE_PARALLEL_CALLS);
+  });
+
   it('drops a late reading for a term edited and saved again mid-fill', async () => {
     let stored = makeSet([card(0)]);
     const write = (merge: (s: FlashcardSet) => FlashcardSet) => {

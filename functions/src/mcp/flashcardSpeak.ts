@@ -32,6 +32,7 @@ import {
   type SpeakSettings,
   type SpeakSettingsInput,
 } from './flashcardSpeakSettings';
+import { safeErr } from '../safeLog';
 
 type Firestore = admin.firestore.Firestore;
 const ADMIN_DOC = 'admin_settings/flashcardsSpeak';
@@ -43,7 +44,9 @@ export async function readSpeakAdminDefaults(
   try {
     return normalizeSpeakAdminDefaults((await db.doc(ADMIN_DOC).get()).data());
   } catch (err) {
-    console.error('[mcpServer] Speak defaults read failed', { err });
+    console.error('[mcpServer] Speak defaults read failed', {
+      err: safeErr(err),
+    });
     return normalizeSpeakAdminDefaults(undefined);
   }
 }
@@ -135,7 +138,7 @@ export async function attachSpeakReferences(
       // The voice model blocks the event loop for seconds, so the shared connector leaves voices pending for the editor's callable.
       (await compute(input, undefined, { voices: false })).cards;
   } catch (err) {
-    console.error('[mcpServer] Speak lookup failed', { err });
+    console.error('[mcpServer] Speak lookup failed', { err: safeErr(err) });
     found = {};
   }
   const staleIds = new Set(stale.map((card) => card.id));
@@ -196,7 +199,7 @@ export async function speakGranted(
   email: string | null,
   uid: string
 ): Promise<boolean> {
-  const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+  const { isGlobalFeatureGranted } = await import('../featureGrant');
   return isGlobalFeatureGranted(db, FLASHCARDS_SPEAK_FEATURE_ID, email, uid);
 }
 

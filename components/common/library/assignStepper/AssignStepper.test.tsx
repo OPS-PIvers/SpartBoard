@@ -112,6 +112,57 @@ describe('AssignStepper', () => {
     expect(screen.getByText('when body')).toBeInTheDocument();
   });
 
+  it('keeps a disabled step numbered and skips it on Continue', () => {
+    const steps: AssignStepDef[] = [
+      STEPS[0],
+      {
+        id: 'modifications',
+        title: 'Modifications',
+        value: 'Select a class first',
+        body: <p>mods body</p>,
+        disabled: true,
+      },
+      ...STEPS.slice(1),
+    ];
+    renderStepper({ steps });
+    expect(header('Modifications')).toBeDisabled();
+    expect(header('When')).toHaveTextContent('3');
+    fireEvent.click(screen.getByRole('button', { name: /Continue/ }));
+    expect(screen.getByText('when body')).toBeInTheDocument();
+    expect(screen.queryByText('mods body')).not.toBeInTheDocument();
+  });
+
+  it('opens the step before a step that turns disabled while open', () => {
+    const steps: AssignStepDef[] = [
+      STEPS[0],
+      {
+        id: 'modifications',
+        title: 'Modifications',
+        value: 'None',
+        body: <p>mods body</p>,
+      },
+      ...STEPS.slice(1),
+    ];
+    const { rerender, onSubmit } = renderStepper({ steps });
+    fireEvent.click(header('Modifications'));
+    expect(screen.getByText('mods body')).toBeInTheDocument();
+    const off = steps.map((s) =>
+      s.id === 'modifications' ? { ...s, disabled: true } : s
+    );
+    const props = {
+      isOpen: true,
+      onClose: vi.fn(),
+      title: 'Sample Quiz',
+      submitLabel: 'Assign',
+      onSubmit,
+    };
+    rerender(<AssignStepper {...props} steps={off} />);
+    expect(screen.getByText('classes body')).toBeInTheDocument();
+    rerender(<AssignStepper {...props} steps={steps} />);
+    expect(screen.getByText('classes body')).toBeInTheDocument();
+    expect(screen.queryByText('mods body')).not.toBeInTheDocument();
+  });
+
   it('shows the overlay view in place of the steps', () => {
     renderStepper({ overlayView: <p>modifications view</p> });
     expect(screen.getByText('modifications view')).toBeInTheDocument();
@@ -145,5 +196,11 @@ describe('AssignStepper inline', () => {
     expect(screen.getByText('classes body')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+  });
+  it('renders a Cancel next to submit when given onCancel', () => {
+    const onCancel = vi.fn();
+    renderStepper({ inline: true, submitLabel: 'Save', onCancel });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });

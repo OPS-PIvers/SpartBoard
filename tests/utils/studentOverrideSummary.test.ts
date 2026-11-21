@@ -88,4 +88,10 @@ describe('summarizeOverride', () => {
       'Window shifted',
     ]);
   });
+
+  it('adds a Speech to text chip', () => {
+    expect(summarizeOverride({ speechToText: true }, t)).toEqual([
+      'Speech to text',
+    ]);
+  });
 });

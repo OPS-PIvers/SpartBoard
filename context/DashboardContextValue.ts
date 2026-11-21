@@ -110,6 +110,12 @@ export interface PendingShareImport {
    * instead of a 3-option picker.
    */
   intendedMode?: SharedBoardImportMode;
+  /** The server checked the host's account: true staff, false not staff; absent when the check failed. */
+  hostStaff?: boolean;
+  /** The host's name from their account, never from the share doc. */
+  hostName?: string;
+  /** The server is still reading the host's account; live modes stay off until it answers. */
+  hostChecking?: boolean;
 }
 
 export interface AnnotationState {
@@ -220,6 +226,11 @@ export interface DashboardContextValue {
   discardTourWidgets?: (ids: readonly string[]) => void;
   /** Live tours only: makes widgets the app adds unsaved tour widgets until switched off. */
   setTourTransientSpawns?: (on: boolean) => void;
+  /** One widget's names from that board's Drive copy: null without Drive or when the board lacks the widget, {} when it holds none. */
+  readWidgetPii?: (
+    widgetId: string,
+    boardId: string
+  ) => Promise<Record<string, unknown> | null>;
   clearAllStickers: () => void;
   clearAllWidgets: () => void;
   updateWidget: (

@@ -15,7 +15,9 @@ import {
 } from '@/components/widgets/QuizWidget/components/QuizManager';
 import { PaperImportModal } from '@/components/widgets/QuizWidget/components/PaperImportModal';
 import { PaperPrintModal } from '@/components/widgets/QuizWidget/components/PaperPrintModal';
+import { printedGroupQuiz } from '@/utils/paperPrintedVersions';
 import { PaperReprintModal } from '@/components/widgets/QuizWidget/components/PaperReprintModal';
+import { PaperGroupReprintModal } from '@/components/widgets/QuizWidget/components/PaperGroupReprintModal';
 import type {
   ClassRoster,
   PaperBatch,
@@ -88,6 +90,10 @@ const PAPER: QuizAssignment = {
 };
 
 const IN_PROGRESS = [PAPER, base(1), { ...base(2), status: 'paused' as const }];
+const WITH_COPIES = [
+  { ...base(1), paperCopyBatchIds: ['batch-g1', 'batch-g2'] },
+  base(2),
+];
 const COMPLETED = [
   { ...PAPER, status: 'inactive' as const, hasPaperResponses: true },
   { ...base(3), status: 'inactive' as const },
@@ -252,6 +258,18 @@ const PaperImport: React.FC = () => {
   );
 };
 
+const GROUP_SEATS: Record<number, PaperBatch['seats']> = {
+  1: {
+    1: { rosterId: 'r1', studentId: 'r1-s1' },
+    2: { rosterId: 'r1', studentId: 'r1-s4' },
+    3: { rosterId: 'r2', studentId: 'r2-s2' },
+  },
+  2: {
+    1: { rosterId: 'r1', studentId: 'r1-s6' },
+    2: { rosterId: 'r2', studentId: 'r2-s3' },
+  },
+};
+
 const VIEWS = {
   library: () => <Manager tab="library" assignments={IN_PROGRESS} />,
   assign: () => <PaperAssign />,
@@ -269,7 +287,100 @@ const VIEWS = {
       onError={noop}
     />
   ),
+  'printed-group': () => (
+    <PaperPrintModal
+      quiz={printedGroupQuiz(ASSIGN_QUIZ, {
+        answerChoices: 'two',
+        modifiedQuestions: true,
+      })}
+      group={{
+        label: 'Group 1',
+        students: { r1: ['r1-s0', 'r1-s3'], r2: ['r2-s5'] },
+        supports: [{ title: 'Word bank', body: 'nucleus, ribosome' }],
+      }}
+      rosters={ROSTERS}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
+  // One essay question in a group print: no choice count, a sized box.
+  'printed-group-essay': () => (
+    <PaperPrintModal
+      quiz={{
+        ...QUIZ,
+        title: 'Hamlet Essay',
+        questions: [{ ...WRITTEN_QUIZ.questions[4], paperBoxSize: 8 }],
+      }}
+      group={{
+        label: 'Group 1',
+        students: { r1: ['r1-s0', 'r1-s3'] },
+        supports: [],
+      }}
+      rosters={ROSTERS}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
+  'printed-translated': () => (
+    <PaperPrintModal
+      quiz={ASSIGN_QUIZ}
+      group={{
+        label: 'Group 2 · Spanish',
+        students: { r1: ['r1-s1', 'r1-s2'] },
+        supports: [],
+        translation: {
+          title: 'Unidad 3: La célula',
+          questions: Object.fromEntries(
+            ASSIGN_QUIZ.questions.map((q, i) => [
+              q.id,
+              {
+                text: `Pregunta ${i + 1}: ¿Qué parte de la célula guarda el ADN?`,
+                choices: {
+                  Nucleus: 'Núcleo',
+                  Ribosome: 'Ribosoma',
+                  Vacuole: 'Vacuola',
+                  'Cell wall': 'Pared celular',
+                },
+              },
+            ])
+          ),
+        },
+      }}
+      rosters={ROSTERS}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
   'in-progress': () => <Manager tab="active" assignments={IN_PROGRESS} />,
+  copies: () => <Manager tab="active" assignments={WITH_COPIES} />,
+  'group-reprint': () => (
+    <PaperGroupReprintModal
+      groups={[1, 2].map((n) => ({
+        label: `Group ${n}`,
+        quiz: printedGroupQuiz(
+          { ...ASSIGN_QUIZ, questions: ASSIGN_QUIZ.questions.slice(0, 2) },
+          { answerChoices: n === 1 ? 'two' : 'drop-one' }
+        ),
+        batch: {
+          ...BATCH,
+          id: `batch-g${n}`,
+          questionCount: 2,
+          seats: GROUP_SEATS[n],
+          spareSeats: [],
+          printedGroup: {
+            number: n,
+            answerChoices: n === 1 ? 'two' : 'drop-one',
+          },
+        },
+      }))}
+      rosters={ROSTERS}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
   import: () => <PaperImport />,
   completed: () => <Manager tab="archive" assignments={COMPLETED} />,
   reprint: () => (

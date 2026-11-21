@@ -23,6 +23,7 @@
  *        - Quiz → `/classroom-addon/student?code=<code>`
  *        - VA   → `/classroom-addon/student?kind=va&sessionId=<sessionId>`
  */
+import { withQuizAnswerChoices } from '@/components/common/library/assignStepper/modificationGroups';
 import React, {
   useCallback,
   useEffect,
@@ -617,7 +618,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       Array.isArray(quizData?.questions) ? quizData.questions : [],
       windowTargeting.overridesByKey
     );
-    const resolvedTargeting: AssignTargetingValue = expandClassTargeting(
+    const expanded = expandClassTargeting(
       {
         ...windowTargeting,
         overridesByKey: hiddenOptions.overridesByKey,
@@ -651,6 +652,13 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       selectedQuiz.driveFileId,
       { loadBankContentsForQuiz, saveDriveSnapshot }
     );
+    const resolvedTargeting: AssignTargetingValue = {
+      ...expanded,
+      overridesByKey: withQuizAnswerChoices(
+        expanded.overridesByKey,
+        content.questions
+      ),
+    };
 
     // Classroom grade scale = the points a student can earn (e.g. 17/20), not a percentage.
     const maxPoints = quizMaxPoints(

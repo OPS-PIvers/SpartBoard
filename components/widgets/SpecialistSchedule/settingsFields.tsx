@@ -10,6 +10,7 @@ import type {
 } from '@/types';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { resolveBuildingConfig } from './utils';
+import { SpecialistWarningFields } from './WarningFields';
 
 const DAYS_OF_WEEK = [
   'sunday',
@@ -174,6 +175,14 @@ const SpecialistScheduleItemEditor: React.FC<{
           />
         </div>
       </div>
+
+      <SpecialistWarningFields
+        ctx={ctx}
+        idPrefix={ctx.id}
+        warning={draft.warning}
+        hasEnd={!!draft.endTime}
+        onChange={(warning) => onChange({ warning })}
+      />
 
       <button
         type="button"
@@ -741,6 +750,17 @@ export const SpecialistScheduleRecurringItemsField: React.FC<{
               />
             </div>
           </div>
+          <SpecialistWarningFields
+            ctx={ctx}
+            idPrefix={`${ctx.id}-recurring`}
+            warning={draft?.warning}
+            hasEnd={!!draft?.endTime}
+            onChange={(warning) =>
+              setDraft((current) =>
+                current ? { ...current, warning } : current
+              )
+            }
+          />
           <button
             type="button"
             onClick={save}

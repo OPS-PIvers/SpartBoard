@@ -11,7 +11,7 @@ import {
 } from './ssrfGuard';
 import { decodeHtmlEntities } from './htmlEntities';
 import { isDistrictStaffToken } from './districtStaff';
-import { isGlobalFeatureGranted } from './quizMediaArchive';
+import { isGlobalFeatureGranted } from './featureGrant';
 import {
   IMPORT_SEND_BLOCK_LIST_DOC,
   UNIVERSAL_IMPORT_FEATURE,

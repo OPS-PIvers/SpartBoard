@@ -1,6 +1,21 @@
-import React, { useMemo, useState } from 'react';
+import React, {
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { RosterAccommodationsList } from './RosterAccommodationsList';
 import { useTranslation } from 'react-i18next';
-import { Save, AlertTriangle, X, Plus, Users, UsersRound } from 'lucide-react';
+import {
+  Save,
+  AlertTriangle,
+  X,
+  Plus,
+  Users,
+  UsersRound,
+  Loader2,
+} from 'lucide-react';
 import {
   Student,
   ClassRoster,
@@ -11,7 +26,15 @@ import {
 import type { BuildingBellPeriodOption } from '@/utils/bellSchedule';
 import { SplitClassFooter } from './SplitClassFooter';
 import { GroupRemindersPanel } from './GroupRemindersPanel';
+import { RosterGroupsPanel as RosterGroupsPagePanel } from './RosterGroupsPanel';
+import { RosterAccommodationsByStudent } from './RosterAccommodationsByStudent';
+import { ALL_GROUP_STEPS, type GroupEditorSteps } from '@/utils/groupReminders';
 import { Modal } from '@/components/common/Modal';
+import { AutosaveIndicator } from '@/components/common/EditorModalShell';
+import { useAutosave } from '@/hooks/useAutosave';
+import { DialogContext } from '@/context/DialogContextValue';
+import { assignPins } from '@/utils/rosterPins';
+import { mergeOverrideEdits } from '@/utils/rosterDefaultOverrides';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
@@ -21,11 +44,6 @@ import {
   RestrictionsPicker,
   RestrictionsPickerCandidate,
 } from './RestrictionsPicker';
-import { OverrideEditorRow } from '@/components/common/library/OverrideEditorRow';
-import {
-  isEmptyStudentOverride,
-  setRosterDefaultOverride,
-} from '@/utils/rosterDefaultOverrides';
 
 interface RosterEditorModalProps {
   isOpen: boolean;
@@ -47,11 +65,17 @@ interface RosterEditorModalProps {
   ) => Promise<void> | void;
   /** Host-resolved 'quiz-read-aloud' gate, forwarded to the accommodations editor. */
   readAloudAvailable?: boolean;
+  /** Host-resolved 'speech-to-text' gate, forwarded to the accommodations editor. */
+  speechToTextAvailable?: boolean;
   /** Bell periods to tag the class with; the picker is hidden when absent. */
   bellPeriodOptions?: BuildingBellPeriodOption[];
   /** Host-resolved 'group-reminders' gate: symbols, schedules and the group wizard. */
   groupRemindersEnabled?: boolean;
   groupReminderEmailsEnabled?: boolean;
+  /** Host-resolved per-step gates for the group editor. */
+  groupSteps?: GroupEditorSteps;
+  /** Groups as pages that hold their accommodations, and a per-student Accommodations tab. */
+  groupsRedesign?: boolean;
 }
 
 const bellKey = (b: RosterBellPeriod | null | undefined): string =>
@@ -70,9 +94,12 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   onClose,
   onSave,
   readAloudAvailable = false,
+  speechToTextAvailable = false,
   bellPeriodOptions,
   groupRemindersEnabled = false,
   groupReminderEmailsEnabled = false,
+  groupSteps = ALL_GROUP_STEPS,
+  groupsRedesign = false,
 }) => {
   const { t } = useTranslation();
   const {
@@ -83,6 +110,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     updateRow,
     deleteRow,
     bulkPasteInto,
+    applyAssignedPins,
     showLastNames,
     handleToggleLastNames,
     showPins,
@@ -95,6 +123,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     validStudents,
     duplicatePins,
   } = useRosterRowsState(roster);
+  // Rows are seeded once, so a class that opened unloaded stays unsaveable even after it loads.
+  const [openedUnloaded] = useState(() => !!roster?.loadError);
+  const loadFailed = !!roster?.loadError || openedUnloaded;
 
   const columnOptions = [
     {
@@ -141,6 +172,12 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   );
   const [defaultOverrides, setDefaultOverrides] =
     useState<Record<string, StudentOverride>>(initialOverrides);
+  // What the overrides tab last matched in the saved class; only edits since then are written.
+  const savedOverridesRef = useRef(initialOverrides);
+  const latestOverridesRef = useRef(initialOverrides);
+  useLayoutEffect(() => {
+    latestOverridesRef.current = initialOverrides;
+  }, [initialOverrides]);
 
   const initialBell = roster?.bellPeriod ?? null;
   const [bellPeriod, setBellPeriod] = useState<RosterBellPeriod | null>(
@@ -159,59 +196,164 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Count of Drive shares in flight, so Save and close wait for every one of them.
+  const [sharesInFlight, setSharesInFlight] = useState(0);
   const viewAs = useViewAs();
+  const dialog = useContext(DialogContext);
 
+  const saveFailedMessage = () =>
+    viewAs?.readOnly
+      ? t('sidebar.classes.saveViewOnly', {
+          defaultValue: 'Read-only in View as, so this class was not saved.',
+        })
+      : t('sidebar.classes.saveFailed', {
+          defaultValue:
+            'Could not save this class. Your changes are still here — check your Google Drive connection and try again.',
+        });
+
+  // One write with only the tabs that differ from the saved class.
+  const writeRoster = async (rosterName: string, students: Student[]) => {
+    // Drop deleted students first, as the saved copy does, so they don't read as a change.
+    const ids = new Set(students.map((st) => st.id));
+    const keptGroups = groups.map((g) =>
+      g.studentIds.every((id) => ids.has(id))
+        ? g
+        : { ...g, studentIds: g.studentIds.filter((id) => ids.has(id)) }
+    );
+    const keptOverrides = Object.fromEntries(
+      Object.entries(defaultOverrides).filter(([id]) => ids.has(id))
+    );
+    const groupsChanged =
+      JSON.stringify(keptGroups) !== JSON.stringify(initialGroups);
+    const overridesChanged =
+      JSON.stringify(keptOverrides) !==
+      JSON.stringify(savedOverridesRef.current);
+    const mergedOverrides = mergeOverrideEdits(
+      latestOverridesRef.current,
+      savedOverridesRef.current,
+      keptOverrides
+    );
+    const bellChanged = bellKey(bellPeriod) !== bellKey(initialBell);
+    if (bellChanged) {
+      await onSave(
+        rosterName,
+        students,
+        groupsChanged ? keptGroups : undefined,
+        overridesChanged ? mergedOverrides : undefined,
+        bellPeriod
+      );
+    } else if (overridesChanged) {
+      await onSave(
+        rosterName,
+        students,
+        groupsChanged ? keptGroups : undefined,
+        mergedOverrides
+      );
+    } else if (groupsChanged) {
+      await onSave(rosterName, students, keptGroups);
+    } else {
+      await onSave(rosterName, students);
+    }
+    if (overridesChanged) savedOverridesRef.current = keptOverrides;
+  };
+
+  // New Class only: an existing class saves on its own below.
   const handleSave = async () => {
     if (!name.trim() || saving) return;
-    const groupsChanged =
-      JSON.stringify(groups) !== JSON.stringify(initialGroups);
-    const overridesChanged =
-      JSON.stringify(defaultOverrides) !== JSON.stringify(initialOverrides);
-    const bellChanged = bellKey(bellPeriod) !== bellKey(initialBell);
     setSaveError(null);
     setSaving(true);
     try {
-      if (bellChanged) {
-        await onSave(
-          name.trim(),
-          validStudents,
-          groupsChanged ? groups : undefined,
-          overridesChanged ? defaultOverrides : undefined,
-          bellPeriod
-        );
-      } else if (overridesChanged) {
-        await onSave(
-          name.trim(),
-          validStudents,
-          groupsChanged ? groups : undefined,
-          defaultOverrides
-        );
-      } else if (groupsChanged) {
-        await onSave(name.trim(), validStudents, groups);
-      } else {
-        await onSave(name.trim(), validStudents);
-      }
+      await writeRoster(name.trim(), validStudents);
     } catch (err) {
       // Keep the modal open with the teacher's edits intact — closing here
       // would discard them with no indication the save never landed.
       console.error('Failed to save roster:', err);
-      setSaveError(
-        viewAs?.readOnly
-          ? t('sidebar.classes.saveViewOnly', {
-              defaultValue:
-                'Read-only in View as, so this class was not saved.',
-            })
-          : t('sidebar.classes.saveFailed', {
-              defaultValue:
-                'Could not save this class. Your changes are still here — check your Google Drive connection and try again.',
-            })
-      );
+      setSaveError(saveFailedMessage());
       return;
     } finally {
       setSaving(false);
     }
     onClose();
   };
+
+  // Autosave for an existing class. PINs are filled in here so the rows show what was saved.
+  const persist = async () => {
+    const sent = validStudents;
+    const withPins = assignPins(sent);
+    try {
+      await writeRoster(name.trim() || (roster?.name ?? ''), withPins);
+      setSaveError(null);
+    } catch (err) {
+      console.error('Failed to save roster:', err);
+      setSaveError(saveFailedMessage());
+      throw err;
+    }
+    applyAssignedPins(sent, withPins);
+  };
+  const persistRef = useRef(persist);
+  const sharesRef = useRef(sharesInFlight);
+  useLayoutEffect(() => {
+    persistRef.current = persist;
+    sharesRef.current = sharesInFlight;
+  });
+
+  const draftToken = useMemo(
+    () => [
+      name.trim(),
+      JSON.stringify(validStudents),
+      JSON.stringify(groups),
+      JSON.stringify(defaultOverrides),
+      bellKey(bellPeriod),
+    ],
+    [name, validStudents, groups, defaultOverrides, bellPeriod]
+  );
+  const autosave = useAutosave({
+    draftToken,
+    resetKey: roster?.id,
+    // A class whose file failed to load opens empty, so saving it would wipe the real one.
+    enabled: roster !== null && !loadFailed,
+    delayMs: 1500,
+    onSave: () => persistRef.current(),
+  });
+
+  // Waits for the last autosave before closing, and asks only if it failed.
+  const requestClose = async () => {
+    if (roster === null || loadFailed) {
+      onClose();
+      return;
+    }
+    // A Drive share adds its support when it finishes, so let it land first.
+    const giveUpAt = Date.now() + 60_000;
+    while (sharesRef.current > 0 && Date.now() < giveUpAt) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const saved = sharesRef.current === 0 && (await autosave.flush());
+    if (!saved && dialog) {
+      const leave = await dialog.showConfirm(
+        t('sidebar.classes.closeUnsaved', {
+          defaultValue:
+            'Your latest changes could not be saved. Closing now will lose them.',
+        }),
+        {
+          title: t('sidebar.classes.closeUnsavedTitle', {
+            defaultValue: 'Close without saving?',
+          }),
+          variant: 'warning',
+          confirmLabel: t('sidebar.classes.closeAnyway', {
+            defaultValue: 'Close anyway',
+          }),
+          cancelLabel: t('sidebar.classes.keepEditing', {
+            defaultValue: 'Keep editing',
+          }),
+        }
+      );
+      if (!leave) return;
+    }
+    onClose();
+  };
+
+  const sharingChange = (sharing: boolean) =>
+    setSharesInFlight((n) => Math.max(0, n + (sharing ? 1 : -1)));
 
   const baseTitle = roster
     ? t('sidebar.classes.editClassTitle', { defaultValue: 'Edit Class' })
@@ -220,7 +362,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={() => void requestClose()}
       allowFullscreen
       maxWidth="max-w-5xl"
       className="h-[85vh]"
@@ -272,14 +414,48 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               </select>
             </label>
           )}
-          <button
-            onClick={handleSave}
-            disabled={!name.trim() || saving}
-            {...tourAttr('roster-editor.save')}
-            className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl flex gap-1.5 items-center text-sm font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Save size={16} /> {t('common.save', { defaultValue: 'Save' })}
-          </button>
+          {loadFailed ? (
+            <div
+              role="alert"
+              title={roster?.loadError}
+              className="min-h-[38px] flex items-center gap-1.5 px-2 text-sm font-bold text-red-600"
+            >
+              <AlertTriangle size={16} aria-hidden="true" />
+              {t('sidebar.classes.loadFailed', {
+                defaultValue: 'Failed to load',
+              })}
+            </div>
+          ) : roster ? (
+            <div
+              className="min-h-[38px] flex items-center px-2"
+              {...tourAttr('roster-editor.save')}
+            >
+              <AutosaveIndicator
+                status={autosave.status === 'idle' ? 'saved' : autosave.status}
+                onRetry={() => void autosave.flush({ force: true })}
+              />
+            </div>
+          ) : (
+            <button
+              onClick={handleSave}
+              disabled={!name.trim() || saving || sharesInFlight > 0}
+              {...tourAttr('roster-editor.save')}
+              className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl flex gap-1.5 items-center text-sm font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? (
+                <Loader2
+                  size={16}
+                  className="animate-spin"
+                  aria-hidden="true"
+                />
+              ) : (
+                <Save size={16} />
+              )}{' '}
+              {saving
+                ? t('common.saving', { defaultValue: 'Saving…' })
+                : t('common.save', { defaultValue: 'Save' })}
+            </button>
+          )}
         </div>
 
         {saveError && (
@@ -364,8 +540,20 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             rosterName={name.trim()}
             groups={groups}
             emailAlertsEnabled={groupReminderEmailsEnabled}
+            steps={groupSteps}
             students={validStudents}
             onChange={setGroups}
+          />
+        ) : activeTab === 'groups' && roster && groupsRedesign ? (
+          <RosterGroupsPagePanel
+            groups={groups}
+            students={validStudents}
+            onChange={setGroups}
+            overrides={defaultOverrides}
+            onOverridesChange={setDefaultOverrides}
+            readAloudAvailable={readAloudAvailable}
+            speechToTextAvailable={speechToTextAvailable}
+            onSharingChange={sharingChange}
           />
         ) : activeTab === 'groups' && roster ? (
           <RosterGroupsPanel
@@ -373,13 +561,27 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             students={validStudents}
             onChange={setGroups}
           />
-        ) : activeTab === 'accommodations' && roster ? (
-          <RosterAccommodationsPanel
+        ) : activeTab === 'accommodations' && roster && groupsRedesign ? (
+          <RosterAccommodationsByStudent
             students={validStudents}
+            groups={groups}
             overrides={defaultOverrides}
             readAloudAvailable={readAloudAvailable}
+            speechToTextAvailable={speechToTextAvailable}
             onChange={setDefaultOverrides}
             onAddStudents={() => setActiveTab('students')}
+            onSharingChange={sharingChange}
+          />
+        ) : activeTab === 'accommodations' && roster ? (
+          <RosterAccommodationsList
+            students={validStudents}
+            groups={groups}
+            overrides={defaultOverrides}
+            readAloudAvailable={readAloudAvailable}
+            speechToTextAvailable={speechToTextAvailable}
+            onChange={setDefaultOverrides}
+            onAddStudents={() => setActiveTab('students')}
+            onSharingChange={sharingChange}
           />
         ) : (
           <>
@@ -405,7 +607,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               </div>
             )}
 
-            <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-white overflow-y-auto custom-scrollbar">
+            <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-white overflow-y-auto scroll-inset">
               {rows.length === 0 ? (
                 <RosterEmptyState
                   title={t('sidebar.classes.emptyRosterTitle', {
@@ -790,7 +992,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
   };
 
   return (
-    <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto custom-scrollbar">
+    <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto scroll-inset">
       {groups.length === 0 ? (
         <RosterEmptyState
           title={t('sidebar.classes.emptyGroupsTitle', {
@@ -825,7 +1027,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                       'roster-editor',
                       groupKey
                     )}
-                    className="p-1 text-slate-400 hover:text-brand-blue-primary rounded-md transition-colors"
+                    className="shrink-0 p-1 text-slate-400 hover:text-brand-blue-primary rounded-md transition-colors"
                     aria-label={t('sidebar.classes.editGroupMembers', {
                       defaultValue: 'Edit group members',
                     })}
@@ -833,7 +1035,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                     <UsersRound size={16} />
                   </button>
                   <input
-                    className="flex-1 px-2 py-1 text-sm font-bold rounded-md border border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden transition-colors"
+                    className="min-w-0 flex-1 px-2 py-1 text-sm font-bold rounded-md border border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden transition-colors"
                     value={group.name}
                     onChange={(e) => renameGroup(group.id, e.target.value)}
                     {...tourFieldAttr(
@@ -842,7 +1044,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                       groupKey
                     )}
                   />
-                  <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                  <span className="shrink-0 whitespace-nowrap text-xxs font-bold text-slate-400 uppercase tracking-widest">
                     {t('sidebar.classes.groupMemberCount', {
                       count: memberCount,
                       defaultValue: '{{count}} student',
@@ -859,7 +1061,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                     aria-label={t('sidebar.classes.removeGroup', {
                       defaultValue: 'Remove group',
                     })}
-                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                    className="shrink-0 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
                   >
                     <X size={16} />
                   </button>
@@ -901,91 +1103,6 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
         onAddGroups={(made) => onChange([...groups, ...made])}
         onNewGroup={groups.length > 0 ? addGroup : undefined}
       />
-    </div>
-  );
-};
-
-interface RosterAccommodationsPanelProps {
-  students: Student[];
-  overrides: Record<string, StudentOverride>;
-  readAloudAvailable: boolean;
-  onChange: (overrides: Record<string, StudentOverride>) => void;
-  onAddStudents: () => void;
-}
-
-/**
- * Standing accommodations editor. Writes `defaultOverridesByStudentId`, which
- * the assign flow pre-fills onto every newly selected student
- * (`AssignStudentPicker.applyDefaultOverride`). Reuses the assign flow's
- * `OverrideEditorRow` so the two surfaces cannot drift; question-scoped
- * controls (subset, option hider, rubric swap) render nothing here because a
- * roster default has no quiz to reference.
- */
-const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
-  students,
-  overrides,
-  readAloudAvailable,
-  onChange,
-  onAddStudents,
-}) => {
-  const { t } = useTranslation();
-  const studentName = (s: Student) =>
-    `${s.firstName} ${s.lastName}`.trim() || s.id;
-
-  return (
-    <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto custom-scrollbar">
-      {students.length === 0 ? (
-        <RosterEmptyState
-          title={t('sidebar.classes.emptyAccommodationsTitle', {
-            defaultValue: 'No students yet',
-          })}
-          subtitle={t('sidebar.classes.emptyAccommodationsSubtitle', {
-            defaultValue:
-              'Add students first, then set their standing accommodations.',
-          })}
-          addLabel={t('sidebar.classes.addStudent', {
-            defaultValue: 'Add Student',
-          })}
-          onAdd={onAddStudents}
-          anchorProps={tourAttr('roster-editor.accommodations-add-student')}
-        />
-      ) : (
-        <div className="p-3 flex flex-col gap-2">
-          <p className="text-xs text-slate-500">
-            {t('sidebar.classes.accommodationsHelp', {
-              defaultValue: 'These apply to every new assignment.',
-            })}
-          </p>
-          {students.map((s) => {
-            const peers = students
-              .filter(
-                (other) =>
-                  other.id !== s.id &&
-                  !isEmptyStudentOverride(overrides[other.id])
-              )
-              .map((other) => ({
-                id: other.id,
-                name: studentName(other),
-                override: overrides[other.id],
-              }));
-            return (
-              <OverrideEditorRow
-                key={s.id}
-                studentName={studentName(s)}
-                override={overrides[s.id] ?? {}}
-                quizMode
-                allowWindowShift={false}
-                readAloudAvailable={readAloudAvailable}
-                pageProtectionsAvailable
-                peers={peers}
-                onChange={(next) =>
-                  onChange(setRosterDefaultOverride(overrides, s.id, next))
-                }
-              />
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 };
@@ -1036,10 +1153,11 @@ function buildGridTemplate(
 ): string {
   const parts = ['2rem'];
   if (showPins) parts.push('5rem');
-  parts.push('minmax(0, 1fr)');
-  if (showLastNames) parts.push('minmax(0, 1fr)');
+  parts.push('minmax(5rem, 1fr)');
+  if (showLastNames) parts.push('minmax(5rem, 1fr)');
   if (showEmails) parts.push('minmax(0, 1.4fr)');
-  if (showRestrictions) parts.push('minmax(9rem, 14rem)');
+  // Shrinks to its icon on a phone so the name columns keep their width.
+  if (showRestrictions) parts.push('minmax(3.5rem, 14rem)');
   parts.push('2rem');
   return parts.join(' ');
 }

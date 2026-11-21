@@ -13,6 +13,7 @@ import {
   whiteboardUsesMic,
   wrapUpThresholdSeconds,
 } from '@/config/quizRecordingDefaults';
+import { withMicPermissionPrompt } from '@/utils/permissionPrompt';
 
 /**
  * Whiteboard take state machine: mic and canvas share one clock. Mirrors
@@ -126,7 +127,10 @@ const CANDIDATE_MIME_TYPES = [
 ];
 
 const realDeps: WhiteboardRecordingDeps = {
-  getStream: () => navigator.mediaDevices.getUserMedia({ audio: true }),
+  getStream: () =>
+    withMicPermissionPrompt(() =>
+      navigator.mediaDevices.getUserMedia({ audio: true })
+    ),
   createRecorder: (stream, mimeType) =>
     new MediaRecorder(stream, {
       ...(mimeType ? { mimeType } : {}),

@@ -15,6 +15,7 @@ import {
   PAPER_BOX_LINES,
   PAPER_FULL_PAGE_LINES,
   paperBoxLines,
+  paperBoxPages,
 } from './paperWritten';
 import {
   COLUMN_X_MM,
@@ -70,6 +71,8 @@ export type PaperSheetEntry =
       size: PaperBoxSize;
       /** Absent = lines. */
       style?: PaperBoxStyle;
+      /** Fill in the blank: one line per blank. */
+      blanks?: number;
     };
 
 export interface PlanPaperPagesInput {
@@ -98,11 +101,13 @@ const ONE_COLUMN_BOX_BOTTOM_MM = PAGE_HEIGHT_MM - CORNER_WINDOW_H_MM;
 const headerRows = (stems: boolean): number =>
   stems ? WRITTEN_HEADER_ROWS_WITH_STEM : WRITTEN_HEADER_ROWS_NUMBER_ONLY;
 
-/** A non-lines style rides on the item; lines stays absent so older maps are unchanged. */
+/** A non-lines style and a blank count ride on the item; absent keeps older maps unchanged. */
 const styleOf = (
   entry: Extract<PaperSheetEntry, { kind: 'written' }>
-): { style?: PaperBoxStyle } =>
-  entry.style && entry.style !== 'lines' ? { style: entry.style } : {};
+): { style?: PaperBoxStyle; blanks?: number } => ({
+  ...(entry.style && entry.style !== 'lines' ? { style: entry.style } : {}),
+  ...(entry.blanks ? { blanks: entry.blanks } : {}),
+});
 
 /** Header then box, starting at `top`; the block leaves a bubble-sized gap before the next row. */
 function writtenBlock(
@@ -162,6 +167,22 @@ function promptBlock(
       ? room
       : Math.min(paperBoxLines(entry.size), room);
   return writtenBlock(entry, GRID_TOP_MM, lines, true, FULL_WIDTH, header);
+}
+
+/** The extra whole pages a multi-page box runs onto, after its first. */
+function continuationBlocks(
+  entry: Extract<PaperSheetEntry, { kind: 'written' }>
+): WrittenItem[] {
+  return Array.from({ length: paperBoxPages(entry.size) - 1 }, () => ({
+    ...writtenBlock(
+      entry,
+      GRID_TOP_MM,
+      PAPER_FULL_PAGE_LINES,
+      false,
+      FULL_WIDTH
+    ),
+    continued: true as const,
+  }));
 }
 
 /** Header rows a whole prompt needs at 11 pt, beside its figures when it has any. */
@@ -248,6 +269,7 @@ export function planPaperPages(
     if (current().length > 0) newPage();
     const lines = Math.min(paperBoxLines(entry.size), PAPER_FULL_PAGE_LINES);
     current().push(writtenBlock(entry, GRID_TOP_MM, lines, stems, FULL_WIDTH));
+    for (const block of continuationBlocks(entry)) pages.push([block]);
     // Nothing shares a page with it; the next entry starts a fresh one.
     cursor = Number.POSITIVE_INFINITY;
   };
@@ -269,6 +291,7 @@ export function planPaperPages(
       if (prompt !== undefined) {
         if (current().length > 0) newPage();
         current().push(promptBlock(entry, prompt));
+        for (const block of continuationBlocks(entry)) pages.push([block]);
         cursor = Number.POSITIVE_INFINITY;
         continue;
       }
@@ -408,6 +431,7 @@ function planQuestionTextPages(
     if (prompt !== undefined) {
       if (current().length > 0) newPage();
       current().push(promptBlock(entry, prompt));
+      for (const block of continuationBlocks(entry)) pages.push([block]);
       y = Number.POSITIVE_INFINITY;
       continue;
     }
@@ -422,6 +446,7 @@ function planQuestionTextPages(
           FULL_WIDTH
         )
       );
+      for (const block of continuationBlocks(entry)) pages.push([block]);
       // Nothing shares a page with it; the next entry starts a fresh one.
       y = Number.POSITIVE_INFINITY;
       continue;

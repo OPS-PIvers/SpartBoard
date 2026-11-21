@@ -51,6 +51,7 @@ import {
   loadVerifiedClassIds,
   unverifiedClassIds,
 } from './verifiedClassList';
+import { safeErr } from './safeLog';
 
 // Same named secrets as index.ts; Firebase params dedupes by name. The
 // CLASSLINK_* secrets power the ClassLink identity bridge: a Classroom student
@@ -438,7 +439,7 @@ export const classroomAddonNet = {
       // error rather than an unhandled rejection.
       console.warn(
         '[classroomAddon] getAddOnContext fetch failed (network/timeout):',
-        err
+        safeErr(err)
       );
       return { ok: false, status: 0, context: null };
     }
@@ -453,7 +454,10 @@ export const classroomAddonNet = {
       if (!res.ok) return null;
       return (await res.json()) as GoogleUserInfo;
     } catch (err) {
-      console.warn('[classroomAddonLoginV1] userinfo fetch failed:', err);
+      console.warn(
+        '[classroomAddonLoginV1] userinfo fetch failed:',
+        safeErr(err)
+      );
       return null;
     }
   },
@@ -527,7 +531,7 @@ export const classroomAddonNet = {
       // Network failure / timeout / abort → unverifiable; caller fails closed.
       console.warn(
         '[classroomAddon] verifyTeacherOfCourse fetch failed (network/timeout):',
-        err
+        safeErr(err)
       );
       return { ok: false, status: 0, isTeacher: false };
     }
@@ -587,7 +591,7 @@ export const classroomAddonNet = {
     } catch (err) {
       console.warn(
         '[createClassroomAttachment] addOnAttachments create failed:',
-        err
+        safeErr(err)
       );
       return { ok: false, status: 0, id: null };
     }
@@ -627,7 +631,7 @@ export const classroomAddonNet = {
     } catch (err) {
       console.warn(
         '[assignToClassroom] checkUserCapability fetch failed (network/timeout):',
-        err
+        safeErr(err)
       );
       return { ok: false, status: 0, allowed: null };
     }
@@ -660,7 +664,10 @@ export const classroomAddonNet = {
       const json = (await res.json()) as { id?: string };
       return { ok: true, status: res.status, id: json.id ?? null };
     } catch (err) {
-      console.warn('[assignToClassroom] courseWork.create failed:', err);
+      console.warn(
+        '[assignToClassroom] courseWork.create failed:',
+        safeErr(err)
+      );
       return { ok: false, status: 0, id: null };
     }
   },
@@ -697,7 +704,7 @@ export const classroomAddonNet = {
     } catch (err) {
       console.warn(
         '[assignToClassroom] courseWork.patch materials failed:',
-        err
+        safeErr(err)
       );
       return { ok: false, status: 0 };
     }
@@ -742,7 +749,7 @@ export const classroomAddonNet = {
     } catch (err) {
       console.warn(
         '[pushClassroomGrade] studentSubmissions.patch failed:',
-        err
+        safeErr(err)
       );
       return { ok: false, status: 0 };
     }
@@ -805,7 +812,7 @@ export const classroomAddonNet = {
     } catch (err) {
       console.warn(
         '[pushClassroomFinalGrade] studentSubmissions.list failed:',
-        err
+        safeErr(err)
       );
       return { ok: false, status: 0, submissionId: null, state: null };
     }
@@ -848,7 +855,7 @@ export const classroomAddonNet = {
     } catch (err) {
       console.warn(
         '[pushClassroomFinalGrade] studentSubmissions.patch failed:',
-        err
+        safeErr(err)
       );
       return { ok: false, status: 0 };
     }
@@ -892,7 +899,7 @@ export const classroomAddonNet = {
     } catch (err) {
       console.warn(
         '[pushClassroomFinalGrade] studentSubmissions.return failed:',
-        err
+        safeErr(err)
       );
       return { ok: false, status: 0 };
     }
@@ -1077,7 +1084,7 @@ export const classroomAddonLoginV1 = onCall(
       // fall back to the nameless pseudonym path.
       console.warn(
         '[classroomAddonLoginV1] ClassLink bridge failed; falling back:',
-        err
+        safeErr(err)
       );
     }
 
@@ -1157,7 +1164,7 @@ export const classroomAddonLoginV1 = onCall(
       // to grade-sync until they relaunch, even though logins look healthy.
       console.warn(
         '[classroomAddonLoginV1] grade_sync_key_persist_failed (non-fatal):',
-        err
+        safeErr(err)
       );
     }
 
@@ -1171,7 +1178,10 @@ export const classroomAddonLoginV1 = onCall(
         firstName: studentFirstName(info.given_name, info.name),
       });
     } catch (err) {
-      console.error('[classroomAddonLoginV1] createCustomToken failed:', err);
+      console.error(
+        '[classroomAddonLoginV1] createCustomToken failed:',
+        safeErr(err)
+      );
       throw new HttpsError('internal', 'Failed to mint auth token.');
     }
 
@@ -2311,7 +2321,7 @@ export const pushClassroomGradesForAssignment = onCall(
           // A per-entry Firestore/lookup error must not abort the rest.
           console.warn(
             '[pushClassroomGradesForAssignment] entry failed (non-fatal):',
-            err
+            safeErr(err)
           );
           return { pseudonymUid, ok: false, reason: 'lookup error' };
         }
@@ -2544,7 +2554,7 @@ export const pushClassroomFinalGradesForAssignment = onCall(
         } catch (err) {
           console.warn(
             '[pushClassroomFinalGradesForAssignment] entry failed (non-fatal):',
-            err
+            safeErr(err)
           );
           return { pseudonymUid, ok: false, reason: 'lookup error' };
         }

@@ -93,6 +93,8 @@ import {
   retryStorageCleanup,
   transcodeBufferToM4a,
   MAX_ARCHIVE_ATTEMPTS,
+  AudioTooLongError,
+  STUCK_ARCHIVE_AGE_MS,
   type ArchiveDeps,
 } from './quizMediaArchive';
 import { resolveOrgIdForDomain } from './classlinkShared';
@@ -1174,7 +1176,7 @@ describe('isQuizMediaResponseGranted', () => {
     ).resolves.toBe(true);
   });
 
-  it('grants beta via admin_settings/user_roles.superAdmins', async () => {
+  it('ignores the retired admin_settings/user_roles.superAdmins list', async () => {
     await expect(
       isQuizMediaResponseGranted(
         makeGateDb(BETA_RECORD, null, [], {
@@ -1183,7 +1185,7 @@ describe('isQuizMediaResponseGranted', () => {
         TEACHER_EMAIL,
         't1'
       )
-    ).resolves.toBe(true);
+    ).resolves.toBe(false);
   });
 
   it("grants beta via the org membership doc's super_admin roleId", async () => {
@@ -1358,6 +1360,78 @@ describe('giving up on an unarchivable artifact (INT-A / issue #2735)', () => {
     expect(entry.archiveStatus).toBe('lost');
     expect(entry.attemptCount).toBe(MAX_ARCHIVE_ATTEMPTS);
     expect(writes[writes.length - 1].hasStuckArchive).toBe(false);
+  });
+
+  it("settles a take that decodes past the length ceiling at 'lost' on the first attempt", async () => {
+    const { db, writes } = makeStubDb(baseSeed());
+    const deps = makeDeps(db, {
+      transcodeToM4a: vi.fn(() =>
+        Promise.reject(new AudioTooLongError('too long'))
+      ),
+    });
+    const error = await call(deps).catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: 'invalid-argument' });
+    expect(isLostArchiveError(error)).toBe(true);
+    expect(entryOf(writes)).toMatchObject({
+      archiveStatus: 'lost',
+      attemptCount: 1,
+    });
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
+  });
+
+  it('counts an abandoned claim when it is claimed again', async () => {
+    const abandonedAt = 1_700_000_000_000 - STUCK_ARCHIVE_AGE_MS - 1;
+    const { db, writes } = makeStubDb(
+      baseSeed({
+        response: {
+          artifactArchive: {
+            [ARTIFACT_ID]: {
+              archiveStatus: 'syncing',
+              archiveStartedAt: abandonedAt,
+              attemptCount: 1,
+            },
+          },
+        },
+      })
+    );
+    await call(makeDeps(db));
+    const claimWrite = writes.find(
+      (w) =>
+        (w.artifactArchive as Record<string, Record<string, unknown>>)?.[
+          ARTIFACT_ID
+        ]?.archiveStatus === 'syncing'
+    );
+    expect(
+      (claimWrite?.artifactArchive as Record<string, Record<string, unknown>>)[
+        ARTIFACT_ID
+      ].attemptCount
+    ).toBe(2);
+  });
+
+  it("settles a claim abandoned at the attempt cap at 'lost' without running it", async () => {
+    const abandonedAt = 1_700_000_000_000 - STUCK_ARCHIVE_AGE_MS - 1;
+    const { db, writes } = makeStubDb(
+      baseSeed({
+        response: {
+          artifactArchive: {
+            [ARTIFACT_ID]: {
+              archiveStatus: 'syncing',
+              archiveStartedAt: abandonedAt,
+              attemptCount: MAX_ARCHIVE_ATTEMPTS - 1,
+            },
+          },
+        },
+      })
+    );
+    const deps = makeDeps(db);
+    const error = await call(deps).catch((e: unknown) => e);
+    expect(isLostArchiveError(error)).toBe(true);
+    expect(entryOf(writes)).toMatchObject({
+      archiveStatus: 'lost',
+      attemptCount: MAX_ARCHIVE_ATTEMPTS,
+    });
+    expect(writes[writes.length - 1].hasStuckArchive).toBe(false);
+    expect(deps.downloadObject).not.toHaveBeenCalled();
   });
 
   it('does not tag a still-retryable failure as lost', async () => {

@@ -187,7 +187,35 @@ function inOutwardWindow(path: string, now: number): boolean {
   );
 }
 
-/** App-wide guard on raw Firestore writes: in an unlocked tab only audited saves and in-scope outward writes pass. */
+// Writes that stay local in a view-as tab even unlocked: boards are staged (D11), presence and seen markers are background (D6).
+const VIEW_AS_LOCAL_ONLY = [
+  /^users\/[^/]+\/dashboards(\/|$)/,
+  /^users\/[^/]+\/plc_state(\/|$)/,
+  /^plcs\/[^/]+\/presence(\/|$)/,
+];
+
+function isLocalOnlyPath(path: string): boolean {
+  return VIEW_AS_LOCAL_ONLY.some((re) => re.test(path));
+}
+
+// An unaudited write counts as the admin's own only this soon after they click or type in the tab (D6).
+const USER_ACTION_WINDOW_MS = 30_000;
+let lastUserActionAt = Number.NEGATIVE_INFINITY;
+
+export function noteViewAsUserAction(now: number = Date.now()): void {
+  lastUserActionAt = now;
+}
+
+if (isViewAsTab && typeof window !== 'undefined') {
+  for (const type of ['pointerdown', 'keydown'] as const) {
+    window.addEventListener(type, () => noteViewAsUserAction(), {
+      capture: true,
+      passive: true,
+    });
+  }
+}
+
+/** App-wide guard on raw Firestore writes: an unlocked tab writes what the admin does as the target, except local-only paths. */
 export function viewAsBlocksRawWrite(paths: readonly string[]): boolean {
   if (!isViewAsTab) return false;
   if (!state.unlocked || state.ended) {
@@ -195,6 +223,16 @@ export function viewAsBlocksRawWrite(paths: readonly string[]): boolean {
     return true;
   }
   if (auditedWriteDepth > 0) return false;
+  if (paths.length === 0 || paths.some(isLocalOnlyPath)) return true;
   const now = Date.now();
-  return paths.length === 0 || !paths.every((p) => inOutwardWindow(p, now));
+  if (paths.every((p) => inOutwardWindow(p, now))) return false;
+  return now - lastUserActionAt > USER_ACTION_WINDOW_MS;
+}
+
+/** True when a raw write the guard just let through has no audit of its own yet (D16). */
+export function viewAsRawWriteNeedsAudit(paths: readonly string[]): boolean {
+  if (!isViewAsTab || !state.unlocked || state.ended) return false;
+  if (auditedWriteDepth > 0) return false;
+  const now = Date.now();
+  return !paths.every((p) => inOutwardWindow(p, now));
 }

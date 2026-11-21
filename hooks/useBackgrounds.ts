@@ -1,5 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  type QuerySnapshot,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { BackgroundPreset } from '@/types';
@@ -31,90 +37,61 @@ export const useBackgrounds = () => {
   }
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || isAdmin === null) return;
 
+    let cancelled = false;
     const baseRef = collection(db, 'admin_backgrounds');
-    const unsubscribes: (() => void)[] = [];
+    const toPresets = (snap: QuerySnapshot) =>
+      snap.docs.map((d) => d.data() as BackgroundPreset);
+    const publish = (all: BackgroundPreset[]) => {
+      if (cancelled) return;
+      const unique = Array.from(new Map(all.map((b) => [b.id, b])).values());
+      setManagedBackgrounds(unique.sort((a, b) => b.createdAt - a.createdAt));
+    };
 
     if (isAdmin) {
       // Admins can query everything active without permission errors
-      const q = query(baseRef, where('active', '==', true));
-
-      unsubscribes.push(
-        onSnapshot(
-          q,
-          (snapshot) => {
-            const backgrounds: BackgroundPreset[] = [];
-            snapshot.forEach((doc) => {
-              backgrounds.push(doc.data() as BackgroundPreset);
-            });
-            setManagedBackgrounds(
-              backgrounds.sort((a, b) => b.createdAt - a.createdAt)
-            );
-          },
-          (error) => {
-            console.error('Error fetching admin backgrounds:', error);
-          }
-        )
-      );
+      getDocs(query(baseRef, where('active', '==', true)))
+        .then((snap) => publish(toPresets(snap)))
+        .catch((error) =>
+          console.error('Error fetching admin backgrounds:', error)
+        );
     } else {
       // Non-admins need separate queries to avoid reading restricted documents (admin-only)
-      // Per-subscription buffers so a previous user's results never leak in.
-      let publicBgs: BackgroundPreset[] = [];
-      let betaBgs: BackgroundPreset[] = [];
-      const updateCombinedBackgrounds = () => {
-        const all = [...publicBgs, ...betaBgs];
-        const unique = Array.from(new Map(all.map((b) => [b.id, b])).values());
-        setManagedBackgrounds(unique.sort((a, b) => b.createdAt - a.createdAt));
-      };
-
-      // Query 1: Public backgrounds
       const qPublic = query(
         baseRef,
         where('active', '==', true),
         where('accessLevel', '==', 'public')
       );
-
-      // Query 2: Beta backgrounds where the user is authorized
-      if (user.email) {
-        const qBeta = query(
-          baseRef,
-          where('active', '==', true),
-          where('accessLevel', '==', 'beta'),
-          where('betaUsers', 'array-contains', user.email.toLowerCase())
-        );
-
-        unsubscribes.push(
-          onSnapshot(
-            qBeta,
-            (snapshot) => {
-              betaBgs = snapshot.docs.map((d) => d.data() as BackgroundPreset);
-              updateCombinedBackgrounds();
-            },
-            (error) => {
-              console.error('Error fetching beta backgrounds:', error);
-              // Beta query errors are non-fatal; public backgrounds still load
-            }
+      const qBeta = user.email
+        ? query(
+            baseRef,
+            where('active', '==', true),
+            where('accessLevel', '==', 'beta'),
+            where('betaUsers', 'array-contains', user.email.toLowerCase())
           )
-        );
-      }
+        : null;
 
-      // Public backgrounds are always available
-      unsubscribes.push(
-        onSnapshot(
-          qPublic,
-          (snapshot) => {
-            publicBgs = snapshot.docs.map((d) => d.data() as BackgroundPreset);
-            updateCombinedBackgrounds();
-          },
-          (error) => {
-            console.error('Error fetching public backgrounds:', error);
-          }
-        )
-      );
+      // Beta query errors are non-fatal; public backgrounds still load
+      const betaLoad: Promise<BackgroundPreset[]> = qBeta
+        ? getDocs(qBeta)
+            .then(toPresets)
+            .catch((error) => {
+              console.error('Error fetching beta backgrounds:', error);
+              return [];
+            })
+        : Promise.resolve([]);
+
+      Promise.all([getDocs(qPublic).then(toPresets), betaLoad])
+        .then(([publicBgs, betaBgs]) => publish([...publicBgs, ...betaBgs]))
+        .catch((error) =>
+          console.error('Error fetching public backgrounds:', error)
+        );
     }
 
-    return () => unsubscribes.forEach((unsub) => unsub());
+    return () => {
+      cancelled = true;
+    };
   }, [user, isAdmin]);
 
   // Preload featured thumbnails first, then fill up to 20 with non-featured.

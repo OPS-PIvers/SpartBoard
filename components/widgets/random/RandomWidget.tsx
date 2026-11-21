@@ -6,6 +6,7 @@ import React, {
   useCallback,
   useLayoutEffect,
 } from 'react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useBoardTriggerClaim } from '@/hooks/useBoardTriggerClaim';
@@ -99,7 +100,7 @@ import {
 import { teamsFromGroups } from '@/components/widgets/Scoreboard/groupTeams';
 import { usesLegacyToggles } from '@/utils/legacyConnections';
 import { useNamesFromStations } from './useNamesFromStations';
-import { useAuth } from '@/context/useAuth';
+import { inferRandomRosterId, randomRosterId } from './widgetRoster';
 
 import { WidgetLayout } from '../WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -140,6 +141,17 @@ const MODE_CYCLE: readonly ModeCycleEntry[] = [
   },
 ];
 
+// What a class or pool change wipes, so one class's draw never shows under another.
+const CLEARED_DRAW: Partial<RandomConfig> = {
+  lastResult: null,
+  remainingStudents: [],
+  jigsawHomeGroups: null,
+  jigsawExpertGroups: null,
+  jigsawView: 'home',
+  lockedNames: [],
+  unassignedNames: [],
+};
+
 export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { t } = useTranslation();
   const {
@@ -150,6 +162,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     rosters,
     activeRosterId,
     activeDashboard,
+    isActiveBoardReadOnly,
+    setActiveRoster,
   } = useDashboard();
   const rosterGroupsEnabled = useRosterGroupsGate();
   const config = widget.config as RandomConfig;
@@ -186,8 +200,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     () => (Array.isArray(config.doneNames) ? config.doneNames : []),
     [config.doneNames]
   );
-  const { canAccessFeature } = useAuth();
-  const connectionsOn = canAccessFeature('widget-connections');
+  const connectionsOn = useConnectionsEnabled();
   useNamesFromStations(widget, connectionsOn);
   const avoidRecentPartners = config.avoidRecentPartners === true;
   // Read in the deferred pick callback; a migrated widget's auto-start became a Sequence.
@@ -320,32 +333,51 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   }
 
+  const widgetRosterId = randomRosterId(config, rosters, activeRosterId);
+  const rosterPinned = typeof config.rosterId === 'string';
+  // The saved choice, not the resolved one: a class this user can't see (a collaborator, a copied board) must not wipe the draw.
+  const savedRosterId = config.rosterId ?? activeRosterId;
+
   // Track active roster to only clear when it actually changes
   const lastRosterRef = useRef<{
     id: string | null;
     mode: string;
     pool: string | null;
+    pinned: boolean;
   }>({
-    id: activeRosterId,
+    id: savedRosterId,
     mode: rosterMode,
     pool: rosterPoolGroupId,
+    pinned: rosterPinned,
   });
+
+  // An older widget follows the board's class; pin it to the class its groups came from.
+  useEffect(() => {
+    if (rosterPinned || rosterMode !== 'class') return;
+    const inferred = inferRandomRosterId(config, rosters);
+    if (inferred) {
+      updateWidget(widget.id, { config: { rosterId: inferred } });
+    }
+  }, [rosterPinned, rosterMode, config, rosters, updateWidget, widget.id]);
 
   // Clear session data when active roster changes to avoid cross-contamination.
   // Narrowing the pool counts as a change: a half-drawn pick-one round or a
   // stale group grid would still hold students the pool no longer includes.
   useEffect(() => {
+    // Pinning an older widget to the class it already shows is not a class change.
+    const justPinned = rosterPinned && !lastRosterRef.current.pinned;
     const changed =
-      activeRosterId !== lastRosterRef.current.id ||
+      (savedRosterId !== lastRosterRef.current.id && !justPinned) ||
       rosterMode !== lastRosterRef.current.mode ||
       rosterPoolGroupId !== lastRosterRef.current.pool;
+    lastRosterRef.current = {
+      id: savedRosterId,
+      mode: rosterMode,
+      pool: rosterPoolGroupId,
+      pinned: rosterPinned,
+    };
 
     if (changed) {
-      lastRosterRef.current = {
-        id: activeRosterId,
-        mode: rosterMode,
-        pool: rosterPoolGroupId,
-      };
       // Only write when there is actually transient state to clear —
       // otherwise every roster swap costs a Firestore round-trip.
       const hasTransientState =
@@ -357,22 +389,14 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         (config.unassignedNames?.length ?? 0) > 0;
       if (hasTransientState) {
         spinGenRef.current += 1;
-        const update: Partial<RandomConfig> = {
-          lastResult: null,
-          remainingStudents: [],
-          jigsawHomeGroups: null,
-          jigsawExpertGroups: null,
-          jigsawView: 'home',
-          lockedNames: [],
-          unassignedNames: [],
-        };
-        updateWidget(widget.id, { config: update });
+        updateWidget(widget.id, { config: { ...CLEARED_DRAW } });
         // eslint-disable-next-line react-hooks/set-state-in-effect -- clears local jigsaw state when the roster changes
         setLocalJigsaw(null);
       }
     }
   }, [
-    activeRosterId,
+    savedRosterId,
+    rosterPinned,
     widget.id,
     updateWidget,
     config,
@@ -384,8 +408,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const claimTrigger = useBoardTriggerClaim(widget.id);
 
   const activeRoster = useMemo(
-    () => rosters.find((r) => r.id === activeRosterId),
-    [rosters, activeRosterId]
+    () => rosters.find((r) => r.id === widgetRosterId),
+    [rosters, widgetRosterId]
   );
 
   const presentClassStudents = useMemo<Student[]>(() => {
@@ -583,6 +607,25 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     },
     [updateWidget, widget.id]
   );
+
+  // Picking a class here sets this widget's class only, never the board's.
+  const handleSelectClass = (rosterId: string, groupId: string | null) => {
+    // A view-only board can't save widget config, so switch the viewer's own class instead.
+    if (isActiveBoardReadOnly) {
+      if (rosterId !== widgetRosterId) setActiveRoster(rosterId);
+      return;
+    }
+    const update: Partial<RandomConfig> = {
+      rosterId,
+      rosterPoolGroupId: groupId,
+    };
+    if (rosterId !== widgetRosterId) {
+      spinGenRef.current += 1;
+      Object.assign(update, CLEARED_DRAW);
+      setLocalJigsaw(null);
+    }
+    updateWidget(widget.id, { config: update });
+  };
 
   const handleReset = () => {
     spinGenRef.current += 1;
@@ -1113,6 +1156,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const handlePick = async () => {
     if (students.length === 0) return;
+    if (rosterMode === 'class' && !rosterPinned && activeRoster) {
+      updateWidget(widget.id, { config: { rosterId: activeRoster.id } });
+    }
     // Sync guard: state is stale across the audio-resume await below.
     if (spinningRef.current) return;
     spinningRef.current = true;
@@ -2093,6 +2139,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               <RandomClassContextButton
                 roster={activeRoster}
                 rosterMode={rosterMode}
+                onSelectClass={handleSelectClass}
                 onOpenAbsentModal={() => setAbsentModalOpen(true)}
                 widgetId={widget.id}
                 {...(rosterGroupsEnabled

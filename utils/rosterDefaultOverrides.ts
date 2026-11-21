@@ -6,6 +6,9 @@
 
 import type { StudentOverride } from '@/types';
 
+/** Three-state switches where `false` means "Allow" rather than cleared. */
+const TRI_STATE_KEYS = new Set<string>(['blockCopyPaste']);
+
 /**
  * True when an override carries no active accommodation. The editor patches
  * fields to `undefined` when cleared, so a "cleared" override is an object of
@@ -15,9 +18,10 @@ export const isEmptyStudentOverride = (
   override: StudentOverride | undefined
 ): boolean => {
   if (!override) return true;
-  const values: unknown[] = Object.values(override);
-  return values.every((value) => {
-    if (value === undefined || value === null || value === false) return true;
+  const entries: Array<[string, unknown]> = Object.entries(override);
+  return entries.every(([key, value]) => {
+    if (value === undefined || value === null) return true;
+    if (value === false) return !TRI_STATE_KEYS.has(key);
     if (Array.isArray(value)) return value.length === 0;
     if (typeof value === 'object') return Object.keys(value).length === 0;
     return false;
@@ -33,7 +37,8 @@ const compactStudentOverride = (override: StudentOverride): StudentOverride => {
   const entries: Array<[string, unknown]> = Object.entries(override);
   for (const [key, value] of entries) {
     if (WINDOW_SHIFT_KEYS.has(key)) continue;
-    if (value === undefined || value === false) continue;
+    if (value === undefined) continue;
+    if (value === false && !TRI_STATE_KEYS.has(key)) continue;
     if (Array.isArray(value) && value.length === 0) continue;
     if (
       value !== null &&
@@ -61,5 +66,97 @@ export const setRosterDefaultOverride = (
   const result = { ...overrides };
   if (isEmptyStudentOverride(next)) delete result[studentId];
   else result[studentId] = compactStudentOverride(next);
+  return result;
+};
+
+/** A list field a group edits item by item. */
+const LIST_KEY = 'supports';
+const MAX_LIST_ITEMS = 5;
+
+const sameValue = (a: unknown, b: unknown) =>
+  JSON.stringify(a) === JSON.stringify(b);
+
+/** The settings every listed student has in common; what a group's row shows. */
+export const sharedStudentOverride = (
+  overrides: Record<string, StudentOverride>,
+  studentIds: string[]
+): StudentOverride => {
+  if (studentIds.length === 0) return {};
+  const [first, ...rest] = studentIds.map((id) =>
+    compactStudentOverride(overrides[id] ?? {})
+  );
+  const shared: Record<string, unknown> = {};
+  const entries: Array<[string, unknown]> = Object.entries(first);
+  for (const [key, value] of entries) {
+    if (key === LIST_KEY) {
+      // Supports each member has, so a group edit adds or removes items without replacing anyone's own.
+      const common = (value as unknown[]).filter((item) =>
+        rest.every((o) =>
+          (o.supports ?? []).some((other) => sameValue(other, item))
+        )
+      );
+      if (common.length > 0) shared[key] = common;
+      continue;
+    }
+    if (
+      rest.every((o) => sameValue((o as Record<string, unknown>)[key], value))
+    )
+      shared[key] = value;
+  }
+  return shared;
+};
+
+/** Applies a group-level edit: each setting that changed is set on every listed student, the rest stay theirs. */
+export const applyGroupOverride = (
+  overrides: Record<string, StudentOverride>,
+  studentIds: string[],
+  next: StudentOverride
+): Record<string, StudentOverride> => {
+  const prev: Record<string, unknown> = {
+    ...sharedStudentOverride(overrides, studentIds),
+  };
+  const after: Record<string, unknown> = { ...next };
+  const changed = [...new Set([...Object.keys(prev), ...Object.keys(after)])]
+    .filter((key) => !WINDOW_SHIFT_KEYS.has(key))
+    .filter((key) => !sameValue(prev[key], after[key]));
+  if (changed.length === 0) return overrides;
+  let result = overrides;
+  const before = (prev[LIST_KEY] as unknown[] | undefined) ?? [];
+  const now = (after[LIST_KEY] as unknown[] | undefined) ?? [];
+  const added = now.filter((x) => !before.some((y) => sameValue(x, y)));
+  const removed = before.filter((x) => !now.some((y) => sameValue(x, y)));
+  for (const id of studentIds) {
+    const own: Record<string, unknown> = { ...(result[id] ?? {}) };
+    for (const key of changed) {
+      if (key !== LIST_KEY) {
+        own[key] = after[key];
+        continue;
+      }
+      const mine = ((own[key] as unknown[] | undefined) ?? []).filter(
+        (x) => !removed.some((y) => sameValue(x, y))
+      );
+      // Same cap as the editor and the server, so no one silently loses a group support.
+      own[key] = [
+        ...mine,
+        ...added.filter((x) => !mine.some((y) => sameValue(x, y))),
+      ].slice(0, MAX_LIST_ITEMS);
+    }
+    result = setRosterDefaultOverride(result, id, own);
+  }
+  return result;
+};
+
+/** Applies only the students that differ between `base` and `edited` onto `latest`, so edits made elsewhere meanwhile survive. */
+export const mergeOverrideEdits = (
+  latest: Record<string, StudentOverride>,
+  base: Record<string, StudentOverride>,
+  edited: Record<string, StudentOverride>
+): Record<string, StudentOverride> => {
+  const result = { ...latest };
+  for (const id of new Set([...Object.keys(base), ...Object.keys(edited)])) {
+    if (sameValue(base[id], edited[id])) continue;
+    if (edited[id] === undefined) delete result[id];
+    else result[id] = edited[id];
+  }
   return result;
 };

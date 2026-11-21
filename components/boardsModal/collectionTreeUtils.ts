@@ -26,6 +26,28 @@ export const buildChildrenByParent = (
     m.set(null, rootBucket);
   }
 
+  // Parent cycles (two-tab races) are unreachable from root; hoist one member per cycle to root.
+  const reached = new Set<string>();
+  const markFrom = (parent: string | null) => {
+    for (const k of m.get(parent) ?? []) {
+      if (reached.has(k.id)) continue;
+      reached.add(k.id);
+      markFrom(k.id);
+    }
+  };
+  markFrom(null);
+  for (const c of [...collections].sort((a, b) => a.order - b.order)) {
+    if (reached.has(c.id)) continue;
+    const bucket = m.get(c.parentCollectionId);
+    const idx = bucket ? bucket.indexOf(c) : -1;
+    if (idx !== -1) bucket?.splice(idx, 1);
+    const rootBucket = m.get(null) ?? [];
+    rootBucket.push(c);
+    m.set(null, rootBucket);
+    reached.add(c.id);
+    markFrom(c.id);
+  }
+
   for (const bucket of m.values()) {
     bucket.sort((a, b) => a.order - b.order);
   }

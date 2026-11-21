@@ -17,6 +17,10 @@ import type { StudentPagePreviewItem } from '@/utils/studentPagePreviewLoad';
 import { buildStudentViewSession } from '@/utils/quizStudentViewSession';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
 import { makeQuizData } from './sessionViewsMocks';
+import {
+  FIXTURE_CLASS_PAGES,
+  fixtureEmbedUrl,
+} from './classPageAgendaFixtures';
 
 const CLASS_ID = 'mock-period-1';
 const HOUR = 60 * 60 * 1000;
@@ -212,5 +216,23 @@ export const ClassStudentPageDevHarness: React.FC = () => (
     tabAwayTimerOn={false}
     onClose={() => undefined}
     loadItem={(_kind, sessionId) => Promise.resolve(item(sessionId))}
+    classPage={
+      new URLSearchParams(window.location.search).get('agenda') === '1'
+        ? FIXTURE_CLASS_PAGES.bio
+        : undefined
+    }
+    agendaEmbedUrlFor={fixtureEmbedUrl}
+    sectionPicker={
+      new URLSearchParams(window.location.search).get('sections') === '1'
+        ? {
+            sections: [
+              ROSTER,
+              { ...ROSTER, id: 'r2', name: 'Sample - Mock Period 3 (TEST)' },
+            ],
+            value: ROSTER.id,
+            onChange: () => undefined,
+          }
+        : undefined
+    }
   />
 );

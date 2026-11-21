@@ -6,7 +6,7 @@
 // map keyed by uid since its submissions ARE keyed by the resolved pseudonym.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { newlyRequestedLocales } from '@/utils/quizTranslationAdvisory';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -199,7 +199,7 @@ export const AssignmentDetailPane: React.FC<{
       const next = applyWindowEdit(
         draft,
         row,
-        row.kind === 'quiz',
+        row.kind === 'quiz' || row.kind === 'writing',
         rowWorkKind(row)
       );
       const result = await saveEdit(row, user.uid, next, classContext);
@@ -688,6 +688,7 @@ export const AssignmentDetailPane: React.FC<{
               }
               availabilityEachClass={false}
               readAloudAvailable={readAloudAvailable}
+              speechToTextAvailable={canAccessFeature('speech-to-text')}
             />
             {!classContext && (
               <p className="text-xs text-slate-500">
@@ -707,7 +708,7 @@ export const AssignmentDetailPane: React.FC<{
                   count: entry.names.length,
                   others: entry.names.length - 1,
                   name: entry.names[0],
-                  language: languageNativeLabel(entry.locale),
+                  language: languageDisplayLabel(entry.locale),
                 })}
               </p>
             ))}

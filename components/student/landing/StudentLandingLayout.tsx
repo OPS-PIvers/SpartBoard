@@ -14,6 +14,7 @@ import {
   type DoneItem,
   type LandingPartition,
 } from '@/utils/studentLanding';
+import { StudentBrandBackdrop } from '../StudentBrandBackdrop';
 import { LandingClassList } from './LandingClassList';
 import { LandingClassView } from './LandingClassView';
 import { landingTabs, panelId } from './tabs';
@@ -44,6 +45,8 @@ export interface StudentLandingLayoutProps {
   notice?: React.ReactNode;
   /** Fill the parent box instead of the viewport (admin preview). */
   embedded?: boolean;
+  /** Shown above the selected class's tabs: its Agenda and pinned links. */
+  classTop?: React.ReactNode;
 }
 
 const SignOutButton: React.FC<{
@@ -85,6 +88,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
   onOpenGradeOnly,
   notice,
   embedded = false,
+  classTop,
 }) => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const sheetTriggerRef = useRef<HTMLButtonElement>(null);
@@ -104,8 +108,9 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
   );
   const doneCount = useMemo(() => {
     if (!classPartition) return 0;
-    if (!gradesEnabled || grades?.status !== 'ready')
-      return classPartition.done.length;
+    if (!gradesEnabled) return classPartition.done.length;
+    if (grades?.status !== 'ready')
+      return classPartition.done.length + classPartition.expired.length;
     return gradebookItems(classPartition, studentGradeRows(grades.data)).length;
   }, [classPartition, gradesEnabled, grades]);
 
@@ -134,8 +139,9 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
     };
   }, [sheetOpen]);
 
-  const classList = (
+  const classList = (tone: 'light' | 'dark') => (
     <LandingClassList
+      tone={tone}
       classes={classes}
       partition={partition}
       inSessionIds={inSessionIds}
@@ -151,42 +157,47 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
         embedded ? 'h-full w-full' : 'h-screen h-dvh w-screen'
       }`}
     >
-      <header className="flex h-[60px] shrink-0 items-center gap-3 bg-brand-blue-primary px-4 text-white min-[896px]:h-[68px] min-[896px]:px-6">
-        <span
-          aria-hidden="true"
-          className="hidden h-9 w-9 items-center justify-center rounded-xl bg-white/15 min-[896px]:inline-flex"
-        >
-          <GraduationCap className="h-5 w-5" strokeWidth={2.25} />
-        </span>
-        <span className="hidden text-lg font-bold tracking-tight min-[896px]:inline">
-          {APP_NAME}
-        </span>
+      <header className="flex h-[60px] shrink-0 items-center gap-3 bg-brand-blue-dark px-4 text-white min-[896px]:hidden">
         <button
           ref={sheetTriggerRef}
           type="button"
           onClick={() => setSheetOpen(true)}
           aria-haspopup="dialog"
           aria-expanded={sheetOpen}
-          className="inline-flex min-h-[44px] min-w-0 items-center gap-1.5 rounded-xl px-2 py-1.5 text-left transition hover:bg-white/10 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white min-[896px]:hidden"
+          className="inline-flex min-h-[44px] min-w-0 items-center gap-1.5 rounded-xl px-2 py-1.5 text-left transition hover:bg-white/10 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white"
         >
           <span className="truncate text-base font-bold">
             {selected?.name ?? 'Overview'}
           </span>
           <ChevronDown className="h-4 w-4 shrink-0" aria-hidden="true" />
         </button>
-        <span className="ml-auto hidden items-center gap-3 text-sm text-white/90 min-[896px]:flex">
-          {firstName && <span>{firstName}</span>}
-          <SignOutButton onClick={onSignOut} tone="dark" />
-        </span>
       </header>
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-3 pb-6 min-[896px]:block">
-          {classList}
+      <div className="relative flex min-h-0 flex-1">
+        <StudentBrandBackdrop fixed={false} />
+        <aside className="relative hidden w-64 shrink-0 flex-col bg-brand-blue-dark text-white min-[896px]:flex">
+          <div className="flex h-[68px] shrink-0 items-center gap-2.5 px-4">
+            <span
+              aria-hidden="true"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/10"
+            >
+              <GraduationCap className="h-5 w-5" strokeWidth={2.25} />
+            </span>
+            <span className="truncate text-lg font-bold tracking-tight">
+              {APP_NAME}
+            </span>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
+            {classList('dark')}
+          </div>
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-white/10 px-4 py-3 text-sm text-white/70">
+            <span className="truncate">{firstName ?? ''}</span>
+            <SignOutButton onClick={onSignOut} tone="dark" />
+          </div>
         </aside>
         <main
           ref={mainRef}
-          className="min-w-0 flex-1 overflow-y-auto px-4 pb-10 pt-5 min-[896px]:px-8 min-[896px]:pt-7"
+          className="relative min-w-0 flex-1 overflow-y-auto px-4 pb-10 pt-5 min-[896px]:px-8 min-[896px]:pt-7"
         >
           <div className="mx-auto max-w-3xl">
             {notice}
@@ -206,6 +217,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
                 pseudonymUid={pseudonymUid}
                 onLockedClick={onLockedClick}
                 onOpenGradeOnly={onOpenGradeOnly}
+                classTop={classTop}
               />
             ) : (
               <LandingOverview
@@ -270,7 +282,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
               aria-hidden="true"
               className="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-300"
             />
-            {classList}
+            {classList('light')}
             <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 px-2.5 pt-3 text-sm text-slate-600">
               <span className="truncate">{firstName ?? ''}</span>
               <SignOutButton onClick={onSignOut} tone="light" />

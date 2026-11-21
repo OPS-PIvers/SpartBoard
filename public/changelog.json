@@ -1,6 +1,184 @@
 {
   "entries": [
     {
+      "version": "2026.11.20.1",
+      "date": "2026-11-20",
+      "title": "Quiz modifications and widget defaults",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "Assigning a quiz has a Modifications step. Give selected students extra time or fewer answer choices."
+            },
+            {
+              "text": "Add supports for those students, like a text, a link or a Drive file. A question can also have a modified version with simpler wording."
+            },
+            {
+              "text": "Reopen a finished quiz for only the students you select. Students who did not turn it in are listed first."
+            },
+            {
+              "text": "Preview a picture, passage or PDF from the question it is attached to."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Widgets",
+          "items": [
+            {
+              "text": "Save a widget's settings as your default. Open its settings, go to Style and select Save as my default. New copies of that widget start with your settings."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Video Activity",
+          "items": [
+            {
+              "text": "When you publish scores as Score only, students no longer see which answers were right or wrong."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
+      "version": "2026.11.19.1",
+      "date": "2026-11-19",
+      "title": "Flashcard pictures and answers",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Flashcards",
+          "items": [
+            {
+              "text": "Add a picture to either side of a card. Paste it, drop it in or pick a file. The picture is saved in your Google Drive."
+            },
+            {
+              "text": "Each accepted answer on a card gets its own row. Shorthand like el/la doctor/a spells out into a row for each answer."
+            },
+            {
+              "text": "When a card has more than one answer, study cards show the first one big. The other answers sit smaller below it."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
+      "version": "2026.11.17.2",
+      "date": "2026-11-17",
+      "title": "Connect widgets",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Board",
+          "items": [
+            {
+              "text": "Connect widgets so one starts or changes another. Tap Connect on a widget, add the steps, and SpartBoard runs them in order, like a timer that picks the next name when it ends. Links you set up before, like a timer that changes the traffic light, became Connections on their own."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
+      "version": "2026.11.17.1",
+      "date": "2026-11-17",
+      "title": "Share link checks, class lists and extra answers",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "When a student answers more questions than a section asks for, you pick which answers count in Results. The score, gradebook and printout update to match."
+            },
+            {
+              "text": "Math in an imported test, like fractions, powers and roots, comes in drawn the way it looks on paper."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Sharing",
+          "items": [
+            {
+              "text": "A share link asks before it imports and shows who shared it. Cancel imports nothing."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Assignments",
+          "items": [
+            {
+              "text": "An assignment given to several classes shows how many classes. Click it to see the full list."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Google Classroom",
+          "items": [
+            {
+              "text": "Assign to Google Classroom is in each quiz and video activity assignment's menu. It posts with your due date, and published scores go to Classroom when your account allows."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Improvements",
+          "items": [
+            {
+              "text": "Dropdowns and date and time fields open SpartBoard's own lists, which work the same with a mouse, a keyboard or a finger."
+            },
+            {
+              "text": "Quizzes and rubrics you make with Claude show as a preview card in the chat. You can ask for a change to a question right from the card."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
+      "version": "2026.11.17",
+      "date": "2026-11-17",
+      "title": "Quiz points, calmer quizzes and late work",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "Quiz results show points earned out of points possible, with the percent underneath."
+            },
+            {
+              "text": "Quizzes no longer use game extras like speed bonus, streaks, the podium and sound effects. Review games keep them."
+            },
+            {
+              "text": "If you publish scores while a quiz is still open, SpartBoard asks first. End & Publish Scores closes the quiz as it publishes."
+            },
+            {
+              "text": "Grade Free Response lists students Last, First, and you can drag the pane edges to resize them."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Assigning",
+          "items": [
+            {
+              "text": "A Manual due date can allow late work. Students can still turn work in after the due date, and it shows as Late."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.11.15.3",
       "date": "2026-11-15",
       "title": "Quiz explanations, DOK levels and new blank types",
@@ -2759,6 +2937,253 @@
     }
   ],
   "widgetNotes": [
+    {
+      "id": "quiz-modifications-2026-11-20c",
+      "widget": "quiz",
+      "date": "2026-11-20",
+      "text": "Assigning a quiz has a Modifications step. Give selected students extra time or fewer answer choices."
+    },
+    {
+      "id": "quiz-reopen-selected-2026-11-20c",
+      "widget": "quiz",
+      "date": "2026-11-20",
+      "text": "Reopen a finished quiz for only the students you select."
+    },
+    {
+      "id": "quiz-stimulus-preview-2026-11-20c",
+      "widget": "quiz",
+      "date": "2026-11-20",
+      "text": "Preview a picture, passage or PDF from the question it is attached to."
+    },
+    {
+      "id": "quiz-word-bank-2026-11-20c",
+      "widget": "quiz",
+      "date": "2026-11-20",
+      "text": "Add a word bank to a question. Students tap a word to fill a blank.",
+      "feature": "quiz-word-bank"
+    },
+    {
+      "id": "quiz-random-numbers-2026-11-20c",
+      "widget": "quiz",
+      "date": "2026-11-20",
+      "text": "Fill in the Blank questions can use random numbers. Each student gets their own numbers.",
+      "feature": "quiz-random-numbers"
+    },
+    {
+      "id": "quiz-stimulus-picker-2026-11-20c",
+      "widget": "quiz",
+      "date": "2026-11-20",
+      "text": "Attach stimuli in a dialog. Pick one from the list and see a preview beside it.",
+      "feature": "quiz-stimulus-picker"
+    },
+    {
+      "id": "video-activity-score-only-2026-11-20c",
+      "widget": "video-activity",
+      "date": "2026-11-20",
+      "text": "When you publish scores as Score only, students no longer see which answers were right or wrong."
+    },
+    {
+      "id": "writing-peer-review-2026-11-20c",
+      "widget": "writing",
+      "date": "2026-11-20",
+      "text": "Pair students to review each other's writing. Partners can read, comment or suggest edits.",
+      "feature": "writing-peer-review"
+    },
+    {
+      "id": "weather-feels-like-2026-11-20c",
+      "widget": "weather",
+      "date": "2026-11-20",
+      "text": "The message, picture and clothing tip follow the Feels Like temperature."
+    },
+    {
+      "id": "random-own-class-2026-11-20c",
+      "widget": "random",
+      "date": "2026-11-20",
+      "text": "Group Maker keeps its own class when the board's class changes."
+    },
+    {
+      "id": "quiz-blank-submit-2026-11-20",
+      "widget": "quiz",
+      "date": "2026-11-20",
+      "text": "Students can turn in a quiz with blank answers. They see a warning first."
+    },
+    {
+      "id": "quiz-assigned-bulk-2026-11-20",
+      "widget": "quiz",
+      "date": "2026-11-20",
+      "text": "Select several assignments on the Assigned tab. Close them, publish scores or delete them together.",
+      "feature": "assigned-tab"
+    },
+    {
+      "id": "quiz-print-results-2026-11-20",
+      "widget": "quiz",
+      "date": "2026-11-20",
+      "text": "Print results has Settings and Students tabs. Pick students by course and class.",
+      "feature": "results-print-v2"
+    },
+    {
+      "id": "quiz-recap-all-options-2026-11-20",
+      "widget": "quiz",
+      "date": "2026-11-20",
+      "text": "Published results show every answer option. The student's pick is marked right or wrong.",
+      "feature": "quiz-recap-all-options"
+    },
+    {
+      "id": "video-activity-assigned-bulk-2026-11-20",
+      "widget": "video-activity",
+      "date": "2026-11-20",
+      "text": "Select several assignments on the Assigned tab. Close them or delete them together.",
+      "feature": "assigned-tab"
+    },
+    {
+      "id": "flashcards-assigned-bulk-2026-11-20",
+      "widget": "flashcards",
+      "date": "2026-11-20",
+      "text": "Select several assignments on the Assigned tab. Close them or delete them together.",
+      "feature": "assigned-tab"
+    },
+    {
+      "id": "guided-learning-assigned-bulk-2026-11-20",
+      "widget": "guided-learning",
+      "date": "2026-11-20",
+      "text": "Select several assignments on the Assigned tab. Close them or delete them together.",
+      "feature": "assigned-tab"
+    },
+    {
+      "id": "miniapp-assigned-bulk-2026-11-20",
+      "widget": "miniApp",
+      "date": "2026-11-20",
+      "text": "Select several assignments on the Assigned tab. Close them or delete them together.",
+      "feature": "assigned-tab"
+    },
+    {
+      "id": "writing-assigned-bulk-2026-11-20",
+      "widget": "writing",
+      "date": "2026-11-20",
+      "text": "Select several assignments on the Assigned tab. Close them or delete them together.",
+      "feature": "assigned-tab"
+    },
+    {
+      "id": "quiz-question-audio-2026-11-19",
+      "widget": "quiz",
+      "date": "2026-11-19",
+      "text": "Record your voice for a question. Students select Play audio to hear it.",
+      "feature": "quiz-question-audio"
+    },
+    {
+      "id": "quiz-speech-to-text-2026-11-19",
+      "widget": "quiz",
+      "date": "2026-11-19",
+      "text": "Turn on Speech to text for a student. They can dictate their written answers.",
+      "feature": "speech-to-text"
+    },
+    {
+      "id": "writing-speech-to-text-2026-11-19",
+      "widget": "writing",
+      "date": "2026-11-19",
+      "text": "Turn on Speech to text for a student. They can dictate their writing.",
+      "feature": "speech-to-text"
+    },
+    {
+      "id": "activity-wall-text-switch-2026-11-19",
+      "widget": "activity-wall",
+      "date": "2026-11-19",
+      "text": "You can turn off Text on a wall. Students then post only the types you leave on."
+    },
+    {
+      "id": "flashcards-card-images-2026-11-19",
+      "widget": "flashcards",
+      "date": "2026-11-19",
+      "text": "Add a picture to either side of a card. Paste it, drop it in or pick a file."
+    },
+    {
+      "id": "flashcards-answer-rows-2026-11-19",
+      "widget": "flashcards",
+      "date": "2026-11-19",
+      "text": "Each accepted answer gets its own row. Shorthand like el/la doctor/a spells out into a row for each answer."
+    },
+    {
+      "id": "quiz-assign-order-2026-11-19",
+      "widget": "quiz",
+      "date": "2026-11-19",
+      "text": "Assign steps now follow a new order. What students see is now called Results."
+    },
+    {
+      "id": "schedule-lines-now-2026-11-19",
+      "widget": "schedule",
+      "date": "2026-11-19",
+      "text": "In the lines style, the current period is a solid band. Icons now match your font color in every style."
+    },
+    {
+      "id": "quiz-rubric-grading-2026-11-17",
+      "widget": "quiz",
+      "date": "2026-11-17",
+      "text": "Grade with a rubric in one tap per criterion, and open the full rubric table while you grade.",
+      "feature": "rubric-grading-v2"
+    },
+    {
+      "id": "quiz-paper-fill-in-blank-2026-11-17",
+      "widget": "quiz",
+      "date": "2026-11-17",
+      "text": "Fill-in-the-blank questions now print on paper answer sheets with a line for each blank, and are scored when you import the sheets.",
+      "feature": "paper-handwritten-responses"
+    },
+    {
+      "id": "time-tool-connect-2026-11-17",
+      "widget": "time-tool",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "random-connect-2026-11-17",
+      "widget": "random",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "nextUp-connect-2026-11-17",
+      "widget": "nextUp",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "stations-connect-2026-11-17",
+      "widget": "stations",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "sound-connect-2026-11-17",
+      "widget": "sound",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "music-connect-2026-11-17",
+      "widget": "music",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "quiz-assign-to-classroom-2026-11-17",
+      "widget": "quiz",
+      "feature": "google-classroom",
+      "date": "2026-11-17",
+      "text": "Assign to Google Classroom is in each assignment's menu. It posts with your due date, and published scores go to Classroom when your account allows."
+    },
+    {
+      "id": "video-activity-assign-to-classroom-2026-11-17",
+      "widget": "video-activity",
+      "feature": "google-classroom",
+      "date": "2026-11-17",
+      "text": "Assign to Google Classroom is in each assignment's menu. It posts with your due date, and published scores go to Classroom when your account allows."
+    },
+    {
+      "id": "quiz-pick-counted-2026-11-17",
+      "widget": "quiz",
+      "date": "2026-11-17",
+      "text": "If a student answers more questions than a section asks for, Results shows Answered extra and you pick which answers count."
+    },
     {
       "id": "quiz-answer-keyboards-2026-11-15",
       "widget": "quiz",

@@ -1,5 +1,6 @@
 import type { QuizQuestion } from '@/types';
 import { groupAnswersByOption } from '@/utils/quizQuestionDrilldown';
+import { normalizeAnswer } from '@/hooks/useQuizSession';
 import { displayFibAnswer } from '@/utils/quizFibBlanks';
 
 export interface AnswerDistributionRow {
@@ -39,17 +40,29 @@ export function distributionFromAnswers<Q extends DistributionQuestion>(
 /** Bar rows for one question across responses; a response without an answer is not counted. */
 export function buildDistribution<
   Q extends DistributionQuestion & { id: string },
+  R extends {
+    answers: readonly { questionId: string; answer: string }[];
+  },
 >(
   question: Q,
-  responses: readonly {
-    answers: readonly { questionId: string; answer: string }[];
-  }[],
-  gradeAnswer: (q: Q, answer: string) => { isCorrect: boolean }
+  responses: readonly R[],
+  gradeAnswer: (q: Q, answer: string) => { isCorrect: boolean },
+  /** Grades each student's answer on its own (random numbers); a row is right when any of its students was. */
+  gradeForResponse?: (response: R, answer: string) => boolean
 ): AnswerDistribution {
   const answers: string[] = [];
+  const rightAnswers = new Set<string>();
   for (const r of responses) {
     const ans = r.answers.find((a) => a.questionId === question.id);
-    if (ans) answers.push(ans.answer);
+    if (!ans) continue;
+    answers.push(ans.answer);
+    if (gradeForResponse?.(r, ans.answer))
+      rightAnswers.add(normalizeAnswer(ans.answer));
   }
-  return distributionFromAnswers(question, answers, gradeAnswer);
+  if (!gradeForResponse) {
+    return distributionFromAnswers(question, answers, gradeAnswer);
+  }
+  return distributionFromAnswers(question, answers, (_q, label) => ({
+    isCorrect: rightAnswers.has(normalizeAnswer(label)),
+  }));
 }

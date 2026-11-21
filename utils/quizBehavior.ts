@@ -82,9 +82,15 @@ export function toAssessmentBehavior(
 export function getQuizAssignPrefill(
   lastUsed: QuizBehaviorSettings | null
 ): QuizBehaviorSettings {
-  return toAssessmentBehavior(
+  const prefill = toAssessmentBehavior(
     structuredClone(lastUsed ?? DEFAULT_QUIZ_BEHAVIOR)
   );
+  // Raise a hand starts off on every assign; it is not carried over.
+  prefill.sessionOptions = {
+    ...prefill.sessionOptions,
+    handRaiseEnabled: false,
+  };
+  return prefill;
 }
 
 /** Human-readable label for a quiz session mode. */

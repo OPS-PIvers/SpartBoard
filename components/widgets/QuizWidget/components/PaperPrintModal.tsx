@@ -6,6 +6,7 @@
  * the paper exists. See docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §6.
  */
 
+import { promptLabel } from '@/utils/quizPromptText';
 import { choicePictureFields } from '@/utils/quizAnswerImages';
 import { plainPromptText } from '@/utils/promptMath';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
@@ -119,6 +120,9 @@ import { browserStemMeasure, stemLinesById } from '@/utils/paperStemLines';
 import { MAX_PAGE } from '@/utils/paperSheetMarker';
 import {
   PAPER_HANDWRITTEN_FEATURE,
+  PAPER_MAX_BOX_PAGES,
+  PAPER_MULTI_PAGE_FEATURE,
+  letteredBlanks,
   changedPaperBoxSetup,
   paperBoxImageChoices,
   withPaperBoxSizes,
@@ -126,6 +130,7 @@ import {
   paperBoxStyleOf,
   type PaperBoxStylePick,
 } from '@/utils/paperWritten';
+import { splitBlanks } from '@/utils/quizFibBlanks';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
 import {
   planPaperVersions,
@@ -139,6 +144,10 @@ import {
 } from '@/utils/paperSheetVersions';
 import { resolveQuizAssignment, type BankContent } from '@/utils/questionBanks';
 import { printPaperTest } from '@/utils/paperTestPrint';
+import type {
+  PrintedSupport,
+  PrintedTranslation,
+} from '@/utils/paperPrintedVersions';
 import {
   chooseLineFor,
   sectionOfQuestion,
@@ -193,6 +202,8 @@ interface PaperPrintModalProps {
   quiz: QuizData;
   /** Assign on paper: the stepper picks classes and the print makes a paper assignment. */
   assign?: PaperAssignOptions;
+  /** A modification group's printed version: its students only, and its supports after the test. */
+  group?: PaperPrintGroup;
   rosters: ClassRoster[];
   /** Persists the batch; the caller owns the Firestore write and its errors. */
   onSaveBatch: (batch: PaperBatch) => Promise<void>;
@@ -226,6 +237,15 @@ interface PaperPrintModalProps {
   /** Test seam mirroring `printPaperSheets`. */
   print?: typeof printPaperSheets;
   printTest?: typeof printPaperTest;
+}
+
+/** The students a printed group's stack is for, by roster id. */
+export interface PaperPrintGroup {
+  label: string;
+  students: Record<string, readonly string[]>;
+  supports?: readonly PrintedSupport[];
+  /** The group's language on the test paper; the answer sheet stays in English. */
+  translation?: PrintedTranslation;
 }
 
 /** What the print dialog records on an authored quiz. */
@@ -292,6 +312,7 @@ const studentSort = (a: Student, b: Student): number =>
 export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   quiz: savedQuiz,
   assign,
+  group,
   rosters,
   onSaveBatch,
   onCreateQuiz,
@@ -311,6 +332,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const { canAccessFeature } = useAuth();
   // The caller already checked the paper sheets rollout and gate; this adds the written-box flag.
   const writtenOn = canAccessFeature(PAPER_HANDWRITTEN_FEATURE);
+  const maxPages = canAccessFeature(PAPER_MULTI_PAGE_FEATURE)
+    ? PAPER_MAX_BOX_PAGES
+    : 1;
   // Handwritten box sizes are a print choice, so they are picked here rather than in the editor.
   const [boxSizes, setBoxSizes] = useState<Record<string, PaperBoxSize>>({});
   const [boxStyles, setBoxStyles] = useState<Record<string, PaperBoxStylePick>>(
@@ -329,7 +353,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           withPaperBoxSizes(resolveQuizAssignment(quiz, banks), boxSizes),
           boxStyles
         ),
-        { written: writtenOn }
+        { written: writtenOn, fib: true }
       );
     } catch {
       return null;
@@ -337,14 +361,24 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   }, [banks, quiz, writtenOn, boxSizes, boxStyles]);
   const analysis = useMemo(() => {
     if (versionPlan) return versionPlan.template;
-    return promptAnalysis(quiz, analyzePaperQuiz(quiz, { written: writtenOn }));
+    return promptAnalysis(
+      quiz,
+      analyzePaperQuiz(quiz, { written: writtenOn, fib: true })
+    );
   }, [versionPlan, quiz, writtenOn]);
   const isStub = isPaperStubAnalysis(analysis);
   const [stubTitle, setStubTitle] = useState(quiz.title);
 
   const [pickedStudentIds, setSelectedStudentIds] = useState<
     Record<string, Set<string>>
-  >({});
+  >(() =>
+    Object.fromEntries(
+      Object.entries(group?.students ?? {}).map(([id, ids]) => [
+        id,
+        new Set(ids),
+      ])
+    )
+  );
   const [classes, setClasses] = useState<AssignClassesValue>(
     EMPTY_ASSIGN_CLASSES_VALUE
   );
@@ -384,7 +418,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     aiRetry?: TestAndKeySelection;
   } | null>(null);
   const [readingDoc, setReadingDoc] = useState(false);
-  const [spareCount, setSpareCount] = useState(2);
+  // A group's stack is for named students, so it starts with no spares.
+  const [spareCount, setSpareCount] = useState(group ? 0 : 2);
   const [includeKeySheet, setIncludeKeySheet] = useState(isStub);
   const [includeQuestionText, setIncludeQuestionText] = useState(false);
   const [printing, setPrinting] = useState(false);
@@ -461,13 +496,25 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const questionCount = isStub
     ? stubQuestionCount - stubWrittenCount
     : analysis.rows.length;
+  // A quiz with no bubble questions has no choices to count.
+  const showChoiceCount = isStub || questionCount > 0;
   /** Stem per written question, for the header above its box. */
   const writtenTextsOf = (a: typeof analysis): Record<string, string> =>
     Object.fromEntries(
       a.written.flatMap((w) => {
-        const text = questionsById.get(w.questionId)?.text;
+        const q = questionsById.get(w.questionId);
+        const text = q?.type === 'FIB' ? letteredBlanks(q.text) : q?.text;
         return text && !promptIds.has(w.questionId)
           ? [[w.questionId, text]]
+          : [];
+      })
+    );
+  const blankAnswersOf = (a: typeof analysis): Record<string, string[]> =>
+    Object.fromEntries(
+      a.written.flatMap((w) => {
+        const q = questionsById.get(w.questionId);
+        return q?.type === 'FIB'
+          ? [[w.questionId, splitBlanks(q.correctAnswer)]]
           : [];
       })
     );
@@ -580,7 +627,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     const seen = new Set<string>();
     return plans.flatMap((w) => {
       const q = questionsById.get(w.questionId);
-      if (!q || seen.has(w.questionId)) return [];
+      // A blank's line count is its blank count, so it has no box controls.
+      if (!q || q.type === 'FIB' || seen.has(w.questionId)) return [];
       seen.add(w.questionId);
       return [
         {
@@ -1054,11 +1102,17 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           : {}),
         ...(batch.sheetLayout === 'questions'
           ? {
-              questionTexts: sheetQuestions.map((q) => ({
-                text: plainPromptText(q.text),
-                choices: batch.choiceOrder?.[q.id] ?? [],
-                ...choicePictureFields(q, batch.choiceOrder?.[q.id] ?? []),
-              })),
+              questionTexts: sheetQuestions.map((q) => {
+                const english = batch.choiceOrder?.[q.id] ?? [];
+                const tr = group?.translation?.questions[q.id];
+                return {
+                  text: plainPromptText(
+                    tr?.text?.trim() ? tr.text : promptLabel(q)
+                  ),
+                  choices: english.map((c) => tr?.choices?.[c] ?? c),
+                  ...choicePictureFields(q, english),
+                };
+              }),
             }
           : {}),
         ...(!isStub && analysis.rows.some((r) => r.sourceLabel)
@@ -1067,7 +1121,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         ...(batch.pageMaps
           ? {
               pageMaps: batch.pageMaps,
-              ...(isStub ? {} : { writtenTexts: writtenTextsOf(analysis) }),
+              ...(isStub
+                ? {}
+                : {
+                    writtenTexts: writtenTextsOf(analysis),
+                    blankAnswers: blankAnswersOf(analysis),
+                  }),
               ...(boxImages.size > 0
                 ? {
                     writtenImages: Object.fromEntries(
@@ -1227,11 +1286,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 }
               : undefined;
           if (section) headed.add(section.id);
+          const tr = group?.translation?.questions[q.id];
           return [
             {
               row: r.row,
-              text: q.text,
-              choices,
+              text: tr?.text ?? q.text,
+              choices: tr?.choices
+                ? choices.map((c) => tr.choices?.[c] ?? c)
+                : choices,
               ...choicePictureFields(q, choices),
               ...(r.written ? { written: true } : {}),
               ...(heading ? { section: heading } : {}),
@@ -1250,7 +1312,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 questions: questionsOf(v.analysis),
               })),
             }
-          : { quizTitle: quiz.title, questions: questionsOf(analysis) }
+          : {
+              quizTitle: group?.translation?.title ?? quiz.title,
+              questions: questionsOf(analysis),
+              ...(group?.supports?.length ? { supports: group.supports } : {}),
+            }
       );
     } catch (err) {
       onError(
@@ -1429,6 +1495,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     );
   }
 
+  const groupStudentNames = group
+    ? selectionsForPrint.flatMap(({ students }) =>
+        students.map((st) =>
+          [st.lastName, st.firstName].filter(Boolean).join(', ')
+        )
+      )
+    : [];
+
   const footerMessage = tooManyPages
     ? tooManyPagesMessage(pagesPerSheet)
     : sheetCount === 0
@@ -1449,6 +1523,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               </p>
               <p className="mt-1 text-xs text-amber-800">
                 Only multiple-choice and true/false questions can be bubbled.
+                {writtenOn && ' Fill in the blank prints as a write-in line.'}
               </p>
               <ul className="mt-2 space-y-0.5 text-xs text-amber-800">
                 {analysis.exclusions.slice(0, 5).map((ex, i) => (
@@ -1585,7 +1660,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div
+        className={`grid gap-3 ${showChoiceCount ? 'grid-cols-2' : 'grid-cols-1'}`}
+      >
         <label className="block">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
             Questions
@@ -1611,32 +1688,35 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           )}
         </label>
 
-        <label className="block">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Choices per question
-          </span>
-          {isStub ? (
-            <select
-              value={stubChoiceCount}
-              {...tourTypeAttr('quiz-print.stub-choice-count', 'quiz')}
-              onChange={(e) => setStubChoiceCount(Number(e.target.value))}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            >
-              {Array.from(
-                { length: MAX_CHOICE_COUNT - MIN_CHOICE_COUNT + 1 },
-                (_, i) => MIN_CHOICE_COUNT + i
-              ).map((n) => (
-                <option key={n} value={n}>
-                  {n} {n === 2 ? '(A–B, true/false)' : `(A–${'ABCDE'[n - 1]})`}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <p className="mt-1 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
-              {choiceCount} (A–{'ABCDE'[choiceCount - 1]})
-            </p>
-          )}
-        </label>
+        {showChoiceCount && (
+          <label className="block">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Choices per question
+            </span>
+            {isStub ? (
+              <select
+                value={stubChoiceCount}
+                {...tourTypeAttr('quiz-print.stub-choice-count', 'quiz')}
+                onChange={(e) => setStubChoiceCount(Number(e.target.value))}
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              >
+                {Array.from(
+                  { length: MAX_CHOICE_COUNT - MIN_CHOICE_COUNT + 1 },
+                  (_, i) => MIN_CHOICE_COUNT + i
+                ).map((n) => (
+                  <option key={n} value={n}>
+                    {n}{' '}
+                    {n === 2 ? '(A–B, true/false)' : `(A–${'ABCDE'[n - 1]})`}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="mt-1 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                {choiceCount} (A–{'ABCDE'[choiceCount - 1]})
+              </p>
+            )}
+          </label>
+        )}
       </div>
 
       {isStub && writtenOn && (
@@ -1688,6 +1768,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                         {n}.
                       </span>
                       <BoxSizeSelect
+                        maxPages={maxPages}
                         size={w.size}
                         onChange={(size) => update({ size })}
                         ariaLabel={`Question ${n} box size`}
@@ -1755,6 +1836,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 text={row.text || 'Untitled question'}
               >
                 <BoxSizeSelect
+                  maxPages={maxPages}
                   size={row.size}
                   onChange={(size) =>
                     setBoxSizes((prev) => ({
@@ -1813,7 +1895,18 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         </p>
       )}
 
-      {!assign && (
+      {group && (
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Who gets a sheet
+          </p>
+          <p className="mt-1 text-sm text-slate-700">
+            {groupStudentNames.join('; ')}
+          </p>
+        </div>
+      )}
+
+      {!assign && !group && (
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
             Who gets a sheet
@@ -1824,7 +1917,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 No classes yet. Print spares below.
               </p>
             )}
-            {rosters.map((roster) => {
+            {rosters.map((roster, rowIndex) => {
               const selected =
                 selectedStudentIds[roster.id] ?? new Set<string>();
               const expanded = expandedRosterId === roster.id;
@@ -1848,7 +1941,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                       {...tourFieldAttr(
                         'quiz-print.roster-select',
                         'quiz',
-                        roster.id
+                        `row-${rowIndex + 1}`
                       )}
                       disabled={sorted.length === 0}
                       className="h-4 w-4 rounded-sm border-slate-300"
@@ -1874,7 +1967,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                       {...tourFieldAttr(
                         'quiz-print.roster-expand',
                         'quiz',
-                        roster.id
+                        `row-${rowIndex + 1}`
                       )}
                       disabled={sorted.length === 0}
                       className="rounded-sm p-0.5 text-slate-400 hover:bg-slate-100 disabled:opacity-40"
@@ -1888,7 +1981,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                   </div>
                   {expanded && (
                     <ul className="ml-6 space-y-0.5 pb-2">
-                      {sorted.map((student) => (
+                      {sorted.map((student, studentIndex) => (
                         <li
                           key={student.id}
                           className="flex items-center gap-2 px-2"
@@ -1907,7 +2000,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                             {...tourFieldAttr(
                               'quiz-print.student-select',
                               'quiz',
-                              student.id
+                              `row-${rowIndex + 1}-item-${studentIndex + 1}`
                             )}
                             className="h-3.5 w-3.5 rounded-sm border-slate-300"
                           />
@@ -2069,19 +2162,21 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       maxWidth="max-w-2xl"
       contentClassName=""
       customHeader={
-        <div className="flex items-start justify-between border-b border-slate-100 px-5 pb-3 pt-5">
+        <div className="flex items-start justify-between gap-3 px-5 py-3.5 bg-emerald-700 text-white rounded-t-2xl">
           <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white">
               <Printer className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">
+              <h2 className="text-base font-bold text-white">
                 Print response sheets
               </h2>
-              <p className="mt-0.5 max-w-[24rem] truncate text-xs text-slate-500">
+              <p className="mt-0.5 max-w-[24rem] truncate text-xs text-white/80">
                 {onCreateQuiz
                   ? 'New paper test'
-                  : quiz.title || 'Untitled paper test'}
+                  : [quiz.title || 'Untitled paper test', group?.label]
+                      .filter(Boolean)
+                      .join(' · ')}
               </p>
             </div>
           </div>
@@ -2090,7 +2185,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             onClick={onClose}
             aria-label="Close"
             {...tourTypeAttr('quiz-print.close', 'quiz')}
-            className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            className="shrink-0 rounded-lg p-1 text-white/80 transition-colors hover:bg-white/15 hover:text-white"
           >
             <X className="h-5 w-5" />
           </button>

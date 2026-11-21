@@ -39,7 +39,7 @@ Once you're happy with your change:
 
 ## Release Notes ("What's New")
 
-User-facing release notes live in `public/changelog.json` (committed). The latest entry's `version` is what `scripts/generate-version.js` writes into `version.json`, which is what the running app polls to detect "Update Available". So adding a new changelog entry **is** cutting a release as far as the toast is concerned.
+User-facing release notes live in `public/changelog.json` (committed) plus the fragment files in `changelog.d/`. Each PR adds its notes as its own `changelog.d/<name>.json` file, so parallel PRs never conflict over the shared file. The app serves the two merged, and `pnpm changelog:collect` folds the fragments into `public/changelog.json` after each release (see `changelog.d/README.md`). The latest entry's `version` is what `scripts/generate-version.js` writes into `version.json`, which is what the running app polls to detect "Update Available". So adding a new changelog entry **is** cutting a release as far as the toast is concerned.
 
 When you're ready to ship a release:
 
@@ -50,7 +50,7 @@ When you're ready to ship a release:
      pnpm changelog:draft | pbcopy             # macOS: copy straight to clipboard
      ```
    - Stderr lists any commits that were skipped (no recognized `feat:`/`fix:` prefix) so you can manually fold them in.
-2. Paste the JSON object at the top of `public/changelog.json`'s `entries` array.
+2. Put the JSON object in the `entries` array of a new `changelog.d/<name>.json` file.
 3. **Rewrite every bullet against the rules below.** The draft is commit subjects; none of it is publishable as written.
 4. Pick a `version` (default is today's date as `YYYY.MM.DD`; add `.2`, `.3` for additional same-day releases). Keep entries newest-first — the consumer hook will log a console warning if it spots them out of order.
 5. Fill in or delete the placeholder widget notes it printed (see below).
@@ -60,7 +60,7 @@ The next build will pick up the new version automatically, the "Update Available
 
 ### Widget notes
 
-A widget note puts a What's new button under every open widget of that type. Notes live in the top-level `widgetNotes` array of `public/changelog.json`, separate from `entries`, so a note can ship with code that is still behind a flag without adding a What's New entry:
+A widget note puts a What's new button under every open widget of that type. Notes live in a top-level `widgetNotes` array, separate from `entries` (add new ones in a `changelog.d/<name>.json` fragment), so a note can ship with code that is still behind a flag without adding a What's New entry:
 
 ```json
 {
@@ -112,7 +112,7 @@ Every bullet has to clear all five of these.
 Limitations belong in the notes, in a teacher's words. "Bank-slot quizzes and non-English source
 quizzes are out of scope for now" becomes what they cannot do and what they will see instead.
 
-Run `/deslop --writing public/changelog.json` as a final pass before committing.
+Run `/deslop --writing` on your `changelog.d/` file as a final pass before committing.
 
 ## Workflow Files
 

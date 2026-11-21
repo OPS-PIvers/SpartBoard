@@ -97,6 +97,7 @@ export function questionTypeChangeUpdates(
     incorrectAnswers: nextType === 'MC' || nextType === 'MA' ? ['', ''] : [],
     alternateAnswers: undefined,
     blankAlternates: undefined,
+    calc: undefined,
     optionOrder: undefined,
     correctAnswer:
       nextType === 'FIB' && countTextBlanks(q.text) >= 2
@@ -116,6 +117,8 @@ export function questionTypeChangeUpdates(
     rubricId: isWritten ? q.rubricId : undefined,
     rubricSnapshot: isWritten ? q.rubricSnapshot : undefined,
     rubricVisibleToStudents: isWritten ? q.rubricVisibleToStudents : undefined,
+    modifiedRubricId: isWritten ? q.modifiedRubricId : undefined,
+    modifiedRubricSnapshot: isWritten ? q.modifiedRubricSnapshot : undefined,
     ...(droppingRubric ? { points: stashedPoints ?? q.points ?? 1 } : {}),
     ...(droppingRecording
       ? {

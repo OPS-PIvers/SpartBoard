@@ -15,17 +15,20 @@ export interface QuizFeedbackStepProps extends QuizRuleStepProps {
   hasManualGrading?: boolean;
   /** Admin raise-hand gate; the row shows only for 'teacher-choice'. */
   handRaiseMode?: QuizHandRaiseMode;
+  /** Quiz assign shows raise a hand in its last step instead. */
+  hideHandRaise?: boolean;
   /** Shows "Read aloud"; the host resolves the 'quiz-read-aloud' gate. */
   readAloudAvailable?: boolean;
 }
 
-/** "What students see": score on submit, right and wrong, correct answer, learning targets, raise a hand (D8). */
+/** "Results" (Quiz) or "What students see": score, right and wrong, correct answer, learning targets, raise a hand (D8). */
 export const QuizFeedbackStep: React.FC<QuizFeedbackStepProps> = ({
   value,
   onChange,
   hasManualGrading = false,
   handRaiseMode = DEFAULT_QUIZ_HAND_RAISE_MODE,
   readAloudAvailable = false,
+  hideHandRaise = false,
   flashcards = false,
 }) => {
   const { t } = useTranslation();
@@ -60,19 +63,25 @@ export const QuizFeedbackStep: React.FC<QuizFeedbackStepProps> = ({
         />
       )}
       <StepToggleRow
-        label="Show right and wrong to students"
+        label="Show right or wrong after each answer"
         anchor={tourFieldAttr(
           'assign-rule.toggle',
           'assign',
           'show-right-wrong'
         )}
         checked={rightWrong}
-        onChange={(showResultToStudent) => patch({ showResultToStudent })}
+        onChange={(showResultToStudent) =>
+          patch(
+            showResultToStudent
+              ? { showResultToStudent }
+              : { showResultToStudent, showCorrectAnswerToStudent: false }
+          )
+        }
       />
       <StepToggleRow
-        label="Reveal correct answer to students"
+        label="Show the correct answer when wrong"
         anchor={tourFieldAttr('assign-rule.toggle', 'assign', 'reveal-correct')}
-        checked={o.showCorrectAnswerToStudent ?? false}
+        checked={rightWrong && (o.showCorrectAnswerToStudent ?? false)}
         disabled={!rightWrong}
         onChange={(showCorrectAnswerToStudent) =>
           patch({ showCorrectAnswerToStudent })
@@ -106,13 +115,8 @@ export const QuizFeedbackStep: React.FC<QuizFeedbackStepProps> = ({
           onChange={(showExplanations) => patch({ showExplanations })}
         />
       )}
-      {handRaiseMode === 'teacher-choice' && (
-        <StepToggleRow
-          label={t('quizHandRaise.label', 'Allow students to raise a hand')}
-          anchor={tourFieldAttr('assign-rule.toggle', 'assign', 'raise-hand')}
-          checked={o.handRaiseEnabled ?? false}
-          onChange={(handRaiseEnabled) => patch({ handRaiseEnabled })}
-        />
+      {handRaiseMode === 'teacher-choice' && !hideHandRaise && (
+        <HandRaiseRow value={value} onChange={onChange} />
       )}
       {readAloudAvailable && (
         <StepToggleRow
@@ -124,5 +128,22 @@ export const QuizFeedbackStep: React.FC<QuizFeedbackStepProps> = ({
         />
       )}
     </div>
+  );
+};
+
+/** The "Allow students to raise a hand" switch. */
+export const HandRaiseRow: React.FC<
+  Pick<QuizRuleStepProps, 'value' | 'onChange'>
+> = ({ value, onChange }) => {
+  const { t } = useTranslation();
+  return (
+    <StepToggleRow
+      label={t('quizHandRaise.label', 'Allow students to raise a hand')}
+      anchor={tourFieldAttr('assign-rule.toggle', 'assign', 'raise-hand')}
+      checked={value.sessionOptions.handRaiseEnabled ?? false}
+      onChange={(handRaiseEnabled) =>
+        onChange(patchQuizSessionOptions(value, { handRaiseEnabled }))
+      }
+    />
   );
 };

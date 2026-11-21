@@ -396,7 +396,8 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const pointer = useStudentAssignmentPointer(
     authedUid,
     sessionId || null,
-    isStudentRole
+    isStudentRole,
+    { sessionId, teacherUid: session?.teacherUid, kind: 'video-activity' }
   );
 
   // View tracking — log each pageview of a view-only Share link as an
@@ -1136,6 +1137,11 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
               ?.isCorrect === true
         ).length
       : 0;
+    // A publish that kept right/wrong hidden leaves the published score as the only figure.
+    const verdictsWithheld =
+      showScore && !isLive && myResponse?.verdictsWithheld === true;
+    const withheldScore =
+      typeof myResponse?.score === 'number' ? myResponse.score : null;
 
     return (
       <ResultsProtectionGate
@@ -1166,7 +1172,21 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 <div className="p-6 flex flex-col gap-4">
                   <p className="text-slate-700 font-medium">Great work!</p>
 
-                  {showScore && correctTotal > 0 && (
+                  {verdictsWithheld && (
+                    <div className="bg-brand-blue-lighter border border-brand-blue-primary/15 rounded-2xl p-5">
+                      {withheldScore !== null ? (
+                        <p className="text-5xl font-black text-brand-blue-primary">
+                          {withheldScore}%
+                        </p>
+                      ) : (
+                        <p className="text-slate-500 text-sm font-medium">
+                          Your teacher is still marking your answers.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {!verdictsWithheld && showScore && correctTotal > 0 && (
                     <div className="bg-brand-blue-lighter border border-brand-blue-primary/15 rounded-2xl p-5">
                       <p className="text-5xl font-black text-brand-blue-primary">
                         {Math.round((correct / correctTotal) * 100)}%

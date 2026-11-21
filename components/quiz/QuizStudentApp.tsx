@@ -46,6 +46,7 @@ import {
 import {
   isLockedByChooseCount,
   isSectionAnswered,
+  notChosenQuestionIds,
   sectionOfQuestion,
   sectionProgress,
   shuffleWithinSections,
@@ -56,6 +57,12 @@ import {
   SectionCapNotice,
   SectionIntroDialog,
 } from './QuizSectionParts';
+import {
+  SupportsButton,
+  SupportsDivider,
+  SupportsPanel,
+} from './QuizSupportsParts';
+import { SUPPORTS_PCT_DEFAULT } from '@/utils/quizSupportsPanel';
 import { QuizStopScreen } from './QuizStopScreen';
 import { StudentExplanation } from './StudentExplanation';
 import {
@@ -131,8 +138,10 @@ import {
   resolveStimuli,
   splitStimuliForLayout,
   stimulusPlayKey,
+  promptAudioPlayId,
 } from '@/utils/quizStimuli';
 import { splitStimuliForTabs } from '@/utils/quizStimulusTabs';
+import { promptLabel } from '@/utils/quizPromptText';
 import { StimulusTabsPanel } from './StimulusTabsPanel';
 import { StimulusPanelDivider } from './StimulusPanelDivider';
 import { useStimulusPanelWidth } from '@/hooks/useStimulusPanelWidth';
@@ -212,7 +221,6 @@ import {
 } from '@/utils/takeRecoveryStore';
 import { commitActiveTake } from './recording/activeTake';
 import { ResponsePlaybackCard } from './recording/ResponsePlaybackCard';
-import { SubmitBlockedNotice } from './recording/SubmitBlockedNotice';
 import {
   selectPlaybackTake,
   selectWhiteboardTake,
@@ -247,6 +255,7 @@ import { CrossOutChoiceButton } from './CrossOutChoiceButton';
 import { AnswerImage, AnswerImageZoomButton } from './AnswerImage';
 import { pictureOnlyName } from './pictureOnlyName';
 import { AnswerPictureText } from './AnswerPictureText';
+import { RecapChoiceList } from './RecapChoiceList';
 import { publicImageOnlyPictures } from '@/utils/quizAnswerImages';
 import { hasSideBank } from './structuredLayout';
 import { OrderingListInput } from './OrderingListInput';
@@ -264,7 +273,9 @@ import {
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
+import { isReviewGame } from '@/utils/quizWidgetKind';
 import { ResultsWatermark } from './ResultsWatermark';
+import { useWatermarkStudentName } from '@/components/student/useWatermarkStudentName';
 import { ResultsTabWarningModal } from './ResultsTabWarningModal';
 import { useResultsTabWarnings } from '@/hooks/useResultsTabWarnings';
 import {
@@ -284,6 +295,8 @@ import {
 import {
   serveQuestionSubset,
   applyHiddenOptions,
+  applyModifiedRubric,
+  applyModifiedWording,
   applyTimeMultiplier,
   serveLocalizedQuestion,
 } from '@/utils/quizOverrideServing';
@@ -293,6 +306,8 @@ import {
   localizedQuizTitle,
 } from '@/utils/quizLocalizedDisplay';
 import { useEphemeralAppLanguage } from '@/hooks/useEphemeralAppLanguage';
+import { dictationLanguages } from '@/utils/speechToText/languages';
+import type { EditorDictation } from '@/utils/speechToText/types';
 import { languageNativeLabel } from '@/utils/languageNativeLabel';
 import {
   toCanonicalAnswer,
@@ -308,17 +323,24 @@ import {
   FIB_BLANK_SEP,
   revealedBlanksMatch,
 } from '@/utils/quizFibBlanks';
-import { FibMultiBlankInput } from './FibMultiBlankInput';
+import { FibDictateMic, FibMultiBlankInput } from './FibMultiBlankInput';
+import { FIB_ROW_ATTR } from '@/utils/speechToText/blankPhrase';
 import { QuestionPrompt } from './QuestionPrompt';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { FibChoiceBlanksInput } from './FibChoiceBlanksInput';
 import { hasChoiceBlanks } from '@/utils/quizBlankTypes';
+import { fillWordBankChoice } from '@/utils/quizWordBank';
+import { WordBankFillContext } from './wordBankFill';
 import { AccentKeysArea } from '@/components/student/keyboards/AccentKeys';
 import { answerAccents } from '@/config/studentKeyboards';
 import { isValidDraw, orderServedQuestions } from '@/utils/questionBanks';
 import { chooseServedDraw } from '@/utils/quizBankDraw';
 import { groupQuestionsByTargets } from '@/utils/quizTargetStats';
-import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
+import {
+  formatScorePoints,
+  publishedScorePoints,
+  resolveResultsVisibility,
+} from '@/utils/quizResultsVisibility';
 import { useQuizScoreOnSubmit } from '@/hooks/useQuizScoreOnSubmit';
 import {
   DEFAULT_WRITTEN_RETURN_MODE,
@@ -342,9 +364,16 @@ import {
 } from '@/utils/quizCompleteness';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
+import { StudentBrandBackdrop } from '@/components/student/StudentBrandBackdrop';
 import { resolveEffectiveWindow } from '@/utils/assignmentWindow';
 import { effectivePageProtections } from '@/utils/pageProtections';
+import { isForeignPointer } from '@/utils/pointerOwnership';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
+import {
+  fillCalcPublicQuestion,
+  withAttemptCalcAnswers,
+} from '@/utils/quizCalcResponse';
+import { calcAttemptKey } from '@/utils/quizCalculated';
 import {
   getScoreSuffix,
   isGamificationActive,
@@ -406,6 +435,8 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
   // minted by `studentLoginV1`. Resolved at mount; used to drive the
   // auto-join branch in `QuizJoinFlow`. Anonymous joiners stay `false`.
   const [isStudentRole, setIsStudentRole] = useState(false);
+  // A PIN-proven token: signed in for one session only, so no paid Speech to text (D15).
+  const [isPinLogin, setIsPinLogin] = useState(false);
 
   // Sign in anonymously on mount only when nobody is signed in yet — SSO
   // students arriving from `/my-assignments` already have a custom-token
@@ -435,6 +466,7 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
           // identity. The Firestore rules re-validate on every write.
           const tokenResult = await user.getIdTokenResult();
           setIsStudentRole(tokenResult.claims?.studentRole === true);
+          setIsPinLogin(tokenResult.claims?.pinLogin === true);
         }
       } catch (err) {
         console.warn('[QuizStudentApp] Auth init failed:', err);
@@ -469,6 +501,7 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
   return (
     <QuizJoinFlow
       isStudentRole={isStudentRole}
+      paidDictationAllowed={isStudentRole && !isPinLogin}
       embedded={embedded}
       watermarkNameOverride={watermarkNameOverride}
     />
@@ -542,9 +575,16 @@ const QuizPreviewLobby: React.FC = () => {
 
 const QuizJoinFlow: React.FC<{
   isStudentRole: boolean;
+  /** Signed in with a school account, not a PIN (D15). */
+  paidDictationAllowed: boolean;
   embedded: boolean;
   watermarkNameOverride?: string;
-}> = ({ isStudentRole, embedded, watermarkNameOverride }) => {
+}> = ({
+  isStudentRole,
+  paidDictationAllowed,
+  embedded,
+  watermarkNameOverride,
+}) => {
   const { t } = useTranslation();
   const params = new URLSearchParams(window.location.search);
   const urlCode = params.get('code') ?? '';
@@ -690,7 +730,14 @@ const QuizJoinFlow: React.FC<{
             const snap = await getDoc(
               doc(db, 'student_assignments', uid, 'items', info.sessionId)
             );
-            if (snap.exists() && snap.data()?.excluded === true) {
+            if (
+              snap.exists() &&
+              snap.data()?.excluded === true &&
+              !isForeignPointer(snap.data(), {
+                sessionId: info.sessionId,
+                kind: 'quiz',
+              })
+            ) {
               dispatchFlow({ type: 'excluded' });
               return;
             }
@@ -837,7 +884,9 @@ const QuizJoinFlow: React.FC<{
   const myStudentUid = isStudentRole ? (auth.currentUser?.uid ?? null) : null;
   const myPointer = useStudentAssignmentPointer(
     myStudentUid,
-    session?.assignmentId ?? null
+    session?.assignmentId ?? null,
+    true,
+    { sessionId: session?.id, teacherUid: session?.teacherUid, kind: 'quiz' }
   );
   const myOverride: StudentOverride | undefined = myPointer?.override;
   // D28/D34: Spanish students get the Spanish shell; the choice is never persisted.
@@ -1016,6 +1065,18 @@ const QuizJoinFlow: React.FC<{
     });
   }, [isViewOnly, session?.id, authedUid]);
 
+  // Questions answered with Speech to text in this attempt; saved with the answer.
+  const dictatedIdsRef = useRef<{ attempt: number; ids: Set<string> }>({
+    attempt: 0,
+    ids: new Set(),
+  });
+  const dictatedAttempt = myResponse?.completedAttempts ?? 0;
+  const dictatedIdsFor = useCallback((attempt: number): Set<string> => {
+    if (dictatedIdsRef.current.attempt !== attempt) {
+      dictatedIdsRef.current = { attempt, ids: new Set() };
+    }
+    return dictatedIdsRef.current.ids;
+  }, []);
   const handleAnswer = useCallback(
     async (
       questionId: string,
@@ -1031,9 +1092,22 @@ const QuizJoinFlow: React.FC<{
       // rejects the write defense-in-depth, but skip it client-side too so
       // the console stays clean.
       if (isViewOnly) return;
-      await submitAnswer(questionId, answer, speedBonus, opts);
+      await submitAnswer(
+        questionId,
+        answer,
+        speedBonus,
+        dictatedIdsFor(dictatedAttempt).has(questionId)
+          ? { ...opts, dictated: true }
+          : opts
+      );
     },
-    [submitAnswer, isViewOnly]
+    [submitAnswer, isViewOnly, dictatedIdsFor, dictatedAttempt]
+  );
+  const markDictated = useCallback(
+    (questionId: string) => {
+      dictatedIdsFor(dictatedAttempt).add(questionId);
+    },
+    [dictatedIdsFor, dictatedAttempt]
   );
 
   // Uploads around a turn-in: it waits briefly, and a failure after it is handed to the server.
@@ -1834,6 +1908,7 @@ const QuizJoinFlow: React.FC<{
               reportTabSwitch={reportTabSwitch}
               saveTabExits={saveTabExits}
               saveInputSignals={isViewOnly ? undefined : saveInputSignals}
+              onDictated={isViewOnly ? undefined : markDictated}
               onReportLivePosition={isViewOnly ? undefined : reportLivePosition}
               onSetHandRaised={setHandRaised}
               onStartAttemptClock={isViewOnly ? undefined : startAttemptClock}
@@ -1851,6 +1926,11 @@ const QuizJoinFlow: React.FC<{
                 isStudentRole &&
                 (myOverride?.readAloud === true ||
                   session.readAloudAll === true)
+              }
+              paidDictationAssignmentId={
+                paidDictationAllowed && myPointer && session.assignmentId
+                  ? session.assignmentId
+                  : undefined
               }
             />
           </RecordingNoticeDrawingContext.Provider>
@@ -2018,8 +2098,12 @@ export const ActiveQuiz: React.FC<{
   drawIds?: string[];
   /** Effective close (M17 F2): pointer top-level `closeAt` when present, else the session's. */
   effectiveCloseAt?: number;
+  /** A question's answer took dictated text. */
+  onDictated?: (questionId: string) => void;
   /** SSO student flagged for read-aloud (override or `readAloudAll`); the light shell decides the rest. */
   readAloudRequested?: boolean;
+  /** Signed-in student's pointer id (D15): lets the paid Speech to text extras run. */
+  paidDictationAssignmentId?: string;
   /** The page requires fullscreen, so leaving fullscreen counts as a tab exit. */
   fullscreenRequired?: boolean;
   /** Teacher's Live view: follow this question and mirror saved answers; null until one is known. */
@@ -2046,6 +2130,7 @@ export const ActiveQuiz: React.FC<{
   reportTabSwitch,
   saveTabExits,
   saveInputSignals,
+  onDictated,
   onSetHandRaised,
   onStartAttemptClock,
   onSubmitPart,
@@ -2058,6 +2143,7 @@ export const ActiveQuiz: React.FC<{
   drawIds,
   effectiveCloseAt,
   readAloudRequested,
+  paidDictationAssignmentId,
   fullscreenRequired = false,
   watchQuestionId,
   watchTabWarning,
@@ -2071,7 +2157,6 @@ export const ActiveQuiz: React.FC<{
     tRef.current = t;
   }, [t]);
   const [showCheatWarning, setShowCheatWarning] = useState(false);
-  const [submitBlocked, setSubmitBlocked] = useState(false);
   // Review before submit: this tab's sessionStorage only, so teachers never see marks.
   const reviewStoreKey = reviewStateKey(
     session.id,
@@ -2327,6 +2412,12 @@ export const ActiveQuiz: React.FC<{
     override
   ).blockClipboard;
   const quoteEditorRef = useRef<WrittenResponseEditorHandle | null>(null);
+  // Speech to text (D15): any student whose override carries it, signed in or not.
+  const speechToText = override?.speechToText === true && !watching;
+  const dictationLangs = useMemo(
+    () => dictationLanguages(override?.language),
+    [override?.language]
+  );
   const handleBlockedClipboard = (e: React.ClipboardEvent<HTMLDivElement>) =>
     e.preventDefault();
   const handleBlockedDrop = (e: React.DragEvent<HTMLDivElement>) =>
@@ -2556,18 +2647,31 @@ export const ActiveQuiz: React.FC<{
   const answerOptionShuffleEnabled = attemptShuffle.answers;
   const currentQuestion = useMemo(() => {
     if (!baseQuestion) return baseQuestion;
-    const served = isStudentPaced
-      ? applyHiddenOptions(baseQuestion, override?.hiddenOptionIdsByQuestion)
-      : baseQuestion;
+    // The modified rubric grades every pace; the wording only shows when student-paced.
+    const served = applyModifiedRubric(
+      isStudentPaced
+        ? applyHiddenOptions(
+            applyModifiedWording(baseQuestion, override?.modifiedQuestions),
+            override?.hiddenOptionIdsByQuestion
+          )
+        : baseQuestion,
+      override?.modifiedQuestions
+    );
     if (!answerOptionShuffleEnabled) return served;
     return shuffleQuestionForStudent(served, studentShuffleSeed);
   }, [
     baseQuestion,
     isStudentPaced,
     override?.hiddenOptionIdsByQuestion,
+    override?.modifiedQuestions,
     answerOptionShuffleEnabled,
     studentShuffleSeed,
   ]);
+  const modifiedServed =
+    !!baseQuestion &&
+    isStudentPaced &&
+    applyModifiedWording(baseQuestion, override?.modifiedQuestions) !==
+      baseQuestion;
   // Live view (QUIZ_LIVE_VIEW.md D12): position is reported only while the teacher's stamp is ahead.
   const liveView = watching ? null : myResponse?.liveView;
   const liveViewUntil = liveView?.until ?? 0;
@@ -2596,6 +2700,8 @@ export const ActiveQuiz: React.FC<{
     () => new Set()
   );
   const [directionsOpen, setDirectionsOpen] = useState(false);
+  const [supportsOpen, setSupportsOpen] = useState(false);
+  const [supportsPct, setSupportsPct] = useState(SUPPORTS_PCT_DEFAULT);
   const [clearingAnswer, setClearingAnswer] = useState(false);
   // The student's accommodation language; the toggle resets to it on advance (§4.6).
   const assignedLocale = override?.language;
@@ -2638,6 +2744,7 @@ export const ActiveQuiz: React.FC<{
     manifest: session.readAloud,
     locale: readAloudLocale,
     canonicalQuestions: session.publicQuestions,
+    promptRewritten: modifiedServed,
     // Nothing to read behind the review screen.
     question:
       reviewOn && reviewOpen && !isAttemptSubmitted(myResponse)
@@ -2853,6 +2960,11 @@ export const ActiveQuiz: React.FC<{
   const [revealedAnswer, setRevealedAnswer] = useState<string | null>(null);
   const [speedBonusEarned, setSpeedBonusEarned] = useState<number | null>(null);
   const [streakCount, setStreakCount] = useState(0);
+  // Speed, streak and sounds are Review game features; a Quiz assessment never uses them.
+  const reviewGame = isReviewGame(session);
+  const speedBonusOn = reviewGame && session.speedBonusEnabled === true;
+  const streakBonusOn = reviewGame && session.streakBonusEnabled === true;
+  const soundsOn = reviewGame && session.soundEffectsEnabled === true;
 
   // Self-paced save errors. `saveError` surfaces a retry banner above the
   // NEXT/SUBMIT button when `onAnswer`/`onComplete` rejects (offline,
@@ -3099,11 +3211,11 @@ export const ActiveQuiz: React.FC<{
       timeLeft > 0 &&
       timeLeft <= 5 &&
       !submitted &&
-      session.soundEffectsEnabled
+      soundsOn
     ) {
       playCountdownTick();
     }
-  }, [timeLeft, submitted, session.soundEffectsEnabled]);
+  }, [timeLeft, submitted, soundsOn]);
 
   // Same last-question rule as handleSubmit, read by the timeout effect below.
   const timeoutFinishesQuizRef = useRef(false);
@@ -3122,8 +3234,6 @@ export const ActiveQuiz: React.FC<{
   const onCompleteRef = useRef(onComplete);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onCompleteRef.current = onComplete;
-  // Synced below once openRecordingQuestions is computed.
-  const openRecordingCountRef = useRef(0);
 
   // Side-effect: submit the answer when auto-submit is triggered.
   useEffect(() => {
@@ -3177,13 +3287,11 @@ export const ActiveQuiz: React.FC<{
             return;
           }
           if (!finishesQuiz) return;
-          // Same gate as handleSubmitAndAdvance: an open recording slot blocks completion.
-          if (openRecordingCountRef.current > 0) {
-            dispatchStep({ type: 'submitFailed' });
-            setSubmitBlocked(true);
-            return;
-          }
           try {
+            document.dispatchEvent(
+              new CustomEvent('spartboard:quiz:flush-written')
+            );
+            await commitActiveTake();
             await onCompleteRef.current();
           } catch (err) {
             console.error('[QuizStudentApp] onComplete failed:', err);
@@ -3257,6 +3365,8 @@ export const ActiveQuiz: React.FC<{
   const wordLimitBlocked = writtenLimit?.blocked === true;
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   overLimitRevisitRef.current = submitted && wordLimitBlocked;
+  // The blank a word bank tap fills on a multi-blank question.
+  const lastBlankRef = useRef<{ qid: string; index: number } | null>(null);
   // Convenience cache writer for the editor / input onChange handlers.
   // Updates the cache for the current question; no-ops if there's no
   // current question (impossible in practice during render of an
@@ -3585,7 +3695,7 @@ export const ActiveQuiz: React.FC<{
 
     // Compute speed bonus before submit so it's persisted with the answer
     let computedSpeedBonus: number | undefined;
-    if (session.speedBonusEnabled && effectiveTimeLimit > 0) {
+    if (speedBonusOn && effectiveTimeLimit > 0) {
       const remaining = Math.max(0, timeLeft ?? 0);
       const bonusPct = Math.round((remaining / effectiveTimeLimit) * 50);
       if (bonusPct > 0) computedSpeedBonus = bonusPct;
@@ -3612,7 +3722,7 @@ export const ActiveQuiz: React.FC<{
         setAnswerFeedback(isCorrect ? 'correct' : 'incorrect');
 
         // Sound effects
-        if (session.soundEffectsEnabled) {
+        if (soundsOn) {
           if (isCorrect) {
             playCorrectChime();
           } else {
@@ -3624,11 +3734,7 @@ export const ActiveQuiz: React.FC<{
         if (isCorrect) {
           const newStreak = streakCount + 1;
           setStreakCount(newStreak);
-          if (
-            session.streakBonusEnabled &&
-            newStreak >= 2 &&
-            session.soundEffectsEnabled
-          ) {
+          if (streakBonusOn && newStreak >= 2 && soundsOn) {
             playStreakSound();
           }
         } else {
@@ -3682,9 +3788,7 @@ export const ActiveQuiz: React.FC<{
     }
   };
 
-  // RR-A2 sub-decision 1 — an open recording slot blocks the submit. A slot
-  // prep expiry closed, or one a dead microphone marked capture-unavailable,
-  // is resolved rather than open and never blocks (RR-07).
+  // An open recording slot counts as blank in the submit warning; one prep expiry closed or a dead mic marked is resolved (RR-07).
   // A recording question locked out of a choose-N section can't be answered, so it never blocks.
   const recordingServedIds =
     drawIds || override?.questionIds
@@ -3712,16 +3816,37 @@ export const ActiveQuiz: React.FC<{
       recordingQuestionEntries.map(({ q }) => q.id)
     )
   );
-  const openRecordingQuestions = recordingQuestionEntries
-    .filter(({ q }) => openRecordingIds.has(q.id))
-    .map(({ q, index }) => ({ id: q.id, index, text: q.text }));
-  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
-  openRecordingCountRef.current = openRecordingQuestions.length;
+  const openRecordingQuestions = recordingQuestionEntries.filter(({ q }) =>
+    openRecordingIds.has(q.id)
+  );
 
-  const jumpToOpenRecording = (index: number) => {
-    setSubmitBlocked(false);
-    if (isStudentPaced) setLocalIndex(index);
+  // Recording questions count by slot: a failed upload is open, a dead mic is resolved.
+  const blankCount = (part?: number) => {
+    const inPart = (index: number) =>
+      part == null || partOf(orderedPublicQuestions[index]) <= part;
+    const recordingIds = new Set(recordingQuestionEntries.map(({ q }) => q.id));
+    const typed = reviewCounts(
+      currentReviewRows().filter(
+        (row) => inPart(row.index) && !recordingIds.has(row.id)
+      )
+    ).unanswered;
+    const recording = openRecordingQuestions.filter(({ index }) =>
+      inPart(index)
+    ).length;
+    return typed + recording;
   };
+
+  // Blanks never block a submit; the student confirms and may go back instead.
+  const confirmSubmitWithBlanks = (blank: number) =>
+    showConfirm(
+      blank > 0
+        ? t('quizSubmit.confirmBlank', { count: blank })
+        : t('quizSubmit.confirmBody'),
+      {
+        title: t('quizSubmit.confirmTitle'),
+        confirmLabel: t('quizSubmit.confirmSubmit'),
+      }
+    );
 
   // Self-paced unified action: persist the answer, then advance (or complete
   // on the final question). Skips the per-question feedback banner — teachers
@@ -3762,7 +3887,7 @@ export const ActiveQuiz: React.FC<{
     try {
       if (!skipWrite) {
         let computedSpeedBonus: number | undefined;
-        if (session.speedBonusEnabled && effectiveTimeLimit > 0) {
+        if (speedBonusOn && effectiveTimeLimit > 0) {
           const remaining = Math.max(0, timeLeft ?? 0);
           const bonusPct = Math.round((remaining / effectiveTimeLimit) * 50);
           if (bonusPct > 0) computedSpeedBonus = bonusPct;
@@ -3790,21 +3915,11 @@ export const ActiveQuiz: React.FC<{
         setReturnToReview(false);
         setReviewOpen(true);
       } else if (isLast) {
-        if (openRecordingQuestions.length > 0) {
-          setSubmitBlocked(true);
-          return;
-        }
-        if (isStudentPaced && !isAttemptSubmitted(myResponse)) {
-          const blank = reviewCounts(currentReviewRows()).unanswered;
-          const ok = await showConfirm(
-            blank > 0
-              ? t('quizSubmit.confirmBlank', { count: blank })
-              : t('quizSubmit.confirmBody'),
-            {
-              title: t('quizSubmit.confirmTitle'),
-              confirmLabel: t('quizSubmit.confirmSubmit'),
-            }
-          );
+        if (
+          (isStudentPaced || openRecordingQuestions.length > 0) &&
+          !isAttemptSubmitted(myResponse)
+        ) {
+          const ok = await confirmSubmitWithBlanks(blankCount());
           if (!ok) return;
         }
         setSelectedAnswer(answer);
@@ -3835,19 +3950,15 @@ export const ActiveQuiz: React.FC<{
   // The last question of a part: confirm, then lock it and stop unless the next part is open.
   const finishPart = async (part: number) => {
     if (!onSubmitPart || !myResponse) return;
-    const blocking = openRecordingQuestions.filter(
-      ({ index }) => partOf(orderedPublicQuestions[index]) <= part
-    );
-    if (blocking.length > 0) {
-      setSubmitBlocked(true);
-      return;
-    }
+    const blank = blankCount(part);
     const ok = await showConfirm(
-      t(
-        'quizParts.confirmBody',
-        "You can't change your Part {{part}} answers after this.",
-        { part }
-      ),
+      blank > 0
+        ? t('quizSubmit.confirmBlank', { count: blank })
+        : t(
+            'quizParts.confirmBody',
+            "You can't change your Part {{part}} answers after this.",
+            { part }
+          ),
       {
         title: t('quizParts.confirmTitle', 'Submit Part {{part}}?', { part }),
         confirmLabel: t('quizParts.confirmSubmit', 'Submit Part {{part}}', {
@@ -3925,10 +4036,8 @@ export const ActiveQuiz: React.FC<{
       setReviewOpen(true);
       return;
     }
-    if (openRecordingQuestions.length > 0) {
-      setSubmitBlocked(true);
-      return;
-    }
+    const blank = blankCount();
+    if (blank > 0 && !(await confirmSubmitWithBlanks(blank))) return;
     setSaveError(null);
     try {
       await onComplete();
@@ -3955,10 +4064,13 @@ export const ActiveQuiz: React.FC<{
       await attemptTimeUpSubmit();
       return;
     }
-    if (openRecordingQuestions.length > 0) {
-      setReviewOpen(false);
-      setSubmitBlocked(true);
-      return;
+    const blank = blankCount();
+    if (blank > 0 && !isAttemptSubmitted(myResponse)) {
+      advancingRef.current = true;
+      const ok = await confirmSubmitWithBlanks(blank).finally(() => {
+        advancingRef.current = false;
+      });
+      if (!ok) return;
     }
     advancingRef.current = true;
     setSubmitting(true);
@@ -3991,6 +4103,13 @@ export const ActiveQuiz: React.FC<{
     currentQuestion,
     localizedStrings
   );
+  // The recording is the original wording, so a modified prompt drops it.
+  const promptAudio = modifiedServed ? undefined : currentQuestion.promptAudio;
+  const promptAudioViews = playsUsedFor(promptAudioPlayId(currentQuestion.id));
+  // Only a limited recording needs its plays counted on the response.
+  const recordPromptAudioView = promptAudio?.playLimit
+    ? () => handleStimulusPlayCompleted(promptAudioPlayId(currentQuestion.id))
+    : undefined;
   const isMultiAnswer = currentQuestion.type === 'MA';
   const options =
     displayQuestion.type === 'MC' || displayQuestion.type === 'MA'
@@ -4033,6 +4152,8 @@ export const ActiveQuiz: React.FC<{
   // when `light`, so they use the light palette directly; the violet teacher-
   // paced affordances and the gamified AnswerFeedbackBanner stay dark.
   const light = isStudentPaced;
+  const supports = override?.supports ?? [];
+  const supportsPanelOpen = supportsOpen && supports.length > 0;
   const sectionAnswers = myResponse?.answers ?? [];
   const sectionServedIds =
     isStudentPaced && (drawIds || override?.questionIds)
@@ -4123,8 +4244,8 @@ export const ActiveQuiz: React.FC<{
     ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary'
     : 'border-violet-500 bg-violet-500/20 text-white';
   const mcCrossedOutCls = light
-    ? 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-    : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500';
+    ? 'border-slate-300 bg-slate-200 text-slate-500 hover:border-slate-400'
+    : 'border-slate-800 bg-slate-900 text-slate-500 hover:border-slate-600';
   const mcUnselectedCls = light
     ? 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
     : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:bg-slate-700/50';
@@ -4135,6 +4256,35 @@ export const ActiveQuiz: React.FC<{
     seededQuestionsRef.current.has(currentQuestion.id) ? 'seeded' : 'init'
   }`;
   const accentKeys = answerAccents(currentQuestion.answerKeyboard);
+  const dictation: EditorDictation | undefined = speechToText
+    ? {
+        languages: dictationLangs,
+        onInsert: () => onDictated?.(currentQuestion.id),
+        ...(paidDictationAssignmentId
+          ? { paid: { assignmentId: paidDictationAssignmentId } }
+          : {}),
+      }
+    : undefined;
+  const wordBankFill =
+    !recordingConfig &&
+    currentQuestion.type === 'FIB' &&
+    !hasChoiceBlanks(currentQuestion) &&
+    !mathKeyboardOn &&
+    !(submitted && !isStudentPaced)
+      ? (choice: string) => {
+          const last = lastBlankRef.current;
+          // The next tap fills the next empty blank unless a blank is focused again.
+          lastBlankRef.current = null;
+          setCacheForCurrent(
+            fillWordBankChoice(
+              liveAnswer ?? '',
+              choice,
+              currentQuestion.blankCount ?? 0,
+              last && last.qid === currentQuestion.id ? last.index : null
+            )
+          );
+        }
+      : null;
   const fibInputCls = light
     ? 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-brand-blue-light'
     : 'bg-slate-800 border-slate-700 text-white focus:border-violet-500';
@@ -4176,9 +4326,19 @@ export const ActiveQuiz: React.FC<{
     );
   const currentReviewRows = () =>
     reviewRows(
-      orderedPublicQuestions.map((q) =>
-        applyLocalizedStrings(q, serveLocalizedQuestion(q, assignedLocale))
-      ),
+      orderedPublicQuestions.map((base) => {
+        const q = applyModifiedRubric(
+          applyModifiedWording(
+            base,
+            isStudentPaced && override?.modifiedQuestions
+          ),
+          override?.modifiedQuestions
+        );
+        return applyLocalizedStrings(
+          q,
+          serveLocalizedQuestion(q, assignedLocale)
+        );
+      }),
       myResponse?.answers ?? [],
       answerCache,
       markedIds,
@@ -4212,844 +4372,1122 @@ export const ActiveQuiz: React.FC<{
       />
     ) : null;
 
+  // `overflow-x-hidden` is a defensive backstop so an oversized child
+  // (a long unbreakable token in a student answer, a misconfigured
+  // grid below a fold, a future refactor that adds a fixed-width
+  // element) can never produce a horizontal scrollbar on an 11"
+  // Chromebook. The max-width caps above keep content well-anchored
+  // on widescreens; this guarantees the narrow-viewport path stays
+  // scroll-free regardless of what's rendered inside.
   return (
-    // `overflow-x-hidden` is a defensive backstop so an oversized child
-    // (a long unbreakable token in a student answer, a misconfigured
-    // grid below a fold, a future refactor that adds a fixed-width
-    // element) can never produce a horizontal scrollbar on an 11"
-    // Chromebook. The max-width caps above keep content well-anchored
-    // on widescreens; this guarantees the narrow-viewport path stays
-    // scroll-free regardless of what's rendered inside.
-    <div
-      className={`h-screen h-dvh overflow-y-auto overflow-x-hidden relative ${
-        whiteboardConfig ? 'flex flex-col' : ''
-      } ${appBg}`}
-    >
-      <LiveViewNotice
-        liveView={liveView}
-        language={activeLocale ?? session.language}
-      />
-      {/* The "your teacher unlocked your attempt" prompt — covers the quiz
+    <WordBankFillContext.Provider value={wordBankFill}>
+      <div
+        className={`h-screen h-dvh overflow-y-auto overflow-x-hidden relative ${
+          whiteboardConfig ? 'flex flex-col' : ''
+        } ${appBg}`}
+      >
+        <LiveViewNotice
+          liveView={liveView}
+          language={activeLocale ?? session.language}
+        />
+        {/* The "your teacher unlocked your attempt" prompt — covers the quiz
           UI on first render after a teacher unlock so the student knows
           what happened before they touch anything. */}
-      {showResumeModal && (
-        <div className="fixed inset-0 z-quiz-lock bg-emerald-900/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
-          <UnlockIcon className="w-20 h-20 text-emerald-300 mb-6" />
-          <h2 className="text-4xl font-black text-white mb-4">
-            {reopened
-              ? t('quizStudent.unlock.reopenedTitle')
-              : t('quizStudent.unlock.title')}
-          </h2>
-          {reopened ? (
-            <p className="text-emerald-100 text-lg max-w-md mb-8">
-              {t('quizStudent.unlock.reopenedBody')}
-            </p>
-          ) : (
-            <>
-              <p className="text-emerald-100 text-lg max-w-md mb-2">
-                {t('quizStudent.unlock.stillHere')}
+        {showResumeModal && (
+          <div className="fixed inset-0 z-quiz-lock bg-emerald-900/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
+            <UnlockIcon className="w-20 h-20 text-emerald-300 mb-6" />
+            <h2 className="text-4xl font-black text-white mb-4">
+              {reopened
+                ? t('quizStudent.unlock.reopenedTitle')
+                : t('quizStudent.unlock.title')}
+            </h2>
+            {reopened ? (
+              <p className="text-emerald-100 text-lg max-w-md mb-8">
+                {t('quizStudent.unlock.reopenedBody')}
               </p>
-              <p className="text-amber-200 text-sm max-w-md mb-8">
-                {t('quizStudent.unlock.warning')}
-              </p>
-            </>
-          )}
-          <button
-            onClick={() => setShowResumeModal(false)}
-            className="px-8 py-4 bg-white text-emerald-900 font-bold rounded-xl active:scale-95 transition-transform"
-          >
-            {reopened
-              ? t('quizStudent.unlock.keepWorking')
-              : t('quizStudent.unlock.resume')}
-          </button>
-        </div>
-      )}
+            ) : (
+              <>
+                <p className="text-emerald-100 text-lg max-w-md mb-2">
+                  {t('quizStudent.unlock.stillHere')}
+                </p>
+                <p className="text-amber-200 text-sm max-w-md mb-8">
+                  {t('quizStudent.unlock.warning')}
+                </p>
+              </>
+            )}
+            <button
+              onClick={() => setShowResumeModal(false)}
+              className="px-8 py-4 bg-white text-emerald-900 font-bold rounded-xl active:scale-95 transition-transform"
+            >
+              {reopened
+                ? t('quizStudent.unlock.keepWorking')
+                : t('quizStudent.unlock.resume')}
+            </button>
+          </div>
+        )}
 
-      {/* Mid-attempt window close (M17 C2 §3a-D) — non-blocking notice, not
+        {/* Mid-attempt window close (M17 C2 §3a-D) — non-blocking notice, not
           a modal, so the student isn't gated behind an extra tap after
           their work has already been auto-submitted. */}
-      {closeAutoSubmitted && !closeAutoSubmitFailed && (
-        <div
-          role="status"
-          className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
-        >
-          <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>{t('quizStudent.closed.submitted')}</span>
-        </div>
-      )}
+        {closeAutoSubmitted && !closeAutoSubmitFailed && (
+          <div
+            role="status"
+            className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
+          >
+            <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{t('quizStudent.closed.submitted')}</span>
+          </div>
+        )}
 
-      {timeUpSubmitted && (
-        <div
-          role="status"
-          className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
-        >
-          <Clock className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>
-            {t(
-              'quizTimeLimit.submitted',
-              "Time's up. Your answers were submitted."
-            )}
-          </span>
-        </div>
-      )}
+        {timeUpSubmitted && (
+          <div
+            role="status"
+            className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
+          >
+            <Clock className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>
+              {t(
+                'quizTimeLimit.submitted',
+                "Time's up. Your answers were submitted."
+              )}
+            </span>
+          </div>
+        )}
 
-      {/* Auto-submit failed (offline, or the post-closeAt grace window
+        {/* Auto-submit failed (offline, or the post-closeAt grace window
           passed before the write landed). Honest, non-blocking, with a
           retry the student can act on — the response is still
           in-progress, not silently marked complete. */}
-      {(closeAutoSubmitFailed || timeUpFailureActive) && (
-        <div
-          role="alert"
-          className="sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b border-red-500/40 bg-red-500/10 text-red-200 text-xs"
-        >
-          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span className="flex-1">{t('quizStudent.closed.submitFailed')}</span>
-          <button
-            type="button"
-            onClick={() =>
-              void (timeUpFailureActive
-                ? attemptTimeUpSubmit()
-                : attemptCloseAutoSubmit())
-            }
-            disabled={closeAutoSubmitInFlight || timeUpInFlight}
-            className="shrink-0 px-2 py-1 rounded-sm bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 font-semibold"
-          >
-            {closeAutoSubmitInFlight || timeUpInFlight
-              ? t('quizStudent.nav.retrying')
-              : t('quizStudent.nav.retry')}
-          </button>
-        </div>
-      )}
-
-      {/* Persistent "one strike and you're out" banner — visible for the
-          duration of the resumed attempt so the rule stays top-of-mind. */}
-      {unlockedOneExit && !showResumeModal && (
-        <div
-          className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
-        >
-          <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>
-            {t('quizStudent.unlock.banner')}{' '}
-            <strong>{t('quizStudent.unlock.bannerStrong')}</strong>
-          </span>
-        </div>
-      )}
-
-      {/* 🔴 The Cheating Warning Modal */}
-      {(watching ? watchTabWarning === true : showCheatWarning) && (
-        <div className="fixed inset-0 z-quiz-lock bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
-          <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
-          <h2 className="text-4xl font-black text-white mb-4">
-            {t('quizStudent.tabWarning.title')}
-          </h2>
-          {tabAwayRule && tabTracker.away && (
-            <TabAwayClock
-              away={tabTracker.away}
-              limitMs={tabAwayRule.limitMs}
-              autoSubmit={tabAwayRule.autoSubmit}
-            />
-          )}
-          <p className="text-red-200 text-lg max-w-md mb-8">
-            {t('quizStudent.tabWarning.body')}
-            <br />
-            <br />
-            <strong>
-              {t('quizStudent.tabWarning.warningN', { n: warningCount })}
-            </strong>{' '}
-            {effectiveTabWarningThreshold !== 'off' &&
-              t('quizStudent.tabWarning.autoSubmit')}
-          </p>
-          <button
-            onClick={() => {
-              setShowCheatWarning(false);
-              tabTracker.resume();
-            }}
-            className="px-8 py-4 bg-white text-red-900 font-bold rounded-xl active:scale-95 transition-transform"
-          >
-            {t('quizStudent.tabWarning.dismiss')}
-          </button>
-        </div>
-      )}
-
-      {/* Progress bar */}
-      <div className={`h-1 ${progressTrack}`}>
-        <div
-          className={`h-full transition-all ${progressFill}`}
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-      {(readAloudOn || localeAvailable) && (
-        <StudentAccommodationBar
-          readAloud={readAloudOn ? readAloud : undefined}
-          locale={
-            localeAvailable && assignedLocale
-              ? {
-                  nativeLabel: languageNativeLabel(assignedLocale),
-                  localized: activeLocale !== undefined,
-                  onChange: (localized) =>
-                    setLocaleChoice({
-                      qid: currentQidForLocale,
-                      english: !localized,
-                    }),
-                }
-              : undefined
-          }
-        />
-      )}
-
-      {whiteboardConfig && currentStimuli.length > 0 && (
-        <StimulusDrawer
-          open={stimulusDrawerOpen}
-          onClose={() => setStimulusDrawerOpen(false)}
-        >
-          {currentStimuli.map((s) => (
-            <StimulusRenderer
-              key={s.id}
-              stimulus={s}
-              light={light}
-              playsUsed={playsUsedFor(s.id)}
-              onPlayCompleted={handleStimulusPlayCompleted}
-              onLoadError={handleStimulusLoadError}
-              readAloud={stimulusReadAloudFor(s)}
-              selectableText={session.allowStimulusQuotes === true}
-            />
-          ))}
-        </StimulusDrawer>
-      )}
-
-      <ReviewSwap
-        review={reviewScreen}
-        className={
-          splitPanel
-            ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1920px]'
-            : sideStimuli.length > 0
-              ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1700px]'
-              : 'contents'
-        }
-      >
-        {/* Doc-shaped stimuli: resizable left panel on wide screens,
-          stacked (height-capped, scrollable) above the question on
-          narrow ones. One DOM node for both breakpoints so crossing a
-          breakpoint never remounts a viewer mid-read. */}
-        {sideStimuli.length > 0 && (
+        {(closeAutoSubmitFailed || timeUpFailureActive) && (
           <div
-            className={`shrink-0 w-full p-4 pb-0 lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:overflow-auto max-h-[45vh] lg:max-h-none overflow-y-auto flex flex-col gap-3 ${
-              splitPanel
-                ? 'lg:w-[var(--stimulus-panel-w)] lg:pr-3'
-                : 'lg:w-[44%] lg:min-w-[320px] lg:max-w-[65%] lg:resize-x'
-            }`}
-            style={
-              splitPanel
-                ? { ['--stimulus-panel-w' as string]: `${panelPct}%` }
-                : undefined
-            }
+            role="alert"
+            className="sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b border-red-500/40 bg-red-500/10 text-red-200 text-xs"
           >
-            {stimulusTabsOn ? (
-              <StimulusTabsPanel
-                stimuli={sideStimuli}
-                light={light}
-                renderStimulus={(s) => (
-                  <StimulusRenderer
-                    stimulus={s}
-                    light={light}
-                    onLoadError={handleStimulusLoadError}
-                    readAloud={stimulusReadAloudFor(s)}
-                    selectableText={session.allowStimulusQuotes === true}
-                    fill
-                  />
-                )}
-              />
-            ) : (
-              sideStimuli.map((s) => (
-                <div key={s.id} className="flex-1 min-h-[280px] flex flex-col">
-                  <StimulusRenderer
-                    stimulus={s}
-                    light={light}
-                    onLoadError={handleStimulusLoadError}
-                    readAloud={stimulusReadAloudFor(s)}
-                    selectableText={session.allowStimulusQuotes === true}
-                  />
-                </div>
-              ))
-            )}
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="flex-1">
+              {t('quizStudent.closed.submitFailed')}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                void (timeUpFailureActive
+                  ? attemptTimeUpSubmit()
+                  : attemptCloseAutoSubmit())
+              }
+              disabled={closeAutoSubmitInFlight || timeUpInFlight}
+              className="shrink-0 px-2 py-1 rounded-sm bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 font-semibold"
+            >
+              {closeAutoSubmitInFlight || timeUpInFlight
+                ? t('quizStudent.nav.retrying')
+                : t('quizStudent.nav.retry')}
+            </button>
           </div>
         )}
-        {splitPanel && (
-          <StimulusPanelDivider
-            pct={panelPct}
-            onChange={setPanelPct}
-            light={light}
+
+        {/* Persistent "one strike and you're out" banner — visible for the
+          duration of the resumed attempt so the rule stays top-of-mind. */}
+        {unlockedOneExit && !showResumeModal && (
+          <div
+            className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
+          >
+            <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>
+              {t('quizStudent.unlock.banner')}{' '}
+              <strong>{t('quizStudent.unlock.bannerStrong')}</strong>
+            </span>
+          </div>
+        )}
+
+        {/* 🔴 The Cheating Warning Modal */}
+        {(watching ? watchTabWarning === true : showCheatWarning) && (
+          <div className="fixed inset-0 z-quiz-lock bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
+            <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
+            <h2 className="text-4xl font-black text-white mb-4">
+              {t('quizStudent.tabWarning.title')}
+            </h2>
+            {tabAwayRule && tabTracker.away && (
+              <TabAwayClock
+                away={tabTracker.away}
+                limitMs={tabAwayRule.limitMs}
+                autoSubmit={tabAwayRule.autoSubmit}
+              />
+            )}
+            <p className="text-red-200 text-lg max-w-md mb-8">
+              {t('quizStudent.tabWarning.body')}
+              <br />
+              <br />
+              <strong>
+                {t('quizStudent.tabWarning.warningN', { n: warningCount })}
+              </strong>{' '}
+              {effectiveTabWarningThreshold !== 'off' &&
+                t('quizStudent.tabWarning.autoSubmit')}
+            </p>
+            <button
+              onClick={() => {
+                setShowCheatWarning(false);
+                tabTracker.resume();
+              }}
+              className="px-8 py-4 bg-white text-red-900 font-bold rounded-xl active:scale-95 transition-transform"
+            >
+              {t('quizStudent.tabWarning.dismiss')}
+            </button>
+          </div>
+        )}
+
+        {/* Progress bar */}
+        <div className={`h-1 ${progressTrack}`}>
+          <div
+            className={`h-full transition-[width] ${progressFill}`}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        {(readAloudOn || localeAvailable) && (
+          <StudentAccommodationBar
+            readAloud={readAloudOn ? readAloud : undefined}
+            locale={
+              localeAvailable && assignedLocale
+                ? {
+                    nativeLabel: languageNativeLabel(assignedLocale),
+                    localized: activeLocale !== undefined,
+                    onChange: (localized) =>
+                      setLocaleChoice({
+                        qid: currentQidForLocale,
+                        english: !localized,
+                      }),
+                  }
+                : undefined
+            }
           />
         )}
 
-        <div
-          {...clipboardGuards}
-          className={`flex flex-col w-full min-w-0 ${
-            whiteboardConfig ? 'flex-1 px-6 py-4' : 'p-6'
-          } ${splitPanel ? 'lg:flex-1 lg:mx-auto' : sideStimuli.length > 0 ? 'lg:flex-1' : 'mx-auto'} ${
-            // Free Response gets elbow room for long-form writing; structured
-            // inputs read worse stretched across a widescreen.
-            whiteboardConfig
-              ? 'max-w-[1700px]'
-              : currentQuestion.type === 'free-response'
-                ? 'max-w-7xl'
-                : hasSideBank(currentQuestion) &&
-                    !(
-                      session.orderingList === true &&
-                      currentQuestion.type === 'Ordering'
-                    )
-                  ? 'max-w-2xl lg:max-w-7xl'
-                  : splitPanel
-                    ? 'max-w-2xl lg:max-w-4xl'
-                    : 'max-w-2xl'
-          }`}
-        >
-          {!online && !isAttemptSubmitted(myResponse) && (
-            <div
-              role="status"
-              className={`mb-4 rounded-xl border px-4 py-3 text-sm font-semibold ${
-                light
-                  ? 'border-amber-300 bg-amber-50 text-amber-900'
-                  : 'border-amber-400/40 bg-amber-500/10 text-amber-200'
-              }`}
-            >
-              {t('quizSubmit.offline')}
-            </div>
-          )}
-          {/* Header */}
-          <div
-            className={`flex min-h-11 items-center justify-between ${whiteboardConfig ? 'mb-3' : 'mb-6'}`}
+        {whiteboardConfig && currentStimuli.length > 0 && (
+          <StimulusDrawer
+            open={stimulusDrawerOpen}
+            onClose={() => setStimulusDrawerOpen(false)}
           >
-            <div className="flex items-center gap-2">
-              {isStudentPaced &&
-                canGoBack &&
-                !isAttemptSubmitted(myResponse) && (
-                  <button
-                    type="button"
-                    onClick={handleBack}
-                    aria-label={t('quizStudent.nav.previous')}
-                    className={`inline-flex h-11 w-11 -ml-3 items-center justify-center rounded-lg transition-colors ${backBtnCls}`}
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                )}
-              <span
-                className={`text-sm font-semibold ${light ? 'text-slate-600' : 'text-slate-300'}`}
-              >
-                {currentIndex + 1} / {effectiveTotalQuestions}
-              </span>
-              {attemptDeadline != null && !isAttemptSubmitted(myResponse) && (
-                <QuizTimeLimitClock deadline={attemptDeadline} light={light} />
-              )}
-              {whiteboardConfig && currentStimuli.length > 0 && (
-                <StimulusDrawerButton
-                  open={stimulusDrawerOpen}
-                  onToggle={() => setStimulusDrawerOpen((o) => !o)}
-                />
-              )}
-            </div>
-            {timeLeft !== null && !submitted && (
-              <div
-                role="timer"
-                aria-label={t('quizStudent.timer.secondsLeft', {
-                  count: timeLeft,
-                })}
-                className={`flex items-center gap-1.5 text-sm font-bold ${
-                  timeLeft <= 5
-                    ? light
-                      ? 'text-red-500'
-                      : 'text-red-400'
-                    : light
-                      ? 'text-amber-600'
-                      : 'text-amber-400'
-                }`}
-              >
-                <Timer className="w-4 h-4" aria-hidden="true" />
-                {timeLeft}s
-                <span className="sr-only" aria-live="assertive">
-                  {timeLeft === 10
-                    ? t('quizStudent.timer.secondsLeft', { count: 10 })
-                    : timeLeft === 0
-                      ? t('quizStudent.timer.timeUp')
-                      : ''}
-                </span>
-              </div>
-            )}
-            <span
-              className={`text-xs px-2 py-0.5 rounded-sm font-medium ${typeBadgeCls}`}
-            >
-              {currentQuestion.type === 'MC'
-                ? t('quizStudent.type.multipleChoice')
-                : currentQuestion.type === 'FIB'
-                  ? t('quizStudent.type.fillBlank')
-                  : currentQuestion.type === 'Matching'
-                    ? t('quizStudent.type.matching')
-                    : currentQuestion.type === 'Ordering'
-                      ? t('quizStudent.type.ordering')
-                      : currentQuestion.type === 'MA'
-                        ? t('quizStudent.type.chooseAll')
-                        : t('quizStudent.type.freeResponse')}
-            </span>
-          </div>
-
-          {reviewOn && !quizDone && (
-            <div className="flex justify-end -mt-3 mb-4">
-              <MarkForReviewButton
-                marked={markedIds.has(currentQuestion.id)}
-                onToggle={() => toggleMarked(currentQuestion.id)}
-              />
-            </div>
-          )}
-          {sectionState && (
-            <div className="flex flex-wrap items-center">
-              <SectionBreadcrumb
-                progress={sectionState}
+            {currentStimuli.map((s) => (
+              <StimulusRenderer
+                key={s.id}
+                stimulus={s}
                 light={light}
-                onOpen={() => setDirectionsOpen(true)}
+                playsUsed={playsUsedFor(s.id)}
+                onPlayCompleted={handleStimulusPlayCompleted}
+                onLoadError={handleStimulusLoadError}
+                readAloud={stimulusReadAloudFor(s)}
+                selectableText={session.allowStimulusQuotes === true}
               />
-              {canClearSectionAnswer && (
-                <ClearSectionAnswerButton
-                  light={light}
-                  busy={clearingAnswer}
-                  onClear={() => void handleClearSectionAnswer()}
-                />
-              )}
-            </div>
-          )}
-          {showSectionIntro && sectionState && (
-            <SectionIntroDialog
-              progress={sectionState}
-              light={light}
-              onClose={closeSectionIntro}
-            />
-          )}
+            ))}
+          </StimulusDrawer>
+        )}
 
-          {/* Inline stimuli (image / video / youtube / audio) above the question */}
-          {aboveStimuli.length > 0 && (
-            <div className="flex flex-col gap-3 mb-6">
-              {aboveStimuli.map((s) => (
-                <StimulusRenderer
-                  key={s.id}
-                  stimulus={s}
-                  light={light}
-                  playsUsed={playsUsedFor(s.id)}
-                  onPlayCompleted={handleStimulusPlayCompleted}
-                  onLoadError={handleStimulusLoadError}
-                  readAloud={stimulusReadAloudFor(s)}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Question */}
-          {readAloudOn ? (
+        <ReviewSwap
+          review={reviewScreen}
+          className={
+            splitPanel
+              ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1920px]'
+              : sideStimuli.length > 0 || supportsPanelOpen
+                ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1700px]'
+                : 'contents'
+          }
+        >
+          {/* Doc-shaped stimuli: resizable left panel on wide screens,
+          stacked (height-capped, scrollable) above the question on
+          narrow ones. One DOM node for both breakpoints so crossing a
+          breakpoint never remounts a viewer mid-read. */}
+          {(sideStimuli.length > 0 || supportsPanelOpen) && (
             <div
-              ref={promptWrapRef}
-              tabIndex={-1}
-              className={`${questionGap} flex items-start gap-3 rounded-2xl transition-colors focus:outline-hidden ${highlightClass({ kind: 'question' }, readAloud.highlightedPart)}`}
+              className={`shrink-0 w-full p-4 pb-0 lg:p-6 lg:sticky lg:top-0 lg:h-screen max-h-[45vh] lg:max-h-none overflow-y-auto flex flex-col gap-3 ${
+                supportsPanelOpen && sideStimuli.length > 0
+                  ? 'lg:overflow-hidden'
+                  : 'lg:overflow-auto'
+              } ${
+                splitPanel
+                  ? 'lg:w-[var(--stimulus-panel-w)] lg:pr-3'
+                  : 'lg:w-[44%] lg:min-w-[320px] lg:max-w-[65%] lg:resize-x'
+              }`}
+              style={
+                splitPanel
+                  ? { ['--stimulus-panel-w' as string]: `${panelPct}%` }
+                  : undefined
+              }
             >
-              <QuestionPrompt
-                text={displayQuestion.text}
-                blankCount={currentQuestion.blankCount}
-                light={light}
-                className={`flex-1 ${headingText}`}
-              />
-              <ReadAloudButton
-                variant="prominent"
-                label={t('quizReadAloud.readPrompt', 'Read question aloud')}
-                status={readAloud.statusOf({ kind: 'question' })}
-                onClick={() => readAloud.play({ kind: 'question' })}
-                onStop={readAloud.stop}
-              />
-            </div>
-          ) : (
-            <div
-              ref={promptWrapRef}
-              tabIndex={-1}
-              className={`${questionGap} focus:outline-hidden`}
-            >
-              <QuestionPrompt
-                text={displayQuestion.text}
-                blankCount={currentQuestion.blankCount}
-                light={light}
-                className={headingText}
-              />
-            </div>
-          )}
-
-          {/* Answer area */}
-          {!isStudentPaced && !sectionLocked && saveError && (
-            <SaveErrorBanner message={saveError} />
-          )}
-          {sectionLocked && sectionState ? (
-            <div className="space-y-4">
-              <SectionCapNotice
-                progress={sectionState}
-                light={light}
-                canClear={isStudentPaced}
-              />
-              {saveError && <SaveErrorBanner message={saveError} />}
-              {isStudentPaced &&
-                !quizDone &&
-                (currentIndex < effectiveTotalQuestions - 1 ? (
-                  <button
-                    type="button"
-                    onClick={handleNext}
-                    className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                  >
-                    {t('quizSections.next', 'Next')}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => void handleSubmitAndAdvance('', true)}
-                    disabled={submitting}
-                    className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                  >
-                    {reviewOn
-                      ? t('quizReview.reviewLink', 'Review')
-                      : t('quizSections.submit', 'Submit quiz')}
-                  </button>
-                ))}
-            </div>
-          ) : (
-            <>
-              {recordingConfig && (
+              {/* Supports sit on top of the sources, with a drag bar between them. */}
+              {supportsPanelOpen && (
                 <div
-                  className={
-                    whiteboardConfig
-                      ? 'flex flex-1 flex-col gap-3'
-                      : 'space-y-4'
-                  }
+                  className={`flex min-h-0 flex-col ${
+                    sideStimuli.length > 0
+                      ? 'lg:h-[var(--supports-h)] lg:shrink-0'
+                      : 'flex-1'
+                  }`}
+                  style={{ ['--supports-h' as string]: `${supportsPct}%` }}
                 >
-                  {whiteboardConfig ? (
-                    // The capture stays mounted under the gate so a live take survives rotation.
-                    <div
-                      className={`relative flex flex-1 flex-col ${
-                        whiteboardGated ? 'min-h-64' : ''
-                      }`}
-                    >
+                  <SupportsPanel
+                    supports={supports}
+                    light={light}
+                    onClose={() => setSupportsOpen(false)}
+                  />
+                </div>
+              )}
+              {supportsPanelOpen && sideStimuli.length > 0 && (
+                <SupportsDivider
+                  pct={supportsPct}
+                  onChange={setSupportsPct}
+                  light={light}
+                />
+              )}
+              {sideStimuli.length > 0 && (
+                <div className="flex min-h-0 flex-1 flex-col gap-3 lg:overflow-auto">
+                  {stimulusTabsOn ? (
+                    <StimulusTabsPanel
+                      stimuli={sideStimuli}
+                      light={light}
+                      renderStimulus={(s) => (
+                        <StimulusRenderer
+                          stimulus={s}
+                          light={light}
+                          onLoadError={handleStimulusLoadError}
+                          readAloud={stimulusReadAloudFor(s)}
+                          selectableText={session.allowStimulusQuotes === true}
+                          fill
+                        />
+                      )}
+                    />
+                  ) : (
+                    sideStimuli.map((s) => (
                       <div
-                        inert={whiteboardGated}
-                        className="flex flex-1 flex-col"
+                        key={s.id}
+                        className="flex-1 min-h-[280px] flex flex-col"
                       >
-                        <WhiteboardResponseCapture
-                          key={currentQuestion.id}
-                          config={whiteboardConfig}
-                          takesCommitted={committedTakes}
-                          noticeAckedAt={noticeAckedAt}
-                          onAcknowledgeNotice={onAcknowledgeNotice}
-                          noticeRequired={noticeRequired}
-                          onCommit={(take) =>
-                            onCommitWhiteboard
-                              ? onCommitWhiteboard(
-                                  currentQuestion.id,
-                                  take,
-                                  localizedStrings ? activeLocale : undefined
-                                )
-                              : Promise.resolve()
-                          }
-                          onRetryUpload={
-                            retryableWhiteboardArtifacts.length > 0
-                              ? async () => {
-                                  for (const artifact of retryableWhiteboardArtifacts)
-                                    await onRetryRecordingUpload(
-                                      currentQuestion.id,
-                                      artifact
-                                    );
-                                }
-                              : undefined
-                          }
-                          onPrepExpired={handleRecordingPrepExpired}
-                          latestArtifacts={latestTakeArtifacts}
-                          slotClosed={recordingSlotClosed}
-                          recovery={takeRecovery}
+                        <StimulusRenderer
+                          stimulus={s}
+                          light={light}
+                          onLoadError={handleStimulusLoadError}
+                          readAloud={stimulusReadAloudFor(s)}
+                          selectableText={session.allowStimulusQuotes === true}
                         />
                       </div>
-                      {whiteboardGated && <RotateDeviceGate overlay />}
-                    </div>
-                  ) : (
-                    <AudioResponseCapture
-                      key={currentQuestion.id}
-                      config={recordingConfig}
-                      takesCommitted={committedTakes}
-                      noticeAckedAt={noticeAckedAt}
-                      onAcknowledgeNotice={onAcknowledgeNotice}
-                      noticeRequired={noticeRequired}
-                      onCommit={(take) =>
-                        onCommitRecording(
-                          currentQuestion.id,
-                          take,
-                          localizedStrings ? activeLocale : undefined
-                        )
-                      }
-                      onRetryUpload={
-                        latestRecordingArtifact &&
-                        canRetryRecordingUpload(latestRecordingArtifact.id)
-                          ? () =>
-                              onRetryRecordingUpload(
-                                currentQuestion.id,
-                                latestRecordingArtifact
-                              )
-                          : undefined
-                      }
-                      latestArtifact={latestRecordingArtifact}
-                      light={light}
-                      slotClosed={recordingSlotClosed}
-                      onPrepExpired={handleRecordingPrepExpired}
-                      onCaptureUnavailable={handleRecordingCaptureUnavailable}
-                      recovery={takeRecovery}
-                    />
-                  )}
-                  {isStudentPaced && (
-                    <div className="space-y-3">
-                      {currentIndex >= effectiveTotalQuestions - 1 &&
-                        saveError && <SaveErrorBanner message={saveError} />}
-                      <div className="flex items-center justify-end gap-3">
-                        {handBesideNext && raiseHandButton && (
-                          <div className="mr-auto">{raiseHandButton}</div>
-                        )}
-                        <button
-                          type="button"
-                          onClick={
-                            currentIndex >= effectiveTotalQuestions - 1
-                              ? () => void handleRecordingSubmit()
-                              : handleNext
-                          }
-                          className="inline-flex items-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
-                        >
-                          {currentIndex >= effectiveTotalQuestions - 1
-                            ? saveError
-                              ? t('quizStudent.nav.retrySubmit')
-                              : reviewOn
-                                ? t('quizReview.reviewLink', 'Review')
-                                : t('quizMediaResponse.capture.submitQuiz')
-                            : t('quizMediaResponse.capture.nextQuestion')}
-                        </button>
-                      </div>
-                    </div>
+                    ))
                   )}
                 </div>
               )}
+            </div>
+          )}
+          {splitPanel && (
+            <StimulusPanelDivider
+              pct={panelPct}
+              onChange={setPanelPct}
+              light={light}
+            />
+          )}
 
-              {!recordingConfig &&
-                (currentQuestion.type === 'MC' ||
-                  currentQuestion.type === 'MA') && (
-                  <div className="space-y-3 flex-1">
-                    {isMultiAnswer && (
-                      <p
-                        id={`ma-hint-${currentQuestion.id}`}
-                        className={`text-sm font-semibold ${light ? 'text-slate-500' : 'text-slate-300'}`}
+          <div
+            {...clipboardGuards}
+            className={`flex flex-col w-full min-w-0 ${
+              whiteboardConfig ? 'flex-1 px-6 py-4' : 'p-6'
+            } ${splitPanel ? 'lg:flex-1 lg:mx-auto' : sideStimuli.length > 0 || supportsPanelOpen ? 'lg:flex-1' : 'mx-auto'} ${
+              // Free Response gets elbow room for long-form writing; structured
+              // inputs read worse stretched across a widescreen.
+              whiteboardConfig
+                ? 'max-w-[1700px]'
+                : currentQuestion.type === 'free-response'
+                  ? 'max-w-7xl'
+                  : hasSideBank(currentQuestion) &&
+                      !(
+                        session.orderingList === true &&
+                        currentQuestion.type === 'Ordering'
+                      )
+                    ? 'max-w-2xl lg:max-w-7xl'
+                    : splitPanel
+                      ? 'max-w-2xl lg:max-w-4xl'
+                      : 'max-w-2xl'
+            }`}
+          >
+            {!online && !isAttemptSubmitted(myResponse) && (
+              <div
+                role="status"
+                className={`mb-4 rounded-xl border px-4 py-3 text-sm font-semibold ${
+                  light
+                    ? 'border-amber-300 bg-amber-50 text-amber-900'
+                    : 'border-amber-400/40 bg-amber-500/10 text-amber-200'
+                }`}
+              >
+                {t('quizSubmit.offline')}
+              </div>
+            )}
+            {/* Header */}
+            <div
+              className={`flex min-h-11 items-center justify-between ${whiteboardConfig ? 'mb-3' : 'mb-6'}`}
+            >
+              <div className="flex items-center gap-2">
+                {isStudentPaced &&
+                  canGoBack &&
+                  !isAttemptSubmitted(myResponse) && (
+                    <button
+                      type="button"
+                      onClick={handleBack}
+                      aria-label={t('quizStudent.nav.previous')}
+                      className={`inline-flex h-11 w-11 -ml-3 items-center justify-center rounded-lg transition-colors ${backBtnCls}`}
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                  )}
+                <span
+                  className={`text-sm font-semibold ${light ? 'text-slate-600' : 'text-slate-300'}`}
+                >
+                  {currentIndex + 1} / {effectiveTotalQuestions}
+                </span>
+                {attemptDeadline != null && !isAttemptSubmitted(myResponse) && (
+                  <QuizTimeLimitClock
+                    deadline={attemptDeadline}
+                    light={light}
+                  />
+                )}
+                {supports.length > 0 && (
+                  <SupportsButton
+                    light={light}
+                    open={supportsPanelOpen}
+                    onToggle={() => setSupportsOpen((o) => !o)}
+                  />
+                )}
+                {whiteboardConfig && currentStimuli.length > 0 && (
+                  <StimulusDrawerButton
+                    open={stimulusDrawerOpen}
+                    onToggle={() => setStimulusDrawerOpen((o) => !o)}
+                  />
+                )}
+              </div>
+              {timeLeft !== null && !submitted && (
+                <div
+                  role="timer"
+                  aria-label={t('quizStudent.timer.secondsLeft', {
+                    count: timeLeft,
+                  })}
+                  className={`flex items-center gap-1.5 text-sm font-bold ${
+                    timeLeft <= 5
+                      ? light
+                        ? 'text-red-500'
+                        : 'text-red-400'
+                      : light
+                        ? 'text-amber-600'
+                        : 'text-amber-400'
+                  }`}
+                >
+                  <Timer className="w-4 h-4" aria-hidden="true" />
+                  {timeLeft}s
+                  <span className="sr-only" aria-live="assertive">
+                    {timeLeft === 10
+                      ? t('quizStudent.timer.secondsLeft', { count: 10 })
+                      : timeLeft === 0
+                        ? t('quizStudent.timer.timeUp')
+                        : ''}
+                  </span>
+                </div>
+              )}
+              <span
+                className={`text-xs px-2 py-0.5 rounded-sm font-medium ${typeBadgeCls}`}
+              >
+                {currentQuestion.type === 'MC'
+                  ? t('quizStudent.type.multipleChoice')
+                  : currentQuestion.type === 'FIB'
+                    ? t('quizStudent.type.fillBlank')
+                    : currentQuestion.type === 'Matching'
+                      ? t('quizStudent.type.matching')
+                      : currentQuestion.type === 'Ordering'
+                        ? t('quizStudent.type.ordering')
+                        : currentQuestion.type === 'MA'
+                          ? t('quizStudent.type.chooseAll')
+                          : t('quizStudent.type.freeResponse')}
+              </span>
+            </div>
+
+            {reviewOn && !quizDone && (
+              <div className="flex justify-end -mt-3 mb-4">
+                <MarkForReviewButton
+                  marked={markedIds.has(currentQuestion.id)}
+                  onToggle={() => toggleMarked(currentQuestion.id)}
+                />
+              </div>
+            )}
+            {sectionState && (
+              <div className="flex flex-wrap items-center">
+                <SectionBreadcrumb
+                  progress={sectionState}
+                  light={light}
+                  onOpen={() => setDirectionsOpen(true)}
+                />
+                {canClearSectionAnswer && (
+                  <ClearSectionAnswerButton
+                    light={light}
+                    busy={clearingAnswer}
+                    onClear={() => void handleClearSectionAnswer()}
+                  />
+                )}
+              </div>
+            )}
+            {showSectionIntro && sectionState && (
+              <SectionIntroDialog
+                progress={sectionState}
+                light={light}
+                onClose={closeSectionIntro}
+              />
+            )}
+
+            {/* Inline stimuli (image / video / youtube / audio) above the question */}
+            {aboveStimuli.length > 0 && (
+              <div className="flex flex-col gap-3 mb-6">
+                {aboveStimuli.map((s) => (
+                  <StimulusRenderer
+                    key={s.id}
+                    stimulus={s}
+                    light={light}
+                    playsUsed={playsUsedFor(s.id)}
+                    onPlayCompleted={handleStimulusPlayCompleted}
+                    onLoadError={handleStimulusLoadError}
+                    readAloud={stimulusReadAloudFor(s)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Question; the recorded audio is the original wording, so a modified prompt has none yet. */}
+            {readAloudOn &&
+            !modifiedServed &&
+            (!promptAudio || displayQuestion.text.trim() !== '') ? (
+              <div
+                ref={promptWrapRef}
+                tabIndex={-1}
+                className={`${questionGap} flex items-start gap-3 rounded-2xl transition-colors focus:outline-hidden ${highlightClass({ kind: 'question' }, readAloud.highlightedPart)}`}
+              >
+                <QuestionPrompt
+                  text={displayQuestion.text}
+                  blankCount={currentQuestion.blankCount}
+                  light={light}
+                  className={`flex-1 ${headingText}`}
+                  audio={promptAudio}
+                  questionId={currentQuestion.id}
+                  audioViewsUsed={promptAudioViews}
+                  onAudioView={recordPromptAudioView}
+                />
+                <ReadAloudButton
+                  variant="prominent"
+                  label={t('quizReadAloud.readPrompt', 'Read question aloud')}
+                  status={readAloud.statusOf({ kind: 'question' })}
+                  onClick={() => readAloud.play({ kind: 'question' })}
+                  onStop={readAloud.stop}
+                />
+              </div>
+            ) : (
+              <div
+                ref={promptWrapRef}
+                tabIndex={-1}
+                className={`${questionGap} focus:outline-hidden`}
+              >
+                <QuestionPrompt
+                  text={displayQuestion.text}
+                  blankCount={currentQuestion.blankCount}
+                  light={light}
+                  className={headingText}
+                  audio={promptAudio}
+                  questionId={currentQuestion.id}
+                  audioViewsUsed={promptAudioViews}
+                  onAudioView={recordPromptAudioView}
+                />
+              </div>
+            )}
+
+            {/* Answer area */}
+            {!isStudentPaced && !sectionLocked && saveError && (
+              <SaveErrorBanner message={saveError} />
+            )}
+            {sectionLocked && sectionState ? (
+              <div className="space-y-4">
+                <SectionCapNotice
+                  progress={sectionState}
+                  light={light}
+                  canClear={isStudentPaced}
+                />
+                {saveError && <SaveErrorBanner message={saveError} />}
+                {isStudentPaced &&
+                  !quizDone &&
+                  (currentIndex < effectiveTotalQuestions - 1 ? (
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                    >
+                      {t('quizSections.next', 'Next')}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void handleSubmitAndAdvance('', true)}
+                      disabled={submitting}
+                      className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                    >
+                      {reviewOn
+                        ? t('quizReview.reviewLink', 'Review')
+                        : t('quizSections.submit', 'Submit quiz')}
+                    </button>
+                  ))}
+              </div>
+            ) : (
+              <>
+                {recordingConfig && (
+                  <div
+                    className={
+                      whiteboardConfig
+                        ? 'flex flex-1 flex-col gap-3'
+                        : 'space-y-4'
+                    }
+                  >
+                    {whiteboardConfig ? (
+                      // The capture stays mounted under the gate so a live take survives rotation.
+                      <div
+                        className={`relative flex flex-1 flex-col ${
+                          whiteboardGated ? 'min-h-64' : ''
+                        }`}
                       >
-                        {t('quizStudent.answer.chooseAll')}
-                      </p>
+                        <div
+                          inert={whiteboardGated}
+                          className="flex flex-1 flex-col"
+                        >
+                          <WhiteboardResponseCapture
+                            key={currentQuestion.id}
+                            config={whiteboardConfig}
+                            takesCommitted={committedTakes}
+                            noticeAckedAt={noticeAckedAt}
+                            onAcknowledgeNotice={onAcknowledgeNotice}
+                            noticeRequired={noticeRequired}
+                            onCommit={(take) =>
+                              onCommitWhiteboard
+                                ? onCommitWhiteboard(
+                                    currentQuestion.id,
+                                    take,
+                                    localizedStrings ? activeLocale : undefined
+                                  )
+                                : Promise.resolve()
+                            }
+                            onRetryUpload={
+                              retryableWhiteboardArtifacts.length > 0
+                                ? async () => {
+                                    for (const artifact of retryableWhiteboardArtifacts)
+                                      await onRetryRecordingUpload(
+                                        currentQuestion.id,
+                                        artifact
+                                      );
+                                  }
+                                : undefined
+                            }
+                            onPrepExpired={handleRecordingPrepExpired}
+                            latestArtifacts={latestTakeArtifacts}
+                            slotClosed={recordingSlotClosed}
+                            recovery={takeRecovery}
+                          />
+                        </div>
+                        {whiteboardGated && <RotateDeviceGate overlay />}
+                      </div>
+                    ) : (
+                      <AudioResponseCapture
+                        key={currentQuestion.id}
+                        config={recordingConfig}
+                        takesCommitted={committedTakes}
+                        noticeAckedAt={noticeAckedAt}
+                        onAcknowledgeNotice={onAcknowledgeNotice}
+                        noticeRequired={noticeRequired}
+                        onCommit={(take) =>
+                          onCommitRecording(
+                            currentQuestion.id,
+                            take,
+                            localizedStrings ? activeLocale : undefined
+                          )
+                        }
+                        onRetryUpload={
+                          latestRecordingArtifact &&
+                          canRetryRecordingUpload(latestRecordingArtifact.id)
+                            ? () =>
+                                onRetryRecordingUpload(
+                                  currentQuestion.id,
+                                  latestRecordingArtifact
+                                )
+                            : undefined
+                        }
+                        latestArtifact={latestRecordingArtifact}
+                        light={light}
+                        slotClosed={recordingSlotClosed}
+                        onPrepExpired={handleRecordingPrepExpired}
+                        onCaptureUnavailable={handleRecordingCaptureUnavailable}
+                        recovery={takeRecovery}
+                      />
                     )}
-                    {options.map((opt) => {
-                      // Self-paced revisits stay editable, so the highlight tracks
-                      // the live cache value. When locked, fall back to the
-                      // post-submit `selectedAnswer` indicator; timer auto-submit
-                      // never sets selectedAnswer, so degrade to liveAnswer so the
-                      // student can still see which option was submitted from
-                      // their cached pick.
-                      const isLocked = choiceLocked;
-                      const lockedRef = selectedAnswer ?? liveAnswer;
-                      const isSelected = multiPicked
-                        ? multiPicked.has(opt)
-                        : isLocked
-                          ? toDisplayAnswer(
-                              currentQuestion,
-                              activeLocale,
-                              lockedRef ?? ''
-                            ) === opt
-                          : toDisplayAnswer(
-                              currentQuestion,
-                              activeLocale,
-                              liveAnswer ?? ''
-                            ) === opt;
-                      let cls =
-                        'w-full text-left px-5 py-4 rounded-2xl border-2 text-sm font-medium transition-all ';
-                      const canonicalOpt = toCanonicalAnswer(
-                        currentQuestion,
-                        activeLocale,
-                        opt
-                      );
-                      const isCrossedOut =
-                        crossOutOn &&
-                        crossedOut.isCrossedOut(
-                          currentQuestion.id,
-                          canonicalOpt
-                        );
-                      if (!isLocked) {
-                        cls += isSelected
-                          ? mcSelectedCls
-                          : isCrossedOut
-                            ? mcCrossedOutCls
-                            : mcUnselectedCls;
-                      } else {
-                        cls += isSelected
-                          ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
-                          : 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-default';
-                      }
-                      const pick = () => {
-                        if (isLocked) return;
-                        // Choosing a crossed-out option brings it back.
-                        if (isCrossedOut)
-                          crossedOut.restore(currentQuestion.id, canonicalOpt);
-                        if (multiPicked) toggleMultiOption(opt);
-                        else
-                          setCacheForCurrent(
-                            toCanonicalAnswer(
-                              currentQuestion,
-                              activeLocale,
-                              opt
-                            )
-                          );
-                      };
-                      // MA rows are checkboxes: a box glyph and checkbox semantics.
-                      const multiProps = multiPicked
-                        ? {
-                            role: 'checkbox' as const,
-                            'aria-checked': isSelected,
-                            'aria-describedby': `ma-hint-${currentQuestion.id}`,
-                          }
-                        : {};
-                      // Same index in every locale, since `options` only swaps the strings.
-                      const choiceImage =
-                        currentQuestion.choiceImages?.length === options.length
-                          ? currentQuestion.choiceImages[options.indexOf(opt)]
-                          : '';
-                      const pictureName = pictureOnlyName(
-                        t,
-                        currentQuestion,
-                        canonicalOpt,
-                        choiceImage,
-                        options.indexOf(opt) + 1
-                      );
-                      const picture = choiceImage ? (
-                        <AnswerImage src={choiceImage} />
-                      ) : null;
-                      const shownText = pictureName ? (
-                        <span className="sr-only">{pictureName}</span>
-                      ) : (
-                        <MathText text={opt} />
-                      );
-                      const content = multiPicked ? (
-                        <span className="flex items-center gap-3">
-                          <span
-                            aria-hidden="true"
-                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 ${
-                              isSelected
-                                ? 'border-current bg-current'
-                                : 'border-current opacity-60'
-                            }`}
+                    {isStudentPaced && (
+                      <div className="space-y-3">
+                        {currentIndex >= effectiveTotalQuestions - 1 &&
+                          saveError && <SaveErrorBanner message={saveError} />}
+                        <div className="flex items-center justify-end gap-3">
+                          {handBesideNext && raiseHandButton && (
+                            <div className="mr-auto">{raiseHandButton}</div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={
+                              currentIndex >= effectiveTotalQuestions - 1
+                                ? () => void handleRecordingSubmit()
+                                : handleNext
+                            }
+                            className="inline-flex items-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
                           >
-                            {isSelected && (
-                              <Check
-                                className={`h-3.5 w-3.5 ${light ? 'text-white' : 'text-slate-900'}`}
-                                strokeWidth={3}
+                            {currentIndex >= effectiveTotalQuestions - 1
+                              ? saveError
+                                ? t('quizStudent.nav.retrySubmit')
+                                : reviewOn
+                                  ? t('quizReview.reviewLink', 'Review')
+                                  : t('quizMediaResponse.capture.submitQuiz')
+                              : t('quizMediaResponse.capture.nextQuestion')}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!recordingConfig &&
+                  (currentQuestion.type === 'MC' ||
+                    currentQuestion.type === 'MA') && (
+                    <div className="space-y-3 flex-1">
+                      {isMultiAnswer && (
+                        <p
+                          id={`ma-hint-${currentQuestion.id}`}
+                          className={`text-sm font-semibold ${light ? 'text-slate-500' : 'text-slate-300'}`}
+                        >
+                          {t('quizStudent.answer.chooseAll')}
+                        </p>
+                      )}
+                      {options.map((opt) => {
+                        // Self-paced revisits stay editable, so the highlight tracks
+                        // the live cache value. When locked, fall back to the
+                        // post-submit `selectedAnswer` indicator; timer auto-submit
+                        // never sets selectedAnswer, so degrade to liveAnswer so the
+                        // student can still see which option was submitted from
+                        // their cached pick.
+                        const isLocked = choiceLocked;
+                        const lockedRef = selectedAnswer ?? liveAnswer;
+                        const isSelected = multiPicked
+                          ? multiPicked.has(opt)
+                          : isLocked
+                            ? toDisplayAnswer(
+                                currentQuestion,
+                                activeLocale,
+                                lockedRef ?? ''
+                              ) === opt
+                            : toDisplayAnswer(
+                                currentQuestion,
+                                activeLocale,
+                                liveAnswer ?? ''
+                              ) === opt;
+                        let cls =
+                          'w-full text-left px-5 py-4 rounded-2xl border-2 text-sm font-medium transition-all ';
+                        const canonicalOpt = toCanonicalAnswer(
+                          currentQuestion,
+                          activeLocale,
+                          opt
+                        );
+                        const isCrossedOut =
+                          crossOutOn &&
+                          crossedOut.isCrossedOut(
+                            currentQuestion.id,
+                            canonicalOpt
+                          );
+                        if (!isLocked) {
+                          cls += isSelected
+                            ? mcSelectedCls
+                            : isCrossedOut
+                              ? mcCrossedOutCls
+                              : mcUnselectedCls;
+                        } else {
+                          cls += isSelected
+                            ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
+                            : 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-default';
+                        }
+                        const pick = () => {
+                          if (isLocked) return;
+                          // Choosing a crossed-out option brings it back.
+                          if (isCrossedOut)
+                            crossedOut.restore(
+                              currentQuestion.id,
+                              canonicalOpt
+                            );
+                          if (multiPicked) toggleMultiOption(opt);
+                          else
+                            setCacheForCurrent(
+                              toCanonicalAnswer(
+                                currentQuestion,
+                                activeLocale,
+                                opt
+                              )
+                            );
+                        };
+                        // MA rows are checkboxes: a box glyph and checkbox semantics.
+                        const multiProps = multiPicked
+                          ? {
+                              role: 'checkbox' as const,
+                              'aria-checked': isSelected,
+                              'aria-describedby': `ma-hint-${currentQuestion.id}`,
+                            }
+                          : {};
+                        // Same index in every locale, since `options` only swaps the strings.
+                        const choiceImage =
+                          currentQuestion.choiceImages?.length ===
+                          options.length
+                            ? currentQuestion.choiceImages[options.indexOf(opt)]
+                            : '';
+                        const pictureName = pictureOnlyName(
+                          t,
+                          currentQuestion,
+                          canonicalOpt,
+                          choiceImage,
+                          options.indexOf(opt) + 1
+                        );
+                        const picture = choiceImage ? (
+                          <AnswerImage src={choiceImage} />
+                        ) : null;
+                        const shownText = pictureName ? (
+                          <span className="sr-only">{pictureName}</span>
+                        ) : (
+                          <MathText text={opt} />
+                        );
+                        const content = multiPicked ? (
+                          <span className="flex items-center gap-3">
+                            <span
+                              aria-hidden="true"
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 ${
+                                isSelected
+                                  ? 'border-current bg-current'
+                                  : 'border-current opacity-60'
+                              }`}
+                            >
+                              {isSelected && (
+                                <Check
+                                  className={`h-3.5 w-3.5 ${light ? 'text-white' : 'text-slate-900'}`}
+                                  strokeWidth={3}
+                                />
+                              )}
+                            </span>
+                            {picture}
+                            <span
+                              className={`min-w-0 wrap-break-word ${isCrossedOut ? 'line-through decoration-2' : ''}`}
+                            >
+                              {shownText}
+                            </span>
+                          </span>
+                        ) : picture ? (
+                          <span className="flex items-center gap-3">
+                            {picture}
+                            <span
+                              className={`min-w-0 wrap-break-word ${isCrossedOut ? 'line-through decoration-2' : ''}`}
+                            >
+                              {shownText}
+                            </span>
+                          </span>
+                        ) : isCrossedOut ? (
+                          <span className="line-through decoration-2">
+                            <MathText text={opt} />
+                          </span>
+                        ) : (
+                          <MathText text={opt} />
+                        );
+                        const crossOutLabel = isCrossedOut && (
+                          <span className="sr-only">
+                            {' '}
+                            {t('quizCrossOut.crossedOut', '(crossed out)')}
+                          </span>
+                        );
+                        const shownIndex = options.indexOf(opt) + 1;
+                        // A picked option can't be crossed out; picking a crossed-out one restores it.
+                        const crossOutButton = crossOutOn && !isLocked && (
+                          <CrossOutChoiceButton
+                            n={shownIndex}
+                            crossedOut={isCrossedOut}
+                            light={light}
+                            disabled={submitting || isSelected}
+                            onToggle={() =>
+                              crossedOut.toggle(
+                                currentQuestion.id,
+                                canonicalOpt
+                              )
+                            }
+                            className="self-center"
+                          />
+                        );
+                        if (!readAloudOn && !crossOutOn && !choiceImage) {
+                          return (
+                            <button
+                              key={opt}
+                              type="button"
+                              {...multiProps}
+                              onClick={pick}
+                              disabled={isLocked || submitting}
+                              className={cls}
+                            >
+                              {content}
+                            </button>
+                          );
+                        }
+                        // D2: speaker beside the row, never inside the answer button.
+                        const choicePart = readAloudOn
+                          ? readAloud.choicePart(opt)
+                          : null;
+                        return (
+                          <div
+                            key={opt}
+                            className={`flex items-stretch gap-2 rounded-2xl transition-colors ${highlightClass(choicePart, readAloud.highlightedPart)}`}
+                          >
+                            <button
+                              type="button"
+                              {...multiProps}
+                              onClick={pick}
+                              disabled={isLocked || submitting}
+                              className={`${cls} flex-1`}
+                            >
+                              {content}
+                              {crossOutLabel}
+                            </button>
+                            {choiceImage && (
+                              <AnswerImageZoomButton
+                                src={choiceImage}
+                                label={pictureName ?? opt}
+                                className="self-center"
                               />
                             )}
-                          </span>
-                          {picture}
-                          <span
-                            className={`min-w-0 wrap-break-word ${isCrossedOut ? 'line-through decoration-2' : ''}`}
-                          >
-                            {shownText}
-                          </span>
-                        </span>
-                      ) : picture ? (
-                        <span className="flex items-center gap-3">
-                          {picture}
-                          <span
-                            className={`min-w-0 wrap-break-word ${isCrossedOut ? 'line-through decoration-2' : ''}`}
-                          >
-                            {shownText}
-                          </span>
-                        </span>
-                      ) : isCrossedOut ? (
-                        <span className="line-through decoration-2">
-                          <MathText text={opt} />
-                        </span>
-                      ) : (
-                        <MathText text={opt} />
-                      );
-                      const crossOutLabel = isCrossedOut && (
-                        <span className="sr-only">
-                          {' '}
-                          {t('quizCrossOut.crossedOut', '(crossed out)')}
-                        </span>
-                      );
-                      const shownIndex = options.indexOf(opt) + 1;
-                      // A picked option can't be crossed out; picking a crossed-out one restores it.
-                      const crossOutButton = crossOutOn && !isLocked && (
-                        <CrossOutChoiceButton
-                          n={shownIndex}
-                          crossedOut={isCrossedOut}
-                          light={light}
-                          disabled={submitting || isSelected}
-                          onToggle={() =>
-                            crossedOut.toggle(currentQuestion.id, canonicalOpt)
-                          }
-                          className="self-center"
-                        />
-                      );
-                      if (!readAloudOn && !crossOutOn && !choiceImage) {
-                        return (
-                          <button
-                            key={opt}
-                            type="button"
-                            {...multiProps}
-                            onClick={pick}
-                            disabled={isLocked || submitting}
-                            className={cls}
-                          >
-                            {content}
-                          </button>
+                            {choicePart && (
+                              <ReadAloudButton
+                                label={t('quizReadAloud.readChoice', {
+                                  defaultValue: 'Read choice {{n}} aloud',
+                                  n: shownIndex,
+                                })}
+                                status={readAloud.statusOf(choicePart)}
+                                onClick={() => readAloud.play(choicePart)}
+                                onStop={readAloud.stop}
+                                className="self-center"
+                              />
+                            )}
+                            {crossOutButton}
+                          </div>
                         );
-                      }
-                      // D2: speaker beside the row, never inside the answer button.
-                      const choicePart = readAloudOn
-                        ? readAloud.choicePart(opt)
-                        : null;
-                      return (
-                        <div
-                          key={opt}
-                          className={`flex items-stretch gap-2 rounded-2xl transition-colors ${highlightClass(choicePart, readAloud.highlightedPart)}`}
-                        >
-                          <button
-                            type="button"
-                            {...multiProps}
-                            onClick={pick}
-                            disabled={isLocked || submitting}
-                            className={`${cls} flex-1`}
-                          >
-                            {content}
-                            {crossOutLabel}
-                          </button>
-                          {choiceImage && (
-                            <AnswerImageZoomButton
-                              src={choiceImage}
-                              label={pictureName ?? opt}
-                              className="self-center"
-                            />
-                          )}
-                          {choicePart && (
-                            <ReadAloudButton
-                              label={t('quizReadAloud.readChoice', {
-                                defaultValue: 'Read choice {{n}} aloud',
-                                n: shownIndex,
-                              })}
-                              status={readAloud.statusOf(choicePart)}
-                              onClick={() => readAloud.play(choicePart)}
-                              onStop={readAloud.stop}
-                              className="self-center"
-                            />
-                          )}
-                          {crossOutButton}
-                        </div>
-                      );
-                    })}
+                      })}
 
+                      <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
+                        {isStudentPaced ? (
+                          submitted &&
+                          currentIndex >= effectiveTotalQuestions - 1 &&
+                          (!reviewOn || quizDone) ? (
+                            <SuccessPill light={light}>
+                              {t('quizStudent.common.quizComplete')}
+                            </SuccessPill>
+                          ) : submitted &&
+                            autoSubmitTriggeredFor === currentQuestion.id ? (
+                            // Timeout-auto-submit fallback: timer expired without an
+                            // answer; give the student a way to advance. Only fires for
+                            // questions the timer actually ran out on, not back-nav
+                            // revisits (which keep the editable NEXT button below).
+                            <button
+                              onClick={handleNext}
+                              className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                            >
+                              {reviewOn && atLastStep
+                                ? reviewLabel
+                                : t('quizStudent.nav.nextQuestion')}{' '}
+                              <ArrowRight className="w-5 h-5" />
+                            </button>
+                          ) : (
+                            <>
+                              {saveError && (
+                                <SaveErrorBanner message={saveError} />
+                              )}
+                              <button
+                                onClick={() =>
+                                  submittableAnswer &&
+                                  void handleSubmitAndAdvance(submittableAnswer)
+                                }
+                                disabled={!submittableAnswer || submitting}
+                                className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                              >
+                                {submitting ? (
+                                  <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : atLastStep ? (
+                                  <>
+                                    {saveError
+                                      ? t('quizStudent.nav.retrySubmit')
+                                      : finishLabel}{' '}
+                                    <CheckCircle2 className="w-5 h-5" />
+                                  </>
+                                ) : (
+                                  <>
+                                    {saveError
+                                      ? t('quizStudent.nav.retry')
+                                      : t('quizStudent.nav.next')}{' '}
+                                    <ArrowRight className="w-5 h-5" />
+                                  </>
+                                )}
+                              </button>
+                            </>
+                          )
+                        ) : !submitted ? (
+                          <button
+                            onClick={() =>
+                              submittableAnswer &&
+                              void handleSubmit(submittableAnswer)
+                            }
+                            disabled={!submittableAnswer || submitting}
+                            className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
+                          >
+                            {submitting ? (
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                              t('quizStudent.nav.submitAnswer')
+                            )}
+                          </button>
+                        ) : (
+                          <div className="space-y-3">
+                            <AnswerFeedbackBanner
+                              feedback={answerFeedback}
+                              revealedAnswer={revealedAnswer}
+                              pictures={publicImageOnlyPictures(
+                                currentQuestion
+                              )}
+                              speedBonus={speedBonusEarned}
+                              streakCount={streakCount}
+                              streakEnabled={streakBonusOn}
+                            />
+                            <SuccessPill light={light}>
+                              {currentIndex < effectiveTotalQuestions - 1
+                                ? t('quizStudent.common.waitingForTeacher')
+                                : t('quizStudent.common.quizComplete')}
+                            </SuccessPill>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                {!recordingConfig && currentQuestion.type === 'FIB' && (
+                  <div
+                    className="space-y-4 flex-1"
+                    onFocusCapture={(e) => {
+                      const blanks = Array.from(
+                        e.currentTarget.querySelectorAll('input')
+                      );
+                      const index = blanks.indexOf(
+                        e.target as HTMLInputElement
+                      );
+                      if (index >= 0)
+                        lastBlankRef.current = {
+                          qid: currentQuestion.id,
+                          index,
+                        };
+                    }}
+                  >
+                    <AccentKeysArea
+                      accents={
+                        hasChoiceBlanks(currentQuestion)
+                          ? undefined
+                          : accentKeys
+                      }
+                      disabled={submitted && !isStudentPaced}
+                      light={light}
+                    >
+                      {hasChoiceBlanks(currentQuestion) ? (
+                        <FibChoiceBlanksInput
+                          key={currentQuestion.id}
+                          question={currentQuestion}
+                          value={liveAnswer ?? ''}
+                          onChange={setCacheForCurrent}
+                          disabled={submitted && !isStudentPaced}
+                          light={light}
+                        />
+                      ) : (currentQuestion.blankCount ?? 0) >= 2 ? (
+                        <FibMultiBlankInput
+                          key={
+                            mathKeyboardOn ? mathSeedKey : currentQuestion.id
+                          }
+                          count={currentQuestion.blankCount ?? 0}
+                          value={liveAnswer ?? ''}
+                          onChange={setCacheForCurrent}
+                          disabled={submitted && !isStudentPaced}
+                          light={light}
+                          inputClassName={fibInputCls}
+                          math={mathKeyboardOn}
+                          dictation={dictation}
+                          onEnter={() => {
+                            const cleaned = cleanBlankAnswer(
+                              submittableAnswer ?? ''
+                            );
+                            if (!cleaned) return;
+                            if (isStudentPaced) {
+                              void handleSubmitAndAdvance(cleaned);
+                            } else if (!submitted) {
+                              void handleSubmit(cleaned);
+                            }
+                          }}
+                        />
+                      ) : mathKeyboardOn ? (
+                        <React.Suspense fallback={null}>
+                          <MathAnswerField
+                            key={mathSeedKey}
+                            value={liveAnswer ?? ''}
+                            onChange={(plain) => setCacheForCurrent(plain)}
+                            disabled={submitted && !isStudentPaced}
+                            ariaLabel={t('quizStudent.answer.label')}
+                            className={fibInputCls}
+                            onEnter={() => {
+                              const trimmed = cleanBlankAnswer(
+                                submittableAnswer ?? ''
+                              );
+                              if (!trimmed) return;
+                              if (isStudentPaced) {
+                                void handleSubmitAndAdvance(trimmed);
+                              } else if (!submitted) {
+                                void handleSubmit(trimmed);
+                              }
+                            }}
+                          />
+                        </React.Suspense>
+                      ) : (
+                        <div
+                          className="flex items-center gap-3"
+                          {...{ [FIB_ROW_ATTR]: '' }}
+                        >
+                          <input
+                            type="text"
+                            value={liveAnswer ?? ''}
+                            onChange={(e) => setCacheForCurrent(e.target.value)}
+                            disabled={submitted && !isStudentPaced}
+                            placeholder={t('quizStudent.answer.placeholder')}
+                            className={`w-full min-w-0 px-5 py-4 border-2 rounded-2xl text-base focus:outline-hidden focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
+                            onKeyDown={(e) => {
+                              if (e.key !== 'Enter') return;
+                              const trimmed = cleanBlankAnswer(
+                                submittableAnswer ?? ''
+                              );
+                              if (!trimmed) return;
+                              if (isStudentPaced) {
+                                void handleSubmitAndAdvance(trimmed);
+                              } else if (!submitted) {
+                                void handleSubmit(trimmed);
+                              }
+                            }}
+                          />
+                          {dictation && (
+                            <FibDictateMic
+                              key={currentQuestion.id}
+                              dictation={dictation}
+                              onPhrase={setCacheForCurrent}
+                              disabled={submitted && !isStudentPaced}
+                              light={light}
+                            />
+                          )}
+                        </div>
+                      )}
+                    </AccentKeysArea>
                     <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
                       {isStudentPaced ? (
                         submitted &&
@@ -5060,10 +5498,6 @@ export const ActiveQuiz: React.FC<{
                           </SuccessPill>
                         ) : submitted &&
                           autoSubmitTriggeredFor === currentQuestion.id ? (
-                          // Timeout-auto-submit fallback: timer expired without an
-                          // answer; give the student a way to advance. Only fires for
-                          // questions the timer actually ran out on, not back-nav
-                          // revisits (which keep the editable NEXT button below).
                           <button
                             onClick={handleNext}
                             className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
@@ -5080,10 +5514,15 @@ export const ActiveQuiz: React.FC<{
                             )}
                             <button
                               onClick={() =>
-                                submittableAnswer &&
-                                void handleSubmitAndAdvance(submittableAnswer)
+                                cleanBlankAnswer(submittableAnswer ?? '') &&
+                                void handleSubmitAndAdvance(
+                                  cleanBlankAnswer(submittableAnswer ?? '')
+                                )
                               }
-                              disabled={!submittableAnswer || submitting}
+                              disabled={
+                                !cleanBlankAnswer(submittableAnswer ?? '') ||
+                                submitting
+                              }
                               className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                             >
                               {submitting ? (
@@ -5109,10 +5548,15 @@ export const ActiveQuiz: React.FC<{
                       ) : !submitted ? (
                         <button
                           onClick={() =>
-                            submittableAnswer &&
-                            void handleSubmit(submittableAnswer)
+                            cleanBlankAnswer(submittableAnswer ?? '') &&
+                            void handleSubmit(
+                              cleanBlankAnswer(submittableAnswer ?? '')
+                            )
                           }
-                          disabled={!submittableAnswer || submitting}
+                          disabled={
+                            !cleanBlankAnswer(submittableAnswer ?? '') ||
+                            submitting
+                          }
                           className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
                         >
                           {submitting ? (
@@ -5129,7 +5573,7 @@ export const ActiveQuiz: React.FC<{
                             pictures={publicImageOnlyPictures(currentQuestion)}
                             speedBonus={speedBonusEarned}
                             streakCount={streakCount}
-                            streakEnabled={session.streakBonusEnabled}
+                            streakEnabled={streakBonusOn}
                           />
                           <SuccessPill light={light}>
                             {currentIndex < effectiveTotalQuestions - 1
@@ -5142,361 +5586,188 @@ export const ActiveQuiz: React.FC<{
                   </div>
                 )}
 
-              {!recordingConfig && currentQuestion.type === 'FIB' && (
-                <div className="space-y-4 flex-1">
-                  <AccentKeysArea
-                    accents={
-                      hasChoiceBlanks(currentQuestion) ? undefined : accentKeys
-                    }
-                    disabled={submitted && !isStudentPaced}
-                    light={light}
-                  >
-                    {hasChoiceBlanks(currentQuestion) ? (
-                      <FibChoiceBlanksInput
-                        key={currentQuestion.id}
-                        question={currentQuestion}
-                        value={liveAnswer ?? ''}
-                        onChange={setCacheForCurrent}
-                        disabled={submitted && !isStudentPaced}
-                        light={light}
-                      />
-                    ) : (currentQuestion.blankCount ?? 0) >= 2 ? (
-                      <FibMultiBlankInput
-                        key={mathKeyboardOn ? mathSeedKey : currentQuestion.id}
-                        count={currentQuestion.blankCount ?? 0}
-                        value={liveAnswer ?? ''}
-                        onChange={setCacheForCurrent}
-                        disabled={submitted && !isStudentPaced}
-                        light={light}
-                        inputClassName={fibInputCls}
-                        math={mathKeyboardOn}
-                        onEnter={() => {
-                          const cleaned = cleanBlankAnswer(
-                            submittableAnswer ?? ''
-                          );
-                          if (!cleaned) return;
-                          if (isStudentPaced) {
-                            void handleSubmitAndAdvance(cleaned);
-                          } else if (!submitted) {
-                            void handleSubmit(cleaned);
-                          }
-                        }}
-                      />
-                    ) : mathKeyboardOn ? (
-                      <React.Suspense fallback={null}>
-                        <MathAnswerField
-                          key={mathSeedKey}
-                          value={liveAnswer ?? ''}
-                          onChange={(plain) => setCacheForCurrent(plain)}
-                          disabled={submitted && !isStudentPaced}
-                          ariaLabel={t('quizStudent.answer.label')}
-                          className={fibInputCls}
-                          onEnter={() => {
-                            const trimmed = cleanBlankAnswer(
-                              submittableAnswer ?? ''
-                            );
-                            if (!trimmed) return;
-                            if (isStudentPaced) {
-                              void handleSubmitAndAdvance(trimmed);
-                            } else if (!submitted) {
-                              void handleSubmit(trimmed);
-                            }
-                          }}
-                        />
-                      </React.Suspense>
-                    ) : (
-                      <input
-                        type="text"
-                        value={liveAnswer ?? ''}
-                        onChange={(e) => setCacheForCurrent(e.target.value)}
-                        disabled={submitted && !isStudentPaced}
-                        placeholder={t('quizStudent.answer.placeholder')}
-                        className={`w-full px-5 py-4 border-2 rounded-2xl text-base focus:outline-hidden focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
-                        onKeyDown={(e) => {
-                          if (e.key !== 'Enter') return;
-                          const trimmed = cleanBlankAnswer(
-                            submittableAnswer ?? ''
-                          );
-                          if (!trimmed) return;
-                          if (isStudentPaced) {
-                            void handleSubmitAndAdvance(trimmed);
-                          } else if (!submitted) {
-                            void handleSubmit(trimmed);
-                          }
-                        }}
-                      />
-                    )}
-                  </AccentKeysArea>
-                  <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
-                    {isStudentPaced ? (
-                      submitted &&
-                      currentIndex >= effectiveTotalQuestions - 1 &&
-                      (!reviewOn || quizDone) ? (
-                        <SuccessPill light={light}>
-                          {t('quizStudent.common.quizComplete')}
-                        </SuccessPill>
-                      ) : submitted &&
-                        autoSubmitTriggeredFor === currentQuestion.id ? (
-                        <button
-                          onClick={handleNext}
-                          className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                        >
-                          {reviewOn && atLastStep
-                            ? reviewLabel
-                            : t('quizStudent.nav.nextQuestion')}{' '}
-                          <ArrowRight className="w-5 h-5" />
-                        </button>
-                      ) : (
-                        <>
-                          {saveError && <SaveErrorBanner message={saveError} />}
-                          <button
-                            onClick={() =>
-                              cleanBlankAnswer(submittableAnswer ?? '') &&
-                              void handleSubmitAndAdvance(
-                                cleanBlankAnswer(submittableAnswer ?? '')
-                              )
-                            }
-                            disabled={
-                              !cleanBlankAnswer(submittableAnswer ?? '') ||
-                              submitting
-                            }
-                            className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                          >
-                            {submitting ? (
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : atLastStep ? (
-                              <>
-                                {saveError
-                                  ? t('quizStudent.nav.retrySubmit')
-                                  : finishLabel}{' '}
-                                <CheckCircle2 className="w-5 h-5" />
-                              </>
-                            ) : (
-                              <>
-                                {saveError
-                                  ? t('quizStudent.nav.retry')
-                                  : t('quizStudent.nav.next')}{' '}
-                                <ArrowRight className="w-5 h-5" />
-                              </>
-                            )}
-                          </button>
-                        </>
-                      )
-                    ) : !submitted ? (
-                      <button
-                        onClick={() =>
-                          cleanBlankAnswer(submittableAnswer ?? '') &&
-                          void handleSubmit(
-                            cleanBlankAnswer(submittableAnswer ?? '')
-                          )
-                        }
-                        disabled={
-                          !cleanBlankAnswer(submittableAnswer ?? '') ||
-                          submitting
-                        }
-                        className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
-                      >
-                        {submitting ? (
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : (
-                          t('quizStudent.nav.submitAnswer')
-                        )}
-                      </button>
-                    ) : (
-                      <div className="space-y-3">
-                        <AnswerFeedbackBanner
-                          feedback={answerFeedback}
-                          revealedAnswer={revealedAnswer}
-                          pictures={publicImageOnlyPictures(currentQuestion)}
-                          speedBonus={speedBonusEarned}
-                          streakCount={streakCount}
-                          streakEnabled={session.streakBonusEnabled}
-                        />
-                        <SuccessPill light={light}>
-                          {currentIndex < effectiveTotalQuestions - 1
-                            ? t('quizStudent.common.waitingForTeacher')
-                            : t('quizStudent.common.quizComplete')}
-                        </SuccessPill>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {!recordingConfig &&
-                (currentQuestion.type === 'Matching' ||
-                  currentQuestion.type === 'Ordering') && (
-                  <StructuredQuestionInput
-                    key={`${currentQuestion.id}:${activeLocale ?? 'en'}${watchRev}`}
-                    orderingList={session.orderingList === true}
-                    question={displayQuestion}
-                    submitted={submitted}
-                    isAutoSubmitted={
-                      autoSubmitTriggeredFor === currentQuestion.id
-                    }
-                    savedAnswer={toDisplayAnswer(
-                      currentQuestion,
-                      activeLocale,
-                      liveAnswer ?? ''
-                    )}
-                    onSubmit={(displayed) =>
-                      void handleSubmit(
-                        toCanonicalAnswer(
-                          currentQuestion,
-                          activeLocale,
-                          displayed
-                        )
-                      )
-                    }
-                    onSubmitAndAdvance={(displayed) =>
-                      void handleSubmitAndAdvance(
-                        toCanonicalAnswer(
-                          currentQuestion,
-                          activeLocale,
-                          displayed
-                        )
-                      )
-                    }
-                    onAnswerChange={(displayed) => {
-                      // Everything past this line is the English canonical value.
-                      const answer = toCanonicalAnswer(
+                {!recordingConfig &&
+                  (currentQuestion.type === 'Matching' ||
+                    currentQuestion.type === 'Ordering') && (
+                    <StructuredQuestionInput
+                      key={`${currentQuestion.id}:${activeLocale ?? 'en'}${watchRev}`}
+                      orderingList={session.orderingList === true}
+                      question={displayQuestion}
+                      submitted={submitted}
+                      isAutoSubmitted={
+                        autoSubmitTriggeredFor === currentQuestion.id
+                      }
+                      savedAnswer={toDisplayAnswer(
                         currentQuestion,
                         activeLocale,
-                        displayed
-                      );
-                      // The input remounts per question (keyed by id) and its mount
-                      // effect re-emits the seeded answer. Skip the write when the
-                      // emitted value already matches the cached value: a back-nav
-                      // remount would otherwise mark the question touched (freezing
-                      // out the seed-from-server refresh) and churn the autosave /
-                      // pollute the history log for a no-op overwrite. Genuine
-                      // placements differ from the cache and fall through.
-                      if (
-                        currentAnswerRef.current.qid === currentQid &&
-                        currentAnswerRef.current.value === answer
-                      )
-                        return;
-                      // Push the live placement into the cache; the autosave
-                      // effect picks it up and debounces the Firestore write.
-                      setCacheForCurrent(answer);
-                    }}
-                    submitting={submitting}
-                    isStudentPaced={isStudentPaced}
-                    isLastQuestion={atLastStep}
-                    finishLabel={finishLabel}
-                    reviewPending={reviewOn && !quizDone}
-                    onNext={handleNext}
-                    saveError={saveError}
-                    readAloud={readAloudOn ? readAloud.items : undefined}
-                  />
-                )}
-
-              {!recordingConfig && isFreeResponseType(currentQuestion.type) && (
-                <div className="space-y-4">
-                  {displayQuestion.rubricSnapshot &&
-                    !currentQuestion.rubricHidden && (
-                      <CollapsibleRubric
-                        rubric={displayQuestion.rubricSnapshot}
-                        light={light}
-                      />
-                    )}
-                  {answerOnPaper ? (
-                    <div
-                      className={`border rounded-2xl flex items-center gap-3 px-5 py-6 ${editorFallbackCls}`}
-                    >
-                      <PencilLine className="w-6 h-6 shrink-0 text-brand-blue-primary" />
-                      <p
-                        className={`text-base font-bold ${light ? 'text-brand-blue-dark' : 'text-slate-100'}`}
-                      >
-                        {t(
-                          'quizPaperWritten.writeOnSheet',
-                          'Write your answer on your paper answer sheet.'
-                        )}
-                      </p>
-                    </div>
-                  ) : (
-                    <AccentKeysArea
-                      accents={accentKeys}
-                      disabled={submitted && !isStudentPaced}
-                      light={light}
-                    >
-                      <React.Suspense
-                        fallback={
-                          <div
-                            className={`h-48 border rounded-2xl flex items-center justify-center ${editorFallbackCls}`}
-                          >
-                            <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
-                          </div>
-                        }
-                      >
-                        <WrittenResponseEditor
-                          // The editor seeds its `innerHTML` once on mount (caret
-                          // preservation), so we encode a "recovered text needs
-                          // injecting" boolean in the questionKey. A page refresh
-                          // mid-essay first mounts with value='' (cache empty,
-                          // saved null); when the Firestore snapshot arrives the
-                          // seed-from-server block recovery-seeds the cache, the key
-                          // flips from `…:init` → `…:seeded`, and the editor
-                          // remounts with the recovered text. Without this, the
-                          // student stares at a blank editor while React state
-                          // already holds the recovered value.
-                          //
-                          // Keyed on `seededQuestionsRef` (Firestore-sourced seeds)
-                          // rather than general cache presence: a student's own first
-                          // keystroke also populates `answerCache`, and keying on that
-                          // remounted the editor mid-type, stealing focus and the caret.
-                          questionKey={`${currentQuestion.id}:${
-                            // eslint-disable-next-line react-hooks/refs -- seeded set keys the editor remount
-                            seededQuestionsRef.current.has(currentQuestion.id)
-                              ? 'seeded'
-                              : 'init'
-                          }${watchRev}`}
-                          value={liveAnswer ?? ''}
-                          onChange={(html) => setCacheForCurrent(html)}
-                          placeholder={displayQuestion.placeholder}
-                          minWords={currentQuestion.minWords}
-                          maxWords={currentQuestion.maxWords}
-                          enforceWordLimit={currentQuestion.enforceWordLimit}
-                          spellCheck={currentQuestion.noSpellCheck !== true}
-                          disabled={submitted && !isStudentPaced}
-                          blockClipboard={blockCopyPaste}
-                          light={light}
-                          mathEnabled={mathKeyboardOn}
-                          ref={quoteEditorRef}
-                        />
-                      </React.Suspense>
-                    </AccentKeysArea>
+                        liveAnswer ?? ''
+                      )}
+                      onSubmit={(displayed) =>
+                        void handleSubmit(
+                          toCanonicalAnswer(
+                            currentQuestion,
+                            activeLocale,
+                            displayed
+                          )
+                        )
+                      }
+                      onSubmitAndAdvance={(displayed) =>
+                        void handleSubmitAndAdvance(
+                          toCanonicalAnswer(
+                            currentQuestion,
+                            activeLocale,
+                            displayed
+                          )
+                        )
+                      }
+                      onAnswerChange={(displayed) => {
+                        // Everything past this line is the English canonical value.
+                        const answer = toCanonicalAnswer(
+                          currentQuestion,
+                          activeLocale,
+                          displayed
+                        );
+                        // The input remounts per question (keyed by id) and its mount
+                        // effect re-emits the seeded answer. Skip the write when the
+                        // emitted value already matches the cached value: a back-nav
+                        // remount would otherwise mark the question touched (freezing
+                        // out the seed-from-server refresh) and churn the autosave /
+                        // pollute the history log for a no-op overwrite. Genuine
+                        // placements differ from the cache and fall through.
+                        if (
+                          currentAnswerRef.current.qid === currentQid &&
+                          currentAnswerRef.current.value === answer
+                        )
+                          return;
+                        // Push the live placement into the cache; the autosave
+                        // effect picks it up and debounces the Firestore write.
+                        setCacheForCurrent(answer);
+                      }}
+                      submitting={submitting}
+                      isStudentPaced={isStudentPaced}
+                      isLastQuestion={atLastStep}
+                      finishLabel={finishLabel}
+                      reviewPending={reviewOn && !quizDone}
+                      onNext={handleNext}
+                      saveError={saveError}
+                      readAloud={readAloudOn ? readAloud.items : undefined}
+                    />
                   )}
-                  {session.allowStimulusQuotes === true &&
-                    !answerOnPaper &&
-                    !(submitted && !isStudentPaced) &&
-                    currentStimuli.some(
-                      (s) => s.type === 'text' || s.type === 'pdf'
-                    ) && (
-                      <StimulusQuotePopover
-                        onQuote={(quote) =>
-                          quoteEditorRef.current?.insertQuote(quote)
-                        }
-                      />
-                    )}
 
-                  {/*
+                {!recordingConfig &&
+                  isFreeResponseType(currentQuestion.type) && (
+                    <div className="space-y-4">
+                      {displayQuestion.rubricSnapshot &&
+                        !currentQuestion.rubricHidden && (
+                          <CollapsibleRubric
+                            rubric={displayQuestion.rubricSnapshot}
+                            light={light}
+                          />
+                        )}
+                      {answerOnPaper ? (
+                        <div
+                          className={`border rounded-2xl flex items-center gap-3 px-5 py-6 ${editorFallbackCls}`}
+                        >
+                          <PencilLine className="w-6 h-6 shrink-0 text-brand-blue-primary" />
+                          <p
+                            className={`text-base font-bold ${light ? 'text-brand-blue-dark' : 'text-slate-100'}`}
+                          >
+                            {t(
+                              'quizPaperWritten.writeOnSheet',
+                              'Write your answer on your paper answer sheet.'
+                            )}
+                          </p>
+                        </div>
+                      ) : (
+                        <AccentKeysArea
+                          accents={accentKeys}
+                          disabled={submitted && !isStudentPaced}
+                          light={light}
+                        >
+                          <React.Suspense
+                            fallback={
+                              <div
+                                className={`h-48 border rounded-2xl flex items-center justify-center ${editorFallbackCls}`}
+                              >
+                                <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
+                              </div>
+                            }
+                          >
+                            <WrittenResponseEditor
+                              // The editor seeds its `innerHTML` once on mount (caret
+                              // preservation), so we encode a "recovered text needs
+                              // injecting" boolean in the questionKey. A page refresh
+                              // mid-essay first mounts with value='' (cache empty,
+                              // saved null); when the Firestore snapshot arrives the
+                              // seed-from-server block recovery-seeds the cache, the key
+                              // flips from `…:init` → `…:seeded`, and the editor
+                              // remounts with the recovered text. Without this, the
+                              // student stares at a blank editor while React state
+                              // already holds the recovered value.
+                              //
+                              // Keyed on `seededQuestionsRef` (Firestore-sourced seeds)
+                              // rather than general cache presence: a student's own first
+                              // keystroke also populates `answerCache`, and keying on that
+                              // remounted the editor mid-type, stealing focus and the caret.
+                              questionKey={`${currentQuestion.id}:${
+                                // eslint-disable-next-line react-hooks/refs -- seeded set keys the editor remount
+                                seededQuestionsRef.current.has(
+                                  currentQuestion.id
+                                )
+                                  ? 'seeded'
+                                  : 'init'
+                              }${watchRev}`}
+                              value={liveAnswer ?? ''}
+                              onChange={(html) => setCacheForCurrent(html)}
+                              placeholder={displayQuestion.placeholder}
+                              minWords={currentQuestion.minWords}
+                              maxWords={currentQuestion.maxWords}
+                              enforceWordLimit={
+                                currentQuestion.enforceWordLimit
+                              }
+                              spellCheck={currentQuestion.noSpellCheck !== true}
+                              disabled={submitted && !isStudentPaced}
+                              blockClipboard={blockCopyPaste}
+                              light={light}
+                              mathEnabled={mathKeyboardOn}
+                              dictation={dictation}
+                              ref={quoteEditorRef}
+                            />
+                          </React.Suspense>
+                        </AccentKeysArea>
+                      )}
+                      {session.allowStimulusQuotes === true &&
+                        !answerOnPaper &&
+                        !(submitted && !isStudentPaced) &&
+                        currentStimuli.some(
+                          (s) => s.type === 'text' || s.type === 'pdf'
+                        ) && (
+                          <StimulusQuotePopover
+                            onQuote={(quote) =>
+                              quoteEditorRef.current?.insertQuote(quote)
+                            }
+                          />
+                        )}
+
+                      {/*
             Sticky CTA: the editor can grow up to ~70vh tall, so without
             `sticky bottom-0` the Submit button rides below the fold and
             students miss it.
           */}
-                  <div
-                    className={`animate-in fade-in slide-in-from-bottom-2 space-y-3 sticky bottom-0 z-10 backdrop-blur-xs pt-3 pb-2 -mx-2 px-2 rounded-xl ${stickyCtaBg}`}
-                  >
-                    {isStudentPaced ? (
-                      submitted &&
-                      currentIndex >= effectiveTotalQuestions - 1 &&
-                      (!reviewOn || quizDone) ? (
-                        <QuizCompleteCard />
-                      ) : (
-                        <>
-                          {saveError && <SaveErrorBanner message={saveError} />}
-                          {/* Written NEXT stays enabled (only `submitting` gates it)
+                      <div
+                        className={`animate-in fade-in slide-in-from-bottom-2 space-y-3 sticky bottom-0 z-10 backdrop-blur-xs pt-3 pb-2 -mx-2 px-2 rounded-xl ${stickyCtaBg}`}
+                      >
+                        {isStudentPaced ? (
+                          submitted &&
+                          currentIndex >= effectiveTotalQuestions - 1 &&
+                          (!reviewOn || quizDone) ? (
+                            <QuizCompleteCard />
+                          ) : (
+                            <>
+                              {saveError && (
+                                <SaveErrorBanner message={saveError} />
+                              )}
+                              {/* Written NEXT stays enabled (only `submitting` gates it)
                       so a student can advance past a blank essay; gating it
                       on the cache like MC/FIB would trap anyone who wants to
                       skip. When the cache HAS a value (typed, seeded, or a
@@ -5507,48 +5778,92 @@ export const ActiveQuiz: React.FC<{
                       An enforced word limit blocks only the final SUBMIT;
                       mid-quiz NEXT advances without writing so the draft
                       (already autosaved) stays editable on return. */}
-                          <button
-                            onClick={() =>
-                              void handleSubmitAndAdvance(
-                                submittableAnswer ?? '',
-                                answerOnPaper ||
-                                  submittableAnswer === null ||
-                                  wordLimitBlocked
-                              )
-                            }
-                            disabled={
-                              submitting ||
-                              (wordLimitBlocked &&
-                                currentIndex >= effectiveTotalQuestions - 1)
-                            }
-                            aria-describedby={
-                              writtenLimit?.message &&
-                              currentIndex >= effectiveTotalQuestions - 1
-                                ? 'word-limit-status'
-                                : undefined
-                            }
-                            className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                          >
-                            {submitting ? (
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : atLastStep ? (
-                              <>
-                                {saveError
-                                  ? t('quizStudent.nav.retrySubmit')
-                                  : finishLabel}{' '}
-                                <CheckCircle2 className="w-5 h-5" />
-                              </>
-                            ) : (
-                              <>
-                                {saveError
-                                  ? t('quizStudent.nav.retry')
-                                  : t('quizStudent.nav.next')}{' '}
-                                <ArrowRight className="w-5 h-5" />
-                              </>
-                            )}
-                          </button>
-                          {writtenLimit?.message &&
-                            currentIndex >= effectiveTotalQuestions - 1 && (
+                              <button
+                                onClick={() =>
+                                  void handleSubmitAndAdvance(
+                                    submittableAnswer ?? '',
+                                    answerOnPaper ||
+                                      submittableAnswer === null ||
+                                      wordLimitBlocked
+                                  )
+                                }
+                                disabled={
+                                  submitting ||
+                                  (wordLimitBlocked &&
+                                    currentIndex >= effectiveTotalQuestions - 1)
+                                }
+                                aria-describedby={
+                                  writtenLimit?.message &&
+                                  currentIndex >= effectiveTotalQuestions - 1
+                                    ? 'word-limit-status'
+                                    : undefined
+                                }
+                                className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                              >
+                                {submitting ? (
+                                  <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : atLastStep ? (
+                                  <>
+                                    {saveError
+                                      ? t('quizStudent.nav.retrySubmit')
+                                      : finishLabel}{' '}
+                                    <CheckCircle2 className="w-5 h-5" />
+                                  </>
+                                ) : (
+                                  <>
+                                    {saveError
+                                      ? t('quizStudent.nav.retry')
+                                      : t('quizStudent.nav.next')}{' '}
+                                    <ArrowRight className="w-5 h-5" />
+                                  </>
+                                )}
+                              </button>
+                              {writtenLimit?.message &&
+                                currentIndex >= effectiveTotalQuestions - 1 && (
+                                  <p
+                                    id="word-limit-status"
+                                    role="status"
+                                    className={`text-sm font-semibold ${light ? 'text-brand-red-primary' : 'text-red-300'}`}
+                                  >
+                                    {writtenLimit.message}
+                                  </p>
+                                )}
+                            </>
+                          )
+                        ) : !submitted ? (
+                          // Teacher-paced has no self-advance, so (unlike self-paced) we
+                          // can safely gate Submit on the cache: disabled while the
+                          // editor is unseeded (`submittableAnswer === null`) — never
+                          // typed, or the saved answer hasn't echoed yet — so a fast tap
+                          // can't write a blank over a not-yet-loaded saved essay. A
+                          // deliberate clear (cache holds '') is non-null, so it stays
+                          // enabled. The button re-enables once the student types or the
+                          // saved answer loads and seeds the cache.
+                          <>
+                            <button
+                              onClick={() =>
+                                void handleSubmit(submittableAnswer ?? '')
+                              }
+                              disabled={
+                                submitting ||
+                                (submittableAnswer === null &&
+                                  !answerOnPaper) ||
+                                wordLimitBlocked
+                              }
+                              aria-describedby={
+                                writtenLimit?.message
+                                  ? 'word-limit-status'
+                                  : undefined
+                              }
+                              className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
+                            >
+                              {submitting ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                              ) : (
+                                t('quizStudent.nav.submitResponse')
+                              )}
+                            </button>
+                            {writtenLimit?.message && (
                               <p
                                 id="word-limit-status"
                                 role="status"
@@ -5557,78 +5872,28 @@ export const ActiveQuiz: React.FC<{
                                 {writtenLimit.message}
                               </p>
                             )}
-                        </>
-                      )
-                    ) : !submitted ? (
-                      // Teacher-paced has no self-advance, so (unlike self-paced) we
-                      // can safely gate Submit on the cache: disabled while the
-                      // editor is unseeded (`submittableAnswer === null`) — never
-                      // typed, or the saved answer hasn't echoed yet — so a fast tap
-                      // can't write a blank over a not-yet-loaded saved essay. A
-                      // deliberate clear (cache holds '') is non-null, so it stays
-                      // enabled. The button re-enables once the student types or the
-                      // saved answer loads and seeds the cache.
-                      <>
-                        <button
-                          onClick={() =>
-                            void handleSubmit(submittableAnswer ?? '')
-                          }
-                          disabled={
-                            submitting ||
-                            (submittableAnswer === null && !answerOnPaper) ||
-                            wordLimitBlocked
-                          }
-                          aria-describedby={
-                            writtenLimit?.message
-                              ? 'word-limit-status'
-                              : undefined
-                          }
-                          className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
-                        >
-                          {submitting ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                          ) : (
-                            t('quizStudent.nav.submitResponse')
-                          )}
-                        </button>
-                        {writtenLimit?.message && (
-                          <p
-                            id="word-limit-status"
-                            role="status"
-                            className={`text-sm font-semibold ${light ? 'text-brand-red-primary' : 'text-red-300'}`}
-                          >
-                            {writtenLimit.message}
-                          </p>
+                          </>
+                        ) : (
+                          <WrittenSubmittedCard
+                            isWaiting={
+                              currentIndex < effectiveTotalQuestions - 1
+                            }
+                          />
                         )}
-                      </>
-                    ) : (
-                      <WrittenSubmittedCard
-                        isWaiting={currentIndex < effectiveTotalQuestions - 1}
-                      />
-                    )}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+                      </div>
+                    </div>
+                  )}
+              </>
+            )}
 
-          {submitBlocked && openRecordingQuestions.length > 0 && (
-            <div className="mt-6">
-              <SubmitBlockedNotice
-                questions={openRecordingQuestions}
-                light={light}
-                onJump={jumpToOpenRecording}
-              />
-            </div>
-          )}
-
-          {/* Raise hand (whiteboard questions show it beside Next to save height) */}
-          {raiseHandButton && !handBesideNext && (
-            <div className="mt-6 flex justify-center">{raiseHandButton}</div>
-          )}
-        </div>
-      </ReviewSwap>
-    </div>
+            {/* Raise hand (whiteboard questions show it beside Next to save height) */}
+            {raiseHandButton && !handBesideNext && (
+              <div className="mt-6 flex justify-center">{raiseHandButton}</div>
+            )}
+          </div>
+        </ReviewSwap>
+      </div>
+    </WordBankFillContext.Provider>
   );
 };
 
@@ -6041,7 +6306,8 @@ const ReviewPhase: React.FC<{
   servedLocale,
 }) => {
   const { t } = useTranslation();
-  const gamificationEnabled = isGamificationActive(session);
+  const reviewGame = isReviewGame(session);
+  const gamificationEnabled = reviewGame && isGamificationActive(session);
   const revealed = session.revealedAnswers?.[currentQuestion.id];
   const myAnswer = myResponse?.answers.find(
     (a) => a.questionId === currentQuestion.id
@@ -6071,7 +6337,13 @@ const ReviewPhase: React.FC<{
           })}
         </p>
         <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md whitespace-pre-line">
-          <PromptText text={currentQuestion.text} />
+          <PromptText
+            text={
+              currentQuestion.text.trim()
+                ? currentQuestion.text
+                : t('quizQuestionAudio.label', 'Audio question')
+            }
+          />
         </h2>
 
         {/* Correct answer */}
@@ -6087,7 +6359,7 @@ const ReviewPhase: React.FC<{
         )}
 
         {/* Student's result */}
-        {isCorrect !== null && (
+        {reviewGame && isCorrect !== null && (
           <div
             className={`text-lg font-black mb-6 ${isCorrect ? 'text-emerald-400' : 'text-red-400'}`}
           >
@@ -6129,7 +6401,7 @@ const ReviewPhase: React.FC<{
   );
 };
 
-const ResultsScreen: React.FC<{
+export const ResultsScreen: React.FC<{
   session: QuizSession;
   myResponse: ReturnType<typeof useQuizSessionStudent>['myResponse'];
   answeredCount: number;
@@ -6180,45 +6452,69 @@ const ResultsScreen: React.FC<{
     );
   }
 
+  const light = isBrandSubmitScreen(session, pin);
   return (
-    <div className="h-screen h-dvh overflow-y-auto bg-slate-900">
-      <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
-        <Trophy className="w-16 h-16 text-amber-400 mb-6" />
-        <h1 className="text-3xl font-black text-white mb-2">
+    <div
+      className={`relative h-screen h-dvh overflow-y-auto ${light ? 'bg-slate-50' : 'bg-slate-900'}`}
+    >
+      {light && <StudentBrandBackdrop fixed={false} />}
+      <div className="relative min-h-full flex flex-col items-center justify-center p-6 text-center">
+        {isReviewGame(session) ? (
+          <Trophy
+            className="w-16 h-16 text-amber-400 mb-6"
+            aria-hidden="true"
+          />
+        ) : (
+          light && <SubmittedMark light />
+        )}
+        <h1
+          className={`text-3xl font-black mb-2 ${light ? 'text-slate-800' : 'text-white'}`}
+        >
           {t('quizStudent.results.complete')}
         </h1>
-        <p className="text-slate-400 text-sm mb-8">
+        <p
+          className={`text-sm mb-8 ${light ? 'text-slate-500' : 'text-slate-400'}`}
+        >
           {pin ? (
             <>
               {t('quizStudent.results.greatJobPin')}{' '}
-              <span className="font-mono font-bold text-white">{pin}</span>!
+              <span
+                className={`font-mono font-bold ${light ? 'text-slate-800' : 'text-white'}`}
+              >
+                {pin}
+              </span>
+              !
             </>
           ) : (
             t('quizStudent.results.greatJob')
           )}
         </p>
 
-        <div className="mb-8 p-6 bg-slate-800 rounded-2xl">
-          <p className="text-5xl font-black text-white mb-2">{answeredCount}</p>
-          <p className="text-slate-400 text-sm">
-            {t('quizStudent.results.answeredOf', { total: totalQuestions })}
-          </p>
-        </div>
+        <AnsweredCountCard
+          light={light}
+          answeredCount={answeredCount}
+          total={totalQuestions}
+          className="mb-8"
+          size="lg"
+        />
 
         <p className="text-slate-500 text-sm max-w-xs">
           {t('quizStudent.results.submitted')}
         </p>
 
-        {isGamificationActive(session) && session.liveLeaderboard && (
-          <div className="mt-8 w-full flex justify-center">
-            <StudentLeaderboard
-              entries={session.liveLeaderboard}
-              myPin={pin}
-              myStudentUid={myStudentUid}
-              scoreSuffix={getScoreSuffix(session)}
-            />
-          </div>
-        )}
+        {isGamificationActive(session) &&
+          isReviewGame(session) &&
+          session.liveLeaderboard && (
+            <div className="mt-8 w-full flex justify-center">
+              <StudentLeaderboard
+                entries={session.liveLeaderboard}
+                myPin={pin}
+                myStudentUid={myStudentUid}
+                scoreSuffix={getScoreSuffix(session)}
+                light={light}
+              />
+            </div>
+          )}
       </div>
     </div>
   );
@@ -6285,7 +6581,7 @@ export const PublishedScoreReview: React.FC<{
   session,
   myResponse: liveResponse,
   visibility,
-  revealedAnswers,
+  revealedAnswers: liveRevealedAnswers,
   revealedRubricExamples,
   revealedExplanations,
   publishedAt: publishedAtProp,
@@ -6312,20 +6608,46 @@ export const PublishedScoreReview: React.FC<{
     ? myAttemptAsResponse(liveResponse, picked)
     : liveResponse;
   const drawIds = picked ? picked.servedQuestionIds : liveDrawIds;
-  const attemptLabel = (n: number, score: number | null | undefined) =>
-    typeof score === 'number' ? `${n} · ${score}%` : String(n);
+  // An earlier attempt had its own random numbers and answers.
+  const pickedCalcKey =
+    picked && liveResponse._responseKey
+      ? calcAttemptKey(liveResponse._responseKey, {
+          joinedAt: liveResponse.joinedAt,
+          status: 'completed',
+          completedAttempts: picked.n,
+        })
+      : null;
+  const revealedAnswers = pickedCalcKey
+    ? withAttemptCalcAnswers(
+        liveRevealedAnswers ?? session.revealedAnswers,
+        session.publicQuestions,
+        picked?.calcAnswers
+      )
+    : liveRevealedAnswers;
+  // Points lead, as on the score card; percent only when an attempt has no point total.
+  const attemptLabel = (
+    n: number,
+    score: number | null | undefined,
+    points: { earned: number; possible: number } | null | undefined
+  ) =>
+    points
+      ? `${n} · ${formatScorePoints(points.earned)}/${formatScorePoints(points.possible)}`
+      : typeof score === 'number'
+        ? `${n} · ${score}%`
+        : String(n);
   const attemptOptions =
     myAttempts.length > 0
       ? [
           ...myAttempts.map((a) => ({
             n: a.n,
-            label: attemptLabel(a.n, a.score),
+            label: attemptLabel(a.n, a.score, a.points),
           })),
           {
             n: null,
             label: attemptLabel(
               Math.max(liveAttemptN, myAttempts[myAttempts.length - 1].n + 1),
-              liveResponse.score
+              liveResponse.score,
+              publishedScorePoints(liveResponse)
             ),
           },
         ]
@@ -6356,6 +6678,8 @@ export const PublishedScoreReview: React.FC<{
   const answerIncorrectText = light ? 'text-red-600' : 'text-red-300';
   const answerNeutralText = light ? 'text-slate-700' : 'text-slate-200';
   const trophyCls = light ? 'text-amber-500' : 'text-amber-400';
+  // Trophy belongs to Review games only; Quiz is an assessment.
+  const showTrophy = isReviewGame(session);
   const checkIconCls = light ? 'text-emerald-600' : 'text-emerald-400';
   const xIconCls = light ? 'text-red-500' : 'text-red-400';
 
@@ -6363,9 +6687,19 @@ export const PublishedScoreReview: React.FC<{
     visibility === 'score-and-responses' ||
     visibility === 'score-responses-and-answers';
   const showAnswers = visibility === 'score-responses-and-answers';
+  const showChoiceList = session.recapAllOptions === true;
 
   const scorePercent =
     typeof myResponse.score === 'number' ? myResponse.score : null;
+  // An earlier attempt's points come from the attempt list, and only when they make its percent.
+  const scorePoints = picked
+    ? picked.points &&
+      typeof picked.score === 'number' &&
+      Math.round((picked.points.earned / picked.points.possible) * 100) ===
+        picked.score
+      ? picked.points
+      : null
+    : publishedScorePoints(myResponse);
   // Per-question correctness counts come straight off the authoritative
   // response — no client-side grading. Defensive default: a published
   // assignment with all-undefined `isCorrect` reads as 0 correct rather
@@ -6381,9 +6715,26 @@ export const PublishedScoreReview: React.FC<{
   // entirely when the quiz has no auto-graded questions at all. Restricted
   // to the served subset (M17 §3a-F) — an unmodified question the student
   // was never served must not count toward this denominator.
-  const publicQuestions = drawIds
-    ? orderServedQuestions(session.publicQuestions ?? [], drawIds)
-    : serveQuestionSubset(session.publicQuestions ?? [], override?.questionIds);
+  const modifiedOn =
+    session.sessionMode === 'student' && override?.modifiedQuestions === true;
+  const publicQuestions = (
+    drawIds
+      ? orderServedQuestions(session.publicQuestions ?? [], drawIds)
+      : serveQuestionSubset(
+          session.publicQuestions ?? [],
+          override?.questionIds
+        )
+  ).map((q) =>
+    applyModifiedRubric(
+      applyModifiedWording(
+        pickedCalcKey && q.calcUnfilled
+          ? fillCalcPublicQuestion(q.calcUnfilled, pickedCalcKey)
+          : q,
+        modifiedOn
+      ),
+      override?.modifiedQuestions
+    )
+  );
   const publicQuestionIndex = new Map(
     publicQuestions.map((question, index) => [question.id, index])
   );
@@ -6421,10 +6772,13 @@ export const PublishedScoreReview: React.FC<{
       .filter((q) => isFreeResponseType(q.type))
       .map((q) => [q.id, q] as const)
   );
+  // An extra answer in a choose-N section is not scored, so it is never owed a grade.
+  const notChosen = new Set(notChosenQuestionIds(myResponse, session.sections));
   const awaitingGrade = myResponse.answers.some((a) => {
     const q = writtenQuestionsById.get(a.questionId);
     return (
       q !== undefined &&
+      !notChosen.has(a.questionId) &&
       isWrittenAnswerAwaitingGrade(
         q,
         a.answer ?? '',
@@ -6443,7 +6797,7 @@ export const PublishedScoreReview: React.FC<{
     hasUngradedRecording(
       myResponse.answers,
       myResponse.grading,
-      publicQuestions.map((q) => q.id),
+      publicQuestions.map((q) => q.id).filter((id) => !notChosen.has(id)),
       myResponse.artifactArchive
     );
 
@@ -6490,11 +6844,8 @@ export const PublishedScoreReview: React.FC<{
   // any future modal dialogs (z-50, well below `Z_INDEX.modal`/`Z_INDEX.toast`
   // from `config/zIndex.ts`). Strictly decorative + pointer-events-none, so
   // it doesn't interfere with scrolling, focus, or selection beneath it.
-  // Student display name is best-effort: SSO joiners carry an
-  // `auth.currentUser.displayName`; anonymous PIN joiners fall back to their
-  // PIN; otherwise we use a generic 'Student' label. The watermark is
-  // informational — its job is to discourage shared screenshots, not to
-  // authenticate.
+  // Student name is best-effort (see useWatermarkStudentName); it deters shared
+  // screenshots, it does not authenticate.
   const watermarkEnabled = protection?.watermarkEnabled === true;
   // When the session has no `scorePublishedAt` (legacy or mid-publish), fall
   // back to a per-mount snapshot of `Date.now()`. `useState(fn)` runs `fn`
@@ -6504,20 +6855,11 @@ export const PublishedScoreReview: React.FC<{
   const [fallbackPublishedAt] = useState(() => Date.now());
   const publishedAt =
     publishedAtProp ?? session.scorePublishedAt ?? fallbackPublishedAt;
-  // Prefer an explicit override (the Classroom SSO session is nameless, so the
-  // add-on passes the roster-resolved / userinfo name down). Otherwise treat a
-  // blank/whitespace-only displayName as missing and fall through to the PIN
-  // label, then a generic "Student".
-  const trimmedOverride = watermarkNameOverride?.trim() ?? '';
-  const trimmedDisplayName = auth.currentUser?.displayName?.trim() ?? '';
-  const watermarkStudentName =
-    trimmedOverride.length > 0
-      ? trimmedOverride
-      : trimmedDisplayName.length > 0
-        ? trimmedDisplayName
-        : pin
-          ? `PIN ${pin}`
-          : 'Student';
+  // The Classroom add-on and LTI pass a roster name as the override.
+  const watermarkStudentName = useWatermarkStudentName(
+    watermarkNameOverride,
+    pin
+  );
 
   // ─── Tab-switch warning protection ─────────────────────────────────────────
   // Listens for visibility/focus loss; each return increments the warning
@@ -6620,7 +6962,12 @@ export const PublishedScoreReview: React.FC<{
       />
       <div className="mx-auto w-full max-w-6xl">
         <header className="mb-6 flex flex-col items-center text-center">
-          <Trophy className={`mb-4 h-12 w-12 ${trophyCls}`} />
+          {showTrophy && (
+            <Trophy
+              className={`mb-4 h-12 w-12 ${trophyCls}`}
+              aria-hidden="true"
+            />
+          )}
           <h1 className={`text-2xl font-black sm:text-3xl ${headingText}`}>
             {t('quizStudent.results.title')}
           </h1>
@@ -6680,9 +7027,36 @@ export const PublishedScoreReview: React.FC<{
         >
           {scorePercent !== null ? (
             <>
-              <p className={`text-5xl font-black sm:text-6xl ${headingText}`}>
-                {scorePercent}%
-              </p>
+              {scorePoints ? (
+                <>
+                  <p
+                    className={`text-5xl font-black tabular-nums sm:text-6xl ${headingText}`}
+                  >
+                    <span className="sr-only">
+                      {t('quizStudent.results.pointsOf', {
+                        earned: formatScorePoints(scorePoints.earned),
+                        possible: formatScorePoints(scorePoints.possible),
+                      })}
+                    </span>
+                    <span aria-hidden="true">
+                      {formatScorePoints(scorePoints.earned)}
+                      <span className={prepText}>
+                        {' / '}
+                        {formatScorePoints(scorePoints.possible)}
+                      </span>
+                    </span>
+                  </p>
+                  <p
+                    className={`mt-2 text-xl font-bold tabular-nums ${prepText}`}
+                  >
+                    {scorePercent}%
+                  </p>
+                </>
+              ) : (
+                <p className={`text-5xl font-black sm:text-6xl ${headingText}`}>
+                  {scorePercent}%
+                </p>
+              )}
               {/* Per-question tally counts only fully-correct answers, so
                   it can lag the percentage on quizzes that award partial
                   credit (Matching/Ordering with `allowPartialCredit`) or
@@ -6690,7 +7064,8 @@ export const PublishedScoreReview: React.FC<{
                   written-response questions where "fully correct" is a
                   category error. Hide the line on essay-only quizzes; on
                   mixed quizzes it counts only the auto-graded subset. */}
-              {autoGradedCount > 0 &&
+              {!scorePoints &&
+                autoGradedCount > 0 &&
                 (picked ? !!picked.answers : hasVerdicts) && (
                   <p className={`mt-2 text-sm ${subtleText}`}>
                     {t('quizStudent.results.fullyCorrect', {
@@ -6844,7 +7219,7 @@ export const PublishedScoreReview: React.FC<{
                           <p
                             className={`flex-1 min-w-0 wrap-break-word whitespace-pre-line text-sm font-semibold ${qTextCls}`}
                           >
-                            {recapQuestion.text}
+                            {promptLabel(recapQuestion)}
                           </p>
                           {isCorrect && (
                             <Check
@@ -6878,6 +7253,25 @@ export const PublishedScoreReview: React.FC<{
                               light={light}
                               hideEmptyResponse={hasRecordedTake}
                               paper={paperReviewFor(ans, idx + 1)}
+                            />
+                          ) : showChoiceList &&
+                            (q.type === 'MC' || q.type === 'MA') &&
+                            (q.choices?.length ?? 0) > 0 ? (
+                            <RecapChoiceList
+                              question={recapQuestion}
+                              canonicalChoices={q.choices ?? []}
+                              hiddenChoices={
+                                session.sessionMode === 'student'
+                                  ? override?.hiddenOptionIdsByQuestion?.[q.id]
+                                  : undefined
+                              }
+                              studentAnswer={studentAnswer}
+                              verdict={ans?.isCorrect}
+                              correctAnswer={
+                                showAnswers ? correctAnswer : undefined
+                              }
+                              pictures={publicImageOnlyPictures(q)}
+                              light={light}
                             />
                           ) : (
                             <>
@@ -7129,8 +7523,8 @@ const ScoredRubricDisplay: React.FC<{
             <div className="flex items-baseline justify-between gap-2 text-xs">
               <span className={bodyCls}>{criterion.name}</span>
               <span className={`font-mono font-semibold ${headingCls}`}>
-                {level && score ? (
-                  `${level.label} — ${t('quizStudent.rubric.points', { count: score.points })}`
+                {score ? (
+                  `${level ? `${level.label} — ` : ''}${t('quizStudent.rubric.points', { count: score.points })}`
                 ) : (
                   <span className={`italic ${bodyCls}`}>
                     {t('quizStudent.rubric.notScored')}
@@ -7504,66 +7898,137 @@ export const QuizSubmittedWaitScreen: React.FC<{
     effectiveTabWarningThreshold
   );
   const scoreSuffix = getScoreSuffix(session);
+  const light = isBrandSubmitScreen(session, pin);
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
-      <CheckCircle2 className="w-16 h-16 text-emerald-400 mb-6" />
-      <h1 className="text-3xl font-black text-white mb-2">
-        {t('quizStudent.submitted.title')}
-      </h1>
-      <p className="text-slate-400 text-sm mb-6">
-        {pin ? (
-          <>
-            {t('quizStudent.submitted.greatWorkPin')}{' '}
-            <span className="font-mono font-bold text-white">{pin}</span>.
-          </>
-        ) : (
-          t('quizStudent.submitted.greatWork')
-        )}
-      </p>
-
-      <div className="mb-6 p-5 bg-slate-800 rounded-2xl">
-        <p className="text-4xl font-black text-white mb-2">{answeredCount}</p>
-        <p className="text-slate-400 text-sm">
-          {t('quizStudent.results.answeredOf', {
-            total: totalQuestions ?? session.totalQuestions,
-          })}
+    <div
+      className={`relative h-screen h-dvh overflow-y-auto ${
+        light ? 'bg-slate-50' : 'bg-slate-900'
+      }`}
+    >
+      {light && <StudentBrandBackdrop fixed={false} />}
+      <div className="relative min-h-full w-full flex flex-col items-center justify-center p-6 text-center">
+        <SubmittedMark light={light} />
+        <h1
+          className={`text-3xl font-black mb-2 ${light ? 'text-slate-800' : 'text-white'}`}
+        >
+          {t('quizStudent.submitted.title')}
+        </h1>
+        <p
+          className={`text-sm mb-6 ${light ? 'text-slate-500' : 'text-slate-400'}`}
+        >
+          {pin ? (
+            <>
+              {t('quizStudent.submitted.greatWorkPin')}{' '}
+              <span
+                className={`font-mono font-bold ${light ? 'text-slate-800' : 'text-white'}`}
+              >
+                {pin}
+              </span>
+              .
+            </>
+          ) : (
+            t('quizStudent.submitted.greatWork')
+          )}
         </p>
-      </div>
 
-      {tabSwitchAutoSubmitted && (
-        <div className="max-w-sm mb-6 p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl text-amber-200 text-sm">
-          {t('quizStudent.submitted.autoSubmitted')}
-        </div>
-      )}
+        <AnsweredCountCard
+          light={light}
+          answeredCount={answeredCount}
+          total={totalQuestions ?? session.totalQuestions}
+          className="mb-6"
+        />
 
-      {isGamificationActive(session) && session.liveLeaderboard && (
-        <div className="mb-6 w-full flex justify-center">
-          <StudentLeaderboard
-            entries={session.liveLeaderboard}
-            myPin={pin}
-            myStudentUid={myResponse.studentUid}
-            scoreSuffix={scoreSuffix}
+        {tabSwitchAutoSubmitted && (
+          <div
+            className={`max-w-sm mb-6 p-3 rounded-xl text-sm ${
+              light
+                ? 'bg-amber-50 border border-amber-200 text-amber-800'
+                : 'bg-amber-500/20 border border-amber-500/40 text-amber-200'
+            }`}
+          >
+            {t('quizStudent.submitted.autoSubmitted')}
+          </div>
+        )}
+
+        {isGamificationActive(session) &&
+          isReviewGame(session) &&
+          session.liveLeaderboard && (
+            <div className="mb-6 w-full flex justify-center">
+              <StudentLeaderboard
+                entries={session.liveLeaderboard}
+                myPin={pin}
+                myStudentUid={myResponse.studentUid}
+                scoreSuffix={scoreSuffix}
+                light={light}
+              />
+            </div>
+          )}
+
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <Loader2
+            className={`w-4 h-4 animate-spin ${light ? 'text-brand-blue-primary' : ''}`}
           />
+          {t('quizStudent.submitted.waitingFinal')}
         </div>
-      )}
 
-      <div className="flex items-center gap-2 text-slate-500 text-sm">
-        <Loader2 className="w-4 h-4 animate-spin" />
-        {t('quizStudent.submitted.waitingFinal')}
-      </div>
-
-      {/*
+        {/*
         Pseudonym students (no PIN) reached this from /my-assignments and
         would otherwise be stranded waiting for the teacher to end the
         quiz. PIN-based students joined by code and have nowhere to go
         back to — skip the CTA for them.
       */}
-      {!pin && !hideReturnButton && (
-        <div className="mt-6">
-          <ReturnToAssignmentsButton variant="standalone" />
-        </div>
-      )}
+        {!pin && !hideReturnButton && (
+          <div className="mt-6">
+            <ReturnToAssignmentsButton variant="standalone" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Students who came from My Assignments (no PIN) or a self-paced quiz get the brand page; live PIN joins stay dark.
+const isBrandSubmitScreen = (session: QuizSession, pin: string): boolean =>
+  !pin || session.sessionMode === 'student';
+
+const SubmittedMark: React.FC<{ light: boolean }> = ({ light }) =>
+  light ? (
+    <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-blue-primary shadow-lg shadow-brand-blue-primary/20">
+      <Check
+        className="h-8 w-8 text-white"
+        strokeWidth={3}
+        aria-hidden="true"
+      />
+    </div>
+  ) : (
+    <CheckCircle2 className="w-16 h-16 text-emerald-400 mb-6" />
+  );
+
+const AnsweredCountCard: React.FC<{
+  light: boolean;
+  answeredCount: number;
+  total: number;
+  className?: string;
+  size?: 'md' | 'lg';
+}> = ({ light, answeredCount, total, className = '', size = 'md' }) => {
+  const { t } = useTranslation();
+  return (
+    <div
+      className={`${size === 'lg' ? 'p-6' : 'p-5'} rounded-2xl ${
+        light
+          ? 'min-w-[200px] bg-white border border-slate-200 shadow-xs'
+          : 'bg-slate-800'
+      } ${className}`}
+    >
+      <p
+        className={`${size === 'lg' ? 'text-5xl' : 'text-4xl'} font-black mb-2 tabular-nums ${light ? 'text-brand-blue-primary' : 'text-white'}`}
+      >
+        {answeredCount}
+      </p>
+      <p className={`text-sm ${light ? 'text-slate-500' : 'text-slate-400'}`}>
+        {t('quizStudent.results.answeredOf', { total })}
+      </p>
     </div>
   );
 };

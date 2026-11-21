@@ -20,7 +20,7 @@ export const GuidedLearningWelcomeImage: React.FC<
       data-testid="gl-welcome-image"
       draggable={false}
       onError={() => setFailedUrl(url)}
-      className={`block aspect-video w-full rounded-xl border border-white/10 object-cover ${className}`}
+      className={`block aspect-video w-full rounded-xl border border-slate-200 object-cover ${className}`}
     />
   );
 };

@@ -48,3 +48,36 @@ export async function refreshVerifiedClassesIfStale(
     inFlight.delete(uid);
   }
 }
+
+/** Mirrors CLASS_NOT_TAUGHT_MESSAGE in functions/src/verifiedClassList.ts. */
+export const CLASS_NOT_TAUGHT_MESSAGE =
+  'You can only assign to classes you teach in ClassLink.';
+
+const isPermissionDenied = (err: unknown): boolean =>
+  typeof err === 'object' &&
+  err !== null &&
+  (err as { code?: unknown }).code === 'permission-denied';
+
+/** Runs a class-targeted write; a rules refusal refreshes the class list once and retries, then explains. */
+export async function withVerifiedClassesRetry<T>(
+  uid: string,
+  targetsClasses: boolean,
+  write: () => Promise<T>,
+  now: number = Date.now()
+): Promise<T> {
+  try {
+    return await write();
+  } catch (err) {
+    if (!targetsClasses || !isPermissionDenied(err)) throw err;
+    writeStamp(uid, 0);
+    await refreshVerifiedClassesIfStale(uid, now);
+    try {
+      return await write();
+    } catch (retryErr) {
+      if (isPermissionDenied(retryErr)) {
+        throw new Error(CLASS_NOT_TAUGHT_MESSAGE, { cause: retryErr });
+      }
+      throw retryErr;
+    }
+  }
+}

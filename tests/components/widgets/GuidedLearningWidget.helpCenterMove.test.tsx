@@ -50,7 +50,6 @@ vi.mock('@/context/useAuth', () => ({
     isAdmin: auth.isAdmin,
     orgId: 'org-1',
     roleId: 'domain_admin',
-    userRoles: { superAdmins: [] },
     getAssignmentMode: () => 'graded',
     canAccessFeature: () => false,
   }),

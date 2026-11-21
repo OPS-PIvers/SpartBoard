@@ -31,7 +31,7 @@
       "note": "At 150×100 the header, rows, check and timer icons all shrink together to near-illegible text (2.29 px minimum, 8.8 px tap targets), the stress fixture becomes an unreadable smear, and nothing collapses to keep the primary item dominant.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:06:29.399Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 2,
@@ -71,7 +71,7 @@
       },
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:06:29.399Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 2,
@@ -286,7 +286,7 @@
       "note": "Clean rounded glass styling, but every row is boxed in a bordered pill and the faded gray-on-gray struck-through labels are hard to read.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:06:29.399Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 3,
@@ -323,7 +323,7 @@
       "note": "The day-type title leads, and below it each row steps down cleanly from item name to time to icons, though with every item past nothing stands out as current.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:06:29.399Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 2,
@@ -375,7 +375,7 @@
       "note": "Short, plain labels (Non-School Day, the specials names, times) and lucide icons throughout, though the stopwatch icon's meaning is not obvious without a label.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:06:29.399Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 3,

@@ -27,7 +27,7 @@ import { logError } from '@/utils/logError';
 import { canEditPlcContent, getPlcMemberEmail } from '@/utils/plc';
 import { quizServedQuestionCount } from '@/utils/questionBanks';
 import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
-import { useBankSources } from '@/hooks/useBankSources';
+import { pinPlcBankSlots, useBankSources } from '@/hooks/useBankSources';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { getQuizAssignPrefill, getQuizBehavior } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
@@ -45,6 +45,7 @@ import {
   applyPlcStepperStudentPicks,
   savePlcStepperFinalScore,
   plcStepperCreateFields,
+  withPlanAnswerChoices,
   type PlcQuizStepperPlan,
 } from '@/components/plc/plcQuizStepperAssign';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
@@ -85,6 +86,17 @@ function formatDate(ms: number): string {
   } catch {
     return '';
   }
+}
+
+/** Canonical content fields with unpinned shared slots pinned to a verified PLC-member owner. */
+async function pinnedSyncedFields(
+  canonical: Parameters<typeof syncedQuizContentFields>[0],
+  plc: Pick<Plc, 'id' | 'memberUids'>
+): Promise<ReturnType<typeof syncedQuizContentFields>> {
+  const fields = syncedQuizContentFields(canonical);
+  if (!fields.bankSlots) return fields;
+  const bankSlots = await pinPlcBankSlots(fields.bankSlots, plc);
+  return { ...fields, bankSlots };
 }
 
 export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
@@ -307,7 +319,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
           id: crypto.randomUUID(),
           title: canonical.title,
           questions: canonical.questions,
-          ...syncedQuizContentFields(canonical),
+          ...(await pinnedSyncedFields(canonical, plc)),
           createdAt: now,
           updatedAt: now,
         };
@@ -385,7 +397,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
       deleteQuiz,
       isDriveConnected,
       personalBySyncGroup,
-      plc.id,
+      plc,
       saveQuiz,
       t,
       user,
@@ -431,7 +443,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
           id: crypto.randomUUID(),
           title: canonical.title,
           questions: canonical.questions,
-          ...syncedQuizContentFields(canonical),
+          ...(await pinnedSyncedFields(canonical, plc)),
           createdAt: now,
           updatedAt: now,
         };
@@ -455,7 +467,11 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
           { loadBankContentsForQuiz, saveDriveSnapshot }
         );
         const plcLinkage = buildPlcLinkage(plc);
-        const fields = plcStepperCreateFields(plan, rosters);
+        const quizPlan: PlcQuizStepperPlan = {
+          ...plan,
+          mixed: withPlanAnswerChoices(plan.mixed, content.questions),
+        };
+        const fields = plcStepperCreateFields(quizPlan, rosters);
         const created = await createAssignment(
           {
             id: savedMeta.id,
@@ -503,7 +519,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
         });
         await applyPlcStepperStudentPicks({
           assignmentId: created.id,
-          plan,
+          plan: quizPlan,
           setAssignmentTargets,
           setAssignmentTargetSkippedCount,
           addToast,
@@ -617,7 +633,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
             id: crypto.randomUUID(),
             title: canonical.title,
             questions: canonical.questions,
-            ...syncedQuizContentFields(canonical),
+            ...(await pinnedSyncedFields(canonical, plc)),
             createdAt: now,
             updatedAt: now,
           };
@@ -698,7 +714,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
       isDriveConnected,
       loadQuizData,
       personalBySyncGroup,
-      plc.id,
+      plc,
       saveQuiz,
       t,
       user,
@@ -920,6 +936,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
           sharedByName={importTarget.sharedByName ?? ''}
           onPick={(mode) => void handleImport(importTarget, mode)}
           onClose={() => setImportTarget(null)}
+          canSync={canEdit}
         />
       )}
       {assignTarget && (
@@ -928,6 +945,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
           sharedByName={assignTarget.sharedByName ?? ''}
           onPick={(mode) => handlePickMode(assignTarget, mode)}
           onClose={() => setAssignTarget(null)}
+          canSync={canEdit}
         />
       )}
       {pickup && (

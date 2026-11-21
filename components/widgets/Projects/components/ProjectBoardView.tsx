@@ -45,7 +45,10 @@ import {
   resolveBoardClassId,
   reviewCells,
   rosterForClass,
+  submitStatusOf,
 } from '../boardHelpers';
+import { db } from '@/config/firebase';
+import { reopenProjectGroup } from '@/utils/projectRunWrites';
 import { STATE_STYLES } from '../stepVisuals';
 import { StateMark } from '../StateMark';
 import { BoardClassPicker } from './board/BoardClassPicker';
@@ -146,6 +149,16 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
   const [openCell, setOpenCell] = useState<OpenCell | null>(null);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
   const [viewGroupId, setViewGroupId] = useState<string | null>(null);
+  // Missing is judged against the open time; a due date passing mid-lesson shows on the next open.
+  const [openedAt] = useState(() => Date.now());
+  const reopenGroup = async (groupId: string) => {
+    if (!liveRunId) return;
+    try {
+      await reopenProjectGroup(db, liveRunId, groupId, user?.uid);
+    } catch {
+      addToast('That group could not be reopened.', 'error');
+    }
+  };
   // A substitute can pick a class but must not write the teacher's board.
   const [localClassId, setLocalClassId] = useState<string | null>(null);
   const reviewButtonRef = useRef<HTMLButtonElement>(null);
@@ -459,6 +472,16 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                 }
                 onOpenCell={openCellAt}
                 stickyStyle={stickyStyle}
+                submitStatus={submitStatusOf(
+                  group,
+                  readOnly ? null : live.run,
+                  openedAt
+                )}
+                onReopen={
+                  (group.submittedAt ?? 0) > 0
+                    ? () => reopenGroup(group.id)
+                    : undefined
+                }
               />
             ))}
           </tbody>

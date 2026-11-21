@@ -69,4 +69,4 @@ gh pr create --base dev-paul --title "hotfix: <what broke> (back to dev-paul)" -
 
 ## 7. Tell teachers only if they noticed
 
-If teachers saw the breakage, add a short `public/changelog.json` note through the normal release rules (docs/DEV_WORKFLOW.md#how-to-write-a-release-note).
+If teachers saw the breakage, add a short note in a new `changelog.d/<name>.json` file through the normal release rules (docs/DEV_WORKFLOW.md#how-to-write-a-release-note).

@@ -32,7 +32,12 @@ import { connectionDefFor } from '@/config/widgetConnections';
 import { TOOLS } from '@/config/tools';
 import { useConnectionWidgetTitle } from '@/hooks/useConnectionWidgetTitle';
 import { Z_INDEX } from '@/config/zIndex';
-import { isConnectionLive, sharesFollowSlot } from '@/utils/connectionEngine';
+import {
+  isConnectionLive,
+  liveSteps,
+  sharesFollowSlot,
+  stepWaits,
+} from '@/utils/connectionEngine';
 import { sendRunCommand } from '@/utils/connectionSignals';
 import {
   advanceChoice,
@@ -56,7 +61,7 @@ const MAX_REPEAT = 99;
 const newId = () => crypto.randomUUID();
 
 const control =
-  'h-8 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-700 hover:border-slate-400';
+  'h-9 min-w-0 max-w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-700 hover:border-slate-300';
 const iconButton =
   'relative touch-target-expand flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600';
 const menuItem =
@@ -168,7 +173,10 @@ export const ConnectionEditorModal: React.FC<{
     (c): c is SequenceConnection => c.kind === 'sequence'
   );
   const [seq, setSeq] = useState(initialSeq);
-  const [initial] = useState(() => toCards(initialSeq?.steps ?? []));
+  // A deleted widget's actions drop out, so a step's next live action leads its card and an emptied step goes.
+  const [initial] = useState(() =>
+    toCards(initialSeq ? liveSteps(initialSeq, board.widgets) : [])
+  );
   const [cards, setCards] = useState<EditorCard[]>(initial.cards);
   const stepsOf = (cs: EditorCard[]) =>
     fromCards({ cards: cs, leadingPause: initial.leadingPause }, newId);
@@ -360,6 +368,12 @@ export const ConnectionEditorModal: React.FC<{
   };
 
   const runsOut = loopRunsOut({ steps: stepsOf(cards) }, board.widgets);
+  // A Sequence where nothing waits runs once, so the repeat choice only shows when a step waits.
+  const canRepeat =
+    !!seq &&
+    liveSteps({ ...seq, steps: stepsOf(cards) }, board.widgets).some((s) =>
+      stepWaits(s, board.widgets)
+    );
   const untilLabel =
     runsOut === 'names'
       ? t('connections.editor.repeatUntilNames', {
@@ -388,7 +402,7 @@ export const ConnectionEditorModal: React.FC<{
     return (
       <>
         <WidgetIcon widget={w} />
-        <span className="whitespace-nowrap font-semibold text-slate-800">
+        <span className="min-w-0 break-words font-semibold text-slate-800">
           {name}
         </span>
         {def && def.actions.length > 1 ? (
@@ -409,7 +423,7 @@ export const ConnectionEditorModal: React.FC<{
             ))}
           </select>
         ) : (
-          <span className="whitespace-nowrap text-sm text-slate-600">
+          <span className="min-w-0 text-sm text-slate-600">
             {actionLabel(w, a.action)}
           </span>
         )}
@@ -427,44 +441,37 @@ export const ConnectionEditorModal: React.FC<{
     );
   };
 
-  const sideCard = (
+  // A widget that runs alongside the step: an indented hairline row under it.
+  const sideRow = (
     key: string,
     widgetId: string,
     content: React.ReactNode,
     onRemove: () => void,
     removeTour: ReturnType<typeof tourAttr>
   ) => (
-    <div key={key} className="flex min-w-0 items-center gap-2">
-      <span
+    <div
+      key={key}
+      onPointerDown={() => light(widgetId)}
+      className={`flex items-center gap-2 border-t border-slate-100 py-2 pl-[2.625rem] pr-3 ${rowLit(widgetId)}`}
+    >
+      <Plus
+        className="h-3.5 w-3.5 shrink-0 text-slate-400"
         aria-hidden="true"
-        className="w-4 shrink-0 text-center text-base font-bold text-slate-400"
-      >
-        +
+      />
+      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1.5">
+        {content}
       </span>
-      <div
-        onPointerDown={() => light(widgetId)}
-        className={`flex min-h-14 min-w-0 items-center gap-2.5 rounded-xl border bg-white px-3 py-2.5 ${
-          litWidgetId === widgetId
-            ? 'border-brand-blue-primary ring-2 ring-brand-blue-primary/20'
-            : 'border-slate-200'
-        }`}
+      <button
+        type="button"
+        {...removeTour}
+        aria-label={t('connections.editor.removeAction', {
+          defaultValue: 'Remove',
+        })}
+        onClick={onRemove}
+        className={iconButton}
       >
-        {/* Wraps a long label under the name instead of running past the dialog edge. */}
-        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
-          {content}
-        </span>
-        <button
-          type="button"
-          {...removeTour}
-          aria-label={t('connections.editor.removeAction', {
-            defaultValue: 'Remove',
-          })}
-          onClick={onRemove}
-          className={iconButton}
-        >
-          <X className="h-4 w-4" aria-hidden="true" />
-        </button>
-      </div>
+        <X className="h-4 w-4" aria-hidden="true" />
+      </button>
     </div>
   );
 
@@ -483,9 +490,9 @@ export const ConnectionEditorModal: React.FC<{
       onClick={(e) =>
         setMenu({ kind: 'add', i, at: e.currentTarget.getBoundingClientRect() })
       }
-      className="relative touch-target-expand flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-dashed border-slate-300 text-slate-500 hover:border-brand-blue-primary hover:text-brand-blue-primary"
+      className={iconButton}
     >
-      <Plus className="h-4 w-4" aria-hidden="true" />
+      <Plus className="h-5 w-5" aria-hidden="true" />
     </button>
   );
 
@@ -495,8 +502,11 @@ export const ConnectionEditorModal: React.FC<{
     // Tagged with the step's widget type so a tour can reach the arrow after a given widget.
     const stepType = mainOf(card)?.type;
     return (
-      <div className="flex h-11 items-center gap-2 pl-[1.1rem] text-xs font-semibold text-slate-500">
-        <ArrowDown className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <div className="flex min-h-12 flex-wrap items-center gap-x-2.5 gap-y-1.5 border-t border-slate-100 bg-slate-50 py-1.5 pl-4 pr-3 text-sm text-slate-600">
+        <ArrowDown
+          className="h-4 w-4 shrink-0 text-slate-400"
+          aria-hidden="true"
+        />
         <select
           value={choice}
           {...tourAttr('connections.editor.advance', undefined, stepType)}
@@ -507,7 +517,7 @@ export const ConnectionEditorModal: React.FC<{
           onChange={(e) =>
             setCard(i, withAdvance(card, e.target.value as AdvanceChoice))
           }
-          className="h-7 rounded-md border border-slate-200 bg-white px-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300"
+          className={control}
         >
           <option value="finish">{finishLabel(card)}</option>
           {waits && (
@@ -547,7 +557,7 @@ export const ConnectionEditorModal: React.FC<{
                   ),
                 })
               }
-              className="h-7 w-16 rounded-md border border-slate-200 bg-white px-1.5 text-xs text-slate-700"
+              className={`${control} w-16`}
             />
             {t('connections.editor.seconds', { defaultValue: 'seconds' })}
           </label>
@@ -559,12 +569,12 @@ export const ConnectionEditorModal: React.FC<{
   const followSide = (f: FollowConnection) => {
     const w = widgetsById.get(f.followerId);
     if (!w) return null;
-    return sideCard(
+    return sideRow(
       f.id,
       w.id,
       <>
         <WidgetIcon widget={w} />
-        <span className="whitespace-nowrap font-semibold text-slate-800">
+        <span className="min-w-0 break-words font-semibold text-slate-800">
           {names.get(w.id)}
         </span>
         <span className="min-w-0 text-sm text-slate-600">
@@ -579,12 +589,8 @@ export const ConnectionEditorModal: React.FC<{
     );
   };
 
-  const stepCardClass = (widgetId: string | undefined) =>
-    `flex min-h-14 w-full items-center gap-2.5 rounded-xl border bg-white px-3 py-2.5 sm:w-[22rem] sm:shrink-0 ${
-      widgetId && litWidgetId === widgetId
-        ? 'border-brand-blue-primary ring-2 ring-brand-blue-primary/20'
-        : 'border-slate-200'
-    }`;
+  const rowLit = (widgetId: string | undefined) =>
+    widgetId && litWidgetId === widgetId ? 'bg-brand-blue-lighter/40' : '';
 
   const numberBadge = (n: number) => (
     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-blue-primary text-xs font-bold text-white">
@@ -593,13 +599,13 @@ export const ConnectionEditorModal: React.FC<{
   );
 
   const footer = (
-    <div className="flex w-full items-center gap-2">
+    <div className="flex w-full flex-wrap items-center justify-center gap-2">
       {draft.replaces.length > 0 && (
         <button
           type="button"
           {...tourAttr('connections.editor.delete')}
           onClick={remove}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-brand-red-primary hover:bg-brand-red-lighter/40"
+          className="mr-6 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-brand-red-primary hover:bg-brand-red-lighter/40"
         >
           <Trash2 className="h-4 w-4" aria-hidden="true" />
           {t('connections.editor.delete', {
@@ -607,7 +613,6 @@ export const ConnectionEditorModal: React.FC<{
           })}
         </button>
       )}
-      <div className="flex-1" />
       <button
         type="button"
         {...tourAttr('connections.editor.cancel')}
@@ -692,195 +697,179 @@ export const ConnectionEditorModal: React.FC<{
           </div>
         )}
 
-        {cards.length > 0 && (
-          <ol className="flex flex-col">
-            {cards.map((card, i) => {
-              const main = mainOf(card);
-              const [first, ...rest] = card.step.actions;
-              const sideFollows = follows.filter((f) => followCard(f) === i);
-              return (
-                <li key={card.step.id} className="flex flex-col">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-                    <div
-                      onPointerDown={() => light(main?.id)}
-                      className={stepCardClass(main?.id)}
+        {(cards.length > 0 || looseFollows.length > 0 || canRepeat) && (
+          <div className="overflow-hidden rounded-xl border border-slate-200">
+            {cards.length > 0 && (
+              <ol className="flex flex-col">
+                {cards.map((card, i) => {
+                  const main = mainOf(card);
+                  const [first, ...rest] = card.step.actions;
+                  const sideFollows = follows.filter(
+                    (f) => followCard(f) === i
+                  );
+                  return (
+                    <li
+                      key={card.step.id}
+                      className={`flex flex-col ${i > 0 ? 'border-t border-slate-200' : ''}`}
                     >
-                      {numberBadge(i + 1)}
-                      {main && first ? (
-                        actionLine(main, first, (next) =>
-                          setActions(i, [next, ...rest])
-                        )
-                      ) : (
-                        <span className="text-sm text-slate-500">
-                          {t('connections.editor.empty', {
-                            defaultValue: 'Nothing here',
-                          })}
-                        </span>
-                      )}
-                      <span className="flex-1" />
-                      <button
-                        type="button"
-                        {...tourAttr('connections.editor.step-menu')}
-                        aria-label={t('connections.editor.stepMenu', {
-                          n: i + 1,
-                          defaultValue: 'Step {{n}} options',
-                        })}
-                        aria-haspopup="menu"
-                        aria-expanded={menu?.kind === 'step' && menu.i === i}
-                        onClick={(e) =>
-                          setMenu({
-                            kind: 'step',
-                            i,
-                            at: e.currentTarget.getBoundingClientRect(),
-                          })
-                        }
-                        className={iconButton}
+                      <div
+                        onPointerDown={() => light(main?.id)}
+                        className={`flex min-h-14 items-center gap-2.5 py-2 pl-3 pr-2 ${rowLit(main?.id)}`}
                       >
-                        <MoreHorizontal
-                          className="h-5 w-5"
-                          aria-hidden="true"
-                        />
-                      </button>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      {(() => {
-                        const sides = [
-                          ...rest.flatMap((a, k) => {
-                            const w = widgetsById.get(a.widgetId);
-                            if (!w) return [];
-                            return [
-                              sideCard(
-                                `${a.widgetId}-${k}`,
-                                w.id,
-                                actionLine(w, a, (next) =>
-                                  setActions(
-                                    i,
-                                    card.step.actions.map((x, j) =>
-                                      j === k + 1 ? next : x
-                                    )
-                                  )
-                                ),
-                                () =>
-                                  setActions(
-                                    i,
-                                    card.step.actions.filter(
-                                      (_, j) => j !== k + 1
-                                    )
-                                  ),
-                                tourAttr('connections.editor.remove-action')
-                              ),
-                            ];
-                          }),
-                          ...sideFollows.map(followSide).filter(Boolean),
-                        ];
-                        if (sides.length === 0) {
-                          return (
-                            <div className="flex min-h-14 items-center">
-                              {addSideButton(i)}
-                            </div>
-                          );
-                        }
-                        // The "+" sits at the end of the last side card's row.
-                        return sides.map((side, k) => (
-                          <div
-                            key={k}
-                            className="flex min-w-0 items-center gap-2"
-                          >
-                            {side}
-                            {k === sides.length - 1 && addSideButton(i)}
-                          </div>
-                        ));
-                      })()}
-                    </div>
+                        {numberBadge(i + 1)}
+                        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1.5">
+                          {main && first ? (
+                            actionLine(main, first, (next) =>
+                              setActions(i, [next, ...rest])
+                            )
+                          ) : (
+                            <span className="text-sm text-slate-500">
+                              {t('connections.editor.empty', {
+                                defaultValue: 'Nothing here',
+                              })}
+                            </span>
+                          )}
+                        </span>
+                        {main && addSideButton(i)}
+                        <button
+                          type="button"
+                          {...tourAttr('connections.editor.step-menu')}
+                          aria-label={t('connections.editor.stepMenu', {
+                            n: i + 1,
+                            defaultValue: 'Step {{n}} options',
+                          })}
+                          aria-haspopup="menu"
+                          aria-expanded={menu?.kind === 'step' && menu.i === i}
+                          onClick={(e) =>
+                            setMenu({
+                              kind: 'step',
+                              i,
+                              at: e.currentTarget.getBoundingClientRect(),
+                            })
+                          }
+                          className={iconButton}
+                        >
+                          <MoreHorizontal
+                            className="h-5 w-5"
+                            aria-hidden="true"
+                          />
+                        </button>
+                      </div>
+                      {rest.map((a, k) => {
+                        const w = widgetsById.get(a.widgetId);
+                        if (!w) return null;
+                        return sideRow(
+                          `${a.widgetId}-${k}`,
+                          w.id,
+                          actionLine(w, a, (next) =>
+                            setActions(
+                              i,
+                              card.step.actions.map((x, j) =>
+                                j === k + 1 ? next : x
+                              )
+                            )
+                          ),
+                          () =>
+                            setActions(
+                              i,
+                              card.step.actions.filter((_, j) => j !== k + 1)
+                            ),
+                          tourAttr('connections.editor.remove-action')
+                        );
+                      })}
+                      {sideFollows.map(followSide)}
+                      {arrow(card, i)}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+
+            {looseFollows.map((f, k) => {
+              const leader = widgetsById.get(f.leaderId);
+              if (!leader) return null;
+              return (
+                <div
+                  key={`loose-${f.id}`}
+                  className={
+                    cards.length > 0 || k > 0 ? 'border-t border-slate-200' : ''
+                  }
+                >
+                  <div
+                    onPointerDown={() => light(leader.id)}
+                    className={`flex min-h-14 items-center gap-2.5 px-3 py-2 ${rowLit(leader.id)}`}
+                  >
+                    <WidgetIcon widget={leader} />
+                    <span className="min-w-0 break-words font-semibold text-slate-800">
+                      {names.get(leader.id)}
+                    </span>
                   </div>
-                  {arrow(card, i)}
-                </li>
+                  {followSide(f)}
+                </div>
               );
             })}
-          </ol>
-        )}
 
-        {looseFollows.map((f) => {
-          const leader = widgetsById.get(f.leaderId);
-          if (!leader) return null;
-          return (
-            <div
-              key={`loose-${f.id}`}
-              className="flex flex-col gap-2 sm:flex-row sm:items-center"
-            >
-              <div
-                onPointerDown={() => light(leader.id)}
-                className={stepCardClass(leader.id)}
-              >
-                <WidgetIcon widget={leader} />
-                <span className="whitespace-nowrap font-semibold text-slate-800">
-                  {names.get(leader.id)}
-                </span>
-              </div>
-              {followSide(f)}
-            </div>
-          );
-        })}
-
-        {seq && cards.length > 0 && (
-          <div className="flex min-h-14 flex-wrap items-center gap-2.5 rounded-xl bg-slate-50 px-3 py-2.5">
-            <Repeat
-              className="ml-1 h-4 w-4 shrink-0 text-slate-500"
-              aria-hidden="true"
-            />
-            <select
-              value={seq.repeat}
-              {...tourAttr('connections.editor.repeat')}
-              aria-label={t('connections.editor.repeat', {
-                defaultValue: 'Repeat',
-              })}
-              onChange={(e) =>
-                setSeq({
-                  ...seq,
-                  repeat: e.target.value as SequenceConnection['repeat'],
-                  // Save the 2 the box shows, so the Run repeats as many times as it says.
-                  ...(e.target.value === 'count' && {
-                    repeatCount: seq.repeatCount ?? 2,
-                  }),
-                })
-              }
-              className={control}
-            >
-              <option value="until-done">{untilLabel}</option>
-              <option value="count">
-                {t('connections.editor.repeatCount', {
-                  defaultValue: 'Repeat a set number of times',
-                })}
-              </option>
-              <option value="once">
-                {t('connections.editor.repeatOnce', {
-                  defaultValue: "Don't repeat",
-                })}
-              </option>
-            </select>
-            {seq.repeat === 'count' && (
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <DraftNumberField
-                  min={1}
-                  max={MAX_REPEAT}
-                  value={seq.repeatCount ?? 2}
-                  {...tourAttr('connections.editor.repeat-count')}
-                  normalize={(n) =>
-                    Math.min(MAX_REPEAT, Math.max(1, Math.round(n)))
-                  }
-                  onCommit={(n) =>
+            {seq && canRepeat && (
+              <div className="flex min-h-14 flex-wrap items-center gap-x-2.5 gap-y-1.5 border-t border-slate-200 px-3 py-2">
+                <Repeat
+                  className="mx-1 h-4 w-4 shrink-0 text-slate-400"
+                  aria-hidden="true"
+                />
+                <select
+                  value={seq.repeat}
+                  {...tourAttr('connections.editor.repeat')}
+                  aria-label={t('connections.editor.repeat', {
+                    defaultValue: 'Repeat',
+                  })}
+                  onChange={(e) =>
                     setSeq({
                       ...seq,
-                      repeatCount: Math.min(
-                        MAX_REPEAT,
-                        Math.max(1, Math.round(n))
-                      ),
+                      repeat: e.target.value as SequenceConnection['repeat'],
+                      // Save the 2 the box shows, so the Run repeats as many times as it says.
+                      ...(e.target.value === 'count' && {
+                        repeatCount: seq.repeatCount ?? 2,
+                      }),
                     })
                   }
-                  className={`${control} w-16`}
-                />
-                {t('connections.editor.times', { defaultValue: 'times' })}
-              </label>
+                  className={control}
+                >
+                  <option value="until-done">{untilLabel}</option>
+                  <option value="count">
+                    {t('connections.editor.repeatCount', {
+                      defaultValue: 'Repeat a set number of times',
+                    })}
+                  </option>
+                  <option value="once">
+                    {t('connections.editor.repeatOnce', {
+                      defaultValue: "Don't repeat",
+                    })}
+                  </option>
+                </select>
+                {seq.repeat === 'count' && (
+                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                    <DraftNumberField
+                      min={1}
+                      max={MAX_REPEAT}
+                      value={seq.repeatCount ?? 2}
+                      {...tourAttr('connections.editor.repeat-count')}
+                      normalize={(n) =>
+                        Math.min(MAX_REPEAT, Math.max(1, Math.round(n)))
+                      }
+                      onCommit={(n) =>
+                        setSeq({
+                          ...seq,
+                          repeatCount: Math.min(
+                            MAX_REPEAT,
+                            Math.max(1, Math.round(n))
+                          ),
+                        })
+                      }
+                      className={`${control} w-16`}
+                    />
+                    {t('connections.editor.times', { defaultValue: 'times' })}
+                  </label>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -896,7 +885,7 @@ export const ConnectionEditorModal: React.FC<{
                 connections: current(),
               });
             }}
-            className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="relative touch-target-expand flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             {t('connections.editor.addStep', { defaultValue: 'Add a step' })}

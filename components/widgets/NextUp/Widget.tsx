@@ -1,3 +1,4 @@
+import { viewAsSuppressesBackgroundWrites } from '@/utils/viewAsTab';
 import React, {
   useState,
   useEffect,
@@ -110,7 +111,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
 
   // Auto-expiry check: Deactivate session if it's from a previous day
   useEffect(() => {
-    if (inShare) return;
+    if (inShare || viewAsSuppressesBackgroundWrites()) return;
     if (!shouldExpireNextUpQueue(isActive, createdAt, new Date(nowTick))) {
       return;
     }
@@ -198,6 +199,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   useEffect(() => {
     if (
       inShare ||
+      viewAsSuppressesBackgroundWrites() ||
       !isActive ||
       !activeDriveFileId ||
       !driveService ||

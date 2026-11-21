@@ -10,7 +10,7 @@ import {
   STUDENT_PSEUDONYM_HMAC_SECRET,
   GOOGLE_OAUTH_CLIENT_ID,
 } from './secrets';
-import { chunk } from './shared';
+import { chunk } from './utils/chunk';
 import { computeAssignmentPseudonym } from './assignmentPseudonym';
 import {
   ALLOWED_ORIGINS,
@@ -26,6 +26,7 @@ import {
   isBridgeablePin,
   normalizeEmailDomain,
   resolveOrgIdForDomain,
+  CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
 } from './classlinkShared';
 import { normalizeQuizCode } from './quizCode';
 import { quizJoinCodeOwner } from './quizJoinCodeOwner';
@@ -38,14 +39,15 @@ import {
 } from './studentEmailIdentity';
 import {
   MAX_TARGET_REFS,
+  isTestClassAuthority,
   loadTargetDirectory,
   resolveTargets,
   targetRefsFromAssignment,
-} from './studentAssignmentTargets';
+} from './studentTargetDirectory';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { isTestClassAuthority } from './studentAssignmentTargets';
 import { BoundedLruMap } from './utils/boundedLruMap';
 import { studentFirstName } from './studentFirstName';
+import { safeErr } from './safeLog';
 
 // Student identity (ClassLink-via-Google) — PII-free auth flow
 // ---------------------------------------------------------------------------
@@ -489,7 +491,7 @@ export const studentLoginV1 = onCall(
       } catch (err) {
         console.error(
           '[studentLoginV1] createCustomToken failed (test bypass):',
-          err
+          safeErr(err)
         );
         throw new HttpsError('internal', 'Failed to mint auth token.');
       }
@@ -548,7 +550,7 @@ export const studentLoginV1 = onCall(
           readPreviousClaim(db, uid, orgId),
         ]);
     } catch (err) {
-      console.error('[studentLoginV1] roster lookup failed:', err);
+      console.error('[studentLoginV1] roster lookup failed:', safeErr(err));
       throw new HttpsError('internal', 'Roster service unavailable.');
     }
     // A section ClassLink couldn't confirm just now keeps its place from the last sign-in (or any, before one was recorded), so a blip never narrows the claim.
@@ -570,7 +572,10 @@ export const studentLoginV1 = onCall(
         updatedAt: Date.now(),
       });
     } catch (err) {
-      console.error('[studentLoginV1] student_sections write failed:', err);
+      console.error(
+        '[studentLoginV1] student_sections write failed:',
+        safeErr(err)
+      );
     }
 
     let customToken: string;
@@ -583,7 +588,7 @@ export const studentLoginV1 = onCall(
         firstName,
       });
     } catch (err) {
-      console.error('[studentLoginV1] createCustomToken failed:', err);
+      console.error('[studentLoginV1] createCustomToken failed:', safeErr(err));
       throw new HttpsError('internal', 'Failed to mint auth token.');
     }
 
@@ -859,7 +864,7 @@ export const getStudentClassDirectoryV1 = onCall(
           // The current claim still works; the new class shows on next sign-in.
           console.error(
             '[getStudentClassDirectoryV1] createCustomToken failed:',
-            err
+            safeErr(err)
           );
         }
       }
@@ -916,6 +921,7 @@ export const getStudentClassDirectoryV1 = onCall(
 export const getPseudonymsForAssignmentV1 = onCall(
   {
     memory: '256MiB',
+    timeoutSeconds: CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
     // Warm in prod only; the CLI sets GCLOUD_PROJECT during deploy discovery, unset falls back to warm.
     minInstances: process.env.GCLOUD_PROJECT === 'spartboard-dev' ? 0 : 1,
     cors: ALLOWED_ORIGINS,
@@ -1903,7 +1909,10 @@ async function stampRetiredPinTimes(
       ...rest.flatMap(([seg, value]) => [path(seg), value])
     );
   } catch (err) {
-    console.warn('[recordRetiredPins] retiredPinsAt stamp failed', err);
+    console.warn(
+      '[recordRetiredPins] retiredPinsAt stamp failed',
+      safeErr(err)
+    );
   }
 }
 
@@ -1924,20 +1933,20 @@ const PIN_LOGIN_SESSION_DAY_MS = 24 * 60 * 60 * 1000;
 export const PIN_LOGIN_MAX_CALLERS_PER_STUDENT = 3;
 const PIN_LOGIN_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
 
-interface PinLoginAttempts {
+export interface PinLoginAttempts {
   windowStart: number;
   failures: number;
   indexKeys: string[];
 }
 
-interface PinLoginSessionBudget {
+export interface PinLoginSessionBudget {
   windowStart: number;
   failures: number;
   dayStart: number;
   dayFailures: number;
 }
 
-function readPinLoginAttempts(
+export function readPinLoginAttempts(
   data: admin.firestore.DocumentData | undefined,
   now: number
 ): PinLoginAttempts {
@@ -1957,7 +1966,7 @@ function readPinLoginAttempts(
   };
 }
 
-function readPinLoginSession(
+export function readPinLoginSession(
   data: admin.firestore.DocumentData | undefined,
   now: number
 ): PinLoginSessionBudget {
@@ -1997,7 +2006,9 @@ function pinLoginSessionBlocked(s: PinLoginSessionBudget): boolean {
   );
 }
 
-function pinLoginExpireAt(windowStart: number): admin.firestore.Timestamp {
+export function pinLoginExpireAt(
+  windowStart: number
+): admin.firestore.Timestamp {
   // TTL field (firestore.indexes.json) so stale counters delete themselves.
   return admin.firestore.Timestamp.fromMillis(
     windowStart + 2 * PIN_LOGIN_WINDOW_MS
@@ -2033,7 +2044,7 @@ export function pinLoginRefs(
 }
 
 /** Blocked by a caller limit, or by a shared budget unless this caller is rejoining as a student it already holds. */
-function pinLoginLimited(
+export function pinLoginLimited(
   a: PinLoginAttempts,
   shared: readonly PinLoginSessionBudget[],
   callers: readonly string[],
@@ -2043,6 +2054,30 @@ function pinLoginLimited(
   if (pinLoginBlocked(a, indexKey)) return true;
   if (callers.includes(callerUid)) return false;
   return shared.some(pinLoginSessionBlocked);
+}
+
+/** Counts one miss on the caller and every shared budget; every miss is counted, even once blocked, so the stored total matches the probes made. */
+export function recordPinLoginMiss(
+  tx: admin.firestore.Transaction,
+  refs: Pick<PinLoginRefs, 'caller' | 'shared'>,
+  a: PinLoginAttempts,
+  shared: PinLoginSessionBudget[]
+): void {
+  a.failures += 1;
+  shared.forEach((s, i) => {
+    s.failures += 1;
+    s.dayFailures += 1;
+    tx.set(refs.shared[i], {
+      ...s,
+      expireAt: admin.firestore.Timestamp.fromMillis(
+        Math.max(
+          s.windowStart + 2 * PIN_LOGIN_WINDOW_MS,
+          s.dayStart + PIN_LOGIN_SESSION_DAY_MS
+        )
+      ),
+    });
+  });
+  tx.set(refs.caller, { ...a, expireAt: pinLoginExpireAt(a.windowStart) });
 }
 
 export interface PinLoginMatch {
@@ -2104,22 +2139,7 @@ export async function decidePinLogin(
     }
 
     if (!match) {
-      // Every miss is counted, even once blocked, so the stored total matches the probes made.
-      a.failures += 1;
-      shared.forEach((s, i) => {
-        s.failures += 1;
-        s.dayFailures += 1;
-        tx.set(refs.shared[i], {
-          ...s,
-          expireAt: admin.firestore.Timestamp.fromMillis(
-            Math.max(
-              s.windowStart + 2 * PIN_LOGIN_WINDOW_MS,
-              s.dayStart + PIN_LOGIN_SESSION_DAY_MS
-            )
-          ),
-        });
-      });
-      tx.set(refs.caller, { ...a, expireAt: pinLoginExpireAt(a.windowStart) });
+      recordPinLoginMiss(tx, refs, a, shared);
       return { outcome: blocked ? 'rate-limited' : 'miss' };
     }
 
@@ -2362,7 +2382,7 @@ export const pinLoginV1 = onCall(
         r.get()
       )
     ).catch((err: unknown) => {
-      console.error('[pinLoginV1] attempt check failed:', err);
+      console.error('[pinLoginV1] attempt check failed:', safeErr(err));
       return null;
     });
     if (
@@ -2415,7 +2435,7 @@ export const pinLoginV1 = onCall(
       indexKey,
       rejoinOnly
     ).catch((err: unknown): PinLoginDecision => {
-      console.error('[pinLoginV1] attempt record failed:', err);
+      console.error('[pinLoginV1] attempt record failed:', safeErr(err));
       return { outcome: 'rate-limited' };
     });
     if (decision.outcome === 'rate-limited') {
@@ -2458,7 +2478,7 @@ export const pinLoginV1 = onCall(
         pinSessionId: sessionRef.id,
       });
     } catch (err) {
-      console.error('[pinLoginV1] createCustomToken failed:', err);
+      console.error('[pinLoginV1] createCustomToken failed:', safeErr(err));
       throw new HttpsError('internal', 'Failed to mint auth token.');
     }
 

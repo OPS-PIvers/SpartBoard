@@ -1,0 +1,1 @@
+claude/project-thread-2vjfnn (release 2026.11.20 #6410, release fix #6417 and follow-ups)

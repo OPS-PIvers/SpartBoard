@@ -43,6 +43,10 @@ export interface RowScore {
   attemptNumber: number | null;
   /** Mini App results v2 only: who scored the best attempt. */
   gradedBy?: 'server' | 'app';
+  /** Writing: the teacher excused this piece. */
+  excused?: true;
+  /** Quiz: scanned from a printed group copy, so never Late or Missing. */
+  onPaper?: true;
 }
 
 export interface SessionMeta {

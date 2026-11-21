@@ -45,6 +45,14 @@ export interface StubDocRef {
   delete: () => Promise<void>;
 }
 
+export interface StubTx {
+  get: (ref: StubDocRef) => Promise<StubDocSnap>;
+  update: (ref: StubDocRef, data: StubData) => void;
+  set: (ref: StubDocRef, data: StubData, opts?: { merge?: boolean }) => void;
+  create: (ref: StubDocRef, data: StubData) => void;
+  delete: (ref: StubDocRef) => void;
+}
+
 export class AlreadyExistsError extends Error {
   code = 6;
   constructor(path: string) {
@@ -101,7 +109,12 @@ function deepMerge(base: StubData, patch: StubData): StubData {
   return out;
 }
 
-export function makeStubFirestore(seed: Record<string, StubData> = {}) {
+export function makeStubFirestore(
+  seed: Record<string, StubData> = {},
+  { serialTransactions: serial = false }: { serialTransactions?: boolean } = {}
+) {
+  // Real transactions on the same doc serialize; opt in to model that.
+  let txQueue: Promise<unknown> = Promise.resolve();
   const store = new Map<string, StubData>();
   let autoId = 0;
   for (const [path, data] of Object.entries(seed)) store.set(path, { ...data });
@@ -246,6 +259,27 @@ export function makeStubFirestore(seed: Record<string, StubData> = {}) {
     };
   };
 
+  const runTx = async <T>(fn: (tx: StubTx) => Promise<T>): Promise<T> => {
+    const pending: Array<() => Promise<void>> = [];
+    const result = await fn({
+      get: (ref) => ref.get(),
+      update: (ref, data) => {
+        pending.push(() => ref.update(data));
+      },
+      set: (ref, data, setOpts) => {
+        pending.push(() => ref.set(data, setOpts));
+      },
+      create: (ref, data) => {
+        pending.push(() => ref.create(data));
+      },
+      delete: (ref) => {
+        pending.push(() => ref.delete());
+      },
+    });
+    for (const p of pending) await p();
+    return result;
+  };
+
   const db = {
     collection: (path: string) => makeCollection(path, null),
     doc: (path: string) => makeDoc(path),
@@ -259,37 +293,11 @@ export function makeStubFirestore(seed: Record<string, StubData> = {}) {
           }),
         { where: [] }
       ),
-    runTransaction: async <T>(
-      fn: (tx: {
-        get: (ref: StubDocRef) => Promise<StubDocSnap>;
-        update: (ref: StubDocRef, data: StubData) => void;
-        set: (
-          ref: StubDocRef,
-          data: StubData,
-          opts?: { merge?: boolean }
-        ) => void;
-        create: (ref: StubDocRef, data: StubData) => void;
-        delete: (ref: StubDocRef) => void;
-      }) => Promise<T>
-    ): Promise<T> => {
-      const pending: Array<() => Promise<void>> = [];
-      const result = await fn({
-        get: (ref) => ref.get(),
-        update: (ref, data) => {
-          pending.push(() => ref.update(data));
-        },
-        set: (ref, data, opts) => {
-          pending.push(() => ref.set(data, opts));
-        },
-        create: (ref, data) => {
-          pending.push(() => ref.create(data));
-        },
-        delete: (ref) => {
-          pending.push(() => ref.delete());
-        },
-      });
-      for (const p of pending) await p();
-      return result;
+    runTransaction: <T>(fn: (tx: StubTx) => Promise<T>): Promise<T> => {
+      if (!serial) return runTx(fn);
+      const run = txQueue.then(() => runTx(fn));
+      txQueue = run.catch(() => undefined);
+      return run;
     },
   };
 

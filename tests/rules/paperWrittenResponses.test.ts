@@ -8,7 +8,7 @@
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   initializeTestEnvironment,
   assertSucceeds,
@@ -38,6 +38,8 @@ const PROJECT_ID = 'spartboard-paper-written-rules-test';
 const TEACHER_UID = 'teacher-uid-1';
 const OTHER_TEACHER_UID = 'teacher-uid-2';
 const ADMIN_EMAIL = 'admin@school.edu';
+const TEACHER_EMAIL = 't1@orono.k12.mn.us';
+const NON_STAFF_EMAIL = 'kid@orono.k12.mn.us';
 const SSO_STUDENT_UID = 'sso-student-uid';
 const ANON_UID = 'anon-pin-uid';
 const SESSION_ID = 'session-1';
@@ -63,16 +65,17 @@ const hostPort = (envValue: string | undefined, fallbackPort: number) => {
   };
 };
 
-const teacherToken = (email: string): TokenOptions => ({
+const teacherToken = (email: string, staff = true): TokenOptions => ({
   email,
   email_verified: true,
+  testStaff: staff,
   studentRole: false,
   classIds: [],
   firebase: { sign_in_provider: 'google.com' },
 });
 
 const asTeacher = () =>
-  testEnv.authenticatedContext(TEACHER_UID, teacherToken('t1@school.edu'));
+  testEnv.authenticatedContext(TEACHER_UID, teacherToken(TEACHER_EMAIL));
 const asOtherTeacher = () =>
   testEnv.authenticatedContext(
     OTHER_TEACHER_UID,
@@ -95,6 +98,17 @@ const asAnon = (uid = ANON_UID) =>
     firebase: { sign_in_provider: 'anonymous' },
   });
 const asUnauth = () => testEnv.unauthenticatedContext();
+// A verified district Google account with no staff member doc (a student signed in through the teacher flow).
+const asNonStaff = () =>
+  testEnv.authenticatedContext(
+    TEACHER_UID,
+    teacherToken(NON_STAFF_EMAIL, false)
+  );
+const asUnknownDistrict = () =>
+  testEnv.authenticatedContext(
+    TEACHER_UID,
+    teacherToken('nobody@orono.k12.mn.us', false)
+  );
 
 const responsePath = `quiz_sessions/${SESSION_ID}/responses/${RESPONSE_KEY}`;
 const privateCol = `${responsePath}/paperPrivate`;
@@ -134,13 +148,26 @@ const upload = (
   size = 64
 ) => uploadBytes(ref(ctx.storage(), path), bytes(size), { contentType });
 
+// The Storage emulator cannot resolve the staff member lookup, so a token flag stands in for it; the real check is pinned by source below.
+const STAFF_GATE = '(isDistrictStaff() || isAdmin())';
+function emulatorStorageRules(): string {
+  const rules = readFileSync(STORAGE_RULES, 'utf8');
+  const swapped = rules.replaceAll(
+    STAFF_GATE,
+    "request.auth.token.get('testStaff', false) == true"
+  );
+  if (rules.split(STAFF_GATE).length !== 3)
+    throw new Error('Expected the staff gate on both paper prefixes.');
+  return swapped;
+}
+
 beforeAll(async () => {
   const fs = hostPort(process.env.FIRESTORE_EMULATOR_HOST, 8080);
   const st = hostPort(process.env.FIREBASE_STORAGE_EMULATOR_HOST, 9199);
   testEnv = await initializeTestEnvironment({
     projectId: PROJECT_ID,
     firestore: { rules: readFileSync(FIRESTORE_RULES, 'utf8'), ...fs },
-    storage: { rules: readFileSync(STORAGE_RULES, 'utf8'), ...st },
+    storage: { rules: emulatorStorageRules(), ...st },
   });
 });
 
@@ -244,6 +271,17 @@ describe('paper_transcription_jobs', () => {
 });
 
 describe('Storage paper_written_crops', () => {
+  it('puts the staff-or-admin gate on both paper prefixes', () => {
+    const rules = readFileSync(STORAGE_RULES, 'utf8');
+    for (const prefix of ['paper_written_crops', 'paper_pages']) {
+      const block = rules.slice(rules.indexOf(`match /${prefix}/`));
+      expect(block.slice(0, block.indexOf('\n    }'))).toContain(STAFF_GATE);
+    }
+    expect(rules).toContain(
+      'districtStaffMember(firestore.get(/databases/(default)/documents/organizations/orono/members/$(request.auth.token.email.lower())))'
+    );
+  });
+
   it('lets the owning teacher create a WebP or PNG crop', async () => {
     const ctx = asTeacher();
     await assertSucceeds(upload(ctx, cropPath()));
@@ -284,6 +322,25 @@ describe('Storage paper_written_crops', () => {
     await assertSucceeds(upload(asTeacher(), path));
     await assertFails(upload(asSsoStudent(), cropPath(SSO_STUDENT_UID)));
     await assertFails(upload(asAnon(), cropPath(ANON_UID)));
+  });
+
+  it('refuses a district account without a staff member doc', async () => {
+    await assertFails(upload(asNonStaff(), cropPath(TEACHER_UID, 'q-ns')));
+    await assertFails(
+      upload(asUnknownDistrict(), cropPath(TEACHER_UID, 'q-unk'))
+    );
+  });
+
+  it('refuses names the import never records', async () => {
+    const ctx = asTeacher();
+    const at = (scanId: string, seat: string, file: string) =>
+      `paper_written_crops/${TEACHER_UID}/${scanId}/${seat}/${file}`;
+    await assertFails(upload(ctx, at('__x__', '3', 'q1.webp')));
+    await assertFails(upload(ctx, at('a'.repeat(65), '3', 'q1.webp')));
+    await assertFails(upload(ctx, at(SCAN_ID, '0', 'q1.webp')));
+    await assertFails(upload(ctx, at(SCAN_ID, 'x', 'q1.webp')));
+    await assertFails(upload(ctx, at(SCAN_ID, '3', 'q1')));
+    await assertSucceeds(upload(ctx, at(SCAN_ID, '3', 'q1.webp')));
   });
 
   it('is create-only: the owner cannot overwrite or delete', async () => {
@@ -345,6 +402,23 @@ describe('Storage paper_pages', () => {
     await assertSucceeds(upload(asTeacher(), path));
     await assertFails(upload(asSsoStudent(), pagePath(SSO_STUDENT_UID)));
     await assertFails(upload(asAnon(), pagePath(ANON_UID)));
+  });
+
+  it('refuses a district account without a staff member doc', async () => {
+    await assertFails(upload(asNonStaff(), pagePath(TEACHER_UID, 8)));
+    await assertFails(upload(asUnknownDistrict(), pagePath(TEACHER_UID, 9)));
+  });
+
+  it('refuses names the import never records', async () => {
+    const ctx = asTeacher();
+    const at = (scanId: string, seat: string, file: string) =>
+      `paper_pages/${TEACHER_UID}/${scanId}/${seat}/${file}`;
+    await assertFails(upload(ctx, at('__x__', '3', '1.webp')));
+    await assertFails(upload(ctx, at(SCAN_ID, '0', '1.webp')));
+    await assertFails(upload(ctx, at(SCAN_ID, '3', '0.webp')));
+    await assertFails(upload(ctx, at(SCAN_ID, '3', '100.webp')));
+    await assertFails(upload(ctx, at(SCAN_ID, '3', 'junk.png')));
+    await assertSucceeds(upload(ctx, at(SCAN_ID, '3', '10.webp')));
   });
 
   it('is create-only: the owner cannot overwrite or delete', async () => {

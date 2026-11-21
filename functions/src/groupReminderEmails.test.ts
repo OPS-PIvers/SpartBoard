@@ -154,6 +154,15 @@ describe('runGroupReminderEmails', () => {
     });
   });
 
+  it('mails no one whose admin turned off group schedules', async () => {
+    const created = new Map<string, unknown>();
+    const db = stubDb(true, created) as never;
+    const canEmail = vi.fn(() => Promise.resolve(false));
+    await runGroupReminderEmails(db, auth as never, MON_1017, canEmail);
+    expect(canEmail).toHaveBeenCalledWith('teacher-1', 'teacher@school.edu');
+    expect(created.size).toBe(0);
+  });
+
   it('mails no one whose address is unverified or not a Google sign-in', async () => {
     for (const patch of [
       { emailVerified: false },

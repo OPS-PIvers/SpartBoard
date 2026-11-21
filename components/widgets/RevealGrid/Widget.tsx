@@ -297,7 +297,7 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
                       onClick={() => handleMemoryCardClick(card.id)}
                     >
                       <div
-                        className={`w-full h-full transition-all duration-500 ${
+                        className={`w-full h-full transition-transform duration-500 motion-reduce:transition-none ${
                           revealMode === 'flip'
                             ? `preserve-3d ${card.isRevealed ? 'rotate-y-180' : ''}`
                             : ''
@@ -375,7 +375,7 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
                       onClick={() => handleCardClick(card.id)}
                     >
                       <div
-                        className={`w-full h-full transition-all duration-500 ${
+                        className={`w-full h-full transition-transform duration-500 motion-reduce:transition-none ${
                           revealMode === 'flip'
                             ? `preserve-3d ${card.isRevealed ? 'rotate-y-180' : ''}`
                             : ''

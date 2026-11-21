@@ -4,6 +4,7 @@ import type {
   ActivityWallSubmission,
 } from '@/types';
 import { EngagementFooter } from './EngagementFooter';
+import { ANONYMOUS_PARTICIPANT_LABEL } from './participantLabel';
 import {
   EMPTY_LIKE_INFO,
   type EngagementFlags,
@@ -16,7 +17,11 @@ export { CommentNode } from './CommentNode';
 export type { CommentNodeProps } from './CommentNode';
 export { CommentComposer } from './CommentComposer';
 export type { CommentComposerProps } from './CommentComposer';
-export { buildParticipantLabel } from './participantLabel';
+export {
+  ANONYMOUS_PARTICIPANT_LABEL,
+  buildParticipantLabel,
+  labelForWall,
+} from './participantLabel';
 export { useWallEngagement, EMPTY_LIKE_INFO } from './useWallEngagement';
 export type {
   EngagementFlags,
@@ -47,11 +52,15 @@ export const makeEngagementFooter = ({
   canWrite,
   flags,
   identificationMode,
-  participantLabel,
+  participantLabel: viewerLabel,
   showNames,
   engagement,
 }: MakeEngagementFooterOptions): RenderEngagementFooter | undefined => {
   if (!flags.allowLikes && !flags.allowComments) return undefined;
+  // A name-hidden wall never stores a commenter's name, so the composer skips its name inputs too.
+  const participantLabel = showNames
+    ? viewerLabel
+    : ANONYMOUS_PARTICIPANT_LABEL;
   return function renderEngagementFooter(submission) {
     return React.createElement(EngagementFooter, {
       submission,

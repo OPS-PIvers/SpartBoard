@@ -17,6 +17,7 @@ export const LIBRARY_ITEM_NOUNS = {
   miniApp: { one: 'Mini App', other: 'Mini Apps' },
   flashcards: { one: 'flashcard set', other: 'flashcard sets' },
   project: { one: 'project', other: 'projects' },
+  writing: { one: 'writing assignment', other: 'writing assignments' },
 } satisfies Record<string, LibraryItemNoun>;
 
 export interface LibraryDeleteConfirmRequest {

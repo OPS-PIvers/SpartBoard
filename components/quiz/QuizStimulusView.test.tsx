@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { StimulusRenderer } from './QuizStimulusView';
+import { WordBankFillContext } from './wordBankFill';
 import type { QuizStimulus } from '@/types';
 
 const audio = (overrides: Partial<QuizStimulus> = {}): QuizStimulus => ({
@@ -240,5 +241,40 @@ describe('StimulusRenderer image zoom', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Reset zoom' }));
     expect(img.style.width).toBe('400px');
+  });
+});
+
+describe('StimulusRenderer word bank', () => {
+  const bank: QuizStimulus = {
+    id: 'wb-1',
+    type: 'word-bank',
+    url: '',
+    label: 'Word bank',
+    text: 'Actor-Observer Bias\nIn-Group Bias\n\nStereotype',
+  };
+
+  it('fills the answer with the whole tapped line', () => {
+    const fill = vi.fn();
+    render(
+      <WordBankFillContext.Provider value={fill}>
+        <StimulusRenderer stimulus={bank} light />
+      </WordBankFillContext.Provider>
+    );
+    expect(
+      screen.getByText('Tap a choice to add it to your answer.')
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Actor-Observer Bias' })
+    );
+    expect(fill).toHaveBeenCalledWith('Actor-Observer Bias');
+  });
+
+  it('shows plain tiles where tapping does nothing', () => {
+    render(<StimulusRenderer stimulus={bank} light />);
+    expect(screen.getByText('Stereotype')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Stereotype' })).toBeNull();
+    expect(
+      screen.queryByText('Tap a choice to add it to your answer.')
+    ).toBeNull();
   });
 });

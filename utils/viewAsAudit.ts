@@ -1,5 +1,11 @@
 // View as audit entries and the unlocked direct-save path (docs/plans/shipped/ADMIN_VIEW_AS.md D13, D14, D16).
-import { getDoc, setDoc, type DocumentReference } from 'firebase/firestore';
+import {
+  DocumentReference,
+  FieldValue,
+  Timestamp,
+  getDoc,
+  setDoc,
+} from 'firebase/firestore';
 import {
   getViewAsTabState,
   runAuditedWrite,
@@ -15,10 +21,13 @@ import {
 const MAX_VALUE_BYTES = 100_000;
 export const VIEW_AS_OMITTED_KEY = '__viewAsOmitted';
 
-function capValue(value: unknown): unknown {
+/** Total data budget for one logged change; JSON chars can take up to 3 bytes each in UTF-8. */
+const MAX_RAW_WRITE_DATA_BYTES = 200_000;
+
+function capValue(value: unknown, limit: number = MAX_VALUE_BYTES): unknown {
   try {
     const bytes = JSON.stringify(value)?.length ?? 0;
-    return bytes > MAX_VALUE_BYTES ? { [VIEW_AS_OMITTED_KEY]: bytes } : value;
+    return bytes > limit ? { [VIEW_AS_OMITTED_KEY]: bytes } : value;
   } catch {
     return { [VIEW_AS_OMITTED_KEY]: -1 };
   }
@@ -143,4 +152,78 @@ export async function recordViewAsOutward(
   } catch (err) {
     console.error('[viewAs] outward audit failed', err);
   }
+}
+
+export type ViewAsRawWriteOp = 'set' | 'update' | 'delete' | 'add';
+
+export interface ViewAsRawWrite {
+  op: ViewAsRawWriteOp;
+  path: string;
+  data?: unknown;
+}
+
+const MAX_WRITE_DEPTH = 8;
+
+/** JSON-safe copy of written data: sentinels and Firestore types become plain markers. */
+export function describeWriteData(value: unknown, depth = 0): unknown {
+  if (value === undefined) return null;
+  if (value === null || typeof value !== 'object') {
+    return typeof value === 'function' ? null : value;
+  }
+  if (depth >= MAX_WRITE_DEPTH) return '…';
+  if (value instanceof FieldValue) {
+    const name = (value as unknown as { _methodName?: unknown })._methodName;
+    return `<${typeof name === 'string' ? name.replace(/^FieldValue\./, '') : 'fieldValue'}>`;
+  }
+  if (value instanceof Timestamp) return value.toMillis();
+  if (value instanceof DocumentReference) return value.path;
+  if (value instanceof Date) return value.getTime();
+  if (Array.isArray(value)) {
+    return value.map((v) => describeWriteData(v, depth + 1));
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (v !== undefined && key !== '')
+      out[key] = describeWriteData(v, depth + 1);
+  }
+  return out;
+}
+
+/** Logs raw writes an unlocked tab made outside the wrapped save paths, so every change stays in the View as log (D16). */
+export async function recordViewAsRawWrites(
+  writes: readonly ViewAsRawWrite[]
+): Promise<void> {
+  if (writes.length === 0 || !viewAsAuditsWrite()) return;
+  const targetUid = getViewAsTabState().session?.targetUid;
+  // Paths and ops always survive; each write's data shares a budget that keeps the entry under 1 MB.
+  const dataLimit = Math.min(
+    MAX_VALUE_BYTES,
+    Math.floor(MAX_RAW_WRITE_DATA_BYTES / writes.length)
+  );
+  const own =
+    writes.length === 1 &&
+    !!targetUid &&
+    writes[0].path.startsWith(`users/${targetUid}/`) &&
+    !writes[0].path.startsWith(`users/${targetUid}/private`);
+  try {
+    // Built directly: recordViewAsAudit would cap the whole `writes` list and drop every path.
+    const { ref, data } = await buildViewAsAuditEntry({
+      action: 'view_as_outward',
+      ...(own ? { path: writes[0].path } : {}),
+      after: {
+        action: 'Change',
+        writes: writes.map((w) => ({
+          op: w.op,
+          path: w.path,
+          ...(w.data !== undefined
+            ? { data: capValue(describeWriteData(w.data), dataLimit) }
+            : {}),
+        })),
+      },
+    });
+    await runAuditedWrite(() => setDoc(ref, data));
+  } catch (err) {
+    console.error('[viewAs] change audit failed', err);
+  }
+  updateViewAsTabState({ savedNotice: getViewAsTabState().savedNotice + 1 });
 }

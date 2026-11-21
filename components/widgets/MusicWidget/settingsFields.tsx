@@ -1,16 +1,17 @@
-import React from 'react';
-import { Music, Music2, Radio } from 'lucide-react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
+import { Check, Music, Music2, Radio, X } from 'lucide-react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
-import type { MusicConfig, MusicSource } from '@/types';
+import type { MusicConfig, MusicSource, MySong } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { useMusicStations } from '@/hooks/useMusicStations';
+import { useMySongs } from '@/hooks/useMySongs';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { PersonalSpotifyPanel } from './PersonalSpotifyPanel';
 import { buildSpotifyEmbedUrl } from './utils';
 import { canUsePersonal } from './canUsePersonal';
-import { MySongsSection } from './MySongsSection';
-import { resolveActiveStation } from './mySongs';
+import { MySongsFooter } from './MySongsSection';
+import { resolveActiveStation, toConfigSong } from './mySongs';
 
 const SOURCE_OPTIONS: ReadonlyArray<{
   value: MusicSource;
@@ -101,17 +102,32 @@ export const MusicSourceField: React.FC<{ ctx: CustomRenderCtx }> = ({
   );
 };
 
+type StationRow = {
+  id: string;
+  title: string;
+  subtitle: string;
+  thumbnail: string;
+  select: () => void;
+  song?: MySong;
+};
+
 export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
   ctx,
 }) => {
   const config = ctx.config as unknown as MusicConfig;
   const { stations, isLoading } = useMusicStations();
   const t = (leaf: string) => ctx.t(`widgetSettings.music.${leaf}`);
-  const mySongs = ctx.canAccessFeature('music-my-songs') ? (
-    <MySongsSection ctx={ctx} />
-  ) : null;
+  const mySongsOn = ctx.canAccessFeature('music-my-songs');
+  const personal =
+    (config.source ?? 'curated') === 'personal' && canUsePersonal(ctx);
+  const { songs, addSong, removeSong } = useMySongs(mySongsOn && !personal);
+  const [songError, setSongError] = useState<string | null>(null);
+  const stationIdRef = useRef(config.stationId);
+  useLayoutEffect(() => {
+    stationIdRef.current = config.stationId;
+  });
 
-  if ((config.source ?? 'curated') === 'personal' && canUsePersonal(ctx)) {
+  if (personal) {
     return (
       <div
         id={ctx.id}
@@ -136,7 +152,61 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
     );
   }
 
-  if (stations.length === 0) {
+  const selectSong = (song: MySong) =>
+    ctx.updateConfig({ stationId: song.id, mySong: toConfigSong(song) });
+
+  const removeMySong = (song: MySong) =>
+    void removeSong(song.id)
+      .then(() => {
+        // Clear the pick only if it is still the removed song.
+        if (stationIdRef.current === song.id) {
+          ctx.updateConfig({ stationId: '', mySong: null });
+        }
+      })
+      .catch((err: unknown) => {
+        console.error('[MusicStationField] Remove failed', err);
+        setSongError(t('mySongsRemoveError'));
+      });
+
+  const clearMySong = config.mySong ? { mySong: null } : {};
+  const rows: StationRow[] = [
+    ...stations.map((station) => ({
+      id: station.id,
+      title: station.title,
+      subtitle: station.genre ?? '',
+      thumbnail: station.thumbnail ?? '',
+      select: () =>
+        ctx.updateConfig({
+          stationId: station.id,
+          ...clearMySong,
+          ...(buildSpotifyEmbedUrl(station.url) !== null &&
+          config.syncWithTimeTool
+            ? { syncWithTimeTool: false }
+            : {}),
+        }),
+    })),
+    ...(mySongsOn ? songs : []).map((song) => ({
+      id: song.id,
+      title: song.title,
+      subtitle: song.channel,
+      thumbnail: song.thumbnail,
+      select: () => selectSong(song),
+      song,
+    })),
+  ];
+
+  const footer = mySongsOn ? (
+    <MySongsFooter
+      ctx={ctx}
+      songs={songs}
+      addSong={addSong}
+      selectSong={selectSong}
+      error={songError}
+      setError={setSongError}
+    />
+  ) : null;
+
+  if (rows.length === 0) {
     const empty = (
       <p
         id={ctx.id}
@@ -146,111 +216,134 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
         {t('noStations')}
       </p>
     );
-    return mySongs ? (
+    return footer ? (
       <div>
         {empty}
-        {mySongs}
+        {footer}
       </div>
     ) : (
       empty
     );
   }
 
-  const anyCuratedActive = stations.some(
-    (station) => station.id === config.stationId
-  );
-  const clearMySong = config.mySong ? { mySong: null } : {};
+  const anyActive = rows.some((row) => row.id === config.stationId);
+  let songIndex = 0;
 
-  const grid = (
+  const list = (
     <div
       id={ctx.id}
       role="radiogroup"
       aria-labelledby={ctx.labelId}
       aria-describedby={ctx.describedBy}
-      onKeyDown={(event) =>
+      onKeyDown={(event) => {
+        // Arrow keys on a song's remove button must not change the station.
+        if ((event.target as HTMLElement).getAttribute('role') !== 'radio') {
+          return;
+        }
         handleRadioGroupKeyDown(
           event,
-          stations.map((station) => station.id),
-          (stationId) => {
-            const station = stations.find((item) => item.id === stationId);
-            if (!station) return;
-            ctx.updateConfig({
-              stationId,
-              ...clearMySong,
-              ...(buildSpotifyEmbedUrl(station.url) !== null &&
-              config.syncWithTimeTool
-                ? { syncWithTimeTool: false }
-                : {}),
-            });
-          }
-        )
-      }
-      className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto pr-1 pb-1"
+          rows.map((row) => row.id),
+          (id) => rows.find((row) => row.id === id)?.select()
+        );
+      }}
+      className="-mx-4 divide-y divide-slate-100 border-t border-slate-100"
     >
-      {stations.map((station, stationIndex) => {
-        const active = config.stationId === station.id;
-        return (
-          <button
-            key={station.id}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            tabIndex={
-              active || (!anyCuratedActive && station === stations[0]) ? 0 : -1
-            }
-            onClick={() =>
-              ctx.updateConfig({
-                stationId: station.id,
-                ...clearMySong,
-                ...(buildSpotifyEmbedUrl(station.url) !== null &&
-                config.syncWithTimeTool
-                  ? { syncWithTimeTool: false }
-                  : {}),
-              })
-            }
-            {...tourFieldAttr(
+      {rows.map((row, rowIndex) => {
+        const active = config.stationId === row.id;
+        const anchor = row.song
+          ? tourFieldAttr(
+              'widget-settings.music.my-song',
+              ctx.widget.type,
+              `row-${++songIndex}`
+            )
+          : tourFieldAttr(
               'widget-settings.music.station',
               ctx.widget.type,
-              `row-${stationIndex + 1}`
-            )}
-            data-tour-widget={ctx.widget.id}
-            className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 text-center transition-all ${
-              active
-                ? 'border-indigo-500 bg-indigo-50 shadow-xs'
-                : 'border-slate-100 bg-white hover:border-slate-300'
+              `row-${rowIndex + 1}`
+            );
+        const song = row.song;
+        return (
+          <div
+            key={row.id}
+            className={`flex items-center transition-colors ${
+              active ? 'bg-slate-100' : 'hover:bg-slate-50'
             }`}
           >
-            {station.thumbnail ? (
-              <div
-                className="h-10 w-10 rounded-full bg-cover bg-center shadow-xs"
-                style={{ backgroundImage: `url(${station.thumbnail})` }}
-              />
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
-                <Music className="h-4 w-4 text-slate-400" />
-              </div>
-            )}
-            <span className="block w-full truncate text-xxs font-bold text-slate-800">
-              {station.title}
-            </span>
-            {station.genre && (
-              <span className="block w-full truncate text-xxs font-normal text-slate-500">
-                {station.genre}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={active}
+              tabIndex={active || (!anyActive && rowIndex === 0) ? 0 : -1}
+              onClick={row.select}
+              {...anchor}
+              data-tour-widget={ctx.widget.id}
+              className="flex min-w-0 flex-1 items-center gap-3 py-2 pl-4 pr-2 text-left"
+            >
+              {row.thumbnail ? (
+                <div
+                  className="h-9 w-9 shrink-0 rounded-md bg-slate-100 bg-cover bg-center"
+                  style={{ backgroundImage: `url(${row.thumbnail})` }}
+                />
+              ) : (
+                <div
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${active ? 'bg-white' : 'bg-slate-100'}`}
+                >
+                  <Music
+                    className="h-4 w-4 text-slate-400"
+                    aria-hidden="true"
+                  />
+                </div>
+              )}
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span
+                  className={`truncate text-xs text-slate-800 ${active ? 'font-bold' : 'font-semibold'}`}
+                  title={row.title}
+                >
+                  {row.title}
+                </span>
+                {row.subtitle && (
+                  <span className="truncate text-xxs text-slate-500">
+                    {row.subtitle}
+                  </span>
+                )}
               </span>
+              {active && (
+                <Check
+                  className="h-4 w-4 shrink-0 text-brand-blue-primary"
+                  aria-hidden="true"
+                />
+              )}
+            </button>
+            {song && (
+              <button
+                type="button"
+                aria-label={`${t('mySongsRemove')}: ${song.title}`}
+                title={t('mySongsRemove')}
+                onClick={() => removeMySong(song)}
+                {...tourFieldAttr(
+                  'widget-settings.music.my-song-remove',
+                  ctx.widget.type,
+                  `row-${songIndex}`
+                )}
+                data-tour-widget={ctx.widget.id}
+                className="touch-target-expand mr-3 shrink-0 rounded-full p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
             )}
-          </button>
+          </div>
         );
       })}
     </div>
   );
 
-  return mySongs ? (
+  return footer ? (
     <div>
-      {grid}
-      {mySongs}
+      {list}
+      {footer}
     </div>
   ) : (
-    grid
+    list
   );
 };
 

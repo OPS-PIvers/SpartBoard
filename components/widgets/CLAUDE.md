@@ -3,6 +3,10 @@
 Loaded when working under `components/widgets/`. New widgets: use the `new-widget` skill (full
 registration checklist). Admin-level widget config modals: use the `admin-widget-config` skill.
 
+**Assignment widgets** (Quiz, Writing, Video Activity, Flashcards, Mini Apps, Guided Learning, any new one) build their monitor, Live view, results and grader from the Quiz shared pieces in `QuizWidget/components/monitor/`, `results/` and `FreeResponseGrader`, never from scratch. See `.claude/rules/assignment-shells.md`; `tests/assignmentShells.static.test.ts` enforces it.
+
+**Quiz is student-paced only.** Teacher-paced and game play belong to the Review widget. `QuizSessionMode` still lists `'teacher'` and `'auto'` (view-only shares write `'teacher'`), so don't read those as Quiz features a teacher can pick.
+
 ## Content scaling with container queries
 
 Widgets use a two-mode scaling system configured in `components/widgets/WidgetRegistry.ts`:

@@ -61,7 +61,11 @@ import {
   hasDeactivatedClaim,
   isRevokedMemberStatus,
 } from './authz';
-import { applyDeactivationClaim } from './memberDeactivationClaim';
+import {
+  applyDeactivationClaim,
+  holdsRevokedMember,
+} from './memberDeactivationClaim';
+import { safeErr } from './safeLog';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -200,7 +204,12 @@ async function autoEnrollMember(
   orgId: string,
   domainWithAt: string,
   uid: string,
-  token: { email?: string; email_verified?: boolean; name?: string }
+  token: {
+    email?: string;
+    email_verified?: boolean;
+    name?: string;
+    [claim: string]: unknown;
+  }
 ): Promise<'student' | undefined> {
   const email = token.email?.trim().toLowerCase() ?? '';
   if (!email || token.email_verified !== true) return;
@@ -215,16 +224,32 @@ async function autoEnrollMember(
       isRevokedMemberStatus(memberSnap.get('status')) &&
       !hasDeactivatedClaim(token)
     ) {
-      await applyDeactivationClaim(admin.auth(), email, uid, 'set');
+      await applyDeactivationClaim(
+        admin.auth(),
+        email,
+        uid,
+        'set',
+        undefined,
+        (user) => holdsRevokedMember(db, orgId, user)
+      );
       return;
     }
-    // A claim left by a failed clear is lifted once the member is live again.
+    // A claim left by a failed clear is lifted once the member is live again, unless the account still holds a revoked doc.
     if (
       orgId === OPERATOR_ORG_ID &&
       !isRevokedMemberStatus(memberSnap.get('status')) &&
       hasDeactivatedClaim(token)
     ) {
-      await applyDeactivationClaim(admin.auth(), email, uid, 'clear');
+      await applyDeactivationClaim(
+        admin.auth(),
+        email,
+        uid,
+        'clear',
+        undefined,
+        (user) => holdsRevokedMember(db, orgId, user)
+      );
+      // The token still carries the claim, so nothing is activated until the next sign-in.
+      return;
     }
     if (await demoteRosterStudent(db, orgId, email, memberRef, memberSnap)) {
       return 'student';
@@ -261,6 +286,9 @@ async function autoEnrollMember(
       .exists
   )
     return;
+
+  // A deactivated account never gets a fresh member doc; an admin re-adds it by hand.
+  if (hasDeactivatedClaim(token)) return;
 
   try {
     await memberRef.create({
@@ -431,7 +459,7 @@ export const resolveOrgForUser = onCall(
         } catch (err) {
           console.error(
             `[resolveOrgForUser] auto-enroll failed for org ${orgId}:`,
-            err
+            safeErr(err)
           );
           const cleared = await claimWasCleared(request.auth.uid, token);
           return {

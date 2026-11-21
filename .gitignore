@@ -126,3 +126,6 @@ rules-name-map.txt
 
 # Web tour benchmark runs
 extension/scripts/bench/results/
+
+# AB-334 stamp script output (student uids)
+stamp-vouched-*.json

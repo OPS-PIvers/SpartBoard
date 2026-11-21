@@ -5,7 +5,8 @@ import * as admin from './firebaseAdmin';
 import axios from 'axios';
 import type { Firestore } from 'firebase-admin/firestore';
 import { ALLOWED_ORIGINS } from './classlinkShared';
-import { isGlobalFeatureGranted } from './quizMediaArchive';
+import { isGlobalFeatureGranted } from './featureGrant';
+import { isExcludedFrom } from './permissionExclusion';
 import { QUIZ_READ_ALOUD_FEATURE_ID } from './quizReadAloud';
 import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';
@@ -17,6 +18,7 @@ import {
 } from './ssrfGuard';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { assertAiTeacherCaller } from './aiCallerGate';
+import { safeErr } from './safeLog';
 
 export const MAX_STORED_CHARS = 50_000;
 export const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
@@ -190,7 +192,7 @@ export async function extractStimulusReadAloudText(
       bytes = await deps.fetchUrl(request.url ?? '');
     }
   } catch (err) {
-    console.warn('[quizStimulusText] download failed', err);
+    console.warn('[quizStimulusText] download failed', safeErr(err));
     throw new HttpsError('unavailable', 'Could not download the stimulus.');
   }
   if (bytes.length === 0)
@@ -210,7 +212,7 @@ export async function extractStimulusReadAloudText(
     try {
       layer = await deps.pdfText(bytes);
     } catch (err) {
-      console.warn('[quizStimulusText] pdf text layer failed', err);
+      console.warn('[quizStimulusText] pdf text layer failed', safeErr(err));
     }
     if (layer && hasUsableTextLayer(layer.text, layer.pages)) {
       return { text: normalizeExtractedText(layer.text), source: 'pdf-text' };
@@ -218,7 +220,7 @@ export async function extractStimulusReadAloudText(
     try {
       ocrBytes = await deps.pdfFirstPages(bytes, OCR_PAGE_CAP);
     } catch (err) {
-      console.warn('[quizStimulusText] pdf page slice failed', err);
+      console.warn('[quizStimulusText] pdf page slice failed', safeErr(err));
       return { text: '', source: 'needs-manual' };
     }
   } else {
@@ -234,7 +236,7 @@ export async function extractStimulusReadAloudText(
   try {
     outcome = await withDeadline(deps.ocr(ocrBytes, mimeType), remaining);
   } catch (err) {
-    console.error('[quizStimulusText] ocr failed', err);
+    console.error('[quizStimulusText] ocr failed', safeErr(err));
     throw new HttpsError('unavailable', 'Text extraction is unavailable.');
   }
   if (outcome.timedOut) return { text: '', source: 'needs-manual' };
@@ -379,6 +381,11 @@ export async function chargeOcrQuota(
         'permission-denied',
         'Gemini functions are currently disabled by an administrator.'
       );
+    if (isExcludedFrom(gemini.data(), email))
+      throw new HttpsError(
+        'permission-denied',
+        'You do not have access to Gemini functions.'
+      );
     const used = specific.exists ? Number(specific.data()?.count ?? 0) : 0;
     const config = (perm.data()?.config ?? {}) as {
       dailyLimit?: unknown;
@@ -430,8 +437,13 @@ export function buildDefaultExtractDeps(): ExtractDeps {
       );
     },
     getAccessToken: async (teacherUid) => {
-      const { refreshGoogleAccessTokenForUid } = await import('./googleOAuth');
-      return (await refreshGoogleAccessTokenForUid(teacherUid)).accessToken;
+      const { DRIVE_FILE_SCOPE, refreshGoogleAccessTokenForUid } =
+        await import('./googleOAuth');
+      return (
+        await refreshGoogleAccessTokenForUid(teacherUid, {
+          scope: DRIVE_FILE_SCOPE,
+        })
+      ).accessToken;
     },
     downloadDriveFile: async (token, fileId) => {
       const { downloadDriveFileById } =

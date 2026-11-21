@@ -55,6 +55,7 @@ import {
 } from './quizSessionContent';
 import { buildQuizFinalizeUpdate, sessionQuestionIds } from './quizFinalize';
 import { withServerTurnIn } from './quizTurnIn';
+import { safeErr } from './safeLog';
 
 export { resolveUnrespondedQuestionIds } from './quizFinalize';
 
@@ -144,6 +145,7 @@ interface QuizSessionDoc {
   dueLocks?: boolean;
   periodAccess?: unknown;
   studentAccess?: unknown;
+  reopenedFor?: unknown;
 }
 
 type Firestore = admin.firestore.Firestore;
@@ -194,6 +196,7 @@ function overFlags(data: QuizSessionDoc, now: number): OverFlags {
     periodGate: {
       periodAccess: data.periodAccess,
       studentAccess: data.studentAccess,
+      reopenedFor: data.reopenedFor,
     },
   };
 }
@@ -205,11 +208,38 @@ function attemptOver(
   now: number
 ): boolean {
   if (session.runOver) return true;
+  if (classClosedOver(session.periodGate, d, now)) return true;
   if (!session.pastClose || d.unlocked === true) return false;
   if (!session.dueLocks) return true;
   return (
     isPeriodFrozen(session.periodGate, d as Record<string, unknown>, now) &&
     !pausedBeforeLateClose(session.periodGate, d, now)
+  );
+}
+
+/** ASSIGNED_TAB D6: a class the teacher closed is finished once the write grace passes, unless this student was let back in. */
+function classClosedOver(
+  gate: Record<string, unknown>,
+  d: QuizResponseDoc,
+  now: number
+): boolean {
+  const r = d as Record<string, unknown>;
+  if (r.unlocked === true) return false;
+  const uid = typeof r.studentUid === 'string' ? r.studentUid : '';
+  const pass = (gate.studentAccess as Record<string, unknown> | undefined)?.[
+    uid
+  ];
+  if (typeof pass === 'number' && pass > now) return false;
+  if (Array.isArray(gate.reopenedFor) && gate.reopenedFor.includes(uid))
+    return false;
+  const rows = gate.periodAccess as
+    Record<string, { state?: unknown; closedAt?: unknown }> | undefined;
+  const row =
+    rows && typeof r.classId === 'string' ? rows[r.classId] : undefined;
+  return (
+    row?.state === 'closed' &&
+    typeof row.closedAt === 'number' &&
+    now >= row.closedAt + PERIOD_WINDOW_GRACE_MS
   );
 }
 
@@ -620,7 +650,7 @@ export async function runFinalizeIdleQuizAttempts(
       console.warn(
         '[finalizeIdleQuizAttempts] tx failed',
         docSnap.ref.path,
-        err
+        safeErr(err)
       );
     }
   }

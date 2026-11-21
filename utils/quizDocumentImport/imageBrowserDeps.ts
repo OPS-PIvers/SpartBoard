@@ -9,6 +9,7 @@ import { rasterizeScan, type RasterizedPage } from '@/utils/paperScanRaster';
 import type { RasterPage } from '@/utils/paperSheetReader';
 import type { OcrLine, OcrPage } from './pdfLayout';
 import type { PdfReaderDeps } from './pdfReader';
+import { TESSERACT_PATHS } from '@/utils/selfHostedAssets';
 
 /** A photo's pixels per point, taking the page to be letter width (8.5 in). */
 const LETTER_WIDTH_PT = 612;
@@ -37,7 +38,7 @@ async function withPageCanvas<T>(
 export async function recognizeRasterPage(page: RasterPage): Promise<string> {
   return withPageCanvas(page, async (dataUrl) => {
     const { default: Tesseract } = await import('tesseract.js');
-    const result = await Tesseract.recognize(dataUrl, 'eng');
+    const result = await Tesseract.recognize(dataUrl, 'eng', TESSERACT_PATHS);
     return result.data.text;
   });
 }
@@ -48,7 +49,7 @@ export async function recognizeRasterLayout(
 ): Promise<OcrPage> {
   return withPageCanvas(page, async (dataUrl) => {
     const { default: Tesseract } = await import('tesseract.js');
-    const worker = await Tesseract.createWorker('eng');
+    const worker = await Tesseract.createWorker('eng', 1, TESSERACT_PATHS);
     try {
       const result = await worker.recognize(dataUrl, {}, { blocks: true });
       const lines: OcrLine[] = [];

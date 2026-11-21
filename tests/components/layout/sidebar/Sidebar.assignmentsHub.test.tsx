@@ -18,6 +18,7 @@ vi.mock('@/components/assignmentsHub/AssignmentsHubModal', () => ({
 }));
 
 let gradebookOn = false;
+let hubOn = true;
 
 const emptyDashboard: Dashboard = {
   id: 'd1',
@@ -34,7 +35,10 @@ vi.mock('@/context/useAuth', () => ({
     isAdmin: false,
     appSettings: {},
     isExternalUser: false,
-    canAccessFeature: (id: string) => id === 'gradebook' && gradebookOn,
+    canAccessFeature: (id: string) =>
+      (id === 'gradebook' && gradebookOn) ||
+      (id === 'assignments-hub' && hubOn),
+    canAccessWidget: () => true,
     selectedBuildings: [],
   }),
 }));
@@ -101,6 +105,7 @@ vi.mock('@/hooks/useAppVersion', () => ({
 describe('Sidebar Assignments entry', () => {
   beforeEach(() => {
     gradebookOn = false;
+    hubOn = true;
   });
 
   it('shows an Assignments entry with no badge/count and opens the hub modal', async () => {
@@ -134,6 +139,20 @@ describe('Sidebar Assignments entry', () => {
 
     expect(
       await screen.findByRole('button', { name: 'Gradebook' })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Assignments' })).toBeNull();
+  });
+
+  it('hides Assignments when an admin turns the hub off', async () => {
+    hubOn = false;
+    render(<Sidebar />);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Open Menu' })
+    );
+
+    expect(
+      await screen.findByRole('button', { name: 'Close Menu' })
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Assignments' })).toBeNull();
   });

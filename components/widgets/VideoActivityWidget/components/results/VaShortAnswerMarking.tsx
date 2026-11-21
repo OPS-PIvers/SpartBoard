@@ -19,6 +19,8 @@ interface MarkRowProps {
   graderUid: string | undefined;
   disabled: boolean;
   onError: (message: string) => void;
+  /** Tour anchor key: the question's row, then this answer's place in it. */
+  tourKey: string;
 }
 
 const MarkRow: React.FC<MarkRowProps> = ({
@@ -31,6 +33,7 @@ const MarkRow: React.FC<MarkRowProps> = ({
   graderUid,
   disabled,
   onError,
+  tourKey,
 }) => {
   const max = question.points ?? 1;
   const saved = response.grading?.[question.id]?.pointsAwarded;
@@ -98,7 +101,7 @@ const MarkRow: React.FC<MarkRowProps> = ({
           {...tourFieldAttr(
             'video-activity.results-mark-points',
             'video-activity',
-            `${question.id}:${responseKey ?? response.studentUid}`
+            tourKey
           )}
           id={inputId}
           type="number"
@@ -131,6 +134,8 @@ const MarkRow: React.FC<MarkRowProps> = ({
 interface VaShortAnswerMarkingProps {
   sessionId: string;
   question: VideoActivityQuestion;
+  /** 1-based position of the question in the results list. */
+  questionRow: number;
   responses: VideoActivityResponse[];
   nameFor: (r: VideoActivityResponse) => string;
   graderUid: string | undefined;
@@ -141,6 +146,7 @@ interface VaShortAnswerMarkingProps {
 export const VaShortAnswerMarking: React.FC<VaShortAnswerMarkingProps> = ({
   sessionId,
   question,
+  questionRow,
   responses,
   nameFor,
   graderUid,
@@ -176,9 +182,10 @@ export const VaShortAnswerMarking: React.FC<VaShortAnswerMarkingProps> = ({
 
   return (
     <ul className="bg-slate-50/70 border-t border-slate-100">
-      {rows.map(({ r, answer, answeredAt, name }) => (
+      {rows.map(({ r, answer, answeredAt, name }, answerIndex) => (
         <MarkRow
           key={r._responseKey ?? r.studentUid}
+          tourKey={`row-${questionRow}-item-${answerIndex + 1}`}
           sessionId={sessionId}
           response={r}
           question={question}

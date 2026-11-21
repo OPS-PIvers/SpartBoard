@@ -69,8 +69,8 @@ A scheduled trigger runs this weekly (Sunday night, so the page is ready Monday 
 
     Stop if `sentAt` is null (a republish without Paul's picks). Otherwise:
     - **Approve:** open a PR from the candidate's branch into `dev-paul`, titled `Widget loop: <Widget name> <dimension> <before> → <after>`, with one sentence on what changed, one line confirming every control is still present at the smallest size, the before/after screenshots, the compare score table, and "Approved by Paul on the weekly page". Subscribe to it, mark it ready, and merge it as soon as CI is green, fixing CI failures as on any PR you own. While a release PR into `main` is open, wait until it merges before merging.
-    - **Skip:** record it in `supervision.json` as `{ pr: "<branch>", widgetType, dimension, openedAt, outcome: "rejected", note }`, with his note when he left one. Add the branch to AB-112 in `AGENT_BACKLOG.md` for deletion.
-    - Each approved fix adds `{ pr, widgetType, dimension, openedAt, outcome: "accepted", changes }` to `supervision.json`. Put the supervision edits, the AB-112 lines and the journal row in the first approved PR; when Paul skipped everything, open one small docs PR with them and merge it on green.
+    - **Skip:** record it in `supervision.json` as `{ pr: "<branch>", widgetType, dimension, openedAt, outcome: "rejected", note }`, with his note when he left one. Add the branch as a file in `docs/branch-cleanup/` (AB-112) for deletion.
+    - Each approved fix adds `{ pr, widgetType, dimension, openedAt, outcome: "accepted", changes }` to `supervision.json`. Put the supervision edits, the `docs/branch-cleanup/` files and the journal row in the first approved PR; when Paul skipped everything, open one small docs PR with them and merge it on green.
 
 ## Never
 
@@ -105,3 +105,4 @@ A scheduled trigger runs this weekly (Sunday night, so the page is ready Monday 
 | 2026-11-09 | none | none | none | none | Queue unchanged since 11-06 (11-07 and 11-08 the same), so nothing new to try. |
 | 2026-11-15 | none | none | none | none | Paul found the nightly runs and weekly spot checks too much to keep up with. The loop now runs weekly with an approval page instead of grading decks, and the spot check is retired. |
 | 2026-11-15 | Schedule | Config | #5914 | C3 1 → 2 (judge) | First approval-first week, run by hand at Paul's ask; Paul approved on the weekly page. Links C3 closed: two blind judges dropped I6 on unchanged tiles and C3 did not hold. The first Schedule judge dropped C1 on the unchanged drawer; a second blind judge kept it. |
+| 2026-11-16 | Reveal | Config | this PR | C5 1 → 3 (judge) | Paul approved on the weekly page (sent 11-20). Reveal C3 stays at 1: an empty state cannot lift it, and sample cards would need a flag. Poll C3 closed: two blind judges dropped S2 and S8 on large renders identical before and after, and its one-tap "Start yes or no" button wrote config. Stations C3 closed: E1 fell 3 → 2 across three judges, and starter stations sized by class would need a flag. Merged dev-paul in; #5962 had marked S1, S3, V1, V3 and V6 stale, so they stay stale. |

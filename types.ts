@@ -1,4 +1,8 @@
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
+import type {
+  WritingResponseStatus,
+  WritingTurnedInBy,
+} from '@/utils/writingResponseState';
 import type { FocusSite } from '@/utils/focus/contract';
 import type { ImportAttribution } from '@/utils/import/contract';
 import type { TourConditionRef, TourDoneFact } from '@/config/tourConditions';
@@ -72,7 +76,9 @@ export type WidgetType =
   | 'review'
   | 'routineGuide'
   | 'arts-letters-agenda'
-  | 'focus';
+  | 'focus'
+  | 'writing'
+  | 'agenda';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -1956,6 +1962,23 @@ export interface ScheduleItem {
   periodId?: string;
   /** Marks the item as a class period that rosters and per-period windows can use. */
   isClassPeriod?: boolean;
+  /** Warn this many minutes before the block ends; fires a Connection that starts with "Block ending". */
+  warning?: ScheduleItemWarning;
+}
+
+export interface ScheduleItemWarning {
+  minutes: number;
+  /** A Timer sound: Chime, Blip, Gong or Alert. */
+  sound?: string;
+}
+
+/** The latest block warning, written for the board to play and show. */
+export interface ScheduleWarningAlert {
+  id: string;
+  at: number;
+  task: string;
+  minutes: number;
+  sound: string;
 }
 
 export interface DailySchedule {
@@ -2097,6 +2120,14 @@ export interface FocusConfig {
   hideNames?: boolean;
 }
 
+/** The Agenda widget (docs/plans/COURSE_AND_AGENDA.md D16): which Course's deck it shows. */
+export interface AgendaConfig {
+  /** The picked Course; absent while the picked class is in no saved Course yet. */
+  courseId?: string;
+  /** A class in that Course, so the pick survives the Course being merged or re-made. */
+  rosterId?: string;
+}
+
 export interface ArtsLettersAgendaConfig {
   version?: ArtsLettersAgendaVersion;
   /** Building whose admin lists this widget uses; set on first edit so other viewers see the same boxes. */
@@ -2171,6 +2202,8 @@ export interface RandomConfig {
    *  so they survive re-randomize (a fresh order doesn't erase what's
    *  already been completed). */
   doneNames?: string[];
+  /** This widget's own class; unset follows the board's active class (older widgets). */
+  rosterId?: string;
   /** Pool: the saved class group to draw from. Unset or null = whole class. */
   rosterPoolGroupId?: string | null;
   /** Lock: saved class groups kept together when building groups. */
@@ -2387,6 +2420,8 @@ export interface EmbedConfig {
   autoplay?: boolean;
   /** Start playback at this offset (seconds). YouTube only — Drive's /preview iframe ignores it. */
   startAtSeconds?: number;
+  /** Drops `allow-popups` from the iframe sandbox so taps can't open new tabs. */
+  blockNewTabs?: boolean;
 }
 
 export interface BuildingPollDefaults {
@@ -2526,6 +2561,12 @@ export type ActivityWallLayout =
 /** Per-wall toggleable submission kinds; `text` is always on. */
 export type ActivityWallSubmissionType =
   'text' | 'word' | 'photo' | 'link' | 'file' | 'video';
+
+/** Per-wall submission toggles; a wall saved before the Text toggle has no `text` key and keeps text on. */
+export type ActivityWallAllowedTypes = Record<
+  Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
+  boolean
+> & { text?: boolean };
 
 /** Wall background: a Tailwind class string (color/gradient) or a preset image URL. */
 export interface ActivityWallAppearance {
@@ -2668,10 +2709,7 @@ export interface ActivityWallLibraryEntry {
   /** Dated timeline only: the teacher hid every date so students judge order first. */
   timelineDatesHidden?: boolean;
   mapCenter?: { lat: number; lng: number; zoom: number };
-  allowedTypes?: Record<
-    Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
-    boolean
-  >;
+  allowedTypes?: ActivityWallAllowedTypes;
   appearance?: ActivityWallAppearance;
   allowGuests?: boolean;
   showNames?: boolean;
@@ -2792,10 +2830,7 @@ export interface ActivityWallSession extends SessionWorkKindFields {
   tableRows?: ActivityWallSection[];
   tableCols?: ActivityWallSection[];
   mapCenter?: { lat: number; lng: number; zoom: number };
-  allowedTypes?: Record<
-    Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
-    boolean
-  >;
+  allowedTypes?: ActivityWallAllowedTypes;
   appearance?: ActivityWallAppearance;
   allowGuests?: boolean;
   showNames?: boolean;
@@ -3553,6 +3588,9 @@ export interface ScheduleConfig {
   localEvents?: CalendarEvent[];
   isBuildingSyncEnabled?: boolean;
   lastSyncedBuildingId?: string;
+  /** Block warnings already fired, item key to YYYY-MM-DD, so each fires once a day. */
+  warningsFired?: Record<string, string>;
+  warningAlert?: ScheduleWarningAlert;
   fontFamily?: string;
   fontColor?: string;
   textSizePreset?: TextSizePreset;
@@ -3644,7 +3682,14 @@ export interface LunchCountConfig {
   /** Classes (lunch time and grade) it sent that day, so another class can still submit */
   lastSubmittedClasses?: string[];
   /** Notes and pizza count sent today, by class key, so a resend can prefill them. */
-  lastSubmittedDetails?: Record<string, { notes: string; extraPizza: number }>;
+  lastSubmittedDetails?: Record<
+    string,
+    { notes: string; extraPizza: number; sentAt?: number }
+  >;
+  /** Extra pizza count sent today, by class key; it names no one, so it syncs with the board. */
+  lastSubmittedPizza?: Record<string, number>;
+  /** When each class was sent today and whether its notes were blank; it names no one, so it syncs with the board. */
+  lastSubmittedSends?: Record<string, { sentAt: number; notesBlank: boolean }>;
   cardColor?: string;
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;
@@ -4071,6 +4116,7 @@ export interface MathToolsConfig {
 /** Number line display mode */
 export type NumberLineMode = 'integers' | 'decimals' | 'fractions';
 
+// Legacy: no reader since the place value tool was replaced; kept for saved boards.
 export interface PlaceValueBlock {
   id: string;
   type: '1' | '10' | '100' | '1000';
@@ -4108,7 +4154,9 @@ export interface MathToolConfig {
   stickerMode?: boolean;
   /** For manipulative piece stickers – identifies the specific piece (e.g. 'unit', 'rod', '1-2', 'hexagon') */
   stickerPiece?: string;
+  // Legacy saved-board data; nothing reads it.
   placeValueBlocks?: PlaceValueBlock[];
+  // Legacy saved-board data; nothing reads it.
   placeValueColumns?: string[];
 }
 
@@ -4441,6 +4489,7 @@ export type QuizStimulusType =
   | 'youtube'
   | 'gdoc-embed'
   | 'text'
+  | 'word-bank'
   | 'calculator';
 
 /** Which Desmos calculator a `calculator` stimulus shows. */
@@ -4480,6 +4529,8 @@ export interface QuizStimulus {
   calculator?: QuizCalculatorKind;
   /** Student-visible tab name in the stimulus panel; unnamed tabs are numbered (M12). */
   tabLabel?: string;
+  /** word-bank only: how many columns students see; absent = 1. */
+  wordBankColumns?: 1 | 2 | 3;
   /** image only: beside the question or in it; absent = beside (M13). */
   placement?: QuizStimulusPlacement;
 }
@@ -4490,11 +4541,50 @@ export type QuizStimulusPlacement = 'panel' | 'inline';
 /** How students fill a FIB question's blanks; absent means typed (M6). */
 export type FibBlankType = 'typed' | 'dropdown' | 'drag';
 
+/** A teacher's recording of a question prompt, saved link-shared in their Drive. */
+export interface QuestionAudio {
+  driveFileId: string;
+  durationSec: number;
+  mimeType: string;
+  /** Plays a student may start per attempt (first listen plus replays); absent = unlimited. */
+  playLimit?: number;
+}
+
+/** One random number in a random-number question; students each get their own value. */
+export interface CalcVariable {
+  name: string;
+  min: number;
+  max: number;
+  decimals: number;
+}
+
+export type CalcTolerance =
+  { kind: 'relative'; percent: number } | { kind: 'absolute'; amount: number };
+
+/** FIB only: random numbers in the prompt as `{name}` and the formula that grades each student's answer. */
+export interface CalcSpec {
+  /** Random text set when the question is made; with each response key it fixes that student's numbers. */
+  seed: string;
+  variables: CalcVariable[];
+  formula: string;
+  tolerance: CalcTolerance;
+  /** Decimals the shown answer is rounded to; grading uses the unrounded value. */
+  roundTo?: number;
+  unit?: string;
+  /** Answer for students given a modified prompt with typed numbers instead of {name} links. */
+  modifiedAnswer?: string;
+}
+
 export interface QuizQuestion {
   id: string;
   /** Time limit in seconds. 0 = no time limit. */
   timeLimit: number;
+  /** May be empty when `promptAudio` is set. */
   text: string;
+  /** Modified wording of the prompt for students in a group with modified questions; same answer key. */
+  modifiedText?: string;
+  /** The teacher's recorded prompt, played to students with or instead of `text`. */
+  promptAudio?: QuestionAudio;
   type: QuizQuestionType;
   /**
    * MC/FIB: the correct answer text. Multi-blank FIB: one answer per blank joined by `FIB_BLANK_SEP`.
@@ -4574,6 +4664,10 @@ export interface QuizQuestion {
   noSpellCheck?: boolean;
   /** FIB and Free Response: the student keyboard. Absent = plain typing. */
   answerKeyboard?: AnswerKeyboard;
+  /** FIB only: random numbers; the formula replaces `correctAnswer` for grading. Never sent to students. */
+  calc?: CalcSpec;
+  /** Set only on a copy graded for one student: that student's numbers. Never saved. */
+  calcValues?: Record<string, number>;
   /** Free Response only. Size of the lined box on paper answer sheets. */
   paperBoxSize?: PaperBoxSize;
   /** Free Response only. What prints inside the paper answer box; absent = lines. */
@@ -4594,6 +4688,10 @@ export interface QuizQuestion {
   rubricSnapshot?: Rubric;
   /** Free Response only. Students see the attached rubric while answering; hidden unless true. */
   rubricVisibleToStudents?: boolean;
+  /** Free Response only. Library id of `modifiedRubricSnapshot`; informational. */
+  modifiedRubricId?: string;
+  /** Free Response only. Rubric for students in a group with modified questions; totals the same points as `rubricSnapshot`. */
+  modifiedRubricSnapshot?: Rubric;
   /**
    * Ids of `QuizData.stimuli` entries shown alongside this question.
    * Empty/missing = no stimuli. The shared-pointer array is the grouping:
@@ -5318,6 +5416,10 @@ export interface QuizPublicQuestion {
   id: string;
   type: QuizQuestion['type'];
   text: string;
+  /** Projected verbatim from {@link QuizQuestion.promptAudio}. */
+  promptAudio?: QuestionAudio;
+  /** The teacher's modified prompt, shown only to students whose override asks for it. */
+  modifiedText?: string;
   timeLimit: number;
   /** MC/MA: all answer choices pre-shuffled (correct identity unknown) */
   choices?: string[];
@@ -5364,6 +5466,12 @@ export interface QuizPublicQuestion {
   noSpellCheck?: boolean;
   /** FIB and Free Response: the student keyboard. */
   answerKeyboard?: AnswerKeyboard;
+  /** Random-number FIB only: the numbers' ranges, so each student's values can be worked out. No formula. */
+  calcVariables?: CalcVariable[];
+  /** Random-number FIB only: the question's seed, so each student works out their own numbers. */
+  calcSeed?: string;
+  /** Client only: the question before this student's numbers were written in. */
+  calcUnfilled?: QuizPublicQuestion;
   /** Free Response only: max points the teacher can award. */
   points?: number;
   /**
@@ -5374,6 +5482,8 @@ export interface QuizPublicQuestion {
   rubricSnapshot?: Rubric;
   /** Free Response only. The teacher hid the rubric while answering; the snapshot carries only what scored results show. */
   rubricHidden?: boolean;
+  /** Free Response only. The modified rubric, projected like `rubricSnapshot`, for students whose override asks for it. */
+  modifiedRubricSnapshot?: Rubric;
   /** Ids into `QuizSession.stimuli` shown alongside this question. */
   stimulusIds?: string[];
   /**
@@ -5488,6 +5598,15 @@ export interface SubLaunchedSessionFields {
   subMonitorUntil?: number;
 }
 
+/** Every assignment widget kind; tests/assignmentShells.static.test.ts reads this union. */
+export type AssignmentKind =
+  | 'quiz'
+  | 'video-activity'
+  | 'guided-learning'
+  | 'mini-app'
+  | 'flashcards'
+  | 'writing';
+
 /** Per-period gate state (docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md). */
 export type PeriodAccessState = 'closed' | 'open' | 'paused';
 
@@ -5506,6 +5625,10 @@ export interface PeriodAccess {
   rosterId?: string;
   /** Epoch ms of the last pause or close, so a draft flush landing just after it is kept. */
   pausedAt?: number;
+  /** Epoch ms the teacher closed this class; absent or null means Ready, never closed (ASSIGNED_TAB D24). */
+  closedAt?: number | null;
+  /** Epoch ms the teacher last opened or resumed this class (ASSIGNED_TAB D11). */
+  openedAt?: number | null;
 }
 
 export type AccessMode = 'assessment' | 'assignment';
@@ -5523,7 +5646,7 @@ export interface PeriodAccessSessionFields {
   studentAccess?: Record<string, number>;
   /** Epoch ms of the last whole-session pause; see `PeriodAccess.pausedAt`. */
   pausedAt?: number;
-  /** Manual due date: every period locks at `dueAt`; a Start or Let in after it is late. */
+  /** Manual due date: true locks every period at `dueAt`; false allows late work past it. */
   dueLocks?: boolean;
   /** Reopened after End for these student uids only; cleared on End or a whole reopen. */
   reopenedFor?: string[];
@@ -5658,6 +5781,8 @@ export interface QuizSession
   allowStimulusQuotes?: boolean;
   /** Stamped only with the quiz-cross-out flag; absent = no cross-out buttons. */
   allowCrossOut?: boolean;
+  /** Stamped only with the quiz-recap-all-options flag; the published recap lists every choice. */
+  recapAllOptions?: boolean;
   /** Stamped only with the input-signals flag; with Focus mode on the student page records input counters. */
   inputSignals?: boolean;
   /** Stamped on every new assignment; Ordering shows one list to drag into order (absent on older sessions = slots and word bank). */
@@ -6004,8 +6129,11 @@ export interface QuizResponseAnswer {
   paperTranscript?: PaperTranscriptState;
 }
 
-/** Size of a handwritten answer box on a paper sheet; S/M/L and a number are line counts, full is a page. */
-export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
+/** Size of a handwritten answer box on a paper sheet; S/M/L and a number are line counts, full is a page, pages-N is N pages. */
+export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | PaperBoxPages | number;
+
+/** A written answer that runs over several whole pages. */
+export type PaperBoxPages = 'pages-2' | 'pages-3' | 'pages-4';
 
 /** What prints inside a handwritten answer box: rule lines, nothing, a 5 mm grid, or a grid with x and y axes. */
 export type PaperBoxStyle =
@@ -6179,6 +6307,8 @@ export interface InputSignalCounts {
   pastes?: number;
   /** Characters a paste or drop put into an answer box. */
   pastedChars?: number;
+  /** Characters the student dictated with Speech to text. */
+  dictatedChars?: number;
   /** Clicks, key presses and edits the browser marks as made by a script. */
   scripted?: number;
   /** Edits that removed text, and how many characters they removed. */
@@ -6246,6 +6376,14 @@ export interface QuizLiveLogEntry {
   noteId?: QuizNudgeNoteId;
   /** The screenshot in the teacher's Drive. */
   driveFileId?: string;
+}
+
+/** Points earned of points possible behind a published quiz score. */
+export interface QuizScorePoints {
+  earned: number;
+  possible: number;
+  /** The `completedAttempts` these points scored; a retake leaves them stale. */
+  attempt: number;
 }
 
 export interface QuizResponse extends StaffResponseFields {
@@ -6341,6 +6479,8 @@ export interface QuizResponse extends StaffResponseFields {
    * full quiz data loaded from Drive.
    */
   score: number | null;
+  /** Points behind a published `score`, written with it; shown only while it still matches `score`. */
+  scorePoints?: QuizScorePoints;
   submittedAt: number | null;
   /** Server-written at turn-in (functions/src/quizTurnIn.ts); read through `trustedTurnInMs`. */
   turnIn?: TurnInStamp;
@@ -6355,6 +6495,8 @@ export interface QuizResponse extends StaffResponseFields {
   tabExits?: TabExit[];
   /** Written only when the session carries `inputSignals`. */
   inputSignals?: InputSignals;
+  /** Ids of questions the student dictated any part of with Speech to text. */
+  dictated?: string[];
   /**
    * Number of tab-switch / focus-loss events the student has accumulated while
    * viewing **published results**. Distinct from `tabSwitchWarnings`, which
@@ -6593,6 +6735,10 @@ export type PaperPageItem =
       lines: number;
       /** Absent = lines, as every map printed before box styles. */
       style?: PaperBoxStyle;
+      /** Fill in the blank: one write-in line per blank. */
+      blanks?: number;
+      /** A later page of a multi-page answer; its crop joins the first page's. */
+      continued?: true;
     };
 
 /** Positions of everything on one physical page; `page` is 1-based and absolute. */
@@ -6612,6 +6758,22 @@ export interface PaperBatchVersion {
   servedQuestionIds: string[];
   /** Page-map question id -> the id this version printed there, where they differ. */
   swaps: Record<string, string>;
+}
+
+/** The modification rules a printed group's stack was built with (`paper-printed-versions`). */
+export interface PaperPrintedGroupRecord {
+  /** 1-based group position at assign, for "Group 2". */
+  number: number;
+  answerChoices: 'all' | 'drop-one' | 'two';
+  modifiedQuestions?: boolean;
+  supports?: QuizSupport[];
+  /** The group's language, so a reprint prints the same translation. */
+  language?: string;
+}
+
+/** A printed group planned at assign, kept so a version closed before printing can still print. */
+export interface PaperCopyGroupPlan extends PaperPrintedGroupRecord {
+  students: { rosterId: string; studentId: string }[];
 }
 
 export interface PaperBatch {
@@ -6654,6 +6816,8 @@ export interface PaperBatch {
   versions?: PaperBatchVersion[];
   /** Seat -> index into `versions`; the key sheet is absent and reads as version 0. */
   seatVersions?: Record<number, number>;
+  /** Printed for a modification group of a device assignment: the rules its version applied, so a reprint matches. */
+  printedGroup?: PaperPrintedGroupRecord;
   createdAt: number;
   /** A review the teacher left unfinished, resumable from any device (plan Q26). */
   pendingReview?: PaperPendingReview;
@@ -6894,6 +7058,9 @@ export interface RubricLevel {
   points: number;
   description?: string;
 }
+
+/** Teacher's rubric grading order: highest proficiency first (left/top) or lowest first. */
+export type RubricLevelOrder = 'high-first' | 'low-first';
 
 /** A single scoring dimension in a rubric (e.g. "Thesis & Argument"). */
 export interface RubricCriterion {
@@ -7264,11 +7431,27 @@ export interface StudentOverride {
   readAloud?: boolean; // quiz only; signed-in students, needs 'quiz-read-aloud'
   /** Block (true) or allow (false) copy, paste and print for this student; absent = the session's rule. */
   blockCopyPaste?: boolean;
+  /** Writing only (D22): leaves the right-click spelling menu on. */
+  spellingHelp?: boolean;
+  /** Quiz and Writing: the student may dictate written answers; needs 'speech-to-text'. */
+  speechToText?: boolean;
   openAt?: number;
   closeAt?: number; // per-student window shift (epoch ms)
   /** BCP-47 code, e.g. 'es' | 'so' | 'hmn'. Absent = English. Shape-validated only. */
   language?: string;
+  /** Quiz only: serve each question's modified wording where the teacher wrote one. */
+  modifiedQuestions?: boolean;
+  /** Quiz only: teacher-provided supports shown in the student's Supports panel. */
+  supports?: QuizSupport[];
+  /** Quiz only: takes a printed copy, so never Missing before the scan (`paper-printed-versions`). */
+  onPaper?: boolean;
 }
+
+/** A word bank, a link or a Drive file the teacher gives a student during a quiz. */
+export type QuizSupport =
+  | { kind: 'text'; title: string; text: string }
+  | { kind: 'link'; title: string; url: string }
+  | { kind: 'drive'; title: string; fileId: string };
 
 /**
  * Server-fan-out pointer doc at `/student_assignments/{studentUid}/items/{assignmentId}`.
@@ -7277,7 +7460,12 @@ export interface StudentOverride {
  */
 export interface StudentAssignmentPointer {
   kind:
-    'quiz' | 'video-activity' | 'guided-learning' | 'mini-app' | 'flashcards';
+    | 'quiz'
+    | 'video-activity'
+    | 'guided-learning'
+    | 'mini-app'
+    | 'flashcards'
+    | 'writing';
   sessionId: string;
   teacherUid: string;
   classId: string;
@@ -7351,6 +7539,8 @@ export interface QuizAssignmentSettings {
    * special case. Absent on quizzes without banks.
    */
   resolvedDriveFileId?: string;
+  /** Drive copy of a quiz without bank slots, saved at assign so later edits don't re-score it. */
+  frozenDriveFileId?: string;
 }
 
 /**
@@ -7369,10 +7559,12 @@ export interface QuizAssignment
   /** Owning widget, written on create. */
   widgetKind?: QuizWidgetKind;
   /**
-   * FIB answer keys translated at assign time, `{ [questionId]: { [locale]: string[] } }`.
+   * FIB answer keys translated at assign time, `{ [questionId]: { [locale]: string[] } }`; locale `*` holds answers a teacher accepted for everyone.
    * Teacher-owned only: the session doc is world-readable to students, so it never carries this.
    */
   localizedFibAnswers?: Record<string, Record<string, string[]>>;
+  /** Served locales whose FIB answers are graded with typo leniency (an EL student's translation, never the quiz's own language). */
+  lenientFibLocales?: string[];
   quizId: string;
   quizTitle: string;
   /** Drive file id of the source quiz so the monitor can hydrate after reload. */
@@ -7406,6 +7598,10 @@ export interface QuizAssignment
   paperWrittenSeats?: number;
   /** Responses carrying a scan from that stack, recounted by each import. */
   paperWrittenScanned?: number;
+  /** Stacks printed for modification groups of this device assignment (`paper-printed-versions`). */
+  paperCopyBatchIds?: string[];
+  /** Every printed group planned at assign, printed or not. */
+  paperCopyGroups?: PaperCopyGroupPlan[];
   /** D37 mode last chosen in Publish Scores; mirrored on the session and cleared on unpublish. */
   writtenReturnMode?: WrittenReturnMode;
   createdAt: number;
@@ -7495,6 +7691,8 @@ export interface QuizAssignment
   targetMode?: 'class' | 'students';
   /** Only meaningful when `targetMode === 'students'`. */
   targetStudents?: StudentTargetRef[];
+  /** Classes narrowed to picked students, written by `setAssignmentTargetsV1`. */
+  studentTargetClassIds?: string[];
   /** Provenance of picked groups (display only); does not drive resolution. */
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
@@ -7510,6 +7708,12 @@ export interface QuizAssignment
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Teacher-only close mark for an assignment with no `periodAccess` (ASSIGNED_TAB D24). */
+  closedAt?: number | null;
+  /** Set by Move to Finished (ASSIGNED_TAB D5): Done while ended, whatever its grading. */
+  doneAt?: number | null;
+  /** Last Resume or Assigned tab open of a single line (ASSIGNED_TAB D11). */
+  openedAt?: number | null;
   /**
    * Count of student-target refs the most recent `setAssignmentTargetsV1`
    * call couldn't add (PII-free — a plain number, no names). Persisted so
@@ -8332,6 +8536,8 @@ export interface VideoActivityResponse extends StaffResponseFields {
   resultsLockedOutAt?: number;
   /** Teacher marks for short-answer questions, keyed by question id. Teacher-written only. */
   grading?: Record<string, WrittenAnswerGrade>;
+  /** Set when the last publish kept right/wrong off `answers`, so the student sees only `score`. */
+  verdictsWithheld?: boolean;
 }
 
 /**
@@ -8463,6 +8669,8 @@ export interface SpecialistScheduleItem {
   endTime?: string; // HH:mm
   task: string;
   linkedWidgets?: WidgetType[];
+  /** Warn this many minutes before the block ends; needs an end time. */
+  warning?: ScheduleItemWarning;
 }
 
 export interface SpecialistScheduleRecurringItem extends SpecialistScheduleItem {
@@ -8558,6 +8766,9 @@ export interface SpecialistScheduleConfig {
   cycleDays: SpecialistScheduleCycleDay[];
   /** Items that repeat every day or on specific days of the week */
   recurringItems?: SpecialistScheduleRecurringItem[];
+  /** Block warnings already fired, item id to YYYY-MM-DD, so each fires once a day. */
+  warningsFired?: Record<string, string>;
+  warningAlert?: ScheduleWarningAlert;
   fontFamily?: string;
   fontColor?: string;
   textSizePreset?: TextSizePreset;
@@ -9830,6 +10041,9 @@ export interface FlashcardCard {
   id: string;
   term: string;
   definition: string;
+  /** Pictures shown with each side. */
+  termImageUrl?: string;
+  definitionImageUrl?: string;
   speak?: FlashcardCardSpeak;
 }
 
@@ -10173,6 +10387,9 @@ export interface FlashcardAssignment
   dueAt?: number | null;
   /** PLC this assignment's class-level results are shared with. */
   plcShare?: { plcId: string; sharedAt: number } | null;
+  /** Assigned tab: single-line Close mark (D24) and Move to Finished mark (D5). */
+  closedAt?: number | null;
+  doneAt?: number | null;
 }
 
 /** `flashcard_sessions/{assignmentId}/progress/{studentUid}`. */
@@ -10338,6 +10555,8 @@ export interface ProjectRun extends SessionWorkKindFields {
   /** Retired: students only ever see their own group. Old runs keep it until backfilled. */
   showStatusToStudents?: boolean;
   acceptingUpdates: boolean;
+  /** Groups can submit; set when the teacher starts or edits an open run. Absent on older runs. */
+  studentSubmit?: boolean;
   /** D42 — absent on runs made before the field existed. */
   createdAt?: number;
   updatedAt: number;
@@ -10364,6 +10583,11 @@ export interface ProjectGroup {
    * that is what makes the per-step approval ceiling enforceable.
    */
   lastStepChange?: { stepId: string; at: number };
+  /** Set by `submitProjectGroupV1` for the whole group; the teacher's Reopen clears it. */
+  submittedAt?: number;
+  submittedByUid?: string;
+  /** Submitted after the run's due date. */
+  submittedLate?: boolean;
   updatedAt: number;
 }
 
@@ -10414,7 +10638,7 @@ export interface ProjectGroupEvent {
   at: number;
   actorUid: string;
   actorRole: 'student' | 'teacher';
-  kind: 'stepState' | 'workLink' | 'upload' | 'membership';
+  kind: 'stepState' | 'workLink' | 'upload' | 'membership' | 'submission';
   stepId?: string;
   from?: ProjectStepState;
   to?: ProjectStepState;
@@ -10430,7 +10654,7 @@ export interface ProjectGroupGrade {
   comment?: string;
   released: boolean;
   gradedAt: number;
-  /** Absolute per-member points + note, keyed by member uid (A4). */
+  /** Absolute per-member points + note by member uid (A4); stored as `grades/{groupId}/overrides/{uid}`, never on this doc. */
   overridesByUid?: Record<string, { points: number; note?: string }>;
 }
 
@@ -10497,6 +10721,302 @@ export interface ProjectsConfig {
   fontFamily?: string;
   cardColor?: string;
   cardOpacity?: number;
+}
+
+// --- WRITING WIDGET TYPES (docs/plans/WRITING_ASSIGNMENT.md) ---
+
+/** How a Writing assignment is graded (D14); a rubric is a snapshot, like quiz `rubricSnapshot`. */
+export type WritingGrading =
+  | { mode: 'ungraded' }
+  | { mode: 'points'; points: number }
+  | { mode: 'rubric'; rubricId: string; rubricSnapshot: Rubric };
+
+/** Library item at `/users/{uid}/writing_assignments/{id}`; doc id === `id`. */
+export interface WritingAssignmentDefinition {
+  id: string;
+  title: string;
+  /** Prompt in the quiz prompt's text marks (bold, italic, underline, lists). */
+  prompt: string;
+  /** Stimulus tabs shown beside the editor (D6). */
+  stimuli?: QuizStimulus[];
+  /** Optional word limits, as on a quiz written answer (D7). */
+  minWords?: number;
+  maxWords?: number;
+  /** Turn in is refused outside the word limits. */
+  enforceWordLimit?: boolean;
+  grading: WritingGrading;
+  /** Library folder; absent or null means the root. */
+  folderId?: string | null;
+  /** Manual library order; absent sorts after everything ordered. */
+  order?: number;
+  createdAt: number;
+  updatedAt: number;
+  archivedAt?: number | null;
+}
+
+/** Per-board state only; Writing assignments live in the teacher's library. */
+export interface WritingConfig {
+  /** Which face the widget shows; `results` grades `resultsSessionId`. */
+  view?: 'manager' | 'monitor' | 'results';
+  /** The session the monitor shows. */
+  monitorSessionId?: string;
+  /** The session the results face shows. */
+  resultsSessionId?: string;
+  /** Tab within the manager view. */
+  managerTab?: 'library' | 'active' | 'archive';
+  /** Persisted library grid/list toggle. */
+  libraryViewMode?: 'grid' | 'list';
+  /** Persisted folder-panel state; `'auto'` derives it from widget width. */
+  folderPanelMode?: 'auto' | 'full' | 'rail' | 'hidden';
+  /** The monitor's Word counts switch; off by default. */
+  monitorShowWordCounts?: boolean;
+}
+
+export type { WritingResponseStatus, WritingTurnedInBy };
+
+/** Session at `writing_assignment_sessions/{id}`; created by `assignWritingV1` with the Library item snapshotted. */
+export interface WritingAssignmentSession
+  extends PeriodAccessSessionFields, SessionWorkKindFields {
+  id: string;
+  teacherUid: string;
+  /** The Library item at `/users/{teacherUid}/writing_assignments/{itemId}`. */
+  itemId: string;
+  title: string;
+  prompt: string;
+  stimuli?: QuizStimulus[];
+  minWords?: number;
+  maxWords?: number;
+  enforceWordLimit?: boolean;
+  /** Snapshot at assign time, rubric included (D14). */
+  grading: WritingGrading;
+  /** D8: paste and drop from outside the piece; off blocks both. */
+  allowPaste: boolean;
+  /** D10: the line telling students their writing is recorded. */
+  recordingNotice: boolean;
+  /** D11: students can open their own Writing record; the teacher can change it when returning. */
+  studentCanViewRecord: boolean;
+  /** D4: Chrome's red underlines. */
+  spellCheck: boolean;
+  /** D7: minutes from the student opening it; absent means no limit and the work can span days. */
+  timeLimitMinutes?: number;
+  /** Focus mode (glossary): counting time away, plus fullscreen at the lock level. */
+  tabWarningsEnabled?: boolean;
+  tabAwayLimitSeconds?: number;
+  blockPrint?: boolean;
+  focusLevel?: FocusLevel;
+  /** D5: read aloud of the prompt and sources for every student (F wires it). */
+  readAloudAll?: boolean;
+  /** BCP-47 language of the prompt, for read aloud; absent = 'en-US'. */
+  language?: string;
+  classIds: string[];
+  classId?: string;
+  periodNames?: string[];
+  rosterIds?: string[];
+  /** Classes narrowed to picked students (D5b), written by `setAssignmentTargetsV1`. */
+  studentTargetClassIds?: string[];
+  individualTargeting?: boolean;
+  status: 'active' | 'ended';
+  openAt?: number | null;
+  closeAt?: number | null;
+  dueAt?: number | null;
+  /** Per-class due dates, as quizzes have them. */
+  dueAtByClassId?: Record<string, number>;
+  /** D16: grades published to students; the grade shows once returned or published, whichever is first. */
+  scorePublishedAt?: number;
+  /** Peer review, while it runs or after it ended. */
+  peerReview?: WritingPeerReview | null;
+  createdAt: number;
+  updatedAt: number;
+  endedAt?: number;
+}
+
+/** `users/{uid}/writing_assignment_records/{sessionId}`: the teacher's server-written record, the targeting archive. */
+export interface WritingAssignmentRecord {
+  id: string;
+  sessionId: string;
+  itemId: string;
+  title: string;
+  teacherUid: string;
+  status: 'active' | 'ended';
+  createdAt: number;
+  updatedAt: number;
+  endedAt?: number;
+  rosterIds?: string[];
+  classIds?: string[];
+  periodNames?: string[];
+  openAt?: number | null;
+  closeAt?: number | null;
+  dueAt?: number | null;
+  dueAtByClassId?: Record<string, number>;
+  timeLimitMinutes?: number;
+  /** Manual assign: each class starts paused; mirrored from the session by `updateWritingSessionV1`. */
+  accessMode?: AccessMode;
+  periodAccess?: Record<string, PeriodAccess>;
+  dueLocks?: boolean;
+  targetMode?: 'class' | 'students';
+  targetStudents?: StudentTargetRef[];
+  /** Classes narrowed to picked students, written by `setAssignmentTargetsV1`. */
+  studentTargetClassIds?: string[];
+  targetGroupIds?: string[];
+  overridesBySourcedId?: Record<string, StudentOverride>;
+  excludedTargets?: StudentTargetRef[];
+  overridesByStudentUid?: Record<string, StudentOverride>;
+  targetSkippedCount?: number;
+  removedStudentRefs?: StudentTargetRef[];
+  /** Assigned tab marks, written by `updateWritingSessionV1`: single-line Close (D24) and Move to Finished (D5). */
+  closedAt?: number | null;
+  doneAt?: number | null;
+  /** Peer review groups, written by `setWritingPeerReviewV1`; each student reads the next one's writing. */
+  peerGroups?: { members: string[] }[];
+}
+
+/** The Writing record summary (D9), kept on the response and copied onto each frozen copy. */
+export interface WritingResponseSummary {
+  wordCount: number;
+  /** Client ms of the last save. */
+  savedAt: number;
+  /** Time spent writing, pauses capped as in `summarizeWriting`. */
+  writingMs: number;
+  /** Writing sessions (glossary): stretches with no gap over 15 minutes. */
+  sessions: number;
+  pasteCount: number;
+  pastedChars: number;
+  /** Text added without typing or pasting (an extension, dictation). */
+  untypedCount: number;
+  untypedChars: number;
+  /** Speech to text: passages dictated and their characters; absent until a student dictates. */
+  dictatedCount?: number;
+  dictatedChars?: number;
+  /** Time away from the tab and how many times. */
+  awayMs: number;
+  awayCount: number;
+  /** D25: when recording stopped because the log was full; the summary keeps counting. */
+  logStoppedAt?: number;
+}
+
+/** A frozen copy's or the response's teacher feedback (D13); offsets index the frozen copy's plain text. */
+export interface WritingFeedback {
+  pointsAwarded?: number;
+  overallComment?: string;
+  annotations?: WrittenAnswerAnnotation[];
+  rubricScores?: WrittenAnswerRubricScore[];
+  excused?: boolean;
+  gradedBy: string;
+  gradedAt: number;
+}
+
+/** A frozen copy's score (D14). On the copy from `saveWritingFeedbackV1`; on the response only once returned. */
+export interface WritingGrade {
+  draftId: string;
+  draftNumber: number;
+  pointsAwarded?: number;
+  maxPoints?: number;
+  rubricScores?: WrittenAnswerRubricScore[];
+  excused?: boolean;
+  gradedAt: number;
+}
+
+/**
+ * `writing_assignment_sessions/{sid}/responses/{studentUid}`, created by `openWritingV1`.
+ * The student writes only html, summary, saveCount, saveKey, tabId, tabAt and logChunk; functions write the rest.
+ */
+export interface WritingResponse {
+  studentUid: string;
+  /** The class the student reached it through, from their claim or pointer. */
+  classId: string;
+  /** Sanitized editor HTML; sanitize again on render and export. */
+  html: string;
+  summary: WritingResponseSummary;
+  status: WritingResponseStatus;
+  /** D23/D24: rises with every save; the rules refuse a write that does not raise it. */
+  saveCount: number;
+  /** D23: `${tabId}:${saveCount}`, sent with every student save so the save names its tab. */
+  saveKey?: string;
+  /** D23: the tab that holds the piece; a write from another tab is refused unless it claims the piece. */
+  tabId: string;
+  /** Server time of the last claim; a claiming write sets it to the request time. */
+  tabAt?: { toMillis: () => number } | null;
+  /** D25: index of the open log chunk, 0 to 9; never moves back. */
+  logChunk: number;
+  startedAt: number;
+  /** D7: the clock's start and end on timed work, stamped by `openWritingV1`; the end includes extra time. */
+  timerStartedAt?: number;
+  deadlineAt?: number;
+  /** Frozen copies that still exist (take back lowers it). */
+  draftCount: number;
+  /** Copy ids handed out so far; never lowered, so a taken-back id is never reused (`drafts/{String(seq)}`). */
+  draftSeq?: number;
+  /** The newest copy; each copy links to the one before through `prevDraftId`. */
+  latestDraftId?: string;
+  turnedInAt?: number;
+  turnedInBy?: WritingTurnedInBy;
+  returnedAt?: number;
+  /** The returned score that counts (D14), copied at Return; teacher scores before Return stay on the copies. */
+  grade?: WritingGrade;
+  /** D21: the 1 August deletion removed this piece's log chunks. */
+  logPurgedAt?: number;
+  /** D15: Live view's watch and Nudge; only the session's teacher writes it. */
+  liveView?: QuizLiveViewStamp | null;
+  updatedAt: number;
+}
+
+/** `.../responses/{studentUid}/log/{index}`: one chunk of the edit log (D25). */
+export interface WritingLogChunk {
+  /** `WritingLogWriter` encoding; at most `WRITING_LOG_CHUNK_BYTES` bytes. */
+  log: string;
+  /** Closed chunks never change; the next one opens at index + 1. */
+  closed: boolean;
+  updatedAt: number;
+}
+
+/** `.../responses/{studentUid}/drafts/{seq}`: the frozen copy one turn in makes, with its feedback. */
+export interface WritingDraft {
+  /** Shown as "Draft n": the count of copies at turn in. */
+  number: number;
+  /** The id's number; ids are never reused. */
+  seq?: number;
+  prevDraftId?: string;
+  html: string;
+  summary: WritingResponseSummary;
+  turnedInAt: number;
+  turnedInBy: WritingTurnedInBy;
+  /** Where the edit log stood at turn in, so the record can mark each draft. */
+  logMark: { chunk: number; length: number };
+  feedback?: WritingFeedback;
+  feedbackAt?: number;
+  /** This copy's own score; the student reads it once the copy is returned. */
+  grade?: WritingGrade;
+  returnedAt?: number;
+  returnKind?: 'return' | 'revision';
+}
+
+/** Peer review access: read the partner's writing, also comment on it, or also suggest edits. */
+export type WritingPeerAccess = 'view' | 'comment' | 'edit';
+
+/** On the session while peer review runs; who reads whom stays on each student's own pointer. */
+export interface WritingPeerReview {
+  access: WritingPeerAccess;
+  startedAt: number;
+  endedAt?: number | null;
+}
+
+/** `.../responses/{authorUid}/peer/{id}`: a partner's comment or suggested edit, offsets into the plain text. */
+export interface WritingPeerMark {
+  id: string;
+  /** The partner's student uid; names come from the reader's own roster or pointer, never this doc. */
+  by: string;
+  kind: 'comment' | 'edit';
+  start: number;
+  end: number;
+  /** The text the mark covered when made, to find it again after the writer keeps writing. */
+  quote: string;
+  /** Edit: the text to put in place of the quote; empty deletes it. */
+  insert?: string;
+  /** Comment: what the partner wrote. */
+  body?: string;
+  status: 'open' | 'accepted' | 'rejected' | 'resolved';
+  createdAt: number;
+  resolvedAt?: number;
 }
 
 // Union of all widget configs
@@ -10568,7 +11088,9 @@ export type WidgetConfig =
   | FlashcardsConfig
   | ProjectsConfig
   | ArtsLettersAgendaConfig
-  | FocusConfig;
+  | FocusConfig
+  | WritingConfig
+  | AgendaConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -10709,7 +11231,11 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                                         ? ArtsLettersAgendaConfig
                                                                                                                                         : T extends 'focus'
                                                                                                                                           ? FocusConfig
-                                                                                                                                          : never;
+                                                                                                                                          : T extends 'writing'
+                                                                                                                                            ? WritingConfig
+                                                                                                                                            : T extends 'agenda'
+                                                                                                                                              ? AgendaConfig
+                                                                                                                                              : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -10856,7 +11382,6 @@ export interface UserRolesConfig {
   teachers: string[];
   betaTeachers: string[];
   admins: string[];
-  superAdmins: string[];
 }
 
 /**
@@ -11051,6 +11576,16 @@ export interface ConnectionRun {
   stepStartedAt: number;
   /** Completed passes through the whole list. */
   loops: number;
+  /** The Schedule block that started this Run, for steps that use its end time. */
+  block?: ConnectionBlock;
+}
+
+/** A Schedule block that is about to end (its warning is due). */
+export interface ConnectionBlock {
+  endsAt: number;
+  task: string;
+  minutes: number;
+  sound: string;
 }
 
 export interface SequenceConnection {
@@ -11206,7 +11741,11 @@ export interface Toast {
     secondary?: { label: string; onClick: () => void };
     /** Live-tour anchor id for the action button. */
     tourId?: string;
+    /** Keeps the toast until the teacher dismisses it or takes the action. */
+    persist?: boolean;
   };
+  /** Set while the toast eases out, just before it is removed. */
+  leaving?: boolean;
 }
 
 export type WidgetCategory =
@@ -11267,6 +11806,9 @@ export type GlobalFeature =
   /** Fail-closed; read it through `canAccessQuizWhiteboardResponse`, which also needs `quiz-media-response`. */
   | 'quiz-whiteboard-response'
   | 'quiz-read-aloud'
+  | 'speech-to-text'
+  | 'speech-to-text-ai-transcription'
+  | 'speech-to-text-tidy-up'
   /** Teacher-authored AI quiz translations for multilingual learners. */
   | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
@@ -11283,10 +11825,9 @@ export type GlobalFeature =
   | 'quiz-document-ai-reader'
   /** Splits a typed PDF with version headings without AI. */
   | 'quiz-import-versions-plain'
-  /** Math in an imported question's text becomes drawn equations. */
-  | 'quiz-import-equations'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
+  | 'freshservice-sync'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
@@ -11295,14 +11836,17 @@ export type GlobalFeature =
   | 'quiz-cross-out'
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
-  /** Quiz editor: preview a stimulus from the question's attach list. */
-  | 'quiz-stimulus-preview'
+  | 'quiz-word-bank'
+  /** Quiz editor attaches stimuli in a list-and-preview dialog instead of an inline checklist. */
+  | 'quiz-stimulus-picker'
   /** Question editor metadata (stimuli, targets, DOK) as labeled fields like Type and Points. */
   | 'question-editor-fields'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
+  /** Written answers that run over two to four whole pages. */
+  | 'paper-multi-page-answers'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
   | 'paper-written-hybrid'
   | 'paper-reword-sync'
@@ -11317,8 +11861,7 @@ export type GlobalFeature =
   | 'claude-connector'
   /** Guided Learning tools inside the Claude connector; building and Help Center sets stay admin-only. */
   | 'claude-connector-guided-learning'
-  /** Claude connector previews: quizzes and rubrics show as an interactive card inside Claude (MCP Apps). */
-  | 'claude-connector-apps'
+  | 'claude-picture-uploads'
   /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
@@ -11331,14 +11874,22 @@ export type GlobalFeature =
   | 'quiz-live-view-nudge-note'
   /** Live view's Screenshot button. */
   | 'quiz-live-view-screenshot'
-  /** The app's own lists for dropdowns, date and time fields and suggestions, in place of the browser's. */
-  | 'app-pickers'
-  /** Assignment rows in the Quiz, Flashcards and Video Activity libraries show a "N classes" button with the full class list. */
-  | 'assignment-class-list'
-  /** Quiz Monitor lists the whole class roster, with students who haven't joined under Not started. */
-  | 'quiz-monitor-roster'
+  /** Sign-in picks an account instead of forcing Google's consent page; idle sign-out after 30 days instead of 7. */
+  | 'quick-sign-in'
+  /** Teacher picture and PDF uploads need Google Drive; without it they ask to reconnect instead of saving to Firebase Storage. */
+  | 'drive-only-uploads'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
+  /** Published quiz results list every answer option, with the student's pick marked. */
+  | 'quiz-recap-all-options'
+  /** Quiz assign stays open with a spinner until the save finishes, and shows a failed save inline. */
+  | 'quiz-assign-waits-for-save'
+  /** Each quiz assignment keeps a copy of the questions it was given, so later edits never change its scores. */
+  | 'quiz-frozen-assignments'
+  /** Rubric grading redesign: one-tap level buttons, expandable criteria, level order switch, full-rubric table. */
+  | 'rubric-grading-v2'
+  /** Quiz assign: a modification group can get a printed version, scanned back into the same results. */
+  | 'paper-printed-versions'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -11349,10 +11900,20 @@ export type GlobalFeature =
   | 'routine-guide'
   /** Class groups with a weekly schedule that pop a reminder on the open board. */
   | 'group-reminders'
+  /** Edit Class: groups open as pages that hold their accommodations; Accommodations lists every student. */
+  | 'class-groups-redesign'
+  /** Group reminders: the Symbol step of the class group editor. */
+  | 'group-symbols'
+  /** Group reminders: the Schedule step and the reminders it pops on the board. */
+  | 'group-schedules'
+  /** Group reminders: the Additional settings step of the class group editor. */
+  | 'group-settings'
   /** Sub shares bundle only the calendars the host ticks; board-share item picks are never seeded from share widgets. */
   | 'share-content-safeguards'
   /** My Classes "View Student Page": a class's student page, read from the teacher's own sessions. */
   | 'class-student-page'
+  /** Course and Agenda: link classes into a Course and set its daily Agenda in My Classes (docs/plans/COURSE_AND_AGENDA.md). */
+  | 'course-agenda'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'
@@ -11383,8 +11944,6 @@ export type GlobalFeature =
   | 'lunch-count-redesign'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
-  /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
-  | 'checklist-small-card'
   /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
   | 'seating-chart-plans'
   /** Sound widget target level, Too loud alert, calibration, quiet time goal and summary (pro-grade-2/NOISE_METER_PLAN.md). */
@@ -11397,8 +11956,6 @@ export type GlobalFeature =
   | 'flashcards-speak'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
-  /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
-  | 'widget-connections'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   | 'input-signals'
@@ -11429,15 +11986,34 @@ export type GlobalFeature =
   | 'import-straight-to-board'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
   | 'video-import-ai'
-  /** Right-click menu on the board background. */
-  | 'board-context-menu'
-  /** Teachers pick which answers count when a student answers more than a section asks. */
-  | 'choose-n-pick-counted'
   /** Manual assignments get a due date, and Assign remembers the When step. */
   | 'assign-due-date'
-  /** Reopen an ended quiz for selected students only. */
-  | 'reopen-selected-students'
-  | 'share-import-confirm';
+  /** Library and Assigned tabs with a status per class (docs/plans/ASSIGNED_TAB.md D19). */
+  | 'assigned-tab'
+  /** Writing peer review: teachers pair students to read, comment on or suggest edits to each other's writing. */
+  | 'writing-peer-review'
+  /** The sidebar Assignments hub; on for everyone until an admin narrows it. */
+  | 'assignments-hub'
+  /** Teachers record their voice for a quiz question prompt. */
+  | 'quiz-question-audio'
+  | 'quiz-random-numbers'
+  /** Print results with Settings and Students tabs and a Course > class > student picker. */
+  | 'results-print-v2';
+
+/** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
+export interface SpeechToTextSettings {
+  /** `hybrid` sends each spoken phrase to the AI transcriber; `browser` is the free engine alone. */
+  engine: 'browser' | 'hybrid';
+  /** Offers the student the Tidy up button. */
+  tidyUp: boolean;
+}
+
+/** `ai_usage/global_speech_to_text_{YYYY-MM}`: this month's paid dictation use. */
+export interface SpeechToTextUsage {
+  seconds?: number;
+  clips?: number;
+  tidyCalls?: number;
+}
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
@@ -11503,6 +12079,8 @@ export interface GlobalFeaturePermission {
   featureId: GlobalFeature;
   accessLevel: AccessLevel;
   betaUsers: string[];
+  /** People who never get this feature, admins included; beats every other rule. */
+  excludedUsers?: string[];
   enabled: boolean;
   /**
    * Building IDs allowed access. Empty array or `undefined` means
@@ -11602,6 +12180,8 @@ export interface FeaturePermission {
   accessLevel: AccessLevel;
   /** Array of email addresses for beta testing access (only used when accessLevel is 'beta') */
   betaUsers: string[];
+  /** People who never get this widget, admins included; beats every other rule. */
+  excludedUsers?: string[];
   /** When false, disables the widget for everyone including admins */
   enabled: boolean;
   /** Optional override for grade levels. If set, this takes precedence over the static configuration. */
@@ -12603,6 +13183,8 @@ export interface GuidedLearningAssignment
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
+  /** A future close that End replaced with now; Reopen puts it back while it is still ahead. */
+  closeAtBeforeEnd?: number | null;
   /** Count of `setAssignmentTargetsV1` `skipped` refs from the most recent
    *  targeting save — surfaced as a discreet row marker (spec §5 B3). */
   targetSkippedCount?: number;
@@ -12653,7 +13235,8 @@ export type LibraryFolderWidget =
   | 'guided_learning'
   | 'miniapp'
   | 'flashcards'
-  | 'projects';
+  | 'projects'
+  | 'writing';
 
 /**
  * A folder record stored at
@@ -13139,3 +13722,19 @@ export interface ShortLink {
   /** Optional human-readable name shown in the admin table. */
   label?: string;
 }
+
+// Course and Agenda (docs/plans/COURSE_AND_AGENDA.md §4.1); the contract lives in utils/course/contract.ts so functions/ can copy it.
+export type {
+  ClassPageCopy,
+  Course,
+  CourseAgenda,
+  CourseDeckCheck,
+  CourseDeckSharing,
+  CourseFamilyLink,
+  CourseInput,
+  CoursePageLink,
+  CoursePinnedLink,
+  FamilyPage,
+  SaveCourseReply,
+  SaveCourseRequest,
+} from './utils/course/contract';

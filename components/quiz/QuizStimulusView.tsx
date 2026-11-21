@@ -18,6 +18,7 @@
  */
 import React, {
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -47,6 +48,8 @@ import {
   stimulusMediaUrl,
 } from '@/utils/quizStimuli';
 import { convertToEmbedUrl } from '@/utils/urlHelpers';
+import { parseWordBank, wordBankColumns } from '@/utils/quizWordBank';
+import { WordBankFillContext } from './wordBankFill';
 import { chunkReadAloudText } from '@/utils/quizReadAloudApi';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
 import type { ReadAloudStatus } from './readAloud/useQuizReadAloud';
@@ -552,6 +555,97 @@ const TextStimulus: React.FC<StimulusRendererProps> = ({
   </div>
 );
 
+// ─── Word bank ───────────────────────────────────────────────────────────────
+
+/** One tile per line; a tap fills the current blank when the question takes typed answers. */
+const WordBankStimulus: React.FC<StimulusRendererProps> = ({
+  stimulus,
+  light = false,
+  cqScaled,
+}) => {
+  const { t } = useTranslation();
+  const fill = useContext(WordBankFillContext);
+  const groups = useMemo(() => parseWordBank(stimulus.text), [stimulus.text]);
+  const cols = wordBankColumns(stimulus.wordBankColumns);
+  const minCol = cqScaled ? mm(160, 30) : '10rem';
+  const tileCls = `rounded-lg border-2 text-center font-semibold shadow-sm ${
+    light
+      ? 'border-slate-300 bg-white text-slate-800'
+      : 'border-slate-600 bg-slate-800 text-slate-100'
+  }`;
+  const tapCls = `transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${
+    light
+      ? 'hover:border-brand-blue-primary/60 hover:bg-brand-blue-lighter active:bg-brand-blue-primary active:text-white'
+      : 'hover:border-slate-400 hover:bg-slate-700 active:bg-brand-blue-primary'
+  }`;
+  return (
+    <div
+      className={`w-full h-full overflow-auto rounded-xl ${
+        cqScaled ? '' : 'p-4'
+      } ${light ? 'bg-white' : 'bg-slate-800/60'}`}
+      style={cqScaled ? { padding: mm(16, 4) } : undefined}
+    >
+      {fill && (
+        <p
+          className={`font-semibold ${cqScaled ? '' : 'mb-3 text-sm'} ${mutedTextCls(light)}`}
+          style={
+            cqScaled
+              ? { marginBottom: mm(12, 3), fontSize: mm(14, 5) }
+              : undefined
+          }
+        >
+          {t('quizBlanks.tapToFill', 'Tap a choice to add it to your answer.')}
+        </p>
+      )}
+      <div
+        className={`flex flex-col ${cqScaled ? '' : 'gap-5'}`}
+        style={cqScaled ? { gap: mm(20, 4) } : undefined}
+      >
+        {groups.map((group, gi) => (
+          <div
+            key={gi}
+            className={`grid ${cqScaled ? '' : 'gap-2'}`}
+            style={{
+              // The teacher's column count, dropping a column when one would get too narrow.
+              gridTemplateColumns: `repeat(auto-fill, minmax(max(${minCol}, calc((100% - ${cols - 1} * 0.5rem) / ${cols})), 1fr))`,
+              ...(cqScaled ? { gap: mm(8, 2) } : {}),
+            }}
+          >
+            {group.map((choice) =>
+              fill ? (
+                <button
+                  // no-tour-anchor: student quiz screen; tours walk teachers
+                  key={choice}
+                  type="button"
+                  onClick={() => fill(choice)}
+                  className={`min-h-[48px] px-3 py-2 text-base ${tileCls} ${tapCls}`}
+                >
+                  {choice}
+                </button>
+              ) : (
+                <div
+                  key={choice}
+                  className={`${tileCls} ${cqScaled ? '' : 'px-3 py-2 text-base'}`}
+                  style={
+                    cqScaled
+                      ? {
+                          padding: `${mm(8, 2)} ${mm(12, 3)}`,
+                          fontSize: mm(16, 6),
+                        }
+                      : undefined
+                  }
+                >
+                  {choice}
+                </div>
+              )
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // ─── PDF (pdf.js with Drive-preview fallback) ────────────────────────────────
 
 /** One page: a stable wrapper sized by CSS, holding the latest canvas render. */
@@ -994,6 +1088,9 @@ export const StimulusRenderer: React.FC<StimulusRendererProps> = (props) => {
       break;
     case 'text':
       body = <TextStimulus {...inner} />;
+      break;
+    case 'word-bank':
+      body = <WordBankStimulus {...inner} />;
       break;
     case 'calculator':
       body = <CalculatorStimulus {...inner} />;

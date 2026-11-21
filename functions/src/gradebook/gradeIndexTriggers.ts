@@ -4,6 +4,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as logger from 'firebase-functions/logger';
 import * as admin from '../firebaseAdmin';
 import '../functionsInit';
+import { CLASSLINK_FUNCTION_TIMEOUT_SECONDS } from '../classlinkShared';
 import {
   SESSION_COLLECTION,
   STUDENT_SUBCOLLECTION,
@@ -12,7 +13,6 @@ import {
   drainDirtySessions,
   isGradeIndexEnabled,
   markSessionDirty,
-  sessionWriteMatters,
   stableStringify,
 } from './gradeIndex';
 import {
@@ -40,50 +40,29 @@ import {
   applyAttemptWrite,
 } from '../quizAttemptHistory';
 import { stampTurnIn } from '../quizTurnIn';
+import { RosterUnavailableError } from './rosterUnavailable';
+import { migrateLegacyProjectOverrides } from '../projectGradeOverrides';
+import {
+  TRIGGER_OPTS,
+  dataOf,
+  guarded,
+  type WriteEvent,
+} from './gradeSessionTriggers';
 
-type Doc = Record<string, unknown>;
-
-interface Change {
-  before: { exists: boolean; data: () => Doc | undefined };
-  after: { exists: boolean; data: () => Doc | undefined };
-}
-
-interface WriteEvent {
-  params: Record<string, string>;
-  data?: Change;
-  time?: string;
-}
-
-const TRIGGER_OPTS = { memory: '256MiB' as const, maxInstances: 20 };
-// Config edits re-project whole classes, so they get the long timeout.
-const FANOUT_OPTS = { ...TRIGGER_OPTS, timeoutSeconds: 540 };
-// Project rows are checked against the owner's live class roster.
+// Project rows and every Grades-tab projection are checked against the owner's live class roster.
 const ROSTER_SECRETS = [
   CLASSLINK_CLIENT_ID,
   CLASSLINK_CLIENT_SECRET,
   CLASSLINK_TENANT_URL,
   STUDENT_PSEUDONYM_HMAC_SECRET,
 ];
-
-const dataOf = (side: Change['before'] | undefined): Doc | undefined =>
-  side?.exists ? (side.data() ?? undefined) : undefined;
-
-async function guarded(
-  label: string,
-  context: Doc,
-  fn: () => Promise<void>
-): Promise<void> {
-  try {
-    const db = admin.firestore();
-    if (!(await isGradeIndexEnabled(db))) return;
-    await fn();
-  } catch (err) {
-    logger.error(`gradeIndex: ${label} failed`, {
-      ...context,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-}
+const PROJECTION_OPTS = {
+  ...TRIGGER_OPTS,
+  secrets: ROSTER_SECRETS,
+  timeoutSeconds: CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
+};
+// Config edits re-project whole classes, so they get the long timeout.
+const FANOUT_OPTS = { ...PROJECTION_OPTS, timeoutSeconds: 540 };
 
 /** Per-student doc handler body, exported for tests. */
 export async function handleStudentDocWrite(
@@ -98,47 +77,45 @@ export async function handleStudentDocWrite(
     before: dataOf(event.data?.before),
     after: dataOf(event.data?.after),
   };
-  if (!docWriteMatters(write)) return;
-  await guarded('student doc', { kind, sessionId, docId }, async () => {
-    const db = admin.firestore();
-    try {
-      await applyDocWrite(db, write);
-    } catch (err) {
-      // Let the recompute worker heal the row instead of dropping the update.
-      await markSessionDirty(db, kind, sessionId);
-      throw err;
-    }
-  });
-}
-
-/** Session handler body: a relevant change queues a whole-session recompute. */
-export async function handleSessionWrite(
-  kind: GradeKind,
-  event: WriteEvent
-): Promise<void> {
-  const { sessionId } = event.params;
-  const before = dataOf(event.data?.before);
-  const after = dataOf(event.data?.after);
-  if (!sessionWriteMatters(before, after)) return;
-  await guarded('session', { kind, sessionId }, () =>
-    markSessionDirty(admin.firestore(), kind, sessionId)
-  );
+  if (docWriteMatters(write)) {
+    await guarded('student doc', { kind, sessionId, docId }, async () => {
+      const db = admin.firestore();
+      try {
+        await applyDocWrite(db, write);
+      } catch (err) {
+        // Let the recompute worker heal the row instead of dropping the update.
+        await markSessionDirty(db, kind, sessionId);
+        throw err;
+      }
+    });
+  }
+  // Runs whether or not the index is on: a legacy map keeps a released grade unreadable to members.
+  if (kind === 'projects')
+    await failUnlessStale(event.time, async () => {
+      await migrateLegacyProjectOverrides(
+        admin.firestore(),
+        sessionId,
+        docId,
+        write.after
+      );
+    });
 }
 
 const studentDocTrigger = (kind: GradeKind) =>
   onDocumentWritten(
     {
       ...TRIGGER_OPTS,
-      ...(kind === 'projects' ? { secrets: ROSTER_SECRETS } : {}),
+      // Projects retry so a failed legacy override migration runs again.
+      ...(kind === 'projects'
+        ? {
+            secrets: ROSTER_SECRETS,
+            retry: true,
+            timeoutSeconds: CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
+          }
+        : {}),
       document: `${SESSION_COLLECTION[kind]}/{sessionId}/${STUDENT_SUBCOLLECTION[kind]}/{docId}`,
     },
     (event) => handleStudentDocWrite(kind, event as unknown as WriteEvent)
-  );
-
-const sessionTrigger = (kind: GradeKind) =>
-  onDocumentWritten(
-    { ...TRIGGER_OPTS, document: `${SESSION_COLLECTION[kind]}/{sessionId}` },
-    (event) => handleSessionWrite(kind, event as unknown as WriteEvent)
   );
 
 const MAX_RETRY_AGE_MS = 2 * 60 * 60_000;
@@ -266,15 +243,7 @@ export const gradeIndexFlashcardProgress = studentDocTrigger('flashcards');
 export const gradeIndexProjectGrade = studentDocTrigger('projects');
 export const gradeIndexMiniAppSubmission = studentDocTrigger('mini-app');
 export const gradeIndexWallSubmission = studentDocTrigger('activity-wall');
-
-export const gradeIndexQuizSession = sessionTrigger('quiz');
-export const gradeIndexVideoSession = sessionTrigger('video-activity');
-export const gradeIndexGuidedLearningSession =
-  sessionTrigger('guided-learning');
-export const gradeIndexFlashcardSession = sessionTrigger('flashcards');
-export const gradeIndexProjectRun = sessionTrigger('projects');
-export const gradeIndexMiniAppSession = sessionTrigger('mini-app');
-export const gradeIndexWallSession = sessionTrigger('activity-wall');
+export const gradeIndexWritingResponse = studentDocTrigger('writing');
 
 /** Key or tag edits live off the session, so they queue the session themselves. */
 export async function handleSideDocWrite(
@@ -335,7 +304,9 @@ export const gradeIndexQuizAssignment = onDocumentWritten(
         'dueAtByRosterId',
         'overridesByStudentUid',
         'localizedFibAnswers',
+        'lenientFibLocales',
         'servedLanguageByStudentUid',
+        'paperCopyBatchIds',
       ],
       event.params.uid
     )
@@ -387,6 +358,7 @@ const POINTER_KINDS = new Set<string>([
   'guided-learning',
   'mini-app',
   'flashcards',
+  'writing',
 ]);
 
 /** Individual targeting changes who is assigned and their due date (D25), so the session is rebuilt. */
@@ -423,37 +395,54 @@ export const gradeIndexStudentPointer = onDocumentWritten(
 export async function handleRowWrite(event: WriteEvent): Promise<void> {
   const before = dataOf(event.data?.before) as IndexRow | undefined;
   const after = dataOf(event.data?.after) as IndexRow | undefined;
+  let unavailable = null as RosterUnavailableError | null;
   await guarded('projection', { rowId: event.params.rowId }, async () => {
-    const db = admin.firestore();
-    // Deleting a pre-kind row that a kind-keyed row replaced clears only an entry the replacement moved.
-    const replacementId = before
-      ? rowId(before.kind || 'quiz', before.sessionId, before.studentUid)
-      : '';
-    if (!after && before && event.params.rowId !== replacementId) {
-      const replacement = await db
-        .collection(GRADE_INDEX)
-        .doc(replacementId)
-        .get();
-      if (replacement.exists) {
-        await projectRow(db, replacement.data() as IndexRow, before);
-        return;
-      }
+    try {
+      await projectRowWrite(event.params.rowId, after, before);
+    } catch (err) {
+      if (!(err instanceof RosterUnavailableError)) throw err;
+      unavailable = err;
     }
-    await projectRow(db, after ?? null, before ?? null);
-    const row = after ?? before;
-    if (!row) return;
-    await removeFlagsOnScore(
-      db,
-      // Marks keep the pre-kind id.
-      legacyRowId(row.sessionId, row.studentUid),
-      after ?? null,
-      before ?? null
-    );
   });
+  // The roster service being down retries the event instead of dropping the update.
+  const failure = unavailable;
+  if (failure) await failUnlessStale(event.time, () => Promise.reject(failure));
+}
+
+async function projectRowWrite(
+  rowIdParam: string,
+  after: IndexRow | undefined,
+  before: IndexRow | undefined
+): Promise<void> {
+  const db = admin.firestore();
+  // Deleting a pre-kind row that a kind-keyed row replaced clears only an entry the replacement moved.
+  const replacementId = before
+    ? rowId(before.kind || 'quiz', before.sessionId, before.studentUid)
+    : '';
+  if (!after && before && rowIdParam !== replacementId) {
+    const replacement = await db
+      .collection(GRADE_INDEX)
+      .doc(replacementId)
+      .get();
+    if (replacement.exists) {
+      await projectRow(db, replacement.data() as IndexRow, before);
+      return;
+    }
+  }
+  await projectRow(db, after ?? null, before ?? null);
+  const row = after ?? before;
+  if (!row) return;
+  await removeFlagsOnScore(
+    db,
+    // Marks keep the pre-kind id.
+    legacyRowId(row.sessionId, row.studentUid),
+    after ?? null,
+    before ?? null
+  );
 }
 
 export const gradeIndexProjection = onDocumentWritten(
-  { ...TRIGGER_OPTS, document: `${GRADE_INDEX}/{rowId}` },
+  { ...PROJECTION_OPTS, retry: true, document: `${GRADE_INDEX}/{rowId}` },
   (event) => handleRowWrite(event as unknown as WriteEvent)
 );
 
@@ -478,7 +467,7 @@ export async function handleMarkWrite(event: WriteEvent): Promise<void> {
 }
 
 export const gradeIndexMark = onDocumentWritten(
-  { ...TRIGGER_OPTS, document: `${GRADEBOOK_MARKS}/{markId}` },
+  { ...PROJECTION_OPTS, document: `${GRADEBOOK_MARKS}/{markId}` },
   (event) => handleMarkWrite(event as unknown as WriteEvent)
 );
 

@@ -33,6 +33,7 @@ import {
   type SchoologyApiCredentials,
   type SchoologySection,
 } from '../schoology/restClient';
+import { safeErr } from '../safeLog';
 
 const LTI_TOOL_PRIVATE_KEY = defineSecret('LTI_TOOL_PRIVATE_KEY');
 const SCHOOLOGY_API_CONSUMER_KEY = defineSecret('SCHOOLOGY_API_CONSUMER_KEY');
@@ -176,7 +177,7 @@ async function findRows(
       } catch (err) {
         console.warn(
           `[ltiFindSections] REST lookup failed for ${r.rosterId}:`,
-          err
+          safeErr(err)
         );
         return { section: null, failed: true };
       }
@@ -225,7 +226,10 @@ async function findRows(
           title: contextTitle,
         });
       } catch (err) {
-        console.warn(`[ltiFindSections] NRPS read failed for ${id}:`, err);
+        console.warn(
+          `[ltiFindSections] NRPS read failed for ${id}:`,
+          safeErr(err)
+        );
         instructorOf.set(id, null);
       }
     },

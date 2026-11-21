@@ -13,12 +13,13 @@ import {
   Play,
   Plus,
   Send,
+  Settings as SettingsIcon,
   Share2,
   Trash2,
   Users2,
   Link2,
 } from 'lucide-react';
-import type { FlashcardAssignment, FlashcardSet } from '@/types';
+import type { ClassRoster, FlashcardAssignment, FlashcardSet } from '@/types';
 import type { UseFoldersResult } from '@/hooks/useFolders';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import {
@@ -38,11 +39,17 @@ import {
   useFolderLibraryView,
   useLibrarySelection,
 } from '@/components/common/library';
-import type { LibraryBadge, LibraryTab } from '@/components/common/library';
+import type {
+  LibraryBadge,
+  LibraryMenuAction,
+  LibraryTab,
+} from '@/components/common/library';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 import { FlashcardAssignmentRow } from './FlashcardAssignmentRow';
 import { flashcardAssignmentPaused } from './utils/flashcardAssignmentRow';
+import { FlashcardAssignedTab } from './FlashcardAssignedTab';
+import type { FlashcardLifecycle } from './utils/flashcardClassLifecycle';
 
 interface FlashcardLibraryProps {
   /** Signed-in teacher, for the folder view's last-folder preference. */
@@ -72,6 +79,12 @@ interface FlashcardLibraryProps {
   onAssignmentEnd: (assignment: FlashcardAssignment) => void;
   onAssignmentReopen: (assignment: FlashcardAssignment) => void;
   onAssignmentDelete: (assignment: FlashcardAssignment) => void;
+  /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
+  onAssignmentDeleteMany?: (
+    assignments: FlashcardAssignment[]
+  ) => Promise<number>;
+  /** Opens the publish dialog once for several closed assignments. */
+  onAssignmentPublishMany?: (assignments: FlashcardAssignment[]) => void;
   /** Surfaces a failed folder move as a toast. */
   onError?: (message: string) => void;
   onShareWithPlc?: (set: FlashcardSet) => void;
@@ -82,6 +95,10 @@ interface FlashcardLibraryProps {
   onAssignmentSettings?: (assignment: FlashcardAssignment) => void;
   /** Bulk delete; resolves true when the sets were deleted. */
   onBulkDelete?: (sets: FlashcardSet[]) => Promise<boolean>;
+  /** Whole-run writes the Assigned tab's class actions drive (ASSIGNED_TAB.md D21); given only when the assigned-tab flag is on. */
+  classLifecycle?: FlashcardLifecycle;
+  /** Bell periods and class sizes for the Assigned tab. */
+  rosters?: ClassRoster[];
 }
 
 const titleComparator = (
@@ -113,7 +130,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   folders,
   assignments,
   assignmentsLoading,
-  tab,
+  tab: tabProp,
   onTabChange,
   onNew,
   onImport,
@@ -130,13 +147,21 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onAssignmentEnd,
   onAssignmentReopen,
   onAssignmentDelete,
+  onAssignmentDeleteMany,
+  onAssignmentPublishMany,
   onError,
   onShareWithPlc,
   onAssignmentStopSharingWithPlc,
   onAssignmentMonitor,
   onAssignmentSettings,
   onBulkDelete,
+  classLifecycle,
+  rosters = [],
 }) => {
+  // ASSIGNED_TAB.md D12/D19: Library and Assigned, behind the preview flag.
+  const assignedOn = !!classLifecycle;
+  const tab: LibraryTab =
+    assignedOn && tabProp === 'archive' ? 'active' : tabProp;
   const [folderTarget, setFolderTarget] = useState<FlashcardSet | null>(null);
   const selection = useLibrarySelection();
   const [selectionOn, setSelectionOn] = useState(false);
@@ -257,39 +282,88 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     />
   );
 
-  const assignmentsContent = assignmentsLoading ? (
-    <div
-      className="flex items-center justify-center text-slate-400"
-      style={{ padding: 'min(48px, 12cqmin)' }}
-    >
-      <Loader2
-        className="animate-spin"
-        style={{ width: 'min(24px, 6cqmin)', height: 'min(24px, 6cqmin)' }}
+  // Whole-assignment items for an Assigned row; Results and sharing live elsewhere (R6, R8).
+  const assignedMenu = (a: FlashcardAssignment): LibraryMenuAction[] => {
+    const items: LibraryMenuAction[] = [];
+    if (onAssignmentSettings)
+      items.push({
+        id: 'settings',
+        label: 'Settings',
+        icon: SettingsIcon,
+        onClick: () => onAssignmentSettings(a),
+      });
+    // The dialog's Unpublish replaces the separate item (R9).
+    if (a.kind === 'check')
+      items.push({
+        id: 'publish-scores',
+        label: 'Publish scores',
+        icon: Send,
+        onClick: () => onAssignmentPublishScores(a),
+      });
+    items.push({
+      id: 'delete',
+      label: 'Delete',
+      icon: Trash2,
+      destructive: true,
+      onClick: () => onAssignmentDelete(a),
+    });
+    if (a.plcShare && onAssignmentStopSharingWithPlc)
+      items.push({
+        id: 'stop-sharing-plc',
+        label: 'Stop sharing with PLC',
+        icon: Users2,
+        onClick: () => onAssignmentStopSharingWithPlc(a),
+      });
+    return items;
+  };
+
+  const assignmentsContent =
+    assignedOn && classLifecycle ? (
+      <FlashcardAssignedTab
+        assignments={assignments}
+        loading={assignmentsLoading}
+        rosters={rosters}
+        lifecycle={classLifecycle}
+        onMonitor={onAssignmentMonitor ?? onAssignmentResults}
+        onResults={onAssignmentResults}
+        onPublish={onAssignmentPublishScores}
+        menu={assignedMenu}
+        onBulkDelete={onAssignmentDeleteMany}
+        onBulkPublish={onAssignmentPublishMany}
       />
-    </div>
-  ) : tabAssignments.length === 0 ? (
-    <ScaledEmptyState
-      icon={Send}
-      iconClassName="text-rose-300"
-      iconSize="min(52px, 14cqmin)"
-      titleClassName="text-slate-800"
-      subtitleClassName="max-w-md mx-auto text-slate-500"
-      title={
-        tab === 'archive' ? 'Nothing completed yet' : 'Nothing assigned yet'
-      }
-      subtitle={
-        tab === 'archive'
-          ? 'Assignments you end show up here.'
-          : 'Assign a set to a ClassLink class to see it here.'
-      }
-    />
-  ) : (
-    <div className="flex flex-col">
-      {tabAssignments.map((assignment, index) =>
-        renderAssignmentRow(assignment, index)
-      )}
-    </div>
-  );
+    ) : assignmentsLoading ? (
+      <div
+        className="flex items-center justify-center text-slate-400"
+        style={{ padding: 'min(48px, 12cqmin)' }}
+      >
+        <Loader2
+          className="animate-spin"
+          style={{ width: 'min(24px, 6cqmin)', height: 'min(24px, 6cqmin)' }}
+        />
+      </div>
+    ) : tabAssignments.length === 0 ? (
+      <ScaledEmptyState
+        icon={Send}
+        iconClassName="text-rose-300"
+        iconSize="min(52px, 14cqmin)"
+        titleClassName="text-slate-800"
+        subtitleClassName="max-w-md mx-auto text-slate-500"
+        title={
+          tab === 'archive' ? 'Nothing completed yet' : 'Nothing assigned yet'
+        }
+        subtitle={
+          tab === 'archive'
+            ? 'Assignments you end show up here.'
+            : 'Assign a set to a ClassLink class to see it here.'
+        }
+      />
+    ) : (
+      <div className="flex flex-col">
+        {tabAssignments.map((assignment, index) =>
+          renderAssignmentRow(assignment, index)
+        )}
+      </div>
+    );
 
   const folderSidebar = (
     <FolderSidebar
@@ -497,10 +571,12 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       onTabChange={onTabChange}
       visibleTabs={['library', 'active', 'archive']}
       tabLabels={{ archive: 'Completed' }}
+      assignedLayout={assignedOn}
       counts={{
         library: sets.length,
-        active: activeAssignments.length,
-        archive: endedAssignments.length,
+        // The Assigned tab's Active section depends on grading, so it shows no count.
+        active: assignedOn ? undefined : activeAssignments.length,
+        archive: assignedOn ? undefined : endedAssignments.length,
       }}
       primaryAction={
         tab === 'library'

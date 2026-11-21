@@ -260,4 +260,27 @@ describe('auto Late and Missing around the class-close cushion', () => {
       'missing',
     ]);
   });
+
+  it('never flags a printed-copy scan Late or Missing', () => {
+    const late = due + BELL_CLOSE_CUSHION_MS + 60_000;
+    expect(flags({ ...rowAt(late), onPaper: true }, late)).toEqual([]);
+    expect(flags({ ...rowAt(null), onPaper: true }, late)).toEqual([]);
+  });
+
+  it('shows an excused Writing piece as Excused, out of the average', () => {
+    const row = {
+      ...rowAt(due),
+      kind: 'writing' as const,
+      state: 'scored' as const,
+      excused: true as const,
+    };
+    expect(flags(row, due)).toEqual(['excused']);
+    expect(
+      core.resolveFinalScore(row, null, null, {
+        flagDefs: core.DEFAULT_GRADEBOOK_FLAGS,
+        autoFlags: true,
+        now: due,
+      }).status
+    ).toBe('excluded');
+  });
 });

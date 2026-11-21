@@ -27,6 +27,7 @@ import {
   submittedMarker,
   sheetRowKey,
 } from './lunchCountFormat';
+import { useSentDetails } from '../useSentDetails';
 
 export interface LunchStudent {
   id: string;
@@ -44,7 +45,10 @@ export function useLunchCountModel(widget: WidgetData) {
   const reportName = subShareHost
     ? (subShareHost.teacherName ?? 'Staff')
     : (user?.displayName ?? 'Staff');
-  const config = widget.config as LunchCountConfig;
+  const { config, loadSentDetails, isLoadingSentDetails } = useSentDetails(
+    widget.id,
+    widget.config as LunchCountConfig
+  );
   const {
     cachedMenu = null,
     assignments = {},
@@ -324,12 +328,18 @@ export function useLunchCountModel(widget: WidgetData) {
     }
   };
 
+  // Opens at once; notes another device sent today load behind it for Review and Resend.
+  const openReportModal = () => {
+    setIsModalOpen(true);
+    loadSentDetails();
+  };
+
   const handleOpenReport = () => {
     if (needsTime || needsGrade) {
       setIsMissingInfoOpen(true);
       return;
     }
-    setIsModalOpen(true);
+    openReportModal();
   };
 
   const handleSaveMissingInfo = (info: LunchInfo) => {
@@ -350,7 +360,7 @@ export function useLunchCountModel(widget: WidgetData) {
       },
     });
     setIsMissingInfoOpen(false);
-    setIsModalOpen(true);
+    openReportModal();
   };
 
   const handleReset = () =>
@@ -413,6 +423,7 @@ export function useLunchCountModel(widget: WidgetData) {
     reportData,
     alreadySubmitted: hasSubmittedToday(config, widget.id, sentClass),
     sentDetails: sentDetailsToday(config, widget.id, sentClass),
+    sentDetailsLoading: isLoadingSentDetails(sentClass),
   };
 }
 

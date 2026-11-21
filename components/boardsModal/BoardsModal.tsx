@@ -128,9 +128,12 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     activeDragId,
     dropIndicator,
   } = useBoardsModalDnd({
-    visibleBoardIds: boardsInView(filteredBoards, selectedCollectionId).map(
-      (b) => b.id
-    ),
+    visibleBoardIds: boardsInView(
+      filteredBoards,
+      selectedCollectionId,
+      collections,
+      searchTerm !== ''
+    ).map((b) => b.id),
   });
 
   // Resolve the active drag id (e.g. 'board:abc' / 'collection:xyz') into
@@ -645,6 +648,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
                 collections={filteredCollections}
                 allCollections={collections}
                 boards={filteredBoards}
+                searchActive={searchTerm !== ''}
                 selectedIds={multi.selectedIds}
                 canShare={canShare}
                 onSelectCollection={setSelectedCollectionId}

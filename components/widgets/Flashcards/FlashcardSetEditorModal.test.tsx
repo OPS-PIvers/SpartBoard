@@ -13,7 +13,10 @@ import type { AuthContextType } from '@/context/AuthContextValue';
 import type { FlashcardCardSpeak, FlashcardSet } from '@/types';
 import { defaultFlashcardsSpeakAdminConfig } from '@/config/flashcardsSpeakAdmin';
 import { FlashcardSetEditorModal } from './FlashcardSetEditorModal';
-import { flashcardSetIncompleteReason } from './useFlashcardEditorState';
+import {
+  cleanFlashcards,
+  flashcardSetIncompleteReason,
+} from './useFlashcardEditorState';
 import type { SpeakLookupCall } from './speak/lookupSpeakReferences';
 
 const showConfirm = vi.hoisted(() =>
@@ -55,6 +58,8 @@ const baseSet = (overrides: Partial<FlashcardSet> = {}): FlashcardSet => ({
 
 const auth = (speak: boolean) =>
   ({
+    googleAccessToken: 'token',
+    refreshGoogleToken: () => Promise.resolve('token'),
     canAccessFeature: (id: string) => speak && id === 'flashcards-speak',
   }) as unknown as AuthContextType;
 
@@ -92,11 +97,7 @@ const renderModal = (opts: {
 };
 
 const clickClose = () => {
-  const button = screen
-    .getAllByRole('button', { name: 'Close' })
-    .find((b) => b.textContent === 'Close');
-  if (!button) throw new Error('No footer Close button');
-  fireEvent.click(button);
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 };
 
 afterEach(() => {
@@ -245,6 +246,124 @@ describe('FlashcardSetEditorModal', () => {
     fireEvent.keyDown(screen.getByLabelText('Definition 1'), { key: 'Enter' });
     expect(screen.getAllByPlaceholderText('Term')).toHaveLength(3);
     expect(screen.getByLabelText('Term 2')).toHaveProperty('value', '');
+  });
+
+  it('adds a card on Tab only from the last filled Definition', () => {
+    renderModal({});
+    fireEvent.keyDown(screen.getByLabelText('Definition 1'), { key: 'Tab' });
+    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(2);
+    fireEvent.keyDown(screen.getByLabelText('Definition 2'), {
+      key: 'Tab',
+      shiftKey: true,
+    });
+    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(2);
+    fireEvent.keyDown(screen.getByLabelText('Definition 2'), { key: 'Tab' });
+    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(3);
+    fireEvent.keyDown(screen.getByLabelText('Definition 3'), { key: 'Tab' });
+    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(3);
+  });
+
+  it('inserts a card between rows or after the last one from the plus button', () => {
+    renderModal({});
+    fireEvent.click(screen.getByLabelText('Add card after card 2'));
+    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(3);
+    fireEvent.click(screen.getByLabelText('Add card after card 1'));
+    expect(screen.getByLabelText('Term 2')).toHaveProperty('value', '');
+    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(4);
+  });
+
+  it('spells slash shorthand out into accepted-answer rows on blur', () => {
+    renderModal({});
+    const term = screen.getByLabelText('Term 1');
+    fireEvent.change(term, { target: { value: 'el/la doctor/a' } });
+    expect(screen.queryByLabelText('Term 1, accepted answer B')).toBeNull();
+    fireEvent.blur(term);
+    expect(screen.getByLabelText('Term 1')).toHaveProperty(
+      'value',
+      'el doctor'
+    );
+    expect(screen.getByLabelText('Term 1, accepted answer B')).toHaveProperty(
+      'value',
+      'la doctora'
+    );
+    fireEvent.click(
+      screen.getByLabelText('Remove accepted answer B from Term 1')
+    );
+    expect(screen.queryByLabelText('Term 1, accepted answer B')).toBeNull();
+  });
+
+  it('drops blank accepted-answer rows from the saved text', () => {
+    const [card] = cleanFlashcards([
+      { id: 'c', term: 'el doctor /  / la doctora / ', definition: ' / ' },
+    ]);
+    expect(card.term).toBe('el doctor / la doctora');
+    expect(card.definition).toBe('');
+  });
+
+  it('splits saved slash shorthand into rows from the fork button', () => {
+    renderModal({
+      set: baseSet({
+        termLanguage: 'es-ES',
+        cards: [{ id: 'c1', term: 'el/la guía', definition: 'guide' }],
+      }),
+    });
+    fireEvent.click(
+      screen.getByLabelText('Add another accepted answer to Term 1')
+    );
+    expect(screen.getByLabelText('Term 1')).toHaveProperty('value', 'el guía');
+    expect(screen.getByLabelText('Term 1, accepted answer B')).toHaveProperty(
+      'value',
+      'la guía'
+    );
+    expect(screen.queryByLabelText('Term 1, accepted answer C')).toBeNull();
+  });
+
+  it('shows a side picture as a small preview button, and swaps it with the text', () => {
+    const url = 'https://lh3.googleusercontent.com/d/1AbCdEfGhIjKlMnOp';
+    renderModal({
+      set: baseSet({
+        cards: [
+          { id: 'c1', term: 'hola', definition: 'hello', termImageUrl: url },
+        ],
+      }),
+    });
+    expect(screen.queryByLabelText('Add image to Term 1')).toBeNull();
+    expect(screen.getByLabelText('Add image to Definition 1')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Swap terms and definitions'));
+    expect(screen.queryByLabelText('Preview image on Term 1')).toBeNull();
+    fireEvent.click(screen.getByLabelText('Preview image on Definition 1'));
+    expect(screen.getByAltText('Definition 1 image')).toHaveProperty(
+      'src',
+      url
+    );
+    fireEvent.click(screen.getByText('Remove image'));
+    expect(screen.queryByLabelText('Preview image on Definition 1')).toBeNull();
+    expect(screen.getByLabelText('Add image to Definition 1')).toBeTruthy();
+  });
+
+  it('keeps a card that has only a picture so the missing text is flagged', () => {
+    const url = 'https://lh3.googleusercontent.com/d/1AbCdEfGhIjKlMnOp';
+    const cleaned = cleanFlashcards([
+      { id: 'c', term: '', definition: '', definitionImageUrl: url },
+      {
+        id: 'd',
+        term: 'a',
+        definition: 'b',
+        termImageUrl: 'https://firebasestorage.googleapis.com/v0/b/x/o/a.png',
+      },
+    ]);
+    expect(cleaned).toEqual([
+      { id: 'c', term: '', definition: '', definitionImageUrl: url },
+      { id: 'd', term: 'a', definition: 'b' },
+    ]);
+  });
+
+  it('leaves text without blank rows as typed', () => {
+    const [card] = cleanFlashcards([
+      { id: 'c', term: ' a /  b ', definition: 'km/h' },
+    ]);
+    expect(card.term).toBe('a /  b');
+    expect(card.definition).toBe('km/h');
   });
 
   it('swaps terms, definitions and languages, and swaps back on a second click', () => {

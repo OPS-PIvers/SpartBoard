@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { promptLabel } from '@/utils/quizPromptText';
+import { QuestionAudioButton } from '@/components/quiz/QuestionAudioButton';
 import { MathText } from '@/components/common/MathText';
 import { ArrowRight, Loader2, Play } from 'lucide-react';
 import { QuizSession, QuizQuestion } from '@/types';
@@ -188,8 +190,15 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
         className="font-sans font-semibold text-brand-blue-dark"
         style={{ fontSize: 'min(17px, 6cqmin)', lineHeight: 1.3 }}
       >
-        {currentQ.text}
+        {promptLabel(currentQ)}
       </p>
+      {currentQ.promptAudio && (
+        <QuestionAudioButton
+          key={currentQ.id}
+          audio={currentQ.promptAudio}
+          size="small"
+        />
+      )}
       {/* Collapsed by default; expandable so the teacher can project the
           stimulus alongside the question. */}
       {(currentQ.stimulusIds?.length ?? 0) > 0 && (
@@ -222,7 +231,7 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
           style={{ height: 'min(6px, 1.5cqmin)' }}
         >
           <div
-            className="h-full bg-brand-blue-primary rounded-full transition-all"
+            className="h-full bg-brand-blue-primary rounded-full transition-[width]"
             style={{ width: `${pct}%` }}
           />
         </div>

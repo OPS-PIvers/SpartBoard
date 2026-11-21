@@ -5,6 +5,7 @@ import {
   type ControlSubAssignmentInput,
 } from './subControlAssignment';
 import type { SubShareCaller } from './subShareAccess';
+import * as admin from './firebaseAdmin';
 
 const NOW = 1_700_000_000_000;
 const HOST = 'teacher-uid-1';
@@ -176,11 +177,18 @@ describe('handleControlSubAssignment — ending a quiz', () => {
       `quiz_sessions/${SESSION}`,
       `users/${HOST}/quiz_assignments/${SESSION}`,
     ]);
-    expect(written[0].data).toEqual({
+    const { revealedAnswers, ...ended } = written[0].data;
+    expect(ended).toEqual({
       status: 'ended',
       endedAt: NOW,
       autoProgressAt: null,
     });
+    // An ended run keeps no answer key on the doc every signed-in user can read.
+    expect(
+      (revealedAnswers as admin.firestore.FieldValue).isEqual(
+        admin.firestore.FieldValue.delete()
+      )
+    ).toBe(true);
     // The teacher's own deactivate files the row as `inactive`; there is no
     // `ended` in `QuizAssignmentStatus`.
     expect(written[1].data.status).toBe('inactive');
@@ -393,6 +401,21 @@ describe('handleControlSubAssignment — pausing', () => {
       toMillis: () => number;
     };
     expect(lastWrite.toMillis()).toBe(NOW);
+  });
+
+  it('does not refresh idle responses when resuming a run that is not paused', async () => {
+    const stale = { toMillis: () => NOW - 3_600_000 };
+    const resumed = control(
+      {
+        session: stamped({ status: 'active' }),
+        responses: { a: { status: 'in-progress', lastWriteAt: stale } },
+      },
+      input({ action: 'resume' })
+    );
+    await resumed.run();
+    expect(
+      resumed.written.filter((w) => w.path.includes('/responses/'))
+    ).toEqual([]);
   });
 
   // The other three kinds have no paused state, so a pause would write a
@@ -626,5 +649,18 @@ describe('controlPatches', () => {
     expect(controlPatches('guidedLearning', 'end', NOW).assignment.status).toBe(
       undefined
     );
+  });
+  // ASSIGNED_TAB D20/D24: a sub End marks the quiz closed; a sub Resume clears the marks.
+  it('stamps a quiz or video End with closedAt and clears the marks on Resume', () => {
+    for (const kind of ['quiz', 'videoActivity'] as const) {
+      expect(controlPatches(kind, 'end', NOW).assignment.closedAt).toBe(NOW);
+      expect(controlPatches(kind, 'resume', NOW).assignment).toMatchObject({
+        closedAt: null,
+        doneAt: null,
+      });
+    }
+    expect(
+      controlPatches('flashcards', 'end', NOW).assignment
+    ).not.toHaveProperty('closedAt');
   });
 });

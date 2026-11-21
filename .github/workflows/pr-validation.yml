@@ -43,6 +43,7 @@ jobs:
       docs_only: ${{ steps.classify.outputs.docs_only }}
       release: ${{ steps.classify.outputs.release }}
       rules: ${{ steps.rules.outputs.rules }}
+      quiz_e2e: ${{ steps.quiz_e2e.outputs.quiz_e2e }}
     steps:
       - uses: actions/checkout@v6
       - id: classify
@@ -76,6 +77,12 @@ jobs:
             core.setOutput('release', String(release));
             require('fs').writeFileSync('changed-files.txt', files.map((f) => f.filename).join('\n'));
             core.setOutput('complete', String(complete));
+      # Docs-only PRs skip Code Quality, so check the formatting of their changed files here.
+      - name: Format check (docs-only PRs)
+        if: steps.classify.outputs.docs_only == 'true'
+        run: |
+          mapfile -t md < <(grep -E '\.(ts|tsx|js|jsx|json|css|md)$' changed-files.txt | while read -r f; do [[ -f "$f" ]] && echo "$f"; done)
+          (( ${#md[@]} == 0 )) || npx --yes "prettier@$(node -p "require('./package.json').devDependencies.prettier")" --check "${md[@]}"
       # Rules tests run only when the rules, their tests or app code those tests import changed.
       - id: rules
         run: |
@@ -84,6 +91,14 @@ jobs:
           [[ "$rules" == false ]] || rules=true
           echo "Rules tests needed: $rules"
           echo "rules=$rules" >> "$GITHUB_OUTPUT"
+      # The emulator-backed Quiz flow runs when the Quiz widget, its hooks, the shared library and assign pieces or the test setup changed.
+      - id: quiz_e2e
+        run: |
+          quiz=false
+          grep -qE '^(components/widgets/QuizWidget/|components/common/library/|components/quiz/|hooks/use(Quiz|PeriodAccess|Rosters|Firestore)|utils/(quiz|mockQuizDriveService|periodPlan)|config/(firebase|featureDefaults)\.ts$|context/AuthContext\.tsx$|tests/e2e-emulator/|playwright\.emulator\.config\.ts$|package\.json$|pnpm-lock\.yaml$|\.github/workflows/pr-validation\.yml$)' changed-files.txt && quiz=true
+          [[ "${{ steps.classify.outputs.complete }}" == true ]] || quiz=true
+          echo "Quiz flow test needed: $quiz"
+          echo "quiz_e2e=$quiz" >> "$GITHUB_OUTPUT"
 
   # A dev-* push already ran lint, type-check, unit tests, rules tests and the build on this exact
   # commit. When that run succeeds (waiting for it if it's still going), only E2E runs here.
@@ -334,6 +349,49 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
+  # The teacher Quiz flow on the real widget against the Auth and Firestore emulators (docs/plans/QUIZ_WIDGET_STRUCTURE.md D5).
+  e2e-emulator:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.quiz_e2e == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    name: Quiz Flow E2E (emulator)
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Cache Firestore emulator jar
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: firebase-emulators-${{ runner.os }}-
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run the Quiz flow
+        run: pnpm run test:e2e:emulator
+
+      - name: Upload Playwright Report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-emulator
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
   # Widget grader gates (docs/plans/WIDGET_RUBRIC.md R23) on the widgets this PR touches;
   # shared window, config or harness changes check every widget, split across 4 runners.
   # Fails only on gate failures missing from docs/widget-rubric/gate-baseline.json.
@@ -577,6 +635,7 @@ jobs:
         rules-size-budget,
         build,
         e2e,
+        e2e-emulator,
         grader-scope,
         widget-grader-gates,
         tour-anchors,

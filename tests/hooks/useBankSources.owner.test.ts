@@ -6,8 +6,14 @@ import {
   expectedSlotOwner,
   loadBankContentsFor,
   loadSyncedBankContent,
+  pinPlcBankSlots,
 } from '@/hooks/useBankSources';
-import type { QuestionBankData, QuizBankSlot } from '@/types';
+import { withCurrentAnswerKeys } from '@/utils/quizAssignBankDraw';
+import {
+  BankSlotResolutionError,
+  resolveQuizAssignment,
+} from '@/utils/questionBanks';
+import type { QuestionBankData, QuizBankSlot, QuizData } from '@/types';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
@@ -24,13 +30,14 @@ vi.mock('@/hooks/useQuestionBanks', () => ({
   SYNCED_BANKS_COLLECTION: 'synced_question_banks',
 }));
 
-const syncedDoc = (ownerUid: string) => ({
+const syncedDoc = (ownerUid: string, over: Record<string, unknown> = {}) => ({
   exists: () => true,
   data: () => ({
     id: 'g1',
     ownerUid,
     title: 'Shared',
     questions: [{ id: 'q1' }],
+    ...over,
   }),
 });
 
@@ -84,27 +91,140 @@ describe('shared bank slot owner binding', () => {
     expect(out.has('g1')).toBe(false);
   });
 
-  it('keeps loading a slot saved before the sharer was recorded', async () => {
-    (getDoc as Mock).mockResolvedValue(syncedDoc('sharer'));
-    expect(expectedSlotOwner(slot(), [], 'me')).toBeUndefined();
+  it('refuses a legacy unpinned slot naming a re-created group id', async () => {
+    (getDoc as Mock).mockResolvedValue(syncedDoc('attacker'));
+    expect(expectedSlotOwner(slot(), [], 'me')).toBeNull();
     const out = await loadBankContentsFor(
       { bankSlots: [slot()] },
       [],
       noDrive,
       'me'
     );
-    expect(out.has('g1')).toBe(true);
+    expect(out.has('g1')).toBe(false);
   });
 
-  it('keeps the pin on an own bank that was unshared since', () => {
-    const banks = [{ id: 'b1', driveFileId: 'd1', sync: undefined }];
-    expect(expectedSlotOwner(slot(), banks, 'me')).toBe('me');
-    expect(expectedSlotOwner(slot({ bankId: 'theirs' }), banks, 'me')).toBe(
-      undefined
+  it('a quiz with that slot refuses to assign with the fix-it message', async () => {
+    (getDoc as Mock).mockResolvedValue(syncedDoc('attacker'));
+    const quiz = { questions: [], bankSlots: [slot()] };
+    const banks = await loadBankContentsFor(quiz, [], noDrive, 'me');
+    expect(() => resolveQuizAssignment(quiz, banks)).toThrow(
+      BankSlotResolutionError
     );
-    expect(
-      expectedSlotOwner(slot({ syncOwnerUid: 'sharer' }), banks, 'me')
-    ).toBe('sharer');
+    expect(() => resolveQuizAssignment(quiz, banks)).toThrow(
+      'could not be loaded. Re-add the slot'
+    );
+  });
+
+  it('does not overlay a re-created bank answer key at publish', async () => {
+    (getDoc as Mock).mockResolvedValue(
+      syncedDoc('attacker', {
+        questions: [
+          {
+            id: 'q1',
+            type: 'MC',
+            text: 'x',
+            correctAnswer: 'B',
+            incorrectAnswers: ['A'],
+          },
+        ],
+      })
+    );
+    const frozen = {
+      id: 'z',
+      title: 'Quiz',
+      questions: [
+        {
+          id: 'q1',
+          type: 'MC',
+          text: 'x',
+          correctAnswer: 'A',
+          incorrectAnswers: ['B'],
+        },
+      ],
+    } as unknown as QuizData;
+    const library = {
+      ...frozen,
+      questions: [],
+      bankSlots: [slot()],
+    } as unknown as QuizData;
+    const out = await withCurrentAnswerKeys(frozen, 'lib', {
+      loadQuizData: () => Promise.resolve(library),
+      loadBankContentsForQuiz: (q) => loadBankContentsFor(q, [], noDrive, 'me'),
+    });
+    expect(out.questions[0].correctAnswer).toBe('A');
+  });
+
+  it('loads an unpinned district slot only from its district canonical', async () => {
+    const district = slot({ districtItemId: 'item-1' });
+    (getDoc as Mock).mockResolvedValue(
+      syncedDoc('admin', { districtItemId: 'item-1' })
+    );
+    let out = await loadBankContentsFor(
+      { bankSlots: [district] },
+      [],
+      noDrive,
+      'me'
+    );
+    expect(out.has('g1')).toBe(true);
+    (getDoc as Mock).mockResolvedValue(syncedDoc('attacker'));
+    out = await loadBankContentsFor(
+      { bankSlots: [district] },
+      [],
+      noDrive,
+      'me'
+    );
+    expect(out.has('g1')).toBe(false);
+  });
+
+  it('loads a legacy slot when its owner is a teammate in a PLC the bank is shared to', async () => {
+    const plcs = [{ id: 'plc-1', memberUids: ['me', 'sharer'] }];
+    (getDoc as Mock).mockResolvedValue(
+      syncedDoc('sharer', { plcIds: ['plc-1'] })
+    );
+    let out = await loadBankContentsFor(
+      { bankSlots: [slot()] },
+      [],
+      noDrive,
+      'me',
+      plcs
+    );
+    expect(out.has('g1')).toBe(true);
+    (getDoc as Mock).mockResolvedValue(
+      syncedDoc('attacker', { plcIds: ['plc-1'] })
+    );
+    out = await loadBankContentsFor(
+      { bankSlots: [slot()] },
+      [],
+      noDrive,
+      'me',
+      plcs
+    );
+    expect(out.has('g1')).toBe(false);
+  });
+
+  it('pins an imported slot only to a PLC member sharing with that PLC', async () => {
+    (getDoc as Mock).mockResolvedValue(
+      syncedDoc('sharer', { plcIds: ['plc-1'] })
+    );
+    const [pinned] = await pinPlcBankSlots([slot()], {
+      id: 'plc-1',
+      memberUids: ['sharer'],
+    });
+    expect(pinned.syncOwnerUid).toBe('sharer');
+    (getDoc as Mock).mockResolvedValue(
+      syncedDoc('attacker', { plcIds: ['plc-1'] })
+    );
+    const [kept] = await pinPlcBankSlots([slot()], {
+      id: 'plc-1',
+      memberUids: ['sharer'],
+    });
+    expect(kept.syncOwnerUid).toBeUndefined();
+    (getDoc as Mock).mockResolvedValue(syncedDoc('sharer', { plcIds: [] }));
+    const [other] = await pinPlcBankSlots([slot()], {
+      id: 'plc-1',
+      memberUids: ['sharer'],
+    });
+    expect(other.syncOwnerUid).toBeUndefined();
   });
 
   it('reads the owner from the synced doc itself', async () => {

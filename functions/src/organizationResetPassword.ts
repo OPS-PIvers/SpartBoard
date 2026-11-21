@@ -31,6 +31,7 @@ import { assertViewAsAllowed } from './viewAsGuard';
 import { isRevokedMemberStatus, isStrictSuperAdmin } from './authz';
 import { normalizeEmailDomain } from './classlinkShared';
 import { isDomainVerifiedOnlyFor } from './orgDomainOwnership';
+import { safeErr } from './safeLog';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -118,7 +119,7 @@ async function assertCallerOutranksTarget(
 ): Promise<void> {
   const targetIsSuper =
     target.roleId === 'super_admin' ||
-    (await isStrictSuperAdmin(db, targetEmailLower, { includeRevoked: true }));
+    (await isStrictSuperAdmin(db, targetEmailLower));
   if (!targetIsSuper) return;
   if (await isStrictSuperAdmin(db, callerEmailLower)) return;
   throw new HttpsError(
@@ -258,7 +259,7 @@ export const resetOrganizationUserPassword = onCall(
           `${email} has no Auth account yet. Ask them to claim their invite first.`
         );
       }
-      console.error('[resetOrganizationUserPassword] Auth error', err);
+      console.error('[resetOrganizationUserPassword] Auth error', safeErr(err));
       throw new HttpsError('internal', 'Failed to mint password-reset link.');
     }
 

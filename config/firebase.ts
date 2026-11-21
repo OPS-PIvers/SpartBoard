@@ -3,11 +3,13 @@ import {
   getAuth,
   initializeAuth,
   inMemoryPersistence,
+  connectAuthEmulator,
   GoogleAuthProvider,
   Auth,
 } from 'firebase/auth';
 import {
   Firestore,
+  connectFirestoreEmulator,
   disableNetwork,
   initializeFirestore,
 } from 'firebase/firestore';
@@ -49,12 +51,19 @@ const isLocalhostOrigin =
 export const isAuthBypass =
   import.meta.env.VITE_AUTH_BYPASS === 'true' && isLocalhostOrigin;
 
+// Browser tests only: point Auth and Firestore at the local emulators (tests/e2e-emulator).
+export const isEmulatorBackend =
+  import.meta.env.VITE_FIREBASE_EMULATORS === 'true' &&
+  isAuthBypass &&
+  !import.meta.env.PROD;
+
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 let storage: FirebaseStorage;
 let functions: Functions;
 let googleProvider: GoogleAuthProvider;
+let quickSignInProvider: GoogleAuthProvider;
 
 /**
  * Google OAuth scopes the app requests at sign-in and when SILENTLY refreshing
@@ -132,6 +141,12 @@ if (isConfigured) {
     ignoreUndefinedProperties: true,
     experimentalForceLongPolling: true,
   });
+  if (isEmulatorBackend) {
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', {
+      disableWarnings: true,
+    });
+    connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  }
   // The dummy project has no backend; offline, listeners answer from the local cache at once instead of retrying for ~30 s.
   if (
     import.meta.env.DEV &&
@@ -148,6 +163,10 @@ if (isConfigured) {
   // Firebase user without a Drive accessToken — they then have to click
   // "Connect Drive" manually to recover their data on a new device.
   googleProvider.setCustomParameters({ prompt: 'consent' });
+  // Quick sign-in preview: pick an account; Google still asks for any scope not yet granted.
+  quickSignInProvider = new GoogleAuthProvider();
+  GOOGLE_OAUTH_SCOPES.forEach((scope) => quickSignInProvider.addScope(scope));
+  quickSignInProvider.setCustomParameters({ prompt: 'select_account' });
 } else {
   // Mock objects to prevent crashes when importing
   auth = {
@@ -169,8 +188,9 @@ if (isConfigured) {
   storage = {} as unknown as FirebaseStorage;
   functions = {} as unknown as Functions;
   googleProvider = {} as unknown as GoogleAuthProvider;
+  quickSignInProvider = {} as unknown as GoogleAuthProvider;
   app = {} as unknown as FirebaseApp;
   console.warn('Firebase is not configured. Missing VITE_FIREBASE_API_KEY.');
 }
 
-export { auth, db, storage, functions, googleProvider };
+export { auth, db, storage, functions, googleProvider, quickSignInProvider };

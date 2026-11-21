@@ -14,9 +14,36 @@ export function isBetaUser(
   return (
     betaUsers.some((e) => e.toLowerCase() === lowerEmail) ||
     (userRoles?.betaTeachers?.some((e) => e.toLowerCase() === lowerEmail) ??
-      false) ||
-    // LO2 harmonization: legacy admin_settings/user_roles.superAdmins[] is kept as an accepted source alongside roleId==='super_admin' until a Paul-gated migration retires it.
-    (userRoles?.superAdmins?.some((e) => e.toLowerCase() === lowerEmail) ??
       false)
   );
+}
+
+/** An exclude list beats every other rule, including admin and super admin. */
+export function isExcludedUser(
+  excludedUsers: readonly string[] | undefined,
+  email: string | null | undefined
+): boolean {
+  const lowerEmail = email?.toLowerCase();
+  if (!lowerEmail || !excludedUsers) return false;
+  return excludedUsers.some(
+    (e) => typeof e === 'string' && e.toLowerCase() === lowerEmail
+  );
+}
+
+/** Puts the caller's own beta and exclude grants back onto a stripped public permission. */
+export function withOwnGrants<T extends { betaUsers: string[] }>(
+  permission: T,
+  id: string,
+  betaIds: readonly string[],
+  excludedIds: readonly string[],
+  email: string
+): T & { excludedUsers?: string[] } {
+  const beta = betaIds.includes(id);
+  const excluded = excludedIds.includes(id);
+  if (!beta && !excluded) return permission;
+  return {
+    ...permission,
+    ...(beta ? { betaUsers: [email] } : {}),
+    ...(excluded ? { excludedUsers: [email] } : {}),
+  };
 }

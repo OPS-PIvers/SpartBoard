@@ -34,10 +34,6 @@ const hasGoal = (ctx: FieldCtx) =>
   typeof ctx.config.quietGoalMinutes === 'number' &&
   ctx.config.quietGoalMinutes > 0;
 const TARGET_OFF = -1;
-// With Connections, a Traffic Light Follow uses this threshold, so it stays visible.
-const isTrafficAutomationEnabled = (ctx: FieldCtx) =>
-  ctx.config.autoTrafficLight === true ||
-  ctx.canAccessFeature('widget-connections');
 
 export default defineSettings<SoundConfig>({
   groups: [
@@ -173,7 +169,6 @@ export default defineSettings<SoundConfig>({
           key: 'trafficLightThreshold',
           type: 'segmented',
           label: 'trafficLightThreshold',
-          visibleWhen: isTrafficAutomationEnabled,
           options: [
             { value: 1, label: 'thresholdQuiet' },
             { value: 2, label: 'thresholdLow' },

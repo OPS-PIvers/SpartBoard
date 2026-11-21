@@ -90,6 +90,9 @@ let bankFiles: Record<string, unknown> = {};
 const loadBankData = vi.fn(
   (id: string) => bankFiles[id] ?? Promise.reject(new Error(id))
 );
+vi.mock('@/hooks/usePlcs', () => ({
+  usePlcs: () => ({ plcs: [], loading: false }),
+}));
 vi.mock('@/hooks/useQuestionBanks', () => ({
   useQuestionBanks: () => ({
     banks: [{ id: 'bank-1', driveFileId: 'bank-drive-1' }],
@@ -263,5 +266,6 @@ describe('ClassroomAddonTeacherReview on Schoology', () => {
         grades: [{ pseudonymUid: 'stu-1', pointsEarned: 10 }],
       })
     );
-  });
+    // Its inner wait alone can take 5 s on a loaded runner, so the test needs room past the 5 s default.
+  }, 15000);
 });

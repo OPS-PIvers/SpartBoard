@@ -287,7 +287,7 @@
       "note": "Every quadrant is boxed in a heavy gray border on a gray frame, and the topic circle covers the 'Non-Examples' label, so it looks clean but dated.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-24T04:08:23.376Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 3,
@@ -324,7 +324,7 @@
       "note": "The topic circle is meant to be primary, but its 14 px label sits near the top of the circle at the same size and weight as the quadrant text, so nothing outranks the four boxes.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-24T04:08:23.376Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 2,

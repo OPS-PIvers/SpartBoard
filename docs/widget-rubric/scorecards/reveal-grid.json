@@ -31,7 +31,7 @@
       "note": "At 150×100 the header and oversized OFF toggle keep their size while the card text shrinks to about 1 px and cannot be read, and the empty state's Add cards button runs into the bottom edge.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-11-16T05:12:51.492Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 3,
@@ -72,7 +72,7 @@
       "note": "The grid reflows from 3 columns (5 in stress) at the widest shape to 2 columns at the tallest with under 10% empty area, though the tall typical cards hold small text in long empty tiles.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-11-16T05:12:51.492Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 3,
@@ -284,7 +284,7 @@
       "note": "Clean pastel tiles with consistent radii, readable dark text and no gradients, emoji or browser-default controls on the face.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-11-16T05:12:51.492Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 3,
@@ -321,7 +321,7 @@
       "note": "The card grid is clearly primary and the title and Show Answers toggle step down to small header text.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-11-16T05:12:51.492Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 2,
@@ -373,7 +373,7 @@
       "note": "Labels are short and plain (Show Answers, Add cards, Memory mode) with one icon library and no copy guard violations, though \"Reveal Grid set generator\" is clumsy.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-11-16T05:12:51.492Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 3,

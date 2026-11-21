@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useLayoutEffect } from 'react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
 import { hexToRgba } from '@/utils/styles';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
@@ -22,8 +22,6 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget, rosters, activeRosterId, activeDashboard } =
     useDashboard();
   const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
-  const { canAccessFeature } = useAuth();
-  const smallCard = canAccessFeature('checklist-small-card');
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as ChecklistConfig;
   const {
@@ -100,9 +98,10 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     rosterGroupsEnabled,
   ]);
 
+  const connectionsOn = useConnectionsEnabled();
   // In a Connection Sequence, the first unchecked row is the current one, highlighted and checked off by "next".
   const inSequence =
-    canAccessFeature('widget-connections') &&
+    connectionsOn &&
     liveConnections(
       activeDashboard?.connections,
       activeDashboard?.widgets ?? []
@@ -204,34 +203,10 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   // Rows stop shrinking at a 44px tap target and the list scrolls instead.
   const rowMinHeight = 'max(44px, 8cqmin)';
   const lines = config.rowStyle === 'lines';
-  const footerButtonSize = smallCard
-    ? {
-        padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-        fontSize: 'max(10px, min(12px, 2.8cqmin))',
-      }
-    : {
-        padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
-        fontSize: 'min(10px, 2.8cqmin)',
-      };
-
-  if (!hasContent && !smallCard) {
-    return (
-      <WidgetLayout
-        padding="p-0"
-        content={
-          <ScaledEmptyState
-            icon={mode === 'manual' ? ListPlus : Users}
-            title={mode === 'manual' ? 'No Tasks' : 'Roster Empty'}
-            subtitle={
-              mode === 'manual'
-                ? 'Flip to add your class tasks.'
-                : 'Flip to enter your student names.'
-            }
-          />
-        }
-      />
-    );
-  }
+  const footerButtonSize = {
+    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+    fontSize: 'max(10px, min(12px, 2.8cqmin))',
+  };
 
   if (!hasContent) {
     return (
@@ -382,11 +357,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
 
           {/* Action buttons: fixed footer outside the scroll area, hidden on small cards */}
           <div
-            className={
-              smallCard
-                ? 'flex [@container_(max-width:219px)_or_(max-height:199px)]:hidden'
-                : 'flex'
-            }
+            className="flex [@container_(max-width:219px)_or_(max-height:199px)]:hidden"
             style={{
               justifyContent: 'center',
               gap: 'min(8px, 1.8cqmin)',

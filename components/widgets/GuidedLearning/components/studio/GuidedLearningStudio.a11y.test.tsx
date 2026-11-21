@@ -130,7 +130,7 @@ function openStudio(studio: Partial<StudioProps> = {}) {
 const studio = () => screen.getByTestId('gl-studio');
 const canvas = () => screen.getByRole('application', { name: 'Slide canvas' });
 const titleInput = () => screen.getByLabelText('Activity title');
-const stepCount = () => titleInput().nextSibling;
+const stepCount = () => titleInput().closest('label')?.nextSibling;
 
 async function closeAndGetSaved(onSave: StudioProps['onSave']) {
   fireEvent.click(screen.getByRole('button', { name: 'Close editor' }));

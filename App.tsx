@@ -180,6 +180,11 @@ const WebTourIntakePage = lazy(() =>
     default: module.WebTourIntakePage,
   }))
 );
+const FamilyPage = lazy(() =>
+  import('./components/family/FamilyPage').then((module) => ({
+    default: module.FamilyPage,
+  }))
+);
 const PublicTourPage = lazy(() =>
   import('./components/tours/publicLink/PublicTourPage').then((module) => ({
     default: module.PublicTourPage,
@@ -218,6 +223,11 @@ const InviteAcceptance = lazy(() =>
 const ClaudeConnectPage = lazy(() =>
   import('./components/claudeConnector/ConnectPage').then((module) => ({
     default: module.ConnectPage,
+  }))
+);
+const ClaudePictureUploadPage = lazy(() =>
+  import('./components/claudeConnector/PictureUploadPage').then((module) => ({
+    default: module.PictureUploadPage,
   }))
 );
 const PlcInviteAcceptance = lazy(() =>
@@ -441,6 +451,39 @@ const WidgetGraderHarness =
         )
       )
     : null;
+const WritingAssignmentPage = lazy(() =>
+  import('./components/student/writing/WritingAssignmentPage').then(
+    (module) => ({ default: module.WritingAssignmentPage })
+  )
+);
+const WritingDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WritingDevHarness').then((module) => ({
+        default: module.WritingDevHarness,
+      }))
+    )
+  : null;
+const WritingPeerDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WritingPeerDevHarness').then((module) => ({
+        default: module.WritingPeerDevHarness,
+      }))
+    )
+  : null;
+const WritingGraderDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WritingGraderDevHarness').then((module) => ({
+        default: module.WritingGraderDevHarness,
+      }))
+    )
+  : null;
+const FamilyLinkDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/FamilyLinkDevHarness').then((module) => ({
+        default: module.FamilyLinkDevHarness,
+      }))
+    )
+  : null;
 const ClassStudentPageDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/ClassStudentPageDevHarness').then((module) => ({
@@ -549,6 +592,13 @@ const TourStepsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const WebToursDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WebToursDevHarness').then((module) => ({
+        default: module.WebToursDevHarness,
+      }))
+    )
+  : null;
 const WebTourEditorDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/WebTourEditorDevHarness').then((module) => ({
@@ -776,18 +826,13 @@ const AppContent: React.FC = () => {
     addToast,
   } = useDashboard();
 
-  // Sweep this teacher's expired substitute shares once per session so
-  // Drive permissions get revoked using their existing OAuth token. The
-  // `expireSubShares` cloud function continues to delete share docs as a
-  // fallback when a teacher never returns. Wire `onPartialFailure` to a
-  // toast so a stuck revoke surfaces in the UI — the cloud-function
-  // fallback only logs to Cloud Logging, which is invisible to teachers.
+  // Revokes expired sub-share Drive grants the hourly server sweep could not (no stored Drive grant or a Drive error).
   useReconcileExpiredSubShares({
     uid: user?.uid ?? null,
     driveService,
     onPartialFailure: () => {
       addToast(
-        'Some expired substitute-share Drive permissions could not be revoked. Reconnect Google Drive to retry — they will otherwise be cleaned up automatically within 7 days.',
+        'A substitute can still open some class lists. Reconnect Google Drive to remove their access.',
         'error'
       );
     },
@@ -1006,6 +1051,7 @@ const App: React.FC = () => {
     (pathname === '/activity-wall' || pathname.startsWith('/activity-wall/'));
   const isPollVoteRoute = pathname === '/poll' || pathname.startsWith('/poll/');
   const isFlashcardAssignmentRoute = pathname.startsWith('/flashcards/a/');
+  const isWritingAssignmentRoute = pathname.startsWith('/writing/');
   const isFlashcardsRoute =
     !isFlashcardAssignmentRoute && pathname.startsWith('/flashcards/');
   const isInviteRoute = pathname.startsWith('/invite/');
@@ -1081,6 +1127,49 @@ const App: React.FC = () => {
         </StudentAuthProvider>
         <DialogContainer />
       </DialogProvider>
+    );
+  }
+
+  // Assigned Writing reads the session and the student's own response under the SSO token.
+  if (isWritingAssignmentRoute) {
+    return (
+      <DialogProvider>
+        <StudentAuthProvider>
+          <RequireStudentAuth>
+            <Suspense fallback={<FullPageLoader />}>
+              <WritingAssignmentPage />
+            </Suspense>
+          </RequireStudentAuth>
+        </StudentAuthProvider>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
+
+  // The student Writing page on a fake session; dev builds only.
+  if (WritingDevHarness && pathname === '/writing-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WritingDevHarness />
+      </Suspense>
+    );
+  }
+
+  // Writing peer review setup and student views on fixtures; dev builds only.
+  if (WritingPeerDevHarness && pathname === '/writing-peer-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WritingPeerDevHarness />
+      </Suspense>
+    );
+  }
+
+  // Writing results, grader and returned feedback on fixtures; dev builds only.
+  if (WritingGraderDevHarness && pathname === '/writing-grader-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WritingGraderDevHarness />
+      </Suspense>
     );
   }
 
@@ -1174,6 +1263,24 @@ const App: React.FC = () => {
         </AuthProvider>
         <DialogContainer />
       </DialogProvider>
+    );
+  }
+
+  // A Course's public family page (COURSE_AND_AGENDA.md D13): anyone, signed out, so no providers at all.
+  if (pathname.startsWith('/family/')) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <FamilyPage />
+      </Suspense>
+    );
+  }
+
+  // Pictures a teacher drops in for Claude; the link's ticket is the only credential, so no providers.
+  if (pathname === '/claude-pictures') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <ClaudePictureUploadPage />
+      </Suspense>
     );
   }
 
@@ -1471,6 +1578,15 @@ const App: React.FC = () => {
     );
   }
 
+  // The family link switch and family page on fixtures; auth-bypass only.
+  if (FamilyLinkDevHarness && isAuthBypass && pathname === '/family-link-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <FamilyLinkDevHarness />
+      </Suspense>
+    );
+  }
+
   // My Classes "View Student Page" on fixtures; auth-bypass only.
   if (
     ClassStudentPageDevHarness &&
@@ -1674,6 +1790,20 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <TourStepsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the Web tours page on seeded tours, for screenshots.
+  if (
+    import.meta.env.DEV &&
+    WebToursDevHarness &&
+    isAuthBypass &&
+    pathname === '/web-tours-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WebToursDevHarness />
       </Suspense>
     );
   }

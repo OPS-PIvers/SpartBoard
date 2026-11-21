@@ -9,6 +9,7 @@ import {
   MAX_VERIFIED_CLASS_IDS,
   isLmsClassId,
   mergeVerifiedClasses,
+  refusedClassTargets,
   staffEmailFromToken,
   unverifiedClassIds,
   writeVerifiedClasses,
@@ -171,6 +172,92 @@ describe('unverifiedClassIds', () => {
     expect(await unverifiedClassIds(stubDb({}), 'u', ['a'])).toEqual([]);
     const db = stubDb({ 'verified_classes/u': { ids: ['schoology:1'] } });
     expect(await unverifiedClassIds(db, 'u', ['a'])).toEqual([]);
+  });
+
+  it('narrows those teachers too once super admins turn on enforce', async () => {
+    const enforce = { enabled: true, enforce: true };
+    const none = stubDb({ 'admin_settings/verified_classes_fill': enforce });
+    expect(await unverifiedClassIds(none, 'u', ['a'])).toEqual(['a']);
+    const uncounted = stubDb({
+      'admin_settings/verified_classes_fill': enforce,
+      'verified_classes/u': { ids: ['schoology:1'] },
+    });
+    expect(
+      await unverifiedClassIds(uncounted, 'u', ['a', 'schoology:1'])
+    ).toEqual(['a']);
+  });
+
+  it('keeps the allowance when the fill switch is on without enforce', async () => {
+    const db = stubDb({
+      'admin_settings/verified_classes_fill': { enabled: true },
+    });
+    expect(await unverifiedClassIds(db, 'u', ['a'])).toEqual([]);
+  });
+});
+
+describe('refusedClassTargets', () => {
+  const listed = { ids: ['a'], classlinkAt: 1 };
+
+  it('passes one unlisted LMS id in first place before enforce, as the rule does', async () => {
+    const db = stubDb({ 'verified_classes/u': listed });
+    expect(await refusedClassTargets(db, 'u', ['schoology:1', 'a'])).toEqual(
+      []
+    );
+    expect(await refusedClassTargets(db, 'u', ['classroom:9'])).toEqual([]);
+  });
+
+  it('refuses the LMS id anywhere but first, a second unlisted id, or a non-LMS id', async () => {
+    const db = stubDb({ 'verified_classes/u': listed });
+    expect(await refusedClassTargets(db, 'u', ['a', 'schoology:1'])).toEqual([
+      'schoology:1',
+    ]);
+    expect(
+      await refusedClassTargets(db, 'u', ['schoology:1', 'classroom:2'])
+    ).toEqual(['schoology:1', 'classroom:2']);
+    expect(await refusedClassTargets(db, 'u', ['schoology:1', 'b'])).toEqual([
+      'schoology:1',
+      'b',
+    ]);
+    expect(await refusedClassTargets(db, 'u', ['b'])).toEqual(['b']);
+    expect(await refusedClassTargets(db, 'u', ['schoology:'])).toEqual([
+      'schoology:',
+    ]);
+    expect(await refusedClassTargets(db, 'u', ['schoology:\n'])).toEqual([
+      'schoology:\n',
+    ]);
+  });
+
+  it('treats newlines, carriage returns and line separators as the rule does', async () => {
+    const db = stubDb({ 'verified_classes/u': listed });
+    expect(await refusedClassTargets(db, 'u', ['schoology:1\n'])).toEqual([
+      'schoology:1\n',
+    ]);
+    expect(await refusedClassTargets(db, 'u', ['schoology:1\nx'])).toEqual([
+      'schoology:1\nx',
+    ]);
+    expect(await refusedClassTargets(db, 'u', ['schoology:1\r'])).toEqual([]);
+    expect(
+      await refusedClassTargets(db, 'u', ['classroom:\u2028', 'a'])
+    ).toEqual([]);
+    expect(await refusedClassTargets(db, 'u', ['schoology:\u2029x'])).toEqual(
+      []
+    );
+  });
+
+  it('refuses nothing before enforce when the list is missing or uncounted', async () => {
+    expect(await refusedClassTargets(stubDb({}), 'u', ['b', 'c'])).toEqual([]);
+    const uncounted = stubDb({ 'verified_classes/u': { ids: ['a'] } });
+    expect(await refusedClassTargets(uncounted, 'u', ['b'])).toEqual([]);
+  });
+
+  it('refuses the unlisted LMS id once enforce is on', async () => {
+    const db = stubDb({
+      'verified_classes/u': listed,
+      'admin_settings/verified_classes_fill': { enforce: true },
+    });
+    expect(await refusedClassTargets(db, 'u', ['schoology:1', 'a'])).toEqual([
+      'schoology:1',
+    ]);
   });
 });
 

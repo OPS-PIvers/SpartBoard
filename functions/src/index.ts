@@ -81,6 +81,11 @@ export {
 export { prepareQuizReadAloudV1, synthesizeQuizAudioV1 } from './quizReadAloud';
 export { synthesizeGuidedLearningNarrationV1 } from './guidedLearningNarration';
 export { translateQuizV1, translateResponseV1 } from './quizTranslation';
+export {
+  transcribeSpeechV1,
+  tidyDictationV1,
+  getSpeechToTextAccessV1,
+} from './speechToText';
 export { extractStimulusReadAloudTextV1 } from './quizStimulusText';
 export { extractQuizFromDocumentV1 } from './quizDocumentExtract';
 
@@ -125,19 +130,22 @@ export {
   commitRosterPinIndexV1,
   pinLoginV1,
 } from './studentIdentity';
+export { claimPaperResponseV1 } from './claimPaperResponse';
 export { reportStudentLoadIssueV1 } from './studentLoadIssue';
+export { reportTransactionFailureV1 } from './transactionFailureReport';
 // Student landing v2: whether a student's teacher has the new page.
 // Gradebook D8: roster student → stable uid for the gradebook grid.
 export { getGradebookRosterV1 } from './gradebook/getGradebookRosterV1';
 
 // ── Projects widget: group import (docs/plans/shipped/PROJECTS_WIDGET.md D8) ───────
 export { commitProjectGroupsV1 } from './projectGroups';
+export { submitProjectGroupV1 } from './projectSubmit';
 // Projects widget: uploads ride the Activity Wall's Storage → Drive path (D20).
 export { archiveProjectUploadOnCreate } from './projectUploadArchive';
 
 // ── Individual assignment targeting (M17): assign-time pseudonym fan-out to
 // /student_assignments, plus the deletion triggers that reap those pointers. ─
-export { setAssignmentTargetsV1 } from './studentAssignmentTargets';
+export { setAssignmentTargetsV1 } from './setAssignmentTargets';
 // Paper answer sheets: the one server-side writer of scanned responses.
 export {
   importPaperResponsesV1,
@@ -158,7 +166,31 @@ export {
   cleanupGuidedLearningAssignmentPointers,
   cleanupMiniAppAssignmentPointers,
   cleanupFlashcardAssignmentPointers,
+  cleanupWritingAssignmentPointers,
 } from './studentAssignmentCleanup';
+
+// ── Writing assignment (docs/plans/WRITING_ASSIGNMENT.md): assign, delete and every status change ─
+export {
+  assignWritingV1,
+  deleteWritingSessionV1,
+  endWritingSessionV1,
+  updateWritingSessionV1,
+  cleanupWritingSessionData,
+} from './writingSessions';
+export {
+  openWritingV1,
+  turnInWritingV1,
+  takeBackWritingV1,
+  turnInTimedWritingV1,
+  returnWritingV1,
+  returnWritingForRevisionV1,
+  saveWritingFeedbackV1,
+} from './writingResponses';
+export { purgeWritingLogs } from './writingLogPurge';
+export {
+  setWritingPeerReviewV1,
+  writingPeerReviewV1,
+} from './writingPeerReview';
 
 // ── Flashcards Check submission (server-graded; docs/plans/shipped/FLASHCARDS.md §7) ─
 export {
@@ -259,6 +291,7 @@ export { recomputePlcAssessments } from './recomputePlcAssessments';
 
 // Poll join codes resolve through server-written poll_codes pointers.
 export { pollCodePointer } from './pollCodePointer';
+export { syncedBankOwnerRegistry } from './syncedBankOwners';
 export {
   resolvePollCodeV1,
   mintPollCodeV1,
@@ -276,13 +309,7 @@ export {
   gradeIndexProjectGrade,
   gradeIndexMiniAppSubmission,
   gradeIndexWallSubmission,
-  gradeIndexQuizSession,
-  gradeIndexVideoSession,
-  gradeIndexGuidedLearningSession,
-  gradeIndexFlashcardSession,
-  gradeIndexProjectRun,
-  gradeIndexMiniAppSession,
-  gradeIndexWallSession,
+  gradeIndexWritingResponse,
   gradeIndexQuizKey,
   gradeIndexQuizAssignment,
   gradeIndexVideoKey,
@@ -299,11 +326,22 @@ export {
   gradeIndexRecompute,
   quizAttemptGradeWrite,
 } from './gradebook/gradeIndexTriggers';
+export {
+  gradeIndexQuizSession,
+  gradeIndexVideoSession,
+  gradeIndexGuidedLearningSession,
+  gradeIndexFlashcardSession,
+  gradeIndexProjectRun,
+  gradeIndexMiniAppSession,
+  gradeIndexWallSession,
+  gradeIndexWritingSession,
+} from './gradebook/gradeSessionTriggers';
 
 // ── Slim, PII-free discovery mirror (onWrite of a PLC root keeps
 // /plcIndex/{plcId} in sync) so the org "PLCs in my building" directory never
 // exposes teacher emails/displayNames. Decision 1.1 hardening. ──────────────
 export { mirrorPlcIndex } from './mirrorPlcIndex';
+export { cascadePlcDeleteV1 } from './plcDeleteCascade';
 
 // My Groups: admin-made building groups and their auto-roster (docs/plans/shipped/MY_GROUPS.md).
 export {
@@ -338,6 +376,9 @@ export { importConvertV1 } from './importConversion';
 
 // Web tours: Claude writes step titles and tips (docs/plans/shipped/WEB_TOURS_CLAUDE.md C9).
 export { writeWebTourTextV1 } from './webTourWriting';
+
+// FreshService help articles from web tours, off until an admin saves the site, folder and key.
+export { freshserviceV1 } from './freshservice';
 
 // Web tours: the extension lists, loads and records tours with a Google token (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H7).
 export {
@@ -393,10 +434,17 @@ export {
   focusPanelV1,
   focusSweepSessions,
 } from './focus/sessionCallables';
+// Course and Agenda: the only writer of Courses and their Class page and family copies (docs/plans/COURSE_AND_AGENDA.md D21).
+export { saveCourseV1 } from './course/callable';
+export { courseRosterDeleted } from './course/rosterDeleted';
 export { expireActivityWallShares } from './expireActivityWallShares';
 export { saveSharedActivityWallV1 } from './sharedActivityWallEdit';
 export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';
 export { finalizeExpiredQuizAttempts } from './finalizeExpiredQuizAttempts';
+export {
+  queueVideoClassTurnIns,
+  sweepVideoClassTurnIns,
+} from './videoClassTurnIn';
 export {
   exchangeGoogleAuthCode,
   refreshGoogleAccessToken,

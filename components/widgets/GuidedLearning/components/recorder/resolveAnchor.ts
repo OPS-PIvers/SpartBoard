@@ -1,5 +1,9 @@
 import type { GuidedLearningTourBinding, WidgetType } from '@/types';
-import { accessibleName, roleOf } from '@/components/tours/resolveTourAnchor';
+import {
+  accessibleName,
+  roleOf,
+  rowKeyOf,
+} from '@/components/tours/resolveTourAnchor';
 import { untaggedControlOf } from '@/components/tours/popups';
 import type {
   TourAnchorAncestor,
@@ -51,7 +55,7 @@ export function resolveRecordedAnchor(target: Element): RecordedAnchor | null {
   if (tagged && !control) {
     const id = tagged.getAttribute('data-tour') ?? '';
     const type = tagged.getAttribute('data-tour-widget-type');
-    const field = tagged.getAttribute('data-tour-field');
+    const field = rowKeyOf(tagged);
     return {
       anchor: type ? `${id}:${type}${field ? `#${field}` : ''}` : id,
       fallback: fallbackOf(tagged),

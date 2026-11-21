@@ -110,6 +110,13 @@ const SwitchRow: React.FC<{
               variant="expanded"
             />
           )}
+          <BetaUsersPanel
+            kind="excluded"
+            betaUsers={permission.excludedUsers ?? []}
+            onChange={(excludedUsers) => onUpdate({ excludedUsers })}
+            showMessage={editor.showMessage}
+            variant="expanded"
+          />
           {GEMINI_FEATURES.includes(featureId) && (
             <DailyLimitEditor
               featureId={featureId}

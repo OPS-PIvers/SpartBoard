@@ -111,6 +111,8 @@ import { mapLegacyClassIdsToRosterIds } from '@/utils/resolveAssignmentTargets';
 import { extractYouTubeId } from '@/utils/youtube';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
+import type { VideoActivityLifecycle } from '../videoActivityLifecycle';
+import { VideoActivityAssignedTab } from './VideoActivityAssignedTab';
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
 
@@ -241,6 +243,12 @@ export interface VideoActivityManagerProps {
    */
   onArchiveReactivate?: (assignment: VideoActivityAssignment) => Promise<void>;
   onArchiveDelete?: (assignment: VideoActivityAssignment) => Promise<void>;
+  /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
+  onArchiveDeleteMany?: (
+    assignments: VideoActivityAssignment[]
+  ) => Promise<number>;
+  /** Opens the publish dialog once for several closed assignments. */
+  onArchivePublishMany?: (assignments: VideoActivityAssignment[]) => void;
   onArchiveResults?: (assignment: VideoActivityAssignment) => void;
   /**
    * PR3 PLC sharing — invoked when the teacher picks "Share with PLC" on an
@@ -297,6 +305,8 @@ export interface VideoActivityManagerProps {
   pendingAssign?: VideoActivityPendingAssign | null;
   /** Called when the pre-filled dialog closes, assigned or not. */
   onPendingAssignDone?: () => void;
+  /** Whole-assignment writes the Assigned tab's class actions drive (ASSIGNED_TAB.md D21). */
+  classLifecycle?: VideoActivityLifecycle;
 }
 
 /* ─── Library hook option constants (module-level for referential stability) ─
@@ -442,7 +452,6 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
   // aggregation per visible card per dashboard tab-focus, gated behind the
   // `share-link-tracking` global permission.
   const trackingEnabled = canSeeShareTracking();
-  const classList = canAccessFeature('assignment-class-list');
   const { count } = useSessionViewCount(
     'video_activity_sessions',
     assignment.id,
@@ -471,14 +480,12 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
                 {assignment.targetSkippedCount} skipped
               </span>
             )}
-          {classList && (
-            <AssignmentClassNames
-              names={
-                assignment.periodNames ??
-                (assignment.periodName ? [assignment.periodName] : [])
-              }
-            />
-          )}
+          <AssignmentClassNames
+            names={
+              assignment.periodNames ??
+              (assignment.periodName ? [assignment.periodName] : [])
+            }
+          />
         </>
       }
       primaryAction={
@@ -534,6 +541,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveDeactivate,
   onArchiveReactivate,
   onArchiveDelete,
+  onArchiveDeleteMany,
+  onArchivePublishMany,
   onArchiveResults,
   onArchiveShare,
   onArchiveAssignToClassroom,
@@ -553,6 +562,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onError,
   pendingAssign,
   onPendingAssignDone,
+  classLifecycle,
 }) => {
   const { showConfirm } = useDialog();
   const confirmDelete = useLibraryDeleteConfirm();
@@ -564,7 +574,12 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const claudeReview = useClaudeReview('video_activities');
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
-  const [tab, setTab] = useState<LibraryTab>('library');
+  const [tabState, setTab] = useState<LibraryTab>('library');
+  // ASSIGNED_TAB.md D12/D19: Library and Assigned, behind the preview flag.
+  const assignedOn = !!classLifecycle && canAccessFeature('assigned-tab');
+  const tab: LibraryTab =
+    assignedOn && tabState === 'archive' ? 'active' : tabState;
+  const [lastAssignedId, setLastAssignedId] = useState<string | null>(null);
 
   // Assign modal state (submissions mode)
   const [assignTarget, setAssignTarget] =
@@ -822,8 +837,9 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
 
   const tabCounts = {
     library: activities.length,
-    active: activeAssignments.length,
-    archive: inactiveAssignments.length,
+    // The Assigned tab's Active section depends on grading, so it shows no count.
+    active: assignedOn ? undefined : activeAssignments.length,
+    archive: assignedOn ? undefined : inactiveAssignments.length,
   };
 
   /* ─── Handlers ────────────────────────────────────────────────────────── */
@@ -835,7 +851,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     setAssignError(null);
     const live = result.pacing === 'teacher';
     try {
-      await onAssign(
+      const assignedId = await onAssign(
         assignTarget,
         result.classes.classIds,
         live ? null : (result.targeting.dueAt ?? null),
@@ -851,6 +867,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       );
       if (canAssignLive) lastPacing.save(result.pacing);
       if (result.rules) lastRules.save(result.rules);
+      // D17: a self-paced assign lands on Assigned with the new row on top.
+      if (assignedOn && !live) {
+        setLastAssignedId(assignedId);
+        setTab('active');
+      }
       closeAssign();
     } catch (err) {
       setAssignError(
@@ -1537,6 +1558,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       onTabChange={setTab}
       counts={tabCounts}
       tabLabels={isViewOnly ? { active: 'Shared' } : undefined}
+      assignedLayout={assignedOn}
       primaryAction={{
         label: 'New',
         icon: Plus,
@@ -1553,7 +1575,36 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       filterSidebarSlot={folderSidebarSlot}
     >
       {tab === 'library' && renderLibraryTab()}
-      {tab === 'active' && renderAssignmentList(activeAssignments, 'active')}
+      {tab === 'active' && assignedOn && classLifecycle && (
+        <VideoActivityAssignedTab
+          assignments={assignments}
+          loading={assignmentsLoading}
+          rosters={rosters}
+          lifecycle={classLifecycle}
+          pinnedId={lastAssignedId}
+          onBulkDelete={onArchiveDeleteMany}
+          onBulkPublish={onArchivePublishMany}
+          emptyTitle="Nothing active"
+          emptySub={
+            isViewOnly
+              ? 'Share a video activity from the Library.'
+              : 'Assign a video activity from the Library.'
+          }
+          onMonitor={(a) => void onArchiveMonitor?.(a)}
+          onResults={(a) => onArchiveResults?.(a)}
+          onPublish={onArchivePublishScores}
+          onCopyLink={onArchiveCopyUrl}
+          menu={(a) =>
+            buildAssignmentSecondaryActions(
+              a,
+              a.status === 'inactive' ? 'archive' : 'active'
+            )
+          }
+        />
+      )}
+      {tab === 'active' &&
+        !assignedOn &&
+        renderAssignmentList(activeAssignments, 'active')}
       {tab === 'archive' &&
         renderAssignmentList(inactiveAssignments, 'archive')}
     </LibraryShell>

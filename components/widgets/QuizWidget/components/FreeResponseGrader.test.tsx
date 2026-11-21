@@ -234,7 +234,7 @@ describe('FreeResponseGrader queue shape', () => {
     expect(screen.getByText('Student 1 of 1')).toBeTruthy();
     expect(screen.getByText('3 words')).toBeTruthy();
     expect(screen.getByText('2 tab switches')).toBeTruthy();
-    expect(screen.getByLabelText(/points awarded/i)).toBeTruthy();
+    expect(screen.getByLabelText(/^Score$/)).toBeTruthy();
     expect(screen.getByText(/Highlights & comments \(0\)/)).toBeTruthy();
   });
 
@@ -427,7 +427,7 @@ describe('FreeResponseGrader graded take', () => {
     expect(screen.queryByText(/attempts? recorded/i)).toBeNull();
     expect(screen.queryByRole('button', { name: /Attempt \d/ })).toBeNull();
 
-    const pts = screen.getByLabelText(/Points awarded/i);
+    const pts = screen.getByLabelText(/^Score$/);
     fireEvent.change(pts, { target: { value: '3' } });
     fireEvent.keyDown(pts, { key: 'Enter' });
 
@@ -500,7 +500,7 @@ describe('FreeResponseGrader capture-unavailable adjudication', () => {
     fireEvent.change(screen.getByLabelText(/Note \(required\)/i), {
       target: { value: 'Answered aloud at my desk.' },
     });
-    const pts = screen.getByLabelText(/Points awarded/i);
+    const pts = screen.getByLabelText(/^Score$/);
     fireEvent.change(pts, { target: { value: '2' } });
     fireEvent.keyDown(pts, { key: 'Enter' });
 
@@ -540,7 +540,7 @@ describe('FreeResponseGrader take lifecycle states', () => {
     };
     renderGrader([response]);
     expect(screen.getByText(/deleted for compliance/i)).toBeTruthy();
-    expect(screen.getByLabelText(/Points awarded/i)).toBeTruthy();
+    expect(screen.getByLabelText(/^Score$/)).toBeTruthy();
   });
 });
 
@@ -553,7 +553,7 @@ describe('FreeResponseGrader time-anchored comments', () => {
     fireEvent.change(screen.getByLabelText('Comment at 0:00'), {
       target: { value: 'Nice framing here.' },
     });
-    const pts = screen.getByLabelText(/Points awarded/i);
+    const pts = screen.getByLabelText(/^Score$/);
     fireEvent.change(pts, { target: { value: '4' } });
     fireEvent.keyDown(pts, { key: 'Enter' });
 
@@ -572,11 +572,11 @@ describe('FreeResponseGrader time-anchored comments', () => {
 
 // INT-B6: one vocabulary map keyed on the slot's state, header and rail alike.
 describe('FreeResponseGrader state vocabulary', () => {
-  it('uses the same word in the student heading and the queue rail', async () => {
+  it('names an ungraded take Ungraded, never Provisional', async () => {
     renderGrader([recorded('ada', 1)]);
     await screen.findByText('Question 1 of 2');
-    // "Provisional" in the heading vs "Ungraded" in the rail was the bug.
-    expect(screen.getAllByText('Ungraded').length).toBe(2);
+    // Only the rail names the state now; the heading shows nothing for ungraded.
+    expect(screen.getAllByText('Ungraded').length).toBe(1);
     expect(screen.queryByText('Provisional')).toBeNull();
   });
 
@@ -828,7 +828,7 @@ describe('FreeResponseGrader rubric strand tags', () => {
     fireEvent.click(jumpLink());
     await waitFor(() => expect(railItem('beta')).toHaveClass('bg-violet-50'));
 
-    fireEvent.click(screen.getByRole('button', { name: /next student/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Grace Hopper/ }));
 
     // The next student starts at their own first passage, not where the
     // previous cycle left off.
@@ -913,7 +913,7 @@ describe('FreeResponseGrader rubric strand tags', () => {
     );
 
     // Moving on must not carry that seek onto the next student's take.
-    fireEvent.click(screen.getByRole('button', { name: /next student/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Grace Hopper/ }));
     await waitFor(() =>
       expect(
         screen.getByRole('button', { name: /notes? as evidence for thesis/i })
@@ -945,8 +945,8 @@ describe('FreeResponseGrader close', () => {
     showConfirm.mockClear();
     const onClose = vi.fn();
     const onSave = renderGrader([recorded('ada', 1)], undefined, onClose);
-    await screen.findByLabelText(/Points awarded/i);
-    fireEvent.change(screen.getByLabelText(/Points awarded/i), {
+    await screen.findByLabelText(/^Score$/);
+    fireEvent.change(screen.getByLabelText(/^Score$/), {
       target: { value: '3' },
     });
 
@@ -966,8 +966,8 @@ describe('FreeResponseGrader close', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     try {
       renderGrader([recorded('ada', 1)], failing, onClose);
-      await screen.findByLabelText(/Points awarded/i);
-      fireEvent.change(screen.getByLabelText(/Points awarded/i), {
+      await screen.findByLabelText(/^Score$/);
+      fireEvent.change(screen.getByLabelText(/^Score$/), {
         target: { value: '3' },
       });
       fireEvent.keyDown(document.body, { key: 'Escape' });

@@ -1,6 +1,7 @@
 // Accordion assign dialog: optional top switch, one open step, Assign always in the footer (docs/plans/shipped/ASSIGN_STEPPER.md D1).
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Loader2, Rocket } from 'lucide-react';
+import { ModalHeader } from '@/components/common/ModalHeader';
 import { Modal } from '@/components/common/Modal';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { tourAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
@@ -33,6 +34,15 @@ export interface AssignStepperProps {
     onClick: () => void;
     anchor?: TourAnchorAttrs;
   };
+  /** Inline only: a Cancel button left of submit. */
+  onCancel?: () => void;
+  cancelLabel?: string;
+  cancelAnchor?: TourAnchorAttrs;
+  submitAnchor?: TourAnchorAttrs;
+  /** Inline only: pins Cancel and submit to the bottom of the scrolling parent. */
+  stickyFooter?: boolean;
+  /** False when submit only saves a local draft, so View as neither locks nor confirms it. */
+  viewAsGuard?: boolean;
 }
 
 export const AssignStepper: React.FC<AssignStepperProps> = ({
@@ -51,6 +61,12 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
   zIndex,
   inline = false,
   altAction,
+  onCancel,
+  cancelLabel = 'Cancel',
+  cancelAnchor,
+  submitAnchor = tourAttr('assign-stepper.submit'),
+  viewAsGuard = true,
+  stickyFooter = false,
 }) => {
   const titleId = useId();
   const outward = useViewAsOutward();
@@ -65,7 +81,20 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
   const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollPending = useRef(false);
 
-  const current = Math.min(openIndex, Math.max(steps.length - 1, 0));
+  const enabledAtOrBefore = (index: number) => {
+    for (let i = Math.min(index, steps.length - 1); i >= 0; i--)
+      if (!steps[i].disabled) return i;
+    return 0;
+  };
+  // A step that turns disabled while open hands the open slot back to the step before it.
+  const current = enabledAtOrBefore(openIndex);
+  if (current !== openIndex && steps[openIndex]?.disabled)
+    setOpenIndex(current);
+  const continueTo = steps.map((_, index) => {
+    for (let i = index + 1; i < steps.length; i++)
+      if (!steps[i].disabled) return i;
+    return undefined;
+  });
 
   const openStep = (index: number) => {
     scrollPending.current = true;
@@ -82,11 +111,12 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
     });
   }, [current]);
 
-  const blocked = disabled || submitting || outward.locked;
+  const blocked = disabled || submitting || (viewAsGuard && outward.locked);
 
   const handleSubmit = useCallback(async () => {
     if (blocked) return;
     if (
+      viewAsGuard &&
       outward.active &&
       !(await outward.confirm(submitLabel, VIEW_AS_WRITES.assign))
     )
@@ -97,7 +127,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
     } finally {
       setPending(false);
     }
-  }, [blocked, outward, submitLabel, onSubmit]);
+  }, [blocked, viewAsGuard, outward, submitLabel, onSubmit]);
 
   const close = submitting ? () => undefined : onClose;
 
@@ -119,38 +149,41 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
   }
 
   const header = (
-    <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0">
-      <div className="min-w-0">
-        <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">
-          Assign
-        </p>
+    <ModalHeader
+      eyebrow="Assign"
+      title={
         <h3
           id={titleId}
-          className="font-black text-lg text-slate-800 truncate"
+          className="font-black text-lg text-white truncate"
           title={title}
         >
           {title}
         </h3>
-      </div>
-      <button
-        {...tourAttr('assign-stepper.cancel')}
-        type="button"
-        onClick={onClose}
-        disabled={submitting}
-        className="text-sm font-bold text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Cancel
-      </button>
-    </div>
+      }
+      actions={
+        <button
+          {...tourAttr('assign-stepper.cancel')}
+          type="button"
+          onClick={onClose}
+          disabled={submitting}
+          className="text-sm font-bold text-white/85 hover:text-white hover:bg-white/15 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Cancel
+        </button>
+      }
+    />
   );
 
   const submitButton = (
     <button
-      {...tourAttr('assign-stepper.submit')}
+      {...submitAnchor}
       type="button"
       onClick={() => void handleSubmit()}
       disabled={blocked}
-      title={outward.lockedTitle ?? (disabled ? disabledReason : undefined)}
+      title={
+        (viewAsGuard ? outward.lockedTitle : undefined) ??
+        (disabled ? disabledReason : undefined)
+      }
       className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {submitting ? (
@@ -194,8 +227,15 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
           title={step.title}
           value={step.value}
           open={i === current}
+          disabled={step.disabled}
           onOpen={() => openStep(i)}
-          onContinue={i < steps.length - 1 ? () => openStep(i + 1) : undefined}
+          onContinue={
+            continueTo[i] === undefined
+              ? undefined
+              : () => openStep(continueTo[i] as number)
+          }
+          anchor={step.anchor}
+          continueAnchor={step.continueAnchor}
         >
           {step.body}
         </AssignStep>
@@ -208,7 +248,22 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
       <div aria-label={title} role="group">
         {topSwitch && <div className="mb-4">{topSwitch}</div>}
         {stepList}
-        <div className="flex justify-end pt-3">{submitButton}</div>
+        <div
+          className={`flex items-center pt-3 ${onCancel ? 'justify-between' : 'justify-end'} ${stickyFooter ? 'sticky bottom-0 bg-white pb-1 mt-2 border-t border-slate-100' : ''}`}
+        >
+          {onCancel && (
+            <button
+              {...cancelAnchor}
+              type="button"
+              onClick={onCancel}
+              disabled={submitting}
+              className="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+            >
+              {cancelLabel}
+            </button>
+          )}
+          {submitButton}
+        </div>
       </div>
     );
   }
@@ -219,7 +274,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
       onClose={close}
       customHeader={header}
       footer={footer}
-      footerClassName="shrink-0 border-t border-slate-200 bg-white"
+      footerClassName=""
       maxWidth="max-w-xl"
       className="bg-white rounded-2xl shadow-2xl overflow-hidden"
       contentClassName="px-6 py-5"

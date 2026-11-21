@@ -58,7 +58,10 @@ vi.mock('firebase/firestore', () => {
   };
 });
 
-import { finalizeOpenQuizResponses } from '@/utils/quizFinalizeOpenResponses';
+import {
+  finalizeClassQuizResponses,
+  finalizeOpenQuizResponses,
+} from '@/utils/quizFinalizeOpenResponses';
 
 const NOW = 1_700_000_000_000;
 const S = 'quiz_sessions/s1';
@@ -168,5 +171,72 @@ describe('finalizeOpenQuizResponses', () => {
     await finalizeOpenQuizResponses('s1', NOW);
     expect(store.updates).toHaveLength(0);
     expect(store.queries).toHaveLength(0);
+  });
+});
+
+describe('finalizeClassQuizResponses', () => {
+  const CLOSED_AT = 5;
+  const session = (p1: Doc, extra: Doc = {}) => ({
+    status: 'active',
+    publicQuestions: [{ id: 'q1' }],
+    periodAccess: { p1: { label: 'P1', ...p1 }, p2: { state: 'open' } },
+    ...extra,
+  });
+  const open = (id: string, extra: Doc) => {
+    store.docs[`${S}/responses/${id}`] = {
+      status: 'in-progress',
+      studentUid: id,
+      answers: [],
+      ...extra,
+    };
+  };
+  const turnedIn = () => store.updates.map(([p]) => p.split('/').pop()).sort();
+
+  it("turns in the closed class's open rows, PIN joiners by its label included", async () => {
+    store.docs[S] = session({ state: 'closed', closedAt: CLOSED_AT });
+    open('a', { classId: 'p1' });
+    open('pin', { classPeriod: 'P1' });
+    open('b', { classId: 'p2' });
+    open('otherPin', { classPeriod: 'P2' });
+    await finalizeClassQuizResponses('s1', 'p1', CLOSED_AT, NOW);
+    expect(turnedIn()).toEqual(['a', 'pin']);
+    expect(store.updates[0][1]).toMatchObject({ status: 'completed' });
+  });
+
+  it('leaves students let in, reopened for, or unlocked to keep working', async () => {
+    store.docs[S] = session(
+      { state: 'closed', closedAt: CLOSED_AT },
+      {
+        studentAccess: { pass: NOW + 1, expired: NOW - 1 },
+        reopenedFor: ['picked'],
+      }
+    );
+    for (const id of ['pass', 'expired', 'picked', 'plain'])
+      open(id, { classId: 'p1' });
+    open('unlocked', { classId: 'p1', unlocked: true });
+    await finalizeClassQuizResponses('s1', 'p1', CLOSED_AT, NOW);
+    expect(turnedIn()).toEqual(['expired', 'plain']);
+  });
+
+  it('does nothing once the class was reopened, is only Ready, or was closed again later', async () => {
+    open('a', { classId: 'p1' });
+    store.docs[S] = session({ state: 'open', closedAt: null });
+    await finalizeClassQuizResponses('s1', 'p1', CLOSED_AT, NOW);
+    store.docs[S] = session({ state: 'closed' });
+    await finalizeClassQuizResponses('s1', 'p1', CLOSED_AT, NOW);
+    // Close, Reopen, Close: the first timer is stale and leaves the second Close its own grace.
+    store.docs[S] = session({ state: 'closed', closedAt: CLOSED_AT + 100 });
+    await finalizeClassQuizResponses('s1', 'p1', CLOSED_AT, NOW);
+    expect(store.updates).toHaveLength(0);
+  });
+
+  it('skips rows once the class reopens while the turn-in runs', async () => {
+    store.docs[S] = session({ state: 'closed', closedAt: CLOSED_AT });
+    open('a', { classId: 'p1' });
+    store.onQuery = () => {
+      store.docs[S] = session({ state: 'open', closedAt: null });
+    };
+    await finalizeClassQuizResponses('s1', 'p1', CLOSED_AT, NOW);
+    expect(store.updates).toHaveLength(0);
   });
 });

@@ -15,6 +15,8 @@ import { Z_INDEX } from '@/config/zIndex';
 import { ToolMetadata, WidgetData, GlobalStyle, DockPosition } from '@/types';
 import { tourTypeAttr } from '@/config/tourAnchors';
 
+const noop = () => undefined;
+
 interface ToolDockItemProps {
   tool: ToolMetadata;
   minimizedWidgets: WidgetData[];
@@ -24,7 +26,7 @@ interface ToolDockItemProps {
   onDeleteAll: () => void;
   onRemoveFromDock: () => void;
   isEditMode: boolean;
-  onLongPress: () => void;
+  onLongPress?: () => void;
   globalStyle: GlobalStyle;
   customIcon?: React.ComponentType<{ className?: string }>;
   customLabel?: string;
@@ -83,8 +85,8 @@ export const ToolDockItem = React.memo(
       bottom: number;
     } | null>(null);
 
-    const longPress = useLongPress(onLongPress, {
-      disabled: isEditMode,
+    const longPress = useLongPress(onLongPress ?? noop, {
+      disabled: isEditMode || !onLongPress,
       onPointerDown: listeners?.onPointerDown,
     });
 
@@ -170,10 +172,10 @@ export const ToolDockItem = React.memo(
                 position: 'fixed',
                 left: popoverPos.left,
                 bottom: popoverPos.bottom,
-                transform: 'translateX(-50%)',
+                translate: '-50% 0',
                 zIndex: Z_INDEX.popover,
               }}
-              className="w-56 overflow-hidden animate-in slide-in-from-bottom-2 duration-200"
+              className="w-56 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
             >
               <div className="bg-white/50 px-3 py-2 border-b border-white/30 flex justify-between items-center">
                 <span className="text-xxs font-black uppercase text-slate-600 tracking-wider">
@@ -276,7 +278,7 @@ export const ToolDockItem = React.memo(
             onClick={handleClick}
             data-tool-id={tool.type}
             {...tourTypeAttr('dock.item', tool.type)}
-            className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 relative ${
+            className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform duration-160 ease-out active:scale-95 relative ${
               isEditMode
                 ? 'cursor-grab active:cursor-grabbing touch-none'
                 : dockPosition === 'left' || dockPosition === 'right'

@@ -39,6 +39,7 @@ import { GroupReminderHost } from '@/components/groupReminders/GroupReminderHost
 import { SchoologyReviewHost } from '@/components/widgets/QuizWidget/SchoologyReviewHost';
 import { MountedBoardsLayer } from './MountedBoardsLayer';
 import { ConnectionsRunner } from '@/components/connections/ConnectionsRunner';
+import { ScheduleWarningBanner } from '@/components/connections/ScheduleWarningBanner';
 import { ConnectModeBar } from '@/components/connections/ConnectModeBar';
 import { tourAttr } from '@/config/tourAnchors';
 import { HelpCenterModal } from '@/components/help/HelpCenterModal';
@@ -566,6 +567,9 @@ export const DashboardView: React.FC = () => {
   // during render to determine animation direction, without causing an extra render.
   const prevIndexRef = React.useRef<number>(-1);
   const [isMinimized, setIsMinimized] = React.useState(false);
+  const [keyboardSwitchId, setKeyboardSwitchId] = React.useState<string | null>(
+    null
+  );
 
   const dashboardRef = React.useRef<HTMLDivElement>(null);
   // Cached per-gesture: did the touch start inside a scrollable widget?
@@ -905,7 +909,11 @@ export const DashboardView: React.FC = () => {
   // Compute animation class by comparing current index with the previous one
   // tracked in our ref. This correctly evaluates the direction during the render
   // where the index changed.
+  const activeDashboardId = activeDashboard?.id;
   const animationClass = useMemo(() => {
+    if (keyboardSwitchId !== null && activeDashboardId === keyboardSwitchId) {
+      return '';
+    }
     // eslint-disable-next-line react-hooks/refs -- previous index drives the slide direction
     const prevIndex = prevIndexRef.current;
     if (prevIndex === -1 || currentIndex === -1 || prevIndex === currentIndex) {
@@ -914,7 +922,7 @@ export const DashboardView: React.FC = () => {
     return currentIndex > prevIndex
       ? 'animate-slide-left-in'
       : 'animate-slide-right-in';
-  }, [currentIndex]);
+  }, [currentIndex, activeDashboardId, keyboardSwitchId]);
 
   // Ensure activeDashboard is always in the list passed to the mount cache.
   // In production dashboards always includes activeDashboard, but tests may
@@ -969,6 +977,9 @@ export const DashboardView: React.FC = () => {
 
   if (activeDashboard?.id !== lastDashboardId) {
     setLastDashboardId(activeDashboard?.id);
+    if (keyboardSwitchId !== null && activeDashboard?.id !== keyboardSwitchId) {
+      setKeyboardSwitchId(null);
+    }
     if (isMinimized) {
       setIsMinimized(false);
     }
@@ -1225,6 +1236,7 @@ export const DashboardView: React.FC = () => {
             e.key === 'ArrowLeft'
               ? (currentIndex - 1 + dashboards.length) % dashboards.length
               : (currentIndex + 1) % dashboards.length;
+          setKeyboardSwitchId(dashboards[nextIdx].id);
           loadDashboard(dashboards[nextIdx].id);
         }
       }
@@ -1692,7 +1704,7 @@ export const DashboardView: React.FC = () => {
       id="dashboard-root"
       {...tourAttr('board.whole')}
       style={cssVars}
-      className={`relative h-screen w-screen overflow-hidden transition-all duration-1000 ${fontClass}`}
+      className={`relative h-screen w-screen overflow-hidden ${fontClass}`}
       onClick={(e) => {
         e.stopPropagation();
         setSelectedWidgetId(null);
@@ -1769,6 +1781,7 @@ export const DashboardView: React.FC = () => {
         )}
 
         <ConnectionsRunner />
+        <ScheduleWarningBanner />
         <ConnectModeBar />
         {/* Dynamic Widget Surface — Board state (timers, drawings) is
             preserved across switches via the LRU mount window in
@@ -1886,17 +1899,16 @@ export const DashboardView: React.FC = () => {
           {!isActiveBoardReadOnly && <Dock />}
         </React.Suspense>
       </LazyChunkErrorBoundary>
-      {canAccessFeature('board-context-menu') && (
-        <LazyChunkErrorBoundary fallback={() => null}>
-          <React.Suspense fallback={null}>
-            <BoardMenuHost />
-          </React.Suspense>
-        </LazyChunkErrorBoundary>
-      )}
+      <LazyChunkErrorBoundary fallback={() => null}>
+        <React.Suspense fallback={null}>
+          <BoardMenuHost />
+        </React.Suspense>
+      </LazyChunkErrorBoundary>
       <AnnotationOverlay />
       <ToastContainer />
       <AnnouncementOverlay />
-      {canAccessFeature('group-reminders') && <GroupReminderHost />}
+      {canAccessFeature('group-reminders') &&
+        canAccessFeature('group-schedules') && <GroupReminderHost />}
       {canAccessFeature('schoology-quiz-import') && <SchoologyReviewHost />}
       {universalImport && (
         <ImportScreenHost
@@ -1953,7 +1965,7 @@ export const DashboardView: React.FC = () => {
       {isSpotlightLive(activeDashboard.settings, activeDashboard.widgets) &&
         createPortal(
           <div
-            className="fixed inset-0 z-backdrop bg-slate-900/80 transition-opacity duration-500 ease-in-out"
+            className="fixed inset-0 z-backdrop bg-slate-900/80 animate-in fade-in duration-200"
             onClick={() => updateDashboardSettings({ spotlightWidgetId: null })}
             aria-hidden="true"
           />,

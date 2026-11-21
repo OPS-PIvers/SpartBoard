@@ -1,10 +1,12 @@
+import { questionForResponse } from '@/utils/quizCalcResponse';
 import {
   isFreeResponseType,
   type GradeResult,
   type QuizQuestion,
   type QuizResponse,
 } from '@/types';
-import { gradeAnswer, paperTranscriptFor } from '@/hooks/useQuizSession';
+import { gradeAnswer, paperAnswerFor } from '@/hooks/useQuizSession';
+import { gradingPaperTranscript } from '@/utils/paperWritten';
 import {
   fibAnswersForResponse,
   type FibGradingContext,
@@ -45,18 +47,23 @@ export function gradeQuestionForResponse(
   response: QuizResponse,
   fibGrading?: FibGradingContext | null
 ): GradeResult {
-  const manualGrade = isFreeResponseType(question.type)
-    ? readSlotGrade(response.grading, question.id)
-    : undefined;
+  const manualGrade =
+    isFreeResponseType(question.type) || question.type === 'FIB'
+      ? readSlotGrade(response.grading, question.id)
+      : undefined;
   return applyMediaSlots(
     question,
     response,
     gradeAnswer(
-      question,
+      questionForResponse(question, response, fibGrading),
       studentAnswer,
       manualGrade,
       fibAnswersForResponse(fibGrading, response, question.id),
-      paperTranscriptFor(response, question.id)
+      gradingPaperTranscript(
+        question,
+        response,
+        paperAnswerFor(response, question.id)
+      )
     )
   );
 }
