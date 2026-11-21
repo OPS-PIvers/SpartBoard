@@ -378,7 +378,7 @@
       }
     },
     {
-      "pr": "claude/widget-loop-reveal-grid-config-2026-11-16",
+      "pr": 6513,
       "widgetType": "reveal-grid",
       "dimension": "config",
       "openedAt": "2026-11-21T13:30:00Z",
