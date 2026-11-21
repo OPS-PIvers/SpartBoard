@@ -1,0 +1,1 @@
+claude/backlog-ab-336-20261120 (AB-336: class target LMS id check matches the rule exactly)
