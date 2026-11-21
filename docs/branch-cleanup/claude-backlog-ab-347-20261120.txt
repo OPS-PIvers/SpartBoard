@@ -1,0 +1,1 @@
+claude/backlog-ab-347-20261120 (AB-347: server flag check for Writing peer review, log parser tolerates unknown kinds)
