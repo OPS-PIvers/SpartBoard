@@ -511,6 +511,23 @@ describe('projectRow', () => {
     expect(entryOf(stub)).toMatchObject({ updatedAt: NOW, vouched: true });
   });
 
+  it('stamps an owned but unstamped entry so a later sub swap keeps it', async () => {
+    const stub = makeStubFirestore({});
+    const db = stub.db as unknown as Db;
+    await projectRow(db, row(), null, NOW);
+    const doc = stub.get(PATH) as { entries: Record<string, StubData> };
+    const { vouched: _v, ...unstamped } = doc.entries.qs1 as Record<
+      string,
+      unknown
+    >;
+    void _v;
+    stub.store.set(PATH, { ...doc, entries: { qs1: unstamped } });
+    await projectRow(db, row(), null, NOW + 5000, rosterOf('t1/c1/u1'));
+    expect(entryOf(stub)).toEqual({ ...unstamped, vouched: true });
+    await projectRow(db, row(), null, NOW + 6000, rosterOf());
+    expect(entryOf(stub)).toEqual({ ...unstamped, vouched: true });
+  });
+
   it('keeps other assignments when one entry goes', async () => {
     const stub = makeStubFirestore({
       [PATH]: { entries: { other: { pct: 50 }, qs1: { pct: 80 } } },

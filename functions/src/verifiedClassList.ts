@@ -186,8 +186,8 @@ export async function unverifiedClassIds(
   return ids.filter((id) => !verified.has(id));
 }
 
-// Same pattern as the rule; `.` refuses a newline there too.
-const RULE_LMS_ID = /^(?:schoology|classroom):.+$/;
+// The rule's whole-string RE2 match, whose `.` excludes only `\n`.
+const RULE_LMS_ID = /^(?:schoology|classroom):[^\n]+$/;
 
 /** The class targets firestore.rules `onVerifiedList` refuses: before enforce, one unlisted LMS id in first place (LTI launch) passes. */
 export async function refusedClassTargets(
