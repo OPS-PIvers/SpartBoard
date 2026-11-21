@@ -3513,7 +3513,7 @@ const TeacherQuizWidget: React.FC<{
           paperSheets.enabled && !isReview && user?.uid
             ? async (assignment, opts) => {
                 const meta = paperAssignmentMeta(assignment);
-                const data = await loadAnswerKeyQuiz(meta, assignment);
+                const data = await loadQuiz(meta);
                 if (!data) return;
                 const copyIds = assignment.paperCopyBatchIds ?? [];
                 const batches = (
@@ -3541,10 +3541,7 @@ const TeacherQuizWidget: React.FC<{
         onReprintPaperSheets={
           paperUid
             ? async (assignment, opts) => {
-                const data = await loadAnswerKeyQuiz(
-                  paperAssignmentMeta(assignment),
-                  assignment
-                );
+                const data = await loadQuiz(paperAssignmentMeta(assignment));
                 if (!data) return;
                 const stacks = await listPaperBatchesForQuiz(
                   paperUid,
