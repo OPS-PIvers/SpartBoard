@@ -19,7 +19,7 @@ const errorText = (err: unknown, fallback: string) => {
   return code.endsWith('invalid-argument') && msg ? msg : fallback;
 };
 
-/** The FreshService site, folder and API key; the saved key is never shown. */
+/** The FreshService site and folder; the API key lives in Secret Manager, so this only says whether it is set. */
 export const FreshserviceSettings: React.FC<{
   onClose: () => void;
   onSaved: () => void;
@@ -27,10 +27,9 @@ export const FreshserviceSettings: React.FC<{
   const [status, setStatus] = useState<FreshserviceStatus | null>(null);
   const [domain, setDomain] = useState('');
   const [folderId, setFolderId] = useState('');
-  const [apiKey, setApiKey] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const ids = { domain: useId(), folder: useId(), key: useId() };
+  const ids = { domain: useId(), folder: useId() };
 
   useEffect(() => {
     let cancelled = false;
@@ -57,7 +56,7 @@ export const FreshserviceSettings: React.FC<{
     setSaving(true);
     setError(null);
     try {
-      await saveFreshserviceSettings(domain, folderId, apiKey);
+      await saveFreshserviceSettings(domain, folderId);
       onSaved();
     } catch (err) {
       logError('FreshserviceSettings save', err);
@@ -86,13 +85,7 @@ export const FreshserviceSettings: React.FC<{
             type="button"
             className={`${primaryBtn} inline-flex items-center gap-1.5 disabled:opacity-60`}
             onClick={() => void save()}
-            disabled={
-              !status ||
-              saving ||
-              !domain.trim() ||
-              !folderId.trim() ||
-              (!status.hasKey && !apiKey.trim())
-            }
+            disabled={!status || saving || !domain.trim() || !folderId.trim()}
           >
             {saving && (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -140,21 +133,10 @@ export const FreshserviceSettings: React.FC<{
               className={field}
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor={ids.key} className={label}>
-              API key
-            </label>
-            {/* no-tour-anchor: inside the FreshService settings dialog */}
-            <input
-              id={ids.key}
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={status.hasKey ? 'Saved. Type to replace it.' : ''}
-              autoComplete="new-password"
-              className={field}
-            />
-          </div>
+          <p data-testid="freshservice-key" className="text-sm text-slate-700">
+            <span className="font-semibold text-slate-900">API key: </span>
+            {status.hasKey ? 'Set' : 'Not set up yet'}
+          </p>
           {error && (
             <p role="alert" className="text-sm font-medium text-red-700">
               {error}

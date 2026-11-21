@@ -9,7 +9,7 @@ import { buildStepsArticle, webTourExportParts } from './stepsHtmlExport';
 
 export const FRESHSERVICE_FEATURE = 'freshservice-sync';
 
-/** The saved settings as the page sees them; the key itself never comes back. */
+/** The saved site and folder, and whether the API key secret is set. */
 export interface FreshserviceStatus {
   domain: string;
   folderId: string;
@@ -18,7 +18,7 @@ export interface FreshserviceStatus {
 
 type Request =
   | { action: 'status' }
-  | { action: 'save'; domain: string; folderId: string; apiKey: string }
+  | { action: 'save'; domain: string; folderId: string }
   | { action: 'send'; setId: string; html: string };
 
 const call = <T>(data: Request) =>
@@ -35,12 +35,8 @@ export function useCanFreshservice(): boolean {
 export const loadFreshserviceStatus = () =>
   call<FreshserviceStatus>({ action: 'status' });
 
-/** A blank key keeps the saved one. */
-export const saveFreshserviceSettings = (
-  domain: string,
-  folderId: string,
-  apiKey: string
-) => call<FreshserviceStatus>({ action: 'save', domain, folderId, apiKey });
+export const saveFreshserviceSettings = (domain: string, folderId: string) =>
+  call<FreshserviceStatus>({ action: 'save', domain, folderId });
 
 export type SendResult =
   { kind: 'sent'; missing: number } | { kind: 'not-set-up' };

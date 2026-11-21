@@ -2,29 +2,29 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   parseFreshserviceRequest,
   runFreshservice,
-  type FreshserviceConfig,
   type FreshserviceDeps,
+  type FreshserviceSite,
 } from './freshservice';
 
-const ready: FreshserviceConfig = {
+const ready: FreshserviceSite = {
   domain: 'orono.freshservice.com',
   folderId: '42',
-  apiKey: 'abcdefgh1234',
 };
 
 const reply = (status: number, body: unknown) =>
   ({ status, json: () => Promise.resolve(body) }) as Response;
 
 function deps(over: Partial<FreshserviceDeps> = {}) {
-  const saved: { config?: FreshserviceConfig; articleId?: number } = {};
+  const saved: { site?: FreshserviceSite; articleId?: number } = {};
   const d: FreshserviceDeps = {
     isAdmin: () => Promise.resolve(true),
     allowed: () => Promise.resolve(true),
-    loadConfig: () => Promise.resolve(ready),
-    saveConfig: (c) => {
-      saved.config = c;
+    loadSite: () => Promise.resolve(ready),
+    saveSite: (c) => {
+      saved.site = c;
       return Promise.resolve();
     },
+    loadApiKey: () => Promise.resolve('abcdefgh1234'),
     publishedTitle: () => Promise.resolve('Enable Markdown'),
     articleId: () => Promise.resolve(null),
     saveArticleId: (_s, id) => {
@@ -46,13 +46,11 @@ describe('parseFreshserviceRequest', () => {
         action: 'save',
         domain: ' https://Orono.freshservice.com/a/ ',
         folderId: '42',
-        apiKey: '',
       })
     ).toEqual({
       action: 'save',
       domain: 'orono.freshservice.com',
       folderId: '42',
-      apiKey: null,
     });
     expect(() =>
       parseFreshserviceRequest({
@@ -83,7 +81,7 @@ describe('runFreshservice', () => {
     expect(d.fetch).not.toHaveBeenCalled();
   });
 
-  it('never returns the key, and keeps it when the form leaves it blank', async () => {
+  it('never returns the key and saves only the site and folder', async () => {
     const { d, saved } = deps();
     expect(await runFreshservice({ action: 'status' }, 'u', token, d)).toEqual({
       domain: 'orono.freshservice.com',
@@ -91,27 +89,28 @@ describe('runFreshservice', () => {
       hasKey: true,
     });
     await runFreshservice(
-      {
-        action: 'save',
-        domain: 'new.freshservice.com',
-        folderId: '9',
-        apiKey: null,
-      },
+      { action: 'save', domain: 'new.freshservice.com', folderId: '9' },
       'u',
       token,
       d
     );
-    expect(saved.config).toEqual({
+    expect(saved.site).toEqual({
       domain: 'new.freshservice.com',
       folderId: '9',
-      apiKey: 'abcdefgh1234',
     });
   });
 
-  it('does nothing until the settings are saved', async () => {
-    const { d } = deps({ loadConfig: () => Promise.resolve(null) });
-    expect(await runFreshservice(send, 'u', token, d)).toEqual({ sent: false });
-    expect(d.fetch).not.toHaveBeenCalled();
+  it('does nothing until the site and the secret are both set up', async () => {
+    for (const over of [
+      { loadSite: () => Promise.resolve(null) },
+      { loadApiKey: () => Promise.resolve(null) },
+    ]) {
+      const { d } = deps(over);
+      expect(await runFreshservice(send, 'u', token, d)).toEqual({
+        sent: false,
+      });
+      expect(d.fetch).not.toHaveBeenCalled();
+    }
   });
 
   it('creates a draft article the first time and saves its id', async () => {

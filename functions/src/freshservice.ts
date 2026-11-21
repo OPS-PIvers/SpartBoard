@@ -1,6 +1,7 @@
-// FreshService help articles from web tours: admins save the site, folder and API key, then send a tour's steps as an article.
+// FreshService help articles from web tours: admins save the site and folder, the API key lives in Secret Manager.
 import './functionsInit';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
+import { GoogleAuth } from 'google-auth-library';
 import * as admin from './firebaseAdmin';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { resolveCallerIsAdmin } from './aiGeneration';
@@ -12,9 +13,11 @@ type Firestore = admin.firestore.Firestore;
 type Token = { email?: string; [k: string]: unknown };
 
 export const FRESHSERVICE_FEATURE_ID = 'freshservice-sync';
-/** Server-only docs (no rules match them): the settings with the key, and each tour's article id. */
+/** Server-only docs (no rules match them): the site and folder, and each tour's article id. */
 export const FRESHSERVICE_CONFIG_DOC = 'freshservice/config';
 export const FRESHSERVICE_ARTICLES = 'freshservice_articles';
+/** Read when a call runs, not bound with defineSecret, so a project without it still deploys and the feature stays off. */
+export const FRESHSERVICE_SECRET = 'FRESHSERVICE_API_KEY';
 /** Callables take up to 10 MB; leave room for the rest of the request. */
 export const MAX_ARTICLE_CHARS = 9_000_000;
 
@@ -23,9 +26,12 @@ export const DOMAIN_RE =
 const FOLDER_RE = /^[1-9]\d{0,17}$/;
 const SET_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 
-export interface FreshserviceConfig {
+export interface FreshserviceSite {
   domain: string;
   folderId: string;
+}
+
+export interface FreshserviceConfig extends FreshserviceSite {
   apiKey: string;
 }
 
@@ -38,7 +44,7 @@ export interface FreshserviceStatus {
 
 export type FreshserviceRequest =
   | { action: 'status' }
-  | { action: 'save'; domain: string; folderId: string; apiKey: string | null }
+  | { action: 'save'; domain: string; folderId: string }
   | { action: 'send'; setId: string; html: string };
 
 const bad = (msg: string) => new HttpsError('invalid-argument', msg);
@@ -59,10 +65,7 @@ export function parseFreshserviceRequest(data: unknown): FreshserviceRequest {
     const folderId = str(d.folderId);
     if (!DOMAIN_RE.test(domain)) throw bad('Enter a freshservice.com address.');
     if (!FOLDER_RE.test(folderId)) throw bad('Enter the folder number.');
-    const key = str(d.apiKey);
-    if (key && !/^[A-Za-z0-9_-]{8,200}$/.test(key))
-      throw bad('That API key is not valid.');
-    return { action: 'save', domain, folderId, apiKey: key || null };
+    return { action: 'save', domain, folderId };
   }
   if (d.action === 'send') {
     const setId = str(d.setId);
@@ -79,8 +82,10 @@ export function parseFreshserviceRequest(data: unknown): FreshserviceRequest {
 export interface FreshserviceDeps {
   isAdmin: (token: Token) => Promise<boolean>;
   allowed: (token: Token, uid: string) => Promise<boolean>;
-  loadConfig: () => Promise<FreshserviceConfig | null>;
-  saveConfig: (config: FreshserviceConfig, by: string) => Promise<void>;
+  loadSite: () => Promise<FreshserviceSite | null>;
+  saveSite: (site: FreshserviceSite, by: string) => Promise<void>;
+  /** The key from Secret Manager; null when the secret or its access grant isn't set up. */
+  loadApiKey: () => Promise<string | null>;
   /** The published copy's title when it is a published web tour; null otherwise. */
   publishedTitle: (setId: string) => Promise<string | null>;
   articleId: (setId: string) => Promise<number | null>;
@@ -88,14 +93,25 @@ export interface FreshserviceDeps {
   fetch: typeof fetch;
 }
 
-const statusOf = (c: FreshserviceConfig | null): FreshserviceStatus => ({
-  domain: c?.domain ?? '',
-  folderId: c?.folderId ?? '',
-  hasKey: !!c?.apiKey,
+const statusOf = (
+  site: FreshserviceSite | null,
+  key: string | null
+): FreshserviceStatus => ({
+  domain: site?.domain ?? '',
+  folderId: site?.folderId ?? '',
+  hasKey: !!key,
 });
 
-const isReady = (c: FreshserviceConfig | null): c is FreshserviceConfig =>
-  !!c && DOMAIN_RE.test(c.domain) && FOLDER_RE.test(c.folderId) && !!c.apiKey;
+/** The site, folder and key together, or null while any is missing. */
+async function loadConfig(
+  deps: FreshserviceDeps
+): Promise<FreshserviceConfig | null> {
+  const site = await deps.loadSite();
+  if (!site || !DOMAIN_RE.test(site.domain) || !FOLDER_RE.test(site.folderId))
+    return null;
+  const apiKey = await deps.loadApiKey();
+  return apiKey ? { ...site, apiKey } : null;
+}
 
 /** One call to the FreshService v2 API with basic auth; returns the status and parsed body. */
 async function callApi(
@@ -133,8 +149,8 @@ export async function sendArticle(
   by: string,
   deps: FreshserviceDeps
 ): Promise<{ sent: true; articleId: number } | { sent: false }> {
-  const config = await deps.loadConfig();
-  if (!isReady(config)) return { sent: false };
+  const config = await loadConfig(deps);
+  if (!config) return { sent: false };
   const title = await deps.publishedTitle(setId);
   if (title === null)
     throw new HttpsError(
@@ -196,13 +212,12 @@ export async function runFreshservice(
       'FreshService sync is not turned on for this account.'
     );
   const by = token.email ?? uid;
-  if (req.action === 'status') return statusOf(await deps.loadConfig());
+  if (req.action === 'status')
+    return statusOf(await deps.loadSite(), await deps.loadApiKey());
   if (req.action === 'save') {
-    const current = await deps.loadConfig();
-    const apiKey = req.apiKey ?? current?.apiKey ?? '';
-    const next = { domain: req.domain, folderId: req.folderId, apiKey };
-    await deps.saveConfig(next, by);
-    return statusOf(next);
+    const site = { domain: req.domain, folderId: req.folderId };
+    await deps.saveSite(site, by);
+    return statusOf(site, await deps.loadApiKey());
   }
   try {
     return await sendArticle(req.setId, req.html, by, deps);
@@ -211,6 +226,42 @@ export async function runFreshservice(
     console.error('[freshserviceV1] failed:', safeErr(error));
     throw new HttpsError('unavailable', "FreshService couldn't be reached.");
   }
+}
+
+const KEY_CACHE_MS = 5 * 60_000;
+let keyCache: { key: string | null; at: number } | null = null;
+let auth: GoogleAuth | null = null;
+
+/** The latest secret version, cached for five minutes; 403 or 404 means not set up yet. */
+async function loadApiKeyFromSecretManager(
+  now: number
+): Promise<string | null> {
+  if (keyCache && now - keyCache.at < KEY_CACHE_MS) return keyCache.key;
+  const project = process.env.GCLOUD_PROJECT;
+  if (!project) return null;
+  auth ??= new GoogleAuth({
+    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+  });
+  let key: string | null = null;
+  try {
+    const client = await auth.getClient();
+    const res = await client.request<{ payload?: { data?: string } }>({
+      url: `https://secretmanager.googleapis.com/v1/projects/${project}/secrets/${FRESHSERVICE_SECRET}/versions/latest:access`,
+      timeout: 10_000,
+    });
+    const data = res.data.payload?.data;
+    key = data
+      ? Buffer.from(data, 'base64').toString('utf8').trim() || null
+      : null;
+  } catch (err) {
+    const status = (err as { response?: { status?: number } }).response?.status;
+    if (status !== 403 && status !== 404) {
+      console.error('[freshserviceV1] secret read failed', status ?? '');
+      return keyCache?.key ?? null;
+    }
+  }
+  keyCache = { key, at: now };
+  return key;
 }
 
 function defaultDeps(db: Firestore): FreshserviceDeps {
@@ -225,23 +276,16 @@ function defaultDeps(db: Firestore): FreshserviceDeps {
         uid
       );
     },
-    loadConfig: async () => {
+    loadSite: async () => {
       const d = (await db.doc(FRESHSERVICE_CONFIG_DOC).get()).data();
-      return d
-        ? {
-            domain: str(d.domain),
-            folderId: str(d.folderId),
-            apiKey: str(d.apiKey),
-          }
-        : null;
+      return d ? { domain: str(d.domain), folderId: str(d.folderId) } : null;
     },
-    saveConfig: async (config, by) => {
-      await db.doc(FRESHSERVICE_CONFIG_DOC).set({
-        ...config,
-        updatedBy: by,
-        updatedAt: Date.now(),
-      });
+    saveSite: async (site, by) => {
+      await db
+        .doc(FRESHSERVICE_CONFIG_DOC)
+        .set({ ...site, updatedBy: by, updatedAt: Date.now() });
     },
+    loadApiKey: () => loadApiKeyFromSecretManager(Date.now()),
     publishedTitle: async (setId) => {
       const snap = await db.collection(GL_TOURS_COLLECTION).doc(setId).get();
       if (!snap.exists || snap.get('surface') !== 'web') return null;
