@@ -144,6 +144,17 @@ describe('parseWritingLog', () => {
       []
     );
   });
+
+  it('keeps the text right through an edit kind it does not know', () => {
+    const { edits } = parseWritingLog('0:The;Q1,,,re;1:!;V2,0,0,A ');
+    expect(textAfter(edits, edits.length)).toBe('A There!');
+    expect(edits.map((e) => e.kind)).toEqual([
+      'typed',
+      'sync',
+      'typed',
+      'peer',
+    ]);
+  });
 });
 
 describe('replacedWords', () => {

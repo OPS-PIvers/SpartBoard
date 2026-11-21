@@ -64,6 +64,11 @@ const KIND_MARK: Record<WritingEditKind, string> = {
   format: 'F',
   peer: 'V',
 };
+const KIND_BY_MARK = new Map(
+  Object.entries(KIND_MARK)
+    .filter(([, m]) => m !== '')
+    .map(([k, m]) => [m, k as WritingEditKind])
+);
 const escapeText = (s: string) =>
   s.replace(
     /[%,;!:]/g,
@@ -130,21 +135,11 @@ export function parseWritingLog(
         out.stamps.push({ at: out.edits.length, time: sec * 1000 });
       continue;
     }
+    const mark = /^[A-Z]/.test(token) ? token[0] : '';
+    // A mark from a newer recorder still moves the text; it reads as text that changed with no typing.
     const kind: WritingEditKind =
-      token[0] === 'P'
-        ? 'pasted'
-        : token[0] === 'D'
-          ? 'dictated'
-          : token[0] === 'S'
-            ? 'sync'
-            : token[0] === 'R'
-              ? 'restored'
-              : token[0] === 'F'
-                ? 'format'
-                : token[0] === 'V'
-                  ? 'peer'
-                  : 'typed';
-    const body = kind === 'typed' ? token : token.slice(1);
+      mark === '' ? 'typed' : (KIND_BY_MARK.get(mark) ?? 'sync');
+    const body = mark === '' ? token : token.slice(1);
     const short = /^([0-9a-z]+):(.*)$/s.exec(body);
     const parts = short ? [short[1], '', '', short[2]] : body.split(',');
     if (parts.length !== 4) continue;

@@ -43,11 +43,28 @@ const NAMES = new Map<string, PeerName>([
   ['d', { givenName: 'Di', familyName: 'Ola' }],
 ]);
 const resolve = vi.fn(() => Promise.resolve(NAMES));
+const granted = vi.fn<(uid: string) => Promise<boolean>>(() =>
+  Promise.resolve(true)
+);
 
 const setReview = (data: object, caller: WritingCaller = teacher) =>
-  handleSetPeerReview(db, caller, { sessionId: SID, ...data }, 1_000, resolve);
+  handleSetPeerReview(
+    db,
+    caller,
+    { sessionId: SID, ...data },
+    1_000,
+    resolve,
+    granted
+  );
 const peer = (uid: string, data: object) =>
-  handlePeerReview(db, stu(uid), { sessionId: SID, ...data }, 2_000, resolve);
+  handlePeerReview(
+    db,
+    stu(uid),
+    { sessionId: SID, ...data },
+    2_000,
+    resolve,
+    granted
+  );
 
 const comment = {
   action: 'add',
@@ -69,6 +86,8 @@ const edit = {
 beforeEach(() => {
   store.clear();
   resolve.mockClear();
+  granted.mockReset();
+  granted.mockResolvedValue(true);
   store.set(SESSION, { teacherUid: 't1', classIds: ['c1'], status: 'active' });
   store.set(`${SESSION}/responses/b`, { html: '<p>The day</p>' });
 });
@@ -168,6 +187,24 @@ describe('setWritingPeerReviewV1', () => {
     ).rejects.toThrow(/Teacher/);
   });
 
+  it('refuses a teacher without the peer review flag and writes nothing', async () => {
+    granted.mockResolvedValue(false);
+    await expect(
+      setReview({ access: 'view', groups: [['a', 'b']] })
+    ).rejects.toThrow(/not available/);
+    expect(granted).toHaveBeenCalledWith('t1');
+    expect(store.get(SESSION).peerReview).toBeUndefined();
+    expect(store.has(`${SESSION}/peer_links/a`)).toBe(false);
+  });
+
+  it('still lets a teacher who lost the flag end peer review', async () => {
+    await setReview({ access: 'comment', groups: [['a', 'b']] });
+    granted.mockResolvedValue(false);
+    await setReview({ end: true });
+    expect(store.get(SESSION).peerReview.endedAt).toBe(1_000);
+    expect(store.has(`${SESSION}/peer_links/a`)).toBe(false);
+  });
+
   it('ends peer review and removes every link', async () => {
     await setReview({ access: 'comment', groups: [['a', 'b']] });
     await setReview({ end: true });
@@ -256,6 +293,14 @@ describe('writingPeerReviewV1', () => {
     await expect(peer('a', { action: 'read' })).rejects.toThrow(/not open/);
   });
 
+  it('closes peer review for students once the teacher loses the flag', async () => {
+    granted.mockResolvedValue(false);
+    expect(await peer('a', { action: 'info' })).toEqual({ running: false });
+    await expect(peer('a', { action: 'read' })).rejects.toThrow(/not open/);
+    await expect(peer('a', comment)).rejects.toThrow(/not open/);
+    expect(granted).toHaveBeenCalledWith('t1');
+  });
+
   it('refuses a teacher caller', async () => {
     await expect(
       handlePeerReview(
@@ -263,7 +308,8 @@ describe('writingPeerReviewV1', () => {
         teacher,
         { sessionId: SID, action: 'info' },
         0,
-        resolve
+        resolve,
+        granted
       )
     ).rejects.toThrow(/Student/);
   });

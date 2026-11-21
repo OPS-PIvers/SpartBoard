@@ -14,6 +14,7 @@ import {
   STUDENT_PSEUDONYM_HMAC_SECRET,
 } from './secrets';
 import { loadTargetDirectory } from './studentTargetDirectory';
+import { isGlobalFeatureGranted } from './featureGrant';
 import {
   WRITING_RESPONSES,
   WRITING_SESSIONS,
@@ -45,6 +46,11 @@ export interface PeerName {
 export type PeerNameResolver = (
   teacherUid: string
 ) => Promise<Map<string, PeerName>>;
+
+/** Whether the teacher may run peer review (the `writing-peer-review` flag). */
+export type PeerGrant = (teacherUid: string) => Promise<boolean>;
+
+export const PEER_FEATURE = 'writing-peer-review';
 
 const isNum = (v: unknown): v is number =>
   typeof v === 'number' && Number.isFinite(v);
@@ -164,7 +170,8 @@ export async function handleSetPeerReview(
   caller: WritingCaller | null,
   data: unknown,
   now: number,
-  resolveNames: PeerNameResolver
+  resolveNames: PeerNameResolver,
+  granted: PeerGrant
 ): Promise<{ ok: true }> {
   const sid = sessionIdOf(data);
   const session = await teacherSession(db, caller, sid);
@@ -192,6 +199,8 @@ export async function handleSetPeerReview(
 
   if (session.status !== 'active')
     throw new HttpsError('failed-precondition', 'This assignment has ended.');
+  if (!(await granted(teacherUid)))
+    throw new HttpsError('permission-denied', 'Peer review is not available.');
   if (!PEER_ACCESS.includes(d.access as PeerAccess))
     throw new HttpsError('invalid-argument', 'access is invalid.');
   const groups = parseGroups(d.groups);
@@ -330,7 +339,8 @@ export async function handlePeerReview(
   caller: WritingCaller | null,
   data: unknown,
   now: number,
-  resolveNames: PeerNameResolver
+  resolveNames: PeerNameResolver,
+  granted: PeerGrant
 ): Promise<PeerInfo | PeerRead | { id: string } | { ok: true }> {
   if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
   if (!caller.student)
@@ -338,7 +348,10 @@ export async function handlePeerReview(
   const sid = sessionIdOf(data);
   const d = (data ?? {}) as Data;
   const { session } = await loadStudentAccess(db, caller, sid);
-  const review = runningReview(session);
+  const running = runningReview(session);
+  // A teacher who lost the flag mid-review closes it for their students too.
+  const review =
+    running && (await granted(String(session.teacherUid))) ? running : null;
   const linkSnap = await linkRef(db, sid, caller.uid).get();
   const link: Data = linkSnap.exists ? (linkSnap.data() ?? {}) : {};
   const author =
@@ -484,6 +497,17 @@ export const resolveTeacherStudents: PeerNameResolver = (teacherUid) => {
   return names;
 };
 
+/** The teacher's `writing-peer-review` access, judged by their account email. */
+export const teacherPeerGrant: PeerGrant = async (teacherUid) => {
+  const user = await admin.auth().getUser(teacherUid);
+  return isGlobalFeatureGranted(
+    admin.firestore(),
+    PEER_FEATURE,
+    user.email ?? null,
+    teacherUid
+  );
+};
+
 // ── callables ────────────────────────────────────────────────────────────────
 
 const OPTIONS = {
@@ -506,7 +530,8 @@ export const setWritingPeerReviewV1 = onCall(OPTIONS, async (request) => {
     writingCallerFrom(request.auth),
     request.data,
     Date.now(),
-    resolveTeacherStudents
+    resolveTeacherStudents,
+    teacherPeerGrant
   );
 });
 
@@ -517,6 +542,7 @@ export const writingPeerReviewV1 = onCall(OPTIONS, async (request) => {
     writingCallerFrom(request.auth),
     request.data,
     Date.now(),
-    resolveTeacherStudents
+    resolveTeacherStudents,
+    teacherPeerGrant
   );
 });
