@@ -290,6 +290,7 @@ export const SURFACES: TourSurfaceMap = {
     ],
     inner: {
       'web-tour-editor.rewrite-all': 'web-tour-editor.menu',
+      'web-tour-editor.copy-for-claude': 'web-tour-editor.menu',
       'web-tour-editor.copy-link': 'web-tour-editor.menu',
       'web-tour-editor.duplicate': 'web-tour-editor.menu',
       'web-tour-editor.delete': 'web-tour-editor.menu',

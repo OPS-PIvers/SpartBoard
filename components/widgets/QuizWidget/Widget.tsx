@@ -1893,15 +1893,23 @@ const TeacherQuizWidget: React.FC<{
   ]);
 
   // Reveal and scoreboard sync use the session's own quiz (or frozen copy), never one being previewed or edited.
+  const liveSessionMeta = quizzes.find((q) => q.id === liveSession?.quizId);
+  const liveSessionAssignment = assignments.find(
+    (a) => a.id === liveSession?.assignmentId
+  );
   const liveQuizData = useLiveSessionQuiz(
     loadedQuizData,
     loadedQuizFileId,
     liveSession,
     liveSession
-      ? (assignmentFrozenFileId(
-          assignments.find((a) => a.id === liveSession.assignmentId)
-        ) ?? quizzes.find((q) => q.id === liveSession.quizId)?.driveFileId)
-      : undefined
+      ? (assignmentFrozenFileId(liveSessionAssignment) ??
+          liveSessionMeta?.driveFileId)
+      : undefined,
+    // After an editor save, so the frozen copy picks up the new answer keys.
+    () =>
+      liveSessionMeta && liveSessionAssignment
+        ? loadAnswerKeyQuizQuietly(liveSessionMeta, liveSessionAssignment)
+        : Promise.resolve(null)
   );
 
   // D9: a Quiz-kind session has no scoreboard sync, reveal or podium.
@@ -1976,6 +1984,8 @@ const TeacherQuizWidget: React.FC<{
     null
   );
   const prevResponsesJsonRef = useRef<string>('');
+  // When a scheduled sync is due, so a re-run for another reason keeps it.
+  const pendingSyncDueRef = useRef<number | null>(null);
   const creatingScoreboardRef = useRef(false);
 
   // Use refs for values the effect reads but should not re-trigger on:
@@ -2028,6 +2038,7 @@ const TeacherQuizWidget: React.FC<{
     if (!scoreboardSyncOn || !liveQuizData || !liveSession) {
       // Reset fingerprint when disabled so re-enabling triggers an immediate sync
       prevResponsesJsonRef.current = '';
+      pendingSyncDueRef.current = null;
       return;
     }
 
@@ -2047,8 +2058,17 @@ const TeacherQuizWidget: React.FC<{
     const targetMoved = lastSyncTargetRef.current !== connectedScoreboardId;
     lastSyncTargetRef.current = connectedScoreboardId;
     const isFirstRun = prevResponsesJsonRef.current === '' || targetMoved;
-    if (!isFirstRun && fingerprint === prevResponsesJsonRef.current) return;
+    const changed = isFirstRun || fingerprint !== prevResponsesJsonRef.current;
+    const pendingDue = pendingSyncDueRef.current;
+    if (!changed && pendingDue === null) return;
     prevResponsesJsonRef.current = fingerprint;
+    // A sync the last cleanup cancelled is rescheduled for the time it was due.
+    const delay = changed
+      ? isFirstRun
+        ? 500
+        : 2000
+      : Math.max(0, (pendingDue ?? 0) - Date.now());
+    pendingSyncDueRef.current = Date.now() + delay;
 
     // Debounce the scoreboard update
     if (liveScoreboardTimerRef.current) {
@@ -2057,6 +2077,7 @@ const TeacherQuizWidget: React.FC<{
 
     liveScoreboardTimerRef.current = setTimeout(
       () => {
+        pendingSyncDueRef.current = null;
         const currentConfig = configRef.current;
         const scoringMode =
           currentConfig.liveScoreboardScoring ?? 'per-question';
@@ -2209,8 +2230,8 @@ const TeacherQuizWidget: React.FC<{
           });
         }
       },
-      isFirstRun ? 500 : 2000
-    ); // Shorter delay on first enable
+      delay // Shorter on first enable
+    );
 
     return () => {
       if (liveScoreboardTimerRef.current) {
