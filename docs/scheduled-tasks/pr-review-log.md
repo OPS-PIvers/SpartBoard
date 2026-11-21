@@ -5105,3 +5105,14 @@ rather than "no data") is also still open.
   - Ready: #5744, #5743, #5742, #5741, #5740, #5732, #5711 (rules change, so Paul should still sign off).
   - Ready with minor notes: #5745 (no functions test for the new non-admin `gemini-functions` check; the PR bundles audit-log docs with the backend change).
 - Notes: GitHub access went through MCP. I ran no local checks because no fixes were made.
+
+## 2026-11-21
+
+- PRs reviewed: #6509 docs: nightly debugger log 2026-11-21; #6508 fix(layout): ignore widget shortcut keys bubbling from portaled dialogs; #6507 fix(dock): persist a dock edit reverted while the previous write is in flight; #6506 perf: check PLC digest recipients for staff concurrently; #6505 fix(admin): Activity Wall max-posts box no longer snaps a cleared entry to 0; #6502 Unifier run 153: aligned (log only)
+- Comments processed: 3 total. 1 fixed, 0 newly explained. The claude[bot] "nothing to change" summaries on #6507 and #6505 needed no reply.
+- Fixes pushed:
+  - #6508 `nightly/dashboard-layout-2026-11-21` (35f55024): moved the portaled-dialog containment check above the `isInput` branch, so Escape from an input in a portaled dialog reaches the dialog. Added a test that fails without the fix. Replied to the thread and resolved it.
+- Reviews posted: 6
+  - Ready: #6508, #6507, #6506, #6502.
+  - Ready with minor notes: #6505 (0-999 clamp duplicated in `normalize` and `onCommit`), #6509 (stale `Run count: 129` line left beside the new one; new Backlog rows have fewer cells than the table's columns).
+- Notes: Verification was `vitest related` (98 tests) plus the pre-commit lint hook. I skipped full `type-check` and `lint` per CLAUDE.md. This log goes to the session branch through a PR into `dev-paul`, not to `scheduled-tasks`, because this session may push only its own branch.
