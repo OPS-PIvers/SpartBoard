@@ -198,7 +198,7 @@ describe('RosterGroupsPanel (redesign)', () => {
         />
       </DialogContext.Provider>
     );
-    const seeded = {
+    const seeded: Record<string, StudentOverride> = {
       b: { timeMultiplier: 2 },
       c: { timeMultiplier: 2, readAloud: true },
     };
