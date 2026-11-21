@@ -5,7 +5,11 @@ import type { Firestore } from 'firebase-admin/firestore';
 import axios from 'axios';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
-import { ALLOWED_ORIGINS, computeStudentUid } from './classlinkShared';
+import {
+  ALLOWED_ORIGINS,
+  CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
+  computeStudentUid,
+} from './classlinkShared';
 import { assertViewAsAllowed } from './viewAsGuard';
 import {
   CLASSLINK_CLIENT_ID,
@@ -512,7 +516,7 @@ export const teacherPeerGrant: PeerGrant = async (teacherUid) => {
 
 const OPTIONS = {
   memory: '256MiB' as const,
-  timeoutSeconds: 30,
+  timeoutSeconds: CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
   cors: ALLOWED_ORIGINS,
   invoker: 'public' as const,
   secrets: [

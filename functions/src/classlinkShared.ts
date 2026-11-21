@@ -38,8 +38,10 @@ export const ALLOWED_ORIGINS: (string | RegExp)[] = [
 export const ONEROSTER_BASE = '/ims/oneroster/v1p1';
 /** How long any ClassLink request may take before it counts as unavailable. */
 export const CLASSLINK_TIMEOUT_MS = 20000;
-/** Longest a multi-call ClassLink read runs before it fails rather than hit the function deadline. */
+/** Whole-read budget for a multi-call ClassLink read, checked before every request. */
 export const CLASSLINK_TOTAL_BUDGET_MS = 90000;
+/** Function timeout for a ClassLink read: the whole-read budget plus one request timeout. */
+export const CLASSLINK_FUNCTION_TIMEOUT_SECONDS = 120;
 
 /**
  * OneRoster student shape (subset). Fields are optional because a OneRoster

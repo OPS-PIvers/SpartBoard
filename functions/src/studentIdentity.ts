@@ -26,6 +26,7 @@ import {
   isBridgeablePin,
   normalizeEmailDomain,
   resolveOrgIdForDomain,
+  CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
 } from './classlinkShared';
 import { normalizeQuizCode } from './quizCode';
 import { quizJoinCodeOwner } from './quizJoinCodeOwner';
@@ -920,6 +921,7 @@ export const getStudentClassDirectoryV1 = onCall(
 export const getPseudonymsForAssignmentV1 = onCall(
   {
     memory: '256MiB',
+    timeoutSeconds: CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
     // Warm in prod only; the CLI sets GCLOUD_PROJECT during deploy discovery, unset falls back to warm.
     minInstances: process.env.GCLOUD_PROJECT === 'spartboard-dev' ? 0 : 1,
     cors: ALLOWED_ORIGINS,
