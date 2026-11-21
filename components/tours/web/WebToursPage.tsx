@@ -1,5 +1,12 @@
 import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { CheckCircle2, AlertCircle, Loader2, Plus, Search } from 'lucide-react';
+import {
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Plus,
+  Search,
+  Settings,
+} from 'lucide-react';
 import type { GuidedLearningSet } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
 import { focusRing, headerBar } from '@/components/common/lightChrome';
@@ -14,6 +21,13 @@ import { EDIT_WEB_TOUR_PARAM } from './tourLinks';
 import { WebTourList, type Notice, type RowFacts } from './WebTourList';
 import { webTourSite } from './tourLinks';
 import { webToursDevSeed } from './webToursDevSeed';
+import { useCanFreshservice } from './freshservice';
+
+const FreshserviceSettings = lazy(() =>
+  import('./FreshserviceSettings').then((m) => ({
+    default: m.FreshserviceSettings,
+  }))
+);
 
 type Filter = 'all' | 'issues' | 'published' | 'changed' | 'draft' | 'public';
 
@@ -57,6 +71,8 @@ export const WebToursPage: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [listFailed, setListFailed] = useState(false);
+  const canFresh = useCanFreshservice();
+  const [freshOpen, setFreshOpen] = useState(false);
   // Read once, so an effect run twice still knows which tour to open.
   const [linkedId] = useState(() =>
     new URL(window.location.href).searchParams.get(EDIT_WEB_TOUR_PARAM)
@@ -179,23 +195,47 @@ export const WebToursPage: React.FC = () => {
     <main className="h-screen [height:100dvh] overflow-y-auto bg-slate-50 pb-16">
       <header className={headerBar}>
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-4 sm:px-6">
-          <h1 className="text-lg font-bold">Web tours</h1>
-          <button
-            type="button"
-            onClick={() => void create()}
-            disabled={creating}
-            className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-brand-blue-dark hover:bg-brand-blue-lighter disabled:opacity-60 ${focusRing}`}
-            {...tourAttr('web-tours.new')}
-          >
-            {creating ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Plus className="h-4 w-4" aria-hidden="true" />
+          <h1 className="shrink-0 text-lg font-bold">Web tours</h1>
+          <div className="flex items-center gap-2">
+            {canFresh && (
+              <button
+                type="button"
+                onClick={() => setFreshOpen(true)}
+                className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white ring-1 ring-inset ring-white/40 hover:bg-white/10 ${focusRing}`}
+                {...tourAttr('web-tours.freshservice-settings')}
+              >
+                <Settings className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only sm:not-sr-only">FreshService</span>
+              </button>
             )}
-            New web tour
-          </button>
+            <button
+              type="button"
+              onClick={() => void create()}
+              disabled={creating}
+              className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-brand-blue-dark hover:bg-brand-blue-lighter disabled:opacity-60 ${focusRing}`}
+              {...tourAttr('web-tours.new')}
+            >
+              {creating ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Plus className="h-4 w-4" aria-hidden="true" />
+              )}
+              New web tour
+            </button>
+          </div>
         </div>
       </header>
+      {freshOpen && (
+        <Suspense fallback={null}>
+          <FreshserviceSettings
+            onClose={() => setFreshOpen(false)}
+            onSaved={() => {
+              setFreshOpen(false);
+              showNotice({ tone: 'success', text: 'FreshService saved.' });
+            }}
+          />
+        </Suspense>
+      )}
       <div className="mx-auto flex max-w-[1600px] flex-col gap-6 px-4 pt-6 sm:px-6">
         {message && (
           <p

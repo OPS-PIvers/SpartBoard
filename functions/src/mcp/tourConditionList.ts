@@ -61,6 +61,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'flashcards-ai',
   'flashcards-speak',
   'focus-sessions',
+  'freshservice-sync',
   'gemini-functions',
   'google-classroom',
   'google-tasks-sync',

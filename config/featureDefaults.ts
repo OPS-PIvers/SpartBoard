@@ -864,6 +864,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'freshservice-sync': {
+    label: 'FreshService articles',
+    icon: Globe,
+    description: 'Sends web tour steps to FreshService as help articles.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'integrations',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Claude connector sign-in and tools; the server checks the same gate on every request (CC-D7).
   'claude-connector': {
     label: 'Claude connector',

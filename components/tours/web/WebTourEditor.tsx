@@ -95,6 +95,8 @@ import {
 import { PublishCheck } from './webEditorParts';
 import { usePublicLinkControls } from '@/components/tours/publicLink/usePublicLinkControls';
 import { PictureCache } from './webPictures';
+import { FRESHSERVICE_FEATURE, sendTourToFreshservice } from './freshservice';
+import { useStepsLabels } from '@/components/tours/steps/useStepsLabels';
 import {
   CHECK_LABEL,
   insertAt,
@@ -178,7 +180,9 @@ const WebTourEditorBody: React.FC<{
   onOpen: (set: GuidedLearningSet) => void;
   initialStepId?: string;
 }> = ({ initial, onClose, onOpen, initialStepId }) => {
-  const { user, canAccessFeature } = useAuth();
+  const { user, isAdmin, canAccessFeature } = useAuth();
+  const canFresh = !!isAdmin && canAccessFeature(FRESHSERVICE_FEATURE);
+  const stepsLabels = useStepsLabels();
   const uid = user?.uid ?? '';
   const canCopyForClaude =
     canAccessFeature('claude-connector') &&
@@ -494,6 +498,18 @@ const WebTourEditorBody: React.FC<{
     );
   };
 
+  // The help article follows each publish; a site with no FreshService settings skips it quietly.
+  const sendAfterPublish = async (setId: string) => {
+    try {
+      const res = await sendTourToFreshservice(setId, stepsLabels);
+      if (res.kind === 'sent')
+        setStatus('Published. FreshService article updated.');
+    } catch (err) {
+      logError('web tour freshservice', err, { setId });
+      setStatus("Published. FreshService couldn't be updated.");
+    }
+  };
+
   const doPublish = async (toPublish: GuidedLearningSet) => {
     if (!uid) return;
     setCheck(null);
@@ -513,6 +529,7 @@ const WebTourEditorBody: React.FC<{
       );
       setStatus('Published.');
       void draft.sweepAfterPublish();
+      if (canFresh) void sendAfterPublish(toPublish.id);
     } catch (err) {
       logError('web tour publish', err, { setId: toPublish.id });
       setStatus("The tour couldn't be published.");
