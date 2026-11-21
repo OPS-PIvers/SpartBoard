@@ -339,6 +339,24 @@ describe('cleanupMiniAppAssignmentPointers', () => {
     expect(deleted).toEqual([RECEIPTS, pointerPath(uidOf('sid-1'))]);
   });
 
+  it('still deletes the pointers when the receipt sweep fails', async () => {
+    const db = makeDb();
+    db.recursiveDelete = () => Promise.reject(new Error('sweep failed'));
+    (admin.firestore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      db
+    );
+    docs.set('mini_app_sessions/session-1', { teacherUid: OWNER });
+    docs.set(pointerPath(uidOf('sid-1')), {
+      teacherUid: OWNER,
+      kind: 'mini-app',
+    });
+    await run(OWNER, {
+      sessionId: 'session-1',
+      targetStudents: [{ kind: 'classlink', sourcedId: 'sid-1' }],
+    });
+    expect(deleted).toEqual([pointerPath(uidOf('sid-1'))]);
+  });
+
   it("leaves another teacher's session receipts alone", async () => {
     docs.set('mini_app_sessions/session-1', { teacherUid: 'teacher-b' });
     await run(OWNER, { sessionId: 'session-1' });

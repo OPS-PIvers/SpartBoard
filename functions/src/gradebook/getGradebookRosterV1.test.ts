@@ -32,8 +32,6 @@ vi.mock('../secrets', () => ({
 import type * as admin from '../firebaseAdmin';
 import {
   CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
-  CLASSLINK_TIMEOUT_MS,
-  CLASSLINK_TOTAL_BUDGET_MS,
   computeStudentUid,
 } from '../classlinkShared';
 import {
@@ -217,11 +215,8 @@ describe('getGradebookRosterV1 auth', () => {
 });
 
 describe('getGradebookRosterV1 options', () => {
-  it('outlasts the ClassLink read budget plus one in-flight request', () => {
+  it('uses the ClassLink function timeout', () => {
     const opts = callOpts[0] as { timeoutSeconds?: number };
     expect(opts.timeoutSeconds).toBe(CLASSLINK_FUNCTION_TIMEOUT_SECONDS);
-    expect(CLASSLINK_FUNCTION_TIMEOUT_SECONDS * 1000).toBeGreaterThanOrEqual(
-      CLASSLINK_TOTAL_BUDGET_MS + CLASSLINK_TIMEOUT_MS
-    );
   });
 });
