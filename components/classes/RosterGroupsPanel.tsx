@@ -88,7 +88,7 @@ const useConfirmedMembership = () => {
     return dialog.showConfirm(
       t('sidebar.classes.groupLeaveConfirm', {
         defaultValue:
-          'Students leaving this group will lose its settings, including any you set on them yourself. Continue?',
+          'Students who leave this group lose its settings. This includes settings you gave them yourself. Continue?',
       })
     );
   };
