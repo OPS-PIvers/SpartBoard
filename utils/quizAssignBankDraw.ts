@@ -137,7 +137,8 @@ function withKeyFrom(
 export function applyCurrentAnswerKeys(
   frozen: QuizData,
   library: Pick<QuizData, 'questions' | 'bankSlots' | 'order'>,
-  banks: ReadonlyMap<string, Pick<BankContent, 'questions' | 'targets'>>
+  banks: ReadonlyMap<string, Pick<BankContent, 'questions' | 'targets'>>,
+  opts: KeyFixOptions = {}
 ): QuizData {
   const current = new Map<string, QuizQuestion>();
   let allBanksLoaded = true;
@@ -174,9 +175,9 @@ export function applyCurrentAnswerKeys(
   let changed = false;
   const questions = (frozen.questions ?? []).map((q) => {
     const now = current.get(q.id);
-    // A reworded question is a different question, so its new key can't grade old answers.
-    if (!now || now.type !== q.type || norm(now.text) !== norm(q.text))
-      return q;
+    if (!now || now.type !== q.type) return q;
+    // Frozen at assign only: a reworded question is a different question, so its new key can't grade old answers.
+    if (opts.sameTextOnly && norm(now.text) !== norm(q.text)) return q;
     const shape = presentedChoices(q);
     if (shape === null || shape !== presentedChoices(now)) return q;
     changed = true;
@@ -185,6 +186,22 @@ export function applyCurrentAnswerKeys(
   const out = changed ? { ...frozen, questions } : frozen;
   if (allBanksLoaded) keyedWithAllBanks.add(out);
   return out;
+}
+
+/** sameTextOnly: skip key fixes on reworded questions (assignments frozen at assign, not bank draws). */
+export type KeyFixOptions = { sameTextOnly?: boolean };
+
+/** Bank draws keep their old key-fix rule; only assignments frozen at assign need the same text. */
+export function keyFixOptionsFor(
+  assignment:
+    | Pick<QuizAssignmentSettings, 'resolvedDriveFileId' | 'frozenDriveFileId'>
+    | null
+    | undefined
+): KeyFixOptions {
+  return {
+    sameTextOnly:
+      !assignment?.resolvedDriveFileId && !!assignment?.frozenDriveFileId,
+  };
 }
 
 const keyedWithAllBanks = new WeakSet<QuizData>();
@@ -203,14 +220,16 @@ export async function withCurrentAnswerKeys(
     loadBankContentsForQuiz: (
       quiz: Pick<QuizData, 'bankSlots'>
     ) => Promise<Map<string, BankContent>>;
-  }
+  },
+  opts: KeyFixOptions = {}
 ): Promise<QuizData> {
   try {
     const library = await deps.loadQuizData(libraryDriveFileId);
     return applyCurrentAnswerKeys(
       frozen,
       library,
-      await deps.loadBankContentsForQuiz(library)
+      await deps.loadBankContentsForQuiz(library),
+      opts
     );
   } catch (err) {
     logError('quizAssignBankDraw.withCurrentAnswerKeys', err, {
@@ -252,7 +271,8 @@ export async function loadAssignmentAnswerKeyQuiz(
     loadBankContentsForQuiz: (
       quiz: Pick<QuizData, 'bankSlots'>
     ) => Promise<Map<string, BankContent>>;
-  }
+  },
+  opts: KeyFixOptions = {}
 ): Promise<QuizData> {
   if (!frozenDriveFileId || frozenDriveFileId === libraryDriveFileId) {
     return deps.loadQuizData(libraryDriveFileId);
@@ -260,6 +280,7 @@ export async function loadAssignmentAnswerKeyQuiz(
   return withCurrentAnswerKeys(
     await deps.loadQuizData(frozenDriveFileId),
     libraryDriveFileId,
-    deps
+    deps,
+    opts
   );
 }

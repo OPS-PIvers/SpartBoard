@@ -4,7 +4,10 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { activePlcMemberUids } from './plcActiveMembers';
-import { recomputeOnePlcAssessment } from './recomputePlcAssessments';
+import {
+  clearRecomputeFailures,
+  recomputeOnePlcAssessment,
+} from './recomputePlcAssessments';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -380,6 +383,15 @@ export async function handleSessionWrite(
       }
       if (immediate && assessmentId) {
         await recomputeOnePlcAssessment(db, session.plcId, assessmentId);
+        // A finished run resets the unfinished-attempt count so old killed runs can't park it early.
+        await clearRecomputeFailures(db, session.plcId, assessmentId).catch(
+          (err: unknown) =>
+            logger.warn('markPlcAssessmentDirty: could not clear attempts', {
+              plcId: session.plcId,
+              assessmentId,
+              error: err instanceof Error ? err.message : String(err),
+            })
+        );
       }
     } catch (err) {
       logger.error('markPlcAssessmentDirty: session handler failed', {
