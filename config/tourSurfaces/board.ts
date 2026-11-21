@@ -270,6 +270,7 @@ export const SURFACES: TourSurfaceMap = {
       'web-tours.share-tour-url': 'web-tours.copy-link:web-tours',
       'web-tours.share-steps-url': 'web-tours.copy-link:web-tours',
       'web-tours.share-html-file': 'web-tours.copy-link:web-tours',
+      'web-tours.share-freshservice': 'web-tours.copy-link:web-tours',
     },
   },
   'board.web-tour-editor': {

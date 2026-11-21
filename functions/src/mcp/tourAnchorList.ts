@@ -58726,6 +58726,62 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tours.share-freshservice",
+    "label": "FreshService item in a web tour Share menu on the Web tours page",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [
+          "web-tours.copy-link:web-tours"
+        ],
+        "reveal": "web-tours.copy-link:web-tours",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.freshservice-settings",
+    "label": "FreshService settings button on the Web tours page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.share-html-file",
+    "label": "HTML file item in a web tour Share menu on the Web tours page",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [
+          "web-tours.copy-link:web-tours"
+        ],
+        "reveal": "web-tours.copy-link:web-tours",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tours.title",
     "label": "Tour name you can rename on the Web tours page",
     "scope": "field",

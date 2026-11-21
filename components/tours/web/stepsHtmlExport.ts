@@ -52,14 +52,13 @@ export interface ExportPicture {
   width: number;
 }
 
-/** The tour as one HTML document a help desk article can take: headings, words and pictures, with no scripts or classes. */
-export function buildStepsHtml(
-  title: string,
+/** The steps as an article body: headings, words and pictures, with no scripts or classes. */
+export function buildStepsArticle(
   steps: readonly StepsViewStep[],
   pictures: Readonly<Record<string, ExportPicture>>,
   labels: StepsLabels
 ): string {
-  const body = steps
+  return steps
     .map((step, i) => {
       const parts: string[] = [];
       if (step.continueOn)
@@ -80,6 +79,15 @@ export function buildStepsHtml(
       return parts.join('\n');
     })
     .join('\n\n');
+}
+
+/** The tour as one HTML document a help desk article can take. */
+export function buildStepsHtml(
+  title: string,
+  steps: readonly StepsViewStep[],
+  pictures: Readonly<Record<string, ExportPicture>>,
+  labels: StepsLabels
+): string {
   const safeTitle = escapeHtml(title);
   return `<!doctype html>
 <html lang="en">
@@ -92,7 +100,7 @@ export function buildStepsHtml(
 <body>
 <h1>${safeTitle}</h1>
 
-${body}
+${buildStepsArticle(steps, pictures, labels)}
 </body>
 </html>
 `;
@@ -205,14 +213,16 @@ export const stepsFileName = (title: string): string =>
       .slice(0, 80) || 'web-tour'
   }.html`;
 
-/** The published tour's steps as an HTML file, pictures included; a picture that won't load is left out. */
-export async function webTourStepsHtml(
+/** The published tour's steps and baked pictures; a picture that won't load is left out and counted. */
+export async function webTourExportParts(
   setId: string,
   set: GuidedLearningSet,
-  title: string,
-  labels: StepsLabels,
   load: (path: string) => Promise<Blob> = loadStepPicture
-): Promise<{ html: string; missing: number }> {
+): Promise<{
+  steps: StepsViewStep[];
+  pictures: Record<string, ExportPicture>;
+  missing: number;
+}> {
   const sequence = webTourSequenceOf(set);
   const steps = stepsFromWebTour(sequence);
   const pictures: Record<string, ExportPicture> = {};
@@ -229,6 +239,17 @@ export async function webTourStepsHtml(
       }
     })
   );
+  return { steps, pictures, missing };
+}
+
+/** The published tour's steps as an HTML file, pictures included. */
+export async function webTourStepsHtml(
+  setId: string,
+  set: GuidedLearningSet,
+  title: string,
+  labels: StepsLabels
+): Promise<{ html: string; missing: number }> {
+  const { steps, pictures, missing } = await webTourExportParts(setId, set);
   return { html: buildStepsHtml(title, steps, pictures, labels), missing };
 }
 

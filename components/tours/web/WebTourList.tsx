@@ -27,6 +27,7 @@ import {
   stepsFileName,
   webTourStepsHtml,
 } from './stepsHtmlExport';
+import { sendTourToFreshservice, useCanFreshservice } from './freshservice';
 import {
   stepStatusRows,
   tourStatus,
@@ -261,6 +262,34 @@ const ShareMenu: React.FC<{
     }
   };
 
+  const canFresh = useCanFreshservice();
+  const toFreshservice = async () => {
+    closeMenu();
+    if (!live) return;
+    setBusy(true);
+    try {
+      const res = await sendTourToFreshservice(set.id, labels, live);
+      onNotice(
+        res.kind === 'not-set-up'
+          ? { tone: 'error', text: 'Set up FreshService first.' }
+          : res.missing > 0
+            ? {
+                tone: 'error',
+                text: `Sent to FreshService. ${res.missing} picture${res.missing === 1 ? '' : 's'} couldn't load.`,
+              }
+            : { tone: 'success', text: 'Sent to FreshService.' }
+      );
+    } catch (err) {
+      logError('WebTourList freshservice', err, { setId: set.id });
+      onNotice({
+        tone: 'error',
+        text: "The steps couldn't be sent to FreshService.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const stepsReason = live ? null : 'Publish the tour first.';
   const stepsDisabled =
     !live || (!publicLink.publicUrl && !publicLink.canTurnOn);
@@ -293,7 +322,7 @@ const ShareMenu: React.FC<{
           id={menuId}
           role="group"
           aria-label={`Share ${title}`}
-          className="absolute right-0 top-full z-20 mt-1 w-64 rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
+          className="absolute left-0 top-full z-20 mt-1 w-64 rounded-xl sm:left-auto sm:right-0 border border-slate-200 bg-white p-1 shadow-lg"
         >
           <button
             type="button"
@@ -339,6 +368,26 @@ const ShareMenu: React.FC<{
               {stepsReason ?? 'Steps and pictures for a help article.'}
             </span>
           </button>
+          {canFresh && (
+            <button
+              type="button"
+              onClick={() => void toFreshservice()}
+              disabled={!live}
+              className={item}
+              {...tourFieldAttr(
+                'web-tours.share-freshservice',
+                'web-tours',
+                set.id
+              )}
+            >
+              <span className="text-sm font-semibold text-slate-900">
+                FreshService
+              </span>
+              <span className="text-xs text-slate-600">
+                {stepsReason ?? 'Updates its help article.'}
+              </span>
+            </button>
+          )}
         </div>
       )}
       {publicLink.dialog}
