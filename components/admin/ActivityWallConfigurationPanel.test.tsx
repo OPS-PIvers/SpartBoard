@@ -52,6 +52,32 @@ describe('ActivityWallConfigurationPanel', () => {
     );
   });
 
+  it('keeps a cleared max-posts box empty instead of snapping to 0', () => {
+    mockUseAdminBuildings.mockReturnValue([
+      {
+        id: 'schumann-elementary',
+        name: 'Schumann Elementary',
+        gradeLevels: ['k-2'],
+        gradeLabel: 'K-2',
+      },
+    ]);
+    const config: ActivityWallGlobalConfig = {
+      buildingDefaults: {
+        'schumann-elementary': { defaultMaxPostsPerStudent: 7 },
+      },
+    };
+    render(
+      <ActivityWallConfigurationPanel
+        config={config as unknown as Record<string, unknown>}
+        onChange={mockOnChange}
+      />
+    );
+    const input = screen.getByLabelText('Default Max Posts Per Student');
+    fireEvent.change(input, { target: { value: '' } });
+    expect(input).toHaveValue(null);
+    expect(mockOnChange).not.toHaveBeenCalled();
+  });
+
   it('saves building defaults under the canonical building id, not the legacy raw id', () => {
     mockUseAdminBuildings.mockReturnValue([
       {
