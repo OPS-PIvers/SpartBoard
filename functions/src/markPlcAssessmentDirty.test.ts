@@ -19,7 +19,10 @@ vi.mock('firebase-functions/logger', () => ({
   warn: vi.fn(),
   error: vi.fn(),
 }));
-vi.mock('./recomputePlcAssessments', () => ({
+vi.mock('./recomputePlcAssessments', async (importOriginal) => ({
+  clearRecomputeFailures: (
+    await importOriginal<typeof import('./recomputePlcAssessments')>()
+  ).clearRecomputeFailures,
   recomputeOnePlcAssessment: vi.fn(() => Promise.resolve()),
 }));
 
@@ -437,6 +440,25 @@ describe('markPlcAssessmentDirtyOnSession', () => {
     await onSession(sessionEvent({ status: 'active' }, { status: 'ended' }));
     expect(stub.writes).toEqual([]);
     expect(recompute).not.toHaveBeenCalled();
+  });
+
+  it('resets unfinished-attempt counts after a finished inline recompute only', async () => {
+    const failPath = 'plc_recompute_failures/plc-1/recompute_failures/grp-1';
+    stub.store.set('plcs/plc-1/assessments/grp-1', {
+      syncGroupId: 'grp-1',
+      dirtyAt: null,
+    });
+    stub.store.set(failPath, { attempts: 2, lastMark: 5 });
+    recompute.mockRejectedValueOnce(new Error('boom'));
+    await onSession(
+      sessionEvent(linkedSession, { ...linkedSession, status: 'ended' })
+    );
+    expect(stub.get(failPath)?.attempts).toBe(2);
+
+    await onSession(
+      sessionEvent(linkedSession, { ...linkedSession, status: 'ended' })
+    );
+    expect(stub.has(failPath)).toBe(false);
   });
 
   it('never throws when the recompute fails', async () => {

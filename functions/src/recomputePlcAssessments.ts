@@ -537,7 +537,8 @@ function failureRef(
   );
 }
 
-async function clearFailures(
+/** Drops the failure and unfinished-attempt counts after a recompute that finished. */
+export async function clearRecomputeFailures(
   db: Firestore,
   plcId: string,
   assessmentId: string
@@ -649,8 +650,8 @@ export async function runRecomputePlcAssessments(
       await recomputeOnePlcAssessment(db, plcId, doc.id);
       counts.recomputed++;
       // A stuck clear would let unfinished-attempt counts park a healthy assessment, so retry once and log.
-      await clearFailures(db, plcId, doc.id)
-        .catch(() => clearFailures(db, plcId, doc.id))
+      await clearRecomputeFailures(db, plcId, doc.id)
+        .catch(() => clearRecomputeFailures(db, plcId, doc.id))
         .catch((err: unknown) =>
           logger.warn('recomputePlcAssessments: could not clear attempts', {
             plcId,

@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { inspect } from 'node:util';
 import ts from 'typescript';
 import axios, { AxiosError, AxiosHeaders } from 'axios';
 import { describe, expect, it, vi } from 'vitest';
@@ -81,6 +82,39 @@ describe('scrubAxiosError', () => {
     const dump = JSON.stringify([err.config, err.request, err.response]);
     expect(dump).not.toContain('SECRET-MARKER');
     expect(JSON.stringify(err.toJSON())).not.toContain('SECRET-MARKER');
+  });
+});
+
+describe('scrubAxiosError on a stream response', () => {
+  it('drops the stream body that still holds the request', async () => {
+    const http = await import('http');
+    const server = http.createServer((_req, res) => {
+      res.writeHead(500);
+      res.end('nope');
+    });
+    await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+    const { port } = server.address() as { port: number };
+    try {
+      const err: unknown = await axios
+        .get(`http://127.0.0.1:${port}/`, {
+          responseType: 'stream',
+          headers: { Authorization: MARKER },
+        })
+        .then(
+          () => null,
+          (e: unknown) => e
+        );
+      expect(axios.isAxiosError(err)).toBe(true);
+      const e = err as AxiosError;
+      expect(e.response?.status).toBe(500);
+      expect(e.response?.data).toBeUndefined();
+      expect(e.request).toBeUndefined();
+      expect(inspect(err, { depth: 20, showHidden: true })).not.toContain(
+        'SECRET-MARKER'
+      );
+    } finally {
+      await new Promise((done) => server.close(done));
+    }
   });
 });
 
