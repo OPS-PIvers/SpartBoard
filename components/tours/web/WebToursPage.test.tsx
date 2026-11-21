@@ -227,13 +227,55 @@ describe('WebToursPage', () => {
     expect(writeText).toHaveBeenLastCalledWith('https://x.test/tour-steps/new');
   });
 
-  it('turns off Steps URL until the tour is published', () => {
+  it('turns off Steps URL and HTML file until the tour is published', () => {
     render(<WebToursPage />);
     showDrafts([tour('a', 'Tour A')]);
     fireEvent.click(screen.getByRole('button', { name: 'Share Tour A' }));
-    const steps = screen.getByRole('button', { name: /Steps URL/ });
-    expect(steps).toBeDisabled();
-    expect(steps).toHaveTextContent('Publish the tour first.');
+    for (const name of [/Steps URL/, /HTML file/]) {
+      const item = screen.getByRole('button', { name });
+      expect(item).toBeDisabled();
+      expect(item).toHaveTextContent('Publish the tour first.');
+    }
+  });
+
+  it('downloads the published steps as an HTML file', async () => {
+    h.published = new Map([
+      [
+        'a',
+        {
+          set: {
+            surface: 'web',
+            steps: [{ id: 'm1', message: true, label: 'Welcome', text: 'Hi' }],
+          },
+          publishedAt: 200,
+        },
+      ],
+    ]);
+    const blobs: Blob[] = [];
+    URL.createObjectURL = vi.fn((b: Blob) => {
+      blobs.push(b);
+      return 'blob:x';
+    });
+    URL.revokeObjectURL = vi.fn();
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+    render(<WebToursPage />);
+    showDrafts([tour('a', 'Tour A')]);
+    fireEvent.click(screen.getByRole('button', { name: 'Share Tour A' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /HTML file/ }));
+      await Promise.resolve();
+    });
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(click.mock.contexts[0]).toHaveProperty('download', 'tour-a.html');
+    const html = await blobs[0].text();
+    expect(html).toContain('<h1>Tour A</h1>');
+    expect(html).toContain('Step 1: Welcome');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'HTML file downloaded.'
+    );
+    click.mockRestore();
   });
 
   it('renames a tour in place from the stored draft; Escape cancels', async () => {

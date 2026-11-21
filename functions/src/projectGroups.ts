@@ -10,6 +10,7 @@ import {
 import {
   ALLOWED_ORIGINS,
   computeStudentUid,
+  CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
   CLASSLINK_TOTAL_BUDGET_MS,
   normalizeEmailDomain,
   resolveOrgIdForDomain,
@@ -266,7 +267,7 @@ const isLocalClass = (classId: string): boolean => classId.startsWith('local:');
 export const commitProjectGroupsV1 = onCall(
   {
     memory: '256MiB',
-    timeoutSeconds: 120,
+    timeoutSeconds: CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
     secrets: [
       STUDENT_PSEUDONYM_HMAC_SECRET,
       CLASSLINK_CLIENT_ID,

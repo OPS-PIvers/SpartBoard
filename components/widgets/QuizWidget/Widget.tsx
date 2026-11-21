@@ -78,8 +78,11 @@ import {
   sampleQuizDraw,
 } from '@/utils/questionBanks';
 import {
+  assignmentFrozenFileId,
   loadAssignmentAnswerKeyQuiz,
+  unfrozenAssignmentCount,
   withCurrentAnswerKeys,
+  keyFixOptionsFor,
 } from '@/utils/quizAssignBankDraw';
 import { BankEditorModal } from './components/BankEditorModal';
 import type { QuestionBankData, QuestionBankMetadata } from '@/types';
@@ -280,7 +283,6 @@ import { printedGroupTranslations } from '@/utils/paperPrintedTranslations';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { MockQuizDriveService } from '@/utils/mockQuizDriveService';
 import type { PrintedGroupPick } from '@/components/common/library/assignStepper/modificationGroups';
-import { withQuizAnswerChoices } from '@/components/common/library/assignStepper/modificationGroups';
 import {
   browserStimulusImageDeps,
   resolveStimulusImages,
@@ -310,20 +312,18 @@ import {
   type SkipReason,
 } from '@/hooks/useSetAssignmentTargets';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
+import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 import {
-  buildSetAssignmentTargetsPayload,
-  expandClassTargeting,
-  payloadRequiresCall,
-  type AssignTargetingValue,
-} from '@/utils/studentTargetRef';
-import {
-  buildMixedTargetsPayload,
-  expandMixedTargeting,
-} from '@/utils/assignTargets';
+  buildAssignCreateOptions,
+  buildAssignedWidgetConfig,
+  buildAssignQuizRef,
+  buildAssignSessionTargets,
+  buildAssignSettings,
+  buildAssignTargetsCall,
+  resolveAssignTargeting,
+} from '@/hooks/quizAssign/builders';
 import type { QuizStepperAssign } from './components/QuizManager';
-import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import type { StudentTargetRef } from '@/types';
-import { buildPeriodGate, initialAssignStatus } from '@/utils/periodPlan';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
@@ -1257,6 +1257,7 @@ const TeacherQuizWidget: React.FC<{
   ): Promise<string> => {
     const behavior = getQuizBehavior(meta);
     const plc = pool ? buildPlcLinkage(pool.plc) : undefined;
+    const frozenDriveFileId = await freezeForAssign(data);
     const { id } = await createAssignment(
       {
         id: meta.id,
@@ -1279,6 +1280,7 @@ const TeacherQuizWidget: React.FC<{
           ? { periodName: periodNames[0], periodNames }
           : {}),
         ...(plc && pool ? { plc } : {}),
+        ...(frozenDriveFileId ? { frozenDriveFileId } : {}),
       },
       // No classIds and paused: never a live door for students.
       {
@@ -1468,19 +1470,39 @@ const TeacherQuizWidget: React.FC<{
     [loadBankContentsForQuiz, addToast]
   );
 
-  // Bank-draw assignments grade against their frozen Drive copy, under today's answer keys.
+  const freezeAssignments = canAccessFeature('quiz-frozen-assignments');
+  // A copy of the questions as assigned, so editing the quiz later can't re-score the assignment.
+  const freezeForAssign = useCallback(
+    async (data: QuizData): Promise<string | undefined> => {
+      if (!freezeAssignments || quizHasBankSlots(data)) return undefined;
+      try {
+        return await saveDriveSnapshot(data);
+      } catch (err) {
+        // Assigning still works; it grades against the live quiz as before.
+        logError('QuizWidget.assignment.freezeQuiz', err, { quizId: data.id });
+        return undefined;
+      }
+    },
+    [freezeAssignments, saveDriveSnapshot]
+  );
+
+  // Frozen assignments grade against their Drive copy, under today's answer keys.
   const loadAnswerKeyQuiz = useCallback(
     (
       meta: QuizMetadata,
-      assignment: Pick<QuizAssignment, 'resolvedDriveFileId'> | undefined
+      assignment:
+        | Pick<QuizAssignment, 'resolvedDriveFileId' | 'frozenDriveFileId'>
+        | undefined
     ): Promise<QuizData | null> => {
-      const frozenId = assignment?.resolvedDriveFileId;
+      const frozenId = assignmentFrozenFileId(assignment);
       if (!frozenId || frozenId === meta.driveFileId) return loadQuiz(meta);
       return loadQuiz({ ...meta, driveFileId: frozenId }, (frozen) =>
-        withCurrentAnswerKeys(frozen, meta.driveFileId, {
-          loadQuizData,
-          loadBankContentsForQuiz,
-        })
+        withCurrentAnswerKeys(
+          frozen,
+          meta.driveFileId,
+          { loadQuizData, loadBankContentsForQuiz },
+          keyFixOptionsFor(assignment)
+        )
       );
     },
     [loadQuiz, loadQuizData, loadBankContentsForQuiz]
@@ -1490,13 +1512,17 @@ const TeacherQuizWidget: React.FC<{
   const loadAnswerKeyQuizQuietly = useCallback(
     async (
       meta: QuizMetadata,
-      assignment: Pick<QuizAssignment, 'resolvedDriveFileId'>
+      assignment: Pick<
+        QuizAssignment,
+        'resolvedDriveFileId' | 'frozenDriveFileId'
+      >
     ): Promise<QuizData | null> => {
       try {
         return await loadAssignmentAnswerKeyQuiz(
           meta.driveFileId,
-          assignment.resolvedDriveFileId,
-          { loadQuizData, loadBankContentsForQuiz }
+          assignmentFrozenFileId(assignment),
+          { loadQuizData, loadBankContentsForQuiz },
+          keyFixOptionsFor(assignment)
         );
       } catch (err) {
         addToast(
@@ -1593,15 +1619,16 @@ const TeacherQuizWidget: React.FC<{
             if (!ok) return;
           }
           for (const a of targets) {
-            // Bank-draw assignments grade against their frozen copy, under today's keys.
-            const frozenId = a.resolvedDriveFileId;
+            // Frozen assignments grade against their copy, under today's keys.
+            const frozenId = assignmentFrozenFileId(a);
             const quiz =
               !frozenId || frozenId === meta.driveFileId
                 ? after
                 : await withCurrentAnswerKeys(
                     await loadQuizData(frozenId),
                     meta.driveFileId,
-                    { loadQuizData, loadBankContentsForQuiz }
+                    { loadQuizData, loadBankContentsForQuiz },
+                    keyFixOptionsFor(a)
                   );
             await applySectionCounts({ sessionId: a.id, changes, quiz });
           }
@@ -1871,15 +1898,23 @@ const TeacherQuizWidget: React.FC<{
   ]);
 
   // Reveal and scoreboard sync use the session's own quiz (or frozen copy), never one being previewed or edited.
+  const liveSessionMeta = quizzes.find((q) => q.id === liveSession?.quizId);
+  const liveSessionAssignment = assignments.find(
+    (a) => a.id === liveSession?.assignmentId
+  );
   const liveQuizData = useLiveSessionQuiz(
     loadedQuizData,
     loadedQuizFileId,
     liveSession,
     liveSession
-      ? (assignments.find((a) => a.id === liveSession.assignmentId)
-          ?.resolvedDriveFileId ??
-          quizzes.find((q) => q.id === liveSession.quizId)?.driveFileId)
-      : undefined
+      ? (assignmentFrozenFileId(liveSessionAssignment) ??
+          liveSessionMeta?.driveFileId)
+      : undefined,
+    // After an editor save, so the frozen copy picks up the new answer keys.
+    () =>
+      liveSessionMeta && liveSessionAssignment
+        ? loadAnswerKeyQuizQuietly(liveSessionMeta, liveSessionAssignment)
+        : Promise.resolve(null)
   );
 
   // D9: a Quiz-kind session has no scoreboard sync, reveal or podium.
@@ -1954,6 +1989,8 @@ const TeacherQuizWidget: React.FC<{
     null
   );
   const prevResponsesJsonRef = useRef<string>('');
+  // When a scheduled sync is due, so a re-run for another reason keeps it.
+  const pendingSyncDueRef = useRef<number | null>(null);
   const creatingScoreboardRef = useRef(false);
 
   // Use refs for values the effect reads but should not re-trigger on:
@@ -2006,6 +2043,7 @@ const TeacherQuizWidget: React.FC<{
     if (!scoreboardSyncOn || !liveQuizData || !liveSession) {
       // Reset fingerprint when disabled so re-enabling triggers an immediate sync
       prevResponsesJsonRef.current = '';
+      pendingSyncDueRef.current = null;
       return;
     }
 
@@ -2025,8 +2063,17 @@ const TeacherQuizWidget: React.FC<{
     const targetMoved = lastSyncTargetRef.current !== connectedScoreboardId;
     lastSyncTargetRef.current = connectedScoreboardId;
     const isFirstRun = prevResponsesJsonRef.current === '' || targetMoved;
-    if (!isFirstRun && fingerprint === prevResponsesJsonRef.current) return;
+    const changed = isFirstRun || fingerprint !== prevResponsesJsonRef.current;
+    const pendingDue = pendingSyncDueRef.current;
+    if (!changed && pendingDue === null) return;
     prevResponsesJsonRef.current = fingerprint;
+    // A sync the last cleanup cancelled is rescheduled for the time it was due.
+    const delay = changed
+      ? isFirstRun
+        ? 500
+        : 2000
+      : Math.max(0, (pendingDue ?? 0) - Date.now());
+    pendingSyncDueRef.current = Date.now() + delay;
 
     // Debounce the scoreboard update
     if (liveScoreboardTimerRef.current) {
@@ -2035,6 +2082,7 @@ const TeacherQuizWidget: React.FC<{
 
     liveScoreboardTimerRef.current = setTimeout(
       () => {
+        pendingSyncDueRef.current = null;
         const currentConfig = configRef.current;
         const scoringMode =
           currentConfig.liveScoreboardScoring ?? 'per-question';
@@ -2187,8 +2235,8 @@ const TeacherQuizWidget: React.FC<{
           });
         }
       },
-      isFirstRun ? 500 : 2000
-    ); // Shorter delay on first enable
+      delay // Shorter on first enable
+    );
 
     return () => {
       if (liveScoreboardTimerRef.current) {
@@ -2737,9 +2785,9 @@ const TeacherQuizWidget: React.FC<{
       liveSession && liveSession.status !== 'ended'
         ? quizzes.find((q) => q.id === liveSession.quizId)
         : undefined;
-    const frozenId = assignments.find(
-      (a) => a.id === liveSession?.assignmentId
-    )?.resolvedDriveFileId;
+    const frozenId = assignmentFrozenFileId(
+      assignments.find((a) => a.id === liveSession?.assignmentId)
+    );
     const sameAsLive =
       !!liveMeta &&
       loadedQuizData?.id === liveMeta.id &&
@@ -3714,54 +3762,24 @@ const TeacherQuizWidget: React.FC<{
             assignDriveFileId = resolvedDriveFileId;
             sessionBankSlots = resolved.sessionSlots;
           }
+          const frozenDriveFileId = resolvedDriveFileId
+            ? undefined
+            : await freezeForAssign(data);
 
-          // M17 C3 F1 — the B2 editor's structured option ids
-          // (`{questionId}-correct` / `-incorrect-N`) must never reach a
-          // student-readable pointer doc. Resolve them to option TEXT here,
-          // where the full quiz body is in hand; the student side matches on
-          // text. F2: an option whose text duplicates the correct answer is
-          // refused rather than silently taking the key down with it.
-          const hiddenOptions = translateHiddenOptionIdsToText(
-            data.questions,
-            targeting.overridesByKey
-          );
-          // Snapshot the checked classes now: the hub must render what was
-          // assigned, not whatever the roster defaults say later.
-          const targetingWithOptions: AssignTargetingValue = {
-            ...targeting,
-            overridesByKey: hiddenOptions.overridesByKey,
-          };
-          // Stepper: whole classes as today, narrowed classes to their picked students (D5b).
-          // Class answer choices become this quiz's hidden options for each student.
-          const withAnswerChoices = (
-            value: AssignTargetingValue
-          ): AssignTargetingValue => ({
-            ...value,
-            overridesByKey: withQuizAnswerChoices(
-              value.overridesByKey,
-              assignQuestions
-            ),
+          // Hidden option ids resolve to option text here so they never reach a student-readable pointer doc.
+          const {
+            warnings: hiddenOptionWarnings,
+            mixedTargeting,
+            resolvedTargeting,
+          } = resolveAssignTargeting({
+            questions: data.questions,
+            assignQuestions,
+            targeting,
+            stepperClasses: stepper?.classes,
+            rosters,
+            rosterIds,
           });
-          const rawMixed = stepper
-            ? expandMixedTargeting(
-                targetingWithOptions,
-                stepper.classes,
-                rosters
-              )
-            : undefined;
-          const mixedTargeting = rawMixed && {
-            ...rawMixed,
-            targeting: withAnswerChoices(rawMixed.targeting),
-          };
-          const resolvedTargeting: AssignTargetingValue =
-            mixedTargeting?.targeting ??
-            withAnswerChoices(
-              expandClassTargeting(targetingWithOptions, {
-                rosters,
-                selectedRosterIds: rosterIds,
-              })
-            );
-          for (const warning of hiddenOptions.warnings) {
+          for (const warning of hiddenOptionWarnings) {
             addToast(warning, 'warning');
           }
 
@@ -3775,24 +3793,17 @@ const TeacherQuizWidget: React.FC<{
                   resolvedTargeting.overridesByKey
                 );
 
-          // Derive session targets from selected rosters — `classIds` feeds
-          // the student SSO gate via Firestore rules; `rosterIds` is mirrored
-          // onto both assignment and session for reverse lookup.
-          const selectedRosters = rosters.filter((r) =>
-            rosterIds.includes(r.id)
-          );
-          const derived = deriveSessionTargetsFromRosters(selectedRosters);
-          const periodGate =
-            mode === 'student'
-              ? buildPeriodGate({
-                  plan: targeting.periodPlan,
-                  rosters: selectedRosters,
-                  sharedWindow: resolvedTargeting,
-                  bellWindow: assignPeriodCtx?.bellWindow,
-                  manualStart: stepper?.manualStart,
-                })
-              : undefined;
-          const sessionPeriodAccess = periodGate?.periodAccess ?? null;
+          // `classIds` feeds the student SSO gate via Firestore rules.
+          const { derived, periodGate, sessionPeriodAccess } =
+            buildAssignSessionTargets({
+              mode,
+              rosters,
+              rosterIds,
+              periodPlan: targeting.periodPlan,
+              sharedWindow: resolvedTargeting,
+              bellWindow: assignPeriodCtx?.bellWindow,
+              manualStart: stepper?.manualStart,
+            });
 
           // PLC link only (D2): results pool server-side, no sheet is
           // created here. Sheet export stays opt-in on the Results screen.
@@ -4022,91 +4033,46 @@ const TeacherQuizWidget: React.FC<{
           let assignmentSaved = false;
           try {
             const { id: assignmentId, code } = await createAssignment(
-              {
-                id: meta.id,
-                title: meta.title,
+              buildAssignQuizRef({
+                meta,
+                data,
                 driveFileId: assignDriveFileId,
                 questions: assignQuestions,
-                ...(assignStimuli ? { stimuli: assignStimuli } : {}),
-                ...(data.language ? { language: data.language } : {}),
-                ...(data.sections?.length
-                  ? { order: data.order, sections: data.sections }
-                  : {}),
-              },
-              {
-                sessionMode: mode,
+                stimuli: assignStimuli,
+              }),
+              buildAssignSettings({
+                mode,
                 sessionOptions,
                 attemptLimit,
-                dueAt: dueAt ?? undefined,
-                dueAtHasTime: dueAt != null ? true : undefined,
-                ...(dueAtByRosterId ? { dueAtByRosterId } : {}),
-                teacherName: plcOptions.teacherName,
-                periodName:
-                  plcOptions.periodNames?.[0] ?? plcOptions.periodName,
-                periodNames: plcOptions.periodNames,
-                plc: plcLinkage,
-                ...(resolvedDriveFileId ? { resolvedDriveFileId } : {}),
-              },
-              {
-                ...kindTag,
-                // A per-period session is gated by its periods, a later Scheduled start by its open time.
-                initialStatus: initialAssignStatus({
-                  gated: !!sessionPeriodAccess,
-                  opensLater:
-                    !!stepper &&
-                    !stepper.manualStart &&
-                    mode === 'student' &&
-                    rosterIds.length > 0 &&
-                    (resolvedTargeting.openAt ?? 0) > Date.now(),
-                }),
-                ...(sessionPeriodAccess
-                  ? {
-                      accessMode: periodGate?.accessMode,
-                      periodAccess: sessionPeriodAccess,
-                    }
-                  : {}),
-                ...(sessionBankSlots ? { bankSlots: sessionBankSlots } : {}),
-                ...(paperWritten ? { paperWritten } : {}),
-                ...(stepper?.audience === 'staff'
-                  ? { audience: 'staff' as const }
-                  : {}),
-                classIds: derived.classIds,
-                rosterIds: derived.rosterIds,
-                classPeriodByClassId: derived.classPeriodByClassId,
-                ...(dueAtByRosterId
-                  ? {
-                      dueAtByClassId: dueAtByClassIdFromRosters(
-                        dueAtByRosterId,
-                        rosters
-                      ),
-                    }
-                  : {}),
-                mode: quizAssignmentMode,
-                ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
-                // Teammates can't join a District canonical, so no PLC template.
-                ...(isDistrictCopy(meta) ? { skipPlcTemplateWrite: true } : {}),
-                ...(plcLinkage && plcOptions.plcPoolSyncGroupId
-                  ? { plcPoolSyncGroupId: plcOptions.plcPoolSyncGroupId }
-                  : {}),
-                // M17 individual-assignment targeting (spec §5 B3). Only the
-                // fields the client owns — `targetMode` and `targetStudents`
-                // are written by `setAssignmentTargetsV1` below, never here
-                // (canonical rule — absent `targetMode` means class default).
-                targetGroupIds: resolvedTargeting.targetGroupIds,
-                overridesBySourcedId: resolvedTargeting.overridesByKey,
-                openAt: resolvedTargeting.openAt ?? null,
-                closeAt: resolvedTargeting.closeAt ?? null,
-                ...(stepper?.manualStart &&
-                resolvedTargeting.closeAt == null &&
-                dueAt != null
-                  ? { manualLate: true }
-                  : {}),
-                ...(resolvedTargeting.workKind
-                  ? { workKind: resolvedTargeting.workKind }
-                  : {}),
-                ...(translationIndex ? { translationIndex } : {}),
-                lenientTranslatedFib: true,
-              }
+                dueAt,
+                dueAtByRosterId,
+                plcOptions,
+                plcLinkage,
+                resolvedDriveFileId,
+                frozenDriveFileId,
+              }),
+              buildAssignCreateOptions({
+                widgetKind: kindTag.widgetKind,
+                assignmentMode: quizAssignmentMode,
+                mode,
+                now: Date.now(),
+                stepper,
+                rosters,
+                rosterIds,
+                derived,
+                periodGate,
+                sessionPeriodAccess,
+                resolvedTargeting,
+                dueAt,
+                dueAtByRosterId,
+                sessionBankSlots,
+                paperWritten,
+                plcLinkage,
+                plcPoolSyncGroupId: plcOptions.plcPoolSyncGroupId,
+                plcTemplateSyncGroupId,
+                districtCopy: isDistrictCopy(meta),
+                translationIndex,
+              })
             );
             assignmentSaved = true;
             printWritten?.();
@@ -4162,27 +4128,14 @@ const TeacherQuizWidget: React.FC<{
             // today. Individual targeting fans the pick-list out to
             // `/student_assignments` pointer docs; skipped refs are surfaced,
             // never silently dropped.
-            const payload = mixedTargeting
-              ? buildMixedTargetsPayload(undefined, mixedTargeting)
-              : buildSetAssignmentTargetsPayload(undefined, resolvedTargeting);
-            if (payloadRequiresCall(payload)) {
+            const targetsCall = buildAssignTargetsCall({
+              assignmentId,
+              mixedTargeting,
+              resolvedTargeting,
+            });
+            if (targetsCall) {
               try {
-                const result = await setAssignmentTargets({
-                  assignmentId,
-                  kind: 'quiz',
-                  sessionId: assignmentId,
-                  targetMode: payload.targetMode,
-                  add: payload.add,
-                  remove: payload.remove,
-                  overridesBySourcedId: payload.overridesBySourcedId,
-                  ...(payload.excludedTargets
-                    ? { excludedTargets: payload.excludedTargets }
-                    : {}),
-                  ...(payload.studentTargetClassIds
-                    ? { studentTargetClassIds: payload.studentTargetClassIds }
-                    : {}),
-                  window: payload.window,
-                });
+                const result = await setAssignmentTargets(targetsCall);
                 if (result.skipped.length > 0) {
                   setAssignSkippedByAssignmentId((prev) => ({
                     ...prev,
@@ -4229,30 +4182,16 @@ const TeacherQuizWidget: React.FC<{
 
             // Persist the teacher's last-used rosters per quiz so
             // re-launching the same quiz pre-selects the same classes.
-            const prevMap = config.lastRosterIdsByQuizId ?? {};
-            const nextMap: Record<string, string[]> = { ...prevMap };
-            if (rosterIds.length > 0) {
-              nextMap[meta.id] = rosterIds;
-            } else {
-              delete nextMap[meta.id];
-            }
             updateWidget(
               widget.id,
               {
-                config: {
-                  ...config,
-                  view: 'manager',
-                  managerTab: 'active',
-                  selectedQuizId: meta.id,
-                  selectedQuizTitle: meta.title,
-                  activeAssignmentId: assignmentId,
-                  plcMode: plcOptions.plcMode,
-                  teacherName: plcOptions.teacherName ?? '',
-                  periodName:
-                    plcOptions.periodNames?.[0] ?? plcOptions.periodName ?? '',
-                  periodNames: plcOptions.periodNames ?? [],
-                  lastRosterIdsByQuizId: nextMap,
-                },
+                config: buildAssignedWidgetConfig({
+                  config,
+                  meta,
+                  assignmentId,
+                  plcOptions,
+                  rosterIds,
+                }),
               },
               { pickItem: true }
             );
@@ -4833,6 +4772,11 @@ const TeacherQuizWidget: React.FC<{
         hasScannedResponses={assignments.some(
           (a) => a.quizId === editingMeta?.id && a.hasPaperResponses
         )}
+        rescoredAssignmentCount={
+          freezeAssignments && editingMeta
+            ? unfrozenAssignmentCount(editingMeta.id, assignments)
+            : 0
+        }
         bankApi={bankApi}
         // A synced quiz publishes a new version to its PLC on every save, so
         // that path keeps an explicit Save.

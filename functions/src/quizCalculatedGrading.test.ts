@@ -4,6 +4,7 @@ import {
   calcAttemptKey,
   calcValuesFor,
   formatCalcAnswer,
+  parseStudentNumber,
 } from './quizCalculated';
 import { gradeGroupAnswer } from './plcAssessmentMath';
 
@@ -104,5 +105,15 @@ describe('random-number questions on the server', () => {
     expect(
       scoreAttempt(attempt, { ...modCtx, modified: false }, 'uid-abc')?.score
     ).toBe(0);
+  });
+
+  it('parses typed numbers in linear time on a long digit run', () => {
+    const start = performance.now();
+    expect(parseStudentNumber(`${'1'.repeat(40000)}a`)).toBeNull();
+    expect(parseStudentNumber(`${'1'.repeat(40000)}x10^a`)).toBeNull();
+    expect(performance.now() - start).toBeLessThan(200);
+    expect(parseStudentNumber('3.2 x 10^4')).toBe(32000);
+    expect(parseStudentNumber('12.')).toBe(12);
+    expect(parseStudentNumber('-4.5')).toBe(-4.5);
   });
 });

@@ -21,6 +21,13 @@ import { buildTourUrl, webTourSite } from './tourLinks';
 import { useCopyWebTourLink } from './useCopyWebTourLink';
 import { countsText, useTourCounts, type TourCounts } from './useTourCounts';
 import { webToursDevSeed } from './webToursDevSeed';
+import { useStepsLabels } from '@/components/tours/steps/useStepsLabels';
+import {
+  downloadHtml,
+  stepsFileName,
+  webTourStepsHtml,
+} from './stepsHtmlExport';
+import { sendTourToFreshservice, useCanFreshservice } from './freshservice';
 import {
   stepStatusRows,
   tourStatus,
@@ -144,11 +151,11 @@ const TitleField: React.FC<{
   );
 };
 
-/** Share menu: Tour URL copies the staff link; Steps URL copies the public steps page, turning it on first. */
+/** Share menu: Tour URL copies the staff link; Steps URL copies the public steps page, turning it on first; HTML file downloads the published steps. */
 const ShareMenu: React.FC<{
   set: GuidedLearningSet;
   title: string;
-  live: boolean;
+  live: GuidedLearningSet | null;
   publicLink: ReturnType<typeof usePublicLinkControls>;
   copyLink: (setId: string, title: string) => Promise<boolean>;
   onNotice: (n: Notice) => void;
@@ -226,6 +233,63 @@ const ShareMenu: React.FC<{
     publicLink.requestOn((url) => void copyText(url).then(stepsCopied));
   };
 
+  const labels = useStepsLabels();
+  const htmlFile = async () => {
+    closeMenu();
+    if (!live) return;
+    setBusy(true);
+    try {
+      const { html, missing } = await webTourStepsHtml(
+        set.id,
+        live,
+        (live.title ?? '').trim() || title,
+        labels
+      );
+      downloadHtml(html, stepsFileName(title));
+      onNotice(
+        missing > 0
+          ? {
+              tone: 'error',
+              text: `HTML file downloaded. ${missing} picture${missing === 1 ? '' : 's'} couldn't load.`,
+            }
+          : { tone: 'success', text: 'HTML file downloaded.' }
+      );
+    } catch (err) {
+      logError('WebTourList html file', err, { setId: set.id });
+      onNotice({ tone: 'error', text: "The HTML file couldn't be made." });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const canFresh = useCanFreshservice();
+  const toFreshservice = async () => {
+    closeMenu();
+    if (!live) return;
+    setBusy(true);
+    try {
+      const res = await sendTourToFreshservice(set.id, labels, live);
+      onNotice(
+        res.kind === 'not-set-up'
+          ? { tone: 'error', text: 'Set up FreshService first.' }
+          : res.missing > 0
+            ? {
+                tone: 'error',
+                text: `Sent to FreshService. ${res.missing} picture${res.missing === 1 ? '' : 's'} couldn't load.`,
+              }
+            : { tone: 'success', text: 'Sent to FreshService.' }
+      );
+    } catch (err) {
+      logError('WebTourList freshservice', err, { setId: set.id });
+      onNotice({
+        tone: 'error',
+        text: "The steps couldn't be sent to FreshService.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const stepsReason = live ? null : 'Publish the tour first.';
   const stepsDisabled =
     !live || (!publicLink.publicUrl && !publicLink.canTurnOn);
@@ -258,7 +322,7 @@ const ShareMenu: React.FC<{
           id={menuId}
           role="group"
           aria-label={`Share ${title}`}
-          className="absolute right-0 top-full z-20 mt-1 w-64 rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
+          className="absolute left-0 top-full z-20 mt-1 w-64 rounded-xl sm:left-auto sm:right-0 border border-slate-200 bg-white p-1 shadow-lg"
         >
           <button
             type="button"
@@ -290,6 +354,40 @@ const ShareMenu: React.FC<{
                   : 'Makes the steps public first.')}
             </span>
           </button>
+          <button
+            type="button"
+            onClick={() => void htmlFile()}
+            disabled={!live}
+            className={item}
+            {...tourFieldAttr('web-tours.share-html-file', 'web-tours', set.id)}
+          >
+            <span className="text-sm font-semibold text-slate-900">
+              HTML file
+            </span>
+            <span className="text-xs text-slate-600">
+              {stepsReason ?? 'Steps and pictures for a help article.'}
+            </span>
+          </button>
+          {canFresh && (
+            <button
+              type="button"
+              onClick={() => void toFreshservice()}
+              disabled={!live}
+              className={item}
+              {...tourFieldAttr(
+                'web-tours.share-freshservice',
+                'web-tours',
+                set.id
+              )}
+            >
+              <span className="text-sm font-semibold text-slate-900">
+                FreshService
+              </span>
+              <span className="text-xs text-slate-600">
+                {stepsReason ?? 'Updates its help article.'}
+              </span>
+            </button>
+          )}
         </div>
       )}
       {publicLink.dialog}
@@ -477,7 +575,7 @@ const WebTourRow: React.FC<{
         <ShareMenu
           set={set}
           title={title}
-          live={!!live}
+          live={live?.set ?? null}
           publicLink={publicLink}
           copyLink={copyLink}
           onNotice={onNotice}

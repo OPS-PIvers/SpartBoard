@@ -58486,6 +58486,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tour-editor.copy-for-claude",
+    "label": "Copy for Claude option in the web tour editor More actions menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "path": [
+          "web-tours.new",
+          "web-tour-editor.menu"
+        ],
+        "reveal": "web-tour-editor.menu",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tour-editor.write-asked",
     "label": "Run again for questions button in the web tour editor",
     "scope": "board",
@@ -58708,6 +58728,62 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "web-tours.share-steps-url",
     "label": "Steps URL item in a web tour Share menu on the Web tours page",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [
+          "web-tours.copy-link:web-tours"
+        ],
+        "reveal": "web-tours.copy-link:web-tours",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.share-freshservice",
+    "label": "FreshService item in a web tour Share menu on the Web tours page",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [
+          "web-tours.copy-link:web-tours"
+        ],
+        "reveal": "web-tours.copy-link:web-tours",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.freshservice-settings",
+    "label": "FreshService settings button on the Web tours page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.share-html-file",
+    "label": "HTML file item in a web tour Share menu on the Web tours page",
     "scope": "field",
     "persists": true,
     "routes": [

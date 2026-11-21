@@ -32,6 +32,7 @@ import {
   type ControlKind,
   type ControlState,
 } from './subControlPatches';
+import { safeErr } from './safeLog';
 
 export { controlPatches };
 
@@ -142,7 +143,10 @@ export async function finalizeQuizResponses(
     if (result.status === 'fulfilled') {
       if (result.value) count += 1;
     } else {
-      logger.warn('[controlSubAssignment] finalize failed', result.reason);
+      logger.warn(
+        '[controlSubAssignment] finalize failed',
+        safeErr(result.reason)
+      );
     }
   }
   return count;

@@ -15,6 +15,7 @@ on:
         type: string
         default: ''
 
+# Production deploys run from main only: every job below carries a main-ref guard, so a dispatch on any other ref does nothing.
 # Never run two production deploys at once; a newer main commit waits for the
 # in-flight one to finish rather than cancelling it mid-release.
 concurrency:
@@ -44,6 +45,7 @@ jobs:
   # A release or hotfix merge whose tree is identical to its already-validated PR head skips the
   # checks; anything else (a direct push, a merge that picked up other main commits) runs them all.
   preflight:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     outputs:
       reuse: ${{ steps.check.outputs.reuse }}
@@ -72,6 +74,7 @@ jobs:
 
   # Which backend targets changed since the last successful prod deploy.
   plan:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     outputs:
       backend: ${{ steps.plan.outputs.backend }}
@@ -93,17 +96,10 @@ jobs:
           sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/runs?branch=$GITHUB_REF_NAME&status=success&per_page=20" --jq '[.workflow_runs[]] | max_by(.updated_at) | .head_sha // empty')
           echo "Last successful deploy: ${sha:-none}"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          # A run from another branch since main's last success may have replaced prod functions, so main redeploys every one.
-          other=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/runs?per_page=50" --jq '
-            ([.workflow_runs[] | select(.head_branch == "main" and .conclusion == "success") | .updated_at] | max // "") as $main
-            | [.workflow_runs[] | select(.head_branch != "main" and .updated_at > $main and .conclusion != "skipped")] | length') || other=1
-          echo "Other-branch prod runs since main's last deploy: ${other:-1}"
-          if [[ "${other:-1}" != 0 ]]; then echo "other=true" >> "$GITHUB_OUTPUT"; fi
       - id: plan
         env:
           BASE_SHA: ${{ steps.base.outputs.sha }}
-          # A dispatch from any branch other than main, or main's first run after one, deploys every target.
-          FULL: ${{ inputs.full_backend || github.ref != 'refs/heads/main' || steps.base.outputs.other == 'true' }}
+          FULL: ${{ inputs.full_backend }}
           CODEBASE: ${{ inputs.codebase }}
         run: ./.github/scripts/plan-deploy.sh main "$BASE_SHA" "$FULL"
 
@@ -111,7 +107,7 @@ jobs:
   # own runner and deploy waits for all of them.
   lint:
     needs: preflight
-    if: needs.preflight.outputs.reuse != 'true'
+    if: github.ref == 'refs/heads/main' && needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     name: lint (${{ matrix.check }}${{ matrix.shard && format(' {0}/3', matrix.shard) || '' }})
     strategy:
@@ -143,7 +139,7 @@ jobs:
 
   type-check:
     needs: preflight
-    if: needs.preflight.outputs.reuse != 'true'
+    if: github.ref == 'refs/heads/main' && needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6.0.3
@@ -152,7 +148,7 @@ jobs:
 
   test:
     needs: preflight
-    if: needs.preflight.outputs.reuse != 'true'
+    if: github.ref == 'refs/heads/main' && needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     name: test (shard ${{ matrix.shard }}/3)
     strategy:
@@ -172,6 +168,7 @@ jobs:
 
   # Functions suite (~5s) plus the merged-shard count guard from scripts/checkTestCounts.mjs.
   test-counts:
+    if: github.ref == 'refs/heads/main'
     needs: test
     runs-on: ubuntu-24.04
     steps:
@@ -189,7 +186,7 @@ jobs:
   # test:all doesn't include test:rules; without this a firestore.rules regression could reach prod unverified.
   rules:
     needs: preflight
-    if: needs.preflight.outputs.reuse != 'true'
+    if: github.ref == 'refs/heads/main' && needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6.0.3
@@ -213,6 +210,7 @@ jobs:
         run: pnpm run test:rules
 
   build:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6.0.3
@@ -231,7 +229,9 @@ jobs:
   deploy:
     needs: [preflight, plan, lint, type-check, test, test-counts, rules, build]
     # Skipped checks (reuse) are fine; a failed or cancelled one is not.
-    if: ${{ !failure() && !cancelled() && needs.build.result == 'success' }}
+    if: ${{ github.ref == 'refs/heads/main' && !failure() && !cancelled() && needs.build.result == 'success' }}
+    # GitHub enforces the main-only deployment branch rule on this environment, which holds FIREBASE_SERVICE_ACCOUNT; the ref guards above can be edited out on a branch, this cannot.
+    environment: production
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6.0.3

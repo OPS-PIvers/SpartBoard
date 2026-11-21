@@ -38,7 +38,11 @@ vi.mock('./gradeIndex', async (orig) => ({
   markSessionDirty: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { CLASSLINK_FUNCTION_TIMEOUT_SECONDS } from '../classlinkShared';
 import {
+  gradeIndexMark,
+  gradeIndexProjectGrade,
+  gradeIndexProjection,
   handleQuizResponseWrite,
   handleVideoResponseWrite,
 } from './gradeIndexTriggers';
@@ -118,5 +122,20 @@ describe('handleVideoResponseWrite', () => {
       'contention'
     );
     expect(mocks.applyDocWrite).not.toHaveBeenCalled();
+  });
+});
+
+describe('roster-checked trigger timeouts', () => {
+  it('give every ClassLink-checking trigger room for the full read budget', () => {
+    for (const fn of [
+      gradeIndexProjectGrade,
+      gradeIndexProjection,
+      gradeIndexMark,
+    ]) {
+      expect(
+        (fn as unknown as { __endpoint: { timeoutSeconds?: number } })
+          .__endpoint.timeoutSeconds
+      ).toBeGreaterThanOrEqual(CLASSLINK_FUNCTION_TIMEOUT_SECONDS);
+    }
   });
 });

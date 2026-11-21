@@ -10,6 +10,48 @@ const workflows = resolve(
 );
 const read = (name: string) => readFileSync(resolve(workflows, name), 'utf-8');
 
+const MAIN_GUARD =
+  /^(?:\$\{\{\s*)?github\.ref == 'refs\/heads\/main'\s*(?:&&|(?:\}\})?\s*$)/;
+const JOB_KEY = /^ {2}(['"]?)([\w-]+)\1:[ \t]*(?:#.*)?$/;
+
+/** Lists jobs in a prod workflow that could run off main or read the prod secret outside its environment. */
+function mainOnlyProblems(yaml: string): string[] {
+  const lines = yaml.split('\n');
+  const start = lines.indexOf('jobs:');
+  if (start < 0) return ['no jobs found'];
+  const jobs = new Map<string, string[]>();
+  const problems: string[] = [];
+  let current: string[] | null = null;
+  for (const line of lines.slice(start + 1)) {
+    if (/^\S/.test(line)) break;
+    if (/^ {2}\S/.test(line) && !/^ {2}#/.test(line)) {
+      const key = JOB_KEY.exec(line);
+      // An unparsed job key fails closed instead of inheriting the previous job's guard.
+      if (!key) problems.push(`unparsed job line: ${line.trim()}`);
+      current = key ? [] : null;
+      if (key) jobs.set(key[2], current as string[]);
+      continue;
+    }
+    current?.push(line);
+  }
+  if (jobs.size === 0) problems.push('no jobs found');
+  for (const [id, body] of jobs) {
+    const guard =
+      body
+        .find((l) => /^ {4}if: /.test(l))
+        ?.slice(8)
+        .trim() ?? '';
+    if (!MAIN_GUARD.test(guard)) problems.push(`${id}: no main-only guard`);
+    if (
+      id === 'deploy' &&
+      !body.some((l) => /^ {4}environment: production[ \t]*$/.test(l))
+    )
+      problems.push(`${id}: no environment: production`);
+  }
+  if (!jobs.has('deploy')) problems.push('deploy: job not found');
+  return problems;
+}
+
 describe('PR Validation as a required check', () => {
   const yaml = read('pr-validation.yml');
 
@@ -62,9 +104,61 @@ describe('production deploy', () => {
     expect(yaml).toContain('exit "$(cat "$RUNNER_TEMP/carry-forward.exit")"');
   });
 
+  it('runs every job from main only and binds the prod secret to the deploy job', () => {
+    expect(mainOnlyProblems(yaml)).toEqual([]);
+    expect(yaml).not.toContain("github.ref != 'refs/heads/main'");
+  });
+
+  it('catches an unguarded job, a bypassed guard, odd job keys and a misplaced environment', () => {
+    const bad = [
+      'jobs:',
+      '  build:',
+      "    if: github.ref == 'refs/heads/main'",
+      '  job_2:',
+      '    runs-on: ubuntu-latest',
+      '  lint:',
+      "    if: github.ref == 'refs/heads/main' || true",
+      '  scoped:',
+      "    if: github.ref == 'refs/heads/main' && (a || b)",
+      "  'quoted':",
+      '    runs-on: ubuntu-latest',
+      '  commented: # note',
+      '    runs-on: ubuntu-latest',
+      '  deploy:',
+      "    if: ${{ github.ref == 'refs/heads/main' }}",
+      '  other:',
+      "    if: github.ref == 'refs/heads/main'",
+      '    environment: production',
+      '',
+    ].join('\n');
+    expect(mainOnlyProblems(bad)).toEqual([
+      'job_2: no main-only guard',
+      'lint: no main-only guard',
+      'quoted: no main-only guard',
+      'commented: no main-only guard',
+      'deploy: no environment: production',
+    ]);
+    expect(mainOnlyProblems('jobs:\n  {weird}:\n')).toContain(
+      'unparsed job line: {weird}:'
+    );
+  });
+
   it('never deploys after a failed or cancelled check', () => {
     expect(yaml).toContain(
-      "if: ${{ !failure() && !cancelled() && needs.build.result == 'success' }}"
+      "if: ${{ github.ref == 'refs/heads/main' && !failure() && !cancelled() && needs.build.result == 'success' }}"
     );
+  });
+});
+
+describe('lunch menu sync', () => {
+  const yaml = read('sync-lunch-menus.yml');
+  const [, prod = '', dev = ''] = yaml.split(/^ {2}sync-(?:prod|dev):$/m);
+
+  it('reads the prod secret only in a main-only job bound to the production environment', () => {
+    expect(prod).toContain("github.ref == 'refs/heads/main'");
+    expect(prod).toContain('environment: production');
+    expect(prod).toContain('secrets.FIREBASE_SERVICE_ACCOUNT');
+    expect(dev).not.toContain('FIREBASE_SERVICE_ACCOUNT');
+    expect(yaml.match(/FIREBASE_SERVICE_ACCOUNT/g)).toHaveLength(1);
   });
 });

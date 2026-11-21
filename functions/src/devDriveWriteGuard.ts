@@ -1,4 +1,5 @@
 // Dev only: functions may write only Drive files under the dev folder or made by this instance, never a prod file. Mirrors utils/devDriveWriteGuard.ts.
+import { safeErr } from './safeLog';
 
 function projectId(): string | undefined {
   if (process.env.GCLOUD_PROJECT) return process.env.GCLOUD_PROJECT;
@@ -203,7 +204,7 @@ export function installDevDriveWriteGuard(
       if (!res.ok) throw new Error(`Drive metadata ${res.status}`);
     } catch (err) {
       // The file still works in this instance; only a restart would lose it.
-      console.warn('Could not mark a new Drive file as dev-made', err);
+      console.warn('Could not mark a new Drive file as dev-made', safeErr(err));
     }
   };
 

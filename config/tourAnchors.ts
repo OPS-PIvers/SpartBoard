@@ -13661,6 +13661,10 @@ export const TOUR_ANCHORS = {
     label: 'Rewrite all option in the web tour editor More actions menu',
     panel: true,
   },
+  'web-tour-editor.copy-for-claude': {
+    label: 'Copy for Claude option in the web tour editor More actions menu',
+    panel: true,
+  },
   'web-tour-editor.write-asked': {
     label: 'Run again for questions button in the web tour editor',
   },
@@ -13717,6 +13721,19 @@ export const TOUR_ANCHORS = {
   },
   'web-tours.share-steps-url': {
     label: 'Steps URL item in a web tour Share menu on the Web tours page',
+    perField: true,
+    persists: true,
+  },
+  'web-tours.share-freshservice': {
+    label: 'FreshService item in a web tour Share menu on the Web tours page',
+    perField: true,
+    persists: true,
+  },
+  'web-tours.freshservice-settings': {
+    label: 'FreshService settings button on the Web tours page',
+  },
+  'web-tours.share-html-file': {
+    label: 'HTML file item in a web tour Share menu on the Web tours page',
     perField: true,
     persists: true,
   },

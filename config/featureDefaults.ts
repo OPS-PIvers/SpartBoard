@@ -67,6 +67,7 @@ import {
   Settings2,
   Users,
   PanelLeft,
+  History,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -863,6 +864,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'freshservice-sync': {
+    label: 'FreshService articles',
+    icon: Globe,
+    description: 'Sends web tour steps to FreshService as help articles.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'integrations',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Claude connector sign-in and tools; the server checks the same gate on every request (CC-D7).
   'claude-connector': {
     label: 'Claude connector',
@@ -1022,6 +1034,21 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     afterLaunch: 'retire',
     widget: 'quiz',
     modalLabel: 'Assign waits for the save',
+    group: 'assigning',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Assignments grade against the questions students were given. Admin-only until Paul has used it.
+  'quiz-frozen-assignments': {
+    label: 'Quiz assignments keep their questions',
+    icon: History,
+    description:
+      'Editing a quiz after assigning it no longer changes earlier scores. Answer key fixes still apply when the question and its choices are unchanged.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Assignments keep their questions',
     group: 'assigning',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,

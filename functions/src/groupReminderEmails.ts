@@ -8,6 +8,7 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { provenGoogleEmail } from './mailRecipients';
 import { isGlobalFeatureGranted } from './featureGrant';
+import { safeErr } from './safeLog';
 
 /** Late alerts still send within this window, covering scheduler jitter. */
 export const SEND_WINDOW_MIN = 10;
@@ -180,7 +181,10 @@ export async function runGroupReminderEmails(
       const email = provenGoogleEmail(user);
       const allowed = email
         ? await canEmail(uid, email).catch((err: unknown) => {
-            logger.warn('groupReminderEmails: flag check failed', { uid, err });
+            logger.warn('groupReminderEmails: flag check failed', {
+              uid,
+              err: safeErr(err),
+            });
             return false;
           })
         : false;

@@ -49,7 +49,11 @@ import { useQuiz } from '@/hooks/useQuiz';
 import { useQuestionBanks } from '@/hooks/useQuestionBanks';
 import { usePlcs } from '@/hooks/usePlcs';
 import { loadBankContentsFor } from '@/hooks/useBankSources';
-import { withCurrentAnswerKeys } from '@/utils/quizAssignBankDraw';
+import {
+  assignmentFrozenFileId,
+  withCurrentAnswerKeys,
+  keyFixOptionsFor,
+} from '@/utils/quizAssignBankDraw';
 import {
   useQuizAssignments,
   countPendingPaperTranscripts,
@@ -262,6 +266,8 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
   // session carries quizId; match it to the teacher's library for the Drive id.
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   const resolvedDriveFileId = assignment?.resolvedDriveFileId;
+  const frozenDriveFileId = assignmentFrozenFileId(assignment);
+  const keyFixSameText = !!keyFixOptionsFor(assignment).sameTextOnly;
   const { plcs, loading: plcsLoading } = usePlcs({ enabled: !!user?.uid });
   const waitForBanks =
     !!resolvedDriveFileId && (banksLoading || (!!user?.uid && plcsLoading));
@@ -303,8 +309,8 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     let active = true;
     void (async () => {
       try {
-        // Bank-draw assignments grade against their frozen copy, under today's answer keys.
-        const frozenId = resolvedDriveFileId;
+        // Frozen assignments grade against their copy, under today's answer keys.
+        const frozenId = frozenDriveFileId;
         const data =
           frozenId && frozenId !== meta.driveFileId
             ? await withCurrentAnswerKeys(
@@ -313,7 +319,8 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
                 {
                   loadQuizData,
                   loadBankContentsForQuiz: (quiz) => loadBankContents(quiz),
-                }
+                },
+                { sameTextOnly: keyFixSameText }
               )
             : await loadQuizData(meta.driveFileId);
         if (active) setQuizData(data);
@@ -332,7 +339,8 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     quizzesLoading,
     assignmentsLoading,
     waitForBanks,
-    resolvedDriveFileId,
+    frozenDriveFileId,
+    keyFixSameText,
     googleAccessToken,
     loadQuizData,
   ]);

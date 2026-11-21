@@ -37,6 +37,7 @@ import {
   type PaperTranscriptionJob,
 } from './paperWrittenTypes';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { safeErr } from './safeLog';
 
 /** Crops are capped at 2 MB on upload; the slack covers Drive's copy. */
 export const MAX_CROP_BYTES = 3 * 1024 * 1024;
@@ -296,7 +297,10 @@ async function storedImage(
     const token = await deps.getAccessToken(teacherUid);
     bytes = await deps.downloadDriveFile(token, entry.driveFileId);
   } catch (error) {
-    console.error('[paperWrittenCallables] Drive crop fetch failed', error);
+    console.error(
+      '[paperWrittenCallables] Drive crop fetch failed',
+      safeErr(error)
+    );
     throw new HttpsError('unavailable', 'Could not load this answer image.');
   }
   if (bytes.byteLength > MAX_CROP_BYTES) {

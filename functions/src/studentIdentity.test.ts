@@ -1205,6 +1205,14 @@ describe('getStudentClassDirectoryV1', () => {
       expect(calls).toHaveLength(4);
     });
 
+    it('shares one ClassLink lookup per owner across sign-ins that land at once', async () => {
+      const calls: string[] = [];
+      seedOwner('staff', { roleId: 'teacher', status: 'active' });
+      stubClassLink(['CL4'], calls);
+      await Promise.all([names(), names(), names()]);
+      expect(calls).toHaveLength(2);
+    });
+
     it('drops a staff owner whose roster names a section ClassLink does not list for them', async () => {
       seedOwner('staff', { roleId: 'teacher', status: 'active' });
       h.docStore.set('users/real/rosters/r1', {

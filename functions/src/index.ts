@@ -377,6 +377,9 @@ export { importConvertV1 } from './importConversion';
 // Web tours: Claude writes step titles and tips (docs/plans/shipped/WEB_TOURS_CLAUDE.md C9).
 export { writeWebTourTextV1 } from './webTourWriting';
 
+// FreshService help articles from web tours, off until an admin saves the site, folder and key.
+export { freshserviceV1 } from './freshservice';
+
 // Web tours: the extension lists, loads and records tours with a Google token (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H7).
 export {
   webToursListV1,

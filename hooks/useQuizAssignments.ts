@@ -143,7 +143,10 @@ import {
   answersWithoutVerdicts,
   visibilityShowsResponses,
 } from '@/utils/quizResultsVisibility';
-import { hasEveryCurrentAnswerKey } from '@/utils/quizAssignBankDraw';
+import {
+  assignmentFrozenFileId,
+  hasEveryCurrentAnswerKey,
+} from '@/utils/quizAssignBankDraw';
 import {
   nextRemovedClasses,
   withLinkedSections,
@@ -183,6 +186,7 @@ import {
   classPublishPatch,
   gradeResponseForPublish,
   hiddenResultsPatch,
+  limitKeyToServed,
   publishScoreFields,
   selectQuestionTranslations,
   servedModified,
@@ -225,6 +229,7 @@ export {
   gradeResponseForPublish,
   hiddenResultsPatch,
   publishScoreFields,
+  refreshedKeyFields,
   selectQuestionTranslations,
   withholdsPublishedResults,
 } from './quizAssignments/publishGrading';
@@ -606,6 +611,9 @@ export const useQuizAssignments = (
         ...dueLockField,
         ...(settings.resolvedDriveFileId
           ? { resolvedDriveFileId: settings.resolvedDriveFileId }
+          : {}),
+        ...(settings.frozenDriveFileId
+          ? { frozenDriveFileId: settings.frozenDriveFileId }
           : {}),
         ...(perPeriod ? { accessMode, periodAccess } : {}),
         ...(paperBatchId ? { paper: true as const, paperBatchId } : {}),
@@ -2738,9 +2746,9 @@ export const useQuizAssignments = (
         ...buildResponseGradingContext(quizData, assignmentSnap.data()),
         sections,
       };
-      // A bank-draw key is frozen at assign; refresh the server's copy so it grades like this publish.
+      // A frozen key is fixed at assign; refresh the server's copy so it grades like this publish.
       const serverKey =
-        typeof assignmentSnap.data()?.resolvedDriveFileId === 'string' &&
+        typeof assignmentFrozenFileId(assignmentSnap.data()) === 'string' &&
         hasEveryCurrentAnswerKey(quizData)
           ? await getDoc(scoreKeyRef(userId, assignmentId))
           : null;
@@ -3003,6 +3011,24 @@ export const useQuizAssignments = (
       );
       const buildStudentPatch = (data: QuizResponse, responseKey: string) => {
         const graded = gradeResponseForPublish(data, ctx, responseKey);
+        const answersForStudent = limitKeyToServed(
+          withCalcRevealed(
+            revealedAnswers ?? null,
+            ctx.questionsById.values(),
+            responseKey,
+            data,
+            servedModified(ctx, data.studentUid)
+          ),
+          graded.servedIds
+        );
+        const examplesForStudent = limitKeyToServed(
+          revealedRubricExamples,
+          graded.servedIds
+        );
+        const explanationsForStudent = limitKeyToServed(
+          revealedExplanations,
+          graded.servedIds
+        );
         return {
           ...publishScoreFields(graded),
           answers: keepVerdicts
@@ -3013,19 +3039,15 @@ export const useQuizAssignments = (
             visibility,
             publishedAt: now,
             expiresAt,
-            ...(revealedAnswers
-              ? {
-                  revealedAnswers: withCalcRevealed(
-                    revealedAnswers,
-                    ctx.questionsById.values(),
-                    responseKey,
-                    data,
-                    servedModified(ctx, data.studentUid)
-                  ),
-                }
+            ...(answersForStudent
+              ? { revealedAnswers: answersForStudent }
               : {}),
-            ...(revealedRubricExamples ? { revealedRubricExamples } : {}),
-            ...(revealedExplanations ? { revealedExplanations } : {}),
+            ...(examplesForStudent
+              ? { revealedRubricExamples: examplesForStudent }
+              : {}),
+            ...(explanationsForStudent
+              ? { revealedExplanations: explanationsForStudent }
+              : {}),
             ...(protection ? { protection } : {}),
           },
         };

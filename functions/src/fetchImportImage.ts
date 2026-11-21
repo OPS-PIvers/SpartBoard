@@ -9,6 +9,7 @@ import {
 } from './ssrfGuard';
 import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { safeErr } from './safeLog';
 
 const MAX_URL_LENGTH = 2048;
 const MAX_REDIRECTS = 3;
@@ -166,7 +167,7 @@ export async function downloadPublicImage(
       if (isTooLargeError(error)) {
         throw new HttpsError('failed-precondition', 'Image is too large.');
       }
-      console.error('Import image fetch error:', error);
+      console.error('Import image fetch error:', safeErr(error));
       throw new HttpsError('internal', 'Failed to fetch image.');
     }
 

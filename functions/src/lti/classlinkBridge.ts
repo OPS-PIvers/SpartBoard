@@ -32,6 +32,7 @@ import {
   LTI_COURSE_LINKS_COLLECTION,
   readCoTeacherLinks,
 } from './courseLinkStore';
+import { safeErr } from '../safeLog';
 
 /** Sticky sub-uid → ClassLink-uid mapping. Server-write-only (firestore.rules). */
 export const LTI_IDENTITY_BRIDGE_COLLECTION = 'lti_identity_bridge';
@@ -110,7 +111,7 @@ export async function resolveClasslinkIdentity(
   } catch (err) {
     console.warn(
       '[ltiClasslinkBridge] live resolve failed; falling back:',
-      err
+      safeErr(err)
     );
   }
 
@@ -119,7 +120,7 @@ export async function resolveClasslinkIdentity(
   try {
     return await readSticky(db, subUid);
   } catch (err) {
-    console.warn('[ltiClasslinkBridge] sticky read failed:', err);
+    console.warn('[ltiClasslinkBridge] sticky read failed:', safeErr(err));
     return null;
   }
 }
@@ -153,7 +154,10 @@ async function resolveLive(
       return uid ? { uid, classlinkClassId, live: true } : null;
     } catch (err) {
       // One class failing to load must not hide a co-teacher's class.
-      console.warn('[ltiClasslinkBridge] OneRoster fetch failed:', err);
+      console.warn(
+        '[ltiClasslinkBridge] OneRoster fetch failed:',
+        safeErr(err)
+      );
       return null;
     }
   };
@@ -220,6 +224,9 @@ async function persistSticky(
     );
   } catch (err) {
     // Non-fatal: the student still launches under the correct uid this time.
-    console.warn('[ltiClasslinkBridge] sticky write failed (non-fatal):', err);
+    console.warn(
+      '[ltiClasslinkBridge] sticky write failed (non-fatal):',
+      safeErr(err)
+    );
   }
 }

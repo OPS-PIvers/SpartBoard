@@ -4040,6 +4040,7 @@ describe('index barrel — deployed export set', () => {
     'plcGoalCoachV1',
     'importConvertV1',
     'writeWebTourTextV1',
+    'freshserviceV1',
     'webToursListV1',
     'webTourLoadV1',
     'webTourRunV1',

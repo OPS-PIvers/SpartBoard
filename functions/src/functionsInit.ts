@@ -16,6 +16,8 @@ import { setGlobalOptions } from 'firebase-functions/v2';
 import * as admin from './firebaseAdmin';
 // Dev only: refuses Drive writes to prod files (no-op in prod).
 import './devDriveWriteGuard';
+// Strips request headers and bodies from every AxiosError before it can be logged.
+import './axiosErrorScrub';
 
 setGlobalOptions({ region: 'us-central1' });
 

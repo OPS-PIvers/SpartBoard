@@ -65,6 +65,7 @@ import {
   applyDeactivationClaim,
   holdsRevokedMember,
 } from './memberDeactivationClaim';
+import { safeErr } from './safeLog';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -458,7 +459,7 @@ export const resolveOrgForUser = onCall(
         } catch (err) {
           console.error(
             `[resolveOrgForUser] auto-enroll failed for org ${orgId}:`,
-            err
+            safeErr(err)
           );
           const cleared = await claimWasCleared(request.auth.uid, token);
           return {

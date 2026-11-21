@@ -4,6 +4,7 @@ import * as logger from 'firebase-functions/logger';
 import { CLAUDE_TOUR_ROUTINE_TRIGGER_TOKEN } from './secrets';
 import { TOUR_ANCHOR_BATCHES } from './tourAnchorQueue';
 import './functionsInit';
+import { safeErr } from './safeLog';
 
 // The routine's API trigger; the id is not secret, only the token is.
 export const TOUR_ROUTINE_FIRE_URL =
@@ -79,7 +80,7 @@ export const tourAnchorBatchTrigger = onDocumentCreated(
     } catch (err) {
       logger.warn('[tourAnchorBatchTrigger] routine fire failed', {
         batchId,
-        err,
+        err: safeErr(err),
       });
     }
   }

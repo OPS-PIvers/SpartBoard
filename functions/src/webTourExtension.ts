@@ -18,6 +18,7 @@ import {
   type ExtensionDeps,
   type TokenInfo,
 } from './extensionAuth';
+import { safeErr } from './safeLog';
 
 export {
   DISTRICT_DOMAIN,
@@ -559,7 +560,7 @@ const extensionEndpoint = (handler: Handler, memory: '256MiB' | '512MiB') =>
           });
           return;
         }
-        console.error('[webTourExtension] failed:', error);
+        console.error('[webTourExtension] failed:', safeErr(error));
         res.status(500).json({ error: 'Something went wrong.' });
       }
     }

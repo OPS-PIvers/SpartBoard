@@ -269,6 +269,8 @@ export const SURFACES: TourSurfaceMap = {
     inner: {
       'web-tours.share-tour-url': 'web-tours.copy-link:web-tours',
       'web-tours.share-steps-url': 'web-tours.copy-link:web-tours',
+      'web-tours.share-html-file': 'web-tours.copy-link:web-tours',
+      'web-tours.share-freshservice': 'web-tours.copy-link:web-tours',
     },
   },
   'board.web-tour-editor': {
@@ -288,6 +290,7 @@ export const SURFACES: TourSurfaceMap = {
     ],
     inner: {
       'web-tour-editor.rewrite-all': 'web-tour-editor.menu',
+      'web-tour-editor.copy-for-claude': 'web-tour-editor.menu',
       'web-tour-editor.copy-link': 'web-tour-editor.menu',
       'web-tour-editor.duplicate': 'web-tour-editor.menu',
       'web-tour-editor.delete': 'web-tour-editor.menu',

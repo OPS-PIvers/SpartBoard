@@ -66,6 +66,7 @@ import {
   narrationDeps,
   unnarratedIds,
 } from './tourNarration';
+import { safeErr } from '../safeLog';
 
 export const HELP_RESOURCES = 'help_resources';
 export const ADMIN_ONLY_TOOLS: ReadonlySet<string> = new Set([
@@ -881,7 +882,7 @@ async function narrate(ctx: ToolContext, steps: GlSet['steps']) {
   try {
     return await narrateTourSteps(steps, await narrationDeps(ctx));
   } catch (err) {
-    console.warn('[live tour] narration unavailable', err);
+    console.warn('[live tour] narration unavailable', safeErr(err));
     return { steps: [...steps], failed: unnarratedIds(steps) };
   }
 }
@@ -1010,7 +1011,7 @@ export function registerLiveTourTools(
             .doc(`${BUILDING}/${saved.set.id}`)
             .update({ steps: voiced.steps })
             .catch((err: unknown) => {
-              console.warn('[live tour] narration write failed', err);
+              console.warn('[live tour] narration write failed', safeErr(err));
               voiced.failed.push(...changed.map((s) => s.id));
             });
         }
@@ -1059,7 +1060,7 @@ export function registerLiveTourTools(
           loadReview(ctx, set_id),
           healthOf(ctx, set_id).catch((err: unknown) => {
             // Health is extra; a failed read leaves it out rather than failing the tour.
-            console.warn('[live tour] health read failed', err);
+            console.warn('[live tour] health read failed', safeErr(err));
             return undefined;
           }),
         ]);

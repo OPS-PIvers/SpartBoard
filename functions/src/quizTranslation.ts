@@ -31,6 +31,7 @@ import {
 import { assertViewAsAllowed } from './viewAsGuard';
 import { generateAi } from './aiRouter';
 import { assertAiTeacherCaller } from './aiCallerGate';
+import { safeErr } from './safeLog';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -1078,7 +1079,7 @@ export async function translateQuiz(
     try {
       await billTranslationTokens(deps.db, uid, outputTokens, nowMs);
     } catch (err) {
-      console.error('Failed to bill quiz-translation tokens', err);
+      console.error('Failed to bill quiz-translation tokens', safeErr(err));
     }
   }
 
@@ -1167,7 +1168,7 @@ export async function translateResponse(
     try {
       await billBackTranslationTokens(deps.db, uid, outputTokens, nowMs);
     } catch (err) {
-      console.error('Failed to bill back-translation tokens', err);
+      console.error('Failed to bill back-translation tokens', safeErr(err));
     }
   }
 }

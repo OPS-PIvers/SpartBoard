@@ -45,3 +45,9 @@ runs:
     - name: Install dependencies
       shell: bash
       run: pnpm run install:ci
+
+    - name: Cache background-removal model files
+      uses: actions/cache@v4
+      with:
+        path: node_modules/.cache/imgly-bg
+        key: imgly-bg-${{ hashFiles('config/imglyBackgroundRemovalResources.json') }}

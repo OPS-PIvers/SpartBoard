@@ -34,6 +34,7 @@ import { assertViewAsAllowed } from './viewAsGuard';
 import { isAiTeacherCaller, type AiCallerToken } from './aiCallerGate';
 import { generateAi } from './aiRouter';
 import { isExcludedFrom } from './permissionExclusion';
+import { safeErr } from './safeLog';
 
 type Firestore = admin.firestore.Firestore;
 type Data = Record<string, unknown>;
@@ -159,7 +160,7 @@ export async function runGoalCoach(
   } catch (error) {
     if (charge) await deps.refund(charge).catch(() => undefined);
     if (error instanceof HttpsError) throw error;
-    console.error('[plcGoalCoachV1] failed:', error);
+    console.error('[plcGoalCoachV1] failed:', safeErr(error));
     throw new HttpsError(
       'internal',
       'The goal coach could not check this goal.'

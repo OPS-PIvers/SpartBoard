@@ -3,9 +3,12 @@ import type { QuizData, QuizQuestion } from '@/types';
 import type { BankContent } from '@/utils/questionBanks';
 import {
   applyCurrentAnswerKeys,
+  keyFixOptionsFor,
+  assignmentFrozenFileId,
   hasEveryCurrentAnswerKey,
   loadAssignmentAnswerKeyQuiz,
   resolveQuizAssignContent,
+  unfrozenAssignmentCount,
   withCurrentAnswerKeys,
 } from '@/utils/quizAssignBankDraw';
 
@@ -252,5 +255,102 @@ describe('loadAssignmentAnswerKeyQuiz', () => {
         loadBankContentsForQuiz: vi.fn(),
       })
     ).rejects.toThrow('gone');
+  });
+});
+
+describe('frozen plain-quiz assignments', () => {
+  const library = (questions: QuizQuestion[]) => ({ questions });
+
+  it('keeps the as-assigned key when the question was reworded for a retake', () => {
+    const frozen = baseQuiz({
+      questions: [{ ...q('q1'), text: 'What is 2 + 2?', correctAnswer: '4' }],
+    });
+    const out = applyCurrentAnswerKeys(
+      frozen,
+      library([{ ...q('q1'), text: 'What is 3 + 3?', correctAnswer: '6' }]),
+      new Map(),
+      { sameTextOnly: true }
+    );
+    expect(out.questions[0].text).toBe('What is 2 + 2?');
+    expect(out.questions[0].correctAnswer).toBe('4');
+    expect(out).toBe(frozen);
+  });
+
+  it('a bank draw still takes a key fix on a reworded question, as before', () => {
+    const frozen = baseQuiz({
+      questions: [{ ...q('q1'), text: 'Teh answer?', correctAnswer: 'a' }],
+    });
+    const out = applyCurrentAnswerKeys(
+      frozen,
+      library([
+        {
+          ...q('q1'),
+          text: 'The answer?',
+          correctAnswer: 'b',
+          incorrectAnswers: ['a'],
+        },
+      ]),
+      new Map()
+    );
+    expect(out.questions[0].correctAnswer).toBe('b');
+  });
+
+  it('needs the same text only for assignments frozen at assign', () => {
+    expect(keyFixOptionsFor({ frozenDriveFileId: 'f' }).sameTextOnly).toBe(
+      true
+    );
+    expect(
+      keyFixOptionsFor({ resolvedDriveFileId: 'r', frozenDriveFileId: 'f' })
+        .sameTextOnly
+    ).toBe(false);
+    expect(keyFixOptionsFor(undefined).sameTextOnly).toBe(false);
+  });
+
+  it('takes a key fix when the question and its choices are unchanged', () => {
+    const frozen = baseQuiz({
+      questions: [{ ...q('q1'), correctAnswer: 'a', incorrectAnswers: ['b'] }],
+    });
+    const out = applyCurrentAnswerKeys(
+      frozen,
+      library([{ ...q('q1'), correctAnswer: 'b', incorrectAnswers: ['a'] }]),
+      new Map()
+    );
+    expect(out.questions[0].correctAnswer).toBe('b');
+  });
+
+  it('keeps the as-assigned question when the choices changed', () => {
+    const frozen = baseQuiz({ questions: [q('q1')] });
+    const out = applyCurrentAnswerKeys(
+      frozen,
+      library([{ ...q('q1'), correctAnswer: 'c', incorrectAnswers: ['d'] }]),
+      new Map()
+    );
+    expect(out.questions[0].correctAnswer).toBe('a');
+  });
+
+  it('prefers a bank-draw copy, then the frozen copy', () => {
+    expect(
+      assignmentFrozenFileId({
+        resolvedDriveFileId: 'bank',
+        frozenDriveFileId: 'frozen',
+      })
+    ).toBe('bank');
+    expect(assignmentFrozenFileId({ frozenDriveFileId: 'frozen' })).toBe(
+      'frozen'
+    );
+    expect(assignmentFrozenFileId({})).toBeUndefined();
+    expect(assignmentFrozenFileId(undefined)).toBeUndefined();
+  });
+
+  it('counts only this quiz’s assignments that an edit would re-score', () => {
+    expect(
+      unfrozenAssignmentCount('quiz-1', [
+        { quizId: 'quiz-1' },
+        { quizId: 'quiz-1', frozenDriveFileId: 'f' },
+        { quizId: 'quiz-1', resolvedDriveFileId: 'r' },
+        { quizId: 'quiz-1', sync: { groupId: 'g', lastSyncedVersion: 1 } },
+        { quizId: 'quiz-2' },
+      ] as Parameters<typeof unfrozenAssignmentCount>[1])
+    ).toBe(1);
   });
 });

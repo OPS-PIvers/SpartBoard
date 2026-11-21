@@ -199,6 +199,10 @@
           {
             "key": "Cross-Origin-Opener-Policy",
             "value": "same-origin-allow-popups"
+          },
+          {
+            "key": "Content-Security-Policy-Report-Only",
+            "value": "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://accounts.google.com https://apis.google.com https://www.gstatic.com https://www.youtube.com https://s.ytimg.com https://sdk.scdn.co https://cdn.tailwindcss.com; worker-src 'self' blob:"
           }
         ]
       },
@@ -230,6 +234,10 @@
           {
             "key": "Content-Security-Policy",
             "value": "frame-ancestors 'self' https://*.instructure.com https://*.schoology.com https://classroom.google.com"
+          },
+          {
+            "key": "Content-Security-Policy-Report-Only",
+            "value": "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://accounts.google.com https://apis.google.com https://www.gstatic.com https://www.youtube.com https://s.ytimg.com https://sdk.scdn.co https://cdn.tailwindcss.com; worker-src 'self' blob:"
           }
         ]
       },
@@ -239,6 +247,10 @@
           {
             "key": "Content-Security-Policy",
             "value": "frame-ancestors 'self' https://classroom.google.com https://*.google.com https://*.googleusercontent.com"
+          },
+          {
+            "key": "Content-Security-Policy-Report-Only",
+            "value": "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://accounts.google.com https://apis.google.com https://www.gstatic.com https://www.youtube.com https://s.ytimg.com https://sdk.scdn.co https://cdn.tailwindcss.com; worker-src 'self' blob:"
           }
         ]
       },
@@ -248,6 +260,10 @@
           {
             "key": "Content-Security-Policy",
             "value": "frame-ancestors 'self' https://*.schoology.com https://app.schoology.com"
+          },
+          {
+            "key": "Content-Security-Policy-Report-Only",
+            "value": "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://accounts.google.com https://apis.google.com https://www.gstatic.com https://www.youtube.com https://s.ytimg.com https://sdk.scdn.co https://cdn.tailwindcss.com; worker-src 'self' blob:"
           }
         ]
       },
@@ -284,6 +300,15 @@
           {
             "key": "Cache-Control",
             "value": "max-age=31536000"
+          }
+        ]
+      },
+      {
+        "source": "/tesseract/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
           }
         ]
       },

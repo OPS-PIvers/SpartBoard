@@ -658,13 +658,35 @@ export function scoreMultiAnswerServer(
   return { fraction: exact ? 1 : fraction, exact };
 }
 
+/** Longest student answer any grader reads; the rest of an over-long value is dropped before grading. */
+export const MAX_ANSWER_CHARS = 100_000;
+
+export function capAnswer(answer: string): string {
+  return answer.length > MAX_ANSWER_CHARS
+    ? answer.slice(0, MAX_ANSWER_CHARS)
+    : answer;
+}
+
+/** Removes every `<...>` tag, nested ones included, in one linear pass; mirrors `hasSubmittedContent` in hooks/useQuizSession.ts. */
+export function stripMarkupTags(input: string): string {
+  const out: string[] = [];
+  const open: number[] = [];
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (ch === '<') {
+      open.push(out.length);
+      out.push(ch);
+    } else if (ch === '>' && open.length > 0) {
+      out.length = open.pop() as number;
+    } else {
+      out.push(ch);
+    }
+  }
+  return out.join('');
+}
+
 function hasSubmittedContent(answer: string): boolean {
-  let stripped = answer ?? '';
-  let previous: string;
-  do {
-    previous = stripped;
-    stripped = stripped.replace(/<[^<>]*>/g, '');
-  } while (stripped !== previous);
+  const stripped = stripMarkupTags(answer ?? '');
   return (
     stripped
       .replace(/&nbsp;/gi, ' ')

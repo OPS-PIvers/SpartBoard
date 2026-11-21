@@ -422,7 +422,7 @@ describe('drainDirtySessions when the class roster is unavailable', () => {
     }
     const queued = stub.get('grade_index_sessions/projects__t1_p1');
     expect(queued?.unavailable).toBe(8);
-    expect(queued?.failures).toBeUndefined();
+    expect(queued?.failures ?? 0).toBe(0);
   });
 
   it('moves dirtyAt to retryAt so a backed-off entry sorts behind newer work', async () => {
