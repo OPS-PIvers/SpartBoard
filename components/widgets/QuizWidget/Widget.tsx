@@ -82,6 +82,7 @@ import {
   loadAssignmentAnswerKeyQuiz,
   unfrozenAssignmentCount,
   withCurrentAnswerKeys,
+  keyFixOptionsFor,
 } from '@/utils/quizAssignBankDraw';
 import { BankEditorModal } from './components/BankEditorModal';
 import type { QuestionBankData, QuestionBankMetadata } from '@/types';
@@ -1496,10 +1497,12 @@ const TeacherQuizWidget: React.FC<{
       const frozenId = assignmentFrozenFileId(assignment);
       if (!frozenId || frozenId === meta.driveFileId) return loadQuiz(meta);
       return loadQuiz({ ...meta, driveFileId: frozenId }, (frozen) =>
-        withCurrentAnswerKeys(frozen, meta.driveFileId, {
-          loadQuizData,
-          loadBankContentsForQuiz,
-        })
+        withCurrentAnswerKeys(
+          frozen,
+          meta.driveFileId,
+          { loadQuizData, loadBankContentsForQuiz },
+          keyFixOptionsFor(assignment)
+        )
       );
     },
     [loadQuiz, loadQuizData, loadBankContentsForQuiz]
@@ -1518,7 +1521,8 @@ const TeacherQuizWidget: React.FC<{
         return await loadAssignmentAnswerKeyQuiz(
           meta.driveFileId,
           assignmentFrozenFileId(assignment),
-          { loadQuizData, loadBankContentsForQuiz }
+          { loadQuizData, loadBankContentsForQuiz },
+          keyFixOptionsFor(assignment)
         );
       } catch (err) {
         addToast(
@@ -1623,7 +1627,8 @@ const TeacherQuizWidget: React.FC<{
                 : await withCurrentAnswerKeys(
                     await loadQuizData(frozenId),
                     meta.driveFileId,
-                    { loadQuizData, loadBankContentsForQuiz }
+                    { loadQuizData, loadBankContentsForQuiz },
+                    keyFixOptionsFor(a)
                   );
             await applySectionCounts({ sessionId: a.id, changes, quiz });
           }
@@ -3508,7 +3513,7 @@ const TeacherQuizWidget: React.FC<{
           paperSheets.enabled && !isReview && user?.uid
             ? async (assignment, opts) => {
                 const meta = paperAssignmentMeta(assignment);
-                const data = await loadQuiz(meta);
+                const data = await loadAnswerKeyQuiz(meta, assignment);
                 if (!data) return;
                 const copyIds = assignment.paperCopyBatchIds ?? [];
                 const batches = (
@@ -3536,7 +3541,10 @@ const TeacherQuizWidget: React.FC<{
         onReprintPaperSheets={
           paperUid
             ? async (assignment, opts) => {
-                const data = await loadQuiz(paperAssignmentMeta(assignment));
+                const data = await loadAnswerKeyQuiz(
+                  paperAssignmentMeta(assignment),
+                  assignment
+                );
                 if (!data) return;
                 const stacks = await listPaperBatchesForQuiz(
                   paperUid,
