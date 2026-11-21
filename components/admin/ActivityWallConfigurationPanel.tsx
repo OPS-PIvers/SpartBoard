@@ -17,6 +17,7 @@ import {
   BuildingActivityWallDefaults,
 } from '@/types';
 import { tourFieldAttr } from '@/config/tourAnchors';
+import { DraftNumberField } from './DraftNumberField';
 
 // Both defaults surfaces share one buildingDefaults[buildingId] record.
 type ActivityWallBuildingRecord = ActivityWallBuildingConfig &
@@ -181,25 +182,25 @@ export const ActivityWallConfigurationPanel: React.FC<
             Default Max Posts Per Student
           </label>
           <p className="text-xxs text-slate-500 mb-2">0 means unlimited.</p>
-          <input
+          <DraftNumberField
             id="aw-default-max-posts"
             {...tourFieldAttr(
               'admin.widget-config.field',
               'activity-wall',
               'defaultMaxPostsPerStudent'
             )}
-            type="number"
             min={0}
             max={999}
             value={currentBuildingConfig.defaultMaxPostsPerStudent ?? 0}
-            onChange={(event) => {
-              const parsed = Number.parseInt(event.target.value, 10);
+            normalize={(n) => Math.min(999, Math.max(0, Math.trunc(n)))}
+            onCommit={(n) =>
               handleUpdateBuilding({
-                defaultMaxPostsPerStudent: Number.isFinite(parsed)
-                  ? Math.min(999, Math.max(0, parsed))
-                  : 0,
-              });
-            }}
+                defaultMaxPostsPerStudent: Math.min(
+                  999,
+                  Math.max(0, Math.trunc(n))
+                ),
+              })
+            }
             className="w-32 px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-hidden"
           />
         </div>
