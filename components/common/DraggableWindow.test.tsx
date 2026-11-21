@@ -918,6 +918,27 @@ describe('DraggableWindow', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('leaves Escape from a portaled dialog input to the dialog', () => {
+    renderComponent(
+      {},
+      createPortal(
+        <div role="dialog">
+          <input data-testid="portal-input" />
+        </div>,
+        document.body
+      )
+    );
+    const input = screen.getByTestId('portal-input');
+    const docEscape = vi.fn();
+    document.addEventListener('keydown', docEscape);
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+    document.removeEventListener('keydown', docEscape);
+
+    expect(docEscape).toHaveBeenCalledTimes(1);
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
   it('shows confirmation on Delete key press', () => {
     renderComponent();
     const windowEl = screen.getByTestId('draggable-window');
