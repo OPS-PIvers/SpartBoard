@@ -4,6 +4,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as logger from 'firebase-functions/logger';
 import * as admin from '../firebaseAdmin';
 import '../functionsInit';
+import { CLASSLINK_FUNCTION_TIMEOUT_SECONDS } from '../classlinkShared';
 import {
   SESSION_COLLECTION,
   STUDENT_SUBCOLLECTION,
@@ -55,7 +56,11 @@ const ROSTER_SECRETS = [
   CLASSLINK_TENANT_URL,
   STUDENT_PSEUDONYM_HMAC_SECRET,
 ];
-const PROJECTION_OPTS = { ...TRIGGER_OPTS, secrets: ROSTER_SECRETS };
+const PROJECTION_OPTS = {
+  ...TRIGGER_OPTS,
+  secrets: ROSTER_SECRETS,
+  timeoutSeconds: CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
+};
 // Config edits re-project whole classes, so they get the long timeout.
 const FANOUT_OPTS = { ...PROJECTION_OPTS, timeoutSeconds: 540 };
 
@@ -101,7 +106,13 @@ const studentDocTrigger = (kind: GradeKind) =>
     {
       ...TRIGGER_OPTS,
       // Projects retry so a failed legacy override migration runs again.
-      ...(kind === 'projects' ? { secrets: ROSTER_SECRETS, retry: true } : {}),
+      ...(kind === 'projects'
+        ? {
+            secrets: ROSTER_SECRETS,
+            retry: true,
+            timeoutSeconds: CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
+          }
+        : {}),
       document: `${SESSION_COLLECTION[kind]}/{sessionId}/${STUDENT_SUBCOLLECTION[kind]}/{docId}`,
     },
     (event) => handleStudentDocWrite(kind, event as unknown as WriteEvent)

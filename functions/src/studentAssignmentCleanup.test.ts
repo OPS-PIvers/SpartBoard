@@ -46,6 +46,7 @@ vi.mock('firebase-functions/v2/https', () => ({
 import * as admin from './firebaseAdmin';
 import { computeStudentUid } from './classlinkShared';
 import {
+  cleanupMiniAppAssignmentPointers,
   cleanupQuizAssignmentPointers,
   deletePointersForAssignment,
   targetRefsFromAssignment,
@@ -72,12 +73,24 @@ function makeDb() {
   const docRef = (path: string) => ({
     __path: path,
     collection: (sub: string) => collectionRef(`${path}/${sub}`),
+    get: () => {
+      const data = docs.get(path);
+      return Promise.resolve({
+        exists: data !== undefined,
+        get: (field: string) => data?.[field],
+      });
+    },
   });
   const collectionRef = (path: string) => ({
+    __path: path,
     doc: (id: string) => docRef(`${path}/${id}`),
   });
   return {
     collection: (name: string) => collectionRef(name),
+    recursiveDelete: (ref: { __path: string }) => {
+      deleted.push(`${ref.__path}/*`);
+      return Promise.resolve();
+    },
     runTransaction: async <T>(
       fn: (tx: {
         get: (ref: { __path: string }) => Promise<unknown>;
@@ -286,5 +299,56 @@ describe('cleanupQuizAssignmentPointers', () => {
     docs.set(pointerPath(uidOf('victim')), { teacherUid: OWNER, kind: 'quiz' });
     await run(OWNER);
     expect(deleted).toEqual([pointerPath(uidOf('victim'))]);
+  });
+});
+
+describe('cleanupMiniAppAssignmentPointers', () => {
+  type Handler = (event: {
+    params: Record<string, string>;
+    data?: { data: () => Record<string, unknown> };
+  }) => Promise<void>;
+  const RECEIPTS = 'mini_app_sessions/session-1/receipts/*';
+  const run = (userId: string, data: Record<string, unknown>) =>
+    (cleanupMiniAppAssignmentPointers as unknown as Handler)({
+      params: { userId, assignmentId: ASSIGNMENT_ID },
+      data: { data: () => data },
+    });
+
+  beforeEach(() => {
+    (admin.firestore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      makeDb()
+    );
+  });
+
+  it("deletes the session's receipts with the owner's assignment, even with no targets", async () => {
+    docs.set('mini_app_sessions/session-1', { teacherUid: OWNER });
+    await run(OWNER, { sessionId: 'session-1' });
+    expect(deleted).toEqual([RECEIPTS]);
+  });
+
+  it('deletes receipts and pointers together', async () => {
+    docs.set('mini_app_sessions/session-1', { teacherUid: OWNER });
+    docs.set(pointerPath(uidOf('sid-1')), {
+      teacherUid: OWNER,
+      kind: 'mini-app',
+    });
+    await run(OWNER, {
+      sessionId: 'session-1',
+      targetStudents: [{ kind: 'classlink', sourcedId: 'sid-1' }],
+    });
+    expect(deleted).toEqual([RECEIPTS, pointerPath(uidOf('sid-1'))]);
+  });
+
+  it("leaves another teacher's session receipts alone", async () => {
+    docs.set('mini_app_sessions/session-1', { teacherUid: 'teacher-b' });
+    await run(OWNER, { sessionId: 'session-1' });
+    expect(deleted).toEqual([]);
+  });
+
+  it('skips a missing session or a malformed session id', async () => {
+    await run(OWNER, { sessionId: 'session-1' });
+    await run(OWNER, { sessionId: 'a/b' });
+    await run(OWNER, {});
+    expect(deleted).toEqual([]);
   });
 });

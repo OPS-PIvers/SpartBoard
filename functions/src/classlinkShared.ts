@@ -40,6 +40,8 @@ export const ONEROSTER_BASE = '/ims/oneroster/v1p1';
 export const CLASSLINK_TIMEOUT_MS = 20000;
 /** Longest a multi-call ClassLink read runs before it fails rather than hit the function deadline. */
 export const CLASSLINK_TOTAL_BUDGET_MS = 90000;
+/** Function timeout for a ClassLink read: the budget plus one last in-flight request. */
+export const CLASSLINK_FUNCTION_TIMEOUT_SECONDS = 120;
 
 /**
  * OneRoster student shape (subset). Fields are optional because a OneRoster

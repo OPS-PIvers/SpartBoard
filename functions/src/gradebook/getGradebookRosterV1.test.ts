@@ -6,8 +6,13 @@ vi.mock('../firebaseAdmin', () => ({
   firestore: vi.fn(),
 }));
 
+const callOpts = vi.hoisted(() => [] as unknown[]);
+
 vi.mock('firebase-functions/v2/https', () => ({
-  onCall: vi.fn((_opts: unknown, handler: unknown) => handler),
+  onCall: (opts: unknown, handler: unknown) => {
+    callOpts.push(opts);
+    return handler;
+  },
   HttpsError: class HttpsError extends Error {
     code: string;
     constructor(code: string, message: string) {
@@ -25,7 +30,12 @@ vi.mock('../secrets', () => ({
 }));
 
 import type * as admin from '../firebaseAdmin';
-import { computeStudentUid } from '../classlinkShared';
+import {
+  CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
+  CLASSLINK_TIMEOUT_MS,
+  CLASSLINK_TOTAL_BUDGET_MS,
+  computeStudentUid,
+} from '../classlinkShared';
 import {
   getGradebookRosterV1,
   handleGetGradebookRoster,
@@ -202,6 +212,16 @@ describe('getGradebookRosterV1 auth', () => {
         data: { rosterId: 'r1' },
       }),
       'permission-denied'
+    );
+  });
+});
+
+describe('getGradebookRosterV1 options', () => {
+  it('outlasts the ClassLink read budget plus one in-flight request', () => {
+    const opts = callOpts[0] as { timeoutSeconds?: number };
+    expect(opts.timeoutSeconds).toBe(CLASSLINK_FUNCTION_TIMEOUT_SECONDS);
+    expect(CLASSLINK_FUNCTION_TIMEOUT_SECONDS * 1000).toBeGreaterThanOrEqual(
+      CLASSLINK_TOTAL_BUDGET_MS + CLASSLINK_TIMEOUT_MS
     );
   });
 });
