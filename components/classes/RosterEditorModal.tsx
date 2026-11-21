@@ -34,6 +34,7 @@ import { AutosaveIndicator } from '@/components/common/EditorModalShell';
 import { useAutosave } from '@/hooks/useAutosave';
 import { DialogContext } from '@/context/DialogContextValue';
 import { assignPins } from '@/utils/rosterPins';
+import { mergeOverrideEdits } from '@/utils/rosterDefaultOverrides';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
@@ -171,6 +172,12 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   );
   const [defaultOverrides, setDefaultOverrides] =
     useState<Record<string, StudentOverride>>(initialOverrides);
+  // What the overrides tab last matched in the saved class; only edits since then are written.
+  const savedOverridesRef = useRef(initialOverrides);
+  const latestOverridesRef = useRef(initialOverrides);
+  useLayoutEffect(() => {
+    latestOverridesRef.current = initialOverrides;
+  }, [initialOverrides]);
 
   const initialBell = roster?.bellPeriod ?? null;
   const [bellPeriod, setBellPeriod] = useState<RosterBellPeriod | null>(
@@ -219,14 +226,20 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     const groupsChanged =
       JSON.stringify(keptGroups) !== JSON.stringify(initialGroups);
     const overridesChanged =
-      JSON.stringify(keptOverrides) !== JSON.stringify(initialOverrides);
+      JSON.stringify(keptOverrides) !==
+      JSON.stringify(savedOverridesRef.current);
+    const mergedOverrides = mergeOverrideEdits(
+      latestOverridesRef.current,
+      savedOverridesRef.current,
+      keptOverrides
+    );
     const bellChanged = bellKey(bellPeriod) !== bellKey(initialBell);
     if (bellChanged) {
       await onSave(
         rosterName,
         students,
         groupsChanged ? keptGroups : undefined,
-        overridesChanged ? keptOverrides : undefined,
+        overridesChanged ? mergedOverrides : undefined,
         bellPeriod
       );
     } else if (overridesChanged) {
@@ -234,13 +247,14 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
         rosterName,
         students,
         groupsChanged ? keptGroups : undefined,
-        keptOverrides
+        mergedOverrides
       );
     } else if (groupsChanged) {
       await onSave(rosterName, students, keptGroups);
     } else {
       await onSave(rosterName, students);
     }
+    if (overridesChanged) savedOverridesRef.current = keptOverrides;
   };
 
   // New Class only: an existing class saves on its own below.
