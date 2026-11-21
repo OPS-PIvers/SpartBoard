@@ -1001,6 +1001,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName || '') ||
       target?.isContentEditable;
 
+    // Keys from a portaled dialog bubble through the React tree but belong to that dialog.
+    if (!(target instanceof Node && e.currentTarget.contains(target))) return;
+
     if (isInput) {
       if (e.key === 'Escape') {
         // Must be called BEFORE blur(): blur() is synchronous, so the event would otherwise

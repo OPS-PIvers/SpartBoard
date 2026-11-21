@@ -117,10 +117,12 @@ export async function resolveStaffEmailsForUids(
   for (let i = 0; i < unique.length; i += AUTH_BATCH) {
     const chunk = unique.slice(i, i + AUTH_BATCH);
     const { users } = await auth.getUsers(chunk.map((uid) => ({ uid })));
-    for (const user of users) {
-      const email = provenGoogleEmail(user);
-      if (email && (await checker.isStaff(email))) out.add(email);
-    }
+    await Promise.all(
+      users.map(async (user) => {
+        const email = provenGoogleEmail(user);
+        if (email && (await checker.isStaff(email))) out.add(email);
+      })
+    );
   }
   return [...out].sort();
 }

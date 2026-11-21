@@ -1870,6 +1870,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const uid = user.uid;
     dockPersistTimerRef.current = setTimeout(() => {
       dockPersistTimerRef.current = null;
+      const previouslySaved = lastSavedDockDataRef.current;
+      // Mark as written up front so an edit reverted mid-flight is not skipped as "unchanged".
+      lastSavedDockDataRef.current = serialized;
       const profileRef = doc(db, 'users', uid, 'userProfile', 'profile');
       // `merge: true` is mandatory: AuthContext also writes this doc (see the
       // UserProfile ownership contract in types.ts). A non-merge write here
@@ -1883,16 +1886,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           dockInitialized: true,
         },
         { merge: true }
-      )
-        .then(() => {
-          lastSavedDockDataRef.current = serialized;
-        })
-        .catch((err: unknown) => {
-          console.error(
-            '[DashboardContext] Failed to persist dock state:',
-            err
-          );
-        });
+      ).catch((err: unknown) => {
+        if (lastSavedDockDataRef.current === serialized) {
+          lastSavedDockDataRef.current = previouslySaved;
+        }
+        console.error('[DashboardContext] Failed to persist dock state:', err);
+      });
     }, 500);
 
     return () => {

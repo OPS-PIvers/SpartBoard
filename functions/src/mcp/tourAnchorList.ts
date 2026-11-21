@@ -23748,6 +23748,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "reveal-grid.add-cards",
+    "label": "Add cards button on an empty Reveal Grid",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.reveal-grid.face",
+        "kind": "widget",
+        "widget_type": "reveal-grid",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "reveal-grid.start-over",
     "label": "Start over button in Reveal Grid memory mode",
     "scope": "widget",
