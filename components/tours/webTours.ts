@@ -194,7 +194,8 @@ export function watchWebTourDraft(
   return onSnapshot(
     draftRef(setId),
     (snap) => {
-      if (!snap.exists() || snap.metadata.hasPendingWrites) return;
+      // Pending writes count too: this tab's own saves carry its stamps, and a side save keeps the stamp it sits on.
+      if (!snap.exists()) return;
       const updatedAt: unknown = snap.get('updatedAt');
       if (typeof updatedAt !== 'number' || isOwnWebTourStamp(setId, updatedAt))
         return;

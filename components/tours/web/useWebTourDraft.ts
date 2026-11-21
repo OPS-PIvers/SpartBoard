@@ -78,6 +78,9 @@ export function useWebTourDraft(
   const latest = useRef(set);
   const dirty = useRef(false);
   const deleted = useRef(false);
+  // The draft save in flight, and whether the last one failed, so flush never reports a save that didn't land.
+  const inFlight = useRef<Promise<void> | null>(null);
+  const failed = useRef(false);
   const history = useRef<TourHistory<GuidedLearningSet>>(newTourHistory());
   // Every picture an earlier version in this session used; once the editor closes, undo can't bring them back.
   const replaced = useRef(new Set<string>());
@@ -120,13 +123,35 @@ export function useWebTourDraft(
     markDirty(keepOnUndo(stepped.value, latest.current));
   };
 
+  const track = (saving: Promise<void>): Promise<void> => {
+    const run = saving.then(
+      () => {
+        failed.current = false;
+      },
+      (err: unknown) => {
+        failed.current = true;
+        throw err;
+      }
+    );
+    inFlight.current = run;
+    void run
+      .then(
+        () => undefined,
+        () => undefined
+      )
+      .finally(() => {
+        if (inFlight.current === run) inFlight.current = null;
+      });
+    return run;
+  };
+
   // Debounced draft save while the admin edits.
   useEffect(() => {
     if (!dirty.current) return;
     const timer = setTimeout(() => {
       if (deleted.current) return;
       dirty.current = false;
-      saveStepDraft(set).then(
+      void track(saveStepDraft(set)).then(
         () => {
           if (!dirty.current) setSaveState('saved');
         },
@@ -147,7 +172,14 @@ export function useWebTourDraft(
     const words = (s: GuidedLearningSet) =>
       JSON.stringify([s.title, s.webGoal ?? '', s.steps]);
     if (words(saved) === words(latest.current)) return;
-    change(() => saved);
+    pushHistory(latest.current);
+    latest.current = saved;
+    setSet(saved);
+    // Saving it back would race Claude's next edit; only a save of ours still in flight could have overwritten it.
+    if (inFlight.current) {
+      dirty.current = true;
+      setSaveState('saving');
+    }
     onLoadedElsewhere?.();
   });
   useEffect(() => {
@@ -190,7 +222,7 @@ export function useWebTourDraft(
     setSet(next);
     setSaveState('saving');
     try {
-      await saveStepDraft(next);
+      await track(saveStepDraft(next));
       if (!dirty.current) setSaveState('saved');
     } catch (err) {
       setSaveState('error');
@@ -201,7 +233,8 @@ export function useWebTourDraft(
   // Write with Claude reads the saved draft, so it saves first.
   const flush = async () => {
     if (deleted.current) throw new Error('Tour deleted');
-    if (!dirty.current) return latest.current;
+    if (inFlight.current) await inFlight.current.catch(() => undefined);
+    if (!dirty.current && !failed.current) return latest.current;
     await saveNow(latest.current, false);
     return latest.current;
   };

@@ -999,6 +999,25 @@ describe('WebTourEditor', () => {
     expect(writeText.mock.calls[1][0]).toContain('its id, s1,');
   });
 
+  it('never says Saved when the draft save failed', async () => {
+    const writeText = vi.fn((_text: string) => Promise.resolve());
+    Object.assign(navigator, { clipboard: { writeText } });
+    storage.saveWebTourDraft.mockRejectedValue(new Error('offline'));
+    renderEditor(checked(tour('Biology 7')));
+    fireEvent.change(screen.getByDisplayValue('Open the course'), {
+      target: { value: 'Open your course' },
+    });
+    await waitFor(() => expect(storage.saveWebTourDraft).toHaveBeenCalled(), {
+      timeout: 2000,
+    });
+    fireEvent.click(menuItem('Copy for Claude'));
+    expect(
+      await screen.findByText("Couldn't save. Nothing was copied.")
+    ).toBeInTheDocument();
+    expect(writeText).not.toHaveBeenCalled();
+    storage.saveWebTourDraft.mockResolvedValue(undefined);
+  });
+
   it('hides Copy for Claude without the Claude connector', () => {
     auth.connector = false;
     renderEditor(checked(tour('Biology 7')));
@@ -1030,6 +1049,9 @@ describe('WebTourEditor', () => {
       await screen.findByText('Loaded new changes to this tour.')
     ).toBeInTheDocument();
     expect(screen.getByText('Open your course')).toBeInTheDocument();
+    // Claude's save isn't written back, so it can't race Claude's next edit.
+    await new Promise((r) => setTimeout(r, 1000));
+    expect(storage.saveWebTourDraft).not.toHaveBeenCalled();
     // The same save seen again changes nothing.
     act(() => auth.onSaved?.(fromClaude));
     fireEvent.click(screen.getByRole('button', { name: /^undo$/i }));
