@@ -193,19 +193,25 @@ describe('RosterGroupsPanel (redesign)', () => {
           ]}
           initialOverrides={{
             b: { timeMultiplier: 2 },
-            c: { timeMultiplier: 2 },
+            c: { timeMultiplier: 2, readAloud: true },
           }}
         />
       </DialogContext.Provider>
     );
-    latestOverrides = {};
+    const seeded = {
+      b: { timeMultiplier: 2 },
+      c: { timeMultiplier: 2, readAloud: true },
+    };
+    latestOverrides = seeded;
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(showConfirm).toHaveBeenCalledTimes(1));
-    expect(latestOverrides).toEqual({});
+    expect(latestOverrides).toEqual(seeded);
     expect(screen.getByText('Extra time')).toBeInTheDocument();
     showConfirm.mockResolvedValue(true);
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-    await waitFor(() => expect(latestOverrides).toEqual({}));
+    await waitFor(() =>
+      expect(latestOverrides).toEqual({ c: { readAloud: true } })
+    );
     await waitFor(() => expect(latestGroups).toEqual([]));
   });
 
