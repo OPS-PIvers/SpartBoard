@@ -30,12 +30,14 @@ import {
   mergeCards,
   normalizeSet,
   readSet,
+  readSetForSave,
   rewriteOpenCheckSessions,
   rewriteOpenStudySessions,
   setsPath,
   guardPublicShare,
   stageSetWrite,
   type FlashcardSet,
+  type LoadedSet,
 } from './flashcardStore';
 import { handleRescoreFlashcardCheck } from '../flashcardRescore';
 import { prepareSpeakSave, type SpeakSaveResult } from './flashcardSpeak';
@@ -195,12 +197,16 @@ const languageInput = z
   .regex(/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/)
   .describe('BCP 47 read-aloud language, e.g. es-MX. Default en-US.');
 
+const SET_CONFLICT =
+  'This set changed in SpartBoard while Claude was saving. Fetch it again and redo the change.';
+
 async function saveFlashcardEdit(
   ctx: ToolContext,
-  existing: FlashcardSet,
+  loaded: LoadedSet,
   prepared: FlashcardSet | SpeakSaveResult,
   action: 'update' | 'restore'
 ) {
+  const existing = loaded.set;
   const speak =
     'set' in prepared
       ? prepared
@@ -221,18 +227,15 @@ async function saveFlashcardEdit(
     { ...next, claudeEditedAt: now, [REVIEW_MARK]: now },
     now
   );
-  const share = normalized.publicShareId
+  const shareTime = normalized.publicShareId
     ? await guardPublicShare(ctx.db, ctx.uid, normalized.publicShareId)
     : undefined;
-  stageSetWrite(
-    ctx.db,
-    batch,
-    ctx.uid,
-    normalized,
-    existing.termLanguage,
-    stamp,
-    share
-  );
+  stageSetWrite(ctx.db, batch, ctx.uid, normalized, {
+    previousTermLanguage: existing.termLanguage,
+    speakStamp: stamp,
+    shareTime,
+    loaded,
+  });
   logActivity(ctx, batch, {
     action,
     itemType: 'flashcard_set',
@@ -240,7 +243,13 @@ async function saveFlashcardEdit(
     title: normalized.title,
     revisionId,
   });
-  await batch.commit();
+  try {
+    await batch.commit();
+  } catch (err) {
+    if ((err as { code?: number }).code === 9)
+      throw new ToolError(SET_CONFLICT);
+    throw err;
+  }
   let studySessionsUpdated = 0;
   let warning: string | undefined;
   try {
@@ -660,9 +669,10 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     },
     (input) =>
       run('update_flashcard_set', ctx, async () => {
-        const existing = await readSet(db, uid, input.set_id);
-        if (!existing)
+        const loaded = await readSetForSave(db, uid, input.set_id);
+        if (!loaded)
           throw new ToolError(`Flashcard set ${input.set_id} was not found.`);
+        const existing = loaded.set;
         if (input.folder_id)
           await assertFolder(ctx, 'flashcards', input.folder_id);
         const next: FlashcardSet = {
@@ -684,7 +694,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         try {
           const speak = await prepareSpeakSave(db, ctx, next, input.speak);
           await reserveWrite(ctx);
-          return await saveFlashcardEdit(ctx, existing, speak, 'update');
+          return await saveFlashcardEdit(ctx, loaded, speak, 'update');
         } catch (err) {
           await discardPictures();
           throw err;
@@ -774,8 +784,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           throw new ToolError('That revision cannot be restored.');
         }
         const itemId = String(rev.get('itemId'));
-        const existing = await readSet(db, uid, itemId);
-        if (!existing) {
+        const loaded = await readSetForSave(db, uid, itemId);
+        if (!loaded) {
           throw new ToolError(
             'The item no longer exists in SpartBoard, so it cannot be restored.'
           );
@@ -786,9 +796,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         const restored: FlashcardSet = {
           ...data,
           id: itemId,
-          publicShareId: existing.publicShareId ?? null,
+          publicShareId: loaded.set.publicShareId ?? null,
         };
-        return saveFlashcardEdit(ctx, existing, restored, 'restore');
+        return saveFlashcardEdit(ctx, loaded, restored, 'restore');
       })
   );
 
