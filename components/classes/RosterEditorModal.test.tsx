@@ -254,6 +254,53 @@ describe('RosterEditorModal', () => {
     });
   });
 
+  it('writes only the students it changed on top of the latest saved overrides', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const existing: ClassRoster = {
+      id: 'r1',
+      name: 'Existing Class',
+      students: [
+        { id: 's1', firstName: 'Alice', lastName: 'Smith', pin: '01' },
+        { id: 's2', firstName: 'Bo', lastName: 'Jones', pin: '02' },
+      ],
+      defaultOverridesByStudentId: { s1: { timeMultiplier: 2 } },
+      driveFileId: null,
+      studentCount: 2,
+      createdAt: Date.now(),
+    };
+    const props = { isOpen: true, onClose: vi.fn(), onSave };
+    const { rerender } = render(
+      <RosterEditorModal roster={existing} {...props} />
+    );
+    // Changed elsewhere while this modal is open.
+    rerender(
+      <RosterEditorModal
+        roster={{
+          ...existing,
+          defaultOverridesByStudentId: {
+            s1: { timeMultiplier: 2 },
+            s2: { readAloud: true },
+          },
+        }}
+        {...props}
+      />
+    );
+    await user.click(screen.getByRole('tab', { name: /accommodations/i }));
+    await user.click(
+      screen.getByRole('button', { name: /remove smith, alice/i })
+    );
+    await user.click(saveClassButton());
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(
+        'Existing Class',
+        expect.any(Array),
+        undefined,
+        { s2: { readAloud: true } }
+      );
+    });
+  });
+
   it('calls onSave exactly once on a plain student edit (no groups touched)', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockResolvedValue(undefined);

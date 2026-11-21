@@ -376,6 +376,31 @@
           "after": 2
         }
       }
+    },
+    {
+      "pr": 6513,
+      "widgetType": "reveal-grid",
+      "dimension": "config",
+      "openedAt": "2026-11-21T13:30:00Z",
+      "outcome": "accepted",
+      "changes": {
+        "C5": {
+          "before": 1,
+          "after": 3
+        },
+        "V1": {
+          "before": 2,
+          "after": 3
+        },
+        "R1": {
+          "before": 1,
+          "after": 3
+        },
+        "E3": {
+          "before": 2,
+          "after": 3
+        }
+      }
     }
   ]
 }

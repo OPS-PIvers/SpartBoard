@@ -208,4 +208,26 @@ describe('resolveStaffEmailsForUids', () => {
     expect(out).toEqual(['teacher@orono.k12.mn.us']);
     expect(getUsers).toHaveBeenCalledTimes(1);
   });
+
+  it('checks a batch of members for staff concurrently, not one after another', async () => {
+    const users = Array.from({ length: 20 }, (_, i) =>
+      user({ uid: `t${i}`, email: `t${i}@orono.k12.mn.us` })
+    );
+    const getUsers = () => Promise.resolve({ users, notFound: [] });
+    let inFlight = 0;
+    let peak = 0;
+    const isStaff = async () => {
+      peak = Math.max(peak, ++inFlight);
+      await new Promise((r) => setTimeout(r, 1));
+      inFlight--;
+      return true;
+    };
+    const out = await resolveStaffEmailsForUids(
+      { getUsers },
+      { isStaff },
+      users.map((u) => (u as { uid: string }).uid)
+    );
+    expect(out).toHaveLength(20);
+    expect(peak).toBeGreaterThan(1);
+  });
 });

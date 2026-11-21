@@ -792,6 +792,12 @@
 | 2026-11-20 | State & Data | `AuthContext` four 1 s debounced profile saves (pen colors, materials prefs, widget defaults, presets) were dropped when sign-out landed inside the window. One `scheduleDebouncedWrite` map; `signOut` flushes it (3 s cap) first. Test fails before, passes after. PR: [#6431](https://github.com/ops-pivers/spartboard/pull/6431) |
 | 2026-11-20 | Admin & Config | `FeaturePermissionsManager.savePermission(widget, updates)` merged state without marking the widget unsaved, so a failed Quiz modal save looked saved with Save disabled. Now marks it unsaved. Test fails before, passes after. PR: [#6432](https://github.com/ops-pivers/spartboard/pull/6432) |
 | 2026-11-20 | Build & Tooling | Perf: `rosterBuildingGroup` vetted candidate staff serially (Auth + 1-2 Firestore reads each). Now chunks of 10 via `Promise.all`, order kept. Test asserts peak concurrency; fails before, passes after. PR: [#6433](https://github.com/ops-pivers/spartboard/pull/6433) |
+| 2026-11-21 | Baseline | `pnpm run validate` green on `dev-paul` at `7a8245ec` (6284 functions tests; root suite green). |
+| 2026-11-21 | Widgets | Clean. Read Schedule, SpecialistSchedule, Weather, groupMaker, Stations, Flashcards import, math tools, TimeTool, LunchCount, Checklist, RevealGrid, Scoreboard, Poll, NextUp, SeatingChart, settings renderer fields; nothing reproducible (see Backlog). |
+| 2026-11-21 | Dashboard & Layout | `DraggableWindow.handleKeyDown` ran widget shortcuts for keydowns bubbling from a portaled Modal/dialog (Escape minimized the widget, Delete opened the close confirm). Now ignores targets not DOM-contained in the window. Test fails before, passes after. PR: [#6508](https://github.com/OPS-PIvers/SpartBoard/pull/6508) |
+| 2026-11-21 | State & Data | Dock persist effect skipped a write when the dock was reverted while the previous write was in flight (the saved-marker updated only after the write landed), leaving Firestore on the stale dock. Marker now set when the write is sent, restored on failure. Test fails before, passes after. PR: [#6507](https://github.com/OPS-PIvers/SpartBoard/pull/6507) |
+| 2026-11-21 | Admin & Config | Activity Wall "Default Max Posts Per Student" snapped a cleared box back to 0 and saved 0. Now `DraftNumberField`. Test fails before, passes after. PR: [#6505](https://github.com/OPS-PIvers/SpartBoard/pull/6505) |
+| 2026-11-21 | Build & Tooling | Perf: `resolveStaffEmailsForUids` checked staff one member at a time in the weekly PLC digest. Now `Promise.all` per Auth batch; test asserts peak concurrency (1 before, 20 after). PR: [#6506](https://github.com/OPS-PIvers/SpartBoard/pull/6506) |
 
 ## Backlog
 
@@ -1299,6 +1305,11 @@
 | State & Data | Debounced profile writes are still unflushed on tab close/`pagehide` (sign-out is fixed) | 2026-11-20 | open |
 | Admin & Config | `FeaturePermissionsManager.savePermission` lacks an in-flight counter (overlapping saves clear `saving` early; see `useGlobalPermissionsEditor.inFlightRef`); `useSpeechToTextMonthlyUsage` computes the month id once at mount; `withoutProtectedMembers` is O(N*M) | 2026-11-20 | open |
 | Build & Tooling | `groupReminderEmails.dueEmailAlerts` alert with time minus lead below 0 fires at 00:00 and uses the current weekday; `sanitize.sanitizePrompt` only collapses `\r\n` (tabs, U+2028/2029/0085 pass); `applyProfileBuildingsChange` awaits `addToGroup`/`removeFromGroup` serially per group | 2026-11-20 | open |
+| Widgets | 2026-11-21 leads, unverified: ScheduleWidget `launchedItemsRef` resets on mount so reload during an active event may re-spawn linked widgets; Weather admin-proxy snapshot spreads a passively-synced config ref and its change guard ignores `details`; Checklist custom-names mode keys students by name (duplicates share state); LunchCount `isSyncing` guard reads closure state. |
+| Admin & Config | 2026-11-21: `NumberLineConfigurationPanel.tsx` (~357, 478, 498) pass `valueAsNumber` into controlled inputs (probably fine); `StarterPackConfigurationModal.tsx` ~1315 X/Y/W/H fields snap back when cleared. |
+| Build & Tooling | 2026-11-21: `plcWeeklyDigest` per-PLC loop is serial (and awaits two independent reads in sequence); `verifiedClasses` `getUsers`/`db.getAll` passes serial per 100; `googleTasks` ~697 serial `in` chunks; `verifiedClasses` `remaining` also counts teachers past `FILL_MAX_TEACHERS_PER_RUN` (intent unconfirmed). |
+| State & Data | 2026-11-21: navigation-memory debounce in `DashboardContext` (~1095) drops its pending write on unmount (same class as the sign-out fix); `googleCalendarService` `allDayDates` clips with UTC date slices (unverified); `useStudentProjectRun` `myOverride` not cleared when `released` flips back (masked). |
+| Dashboard & Layout | 2026-11-21: `AssignmentsHubModal` `kindFilter` not pruned when Writing is turned off; `useClaudeBoardActivity` toasts only the first eligible board per snapshot; `replayClipboardAsPaste` names SVG pastes `pasted-image.svg+xml`; a same-`itemId` `HELP_OPEN_EVENT` while Help is open does nothing; `useResponsesByPath` never prunes; mini-app row `className`/`title` disagree between `useUnifiedAssignments` and `HubAssignedList`. |
 
 ## Notes & Gotchas
 
@@ -1784,3 +1795,6 @@
 - 2026-11-20: five fixes (#6429-#6433), no area clean. Subagents ran scoped checks only; I swapped each source file back to `origin/dev-paul` to confirm every new test fails before and passes after, then ran one merged-tree `validate` + `build` (green) in a detached worktree with five merged branches. `dev-paul` gained two disjoint Quiz commits mid-run, so no rebase was needed. Baseline about 1 h, gate about 1 h. The Stop hook keeps asking to push the session branch; it holds only `dev-paul` history, so ignore it.
 
 - Run count: **129** | Last run: **2026-11-20**
+- 2026-11-21: four fixes (#6505-#6508), Widgets clean. Subagents ran scoped checks only; I swapped each source file back to `origin/dev-paul` to confirm every new test fails before and passes after, then ran one merged-tree `validate` + `build:all` (green) in a detached worktree with four merged branches. `dev-paul` did not move. Baseline about 1 h, gate about 1 h. Foreground `sleep` is blocked; use Monitor with an until-loop and re-arm it every 30 min.
+
+- Run count: **130** | Last run: **2026-11-21**
