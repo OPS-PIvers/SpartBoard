@@ -260,6 +260,7 @@ SpartBoard stays a working gradebook. The district SIS keeps the official report
     - Its read rule: teacher and sub monitor, or the owning student once published (session `scoreVisibility`, an unexpired quiz `resultsOverride` shown, or `showScoreOnSubmit` for the score alone).
     - Publish, unpublish, retake, graders, paper callables, grade push, PLC recompute and the D10 trigger read and write it; the response keeps only student-written fields. VA in-play `isCorrect` stays on the response, since the student already sees it as instant feedback.
 - **D38.** Everything student-facing is behind its own `student-gradebook` `GlobalFeature`, opened only after the teacher side is trusted.
+- **D39.** Grades freeze after the teacher loses the class (decided 2026-11-20, #6407). An entry projected while a roster showed its teacher teaching the class and the student in it is stamped `vouched`. When a later roster change drops that teacher (a sub swap, a co-teacher removed), the student keeps seeing the stamped entry as it last was, but nothing new or changed from that teacher reaches the projection, and unstamped entries from that teacher are removed. Entries projected before #6407 get the stamp from `scripts/stamp-vouched-grade-entries.mjs` (AB-334, prod run PT-277).
 
 ## Data model (proposed; finalize in PR 1)
 
