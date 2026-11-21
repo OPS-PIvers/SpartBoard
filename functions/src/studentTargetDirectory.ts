@@ -325,10 +325,12 @@ async function fetchClassLinkPages<T>(
   key: string,
   clientId: string,
   clientSecret: string,
-  label: string
+  label: string,
+  started?: number
 ): Promise<T[]> {
   const out: T[] = [];
   for (let page = 0; ; page += 1) {
+    if (started !== undefined) assertWithinBudget(started);
     // OneRoster signs the query string, so the same params go to both.
     const params = {
       limit: String(ONEROSTER_PAGE_LIMIT),
@@ -349,6 +351,13 @@ async function fetchClassLinkPages<T>(
   }
 }
 
+// Fail loudly rather than run into the function deadline with part of the roster.
+function assertWithinBudget(started: number): void {
+  if (Date.now() - started > CLASSLINK_TOTAL_BUDGET_MS) {
+    throw new Error('ClassLink read exceeded its time budget');
+  }
+}
+
 export async function loadClassLinkMembership(
   teacherEmail: string,
   /** `null` means every class the teacher teaches; more than `MAX_TAUGHT_CLASSES` throws. */
@@ -361,6 +370,8 @@ export async function loadClassLinkMembership(
   const out = new Map<string, string>();
   if (ownedClassIds?.length === 0) return out;
   if (!isSafeEmailForOneRosterFilter(teacherEmail)) return out;
+  // The budget covers every request, so a read ends within one request timeout of it.
+  const started = Date.now();
 
   const cleanTenantUrl = tenantUrl.replace(/\/$/, '');
   const usersUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/users`;
@@ -388,7 +399,8 @@ export async function loadClassLinkMembership(
     'classes',
     classlinkClientId,
     classlinkClientSecret,
-    'class list'
+    'class list',
+    started
   );
   const taught = new Set(
     classes
@@ -403,13 +415,9 @@ export async function loadClassLinkMembership(
     throw new Error('ClassLink teacher has too many classes to read in full');
   }
 
-  const started = Date.now();
   const rosters: { classId: string; students: ClassLinkStudent[] }[] = [];
   for (let i = 0; i < authorized.length; i += CLASS_FETCH_CONCURRENCY) {
-    // Fail loudly rather than run into the function deadline with part of the roster.
-    if (Date.now() - started > CLASSLINK_TOTAL_BUDGET_MS) {
-      throw new Error('ClassLink read exceeded its time budget');
-    }
+    assertWithinBudget(started);
     const group = authorized.slice(i, i + CLASS_FETCH_CONCURRENCY);
     rosters.push(
       ...(await Promise.all(
@@ -420,7 +428,8 @@ export async function loadClassLinkMembership(
             'users',
             classlinkClientId,
             classlinkClientSecret,
-            'class roster'
+            'class roster',
+            started
           ),
         }))
       ))

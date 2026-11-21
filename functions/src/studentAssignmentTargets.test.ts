@@ -42,7 +42,12 @@ vi.mock('./secrets', () => ({
   STUDENT_PSEUDONYM_HMAC_SECRET: { value: () => 'unit-test-hmac-secret' },
 }));
 
-import { CLASSLINK_TIMEOUT_MS, computeStudentUid } from './classlinkShared';
+import {
+  CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
+  CLASSLINK_TIMEOUT_MS,
+  CLASSLINK_TOTAL_BUDGET_MS,
+  computeStudentUid,
+} from './classlinkShared';
 import {
   MAX_TARGET_REFS,
   MAX_TAUGHT_CLASSES,
@@ -2996,6 +3001,83 @@ describe('loadClassLinkMembership', () => {
           'https://tenant.example'
         )
       ).rejects.toThrow('time budget');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Every request takes the full request timeout; parallel requests overlap.
+  const slowClassLink = (classCount: number, lookupMs = 0) => {
+    axiosGet.mockImplementation(async (url: string, config?: PagedConfig) => {
+      const startedAt = Date.now();
+      await Promise.resolve();
+      const finish = <T>(data: T) => {
+        const lookup = url.endsWith('/users') || url.endsWith('/classes');
+        const took = lookup ? lookupMs : CLASSLINK_TIMEOUT_MS;
+        vi.setSystemTime(Math.max(Date.now(), startedAt + took));
+        return { data };
+      };
+      if (url.endsWith('/users'))
+        return finish({ users: [{ sourcedId: 'T1', role: 'teacher' }] });
+      if (url.endsWith('/classes')) {
+        const offset = Number(config?.params?.offset ?? 0);
+        const limit = Number(config?.params?.limit ?? classCount);
+        return finish({
+          classes: Array.from({ length: classCount }, (_, i) => ({
+            sourcedId: `class-${i}`,
+          })).slice(offset, offset + limit),
+        });
+      }
+      // Full pages, so a roster keeps paging until the budget stops it.
+      return finish({
+        users: Array.from({ length: 200 }, (_, i) => ({
+          sourcedId: `kid-${url}-${String(config?.params?.offset)}-${i}`,
+        })),
+      });
+    });
+  };
+
+  it('counts the teacher lookup and class list against the time budget', async () => {
+    vi.useFakeTimers({ now: 0, toFake: ['Date'] });
+    try {
+      // 250 classes page the class list; slow lookups use up the budget before any roster read.
+      slowClassLink(250, 50_000);
+      const read = loadClassLinkMembership(
+        'teacher@orono.k12.mn.us',
+        ['class-230'],
+        'id',
+        'secret',
+        'https://tenant.example'
+      );
+      await expect(read).rejects.toThrow('time budget');
+      const studentCalls = (axiosGet.mock.calls as unknown[][]).filter((c) =>
+        /\/students$/.test(String(c[0]))
+      );
+      expect(studentCalls).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ends a paging read within one request of the budget, inside the function timeout', async () => {
+    vi.useFakeTimers({ now: 0, toFake: ['Date'] });
+    try {
+      slowClassLink(1, CLASSLINK_TIMEOUT_MS);
+      await expect(
+        loadClassLinkMembership(
+          'teacher@orono.k12.mn.us',
+          null,
+          'id',
+          'secret',
+          'https://tenant.example'
+        )
+      ).rejects.toThrow('time budget');
+      expect(Date.now()).toBeLessThanOrEqual(
+        CLASSLINK_TOTAL_BUDGET_MS + CLASSLINK_TIMEOUT_MS
+      );
+      expect(Date.now()).toBeLessThanOrEqual(
+        CLASSLINK_FUNCTION_TIMEOUT_SECONDS * 1000
+      );
     } finally {
       vi.useRealTimers();
     }
