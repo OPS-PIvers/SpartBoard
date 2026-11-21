@@ -1016,6 +1016,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       return;
     }
 
+    // Keys from a portaled dialog bubble through the React tree but belong to that dialog.
+    if (!(target instanceof Node && e.currentTarget.contains(target))) return;
+
     // Keyboard Shortcuts for Focused Widget
     if (e.key === 'Escape' && !e.shiftKey && !e.altKey && !e.ctrlKey) {
       // Locked widgets (per-widget lock OR read-only board): allow Esc to

@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
+import { createPortal } from 'react-dom';
 import {
   render,
   screen,
@@ -891,6 +892,27 @@ describe('DraggableWindow', () => {
 
     // No confirmation dialog must appear and no remove must be dispatched.
     expect(mockRemoveWidget).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText(/Close widget\? Data will be lost\./i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('ignores Escape and Delete keydowns that bubble from a portaled dialog', () => {
+    renderComponent(
+      {},
+      createPortal(
+        <div role="dialog">
+          <button data-testid="portal-btn">Row</button>
+        </div>,
+        document.body
+      )
+    );
+    const btn = screen.getByTestId('portal-btn');
+
+    fireEvent.keyDown(btn, { key: 'Escape' });
+    fireEvent.keyDown(btn, { key: 'Delete' });
+
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
     expect(
       screen.queryByText(/Close widget\? Data will be lost\./i)
     ).not.toBeInTheDocument();
