@@ -145,3 +145,18 @@ export const applyGroupOverride = (
   }
   return result;
 };
+
+/** Applies only the students that differ between `base` and `edited` onto `latest`, so edits made elsewhere meanwhile survive. */
+export const mergeOverrideEdits = (
+  latest: Record<string, StudentOverride>,
+  base: Record<string, StudentOverride>,
+  edited: Record<string, StudentOverride>
+): Record<string, StudentOverride> => {
+  const result = { ...latest };
+  for (const id of new Set([...Object.keys(base), ...Object.keys(edited)])) {
+    if (sameValue(base[id], edited[id])) continue;
+    if (edited[id] === undefined) delete result[id];
+    else result[id] = edited[id];
+  }
+  return result;
+};

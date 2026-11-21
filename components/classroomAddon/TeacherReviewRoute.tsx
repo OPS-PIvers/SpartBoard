@@ -52,6 +52,7 @@ import { loadBankContentsFor } from '@/hooks/useBankSources';
 import {
   assignmentFrozenFileId,
   withCurrentAnswerKeys,
+  keyFixOptionsFor,
 } from '@/utils/quizAssignBankDraw';
 import {
   useQuizAssignments,
@@ -266,6 +267,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   const resolvedDriveFileId = assignment?.resolvedDriveFileId;
   const frozenDriveFileId = assignmentFrozenFileId(assignment);
+  const keyFixSameText = !!keyFixOptionsFor(assignment).sameTextOnly;
   const { plcs, loading: plcsLoading } = usePlcs({ enabled: !!user?.uid });
   const waitForBanks =
     !!resolvedDriveFileId && (banksLoading || (!!user?.uid && plcsLoading));
@@ -317,7 +319,8 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
                 {
                   loadQuizData,
                   loadBankContentsForQuiz: (quiz) => loadBankContents(quiz),
-                }
+                },
+                { sameTextOnly: keyFixSameText }
               )
             : await loadQuizData(meta.driveFileId);
         if (active) setQuizData(data);
@@ -337,6 +340,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     assignmentsLoading,
     waitForBanks,
     frozenDriveFileId,
+    keyFixSameText,
     googleAccessToken,
     loadQuizData,
   ]);
