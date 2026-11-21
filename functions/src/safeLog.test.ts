@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { inspect } from 'node:util';
 import ts from 'typescript';
 import axios, { AxiosError, AxiosHeaders } from 'axios';
 import { describe, expect, it, vi } from 'vitest';
@@ -108,6 +109,9 @@ describe('scrubAxiosError on a stream response', () => {
       expect(e.response?.status).toBe(500);
       expect(e.response?.data).toBeUndefined();
       expect(e.request).toBeUndefined();
+      expect(inspect(err, { depth: 20, showHidden: true })).not.toContain(
+        'SECRET-MARKER'
+      );
     } finally {
       await new Promise((done) => server.close(done));
     }

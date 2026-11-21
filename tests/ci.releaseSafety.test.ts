@@ -10,24 +10,45 @@ const workflows = resolve(
 );
 const read = (name: string) => readFileSync(resolve(workflows, name), 'utf-8');
 
+const MAIN_GUARD =
+  /^(?:\$\{\{\s*)?github\.ref == 'refs\/heads\/main'\s*(?:&&|(?:\}\})?\s*$)/;
+const JOB_KEY = /^ {2}(['"]?)([\w-]+)\1:[ \t]*(?:#.*)?$/;
+
 /** Lists jobs in a prod workflow that could run off main or read the prod secret outside its environment. */
 function mainOnlyProblems(yaml: string): string[] {
-  const jobs = yaml.slice(yaml.indexOf('\njobs:') + 1);
-  const blocks = jobs.split(/^ {2}(?=[\w-]+:[ \t]*$)/m).slice(1);
-  if (blocks.length === 0) return ['no jobs found'];
+  const lines = yaml.split('\n');
+  const start = lines.indexOf('jobs:');
+  if (start < 0) return ['no jobs found'];
+  const jobs = new Map<string, string[]>();
   const problems: string[] = [];
-  for (const block of blocks) {
-    const id = block.split(':')[0];
-    const guard = /\n {4}if: (.*)/.exec(block)?.[1] ?? '';
-    if (!/github\.ref == 'refs\/heads\/main'/.test(guard))
-      problems.push(`${id}: no main-only guard`);
-    else if (guard.includes('||'))
-      problems.push(`${id}: guard is bypassed with ||`);
-    if (id === 'deploy' && !/\n {4}environment: production[ \t]*$/m.test(block))
+  let current: string[] | null = null;
+  for (const line of lines.slice(start + 1)) {
+    if (/^\S/.test(line)) break;
+    if (/^ {2}\S/.test(line) && !/^ {2}#/.test(line)) {
+      const key = JOB_KEY.exec(line);
+      // An unparsed job key fails closed instead of inheriting the previous job's guard.
+      if (!key) problems.push(`unparsed job line: ${line.trim()}`);
+      current = key ? [] : null;
+      if (key) jobs.set(key[2], current as string[]);
+      continue;
+    }
+    current?.push(line);
+  }
+  if (jobs.size === 0) problems.push('no jobs found');
+  for (const [id, body] of jobs) {
+    const guard =
+      body
+        .find((l) => /^ {4}if: /.test(l))
+        ?.slice(8)
+        .trim() ?? '';
+    if (!MAIN_GUARD.test(guard)) problems.push(`${id}: no main-only guard`);
+    if (
+      id === 'deploy' &&
+      !body.some((l) => /^ {4}environment: production[ \t]*$/.test(l))
+    )
       problems.push(`${id}: no environment: production`);
   }
-  if (!blocks.some((b) => b.startsWith('deploy:')))
-    problems.push('deploy: job not found');
+  if (!jobs.has('deploy')) problems.push('deploy: job not found');
   return problems;
 }
 
@@ -88,7 +109,7 @@ describe('production deploy', () => {
     expect(yaml).not.toContain("github.ref != 'refs/heads/main'");
   });
 
-  it('catches an unguarded job, a bypassed guard and a misplaced environment', () => {
+  it('catches an unguarded job, a bypassed guard, odd job keys and a misplaced environment', () => {
     const bad = [
       'jobs:',
       '  build:',
@@ -97,8 +118,14 @@ describe('production deploy', () => {
       '    runs-on: ubuntu-latest',
       '  lint:',
       "    if: github.ref == 'refs/heads/main' || true",
+      '  scoped:',
+      "    if: github.ref == 'refs/heads/main' && (a || b)",
+      "  'quoted':",
+      '    runs-on: ubuntu-latest',
+      '  commented: # note',
+      '    runs-on: ubuntu-latest',
       '  deploy:',
-      "    if: github.ref == 'refs/heads/main'",
+      "    if: ${{ github.ref == 'refs/heads/main' }}",
       '  other:',
       "    if: github.ref == 'refs/heads/main'",
       '    environment: production',
@@ -106,9 +133,14 @@ describe('production deploy', () => {
     ].join('\n');
     expect(mainOnlyProblems(bad)).toEqual([
       'job_2: no main-only guard',
-      'lint: guard is bypassed with ||',
+      'lint: no main-only guard',
+      'quoted: no main-only guard',
+      'commented: no main-only guard',
       'deploy: no environment: production',
     ]);
+    expect(mainOnlyProblems('jobs:\n  {weird}:\n')).toContain(
+      'unparsed job line: {weird}:'
+    );
   });
 
   it('never deploys after a failed or cancelled check', () => {
