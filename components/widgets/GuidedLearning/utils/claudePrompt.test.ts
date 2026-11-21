@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GuidedLearningStep } from '@/types';
-import { buildClaudePrompt } from './claudePrompt';
+import { buildClaudePrompt, buildWebTourPrompt } from './claudePrompt';
 
 const step = (
   id: string,
@@ -84,5 +84,34 @@ describe('buildClaudePrompt for a live tour', () => {
     expect(text).toContain('step 2 ("Nucleus") of my SpartBoard live tour');
     expect(text).toContain('its id, b,');
     expect(text).not.toContain('slide');
+  });
+});
+
+describe('buildWebTourPrompt', () => {
+  const web = {
+    id: 'web-1',
+    title: 'Schoology materials',
+    steps: [step('a', 0, 'Open the course'), step('b', 0)],
+  };
+
+  it('names the web tour tools, the set id and the dev connector', () => {
+    const text = buildWebTourPrompt(web, undefined, { dev: true });
+    expect(text.split('\n')[0]).toBe('Use the SpartBoard-Dev connector.');
+    expect(text).toContain(
+      'my SpartBoard web tour "Schoology materials" (set_id: web-1)'
+    );
+    expect(text).toContain('Fetch it first with get_web_tour.');
+    expect(text).not.toContain('get_live_tour');
+    expect(text.endsWith('What I want: ')).toBe(true);
+  });
+
+  it('points at one step by id, and falls back to the tour for a missing one', () => {
+    const one = buildWebTourPrompt(web, 'b');
+    expect(one).toContain('step 2 of my SpartBoard web tour');
+    expect(one).toContain('its id, b,');
+    expect(one).not.toContain('SpartBoard-Dev');
+    expect(buildWebTourPrompt(web, 'gone')).toContain(
+      "I'm working on my SpartBoard web tour"
+    );
   });
 });

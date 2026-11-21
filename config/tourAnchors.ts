@@ -13661,6 +13661,10 @@ export const TOUR_ANCHORS = {
     label: 'Rewrite all option in the web tour editor More actions menu',
     panel: true,
   },
+  'web-tour-editor.copy-for-claude': {
+    label: 'Copy for Claude option in the web tour editor More actions menu',
+    panel: true,
+  },
   'web-tour-editor.write-asked': {
     label: 'Run again for questions button in the web tour editor',
   },
