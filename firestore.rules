@@ -589,7 +589,10 @@ service cloud.firestore {
       // Super admins: create/delete, AI/plan, status. Domain admins: identity
       // fields for their own org only. users/buildings are server-derived counts,
       // never client-settable at the domain-admin tier.
-      allow create, delete: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+      allow create: if isSuperAdmin() &&
+        (!('claudeManagedAuth' in incoming()) ||
+         managedAuthShape(incoming().claudeManagedAuth));
       // claudeManagedAuth is a trusted token issuer: super admins only, in a pinned shape.
       allow update: if (isSuperAdmin() && managedAuthOk()) ||
         (isDomainAdmin(orgId) &&
