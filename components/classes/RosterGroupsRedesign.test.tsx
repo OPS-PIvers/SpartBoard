@@ -1,7 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  within,
+  waitFor,
+} from '@testing-library/react';
 import { useState } from 'react';
 import type { RosterGroup, StudentOverride } from '@/types';
+import { DialogContext } from '@/context/DialogContextValue';
 import { RosterGroupsPanel } from './RosterGroupsPanel';
 import { RosterAccommodationsByStudent } from './RosterAccommodationsByStudent';
 import {
@@ -166,6 +173,40 @@ describe('RosterGroupsPanel (redesign)', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     expect(latestOverrides).toEqual({ c: { readAloud: true } });
+  });
+
+  it('asks before taking settings off leavers, and keeps them when declined', async () => {
+    const showConfirm = vi.fn().mockResolvedValue(false);
+    render(
+      <DialogContext.Provider
+        value={
+          {
+            showConfirm,
+            showAlert: vi.fn(),
+            showPrompt: vi.fn(),
+          } as unknown as React.ContextType<typeof DialogContext>
+        }
+      >
+        <GroupsHost
+          initialGroups={[
+            { id: 'g', name: 'Extra time', studentIds: ['b', 'c'] },
+          ]}
+          initialOverrides={{
+            b: { timeMultiplier: 2 },
+            c: { timeMultiplier: 2 },
+          }}
+        />
+      </DialogContext.Provider>
+    );
+    latestOverrides = {};
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(showConfirm).toHaveBeenCalledTimes(1));
+    expect(latestOverrides).toEqual({});
+    expect(screen.getByText('Extra time')).toBeInTheDocument();
+    showConfirm.mockResolvedValue(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(latestOverrides).toEqual({}));
+    await waitFor(() => expect(latestGroups).toEqual([]));
   });
 
   it('Delete group removes it and returns to the list', () => {

@@ -1,5 +1,5 @@
 // Groups tab of Edit Class (class-groups-redesign): a group list, then one page per group with its students and accommodations.
-import React, { useMemo, useState } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import type { RosterGroup, Student, StudentOverride } from '@/types';
@@ -16,6 +16,7 @@ import {
 } from '@/utils/rosterAccommodationSources';
 import { SplitClassFooter } from './SplitClassFooter';
 import { StandingAccommodationRules } from './StandingAccommodationRules';
+import { DialogContext } from '@/context/DialogContextValue';
 import { Toggle } from '@/components/common/Toggle';
 import { ROW_BUTTON, lastFirst, sortByLastName } from './rosterGroupsShared';
 
@@ -66,9 +67,37 @@ const withMembership = (
   );
 };
 
+/** Asks first when leaving would take settings off a student, since a setting they were given on their own looks the same as the group's. */
+const useConfirmedMembership = () => {
+  const { t } = useTranslation();
+  const dialog = useContext(DialogContext);
+  return (
+    cur: Record<string, StudentOverride>,
+    groups: RosterGroup[],
+    sorted: Student[],
+    group: RosterGroup,
+    studentIds: string[]
+  ): boolean | Promise<boolean> => {
+    const next = withMembership(cur, groups, sorted, group, studentIds);
+    const loses = group.studentIds.some(
+      (id) =>
+        !studentIds.includes(id) &&
+        JSON.stringify(next[id]) !== JSON.stringify(cur[id])
+    );
+    if (!loses || !dialog) return true;
+    return dialog.showConfirm(
+      t('sidebar.classes.groupLeaveConfirm', {
+        defaultValue:
+          'Students leaving this group will lose its settings, including any you set on them yourself. Continue?',
+      })
+    );
+  };
+};
+
 export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
   const { groups, students, onChange, overrides, onOverridesChange } = props;
   const { t } = useTranslation();
+  const confirmMembership = useConfirmedMembership();
   const [openId, setOpenId] = useState<string | null>(null);
   const [freshId, setFreshId] = useState<string | null>(null);
   const sorted = useMemo(() => sortByLastName(students), [students]);
@@ -94,10 +123,20 @@ export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
     onChange(groups.map((g) => (g.id === id ? { ...g, ...change } : g)));
   const remove = (id: string) => {
     const gone = groups.find((g) => g.id === id);
-    if (gone)
-      onOverridesChange((cur) => withMembership(cur, groups, sorted, gone, []));
-    onChange(groups.filter((g) => g.id !== id));
-    if (openId === id) setOpenId(null);
+    const apply = () => {
+      if (gone)
+        onOverridesChange((cur) =>
+          withMembership(cur, groups, sorted, gone, [])
+        );
+      onChange(groups.filter((g) => g.id !== id));
+      if (openId === id) setOpenId(null);
+    };
+    const ok = gone
+      ? confirmMembership(overrides, groups, sorted, gone, [])
+      : true;
+    if (typeof ok === 'boolean') {
+      if (ok) apply();
+    } else void ok.then((yes) => yes && apply());
   };
 
   if (open) {
@@ -310,6 +349,7 @@ const GroupPage: React.FC<
   onSharingChange,
 }) => {
   const { t } = useTranslation();
+  const confirmMembership = useConfirmedMembership();
   const memberIds = sorted
     .filter((s) => group.studentIds.includes(s.id))
     .map((s) => s.id);
@@ -318,10 +358,16 @@ const GroupPage: React.FC<
   });
   const shared = sharedStudentOverride(overrides, memberIds);
   const changeMembers = (studentIds: string[]) => {
-    onOverridesChange((cur) =>
-      withMembership(cur, groups, sorted, group, studentIds)
-    );
-    onPatch({ studentIds });
+    const apply = () => {
+      onOverridesChange((cur) =>
+        withMembership(cur, groups, sorted, group, studentIds)
+      );
+      onPatch({ studentIds });
+    };
+    const ok = confirmMembership(overrides, groups, sorted, group, studentIds);
+    if (typeof ok === 'boolean') {
+      if (ok) apply();
+    } else void ok.then((yes) => yes && apply());
   };
   const updateShared = (fn: (prev: StudentOverride) => StudentOverride) =>
     onOverridesChange((cur) =>
