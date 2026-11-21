@@ -149,9 +149,10 @@ describe('runFreshservice', () => {
     expect(vi.mocked(d.fetch).mock.calls[0][0]).toBe(
       'https://orono.freshservice.com/api/v2/solutions/articles/7'
     );
-    expect((vi.mocked(d.fetch).mock.calls[0][1] as RequestInit).method).toBe(
-      'PUT'
-    );
+    const put = vi.mocked(d.fetch).mock.calls[0][1] as RequestInit;
+    expect(put.method).toBe('PUT');
+    expect(put.redirect).toBe('error');
+    expect(JSON.parse(put.body as string)).toMatchObject({ folder_id: 42 });
 
     const gone = deps({ articleId: () => Promise.resolve(7) });
     vi.mocked(gone.d.fetch)

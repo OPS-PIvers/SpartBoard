@@ -242,7 +242,7 @@ const ShareMenu: React.FC<{
       const { html, missing } = await webTourStepsHtml(
         set.id,
         live,
-        title,
+        (live.title ?? '').trim() || title,
         labels
       );
       downloadHtml(html, stepsFileName(title));

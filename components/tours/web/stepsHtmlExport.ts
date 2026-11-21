@@ -121,7 +121,8 @@ const roundRect = (
 /** Draws the step picture with its target ring and markup baked in, so it reads the same pasted anywhere. */
 export async function bakeStepPicture(
   blob: Blob,
-  pic: StepsPicture
+  pic: StepsPicture,
+  jpeg = false
 ): Promise<ExportPicture> {
   const bitmap = await createImageBitmap(blob);
   const k = Math.min(1, MAX_PICTURE_W / bitmap.width);
@@ -196,9 +197,11 @@ export async function bakeStepPicture(
       ctx.fillText(String(s.n), s.x * w, s.y * h);
     }
   }
-  const png = canvas.toDataURL('image/png');
+  const png = jpeg ? '' : canvas.toDataURL('image/png');
   const src =
-    png.length > 2_000_000 ? canvas.toDataURL('image/jpeg', 0.9) : png;
+    jpeg || png.length > 2_000_000
+      ? canvas.toDataURL('image/jpeg', jpeg ? 0.8 : 0.9)
+      : png;
   const shown = Math.min(w, MAX_SHOWN_W, Math.round(pic.cssW || w));
   return { src, width: Math.max(1, shown) };
 }
@@ -217,6 +220,7 @@ export const stepsFileName = (title: string): string =>
 export async function webTourExportParts(
   setId: string,
   set: GuidedLearningSet,
+  jpeg = false,
   load: (path: string) => Promise<Blob> = loadStepPicture
 ): Promise<{
   steps: StepsViewStep[];
@@ -233,7 +237,7 @@ export async function webTourExportParts(
       const pic = steps[i].picture;
       if (!path || !pic || !isWebTourPicturePath(setId, path)) return;
       try {
-        pictures[step.id] = await bakeStepPicture(await load(path), pic);
+        pictures[step.id] = await bakeStepPicture(await load(path), pic, jpeg);
       } catch {
         missing += 1;
       }

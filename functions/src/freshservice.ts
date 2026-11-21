@@ -129,6 +129,7 @@ async function callApi(
       Accept: 'application/json',
     },
     body: JSON.stringify(body),
+    redirect: 'error',
     signal: AbortSignal.timeout(60_000),
   });
   const json: unknown = await res.json().catch(() => null);
@@ -169,7 +170,7 @@ export async function sendArticle(
       config,
       'PUT',
       `/solutions/articles/${existing}`,
-      fields
+      { ...fields, folder_id: Number(config.folderId) }
     );
     if (result.status === 404) result = null;
   }
@@ -229,6 +230,8 @@ export async function runFreshservice(
 }
 
 const KEY_CACHE_MS = 5 * 60_000;
+/** A missing secret is checked again soon, so setting it up shows at once. */
+const MISSING_CACHE_MS = 15_000;
 let keyCache: { key: string | null; at: number } | null = null;
 let auth: GoogleAuth | null = null;
 
@@ -236,7 +239,11 @@ let auth: GoogleAuth | null = null;
 async function loadApiKeyFromSecretManager(
   now: number
 ): Promise<string | null> {
-  if (keyCache && now - keyCache.at < KEY_CACHE_MS) return keyCache.key;
+  if (
+    keyCache &&
+    now - keyCache.at < (keyCache.key ? KEY_CACHE_MS : MISSING_CACHE_MS)
+  )
+    return keyCache.key;
   const project = process.env.GCLOUD_PROJECT;
   if (!project) return null;
   auth ??= new GoogleAuth({

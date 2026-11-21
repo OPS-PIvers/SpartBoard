@@ -47,9 +47,18 @@ export async function sendTourToFreshservice(
   labels: StepsLabels,
   published?: GuidedLearningSet
 ): Promise<SendResult> {
+  // Ask first, so a site with no FreshService setup never downloads the pictures.
+  const status = await loadFreshserviceStatus();
+  if (!status.hasKey || !status.domain || !status.folderId)
+    return { kind: 'not-set-up' };
   const set = published ?? (await loadPublishedTour(setId))?.set;
   if (!set) throw new Error('The tour is not published');
-  const { steps, pictures, missing } = await webTourExportParts(setId, set);
+  // JPEG keeps a long tour under the callable's 10 MB request limit.
+  const { steps, pictures, missing } = await webTourExportParts(
+    setId,
+    set,
+    true
+  );
   const res = await call<{ sent: boolean }>({
     action: 'send',
     setId,
