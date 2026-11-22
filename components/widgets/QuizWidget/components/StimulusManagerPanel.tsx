@@ -27,7 +27,11 @@ import {
   Volume2,
   ListPlus,
 } from 'lucide-react';
-import type { QuizStimulus, QuizStimulusType } from '@/types';
+import type {
+  QuizStimulus,
+  QuizStimulusPaperPlacement,
+  QuizStimulusType,
+} from '@/types';
 import {
   STIMULUS_TYPE_LABELS,
   detectStimulusTypeFromFile,
@@ -1024,6 +1028,8 @@ export const QuestionStimulusSection: React.FC<{
   metaList?: boolean;
   /** `quiz-stimulus-picker`: attach in a list-and-preview dialog. */
   pickerModal?: boolean;
+  /** Paper tests are on, so the picker shows the "On paper" switch. */
+  paperPlacement?: boolean;
 }> = ({
   state,
   questionId,
@@ -1031,6 +1037,7 @@ export const QuestionStimulusSection: React.FC<{
   pasteScopeRef,
   metaList = false,
   pickerModal = false,
+  paperPlacement = false,
 }) => {
   const question = state.questions.find((q) => q.id === questionId);
   return (
@@ -1041,6 +1048,7 @@ export const QuestionStimulusSection: React.FC<{
       pasteScopeRef={pasteScopeRef}
       metaList={metaList}
       pickerModal={pickerModal}
+      paperPlacement={paperPlacement}
       ownerNoun="question"
       ownerLabel={`Q${state.questions.findIndex((q) => q.id === questionId) + 1}`}
       ownerId={questionId}
@@ -1058,12 +1066,14 @@ export const SlotStimulusSection: React.FC<{
   calculatorAvailable?: boolean;
   metaList?: boolean;
   pickerModal?: boolean;
+  paperPlacement?: boolean;
 }> = ({
   state,
   slotId,
   calculatorAvailable = false,
   metaList = false,
   pickerModal = false,
+  paperPlacement = false,
 }) => {
   const slot = state.bankSlots.find((s) => s.id === slotId);
   return (
@@ -1073,6 +1083,7 @@ export const SlotStimulusSection: React.FC<{
       calculatorAvailable={calculatorAvailable}
       metaList={metaList}
       pickerModal={pickerModal}
+      paperPlacement={paperPlacement}
       ownerNoun="bank"
       ownerLabel={slot?.bankTitle ?? 'bank'}
       ownerId={slotId}
@@ -1090,6 +1101,7 @@ const AttachStimulusSection: React.FC<{
   ownerId?: string;
   metaList?: boolean;
   pickerModal?: boolean;
+  paperPlacement?: boolean;
   ownerNoun: 'question' | 'bank';
   ownerLabel: string;
   onToggle: (stimulusId: string) => void;
@@ -1101,6 +1113,7 @@ const AttachStimulusSection: React.FC<{
   ownerId,
   metaList = false,
   pickerModal = false,
+  paperPlacement = false,
   ownerNoun,
   ownerLabel,
   onToggle,
@@ -1359,6 +1372,12 @@ const AttachStimulusSection: React.FC<{
       selectedId={pickerSelectedId}
       onSelect={setPickerSelectedId}
       addArea={addArea(true)}
+      {...(paperPlacement
+        ? {
+            onPaperPlacement: (id: string, v: QuizStimulusPaperPlacement) =>
+              state.updateStimulus(id, { paperPlacement: v }),
+          }
+        : {})}
       onClose={() => setPickerOpen(false)}
     />
   );

@@ -269,6 +269,14 @@ const STIMULI_QUIZ: QuizData = {
       label: '',
     },
     {
+      id: 'st-note',
+      type: 'text',
+      url: '',
+      label: 'Lab note',
+      text: 'Use the microscope on low power first.',
+      paperPlacement: 'question',
+    },
+    {
       id: 'st-doc',
       type: 'gdoc-embed',
       url: 'https://docs.google.com/document/d/1AbCdEfGhIjK/edit',
@@ -287,8 +295,9 @@ const STIMULI_QUIZ: QuizData = {
       ['Which label points to the nucleus?', ['st-diagram']],
       ['What does this picture show?', ['st-inline']],
       ['What is the main idea of the article?', ['st-article']],
-      ['What does the video say cells need?', ['st-video']],
-      ['Which lab step comes first?', ['st-doc']],
+      ['Where do animal cells get energy?', ['st-article', 'st-video']],
+      ['Which lab step comes first?', ['st-doc', 'st-note']],
+      ['Which tool do you use to see cells?', ['st-note']],
     ] as const
   ).map(([text, ids], i) => ({
     id: `s${i + 1}`,

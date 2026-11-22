@@ -1273,13 +1273,13 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         // Paper prints only these, so the choose line counts only them.
         const printedIds = printed.map((r) => r.questionId);
         const headed = new Set<string>();
-        const stimuliOf = attachPaperTestStimuli(
+        const placed = attachPaperTestStimuli(
           printed,
           questionsById,
           quizStimuli,
           testStimulusFiles.files
         );
-        return printed.flatMap((r) => {
+        const questions = printed.flatMap((r) => {
           const q = questionsById.get(r.questionId);
           if (!q) return [];
           const choices = r.written
@@ -1317,15 +1317,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               ...choicePictureFields(q, choices),
               ...(r.written ? { written: true } : {}),
               ...(heading ? { section: heading } : {}),
-              ...(stimuliOf.get(q.id)?.block
-                ? { stimuli: stimuliOf.get(q.id)?.block }
-                : {}),
-              ...(stimuliOf.get(q.id)?.inline
-                ? { inlineStimuli: stimuliOf.get(q.id)?.inline }
-                : {}),
+              ...placed.questions.get(q.id),
             },
           ];
         });
+        return { questions, resources: placed.resources };
       };
       // Each version gets its own copy of the test, headed with its label (V24).
       printTest(
@@ -1335,12 +1331,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               questions: [],
               versions: versionPlan.versions.map((v) => ({
                 label: v.label,
-                questions: questionsOf(v.analysis),
+                ...questionsOf(v.analysis),
               })),
             }
           : {
               quizTitle: group?.translation?.title ?? quiz.title,
-              questions: questionsOf(analysis),
+              ...questionsOf(analysis),
               ...(group?.supports?.length ? { supports: group.supports } : {}),
             }
       );

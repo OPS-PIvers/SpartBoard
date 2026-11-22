@@ -4533,7 +4533,12 @@ export interface QuizStimulus {
   wordBankColumns?: 1 | 2 | 3;
   /** image only: beside the question or in it; absent = beside (M13). */
   placement?: QuizStimulusPlacement;
+  /** Printed test paper: in each question or on a resource page; absent = by how many questions use it. */
+  paperPlacement?: QuizStimulusPaperPlacement;
 }
+
+/** Where a stimulus prints on the paper test. */
+export type QuizStimulusPaperPlacement = 'question' | 'resource';
 
 /** Where an image stimulus shows: in the panel beside the question, or above the question. */
 export type QuizStimulusPlacement = 'panel' | 'inline';

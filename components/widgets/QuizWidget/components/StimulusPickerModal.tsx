@@ -1,7 +1,13 @@
 import React from 'react';
 import { Check, Plus } from 'lucide-react';
 import { PICKER_ADD } from './stimulusPickerSelection';
-import type { QuizStimulus, QuizStimulusType } from '@/types';
+import type {
+  QuizStimulus,
+  QuizStimulusPaperPlacement,
+  QuizStimulusType,
+} from '@/types';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
+import { paperPlacementOf } from '@/utils/paperTestStimuli';
 import { Modal } from '@/components/common/Modal';
 import { ModalHeader } from '@/components/common/ModalHeader';
 import { AutosaveIndicator } from '@/components/common/EditorModalShell';
@@ -45,6 +51,11 @@ export const StimulusPickerModal: React.FC<{
   onSelect: (id: string) => void;
   /** Upload, Drive, link and calculator sources. */
   addArea: React.ReactNode;
+  /** Paper tests are on: each stimulus gets an "On paper" switch. */
+  onPaperPlacement?: (
+    stimulusId: string,
+    placement: QuizStimulusPaperPlacement
+  ) => void;
   onClose: () => void;
 }> = ({
   stimuli,
@@ -56,6 +67,7 @@ export const StimulusPickerModal: React.FC<{
   selectedId,
   onSelect: setSelectedId,
   addArea,
+  onPaperPlacement,
   onClose,
 }) => {
   const selected = stimuli.find((s) => s.id === selectedId) ?? null;
@@ -222,6 +234,30 @@ export const StimulusPickerModal: React.FC<{
                     {usageText(selected.id)}
                   </p>
                 </div>
+                {onPaperPlacement && selected.type !== 'calculator' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-600">
+                      On paper
+                    </span>
+                    <SegmentedControl
+                      role="radiogroup"
+                      ariaLabel="On paper"
+                      value={paperPlacementOf(
+                        selected,
+                        usedOn(selected.id).length
+                      )}
+                      onChange={(v) => onPaperPlacement(selected.id, v)}
+                      anchor={tourTypeAttr(
+                        'quiz-stimuli.paper-placement',
+                        'quiz'
+                      )}
+                      options={[
+                        { value: 'question', label: 'With the question' },
+                        { value: 'resource', label: 'Resource page' },
+                      ]}
+                    />
+                  </div>
+                )}
               </div>
               <div
                 data-testid="attach-stimulus-preview"

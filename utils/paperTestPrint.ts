@@ -16,9 +16,9 @@ import { isPlaceholderLetterChoices } from './paperSheetPlan';
 import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
 import type { ChoicePicture } from './quizAnswerImages';
 import {
-  stimulusForLine,
+  resourceLine,
+  type PaperTestResource,
   type PaperTestStimulus,
-  type PaperTestStimulusBlock,
 } from './paperTestStimuli';
 
 export interface PaperTestQuestion {
@@ -33,10 +33,10 @@ export interface PaperTestQuestion {
   written?: boolean;
   /** A section heading printed above this question, the first of its section (E15). */
   section?: { title: string; directions?: string; chooseLine?: string };
-  /** Shared stimuli printed above this question, the first printed one that uses them. */
-  stimuli?: PaperTestStimulusBlock;
-  /** Pictures placed in the question, printed above its text. */
-  inlineStimuli?: readonly PaperTestStimulus[];
+  /** Stimuli printed in the question, between its text and its choices. */
+  stimuli?: readonly PaperTestStimulus[];
+  /** Letters of the resource pages this question uses. */
+  resources?: readonly string[];
 }
 
 export interface PaperTestJob {
@@ -46,7 +46,10 @@ export interface PaperTestJob {
   versions?: readonly {
     label: string;
     questions: readonly PaperTestQuestion[];
+    resources?: readonly PaperTestResource[];
   }[];
+  /** Stimuli shared by several questions, printed after the questions. */
+  resources?: readonly PaperTestResource[];
   /** A printed group's supports, on a page after the questions. */
   supports?: readonly { title: string; body: string }[];
 }
@@ -80,8 +83,11 @@ const STYLES = `
   .supports section { break-inside: avoid; margin-bottom: 5mm; }
   .supports h3 { font-size: 11pt; margin: 0 0 1mm; }
   .supports p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-  ol.q > li.stim { display: block; break-inside: auto; margin: 2mm 0 5mm; }
-  .stim-for { font-weight: bold; margin: 0 0 2mm; break-after: avoid; }
+  ol.q > li.tall { break-inside: auto; }
+  .resources { break-before: page; }
+  .resource { margin: 0 0 6mm; }
+  .resource h2 { font-size: 13pt; margin: 0 0 2mm; break-after: avoid; }
+  .use-res { margin: 1.5mm 0 0; font-weight: bold; }
   .stim-item { margin: 0 0 3mm; }
   .stim-item h3 { font-size: 11pt; margin: 0 0 1mm; break-after: avoid; }
   .stim-text { border: 0.3mm solid #000; padding: 3mm 4mm; white-space: pre-wrap; line-height: 1.45; overflow-wrap: anywhere; }
@@ -91,8 +97,8 @@ const STYLES = `
   .stim-bank + .stim-bank { margin-top: 2mm; }
   .stim-bank span { border: 0.2mm solid #666; padding: 1mm 2mm; text-align: center; }
   .stim-link { margin: 0; overflow-wrap: anywhere; }
-  .q-stim { margin: 0 0 1.5mm; }
-  .q-stim .stim-img { max-height: 90mm; }
+  .q-stim { margin: 2mm 0 0; }
+  .q-stim .stim-img { max-height: 110mm; }
 `;
 
 function choiceHtml(text: string, picture: ChoicePicture | null | undefined) {
@@ -129,12 +135,16 @@ function stimulusItemHtml(item: PaperTestStimulus): string {
   }
 }
 
-function stimulusBlockHtml(block: PaperTestStimulusBlock | undefined): string {
-  if (!block?.items.length) return '';
-  const forLine = stimulusForLine(block.forRows);
-  return `<li class="stim">${
-    forLine ? `<p class="stim-for">${escapeHtml(forLine)}</p>` : ''
-  }${block.items.map(stimulusItemHtml).join('')}</li>`;
+function resourcesHtml(
+  resources: readonly PaperTestResource[] | undefined
+): string {
+  if (!resources?.length) return '';
+  return `<div class="resources">${resources
+    .map(
+      (r) =>
+        `<section class="resource"><h2>Resource ${escapeHtml(r.letter)}</h2>${stimulusItemHtml(r.item)}</section>`
+    )
+    .join('')}</div>`;
 }
 
 function questionHtml(q: PaperTestQuestion): string {
@@ -154,10 +164,17 @@ function questionHtml(q: PaperTestQuestion): string {
         q.section.directions ? `<p>${escapeHtml(q.section.directions)}</p>` : ''
       }${q.section.chooseLine ? `<p><strong>${escapeHtml(q.section.chooseLine)}</strong></p>` : ''}</li>`
     : '';
-  const inline = q.inlineStimuli?.length
-    ? `<div class="q-stim">${q.inlineStimuli.map(stimulusItemHtml).join('')}</div>`
+  const stimuli = q.stimuli?.length
+    ? `<div class="q-stim">${q.stimuli.map(stimulusItemHtml).join('')}</div>`
     : '';
-  return `${section}${stimulusBlockHtml(q.stimuli)}<li><span class="num">${escapeHtml(String(q.row))}.</span><div>${inline}<div class="text">${promptPrintHtml(q.text)}</div>${choices}</div></li>`;
+  const uses = q.resources?.length
+    ? `<p class="use-res">${escapeHtml(resourceLine(q.resources))}</p>`
+    : '';
+  // A question carrying pages of a PDF can't fit one page, so it may split.
+  const tall = q.stimuli?.some((x) => x.kind === 'pages')
+    ? ' class="tall"'
+    : '';
+  return `${section}<li${tall}><span class="num">${escapeHtml(String(q.row))}.</span><div><div class="text">${promptPrintHtml(q.text)}</div>${stimuli}${uses}${choices}</div></li>`;
 }
 
 function testHtml(
@@ -188,11 +205,15 @@ export function buildPaperTestHtml(job: PaperTestJob): string {
     return job.versions
       .map(
         (v) =>
-          `<section class="version">${testHtml(job.quizTitle, v.questions, v.label)}</section>`
+          `<section class="version">${testHtml(job.quizTitle, v.questions, v.label)}${resourcesHtml(v.resources)}</section>`
       )
       .join('');
   }
-  return testHtml(job.quizTitle, job.questions) + supportsHtml(job.supports);
+  return (
+    testHtml(job.quizTitle, job.questions) +
+    resourcesHtml(job.resources) +
+    supportsHtml(job.supports)
+  );
 }
 
 export function printPaperTest(
