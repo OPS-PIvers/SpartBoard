@@ -134,7 +134,7 @@ export const BoxSizeSelect: React.FC<{
 }> = ({ size, onChange, ariaLabel, anchor, maxPages = 1 }) => {
   const option = boxSizeOption(size);
   return (
-    <div className="flex shrink-0 items-center gap-2">
+    <div className="flex max-w-full flex-wrap items-center gap-2">
       <MenuSelect className="shrink-0">
         <select
           aria-label={ariaLabel}
