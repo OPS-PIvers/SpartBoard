@@ -276,7 +276,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
       addToast(
         t('toasts.classLink.imported', {
           defaultValue: 'Imported {{name}}',
-          name: displayName,
+          name: cleanedNames.get(cls.sourcedId) ?? cls.title,
         }),
         'success'
       );
