@@ -123,11 +123,14 @@ export function usePaperTestStimulusFiles(
       return { images: images.src, pages };
     };
 
-    void run().then((files) => {
-      if (live) setResolved({ key, files });
-      // Unmounted mid-fetch: free what finished after the cleanup ran.
-      else for (const url of objectUrls) URL.revokeObjectURL(url);
-    });
+    void run()
+      // A failed fetch prints as links rather than leaving the button disabled.
+      .catch((): PaperTestStimulusFiles => EMPTY)
+      .then((files) => {
+        if (live) setResolved({ key, files });
+        // Unmounted mid-fetch: free what finished after the cleanup ran.
+        else for (const url of objectUrls) URL.revokeObjectURL(url);
+      });
     return () => {
       live = false;
       for (const url of objectUrls) URL.revokeObjectURL(url);
