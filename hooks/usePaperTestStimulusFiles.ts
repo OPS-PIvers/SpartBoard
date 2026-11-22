@@ -7,9 +7,10 @@ import {
   resolveStimulusImages,
 } from '@/utils/paperSheetStimulusImages';
 import { openPdfPages } from '@/utils/paperSheetPdfPage';
-import { driveMediaUrl } from '@/utils/quizStimuli';
+import { driveMediaUrl, drivePdfExportUrl } from '@/utils/quizStimuli';
 import {
   isFetchedStimulus,
+  stimulusDocFileId,
   type PaperTestStimulusFiles,
 } from '@/utils/paperTestStimuli';
 
@@ -88,11 +89,14 @@ export function usePaperTestStimulusFiles(
       for (const s of fetched) {
         if (s.type === 'image' || !live) continue;
         let blob: Blob | null = null;
-        if (s.type === 'gdoc-embed' && s.driveFileId) {
+        const docId = stimulusDocFileId(s);
+        if (docId) {
+          // The teacher's own access first, then the link anyone can view.
           blob =
-            publicOnly || !driveService
+            (publicOnly || !driveService
               ? null
-              : await driveService.exportAsPdf(s.driveFileId).catch(() => null);
+              : await driveService.exportAsPdf(docId).catch(() => null)) ??
+            (await fetchBlob(drivePdfExportUrl(docId) ?? ''));
         } else if (s.driveFileId) {
           blob =
             (await ownBlob(s.driveFileId)) ??

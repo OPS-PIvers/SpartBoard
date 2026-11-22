@@ -26,13 +26,22 @@ export interface PaperTestStimulusFiles {
   pages: Readonly<Record<string, readonly string[]>>;
 }
 
+const GDOC_KIND = /docs\.google\.com\/(document|presentation|spreadsheets)\//i;
+// A published-to-web link (`/d/e/2PACX…`) carries no Drive file id.
+const GDOC_FILE_ID =
+  /docs\.google\.com\/(?:document|presentation|spreadsheets)\/(?:u\/\d+\/)?d\/(?!e\/)([\w-]{10,})/i;
+
+/** The Drive file behind a Doc, Slides or Sheets stimulus, so its pages can print. */
+export function stimulusDocFileId(s: QuizStimulus): string | null {
+  if (s.type !== 'gdoc-embed') return null;
+  return s.driveFileId ?? GDOC_FILE_ID.exec(s.url)?.[1] ?? null;
+}
+
 /** Stimuli whose content has to be fetched and drawn before printing. */
 export function isFetchedStimulus(s: QuizStimulus): boolean {
   if (s.type === 'image' || s.type === 'pdf') return !!s.driveFileId || !!s.url;
-  return s.type === 'gdoc-embed' && !!s.driveFileId;
+  return !!stimulusDocFileId(s);
 }
-
-const GDOC_KIND = /docs\.google\.com\/(document|presentation|spreadsheets)\//i;
 
 /** What a stimulus that can't print on paper is called next to its link. */
 export function stimulusLinkTitle(s: QuizStimulus): string {
