@@ -56,6 +56,8 @@ export const StimulusPickerModal: React.FC<{
     stimulusId: string,
     placement: QuizStimulusPaperPlacement
   ) => void;
+  /** Questions a stimulus can print with; a bank draw counts as several. */
+  paperUseCount?: (stimulusId: string) => number;
   onClose: () => void;
 }> = ({
   stimuli,
@@ -68,6 +70,7 @@ export const StimulusPickerModal: React.FC<{
   onSelect: setSelectedId,
   addArea,
   onPaperPlacement,
+  paperUseCount,
   onClose,
 }) => {
   const selected = stimuli.find((s) => s.id === selectedId) ?? null;
@@ -244,7 +247,8 @@ export const StimulusPickerModal: React.FC<{
                       ariaLabel="On paper"
                       value={paperPlacementOf(
                         selected,
-                        usedOn(selected.id).length
+                        paperUseCount?.(selected.id) ??
+                          usedOn(selected.id).length
                       )}
                       onChange={(v) => onPaperPlacement(selected.id, v)}
                       anchor={tourTypeAttr(

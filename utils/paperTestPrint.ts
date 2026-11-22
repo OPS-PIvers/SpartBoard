@@ -147,6 +147,21 @@ function resourcesHtml(
     .join('')}</div>`;
 }
 
+/** A question whose stimuli could fill most of a page may split, so it doesn't leave a blank page behind. */
+function isTall(stimuli: readonly PaperTestStimulus[] | undefined): boolean {
+  if (!stimuli?.length) return false;
+  const images = stimuli.filter((x) => x.kind === 'image').length;
+  return (
+    images > 1 ||
+    stimuli.some(
+      (x) =>
+        x.kind === 'pages' ||
+        (x.kind === 'text' && x.text.length > 600) ||
+        (x.kind === 'word-bank' && x.groups.flat().length > 24)
+    )
+  );
+}
+
 function questionHtml(q: PaperTestQuestion): string {
   // A stub's options are just the bubble letters, which say nothing to a student.
   const choices = q.written
@@ -170,10 +185,7 @@ function questionHtml(q: PaperTestQuestion): string {
   const uses = q.resources?.length
     ? `<p class="use-res">${escapeHtml(resourceLine(q.resources))}</p>`
     : '';
-  // A question carrying pages of a PDF can't fit one page, so it may split.
-  const tall = q.stimuli?.some((x) => x.kind === 'pages')
-    ? ' class="tall"'
-    : '';
+  const tall = isTall(q.stimuli) ? ' class="tall"' : '';
   return `${section}<li${tall}><span class="num">${escapeHtml(String(q.row))}.</span><div><div class="text">${promptPrintHtml(q.text)}</div>${stimuli}${uses}${choices}</div></li>`;
 }
 

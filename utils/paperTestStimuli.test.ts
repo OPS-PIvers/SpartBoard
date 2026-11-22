@@ -203,3 +203,26 @@ describe('stimuli on the test paper', () => {
     expect(html).toContain('<strong>Video:</strong> https://youtu.be/a');
   });
 });
+
+describe('long stimuli in a question', () => {
+  it('lets a question with a long passage split across pages', () => {
+    const html = buildPaperTestHtml({
+      quizTitle: 'R',
+      questions: [
+        {
+          row: 1,
+          text: 'Short',
+          choices: ['a', 'b'],
+          stimuli: [{ kind: 'text', text: 'word '.repeat(200) }],
+        },
+        {
+          row: 2,
+          text: 'Short too',
+          choices: ['a', 'b'],
+          stimuli: [{ kind: 'text', text: 'A short note.' }],
+        },
+      ],
+    });
+    expect(html.match(/<li class="tall">/g)).toHaveLength(1);
+  });
+});

@@ -1376,6 +1376,12 @@ const AttachStimulusSection: React.FC<{
         ? {
             onPaperPlacement: (id: string, v: QuizStimulusPaperPlacement) =>
               state.updateStimulus(id, { paperPlacement: v }),
+            // A bank draw prints with every drawn question, so it counts as shared.
+            paperUseCount: (id: string) =>
+              questionsUsingStimulus(questions, id).length +
+              2 *
+                bankSlots.filter((slot) => slot.stimulusIds?.includes(id))
+                  .length,
           }
         : {})}
       onClose={() => setPickerOpen(false)}
