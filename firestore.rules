@@ -2089,7 +2089,7 @@ service cloud.firestore {
         // though the parent doc read is now closed.
         allow read: if signedIn() && (
           parentShare().get('originalAuthor', null) == authUid()
-          || isAdmin()
+          || isSiteAdmin()
           || (
             parentShare().get('revoked', false) != true
             && (parentShare().get('expiresAt', null) == null
@@ -2119,7 +2119,7 @@ service cloud.firestore {
           (
             existing().get('authorUid', null) == authUid() ||
             parentShare().get('originalAuthor', null) == authUid() ||
-            isAdmin()
+            isSiteAdmin()
           );
       }
 
@@ -2133,7 +2133,7 @@ service cloud.firestore {
         // only while the parent share is neither revoked nor past expiresAt.
         allow read: if signedIn() && (
           parentShare().get('originalAuthor', null) == authUid()
-          || isAdmin()
+          || isSiteAdmin()
           || (
             parentShare().get('revoked', false) != true
             && (parentShare().get('expiresAt', null) == null
@@ -2152,7 +2152,7 @@ service cloud.firestore {
           (
             existing().get('authorUid', null) == authUid() ||
             parentShare().get('originalAuthor', null) == authUid() ||
-            isAdmin()
+            isSiteAdmin()
           );
       }
     }
@@ -4332,8 +4332,8 @@ service cloud.firestore {
     }
 
     match /sessions/{userId} {
-      // No list. The teacher, admins, and a student whose join record holds the current code read it.
-      allow get: if signedIn() && (liveUid(userId) || isAdmin() ||
+      // No list. The teacher, site admins, and a student whose join record holds the current code read it.
+      allow get: if signedIn() && (liveUid(userId) || isSiteAdmin() ||
         dbGet4('sessions', userId, 'students', authUid()).data.get('code', '') == existing().code);
       // Shape-checks only the keys a write sets, so a legacy doc can still be ended, frozen or switched.
       function liveSessionOk(k) {
@@ -5604,8 +5604,8 @@ service cloud.firestore {
       allow read: if signedIn();
       // Only teacher (session owner) can create/update the session metadata
       // sessionId is formatted as [teacherUid]_[widgetId]
-      allow write: if signedIn() && 
-                   (isAdmin() || mySid(sessionId));
+      allow write: if signedIn() &&
+                   (isSiteAdmin() || mySid(sessionId));
 
       match /entries/{entryId} {
         // Students can submit entries (create). Parent session must exist and
@@ -6672,13 +6672,13 @@ service cloud.firestore {
       function pollJid() { return sessionId + '__' + authUid(); }
       // A joined device reads its one session; list is owner/admin only.
       allow get: if signedIn() &&
-                 (mySid(sessionId) || dbExists('poll_joins', pollJid()) || isAdmin());
+                 (mySid(sessionId) || dbExists('poll_joins', pollJid()) || isSiteAdmin());
       allow list: if signedIn() &&
-                  (isAdmin() || myOldTeacher());
+                  (isSiteAdmin() || myOldTeacher());
       // Only staff whose uid prefixes the sessionId, or an admin, may create/update the session doc itself.
       allow create, update: if signedIn() &&
                             notAnon() &&
-                            (isAdmin() ||
+                            (isSiteAdmin() ||
                               (quizStaff() &&
                                 mySid(sessionId) &&
                                 incoming().get('teacherUid', authUid()) == authUid()));
@@ -6728,7 +6728,7 @@ service cloud.firestore {
 
         // Delete (reset) is teacher/admin-only.
         allow delete: if signedIn() &&
-          (isAdmin() || mySid(sessionId));
+          (isSiteAdmin() || mySid(sessionId));
       }
 
       // Word cloud / open response answers, `{questionIndex}_{uid}`: text
