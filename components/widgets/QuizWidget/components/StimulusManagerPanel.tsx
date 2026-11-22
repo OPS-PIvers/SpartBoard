@@ -1073,11 +1073,13 @@ export const ModifiedStimulusSection: React.FC<{
   state: QuizEditorController;
   questionId: string;
   calculatorAvailable?: boolean;
+  wordBankAvailable?: boolean;
   paperPlacement?: boolean;
 }> = ({
   state,
   questionId,
   calculatorAvailable = false,
+  wordBankAvailable = false,
   paperPlacement = false,
 }) => {
   const question = state.questions.find((q) => q.id === questionId);
@@ -1086,6 +1088,7 @@ export const ModifiedStimulusSection: React.FC<{
       state={state}
       attachedIds={question?.modifiedStimulusIds}
       calculatorAvailable={calculatorAvailable}
+      wordBankAvailable={wordBankAvailable}
       pickerModal
       paperPlacement={paperPlacement}
       ownerNoun="modified version"

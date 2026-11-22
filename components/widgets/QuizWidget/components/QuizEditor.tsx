@@ -1104,6 +1104,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   calculatorAvailable={canAccessFeature(
                     'quiz-calculator-stimulus'
                   )}
+                  wordBankAvailable={canAccessFeature('quiz-word-bank')}
                   paperPlacement={canAccessFeature('paper-answer-sheets')}
                 />
               ),
