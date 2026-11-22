@@ -1125,6 +1125,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'classlink-clean-names': {
+    label: 'Short ClassLink class names',
+    icon: Download,
+    description:
+      'Classes imported from ClassLink get a short name with the course, term and period.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'group-reminders': {
     label: 'Group reminders',
     icon: BellRing,

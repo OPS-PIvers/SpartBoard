@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getRosters = vi.fn();
 const getDocs = vi.fn();
+const featureOn = new Set<string>();
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(() => ({})),
@@ -21,6 +22,7 @@ vi.mock('@/context/useAuth', () => ({
     userRoles: null,
     orgId: 'org-1',
     roleId: 'super_admin',
+    canAccessFeature: (id: string) => featureOn.has(id),
   }),
 }));
 const addRoster = vi.fn();
@@ -56,6 +58,8 @@ describe('ClassLinkImportDialog', () => {
   beforeEach(() => {
     getRosters.mockReset();
     getDocs.mockReset();
+    addRoster.mockReset();
+    featureOn.clear();
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
   });
 
@@ -104,5 +108,50 @@ describe('ClassLinkImportDialog', () => {
       classlinkPeriods: ['5'],
       bellPeriod: { buildingId: 'b1', periodId: 'P5' },
     });
+  });
+
+  const sisClass = {
+    sourcedId: 'c2',
+    title: '(S1) Erickson, T /Frie/Ivers/Nohner ENGLISH I A(2)',
+    classCode: '18119',
+    subject: 'English',
+  };
+
+  it('shows a short name above the full ClassLink name and imports it when the flag is on', async () => {
+    featureOn.add('classlink-clean-names');
+    getRosters.mockResolvedValue({
+      classes: [sisClass],
+      studentsByClass: { c2: [] },
+    });
+    getDocs.mockResolvedValue({ docs: [] });
+
+    render(
+      <ClassLinkImportDialog isOpen mode={{ kind: 'new' }} onClose={vi.fn()} />
+    );
+
+    expect(await screen.findByText('English I A (S1, P2)')).toBeInTheDocument();
+    expect(screen.getByText(sisClass.title)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /import/i }));
+    await waitFor(() => expect(addRoster).toHaveBeenCalled());
+    expect(addRoster.mock.calls[0][0]).toBe('English I A (S1, P2)');
+  });
+
+  it('keeps the full ClassLink name when the flag is off', async () => {
+    getRosters.mockResolvedValue({
+      classes: [sisClass],
+      studentsByClass: { c2: [] },
+    });
+    getDocs.mockResolvedValue({ docs: [] });
+
+    render(
+      <ClassLinkImportDialog isOpen mode={{ kind: 'new' }} onClose={vi.fn()} />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /import/i }));
+    await waitFor(() => expect(addRoster).toHaveBeenCalled());
+    expect(addRoster.mock.calls[0][0]).toBe(
+      `English - ${sisClass.title} (18119)`
+    );
+    expect(screen.queryByText('English I A (S1, P2)')).not.toBeInTheDocument();
   });
 });

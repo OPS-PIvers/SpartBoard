@@ -11900,6 +11900,7 @@ export type GlobalFeature =
   | 'group-reminders'
   /** Edit Class: groups open as pages that hold their accommodations; Accommodations lists every student. */
   | 'class-groups-redesign'
+  | 'classlink-clean-names'
   /** Group reminders: the Symbol step of the class group editor. */
   | 'group-symbols'
   /** Group reminders: the Schedule step and the reminders it pops on the board. */
