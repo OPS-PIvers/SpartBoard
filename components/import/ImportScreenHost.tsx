@@ -32,6 +32,7 @@ import {
   importSourceOffers,
 } from '@/config/importConversion';
 import {
+  IMPORT_SOURCE_FEATURES,
   conversionInputFor,
   importSourceKind,
   importTypeOn,
@@ -76,7 +77,7 @@ const withoutForm = (item: ImportInboxItem): ImportInboxItem => {
 
 function useFormsGate(inbox: ImportInbox): ImportInbox {
   const { canAccessFeature } = useAuth();
-  if (canAccessFeature('import-google-forms')) return inbox;
+  if (canAccessFeature(IMPORT_SOURCE_FEATURES.form)) return inbox;
   return { ...inbox, items: inbox.items.map(withoutForm) };
 }
 
@@ -101,7 +102,7 @@ export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
   const request = useImportScreenRequest();
   const { user, canAccessFeature } = useAuth();
   const sendOn = canAccessFeature(IMPORT_SEND_FEATURE);
-  const courseOn = canAccessFeature('import-schoology-course');
+  const courseOn = canAccessFeature(IMPORT_SOURCE_FEATURES.course);
   const [courseFile, setCourseFile] = useState<File | null>(null);
   const inbox = useFormsGate(useImportInbox(user?.uid, sendOn));
   const [boardJob, setBoardJob] = useState<BoardJob | null>(null);

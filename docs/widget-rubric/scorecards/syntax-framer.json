@@ -31,7 +31,7 @@
       "note": "At 150x100 the tokens shrink uniformly into clipped boxes with a 1.87 px smallest text and an unreadable stress row, and nothing collapses to keep the sentence dominant.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:36:38.445Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 3,
@@ -72,7 +72,7 @@
       "note": "The tokens reflow from a single wide row at 1400x350 to a stacked column of rows at 225x900 with little dead space, though the tall typical layout stretches tiles into oversized blocks.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:36:38.445Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 3,
@@ -288,7 +288,7 @@
       "note": "The face is clean, but every token sits in its own bordered, shadowed white box with everything centered, which reads dated.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:36:38.445Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 3,
@@ -325,7 +325,7 @@
       "note": "The sentence is the primary element, but every token tile has the same weight, and the lone period tile is as heavy as the words.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:36:38.445Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 3,
@@ -377,7 +377,7 @@
       "note": "There are no copy violations and lucide is the only icon library, but the empty state says 'tokens' and the drawer labels are terse lowercase jargon ('text', 'math', 'content').",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:36:38.445Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 2,

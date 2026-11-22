@@ -434,6 +434,32 @@ describe('DashboardView Gestures & Navigation', () => {
     expect(mockLoadDashboard).toHaveBeenCalledWith('db-3');
   });
 
+  it('skips the slide on an Alt + Right switch and slides on the next switch', () => {
+    const dashboardMock = useDashboard as unknown as ReturnType<typeof vi.fn>;
+    const view = renderView();
+    const base = dashboardMock.mock.results[0].value as Record<string, unknown>;
+    const showBoard = (board: Dashboard) => {
+      dashboardMock.mockReturnValue({ ...base, activeDashboard: board });
+      view.rerender(
+        <DashboardContext.Provider value={legacyCtxValue}>
+          <DashboardView />
+        </DashboardContext.Provider>
+      );
+      return view.container.querySelector(`[data-board-id="${board.id}"]`);
+    };
+
+    fireEvent.keyDown(window, { key: 'ArrowRight', altKey: true });
+    expect(mockLoadDashboard).toHaveBeenCalledWith('db-3');
+    const keyboardCanvas = showBoard(mockDashboards[2]);
+    expect(keyboardCanvas).not.toBeNull();
+    expect(keyboardCanvas?.className).not.toContain('animate-slide-left-in');
+    expect(keyboardCanvas?.className).not.toContain('animate-slide-right-in');
+    expect(keyboardCanvas?.className).not.toContain('animate-fade-in');
+
+    const pointerCanvas = showBoard(mockDashboards[0]);
+    expect(pointerCanvas?.className).toContain('animate-slide-right-in');
+  });
+
   it('triggers minimize all on Shift + Escape', () => {
     const mockMinimizeAll = vi.fn();
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({

@@ -1,0 +1,1 @@
+claude/backlog-ab-94-20261120 (AB-94: flashcard connector save refuses a revoked share and stale set)

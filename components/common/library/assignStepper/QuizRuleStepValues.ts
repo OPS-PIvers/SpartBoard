@@ -80,7 +80,7 @@ export function formatQuizFeedbackValue(
     !context.hasManualGrading &&
     o.showScoreOnSubmit === true;
   const rightWrong = o.showResultToStudent ?? false;
-  const reveal = o.showCorrectAnswerToStudent ?? false;
+  const reveal = rightWrong && (o.showCorrectAnswerToStudent ?? false);
   if (score && rightWrong && reveal)
     return 'Score, right and wrong, and the correct answers';
   if (score && rightWrong) return 'Their score and which answers were right';

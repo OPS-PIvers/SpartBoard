@@ -31,7 +31,7 @@
       "note": "At 150×100 the whole library face shrinks uniformly, with tab labels, the search box and list rows down to 2.7 px text and 6.8 px tap targets, and only one cut-off row shows.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:11:52.653Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 1,
@@ -71,7 +71,7 @@
       "note": "At the tallest aspect the sidebar collapses, search and sort stack and Start becomes an icon, while the widest aspect keeps the same row layout with little dead band.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:11:52.653Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 1,
@@ -285,7 +285,7 @@
       "note": "The header and list are clean, but tiny all-caps TARGETS/SELECT labels, tiny QS chips and gray-on-gray Start buttons are ban-list hits.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:11:52.653Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 2,
@@ -322,7 +322,7 @@
       "note": "Bold quiz titles are clearly primary, and the metadata, toolbar and ghosted Start buttons step down in weight.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:11:52.653Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 3,
@@ -374,7 +374,7 @@
       "note": "Labels are short and plain, and every icon is from lucide, though the 'QS' abbreviation is terse.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:11:52.653Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 3,

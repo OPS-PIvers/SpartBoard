@@ -1394,6 +1394,7 @@
         "ariaLabel": "Ouvrir les présences — {{count}} marqués absents aujourd'hui"
       },
       "classContext": {
+        "label": "Classes",
         "triggerAria": "Classe active : {{name}}",
         "triggerAriaWithAbsent_one": "Classe active : {{name}}. {{count}} élève marqué absent aujourd'hui.",
         "triggerAriaWithAbsent_other": "Classe active : {{name}}. {{count}} élèves marqués absents aujourd'hui.",
@@ -1421,9 +1422,6 @@
       "left": "Encore {{count}}",
       "refreshMenu": "Actualiser le menu",
       "clearAll": "Effacer toutes les affectations",
-      "shortHot": "Chaud",
-      "shortBento": "Bento",
-      "shortHome": "Maison",
       "assignMoreOutsideGroup": "Encore {{count}} à placer, {{hidden}} hors de ce groupe"
     },
     "quiz": {
@@ -2030,15 +2028,20 @@
       "tabAway": "Limite d'absence : {{seconds}} s",
       "windowShifted": "Fenêtre décalée",
       "readAloud": "Lecture à voix haute",
+      "spellingHelp": "Aide à l'orthographe",
       "language": "{{language}}",
       "copyPastePrintBlocked": "Pas de copier, coller ni imprimer",
-      "copyPastePrintAllowed": "Copier, coller et imprimer autorisés"
+      "copyPastePrintAllowed": "Copier, coller et imprimer autorisés",
+      "speechToText": "Dictée vocale"
     },
     "language": "Langue",
+    "spellingHelp": "Aide à l'orthographe",
     "noChanges": "Aucun changement",
     "copyPastePrint": "Copier, coller et imprimer",
     "copyPastePrintBlock": "Bloquer",
-    "copyPastePrintAllow": "Autoriser"
+    "copyPastePrintAllow": "Autoriser",
+    "speechToText": "Dictée vocale",
+    "speechToTextLanguageNote": "Non disponible en {{language}}. Cet élève dictera en anglais."
   },
   "assignTargeting": {
     "expandAffordance": "Modifier ou ajouter des aménagements",
@@ -2112,7 +2115,8 @@
       "videoActivity": "Activité Vidéo",
       "guidedLearning": "Apprentissage Guidé",
       "miniApp": "Mini App",
-      "flashcards": "Cartes mémoire"
+      "flashcards": "Cartes mémoire",
+      "writing": "Écriture"
     },
     "flashcardKind": {
       "check": "Contrôle",
@@ -2225,10 +2229,12 @@
     "allPlaced": "Tous les mots sont placés.",
     "picked": "{{word}} sélectionné. Choisis un blanc.",
     "placed": "{{word}} placé dans {{blank}}.",
-    "returned": "{{word}} remis dans la banque de mots."
+    "returned": "{{word}} remis dans la banque de mots.",
+    "tapToFill": "Touche un choix pour l’ajouter à ta réponse."
   },
   "quizLiveView": {
     "banner": "Ton enseignant regarde ton quiz",
+    "bannerWriting": "Ton enseignant regarde ton texte",
     "nudge": "Ton enseignant demande ton attention",
     "noteSeeMe": "Viens me voir, s'il te plaît",
     "noteOwnWork": "Regarde seulement ton propre travail",
@@ -2411,10 +2417,13 @@
       "title": "Tes résultats",
       "attempt": "Tentative",
       "fullyCorrect": "{{correct}} sur {{total}} entièrement correctes",
+      "pointsOf": "{{earned}} sur {{possible}} points",
       "writtenPending": "Ta réponse écrite est encore en cours de correction. Reviens bientôt.",
       "yourAnswers": "Tes réponses",
       "otherQuestions": "Autres questions",
       "yourAnswer": "Ta réponse :",
+      "yourAnswerTag": "Ta réponse",
+      "correctAnswerTag": "Bonne réponse",
       "scoreOnly": "Ton enseignant a publié ton score. Les réponses détaillées ne sont pas partagées pour ce devoir."
     },
     "rubric": {
@@ -2640,11 +2649,6 @@
       "pausePlayback": "Pause your recording",
       "submitQuiz": "Submit quiz",
       "nextQuestion": "Next",
-      "submitBlockedTitle_one": "One question still needs a recording",
-      "submitBlockedTitle_other": "{{count}} questions still need a recording",
-      "submitBlockedBody_one": "The question stays incomplete and the assignment cannot be submitted. Go back and record an answer, then turn it in.",
-      "submitBlockedBody_other": "The questions stay incomplete and the assignment cannot be submitted. Go back and record an answer for each one, then turn it in.",
-      "submitBlockedJump": "Go to question {{number}}",
       "notSubmittedPending": "Pas encore remis. Ton enregistrement est en cours d’envoi.",
       "notSubmittedFailed": "Ton enregistrement n’a pas été envoyé. Choisis Réessayer.",
       "notSubmittedFailedFinal": "Ton enregistrement n’a pas été envoyé et ne peut pas l’être depuis cet appareil. Enregistre de nouveau pour envoyer une nouvelle prise.",
@@ -2783,15 +2787,15 @@
         "paper-image": "Non transcrit",
         "not-counted": "En trop, non notée"
       },
-      "points": "Points awarded",
+      "points": "Score",
+      "resizeList": "Resize student list",
+      "resizeScore": "Resize score panel",
       "comment": "Overall comment (optional)",
       "substituteNote": "Note (required)",
       "commentPlaceholder": "Feedback for this student…",
       "excusedNote": "Dispensé. Exclu du carnet de notes.",
       "save": "Save grade",
       "saveAndNext": "Save & next",
-      "prevStudent": "Previous student",
-      "nextStudent": "Next student",
       "prevQuestion": "Previous question",
       "nextQuestion": "Next question",
       "prev": "Previous ungraded",
@@ -2897,6 +2901,9 @@
       },
       "copy": "Copier",
       "copyResponse": "Copier la réponse",
+      "writingPlayback": "Relecture",
+      "backToAnswer": "Retour à la réponse",
+      "writingPlaybackHint": "Rejouer l'écriture de cette réponse",
       "copied": "Copié",
       "responseLabel": "Réponse de l'élève",
       "timedOutUnderMinimum": "Temps écoulé sous le minimum",
@@ -3043,7 +3050,8 @@
       },
       "classFilter": "Filtrer par classe",
       "allClasses": "Toutes les classes",
-      "countInstead": "Compter celle-ci à la place"
+      "countInstead": "Compter celle-ci à la place",
+      "dictated": "Dicté"
     },
     "results": {
       "gradeButton": "Noter les réponses libres"
@@ -3921,7 +3929,6 @@
       "tabSubmitTitle": "Tu as quitté la page trop de fois",
       "submittingAnswers": "Envoi de tes réponses…",
       "forcedTab": "Tu as quitté la page trop de fois. Ton devoir a été remis. Parle à ton enseignant si tu penses que c'est une erreur.",
-      "tryAgain": "Réessayer",
       "tryAgainError": "Impossible de commencer une nouvelle tentative. Réessaie.",
       "tabWarningOf": "Avertissement {{count}} sur {{limit}}."
     },
@@ -4875,27 +4882,6 @@
         "rebound": "Réassociée",
         "needsHuman": "Demande une personne"
       }
-    },
-    "web": {
-      "title": "Visites web",
-      "intro": "Vérifie les parcours réels des visites sur d'autres sites web.",
-      "empty": "Aucune visite web pour l'instant.",
-      "loadFailed": "Impossible de charger les visites web.",
-      "notPublished": "Non publiée",
-      "colPage": "Page",
-      "state": {
-        "ok": "OK",
-        "weak": "Correspondance faible",
-        "missed": "Introuvable"
-      },
-      "reason": {
-        "missed": "Image affichée dans {{misses}} parcours réels sur {{runs}}",
-        "weak": "Trouvé seulement par un indice plus faible dans {{weak}} parcours réels sur {{runs}}",
-        "weakScore": "Proche d'une autre commande dans {{weak}} parcours réels sur {{runs}}"
-      },
-      "copyLink": "Copier le lien",
-      "linkCopied": "Copié",
-      "copyLinkFor": "Copier le lien vers {{title}}"
     }
   },
   "tourPicker": {
@@ -5095,5 +5081,50 @@
     "hour": "Heure",
     "minute": "Minute",
     "period": "Matin ou après-midi"
+  },
+  "quizSupports": {
+    "button": "Aides",
+    "title": "Aides",
+    "close": "Fermer",
+    "resize": "Redimensionner les aides"
+  },
+  "claudeBoards": {
+    "editingToast": "Claude modifie {{name}}",
+    "show": "Afficher",
+    "madeBadge": "Créé avec Claude",
+    "editedBadge": "Modifié par Claude"
+  },
+  "dictate": {
+    "button": "Dicter",
+    "starting": "Démarrage…",
+    "listening": "Écoute… touche pour arrêter",
+    "listeningShort": "Écoute",
+    "stop": "Arrêter de dicter",
+    "language": "Langue de dictée",
+    "languageSwitch": "Dictée en {{language}}. Passer à {{next}}.",
+    "error": {
+      "micBlocked": "Le micro est bloqué. Clique sur l'icône à gauche de la barre d'adresse, active Micro, puis touche Dicter à nouveau.",
+      "noMic": "Aucun micro trouvé. Branche un micro ou un casque, puis touche Dicter à nouveau.",
+      "network": "Dicter a besoin d'internet. Vérifie ta connexion, puis touche Dicter à nouveau.",
+      "languageUnsupported": "Dicter ne peut pas entendre cette langue sur cet appareil, alors il écoute en anglais.",
+      "unknown": "Dicter s'est arrêté. Touche Dicter pour recommencer."
+    },
+    "tidyUp": "Mettre en forme",
+    "tidyingUp": "Mise en forme…",
+    "tidyUpHint": "Ajoute la ponctuation et les majuscules à ce que tu viens de dicter. Tes mots ne changent pas.",
+    "tidyBefore": "Le tien",
+    "tidyAfter": "Mis en forme",
+    "tidyUse": "Utiliser celui-ci",
+    "tidyKeep": "Garder le mien",
+    "tidyUndo": "Annuler",
+    "tidyDone": "Mis en forme.",
+    "tidyNoChange": "Rien à mettre en forme."
+  },
+  "quizQuestionAudio": {
+    "play": "Écouter l'audio",
+    "stop": "Arrêter",
+    "retry": "Réessayer",
+    "label": "Question audio",
+    "playCount": "Écouter l'audio ({{used}}/{{total}})"
   }
 }

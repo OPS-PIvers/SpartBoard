@@ -19,6 +19,9 @@ vi.mock('firebase/storage', () => ({
   getStorage: vi.fn(() => ({})),
 }));
 vi.mock('@/hooks/useGoogleDrive', () => ({ useGoogleDrive: vi.fn() }));
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
 
 const thumb = vi.hoisted(() => ({
   blob: null as Blob | null,

@@ -40,7 +40,11 @@ import {
 import { LinkSchoologyModal } from '@/components/classes/LinkSchoologyModal';
 import { useSchoologySeenSections } from '@/hooks/useSchoologySeenSections';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { SPEECH_TO_TEXT_FEATURE } from '@/utils/speechToText/types';
 import { SidebarClassRow } from './SidebarClassRow';
+import { CourseClassList } from '@/components/classes/course/CourseClassList';
+import { CourseActionsMenu } from '@/components/classes/course/CourseActionsMenu';
+import { useCourses } from '@/hooks/useCourses';
 
 /** Google Classroom OAuth scope for read-only course listing. */
 const CLASSROOM_COURSES_READONLY_SCOPE =
@@ -143,8 +147,12 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
 
   const [editingRosterId, setEditingRosterId] = useState<string | null>(null);
   const studentPageOn = canAccessFeature('class-student-page');
-  const [studentPageRoster, setStudentPageRoster] =
-    useState<ClassRoster | null>(null);
+  const coursesOn = canAccessFeature('course-agenda');
+  const { courses: spartCourses, saveCourse } = useCourses(coursesOn);
+  const [studentPage, setStudentPage] = useState<{
+    roster: ClassRoster;
+    sections?: ClassRoster[];
+  } | null>(null);
   const [classLinkMode, setClassLinkMode] =
     useState<ClassLinkDialogMode | null>(null);
 
@@ -246,7 +254,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
       setCourseLoadState('loaded');
     } catch (err) {
       setCourseLoadError(
-        err instanceof Error ? err.message : 'Failed to load courses.'
+        err instanceof Error ? err.message : 'Failed to load Classroom courses.'
       );
       setCourseLoadState('error');
     }
@@ -453,10 +461,62 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     }
   };
 
+  const renderRosterRow = (
+    r: ClassRoster,
+    rosterIndex: number,
+    inCourse = false
+  ) => (
+    <SidebarClassRow
+      key={r.id}
+      roster={r}
+      isActive={activeRosterId === r.id}
+      classLinkEnabled={classLinkEnabled}
+      rowKey={`row-${rosterIndex + 1}`}
+      onToggleActive={() =>
+        setActiveRoster(activeRosterId === r.id ? null : r.id)
+      }
+      onEdit={() => setEditingRosterId(r.id)}
+      onSyncClassLink={() =>
+        setClassLinkMode({ kind: 'merge', rosterId: r.id, rosterName: r.name })
+      }
+      onLinkClassroom={() => setLinkingRoster(r)}
+      onViewStudentPage={
+        studentPageOn && studentPageClassId(r)
+          ? () => setStudentPage({ roster: r })
+          : undefined
+      }
+      onDelete={() => void handleDelete(r)}
+      inCourse={inCourse}
+    />
+  );
+
+  const renderCourseMenu = (
+    sections: readonly ClassRoster[],
+    rowKey: string,
+    courseName: string
+  ) => {
+    const withPage = studentPageOn
+      ? sections.filter((s) => studentPageClassId(s))
+      : [];
+    return (
+      <CourseActionsMenu
+        courseName={courseName}
+        sections={sections}
+        rowKey={rowKey}
+        classLinkEnabled={classLinkEnabled}
+        onViewStudentPage={
+          withPage.length > 0
+            ? () => setStudentPage({ roster: withPage[0], sections: withPage })
+            : undefined
+        }
+      />
+    );
+  };
+
   return (
     <>
       <div
-        className={`absolute inset-0 flex flex-col transition-all duration-300 ease-in-out ${
+        className={`absolute inset-0 flex flex-col transition-[translate,opacity,visibility] duration-200 ease-out-strong motion-reduce:transition-[opacity,visibility] motion-reduce:translate-x-0 ${
           isVisible
             ? 'translate-x-0 opacity-100 visible'
             : 'translate-x-full opacity-0 invisible'
@@ -570,38 +630,23 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                     defaultValue: 'Your Classes',
                   })}
                 </h3>
-                <ul
-                  className="divide-y divide-slate-200 border-y border-slate-200"
-                  {...tourAttr('classes.roster-list')}
-                >
-                  {rosters.map((r, rosterIndex) => (
-                    <SidebarClassRow
-                      key={r.id}
-                      roster={r}
-                      isActive={activeRosterId === r.id}
-                      classLinkEnabled={classLinkEnabled}
-                      rowKey={`row-${rosterIndex + 1}`}
-                      onToggleActive={() =>
-                        setActiveRoster(activeRosterId === r.id ? null : r.id)
-                      }
-                      onEdit={() => setEditingRosterId(r.id)}
-                      onSyncClassLink={() =>
-                        setClassLinkMode({
-                          kind: 'merge',
-                          rosterId: r.id,
-                          rosterName: r.name,
-                        })
-                      }
-                      onLinkClassroom={() => setLinkingRoster(r)}
-                      onViewStudentPage={
-                        studentPageOn && studentPageClassId(r)
-                          ? () => setStudentPageRoster(r)
-                          : undefined
-                      }
-                      onDelete={() => void handleDelete(r)}
-                    />
-                  ))}
-                </ul>
+                {coursesOn ? (
+                  <CourseClassList
+                    rosters={rosters}
+                    courses={spartCourses}
+                    saveCourse={saveCourse}
+                    renderRow={renderRosterRow}
+                    renderCourseMenu={renderCourseMenu}
+                    listAttrs={tourAttr('classes.roster-list')}
+                  />
+                ) : (
+                  <ul
+                    className="divide-y divide-slate-200 border-y border-slate-200"
+                    {...tourAttr('classes.roster-list')}
+                  >
+                    {rosters.map((r, i) => renderRosterRow(r, i))}
+                  </ul>
+                )}
               </div>
             )}
           </div>
@@ -616,16 +661,24 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
           onClose={() => setEditingRosterId(null)}
           onSave={handleSaveRoster}
           readAloudAvailable={canAccessFeature('quiz-read-aloud')}
+          speechToTextAvailable={canAccessFeature(SPEECH_TO_TEXT_FEATURE)}
           groupRemindersEnabled={groupRemindersEnabled}
           groupReminderEmailsEnabled={groupReminderEmails.enabled}
+          groupsRedesign={canAccessFeature('class-groups-redesign')}
+          groupSteps={{
+            symbol: canAccessFeature('group-symbols'),
+            schedule: canAccessFeature('group-schedules'),
+            settings: canAccessFeature('group-settings'),
+          }}
           bellPeriodOptions={bellPeriodOptions}
         />
       )}
 
-      {studentPageRoster && (
+      {studentPage && (
         <ClassStudentPagePreview
-          roster={studentPageRoster}
-          onClose={() => setStudentPageRoster(null)}
+          roster={studentPage.roster}
+          sections={studentPage.sections}
+          onClose={() => setStudentPage(null)}
         />
       )}
 
@@ -730,7 +783,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                 <div>
                   <p className="text-sm font-bold text-slate-700">
                     {t('sidebar.classes.linkGoogleClassroom.errorTitle', {
-                      defaultValue: 'Could not load courses',
+                      defaultValue: 'Could not load Classroom courses',
                     })}
                   </p>
                   {courseLoadError && (
@@ -757,7 +810,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                 <div className="text-center">
                   <p className="text-sm font-bold text-slate-600">
                     {t('sidebar.classes.linkGoogleClassroom.emptyTitle', {
-                      defaultValue: 'No active courses found',
+                      defaultValue: 'No active Classroom courses found',
                     })}
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5 max-w-xs">

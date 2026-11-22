@@ -89,6 +89,8 @@ export interface MonitorData {
   now: number;
 }
 
+const NO_PAPER_SEATS: ReadonlySet<string> = new Set();
+
 const responseDocKey = (r: QuizResponse): string =>
   r._responseKey ?? r.studentUid;
 
@@ -104,8 +106,12 @@ export function useMonitorData(
   openOnAllClasses = false,
   /** The assignment's targeting; null leaves per-student assignments without roster rows. */
   rosterTargets: MonitorRosterTargets | null = null,
-  /** Lists roster students who haven't joined: the quiz-monitor-roster flag, once responses have loaded. */
-  showRoster = false
+  /** Lists roster students who haven't joined, once responses have loaded. */
+  showRoster = false,
+  /** Students with an unscanned printed group copy; listed as On paper even without the roster. */
+  paperSeats: ReadonlySet<string> = NO_PAPER_SEATS,
+  /** False until responses load; paper rows wait for it like roster rows. */
+  responsesLoaded = true
 ): MonitorData {
   const { orgId } = useAuth();
 
@@ -153,12 +159,14 @@ export function useMonitorData(
     [session.periodNames]
   );
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>(() =>
-    periodNames.length > 1
-      ? openOnAllClasses
-        ? []
-        : [periodNames[0]]
-      : periodNames
+    periodNames.length > 0 && !openOnAllClasses ? [periodNames[0]] : []
   );
+  // A class added in Quiz settings widens a one-class filter to all classes.
+  const [prevPeriodCount, setPrevPeriodCount] = useState(periodNames.length);
+  if (prevPeriodCount !== periodNames.length) {
+    setPrevPeriodCount(periodNames.length);
+    if (prevPeriodCount === 1 && periodNames.length > 1) setSelectedPeriods([]);
+  }
 
   // 30s ticker drives the stuck heuristic and hand-raise ages.
   const [now, setNow] = useState(() => Date.now());
@@ -250,36 +258,40 @@ export function useMonitorData(
     ]
   );
 
-  const allNotJoined = useMemo(
-    () =>
-      showRoster
-        ? buildNotJoined({
-            session,
-            rosters,
-            responses,
-            targets: rosterTargets,
-            byStudentUid,
-            targetRefKeyByStudentUid,
-            lookupReady: !namesLoading && !namesError,
-            // An ended quiz may be from another day, so today's absences don't apply.
-            today: session.status === 'ended' ? '' : getLocalIsoDate(),
-            responseName: (r) =>
-              resolveResponseDisplayName(r, pinToName, byStudentUid),
-          })
-        : [],
-    [
-      showRoster,
-      session,
-      rosters,
-      responses,
-      rosterTargets,
-      byStudentUid,
-      targetRefKeyByStudentUid,
-      namesLoading,
-      namesError,
-      pinToName,
-    ]
-  );
+  const buildRoster = showRoster || (responsesLoaded && paperSeats.size > 0);
+  const allNotJoined = useMemo(() => {
+    const rows = buildRoster
+      ? buildNotJoined({
+          session,
+          rosters,
+          responses,
+          targets: rosterTargets,
+          byStudentUid,
+          targetRefKeyByStudentUid,
+          lookupReady: !namesLoading && !namesError,
+          // An ended quiz may be from another day, so today's absences don't apply.
+          today: session.status === 'ended' ? '' : getLocalIsoDate(),
+          responseName: (r) =>
+            resolveResponseDisplayName(r, pinToName, byStudentUid),
+          paperSeats,
+        })
+      : [];
+    // Without the roster only printed-copy students are listed.
+    return showRoster ? rows : rows.filter((s) => s.onPaper);
+  }, [
+    buildRoster,
+    showRoster,
+    paperSeats,
+    session,
+    rosters,
+    responses,
+    rosterTargets,
+    byStudentUid,
+    targetRefKeyByStudentUid,
+    namesLoading,
+    namesError,
+    pinToName,
+  ]);
   const allNames = useMemo(
     () =>
       responses.map((r) => ({

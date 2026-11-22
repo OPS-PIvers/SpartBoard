@@ -16,6 +16,7 @@ vi.mock('@/hooks/useSetAssignmentTargets', () => ({
 
 const mockSet = vi.hoisted(() => vi.fn());
 const mockCommit = vi.hoisted(() => vi.fn());
+const mockUpdate = vi.hoisted(() => vi.fn());
 const mockDoc = vi.hoisted(() => vi.fn((...args: unknown[]) => args.join('/')));
 const mockArrayUnion = vi.hoisted(() =>
   vi.fn((...items: unknown[]) => ({ __arrayUnion: items }))
@@ -25,11 +26,35 @@ const mockDeleteField = vi.hoisted(() =>
 );
 vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
-  writeBatch: () => ({ set: mockSet, commit: mockCommit }),
+  writeBatch: () => ({ set: mockSet, update: mockUpdate, commit: mockCommit }),
   arrayUnion: mockArrayUnion,
   deleteField: mockDeleteField,
+  FieldPath: class {
+    segments: string[];
+    constructor(...segments: string[]) {
+      this.segments = segments;
+    }
+  },
 }));
+
+/** Override writes from the batch update, keyed by override key. */
+const overridesWritten = (): Record<string, unknown> => {
+  const args = (mockUpdate.mock.calls[0] ?? []).slice(1) as unknown[];
+  const out: Record<string, unknown> = {};
+  for (let i = 0; i < args.length; i += 2) {
+    const { segments } = args[i] as { segments: string[] };
+    expect(segments[0]).toBe('overridesBySourcedId');
+    out[segments[1]] = args[i + 1];
+  }
+  return out;
+};
 vi.mock('@/config/firebase', () => ({ db: {} }));
+const mockUpdateWriting = vi.hoisted(() => vi.fn());
+const mockEndWriting = vi.hoisted(() => vi.fn());
+vi.mock('@/hooks/useWritingAssignmentSessions', () => ({
+  updateWritingSession: mockUpdateWriting,
+  endWritingSession: mockEndWriting,
+}));
 
 function makeRow(
   overrides: Partial<UnifiedAssignmentRow> = {}
@@ -60,6 +85,7 @@ describe('useAssignmentDetailActions', () => {
       skipped: [],
     });
     mockSet.mockReset();
+    mockUpdate.mockReset();
     mockCommit.mockReset().mockResolvedValue(undefined);
     mockDoc.mockClear();
   });
@@ -108,7 +134,7 @@ describe('useAssignmentDetailActions', () => {
     >;
     expect(call.remove).toEqual([]);
     const assignmentPatch = mockSet.mock.calls[0][1] as Record<string, unknown>;
-    expect(assignmentPatch['overridesBySourcedId.classlink:SID-1']).toEqual({
+    expect(overridesWritten()['classlink:SID-1']).toEqual({
       timeMultiplier: 1.5,
     });
     expect(assignmentPatch.removedStudentRefs).toBeUndefined();
@@ -245,9 +271,7 @@ describe('useAssignmentDetailActions', () => {
     // targeting/overrides are preserved verbatim, not cleared — written as the
     // same per-key dot-path field, not a whole-map replace.
     const expectedOverride = row.overridesBySourcedId?.['classlink:SID-1'];
-    expect(assignmentPatch['overridesBySourcedId.classlink:SID-1']).toEqual(
-      expectedOverride
-    );
+    expect(overridesWritten()['classlink:SID-1']).toEqual(expectedOverride);
   });
 
   it('writes overridesBySourcedId as per-key dot-paths, deleteField-ing a cleared key', async () => {
@@ -262,7 +286,7 @@ describe('useAssignmentDetailActions', () => {
     });
 
     const assignmentPatch = mockSet.mock.calls[0][1] as Record<string, unknown>;
-    expect(assignmentPatch['overridesBySourcedId.classlink:SID-1']).toEqual({
+    expect(overridesWritten()['classlink:SID-1']).toEqual({
       __deleteField: true,
     });
     // No whole-map replace field is written.
@@ -289,11 +313,10 @@ describe('useAssignmentDetailActions', () => {
       overridesByKey: { 'classlink:SID-1': { timeMultiplier: 1.5 } },
     });
 
-    const assignmentPatch = mockSet.mock.calls[0][1] as Record<string, unknown>;
-    expect(assignmentPatch['overridesBySourcedId.classlink:SID-1']).toEqual({
+    expect(overridesWritten()['classlink:SID-1']).toEqual({
       timeMultiplier: 1.5,
     });
-    expect(assignmentPatch['overridesBySourcedId.classlink:SID-2']).toEqual({
+    expect(overridesWritten()['classlink:SID-2']).toEqual({
       __deleteField: true,
     });
   });
@@ -415,5 +438,57 @@ describe('dueLockRowCaps', () => {
     ).toBeNull();
     expect(dueLockRowCaps(assignment, { dueAt: 100 })).toBeNull();
     expect(dueLockRowCaps(assignment, {})).toBeNull();
+  });
+});
+
+describe('useAssignmentDetailActions: Writing rows go through the server', () => {
+  beforeEach(() => {
+    mockSetAssignmentTargets.mockReset().mockResolvedValue({
+      written: 0,
+      removed: 0,
+      skipped: [],
+    });
+    mockSet.mockReset();
+    mockUpdate.mockReset();
+    mockCommit.mockReset().mockResolvedValue(undefined);
+    mockUpdateWriting.mockReset().mockResolvedValue(undefined);
+    mockEndWriting.mockReset().mockResolvedValue(undefined);
+  });
+
+  it('saves a window and override edit with updateWritingSessionV1, never a client write', async () => {
+    const row = makeRow({
+      kind: 'writing',
+      targetMode: 'class',
+      targetStudents: [],
+    });
+    const { result } = renderHook(() => useAssignmentDetailActions());
+    await result.current.saveEdit(row, 'teacher-1', {
+      targetMode: 'class',
+      targetStudents: [],
+      targetGroupIds: [],
+      overridesByKey: {},
+      closeAt: 5_000,
+    });
+    expect(mockSet).not.toHaveBeenCalled();
+    expect(mockCommit).not.toHaveBeenCalled();
+    expect(mockUpdateWriting).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'assign-1',
+        window: { closeAt: 5_000 },
+        record: expect.objectContaining({
+          targetGroupIds: [],
+          overrides: { 'classlink:SID-1': null },
+        }),
+      })
+    );
+  });
+
+  it('Close now ends a Writing assignment', async () => {
+    const row = makeRow({ kind: 'writing' });
+    const { result } = renderHook(() => useAssignmentDetailActions());
+    await result.current.closeNow(row, 'teacher-1');
+    expect(mockEndWriting).toHaveBeenCalledWith('assign-1');
+    expect(mockUpdateWriting).not.toHaveBeenCalled();
+    expect(mockCommit).not.toHaveBeenCalled();
   });
 });

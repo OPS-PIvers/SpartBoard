@@ -2,12 +2,17 @@
 
 import type { TFunction } from 'i18next';
 import type { StudentOverride } from '@/types';
-import { languageNativeLabel } from './languageNativeLabel';
+import { languageDisplayLabel } from './languageDisplayLabel';
 
 export const summarizeOverride = (
   override: StudentOverride,
   t: TFunction,
-  opts: { totalQuestions?: number; subsetOf?: 'questions' | 'cards' } = {}
+  opts: {
+    totalQuestions?: number;
+    subsetOf?: 'questions' | 'cards';
+    /** Class defaults: 3 reads as one wrong answer removed, as in the assign step. */
+    answerChoicesAsRule?: boolean;
+  } = {}
 ): string[] => {
   const chips: string[] = [];
   if (override.timeMultiplier === 'unlimited')
@@ -39,7 +44,13 @@ export const summarizeOverride = (
           })
     );
   }
-  if (override.answerChoices)
+  if (opts.answerChoicesAsRule && override.answerChoices === 3)
+    chips.push(
+      t('studentOverride.chip.oneWrongRemoved', {
+        defaultValue: '1 wrong answer removed',
+      })
+    );
+  else if (override.answerChoices)
     chips.push(
       t('studentOverride.chip.answerChoices', {
         count: override.answerChoices,
@@ -106,14 +117,39 @@ export const summarizeOverride = (
         defaultValue: 'Copy, paste and print allowed',
       })
     );
+  if (override.modifiedQuestions)
+    chips.push(
+      t('studentOverride.chip.modifiedQuestions', {
+        defaultValue: 'Modified questions',
+      })
+    );
+  const supportCount = override.supports?.length ?? 0;
+  if (supportCount > 0)
+    chips.push(
+      t('studentOverride.chip.supports', {
+        count: supportCount,
+        defaultValue: '{{count}} support',
+        defaultValue_other: '{{count}} supports',
+      })
+    );
   if (override.readAloud)
     chips.push(
       t('studentOverride.chip.readAloud', { defaultValue: 'Read aloud' })
     );
+  if (override.speechToText)
+    chips.push(
+      t('studentOverride.chip.speechToText', {
+        defaultValue: 'Speech to text',
+      })
+    );
+  if (override.spellingHelp)
+    chips.push(
+      t('studentOverride.chip.spellingHelp', { defaultValue: 'Spelling help' })
+    );
   if (override.language)
     chips.push(
       t('studentOverride.chip.language', {
-        language: languageNativeLabel(override.language),
+        language: languageDisplayLabel(override.language),
         defaultValue: '{{language}}',
       })
     );

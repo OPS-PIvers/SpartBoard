@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { ToolColumnPushDialog } from '@/components/schoology/ToolColumnPushDialog';
@@ -13,6 +13,9 @@ import {
   type ToolColumnGradeEntry,
   type ToolColumnKind,
 } from '@/utils/schoologyToolColumns';
+
+/** Sessions with a push running, shared so a Retry can't overlap another push of the same session. */
+const inFlight = new Set<string>();
 
 /** Epoch ms as the teacher's local YYYY-MM-DD. */
 export const localDateString = (ms: number): string => {
@@ -52,7 +55,8 @@ interface Options {
   endedAt?: number | null;
   /** Builds the scores (and Missing entries) at click time; null stops quietly after the caller explains why. */
   buildPayload: () => Promise<ToolColumnPayload | null>;
-  onDone: (message: string, ok: boolean) => void;
+  /** `retry` resends only the grades that didn't go through; the caller keeps the message up until dismissed. */
+  onDone: (message: string, ok: boolean, retry?: () => void) => void;
 }
 
 /** Explicit "Push to Schoology" for a tool column: confirm and pick categories when needed, then push. */
@@ -78,13 +82,36 @@ export function useSchoologyToolColumnPush({
     dueDate?: string;
   } | null>(null);
 
+  // Retry may run after the view closes, so it reads the latest scores and skips the dialog.
+  const latest = useRef({ buildPayload, onDone });
+  useLayoutEffect(() => {
+    latest.current = { buildPayload, onDone };
+  });
+
   const run = async (
     payload: ToolColumnPayload,
     categories: Record<string, string>,
     dueDate: string | null = null
   ) => {
-    if (!sessionId) return;
+    if (!sessionId || inFlight.has(sessionId)) return;
+    inFlight.add(sessionId);
     setBusy(true);
+    const report = (m: string, ok: boolean, retry?: () => void) =>
+      latest.current.onDone(m, ok, retry);
+    // Resends these students with the scores as they are when Retry is tapped.
+    const retryOf = (uids: ReadonlySet<string>) => async () => {
+      let fresh: ToolColumnPayload | null = null;
+      try {
+        fresh = await latest.current.buildPayload();
+      } catch (err) {
+        logError('schoologyToolColumn.retry', err, { sessionId });
+      }
+      const base = fresh ?? payload;
+      const grades = base.grades.filter((g) => uids.has(g.pseudonymUid));
+      if (grades.length > 0) {
+        await run({ maxPoints: base.maxPoints, grades }, categories, dueDate);
+      }
+    };
     try {
       const data = await pushToolColumn(functions, {
         sessionId,
@@ -95,18 +122,26 @@ export function useSchoologyToolColumnPush({
         categories,
         ...(dueDate ? { dueDate } : {}),
       });
-      const { message, failed } = formatToolColumnPushToast(data);
-      onDone(message, failed === 0);
+      const { message, failed, retryUids } = formatToolColumnPushToast(data);
+      const resend = new Set(retryUids);
+      const retryable = payload.grades.some((g) => resend.has(g.pseudonymUid));
+      report(
+        message,
+        failed === 0,
+        retryable ? () => void retryOf(resend)() : undefined
+      );
     } catch (err) {
       logError('schoologyToolColumn.push', err, { sessionId });
-      onDone(ltiPushErrorMessage(err), false);
+      const all = new Set(payload.grades.map((g) => g.pseudonymUid));
+      report(ltiPushErrorMessage(err), false, () => void retryOf(all)());
     } finally {
+      inFlight.delete(sessionId);
       setBusy(false);
     }
   };
 
   const start = async () => {
-    if (!sessionId || busy) return;
+    if (!sessionId || busy || inFlight.has(sessionId)) return;
     setBusy(true);
     let payload: ToolColumnPayload | null;
     let data: ToolColumnCategoriesData;

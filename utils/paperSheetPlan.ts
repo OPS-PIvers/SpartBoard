@@ -6,6 +6,7 @@ import { plainPromptText } from './promptMath';
  * Pure — no Firestore, no DOM. See docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §5.
  */
 
+import { promptLabel } from '@/utils/quizPromptText';
 import type {
   ClassRoster,
   PaperBatch,
@@ -30,6 +31,7 @@ import type { PaperSheetEntry } from './paperPageMap';
 import { paperBoxSizeOf, paperBoxStyleOf } from './paperWritten';
 import { rowsFromQuestion } from './quizChoiceRows';
 import { effectiveChooseCount, sessionSectionsFor } from './quizSections';
+import { fibBlankCount } from './quizFibBlanks';
 
 /** Small deterministic PRNG so an option set always shuffles the same way. */
 function seededRandom(seed: string): () => number {
@@ -148,6 +150,8 @@ export interface PaperWrittenPlan {
 export interface AnalyzePaperQuizOptions {
   /** Print free-response questions as handwritten boxes (`paper-handwritten-responses`). */
   written?: boolean;
+  /** With `written`: fill in the blank prints a write-in line per blank. */
+  fib?: boolean;
 }
 
 /** Nothing to print from the quiz itself, so the teacher builds a stub. */
@@ -198,7 +202,7 @@ export function analyzePaperQuiz(
   );
   const describe = (question: QuizQuestion): string =>
     `${TYPE_LABELS[question.type] ?? question.type}: ${
-      plainPromptText(question.text) || 'Untitled question'
+      plainPromptText(promptLabel(question)) || 'Untitled question'
     }`;
 
   questions.forEach((question, index) => {
@@ -224,6 +228,25 @@ export function analyzePaperQuiz(
         label,
         size,
         ...(style !== 'lines' ? { style } : {}),
+      });
+      return;
+    }
+    if (options.written && options.fib && question.type === 'FIB') {
+      if (chooseSectionIds.has(question.id)) {
+        writtenRefusals.push({
+          reason: 'choose-section',
+          label: `${label}. ${question.text || 'Untitled question'}`,
+        });
+        return;
+      }
+      const blanks = fibBlankCount(question);
+      written.push({ questionId: question.id, label, size: blanks });
+      entries.push({
+        kind: 'written',
+        questionId: question.id,
+        label,
+        size: blanks,
+        blanks,
       });
       return;
     }

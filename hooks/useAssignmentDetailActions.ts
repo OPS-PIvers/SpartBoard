@@ -16,11 +16,10 @@
  * `targetMode`, and `overridesByStudentUid` on the assignment doc — this hook
  * never writes those fields itself, only the client-owned
  * `overridesBySourcedId` / `targetGroupIds` / `targetSkippedCount` /
- * `removedStudentRefs` siblings. `overridesBySourcedId` is written as
- * per-key dot-path fields (with `deleteField()` for a cleared/removed key),
- * never as a whole-map replace — Firestore's set-with-merge recurses into
- * nested maps key-by-key, so a whole-map replace would leave a cleared
- * override stranded on the doc forever. The CF is invoked ONLY when targeting
+ * `removedStudentRefs` siblings. `overridesBySourcedId` is written per key
+ * through a `FieldPath` update (with `deleteField()` for a cleared/removed
+ * key), since its keys hold dots and a whole-map replace would strand
+ * cleared overrides. The CF is invoked ONLY when targeting
  * actually changed (student add/remove/override diff) or `targetMode` is
  * 'students' — a pure window edit on a class-wide assignment never calls it
  * (spec §3a-G: the class-wide flow stays untouched).
@@ -39,7 +38,13 @@
  */
 
 import { useCallback } from 'react';
-import { doc, writeBatch, arrayUnion, deleteField } from 'firebase/firestore';
+import {
+  doc,
+  writeBatch,
+  arrayUnion,
+  deleteField,
+  FieldPath,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { StudentOverride, StudentTargetRef } from '@/types';
 import {
@@ -59,6 +64,11 @@ import type {
   AssignmentKind,
   UnifiedAssignmentRow,
 } from '@/components/assignmentsHub/useUnifiedAssignments';
+import {
+  endWritingSession,
+  updateWritingSession,
+  type UpdateWritingSessionInput,
+} from './useWritingAssignmentSessions';
 
 const ASSIGNMENT_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   quiz: 'quiz_assignments',
@@ -66,6 +76,7 @@ const ASSIGNMENT_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   'guided-learning': 'guided_learning_assignments',
   'mini-app': 'miniapp_assignments',
   flashcards: 'flashcard_assignments',
+  writing: 'writing_assignment_records',
 };
 
 const SESSION_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
@@ -74,6 +85,7 @@ const SESSION_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   'guided-learning': 'guided_learning_sessions',
   'mini-app': 'mini_app_sessions',
   flashcards: 'flashcard_sessions',
+  writing: 'writing_assignment_sessions',
 };
 
 export interface SaveAssignmentEditResult {
@@ -185,6 +197,49 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
         skippedExclusions = result.skippedExclusions ?? [];
       }
 
+      const unskippedKeys = new Set(
+        (payload.unskipped ?? []).map(studentTargetRefKey)
+      );
+      // An un-skip deletes a marker pointer; it is not a de-targeting, so it
+      // must never be archived as a removed student.
+      const deTargeted = payload.remove.filter(
+        (ref) => !unskippedKeys.has(studentTargetRefKey(ref))
+      );
+      const rowCaps = dueLockRowCaps(row, payload.window);
+
+      // No client writes a Writing session or its record; the server applies the same edit.
+      if (row.kind === 'writing') {
+        const window: UpdateWritingSessionInput['window'] = {};
+        if ('openAt' in payload.window)
+          window.openAt = effective.openAt ?? null;
+        if ('closeAt' in payload.window)
+          window.closeAt = effective.closeAt ?? null;
+        if ('dueAt' in payload.window) window.dueAt = effective.dueAt ?? null;
+        const overrides: Record<string, StudentOverride | null> = {};
+        for (const key of new Set([
+          ...Object.keys(previous.overridesByKey),
+          ...Object.keys(effective.overridesByKey),
+        ]))
+          overrides[key] = effective.overridesByKey[key] ?? null;
+        await updateWritingSession({
+          sessionId: row.sessionId,
+          window,
+          ...(rowCaps ? { periodAccess: rowCaps } : {}),
+          record: {
+            targetGroupIds: effective.targetGroupIds,
+            overrides,
+            ...(payload.excludedTargets
+              ? { excludedTargets: payload.excludedTargets }
+              : {}),
+            ...(callCf ? { targetSkippedCount: skipped.length } : {}),
+            ...(deTargeted.length > 0
+              ? { removedStudentRefs: deTargeted }
+              : {}),
+          },
+        });
+        return { skipped, skippedExclusions };
+      }
+
       const assignmentRef = doc(
         db,
         'users',
@@ -204,21 +259,17 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
         // `targetGroupIds` is safe to replace wholesale — it isn't a nested map.
         targetGroupIds: effective.targetGroupIds,
       };
-      // `overridesBySourcedId` is a nested map: Firestore's set-with-merge
-      // recurses into maps key-by-key, so a whole-map replace here would leave
-      // a cleared override or a removed student's key stranded in the stored
-      // doc forever. Write each key as its own dot-path field instead, and
-      // `deleteField()` any key present in `previous` but absent from `next`.
+      // Keys can hold dots, so each override is its own FieldPath in an update.
       const overrideKeys = new Set([
         ...Object.keys(previous.overridesByKey),
         ...Object.keys(effective.overridesByKey),
       ]);
-      for (const key of overrideKeys) {
-        assignmentPatch[`overridesBySourcedId.${key}`] =
-          key in effective.overridesByKey
-            ? effective.overridesByKey[key]
-            : deleteField();
-      }
+      const overrideFields = [...overrideKeys].flatMap((key) => [
+        new FieldPath('overridesBySourcedId', key),
+        key in effective.overridesByKey
+          ? effective.overridesByKey[key]
+          : deleteField(),
+      ]);
       if (payload.excludedTargets) {
         assignmentPatch.excludedTargets = payload.excludedTargets;
       }
@@ -229,14 +280,6 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
         assignmentPatch.closeAt = effective.closeAt ?? null;
       if ('dueAt' in payload.window)
         assignmentPatch.dueAt = effective.dueAt ?? null;
-      // An un-skip deletes a marker pointer; it is not a de-targeting, so it
-      // must never be archived as a removed student.
-      const unskippedKeys = new Set(
-        (payload.unskipped ?? []).map(studentTargetRefKey)
-      );
-      const deTargeted = payload.remove.filter(
-        (ref) => !unskippedKeys.has(studentTargetRefKey(ref))
-      );
       if (deTargeted.length > 0) {
         assignmentPatch.removedStudentRefs = arrayUnion(...deTargeted);
       }
@@ -248,7 +291,6 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
         sessionPatch.closeAt = effective.closeAt ?? null;
       if ('dueAt' in payload.window)
         sessionPatch.dueAt = effective.dueAt ?? null;
-      const rowCaps = dueLockRowCaps(row, payload.window);
       if (rowCaps) {
         sessionPatch.periodAccess = rowCaps;
         assignmentPatch.periodAccess = rowCaps;
@@ -256,6 +298,10 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
 
       const batch = writeBatch(db);
       batch.set(assignmentRef, assignmentPatch, { merge: true });
+      if (overrideFields.length > 0) {
+        const [first, firstValue, ...rest] = overrideFields;
+        batch.update(assignmentRef, first as FieldPath, firstValue, ...rest);
+      }
       if (Object.keys(sessionPatch).length > 0) {
         batch.set(sessionRef, sessionPatch, { merge: true });
       }
@@ -272,6 +318,11 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
       userId: string,
       classContext?: ClassTargetingContext
     ): Promise<void> => {
+      // Writing's close is the teacher's End, which the server stamps on the session and record.
+      if (row.kind === 'writing') {
+        await endWritingSession(row.sessionId);
+        return;
+      }
       const current = assignmentRowToTargetingValue(row);
       await saveEdit(
         row,

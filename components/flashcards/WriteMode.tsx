@@ -12,6 +12,7 @@ import {
   RoundSummary,
   type RoundSummaryMissed,
 } from './PlayerPrimitives';
+import { CardPicture } from './CardPicture';
 import { cx, getFlashcardSides } from './playerUtils';
 
 interface WriteModeProps {
@@ -207,6 +208,14 @@ export const WriteMode: React.FC<WriteModeProps> = ({
         >
           {t(`flashcards.cards.${showFirst}`)} · {index + 1}/{queue.length}
         </div>
+        {sides.promptImage && (
+          <div
+            className="flex justify-center"
+            style={{ marginTop: 'min(12px, 3cqmin)' }}
+          >
+            <CardPicture url={sides.promptImage} />
+          </div>
+        )}
         <h2
           className="mx-auto max-w-[26ch] font-black leading-tight text-balance"
           style={{

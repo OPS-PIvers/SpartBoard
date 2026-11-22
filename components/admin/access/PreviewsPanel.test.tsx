@@ -55,12 +55,13 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 const { authState } = vi.hoisted(() => ({
-  authState: { superAdmins: ['admin@test.com'] as string[] },
+  authState: { roleId: 'super_admin' },
 }));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { email: 'admin@test.com' },
-    userRoles: { superAdmins: authState.superAdmins },
+    roleId: authState.roleId,
+    orgId: 'orono',
   }),
 }));
 
@@ -107,18 +108,49 @@ describe('PreviewsPanel', () => {
     expect(row).toHaveTextContent('Off everywhere');
   });
 
-  it('nests the Import add-ons under the Import anything row', async () => {
+  it('shows the Import add-ons on the Import anything lists, with no separate Options list', async () => {
     await renderPanel();
     expect(screen.queryByTestId('access-row-import-flashcards')).toBeNull();
     expandRow('universal-import', 'Import anything');
-    const group = screen.getByTestId('preview-group-universal-import');
-    const child = screen.getByTestId('access-row-import-flashcards');
-    expect(group).toContainElement(child);
-    expect(child).toHaveTextContent('Flashcards');
-    expect(child).not.toHaveTextContent('Import: Flashcards');
+    expect(screen.queryByTestId('preview-group-universal-import')).toBeNull();
+    const offers = screen.getByTestId('import-offers');
+    expect(
+      within(offers).getByRole('radiogroup', {
+        name: 'Import: send from the Chrome extension access',
+      })
+    ).toBeInTheDocument();
+    expect(offers).toHaveTextContent('Send from the Chrome extension');
   });
 
-  it('opens the Import row to just the matching add-ons when a search finds them', async () => {
+  it('keeps a switched-off Import add-on as a full row so it can be turned back on', async () => {
+    savedPermissions = [
+      {
+        featureId: 'import-flashcards',
+        enabled: false,
+        accessLevel: 'admin',
+        betaUsers: [],
+        buildings: [],
+      },
+    ];
+    await renderPanel();
+    expandRow('universal-import', 'Import anything');
+    const group = screen.getByTestId('preview-group-universal-import');
+    expect(
+      within(group).getByTestId('access-row-import-flashcards')
+    ).toBeInTheDocument();
+    expect(within(group).queryByTestId('access-row-import-link')).toBeNull();
+    // Turning it back on keeps the row until the change is saved.
+    fireEvent.click(
+      within(
+        within(group).getByTestId('access-row-import-flashcards')
+      ).getByRole('switch', { name: 'Import: Flashcards enabled' })
+    );
+    expect(
+      within(group).getByTestId('access-row-import-flashcards')
+    ).toBeInTheDocument();
+  });
+
+  it('opens the Import row when a search finds one of its add-ons', async () => {
     render(
       <AccessSearchContext.Provider
         value={{ query: 'link', setQuery: () => undefined }}
@@ -126,24 +158,27 @@ describe('PreviewsPanel', () => {
         <PreviewsPanel />
       </AccessSearchContext.Provider>
     );
-    const group = await screen.findByTestId('preview-group-universal-import');
+    const row = await screen.findByTestId('access-row-universal-import');
+    expect(within(row).getByTestId('import-offers')).toBeInTheDocument();
+    expect(screen.queryByTestId('access-row-import-link')).toBeNull();
     expect(
-      within(group).getByTestId('access-row-import-link')
+      within(row).getByRole('radiogroup', {
+        name: 'Import: Link, Web link access',
+      })
     ).toBeInTheDocument();
-    expect(
-      within(group).queryByTestId('access-row-import-flashcards')
-    ).toBeNull();
   });
 
-  it('saves a nested Import add-on to its own permission doc', async () => {
+  it('saves the Google Form access from its source row to its own permission doc', async () => {
     await renderPanel();
     expandRow('universal-import', 'Import anything');
     fireEvent.click(
       within(
-        screen.getByRole('radiogroup', { name: 'Import: Google Forms access' })
+        within(screen.getByTestId('import-source-form')).getByRole(
+          'radiogroup',
+          { name: 'Import: Google Forms access' }
+        )
       ).getByRole('radio', { name: 'Public' })
     );
-    fireEvent.click(screen.getByLabelText('Save Import: Google Forms'));
     await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
     expect(setDocMock.mock.calls[0][0].path).toBe(
       'global_permissions/import-google-forms'
@@ -329,14 +364,14 @@ describe('PreviewsPanel', () => {
   });
 
   it('locks super-admin-only switches for an org admin', async () => {
-    authState.superAdmins = [];
+    authState.roleId = 'domain_admin';
     try {
       await renderPanel();
       fireEvent.click(district('Super admin View as'));
       fireEvent.click(district('Substitutes can start an activity'));
       expect(setDocMock).not.toHaveBeenCalled();
     } finally {
-      authState.superAdmins = ['admin@test.com'];
+      authState.roleId = 'super_admin';
     }
   });
 
@@ -403,14 +438,14 @@ describe('PreviewsPanel', () => {
   });
 
   it('locks Focus session hours for an org admin', async () => {
-    authState.superAdmins = [];
+    authState.roleId = 'domain_admin';
     try {
       await renderPanel();
       expect(screen.getByLabelText('Start time')).toBeDisabled();
       expect(screen.getByRole('button', { name: 'Monday' })).toBeDisabled();
       expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     } finally {
-      authState.superAdmins = ['admin@test.com'];
+      authState.roleId = 'super_admin';
     }
   });
 });

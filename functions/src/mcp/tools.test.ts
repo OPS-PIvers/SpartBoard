@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { FieldValue } from 'firebase-admin/firestore';
 import type { ToolContext } from './activity';
 import { hiddenToolsFor, registerTools } from './tools';
 import {
@@ -15,6 +16,7 @@ import {
 } from '../pronunciation/fitSpeakToDoc';
 
 const mocks = vi.hoisted(() => ({
+  picturesOn: vi.fn(),
   speakGranted: vi.fn(() => Promise.resolve(false)),
   compute: vi.fn(),
   isAdmin: vi.fn(),
@@ -51,7 +53,11 @@ vi.mock('./miniAppTools', () => ({
   miniAppResultsOn: mocks.resultsOn,
 }));
 vi.mock('./resultsTools', () => ({ registerResultsTools: vi.fn() }));
-vi.mock('../quizMediaArchive', () => ({
+vi.mock('./pictureUploads', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./pictureUploads')>()),
+  picturesOn: mocks.picturesOn,
+}));
+vi.mock('../featureGrant', () => ({
   isGlobalFeatureGranted: mocks.speakGranted,
 }));
 vi.mock('../pronunciation/lookup', async (importOriginal) => ({
@@ -77,21 +83,32 @@ vi.mock('./boardTools', () => ({
 
 type Data = Record<string, unknown>;
 
-function fakeDb(seed: Record<string, Data> = {}) {
+interface FakeHooks {
+  onGet?: (path: string) => void;
+  beforeCommit?: () => void;
+}
+
+function fakeDb(seed: Record<string, Data> = {}, hooks: FakeHooks = {}) {
   const docs = new Map(Object.entries(seed));
+  const versions = new Map<string, number>();
   let seq = 0;
+  const timeOf = (path: string) => versions.get(path) ?? 1;
+  const touch = (path: string) => versions.set(path, timeOf(path) + 1);
   const snap = (path: string) => ({
     id: path.split('/').pop(),
     ref: { path },
     exists: docs.has(path),
-    updateTime: { seconds: 1 },
+    updateTime: { seconds: timeOf(path) },
     data: () => docs.get(path),
     get: (k: string) => docs.get(path)?.[k],
   });
   const docRef = (path: string): Data => ({
     path,
     id: path.split('/').pop(),
-    get: () => Promise.resolve(snap(path)),
+    get: () => {
+      hooks.onGet?.(path);
+      return Promise.resolve(snap(path));
+    },
   });
   const collection = (path: string): Data => {
     const query: Data = {
@@ -136,23 +153,49 @@ function fakeDb(seed: Record<string, Data> = {}) {
           }),
       }),
     batch: () => {
-      const staged: [Data, Data][] = [];
+      const staged: [Data, Data | ((old?: Data) => Data), number?][] = [];
       return {
         set: (ref: Data, data: Data) => staged.push([ref, data]),
         create: (ref: Data, data: Data) => staged.push([ref, data]),
-        update: (ref: Data, data: Data) =>
+        update: (
+          ref: Data,
+          data: Data,
+          pre?: { lastUpdateTime?: { seconds: number } }
+        ) =>
           staged.push([
             ref,
-            { ...(docs.get(ref.path as string) ?? {}), ...data },
+            (old?: Data) => {
+              const next = { ...(old ?? {}), ...data };
+              for (const [k, v] of Object.entries(next))
+                if (v instanceof FieldValue && FieldValue.delete().isEqual(v))
+                  delete next[k];
+              return next;
+            },
+            pre?.lastUpdateTime?.seconds,
           ]),
         commit: () => {
-          staged.forEach(([r, d]) => docs.set(r.path as string, d));
+          hooks.beforeCommit?.();
+          const stale = staged.some(
+            ([r, d, at]) =>
+              typeof d === 'function' &&
+              (!docs.has(r.path as string) ||
+                (at !== undefined && at !== timeOf(r.path as string)))
+          );
+          if (stale)
+            return Promise.reject(
+              Object.assign(new Error('precondition'), { code: 9 })
+            );
+          staged.forEach(([r, d]) => {
+            const path = r.path as string;
+            docs.set(path, typeof d === 'function' ? d(docs.get(path)) : d);
+            touch(path);
+          });
           return Promise.resolve();
         },
       };
     },
   };
-  return { db, docs };
+  return { db, docs, touch };
 }
 
 function ctxFor(db: unknown): ToolContext {
@@ -1146,6 +1189,79 @@ describe('restore_revision', () => {
     });
   });
 
+  it('refuses to re-publish a set whose link is revoked mid-save', async () => {
+    let revoke = false;
+    const share = 'public_flashcard_sets/my-share';
+    const fx = fakeDb(
+      {},
+      {
+        onGet: (path) => {
+          if (path !== share || !revoke) return;
+          revoke = false;
+          fx.docs.delete(share);
+          fx.docs.set(setPath(id), {
+            ...(fx.docs.get(setPath(id)) as Data),
+            publicShareId: null,
+          });
+          fx.touch(setPath(id));
+        },
+      }
+    );
+    const call = await connect(fx.db);
+    const made = await call('create_flashcard_set', {
+      title: 'Mine',
+      cards: [card(1)],
+    });
+    const id = made.set_id as string;
+    fx.docs.set(share, { teacherUid: 'u1', setId: id, title: 'Mine' });
+    fx.docs.set(setPath(id), {
+      ...(fx.docs.get(setPath(id)) as Data),
+      publicShareId: 'my-share',
+    });
+    revoke = true;
+    const res = await call('update_flashcard_set', {
+      set_id: id,
+      title: 'Renamed',
+    });
+    expect(res.error).toMatch(/Sharing for this set changed/);
+    expect(fx.docs.has(share)).toBe(false);
+    expect(fx.docs.get(setPath(id))).toMatchObject({
+      title: 'Mine',
+      publicShareId: null,
+    });
+  });
+
+  it('refuses to overwrite a set changed in SpartBoard mid-save', async () => {
+    let edit = false;
+    const fx = fakeDb(
+      {},
+      {
+        beforeCommit: () => {
+          if (!edit) return;
+          edit = false;
+          fx.docs.set(setPath(id), {
+            ...(fx.docs.get(setPath(id)) as Data),
+            title: 'Teacher edit',
+          });
+          fx.touch(setPath(id));
+        },
+      }
+    );
+    const call = await connect(fx.db);
+    const made = await call('create_flashcard_set', {
+      title: 'Mine',
+      cards: [card(1)],
+    });
+    const id = made.set_id as string;
+    edit = true;
+    const res = await call('update_flashcard_set', {
+      set_id: id,
+      title: 'Claude edit',
+    });
+    expect(res.error).toMatch(/changed in SpartBoard/);
+    expect(fx.docs.get(setPath(id))).toMatchObject({ title: 'Teacher edit' });
+  });
+
   it('restores an old flashcard set, keeps the live share link and snapshots the current one', async () => {
     const fx = fakeDb();
     const call = await connect(fx.db);
@@ -1157,6 +1273,11 @@ describe('restore_revision', () => {
     const original = { ...(fx.docs.get(setPath(id)) as Data) };
     const edited = await call('update_flashcard_set', {
       set_id: id,
+      title: 'Edited',
+    });
+    fx.docs.set('public_flashcard_sets/live-share', {
+      teacherUid: 'u1',
+      setId: id,
       title: 'Edited',
     });
     fx.docs.set(setPath(id), {
@@ -1191,6 +1312,7 @@ describe('hiddenToolsFor', () => {
   it('hides admin-only and results-only tools from a plain teacher', async () => {
     mocks.isAdmin.mockResolvedValue(false);
     mocks.resultsOn.mockResolvedValue(false);
+    mocks.picturesOn.mockResolvedValue(false);
     const hidden = await hiddenToolsFor(ctxFor(fakeDb().db));
     expect([...hidden].sort()).toEqual([
       'create_live_tour',
@@ -1198,7 +1320,9 @@ describe('hiddenToolsFor', () => {
       'get_mini_app_results_summary',
       'get_web_tour',
       'get_web_tour_step_picture',
+      'list_uploaded_pictures',
       'list_web_tours',
+      'start_picture_upload',
       'update_web_tour_steps',
       'update_web_tour_text',
     ]);
@@ -1207,15 +1331,18 @@ describe('hiddenToolsFor', () => {
   it('shows admin tools to admins and results tools when results are on', async () => {
     mocks.isAdmin.mockResolvedValue(true);
     mocks.resultsOn.mockResolvedValue(true);
+    mocks.picturesOn.mockResolvedValue(true);
     expect((await hiddenToolsFor(ctxFor(fakeDb().db))).size).toBe(0);
   });
 
   it('fails closed when either check throws', async () => {
     mocks.isAdmin.mockRejectedValue(new Error('boom'));
     mocks.resultsOn.mockRejectedValue(new Error('boom'));
+    mocks.picturesOn.mockRejectedValue(new Error('boom'));
     const hidden = await hiddenToolsFor(ctxFor(fakeDb().db));
     expect(hidden.has('create_live_tour')).toBe(true);
     expect(hidden.has('get_mini_app_results_summary')).toBe(true);
     expect(hidden.has('get_mini_app_spec')).toBe(false);
+    expect(hidden.has('start_picture_upload')).toBe(true);
   });
 });

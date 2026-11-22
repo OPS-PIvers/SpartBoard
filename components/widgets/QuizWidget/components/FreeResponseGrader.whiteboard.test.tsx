@@ -248,7 +248,7 @@ describe('FreeResponseGrader whiteboard takes', () => {
     fireEvent.change(screen.getByLabelText('Comment at 0:07'), {
       target: { value: 'Labels the hypotenuse' },
     });
-    fireEvent.change(screen.getByLabelText(/points/i), {
+    fireEvent.change(screen.getByLabelText(/^Score$/), {
       target: { value: '3' },
     });
     await waitFor(() => expect(onSaveGrade).toHaveBeenCalled(), {

@@ -1,5 +1,6 @@
 // Teacher focus-session actions (docs/plans/CHROME_EXTENSION.md F1, F6, F7, F8, F11); onCall wrappers are in sessionCallables.ts.
 import { HttpsError } from 'firebase-functions/v2/https';
+import { isExcludedFrom } from '../permissionExclusion';
 import { Timestamp } from 'firebase-admin/firestore';
 import type * as admin from '../firebaseAdmin';
 import {
@@ -43,6 +44,7 @@ import {
   focusWindowEndsAt,
   parseFocusWindow,
 } from './window';
+import { safeErr } from '../safeLog';
 
 type Firestore = admin.firestore.Firestore;
 type DocRef = admin.firestore.DocumentReference;
@@ -139,10 +141,11 @@ export async function canUseFocusWidget(
   if (!perm.exists) return isAdmin;
   const data = perm.data() ?? {};
   if (data.enabled !== true) return false;
+  if (isExcludedFrom(data, emailLower)) return false;
   if (isAdmin || data.accessLevel === 'public') return true;
   if (data.accessLevel !== 'beta') return false;
   // Lazy: quizMediaArchive pulls heavy deps the other focus paths don't need.
-  const { isBetaTeacher } = await import('../quizMediaArchive');
+  const { isBetaTeacher } = await import('../featureGrant');
   const betaUsers: unknown[] = Array.isArray(data.betaUsers)
     ? (data.betaUsers as unknown[])
     : [];
@@ -831,7 +834,7 @@ export async function sweepFocusSessions(
       ended += 1;
     } catch (err) {
       failed += 1;
-      console.error('[focusSweep] end failed', doc.id, err);
+      console.error('[focusSweep] end failed', doc.id, safeErr(err));
     }
   }
   const recent = await sessionsCol(db)
@@ -851,7 +854,7 @@ export async function sweepFocusSessions(
       );
     } catch (err) {
       failed += 1;
-      console.error('[focusSweep] finishing end failed', doc.id, err);
+      console.error('[focusSweep] finishing end failed', doc.id, safeErr(err));
     }
   }
   if (wake && toWake.size > 0) await wake([...toWake]);
@@ -895,6 +898,7 @@ export async function handleFocusOpen(
     input.shareId,
     now
   );
+  const shareId = shortId(input.shareId, 'shareId');
   await db.runTransaction(async (tx) => {
     const fresh = (await tx.get(ref)).data() ?? {};
     const raw: unknown = fresh.subMonitorUids;
@@ -903,9 +907,15 @@ export async function handleFocusOpen(
       : [];
     const until =
       typeof fresh.subMonitorUntil === 'number' ? fresh.subMonitorUntil : 0;
+    const shares =
+      fresh.subMonitorShares && typeof fresh.subMonitorShares === 'object'
+        ? (fresh.subMonitorShares as Record<string, string>)
+        : {};
     tx.update(ref, {
       subMonitorUids: uids.includes(who.uid) ? uids : [...uids, who.uid],
       subMonitorUntil: Math.max(until, expiresAt),
+      // The rules read through this share, so ending it or removing the sub ends the read.
+      subMonitorShares: { ...shares, [who.uid]: shareId },
     });
   });
   return { sessionId };

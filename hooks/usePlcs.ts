@@ -15,7 +15,7 @@ import {
   updateDoc,
   deleteField,
 } from 'firebase/firestore';
-import { db, isAuthBypass } from '@/config/firebase';
+import { db, isAuthBypass, isEmulatorBackend } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import {
   DEFAULT_PLC_FEATURE_SETTINGS,
@@ -395,14 +395,8 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     selectedBuildings = [],
     buildingIds = [],
     roleId = null,
-    userRoles = null,
   } = useAuth();
-  const isSuperAdmin = isSuperAdminActor(
-    user?.email,
-    userRoles?.superAdmins,
-    roleId,
-    orgId
-  );
+  const isSuperAdmin = isSuperAdminActor(user?.email, roleId, orgId);
   // Extract the resolved building as primitives so the `createPlc` callback's
   // dependency array stays referentially stable (the source arrays may be new
   // references each render). Optional chaining guards against a `null` (not just
@@ -428,7 +422,8 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     if (
       !enabled ||
       !user ||
-      isAuthBypass ||
+      // Bypass has no backend, except the browser-test emulators.
+      (isAuthBypass && !isEmulatorBackend) ||
       (asAdmin && !isSuperAdmin && !orgId)
     ) {
       // Defer so we don't trip react-hooks/set-state-in-effect. Same pattern as

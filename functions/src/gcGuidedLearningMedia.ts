@@ -24,6 +24,7 @@ import {
 } from './glMediaReferences';
 import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { safeErr } from './safeLog';
 
 const PERSONAL_COLLECTION = 'guided_learning';
 const BUILDING_COLLECTION = 'building_guided_learning';
@@ -64,7 +65,7 @@ export async function gcOrphanedSlidePaths(
     // Without a full reference picture nothing is provably unused.
     logger.warn('[gcGuidedLearningMedia] reference scan failed; kept all', {
       count: paths.length,
-      err,
+      err: safeErr(err),
     });
     return [];
   }
@@ -88,7 +89,10 @@ export async function gcOrphanedSlidePaths(
       await file.delete({ ignoreNotFound: true });
       deleted.push(path);
     } catch (err) {
-      logger.warn('[gcGuidedLearningMedia] failed to gc slide', { path, err });
+      logger.warn('[gcGuidedLearningMedia] failed to gc slide', {
+        path,
+        err: safeErr(err),
+      });
     }
   }
   return deleted;

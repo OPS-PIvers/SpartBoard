@@ -12,7 +12,7 @@ import {
   isNonEnglishQuizSource,
   uncoveredLocalesForTargets,
 } from '@/utils/quizTranslationAdvisory';
-import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { scaledFont } from '../assignWindowUtils';
 import { Toggle } from '@/components/common/Toggle';
 import {
@@ -50,8 +50,12 @@ export interface ModificationsListProps extends ModificationsScope {
   flashcardsMode?: boolean;
   answerChoicesAvailable?: boolean;
   readAloudAvailable?: boolean;
+  /** Quiz and Writing only. Host passes `canAccessFeature('speech-to-text')`. */
+  speechToTextAvailable?: boolean;
   /** Quiz and Video Activity: shows the copy, paste and print choice (focus-sessions flag). */
   pageProtectionsAvailable?: boolean;
+  /** Writing: shows the spelling help choice (D22). */
+  writingMode?: boolean;
   /** False when the host has no class picker, changing the empty-state copy. */
   canPickClasses?: boolean;
   /** Sizes text with `cqmin` for the one consumer inside a container-query face. */
@@ -75,7 +79,9 @@ const StudentModificationRow: React.FC<{
   flashcardsMode: boolean;
   answerChoicesAvailable: boolean;
   readAloudAvailable: boolean;
+  speechToTextAvailable: boolean;
   pageProtectionsAvailable: boolean;
+  writingMode: boolean;
   questions: OverrideEditorQuestion[];
   rubrics: Rubric[];
   peers: OverrideEditorPeer[];
@@ -91,7 +97,9 @@ const StudentModificationRow: React.FC<{
   flashcardsMode,
   answerChoicesAvailable,
   readAloudAvailable,
+  speechToTextAvailable,
   pageProtectionsAvailable,
+  writingMode,
   questions,
   rubrics,
   peers,
@@ -142,7 +150,9 @@ const StudentModificationRow: React.FC<{
           flashcardsMode={flashcardsMode}
           answerChoicesAvailable={answerChoicesAvailable}
           readAloudAvailable={readAloudAvailable}
+          speechToTextAvailable={speechToTextAvailable}
           pageProtectionsAvailable={pageProtectionsAvailable}
+          writingMode={writingMode}
           questions={questions}
           rubrics={rubrics}
           peers={peers}
@@ -164,7 +174,9 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
   flashcardsMode = false,
   answerChoicesAvailable = false,
   readAloudAvailable = false,
+  speechToTextAvailable = false,
   pageProtectionsAvailable = false,
+  writingMode = false,
   canPickClasses = true,
   cqScaled = false,
   showAll: showAllProp,
@@ -335,7 +347,7 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                   count: entry.names.length,
                   others: entry.names.length - 1,
                   name: entry.names[0],
-                  language: languageNativeLabel(entry.locale),
+                  language: languageDisplayLabel(entry.locale),
                 })}
               </span>
               {quizContext?.translation?.onGenerate && (
@@ -437,7 +449,9 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                 flashcardsMode={flashcardsMode}
                 answerChoicesAvailable={answerChoicesAvailable}
                 readAloudAvailable={readAloudAvailable}
+                speechToTextAvailable={speechToTextAvailable}
                 pageProtectionsAvailable={pageProtectionsAvailable}
+                writingMode={writingMode}
                 questions={quizContext?.questions ?? []}
                 rubrics={quizContext?.rubrics ?? []}
                 peers={viewRows
@@ -577,7 +591,9 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                     flashcardsMode={flashcardsMode}
                     answerChoicesAvailable={answerChoicesAvailable}
                     readAloudAvailable={readAloudAvailable}
+                    speechToTextAvailable={speechToTextAvailable}
                     pageProtectionsAvailable={pageProtectionsAvailable}
+                    writingMode={writingMode}
                     questions={quizContext?.questions ?? []}
                     rubrics={quizContext?.rubrics ?? []}
                     peers={visibleRows

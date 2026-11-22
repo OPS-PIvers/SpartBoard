@@ -11,6 +11,7 @@ import {
   TOUR_ANCHOR_QUEUE,
 } from './tourAnchorQueue';
 import './functionsInit';
+import { safeErr } from './safeLog';
 
 export const API_ITEM_CAP = 50;
 export const STALE_PR_MS = 7 * DAY_MS;
@@ -230,7 +231,7 @@ export const tourAnchorApi = onRequest(
       }
       res.status(404).json({ error: 'not-found', requestId });
     } catch (err) {
-      logger.error('[tourAnchorApi] failed', { requestId, err });
+      logger.error('[tourAnchorApi] failed', { requestId, err: safeErr(err) });
       res.status(500).json({ error: 'internal', requestId });
     }
   }

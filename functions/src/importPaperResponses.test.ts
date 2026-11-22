@@ -580,6 +580,7 @@ describe('handlePublishPaperResults', () => {
     paperOnly[`quiz_sessions/${ASSIGNMENT}`] = {
       ...paperOnly[`quiz_sessions/${ASSIGNMENT}`],
       status: 'paused',
+      revealedAnswers: { q1: 'A' },
     };
     paperOnly[`users/${UID}/quiz_assignments/${ASSIGNMENT}`] = {
       quizId: 'quiz-1',
@@ -591,9 +592,12 @@ describe('handlePublishPaperResults', () => {
       endedAt: NOW,
       teacherUid: UID,
     });
+    expect(ended.docs[`quiz_sessions/${ASSIGNMENT}`]).not.toHaveProperty(
+      'revealedAnswers'
+    );
     expect(
       ended.docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`]
-    ).toMatchObject({ status: 'inactive', updatedAt: NOW });
+    ).toMatchObject({ status: 'inactive', updatedAt: NOW, closedAt: NOW });
 
     const mixed = withResponses();
     mixed[`quiz_sessions/${ASSIGNMENT}`] = {
@@ -847,6 +851,43 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
     );
   });
 
+  it('tells the reader how many write-in lines a fill-in-the-blank box has, from the page map only', async () => {
+    const docs = v2Docs();
+    const batch = docs[`users/${UID}/paper_batches/${BATCH}`];
+    const maps = batch.pageMaps as { items: Doc[] }[];
+    maps[0].items[1] = { ...maps[0].items[1], blanks: 3 };
+    const sheet = v2Sheet(1, {
+      written: [
+        {
+          questionId: 'q2',
+          page: 1,
+          state: 'ink',
+          storagePath: 'x',
+          blanks: 9,
+        },
+        {
+          questionId: 'q4',
+          page: 2,
+          state: 'ink',
+          storagePath: 'x',
+          blanks: 2,
+        },
+      ],
+    });
+    await callV2(docs, [sheet]);
+    expect(docs[`${JOBS}/${SCAN}_1_1_0`]).toMatchObject({
+      boxes: [
+        { questionId: 'q2', storagePath: crop(SCAN, 1, 'q2'), blanks: 3 },
+      ],
+    });
+    expect(docs[`${JOBS}/${SCAN}_1_2_0`]).toMatchObject({
+      boxes: [{ questionId: 'q4', storagePath: crop(SCAN, 1, 'q4') }],
+    });
+    expect(
+      (docs[`${JOBS}/${SCAN}_1_2_0`].boxes as Doc[])[0].blanks
+    ).toBeUndefined();
+  });
+
   it('files a custom image box as graded from the scan: no transcription, no quota', async () => {
     const docs = v2Docs();
     const batch = docs[`users/${UID}/paper_batches/${BATCH}`];
@@ -955,6 +996,33 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
         }),
       ])
     ).rejects.toMatchObject({ message: /repeats a question/ });
+  });
+
+  it('accepts a multi-page answer under any page it printed on', async () => {
+    const docs = v2Docs();
+    const batch = docs[`users/${UID}/paper_batches/${BATCH}`];
+    batch.pagesPerSheet = 3;
+    batch.pageMaps = [
+      ...(batch.pageMaps as Doc[]),
+      {
+        page: 3,
+        grid: 2,
+        items: [
+          { kind: 'written', questionId: 'q4', label: '4', continued: true },
+        ],
+      },
+    ];
+    const sheet3 = v2Sheet(1, {
+      written: [
+        { questionId: 'q2', page: 1, state: 'ink' },
+        { questionId: 'q4', page: 3, state: 'ink' },
+      ],
+    });
+    const { docs: after } = await callV2(docs, [sheet3]);
+    const q4 = (after[RESP].answers as Doc[]).find(
+      (a) => a.questionId === 'q4'
+    );
+    expect(q4).toBeDefined();
   });
 
   const versionDocs = (): Record<string, Doc> => {

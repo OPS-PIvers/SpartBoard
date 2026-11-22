@@ -22,12 +22,23 @@ describe('buildPaperTestHtml', () => {
     expect(html.indexOf('Paris')).toBeLessThan(html.indexOf('Nice'));
   });
 
-  it('brands the test paper above the title', () => {
-    const html = buildPaperTestHtml(job);
-    expect(html.indexOf('aria-label="SPARTRON"')).toBeLessThan(
-      html.indexOf('<h1>')
+  it('brands every page in the footer, like the bubble sheet', () => {
+    expect(buildPaperTestHtml(job)).not.toContain('aria-label="SPARTRON"');
+    const doc = { open: vi.fn(), write: vi.fn(), close: vi.fn() };
+    const win = {
+      document: doc,
+      focus: vi.fn(),
+      print: vi.fn(),
+      close: vi.fn(),
+    };
+    printPaperTest(job, () => win as unknown as Window);
+    const written = doc.write.mock.calls[0][0] as string;
+    const footer = written.slice(
+      written.indexOf('<tfoot>'),
+      written.indexOf('</tfoot>')
     );
-    expect(html).toContain('SpartBoard Responses');
+    expect(footer).toContain('aria-label="SPARTRON"');
+    expect(footer).toContain('SpartBoard Responses');
   });
 
   it('prints only the question when its options are placeholder letters', () => {

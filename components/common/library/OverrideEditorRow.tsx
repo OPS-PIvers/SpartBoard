@@ -14,6 +14,7 @@
 
 import React, { useContext, useId, useMemo, useState } from 'react';
 import { MathText } from '@/components/common/MathText';
+import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, ChevronUp, Copy } from 'lucide-react';
 import type { Rubric, StudentOverride } from '@/types';
@@ -30,6 +31,7 @@ import {
 import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
 import { PAGE_PROTECTIONS_FEATURE } from '@/utils/pageProtections';
 import { useQuizTranslationSettings } from '@/hooks/useQuizTranslationSettings';
+import { dictationLocaleFor } from '@/utils/speechToText/languages';
 
 export interface OverrideEditorQuestionOption {
   id: string;
@@ -73,8 +75,12 @@ export interface OverrideEditorRowProps {
   defaultExpanded?: boolean;
   /** Quiz only. Shows the "Read aloud" checkbox; the host resolves the 'quiz-read-aloud' gate. */
   readAloudAvailable?: boolean;
+  /** Quiz, Writing and the roster only. Shows "Speech to text"; the host resolves the 'speech-to-text' gate. */
+  speechToTextAvailable?: boolean;
   /** Quiz and Video Activity only; the row also needs the focus-sessions flag. */
   pageProtectionsAvailable?: boolean;
+  /** Writing only. Shows "Spelling help" (D22). */
+  writingMode?: boolean;
   /** Set false on standing-default surfaces (e.g. roster accommodations) where openAt/closeAt are absolute timestamps that must never be copied onto future assignments. */
   allowWindowShift?: boolean;
   /** Controlled open state; uncontrolled when omitted. */
@@ -84,8 +90,10 @@ export interface OverrideEditorRowProps {
   extraChips?: string[];
   /** Rendered at the end of the open body. */
   footer?: React.ReactNode;
-  /** 'card' is the assign stepper's row: rounded-xl, slate chips, "No changes". */
-  appearance?: 'default' | 'card';
+  /** 'card' is the assign stepper's row: rounded-xl, slate chips, "No changes". 'row' is a hairline row with a plain-text summary. */
+  appearance?: 'default' | 'card' | 'row';
+  /** Rendered beside the row's header button, e.g. a remove button. */
+  trailing?: React.ReactNode;
 }
 
 /** `labelKey`/`labelDefault` are absent for the bare multiplier units (1.5x, 2x), which read the same in every locale. */
@@ -143,15 +151,19 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   peers = [],
   defaultExpanded = false,
   readAloudAvailable = false,
+  speechToTextAvailable = false,
   pageProtectionsAvailable = false,
+  writingMode = false,
   allowWindowShift = true,
   expanded: expandedProp,
   onExpandedChange,
   extraChips = [],
   footer,
   appearance = 'default',
+  trailing,
 }) => {
   const card = appearance === 'card';
+  const row = appearance === 'row';
   const { t } = useTranslation();
   // Read via context so a provider-less host denies instead of throwing.
   const authContext = useContext(AuthContext);
@@ -250,85 +262,122 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   const writtenQuestions = questions.filter((q) => q.isWritten);
   const mcQuestions = questions.filter((q) => !!q.options);
 
+  const header = row ? (
+    <button
+      type="button"
+      onClick={() => setExpanded(!expanded)}
+      aria-expanded={expanded}
+      {...tourAttr('override-row.toggle')}
+      className="flex min-w-0 flex-1 items-center gap-3 py-2.5 text-left"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-slate-800">
+          {studentName}
+        </span>
+        <span className="block truncate text-xs text-slate-500">
+          {chips.length > 0
+            ? chips.join(', ')
+            : t('studentOverride.noAccommodations', 'No accommodations')}
+        </span>
+      </span>
+      {expanded ? (
+        <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" />
+      ) : (
+        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+      )}
+    </button>
+  ) : null;
+
   return (
     <div
       className={
-        card
-          ? 'rounded-xl border border-slate-200 bg-white'
-          : 'rounded-lg border border-slate-200 bg-white'
+        row
+          ? ''
+          : card
+            ? 'rounded-xl border border-slate-200 bg-white'
+            : 'rounded-lg border border-slate-200 bg-white'
       }
     >
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        aria-expanded={expanded}
-        {...tourAttr('override-row.toggle')}
-        className={
-          card
-            ? 'w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left'
-            : 'w-full flex items-center justify-between gap-2 px-3 py-2 text-left'
-        }
-      >
-        <span className="min-w-0 flex-1">
-          <span
-            className={
-              card
-                ? 'block text-sm font-bold text-slate-800 truncate'
-                : 'block text-sm font-semibold text-slate-900 truncate'
-            }
-          >
-            {studentName}
-          </span>
-          {chips.length > 0 ? (
+      {row ? (
+        <div className="flex items-center gap-1">
+          {header}
+          {trailing}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          aria-expanded={expanded}
+          {...tourAttr('override-row.toggle')}
+          className={
+            card
+              ? 'w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left'
+              : 'w-full flex items-center justify-between gap-2 px-3 py-2 text-left'
+          }
+        >
+          <span className="min-w-0 flex-1">
             <span
               className={
                 card
-                  ? 'flex flex-wrap gap-1.5 mt-1'
-                  : 'flex flex-wrap gap-1 mt-1'
+                  ? 'block text-sm font-bold text-slate-800 truncate'
+                  : 'block text-sm font-semibold text-slate-900 truncate'
               }
             >
-              {chips.map((chip) => (
-                <span
-                  key={chip}
-                  className={
-                    card
-                      ? 'inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700'
-                      : 'inline-flex items-center rounded-full bg-brand-blue-lighter/30 px-2 py-0.5 text-xs font-semibold text-brand-blue-dark'
-                  }
-                >
-                  {chip}
-                </span>
-              ))}
+              {studentName}
             </span>
-          ) : card ? (
-            <span className="block text-xs text-slate-400 mt-1">
-              {t('studentOverride.noChanges', 'No changes')}
-            </span>
+            {chips.length > 0 ? (
+              <span
+                className={
+                  card
+                    ? 'flex flex-wrap gap-1.5 mt-1'
+                    : 'flex flex-wrap gap-1 mt-1'
+                }
+              >
+                {chips.map((chip) => (
+                  <span
+                    key={chip}
+                    className={
+                      card
+                        ? 'inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700'
+                        : 'inline-flex items-center rounded-full bg-brand-blue-lighter/30 px-2 py-0.5 text-xs font-semibold text-brand-blue-dark'
+                    }
+                  >
+                    {chip}
+                  </span>
+                ))}
+              </span>
+            ) : card ? (
+              <span className="block text-xs text-slate-400 mt-1">
+                {t('studentOverride.noChanges', 'No changes')}
+              </span>
+            ) : (
+              <span className="block text-xs text-slate-500 mt-0.5">
+                {t('studentOverride.noAccommodations', 'No accommodations')}
+              </span>
+            )}
+          </span>
+          {card ? (
+            expanded ? (
+              <ChevronDown className="w-4 h-4 shrink-0 text-slate-400" />
+            ) : (
+              <ChevronRight className="w-4 h-4 shrink-0 text-slate-400" />
+            )
+          ) : expanded ? (
+            <ChevronUp className="w-4 h-4 shrink-0 text-slate-500" />
           ) : (
-            <span className="block text-xs text-slate-500 mt-0.5">
-              {t('studentOverride.noAccommodations', 'No accommodations')}
-            </span>
+            <ChevronDown className="w-4 h-4 shrink-0 text-slate-500" />
           )}
-        </span>
-        {card ? (
-          expanded ? (
-            <ChevronDown className="w-4 h-4 shrink-0 text-slate-400" />
-          ) : (
-            <ChevronRight className="w-4 h-4 shrink-0 text-slate-400" />
-          )
-        ) : expanded ? (
-          <ChevronUp className="w-4 h-4 shrink-0 text-slate-500" />
-        ) : (
-          <ChevronDown className="w-4 h-4 shrink-0 text-slate-500" />
-        )}
-      </button>
+        </button>
+      )}
 
       {expanded && (
         <div
           className={
-            card
-              ? 'px-3 py-3 border-t border-slate-100 flex flex-col gap-3'
-              : 'px-3 pb-3 pt-1 border-t border-slate-100 flex flex-col gap-3'
+            row
+              ? 'pb-3 pt-1 flex flex-col gap-3'
+              : card
+                ? 'px-3 py-3 border-t border-slate-100 flex flex-col gap-3'
+                : 'px-3 pb-3 pt-1 border-t border-slate-100 flex flex-col gap-3'
           }
         >
           {peers.length > 0 && (
@@ -435,6 +484,20 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
             </div>
           )}
 
+          {writingMode && (
+            <label className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+              <input
+                type="checkbox"
+                checked={override.spellingHelp === true}
+                {...tourAttr('override-row.spelling-help')}
+                onChange={(e) =>
+                  patch({ spellingHelp: e.target.checked ? true : undefined })
+                }
+              />
+              {t('studentOverride.spellingHelp', 'Spelling help')}
+            </label>
+          )}
+
           {quizMode && readAloudAvailable && (
             <div>
               <label className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -451,6 +514,33 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
               <p className="mt-0.5 text-xs text-slate-500">
                 {t('quizReadAloud.help', 'Signed-in students only.')}
               </p>
+            </div>
+          )}
+
+          {speechToTextAvailable && (
+            <div>
+              <label className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                <input
+                  type="checkbox"
+                  checked={override.speechToText === true}
+                  {...tourAttr('override-row.speech-to-text')}
+                  onChange={(e) =>
+                    patch({ speechToText: e.target.checked ? true : undefined })
+                  }
+                />
+                {t('studentOverride.speechToText', 'Speech to text')}
+              </label>
+              {override.speechToText === true &&
+                override.language &&
+                !dictationLocaleFor(override.language) && (
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {t(
+                      'studentOverride.speechToTextLanguageNote',
+                      'Not available in {{language}}. This student will dictate in English.',
+                      { language: languageDisplayLabel(override.language) }
+                    )}
+                  </p>
+                )}
             </div>
           )}
 
@@ -472,7 +562,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                 </option>
                 {languageOptions.map((language) => (
                   <option key={language.code} value={language.code}>
-                    {language.nativeLabel}
+                    {languageDisplayLabel(language.code)}
                   </option>
                 ))}
               </select>

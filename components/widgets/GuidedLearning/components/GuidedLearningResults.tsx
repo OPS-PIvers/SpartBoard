@@ -105,6 +105,8 @@ interface Props {
   ended?: boolean;
 }
 
+const NO_RESPONSES: GuidedLearningResponse[] = [];
+
 interface GlRow extends GlMonitorRow {
   response: GuidedLearningResponse | null;
   qCorrect: number;
@@ -125,12 +127,14 @@ export const GuidedLearningResults: React.FC<Props> = ({
     exportResponsesAsCSV,
   } = useGuidedLearningSessionTeacher(undefined);
   const [classTargets, setClassTargets] = useState('');
+  const [sessionLoaded, setSessionLoaded] = useState(false);
   // A class removed from the assignment drops out of Results; its docs stay.
   const responses = useMemo(() => {
+    if (!viewOnly && !sessionLoaded) return NO_RESPONSES;
     const keep = sessionClassPredicate(targetsFromKey(classTargets));
     const kept = rawResponses.filter(keep);
     return kept.length === rawResponses.length ? rawResponses : kept;
-  }, [rawResponses, classTargets]);
+  }, [rawResponses, classTargets, viewOnly, sessionLoaded]);
 
   useEffect(() => {
     if (viewOnly) return;
@@ -148,7 +152,6 @@ export const GuidedLearningResults: React.FC<Props> = ({
   const [periodSession, setPeriodSession] = useState<PeriodSession | null>(
     null
   );
-  const [sessionLoaded, setSessionLoaded] = useState(false);
   const [sessionOwner, setSessionOwner] = useState<{
     teacherUid: string | null;
     dueAt: number | null;
@@ -636,7 +639,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
             </>
           );
         }}
-        renderActions={(row) => {
+        renderActions={(row, rowIndex) => {
           const r = row.response;
           if (!r) return null;
           const final = finalFor(r, overlayNow);
@@ -672,6 +675,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
               {resultsActions && (
                 <StudentResultsControl
                   responseKey={r.studentAnonymousId}
+                  tourRow={rowIndex + 1}
                   override={r.resultsOverride}
                   completed={typeof r.completedAt === 'number'}
                   displayName={row.name}

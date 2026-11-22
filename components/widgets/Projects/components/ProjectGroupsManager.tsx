@@ -44,6 +44,7 @@ import {
   type DraftMember,
   type GroupDraftContext,
 } from '../groupDraft';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 /** Matches `commitProjectGroupsV1`'s MAX_GROUPS and MAX_MEMBERS_PER_GROUP. */
 const MAX_GROUPS = 32;
@@ -108,6 +109,7 @@ export const ProjectGroupsManager: React.FC<ProjectGroupsManagerProps> = ({
 
   return (
     <Modal
+      accent={LIBRARY_HEADER_ACCENTS.projects}
       isOpen={isOpen}
       onClose={onClose}
       title={`Groups — ${projectTitle}`}

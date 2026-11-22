@@ -157,6 +157,7 @@ const { pushSectionMock, restMock, deleteLineItemMock, nrpsMock } = vi.hoisted(
 vi.mock('./ags', () => ({
   getAgsAccessToken: vi.fn().mockResolvedValue('tok'),
   postScore: vi.fn(),
+  pacedScorePoster: ({ post }: { post: unknown }) => post,
 }));
 vi.mock('./nrps', () => ({ fetchNrpsMembers: nrpsMock }));
 vi.mock('./toolColumns', async (orig) => ({

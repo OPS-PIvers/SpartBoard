@@ -41,11 +41,14 @@ export type ViewKey =
 export type StateKey =
   | 'waiting'
   | 'live'
+  | 'review'
   | 'reviewing'
   | 'self-paced'
   | 'timed'
   | 'per-period'
   | 'past-due'
+  | 'assigned-tab'
+  | 'assigned-single'
   | 'multi-class'
   | 'no-answer-key'
   | 'stop'
@@ -57,6 +60,9 @@ export type StateKey =
   | 'ordering'
   | 'picture-only'
   | 'choose-n'
+  | 'paper-copies'
+  | 'bank-draw'
+  | 'translated-fib'
   | AudioCaptureStateKey
   | RecordingControlStateKey
   | QuizEditorStateKey
@@ -102,11 +108,14 @@ const qualify = (
 const SESSION_STATE_LABELS: Record<string, string> = {
   waiting: 'Waiting (no responses)',
   live: 'Live',
+  review: 'Review, teacher-paced (monitor)',
   reviewing: 'Reviewing (present)',
   'self-paced': 'Self-paced (present)',
   timed: 'Timed (monitor)',
   'per-period': 'Per-class assessment (monitor)',
   'past-due': 'Per-class past the due (monitor)',
+  'assigned-tab': 'Assigned tab, per class (monitor)',
+  'assigned-single': 'Assigned tab, one class (monitor)',
   'multi-class': 'Several classes',
   'no-answer-key': 'Answer key unread (VA monitor)',
   stop: 'Stop checkpoint (monitor)',
@@ -118,6 +127,9 @@ const SESSION_STATE_LABELS: Record<string, string> = {
   ordering: 'Ordering question (results)',
   'picture-only': 'Picture-only answers (results)',
   'choose-n': 'Answer any 2 of 3, answered extra (results)',
+  'paper-copies': 'Printed group copies (monitor, results)',
+  'bank-draw': 'Bank draw, 3 of 5 questions (results)',
+  'translated-fib': 'Spanish fill-in-the-blank answers (results)',
 };
 
 export const STATES: StateOption[] = [

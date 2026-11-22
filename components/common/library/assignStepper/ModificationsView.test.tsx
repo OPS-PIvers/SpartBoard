@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import type { TFunction } from 'i18next';
 import type { ClassRoster } from '@/types';
 import {
@@ -233,6 +233,38 @@ describe('ModificationsView', () => {
     fireEvent.click(screen.getByText('Remove modification'));
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ overridesByKey: { 'classlink:SID-2': {} } })
+    );
+  });
+
+  it('offers Speech to text only when the host allows it, on top of the standing settings', () => {
+    renderView();
+    fireEvent.click(screen.getByText('Grace Hopper'));
+    expect(
+      screen.queryByRole('checkbox', { name: 'Speech to text' })
+    ).toBeNull();
+    cleanup();
+
+    const onChange = vi.fn();
+    render(
+      <ModificationsView
+        activityTitle="Essay"
+        rosters={[roster]}
+        value={EMPTY_ASSIGN_TARGETING_VALUE}
+        onChange={onChange}
+        onBack={vi.fn()}
+        quizMode={false}
+        writingMode
+        speechToTextAvailable
+      />
+    );
+    fireEvent.click(screen.getByText('Grace Hopper'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Speech to text' }));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        overridesByKey: {
+          'classlink:SID-2': { timeMultiplier: 2, speechToText: true },
+        },
+      })
     );
   });
 

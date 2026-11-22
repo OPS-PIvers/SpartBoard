@@ -16,6 +16,8 @@ import {
   releaseStorageFiles,
 } from '@/utils/guidedLearningFileRelease';
 import { isTestRunProject } from '@/components/tours/tourTestRun';
+import { useAuth } from '@/context/useAuth';
+import { DriveAuthError, promptDriveReconnect } from '@/utils/driveAuthErrors';
 import {
   GL_SLIDE_APP_PROPERTIES,
   GL_SLIDE_APP_PROPERTY,
@@ -31,6 +33,7 @@ export const DRIVE_UPLOAD_FOLDERS = [
   'Assets/HotspotImages',
   'Assets/PDFs',
   'Assets/PaperSheetStimuli',
+  'Assets/QuizAudio',
   'Assets/QuizStimuli',
   'Assets/Screenshots',
   'Assets/Stickers',
@@ -40,6 +43,11 @@ export const DRIVE_UPLOAD_FOLDERS = [
 
 /** Personal sets keep slides on the teacher's Drive; district sets on Firebase Storage. */
 export type GuidedLearningMediaHome = 'drive' | 'storage';
+
+/** districtAsset: an admin's district-wide image, which may still fall back to Storage without Drive. */
+export interface UploadOptions {
+  districtAsset?: boolean;
+}
 
 export interface GuidedLearningImageUpload {
   url: string;
@@ -61,6 +69,13 @@ export const useStorage = () => {
     setUploading(activeUploadsRef.current > 0);
   };
   const { driveService, userDomain } = useGoogleDrive();
+  const { canAccessFeature } = useAuth();
+  // Behind the flag a teacher upload without Drive asks to reconnect instead of falling back to Storage.
+  const requireDriveForTeacherUpload = (): void => {
+    if (!canAccessFeature('drive-only-uploads')) return;
+    promptDriveReconnect();
+    throw new DriveAuthError('Google Drive is not connected', 'expired');
+  };
 
   const uploadFile = async (path: string, file: File): Promise<string> => {
     beginUpload();
@@ -96,6 +111,7 @@ export const useStorage = () => {
       }
     }
 
+    requireDriveForTeacherUpload();
     const timestamp = Date.now();
     return uploadFile(
       `users/${userId}/backgrounds/${timestamp}-${file.name}`,
@@ -103,7 +119,11 @@ export const useStorage = () => {
     );
   };
 
-  const uploadSticker = async (userId: string, file: File): Promise<string> => {
+  const uploadSticker = async (
+    userId: string,
+    file: File,
+    opts: UploadOptions = {}
+  ): Promise<string> => {
     if (driveService) {
       beginUpload();
       try {
@@ -119,6 +139,7 @@ export const useStorage = () => {
       }
     }
 
+    if (!opts.districtAsset) requireDriveForTeacherUpload();
     const timestamp = Date.now();
     return uploadFile(
       `users/${userId}/stickers/${timestamp}-${file.name}`,
@@ -128,7 +149,8 @@ export const useStorage = () => {
 
   const uploadDisplayImage = async (
     userId: string,
-    file: File
+    file: File,
+    opts: UploadOptions = {}
   ): Promise<string> => {
     if (driveService) {
       beginUpload();
@@ -145,6 +167,7 @@ export const useStorage = () => {
       }
     }
 
+    if (!opts.districtAsset) requireDriveForTeacherUpload();
     const timestamp = Date.now();
     return uploadFile(
       `users/${userId}/display_images/${timestamp}-${file.name}`,
@@ -239,6 +262,7 @@ export const useStorage = () => {
         endUpload();
       }
     }
+    if (home === 'drive') requireDriveForTeacherUpload();
     const uploaded = await uploadGuidedLearningMedia(userId, blob, fileName);
     const file =
       blob instanceof File
@@ -320,6 +344,7 @@ export const useStorage = () => {
       }
     }
 
+    requireDriveForTeacherUpload();
     const timestamp = Date.now();
     return uploadFile(
       `users/${userId}/hotspot_images/${timestamp}-${file.name}`,
@@ -346,6 +371,7 @@ export const useStorage = () => {
       }
     }
 
+    requireDriveForTeacherUpload();
     const timestamp = Date.now();
     const storageRef = ref(
       storage,
@@ -498,6 +524,7 @@ export const useStorage = () => {
       }
     }
 
+    requireDriveForTeacherUpload();
     const timestamp = Date.now();
     const storagePath = `users/${userId}/pdfs/${timestamp}-${file.name}`;
     const url = await uploadFile(storagePath, file);

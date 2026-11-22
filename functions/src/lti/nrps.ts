@@ -10,6 +10,7 @@
 // (getAgsAccessToken), just scoped to NRPS_SCOPE. We only ever GET.
 
 import { OPAQUE_REDIRECT_TYPE } from './config';
+import { safeErr } from '../safeLog';
 
 // NRPS v2 membership container media type — sent as `Accept` so the platform
 // returns the v2 shape (members[] with user_id + name claims).
@@ -142,7 +143,10 @@ export const nrpsNet = {
     } catch (err) {
       // Network failure / timeout / abort → empty page; the caller surfaces a
       // clean "couldn't resolve names" rather than an unhandled rejection.
-      console.warn('[nrps] membership fetch failed (network/timeout):', err);
+      console.warn(
+        '[nrps] membership fetch failed (network/timeout):',
+        safeErr(err)
+      );
       return {
         ok: false,
         status: 0,

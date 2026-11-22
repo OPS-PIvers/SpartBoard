@@ -51,9 +51,7 @@ const state = {
 
 describe('attach list preview', () => {
   it('names attached stimuli in the collapsed header and previews a passage', async () => {
-    render(
-      <QuestionStimulusSection state={state} questionId="q1" previewAvailable />
-    );
+    render(<QuestionStimulusSection state={state} questionId="q1" />);
     const header = screen.getByRole('button', { name: /Stimuli/ });
     expect(header).toHaveTextContent(
       'The quick brown fox jumped over the lazy dog.'
@@ -82,28 +80,16 @@ describe('attach list preview', () => {
       questions: [question, { ...question, id: 'q2' }],
     };
     const { rerender } = render(
-      <QuestionStimulusSection state={two} questionId="q1" previewAvailable />
+      <QuestionStimulusSection state={two} questionId="q1" />
     );
     await userEvent.click(screen.getByRole('button', { name: /Stimuli/ }));
     await userEvent.click(
       screen.getByRole('button', { name: /^Preview The quick brown fox/ })
     );
     expect(screen.getByTestId('attach-stimulus-preview')).toBeInTheDocument();
-    rerender(
-      <QuestionStimulusSection state={two} questionId="q2" previewAvailable />
-    );
+    rerender(<QuestionStimulusSection state={two} questionId="q2" />);
     expect(
       screen.queryByTestId('attach-stimulus-preview')
-    ).not.toBeInTheDocument();
-  });
-
-  it('keeps the old count and no preview buttons when the flag is off', async () => {
-    render(<QuestionStimulusSection state={state} questionId="q1" />);
-    const header = screen.getByRole('button', { name: /Stimuli/ });
-    expect(header).toHaveTextContent('1 attached');
-    await userEvent.click(header);
-    expect(
-      screen.queryByRole('button', { name: /^Preview/ })
     ).not.toBeInTheDocument();
   });
 });

@@ -63,7 +63,7 @@
       "note": "At 150x100 the icon shrinks and the title stays readable and dominant in the typical and empty fixtures, and only the stress title packs into an 8px block that still fits.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:04:33.857Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 1,
@@ -103,7 +103,7 @@
       },
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:04:33.857Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 2,
@@ -246,7 +246,7 @@
       "note": "Clean lucide icon and heavy uppercase type, but the full-bleed tinted block with a double border and an always-pulsing icon reads dated next to the glass look.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:04:33.857Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 4,
@@ -283,7 +283,7 @@
       "note": "The large icon leads and the smaller bold title steps down beneath it, giving one clear primary element.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:04:33.857Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 2,
@@ -334,7 +334,7 @@
       },
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:04:33.857Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 1,

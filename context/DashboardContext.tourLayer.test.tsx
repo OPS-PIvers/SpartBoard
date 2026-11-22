@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DashboardProvider } from './DashboardContext';
 import { useDashboard } from './useDashboard';
 import { Dashboard, WidgetData } from '@/types';
+import { registerPanGetter } from '@/components/settings/panSetterRegistry';
 
 // ---------------------------------------------------------------------------
 // Mocks (mirrors DashboardContext.widgetHistory.test.tsx)
@@ -445,6 +446,123 @@ describe('DashboardContext addWidgets template placements', () => {
     expect(fallback.type).toBe('clock');
     expect(fallback.xProp).not.toBe(0.9);
     expect(fallback.wProp).not.toBe(0.5);
+  });
+
+  it('lays a template zone over the panned view', async () => {
+    const stateRef = setup();
+    await settle(stateRef, [makeDashboard([])]);
+    const zone = {
+      xProp: 0.3,
+      yProp: 0.1,
+      wProp: 0.3,
+      hProp: 0.5,
+      aspectRatio: 1,
+    };
+    act(() =>
+      stateRef.current?.addWidgets([{ type: 'clock', placement: zone }])
+    );
+    const [flat] = stateRef.current?.activeDashboard?.widgets ?? [];
+    const unregister = registerPanGetter(() => ({ x: 200, y: 100 }));
+    try {
+      act(() =>
+        stateRef.current?.addWidgets([{ type: 'clock', placement: zone }])
+      );
+    } finally {
+      unregister();
+    }
+    const panned = stateRef.current?.activeDashboard?.widgets.at(-1);
+    expect(panned?.x).toBeCloseTo(flat.x - 200);
+    expect(panned?.y).toBeCloseTo(flat.y - 100);
+    expect(panned?.w).toBeCloseTo(flat.w);
+    expect(panned?.h).toBeCloseTo(flat.h);
+  });
+
+  it('shrinks a template zone to the zoomed view', async () => {
+    const stateRef = setup();
+    await settle(stateRef, [makeDashboard([])]);
+    const zone = {
+      xProp: 0.3,
+      yProp: 0.1,
+      wProp: 0.3,
+      hProp: 0.5,
+      aspectRatio: 1,
+    };
+    act(() =>
+      stateRef.current?.addWidgets([{ type: 'clock', placement: zone }])
+    );
+    const [flat] = stateRef.current?.activeDashboard?.widgets ?? [];
+    act(() => stateRef.current?.setZoom(2));
+    act(() =>
+      stateRef.current?.addWidgets([{ type: 'clock', placement: zone }])
+    );
+    const zoomed = stateRef.current?.activeDashboard?.widgets.at(-1);
+    expect(zoomed?.w).toBeCloseTo(flat.w / 2);
+    expect(zoomed?.h).toBeCloseTo(flat.h / 2);
+  });
+
+  it('keeps a template zone its size when zoomed out and inside the view', async () => {
+    const stateRef = setup();
+    await settle(stateRef, [makeDashboard([])]);
+    const zone = {
+      xProp: 0.3,
+      yProp: 0.1,
+      wProp: 0.3,
+      hProp: 0.5,
+      aspectRatio: 1,
+    };
+    act(() =>
+      stateRef.current?.addWidgets([{ type: 'clock', placement: zone }])
+    );
+    const [flat] = stateRef.current?.activeDashboard?.widgets ?? [];
+    act(() => stateRef.current?.setZoom(0.5));
+    act(() =>
+      stateRef.current?.addWidgets([{ type: 'clock', placement: zone }])
+    );
+    const out = stateRef.current?.activeDashboard?.widgets.at(-1) as WidgetData;
+    expect(out.w).toBeCloseTo(flat.w);
+    expect(out.h).toBeCloseTo(flat.h);
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const minX = vw / 2 - vw / 2 / 0.5;
+    const maxX = vw / 2 + vw / 2 / 0.5;
+    const minY = vh / 2 - vh / 2 / 0.5;
+    const maxY = vh / 2 + vh / 2 / 0.5;
+    expect(out.x).toBeGreaterThanOrEqual(minX);
+    expect(out.x + out.w).toBeLessThanOrEqual(maxX);
+    expect(out.y).toBeGreaterThanOrEqual(minY);
+    expect(out.y + out.h).toBeLessThanOrEqual(maxY);
+  });
+
+  it('keeps adjacent template zones touching when zoomed out', async () => {
+    const stateRef = setup();
+    await settle(stateRef, [makeDashboard([])]);
+    const left = {
+      xProp: 0,
+      yProp: 0.1,
+      wProp: 0.3,
+      hProp: 0.5,
+      aspectRatio: 1,
+    };
+    const right = { ...left, xProp: 0.3 };
+    act(() =>
+      stateRef.current?.addWidgets([
+        { type: 'clock', placement: left },
+        { type: 'clock', placement: right },
+      ])
+    );
+    const [flatL, flatR] = stateRef.current?.activeDashboard?.widgets ?? [];
+    act(() => stateRef.current?.setZoom(0.5));
+    act(() =>
+      stateRef.current?.addWidgets([
+        { type: 'clock', placement: left },
+        { type: 'clock', placement: right },
+      ])
+    );
+    const [outL, outR] = (
+      stateRef.current?.activeDashboard?.widgets ?? []
+    ).slice(-2);
+    expect(outR.x - outL.x).toBeCloseTo(flatR.x - flatL.x);
+    expect(outL.w).toBeCloseTo(flatL.w);
   });
 
   it('never builds a giant widget from an extreme aspect ratio', async () => {

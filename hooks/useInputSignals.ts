@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { InputSignalCounts } from '@/types';
 import {
+  DICTATION_EVENT,
+  type DictationEventDetail,
   INPUT_SIGNALS_FLUSH_EVENT,
   type InputSignalsFlushDetail,
   InputSignalCollector,
@@ -50,10 +52,51 @@ const isAnswerBox = (target: EventTarget | null): target is HTMLElement => {
 const isLongAnswer = (el: HTMLElement): boolean =>
   el instanceof HTMLTextAreaElement || el.isContentEditable;
 
+const BLOCK_TAGS = new Set([
+  'P',
+  'DIV',
+  'LI',
+  'UL',
+  'OL',
+  'BLOCKQUOTE',
+  'H1',
+  'H2',
+  'H3',
+  'H4',
+  'H5',
+  'H6',
+  'PRE',
+]);
+
+/** An answer box's text with one newline per line break; `innerText` doubles paragraph breaks. */
+export function editorPlainText(root: Node): string {
+  let out = '';
+  const walk = (node: Node) => {
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        out += child.nodeValue ?? '';
+      } else if (child instanceof Element) {
+        if (child.tagName === 'BR') {
+          // A block's last <br> only holds its line open.
+          if (child.nextSibling || !BLOCK_TAGS.has(node.nodeName)) out += '\n';
+        } else if (BLOCK_TAGS.has(child.tagName)) {
+          if (out !== '' && !out.endsWith('\n')) out += '\n';
+          walk(child);
+          if (child.nextSibling) out += '\n';
+        } else {
+          walk(child);
+        }
+      }
+    }
+  };
+  walk(root);
+  return out;
+}
+
 const answerText = (el: HTMLElement): string =>
   el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement
     ? el.value
-    : el.innerText;
+    : editorPlainText(el);
 
 /** A side panel takes at least this much width, in px. */
 const PANEL_MIN_PX = 200;
@@ -113,10 +156,20 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       (env) => collector.setEnvironment(env.browser, env.profile),
       (err: unknown) => logError('useInputSignals.environment', err)
     );
-    const flush = (e?: Event) => {
+    let lastSaved = performance.now();
+    // Only a turn-in, pagehide and unmount skip the large-log throttle (AB-201); the rest stay dirty for a later save.
+    const flush = (e?: Event, throttled = false) => {
       const save = argsRef.current.save;
-      collector.clock(performance.now(), visible());
+      const now = performance.now();
+      collector.clock(now, visible());
+      if (
+        throttled &&
+        collector.logBytes() > BIG_LOG_BYTES &&
+        now - lastSaved < BIG_LOG_FLUSH_MS
+      )
+        return;
       if (!save || !collector.takeDirty()) return;
+      lastSaved = now;
       const counts = addSignals(base, collector.snapshot());
       writtenRef.current = { attempt, counts };
       const saved = save(attempt, counts).catch((err: unknown) =>
@@ -127,8 +180,9 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       )?.detail?.saves?.push(saved);
     };
     collectorRef.current = collector;
-    flushRef.current = flush;
-    document.addEventListener(INPUT_SIGNALS_FLUSH_EVENT, flush);
+    flushRef.current = () => flush(undefined, true);
+    const onFlushEvent = (e: Event) => flush(e);
+    document.addEventListener(INPUT_SIGNALS_FLUSH_EVENT, onFlushEvent);
 
     const onPointerMove = (e: PointerEvent) => {
       if (!isTrustedEvent(e) || e.pointerType !== 'mouse') return;
@@ -229,10 +283,28 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
         );
       }
     };
+    // Speech to text edits the box without an input event, so the box announces it.
+    const onDictation = (e: Event) => {
+      if (!isAnswerBox(e.target)) return;
+      const detail = (e as CustomEvent<DictationEventDetail>).detail;
+      if (detail?.phase === 'before') {
+        collector.primeText(e.target, answerText(e.target));
+      } else if (detail?.phase === 'after') {
+        collector.dictated(
+          e.target,
+          answerText(e.target),
+          Number.isFinite(detail.chars) ? Math.max(0, detail.chars) : 0,
+          e.timeStamp,
+          isLongAnswer(e.target)
+        );
+      }
+    };
     const onHidden = () => {
       if (visible()) collector.clock(performance.now(), true);
-      else flush();
+      else flush(undefined, true);
     };
+    // Closing or leaving the page is the last chance to save, so it skips the throttle.
+    const onPageHide = () => flush();
     let size = {
       inner: window.innerWidth,
       outer: window.outerWidth,
@@ -265,20 +337,12 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
     document.addEventListener('drop', onDrop, opts);
     document.addEventListener('beforeinput', onBeforeInput, opts);
     document.addEventListener('input', onInput, opts);
+    document.addEventListener(DICTATION_EVENT, onDictation, opts);
     document.addEventListener('visibilitychange', onHidden);
+    window.addEventListener('pagehide', onPageHide);
     window.addEventListener('resize', onResize);
     screen.addEventListener?.('change', onScreenChange);
-    let lastTimed = performance.now();
-    const id = window.setInterval(() => {
-      const now = performance.now();
-      if (
-        collector.logBytes() > BIG_LOG_BYTES &&
-        now - lastTimed < BIG_LOG_FLUSH_MS
-      )
-        return;
-      lastTimed = now;
-      flush();
-    }, FLUSH_MS);
+    const id = window.setInterval(() => flush(undefined, true), FLUSH_MS);
     return () => {
       document.removeEventListener('pointermove', onPointerMove, opts);
       document.removeEventListener('pointerdown', onPointerDown, opts);
@@ -289,11 +353,13 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       document.removeEventListener('drop', onDrop, opts);
       document.removeEventListener('beforeinput', onBeforeInput, opts);
       document.removeEventListener('input', onInput, opts);
+      document.removeEventListener(DICTATION_EVENT, onDictation, opts);
       document.removeEventListener('visibilitychange', onHidden);
+      window.removeEventListener('pagehide', onPageHide);
       window.removeEventListener('resize', onResize);
       screen.removeEventListener?.('change', onScreenChange);
       window.clearInterval(id);
-      document.removeEventListener(INPUT_SIGNALS_FLUSH_EVENT, flush);
+      document.removeEventListener(INPUT_SIGNALS_FLUSH_EVENT, onFlushEvent);
       // Once the attempt moves on (a turn-in), the rules refuse its key; the awaited pre-turn-in flush already saved it.
       if (argsRef.current.attempt === attempt) flush();
       collectorRef.current = null;

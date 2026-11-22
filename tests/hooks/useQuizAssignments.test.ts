@@ -270,6 +270,11 @@ describe('useQuizAssignments - reopenAssignment', () => {
 
     const assignmentPatch = findAssignmentPatch();
     expect(assignmentPatch).toMatchObject({ status: 'paused' });
+    // A reopened quiz is no longer closed or moved to Finished (ASSIGNED_TAB D24).
+    expect(assignmentPatch).toMatchObject({
+      closedAt: DELETE_FIELD_SENTINEL,
+      doneAt: DELETE_FIELD_SENTINEL,
+    });
 
     expect(runTransaction).toHaveBeenCalledTimes(1);
   });
@@ -429,6 +434,30 @@ describe('useQuizAssignments - reopenAssignment', () => {
       await result.current.resumeAssignment(ASSIGNMENT_ID);
     });
     expect(sessionState.pauseSpans).toHaveLength(2);
+  });
+
+  it('resumes right after a reopen even when a plain read still returns the ended session', async () => {
+    const fresh = {
+      status: 'paused',
+      startedAt: 1,
+      currentQuestionIndex: 0,
+    };
+    // getDoc is the stale copy; only the transaction sees the reopen.
+    mockGetDoc.mockResolvedValue({
+      data: () => ({ ...fresh, status: 'ended' }),
+    });
+    (runTransaction as Mock).mockImplementation(
+      async (_db: unknown, fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          get: () => Promise.resolve({ data: () => fresh }),
+          update: batchUpdate,
+        })
+    );
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.resumeAssignment(ASSIGNMENT_ID);
+    });
+    expect(findSessionPatch().status).toBe('active');
   });
 
   it('leaves the session usable: after reopen+resume, student-side polling at index 0 returns a real question', async () => {
@@ -677,7 +706,10 @@ describe('useQuizAssignments - reopenAssignment', () => {
     });
 
     expect(findAssignmentPatch()).toMatchObject({ status: 'inactive' });
-    expect(findSessionPatch()).toMatchObject({ status: 'ended' });
+    expect(findSessionPatch()).toMatchObject({
+      status: 'ended',
+      revealedAnswers: DELETE_FIELD_SENTINEL,
+    });
   });
 
   it('turns in unfinished work after End, like the monitor End', async () => {
@@ -874,16 +906,23 @@ describe('useQuizAssignments - importSharedAssignment', () => {
         {
           isMember: (id) => id === 'plc-shared',
           onNonMember,
+          liveLinkage: (id) => ({
+            id,
+            name: 'Live PLC',
+            sheetUrl: 'https://docs.google.com/spreadsheets/d/live-sheet',
+            memberEmails: ['me@example.com'],
+          }),
         }
       );
     });
 
+    // Security #16: the linkage comes from the importer's live PLC, never the share's sheet or roster.
     const assignment = findAssignmentSet();
     expect(assignment.plc).toEqual({
       id: 'plc-shared',
-      name: 'Shared PLC',
-      sheetUrl: 'https://docs.google.com/spreadsheets/d/shared-sheet',
-      memberEmails: ['a@example.com', 'b@example.com'],
+      name: 'Live PLC',
+      sheetUrl: 'https://docs.google.com/spreadsheets/d/live-sheet',
+      memberEmails: ['me@example.com'],
     });
     // Member path: the non-member nudge must NOT fire.
     expect(onNonMember).not.toHaveBeenCalled();
@@ -1205,6 +1244,41 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
     });
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await act(async () => {
+      await result.current.setAssignmentRosters(
+        ASSIGNMENT_ID,
+        {
+          rosterIds: ['r1'],
+          classIds: ['cl-A'],
+          periodNames: ['Period 1'],
+          classPeriodByClassId: { 'cl-A': 'Period 1' },
+        },
+        undefined,
+        ['Period 2'],
+        ['cl-B']
+      );
+    });
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.update on session doc');
+    expect(sessionCall[1]).toMatchObject({
+      classIds: ['cl-A', 'schoology:ctx-9'],
+      periodNames: ['Period 1', 'Bio 3'],
+      classPeriodByClassId: { 'cl-A': 'Period 1', 'schoology:ctx-9': 'Bio 3' },
+      removedClasses: { classIds: ['cl-B'], periodNames: ['Period 2'] },
+    });
+  });
+
+  it('does not record a class as removed when the teacher did not uncheck it', async () => {
+    mockGetDoc.mockResolvedValue({
+      data: () => ({
+        classIds: ['cl-A', 'cl-stale'],
+        periodNames: ['Period 1', 'Gone'],
+        classPeriodByClassId: { 'cl-A': 'Period 1', 'cl-stale': 'Gone' },
+      }),
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
       await result.current.setAssignmentRosters(ASSIGNMENT_ID, {
         rosterIds: ['r1'],
         classIds: ['cl-A'],
@@ -1217,10 +1291,7 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
     );
     if (!sessionCall) throw new Error('expected batch.update on session doc');
     expect(sessionCall[1]).toMatchObject({
-      classIds: ['cl-A', 'schoology:ctx-9'],
-      periodNames: ['Period 1', 'Bio 3'],
-      classPeriodByClassId: { 'cl-A': 'Period 1', 'schoology:ctx-9': 'Bio 3' },
-      removedClasses: { classIds: ['cl-B'], periodNames: ['Period 2'] },
+      removedClasses: { classIds: [], periodNames: [] },
     });
   });
 
@@ -3830,6 +3901,22 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
       });
     });
     expect(findSessionSet()).not.toHaveProperty('bankSlots');
+    expect(findAssignmentSet()).not.toHaveProperty('resolvedDriveFileId');
+  });
+
+  it('keeps the library file as the quiz and records the frozen copy beside it', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'student',
+        sessionOptions: {},
+        frozenDriveFileId: 'drive-frozen',
+      });
+    });
+    expect(findAssignmentSet()).toMatchObject({
+      quizDriveFileId: QUIZ.driveFileId,
+      frozenDriveFileId: 'drive-frozen',
+    });
     expect(findAssignmentSet()).not.toHaveProperty('resolvedDriveFileId');
   });
 

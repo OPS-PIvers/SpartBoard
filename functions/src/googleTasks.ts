@@ -12,13 +12,14 @@ import {
   refreshGoogleAccessTokenForUid,
 } from './googleOAuth';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { isGlobalFeatureGranted } from './quizMediaArchive';
+import { isGlobalFeatureGranted } from './featureGrant';
 import {
   GOOGLE_TASKS_FEATURE_ID,
   GOOGLE_TASKS_LIST_TITLE,
   appOriginForProject,
   buildTaskPayload,
   diffActionItems,
+  GOOGLE_TASKS_SCOPE,
   isActivePlcMember,
   liveItems,
   mapDocId,
@@ -30,6 +31,7 @@ import {
   type TaskPayload,
   type TaskSource,
 } from './googleTasksCore';
+import { safeErr } from './safeLog';
 
 const TASKS_API = 'https://tasks.googleapis.com/tasks/v1';
 const API_TIMEOUT_MS = 10_000;
@@ -175,7 +177,9 @@ async function openSession(uid: string): Promise<Session | null> {
     return null;
   }
   try {
-    const { accessToken } = await refreshGoogleAccessTokenForUid(uid);
+    const { accessToken } = await refreshGoogleAccessTokenForUid(uid, {
+      scope: GOOGLE_TASKS_SCOPE,
+    });
     return { uid, token: accessToken, state };
   } catch (err) {
     if (
@@ -448,7 +452,12 @@ export async function syncParentWrite(args: {
         await disconnect(uid, 'missing-scope');
         continue;
       }
-      logger.error('[googleTasks] push failed', { uid, plcId, parentId, err });
+      logger.error('[googleTasks] push failed', {
+        uid,
+        plcId,
+        parentId,
+        err: safeErr(err),
+      });
     }
   }
 }
@@ -592,7 +601,10 @@ export const setGoogleTasksSyncV1 = onCall(
       await ensureList(session);
       await backfill(session);
     } catch (err) {
-      logger.error('[googleTasks] connect backfill failed', { uid, err });
+      logger.error('[googleTasks] connect backfill failed', {
+        uid,
+        err: safeErr(err),
+      });
       if (err instanceof TasksAuthError) {
         await disconnect(uid, 'missing-scope');
         throw new HttpsError(
@@ -677,7 +689,7 @@ export const pullGoogleTasksStatusV1 = onCall(
         await disconnect(uid, 'missing-scope');
         return { changes: [] };
       }
-      logger.error('[googleTasks] pull failed', { uid, err });
+      logger.error('[googleTasks] pull failed', { uid, err: safeErr(err) });
       throw new HttpsError('internal', 'Could not reach Google Tasks.');
     }
 

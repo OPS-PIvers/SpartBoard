@@ -133,9 +133,9 @@ service firebase.storage {
       allow delete: if userFileOwner(userId) && viewAsWriteOk();
     }
 
+    // Unused upload folder: no new uploads; any old file stays readable and deletable.
     match /users/{userId}/instructional/{allPaths=**} {
       allow read: if userFileOwner(userId) && viewAsReadOk();
-      allow create, update: if userFileUpload(userId, 50 * 1024 * 1024, '.*');
       allow delete: if userFileOwner(userId) && viewAsWriteOk();
     }
 
@@ -409,6 +409,11 @@ service firebase.storage {
         );
     }
 
+    // Paper scan objects carry only names the import records (importPaperResponses SCAN_ID_PATTERN, seat >= 1).
+    function paperScanPathOk(scanId, seat) {
+      return scanId.matches('^[A-Za-z0-9-]{1,64}$') && seat.matches('^[1-9][0-9]{0,3}$');
+    }
+
     // Handwritten paper answer crops: the owning teacher uploads once per scan; only the server reads or deletes.
     match /paper_written_crops/{uid}/{scanId}/{seat}/{fileName} {
       allow create: if request.auth != null && viewAsWriteOk() &&
@@ -417,7 +422,9 @@ service firebase.storage {
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
         request.auth.token.get('studentRole', false) != true &&
         request.resource.size <= 2 * 1024 * 1024 &&
-        request.resource.contentType in ['image/webp', 'image/png'];
+        request.resource.contentType in ['image/webp', 'image/png'] &&
+        paperScanPathOk(scanId, seat) && fileName.matches('^[^/]{1,128}[.](webp|png)$') &&
+        (isDistrictStaff() || isAdmin());
     }
 
     // Kept scanned sheet pages (paper-kept-pages): same contract as crops; only the server reads or deletes.
@@ -428,7 +435,9 @@ service firebase.storage {
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
         request.auth.token.get('studentRole', false) != true &&
         request.resource.size <= 2 * 1024 * 1024 &&
-        request.resource.contentType in ['image/webp', 'image/png'];
+        request.resource.contentType in ['image/webp', 'image/png'] &&
+        paperScanPathOk(scanId, seat) && fileName.matches('^[1-9][0-9]?[.]webp$') &&
+        (isDistrictStaff() || isAdmin());
     }
 
     // Schoology quiz import pictures: only schoologyImportInboxV1 writes; the owning teacher reads them on the review screen.
@@ -528,12 +537,18 @@ service firebase.storage {
           /databases/(default)/documents/project_runs/$(runId)
         ).data.get('acceptingUpdates', false) == true;
       }
+      // A group that has submitted is frozen like a closed run, until the teacher reopens it.
+      function pjGroupOpen() {
+        return firestore.get(
+          /databases/(default)/documents/project_runs/$(runId)/groups/$(groupId)
+        ).data.get('submittedAt', 0) == 0;
+      }
       allow create: if viewAsWriteOk() && request.resource.size < 25 * 1024 * 1024 &&
         pjAllowedType() &&
-        (pjIsRunTeacher() || (pjIsGroupMember() && pjRunAccepting()));
+        (pjIsRunTeacher() || (pjIsGroupMember() && pjRunAccepting() && pjGroupOpen()));
       // A closed run freezes what each group handed in; only the teacher or a site admin deletes then.
       allow delete: if viewAsWriteOk() &&
-        (pjIsRunTeacher() || isSiteAdmin() || (pjIsGroupMember() && pjRunAccepting()));
+        (pjIsRunTeacher() || isSiteAdmin() || (pjIsGroupMember() && pjRunAccepting() && pjGroupOpen()));
     }
 
     // Web tour step pictures (CHROME_EXTENSION.md T6): district staff and admins get through the SDK, admins list and write.

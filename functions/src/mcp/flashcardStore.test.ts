@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Timestamp } from 'firebase-admin/firestore';
+import { FieldValue, type Timestamp } from 'firebase-admin/firestore';
 import {
   MAX_CARDS,
   MAX_TERM,
@@ -10,7 +10,6 @@ import {
   rewriteOpenCheckSessions,
   rewriteOpenStudySessions,
   stageSetWrite,
-  type ShareGuard,
   type FlashcardSet,
 } from './flashcardStore';
 
@@ -26,7 +25,7 @@ const base: FlashcardSet = {
 };
 
 const OWNED_TIME = { seconds: 5 } as unknown as Timestamp;
-const OWNED: ShareGuard = { exists: true, updateTime: OWNED_TIME };
+const OWNED = { shareTime: OWNED_TIME };
 
 interface Call {
   op: 'set' | 'update' | 'create';
@@ -120,15 +119,7 @@ describe('Speak carry-through', () => {
 
   it('leaves the snapshot Speak stamp to the teacher client', () => {
     const { db, batch, calls } = recorder();
-    stageSetWrite(
-      db,
-      batch,
-      'uid',
-      { ...base, publicShareId: 'share' },
-      undefined,
-      undefined,
-      OWNED
-    );
+    stageSetWrite(db, batch, 'uid', { ...base, publicShareId: 'share' }, OWNED);
     const snapshotCall = calls.find((c) => c.op === 'update');
     expect(snapshotCall?.path).toBe('public_flashcard_sets/share');
     expect(snapshotCall?.data).not.toHaveProperty('speak');
@@ -154,8 +145,14 @@ describe('Speak carry-through', () => {
   it('drops the snapshot stamp only when the term language changes', () => {
     const { db, batch, calls } = recorder();
     const shared = { ...base, termLanguage: 'fr-FR', publicShareId: 'share' };
-    stageSetWrite(db, batch, 'uid', shared, 'fr-CA', undefined, OWNED);
-    stageSetWrite(db, batch, 'uid', shared, 'es-US', undefined, OWNED);
+    stageSetWrite(db, batch, 'uid', shared, {
+      ...OWNED,
+      previousTermLanguage: 'fr-CA',
+    });
+    stageSetWrite(db, batch, 'uid', shared, {
+      ...OWNED,
+      previousTermLanguage: 'es-US',
+    });
     const [same, moved] = calls.filter((c) => c.op === 'update');
     expect(same.data).not.toHaveProperty('speak');
     expect(moved.data).toHaveProperty('speak');
@@ -216,29 +213,38 @@ describe('Speak carry-through', () => {
       batch,
       'uid',
       { ...base, termLanguage: 'es-US', publicShareId: 'share' },
-      'es-US',
-      stamp,
-      OWNED
+      { ...OWNED, previousTermLanguage: 'es-US', speakStamp: stamp }
     );
     expect(calls.find((c) => c.op === 'update')?.data).toMatchObject({
       speak: stamp,
     });
   });
 
-  it('creates a missing snapshot without a delete marker and refuses an unchecked one', () => {
-    const { db, batch, calls } = recorder();
-    const shared = { ...base, termLanguage: 'fr-FR', publicShareId: 'share' };
-    stageSetWrite(db, batch, 'uid', shared, 'es-US', undefined, {
-      exists: false,
-    });
-    const created = calls.find((c) => c.op === 'create');
-    expect(created?.path).toBe('public_flashcard_sets/share');
-    expect(created?.data).toMatchObject({ teacherUid: 'uid' });
-    expect(created?.data).not.toHaveProperty('speak');
+  it('refuses an unchecked snapshot', () => {
+    const { db, batch } = recorder();
+    const shared = { ...base, publicShareId: 'share' };
     expect(() => stageSetWrite(db, batch, 'uid', shared)).toThrow();
   });
 
-  it('refuses a snapshot another teacher owns and passes an absent or own one', async () => {
+  it('replaces a loaded set only if it is unchanged, deleting dropped fields', () => {
+    const { db, batch, calls } = recorder();
+    const loaded = {
+      set: { ...base, claudeReviewPendingAt: 3 },
+      updateTime: OWNED_TIME,
+    };
+    stageSetWrite(db, batch, 'uid', base, { loaded });
+    const write = calls.find((c) => c.path === 'users/uid/flashcard_sets/s1');
+    expect(write?.op).toBe('update');
+    expect(write?.extra).toEqual({ lastUpdateTime: OWNED_TIME });
+    expect(
+      FieldValue.delete().isEqual(
+        (write?.data as Record<string, FieldValue>).claudeReviewPendingAt
+      )
+    ).toBe(true);
+    expect(write?.data).toMatchObject({ title: base.title });
+  });
+
+  it('refuses a snapshot that is gone or another teacher owns and passes an own one', async () => {
     const dbFor = (data?: Record<string, unknown>) =>
       ({
         doc: () => ({
@@ -250,12 +256,12 @@ describe('Speak carry-through', () => {
             }),
         }),
       }) as unknown as Parameters<typeof guardPublicShare>[0];
-    await expect(guardPublicShare(dbFor(), 'me', 's')).resolves.toEqual({
-      exists: false,
-    });
+    await expect(guardPublicShare(dbFor(), 'me', 's')).rejects.toThrow(
+      /Sharing for this set changed/
+    );
     await expect(
       guardPublicShare(dbFor({ teacherUid: 'me' }), 'me', 's')
-    ).resolves.toEqual({ exists: true, updateTime: OWNED_TIME });
+    ).resolves.toBe(OWNED_TIME);
     await expect(
       guardPublicShare(dbFor({ teacherUid: 'victim' }), 'me', 's')
     ).rejects.toThrow(/not yours/);

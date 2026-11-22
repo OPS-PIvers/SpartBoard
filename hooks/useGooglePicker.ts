@@ -64,7 +64,8 @@ const STIMULUS_MIME_TYPES = [
 
 /** Options for `openPicker`. Default mode is `'docs'`. */
 export interface OpenPickerOptions {
-  mode?: 'docs' | 'images' | 'sheets' | 'scans' | 'documents' | 'stimuli';
+  mode?:
+    'docs' | 'images' | 'sheets' | 'slides' | 'scans' | 'documents' | 'stimuli';
   /**
    * Optional OAuth token override. When supplied, the Picker authenticates with
    * this instead of the hook's render-time `googleAccessToken`. Lets a caller
@@ -196,20 +197,24 @@ export const useGooglePicker = () => {
                 ? google.picker.ViewId.DOCS_IMAGES
                 : mode === 'sheets'
                   ? google.picker.ViewId.SPREADSHEETS
-                  : google.picker.ViewId.DOCS;
+                  : mode === 'slides'
+                    ? google.picker.ViewId.PRESENTATIONS
+                    : google.picker.ViewId.DOCS;
 
             const mimeTypes =
               mode === 'images'
                 ? IMAGE_MIME_TYPES
                 : mode === 'sheets'
                   ? 'application/vnd.google-apps.spreadsheet'
-                  : mode === 'scans'
-                    ? SCAN_MIME_TYPES
-                    : mode === 'documents'
-                      ? TEST_DOCUMENT_MIME_TYPES
-                      : mode === 'stimuli'
-                        ? STIMULUS_MIME_TYPES
-                        : SUPPORTED_MIME_TYPES;
+                  : mode === 'slides'
+                    ? 'application/vnd.google-apps.presentation'
+                    : mode === 'scans'
+                      ? SCAN_MIME_TYPES
+                      : mode === 'documents'
+                        ? TEST_DOCUMENT_MIME_TYPES
+                        : mode === 'stimuli'
+                          ? STIMULUS_MIME_TYPES
+                          : SUPPORTED_MIME_TYPES;
 
             const fileIds = options?.fileIds ?? [];
             const docsView =
@@ -239,13 +244,15 @@ export const useGooglePicker = () => {
                 ? 'Select an image from Drive'
                 : mode === 'sheets'
                   ? 'Select a Google Sheet'
-                  : mode === 'scans'
-                    ? 'Select a scanned PDF'
-                    : mode === 'documents'
-                      ? 'Select a test document'
-                      : mode === 'stimuli'
-                        ? 'Select a stimulus'
-                        : 'Select a file for AI context');
+                  : mode === 'slides'
+                    ? 'Select a Google Slides File'
+                    : mode === 'scans'
+                      ? 'Select a scanned PDF'
+                      : mode === 'documents'
+                        ? 'Select a test document'
+                        : mode === 'stimuli'
+                          ? 'Select a stimulus'
+                          : 'Select a file for AI context');
 
             const builder = new google.picker.PickerBuilder()
               .addView(docsView)

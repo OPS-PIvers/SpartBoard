@@ -1,11 +1,12 @@
 // One accordion row of the assign stepper: numbered header, closed value, open body with Continue (D1, D14).
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
-import { tourAttr } from '@/config/tourAnchors';
-import type { AssignStepId } from './assignSteps';
+import { tourAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
+import type { StepperStepId } from './assignSteps';
 
-const STEP_TOUR: Record<AssignStepId, ReturnType<typeof tourAttr>> = {
+const STEP_TOUR: Partial<Record<StepperStepId, ReturnType<typeof tourAttr>>> = {
   classes: tourAttr('assign-step.classes'),
+  modifications: tourAttr('assign-step.modifications'),
   when: tourAttr('assign-step.when'),
   attempts: tourAttr('assign-step.attempts'),
   integrity: tourAttr('assign-step.integrity'),
@@ -17,24 +18,42 @@ const STEP_TOUR: Record<AssignStepId, ReturnType<typeof tourAttr>> = {
   study: tourAttr('assign-step.study'),
   sheets: tourAttr('assign-step.sheets'),
   written: tourAttr('assign-step.written'),
+  writing: tourAttr('assign-step.writing'),
   sharing: tourAttr('assign-step.sharing'),
 };
 
 export interface AssignStepProps {
-  id: AssignStepId;
+  id: StepperStepId;
   number: number;
   title: string;
   value: string;
   open: boolean;
+  /** Greyed out and can't be opened; the value says why. */
+  disabled?: boolean;
   onOpen: () => void;
   /** Omitted on the last step, which has no Continue button. */
   onContinue?: () => void;
+  /** Header button anchor; defaults to the Assign dialog step's. */
+  anchor?: TourAnchorAttrs;
+  continueAnchor?: TourAnchorAttrs;
   children: React.ReactNode;
 }
 
 export const AssignStep = React.forwardRef<HTMLDivElement, AssignStepProps>(
   function AssignStep(
-    { id, number, title, value, open, onOpen, onContinue, children },
+    {
+      id,
+      number,
+      title,
+      value,
+      open,
+      disabled = false,
+      onOpen,
+      onContinue,
+      anchor,
+      continueAnchor = tourAttr('assign-step.continue'),
+      children,
+    },
     ref
   ) {
     const bodyId = React.useId();
@@ -44,26 +63,27 @@ export const AssignStep = React.forwardRef<HTMLDivElement, AssignStepProps>(
         className={`rounded-xl border bg-white ${open ? 'border-brand-blue-primary/40 shadow-xs' : 'border-slate-200'}`}
       >
         <button
-          {...STEP_TOUR[id]}
+          {...(anchor ?? STEP_TOUR[id])}
           type="button"
           onClick={onOpen}
+          disabled={disabled}
           aria-expanded={open}
           aria-controls={open ? bodyId : undefined}
-          className="flex w-full items-center gap-3 px-4 py-2.5 text-left"
+          className="flex w-full items-center gap-3 px-4 py-2.5 text-left disabled:cursor-not-allowed"
         >
           <span
-            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${open ? 'border-2 border-brand-blue-primary bg-white text-brand-blue-primary' : 'bg-slate-100 text-slate-500'}`}
+            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${open ? 'border-2 border-brand-blue-primary bg-white text-brand-blue-primary' : disabled ? 'bg-slate-50 text-slate-400' : 'bg-slate-100 text-slate-500'}`}
           >
             {number}
           </span>
           <span
-            className={`text-sm font-bold ${open ? 'text-brand-blue-dark' : 'text-slate-700'}`}
+            className={`text-sm font-bold ${open ? 'text-brand-blue-dark' : disabled ? 'text-slate-400' : 'text-slate-700'}`}
           >
             {title}
           </span>
           {!open && (
             <span
-              className="ml-auto min-w-0 truncate pl-4 text-xs text-slate-500"
+              className={`ml-auto min-w-0 truncate pl-4 text-xs ${disabled ? 'text-slate-400' : 'text-slate-500'}`}
               title={value}
             >
               {value}
@@ -76,7 +96,7 @@ export const AssignStep = React.forwardRef<HTMLDivElement, AssignStepProps>(
             {onContinue && (
               <div className="flex justify-end">
                 <button
-                  {...tourAttr('assign-step.continue')}
+                  {...continueAnchor}
                   type="button"
                   onClick={onContinue}
                   className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs"

@@ -6,12 +6,14 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { AlertCircle, AlertTriangle, Check, Loader2, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Check, Loader2 } from 'lucide-react';
 import { Modal } from './Modal';
-import { FullscreenToggleButton } from './FullscreenToggleButton';
+import { ModalHeader } from './ModalHeader';
+import { EditableHeaderTitle } from './EditableHeaderTitle';
 import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAutosave, type AutosaveStatus } from '@/hooks/useAutosave';
+import { EditorAutosaveContext } from './editorAutosaveContext';
 import { tourTypeAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 
 export interface EditorAutosaveConfig {
@@ -34,15 +36,26 @@ export interface EditorAutosaveConfig {
 export const AutosaveIndicator: React.FC<{
   status: AutosaveStatus;
   onRetry: () => void;
-}> = ({ status, onRetry }) => {
+  /** White text for a coloured modal header. */
+  onAccent?: boolean;
+}> = ({ status, onRetry, onAccent = false }) => {
+  const tone = onAccent ? 'text-white/85' : 'text-slate-500';
+  // On a phone-width header the icon alone keeps room for the title.
+  const label = onAccent ? 'sr-only sm:not-sr-only' : undefined;
   if (status === 'error') {
     return (
-      <div className="flex items-center gap-2 text-sm font-bold text-red-600">
+      <div
+        className={`flex items-center gap-2 text-sm font-bold ${onAccent ? 'text-white' : 'text-red-600'}`}
+      >
         <AlertTriangle className="w-4 h-4" aria-hidden="true" />
         <span role="status">Couldn&rsquo;t save</span>
         <button
           onClick={onRetry}
-          className="px-3 py-1 rounded-lg text-xs font-bold text-white bg-red-600 hover:bg-red-500 transition-colors"
+          className={
+            onAccent
+              ? 'px-3 py-1 rounded-lg text-xs font-bold text-red-700 bg-white hover:bg-red-50 transition-colors'
+              : 'px-3 py-1 rounded-lg text-xs font-bold text-white bg-red-600 hover:bg-red-500 transition-colors'
+          }
         >
           Try again
         </button>
@@ -51,24 +64,30 @@ export const AutosaveIndicator: React.FC<{
   }
   if (status === 'saving') {
     return (
-      <div className="flex items-center gap-1.5 text-sm font-bold text-slate-500">
+      <div className={`flex items-center gap-1.5 text-sm font-bold ${tone}`}>
         <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-        <span role="status">Saving…</span>
+        <span role="status" className={label}>
+          Saving…
+        </span>
       </div>
     );
   }
   if (status === 'pending') {
     return (
-      <div className="flex items-center gap-1.5 text-sm font-bold text-slate-400">
+      <div
+        className={`flex items-center gap-1.5 text-sm font-bold ${onAccent ? 'text-white/70' : 'text-slate-400'}`}
+      >
         <span role="status">Unsaved changes</span>
       </div>
     );
   }
   if (status === 'saved') {
     return (
-      <div className="flex items-center gap-1.5 text-sm font-bold text-slate-500">
+      <div className={`flex items-center gap-1.5 text-sm font-bold ${tone}`}>
         <Check className="w-4 h-4" aria-hidden="true" />
-        <span role="status">Saved</span>
+        <span role="status" className={label}>
+          Saved
+        </span>
       </div>
     );
   }
@@ -98,9 +117,9 @@ interface EditorModalShellProps {
   saveLabel?: string;
   saveDisabled?: boolean;
   footerExtras?: React.ReactNode;
-  /** Editors that persist on their own drop the Save button; Cancel becomes Close. */
+  /** Editors that persist on their own drop the Save button and the footer Close; the header X closes. */
   hideSaveButton?: boolean;
-  /** Right-aligned footer slot; when set, Close moves to the footer's left edge. */
+  /** Right-aligned footer slot; when set, a footer Close moves to the footer's left edge. */
   footerEnd?: React.ReactNode;
   /** Drops the header X so the footer Close is the only way out. */
   hideHeaderClose?: boolean;
@@ -133,7 +152,7 @@ interface EditorModalShellProps {
   tourScope?: string;
   /** Live-tour anchor for the Save button. */
   saveAnchor?: TourAnchorAttrs;
-  /** Header background (a library accent) with white text; omitted keeps the white header. */
+  /** Header colour (a widget's library accent); defaults to brand blue. */
   headerAccent?: string;
   children: React.ReactNode;
 }
@@ -217,6 +236,11 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   // stable callback, not on the controller object, which is new every render.
   const autosaveStatus = autosaveCtl.status;
   const autosaveFlush = autosaveCtl.flush;
+  const autosaveContext = useMemo(
+    () =>
+      autosaveOn ? { status: autosaveStatus, flush: autosaveFlush } : null,
+    [autosaveOn, autosaveStatus, autosaveFlush]
+  );
 
   // Read inside the stable `requestClose` below without re-creating it (and
   // the memoized footer) every time the save state ticks.
@@ -285,72 +309,73 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
     }
   }, [saveDisabled, isSaving, saveErrorMessage, addToast, showAlert]);
 
+  // One way out: a footer Close only when there is no header X; Cancel stays beside Save.
+  const footerCloseShown = hideHeaderClose || (!hideSaveButton && !autosaveOn);
+
   // Memoized chrome: a body-content render (e.g. a question keystroke)
   // reuses these elements so React bails out of the header/footer subtrees;
   // only chrome inputs (title, isSaving, isDirty via requestClose, …)
   // re-render them.
   const customHeader = useMemo(
     () => (
-      <div
-        className={`flex items-center justify-between gap-4 px-6 py-4 shrink-0 ${headerAccent ? 'text-white' : 'border-b border-slate-200'}`}
-        style={headerAccent ? { backgroundColor: headerAccent } : undefined}
-      >
-        <div className="flex flex-col min-w-0 flex-1">
-          {onTitleChange ? (
-            <input
+      <ModalHeader
+        accent={headerAccent}
+        square={isFullscreen}
+        title={
+          onTitleChange ? (
+            <EditableHeaderTitle
               id="editor-modal-shell-title"
-              type="text"
               value={title}
-              onChange={(e) => onTitleChange(e.target.value)}
+              onChange={onTitleChange}
               placeholder={titlePlaceholder ?? 'Untitled'}
-              // Visually identical to the static h3 fallback below (same font
-              // weight/size/color), but editable and full-width so the user
-              // can rename the item without a duplicate title field in the
-              // editor body. `aria-labelledby` on the modal still resolves
-              // here because the id is preserved.
-              className={`font-black text-lg truncate bg-transparent border-0 focus:outline-hidden focus:ring-0 placeholder:font-bold w-full p-0 ${headerAccent ? 'text-white placeholder:text-white/60' : 'text-slate-800 placeholder:text-slate-400'}`}
-              aria-label="Title"
-              {...(tourScope ? tourTypeAttr('editor.title', tourScope) : {})}
+              ariaLabel="Title"
+              onAccent
+              tourAttrs={
+                tourScope ? tourTypeAttr('editor.title', tourScope) : undefined
+              }
             />
           ) : (
             <h3
               id="editor-modal-shell-title"
-              className={`font-black text-lg truncate ${headerAccent ? 'text-white' : 'text-slate-800'}`}
+              className="font-black text-lg text-white truncate"
             >
               {title}
             </h3>
-          )}
-          {subtitle !== undefined && subtitle !== null && (
-            <div
-              className={`text-xs mt-0.5 ${headerAccent ? 'text-white/80' : 'text-slate-500'}`}
-            >
-              {subtitle}
-            </div>
-          )}
-        </div>
-        {headerExtras && (
-          <div className="flex items-center gap-2 shrink-0">{headerExtras}</div>
-        )}
-        {allowFullscreen && (
-          <FullscreenToggleButton
-            fullscreen={isFullscreen}
-            onToggle={() => setFullscreen((v) => !v)}
-            onAccent={!!headerAccent}
-          />
-        )}
-        {!hideHeaderClose && (
-          <button
-            onClick={() => void requestClose()}
-            className={`p-1.5 rounded-full transition-colors shrink-0 ${headerAccent ? 'text-white/80 hover:bg-white/15 hover:text-white' : 'hover:bg-slate-100 text-slate-400'}`}
-            aria-label="Close"
-          >
-            <X size={20} />
-          </button>
-        )}
-      </div>
+          )
+        }
+        subtitle={subtitle}
+        actions={
+          autosaveOn || headerExtras ? (
+            <>
+              {autosaveOn && (
+                <AutosaveIndicator
+                  status={autosaveStatus}
+                  onRetry={() => void autosaveFlush()}
+                  onAccent
+                />
+              )}
+              {headerExtras}
+            </>
+          ) : undefined
+        }
+        fullscreen={isFullscreen}
+        onFullscreenToggle={
+          allowFullscreen ? () => setFullscreen((v) => !v) : undefined
+        }
+        onClose={hideHeaderClose ? undefined : () => void requestClose()}
+        closeAttrs={
+          tourScope && !footerCloseShown
+            ? tourTypeAttr('editor.close', tourScope)
+            : undefined
+        }
+      />
     ),
     [
       hideHeaderClose,
+      footerCloseShown,
+      autosaveOn,
+      autosaveStatus,
+      autosaveFlush,
       onTitleChange,
       title,
       titlePlaceholder,
@@ -365,7 +390,14 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   );
 
   const footer = useMemo(() => {
-    const closeButton = (
+    const footerEmpty =
+      !footerCloseShown &&
+      (hideSaveButton || autosaveOn) &&
+      !footerEnd &&
+      !footerExtras &&
+      !incompleteNotice;
+    if (footerEmpty) return null;
+    const closeButton = footerCloseShown && (
       <button
         onClick={() => void requestClose()}
         className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
@@ -375,7 +407,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       </button>
     );
     return (
-      <div className="flex items-center justify-between gap-3 px-6 py-3 bg-white">
+      <div className="flex items-center justify-between gap-3 px-6 py-3">
         <div className="flex items-center gap-2 min-w-0">
           {footerEnd && closeButton}
           {footerExtras}
@@ -392,12 +424,6 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
           )}
         </div>
         <div className="flex items-center gap-3">
-          {autosaveOn && (
-            <AutosaveIndicator
-              status={autosaveStatus}
-              onRetry={() => void autosaveFlush()}
-            />
-          )}
           {footerEnd ?? closeButton}
           {!hideSaveButton && !autosaveOn && (
             <button
@@ -414,6 +440,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       </div>
     );
   }, [
+    footerCloseShown,
     footerExtras,
     footerEnd,
     hideSaveButton,
@@ -423,8 +450,6 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
     isSaving,
     saveLabel,
     autosaveOn,
-    autosaveStatus,
-    autosaveFlush,
     incompleteNotice,
     tourScope,
     saveAnchor,
@@ -436,7 +461,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       onClose={() => void requestClose()}
       customHeader={customHeader}
       footer={footer}
-      footerClassName="shrink-0 border-t border-slate-200"
+      footerClassName=""
       maxWidth={maxWidth}
       className={className}
       contentClassName={bodyClassName}
@@ -444,9 +469,11 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       fullscreen={isFullscreen}
       onFullscreenChange={setFullscreen}
     >
-      <div style={{ colorScheme: 'light' }} className="contents">
-        {children}
-      </div>
+      <EditorAutosaveContext.Provider value={autosaveContext}>
+        <div style={{ colorScheme: 'light' }} className="contents">
+          {children}
+        </div>
+      </EditorAutosaveContext.Provider>
     </Modal>
   );
 };

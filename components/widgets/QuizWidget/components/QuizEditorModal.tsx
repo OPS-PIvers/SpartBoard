@@ -10,7 +10,7 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { AlertTriangle, Plus, Wand2, Target } from 'lucide-react';
+import { AlertTriangle, Plus, Target } from 'lucide-react';
 import {
   LibraryFolder,
   QUESTION_BANK_SIZE_WARN,
@@ -53,6 +53,7 @@ import {
   QuizLanguagesContextPane,
   QuizLanguagesDetailPane,
 } from './QuizLanguagesPane';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 const EDITOR_TAB_ANCHORS = {
   questions: tourTypeAttr('quiz-editor.tab-questions', 'quiz'),
@@ -72,6 +73,8 @@ export interface QuizEditorBankApi {
 interface QuizEditorModalProps {
   isOpen: boolean;
   quiz: QuizData | null;
+  /** Assignments an edit would re-score; shows a warning above the questions. */
+  rescoredAssignmentCount?: number;
   /** Omit to hide every question-bank affordance. */
   bankApi?: QuizEditorBankApi;
   onClose: () => void;
@@ -132,7 +135,8 @@ const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
       (sa.readAloudSource ?? '') !== (sb.readAloudSource ?? '') ||
       (sa.calculator ?? '') !== (sb.calculator ?? '') ||
       (sa.tabLabel ?? '') !== (sb.tabLabel ?? '') ||
-      (sa.placement ?? '') !== (sb.placement ?? '')
+      (sa.placement ?? '') !== (sb.placement ?? '') ||
+      (sa.wordBankColumns ?? 1) !== (sb.wordBankColumns ?? 1)
     ) {
       return false;
     }
@@ -205,6 +209,7 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
         JSON.stringify(qb.imageOnlyAnswers ?? []) ||
       targetIdsKey(qa.targets) !== targetIdsKey(qb.targets) ||
       (qa.explanation ?? '') !== (qb.explanation ?? '') ||
+      (qa.modifiedText ?? '') !== (qb.modifiedText ?? '') ||
       JSON.stringify(qa.optionExplanations ?? {}) !==
         JSON.stringify(qb.optionExplanations ?? {}) ||
       qa.dok !== qb.dok ||
@@ -213,7 +218,9 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
         (qb.rubricVisibleToStudents === true) ||
       recordingKey(qa.recording) !== recordingKey(qb.recording) ||
       rubricSnapshotKey(qa.rubricSnapshot) !==
-        rubricSnapshotKey(qb.rubricSnapshot)
+        rubricSnapshotKey(qb.rubricSnapshot) ||
+      rubricSnapshotKey(qa.modifiedRubricSnapshot) !==
+        rubricSnapshotKey(qb.modifiedRubricSnapshot)
     ) {
       return false;
     }
@@ -268,6 +275,7 @@ const orderEqual = (a: QuizOrderEntry[], b: QuizOrderEntry[]): boolean =>
 
 export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   hasScannedResponses = false,
+  rescoredAssignmentCount = 0,
   isOpen,
   quiz,
   bankApi,
@@ -312,7 +320,6 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     saving,
     setSaving,
     setError,
-    setShowAiPrompt,
     originalTitle,
     originalQuestions,
     originalStimuli,
@@ -544,22 +551,6 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       ) : null,
     [folders, folderId, onFolderChange]
   );
-  const footerExtras = useMemo(
-    () =>
-      aiEnabled ? (
-        <button
-          onClick={() => setShowAiPrompt(true)}
-          {...tourTypeAttr('quiz-editor.footer-draft-ai', 'quiz')}
-          className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-xs transition-colors flex items-center gap-2"
-          title="Generate with AI"
-        >
-          <Wand2 className="w-4 h-4" />
-          Draft with AI
-        </button>
-      ) : null,
-    [aiEnabled, setShowAiPrompt]
-  );
-
   const bankTargetsStrip = isBank ? (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center gap-2">
@@ -607,6 +598,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
 
   return (
     <EditorWorkspace
+      headerAccent={LIBRARY_HEADER_ACCENTS.quiz}
       key={quiz.id}
       isOpen={isOpen}
       title={title}
@@ -623,7 +615,6 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       onClose={onClose}
       saveLabel={isBank ? 'Save Bank' : 'Save Quiz'}
       saveAnchor={tourTypeAttr('editor.save', 'quiz')}
-      footerExtras={footerExtras}
       contextPane={
         <div className="flex flex-col h-full">
           {/* Questions / Stimuli / Languages segmented tab toggle */}
@@ -672,12 +663,16 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               onAddAnswerKey={
                 answerKeyFill && !isBank ? openKeyFill : undefined
               }
+              rescoredAssignmentCount={
+                isBank ? undefined : rescoredAssignmentCount
+              }
             />
           ) : activeTab === 'stimuli' ? (
             <StimulusManagerPanel
               state={editorState}
               readAloudAvailable={readAloudAvailable}
               calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+              wordBankAvailable={canAccessFeature('quiz-word-bank')}
             />
           ) : (
             <>

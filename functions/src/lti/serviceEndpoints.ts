@@ -29,7 +29,11 @@ import {
   buildDeepLinkResponseClaims,
   isSchoologyReturnUrl,
 } from './deepLink';
-import { getAgsAccessToken, postScore } from './ags';
+import {
+  getAgsAccessToken,
+  pacedScorePoster,
+  postScore as postOnce,
+} from './ags';
 import { fetchNrpsMembers } from './nrps';
 import { ltiStudentUid } from './identity';
 import { LTI_IDENTITY_BRIDGE_COLLECTION } from './classlinkBridge';
@@ -42,6 +46,7 @@ import {
 } from './nrpsStore';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { isDistrictTeacher } from './teacherAuth';
+import { safeErr } from '../safeLog';
 
 /** The Firestore session collection a launch `kind` targets. */
 function sessionCollectionForKind(kind: LtiSessionKind): string {
@@ -172,6 +177,7 @@ export const ltiPushGradesForAssignmentV1 = onCall(
     invoker: 'public',
     cors: ALLOWED_ORIGINS,
     secrets: [LTI_TOOL_PRIVATE_KEY],
+    timeoutSeconds: 180,
   },
   async (request) => {
     await assertViewAsAllowed(request, { outward: true });
@@ -261,13 +267,17 @@ export const ltiPushGradesForAssignmentV1 = onCall(
       // token endpoint down / key misconfig / scope denied). Log a greppable
       // line and surface a clean error instead of leaking the raw mint failure
       // — mirrors the NRPS resolver's token-mint handling.
-      console.error('[ltiPushGrades] AGS token mint failed:', err);
+      console.error('[ltiPushGrades] AGS token mint failed:', safeErr(err));
       throw new HttpsError(
         'internal',
         'Could not authorize the Schoology gradebook service.'
       );
     }
     const timestamp = new Date().toISOString();
+    const postScore = pacedScorePoster({
+      deadline: Date.now() + 120_000,
+      post: postOnce,
+    });
 
     // Resolve each student's OWN line item (per-section for linked/merged courses)
     // from the grade-sync key written at their launch, then POST the score.
@@ -379,7 +389,10 @@ async function aliasBridgedUids(
       }
     });
   } catch (err) {
-    console.warn('[ltiResolveNames] bridged-uid alias lookup failed:', err);
+    console.warn(
+      '[ltiResolveNames] bridged-uid alias lookup failed:',
+      safeErr(err)
+    );
   }
 }
 
@@ -465,7 +478,7 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
         scopes: [NRPS_SCOPE],
       });
     } catch (err) {
-      console.error('[ltiResolveNames] NRPS token mint failed:', err);
+      console.error('[ltiResolveNames] NRPS token mint failed:', safeErr(err));
       throw new HttpsError(
         'internal',
         'Could not authorize the roster service.'
@@ -510,7 +523,10 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
         }
       } catch (err) {
         contextsFailed += 1;
-        console.warn(`[ltiResolveNames] context ${doc.id} fetch failed:`, err);
+        console.warn(
+          `[ltiResolveNames] context ${doc.id} fetch failed:`,
+          safeErr(err)
+        );
       }
     }
 

@@ -4,6 +4,7 @@ import {
   canonicalBuildingIdServer,
   canonicalizeBuildingIdsServer,
 } from '../buildingIds';
+import { isExcludedFrom } from '../permissionExclusion';
 import { WIDGET_CONFIG_RUNTIME } from './widgetConfigRuntime.gen';
 import { WIDGET_TYPE_LIST } from './widgetTypeList';
 import { checkWidgetSettings, hasWidgetSchema } from './widgetConfigValidator';
@@ -89,8 +90,8 @@ export async function canUseWidget(
     reason: 'no-access',
     message: `This teacher doesn't have the "${type}" widget`,
   };
-  // Lazy: quizMediaArchive pulls heavy deps the other tools don't need.
-  const archive = await import('../quizMediaArchive');
+  // Lazy: only gated widget types need the feature checks.
+  const archive = await import('../featureGrant');
   if (
     type === 'routineGuide' &&
     !(await archive.isGlobalFeatureGranted(
@@ -123,6 +124,7 @@ export async function canUseWidget(
       reason: 'disabled',
       message: `The "${type}" widget is turned off in this district`,
     };
+  if (isExcludedFrom(perm, ctx.email)) return noAccess;
   if (ctx.isAdmin) return { ok: true };
   if (perm.accessLevel === 'beta') {
     const betaUsers = Array.isArray(perm.betaUsers) ? perm.betaUsers : [];

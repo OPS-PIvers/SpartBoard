@@ -47,6 +47,9 @@ export interface BuildingGroupDeps {
 /** Users added in one transaction; keeps each write well under the doc and request limits. */
 export const ROSTER_CHUNK = 150;
 
+/** Staff accounts vetted at once during a backfill. */
+const BACKFILL_LOOKUP_CONCURRENCY = 10;
+
 // ── Pure helpers ─────────────────────────────────────────────────────────
 
 /** Buildings gained and lost between two `selectedBuildings` values, canonicalized. */
@@ -467,12 +470,17 @@ export async function rosterBuildingGroup(
   }
 
   const candidates: AccountInfo[] = [];
-  for (const uid of uids) {
-    const user = await deps.getUser(uid);
-    const email = verifiedEmail(user);
-    if (!email) continue;
-    if (!(await isActiveOrgMember(deps.db, orgId, email, uid))) continue;
-    candidates.push({ uid, email, displayName: user?.displayName ?? '' });
+  for (const part of chunk(uids, BACKFILL_LOOKUP_CONCURRENCY)) {
+    const found = await Promise.all(
+      part.map(async (uid): Promise<AccountInfo | null> => {
+        const user = await deps.getUser(uid);
+        const email = verifiedEmail(user);
+        if (!email) return null;
+        if (!(await isActiveOrgMember(deps.db, orgId, email, uid))) return null;
+        return { uid, email, displayName: user?.displayName ?? '' };
+      })
+    );
+    for (const account of found) if (account) candidates.push(account);
   }
   if (candidates.length === 0) return 0;
   return addToGroup(deps, plcId, candidates, 'backfill');

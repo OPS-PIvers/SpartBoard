@@ -1,3 +1,4 @@
+import { countTextBlanks } from './quizFibBlanks';
 /**
  * Student-side application of a `StudentOverride` to a quiz session's public
  * questions (M17 spec §5 C3). Kept out of `QuizStudentApp.tsx` so the subset
@@ -49,6 +50,54 @@ export function applyHiddenOptions(
   return reindexChoiceArray(question, 'choices', kept);
 }
 
+/** The teacher's modified prompt in place of the original, in every language until it has its own translation. */
+export function applyModifiedWording(
+  question: QuizPublicQuestion,
+  on: boolean | undefined
+): QuizPublicQuestion {
+  const text = question.modifiedText;
+  if (!on || !text) return question;
+  // Fill-in-the-blank wording must keep the same blanks, or the boxes misnumber.
+  if (
+    question.type === 'FIB' &&
+    countTextBlanks(text) !== countTextBlanks(question.text)
+  )
+    return question;
+  const localized = question.localized
+    ? Object.fromEntries(
+        Object.entries(question.localized).map(([loc, strings]) => [
+          loc,
+          { ...strings, text },
+        ])
+      )
+    : undefined;
+  return { ...question, text, ...(localized ? { localized } : {}) };
+}
+
+/** The modified rubric in place of the original, in every language until it has its own translation. */
+export function applyModifiedRubric(
+  question: QuizPublicQuestion,
+  on: boolean | undefined
+): QuizPublicQuestion {
+  const rubric = question.modifiedRubricSnapshot;
+  if (!on || !rubric || !question.rubricSnapshot) return question;
+  const localized = question.localized
+    ? Object.fromEntries(
+        Object.entries(question.localized).map(([loc, strings]) => [
+          loc,
+          strings.rubricSnapshot
+            ? { ...strings, rubricSnapshot: rubric }
+            : strings,
+        ])
+      )
+    : undefined;
+  return {
+    ...question,
+    rubricSnapshot: rubric,
+    ...(localized ? { localized } : {}),
+  };
+}
+
 const LOCALIZED_ARRAY_FIELDS = [
   'choices',
   'matchingLeft',
@@ -70,7 +119,7 @@ export function serveLocalizedQuestion(
   const entry = q.localized?.[locale];
   if (!entry) return null;
   // An empty stem is a half-translation; the server rejects it too.
-  if (!entry.text?.trim()) return null;
+  if (!entry.text?.trim() && q.text.trim()) return null;
   // Whole-question fallback (§4.6): a translated stem over English options is worse than English.
   for (const field of LOCALIZED_ARRAY_FIELDS) {
     if (q[field]?.length && !entry[field]?.length) return null;

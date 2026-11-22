@@ -337,15 +337,25 @@ describe('quizSessionWrite patches', () => {
     expect(
       (write?.patch.questionPhase as FieldValue).isEqual(deleteField())
     ).toBe(true);
+    expect(
+      (write?.patch.revealedAnswers as FieldValue).isEqual(deleteField())
+    ).toBe(true);
   });
 
-  it('writes the shared end patch for End', () => {
-    expect(
-      quizSessionWrite(SESSIONS.pausedQuestion, { type: 'end' }, NOW)
-    ).toEqual({
-      patch: { status: 'ended', endedAt: NOW, autoProgressAt: null },
-      finalize: true,
+  it('writes the shared end patch for End and drops the answer reveals', () => {
+    const write = quizSessionWrite(
+      SESSIONS.pausedQuestion,
+      { type: 'end' },
+      NOW
+    );
+    expect(write?.finalize).toBe(true);
+    const { revealedAnswers, ...rest } = write?.patch ?? {};
+    expect(rest).toEqual({
+      status: 'ended',
+      endedAt: NOW,
+      autoProgressAt: null,
     });
+    expect((revealedAnswers as FieldValue).isEqual(deleteField())).toBe(true);
   });
 
   it('arms auto-advance five seconds out, with review when podium is on', () => {
@@ -615,5 +625,36 @@ describe('sameQuizSessionPhase', () => {
     ).toBe(false);
     expect(sameQuizSessionPhase(null, null)).toBe(true);
     expect(sameQuizSessionPhase(mustPhase(SESSIONS.lobby), null)).toBe(false);
+  });
+});
+
+describe('podium is a Review game feature only', () => {
+  it('advances a Quiz-kind teacher-paced session without a podium pause', () => {
+    const quiz = fields({
+      widgetKind: 'quiz',
+      showPodiumBetweenQuestions: true,
+    });
+    const write = quizSessionWrite(quiz, { type: 'advance' }, NOW);
+    expect(write?.patch.questionPhase).not.toBe('reviewing');
+    expect(write?.patch.currentQuestionIndex).toBe(1);
+  });
+
+  it('never arms a podium on a Quiz-kind auto session', () => {
+    const quiz = fields({
+      widgetKind: 'quiz',
+      sessionMode: 'auto',
+      showPodiumBetweenQuestions: true,
+    });
+    const write = quizSessionWrite(quiz, { type: 'everyoneAnswered' }, NOW);
+    expect(write?.patch.questionPhase).toBeUndefined();
+  });
+
+  it('keeps the podium on a Review session', () => {
+    const review = fields({
+      widgetKind: 'review',
+      showPodiumBetweenQuestions: true,
+    });
+    const write = quizSessionWrite(review, { type: 'advance' }, NOW);
+    expect(write?.patch.questionPhase).toBe('reviewing');
   });
 });

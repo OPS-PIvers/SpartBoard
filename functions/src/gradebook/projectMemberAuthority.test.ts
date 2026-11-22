@@ -41,6 +41,7 @@ import { computeStudentUid } from '../classlinkShared';
 import {
   __resetClassLinkSweepCache,
   loadClassStudentUids,
+  loadTaughtClassStudentUids,
 } from './projectMemberAuthority';
 import { RosterUnavailableError } from './rosterUnavailable';
 import {
@@ -69,6 +70,91 @@ beforeEach(() => {
   loadTestClassMembership.mockReset().mockResolvedValue(noTestClasses);
   vi.mocked(logger.warn).mockClear();
   vi.mocked(logger.error).mockClear();
+});
+
+describe('loadTaughtClassStudentUids', () => {
+  it('asks ClassLink for the one class, so only its students under a teacher of it count', async () => {
+    loadClassLinkMembership.mockResolvedValue(new Map([['s1', 'class-1']]));
+    const { uids, degraded } = await loadTaughtClassStudentUids(
+      db,
+      'owner',
+      'class-1'
+    );
+    expect(loadClassLinkMembership).toHaveBeenCalledWith(
+      't@school.edu',
+      ['class-1'],
+      'id',
+      'secret',
+      'https://tenant.example'
+    );
+    expect(uids).toEqual(new Set([uidOf('s1')]));
+    expect(degraded).toBeNull();
+  });
+
+  it('returns nothing for a class the owner does not teach', async () => {
+    const { uids, degraded } = await loadTaughtClassStudentUids(
+      db,
+      'attacker',
+      'class-1'
+    );
+    expect(uids.size).toBe(0);
+    expect(degraded).toBeNull();
+  });
+
+  it('reads only the named test class, and only for a test-class authority', async () => {
+    loadTestClassMembership.mockResolvedValue({
+      membership: new Map([['kid@school.edu', 'slug']]),
+      authorized: true,
+    });
+    const { uids } = await loadTaughtClassStudentUids(db, 'owner', 'slug');
+    expect(loadTestClassMembership).toHaveBeenCalledWith(db, 't@school.edu', [
+      'slug',
+    ]);
+    expect(uids).toEqual(new Set([testUidOf('kid@school.edu')]));
+    expect(loadClassLinkMembership).not.toHaveBeenCalled();
+  });
+
+  it('flags an empty answer as degraded when the test class read failed', async () => {
+    loadTestClassMembership.mockResolvedValue({
+      membership: new Map(),
+      authorized: true,
+      readFailed: new Error('deadline exceeded'),
+    });
+    const { uids, degraded } = await loadTaughtClassStudentUids(
+      db,
+      'owner',
+      'slug'
+    );
+    expect(uids.size).toBe(0);
+    expect(degraded?.message).toContain('deadline exceeded');
+    loadClassLinkMembership.mockResolvedValue(new Map([['s1', 'slug']]));
+    expect(
+      (await loadTaughtClassStudentUids(db, 'owner', 'slug')).degraded
+    ).toBeNull();
+  });
+
+  it('never vouches for local, LMS or empty class ids', async () => {
+    for (const id of ['', 'local:r1', 'classroom:123', 'schoology:9'])
+      expect(
+        (await loadTaughtClassStudentUids(db, 'owner', id)).uids.size
+      ).toBe(0);
+    expect(getUser).not.toHaveBeenCalled();
+  });
+
+  it('flags a ClassLink failure as degraded and an unverified owner as nobody', async () => {
+    loadClassLinkMembership.mockRejectedValue(new Error('503'));
+    const { uids, degraded } = await loadTaughtClassStudentUids(
+      db,
+      'owner',
+      'class-1'
+    );
+    expect(uids.size).toBe(0);
+    expect(degraded).toBeInstanceOf(RosterUnavailableError);
+    getUser.mockResolvedValue({ email: 't@school.edu', emailVerified: false });
+    expect(
+      (await loadTaughtClassStudentUids(db, 'owner', 'class-1')).degraded
+    ).toBeNull();
+  });
 });
 
 describe('loadClassStudentUids', () => {
@@ -336,7 +422,7 @@ describe('drainDirtySessions when the class roster is unavailable', () => {
     }
     const queued = stub.get('grade_index_sessions/projects__t1_p1');
     expect(queued?.unavailable).toBe(8);
-    expect(queued?.failures).toBeUndefined();
+    expect(queued?.failures ?? 0).toBe(0);
   });
 
   it('moves dirtyAt to retryAt so a backed-off entry sorts behind newer work', async () => {

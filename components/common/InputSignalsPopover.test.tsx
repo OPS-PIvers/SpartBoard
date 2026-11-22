@@ -47,4 +47,15 @@ describe('InputSignalsBadge', () => {
     ).toBe('input');
     expect(screen.getByText('Unusual input')).toBeTruthy();
   });
+
+  it('lists dictated characters as a plain line, never as a sign', () => {
+    renderBadge({
+      '0': {
+        q1: { pastes: 1, pastedChars: 40, dictatedChars: 1200 },
+        q2: { dictatedChars: 34 },
+      },
+    });
+    expect(screen.getByText('Dictated characters: 1,234')).toBeTruthy();
+    expect(screen.getByText('1 sign')).toBeTruthy();
+  });
 });

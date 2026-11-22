@@ -12,7 +12,7 @@ import {
 } from './meetingTools';
 
 const granted = vi.hoisted(() => ({ value: true }));
-vi.mock('../quizMediaArchive', () => ({
+vi.mock('../featureGrant', () => ({
   isGlobalFeatureGranted: vi.fn(() => Promise.resolve(granted.value)),
 }));
 

@@ -1,0 +1,1 @@
+claude/backlog-ab-108-20261120 (AB-108: org create rule pins the Claude sign-in issuer shape)

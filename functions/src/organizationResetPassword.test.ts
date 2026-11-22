@@ -140,12 +140,9 @@ function buildFirestoreStub(opts: {
   mailSet?: ReturnType<typeof vi.fn>;
   callerRole?: string;
   targetRole?: string;
-  legacySuperAdmins?: string[];
   callerEmail?: string;
   // Caller's operator-org roleId for isStrictSuperAdmin(); null = no operator membership.
   callerOperatorRole?: string | null;
-  // Target's operator-org member status; undefined = no status field.
-  targetStatus?: string;
   verifiedDomains?: Record<string, string | string[]>;
 }) {
   const mailSet = opts.mailSet ?? vi.fn().mockResolvedValue(undefined);
@@ -160,14 +157,11 @@ function buildFirestoreStub(opts: {
       ? (callerDoc.data().roleId as string)
       : (targetDoc.data().roleId as string);
   return {
-    // isStrictSuperAdmin(): operator-org member doc and legacy user_roles list.
+    // isStrictSuperAdmin() reads the operator-org member doc.
     doc: (path: string) => ({
       get: () => {
         if (path === 'admin_settings/user_roles') {
-          return Promise.resolve({
-            exists: true,
-            get: () => opts.legacySuperAdmins ?? [],
-          });
+          throw new Error('the retired legacy list must not be read');
         }
         const email = path.split('/').pop() ?? '';
         if (email === callerEmail && opts.callerOperatorRole !== undefined) {
@@ -179,12 +173,7 @@ function buildFirestoreStub(opts: {
         }
         return Promise.resolve({
           exists: true,
-          get: (k: string) =>
-            k === 'status'
-              ? email === callerEmail
-                ? undefined
-                : opts.targetStatus
-              : roleOf(email),
+          get: (k: string) => (k === 'status' ? undefined : roleOf(email)),
         });
       },
     }),
@@ -387,31 +376,15 @@ describe('resetOrganizationUserPassword — role check on the target', () => {
     expect(generatePasswordResetLinkMock).not.toHaveBeenCalled();
   });
 
-  it('domain admin cannot reset a legacy-list super admin', async () => {
+  it('domain admin can reset a domain admin without reading the retired legacy list', async () => {
     firestoreMock.mockReturnValue(
       buildFirestoreStub({
         emailEnabled: false,
         callerRole: 'domain_admin',
         targetRole: 'domain_admin',
-        legacySuperAdmins: ['boss@orono.k12.mn.us'],
       })
     );
-    await expect(call()).rejects.toMatchObject({ code: 'permission-denied' });
-    expect(generatePasswordResetLinkMock).not.toHaveBeenCalled();
-  });
-
-  it('domain admin still cannot reset a deactivated legacy-list super admin', async () => {
-    firestoreMock.mockReturnValue(
-      buildFirestoreStub({
-        emailEnabled: false,
-        callerRole: 'domain_admin',
-        targetRole: 'domain_admin',
-        targetStatus: 'inactive',
-        legacySuperAdmins: ['boss@orono.k12.mn.us'],
-      })
-    );
-    await expect(call()).rejects.toMatchObject({ code: 'permission-denied' });
-    expect(generatePasswordResetLinkMock).not.toHaveBeenCalled();
+    await expect(call()).resolves.toMatchObject({ sent: false });
   });
 
   it('super admin can reset a super_admin member', async () => {
@@ -425,18 +398,6 @@ describe('resetOrganizationUserPassword — role check on the target', () => {
     await expect(call()).resolves.toMatchObject({ sent: false });
   });
 
-  it('legacy-list super admin with a domain_admin member doc can reset a super admin', async () => {
-    firestoreMock.mockReturnValue(
-      buildFirestoreStub({
-        emailEnabled: false,
-        callerRole: 'domain_admin',
-        targetRole: 'super_admin',
-        legacySuperAdmins: ['admin@orono.k12.mn.us'],
-      })
-    );
-    await expect(call()).resolves.toMatchObject({ sent: false });
-  });
-
   it("another org's super_admin cannot reset a super admin on its own domain", async () => {
     firestoreMock.mockReturnValue(
       buildFirestoreStub({
@@ -444,8 +405,7 @@ describe('resetOrganizationUserPassword — role check on the target', () => {
         callerEmail: 'admin@district-b.org',
         callerRole: 'super_admin',
         callerOperatorRole: null,
-        targetRole: 'domain_admin',
-        legacySuperAdmins: ['boss@district-b.org'],
+        targetRole: 'super_admin',
         verifiedDomains: { '@district-b.org': 'district-b' },
       })
     );

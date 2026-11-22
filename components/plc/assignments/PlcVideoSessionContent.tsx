@@ -38,6 +38,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 import type { VideoActivitySession } from '@/types';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { markVideoRunClosed } from '@/components/widgets/VideoActivityWidget/videoActivityLifecycle';
 import { useDashboard } from '@/context/useDashboard';
 import { useVideoActivitySessionTeacher } from '@/hooks/useVideoActivitySession';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
@@ -62,6 +63,7 @@ export const PlcVideoSessionContent: React.FC<PlcVideoSessionContentProps> = ({
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const uid = user?.uid;
   const { addToast } = useDashboard();
   const {
     assignments,
@@ -143,6 +145,11 @@ export const PlcVideoSessionContent: React.FC<PlcVideoSessionContentProps> = ({
   const handleEnd = useCallback(async () => {
     try {
       await deactivateAssignment(assignmentId);
+      // An End is a Close, so the Assigned row keeps its grading hold (ASSIGNED_TAB D24).
+      if (uid)
+        await markVideoRunClosed(uid, assignmentId).catch((err: unknown) =>
+          console.error('Close mark failed', err)
+        );
       addToast(
         t('plcDashboard.assignmentSession.videoEnded', {
           defaultValue: 'Assignment ended.',
@@ -161,7 +168,7 @@ export const PlcVideoSessionContent: React.FC<PlcVideoSessionContentProps> = ({
       return;
     }
     onClose();
-  }, [deactivateAssignment, assignmentId, addToast, t, onClose]);
+  }, [deactivateAssignment, assignmentId, addToast, t, onClose, uid]);
 
   const handlePause = useCallback(async () => {
     try {

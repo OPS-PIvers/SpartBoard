@@ -112,7 +112,7 @@ await scan(db.collectionGroup('plc_state'), (d) =>
   intCheck('users/*/plc_state', d)
 );
 
-// (3) legacy superAdmins without an active super_admin member doc.
+// (3) legacy superAdmins without an active super_admin member doc; the one deliberate reader of the retired list, kept for the pre-release prod check.
 const roles = await db.doc('admin_settings/user_roles').get();
 const legacyList = roles.exists ? (roles.data().superAdmins ?? []) : [];
 const three = {

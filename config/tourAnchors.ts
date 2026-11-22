@@ -32,7 +32,7 @@ export interface TourAnchorDef {
   closes?: string;
   /** One element per row of a list, so a step can bind `#row-*` to whichever row the teacher picks. */
   rows?: true;
-  /** The list its `row-N` keys count in; a later step keyed to a row follows the row picked on that list. */
+  /** The list its `row-N` keys count in, by key or by place on the page; a later step keyed to a row follows the row picked on that list. */
   rowList?: string;
 }
 
@@ -886,6 +886,38 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'agenda.pick-course': {
+    label: 'A course in the Agenda course list',
+    perWidget: true,
+  },
+  'agenda.picker-back': {
+    label: 'Back button in the Agenda course list',
+    perWidget: true,
+  },
+  'agenda.change-course': {
+    label: 'Change course button in Agenda',
+    perWidget: true,
+  },
+  'agenda.reload': {
+    label: 'Reload agenda button in Agenda',
+    perWidget: true,
+  },
+  'agenda.open-slides': {
+    label: 'Open in Google Slides button in Agenda',
+    perWidget: true,
+  },
+  'agenda.set-up': {
+    label: 'Set up in My Classes button in Agenda',
+    perWidget: true,
+  },
+  'agenda.fix-sharing': {
+    label: 'Fix in My Classes button on the Agenda sharing notice',
+    perWidget: true,
+  },
+  'agenda.open-classes': {
+    label: 'Open My Classes button in Agenda',
+    perWidget: true,
+  },
   'focus.class': {
     label: 'Class picker in Focus',
     perWidget: true,
@@ -1161,6 +1193,10 @@ export const TOUR_ANCHORS = {
     label: 'Classes step header in the Assign dialog',
     panel: true,
   },
+  'assign-step.modifications': {
+    label: 'Modifications step header in the Assign dialog',
+    panel: true,
+  },
   'assign-step.when': {
     label: 'When step header in the Assign dialog',
     panel: true,
@@ -1174,7 +1210,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'assign-step.feedback': {
-    label: 'Feedback step header in the Assign dialog',
+    label: 'Results or What students see step header in the Assign dialog',
     panel: true,
   },
   'assign-step.video': {
@@ -1205,8 +1241,13 @@ export const TOUR_ANCHORS = {
     label: 'Written answers step header in the Quiz Assign dialog',
     panel: true,
   },
+  'assign-step.writing': {
+    label: 'Writing rules step header in the Writing Assign dialog',
+    panel: true,
+  },
   'assign-step.sharing': {
-    label: 'Sharing step header in the Assign dialog',
+    label:
+      'Sharing step header in the Assign dialog (Additional settings and sharing in Quiz)',
     panel: true,
   },
   'assign-step.continue': {
@@ -1317,6 +1358,24 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'assign-classes',
   },
+  'assign-classes.course': {
+    label: 'Course checkbox in the Assign dialog class list',
+    perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
+    panel: true,
+    rows: true,
+    rowList: 'assign-classes',
+  },
+  'assign-classes.course-expand': {
+    label: 'Show the sections in a Course in the Assign dialog class list',
+    perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
+    panel: true,
+    rows: true,
+    rowList: 'assign-classes',
+  },
   'assign-classes.select-all': {
     label: 'Select all button in the Assign dialog class list',
     panel: true,
@@ -1341,6 +1400,8 @@ export const TOUR_ANCHORS = {
     label: 'Group button in the Assign dialog students menu',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'assign-students-group',
   },
   'assign-students.option': {
     label: 'Student checkbox in the Assign dialog students menu',
@@ -1348,6 +1409,8 @@ export const TOUR_ANCHORS = {
     keyPattern: 'assign#row-[1-9]\\d*',
     keyHint: 'assign#row-1 for the first row',
     panel: true,
+    rows: true,
+    rowList: 'assign-students-options',
   },
   'assign-students.all': {
     label: 'All students button in the Assign dialog students menu',
@@ -1468,6 +1531,129 @@ export const TOUR_ANCHORS = {
     label: 'Card list in the Flashcards assign Cards step',
     panel: true,
   },
+  'assign-mods.students': {
+    label: 'Students menu for a modification group in the Assign dialog',
+    panel: true,
+  },
+  'assign-mods.students-search': {
+    label: 'Search box in the modification group Students menu',
+    panel: true,
+  },
+  'assign-mods.student': {
+    label: 'Student checkbox in the modification group Students menu',
+    perField: true,
+    panel: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
+    rows: true,
+    rowList: 'assign-mods-students',
+  },
+  'assign-mods.students-clear': {
+    label: 'Clear button in the modification group Students menu',
+    panel: true,
+  },
+  'assign-mods.students-done': {
+    label: 'Done button that closes the modification group Students menu',
+    panel: true,
+  },
+  'assign-mods.class-group': {
+    label: 'Class group button in the modification group Students menu',
+    perField: true,
+    panel: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
+    rows: true,
+    rowList: 'assign-mods-class-groups',
+  },
+  'assign-mods.answer-choices': {
+    label: 'Answer choices rule for a modification group',
+    panel: true,
+  },
+  'assign-mods.time': {
+    label: 'Time limit rule for a modification group',
+    panel: true,
+  },
+  'assign-mods.read-aloud': {
+    label: 'Read aloud switch for a modification group',
+    panel: true,
+  },
+  'assign-mods.speech-to-text': {
+    label: 'Speech to text switch for a modification group',
+    panel: true,
+  },
+  'assign-mods.printed': {
+    label: 'Printed version switch for a modification group',
+    panel: true,
+  },
+  'assign-mods.language': {
+    label: 'Language dropdown for a modification group',
+    panel: true,
+  },
+  'assign-mods.group': {
+    label: 'Closed modification group row in the Assign dialog',
+    perField: true,
+    panel: true,
+  },
+  'assign-mods.add-group': {
+    label: 'Another group with different changes button in the Assign dialog',
+    panel: true,
+  },
+  'assign-mods.modified-questions': {
+    label: 'Modified questions switch for a modification group',
+    panel: true,
+  },
+  'assign-mods.supports-add': {
+    label: 'Add support button for a modification group',
+    panel: true,
+  },
+  'assign-mods.supports-kind': {
+    label: 'Text, Link or File choice in the Add support menu',
+    perField: true,
+    panel: true,
+  },
+  'assign-mods.support-title': {
+    label: 'Support title field for a modification group',
+    panel: true,
+  },
+  'assign-mods.support-body': {
+    label: 'Support text or link field for a modification group',
+    panel: true,
+  },
+  'assign-mods.support-save': {
+    label: 'Add button that saves a new support',
+    panel: true,
+  },
+  'assign-mods.support-cancel': {
+    label: 'Cancel button for a new support',
+    panel: true,
+  },
+  'assign-mods.support-file-choose': {
+    label: 'Choose file button for a file support',
+    panel: true,
+  },
+  'assign-mods.support-file-drive': {
+    label: 'Choose from Drive button for a file support',
+    panel: true,
+  },
+  'assign-mods.support-file-url': {
+    label: 'Paste a link field for a file support',
+    panel: true,
+  },
+  'assign-mods.support-file-url-add': {
+    label: 'Add button for a pasted file link',
+    panel: true,
+  },
+  'assign-mods.support-remove': {
+    label: 'Remove support button for a modification group',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'assign-mods.remove-group': {
+    label: 'Remove group button in the Assign dialog Modifications step',
+    destructive: true,
+    panel: true,
+  },
   'assign-mods.open': {
     label: 'Modifications link in the Assign dialog',
     panel: true,
@@ -1556,16 +1742,21 @@ export const TOUR_ANCHORS = {
     label: 'Remove student button in the Choose students window',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'assign-students-legacy-remove-selected',
   },
   'assign-students-legacy.roster': {
     label: 'Class button in the Choose students window',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'assign-students-legacy-rosters',
   },
   'assign-students-legacy.group': {
     label: 'Group button in the Choose students window',
     perField: true,
     panel: true,
+    rowList: 'assign-students-legacy-rosters',
   },
   'assign-students-legacy.search': {
     label: 'Search students box in the Choose students window',
@@ -1579,6 +1770,8 @@ export const TOUR_ANCHORS = {
     label: 'Student checkbox in the Choose students window',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'assign-students-legacy-student',
   },
   'assign-students-legacy.switch-roster': {
     label: 'Choose another class button in the Choose students window',
@@ -1614,6 +1807,7 @@ export const TOUR_ANCHORS = {
     perField: true,
     destructive: true,
     panel: true,
+    rowList: 'assign-targeting-remove-student',
   },
   'assign-availability.date': {
     label: 'Opens or Closes date box in the Assign window availability',
@@ -1660,6 +1854,8 @@ export const TOUR_ANCHORS = {
     label: 'Which period is this class dropdown in the Assign window',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'assign-periods-untagged',
   },
   'assign-periods.selector-close': {
     label: 'Close button in the Class Periods popup',
@@ -1669,6 +1865,8 @@ export const TOUR_ANCHORS = {
     label: 'Class period checkbox in the Class Periods popup',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'assign-periods-selector-period',
   },
   'assign-periods.selector-cancel': {
     label: 'Cancel button in the Class Periods popup',
@@ -1825,7 +2023,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'editor.close': {
-    label: 'Close or Cancel button in an editor dialog footer',
+    label: 'Close button or footer Cancel button in an editor dialog',
     perWidgetType: true,
     panel: true,
     closes: 'own',
@@ -1890,6 +2088,16 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.explanation': {
     label: 'Explanation box in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified': {
+    label: 'Modified version row under Learning targets in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified-text': {
+    label: 'Modified version wording box in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -2040,6 +2248,22 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.modified-rubric-attach': {
+    label: 'Modified rubric: Attach in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified-rubric-edit': {
+    label: 'Modified rubric: Edit in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified-rubric-detach': {
+    label: 'Modified rubric: Detach in the Quiz editor',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
   'quiz-editor.fib-answer': {
     label: 'Correct answer input (FIB / short answer) in the Quiz editor',
     perWidgetType: true,
@@ -2058,11 +2282,6 @@ export const TOUR_ANCHORS = {
   'quiz-editor.ai-count-inc': {
     label: 'AI question count + in the Quiz editor',
     perField: true,
-    panel: true,
-  },
-  'quiz-editor.footer-draft-ai': {
-    label: 'Draft with AI (modal footer) in the Quiz editor',
-    perWidgetType: true,
     panel: true,
   },
   'quiz-editor.bank-targets-add': {
@@ -2479,6 +2698,68 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.prompt-number': {
+    label: 'Number link on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-new-numbers': {
+    label: 'New numbers button on a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-from': {
+    label: 'From field of a random number in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-to': {
+    label: 'To field of a random number in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-decimals': {
+    label: 'Decimals field of a random number in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-remove': {
+    label: 'Remove button of a random number in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-formula': {
+    label: 'Formula answer of a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-tolerance': {
+    label: 'Accept within field of a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-tolerance-kind': {
+    label:
+      'Percent or plus-or-minus switch of a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-round': {
+    label: 'Round to field of a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-unit': {
+    label: 'Unit field of a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-modified-answer': {
+    label:
+      'Modified answer field of a random-number question whose modified version has typed numbers',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.prompt-equation': {
     label: 'Equation link on the question prompt in the Quiz editor',
     perWidgetType: true,
@@ -2523,6 +2804,37 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.prompt-numbers': {
     label: 'Numbered list button on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-record-audio': {
+    label: 'Record audio button on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-stop': {
+    label:
+      'Stop recording button in the question audio popover in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-play': {
+    label: 'Play button for the recorded question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-rerecord': {
+    label: 'Record again button for the question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-replays': {
+    label: 'Replays limit for the question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-remove': {
+    label: 'Remove button for the question audio in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -2573,12 +2885,15 @@ export const TOUR_ANCHORS = {
     panel: true,
     persists: true,
     destructive: true,
+    rowList: 'quiz-banks-picker-rows',
   },
   'quiz-banks.picker-source': {
     label:
       'Bank source row (My banks or Shared with me) in Quiz banks, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-banks-picker-rows',
   },
   'quiz-banks.picker-mode': {
     label: 'Mode tabs - Pick questions or Random draw in Quiz banks, by item',
@@ -2614,6 +2929,8 @@ export const TOUR_ANCHORS = {
     label: 'Question checkbox in Quiz banks, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-banks-picker-question-check',
   },
   'quiz-banks.picker-count': {
     label: 'Questions per attempt input in Quiz banks',
@@ -2640,17 +2957,22 @@ export const TOUR_ANCHORS = {
       'Slot row click (selects slot; clickable div) in Quiz banks, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-banks-slot-rows',
   },
   'quiz-banks.slot-drag': {
     label: 'Drag handle in Quiz banks, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-banks-slot-rows',
   },
   'quiz-banks.slot-remove-icon': {
     label: 'Remove bank slot in Quiz banks, by item',
     perField: true,
     destructive: true,
     panel: true,
+    rowList: 'quiz-banks-slot-rows',
   },
   'quiz-banks.slot-count': {
     label: 'Questions per attempt input in Quiz banks',
@@ -2677,6 +2999,8 @@ export const TOUR_ANCHORS = {
     label: 'Target filter tag chips in Quiz banks, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-banks-target-filter-tag',
   },
   'quiz-banks.target-filter-clear': {
     label: 'Clear target filter in Quiz banks',
@@ -2720,11 +3044,15 @@ export const TOUR_ANCHORS = {
     label: 'Bank row checkbox in Quiz import, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-import-cartridge-row-rows',
   },
   'quiz-import.cartridge-row-expand': {
     label: 'Show or hide questions in a bank in Quiz import, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-import-cartridge-row-rows',
   },
   'quiz-import.cartridge-share-pictures': {
     label: 'Share pictures checkbox in Quiz import',
@@ -2788,22 +3116,29 @@ export const TOUR_ANCHORS = {
     label: 'Item checkbox in From Schoology review, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-import-schoology-row-rows',
   },
   'quiz-import.schoology-row-expand': {
     label: 'Show or hide questions in From Schoology review, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-import-schoology-row-rows',
   },
   'quiz-import.schoology-row-mode': {
     label: 'Update or keep both in From Schoology review, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-import-schoology-row-rows',
   },
   'quiz-import.schoology-row-discard': {
     label: 'Discard an item in From Schoology review, by item',
     perField: true,
     destructive: true,
     panel: true,
+    rowList: 'quiz-import-schoology-row-rows',
   },
   'quiz-import.schoology-share-pictures': {
     label: 'Share pictures checkbox in From Schoology review',
@@ -2868,6 +3203,8 @@ export const TOUR_ANCHORS = {
     label: 'Answer key select in Quiz import, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-import-paper-rows',
   },
   'quiz-import.paper-key-confirm': {
     label: 'Key confirmed checkbox in Quiz import',
@@ -2883,6 +3220,8 @@ export const TOUR_ANCHORS = {
     label: 'Tag or Edit in Quiz import, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-import-paper-rows',
   },
   'quiz-import.paper-seat-student': {
     label: 'Student-for-seat select in Quiz import, by item',
@@ -3012,12 +3351,16 @@ export const TOUR_ANCHORS = {
     label: 'Preview on a shared bank row in Quiz banks, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-banks-shared',
   },
   'quiz-banks.district-preview': {
     label:
       'Preview on a District library bank row in the Quiz library, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-banks-district',
   },
   'quiz-import.review-only-flagged': {
     label: 'Show only flagged rows in Quiz import',
@@ -3028,11 +3371,15 @@ export const TOUR_ANCHORS = {
     label: 'Include question checkbox in Quiz import, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-import-review-rows',
   },
   'quiz-import.review-question-text': {
     label: 'Question text textarea in Quiz import, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-import-review-rows',
   },
   'quiz-import.review-choice-correct': {
     label: 'Correct-choice checkbox in Quiz import, by item',
@@ -3054,6 +3401,8 @@ export const TOUR_ANCHORS = {
     label: 'Link picture select in Quiz import, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-import-review-rows',
   },
   'quiz-import.versions-quiz-create': {
     label: 'Create quiz checkbox in Quiz import versions, by item',
@@ -3084,6 +3433,8 @@ export const TOUR_ANCHORS = {
     label: 'Unlink or link a shared picture in Quiz import versions, by item',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-import-versions-picture-link',
   },
   'quiz-import.key-standards-add-all': {
     label: 'Add N standards (all key standards) in Quiz import',
@@ -3111,6 +3462,8 @@ export const TOUR_ANCHORS = {
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-import-targets-add-one',
   },
   'quiz-banks.save-close': {
     label: 'Close in Quiz banks',
@@ -3268,6 +3621,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-reprint.group': {
+    label: 'Group checkbox when printing paper copies again',
+    perField: true,
+    panel: true,
+  },
   'quiz-reprint.student': {
     label: 'Student checkbox when printing response sheets again',
     perField: true,
@@ -3335,11 +3693,13 @@ export const TOUR_ANCHORS = {
     label: 'Show the key radios in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-layout': {
     label: 'Layout radios in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-more-options': {
     label: 'More print options disclosure in the Quiz widget',
@@ -3350,11 +3710,13 @@ export const TOUR_ANCHORS = {
     label: 'Option toggles from TOGGLES map in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-preset': {
     label: 'Preset chips (radio group) in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-print': {
     label: 'Print results Print in the Quiz widget',
@@ -3366,6 +3728,7 @@ export const TOUR_ANCHORS = {
     label: 'Report choice cards (radio group) in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-every-attempt': {
     label: 'Every attempt switch in the results print in the Quiz widget',
@@ -3381,6 +3744,46 @@ export const TOUR_ANCHORS = {
     label: 'Per-student checkbox in the Quiz widget',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-print-results-student-select',
+  },
+  'quiz-print.results-tab': {
+    label: 'Settings and Students tabs in the Quiz print results',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.results-clear': {
+    label: 'Clear the student picks in the Quiz print results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.results-course': {
+    label: 'Course checkbox in the Quiz print results student list',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'quiz-print-results-groups',
+  },
+  'quiz-print.results-course-expand': {
+    label: 'Show the sections in a Course in the Quiz print results',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'quiz-print-results-groups',
+  },
+  'quiz-print.results-section': {
+    label: 'Class checkbox in the Quiz print results student list',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'quiz-print-results-groups',
+  },
+  'quiz-print.results-section-expand': {
+    label: 'Show the students in a class in the Quiz print results',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'quiz-print-results-groups',
   },
   'quiz-print.results-written-mode': {
     label: 'Written answers mode radios in the Quiz widget',
@@ -3391,11 +3794,15 @@ export const TOUR_ANCHORS = {
     label: 'Roster expand/collapse in the Quiz widget',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-print-rosters',
   },
   'quiz-print.roster-select': {
     label: 'Roster select-all checkbox in the Quiz widget',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-print-rosters',
   },
   'quiz-print.share-and-print': {
     label: 'Share and print in the Quiz widget',
@@ -3423,6 +3830,8 @@ export const TOUR_ANCHORS = {
     label: 'Quiz image choice in picker in the Quiz widget',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-print-sheet-stimuli-quiz-image',
   },
   'quiz-print.sheet-stimuli-template': {
     label: 'Template picker toggle in the Quiz widget',
@@ -3514,6 +3923,7 @@ export const TOUR_ANCHORS = {
     label: 'Per-student checkbox in the Quiz widget',
     perField: true,
     panel: true,
+    rowList: 'quiz-print-rosters',
   },
   'quiz-print.written-add': {
     label: 'Written answers Add in the Quiz widget',
@@ -3532,6 +3942,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-print.written-box-image': {
     label: 'Written answer custom image select in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.written-box-pages': {
+    label: 'Written box page count in the Quiz widget',
     perField: true,
     panel: true,
   },
@@ -3558,6 +3973,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-stimuli.add-calculator': {
     label: 'Add a calculator in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.add-word-bank': {
+    label: 'Add a word bank in the Quiz widget',
     perWidgetType: true,
     panel: true,
   },
@@ -3596,6 +4016,16 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-stimuli.picker-add': {
+    label: 'Add a stimulus row in the Quiz widget stimulus picker',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.picker-close': {
+    label: 'Close button in the Quiz widget stimulus picker',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-stimuli.attach-toggle': {
     label: 'Attach section Stimuli disclosure in the Quiz widget',
     perWidgetType: true,
@@ -3629,6 +4059,16 @@ export const TOUR_ANCHORS = {
   },
   'quiz-stimuli.passage-text': {
     label: 'Passage textarea in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.word-bank-columns': {
+    label: 'Word bank Columns in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.word-bank-text': {
+    label: 'Word bank textarea in the Quiz widget',
     perField: true,
     panel: true,
   },
@@ -3826,8 +4266,8 @@ export const TOUR_ANCHORS = {
   'quiz-results.student-toggle': {
     label: 'Student row expand button in Quiz results, by row',
     perField: true,
-    keyPattern: 'quiz#\\d+',
-    keyHint: 'quiz#0 for the first student row',
+    rows: true,
+    rowList: 'quiz-results-students',
   },
   'quiz-results.student-unlock': {
     label: 'Unlock results in Quiz results, by position',
@@ -3847,24 +4287,32 @@ export const TOUR_ANCHORS = {
     label: 'Results options menu button in Quiz results, by student',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'quiz-results-students',
   },
   'quiz-results.student-show': {
     label: 'Show results button for a student in Quiz results, by student',
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-results-students',
   },
   'quiz-results.student-hide': {
     label: 'Hide button for a student in Quiz results, by student',
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-results-students',
   },
   'quiz-results.student-follow-class': {
     label: 'Follow class button for a student in Quiz results, by student',
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-results-students',
   },
   'quiz-results.bulk-show': {
     label: 'Show results… in Quiz results',
@@ -3946,6 +4394,14 @@ export const TOUR_ANCHORS = {
   'quiz-results.counted-answers': {
     label: 'Answers that count menu in Quiz results, by section',
     perField: true,
+    rows: true,
+    rowList: 'quiz-results-counted-answers',
+  },
+  'quiz-results.accept-answer': {
+    label:
+      'Accept button beside a missed fill-in-the-blank answer in a student report in Quiz results, by question',
+    perField: true,
+    persists: true,
   },
   'quiz-results.count-instead': {
     label:
@@ -3960,6 +4416,8 @@ export const TOUR_ANCHORS = {
   'quiz-results.target-row-toggle': {
     label: 'Target mastery row expand in Quiz results, by target',
     perField: true,
+    rows: true,
+    rowList: 'quiz-results-target-row-toggle',
   },
   'quiz-results.targets-export-csv': {
     label: 'Export CSV in Quiz results',
@@ -3972,6 +4430,8 @@ export const TOUR_ANCHORS = {
   'quiz-results.targets-sort-target': {
     label: 'Sort by target column in Quiz results, by column',
     perField: true,
+    rows: true,
+    rowList: 'quiz-results-targets-sort-target',
   },
   'quiz-grading.annotate-text': {
     label: 'Annotatable response text in the Quiz grader',
@@ -4279,16 +4739,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'quiz-grading.student-prev': {
-    label: 'Previous student in the Quiz grader',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-grading.student-next': {
-    label: 'Next student in the Quiz grader',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-grading.student-select': {
     label: 'Student row in queue in the Quiz grader, by student',
     perField: true,
@@ -4325,8 +4775,19 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-grading.writing-playback': {
+    label: 'Replay how the student wrote their answer in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-grading.comment': {
     label: 'Teacher comment box in the Quiz grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.excuse': {
+    label: 'Excuse button in the grader',
     perWidgetType: true,
     persists: true,
     panel: true,
@@ -4348,31 +4809,172 @@ export const TOUR_ANCHORS = {
     label: 'Tagged-count jump in the Quiz grader, by criterion',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-grading-rubric-rows',
   },
   'quiz-grading.rubric-note-toggle': {
     label: 'Add / hide note toggle in the Quiz grader, by criterion',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-grading-rubric-rows',
   },
   'quiz-grading.rubric-level': {
     label: 'Rubric level radio in the Quiz grader, by level',
     perField: true,
     panel: true,
   },
+  'quiz-grading.rubric-order': {
+    label:
+      'Rubric level order (highest or lowest first) in the grader rubric settings',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-settings': {
+    label: 'Rubric settings button in the grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-auto-advance': {
+    label: 'Auto-advance to next category switch in the grader rubric settings',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-open-next': {
+    label: 'Auto-open next category switch in the grader rubric settings',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-expand-all': {
+    label: 'Expand or collapse all criteria in the grader rubric',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-view-full': {
+    label: 'View rubric button in the grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-close': {
+    label: 'Close button on the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-order': {
+    label: 'Level order switch on the full rubric table',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-edit': {
+    label: 'Edit button on the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-save': {
+    label: 'Save button when editing the full rubric table',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-cancel': {
+    label: 'Cancel button when editing the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-x': {
+    label: 'Close (X) on the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-add-criterion': {
+    label: 'Add criterion when editing the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-add-level': {
+    label: 'Add level when editing the full rubric table, by criterion',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-remove-criterion': {
+    label: 'Remove criterion when editing the full rubric table, by criterion',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-template': {
+    label: 'Levels or Scoring guide switch when editing the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-guide-guidelines': {
+    label: 'Scoring guidelines when editing the full rubric table, by part',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-guide-example': {
+    label: 'Example response when editing the full rubric table, by example',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-guide-example-add': {
+    label: 'Add example response when editing the full rubric table, by part',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-guide-example-remove': {
+    label:
+      'Remove example response when editing the full rubric table, by example',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-guide-points': {
+    label: 'Point max when editing the full rubric table, by part',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-remove-level': {
+    label: 'Remove level when editing the full rubric table, by level',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-field': {
+    label: 'Text or points field when editing the full rubric table, by field',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-criterion-toggle': {
+    label: 'Criterion open / close toggle in the grader, by criterion',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'quiz-grading-rubric-rows',
+  },
   'quiz-grading.rubric-note': {
     label: 'Criterion note textarea in the Quiz grader, by position',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-grading-rubric-rows',
   },
   'quiz-grading.strand-chip': {
     label: 'Strand tag chip in the Quiz grader, by criterion',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-grading-strand-chip',
   },
   'quiz-grading.strand-chip-orphan': {
     label: 'Orphaned strand chip in the Quiz grader, by criterion',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-grading-strand-chip-orphan',
   },
   'quiz-rubric.builder-resize': {
     label: 'Resize handle on the Quiz rubric builder',
@@ -4381,6 +4983,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-rubric.builder-close': {
     label: 'Close button on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.builder-table': {
+    label: 'Edit as table button on the Quiz rubric builder',
     perWidgetType: true,
     panel: true,
   },
@@ -4584,6 +5191,8 @@ export const TOUR_ANCHORS = {
   'quiz-monitor.roster-row-actions': {
     label: 'Student actions button in the Quiz monitor roster',
     perField: true,
+    rows: true,
+    rowList: 'quiz-monitor-roster',
   },
   'quiz-monitor.student-open-part': {
     label: 'Open Part item in the Quiz monitor student menu',
@@ -4601,6 +5210,8 @@ export const TOUR_ANCHORS = {
     label: 'Class choice in the Quiz monitor Open Part menu',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'quiz-monitor-open-part-period',
   },
   'quiz-monitor.student-let-in': {
     label: 'Let in now item in the Quiz monitor student menu',
@@ -4613,6 +5224,8 @@ export const TOUR_ANCHORS = {
       'Absent button on a student who has not joined, in the Quiz monitor roster',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'quiz-monitor-roster',
   },
   'quiz-monitor.student-unlock-attempt': {
     label: 'Unlock attempt item in the Quiz monitor student menu',
@@ -4656,6 +5269,8 @@ export const TOUR_ANCHORS = {
     label: 'Live view button on a student in the Quiz monitor roster',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'quiz-monitor-roster',
   },
   'quiz-live-view.previous': {
     label: 'Previous student button in Quiz Live view',
@@ -4700,6 +5315,8 @@ export const TOUR_ANCHORS = {
   'quiz-monitor.clear-hand': {
     label: 'Clear raised hand button in the Quiz monitor roster',
     perField: true,
+    rows: true,
+    rowList: 'quiz-monitor-clear-hand',
   },
   'quiz-monitor.period-class-picker': {
     label: 'Class picker select in the Quiz monitor',
@@ -4739,6 +5356,8 @@ export const TOUR_ANCHORS = {
   'quiz-monitor.question-result': {
     label: 'Question result row in the Quiz monitor',
     perField: true,
+    rows: true,
+    rowList: 'quiz-monitor-question-result',
   },
   'quiz-monitor.copy-join-link': {
     label: 'Copy join link button in the Quiz monitor',
@@ -4816,6 +5435,21 @@ export const TOUR_ANCHORS = {
   },
   'quiz-monitor.period-pause': {
     label: 'Pause button for the picked class in the Quiz monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'quiz-monitor.class-resume': {
+    label: 'Resume button for the picked class in the Quiz monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'quiz-monitor.class-close': {
+    label: 'Close button for the picked class in the Quiz monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'quiz-monitor.class-reopen': {
+    label: 'Reopen button for the picked class in the Quiz monitor',
     perWidgetType: true,
     persists: true,
   },
@@ -5233,6 +5867,10 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'reveal-grid.add-cards': {
+    label: 'Add cards button on an empty Reveal Grid',
+    perWidget: true,
+  },
   'reveal-grid.start-over': {
     label: 'Start over button in Reveal Grid memory mode',
     perWidget: true,
@@ -5420,6 +6058,16 @@ export const TOUR_ANCHORS = {
   },
   'widget-settings.specialist-schedule.end-time': {
     label: 'End time input in Specialist Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.specialist-schedule.warn-minutes': {
+    label: 'Warn before the end choice in Specialist Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.specialist-schedule.warn-sound': {
+    label: 'Warning sound choice in Specialist Schedule settings',
     perWidget: true,
     panel: true,
   },
@@ -5616,12 +6264,8 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
-  'roster-groups.new-empty': {
-    label: 'New group button in the empty Groups tab',
-    panel: true,
-  },
   'roster-groups.new': {
-    label: 'New group button at the bottom of the Groups tab',
+    label: 'New group button on the Groups tab',
     panel: true,
   },
   'roster-groups.split': {
@@ -5648,141 +6292,188 @@ export const TOUR_ANCHORS = {
     label: 'Create groups button in the Split class form',
     panel: true,
   },
+  'roster-groups.back': {
+    label: 'All groups button at the top of a group page',
+    panel: true,
+  },
+  'roster-groups.name': {
+    label: 'Group name box on a group page',
+    panel: true,
+  },
+  'roster-groups.delete': {
+    label: 'Delete group button on a group page',
+    panel: true,
+    destructive: true,
+  },
+  'roster-groups.search': {
+    label: 'Search students box on a group page',
+    panel: true,
+  },
+  'roster-groups.select-all': {
+    label: 'Select all students button on a group page',
+    panel: true,
+  },
+  'roster-groups.clear': {
+    label: 'Clear students button on a group page',
+    panel: true,
+  },
+  'roster-groups.show-in-widgets': {
+    label: 'Show in widgets switch on a group page',
+    panel: true,
+  },
+  'roster-groups.done': {
+    label: 'Done button at the bottom of a group page',
+    panel: true,
+  },
+  'roster-accommodations.list': {
+    label: 'List of students on the Accommodations tab',
+    panel: true,
+  },
+  'roster-accommodations.edit': {
+    label: 'Edit button on a student row on the Accommodations tab',
+    perField: true,
+    panel: true,
+  },
+  'roster-accommodations.back': {
+    label: 'All students button at the top of a student accommodations page',
+    panel: true,
+  },
+  'roster-accommodations.done': {
+    label: 'Done button at the bottom of a student accommodations page',
+    panel: true,
+  },
   'group-wizard.steps': {
-    label: 'Step list at the top of the group wizard',
+    label: 'Step list in the group editor',
     panel: true,
   },
   'group-wizard.step': {
     label:
-      'Students, Symbol, Schedule or Alerts step button in the group wizard',
+      'Students, Symbol, Schedule or Additional settings step in the group editor',
     perField: true,
     panel: true,
   },
   'group-wizard.student-search': {
-    label: 'Search students box in the group wizard',
+    label: 'Search students box in the group editor',
     panel: true,
   },
   'group-wizard.student': {
-    label: 'Student checkbox in the group wizard',
+    label: 'Student checkbox in the group editor',
     perField: true,
     panel: true,
+    keyPattern: 'group-wizard#row-[1-9]\\d*',
+    keyHint: 'group-wizard#row-1 for the first row',
+    rows: true,
+    rowList: 'group-wizard-students',
   },
   'group-wizard.name': {
-    label: 'Group name box in the group wizard',
+    label: 'Group name box in the group editor',
     panel: true,
   },
   'group-wizard.icon-search': {
-    label: 'Search icons box in the group wizard',
+    label: 'Search icons box in the group editor',
     panel: true,
   },
   'group-wizard.icon': {
-    label: 'Icon button in the group wizard',
+    label: 'Icon button in the group editor',
     perField: true,
     panel: true,
   },
   'group-wizard.color': {
-    label: 'Color swatch in the group wizard',
+    label: 'Color swatch in the group editor',
     perField: true,
     panel: true,
   },
   'group-wizard.preview': {
-    label: 'Reminder preview in the group wizard',
+    label: 'Reminder preview in the group editor',
     panel: true,
   },
   'group-wizard.day': {
-    label: 'Weekday button in the group wizard Schedule step',
+    label: 'Weekday button in the group editor Schedule step',
     perField: true,
     panel: true,
   },
   'group-wizard.alert-time': {
-    label: 'Alert time box in the group wizard Schedule step',
+    label: 'Alert time box in the group editor Schedule step',
     perField: true,
     panel: true,
   },
   'group-wizard.alert-lead': {
-    label: 'Show reminder dropdown in the group wizard Schedule step',
+    label: 'Pops up dropdown in the group editor Schedule step',
     perField: true,
     panel: true,
   },
   'group-wizard.alert-remove': {
-    label: 'Remove alert button in the group wizard Schedule step',
+    label: 'Remove time button in the group editor Schedule step',
     perField: true,
     panel: true,
   },
   'group-wizard.add-alert': {
-    label: 'Add another alert button in the group wizard Schedule step',
+    label: 'Add another time button in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.repeat': {
-    label: 'Repeats dropdown in the group wizard Schedule step',
+    label: 'Repeats dropdown in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.start-date': {
-    label: 'Starting date box in the group wizard Schedule step',
+    label: 'Starting date box in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.on-board': {
-    label: 'Reminder on the board switch in the group wizard Alerts step',
+    label: 'Reminder on the board switch in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.sound': {
-    label: 'Sound dropdown in the group wizard Alerts step',
+    label: 'Sound dropdown in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.play-sound': {
-    label: 'Play sound button in the group wizard Alerts step',
+    label: 'Play sound button in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.snooze': {
-    label: 'Snooze dropdown in the group wizard Alerts step',
+    label: 'Snooze dropdown in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.show-name': {
-    label: 'Show group name switch in the group wizard Alerts step',
+    label: 'Show group name switch in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.show-time': {
-    label: 'Show time switch in the group wizard Alerts step',
+    label: 'Show time switch in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.show-message': {
-    label: 'Show a message switch in the group wizard Alerts step',
+    label: 'Show a message switch in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.message': {
-    label: 'Message box in the group wizard Alerts step',
+    label: 'Message box in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.email-alert': {
-    label: 'Email alert switch in the group wizard Alerts step',
+    label: 'Email alert switch in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.email-message': {
-    label: 'Email message box in the group wizard Alerts step',
+    label: 'Email message box in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.group-maker': {
-    label: 'Enable in Group Maker switch in the group wizard Alerts step',
+    label:
+      'Enable in Group Maker switch in the group editor Additional settings step',
     panel: true,
   },
   'group-wizard.cancel': {
-    label: 'Cancel button on the first step of the group wizard',
-    panel: true,
-  },
-  'group-wizard.back': {
-    label: 'Back button in the group wizard',
+    label: 'Cancel button in the group editor',
     panel: true,
   },
   'group-wizard.next': {
-    label: 'Next button in the group wizard',
-    panel: true,
-  },
-  'group-wizard.save-now': {
-    label: 'Save group button on a middle step when editing a group',
+    label: 'Continue button on the open step in the group editor',
     panel: true,
   },
   'group-wizard.finish': {
-    label: 'Save group button on the last step of the group wizard',
+    label: 'Save group button in the group editor',
     panel: true,
   },
   'classlink-import.class-row': {
@@ -6212,6 +6903,117 @@ export const TOUR_ANCHORS = {
     panel: true,
     rowList: 'assignment-rows',
   },
+  'library-shell.assigned-classes': {
+    label: 'Details arrow on an Assigned tab row; shows each class',
+    perField: true,
+    rows: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-class-action': {
+    label:
+      'Open, Pause, Resume, Close or Reopen for one class in an expanded Assigned row',
+    persists: true,
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z-]+#(open|pause|resume|close|reopen|monitor)-[1-9]\\d*',
+    keyHint: 'quiz#open-2 is Open for the second class in the open row',
+  },
+  'library-shell.assigned-done-section': {
+    label: 'Finished section header on the Assigned tab',
+    perField: true,
+  },
+  'library-shell.assigned-left-open-close': {
+    label: 'Close on a class left open flag at the top of the Assigned tab',
+    persists: true,
+    perField: true,
+    rows: true,
+  },
+  'library-shell.assigned-left-open-leave': {
+    label:
+      'Leave open on a class left open flag at the top of the Assigned tab',
+    persists: true,
+    perField: true,
+    rows: true,
+  },
+  'library-shell.assigned-close-all': {
+    label: 'Close for all classes, in an Assigned row menu',
+    persists: true,
+    panel: true,
+  },
+  'library-shell.assigned-move-to-done': {
+    label: 'Move to Finished, in an Assigned row menu',
+    persists: true,
+    panel: true,
+  },
+  'library-shell.assigned-reopen': {
+    label: 'Reopen…, in an Assigned row menu',
+    persists: true,
+    panel: true,
+  },
+  'assigned-reopen.class': {
+    label: 'Class picker in the Reopen dialog of an Assigned row',
+    panel: true,
+  },
+  'assigned-reopen.who': {
+    label: 'Everyone or only chosen students, in the Reopen dialog',
+    panel: true,
+  },
+  'assigned-reopen.cancel': {
+    label: 'Cancel button in the Reopen dialog of an Assigned row',
+    panel: true,
+  },
+  'assigned-reopen.confirm': {
+    label: 'Reopen button in the Reopen dialog of an Assigned row',
+    panel: true,
+    persists: true,
+  },
+  'library-shell.assigned-results': {
+    label: 'Results in an expanded Assigned row',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-search': {
+    label: 'Search box above the Assigned tab list',
+  },
+  'library-shell.assigned-filter-class': {
+    label: 'Class filter above the Assigned tab list',
+  },
+  'library-shell.assigned-filter-status': {
+    label: 'Status filter above the Assigned tab list',
+  },
+  'library-shell.assigned-filter-clear': {
+    label: 'Clear, beside the Assigned tab filters',
+  },
+  'library-shell.assigned-select': {
+    label: 'Select on the Assigned tab; starts picking several assignments',
+  },
+  'library-shell.assigned-select-row': {
+    label: 'Checkbox on an Assigned row while picking several assignments',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-select-all': {
+    label: 'Select all box in the Assigned tab selection bar',
+    panel: true,
+  },
+  'library-shell.assigned-bulk-action': {
+    label:
+      'Close, Move to Finished or Delete in the Assigned tab selection bar',
+    persists: true,
+    destructive: true,
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z-]+#(close|move-to-done|publish|delete)',
+    keyHint: 'quiz#delete is Delete for the picked quizzes',
+  },
+  'library-shell.assigned-select-cancel': {
+    label: 'Cancel in the Assigned tab selection bar',
+    panel: true,
+  },
   'widget-settings.calendar.remove-calendar': {
     label: 'Remove a personal calendar in Calendar settings',
     perField: true,
@@ -6348,6 +7150,174 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'classes',
   },
+  'classes.course-expand': {
+    label: 'Show the classes in a linked Course in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'classes',
+  },
+  'classes.agenda-open': {
+    label: 'Open the Agenda dialog for a class or Course in My Classes',
+    panel: true,
+  },
+  'classes.agenda-done': {
+    label: 'Done button in the Agenda dialog in My Classes',
+    panel: true,
+    closes: 'own',
+  },
+  'classes.agenda-change': {
+    label: 'Change the Agenda deck in the Agenda dialog',
+    panel: true,
+  },
+  'classes.agenda-paste': {
+    label: 'Paste a Google Slides link for the Agenda deck',
+    panel: true,
+  },
+  'classes.agenda-paste-use': {
+    label: 'Use the pasted Google Slides link as the Agenda deck',
+    persists: true,
+    panel: true,
+  },
+  'classes.agenda-pick': {
+    label: 'Select or change the Agenda Google Slides deck in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.agenda-open-deck': {
+    label: 'Open the Agenda deck in Google Slides from My Classes',
+    panel: true,
+  },
+  'classes.agenda-remove': {
+    label: 'Remove the Agenda deck in My Classes',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'classes.agenda-fix-sharing': {
+    label: 'Fix who can open the Agenda deck in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.agenda-copy-link': {
+    label: 'Copy Class page link button in My Classes',
+    panel: true,
+  },
+  'classes.agenda-link-add': {
+    label: 'Add link button for a Course in My Classes',
+    panel: true,
+  },
+  'classes.agenda-link-title': {
+    label: 'Link title field for a Course in My Classes',
+    panel: true,
+  },
+  'classes.agenda-link-url': {
+    label: 'Link address field for a Course in My Classes',
+    panel: true,
+  },
+  'classes.agenda-link-cancel': {
+    label: 'Cancel adding a Course link in My Classes',
+    panel: true,
+  },
+  'classes.agenda-link-save': {
+    label: 'Save a new Course link in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.agenda-link-remove': {
+    label: 'Remove a Course link in My Classes',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'classes.course-edit': {
+    label: 'Edit Course button on a linked Course in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'classes',
+  },
+  'classes.course-actions': {
+    label: 'Course actions menu on a linked Course in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'classes',
+  },
+  'classes.course-sync-classlink': {
+    label: 'Sync with ClassLink for a whole Course in My Classes',
+    persists: true,
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'classes',
+  },
+  'classes.course-view-student-page': {
+    label: 'View Student Page for a Course in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'classes',
+  },
+  'classes.link-classes': {
+    label: 'Link classes button in My Classes',
+    panel: true,
+  },
+  'classes.course-suggestion-link': {
+    label: 'Link button on a suggested Course in My Classes',
+    persists: true,
+    perField: true,
+    panel: true,
+    rows: true,
+  },
+  'classes.course-suggestion-dismiss': {
+    label: 'Not now button on a suggested Course in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+  },
+  'classes.course-name': {
+    label: 'Course name field when linking classes in My Classes',
+    panel: true,
+  },
+  'classes.course-class': {
+    label: 'Class checkbox when linking classes in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+  },
+  'classes.course-save': {
+    label: 'Link or Save button when linking classes in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.course-cancel': {
+    label: 'Cancel button when linking classes in My Classes',
+    panel: true,
+  },
+  'classes.family-link-toggle': {
+    label: 'Family link switch for a Course in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.family-link-copy': {
+    label: 'Copy family link button for a Course in My Classes',
+    panel: true,
+  },
+  'classes.family-link-deck-private': {
+    label:
+      'Stop sharing the deck outside Orono checkbox when turning off a family link',
+    panel: true,
+  },
+  'classes.family-link-cancel': {
+    label: 'Cancel button in the family link confirm',
+    panel: true,
+  },
+  'classes.family-link-confirm': {
+    label: 'Turn on or off button in the family link confirm',
+    persists: true,
+    panel: true,
+  },
   'classes.edit-roster': {
     label: 'Edit class button in My Classes',
     perField: true,
@@ -6468,6 +7438,8 @@ export const TOUR_ANCHORS = {
   'plc-notes.action-drag': {
     label: 'Drag handle button for an action item in PLC notes',
     perField: true,
+    rows: true,
+    rowList: 'plc-notes-action-rows',
   },
   'plc-notes.header-show-actions': {
     label: 'Show action items button in the PLC notes header',
@@ -6475,6 +7447,8 @@ export const TOUR_ANCHORS = {
   'plc-assessments.drag': {
     label: 'Drag handle button for an assessment in the PLC assessments tab',
     perField: true,
+    rows: true,
+    rowList: 'plc-assessments-rows',
   },
   // PLC pages, modals and admin tools
   'admin-plc.group-new': {
@@ -6655,6 +7629,8 @@ export const TOUR_ANCHORS = {
   'plc-index.open-plc': {
     label: 'Open plc button in the PLC list page',
     perField: true,
+    rows: true,
+    rowList: 'plc-index-open-plc',
   },
   'plc-assign.teacher-name': {
     label: 'Teacher name field in the PLC assign dialog',
@@ -6693,11 +7669,15 @@ export const TOUR_ANCHORS = {
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-share-pick-item',
   },
   'plc-share.target': {
     label: 'Target field in the PLC share dialog',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-share-target',
   },
   'plc-share.cancel': {
     label: 'Cancel button in the PLC share dialog',
@@ -6712,21 +7692,28 @@ export const TOUR_ANCHORS = {
     label: 'Teammate button in the teammate print dialog',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-print-teammate',
   },
   'plc-print.roster-checkbox': {
     label: 'Roster checkbox checkbox in the teammate print dialog',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-print-rosters',
   },
   'plc-print.roster-expand': {
     label: 'Roster expand button in the teammate print dialog',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-print-rosters',
   },
   'plc-print.student-checkbox': {
     label: 'Student checkbox checkbox in the teammate print dialog',
     perField: true,
     panel: true,
+    rowList: 'plc-print-rosters',
   },
   'plc-print.spares': {
     label: 'Spares field in the teammate print dialog',
@@ -6773,26 +7760,33 @@ export const TOUR_ANCHORS = {
     label: 'Open button in the PLC assessments tab',
     perField: true,
     rows: true,
+    rowList: 'plc-assessments-rows',
   },
   'plc-assessments.status': {
     label: 'Status chip on a PLC assessment row',
     perField: true,
+    rows: true,
+    rowList: 'plc-assessments-rows',
   },
   'plc-assessments.in-library': {
     label: 'In your library chip on a PLC assessment row',
     perField: true,
+    rows: true,
+    rowList: 'plc-assessments-rows',
   },
   'plc-assessments.assign': {
     label: 'Assign button in the PLC assessments tab',
     persists: true,
     perField: true,
     rows: true,
+    rowList: 'plc-assessments-rows',
   },
   'plc-assessments.menu': {
     label: 'Menu button in the PLC assessments tab',
     perField: true,
     panel: true,
     rows: true,
+    rowList: 'plc-assessments-rows',
   },
   'plc-assessments.menu-item': {
     label: 'Menu item button in the PLC assessments tab',
@@ -6803,12 +7797,15 @@ export const TOUR_ANCHORS = {
     label: 'Menu folder button in the PLC assessments tab',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-assessments-menu-folder',
   },
   'plc-assessments.menu-archive': {
     label: 'Menu archive button in the PLC assessments tab',
     perField: true,
     panel: true,
     destructive: true,
+    rowList: 'plc-assessments-rows',
   },
   'plc-assessments.share': {
     label: 'Share button in the PLC assessments tab',
@@ -6836,16 +7833,20 @@ export const TOUR_ANCHORS = {
     label: 'Role select in the PLC members tab',
     persists: true,
     perField: true,
+    rows: true,
+    rowList: 'plc-members-role',
   },
   'plc-members.transfer-lead': {
     label: 'Transfer lead button in the PLC members tab',
     perField: true,
     destructive: true,
+    rowList: 'plc-members-rows',
   },
   'plc-members.remove': {
     label: 'Remove button in the PLC members tab',
     perField: true,
     destructive: true,
+    rowList: 'plc-members-rows',
   },
   'plc-members.send-invite': {
     label: 'Send invite button in the PLC members tab',
@@ -6855,6 +7856,7 @@ export const TOUR_ANCHORS = {
     label: 'Revoke invite button in the PLC members tab',
     perField: true,
     destructive: true,
+    rowList: 'plc-members-revoke-invite',
   },
   'plc-members.leave': {
     label: 'Leave button in the PLC members tab',
@@ -6876,10 +7878,14 @@ export const TOUR_ANCHORS = {
   'plc-notes.doc-select': {
     label: 'Doc select button in the PLC notes tab',
     perField: true,
+    rows: true,
+    rowList: 'plc-notes-doc-select',
   },
   'plc-notes.note-select': {
     label: 'Note select button in the PLC notes tab',
     perField: true,
+    rows: true,
+    rowList: 'plc-notes-note-select',
   },
   'plc-notes.open-in-docs': {
     label: 'Open in docs button in the PLC notes tab',
@@ -6944,12 +7950,15 @@ export const TOUR_ANCHORS = {
     label: 'Import button in the PLC question banks tab',
     persists: true,
     perField: true,
+    rows: true,
+    rowList: 'plc-banks-rows',
   },
   'plc-banks.unshare': {
     label: 'Unshare button in the PLC question banks tab',
     persists: true,
     perField: true,
     destructive: true,
+    rowList: 'plc-banks-rows',
   },
   'plc-rubrics.share': {
     label: 'Share button in the PLC rubrics tab',
@@ -6959,16 +7968,21 @@ export const TOUR_ANCHORS = {
     label: 'Import button in the PLC rubrics tab',
     persists: true,
     perField: true,
+    rows: true,
+    rowList: 'plc-rubrics-rows',
   },
   'plc-rubrics.unshare': {
     label: 'Unshare button in the PLC rubrics tab',
     persists: true,
     perField: true,
     destructive: true,
+    rowList: 'plc-rubrics-rows',
   },
   'plc-boards.open-board': {
     label: 'Open board link in the PLC shared boards tab',
     perField: true,
+    rows: true,
+    rowList: 'plc-boards-open-board',
   },
   'plc-video.share': {
     label: 'Share button in the PLC video activities tab',
@@ -6978,20 +7992,27 @@ export const TOUR_ANCHORS = {
     label: 'Import button in the PLC video activities tab',
     persists: true,
     perField: true,
+    rows: true,
+    rowList: 'plc-video-rows',
   },
   'plc-video.edit': {
     label: 'Edit button in the PLC video activities tab',
     perField: true,
+    rows: true,
+    rowList: 'plc-video-rows',
   },
   'plc-video.version-history': {
     label: 'Version history button in the PLC video activities tab',
     perField: true,
+    rows: true,
+    rowList: 'plc-video-rows',
   },
   'plc-video.unshare': {
     label: 'Unshare button in the PLC video activities tab',
     persists: true,
     perField: true,
     destructive: true,
+    rowList: 'plc-video-rows',
   },
   'plc-video.tab': {
     label: 'Tab button in the PLC video activities tab',
@@ -7005,6 +8026,7 @@ export const TOUR_ANCHORS = {
     label: 'Delete button in the PLC comments thread',
     perField: true,
     destructive: true,
+    rowList: 'plc-comments-delete',
   },
   'plc-comments.input': {
     label: 'Input text box in the PLC comments thread',
@@ -7016,6 +8038,8 @@ export const TOUR_ANCHORS = {
   'plc-comments.mention': {
     label: 'Mention button in the PLC comments thread',
     perField: true,
+    rows: true,
+    rowList: 'plc-comments-mention',
   },
   'plc-docs.add-close': {
     label: 'Add close button in the PLC docs tab',
@@ -7069,12 +8093,15 @@ export const TOUR_ANCHORS = {
     label: 'Practice text field in the PLC goal editor',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-goals-practice-rows',
   },
   'plc-goals.practice-remove': {
     label: 'Practice remove button in the PLC goal editor',
     perField: true,
     panel: true,
     destructive: true,
+    rowList: 'plc-goals-practice-rows',
   },
   'plc-goals.practice-add': {
     label: 'Practice add button in the PLC goal editor',
@@ -7134,27 +8161,36 @@ export const TOUR_ANCHORS = {
     persists: true,
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-notes-action-rows',
   },
   'plc-notes.action-edit': {
     label: 'Action edit field in the PLC notes tab',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-notes-action-rows',
   },
   'plc-notes.action-owner': {
     label: 'Action assignee select in the PLC notes tab',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-notes-action-rows',
   },
   'plc-notes.action-due': {
     label: 'Action due field in the PLC notes tab',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-notes-action-rows',
   },
   'plc-notes.action-remove': {
     label: 'Action remove button in the PLC notes tab',
     perField: true,
     panel: true,
     destructive: true,
+    rowList: 'plc-notes-action-rows',
   },
   'plc-notes.toolbar-menu': {
     label: 'Toolbar menu button in the PLC notes tab',
@@ -7208,6 +8244,8 @@ export const TOUR_ANCHORS = {
     label: 'Review owner select in the PLC notes tab',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-notes-review-owner',
   },
   'plc-notes.review-open': {
     label: 'Review open button in the PLC notes tab',
@@ -7242,6 +8280,8 @@ export const TOUR_ANCHORS = {
     label: 'Mic device button in the PLC recording controls',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-recording-mic-device',
   },
   'plc-recording.play': {
     label: 'Play button in the PLC recording controls',
@@ -7277,16 +8317,21 @@ export const TOUR_ANCHORS = {
   'plc-resources.link-open': {
     label: 'Link open link in the PLC resources tab',
     perField: true,
+    rows: true,
+    rowList: 'plc-resources-link-rows',
   },
   'plc-resources.link-remove': {
     label: 'Link remove button in the PLC resources tab',
     perField: true,
     destructive: true,
+    rowList: 'plc-resources-link-rows',
   },
   'plc-resources.use': {
     label: 'Use button in the PLC resources tab',
     persists: true,
     perField: true,
+    rows: true,
+    rowList: 'plc-resources-use',
   },
   'plc-search.input': {
     label: 'Input field in the PLC search box',
@@ -7298,11 +8343,14 @@ export const TOUR_ANCHORS = {
   'plc-search.result': {
     label: 'Result button in the PLC search box',
     perField: true,
+    rows: true,
+    rowList: 'plc-search-result',
   },
   'plc-settings.target-chip-remove': {
     label: 'Target chip remove button in the PLC settings tab',
     perField: true,
     destructive: true,
+    rowList: 'plc-settings-target-chip-remove',
   },
   'plc-settings.target-picker-open': {
     label: 'Target picker open button in the PLC settings tab',
@@ -7311,6 +8359,8 @@ export const TOUR_ANCHORS = {
     label: 'Target restore button in the PLC settings tab',
     persists: true,
     perField: true,
+    rows: true,
+    rowList: 'plc-settings-target-restore',
   },
   'plc-settings.target-archived-toggle': {
     label: 'Target archived toggle button in the PLC settings tab',
@@ -7319,6 +8369,7 @@ export const TOUR_ANCHORS = {
     label: 'Target archive button in the PLC settings tab',
     perField: true,
     destructive: true,
+    rowList: 'plc-settings-target-archive',
   },
   'plc-settings.target-add-panel': {
     label: 'Target add panel button in the PLC settings tab',
@@ -7428,6 +8479,8 @@ export const TOUR_ANCHORS = {
     label: 'Trash restore button in the PLC settings tab',
     persists: true,
     perField: true,
+    rows: true,
+    rowList: 'plc-settings-trash-restore',
   },
   'plc-sync.keep-mine': {
     label: 'Keep mine button in the PLC sync conflict prompt',
@@ -7538,6 +8591,8 @@ export const TOUR_ANCHORS = {
   'teams.mentoring.resource': {
     label: 'Resource link in the mentoring Resources list',
     perField: true,
+    rows: true,
+    rowList: 'teams-mentoring-resource',
   },
   'teams.post-task.close': {
     label: 'Close button in the Post a task dialog header',
@@ -7571,23 +8626,32 @@ export const TOUR_ANCHORS = {
     label: 'Complete circle for a note action item',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'teams-actions-rows',
   },
   'teams.actions.due-date': {
     label: 'Due date button for a note action item',
     perField: true,
+    rows: true,
+    rowList: 'teams-actions-due-date',
   },
   'teams.actions.owner': {
     label: 'Owner select for a note action item',
     perField: true,
+    rows: true,
+    rowList: 'teams-actions-rows',
   },
   'teams.actions.remove': {
     label: 'Remove button for a note action item',
     perField: true,
     destructive: true,
+    rowList: 'teams-actions-rows',
   },
   'teams.actions.text': {
     label: 'Text box for a note action item',
     perField: true,
+    rows: true,
+    rowList: 'teams-actions-rows',
   },
   'teams.add-doc.cancel': {
     label: 'Cancel button in the Add a doc dialog',
@@ -7667,6 +8731,8 @@ export const TOUR_ANCHORS = {
   'teams.building.edit-goal': {
     label: 'Edit goal button in the Building Hub goals',
     perField: true,
+    rows: true,
+    rowList: 'teams-building-edit-goal',
   },
   'teams.building.all-resources': {
     label: 'All resources button in the team Resources card',
@@ -7680,10 +8746,14 @@ export const TOUR_ANCHORS = {
   'teams.building.quick-link': {
     label: 'Quick link in the team landing page',
     perField: true,
+    rows: true,
+    rowList: 'teams-building-quick-link',
   },
   'teams.building.resource': {
     label: 'Resource link in the team Resources card',
     perField: true,
+    rows: true,
+    rowList: 'teams-building-resource',
   },
   'teams.calendar-settings.remove': {
     label: 'Remove button in the team calendar settings',
@@ -7728,6 +8798,8 @@ export const TOUR_ANCHORS = {
   'teams.data.recent-assessment': {
     label: 'Assessment title button in the team data recent assessments',
     perField: true,
+    rows: true,
+    rowList: 'teams-data-recent-assessment',
   },
   'teams.data.show-all-questions': {
     label: 'Show all questions button in the team data item analysis',
@@ -7764,28 +8836,40 @@ export const TOUR_ANCHORS = {
   'teams.department.decision-open': {
     label: 'Open decision row in the department hub',
     perField: true,
+    rows: true,
+    rowList: 'teams-department-decisions',
   },
   'teams.department.doc-open': {
     label: 'Recent doc row in the department hub',
     perField: true,
+    rows: true,
+    rowList: 'teams-department-docs',
   },
   'teams.department.item-check': {
     label: 'Complete circle for an open item in the department hub',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'teams-department-item-rows',
   },
   'teams.department.item-open': {
     label: 'Open item button in the department hub',
     perField: true,
+    rows: true,
+    rowList: 'teams-department-item-rows',
   },
   'teams.department.material-copy': {
     label: 'Copy to my library button in the department hub',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'teams-department-material-rows',
   },
   'teams.department.material-open': {
     label: 'Shared material row in the department hub',
     perField: true,
+    rows: true,
+    rowList: 'teams-department-material-rows',
   },
   'teams.department.new-meeting-note': {
     label: 'New meeting note button in the department hub',
@@ -7911,54 +8995,74 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
     persists: true,
+    rows: true,
+    rowList: 'teams-my-items-check',
   },
   'teams.note-block.assessment-picker': {
     label: 'Assessment select in a note data block',
     perField: true,
+    rows: true,
+    rowList: 'teams-note-block-rows-2',
   },
   'teams.note-block.clear-revisit': {
     label: 'Clear revisit date button in a note decision block',
     perField: true,
     destructive: true,
+    rowList: 'teams-note-block-rows',
   },
   'teams.note-block.decision-status': {
     label: 'Mark decided button in a note decision block',
     perField: true,
+    rows: true,
+    rowList: 'teams-note-block-rows',
   },
   'teams.note-block.decision-text': {
     label: 'Decision text box in a note decision block',
     perField: true,
+    rows: true,
+    rowList: 'teams-note-block-rows',
   },
   'teams.note-block.link-picker': {
     label: 'Link select in a note decision block',
     perField: true,
+    rows: true,
+    rowList: 'teams-note-block-rows-2',
   },
   'teams.note-block.open-data': {
     label: 'Open in Data overview button in a note data block',
     perField: true,
+    rows: true,
+    rowList: 'teams-note-block-rows',
   },
   'teams.note-block.open-link': {
     label: 'Linked item button in a note decision block',
     perField: true,
+    rows: true,
+    rowList: 'teams-note-block-rows',
   },
   'teams.note-block.remove-agenda': {
     label: 'Remove agenda item button in a note',
     perField: true,
     destructive: true,
+    rowList: 'teams-note-block-rows',
   },
   'teams.note-block.remove-data': {
     label: 'Remove block button in a note data block',
     perField: true,
     destructive: true,
+    rowList: 'teams-note-block-rows',
   },
   'teams.note-block.remove-decision': {
     label: 'Remove block button in a note decision block',
     perField: true,
     destructive: true,
+    rowList: 'teams-note-block-rows',
   },
   'teams.note-block.revisit-date': {
     label: 'Revisit date button in a note decision block',
     perField: true,
+    rows: true,
+    rowList: 'teams-note-block-rows',
   },
   'teams.notes.add-block': {
     label: 'Add block button in the open note',
@@ -7983,6 +9087,8 @@ export const TOUR_ANCHORS = {
   'teams.notes.list-entry': {
     label: 'Note or doc entry in the Notes & Docs list',
     perField: true,
+    rows: true,
+    rowList: 'teams-notes-list-entry',
   },
   'teams.notes.new-meeting-note': {
     label: 'New meeting note button in the Notes & Docs list',
@@ -8020,6 +9126,8 @@ export const TOUR_ANCHORS = {
     label: 'Role select for a member in the mentoring pairings settings',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'teams-pairing-member-role',
   },
   'teams.pairing.mentee-select': {
     label: 'Mentee select in the mentoring pairings settings',
@@ -8031,6 +9139,7 @@ export const TOUR_ANCHORS = {
     label: 'Remove button for a pair in the mentoring pairings settings',
     perField: true,
     destructive: true,
+    rowList: 'teams-pairing-remove',
   },
   'teams.post-task.cancel': {
     label: 'Cancel button in the Post a task dialog',
@@ -8094,6 +9203,7 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
     destructive: true,
+    rowList: 'teams-targets-archive',
   },
   'teams.targets.cancel': {
     label: 'Cancel button in the Manage targets dialog',
@@ -8158,10 +9268,14 @@ export const TOUR_ANCHORS = {
   'teams.tracker.open-submission': {
     label: 'Open submission button in the mentoring task tracker',
     perField: true,
+    rows: true,
+    rowList: 'teams-tracker-open-rows',
   },
   'teams.tracker.open-workspace': {
     label: 'Open workspace button in the mentoring task tracker',
     perField: true,
+    rows: true,
+    rowList: 'teams-tracker-open-rows',
   },
   'teams.tracker.task': {
     label: 'Task select in the mentoring task tracker',
@@ -8199,48 +9313,67 @@ export const TOUR_ANCHORS = {
     label: 'Acknowledge button on a team update',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'teams-update-rows-2',
   },
   'teams.update.delete': {
     label: 'Delete item in the update options menu',
     perField: true,
     panel: true,
     destructive: true,
+    rowList: 'teams-update-rows',
   },
   'teams.update.edit': {
     label: 'Edit item in the update options menu',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'teams-update-rows',
   },
   'teams.update.open-attachment': {
     label: 'Attachment link in a team update',
     perField: true,
+    rows: true,
+    rowList: 'teams-update-open-rows',
   },
   'teams.update.open-link': {
     label: 'Link in a team update',
     perField: true,
+    rows: true,
+    rowList: 'teams-update-open-rows',
   },
   'teams.update.options': {
     label: 'Update options button on a team update',
     perField: true,
+    rows: true,
+    rowList: 'teams-update-rows',
   },
   'teams.update.pin': {
     label: 'Pin item in the update options menu',
     perField: true,
     panel: true,
     persists: true,
+    rows: true,
+    rowList: 'teams-update-rows',
   },
   'teams.update.react': {
     label: 'Reaction button on a team update',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'teams-update-react',
   },
   'teams.update.roster-show-all': {
     label: 'Show all button in an update acknowledgement list',
     perField: true,
+    rows: true,
+    rowList: 'teams-update-roster-show-all',
   },
   'teams.update.see-who': {
     label: 'See who button on a team update',
     perField: true,
+    rows: true,
+    rowList: 'teams-update-rows-2',
   },
   'teams.updates.all-updates': {
     label: 'All updates button in the Latest updates card',
@@ -8248,11 +9381,15 @@ export const TOUR_ANCHORS = {
   'teams.updates.latest-item': {
     label: 'Update title button in the Latest updates card',
     perField: true,
+    rows: true,
+    rowList: 'teams-updates-latest-item',
   },
   'teams.workspace.action-check': {
     label: 'Complete circle for an action item in a mentoring workspace',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'teams-workspace-action-check',
   },
   'teams.workspace.action-due': {
     label: 'Due date box for an action item in a mentoring workspace',
@@ -8282,23 +9419,33 @@ export const TOUR_ANCHORS = {
   'teams.workspace.open-check-in': {
     label: 'Check-in row in a mentoring workspace',
     perField: true,
+    rows: true,
+    rowList: 'teams-workspace-open-check-in',
   },
   'teams.workspace.open-doc': {
     label: 'Working doc row in a mentoring workspace',
     perField: true,
+    rows: true,
+    rowList: 'teams-workspace-open-doc',
   },
   'teams.workspace.open-task-doc': {
     label: 'Open doc button for a task in a mentoring workspace',
     perField: true,
+    rows: true,
+    rowList: 'teams-workspace-rows',
   },
   'teams.workspace.submit-task': {
     label: 'Submit button for a task in a mentoring workspace',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'teams-workspace-rows',
   },
   'teams.workspace.view-submission': {
     label: 'View button for a task in a mentoring workspace',
     perField: true,
+    rows: true,
+    rowList: 'teams-workspace-rows',
   },
   'widget.close-confirm.cancel': {
     label: 'Cancel button in the close-widget confirm',
@@ -8718,11 +9865,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  'admin.help-center.web-tour-copy-link': {
-    label: 'Copy link button for a web tour in tour health',
-    perField: true,
-    panel: true,
-  },
   'admin.help-center.unmapped-copy': {
     label: 'Copy all button for unmapped anchors',
     panel: true,
@@ -8778,6 +9920,16 @@ export const TOUR_ANCHORS = {
   },
   'admin.features.model-tier': {
     label: 'Model select on a feature row',
+    perField: true,
+    panel: true,
+  },
+  'admin.features.monthly-cap-number': {
+    label: 'Monthly limit box on a feature row',
+    perField: true,
+    panel: true,
+  },
+  'admin.features.transcribe-mode': {
+    label: 'Transcription mode select on the AI transcription row',
     perField: true,
     panel: true,
   },
@@ -10002,7 +11154,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'admin.district-library.targeting': {
-    label: 'Who sees it button in a District library row',
+    label: 'Access button in a District library row',
     perField: true,
     panel: true,
   },
@@ -10089,7 +11241,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'admin.district-library.folder-targeting': {
-    label: 'Who sees this folder button, by folder id',
+    label: 'Folder Access button, by folder id',
     perField: true,
     panel: true,
   },
@@ -10124,6 +11276,23 @@ export const TOUR_ANCHORS = {
   'admin.district-library.row-menu': {
     label: 'More actions menu in a District library row',
     perField: true,
+    panel: true,
+  },
+  'admin.district-library.select': {
+    label: 'Select button for District library bulk actions',
+    panel: true,
+  },
+  'admin.district-library.select-all': {
+    label: 'Select all in District library selection',
+    panel: true,
+  },
+  'admin.district-library.select-row': {
+    label: 'Checkbox on a District library row',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.bulk-move': {
+    label: 'Move button for selected District library items',
     panel: true,
   },
   'admin.district-library.move': {
@@ -10331,6 +11500,19 @@ export const TOUR_ANCHORS = {
   },
   'admin.beta.remove': {
     label: 'Remove beta user button',
+    perField: true,
+    panel: true,
+  },
+  'admin.excluded.email': {
+    label: 'Add excluded user email box',
+    panel: true,
+  },
+  'admin.excluded.add': {
+    label: 'Add excluded user button',
+    panel: true,
+  },
+  'admin.excluded.remove': {
+    label: 'Remove excluded user button',
     perField: true,
     panel: true,
   },
@@ -11097,22 +12279,29 @@ export const TOUR_ANCHORS = {
     label: 'Column or row name box in the Activity Wall editor',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'activity-wall-editor-sections',
   },
   'activity-wall-editor.section-move-up': {
     label: 'Move column or row up button in the Activity Wall editor',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'activity-wall-editor-sections',
   },
   'activity-wall-editor.section-move-down': {
     label: 'Move column or row down button in the Activity Wall editor',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'activity-wall-editor-sections',
   },
   'activity-wall-editor.section-remove': {
     label: 'Remove column or row button in the Activity Wall editor',
     perField: true,
     destructive: true,
     panel: true,
+    rowList: 'activity-wall-editor-sections',
   },
   'activity-wall-editor.section-add': {
     label: 'Add column or row button in the Activity Wall editor',
@@ -11122,22 +12311,29 @@ export const TOUR_ANCHORS = {
     label: 'Time period name box in the Activity Wall editor',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'activity-wall-editor-periods',
   },
   'activity-wall-editor.period-from': {
     label: 'Time period start box in the Activity Wall editor',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'activity-wall-editor-periods',
   },
   'activity-wall-editor.period-to': {
     label: 'Time period end box in the Activity Wall editor',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'activity-wall-editor-periods',
   },
   'activity-wall-editor.period-remove': {
     label: 'Remove time period button in the Activity Wall editor',
     perField: true,
     destructive: true,
     panel: true,
+    rowList: 'activity-wall-editor-periods',
   },
   'activity-wall-editor.period-add': {
     label: 'Add time period button in the Activity Wall editor',
@@ -11212,6 +12408,12 @@ export const TOUR_ANCHORS = {
     label: 'Expand group button on the Projects board',
     perWidgetType: true,
     requires: 'widget-restored',
+  },
+  'projects.group-reopen': {
+    label: 'Reopen a submitted group on the Projects board',
+    perWidgetType: true,
+    requires: 'widget-restored',
+    persists: true,
   },
   'projects.step-cell': {
     label: 'Step status cell on the Projects board',
@@ -11466,6 +12668,32 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards.card-term-alternate': {
+    label: 'Add accepted answer button on a term in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.card-definition-alternate': {
+    label:
+      'Add accepted answer button on a definition in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.card-term-image': {
+    label: 'Add image button on a term in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.card-definition-image': {
+    label: 'Add image button on a definition in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.card-insert': {
+    label: 'Add card button between cards in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
   'flashcards.card-delete': {
     label: 'Delete button on a card in the Flashcards editor',
     perField: true,
@@ -11478,22 +12706,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'flashcards-editor.draft-ai': {
-    label: 'Draft with AI (list header) in the Flashcards set editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-editor.footer-draft-ai': {
-    label: 'Draft with AI (footer) in the Flashcards set editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-editor.add-menu': {
-    label: 'More ways to add menu in the Flashcards set editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-editor.add-blank': {
-    label: 'Add-menu item: Blank card in the Flashcards set editor',
+    label: 'Draft with AI in the Flashcards set editor',
     perWidgetType: true,
     panel: true,
   },
@@ -11580,11 +12793,6 @@ export const TOUR_ANCHORS = {
   'flashcards-speak-editor.ipa-remove': {
     label: 'Remove pronunciation button in the Flashcards editor',
     perField: true,
-    panel: true,
-  },
-  'flashcards.add-card': {
-    label: 'Add card button in the Flashcards editor',
-    perWidgetType: true,
     panel: true,
   },
   'flashcards.language-select': {
@@ -11851,6 +13059,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'mini-app.archive-results': {
+    label: 'Results item in a Mini App assignment row menu',
+    perWidgetType: true,
+    panel: true,
+  },
   'mini-app.archive-publish-scores': {
     label: 'Publish scores item in a Mini App Completed assignment row menu',
     perWidgetType: true,
@@ -11954,6 +13167,8 @@ export const TOUR_ANCHORS = {
   'video-activity.creator-result': {
     label: 'Video search result in the creator',
     perField: true,
+    rows: true,
+    rowList: 'video-activity-creator-result',
   },
   'video-activity.creator-recommend-topic': {
     label: 'Topic box in the creator Recommend tab',
@@ -11993,6 +13208,7 @@ export const TOUR_ANCHORS = {
     destructive: true,
     persists: true,
     sandboxed: true,
+    rowList: 'video-activity-editor-question-delete',
   },
   'video-activity.editor-question-text': {
     label: 'Question prompt box in the video activity editor',
@@ -12085,6 +13301,8 @@ export const TOUR_ANCHORS = {
   'video-activity.live-jump-question': {
     label: 'Jump to question button in the live question list',
     perField: true,
+    rows: true,
+    rowList: 'video-activity-live-jump-question',
   },
   'video-activity.monitor-unlock': {
     label: 'Unlock badge on a student row in the live monitor',
@@ -12142,6 +13360,8 @@ export const TOUR_ANCHORS = {
   'video-activity.monitor-question-result': {
     label: 'Question result row in the video activity monitor',
     perField: true,
+    rows: true,
+    rowList: 'video-activity-monitor-question-result',
   },
   'video-activity.monitor-roster-sort': {
     label: 'Sort students select in the video activity monitor',
@@ -12173,6 +13393,8 @@ export const TOUR_ANCHORS = {
     perField: true,
     persists: true,
     sandboxed: true,
+    rows: true,
+    rowList: 'video-activity-timeline-marker',
   },
   'video-activity.timeline-add': {
     label: 'Add question at playhead button under the editor timeline',
@@ -12443,6 +13665,10 @@ export const TOUR_ANCHORS = {
     label: 'Rewrite all option in the web tour editor More actions menu',
     panel: true,
   },
+  'web-tour-editor.copy-for-claude': {
+    label: 'Copy for Claude option in the web tour editor More actions menu',
+    panel: true,
+  },
   'web-tour-editor.write-asked': {
     label: 'Run again for questions button in the web tour editor',
   },
@@ -12489,9 +13715,42 @@ export const TOUR_ANCHORS = {
     perField: true,
   },
   'web-tours.copy-link': {
-    label: 'Copy link button for a web tour on the Web tours page',
+    label: 'Share button for a web tour on the Web tours page',
     perField: true,
   },
+  'web-tours.share-tour-url': {
+    label: 'Tour URL item in a web tour Share menu on the Web tours page',
+    perField: true,
+    persists: true,
+  },
+  'web-tours.share-steps-url': {
+    label: 'Steps URL item in a web tour Share menu on the Web tours page',
+    perField: true,
+    persists: true,
+  },
+  'web-tours.share-freshservice': {
+    label: 'FreshService item in a web tour Share menu on the Web tours page',
+    perField: true,
+    persists: true,
+  },
+  'web-tours.freshservice-settings': {
+    label: 'FreshService settings button on the Web tours page',
+  },
+  'web-tours.share-html-file': {
+    label: 'HTML file item in a web tour Share menu on the Web tours page',
+    perField: true,
+    persists: true,
+  },
+  'web-tours.title': {
+    label: 'Tour name you can rename on the Web tours page',
+    perField: true,
+  },
+  'web-tours.status': {
+    label: 'Fix issues button for a web tour on the Web tours page',
+    perField: true,
+  },
+  'web-tours.search': { label: 'Search box on the Web tours page' },
+  'web-tours.filter': { label: 'Show filter on the Web tours page' },
   'web-tour-editor.title': { label: 'Title field in the web tour editor' },
   'web-tour-editor.play': {
     label: 'Play button in the web tour editor header',
@@ -13067,32 +14326,42 @@ export const TOUR_ANCHORS = {
   'dock.saved-item': {
     label: 'Saved widget button in the dock',
     perField: true,
+    rows: true,
+    rowList: 'dock-saved-rows',
   },
   'dock.saved-remove': {
     label: 'Remove from dock button on a saved widget',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'dock-saved-rows',
   },
   'dock.saved-delete': {
     label: 'Delete button on a saved widget in the dock',
     perField: true,
     panel: true,
     destructive: true,
+    rowList: 'dock-saved-rows',
   },
   'dock.folder-open': {
     label: 'Folder button in the dock',
     perField: true,
+    rows: true,
+    rowList: 'dock-folder-rows',
   },
   'dock.folder-delete': {
     label: 'Delete folder button on a dock folder',
     perField: true,
     panel: true,
     destructive: true,
+    rowList: 'dock-folder-rows',
   },
   'dock.folder-rename': {
     label: 'Rename button in a dock folder',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'dock-folder-rows',
   },
   'dock.folder-item': {
     label: 'Widget button inside a dock folder',
@@ -13262,22 +14531,29 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
     persists: true,
+    rows: true,
+    rowList: 'library-saved-rows',
   },
   'library.saved-delete': {
     label: 'Delete button on a saved widget in the library',
     perField: true,
     panel: true,
     destructive: true,
+    rowList: 'library-saved-rows',
   },
   'library.saved-item': {
     label: 'Saved widget tile in the widget library',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'library-saved-rows',
   },
   'library.custom-item': {
     label: 'Custom widget tile in the widget library',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'library-custom-item',
   },
   'library.show-hidden': {
     label: 'Hidden widgets section toggle in the widget library',
@@ -13309,6 +14585,8 @@ export const TOUR_ANCHORS = {
     label: 'Board button in the menu boards list',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'sidebar-board-item',
   },
   'sidebar.manage-boards': {
     label: 'Manage all boards button in the menu',
@@ -13337,6 +14615,8 @@ export const TOUR_ANCHORS = {
     label: 'Class row in the dock class menu',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'classes-roster-menu-item',
   },
   'classes.open-full-editor': {
     label: 'Open Full Editor button in the dock class menu',
@@ -13347,16 +14627,22 @@ export const TOUR_ANCHORS = {
     label: 'Board row in the boards menu',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'board-nav-rows',
   },
   'board-nav.rename-board': {
     label: 'Rename button on a board row',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'board-nav-rows',
   },
   'board-nav.move-board': {
     label: 'Move to collection button on a board row',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'board-nav-rows',
   },
   'board-nav.name-input': {
     label: 'Name box in the boards and collections menus',
@@ -13366,11 +14652,15 @@ export const TOUR_ANCHORS = {
     label: 'Collection row in the collection menu',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'board-nav-collection-rows',
   },
   'board-nav.collection-edit': {
     label: 'Rename button on a collection row',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'board-nav-collection-rows',
   },
   'board-nav.collection-root': {
     label: 'No Collection item in the collection menu',
@@ -13394,6 +14684,8 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
     persists: true,
+    rows: true,
+    rowList: 'board-nav-move-target',
   },
   'board-nav.move-new-collection': {
     label: 'New Collection item in the move board menu',
@@ -13752,6 +15044,20 @@ export const TOUR_ANCHORS = {
   'settings.style-defaults-reset': {
     perWidget: true,
     label: 'Reset to my default button on the Style tab',
+    panel: true,
+    persists: true,
+    requires: 'settings-open',
+  },
+  'settings.settings-defaults-save': {
+    perWidget: true,
+    label: 'Save as my default button on the Settings tab',
+    panel: true,
+    persists: true,
+    requires: 'settings-open',
+  },
+  'settings.settings-defaults-reset': {
+    perWidget: true,
+    label: 'Reset to my default button on the Settings tab',
     panel: true,
     persists: true,
     requires: 'settings-open',
@@ -14123,10 +15429,32 @@ export const TOUR_ANCHORS = {
     label: 'Cancel button in the publish scores dialog',
     panel: true,
   },
+  'publish-scores.unpublish-confirm': {
+    label: 'Unpublish button that confirms, in the publish scores dialog',
+    panel: true,
+    persists: true,
+    sandboxed: true,
+  },
+  'publish-scores.unpublish-cancel': {
+    label: 'Cancel beside the Unpublish confirm in the publish scores dialog',
+    panel: true,
+  },
   'publish-scores.confirm': {
     label: 'Publish or Update button in the publish scores dialog',
     panel: true,
     persists: true,
+  },
+  'publish-in-progress.cancel': {
+    label: 'Cancel button in the in-progress publish check',
+    panel: true,
+  },
+  'publish-in-progress.end-and-publish': {
+    label: 'End and publish button in the in-progress publish check',
+    panel: true,
+  },
+  'publish-in-progress.confirm': {
+    label: 'Confirm button in the in-progress publish check',
+    panel: true,
   },
   'override-row.toggle': {
     label: 'Student row header in the override editor',
@@ -14142,6 +15470,14 @@ export const TOUR_ANCHORS = {
   },
   'override-row.read-aloud': {
     label: 'Read aloud checkbox in the override editor',
+    panel: true,
+  },
+  'override-row.speech-to-text': {
+    label: 'Speech to text checkbox in the override editor',
+    panel: true,
+  },
+  'override-row.spelling-help': {
+    label: 'Spelling help checkbox in the override editor',
     panel: true,
   },
   'override-row.copy-paste-print': {
@@ -14411,6 +15747,8 @@ export const TOUR_ANCHORS = {
   'classes-widget.roster-row': {
     label: 'Class to switch to in Classes',
     perField: true,
+    rows: true,
+    rowList: 'classes-widget-roster-row',
   },
   'classes-widget.editor-back': {
     label: 'Back button in the Classes roster editor',
@@ -14444,6 +15782,8 @@ export const TOUR_ANCHORS = {
   'url.open-link': {
     label: 'Link button in Links',
     perField: true,
+    rows: true,
+    rowList: 'url-open-link',
   },
   'url.shape': {
     label: 'Link shape button in the link picker',
@@ -15155,12 +16495,14 @@ export const TOUR_ANCHORS = {
   },
   'math-tool.add-piece': {
     label:
-      'Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks, place value), by tool and piece',
+      'Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks), by tool and piece',
     perField: true,
+    keyPattern:
+      'mathTool#(algebra-tiles\\.(x2-pos|x2-neg|x-pos|x-neg|unit-pos|unit-neg)|base-10\\.(flat|rod|unit)|pattern-blocks\\.(hexagon|trapezoid|triangle|rhombus-wide|rhombus-narrow|square))',
+    keyHint: 'mathTool#base-10.rod, mathTool#algebra-tiles.x-pos',
   },
   'math-tool.clear': {
-    label:
-      'Clear button on a Math Tool (coordinate plane, geoboard, place value)',
+    label: 'Clear button on a Math Tool (coordinate plane, geoboard)',
     perWidgetType: true,
     destructive: true,
   },
@@ -15176,14 +16518,20 @@ export const TOUR_ANCHORS = {
   'math-tool.calculator-key': {
     label: 'Calculator key, by label (digits, operators, AC, =)',
     perField: true,
+    keyPattern: 'mathTool#([0-9]|AC|\\+/−|%|÷|×|−|\\+|⌫|\\.|=)',
+    keyHint: 'mathTool#7 is the 7 key; mathTool#AC is the clear key',
   },
   'math-tool.denominator': {
     label: 'Denominator toggle in Fraction Tiles, by denominator',
     perField: true,
+    keyPattern: 'mathTool#(1|2|3|4|5|6|8|10|12)',
+    keyHint: 'mathTool#4 is the fourths toggle',
   },
   'math-tool.number-line-mode': {
     label: 'Number line mode button (integers, decimals, fractions), by mode',
     perField: true,
+    keyPattern: 'mathTool#(integers|decimals|fractions)',
+    keyHint: 'mathTool#decimals',
   },
   'math-tool.number-line-min': {
     label: 'Minimum value box on the Number Line tool',
@@ -15524,6 +16872,30 @@ export const TOUR_ANCHORS = {
     keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*-[\\w-]+',
     keyHint: 'schedule#event-1-timer for the Timer choice on the first event',
   },
+  'widget-settings.schedule.event-warning': {
+    label:
+      'Warn before this ends toggle for an event in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
+  },
+  'widget-settings.schedule.event-warning-minutes': {
+    label:
+      'Minutes-before-end choice for an event warning in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
+  },
+  'widget-settings.schedule.event-warning-sound': {
+    label:
+      'Warning sound choice for an event in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
+  },
   'override-row.extended-time': {
     label: 'Extended time options in a student override',
     panel: true,
@@ -15545,11 +16917,15 @@ export const TOUR_ANCHORS = {
     label: 'Group row under a class in the Randomizer class menu',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'random-class-group',
   },
   'seating.class-group': {
     label: 'Group row under a class in the Seating Chart class menu',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'seating-class-group',
   },
   'absent-students.clear-all': {
     label: 'Clear all button in the absent students dialog',
@@ -15563,6 +16939,9 @@ export const TOUR_ANCHORS = {
     label: 'Student button in the absent students dialog',
     perField: true,
     panel: true,
+    persists: true,
+    rows: true,
+    rowList: 'absent-students-student',
   },
   // Video Activity shared-prop controls.
   'editor.save': {
@@ -15663,12 +17042,16 @@ export const TOUR_ANCHORS = {
     label: 'Class checkbox in the Flashcards assign dialog class list',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'flashcards-stepper-class-row',
   },
   'flashcards.stepper-student-menu': {
     label:
       'Student picker button for one class in the Flashcards assign dialog',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'flashcards-stepper-student-menu',
   },
   'flashcards-settings-modal.plc-results': {
     label:
@@ -15766,6 +17149,8 @@ export const TOUR_ANCHORS = {
     label: 'Card row in the Flashcards monitor Card results',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'flashcards-card-result',
   },
   'flashcards.results-print': {
     label: 'Print results button in the Flashcards Results screen',
@@ -15911,11 +17296,15 @@ export const TOUR_ANCHORS = {
     label: 'Class checkbox in the Mini App assign dialog class list',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'mini-app-stepper-class-row',
   },
   'mini-app.stepper-student-menu': {
     label: 'Student picker button for one class in the Mini App assign dialog',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'mini-app-stepper-student-menu',
   },
   'mini-app.stepper-kind-switch': {
     label:
@@ -15972,6 +17361,8 @@ export const TOUR_ANCHORS = {
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'gradebook-cell-flag-option',
   },
   'gradebook.column.counts-overall': {
     label: 'Counts toward overall switch in the gradebook column window',
@@ -15983,6 +17374,8 @@ export const TOUR_ANCHORS = {
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'gradebook-settings-flag-rows',
   },
   'gradebook.settings.auto-flags': {
     label:
@@ -15995,6 +17388,8 @@ export const TOUR_ANCHORS = {
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'gradebook-settings-category-rows',
   },
   'gradebook.settings.student-scores': {
     label: 'Published scores switch in the gradebook settings window',
@@ -16063,14 +17458,19 @@ export const TOUR_ANCHORS = {
   'gradebook.grid.column-header': {
     label: 'Assignment column header in the gradebook',
     perField: true,
+    rows: true,
+    rowList: 'gradebook-grid-column-header',
   },
   'gradebook.grid.student-name': {
     label: 'Student name button in the gradebook',
     perField: true,
+    rows: true,
+    rowList: 'gradebook-grid-students',
   },
   'gradebook.grid.cell': {
     label: 'Score cell in the gradebook',
     perField: true,
+    rowList: 'gradebook-grid-students',
   },
   'gradebook.cell.revert': {
     label: 'Revert button for a calculated score in the cell popover',
@@ -16191,6 +17591,8 @@ export const TOUR_ANCHORS = {
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'gradebook-column-standard-option',
   },
   'gradebook.export.csv': {
     label: 'Download CSV item in the gradebook Export menu',
@@ -16260,6 +17662,8 @@ export const TOUR_ANCHORS = {
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'gradebook-settings-applies-option',
   },
   'gradebook.settings.open-plc': {
     label: 'Open in PLC link in the gradebook settings window',
@@ -16274,42 +17678,55 @@ export const TOUR_ANCHORS = {
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'gradebook-settings-flag-rows',
   },
   'gradebook.settings.flag-name': {
     label: 'Flag name box in the gradebook settings window',
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'gradebook-settings-flag-rows',
   },
   'gradebook.settings.flag-key': {
     label: 'Flag key box in the gradebook settings window',
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'gradebook-settings-flag-rows',
   },
   'gradebook.settings.flag-mode': {
     label: 'Flag value type dropdown in the gradebook settings window',
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'gradebook-settings-flag-rows',
   },
   'gradebook.settings.flag-remove-when-scored': {
     label: 'Remove when scored checkbox in the gradebook settings window',
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'gradebook-settings-flag-rows',
   },
   'gradebook.settings.flag-visibility': {
     label: 'Flag visibility button in the gradebook settings window',
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'gradebook-settings-flag-rows',
   },
   'gradebook.settings.flag-remove': {
     label: 'Remove flag button in the gradebook settings window',
     perField: true,
     destructive: true,
     panel: true,
+    rowList: 'gradebook-settings-flag-rows',
   },
   'gradebook.settings.flag-add': {
     label: 'Add flag button in the gradebook settings window',
@@ -16332,12 +17749,15 @@ export const TOUR_ANCHORS = {
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'gradebook-settings-category-rows',
   },
   'gradebook.settings.category-remove': {
     label: 'Remove category button in the gradebook settings window',
     perField: true,
     destructive: true,
     panel: true,
+    rowList: 'gradebook-settings-category-rows',
   },
   'gradebook.settings.category-add': {
     label: 'Add category button in the gradebook settings window',
@@ -16432,18 +17852,26 @@ export const TOUR_ANCHORS = {
   'gradebook.analysis.insight': {
     label: 'Needs attention item on the Data analysis tab',
     perField: true,
+    rows: true,
+    rowList: 'gradebook-analysis-insight',
   },
   'gradebook.analysis.bar-row': {
     label: 'Bar chart row label in the gradebook analysis cards',
     perField: true,
+    rows: true,
+    rowList: 'gradebook-analysis-bar-row',
   },
   'gradebook.analysis.heatmap-column': {
     label: 'Learning target column button in the standards heatmap',
     perField: true,
+    rows: true,
+    rowList: 'gradebook-analysis-heatmap-column',
   },
   'gradebook.analysis.heatmap-row': {
     label: 'Student row button in the standards heatmap',
     perField: true,
+    rows: true,
+    rowList: 'gradebook-analysis-heatmap-row',
   },
   'gradebook.analyze.close': {
     label: 'Close button in the assignment analysis window',
@@ -16453,6 +17881,8 @@ export const TOUR_ANCHORS = {
     label: 'Not submitted student button in the assignment analysis window',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'gradebook-analyze-student',
   },
   'gradebook.student.back': {
     label: 'Back to Grades button in the student gradebook view',
@@ -16483,10 +17913,14 @@ export const TOUR_ANCHORS = {
     label:
       'Evidence button for a learning target in the student gradebook view',
     perField: true,
+    rows: true,
+    rowList: 'gradebook-student-targets',
   },
   'gradebook.student.edit-cell': {
     label: 'Edit button for an assignment in the student gradebook view',
     perField: true,
+    rows: true,
+    rowList: 'gradebook-student-assignments',
   },
   'gradebook.student.preview': {
     label: 'Preview as student button in the student gradebook view',
@@ -16587,6 +18021,8 @@ export const TOUR_ANCHORS = {
     label: 'Folder row in the folder picker',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'gl-folder-picker-folder',
   },
   // Folder and preview controls for the other library widgets.
   'flashcards.folder-new': {
@@ -16613,6 +18049,8 @@ export const TOUR_ANCHORS = {
     label: 'Folder row in the folder picker',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'flashcards-folder-picker-folder',
   },
   'mini-app.folder-new': {
     label: 'New folder button in the Mini App library',
@@ -16634,6 +18072,8 @@ export const TOUR_ANCHORS = {
     label: 'Folder row in the folder picker',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'mini-app-folder-picker-folder',
   },
   'quiz-library.folder-new': {
     label: 'New folder button in the Quiz library',
@@ -16655,6 +18095,8 @@ export const TOUR_ANCHORS = {
     label: 'Folder row in the folder picker',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-library-folder-picker-folder',
   },
   'quiz-banks.folder-new': {
     label: 'New folder button in the Question banks library',
@@ -16684,6 +18126,8 @@ export const TOUR_ANCHORS = {
     label: 'Folder row in the folder picker',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-banks-folder-picker-folder',
   },
   'video-activity.folder-new': {
     label: 'New folder button in the Video Activity library',
@@ -16705,6 +18149,8 @@ export const TOUR_ANCHORS = {
     label: 'Folder row in the folder picker',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'video-activity-folder-picker-folder',
   },
   'mini-app.preview-close': {
     label: 'Close button in the Mini App preview',
@@ -16746,6 +18192,8 @@ export const TOUR_ANCHORS = {
     label: 'Question row in the Video Activity results',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'video-activity-results-questions',
   },
   'video-activity.results-student-row': {
     label: 'Student row in the Video Activity results',
@@ -16761,6 +18209,8 @@ export const TOUR_ANCHORS = {
       'Mark button on a short-answer question in the Video Activity results',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'video-activity-results-questions',
   },
   'video-activity.results-mark-points': {
     label:
@@ -16768,6 +18218,7 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
     persists: true,
+    rowList: 'video-activity-results-questions',
   },
   'quiz-editor.folder': {
     label: 'Folder picker in the Quiz editor header',
@@ -16834,6 +18285,261 @@ export const TOUR_ANCHORS = {
   },
   'projects-editor.folder': {
     label: 'Folder picker in the Projects editor header',
+    panel: true,
+  },
+  'writing.stepper-class-picker': {
+    label: 'Class list in the Writing assign dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing.stepper-class-row': {
+    label: 'Class checkbox in the Writing assign dialog class list',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'writing-stepper-class-row',
+  },
+  'writing.stepper-student-menu': {
+    label: 'Student picker button for one class in the Writing assign dialog',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'writing-stepper-student-menu',
+  },
+  'writing.selection-mode': {
+    label: 'Select button in the Writing library',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'writing.bulk-move': {
+    label: 'Move to folder button in the Writing bulk action bar',
+    persists: true,
+    panel: true,
+  },
+  'writing.bulk-delete': {
+    label: 'Delete button in the Writing bulk action bar',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'writing.bulk-clear': {
+    label: 'Clear selection button in the Writing bulk action bar',
+    panel: true,
+  },
+  'writing.archive-monitor': {
+    label: 'Monitor item in a Writing assignment row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-monitor.back': {
+    label: 'Back button in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-monitor.class-picker': {
+    label: 'Class picker in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-monitor.period-start': {
+    label: 'Start button for the picked class in the Writing monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'writing-monitor.period-pause': {
+    label: 'Pause button for the picked class in the Writing monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'writing-monitor.period-more-time': {
+    label: 'More time button in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-monitor.period-extend': {
+    label: 'Extend time option in the Writing monitor More time menu',
+    perWidgetType: true,
+    persists: true,
+  },
+  'writing-monitor.status-bucket': {
+    label: 'Student status count in the Writing monitor',
+    perField: true,
+  },
+  'writing-monitor.word-counts': {
+    label: 'Word counts switch in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-monitor.peer-review': {
+    label: 'Peer review button in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-peer.access': {
+    label: 'Partners can choice in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-peer.pair-all': {
+    label: 'Pair everyone at random button in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-peer.pair-rest': {
+    label: 'Pair the rest at random button in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-peer.clear': {
+    label: 'Clear pairs button in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-peer.partner': {
+    label: 'Partner box for one student in the Writing peer review setup',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'writing-peer-partner',
+  },
+  'writing-peer.start': {
+    label: 'Start peer review or Save button in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'writing-peer.end': {
+    label: 'End peer review button in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'writing-monitor.live-view': {
+    label: 'Live view button on a student in the Writing monitor',
+    perField: true,
+    persists: true,
+  },
+  'writing-live-view.previous': {
+    label: 'Previous student button in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'writing-live-view.next': {
+    label: 'Next student button in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'writing-live-view.close': {
+    label: 'Close button in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-live-view.tell-student': {
+    label: 'Notify student when viewing switch in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'writing-live-view.nudge-note': {
+    label: 'Nudge note picker in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-live-view.nudge': {
+    label: 'Nudge button in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'writing-editor.tab-prompt': {
+    label: 'Prompt tab in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.tab-stimuli': {
+    label: 'Stimuli tab in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.prompt': {
+    label: 'Prompt box in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.grading-ungraded': {
+    label: 'Ungraded option in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.grading-points': {
+    label: 'Points option in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.grading-rubric': {
+    label: 'Rubric option in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.points': {
+    label: 'Points box in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.rubric-edit': {
+    label: 'Rubric: Edit in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.rubric-detach': {
+    label: 'Rubric: Detach in the Writing editor',
+    destructive: true,
+    panel: true,
+  },
+  'writing-editor.folder': {
+    label: 'Folder picker in the Writing editor header',
+    panel: true,
+  },
+  'writing-editor.save': {
+    label: 'Save button in the Writing editor',
+    persists: true,
+    panel: true,
+  },
+  'writing-results.back': {
+    label: 'Back button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.grade': {
+    label: 'Grade button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.hide-names': {
+    label: 'Hide names button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.drill-students': {
+    label: 'Students row in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.sort': {
+    label: 'Student sort in Writing results',
+    perField: true,
+  },
+  'writing-results.student-row': {
+    label: 'Student row in Writing results',
+    perField: true,
+    rows: true,
+  },
+  'writing-grading.return': {
+    label: 'Return button in the Writing grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'writing-grading.return-revision': {
+    label: 'Return for revision button in the Writing grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'writing-grading.writing-record': {
+    label: 'Writing record button in the Writing grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-grading.student-record': {
+    label:
+      'Students can replay their own writing checkbox in the Writing grader',
+    perWidgetType: true,
     panel: true,
   },
   'gl-ai.attach-doc': {
@@ -17377,6 +19083,64 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'roster-editor.accommodations-group': {
+    label: 'Group row on the roster editor Accommodations tab',
+    perField: true,
+    panel: true,
+    keyPattern: 'roster-editor#row-[1-9]\\d*',
+    keyHint: 'roster-editor#row-1 for the first row',
+    rows: true,
+    rowList: 'roster-accommodation-groups',
+  },
+  'roster-editor.accommodations-add': {
+    label:
+      'Add menu for students and groups on the roster editor Accommodations tab',
+    panel: true,
+  },
+  'roster-editor.accommodations-search': {
+    label: 'Search box in the Accommodations Add menu',
+    panel: true,
+  },
+  'roster-editor.accommodations-pick-group': {
+    label: 'Group checkbox in the Accommodations Add menu',
+    perField: true,
+    panel: true,
+    persists: true,
+    keyPattern: 'roster-editor#row-[1-9]\\d*',
+    keyHint: 'roster-editor#row-1 for the first row',
+    rows: true,
+    rowList: 'roster-accommodations-pick-groups',
+  },
+  'roster-editor.accommodations-pick-student': {
+    label: 'Student checkbox in the Accommodations Add menu',
+    perField: true,
+    panel: true,
+    persists: true,
+    keyPattern: 'roster-editor#row-[1-9]\\d*',
+    keyHint: 'roster-editor#row-1 for the first row',
+    rows: true,
+    rowList: 'roster-accommodations-pick-students',
+  },
+  'roster-editor.accommodations-answer-choices': {
+    label:
+      'Answer choices control for a student or group in the roster editor Accommodations tab',
+    panel: true,
+  },
+  'roster-editor.accommodations-modified-questions': {
+    label:
+      'Modified questions switch for a student or group in the roster editor Accommodations tab',
+    panel: true,
+  },
+  'roster-editor.accommodations-done': {
+    label: 'Done button that closes the Accommodations Add menu',
+    panel: true,
+  },
+  'roster-editor.accommodations-remove': {
+    label: 'Remove button on a row of the roster editor Accommodations tab',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
   'roster-editor.accommodations-add-student': {
     label: 'Add Student button on the empty roster editor Accommodations tab',
     panel: true,
@@ -17400,6 +19164,18 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.reprint-sheets': {
     label: 'Print response sheets item in a paper assignment menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.import-paper-copies': {
+    label:
+      'Import paper responses item in a quiz assignment menu, for printed group copies',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.reprint-paper-copies': {
+    label:
+      'Print paper copies item in a quiz assignment menu, for printed group copies',
     perWidgetType: true,
     panel: true,
   },

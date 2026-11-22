@@ -894,6 +894,7 @@ const StudioSession: React.FC<
       <EditorHeader
         title={editorState.title}
         onTitleChange={readOnly ? () => undefined : editorState.setTitle}
+        titleReadOnly={readOnly}
         titlePlaceholder={t('glStudio.titlePlaceholder')}
         subtitle={t('glStudio.stepCount', { count: stepCount })}
         notice={

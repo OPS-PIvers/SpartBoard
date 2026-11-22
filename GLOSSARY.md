@@ -61,7 +61,7 @@ How students fill the blanks of a fill-in-the-blank question: Typed, Dropdown (p
 _Avoid_: choice blank, cloze, inline choice, gap match
 
 **Stimulus tab**:
-One named source (a reading, picture, PDF or calculator) in the panel beside a question, shown as a tab when the question has two or more.
+One named source (a reading, picture, PDF or calculator) in the panel beside a question or a Writing assignment, shown as a tab when there are two or more.
 _Avoid_: source tab, passage tab
 
 **Explanation**:
@@ -77,16 +77,102 @@ A teacher trying a quiz themselves as a student would see it. Nothing they do is
 _Avoid_: preview (alone), test mode
 
 **Live view**:
-A teacher looking at one student's in-progress attempt as it happens, redrawn from what the student has saved rather than a picture of their screen. The teacher can't change anything, and the student isn't told unless the teacher or the district chooses.
+A teacher looking at one student's in-progress quiz attempt or Writing assignment as it happens, redrawn from what the student has saved rather than a picture of their screen. The teacher can't change anything, and the student isn't told unless the teacher or the district chooses.
 _Avoid_: watch, observe, screen share, mirror, View as student (that is the admin tool)
 
 **Nudge**:
-A brief colored border on a student's quiz, sent by the teacher from Live view to get their attention, with an optional short note from a fixed list.
+A brief colored border on a student's quiz or Writing assignment, sent by the teacher from Live view to get their attention, with an optional short note from a fixed list.
 _Avoid_: ping, alert, message, buzz
 
 **Package file**:
 One file holding quizzes or question banks with their pictures, which an admin uploads to the District library.
 _Avoid_: bundle, export
+
+## Classes
+
+**Course**:
+Sections a teacher has chosen to link because they are taught the same thing, so the Agenda and Class page are set once. Linking is optional: an unlinked section stands as its own Course. Rosters, periods, due dates and grades stay with each section.
+_Avoid_: class (for the group), merged class, course (alone, for a Classroom course or a Schoology course: always name the LMS)
+
+**Class**:
+One section a teacher teaches, with its own roster and period: a ClassLink section or a roster made by hand. It keeps this meaning whether or not it is linked into a Course.
+_Avoid_: course (that is the linked group), section (in anything a teacher or student reads)
+
+**Agenda**:
+A Course's daily plan: the Google Slides deck the teacher already keeps, newest day first, shown on the board, on the Class page and to families.
+_Avoid_: announcement (that is an admin's message to staff), schedule (that is the bell-schedule widget)
+
+**Class page**:
+The page a student sees for one class inside My Assignments: the Agenda, a few pinned links and their assigned work.
+_Avoid_: course page, portal, student home (that is My Assignments, the list across all classes)
+
+**Family link**:
+A Course's public page for families, with no sign-in: the Agenda and pinned links only. SpartBoard adds no student's name or work to it. The teacher switches it on, and its address never changes.
+_Avoid_: parent portal, public Class page, share link
+
+## Student work
+
+**Writing assignment**:
+A piece of writing a teacher assigns that students write in SpartBoard, over one sitting or many, where how it was written is kept as a Writing record.
+_Avoid_: writing task, essay, Google assignment (that is a Drive file copied per student)
+
+**Writing record**:
+What SpartBoard keeps about how a piece was written: every edit, so it can be played back, and a summary of time spent, Writing sessions, pastes, text added without typing and time away from the tab. It states facts and never judges the student.
+_Avoid_: keystroke log, input signals, integrity report, surveillance
+
+**Writing session**:
+One stretch of writing on a piece with no gap longer than 15 minutes. A Writing record counts them.
+_Avoid_: sitting, session (alone; that is a student activity)
+
+**Turn in**:
+A student handing a Writing assignment to the teacher, which locks it. Quizzes and Projects are submitted, not turned in.
+_Avoid_: submit (for writing), hand in
+
+**Take back**:
+A student unlocking their own turned-in Writing assignment to keep writing, allowed until the due date passes or the teacher has left feedback.
+_Avoid_: unsubmit, withdraw
+
+**Return**:
+A teacher giving turned-in writing back with its feedback and grade. Return keeps it locked; Return for revision unlocks it for another draft.
+_Avoid_: reopen (that is Projects and quizzes), send back
+
+**Focus mode**:
+The protections a teacher can switch on for an assigned activity: blocking copy and paste, and counting time away from the tab. It never means the Writing record.
+_Avoid_: lockdown, Focus session (that is the extension limiting a student's tabs)
+
+**Speech to text**:
+An accommodation that lets a student speak a written answer instead of typing it. The student's control for it is called Dictate. Only the words are kept, never the recording, and the teacher can see that an answer was dictated.
+_Avoid_: voice typing, dictation (as the accommodation's name), voice input, STT
+
+## Assigned work
+
+**Assignment**:
+A Library item given to one or more Classes for students to do. It is one thing however many Classes get it, and it has no status of its own: it is Active until it is Finished.
+_Avoid_: session (that is a student activity), instance, run
+
+**Ready**:
+A Class's state before the assignment has been opened for it. Scheduled is the same state with an opening time set.
+_Avoid_: waiting, not started (that is a student who hasn't begun)
+
+**Open**:
+A Class's students can do the assignment now, whether the teacher opened it or a schedule did.
+_Avoid_: live (that is Live view and Live tours), active, started, in progress
+
+**Paused**:
+A short freeze for one Class during a lesson; work is saved and the teacher is expected to Resume. Never the way to finish a Class.
+_Avoid_: stopped, locked
+
+**Closed**:
+A Class is finished with the assignment and its students can no longer work on it. The teacher can Reopen it.
+_Avoid_: ended, archived, completed, inactive
+
+**Reopen**:
+Letting a Closed Class, or chosen students in it, back into an assignment at once. Students who have used every attempt stay out.
+_Avoid_: reactivate, restart, return (that is giving writing back)
+
+**Finished**:
+An assignment with every Class Closed, nothing waiting for a grade and its scores published. It leaves the Active list by itself.
+_Avoid_: done, completed (that is a student's finished attempt), archive, ended
 
 ## Getting Started
 

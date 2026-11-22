@@ -15,6 +15,7 @@ import { User } from 'firebase/auth';
 import {
   ClassRoster,
   ClassRosterMeta,
+  QuizSupport,
   RosterGroup,
   RosterSyncSummary,
   RubricSnapshot,
@@ -27,12 +28,16 @@ import { getLocalIsoDate } from '@/utils/localDate';
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency';
 import { assignPins } from '@/utils/rosterPins';
 import { viewAsAuditCreated, viewAsDirectSave } from '@/utils/viewAsAudit';
-import { runAuditedWrite } from '@/utils/viewAsTab';
+import {
+  runAuditedWrite,
+  viewAsSuppressesBackgroundWrites,
+} from '@/utils/viewAsTab';
 import { collapseTestSuffix } from '@/utils/testClassSuffix';
 import { noDriveMessage } from '@/utils/viewAsDrive';
 import { parseGroupReminder, parseGroupSymbol } from '@/utils/groupReminders';
 import { syncGroupEmailAlerts } from '@/utils/groupEmailAlerts';
 import { refreshVerifiedClassesIfStale } from '@/utils/verifiedClassesRefresh';
+import { DevProdDriveWriteError } from '@/utils/devDriveWriteGuard';
 
 /**
  * Phase 3 — rebuild the per-roster pin_index sidecar after a roster save.
@@ -46,7 +51,25 @@ import { refreshVerifiedClassesIfStale } from '@/utils/verifiedClassesRefresh';
  * circuits there. Best-effort: a failure logs and returns — the roster
  * save itself has already succeeded, and the next save will retry.
  */
-async function syncRosterPinIndex(
+// Runs one roster's index rebuilds in order, so an older one never lands last.
+const pinIndexQueue = new Map<string, Promise<void>>();
+
+function syncRosterPinIndex(
+  rosterId: string,
+  rosterName: string,
+  students: Student[]
+): Promise<void> {
+  const run = (pinIndexQueue.get(rosterId) ?? Promise.resolve())
+    .catch(() => undefined)
+    .then(() => syncRosterPinIndexNow(rosterId, rosterName, students));
+  pinIndexQueue.set(rosterId, run);
+  void run.finally(() => {
+    if (pinIndexQueue.get(rosterId) === run) pinIndexQueue.delete(rosterId);
+  });
+  return run;
+}
+
+async function syncRosterPinIndexNow(
   rosterId: string,
   rosterName: string,
   students: Student[]
@@ -227,6 +250,24 @@ function parseRubricSnapshot(raw: unknown): RubricSnapshot | null {
   return raw as RubricSnapshot;
 }
 
+// Shape only; the server sanitizer checks lengths and URLs again at assign.
+function parseSupports(raw: unknown): QuizSupport[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: QuizSupport[] = [];
+  for (const item of raw.slice(0, 5)) {
+    if (!item || typeof item !== 'object') continue;
+    const s = item as Record<string, unknown>;
+    if (typeof s.title !== 'string' || !s.title.trim()) continue;
+    if (s.kind === 'text' && typeof s.text === 'string')
+      out.push({ kind: 'text', title: s.title, text: s.text });
+    else if (s.kind === 'link' && typeof s.url === 'string')
+      out.push({ kind: 'link', title: s.title, url: s.url });
+    else if (s.kind === 'drive' && typeof s.fileId === 'string')
+      out.push({ kind: 'drive', title: s.title, fileId: s.fileId });
+  }
+  return out.length > 0 ? out : undefined;
+}
+
 function parseStudentOverride(raw: unknown): StudentOverride | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
@@ -286,6 +327,12 @@ function parseStudentOverride(raw: unknown): StudentOverride | null {
     override.tabAwayLimit = o.tabAwayLimit;
   }
   if (o.readAloud === true) override.readAloud = true;
+  if (o.speechToText === true) override.speechToText = true;
+  if (o.answerChoices === 2 || o.answerChoices === 3)
+    override.answerChoices = o.answerChoices;
+  if (o.modifiedQuestions === true) override.modifiedQuestions = true;
+  const supports = parseSupports(o.supports);
+  if (supports) override.supports = supports;
   if (typeof o.blockCopyPaste === 'boolean')
     override.blockCopyPaste = o.blockCopyPaste;
   if (typeof o.openAt === 'number') override.openAt = o.openAt;
@@ -689,8 +736,22 @@ export const useRosters = (user: User | null) => {
       });
       // Update in-place when we already have a Drive file to avoid orphaned files
       if (existingFileId) {
-        await driveService.updateFileContent(existingFileId, blob);
-        return existingFileId;
+        try {
+          await driveService.updateFileContent(existingFileId, blob);
+          return existingFileId;
+        } catch (err) {
+          // On dev, a roster synced from the live site gets a dev copy (reused after a re-sync) and the caller repoints to it.
+          if (!(err instanceof DevProdDriveWriteError)) throw err;
+          const folderId =
+            await driveService.getFolderPath(ROSTER_DRIVE_FOLDER);
+          const [devCopy] = await driveService.listFiles(
+            `name = '${rosterId}.json' and '${folderId}' in parents and trashed = false`
+          );
+          if (devCopy) {
+            await driveService.updateFileContent(devCopy.id, blob);
+            return devCopy.id;
+          }
+        }
       }
       const file = await driveService.uploadFile(
         blob,
@@ -809,7 +870,7 @@ export const useRosters = (user: User | null) => {
       metaList: ClassRosterMeta[],
       rawSnapDocs: { id: string; data: () => unknown }[]
     ) => {
-      if (!driveService || !user) return;
+      if (!driveService || !user || viewAsSuppressesBackgroundWrites()) return;
       const migrationKey = `${MIGRATION_KEY_PREFIX}_${user.uid}`;
       if (localStorage.getItem(migrationKey)) return;
 

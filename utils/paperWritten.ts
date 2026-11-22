@@ -1,4 +1,5 @@
 import type {
+  PaperBoxPages,
   PaperBoxSize,
   PaperBoxStyle,
   PaperSheetStimulus,
@@ -20,7 +21,7 @@ export const PAPER_HANDWRITING_AI_FEATURE = 'paper-handwriting-ai';
 
 /** Written lines ruled in each named box size; a line is one 8 mm grid row. L is kept for quizzes saved before custom sizes. */
 export const PAPER_BOX_LINES: Readonly<
-  Record<Exclude<PaperBoxSize, 'full' | number>, number>
+  Record<Exclude<PaperBoxSize, 'full' | PaperBoxPages | number>, number>
 > = {
   S: 3,
   M: 8,
@@ -48,14 +49,48 @@ export const PAPER_PAGE_CALLABLE = 'getPaperPageV1';
 export const PAPER_KEPT_PAGE_DPI = 150;
 export const DEFAULT_WRITTEN_RETURN_MODE: WrittenReturnMode = 'handwriting';
 
+/** Lets a written answer run past one page. */
+export const PAPER_MULTI_PAGE_FEATURE = 'paper-multi-page-answers';
+/** Most whole pages one written answer can take. */
+export const PAPER_MAX_BOX_PAGES = 4;
+
+const BOX_PAGES: Readonly<Record<PaperBoxPages, number>> = {
+  'pages-2': 2,
+  'pages-3': 3,
+  'pages-4': 4,
+};
+
+const isBoxPages = (value: unknown): value is PaperBoxPages =>
+  typeof value === 'string' && value in BOX_PAGES;
+
+/** Lines in a box, or on each page of a page-sized one. */
 export function paperBoxLines(size: PaperBoxSize): number {
   if (typeof size === 'number') return size;
-  return size === 'full' ? PAPER_FULL_PAGE_LINES : PAPER_BOX_LINES[size];
+  if (size === 'full' || isBoxPages(size)) return PAPER_FULL_PAGE_LINES;
+  return PAPER_BOX_LINES[size];
+}
+
+/** Whole pages a box takes; 0 for a box that shares its page. */
+export function paperBoxPages(size: PaperBoxSize): number {
+  if (isBoxPages(size)) return BOX_PAGES[size];
+  return paperBoxLines(size) >= PAPER_FULL_PAGE_LINES ? 1 : 0;
+}
+
+/** The box size for `pages` whole pages, from 1 to `PAPER_MAX_BOX_PAGES`. */
+export function paperBoxSizeForPages(pages: number): PaperBoxSize {
+  const n = Math.max(1, Math.min(PAPER_MAX_BOX_PAGES, Math.round(pages)));
+  return n === 1 ? 'full' : (`pages-${n}` as PaperBoxPages);
+}
+
+/** Orders sizes by room to write: lines first, then whole pages. */
+export function paperBoxRoom(size: PaperBoxSize): number {
+  const pages = paperBoxPages(size);
+  return pages > 1 ? pages * PAPER_FULL_PAGE_LINES : paperBoxLines(size);
 }
 
 /** A Full box, or a custom one as tall as a page, takes a page of its own. */
 export function isFullPageBox(size: PaperBoxSize): boolean {
-  return size === 'full' || paperBoxLines(size) >= PAPER_FULL_PAGE_LINES;
+  return paperBoxPages(size) > 0;
 }
 
 /** Smallest box that fits `maxWords` at about ten words a line; M when no limit is set. */
@@ -170,7 +205,7 @@ export function changedPaperBoxSetup(
     boxSizes: Object.fromEntries(
       Object.entries(sizes).filter(([id, size]) => {
         const q = byId.get(id);
-        return !!q && paperBoxLines(paperBoxSizeOf(q)) !== paperBoxLines(size);
+        return !!q && paperBoxRoom(paperBoxSizeOf(q)) !== paperBoxRoom(size);
       })
     ),
     boxStyles: Object.fromEntries(
@@ -213,7 +248,13 @@ export function isPaperBoxSize(value: unknown): value is PaperBoxSize {
       value <= PAPER_CUSTOM_MAX_LINES
     );
   }
-  return value === 'S' || value === 'M' || value === 'L' || value === 'full';
+  return (
+    value === 'S' ||
+    value === 'M' ||
+    value === 'L' ||
+    value === 'full' ||
+    isBoxPages(value)
+  );
 }
 
 /** `paper_written_crops/{uid}/{scanId}/{seat}/{questionId}.webp` */
@@ -337,6 +378,31 @@ export function canTransitionPaperPrivate(
   return PRIVATE_TRANSITIONS[from].includes(to);
 }
 
+/** An answer's `paperTranscript` for grading; on FIB it counts only on a server-imported scan of a paper response. */
+export function gradingPaperTranscript(
+  question: Pick<QuizQuestion, 'type'>,
+  response:
+    Pick<QuizResponse, 'paperBatchId' | 'paperWrittenBatchId'> | undefined,
+  answer:
+    Pick<QuizResponseAnswer, 'paperTranscript' | 'paperScanId'> | undefined
+): PaperTranscriptState | undefined {
+  const state = answer?.paperTranscript;
+  if (question.type !== 'FIB') return state;
+  return (response?.paperBatchId || response?.paperWrittenBatchId) &&
+    typeof answer?.paperScanId === 'string'
+    ? state
+    : undefined;
+}
+
+/** A paper fill-in-the-blank box not read yet, so the teacher marks it from the picture. */
+export function isPaperFibOwed(
+  answer: Pick<QuizResponseAnswer, 'paperTranscript'>
+): boolean {
+  return (
+    answer.paperTranscript === 'pending' || answer.paperTranscript === 'image'
+  );
+}
+
 export function isPaperWrittenAnswer(
   answer: Pick<QuizResponseAnswer, 'paperTranscript' | 'artifacts'>
 ): boolean {
@@ -411,4 +477,15 @@ export function paperWrittenView(
     transcript,
     placeholder,
   };
+}
+
+/** A multi-blank stem with each blank lettered to match its write-in line: "___ (a)". */
+export function letteredBlanks(text: string): string {
+  const runs = (text ?? '').match(/_{2,}/g)?.length ?? 0;
+  if (runs < 2) return text;
+  let i = 0;
+  return text.replace(
+    /_{2,}/g,
+    (run) => `${run} (${String.fromCharCode(97 + i++)})`
+  );
 }

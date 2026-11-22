@@ -75,6 +75,7 @@ import {
   spokenWord,
   stressSyllables,
 } from './speak/speakJudge';
+import { withMicPermissionPrompt } from '@/utils/permissionPrompt';
 
 // A phrase of up to four words fits well inside 8 seconds; the hook stops the take at the limit.
 const SPEAK_RECORDING: RecordingConfig = {
@@ -1437,8 +1438,11 @@ const MicCheck: React.FC<{
   useEffect(() => {
     let active = true;
     let opened: MediaStream | null = null;
-    void navigator.mediaDevices
-      ?.getUserMedia({ audio: SPEAK_CONSTRAINTS })
+    const media = navigator.mediaDevices;
+    if (!media) return;
+    void withMicPermissionPrompt(() =>
+      media.getUserMedia({ audio: SPEAK_CONSTRAINTS })
+    )
       .then((next) => {
         if (!active) {
           next.getTracks().forEach((track) => track.stop());

@@ -8,6 +8,7 @@ import {
 import type { RecordingConfig, TakeMicState } from '@/types';
 import { wrapUpThresholdSeconds } from '@/config/quizRecordingDefaults';
 import type { TakeRecoveryStore } from '@/utils/takeRecoveryStore';
+import { withMicPermissionPrompt } from '@/utils/permissionPrompt';
 
 /**
  * Audio capture state machine for a quiz recording question. Modeled on
@@ -94,7 +95,9 @@ function speechRecorderOptions(
 
 export const defaultAudioRecordingDeps: AudioRecordingDeps = {
   getStream: (constraints) =>
-    navigator.mediaDevices.getUserMedia({ audio: constraints ?? true }),
+    withMicPermissionPrompt(() =>
+      navigator.mediaDevices.getUserMedia({ audio: constraints ?? true })
+    ),
   createRecorder: (stream, mimeType, audioBitsPerSecond) =>
     new MediaRecorder(
       stream,

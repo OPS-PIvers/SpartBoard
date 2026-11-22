@@ -329,3 +329,86 @@ describe('buildPaperSheetsHtml with page maps', () => {
     expect(html).toMatchSnapshot();
   });
 });
+
+describe('fill in the blank on paper', () => {
+  const fib = (n: number, blanks: number): PaperSheetEntry => ({
+    kind: 'written',
+    questionId: `q${n}`,
+    label: String(n),
+    size: blanks,
+    blanks,
+  });
+
+  it('prints a line per blank, lettered outside the box when there are several', () => {
+    const maps = mapsFor([mc(1), fib(2, 3), fib(3, 1)]);
+    const items = writtenItemsOf(maps[0]);
+    expect(items.map((i) => [i.lines, i.blanks])).toEqual([
+      [3, 3],
+      [1, 1],
+    ]);
+    const page = pages(buildPaperSheetsHtml(job(maps)))[0];
+    const letters = [...page.matchAll(/class="wr-blank"[^>]*>([a-z])</g)].map(
+      (m) => m[1]
+    );
+    expect(letters).toEqual(['a', 'b', 'c']);
+    const shapes = drawn(page);
+    for (const item of items) {
+      const inside = shapes.filter((d) => intersects(d.rect, item.boxMm));
+      expect(inside.filter((d) => d.cls === 'wr-rule')).toHaveLength(
+        item.lines
+      );
+    }
+  });
+
+  it('letters only the blanks on a question-text box rounded up to whole slots', () => {
+    const maps = mapsFor([fib(1, 1), fib(2, 2)], 'questions');
+    const items = writtenItemsOf(maps[0]);
+    expect(items[0].lines).toBeGreaterThan(1);
+    expect(items[1].lines).toBeGreaterThan(2);
+    const html = buildPaperSheetsHtml(
+      job(maps, {
+        columnsPerPage: 'questions',
+        questionTexts: [
+          { text: 'One ___', choices: [] },
+          { text: 'Two ___ and ___', choices: [] },
+        ],
+      })
+    );
+    const letters = [
+      ...pages(html)[0].matchAll(/class="wr-blank"[^>]*>([a-z])</g),
+    ].map((m) => m[1]);
+    expect(letters).toEqual(['a', 'b']);
+    const key = pages(
+      buildPaperSheetsHtml(
+        job(maps, {
+          columnsPerPage: 'questions',
+          questionTexts: [
+            { text: 'One ___', choices: [] },
+            { text: 'Two ___ and ___', choices: [] },
+          ],
+          sheets: [sheet({ isKeySheet: true, displayName: 'ANSWER KEY' })],
+          blankAnswers: { q1: ['x'], q2: ['y', 'z'] },
+        })
+      )
+    )[0];
+    expect(
+      [...key.matchAll(/class="wr-blank-key"[^>]*>([^<]*)</g)].map((m) => m[1])
+    ).toEqual(['x', 'y', 'z']);
+  });
+
+  it('prints each blank’s answer on the answer key', () => {
+    const maps = mapsFor([fib(1, 2)]);
+    const page = pages(
+      buildPaperSheetsHtml(
+        job(maps, {
+          sheets: [sheet({ isKeySheet: true, displayName: 'ANSWER KEY' })],
+          blankAnswers: { q1: ['mitochondria', '<ATP>'] },
+        })
+      )
+    )[0];
+    expect(page).not.toContain('Graded by teacher');
+    expect(
+      [...page.matchAll(/class="wr-blank-key"[^>]*>([^<]*)</g)].map((m) => m[1])
+    ).toEqual(['mitochondria', '&lt;ATP&gt;']);
+  });
+});

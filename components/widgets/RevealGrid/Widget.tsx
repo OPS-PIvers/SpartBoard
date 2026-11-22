@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import {
   useGlobalStyle,
   useDashboardActions,
+  useIsActiveBoardReadOnly,
 } from '@/context/dashboardCanvasStore';
+import { LayoutGrid, Plus } from 'lucide-react';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { markSettingsOpenedLocally } from '@/components/settings/settingsOpenSignal';
 import { WidgetData, RevealGridConfig, MemoryCard } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { Toggle } from '@/components/common/Toggle';
@@ -38,6 +42,7 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget } = useDashboardActions();
   const config = widget.config as RevealGridConfig;
   const globalStyle = useGlobalStyle();
+  const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
   const [isShowAnswersMode, setIsShowAnswersMode] = useState(false);
 
   // Fallback to defaults if needed
@@ -230,202 +235,245 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
         </div>
       }
       content={
-        <div className="h-full w-full overflow-y-auto">
-          <div
-            className={`grid min-h-full w-full ${fontClass}`}
-            style={{
-              // Up to the configured column count; fewer when cards would get too narrow to read.
-              gridTemplateColumns: `repeat(auto-fill, minmax(max(min(88px, 30cqmin), calc((100% - ${columns - 1} * ${GAP}) / ${columns} - 0.5px)), 1fr))`,
-              gridAutoRows: 'minmax(min(64px, 25cqmin), 1fr)',
-              gap: GAP,
-            }}
-          >
-            {isMemoryMode
-              ? // MEMORY MODE GRID
-                memoryCards.map((card, index) => (
-                  <div
-                    key={card.id}
-                    className={`relative perspective-1000 cursor-pointer group ${card.isMatched ? 'invisible' : ''}`}
-                    style={CARD_STYLE}
-                    onClick={() => handleMemoryCardClick(card.id)}
-                  >
+        cards.length === 0 ? (
+          <ScaledEmptyState
+            icon={LayoutGrid}
+            iconClassName="text-slate-400"
+            titleClassName="text-slate-600"
+            subtitleClassName="text-slate-500"
+            iconSize="min(64px, 18cqmin)"
+            titleSize="min(20px, 7cqmin)"
+            subtitleSize="min(16px, 5.5cqmin)"
+            title="No cards yet"
+            subtitle="Add question and answer cards in settings, then tap a card to reveal its answer."
+            action={
+              widget.isLocked || isActiveBoardReadOnly ? undefined : (
+                <button
+                  type="button"
+                  {...tourAttr('reveal-grid.add-cards', widget.id, widget.type)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    markSettingsOpenedLocally(widget.id);
+                    updateWidget(widget.id, { flipped: true });
+                  }}
+                  className="flex items-center bg-brand-blue-primary text-white rounded-lg font-bold hover:bg-brand-blue-dark transition-colors"
+                  style={{
+                    gap: 'min(8px, 2cqmin)',
+                    padding:
+                      'max(6px, min(10px, 2.5cqmin)) max(12px, min(18px, 4.5cqmin))',
+                    fontSize: 'max(11px, min(16px, 4.5cqmin))',
+                  }}
+                >
+                  <Plus
+                    aria-hidden="true"
+                    style={{
+                      width: 'max(12px, min(16px, 4.5cqmin))',
+                      height: 'max(12px, min(16px, 4.5cqmin))',
+                    }}
+                  />
+                  Add cards
+                </button>
+              )
+            }
+          />
+        ) : (
+          <div className="h-full w-full overflow-y-auto">
+            <div
+              className={`grid min-h-full w-full ${fontClass}`}
+              style={{
+                // Up to the configured column count; fewer when cards would get too narrow to read.
+                gridTemplateColumns: `repeat(auto-fill, minmax(max(min(88px, 30cqmin), calc((100% - ${columns - 1} * ${GAP}) / ${columns} - 0.5px)), 1fr))`,
+                gridAutoRows: 'minmax(min(64px, 25cqmin), 1fr)',
+                gap: GAP,
+              }}
+            >
+              {isMemoryMode
+                ? // MEMORY MODE GRID
+                  memoryCards.map((card, index) => (
                     <div
-                      className={`w-full h-full transition-all duration-500 ${
-                        revealMode === 'flip'
-                          ? `preserve-3d ${card.isRevealed ? 'rotate-y-180' : ''}`
-                          : ''
-                      }`}
+                      key={card.id}
+                      className={`relative perspective-1000 cursor-pointer group ${card.isMatched ? 'invisible' : ''}`}
+                      style={CARD_STYLE}
+                      onClick={() => handleMemoryCardClick(card.id)}
                     >
-                      {/* FRONT OF CARD (Number) */}
                       <div
-                        className={`absolute w-full h-full flex flex-col items-center justify-center rounded-xl border-2 shadow-xs ${
+                        className={`w-full h-full transition-transform duration-500 motion-reduce:transition-none ${
                           revealMode === 'flip'
-                            ? 'backface-hidden'
-                            : 'transition-opacity duration-500'
-                        } ${
-                          revealMode === 'fade'
-                            ? card.isRevealed
-                              ? 'opacity-0'
-                              : 'opacity-100'
+                            ? `preserve-3d ${card.isRevealed ? 'rotate-y-180' : ''}`
                             : ''
                         }`}
-                        style={{
-                          backgroundColor:
-                            card.bgColor ??
-                            config.defaultCardColor ??
-                            '#dbeafe',
-                          borderColor: '#bfdbfe',
-                        }}
                       >
-                        <span
-                          className="font-bold text-center text-slate-400"
+                        {/* FRONT OF CARD (Number) */}
+                        <div
+                          className={`absolute w-full h-full flex flex-col items-center justify-center rounded-xl border-2 shadow-xs ${
+                            revealMode === 'flip'
+                              ? 'backface-hidden'
+                              : 'transition-opacity duration-500'
+                          } ${
+                            revealMode === 'fade'
+                              ? card.isRevealed
+                                ? 'opacity-0'
+                                : 'opacity-100'
+                              : ''
+                          }`}
                           style={{
-                            fontSize: 'min(64px, 40cqmin)',
+                            backgroundColor:
+                              card.bgColor ??
+                              config.defaultCardColor ??
+                              '#dbeafe',
+                            borderColor: '#bfdbfe',
                           }}
                         >
-                          {index + 1}
-                        </span>
-                      </div>
-
-                      {/* BACK OF CARD (Content) */}
-                      <div
-                        className={`absolute w-full h-full flex items-center justify-center rounded-xl border-2 shadow-xs ${
-                          revealMode === 'flip'
-                            ? 'backface-hidden rotate-y-180'
-                            : 'transition-opacity duration-500'
-                        } ${
-                          revealMode === 'fade'
-                            ? card.isRevealed
-                              ? 'opacity-100'
-                              : 'opacity-0 pointer-events-none'
-                            : ''
-                        }`}
-                        style={{
-                          backgroundColor:
-                            config.defaultCardBackColor ?? '#dcfce7',
-                          borderColor: 'rgba(0,0,0,0.1)',
-                        }}
-                      >
-                        <span
-                          className="text-center wrap-anywhere w-full text-slate-800 font-medium"
-                          style={{
-                            fontSize: memoryFont,
-                            padding: 'min(24px, 6cqmin)',
-                          }}
-                        >
-                          {card.content}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              : // REVIEW MODE GRID
-                cards.map((card) => (
-                  <div
-                    key={card.id}
-                    className="relative perspective-1000 cursor-pointer group"
-                    style={CARD_STYLE}
-                    onClick={() => handleCardClick(card.id)}
-                  >
-                    <div
-                      className={`w-full h-full transition-all duration-500 ${
-                        revealMode === 'flip'
-                          ? `preserve-3d ${card.isRevealed ? 'rotate-y-180' : ''}`
-                          : ''
-                      }`}
-                    >
-                      {/* FRONT OF CARD */}
-                      <div
-                        className={`absolute w-full h-full flex flex-col items-center justify-center rounded-xl border-2 shadow-xs ${
-                          revealMode === 'flip'
-                            ? 'backface-hidden'
-                            : 'transition-opacity duration-500'
-                        } ${
-                          revealMode === 'fade'
-                            ? card.isRevealed
-                              ? 'opacity-0'
-                              : 'opacity-100'
-                            : ''
-                        }`}
-                        style={{
-                          backgroundColor:
-                            card.bgColor ??
-                            config.defaultCardColor ??
-                            '#dbeafe',
-                          borderColor: '#bfdbfe',
-                        }}
-                      >
-                        <span
-                          className="font-bold text-center wrap-anywhere w-full"
-                          style={{
-                            fontSize: frontFont,
-                            padding: 'min(24px, 6cqmin)',
-                          }}
-                        >
-                          {card.frontContent}
-                        </span>
-
-                        {/* THE MAGIC: X-Ray Answer Overlay */}
-                        {isShowAnswersMode && !card.isRevealed && (
-                          <div
-                            className="absolute bg-yellow-100/90 rounded-sm border border-yellow-300 text-yellow-800 text-center shadow-xs z-10"
+                          <span
+                            className="font-bold text-center text-slate-400"
                             style={{
-                              insetInline: 'min(8px, 4cqmin)',
-                              bottom: 'min(8px, 4cqmin)',
-                              padding: 'min(8px, 3cqmin)',
-                              fontSize: answerFont,
+                              fontSize: 'min(64px, 40cqmin)',
                             }}
                           >
-                            <span
-                              className="uppercase tracking-wider block opacity-75"
-                              style={{
-                                fontSize: 'min(12px, 7cqmin)',
-                                marginBottom: 'min(4px, 1.5cqmin)',
-                              }}
-                            >
-                              Answer
-                            </span>
-                            <span className="wrap-anywhere font-medium">
-                              {card.backContent}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                            {index + 1}
+                          </span>
+                        </div>
 
-                      {/* BACK OF CARD (The actual reveal) */}
-                      <div
-                        className={`absolute w-full h-full flex items-center justify-center rounded-xl border-2 shadow-xs ${
-                          revealMode === 'flip'
-                            ? 'backface-hidden rotate-y-180'
-                            : 'transition-opacity duration-500'
-                        } ${
-                          revealMode === 'fade'
-                            ? card.isRevealed
-                              ? 'opacity-100'
-                              : 'opacity-0 pointer-events-none'
-                            : ''
-                        }`}
-                        style={{
-                          backgroundColor:
-                            config.defaultCardBackColor ?? '#dcfce7',
-                          borderColor: 'rgba(0,0,0,0.1)',
-                        }}
-                      >
-                        <span
-                          className="text-center wrap-anywhere w-full text-slate-800 font-medium"
+                        {/* BACK OF CARD (Content) */}
+                        <div
+                          className={`absolute w-full h-full flex items-center justify-center rounded-xl border-2 shadow-xs ${
+                            revealMode === 'flip'
+                              ? 'backface-hidden rotate-y-180'
+                              : 'transition-opacity duration-500'
+                          } ${
+                            revealMode === 'fade'
+                              ? card.isRevealed
+                                ? 'opacity-100'
+                                : 'opacity-0 pointer-events-none'
+                              : ''
+                          }`}
                           style={{
-                            fontSize: backFont,
-                            padding: 'min(24px, 6cqmin)',
+                            backgroundColor:
+                              config.defaultCardBackColor ?? '#dcfce7',
+                            borderColor: 'rgba(0,0,0,0.1)',
                           }}
                         >
-                          {card.backContent}
-                        </span>
+                          <span
+                            className="text-center wrap-anywhere w-full text-slate-800 font-medium"
+                            style={{
+                              fontSize: memoryFont,
+                              padding: 'min(24px, 6cqmin)',
+                            }}
+                          >
+                            {card.content}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                : // REVIEW MODE GRID
+                  cards.map((card) => (
+                    <div
+                      key={card.id}
+                      className="relative perspective-1000 cursor-pointer group"
+                      style={CARD_STYLE}
+                      onClick={() => handleCardClick(card.id)}
+                    >
+                      <div
+                        className={`w-full h-full transition-transform duration-500 motion-reduce:transition-none ${
+                          revealMode === 'flip'
+                            ? `preserve-3d ${card.isRevealed ? 'rotate-y-180' : ''}`
+                            : ''
+                        }`}
+                      >
+                        {/* FRONT OF CARD */}
+                        <div
+                          className={`absolute w-full h-full flex flex-col items-center justify-center rounded-xl border-2 shadow-xs ${
+                            revealMode === 'flip'
+                              ? 'backface-hidden'
+                              : 'transition-opacity duration-500'
+                          } ${
+                            revealMode === 'fade'
+                              ? card.isRevealed
+                                ? 'opacity-0'
+                                : 'opacity-100'
+                              : ''
+                          }`}
+                          style={{
+                            backgroundColor:
+                              card.bgColor ??
+                              config.defaultCardColor ??
+                              '#dbeafe',
+                            borderColor: '#bfdbfe',
+                          }}
+                        >
+                          <span
+                            className="font-bold text-center wrap-anywhere w-full"
+                            style={{
+                              fontSize: frontFont,
+                              padding: 'min(24px, 6cqmin)',
+                            }}
+                          >
+                            {card.frontContent}
+                          </span>
+
+                          {/* THE MAGIC: X-Ray Answer Overlay */}
+                          {isShowAnswersMode && !card.isRevealed && (
+                            <div
+                              className="absolute bg-yellow-100/90 rounded-sm border border-yellow-300 text-yellow-800 text-center shadow-xs z-10"
+                              style={{
+                                insetInline: 'min(8px, 4cqmin)',
+                                bottom: 'min(8px, 4cqmin)',
+                                padding: 'min(8px, 3cqmin)',
+                                fontSize: answerFont,
+                              }}
+                            >
+                              <span
+                                className="uppercase tracking-wider block opacity-75"
+                                style={{
+                                  fontSize: 'min(12px, 7cqmin)',
+                                  marginBottom: 'min(4px, 1.5cqmin)',
+                                }}
+                              >
+                                Answer
+                              </span>
+                              <span className="wrap-anywhere font-medium">
+                                {card.backContent}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* BACK OF CARD (The actual reveal) */}
+                        <div
+                          className={`absolute w-full h-full flex items-center justify-center rounded-xl border-2 shadow-xs ${
+                            revealMode === 'flip'
+                              ? 'backface-hidden rotate-y-180'
+                              : 'transition-opacity duration-500'
+                          } ${
+                            revealMode === 'fade'
+                              ? card.isRevealed
+                                ? 'opacity-100'
+                                : 'opacity-0 pointer-events-none'
+                              : ''
+                          }`}
+                          style={{
+                            backgroundColor:
+                              config.defaultCardBackColor ?? '#dcfce7',
+                            borderColor: 'rgba(0,0,0,0.1)',
+                          }}
+                        >
+                          <span
+                            className="text-center wrap-anywhere w-full text-slate-800 font-medium"
+                            style={{
+                              fontSize: backFont,
+                              padding: 'min(24px, 6cqmin)',
+                            }}
+                          >
+                            {card.backContent}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+            </div>
           </div>
-        </div>
+        )
       }
     />
   );

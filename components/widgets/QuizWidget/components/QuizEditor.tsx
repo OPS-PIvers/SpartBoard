@@ -6,6 +6,7 @@
  * through the controller object the modal hands them.
  */
 
+import { AUDIO_QUESTION_LABEL } from '@/utils/quizPromptText';
 import { MathText } from '@/components/common/MathText';
 import { accentSetForLanguage, answerAccents } from '@/config/studentKeyboards';
 import {
@@ -89,6 +90,8 @@ import {
 import { blankTypeOf } from '@/utils/quizBlankTypes';
 import { AnswerKeyKeyboard } from './AnswerKeyKeyboard';
 import { isMultiBlank } from '@/utils/quizFibBlanks';
+import { CalcAnswerField, CalcNumbersSection } from './CalcQuestionFields';
+import { addCalcVariableUpdate, nextCalcName } from '@/utils/quizCalcEditor';
 import { ChoiceOptionsEditor } from './ChoiceOptionsEditor';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
@@ -98,11 +101,14 @@ import {
   NeedsAnswerNotice,
   QuestionPromptField,
   QuestionTargetsField,
+  QuestionModifiedField,
   QuestionExplanationField,
   QuestionTypeSelect,
 } from './QuestionFields';
 import { questionTypeChangeUpdates } from './questionFieldUpdates';
+import { MetaInlineContext } from './questionFieldContexts';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
+import { withOwnCriterionIds } from '@/utils/rubricOverrideResolution';
 import {
   countQuestionsNeedingKey,
   questionNeedsKey,
@@ -123,6 +129,8 @@ interface PaneProps {
   onAddAnswerKey?: () => void;
   /** Off in the bank editor, which doesn't save sections. */
   allowSections?: boolean;
+  /** Assignments that grade against this quiz as it is now, so an edit changes their scores. */
+  rescoredAssignmentCount?: number;
 }
 
 /** Stable empty array reused as the matchingDistractors fallback. */
@@ -165,6 +173,7 @@ const quizContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.inheritedTargets === next.inheritedTargets &&
   prev.onAddAnswerKey === next.onAddAnswerKey &&
   prev.allowSections === next.allowSections &&
+  prev.rescoredAssignmentCount === next.rescoredAssignmentCount &&
   prev.state.error === next.state.error;
 
 export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
@@ -175,6 +184,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   inheritedTargets,
   onAddAnswerKey,
   allowSections = true,
+  rescoredAssignmentCount = 0,
 }: PaneProps) {
   const { canAccessQuizMediaResponse } = useAuth();
   const mediaResponseAllowed = canAccessQuizMediaResponse();
@@ -269,6 +279,19 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
           <div className="p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold">
             <AlertCircle className="w-4 h-4 shrink-0" />
             {error}
+          </div>
+        )}
+        {rescoredAssignmentCount > 0 && (
+          <div
+            role="status"
+            className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-xs text-amber-900 font-semibold"
+          >
+            <AlertCircle className="w-4 h-4 shrink-0" aria-hidden />
+            <span className="flex-1">
+              {rescoredAssignmentCount === 1
+                ? 'This quiz has been assigned. Editing it changes those scores. Duplicate it to make a retake.'
+                : `This quiz has ${rescoredAssignmentCount} assignments. Editing it changes their scores. Duplicate it to make a retake.`}
+            </span>
           </div>
         )}
         {onAddAnswerKey && needsKeyCount > 0 && (
@@ -713,6 +736,10 @@ const QuestionRow = React.memo(function QuestionRow({
         <span className="text-sm text-slate-700 truncate">
           {question.text ? (
             <MathText text={question.text} format />
+          ) : question.promptAudio ? (
+            <span className="italic text-slate-500">
+              {AUDIO_QUESTION_LABEL}
+            </span>
           ) : (
             <span className="italic text-slate-400">Untitled question</span>
           )}
@@ -869,7 +896,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     readPrompt,
     readTargets
   );
-  const [showRubricBuilder, setShowRubricBuilder] = useState(false);
+  const [calcSample, setCalcSample] = useState(0);
+  const randomNumbersOn = canAccessFeature('quiz-random-numbers');
+  const [rubricBuilder, setRubricBuilder] = useState<
+    'base' | 'modified' | null
+  >(null);
   // Manual points held aside per question while a rubric owns its points.
   const manualPointsByQuestion = useRef<Map<string, number>>(new Map());
 
@@ -877,7 +908,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const [lastSelectedId, setLastSelectedId] = useState(selectedQuestionId);
   if (lastSelectedId !== selectedQuestionId) {
     setLastSelectedId(selectedQuestionId);
-    setShowRubricBuilder(false);
+    setRubricBuilder(null);
   }
 
   const selectedHasRubric = !!selectedQuestion?.rubricSnapshot;
@@ -885,26 +916,57 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const handleAttachRubric = useCallback(
     (rubric: Rubric, rubricId?: string) => {
       if (!selectedQuestionId) return;
+      if (rubricBuilder === 'modified') {
+        const modified = withOwnCriterionIds(
+          rubric,
+          selectedQuestion?.rubricSnapshot
+        );
+        updateQuestion(selectedQuestionId, {
+          modifiedRubricId: rubricId ?? rubric.id,
+          modifiedRubricSnapshot: modified,
+        });
+        setRubricBuilder(null);
+        return;
+      }
       if (!selectedHasRubric) {
         manualPointsByQuestion.current.set(
           selectedQuestionId,
           selectedQuestion?.points ?? 1
         );
       }
+      const points = rubricMaxPoints(rubric);
+      const modified = selectedQuestion?.modifiedRubricSnapshot;
+      // The modified rubric has to keep the same total as the main one.
+      const dropModified = !!modified && rubricMaxPoints(modified) !== points;
       updateQuestion(selectedQuestionId, {
         rubricId: rubricId ?? rubric.id,
         rubricSnapshot: rubric,
-        points: rubricMaxPoints(rubric),
+        points,
+        ...(dropModified
+          ? { modifiedRubricId: undefined, modifiedRubricSnapshot: undefined }
+          : {}),
       });
-      setShowRubricBuilder(false);
+      setRubricBuilder(null);
     },
     [
+      rubricBuilder,
       selectedQuestionId,
       selectedHasRubric,
       selectedQuestion?.points,
+      selectedQuestion?.modifiedRubricSnapshot,
+      selectedQuestion?.rubricSnapshot,
       updateQuestion,
     ]
   );
+
+  const handleDetachModifiedRubric = useCallback(() => {
+    if (!selectedQuestionId) return;
+    updateQuestion(selectedQuestionId, {
+      modifiedRubricId: undefined,
+      modifiedRubricSnapshot: undefined,
+    });
+    setRubricBuilder(null);
+  }, [selectedQuestionId, updateQuestion]);
 
   const handleDetachRubric = useCallback(() => {
     if (!selectedQuestionId) return;
@@ -914,10 +976,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       rubricId: undefined,
       rubricSnapshot: undefined,
       rubricVisibleToStudents: undefined,
+      modifiedRubricId: undefined,
+      modifiedRubricSnapshot: undefined,
       points: stashed ?? selectedQuestion?.points ?? 1,
     });
     manualPointsByQuestion.current.delete(selectedQuestionId);
-    setShowRubricBuilder(false);
+    setRubricBuilder(null);
   }, [selectedQuestionId, selectedQuestion?.points, updateQuestion]);
 
   if (selectedSlot) {
@@ -933,7 +997,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             state={state}
             slotId={selectedSlot.id}
             calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
-            previewAvailable={canAccessFeature('quiz-stimulus-preview')}
+            pickerModal={canAccessFeature('quiz-stimulus-picker')}
           />
         }
       />
@@ -961,6 +1025,37 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   // Spoken answers on: Type, Format, Time limit and Points share one compact line.
   const compactRow = mediaResponseAllowed;
   const metaList = canAccessFeature('question-editor-fields');
+  // Stimuli and Modified sit in the prompt box footer; targets and DOK share one line.
+  const inPrompt = metaList;
+  const stimulusField = (
+    <QuestionStimulusSection
+      state={state}
+      questionId={q.id}
+      calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+      pasteScopeRef={paneRef}
+      metaList={metaList}
+      pickerModal={canAccessFeature('quiz-stimulus-picker')}
+    />
+  );
+  const targetsField = (
+    <QuestionTargetsField
+      question={q}
+      onChange={(targets) => updateQuestion(q.id, { targets })}
+      onDokChange={(dok) => updateQuestion(q.id, { dok })}
+      promptStandards={promptStandards}
+      pickerOpen={pickerOpen}
+      onPickerOpenChange={setPickerOpen}
+      metaList={metaList}
+    />
+  );
+  const modifiedField = (
+    <QuestionModifiedField
+      key={q.id}
+      question={q}
+      onChange={(modifiedText) => updateQuestion(q.id, { modifiedText })}
+      metaList={metaList}
+    />
+  );
 
   return (
     // Not `relative`: the rubric builder anchors to the modal body so it can span both panes.
@@ -973,6 +1068,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
         {/* Question prompt */}
         <QuestionPromptField
+          key={q.id}
           question={q}
           onChange={(updates) => updateQuestion(q.id, updates)}
           onBlur={() =>
@@ -982,32 +1078,57 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           promptAccents={defaultAccents}
           promptMath
           promptFormat
+          toolbarTools={inPrompt}
+          promptAudio={canAccessFeature('quiz-question-audio')}
+          extras={
+            inPrompt ? (
+              <>
+                {stimulusField}
+                {modifiedField}
+              </>
+            ) : undefined
+          }
+          onAddNumber={
+            randomNumbersOn &&
+            q.type === 'FIB' &&
+            blankTypeOf(q) === 'typed' &&
+            !isMultiBlank(q)
+              ? () => {
+                  const name = nextCalcName(q.calc);
+                  if (name)
+                    updateQuestion(q.id, addCalcVariableUpdate(q, name));
+                  return name;
+                }
+              : undefined
+          }
         />
-
-        <div
-          className={metaList ? 'border-y border-slate-200 py-1' : 'space-y-4'}
-        >
-          {/* Under the prompt, matching where students see it. */}
-          <QuestionStimulusSection
-            state={state}
-            questionId={q.id}
-            calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
-            pasteScopeRef={paneRef}
-            previewAvailable={canAccessFeature('quiz-stimulus-preview')}
-            metaList={metaList}
-          />
-
-          {/* Learning targets */}
-          <QuestionTargetsField
+        {q.type === 'FIB' && q.calc && (
+          <CalcNumbersSection
             question={q}
-            onChange={(targets) => updateQuestion(q.id, { targets })}
-            onDokChange={(dok) => updateQuestion(q.id, { dok })}
-            promptStandards={promptStandards}
-            pickerOpen={pickerOpen}
-            onPickerOpenChange={setPickerOpen}
-            metaList={metaList}
+            onChange={(updates) => updateQuestion(q.id, updates)}
+            sample={calcSample}
+            onNextSample={() => setCalcSample((n) => n + 1)}
           />
-        </div>
+        )}
+
+        {inPrompt ? (
+          <MetaInlineContext.Provider value>
+            <div className="flex flex-wrap items-center gap-x-8 border-y border-slate-200 py-1">
+              {targetsField}
+            </div>
+          </MetaInlineContext.Provider>
+        ) : (
+          <div
+            className={
+              metaList ? 'border-y border-slate-200 py-1' : 'space-y-4'
+            }
+          >
+            {/* Under the prompt, matching where students see it. */}
+            {stimulusField}
+            {targetsField}
+            {modifiedField}
+          </div>
+        )}
 
         {/* Type / format / time / points row */}
         <div
@@ -1157,13 +1278,15 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           </div>
         )}
 
-        {q.type === 'FIB' && (blankTypesOn || blankTypeOf(q) !== 'typed') && (
-          <FibBlankTypeSelect
-            question={q}
-            onChange={(updates) => updateQuestion(q.id, updates)}
-            disabled={!blankTypesOn}
-          />
-        )}
+        {q.type === 'FIB' &&
+          !q.calc &&
+          (blankTypesOn || blankTypeOf(q) !== 'typed') && (
+            <FibBlankTypeSelect
+              question={q}
+              onChange={(updates) => updateQuestion(q.id, updates)}
+              disabled={!blankTypesOn}
+            />
+          )}
 
         {/* Type-specific answer editor */}
         {q.type === 'MC' || q.type === 'MA' ? (
@@ -1274,7 +1397,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                     {q.rubricSnapshot.title || 'Untitled rubric'}
                   </span>
                   <button
-                    onClick={() => setShowRubricBuilder(true)}
+                    onClick={() => setRubricBuilder('base')}
                     className="px-2.5 py-1 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
                     {...tourTypeAttr('quiz-editor.rubric-edit', 'quiz')}
                   >
@@ -1311,12 +1434,57 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 </div>
               ) : (
                 <button
-                  onClick={() => setShowRubricBuilder(true)}
+                  onClick={() => setRubricBuilder('base')}
                   className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
                   {...tourTypeAttr('quiz-editor.rubric-attach', 'quiz')}
                 >
                   Attach Rubric
                 </button>
+              )}
+              {q.rubricSnapshot && (
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-slate-500">
+                    Modified rubric
+                  </span>
+                  {q.modifiedRubricSnapshot ? (
+                    <>
+                      <span className="text-sm text-slate-700 font-bold">
+                        {q.modifiedRubricSnapshot.title || 'Untitled rubric'}
+                      </span>
+                      <button
+                        onClick={() => setRubricBuilder('modified')}
+                        className="px-2.5 py-1 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
+                        {...tourTypeAttr(
+                          'quiz-editor.modified-rubric-edit',
+                          'quiz'
+                        )}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={handleDetachModifiedRubric}
+                        className="px-2.5 py-1 border border-rose-200 rounded-lg text-xs font-bold text-rose-700"
+                        {...tourTypeAttr(
+                          'quiz-editor.modified-rubric-detach',
+                          'quiz'
+                        )}
+                      >
+                        Detach
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setRubricBuilder('modified')}
+                      className="px-2.5 py-1 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
+                      {...tourTypeAttr(
+                        'quiz-editor.modified-rubric-attach',
+                        'quiz'
+                      )}
+                    >
+                      Attach
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -1324,6 +1492,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           <FibDropdownEditor
             question={q}
             onChange={(updates) => updateQuestion(q.id, updates)}
+          />
+        ) : q.calc ? (
+          <CalcAnswerField
+            question={q}
+            onChange={(updates) => updateQuestion(q.id, updates)}
+            sample={calcSample}
           />
         ) : isMultiBlank(q) ? (
           <div>
@@ -1367,14 +1541,33 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         />
       </div>
 
-      {showRubricBuilder && isFreeResponseType(q.type) && (
+      {rubricBuilder && isFreeResponseType(q.type) && (
         <RubricBuilderPanel
-          key={q.id}
+          key={`${q.id}:${rubricBuilder}`}
           questionId={q.id}
-          existingSnapshot={q.rubricSnapshot}
+          existingSnapshot={
+            rubricBuilder === 'modified'
+              ? q.modifiedRubricSnapshot
+              : q.rubricSnapshot
+          }
           onAttach={handleAttachRubric}
-          onDetach={handleDetachRubric}
-          onClose={() => setShowRubricBuilder(false)}
+          onDetach={
+            rubricBuilder === 'modified'
+              ? handleDetachModifiedRubric
+              : handleDetachRubric
+          }
+          requiredTotal={
+            rubricBuilder === 'modified' && q.rubricSnapshot
+              ? rubricMaxPoints(q.rubricSnapshot)
+              : undefined
+          }
+          onClose={() => setRubricBuilder(null)}
+          {...(rubricBuilder === 'modified'
+            ? {
+                heading: 'Modified rubric',
+                attachLabel: 'Attach as modified rubric',
+              }
+            : {})}
           teacherUid={user?.uid ?? ''}
         />
       )}

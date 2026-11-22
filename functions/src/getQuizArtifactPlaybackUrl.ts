@@ -19,7 +19,10 @@
  */
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
-import { refreshGoogleAccessTokenForUid } from './googleOAuth';
+import {
+  DRIVE_FILE_SCOPE,
+  refreshGoogleAccessTokenForUid,
+} from './googleOAuth';
 import {
   hasQuizMediaStoragePrefix,
   isQuizMediaResponseGranted,
@@ -30,6 +33,7 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
 import { assertViewAsAllowed, LEGACY_PIN_TOKEN_GRACE_MS } from './viewAsGuard';
 import { resolveServerResultsVisibility } from './quizResultsVisibilityServer';
+import { safeErr } from './safeLog';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -294,7 +298,11 @@ export function buildDefaultPlaybackDeps(): PlaybackDeps {
   return {
     db,
     getAccessToken: async (teacherUid) =>
-      (await refreshGoogleAccessTokenForUid(teacherUid)).accessToken,
+      (
+        await refreshGoogleAccessTokenForUid(teacherUid, {
+          scope: DRIVE_FILE_SCOPE,
+        })
+      ).accessToken,
     downloadDriveFile: downloadDriveFileById,
     isFeatureGranted: async (teacherUid) =>
       isQuizMediaResponseGranted(db, await emailFor(teacherUid), teacherUid),
@@ -452,7 +460,7 @@ export async function resolveArtifactPlayback(
     console.error('[getQuizArtifactPlaybackUrl] Drive fetch failed', {
       sessionId,
       artifactId,
-      error,
+      error: safeErr(error),
     });
     throw new HttpsError('unavailable', 'Could not load this recording.');
   }

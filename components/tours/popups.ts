@@ -38,8 +38,8 @@ export interface Box {
 /** Inside an open menu or popover, which a step's spotlight lights along with its control. */
 export const isInPopup = (el: Element): boolean => el.closest(POPUP) !== null;
 
-/** Open menus and popovers on screen, which the tour's own UI keeps clear of. */
-export function openPopupBoxes(): Box[] {
+/** Open menus and popovers on screen, which the tour's own UI keeps clear of; `inside` is the step's control, and `beside` drops a menu that holds it. */
+export function openPopupBoxes(inside?: Element | null, beside = false): Box[] {
   if (typeof document === 'undefined') return [];
   const els = new Set<Element>(document.querySelectorAll(POPUP));
   document
@@ -47,12 +47,15 @@ export function openPopupBoxes(): Box[] {
     .forEach((opener) => {
       const id = opener.getAttribute('aria-controls')?.split(/\s+/)[0];
       const el = id ? document.getElementById(id) : null;
-      if (el) els.add(el);
+      // An open accordion section holding the control is where it lives, not a menu it opened.
+      if (el && !(inside && el.contains(inside))) els.add(el);
     });
   const area = window.innerWidth * window.innerHeight;
   const boxes: Box[] = [];
   els.forEach((el) => {
     if (el.closest('[data-tour-ignore], [data-tour-overlay]')) return;
+    // The spotlight lights a control inside a menu by itself, not the whole menu.
+    if (beside && inside && el.contains(inside)) return;
     const r = el.getBoundingClientRect();
     // Full-screen panels are the page, not a popover over it.
     if (r.width <= 0 || r.height <= 0 || r.width * r.height > area / 2) return;
@@ -85,9 +88,64 @@ export function withNearbyPopups(target: Box, popups: readonly Box[]): Box {
   return out;
 }
 
+/** The target grown to cover the label around its control, such as the name beside a checkbox. */
+export function withLabel(target: Box, el: Element): Box {
+  const label = el.closest('label');
+  if (!label) return target;
+  const r = label.getBoundingClientRect();
+  if (r.width <= 0 || r.height <= 0) return target;
+  const x = Math.min(target.x, r.x);
+  const y = Math.min(target.y, r.y);
+  return {
+    x,
+    y,
+    w: Math.max(target.x + target.w, r.x + r.width) - x,
+    h: Math.max(target.y + target.h, r.y + r.height) - y,
+  };
+}
+
 const SHIELDED = ['pointerdown', 'mousedown', 'touchstart'] as const;
 
-/** Keeps clicks on the tour's own UI from reaching the app's outside-click handlers, so open menus stay open. */
+// Input types a teacher picks or presses rather than types into.
+const NOT_TYPED = new Set([
+  'checkbox',
+  'radio',
+  'button',
+  'submit',
+  'reset',
+  'range',
+  'image',
+  'file',
+  'color',
+  'hidden',
+]);
+
+/** A box the teacher types into, which many app fields save or close when it loses focus. */
+export function isTypingField(el: Element | null): el is HTMLElement {
+  if (el instanceof HTMLTextAreaElement) return true;
+  if (el instanceof HTMLInputElement) return !NOT_TYPED.has(el.type);
+  return el instanceof HTMLElement && el.isContentEditable === true;
+}
+
+/** True when a text box holds nothing yet. */
+export const isBlankField = (el: HTMLElement): boolean =>
+  el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
+    ? el.value === ''
+    : !el.textContent?.trim();
+
+// Pressing these in the tour UI should still focus them.
+const FOCUS_TARGET = 'input, textarea, select, label, [contenteditable]';
+
+/** Stops a press on the tour UI from taking focus out of an empty app text box, which would close it. */
+const keepBlankField = (e: Event) => {
+  const hit = e.target instanceof Element ? e.target : null;
+  if (!hit?.closest('[data-tour-ignore]') || hit.closest(FOCUS_TARGET)) return;
+  const active = document.activeElement;
+  if (!isTypingField(active) || active.closest('[data-tour-ignore]')) return;
+  if (isBlankField(active)) e.preventDefault();
+};
+
+/** Keeps clicks on the tour's own UI from reaching the app's outside-click handlers or from taking focus out of an empty app text box. */
 export function shieldTourUi(): () => void {
   const stop = (e: Event) => {
     if (e.target instanceof Element && e.target.closest('[data-tour-ignore]'))
@@ -95,6 +153,11 @@ export function shieldTourUi(): () => void {
   };
   // On body, after React's own listener there, so the tour UI still handles its clicks.
   SHIELDED.forEach((type) => document.body.addEventListener(type, stop));
-  return () =>
+  // Its own copy, so one shield coming down never removes another's.
+  const keep = (e: Event) => keepBlankField(e);
+  document.body.addEventListener('mousedown', keep);
+  return () => {
     SHIELDED.forEach((type) => document.body.removeEventListener(type, stop));
+    document.body.removeEventListener('mousedown', keep);
+  };
 }

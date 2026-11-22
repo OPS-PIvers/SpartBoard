@@ -9,7 +9,11 @@ import {
   CLASSLINK_TENANT_URL,
   STUDENT_PSEUDONYM_HMAC_SECRET,
 } from '../secrets';
-import { ALLOWED_ORIGINS, computeStudentUid } from '../classlinkShared';
+import {
+  ALLOWED_ORIGINS,
+  CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
+  computeStudentUid,
+} from '../classlinkShared';
 import {
   loadClassLinkMembership,
   loadTestClassMembership,
@@ -118,6 +122,7 @@ export async function handleGetGradebookRoster(
 export const getGradebookRosterV1 = onCall(
   {
     memory: '256MiB',
+    timeoutSeconds: CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
     cors: ALLOWED_ORIGINS,
     secrets: [
       CLASSLINK_CLIENT_ID,

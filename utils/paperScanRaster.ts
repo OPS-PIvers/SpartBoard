@@ -221,6 +221,24 @@ export function encodeWrittenCrop(
   );
 }
 
+/** Pages of one multi-page answer, top to bottom on a white sheet as wide as the widest. */
+export function stackGrayCrops(crops: readonly GrayCrop[]): GrayCrop {
+  const width = Math.max(1, ...crops.map((c) => c.width));
+  const height = crops.reduce((h, c) => h + c.height, 0);
+  const data = new Uint8Array(width * height).fill(255);
+  let top = 0;
+  for (const c of crops) {
+    for (let y = 0; y < c.height; y += 1) {
+      data.set(
+        c.data.subarray(y * c.width, (y + 1) * c.width),
+        (top + y) * width
+      );
+    }
+    top += c.height;
+  }
+  return { width, height, data };
+}
+
 /**
  * The handwriting in one box as an upload-ready blob (D21): deskewed, upright,
  * grayscale, ~150 dpi. Call it for every box, blank ones too (D22), with the

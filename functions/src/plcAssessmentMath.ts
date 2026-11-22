@@ -1,7 +1,18 @@
 // Pure math for the PLC pooled-assessment aggregate (docs/plans/shipped/PLC_ASSESSMENT_DATA.md §5.3).
 // Local mirrors of the root `types.ts` shapes; functions cannot import across the repo root.
 
+import {
+  calcAnswerAccepted,
+  parseCalcSpec,
+  withCalcValues,
+  type CalcSpec,
+} from './quizCalculated';
 import { notChosenIds, type ChooseSection } from './quizSectionsChosen';
+import {
+  fibExtrasParts,
+  fibLenientAccepts,
+  type FibExtras,
+} from './quizFibMatch';
 
 export const AGGREGATE_SCHEMA_VERSION = 8;
 
@@ -58,10 +69,16 @@ export interface GroupQuestion {
   allowPartialCredit: boolean;
   /** Rubric criterion ids on the synced question; empty when no rubric. */
   rubricCriterionIds: string[];
+  /** Criterion ids of the modified-group rubric; a grade complete on either rubric is final. */
+  modifiedRubricCriterionIds?: string[];
   /** Frozen tag snapshots used for target and standard rollups. */
   targets: QuestionTargetSnapshot[];
   /** Depth of Knowledge level 1-4 from the synced quiz or the assignment snapshot. */
   dok?: number;
+  /** Random-number FIB: graded by formula from each student's own numbers. */
+  calc?: CalcSpec;
+  /** Set only on a copy graded for one student (`withCalcValues`). */
+  calcValues?: Record<string, number>;
 }
 
 function parseDok(raw: unknown): number | undefined {
@@ -83,6 +100,18 @@ export interface ManualGrade {
   scoredCriterionIds: string[];
 }
 
+/** The `paperTranscript` grading trusts: a server-imported response, and on FIB a server-scanned answer. */
+export function trustedPaperTranscript(
+  question: Pick<GroupQuestion, 'type'>,
+  paperAttested: boolean | undefined,
+  answer: Pick<RawAnswer, 'paperTranscript' | 'paperScanId'> | undefined
+): RawAnswer['paperTranscript'] {
+  if (paperAttested !== true) return undefined;
+  if (question.type === 'FIB' && answer?.paperScanId === undefined)
+    return undefined;
+  return answer?.paperTranscript;
+}
+
 /** A scanned paper answer with no text yet (in transcription or kept as an image) waits for the teacher. */
 export const paperAnswerOwed = (state: RawAnswer['paperTranscript']): boolean =>
   state === 'pending' || state === 'image';
@@ -98,6 +127,8 @@ export interface RawAnswer {
   takeIndex?: number;
   /** Set on handwritten paper answers; `blank` is a scanned empty box. */
   paperTranscript?: 'pending' | 'blank' | 'done' | 'image';
+  /** Server-written scan id; students can't add it once a paper batch is stamped. */
+  paperScanId?: string;
 }
 
 export interface CompletedResponse {
@@ -113,6 +144,8 @@ export interface CompletedResponse {
   manualGrades?: Record<string, ManualGrade>;
   /** Teacher picks of which answers count, by choose-N section id. */
   countedChoices?: Record<string, string[]>;
+  /** The response doc id; fixes the student's random numbers. */
+  responseKey?: string;
 }
 
 export interface SessionInput {
@@ -128,26 +161,54 @@ export interface SessionInput {
   scorePublishedAt: number | null;
   /** Assignment-doc FIB answer keys, `{ [questionId]: { [locale]: string[] } }`. */
   localizedFibAnswers?: Record<string, Record<string, string[]>>;
+  /** Assignment-doc served locales graded with typo leniency. */
+  lenientFibLocales?: string[];
   /** Assignment-doc per-student overrides; only the served `language` is used here. */
-  overridesByStudentUid?: Record<string, { language?: string }>;
+  overridesByStudentUid?: Record<
+    string,
+    { language?: string; modifiedQuestions?: boolean }
+  >;
   /** The session's sections; a choose-N section leaves unchosen questions out. */
   sections?: ChooseSection[];
   /** Hybrid paper quiz: written questions answered on a printed sheet. */
   paperWrittenQuestionIds?: string[];
 }
 
+/** Locale key for answers a teacher accepted in results; they count for every student. */
+export const ANY_LOCALE = '*';
+
+const cleanFibList = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.filter((a): a is string => typeof a === 'string' && a.trim() !== '')
+    : [];
+
+/** Mirrors utils/quizFibAnswers.ts fibAcceptedAnswers: served-locale key, teacher-accepted answers, leniency. */
+export function fibExtrasFor(
+  byLocale: Record<string, unknown> | undefined,
+  locale: string | undefined,
+  lenientLocales: readonly string[] | undefined
+): FibExtras {
+  const accepted = cleanFibList(byLocale?.[ANY_LOCALE]);
+  const translated =
+    locale && locale !== ANY_LOCALE ? cleanFibList(byLocale?.[locale]) : [];
+  return locale && translated.length > 0 && lenientLocales?.includes(locale)
+    ? { answers: translated, exact: accepted, lenientLocale: locale }
+    : [...translated, ...accepted];
+}
+
 /** Accepted FIB answers for the locale the TEACHER served, never a client-asserted one. */
 export function servedFibAnswers(
-  session: Pick<SessionInput, 'localizedFibAnswers' | 'overridesByStudentUid'>,
+  session: Pick<
+    SessionInput,
+    'localizedFibAnswers' | 'overridesByStudentUid' | 'lenientFibLocales'
+  >,
   studentUid: string,
   questionId: string
-): string[] {
-  const locale = session.overridesByStudentUid?.[studentUid]?.language;
-  if (!locale) return [];
-  const answers = session.localizedFibAnswers?.[questionId]?.[locale];
-  if (!Array.isArray(answers)) return [];
-  return answers.filter(
-    (a): a is string => typeof a === 'string' && a.trim() !== ''
+): FibExtras {
+  return fibExtrasFor(
+    session.localizedFibAnswers?.[questionId],
+    session.overridesByStudentUid?.[studentUid]?.language,
+    session.lenientFibLocales
   );
 }
 
@@ -372,8 +433,18 @@ export function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
       : {}),
     allowPartialCredit: r.allowPartialCredit === true,
     rubricCriterionIds: parseRubricCriterionIds(r.rubricSnapshot),
+    ...(r.modifiedRubricSnapshot
+      ? {
+          modifiedRubricCriterionIds: parseRubricCriterionIds(
+            r.modifiedRubricSnapshot
+          ),
+        }
+      : {}),
     targets: parseTargets(r.targets),
     ...(parseDok(r.dok) ? { dok: parseDok(r.dok) } : {}),
+    ...(type === 'FIB' && parseCalcSpec(r.calc)
+      ? { calc: parseCalcSpec(r.calc) }
+      : {}),
   };
 }
 
@@ -587,13 +658,35 @@ export function scoreMultiAnswerServer(
   return { fraction: exact ? 1 : fraction, exact };
 }
 
+/** Longest student answer any grader reads; the rest of an over-long value is dropped before grading. */
+export const MAX_ANSWER_CHARS = 100_000;
+
+export function capAnswer(answer: string): string {
+  return answer.length > MAX_ANSWER_CHARS
+    ? answer.slice(0, MAX_ANSWER_CHARS)
+    : answer;
+}
+
+/** Removes every `<...>` tag, nested ones included, in one linear pass; mirrors `hasSubmittedContent` in hooks/useQuizSession.ts. */
+export function stripMarkupTags(input: string): string {
+  const out: string[] = [];
+  const open: number[] = [];
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (ch === '<') {
+      open.push(out.length);
+      out.push(ch);
+    } else if (ch === '>' && open.length > 0) {
+      out.length = open.pop() as number;
+    } else {
+      out.push(ch);
+    }
+  }
+  return out.join('');
+}
+
 function hasSubmittedContent(answer: string): boolean {
-  let stripped = answer ?? '';
-  let previous: string;
-  do {
-    previous = stripped;
-    stripped = stripped.replace(/<[^<>]*>/g, '');
-  } while (stripped !== previous);
+  const stripped = stripMarkupTags(answer ?? '');
   return (
     stripped
       .replace(/&nbsp;/gi, ' ')
@@ -610,22 +703,32 @@ export const FIB_BLANK_SEP = '\u001F';
 export function scoreFibBlanksServer(
   question: Pick<GroupQuestion, 'blankAlternates'> & { correctAnswer: string },
   studentAnswer: string,
-  extra: readonly string[] = []
+  extra: FibExtras = []
 ): { correct: number; total: number } {
   const mains = question.correctAnswer.split(FIB_BLANK_SEP);
   const typed = studentAnswer.split(FIB_BLANK_SEP);
-  const extraParts = extra.map((e) => e.split(FIB_BLANK_SEP));
+  const parts = fibExtrasParts(extra);
+  const blank = (list: readonly string[], i: number) =>
+    list.map((e) => e.split(FIB_BLANK_SEP)[i] ?? '');
   let correct = 0;
   mains.forEach((main, i) => {
-    const t = normalizeAnswer(typed[i] ?? '');
+    const raw = typed[i] ?? '';
+    const t = normalizeAnswer(raw);
     if (t === '') return;
-    const pool = [
-      main,
-      ...(question.blankAlternates?.[i]?.answers ?? []),
-      ...extraParts.map((p) => p[i] ?? ''),
-    ];
-    if (pool.some((a) => a.trim() !== '' && normalizeAnswer(a) === t))
-      correct++;
+    const keys = [main, ...(question.blankAlternates?.[i]?.answers ?? [])];
+    const translated = blank(parts.answers, i);
+    const exact = blank(parts.exact, i);
+    const ok = parts.lenientLocale
+      ? fibLenientAccepts(
+          raw,
+          keys,
+          { ...parts, answers: translated, exact },
+          normalizeAnswer
+        )
+      : [...keys, ...translated, ...exact].some(
+          (a) => a.trim() !== '' && normalizeAnswer(a) === t
+        );
+    if (ok) correct++;
   });
   return { correct, total: mains.length };
 }
@@ -672,10 +775,30 @@ export function gradeGroupAnswer(
   studentAnswer: string,
   manual: ManualGrade | undefined,
   /** FIB only: translated accepted answers for the locale served to this student. */
-  acceptedAnswers?: readonly string[]
+  acceptedAnswers?: FibExtras,
+  /** Paper answers only: the public `paperTranscript`, passed only for a `paperAttested` response. */
+  paperTranscript?: RawAnswer['paperTranscript']
 ): LocalGrade {
   const max = question.points;
   const attempted = hasSubmittedContent(studentAnswer);
+  // Paper fill-in-the-blank not read yet: owed a grade until the teacher's mark.
+  if (question.type === 'FIB' && paperAnswerOwed(paperTranscript)) {
+    if (manual === undefined) {
+      return {
+        isCorrect: false,
+        pointsEarned: 0,
+        pointsMax: max,
+        state: 'awaiting-grade',
+      };
+    }
+    const awarded = Math.min(max, Math.max(0, manual.pointsAwarded));
+    return {
+      isCorrect: awarded === max && max > 0,
+      pointsEarned: awarded,
+      pointsMax: max,
+      state: 'scored',
+    };
+  }
   if (question.type === 'free-response') {
     if (manual === undefined) {
       return {
@@ -688,15 +811,38 @@ export function gradeGroupAnswer(
     const awarded = Math.min(max, Math.max(0, manual.pointsAwarded));
     // A rubric saved one criterion at a time stays provisional until every criterion is scored.
     const scored = new Set(manual.scoredCriterionIds);
+    const covers = (ids: readonly string[] | undefined) =>
+      !!ids && ids.length > 0 && ids.every((id) => scored.has(id));
     const partialRubric =
       question.rubricCriterionIds.length > 0 &&
       scored.size > 0 &&
-      question.rubricCriterionIds.some((id) => !scored.has(id));
+      !covers(question.rubricCriterionIds) &&
+      !covers(question.modifiedRubricCriterionIds);
     return {
       isCorrect: awarded === max && max > 0,
       pointsEarned: awarded,
       pointsMax: max,
       state: partialRubric ? 'awaiting-grade' : 'scored',
+    };
+  }
+  // Random numbers: graded from this student's own numbers; a copy without them can't be graded.
+  if (question.type === 'FIB' && question.calc) {
+    if (!question.calcValues) {
+      return {
+        isCorrect: false,
+        pointsEarned: 0,
+        pointsMax: max,
+        state: 'no-key',
+      };
+    }
+    const isCorrect =
+      attempted &&
+      calcAnswerAccepted(question.calc, question.calcValues, studentAnswer);
+    return {
+      isCorrect,
+      pointsEarned: isCorrect ? max : 0,
+      pointsMax: max,
+      state: attempted ? 'scored' : 'not-attempted',
     };
   }
   if (question.correctAnswer === null) {
@@ -797,13 +943,23 @@ export function gradeGroupAnswer(
       state,
     };
   }
+  const extras = fibExtrasParts(acceptedAnswers);
   const isCorrect =
     correct === given ||
     (question.type === 'FIB' &&
       given !== '' &&
-      [...(question.alternateAnswers ?? []), ...(acceptedAnswers ?? [])].some(
-        (a) => normalizeAnswer(a) === given
-      ));
+      (extras.lenientLocale
+        ? fibLenientAccepts(
+            studentAnswer,
+            [question.correctAnswer, ...(question.alternateAnswers ?? [])],
+            extras,
+            normalizeAnswer
+          )
+        : [
+            ...(question.alternateAnswers ?? []),
+            ...extras.answers,
+            ...extras.exact,
+          ].some((a) => normalizeAnswer(a) === given)));
   return {
     isCorrect,
     pointsEarned: isCorrect ? max : 0,
@@ -1083,13 +1239,26 @@ export function computeAssessmentAggregate(
           continue;
         }
         const a = representative.get(sessionQid);
+        // Numbers come from the question id the student was served.
+        const own = question.calc
+          ? withCalcValues(
+              { ...question, id: sessionQid },
+              r.responseKey,
+              session.overridesByStudentUid?.[r.studentUid]
+                ?.modifiedQuestions === true
+            )
+          : undefined;
+        const graded = own
+          ? { ...question, calc: own.calc, calcValues: own.calcValues }
+          : question;
         const grade = gradeGroupAnswer(
-          question,
+          graded,
           a?.answer ?? '',
           r.manualGrades?.[sessionQid],
           question.type === 'FIB'
             ? servedFibAnswers(session, r.studentUid, sessionQid)
-            : undefined
+            : undefined,
+          trustedPaperTranscript(question, r.paperAttested, a)
         );
         // A paper answer not yet scanned or still untranscribed is owed a grade, never a 0.
         const paperOwed =

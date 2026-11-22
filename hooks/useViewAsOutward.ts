@@ -38,6 +38,7 @@ export const VIEW_AS_WRITES = {
     'synced_quizzes',
     'synced_video_activities',
     'synced_question_banks',
+    'synced_bank_owners',
     'flashcard_assignments',
   ],
   exportSheets: ['quiz_assignments', 'plcs'],

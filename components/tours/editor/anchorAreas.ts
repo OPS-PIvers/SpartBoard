@@ -39,6 +39,8 @@ const AREA_BY_PREFIX: Record<string, string> = {
   'review-game': 'Review',
   projects: 'Projects',
   'projects-editor': 'Projects',
+  writing: 'Writing',
+  'writing-editor': 'Writing',
   'help-center': 'Help Center',
   admin: 'Admin settings',
   teams: 'Teams',

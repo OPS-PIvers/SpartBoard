@@ -46,6 +46,9 @@ function useNow(ms: number): number {
   return now;
 }
 
+/** How long Start stays disabled after the server accepts it, while the session reaches the listener. */
+const START_SETTLE_MS = 8000;
+
 const EMPTY_TONE = {
   iconClassName: 'text-slate-400',
   titleClassName: 'text-slate-700',
@@ -110,6 +113,14 @@ const FocusTeacherView: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     live?.orgId ?? pastSession?.orgId ?? orgId
   );
   const [busy, setBusy] = useState<string | null>(null);
+  // Start stays disabled after the call returns until the session shows up in the listener.
+  const [startHeld, setStartHeld] = useState(false);
+  if (startHeld && live) setStartHeld(false);
+  useEffect(() => {
+    if (!startHeld) return;
+    const id = window.setTimeout(() => setStartHeld(false), START_SETTLE_MS);
+    return () => window.clearTimeout(id);
+  }, [startHeld]);
   const [error, setError] = useState<{ at: string; message: string } | null>(
     null
   );
@@ -265,7 +276,7 @@ const FocusTeacherView: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       rosters={classRosters}
       boardWidgets={boardWidgets ?? []}
       onChange={update}
-      starting={busy === 'start'}
+      starting={busy === 'start' || startHeld}
       checking={opener.checking}
       error={
         error?.at === 'setup'
@@ -278,15 +289,16 @@ const FocusTeacherView: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       onOpenPast={() => setView({ kind: 'past-list' })}
       onStart={() => {
         if (!roster || !classId) return;
-        void run('start', () =>
-          focusApi.start({
+        void run('start', async () => {
+          await focusApi.start({
             classId,
             className: roster.name,
             level: config.level ?? 'redirect',
             minutes: config.minutes ?? 30,
             sites: config.sites ?? [],
-          })
-        );
+          });
+          setStartHeld(true);
+        });
       }}
     />
   );

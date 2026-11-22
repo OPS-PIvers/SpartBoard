@@ -25,7 +25,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
-import { collectDescendantIds } from '@/utils/folderTree';
+import { descendantFolderIds } from '@/components/common/library/folderView';
 import type { LibraryFolder, LibraryFolderColor } from '@/types';
 import {
   type SharedSource,
@@ -276,10 +276,9 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
     [folderKey]
   );
 
-  // Descendant folder ids (children, grandchildren, …) of rootId, excluding rootId itself; cycle-safe.
+  // Descendant folder ids of rootId as the tree draws them, excluding rootId; cycle-safe.
   const collectDescendantFolderIds = useCallback(
-    (rootId: string): string[] =>
-      collectDescendantIds(rootId, folders, (f) => f.parentId),
+    (rootId: string): string[] => descendantFolderIds(rootId, folders),
     [folders]
   );
 

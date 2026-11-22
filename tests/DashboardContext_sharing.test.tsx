@@ -90,6 +90,18 @@ vi.mock('@/hooks/useFirestore', () => ({
   }),
 }));
 
+const mockFetchShareHost = vi.fn(() =>
+  Promise.resolve<{ hostStaff: boolean; shareNewer?: boolean }>({
+    hostStaff: true,
+    shareNewer: false,
+  })
+);
+vi.mock('@/utils/shareMembershipClient', () => ({
+  fetchShareHost: (...args: unknown[]) =>
+    (mockFetchShareHost as (...a: unknown[]) => unknown)(...args),
+  callShareMembership: vi.fn(() => Promise.resolve()),
+}));
+
 vi.mock('@/hooks/useRosters', () => ({
   useRosters: () => ({
     rosters: [],
@@ -253,7 +265,8 @@ describe('DashboardContext Sharing Logic', () => {
     const Probe: React.FC = () => {
       const { pendingShareImport, importSharedBoard } = useDashboard();
       useEffect(() => {
-        if (pendingShareImport) importer = importSharedBoard;
+        if (pendingShareImport && !pendingShareImport.hostChecking)
+          importer = importSharedBoard;
       }, [pendingShareImport, importSharedBoard]);
       return <div>Test App</div>;
     };
@@ -328,7 +341,8 @@ describe('DashboardContext Sharing Logic', () => {
     const Probe: React.FC = () => {
       const { pendingShareImport, importSharedBoard } = useDashboard();
       useEffect(() => {
-        if (pendingShareImport) importer = importSharedBoard;
+        if (pendingShareImport && !pendingShareImport.hostChecking)
+          importer = importSharedBoard;
       }, [pendingShareImport, importSharedBoard]);
       return <div>Test App</div>;
     };
@@ -374,7 +388,8 @@ describe('DashboardContext Sharing Logic', () => {
     const Probe: React.FC = () => {
       const { pendingShareImport, importSharedBoard } = useDashboard();
       useEffect(() => {
-        if (pendingShareImport) importer = importSharedBoard;
+        if (pendingShareImport && !pendingShareImport.hostChecking)
+          importer = importSharedBoard;
       }, [pendingShareImport, importSharedBoard]);
       return <div>Test App</div>;
     };
@@ -403,6 +418,103 @@ describe('DashboardContext Sharing Logic', () => {
     );
   });
 
+  it('opens the picker before the host check returns, with live modes held until it does', async () => {
+    mockLoadSharedDashboard.mockResolvedValue({
+      id: 'original-id',
+      name: 'Shared Board',
+      background: 'bg-slate-900',
+      widgets: [],
+      createdAt: 1234567890,
+      linkedShareHostName: 'Spoofed Name',
+    });
+    let answer: (v: { hostStaff: boolean; hostName?: string }) => void = () =>
+      undefined;
+    mockFetchShareHost.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        })
+    );
+
+    type Ctx = ReturnType<typeof useDashboard>;
+    const latest: {
+      pending: Ctx['pendingShareImport'];
+      importer: Ctx['importSharedBoard'] | null;
+    } = { pending: null, importer: null };
+    const Probe: React.FC = () => {
+      const { pendingShareImport, importSharedBoard } = useDashboard();
+      useEffect(() => {
+        latest.pending = pendingShareImport;
+        latest.importer = importSharedBoard;
+      }, [pendingShareImport, importSharedBoard]);
+      return <div>Test App</div>;
+    };
+    render(
+      <DashboardProvider>
+        <Probe />
+      </DashboardProvider>
+    );
+
+    await waitFor(() => expect(latest.pending?.hostChecking).toBe(true));
+    expect(latest.pending?.hostName).toBeUndefined();
+    await act(async () => {
+      await latest.importer?.('synced');
+    });
+    expect(
+      (mockSaveDashboard.mock.calls as Array<[Dashboard]>).find(
+        (c) => c[0].name === 'Shared Board (Synced)'
+      )
+    ).toBeUndefined();
+
+    act(() => answer({ hostStaff: true, hostName: 'Ms. Lee' }));
+    await waitFor(() => expect(latest.pending?.hostChecking).toBeUndefined());
+    expect(latest.pending?.hostStaff).toBe(true);
+    await act(async () => {
+      await latest.importer?.('synced');
+    });
+    const saved = (mockSaveDashboard.mock.calls as Array<[Dashboard]>).find(
+      (c) => c[0].name === 'Shared Board (Synced)'
+    );
+    // The name comes from the host's account, never the share doc.
+    expect(saved?.[0].linkedShareHostName).toBe('Ms. Lee');
+  });
+
+  it('stores no host name when the server gives none, ignoring the share doc', async () => {
+    mockLoadSharedDashboard.mockResolvedValue({
+      id: 'original-id',
+      name: 'Shared Board',
+      background: 'bg-slate-900',
+      widgets: [],
+      createdAt: 1234567890,
+      linkedShareHostName: 'Spoofed Name',
+    });
+    mockFetchShareHost.mockResolvedValueOnce({ hostStaff: true });
+
+    type Ctx = ReturnType<typeof useDashboard>;
+    let importer: Ctx['importSharedBoard'] | null = null;
+    const Probe: React.FC = () => {
+      const { pendingShareImport, importSharedBoard } = useDashboard();
+      useEffect(() => {
+        if (pendingShareImport?.hostStaff) importer = importSharedBoard;
+      }, [pendingShareImport, importSharedBoard]);
+      return <div>Test App</div>;
+    };
+    render(
+      <DashboardProvider>
+        <Probe />
+      </DashboardProvider>
+    );
+    await waitFor(() => expect(importer).not.toBeNull());
+    await act(async () => {
+      if (importer) await importer('synced');
+    });
+    const saved = (mockSaveDashboard.mock.calls as Array<[Dashboard]>).find(
+      (c) => c[0].name === 'Shared Board (Synced)'
+    );
+    expect(saved).toBeDefined();
+    expect(saved?.[0].linkedShareHostName).toBeUndefined();
+  });
+
   it('importSharedBoard("view-only") tags the local board as viewer', async () => {
     const sharedDashboard: Dashboard = {
       id: 'original-id',
@@ -419,7 +531,8 @@ describe('DashboardContext Sharing Logic', () => {
     const Probe: React.FC = () => {
       const { pendingShareImport, importSharedBoard } = useDashboard();
       useEffect(() => {
-        if (pendingShareImport) importer = importSharedBoard;
+        if (pendingShareImport && !pendingShareImport.hostChecking)
+          importer = importSharedBoard;
       }, [pendingShareImport, importSharedBoard]);
       return <div>Test App</div>;
     };
@@ -709,6 +822,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1234567890,
         linkedShareId: 'test-share-id',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
       };
       initialDashboardsSeed = [linkedDashboard];
 
@@ -814,6 +928,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-vo',
         linkedShareRole: 'viewer',
+        linkedShareHostUid: 'host-a',
         linkedShareHostName: 'Other Teacher',
       };
       const otherBoard: Dashboard = {
@@ -876,6 +991,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-sync',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
         linkedShareHostName: 'Other Teacher',
       };
       initialDashboardsSeed = [linked];
@@ -1040,6 +1156,122 @@ describe('DashboardContext Sharing Logic', () => {
         expect(board?.linkedShareHostUid).toBe('host-a');
         expect(board?.linkedShareEnded).not.toBe(true);
       });
+      expect(mockFetchShareHost).toHaveBeenCalledWith(
+        'share-sync',
+        'collab-board'
+      );
+    });
+
+    it('ends a host-less board whose share was re-created after it joined, adopting nothing', async () => {
+      mockFetchShareHost.mockResolvedValueOnce({
+        hostStaff: true,
+        shareNewer: true,
+      });
+      const { captured, emit } = await renderSubscribedBoard({
+        id: 'collab-board',
+        name: 'Synced Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-sync',
+        linkedShareRole: 'collaborator',
+      });
+
+      emit({
+        id: 'share-sync',
+        name: 'Attacker board',
+        background: 'bg-red-500',
+        widgets: [],
+        createdAt: 2,
+        linkedShareHostUid: 'attacker',
+      });
+
+      await waitFor(() => {
+        const board = captured.current.find((d) => d.id === 'collab-board');
+        expect(board?.linkedShareEnded).toBe(true);
+      });
+      const board = captured.current.find((d) => d.id === 'collab-board');
+      expect(board?.linkedShareHostUid).toBeUndefined();
+      expect(board?.background).toBe('bg-slate-800');
+    });
+
+    it('backs off and stops asking when the host check keeps failing', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        mockFetchShareHost.mockReset();
+        mockFetchShareHost.mockRejectedValue(new Error('not deployed'));
+        const { captured, emit } = await renderSubscribedBoard({
+          id: 'collab-board',
+          name: 'Synced Board',
+          background: 'bg-slate-800',
+          widgets: [],
+          createdAt: 1,
+          linkedShareId: 'share-sync',
+          linkedShareRole: 'collaborator',
+        });
+        const snapshot = (n: number) => ({
+          id: 'share-sync',
+          name: `Synced Board ${n}`,
+          background: 'bg-slate-800',
+          widgets: [],
+          createdAt: 1,
+          linkedShareHostUid: 'host-a',
+        });
+        emit(snapshot(0));
+        await waitFor(() =>
+          expect(mockFetchShareHost).toHaveBeenCalledTimes(1)
+        );
+        // Snapshots during the wait don't ask again, and never reset the count.
+        for (let i = 1; i < 5; i++) emit(snapshot(i));
+        await act(async () => {
+          await Promise.resolve();
+        });
+        expect(mockFetchShareHost).toHaveBeenCalledTimes(1);
+        for (let i = 0; i < 6; i++) {
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(130_000);
+          });
+          emit(snapshot(10 + i));
+        }
+        expect(mockFetchShareHost).toHaveBeenCalledTimes(4);
+        const board = captured.current.find((d) => d.id === 'collab-board');
+        expect(board?.linkedShareHostUid).toBeUndefined();
+      } finally {
+        mockFetchShareHost.mockReset();
+        mockFetchShareHost.mockResolvedValue({
+          hostStaff: true,
+          shareNewer: false,
+        });
+        vi.useRealTimers();
+      }
+    });
+
+    it('records its own share as host without asking the server', async () => {
+      mockFetchShareHost.mockClear();
+      const { captured, emit } = await renderSubscribedBoard({
+        id: 'own-board',
+        name: 'Mine',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-own',
+        linkedShareRole: 'owner',
+      });
+
+      emit({
+        id: 'share-own',
+        name: 'Mine',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareHostUid: 'test-user',
+      });
+
+      await waitFor(() => {
+        const board = captured.current.find((d) => d.id === 'own-board');
+        expect(board?.linkedShareHostUid).toBe('test-user');
+      });
+      expect(mockFetchShareHost).not.toHaveBeenCalled();
     });
 
     it('never records a host on a board whose share already ended', async () => {
@@ -1353,6 +1585,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-vo',
         linkedShareRole: 'viewer',
+        linkedShareHostUid: 'host-a',
       };
       initialDashboardsSeed = [linked];
 
@@ -1403,6 +1636,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-sync',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
         annotationOverlay: {
           objects: [
             {
@@ -1499,6 +1733,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-vo',
         linkedShareRole: 'viewer',
+        linkedShareHostUid: 'host-a',
       };
       initialDashboardsSeed = [linked];
 
@@ -1552,6 +1787,74 @@ describe('DashboardContext Sharing Logic', () => {
       });
     });
 
+    it('a viewer drops a stroke the host erased', async () => {
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+      const linked: Dashboard = {
+        id: 'view-board',
+        name: 'View Only Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-vo',
+        linkedShareRole: 'viewer',
+        linkedShareHostUid: 'host-a',
+      };
+      initialDashboardsSeed = [linked];
+      let captured: Dashboard | undefined;
+      const Probe: React.FC = () => {
+        const { dashboards } = useDashboard();
+        useEffect(() => {
+          captured = dashboards.find((d) => d.id === 'view-board');
+        }, [dashboards]);
+        return <div />;
+      };
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+      await waitFor(() => expect(subscribeCb).not.toBeNull());
+
+      const overlay = (ids: string[]) => ({
+        objects: ids.map((id) => ({
+          id,
+          kind: 'path' as const,
+          z: 1,
+          points: [{ x: 5, y: 5 }],
+          color: '#f00',
+          width: 4,
+          authorUid: 'other-user',
+        })),
+        updatedAt: 99,
+      });
+      act(() => {
+        subscribeCb?.({
+          ...linked,
+          annotationOverlay: overlay(['host-stroke']),
+          updatedBy: 'other-user',
+        } as unknown as Dashboard);
+      });
+      await waitFor(() =>
+        expect(captured?.annotationOverlay?.objects).toHaveLength(1)
+      );
+      act(() => {
+        subscribeCb?.({
+          ...linked,
+          annotationOverlay: overlay([]),
+          updatedBy: 'other-user',
+        } as unknown as Dashboard);
+      });
+      await waitFor(() =>
+        expect(captured?.annotationOverlay?.objects ?? []).toHaveLength(0)
+      );
+    });
+
     it.each(['viewer', 'collaborator'] as const)(
       "a %s receives the host's Connections from the share",
       async (role) => {
@@ -1571,6 +1874,7 @@ describe('DashboardContext Sharing Logic', () => {
           createdAt: 1,
           linkedShareId: 'share-conn',
           linkedShareRole: role,
+          linkedShareHostUid: 'host-a',
         };
         initialDashboardsSeed = [linked];
 
@@ -1638,6 +1942,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-co',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
         annotationOverlay: { objects: [], updatedAt: 1 },
       };
       initialDashboardsSeed = [linked];
@@ -1736,6 +2041,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-co',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
         annotationOverlay: { objects: [], updatedAt: 1 },
       };
       initialDashboardsSeed = [linked];
@@ -1809,6 +2115,121 @@ describe('DashboardContext Sharing Logic', () => {
       });
     });
 
+    it('keeps local ink when a snapshot lands before the share refuses the write', async () => {
+      let rejectMirror: (e: unknown) => void = () => undefined;
+      mockMirrorSharedBoard.mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectMirror = reject;
+          })
+      );
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+
+      const stroke = (id: string, authorUid: string) => ({
+        id,
+        kind: 'path' as const,
+        z: 1,
+        points: [{ x: 1, y: 1 }],
+        color: '#000',
+        width: 2,
+        authorUid,
+      });
+
+      const linked: Dashboard = {
+        id: 'co-board',
+        name: 'Co-annotated Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-co',
+        linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
+        annotationOverlay: { objects: [], updatedAt: 1 },
+      };
+      initialDashboardsSeed = [linked];
+
+      type Add = ReturnType<typeof useDashboard>['addAnnotationObject'];
+      type Load = ReturnType<typeof useDashboard>['loadDashboard'];
+      let add: Add | null = null;
+      let load: Load | null = null;
+      let captured: Dashboard | undefined;
+
+      const Probe: React.FC = () => {
+        const { addAnnotationObject, loadDashboard, dashboards } =
+          useDashboard();
+        useEffect(() => {
+          add = addAnnotationObject;
+          load = loadDashboard;
+          captured = dashboards.find((d) => d.id === 'co-board');
+        }, [addAnnotationObject, loadDashboard, dashboards]);
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => {
+        expect(add).not.toBeNull();
+        expect(subscribeCb).not.toBeNull();
+      });
+
+      act(() => {
+        if (load) load('co-board');
+      });
+      // Teacher A (this client) draws.
+      act(() => {
+        if (add) add(stroke('mine', 'test-user'));
+      });
+      await waitFor(() => {
+        const ids = (captured?.annotationOverlay?.objects ?? []).map(
+          (o) => o.id
+        );
+        expect(ids).toContain('mine');
+      });
+
+      // The write is still in flight when the peer's snapshot lands.
+      await waitFor(() => expect(mockMirrorSharedBoard).toHaveBeenCalled(), {
+        timeout: 2000,
+      });
+      act(() => {
+        if (subscribeCb)
+          subscribeCb({
+            ...linked,
+            annotationOverlay: {
+              objects: [stroke('theirs', 'other-user')],
+              updatedAt: 99,
+            },
+            updatedBy: 'other-user',
+          } as unknown as Dashboard);
+      });
+
+      await waitFor(() => {
+        const ids = (captured?.annotationOverlay?.objects ?? [])
+          .map((o) => o.id)
+          .sort();
+        expect(ids).toEqual(['mine', 'theirs']);
+      });
+
+      await act(async () => {
+        rejectMirror(
+          Object.assign(new Error('denied'), { code: 'permission-denied' })
+        );
+        await Promise.resolve();
+      });
+      expect(
+        (captured?.annotationOverlay?.objects ?? []).map((o) => o.id).sort()
+      ).toEqual(['mine', 'theirs']);
+    });
+
     it('drops ink a peer erased after a refused write', async () => {
       let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
       mockSubscribeToSharedBoard.mockImplementation(
@@ -1836,6 +2257,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-co',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
         annotationOverlay: { objects: [], updatedAt: 1 },
       };
       initialDashboardsSeed = [linked];
@@ -1950,6 +2372,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-reload',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
         annotationOverlay: {
           objects: [
             {
@@ -2041,6 +2464,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-hist',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
       };
       initialDashboardsSeed = [linked];
 
@@ -2124,6 +2548,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-pii',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
       };
       initialDashboardsSeed = [linked];
 

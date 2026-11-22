@@ -7,6 +7,8 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { provenGoogleEmail } from './mailRecipients';
+import { isGlobalFeatureGranted } from './featureGrant';
+import { safeErr } from './safeLog';
 
 /** Late alerts still send within this window, covering scheduler jitter. */
 export const SEND_WINDOW_MIN = 10;
@@ -163,7 +165,10 @@ export function parseDoc(
 export async function runGroupReminderEmails(
   db: admin.firestore.Firestore,
   auth: Pick<admin.auth.Auth, 'getUser'>,
-  now: Date
+  now: Date,
+  /** Whether the owner may still get group alerts (group-reminders and group-schedules). */
+  canEmail: (uid: string, email: string) => Promise<boolean> = () =>
+    Promise.resolve(true)
 ): Promise<{ scanned: number; queued: number }> {
   const counts = { scanned: 0, queued: 0 };
   const settings = await db.doc('admin_settings/group_reminder_emails').get();
@@ -173,7 +178,17 @@ export async function runGroupReminderEmails(
   const emailFor = async (uid: string) => {
     if (!emails.has(uid)) {
       const user = await auth.getUser(uid).catch(() => null);
-      emails.set(uid, provenGoogleEmail(user));
+      const email = provenGoogleEmail(user);
+      const allowed = email
+        ? await canEmail(uid, email).catch((err: unknown) => {
+            logger.warn('groupReminderEmails: flag check failed', {
+              uid,
+              err: safeErr(err),
+            });
+            return false;
+          })
+        : false;
+      emails.set(uid, allowed ? email : null);
     }
     return emails.get(uid) ?? null;
   };
@@ -224,10 +239,14 @@ export const groupReminderEmails = onSchedule(
     timeoutSeconds: 240,
   },
   async () => {
+    const db = admin.firestore();
     const counts = await runGroupReminderEmails(
-      admin.firestore(),
+      db,
       admin.auth(),
-      new Date()
+      new Date(),
+      async (uid, email) =>
+        (await isGlobalFeatureGranted(db, 'group-reminders', email, uid)) &&
+        isGlobalFeatureGranted(db, 'group-schedules', email, uid)
     );
     if (counts.queued > 0) logger.info('groupReminderEmails: run', counts);
   }

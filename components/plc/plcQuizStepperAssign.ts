@@ -5,7 +5,9 @@ import type {
   PeriodAccess,
   QuizAssignmentSettings,
   QuizBehaviorSettings,
+  QuizQuestion,
 } from '@/types';
+import { withQuizAnswerChoices } from '@/components/common/library/assignStepper/modificationGroups';
 import { saveAttemptPolicy } from '@/hooks/gradebook/useGradebookColumnWrites';
 import { applyWhen, type BellWindowFn } from '@/utils/assignAvailability';
 import {
@@ -49,11 +51,14 @@ export function planPlcQuizStepperAssign({
   when,
   rosters,
   bellWindow,
+  questions,
 }: {
   classes: AssignClassesValue;
   when: AssignWhenValue;
   rosters: ClassRoster[];
   bellWindow: BellWindowFn | undefined;
+  /** The quiz's questions, so class answer choices become hidden options. */
+  questions?: QuizQuestion[];
 }): PlcQuizStepperPlan {
   const picked = rosters.filter(
     (r) => !r.loadError && classes.classIds.includes(r.id)
@@ -68,11 +73,14 @@ export function planPlcQuizStepperAssign({
       pickedIds.includes(id)
     )
   );
-  const mixed = expandMixedTargeting(
+  const expanded = expandMixedTargeting(
     applied.targeting,
     { classIds: pickedIds, studentsByClass },
     rosters
   );
+  const mixed = questions
+    ? withPlanAnswerChoices(expanded, questions)
+    : expanded;
   const periodGate = buildPeriodGate({
     plan: applied.targeting.periodPlan,
     rosters: picked,
@@ -93,6 +101,24 @@ export function planPlcQuizStepperAssign({
 }
 
 /** The createAssignment settings and options a stepper plan sets: classes, dates and the period gate. */
+/** Turns class answer choices into this quiz's hidden options, once the questions are loaded. */
+export function withPlanAnswerChoices(
+  mixed: MixedTargeting,
+  questions: QuizQuestion[]
+): MixedTargeting {
+  if (!mixed?.targeting) return mixed;
+  return {
+    ...mixed,
+    targeting: {
+      ...mixed.targeting,
+      overridesByKey: withQuizAnswerChoices(
+        mixed.targeting.overridesByKey,
+        questions
+      ),
+    },
+  };
+}
+
 export function plcStepperCreateFields(
   plan: PlcQuizStepperPlan,
   rosters: ClassRoster[]

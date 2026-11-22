@@ -251,15 +251,21 @@ function makeStubDb(seed: {
   interface Ref {
     __doc: StubDoc;
     __parent: StubDoc[];
+    path: string;
     collection: (name: string) => CollectionRef;
   }
   interface CollectionRef {
     limit: (n: number) => CollectionRef;
     orderBy: (field: unknown, direction?: 'asc' | 'desc') => CollectionRef;
     startAfter: (cursor: DocSnap) => CollectionRef;
+    startAt: (id: string) => CollectionRef;
+    endAt: (id: string) => CollectionRef;
     offset: (n: number) => CollectionRef;
     get: () => Promise<{ docs: DocSnap[]; size: number }>;
-    doc: (id: string) => { get: () => Promise<{ exists: boolean }> };
+    doc: (id: string) => {
+      get: () => Promise<{ exists: boolean; data: () => unknown }>;
+      collection: (name: string) => CollectionRef;
+    };
   }
   interface DocSnap {
     id: string;
@@ -268,9 +274,11 @@ function makeStubDb(seed: {
     updateTime: { toMillis: () => number };
   }
 
+  const parentIds = new Map<StubDoc[], number>();
   const makeRef = (doc: StubDoc, parent: StubDoc[]): Ref => ({
     __doc: doc,
     __parent: parent,
+    path: `c${parentIds.get(parent) ?? parentIds.set(parent, parentIds.size).size}/${doc.id}`,
     collection: (name: string) => {
       doc.sub = doc.sub ?? {};
       doc.sub[name] = doc.sub[name] ?? [];
@@ -284,6 +292,8 @@ function makeStubDb(seed: {
       lim?: number;
       ordered?: boolean;
       afterId?: string;
+      startId?: string;
+      endId?: string;
       offsetN?: number;
       orderField?: unknown;
       orderDir?: 'asc' | 'desc';
@@ -300,9 +310,21 @@ function makeStubDb(seed: {
     offset: (n: number) => makeCollectionRef(backing, { ...opts, offsetN: n }),
     startAfter: (cursor: DocSnap) =>
       makeCollectionRef(backing, { ...opts, afterId: cursor.id }),
-    doc: (id: string) => ({
-      get: () => Promise.resolve({ exists: backing.some((d) => d.id === id) }),
-    }),
+    startAt: (id: string) =>
+      makeCollectionRef(backing, { ...opts, startId: id }),
+    endAt: (id: string) => makeCollectionRef(backing, { ...opts, endId: id }),
+    doc: (id: string) => {
+      const found = backing.find((d) => d.id === id);
+      return {
+        get: () =>
+          Promise.resolve({
+            exists: backing.some((d) => d.id === id),
+            data: () => found?.data,
+          }),
+        collection: (name: string) =>
+          makeRef(found ?? { id, data: {} }, backing).collection(name),
+      };
+    },
     get: () => {
       // '__name__' (mocked FieldPath.documentId()) sorts by doc id, same as
       // production. A real field name orders numerically on that field and —
@@ -324,6 +346,12 @@ function makeStubDb(seed: {
           const bv = Number(b.data[field]);
           return opts.orderDir === 'desc' ? bv - av : av - bv;
         });
+      }
+      if (opts.startId !== undefined) {
+        rows = rows.filter((d) => d.id >= (opts.startId as string));
+      }
+      if (opts.endId !== undefined) {
+        rows = rows.filter((d) => d.id <= (opts.endId as string));
       }
       if (opts.afterId !== undefined) {
         const i = rows.findIndex((d) => d.id === opts.afterId);
@@ -731,6 +759,7 @@ describe('runGcPlcOrphans — full sweep summary', () => {
       versionOverflow: 0,
       orphanAggregates: 0,
       orphanRecordings: 0,
+      staleHeaderMarkers: 0,
     });
 
     // A second run on the now-clean DB still deletes nothing.
@@ -1016,6 +1045,164 @@ describe('runGcPlcOrphans — orphan aggregates (category f)', () => {
     expect(root.plcs[0].sub!.assessments.map((d) => d.id).sort()).toEqual([
       'live',
       'trashed',
+    ]);
+  });
+});
+
+describe('runGcPlcOrphans — PLC header detach markers (AB-333)', () => {
+  const marker = (plcId: string, coll: string, headerId: string) => ({
+    id: `hdr:${plcId}:${coll}:${headerId}`,
+    data: {
+      plcId,
+      plcContentId: headerId,
+      headerCollection: coll,
+      sharedBy: 'u1',
+      detachedAt: 1,
+    },
+  });
+  const plcWith = (coll: string, headers: StubDoc[]): StubDoc => ({
+    id: 'plc-1',
+    data: {},
+    sub: { [coll]: headers },
+  });
+
+  it('keeps an empty group while a live header marker points at it', async () => {
+    const { db, root } = makeStubDb({
+      plcs: [plcWith('quizzes', [{ id: 'h1', data: {} }])],
+      synced_quizzes: [
+        {
+          id: 'g1',
+          data: { participants: {} },
+          sub: { plcDetached: [marker('plc-1', 'quizzes', 'h1')] },
+        },
+      ],
+    });
+
+    const counts = await runGcPlcOrphans(db, NOW);
+
+    expect(counts.emptyGroups).toBe(0);
+    expect(root.synced_quizzes.map((d) => d.id)).toEqual(['g1']);
+    expect(root.synced_quizzes[0].sub!.plcDetached).toHaveLength(1);
+  });
+
+  it('reaps an empty group whose only marker points at a soft-deleted header', async () => {
+    const { db, root } = makeStubDb({
+      plcs: [
+        plcWith('video_activities', [{ id: 'h1', data: { deletedAt: NOW } }]),
+      ],
+      synced_video_activities: [
+        {
+          id: 'g1',
+          data: { participants: {} },
+          sub: { plcDetached: [marker('plc-1', 'video_activities', 'h1')] },
+        },
+      ],
+    });
+    const counts = await runGcPlcOrphans(db, NOW);
+    expect(counts.emptyGroups).toBe(1);
+    expect(counts.staleHeaderMarkers).toBe(0);
+    expect(root.synced_video_activities).toHaveLength(0);
+    expect((root.plcs[0].sub!.video_activities ?? []).map((d) => d.id)).toEqual(
+      ['h1']
+    );
+  });
+
+  it('removes every hdr marker with a reaped group and leaves other docs alone', async () => {
+    const { db, root } = makeStubDb({
+      plcs: [
+        plcWith('video_activities', [{ id: 'h1', data: { deletedAt: NOW } }]),
+      ],
+      synced_video_activities: [
+        {
+          id: 'g1',
+          data: { participants: {} },
+          sub: {
+            plcDetached: [marker('plc-1', 'video_activities', 'h1')],
+          },
+        },
+      ],
+    });
+    const group = root.synced_video_activities[0];
+    await runGcPlcOrphans(db, NOW);
+    expect(group.sub!.plcDetached).toHaveLength(0);
+  });
+
+  it('keeps the group and carries on when a marker read fails', async () => {
+    const broken = {};
+    Object.defineProperty(broken, 'plcId', {
+      get: () => {
+        throw new Error('read failed');
+      },
+    });
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { db, root } = makeStubDb({
+      plcs: [
+        {
+          id: 'plc-1',
+          data: {},
+          sub: { presence: [{ id: 'old', data: { lastActiveAt: 0 } }] },
+        },
+      ],
+      synced_quizzes: [
+        {
+          id: 'g1',
+          data: { participants: {} },
+          sub: { plcDetached: [{ id: 'hdr:bad', data: broken }] },
+        },
+        { id: 'g2', data: { participants: {} } },
+      ],
+    });
+    const counts = await runGcPlcOrphans(db, NOW);
+    expect(root.synced_quizzes.map((d) => d.id)).toEqual(['g1']);
+    expect(counts.emptyGroups).toBe(1);
+    expect(counts.presence).toBe(1);
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('g1'));
+    errSpy.mockRestore();
+  });
+
+  it('still reaps an empty group whose only marker points at a deleted header, and clears the marker', async () => {
+    const { db, root } = makeStubDb({
+      plcs: [plcWith('quizzes', [])],
+      synced_quizzes: [
+        {
+          id: 'g1',
+          data: { participants: {} },
+          sub: { plcDetached: [marker('plc-1', 'quizzes', 'gone')] },
+        },
+      ],
+    });
+
+    const counts = await runGcPlcOrphans(db, NOW);
+
+    expect(counts.emptyGroups).toBe(1);
+    expect(counts.staleHeaderMarkers).toBe(1);
+    expect(root.synced_quizzes).toHaveLength(0);
+  });
+
+  it('removes the marker of a deleted header from a group that still has participants', async () => {
+    const { db, root } = makeStubDb({
+      plcs: [plcWith('quizzes', [{ id: 'h1', data: {} }])],
+      synced_quizzes: [
+        {
+          id: 'g1',
+          data: { participants: { u2: { joinedAt: 1 } } },
+          sub: {
+            plcDetached: [
+              marker('plc-1', 'quizzes', 'h1'),
+              marker('plc-1', 'quizzes', 'gone'),
+              { id: 'u1', data: { plcId: 'plc-1', plcContentId: 'x' } },
+            ],
+          },
+        },
+      ],
+    });
+
+    const counts = await runGcPlcOrphans(db, NOW);
+
+    expect(counts.staleHeaderMarkers).toBe(1);
+    expect(root.synced_quizzes[0].sub!.plcDetached.map((d) => d.id)).toEqual([
+      'hdr:plc-1:quizzes:h1',
+      'u1',
     ]);
   });
 });

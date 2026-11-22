@@ -6,6 +6,7 @@
 // share bundled; the caller supplies only run settings, from a closed
 // allowlist. Rationale for not re-deriving the whole session: see the PR.
 
+import { parseCalcSpec } from './quizCalculated';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import { randomUUID } from 'crypto';
@@ -32,7 +33,7 @@ import {
   type GlKeyStep,
 } from './guidedLearningPublicStep';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { unverifiedClassIds } from './verifiedClassList';
+import { refusedClassTargets } from './verifiedClassList';
 import { quizJoinCodeOwner } from './quizJoinCodeOwner';
 
 /** Only the kinds D8 puts in v1; Poll and Activity Wall stay unlaunchable. */
@@ -244,9 +245,11 @@ const ANSWER_FIELDS = [
   'acceptableVariants',
   'alternateAnswers',
   'blankAlternates',
+  'calc',
   'rubric',
   'revealedAnswers',
   'localizedFibAnswers',
+  'lenientFibLocales',
 ];
 
 export interface LaunchSubAssignmentInput {
@@ -328,11 +331,28 @@ interface KeyQuestion {
   enforceWordLimit?: boolean;
   noSpellCheck?: boolean;
   answerKeyboard?: unknown;
+  calc?: unknown;
   stimulusIds?: string[];
   blankType?: unknown;
   blankChoices?: unknown;
   wordBank?: unknown;
   wordBankReuse?: unknown;
+  promptAudio?: unknown;
+}
+
+// Mirrors the QuestionAudio shape; anything malformed is dropped.
+function publicPromptAudio(raw: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const a = raw as Record<string, unknown>;
+  if (typeof a.driveFileId !== 'string' || !a.driveFileId) return null;
+  return {
+    driveFileId: a.driveFileId,
+    durationSec: typeof a.durationSec === 'number' ? a.durationSec : 0,
+    mimeType: typeof a.mimeType === 'string' ? a.mimeType : '',
+    ...(typeof a.playLimit === 'number' && a.playLimit > 0
+      ? { playLimit: a.playLimit }
+      : {}),
+  };
 }
 
 // Mirrors FIB_BLANK_SEP in utils/quizFibBlanks.ts.
@@ -470,6 +490,8 @@ export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
     text: q.text,
     timeLimit: typeof q.timeLimit === 'number' ? q.timeLimit : 30,
   };
+  const promptAudio = publicPromptAudio(q.promptAudio);
+  if (promptAudio) base.promptAudio = promptAudio;
   if (q.type === 'MC') {
     const english = [q.correctAnswer ?? '', ...(q.incorrectAnswers ?? [])];
     const choices = shuffled(english.filter(Boolean));
@@ -535,6 +557,12 @@ export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
     ANSWER_KEYBOARDS.has(q.answerKeyboard)
   )
     base.answerKeyboard = q.answerKeyboard;
+  // Mirrors toPublicQuestion: ranges and seed only, never the formula.
+  const calc = q.type === 'FIB' ? parseCalcSpec(q.calc) : undefined;
+  if (calc) {
+    base.calcVariables = calc.variables;
+    base.calcSeed = calc.seed;
+  }
   if (q.type === 'FIB') {
     // Mirrors useQuizSession toPublicQuestion: blankCount only for two or more blanks.
     const blanks = (q.correctAnswer ?? '').split(FIB_BLANK_SEP).length;
@@ -707,7 +735,14 @@ interface FcCard {
   id: string;
   term: string;
   definition: string;
+  termImageUrl?: string;
+  definitionImageUrl?: string;
 }
+
+// Mirrors isFlashcardImageUrl in utils/flashcardImageUrls.ts.
+const isCardImageUrl = (url: unknown): url is string =>
+  typeof url === 'string' &&
+  /^https:\/\/lh3\.googleusercontent\.com\/d\/[\w-]{10,200}$/u.test(url);
 
 /**
  * The deck a sub-launched run studies. Field by field rather than a spread:
@@ -728,7 +763,17 @@ export function fcCardsFromBundle(cards: unknown): FcCard[] {
     if (typeof card.term !== 'string') continue;
     if (typeof card.definition !== 'string') continue;
     seen.add(card.id);
-    out.push({ id: card.id, term: card.term, definition: card.definition });
+    out.push({
+      id: card.id,
+      term: card.term,
+      definition: card.definition,
+      ...(isCardImageUrl(card.termImageUrl)
+        ? { termImageUrl: card.termImageUrl }
+        : {}),
+      ...(isCardImageUrl(card.definitionImageUrl)
+        ? { definitionImageUrl: card.definitionImageUrl }
+        : {}),
+    });
   }
   if (out.length === 0) {
     denied('The shared flashcard set has no usable cards.');
@@ -781,7 +826,7 @@ export async function resolveTargeting(
     }
   }
   // Roster docs are host-written, so only classes on the host's verified list are kept.
-  const unverified = new Set(await unverifiedClassIds(db, hostUid, classIds));
+  const unverified = new Set(await refusedClassTargets(db, hostUid, classIds));
   const kept = classIds.filter((id) => !unverified.has(id));
   for (const id of unverified) delete classPeriodByClassId[id];
   if (kept.length === 0) {
@@ -869,7 +914,7 @@ async function liveHostHasFeature(
   featureId: string
 ): Promise<boolean> {
   const email = await verifiedHostEmail(hostUid);
-  const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+  const { isGlobalFeatureGranted } = await import('./featureGrant');
   return isGlobalFeatureGranted(db, featureId, email, hostUid).catch(
     () => false
   );
@@ -890,7 +935,7 @@ async function liveHostAllowsAnonymousJoin(
     if (!snap.exists) return true;
     const host = await admin.auth().getUser(hostUid);
     const email = host.emailVerified ? (host.email ?? null) : null;
-    const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+    const { isGlobalFeatureGranted } = await import('./featureGrant');
     return await isGlobalFeatureGranted(
       db,
       ANONYMOUS_JOIN_FEATURE,

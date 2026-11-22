@@ -8,7 +8,8 @@ export type GradebookKind =
   | 'flashcards'
   | 'projects'
   | 'mini-app'
-  | 'activity-wall';
+  | 'activity-wall'
+  | 'writing';
 
 export const GRADEBOOK_KINDS: readonly GradebookKind[] = [
   'quiz',
@@ -18,6 +19,7 @@ export const GRADEBOOK_KINDS: readonly GradebookKind[] = [
   'projects',
   'mini-app',
   'activity-wall',
+  'writing',
 ];
 
 /** D6: columns that only show a check when work exists and never count. */
@@ -35,6 +37,7 @@ export const GRADEBOOK_SESSION_COLLECTIONS: Record<GradebookKind, string> = {
   projects: 'project_runs',
   'mini-app': 'mini_app_sessions',
   'activity-wall': 'activity_wall_sessions',
+  writing: 'writing_assignment_sessions',
 };
 
 /** RR-06 grade state: awaiting-grade is never shown or pushed as 0. */
@@ -104,6 +107,10 @@ export interface GradeIndexRow {
   assigned: boolean;
   /** Mini App results v2: who scored the best attempt; absent on completion rows. */
   gradedBy?: 'server' | 'app';
+  /** Writing: the teacher excused this piece, shown as the Excused flag. */
+  excused?: true;
+  /** Quiz: scanned from a printed group copy, so never auto Late or Missing. */
+  onPaper?: true;
   updatedAt: number;
 }
 
@@ -392,7 +399,11 @@ export function activeFlags(
       seen.add(id);
     }
   }
-  if (!autoFlagsOn || !row || !row.assigned) return out;
+  if (row?.excused && on.has('excused') && !seen.has('excused')) {
+    out.push({ id: 'excused', auto: true });
+    seen.add('excused');
+  }
+  if (!autoFlagsOn || !row || !row.assigned || row.onPaper) return out;
   const suppressed = new Set(mark?.suppressedAuto ?? []);
   const addAuto = (id: BuiltInFlagId): void => {
     if (on.has(id) && !seen.has(id) && !suppressed.has(id)) {

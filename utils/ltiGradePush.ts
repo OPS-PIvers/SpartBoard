@@ -108,3 +108,6 @@ export function ltiPushErrorMessage(err: unknown): string {
   if (actionable && message) return message;
   return 'Could not push grades to Schoology — check your connection and try again.';
 }
+
+/** Past ltiPushGradesForAssignmentV1's 180s timeout, so a paced push still returns its results. */
+export const LTI_PUSH_GRADES_CALL_OPTS = { timeout: 190_000 };

@@ -1,4 +1,6 @@
 import type {
+  QuizAssignment,
+  QuizAssignmentSettings,
   QuizData,
   QuizQuestion,
   QuizSessionBankSlot,
@@ -135,7 +137,8 @@ function withKeyFrom(
 export function applyCurrentAnswerKeys(
   frozen: QuizData,
   library: Pick<QuizData, 'questions' | 'bankSlots' | 'order'>,
-  banks: ReadonlyMap<string, Pick<BankContent, 'questions' | 'targets'>>
+  banks: ReadonlyMap<string, Pick<BankContent, 'questions' | 'targets'>>,
+  opts: KeyFixOptions = {}
 ): QuizData {
   const current = new Map<string, QuizQuestion>();
   let allBanksLoaded = true;
@@ -173,6 +176,8 @@ export function applyCurrentAnswerKeys(
   const questions = (frozen.questions ?? []).map((q) => {
     const now = current.get(q.id);
     if (!now || now.type !== q.type) return q;
+    // Frozen at assign only: a reworded question is a different question, so its new key can't grade old answers.
+    if (opts.sameTextOnly && norm(now.text) !== norm(q.text)) return q;
     const shape = presentedChoices(q);
     if (shape === null || shape !== presentedChoices(now)) return q;
     changed = true;
@@ -181,6 +186,22 @@ export function applyCurrentAnswerKeys(
   const out = changed ? { ...frozen, questions } : frozen;
   if (allBanksLoaded) keyedWithAllBanks.add(out);
   return out;
+}
+
+/** sameTextOnly: skip key fixes on reworded questions (assignments frozen at assign, not bank draws). */
+export type KeyFixOptions = { sameTextOnly?: boolean };
+
+/** Bank draws keep their old key-fix rule; only assignments frozen at assign need the same text. */
+export function keyFixOptionsFor(
+  assignment:
+    | Pick<QuizAssignmentSettings, 'resolvedDriveFileId' | 'frozenDriveFileId'>
+    | null
+    | undefined
+): KeyFixOptions {
+  return {
+    sameTextOnly:
+      !assignment?.resolvedDriveFileId && !!assignment?.frozenDriveFileId,
+  };
 }
 
 const keyedWithAllBanks = new WeakSet<QuizData>();
@@ -199,14 +220,16 @@ export async function withCurrentAnswerKeys(
     loadBankContentsForQuiz: (
       quiz: Pick<QuizData, 'bankSlots'>
     ) => Promise<Map<string, BankContent>>;
-  }
+  },
+  opts: KeyFixOptions = {}
 ): Promise<QuizData> {
   try {
     const library = await deps.loadQuizData(libraryDriveFileId);
     return applyCurrentAnswerKeys(
       frozen,
       library,
-      await deps.loadBankContentsForQuiz(library)
+      await deps.loadBankContentsForQuiz(library),
+      opts
     );
   } catch (err) {
     logError('quizAssignBankDraw.withCurrentAnswerKeys', err, {
@@ -214,4 +237,50 @@ export async function withCurrentAnswerKeys(
     });
     return frozen;
   }
+}
+
+/** The Drive copy an assignment grades against, when it has one (bank draw or frozen at assign). */
+export function assignmentFrozenFileId(
+  assignment:
+    | Pick<QuizAssignmentSettings, 'resolvedDriveFileId' | 'frozenDriveFileId'>
+    | null
+    | undefined
+): string | undefined {
+  return assignment?.resolvedDriveFileId ?? assignment?.frozenDriveFileId;
+}
+
+/** Assignments of this quiz that still grade against the live quiz, so an edit re-scores them. */
+export function unfrozenAssignmentCount(
+  quizId: string,
+  assignments: readonly Pick<
+    QuizAssignment,
+    'quizId' | 'resolvedDriveFileId' | 'frozenDriveFileId' | 'sync'
+  >[]
+): number {
+  return assignments.filter(
+    (a) => a.quizId === quizId && !a.sync && !assignmentFrozenFileId(a)
+  ).length;
+}
+
+/** Loads the quiz an assignment grades against: its frozen copy with current keys, or the library quiz. */
+export async function loadAssignmentAnswerKeyQuiz(
+  libraryDriveFileId: string,
+  frozenDriveFileId: string | undefined,
+  deps: {
+    loadQuizData: (driveFileId: string) => Promise<QuizData>;
+    loadBankContentsForQuiz: (
+      quiz: Pick<QuizData, 'bankSlots'>
+    ) => Promise<Map<string, BankContent>>;
+  },
+  opts: KeyFixOptions = {}
+): Promise<QuizData> {
+  if (!frozenDriveFileId || frozenDriveFileId === libraryDriveFileId) {
+    return deps.loadQuizData(libraryDriveFileId);
+  }
+  return withCurrentAnswerKeys(
+    await deps.loadQuizData(frozenDriveFileId),
+    libraryDriveFileId,
+    deps,
+    opts
+  );
 }

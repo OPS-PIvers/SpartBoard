@@ -1394,6 +1394,7 @@
         "ariaLabel": "Anwesenheit öffnen – {{count}} heute als abwesend markiert"
       },
       "classContext": {
+        "label": "Klassen",
         "triggerAria": "Aktive Klasse: {{name}}",
         "triggerAriaWithAbsent_one": "Aktive Klasse: {{name}}. {{count}} Schüler/in heute als abwesend markiert.",
         "triggerAriaWithAbsent_other": "Aktive Klasse: {{name}}. {{count}} Schüler/innen heute als abwesend markiert.",
@@ -1421,9 +1422,6 @@
       "left": "{{count}} offen",
       "refreshMenu": "Menü aktualisieren",
       "clearAll": "Alle Zuordnungen löschen",
-      "shortHot": "Warm",
-      "shortBento": "Bento",
-      "shortHome": "Zuhause",
       "assignMoreOutsideGroup": "Noch {{count}} zuordnen, {{hidden}} außerhalb dieser Gruppe"
     },
     "quiz": {
@@ -2030,15 +2028,20 @@
       "tabAway": "Abwesenheitslimit: {{seconds}} s",
       "windowShifted": "Zeitfenster verschoben",
       "readAloud": "Vorlesen",
+      "spellingHelp": "Rechtschreibhilfe",
       "language": "{{language}}",
       "copyPastePrintBlocked": "Kein Kopieren, Einfügen oder Drucken",
-      "copyPastePrintAllowed": "Kopieren, Einfügen und Drucken erlaubt"
+      "copyPastePrintAllowed": "Kopieren, Einfügen und Drucken erlaubt",
+      "speechToText": "Sprache zu Text"
     },
     "language": "Sprache",
+    "spellingHelp": "Rechtschreibhilfe",
     "noChanges": "Keine Änderungen",
     "copyPastePrint": "Kopieren, Einfügen und Drucken",
     "copyPastePrintBlock": "Sperren",
-    "copyPastePrintAllow": "Erlauben"
+    "copyPastePrintAllow": "Erlauben",
+    "speechToText": "Sprache zu Text",
+    "speechToTextLanguageNote": "Nicht verfügbar auf {{language}}. Diese Schülerin oder dieser Schüler diktiert auf Englisch."
   },
   "assignTargeting": {
     "expandAffordance": "Anpassungen bearbeiten oder hinzufügen",
@@ -2112,7 +2115,8 @@
       "videoActivity": "Videoaktivität",
       "guidedLearning": "Geführtes Lernen",
       "miniApp": "Mini-App",
-      "flashcards": "Karteikarten"
+      "flashcards": "Karteikarten",
+      "writing": "Schreiben"
     },
     "flashcardKind": {
       "check": "Überprüfung",
@@ -2225,10 +2229,12 @@
     "allPlaced": "Alle Wörter eingesetzt.",
     "picked": "{{word}} ausgewählt. Wähle eine Lücke.",
     "placed": "{{word}} in {{blank}} eingesetzt.",
-    "returned": "{{word}} zurück in die Wortliste gelegt."
+    "returned": "{{word}} zurück in die Wortliste gelegt.",
+    "tapToFill": "Tippe auf eine Auswahl, um sie zu deiner Antwort hinzuzufügen."
   },
   "quizLiveView": {
     "banner": "Deine Lehrkraft sieht sich dein Quiz an",
+    "bannerWriting": "Deine Lehrkraft sieht sich deinen Text an",
     "nudge": "Deine Lehrkraft bittet um deine Aufmerksamkeit",
     "noteSeeMe": "Bitte komm zu mir",
     "noteOwnWork": "Schau nur auf deine eigene Arbeit",
@@ -2411,10 +2417,13 @@
       "title": "Deine Ergebnisse",
       "attempt": "Versuch",
       "fullyCorrect": "{{correct}} von {{total}} ganz richtig",
+      "pointsOf": "{{earned}} von {{possible}} Punkten",
       "writtenPending": "Deine schriftliche Antwort wird noch bewertet. Schau bald wieder nach.",
       "yourAnswers": "Deine Antworten",
       "otherQuestions": "Andere Fragen",
       "yourAnswer": "Deine Antwort:",
+      "yourAnswerTag": "Deine Antwort",
+      "correctAnswerTag": "Richtige Antwort",
       "scoreOnly": "Deine Lehrkraft hat deine Punktzahl veröffentlicht. Einzelne Antworten werden bei dieser Aufgabe nicht gezeigt."
     },
     "rubric": {
@@ -2640,11 +2649,6 @@
       "pausePlayback": "Pause your recording",
       "submitQuiz": "Submit quiz",
       "nextQuestion": "Next",
-      "submitBlockedTitle_one": "One question still needs a recording",
-      "submitBlockedTitle_other": "{{count}} questions still need a recording",
-      "submitBlockedBody_one": "The question stays incomplete and the assignment cannot be submitted. Go back and record an answer, then turn it in.",
-      "submitBlockedBody_other": "The questions stay incomplete and the assignment cannot be submitted. Go back and record an answer for each one, then turn it in.",
-      "submitBlockedJump": "Go to question {{number}}",
       "notSubmittedPending": "Noch nicht abgegeben. Deine Aufnahme wird noch gesendet.",
       "notSubmittedFailed": "Deine Aufnahme wurde nicht gesendet. Wähle Erneut versuchen.",
       "notSubmittedFailedFinal": "Deine Aufnahme wurde nicht gesendet und kann von diesem Gerät nicht gesendet werden. Nimm erneut auf, um eine neue Aufnahme zu senden.",
@@ -2783,15 +2787,15 @@
         "paper-image": "Nicht transkribiert",
         "not-counted": "Zusätzlich, nicht bewertet"
       },
-      "points": "Points awarded",
+      "points": "Score",
+      "resizeList": "Resize student list",
+      "resizeScore": "Resize score panel",
       "comment": "Overall comment (optional)",
       "substituteNote": "Note (required)",
       "commentPlaceholder": "Feedback for this student…",
       "excusedNote": "Entschuldigt. Nicht im Notenbuch.",
       "save": "Save grade",
       "saveAndNext": "Save & next",
-      "prevStudent": "Previous student",
-      "nextStudent": "Next student",
       "prevQuestion": "Previous question",
       "nextQuestion": "Next question",
       "prev": "Previous ungraded",
@@ -2897,6 +2901,9 @@
       },
       "copy": "Kopieren",
       "copyResponse": "Antwort kopieren",
+      "writingPlayback": "Wiedergabe",
+      "backToAnswer": "Zurück zur Antwort",
+      "writingPlaybackHint": "Zeigt, wie diese Antwort geschrieben wurde",
       "copied": "Kopiert",
       "responseLabel": "Antwort des Schülers",
       "timedOutUnderMinimum": "Zeit abgelaufen unter dem Minimum",
@@ -3043,7 +3050,8 @@
       },
       "classFilter": "Nach Klasse filtern",
       "allClasses": "Alle Klassen",
-      "countInstead": "Stattdessen zählen"
+      "countInstead": "Stattdessen zählen",
+      "dictated": "Diktiert"
     },
     "results": {
       "gradeButton": "Freie Antworten bewerten"
@@ -3921,7 +3929,6 @@
       "tabSubmitTitle": "Du hast die Seite zu oft verlassen",
       "submittingAnswers": "Deine Antworten werden abgegeben…",
       "forcedTab": "Du hast die Seite zu oft verlassen. Deine Aufgabe wurde abgegeben. Sprich mit deiner Lehrkraft, wenn du denkst, dass das ein Fehler war.",
-      "tryAgain": "Erneut versuchen",
       "tryAgainError": "Ein neuer Versuch konnte nicht gestartet werden. Versuche es erneut.",
       "tabWarningOf": "Warnung {{count}} von {{limit}}."
     },
@@ -4875,27 +4882,6 @@
         "rebound": "Neu verknüpft",
         "needsHuman": "Braucht eine Person"
       }
-    },
-    "web": {
-      "title": "Web-Touren",
-      "intro": "Prüft echte Durchläufe von Touren auf anderen Websites.",
-      "empty": "Noch keine Web-Touren.",
-      "loadFailed": "Web-Touren konnten nicht geladen werden.",
-      "notPublished": "Nicht veröffentlicht",
-      "colPage": "Seite",
-      "state": {
-        "ok": "OK",
-        "weak": "Schwache Übereinstimmung",
-        "missed": "Nicht gefunden"
-      },
-      "reason": {
-        "missed": "Bild in {{misses}} von {{runs}} echten Durchläufen gezeigt",
-        "weak": "Nur über einen schwächeren Hinweis gefunden in {{weak}} von {{runs}} echten Durchläufen",
-        "weakScore": "Nah an einem anderen Steuerelement in {{weak}} von {{runs}} echten Durchläufen"
-      },
-      "copyLink": "Link kopieren",
-      "linkCopied": "Kopiert",
-      "copyLinkFor": "Link zu {{title}} kopieren"
     }
   },
   "tourPicker": {
@@ -5095,5 +5081,50 @@
     "hour": "Stunde",
     "minute": "Minute",
     "period": "Vormittag oder Nachmittag"
+  },
+  "quizSupports": {
+    "button": "Hilfen",
+    "title": "Hilfen",
+    "close": "Schließen",
+    "resize": "Größe der Hilfen ändern"
+  },
+  "claudeBoards": {
+    "editingToast": "Claude bearbeitet {{name}}",
+    "show": "Anzeigen",
+    "madeBadge": "Mit Claude erstellt",
+    "editedBadge": "Von Claude bearbeitet"
+  },
+  "dictate": {
+    "button": "Diktieren",
+    "starting": "Startet…",
+    "listening": "Hört zu… zum Stoppen tippen",
+    "listeningShort": "Hört zu",
+    "stop": "Diktieren beenden",
+    "language": "Diktiersprache",
+    "languageSwitch": "Diktat auf {{language}}. Zu {{next}} wechseln.",
+    "error": {
+      "micBlocked": "Das Mikrofon ist blockiert. Klicke auf das Symbol links in der Adressleiste, schalte Mikrofon ein und tippe dann erneut auf Diktieren.",
+      "noMic": "Kein Mikrofon gefunden. Schließe ein Mikrofon oder Headset an und tippe dann erneut auf Diktieren.",
+      "network": "Diktieren braucht Internet. Prüfe deine Verbindung und tippe dann erneut auf Diktieren.",
+      "languageUnsupported": "Diktieren versteht diese Sprache auf diesem Gerät nicht und hört deshalb auf Englisch zu.",
+      "unknown": "Diktieren wurde beendet. Tippe auf Diktieren, um neu zu starten."
+    },
+    "tidyUp": "Aufräumen",
+    "tidyingUp": "Wird aufgeräumt…",
+    "tidyUpHint": "Fügt Satzzeichen und Großbuchstaben zu deinem Diktat hinzu. Deine Wörter bleiben gleich.",
+    "tidyBefore": "Deins",
+    "tidyAfter": "Aufgeräumt",
+    "tidyUse": "Das verwenden",
+    "tidyKeep": "Meins behalten",
+    "tidyUndo": "Rückgängig",
+    "tidyDone": "Aufgeräumt.",
+    "tidyNoChange": "Nichts aufzuräumen."
+  },
+  "quizQuestionAudio": {
+    "play": "Audio abspielen",
+    "stop": "Stopp",
+    "retry": "Erneut versuchen",
+    "label": "Audiofrage",
+    "playCount": "Audio abspielen ({{used}}/{{total}})"
   }
 }

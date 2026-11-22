@@ -57,6 +57,10 @@ describe('widget access defaults', () => {
     expect(getWidgetDefaultAccessLevel('projects')).toBe('admin');
   });
 
+  it('keeps Writing admin-only until a permission doc overrides it', () => {
+    expect(getWidgetDefaultAccessLevel('writing')).toBe('admin');
+  });
+
   it('keeps Review admin-only until a permission doc overrides it', () => {
     expect(getWidgetDefaultAccessLevel('review')).toBe('admin');
   });

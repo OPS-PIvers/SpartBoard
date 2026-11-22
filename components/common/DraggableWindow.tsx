@@ -1001,6 +1001,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName || '') ||
       target?.isContentEditable;
 
+    // Keys from a portaled dialog bubble through the React tree but belong to that dialog.
+    if (!(target instanceof Node && e.currentTarget.contains(target))) return;
+
     if (isInput) {
       if (e.key === 'Escape') {
         // Must be called BEFORE blur(): blur() is synchronous, so the event would otherwise
@@ -3079,7 +3082,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         <div
           ref={maxMenuRef}
           data-max-bar=""
-          className={`absolute inset-x-0 top-0 z-widget-control mx-auto flex w-fit flex-col items-center gap-2 pt-3 transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none focus-within:pointer-events-auto focus-within:translate-y-0 focus-within:opacity-100 ${
+          className={`absolute inset-x-0 top-0 z-widget-control mx-auto flex w-fit flex-col items-center gap-2 pt-3 transition-[translate,opacity] duration-200 ease-out motion-reduce:transition-none focus-within:pointer-events-auto focus-within:translate-y-0 focus-within:opacity-100 ${
             maxBarVisible || showMaxMenu
               ? 'pointer-events-auto translate-y-0 opacity-100'
               : 'pointer-events-none -translate-y-full opacity-0'

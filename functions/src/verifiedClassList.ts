@@ -143,19 +143,31 @@ export async function addVerifiedLmsClasses(
   });
 }
 
-/** Until the rules release, only a list ClassLink has answered for counts; a teacher without one is not narrowed. */
+/** Until enforce is on, only a list ClassLink has answered for counts; a teacher without one is not narrowed. */
 export const MISSING_LIST_ALLOWS = true;
 
-/** The ids on `uid`'s list, or null when the teacher has no list that counts yet. */
+/** The super-admin switch whose `enforce` field ends the missing-list allowance here and in firestore.rules. */
+export const CLASS_TARGETS_ENFORCE_PATH =
+  'admin_settings/verified_classes_fill';
+
+async function missingListAllowed(
+  db: admin.firestore.Firestore
+): Promise<boolean> {
+  if (!MISSING_LIST_ALLOWS) return false;
+  const snap = await db.doc(CLASS_TARGETS_ENFORCE_PATH).get();
+  return !(snap.exists && snap.data()?.enforce === true);
+}
+
+/** The ids on `uid`'s list, or null when the teacher has no list that counts and is not narrowed yet. */
 export async function loadVerifiedClassIds(
   db: admin.firestore.Firestore,
   uid: string
 ): Promise<Set<string> | null> {
   const snap = await db.doc(`${VERIFIED_CLASSES_COLLECTION}/${uid}`).get();
   const data = snap.exists ? snap.data() : undefined;
-  if (!data) return null;
-  if (MISSING_LIST_ALLOWS && typeof data.classlinkAt !== 'number') return null;
-  return new Set(cleanIds(data.ids));
+  if (typeof data?.classlinkAt !== 'number' && (await missingListAllowed(db)))
+    return null;
+  return new Set(cleanIds(data?.ids));
 }
 
 /** Shown when a class is not on the teacher's list. */
@@ -170,8 +182,30 @@ export async function unverifiedClassIds(
 ): Promise<string[]> {
   if (ids.length === 0) return [];
   const verified = await loadVerifiedClassIds(db, uid);
-  if (!verified) return MISSING_LIST_ALLOWS ? [] : [...ids];
+  if (!verified) return [];
   return ids.filter((id) => !verified.has(id));
+}
+
+// The rule's whole-string RE2 match, whose `.` excludes only `\n`.
+const RULE_LMS_ID = /^(?:schoology|classroom):[^\n]+$/;
+
+/** The class targets firestore.rules `onVerifiedList` refuses: before enforce, one unlisted LMS id in first place (LTI launch) passes. */
+export async function refusedClassTargets(
+  db: admin.firestore.Firestore,
+  uid: string,
+  ids: readonly string[]
+): Promise<string[]> {
+  const missing = await unverifiedClassIds(db, uid, ids);
+  const first = ids[0];
+  if (
+    missing.length > 0 &&
+    first !== undefined &&
+    RULE_LMS_ID.test(first) &&
+    missing.every((id) => id === first) &&
+    (await missingListAllowed(db))
+  )
+    return [];
+  return missing;
 }
 
 /** A verified, non-student, non-PIN address from a callable token, or null. */

@@ -1,7 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import { AlertCircle, ClipboardList, Loader2, ScrollText } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  ClipboardList,
+  Loader2,
+  ScrollText,
+} from 'lucide-react';
 import type { ProjectStep, ProjectStepState } from '@/types';
 import { useStudentAuth } from '@/context/useStudentAuth';
+import { useDialog } from '@/context/useDialog';
+import { submitProjectGroup } from '@/utils/projectRunWrites';
 import { useStudentProjectRun } from '@/hooks/useStudentProjectRun';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
 import { useProjectUploads } from '@/hooks/useProjectUploads';
@@ -15,7 +23,7 @@ import { ProjectGroupWork } from './project/ProjectGroupWork';
 import { ProjectOwnGroupSteps } from './project/ProjectOwnGroupSteps';
 import { ProjectRubricSheet } from './project/ProjectRubricSheet';
 import { ProjectScoreCard } from './project/ProjectScoreCard';
-import { parseProjectRunId } from './project/projectRoute';
+import { parseProjectRunId, projectBackHref } from './project/projectRoute';
 
 const Centered: React.FC<{
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -29,9 +37,16 @@ const Centered: React.FC<{
   </div>
 );
 
+const formatSubmittedDay = (at: number): string =>
+  new Date(at).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+
 /** `/project/:runId` — a group's own view of one project (§6, D30); rules enforce the limits. */
 export const ProjectStudentPage: React.FC = () => {
-  const { pseudonymUid, signOut } = useStudentAuth();
+  const { pseudonymUid } = useStudentAuth();
   const runId = useMemo(() => parseProjectRunId(window.location.pathname), []);
 
   const {
@@ -67,8 +82,15 @@ export const ProjectStudentPage: React.FC = () => {
   const [busyStepId, setBusyStepId] = useState<string | null>(null);
   const [openStepId, setOpenStepId] = useState<string | null>(null);
 
+  const { showConfirm } = useDialog();
+  const [submitting, setSubmitting] = useState(false);
+
   const steps: ProjectStep[] = run?.steps ?? [];
-  const canEdit = Boolean(myGroup) && run?.acceptingUpdates === true;
+  const submittedAt = myGroup?.submittedAt;
+  const submitted = typeof submittedAt === 'number' && submittedAt > 0;
+  const canEdit =
+    Boolean(myGroup) && run?.acceptingUpdates === true && !submitted;
+  const canSubmit = canEdit && run?.studentSubmit === true;
 
   const maxPoints = run?.rubric
     ? (run.rubricMaxPoints ?? rubricMaxPoints(run.rubric))
@@ -94,6 +116,34 @@ export const ProjectStudentPage: React.FC = () => {
       setNotice('That change could not be saved.');
     } finally {
       setBusyStepId(null);
+    }
+  };
+
+  const submit = async () => {
+    if (!canSubmit || !runId || !myGroup || submitting) return;
+    const open = steps.filter((step) => {
+      const state = stepStateOf(myGroup, step.id);
+      return state !== 'done' && state !== 'readyForReview';
+    }).length;
+    const lead =
+      open === 0
+        ? ''
+        : open === 1
+          ? "1 step isn't done yet. "
+          : `${open} steps aren't done yet. `;
+    const ok = await showConfirm(
+      `${lead}Everyone in ${myGroup.name} will see it as submitted. You can't make changes after this.`,
+      { title: 'Submit for your group?', confirmLabel: 'Submit' }
+    );
+    if (!ok) return;
+    setSubmitting(true);
+    try {
+      await submitProjectGroup(runId, myGroup.id);
+      setNotice(null);
+    } catch {
+      setNotice('Your project could not be submitted. Try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -158,7 +208,7 @@ export const ProjectStudentPage: React.FC = () => {
             onPick={(step, state) => void pickState(step, state)}
           />
 
-          {!canEdit && myGroup && (
+          {!canEdit && !submitted && myGroup && (
             <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
               Your teacher has closed this project to changes. You can still see
               everything here.
@@ -189,13 +239,55 @@ export const ProjectStudentPage: React.FC = () => {
           onError={setNotice}
         />
 
+        {submitted ? (
+          <p
+            role="status"
+            className="flex items-center gap-2 text-sm font-semibold text-slate-700"
+          >
+            <CheckCircle2
+              aria-hidden="true"
+              className="h-5 w-5 text-emerald-600"
+              strokeWidth={2.25}
+            />
+            {myGroup.submittedLate ? 'Submitted late' : 'Submitted'}{' '}
+            {formatSubmittedDay(submittedAt ?? 0)}.
+          </p>
+        ) : (
+          canSubmit && (
+            <div className="flex justify-end">
+              {/* no-tour-anchor: student screen; live tours walk teachers. */}
+              <button
+                type="button"
+                onClick={() => void submit()}
+                disabled={submitting}
+                className="inline-flex items-center gap-2 rounded-xl bg-brand-blue-primary px-4 py-2.5 text-sm font-bold text-white transition hover:bg-brand-blue-dark disabled:opacity-60"
+              >
+                {submitting && (
+                  <Loader2
+                    aria-hidden="true"
+                    className="h-4 w-4 animate-spin"
+                  />
+                )}
+                Submit project
+              </button>
+            </div>
+          )
+        )}
+
         {grade && <ProjectScoreCard grade={grade} override={myOverride} />}
       </div>
     );
   };
 
   return (
-    <StudentPageShell onDone={() => void signOut()}>
+    <StudentPageShell
+      doneAction="back"
+      onDone={() =>
+        window.location.assign(
+          projectBackHref(document.referrer, window.location.origin)
+        )
+      }
+    >
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="truncate text-2xl font-black tracking-tight text-slate-900">

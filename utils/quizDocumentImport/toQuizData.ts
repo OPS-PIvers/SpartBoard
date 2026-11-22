@@ -222,7 +222,7 @@ export function extractedToQuizData(
     sections?: boolean;
     /** Known catalog codes; printed codes beside a stem move to `standardCodes` only when every one is known. */
     standardsFromText?: ReadonlySet<string>;
-    /** Fractions, powers and roots in a question and its choices become equations the quiz draws (`quiz-import-equations`). */
+    /** Fractions, powers and roots in a question and its choices become equations the quiz draws. */
     equations?: boolean;
   } = {}
 ): QuizData {

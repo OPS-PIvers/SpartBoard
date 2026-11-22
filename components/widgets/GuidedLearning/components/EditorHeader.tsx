@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, Wand2, X } from 'lucide-react';
+import { EditableHeaderTitle } from '@/components/common/EditableHeaderTitle';
 import { AutosaveIndicator } from '@/components/common/EditorModalShell';
 import type { AutosaveStatus } from '@/hooks/useAutosave';
 import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
@@ -8,6 +9,7 @@ import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
 interface EditorHeaderProps {
   title: string;
   onTitleChange: (next: string) => void;
+  titleReadOnly?: boolean;
   titlePlaceholder: string;
   subtitle?: React.ReactNode;
   /** What still has to be filled in; replaces the subtitle while set. */
@@ -28,6 +30,7 @@ interface EditorHeaderProps {
 export const EditorHeader: React.FC<EditorHeaderProps> = ({
   title,
   onTitleChange,
+  titleReadOnly = false,
   titlePlaceholder,
   subtitle,
   notice,
@@ -47,14 +50,13 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
       }`}
     >
       <div className="flex min-w-0 flex-1 flex-col">
-        <input
-          type="text"
+        <EditableHeaderTitle
           value={title}
-          onChange={(e) => onTitleChange(e.target.value)}
+          onChange={onTitleChange}
           placeholder={titlePlaceholder}
-          {...tourTypeAttr('editor.title', 'guided-learning')}
-          aria-label={t('glStudio.titleLabel')}
-          className="w-full truncate border-0 bg-transparent p-0 text-lg font-black text-slate-800 placeholder:font-bold placeholder:text-slate-400 focus:outline-hidden focus:ring-0"
+          ariaLabel={t('glStudio.titleLabel')}
+          readOnly={titleReadOnly}
+          tourAttrs={tourTypeAttr('editor.title', 'guided-learning')}
         />
         {notice ? (
           <div

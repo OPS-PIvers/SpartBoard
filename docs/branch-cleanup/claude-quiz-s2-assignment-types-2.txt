@@ -1,0 +1,1 @@
+claude/quiz-s2-assignment-types-2 (move UseQuizAssignmentsResult to hooks/quizAssignments/types.ts, AB-311)

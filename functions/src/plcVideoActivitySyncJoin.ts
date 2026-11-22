@@ -20,7 +20,7 @@ import type { SyncedVideoActivityParticipant } from './syncedVideoActivityGroups
 import { assertViewAsAllowed } from './viewAsGuard';
 import {
   PLC_DETACHED_SUBCOLLECTION,
-  assertGroupLinkedToPlc,
+  assertGroupLinkedOrDetached,
   assertPlcContentEditor,
   assertPlcMember,
   isDetachMarkerFor,
@@ -111,7 +111,16 @@ export async function handleJoinPlcVideoActivitySyncGroup(
       if (isDetachMarkerFor(markerSnap.data(), plcId, plcVideoActivityId)) {
         tx.delete(markerRef);
       } else {
-        assertGroupLinkedToPlc(plcId, plcSnap, entrySnap, groupSnap);
+        await assertGroupLinkedOrDetached(
+          tx,
+          groupRef,
+          plcId,
+          'video_activities',
+          plcVideoActivityId,
+          plcSnap,
+          entrySnap,
+          groupSnap
+        );
       }
       const now = Date.now();
       participants[uid] = { joinedAt: now };

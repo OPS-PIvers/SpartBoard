@@ -1,10 +1,12 @@
 import { copyText } from '@/utils/copyText';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import React, {
   useState,
   useRef,
   useEffect,
   useCallback,
   useLayoutEffect,
+  useMemo,
 } from 'react';
 import {
   DEFAULT_MINI_APP_RESULTS,
@@ -16,6 +18,8 @@ import {
 import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
+import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
+import { miniAppLifecycle } from './utils/miniAppClassLifecycle';
 import {
   AssignmentMode,
   MiniAppItem,
@@ -92,9 +96,15 @@ import {
   type MiniAppStepperChoices,
 } from './miniAppStepperAssign';
 import { AssignmentsModal } from './components/AssignmentsModal';
+import { MiniAppAssignmentMonitor } from './components/MiniAppAssignmentMonitor';
 import { MiniAppManager } from './components/MiniAppManager';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
+import {
+  assignmentCount,
+  runBulkPublish,
+  sharedVisibility,
+} from '@/components/common/library/assigned/bulkPublish';
 import { SaveAsWidgetModal } from './components/SaveAsWidgetModal';
 import { useMiniAppSync } from './hooks/useMiniAppSync';
 import { useDialog } from '@/context/useDialog';
@@ -457,6 +467,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { user, getAssignmentMode, canAccessFeature } = useAuth();
+  const connectionsOn = useConnectionsEnabled();
   const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
   // View-only shares a link with no classes, so it keeps its own dialog (D20).
   const stepperOn = assignmentMode === 'submissions';
@@ -521,10 +532,32 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const activeAppHasSubmissions =
     !!activeApp &&
     assignments.some((a) => a.appId === activeApp.id && a.mode !== 'view-only');
+  const { setAssignmentTargets: setTargets } = useSetAssignmentTargets();
+  const uid = user?.uid;
+  // ASSIGNED_TAB.md D21: the whole-run writes the Assigned tab's class actions drive.
+  const classLifecycle = useMemo(
+    () =>
+      uid
+        ? miniAppLifecycle(uid, {
+            endAssignment,
+            reactivateAssignment,
+            setAssignmentTargets: setTargets,
+          })
+        : null,
+    [uid, endAssignment, reactivateAssignment, setTargets]
+  );
+  const assignedTabOn = canAccessFeature('assigned-tab');
   const [editingClasses, setEditingClasses] =
     useState<MiniAppAssignment | null>(null);
+  const [monitoring, setMonitoring] = useState<{
+    assignment: MiniAppAssignment;
+    view: 'monitor' | 'results';
+  } | null>(null);
   const [publishingScores, setPublishingScores] =
     useState<MiniAppAssignment | null>(null);
+  const [bulkPublishing, setBulkPublishing] = useState<
+    MiniAppAssignment[] | null
+  >(null);
 
   // Assign flow state
   const [assigningApp, setAssigningApp] = useState<MiniAppItem | null>(null);
@@ -646,11 +679,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // Mode is locked org-wide by the admin and frozen onto the session at
       // creation. The session/assignment hooks derive `submissionsEnabled`
       // from `mode` so the two fields can never diverge.
-      // M17 E2 F1: mini-app is the one kind whose archive-row assignment id
-      // differs from the session id (Quiz/VA/GL share one UUID). Generate it
-      // up front so it can be written onto the session doc — the student app
-      // reads its pointer doc at this id, which `setAssignmentTargetsV1` also
-      // uses as the pointer key.
+      // One UUID for the archive row, the session doc and the pointer key, as Quiz/VA/GL do.
       const generatedAssignmentId = crypto.randomUUID();
       const periodGate = stepperPlan?.periodGate;
       const results =
@@ -706,6 +735,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           closeAt: periodGate ? null : (expandedTargeting.closeAt ?? null),
           ...(periodGate ? { periodGate } : {}),
         });
+        // D17: the teacher lands on Assigned with the new row on top.
+        if (assignedTabOn) setManagerTab('active');
       } catch (archiveErr) {
         console.warn(
           '[MiniAppWidget] Failed to archive assignment',
@@ -1029,7 +1060,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // With Connections, a QR that Follows this app gets the new link instead of adding another.
       // Only while this app's board is still the one on screen, so another board's connections are never replaced.
       const linked =
-        canAccessFeature('widget-connections') &&
+        connectionsOn &&
         mountedRef.current &&
         !!startBoardId &&
         latestBoard?.id === startBoardId &&
@@ -1068,7 +1099,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     createAssignment,
     addWidget,
     addToast,
-    canAccessFeature,
+    connectionsOn,
     updateDashboard,
     updateWidget,
     widget.id,
@@ -1935,7 +1966,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
             <MiniAppManager
               userId={user?.uid}
               clearsConnectionTab={
-                canAccessFeature('widget-connections') &&
+                connectionsOn &&
                 hasConnectionTab(
                   activeDashboard?.connections,
                   activeDashboard?.widgets ?? [],
@@ -1981,17 +2012,59 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onArchiveEnd={(a) => void handleArchiveEnd(a)}
               onArchiveReactivate={(a) => void handleArchiveReactivate(a)}
               onArchiveDelete={(a) => void handleArchiveDelete(a)}
+              onArchiveDeleteMany={async (list) => {
+                const results = await Promise.allSettled(
+                  list.map((a) => deleteAssignment(a.id))
+                );
+                return results.filter((r) => r.status === 'rejected').length;
+              }}
               onArchiveEditClasses={setEditingClasses}
               onArchivePublishScores={
                 canAccessFeature('mini-app-results')
                   ? setPublishingScores
                   : undefined
               }
+              onArchivePublishMany={
+                canAccessFeature('mini-app-results')
+                  ? setBulkPublishing
+                  : undefined
+              }
+              onArchiveMonitor={
+                canAccessFeature('mini-app-results')
+                  ? (assignment) =>
+                      setMonitoring({ assignment, view: 'monitor' })
+                  : undefined
+              }
+              onArchiveResults={
+                canAccessFeature('mini-app-results')
+                  ? (assignment) =>
+                      setMonitoring({ assignment, view: 'results' })
+                  : undefined
+              }
+              assignmentClassNames={(assignment) =>
+                rosters
+                  .filter((r) => assignment.rosterIds?.includes(r.id))
+                  .map((r) => r.name)
+              }
               assignmentMode={assignmentMode}
               readOnly={isActiveBoardReadOnly}
+              classLifecycle={classLifecycle}
+              rosters={rosters}
             />
             {/* Assign modal */}
             {assignDialog}
+            {monitoring && (
+              <MiniAppAssignmentMonitor
+                key={`${monitoring.assignment.id}-${monitoring.view}`}
+                assignment={monitoring.assignment}
+                view={monitoring.view}
+                onClose={() => setMonitoring(null)}
+                onMissing={() => {
+                  setMonitoring(null);
+                  addToast("Couldn't open this assignment.", 'error');
+                }}
+              />
+            )}
             {publishingScores && (
               <PublishScoresModal
                 assignmentTitle={publishingScores.assignmentName}
@@ -2022,6 +2095,26 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                       'error'
                     );
                   }
+                }}
+              />
+            )}
+            {bulkPublishing && (
+              <PublishScoresModal
+                assignmentTitle={assignmentCount(bulkPublishing.length)}
+                currentVisibility={sharedVisibility(bulkPublishing)}
+                onClose={() => setBulkPublishing(null)}
+                onConfirm={async (visibility) => {
+                  await runBulkPublish({
+                    targets: bulkPublishing,
+                    unpublish: visibility === 'none',
+                    publishOne: async (t) => {
+                      await publishMiniAppScores(t.sessionId, visibility);
+                      return true;
+                    },
+                    addToast,
+                    logKey: 'MiniAppWidget.bulkPublishScores',
+                  });
+                  setBulkPublishing(null);
                 }}
               />
             )}

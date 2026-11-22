@@ -18,7 +18,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import type { TranslationCoverageContext } from '@/utils/quizTranslationAdvisory';
 import {
   isNonEnglishQuizSource,
@@ -268,15 +268,12 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
   };
 
   const customHeader = (
-    <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0">
+    <div className="flex items-center justify-between gap-4 px-6 py-3.5 shrink-0 bg-brand-blue-primary text-white rounded-t-2xl">
       <div className="flex items-center gap-2 min-w-0">
-        <Users
-          className="w-4 h-4 text-brand-blue-primary shrink-0"
-          aria-hidden="true"
-        />
+        <Users className="w-4 h-4 text-white/80 shrink-0" aria-hidden="true" />
         <h3
           id={MODAL_LABEL_ID}
-          className="font-black text-lg text-slate-800 truncate"
+          className="font-black text-lg text-white truncate"
         >
           {t('assignStudentPicker.title', { defaultValue: 'Choose students' })}
         </h3>
@@ -285,7 +282,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
         type="button"
         onClick={onClose}
         {...tourAttr('assign-students-legacy.close')}
-        className="text-slate-400 hover:text-slate-600 p-1 rounded-full transition-colors"
+        className="text-white/80 hover:text-white p-1 rounded-full transition-colors"
         aria-label={t('common.close', { defaultValue: 'Close' })}
       >
         <X className="w-4 h-4" />
@@ -329,7 +326,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
       onClose={onClose}
       customHeader={customHeader}
       footer={footer}
-      footerClassName="shrink-0 border-t border-slate-200 bg-white"
+      footerClassName=""
       maxWidth="max-w-3xl"
       className="bg-white rounded-2xl shadow-2xl"
       contentClassName="p-0"
@@ -348,7 +345,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                   count: entry.names.length,
                   others: entry.names.length - 1,
                   name: entry.names[0],
-                  language: languageNativeLabel(entry.locale),
+                  language: languageDisplayLabel(entry.locale),
                 })}
               </span>
               {translation?.onGenerate && (
@@ -385,7 +382,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
 
       {draftSelected.length > 0 && (
         <div className="flex flex-wrap gap-1.5 px-4 py-3 border-b border-slate-100">
-          {draftSelected.map((ref) => {
+          {draftSelected.map((ref, rowIndex) => {
             const key = studentTargetRefKey(ref);
             const resolvedName = nameByKey.get(key);
             const unknownLabel = t('assignStudentPicker.unknownStudent', {
@@ -405,7 +402,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                   {...tourFieldAttr(
                     'assign-students-legacy.remove-selected',
                     'assign',
-                    key
+                    `row-${rowIndex + 1}`
                   )}
                   className="hover:bg-brand-blue-primary/20 rounded-full p-0.5 transition-colors"
                   aria-label={t('assignStudentPicker.removeStudent', {
@@ -423,7 +420,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
 
       <div className="flex" style={{ height: 380 }}>
         <div className="w-56 shrink-0 border-r border-slate-100 overflow-y-auto custom-scrollbar py-2">
-          {rosters.map((roster) => (
+          {rosters.map((roster, rowIndex) => (
             <div key={roster.id}>
               <button
                 type="button"
@@ -431,7 +428,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                 {...tourFieldAttr(
                   'assign-students-legacy.roster',
                   'assign',
-                  roster.id
+                  `row-${rowIndex + 1}`
                 )}
                 className={`w-full text-left px-4 py-2 text-sm font-bold transition-colors ${
                   roster.id === activeRosterId
@@ -449,7 +446,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
               </button>
               {roster.groups && roster.groups.length > 0 && (
                 <div className="px-4 pb-2 flex flex-wrap gap-1.5">
-                  {roster.groups.map((group) => {
+                  {roster.groups.map((group, groupIndex) => {
                     const {
                       members,
                       targetable: targetableMembers,
@@ -485,7 +482,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                           {...tourFieldAttr(
                             'assign-students-legacy.group',
                             'assign',
-                            group.id
+                            `row-${rowIndex + 1}-item-${groupIndex + 1}`
                           )}
                           className="px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-xxs font-bold text-slate-600 transition-colors"
                         >
@@ -552,7 +549,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
           </div>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar py-1">
-            {rows.map((row) => {
+            {rows.map((row, rowIndex) => {
               const disabled = row.ref === null;
               const checked = row.ref
                 ? selectedKeys.has(studentTargetRefKey(row.ref))
@@ -575,7 +572,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                       {...tourFieldAttr(
                         'assign-students-legacy.student',
                         'assign',
-                        row.studentId
+                        `row-${rowIndex + 1}`
                       )}
                       className="rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary disabled:opacity-50"
                     />

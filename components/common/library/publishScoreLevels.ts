@@ -1,5 +1,5 @@
 import type React from 'react';
-import { CheckCircle2, ListChecks, Trophy } from 'lucide-react';
+import { CheckCircle2, ListChecks, Percent } from 'lucide-react';
 import type { PublishScoresVisibility } from './PublishScoresModal';
 import type { WrittenReturnMode } from '@/types';
 
@@ -14,7 +14,7 @@ export const PUBLISH_LEVEL_OPTIONS: VisibilityOption[] = [
   {
     id: 'score-only',
     title: 'Score only',
-    Icon: Trophy,
+    Icon: Percent,
   },
   {
     id: 'score-and-responses',

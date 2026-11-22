@@ -5,6 +5,7 @@ import { normalizeModelName } from './shared';
 import { normalizeAiModelId } from './aiModels';
 import { isAiIntegrationId, type AiIntegrationId } from './aiIntegrations';
 import { parseIntegrationLimits, type AiIntegrationLimits } from './aiLimits';
+import { safeErr } from './safeLog';
 
 export const DEFAULT_ADVANCED_MODEL = 'gemini-3.7-flash';
 export const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
@@ -127,7 +128,7 @@ export async function getAiModelConfig(
   } catch (error) {
     console.warn(
       'Failed to read AI model config from Firestore; using defaults.',
-      error
+      safeErr(error)
     );
     // Not cached, so a transient error doesn't pin defaults for 5 minutes.
     return {

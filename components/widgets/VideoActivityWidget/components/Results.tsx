@@ -67,6 +67,7 @@ import {
   ltiPushErrorMessage,
   type LtiPushGradesRequest,
   type LtiPushGradesData,
+  LTI_PUSH_GRADES_CALL_OPTS,
 } from '@/utils/ltiGradePush';
 import { functions } from '@/config/firebase';
 import { tourFieldAttr } from '@/config/tourAnchors';
@@ -633,7 +634,8 @@ export const Results: React.FC<ResultsProps> = ({
     try {
       const callable = httpsCallable<LtiPushGradesRequest, LtiPushGradesData>(
         functions,
-        'ltiPushGradesForAssignmentV1'
+        'ltiPushGradesForAssignmentV1',
+        LTI_PUSH_GRADES_CALL_OPTS
       );
       const { data } = await callable({
         sessionId: session.id,
@@ -709,7 +711,12 @@ export const Results: React.FC<ResultsProps> = ({
         }),
       };
     },
-    onDone: (message, ok) => addToast(message, ok ? 'success' : 'error'),
+    onDone: (message, ok, retry) =>
+      addToast(
+        message,
+        ok ? 'success' : 'error',
+        retry ? { label: 'Retry', onClick: retry, persist: true } : undefined
+      ),
   });
   const showSchoologyPush = !!ltiAttachment || toolColumnMode;
 
@@ -859,7 +866,7 @@ export const Results: React.FC<ResultsProps> = ({
                       anchor={tourFieldAttr(
                         'video-activity.results-question-row',
                         'video-activity',
-                        q.id
+                        `row-${idx + 1}`
                       )}
                       trailing={
                         skipped ? (
@@ -869,7 +876,7 @@ export const Results: React.FC<ResultsProps> = ({
                             {...tourFieldAttr(
                               'video-activity.results-mark-toggle',
                               'video-activity',
-                              q.id
+                              `row-${idx + 1}`
                             )}
                             type="button"
                             aria-expanded={marking}
@@ -942,7 +949,7 @@ export const Results: React.FC<ResultsProps> = ({
                           }}
                         >
                           <div
-                            className={`h-full rounded-full transition-all ${colors.bar}`}
+                            className={`h-full rounded-full transition-[width] ${colors.bar}`}
                             style={{ width: `${accuracy}%` }}
                           />
                         </div>
@@ -952,6 +959,7 @@ export const Results: React.FC<ResultsProps> = ({
                       <VaShortAnswerMarking
                         sessionId={session.id}
                         question={q}
+                        questionRow={idx + 1}
                         responses={responses.filter((r) =>
                           isVaResponseCompleted(r)
                         )}
@@ -992,7 +1000,7 @@ export const Results: React.FC<ResultsProps> = ({
                     : -1;
                   return sb - sa;
                 })
-                .map((r) => {
+                .map((r, responseIndex) => {
                   const score = getStudentScore(r);
                   // When the question set hasn't loaded (or the response's
                   // answers map to no loaded question), the score is a phantom
@@ -1171,6 +1179,7 @@ export const Results: React.FC<ResultsProps> = ({
                           {resultsActions && r._responseKey && (
                             <StudentResultsControl
                               responseKey={r._responseKey}
+                              tourRow={responseIndex + 1}
                               override={r.resultsOverride}
                               completed={isVaResponseCompleted(r)}
                               displayName={displayName || 'this student'}

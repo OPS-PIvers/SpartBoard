@@ -36,6 +36,8 @@ interface LandingClassViewProps {
   pseudonymUid: string | null;
   onLockedClick: (a: AssignmentSummary) => void;
   onOpenGradeOnly: (item: DoneItem) => void;
+  /** The Agenda and pinned links, above the tabs (D11). */
+  classTop?: React.ReactNode;
 }
 
 export const LandingClassView: React.FC<LandingClassViewProps> = ({
@@ -52,6 +54,7 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
   pseudonymUid,
   onLockedClick,
   onOpenGradeOnly,
+  classTop,
 }) => {
   const head = (
     <div>
@@ -64,11 +67,16 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
     </div>
   );
   const empty =
-    !p.live.length && !p.work.length && !p.resources.length && !p.done.length;
+    !p.live.length &&
+    !p.work.length &&
+    !p.resources.length &&
+    !p.done.length &&
+    !p.expired.length;
   if (empty && !gradesEnabled) {
     return (
       <>
         {head}
+        {classTop && <div className="mt-5">{classTop}</div>}
         <div className="mt-6">
           <EmptyBox text={`Nothing has been assigned in ${cls.name} yet.`} />
         </div>
@@ -133,9 +141,9 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
       />
     );
   } else {
-    body = p.done.length ? (
+    const rows = (items: DoneItem[]) => (
       <ListBox>
-        {completedItems(p.done).map((item) => (
+        {items.map((item) => (
           <DoneRow
             key={item.key}
             item={item}
@@ -147,8 +155,29 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
           />
         ))}
       </ListBox>
-    ) : (
-      <EmptyBox text="Nothing completed yet." />
+    );
+    body = (
+      <>
+        {p.done.length ? (
+          rows(completedItems(p.done))
+        ) : (
+          <EmptyBox text="Nothing completed yet." />
+        )}
+        {p.expired.length > 0 && (
+          <section className="mt-6" aria-labelledby={`expired-${cls.classId}`}>
+            <h2
+              id={`expired-${cls.classId}`}
+              className="mb-2 px-1 text-sm font-semibold text-slate-600"
+            >
+              Expired{' '}
+              <span className="font-normal tabular-nums text-slate-400">
+                {p.expired.length}
+              </span>
+            </h2>
+            {rows(completedItems(p.expired))}
+          </section>
+        )}
+      </>
     );
   }
 
@@ -158,6 +187,7 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
       {head}
       <div className="mt-5 flex flex-col gap-4">
         <LiveBanner rows={p.live} classNameOf={() => undefined} />
+        {classTop}
         <div
           role="tablist"
           aria-label={`${cls.name} sections`}

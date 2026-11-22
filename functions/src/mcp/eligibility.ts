@@ -54,7 +54,7 @@ export async function isConnectorFeatureGranted(
   uid: string
 ): Promise<boolean> {
   // Lazy: quizMediaArchive pulls heavy deps the OAuth endpoints don't otherwise need.
-  const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+  const { isGlobalFeatureGranted } = await import('../featureGrant');
   return isGlobalFeatureGranted(db, CONNECTOR_FEATURE_ID, email, uid);
 }
 

@@ -1,4 +1,5 @@
 // Pure builders for grade index rows, one per activity kind (docs/plans/GRADEBOOK.md D10, D11, D15, D25).
+import { calcAttemptKey, withCalcValues } from '../quizCalculated';
 import {
   gradeGroupAnswer,
   parsePublicQuestion,
@@ -9,7 +10,9 @@ import {
   type ManualGrade,
   type QuestionTargetSnapshot,
   type RawAnswer,
+  capAnswer,
   paperAnswerOwed,
+  trustedPaperTranscript,
 } from '../plcAssessmentMath';
 import {
   currentShortAnswerGrading,
@@ -17,6 +20,7 @@ import {
   parsePaperWrittenQuestionIds,
   parseManualGrades,
 } from '../recomputePlcAssessments';
+import type { FibExtras } from '../quizFibMatch';
 import { notChosenIds, parseChooseSections } from '../quizSectionsChosen';
 import { isCompletionOnly, type TargetEvidence } from '../gradebookCore';
 import type {
@@ -90,6 +94,7 @@ const TITLE_FIELDS: Record<GradeKind, string[]> = {
   projects: ['title'],
   'mini-app': ['assignmentName', 'appTitle', 'title'],
   'activity-wall': ['title', 'prompt'],
+  writing: ['title'],
 };
 
 /** Session fields every row carries; `assignment` supplies quiz per-class due dates. */
@@ -251,6 +256,8 @@ export function assembleRow(input: AssembleInput): IndexRow {
     published: score.published,
     assigned: input.assigned,
     ...(score.gradedBy ? { gradedBy: score.gradedBy } : {}),
+    ...(score.excused ? { excused: true as const } : {}),
+    ...(score.onPaper ? { onPaper: true as const } : {}),
     schemaVersion: GRADE_INDEX_SCHEMA_VERSION,
     updatedAt: input.now,
   };
@@ -286,7 +293,7 @@ export interface QuestionScoreInput {
   answers: RawAnswer[];
   servedQuestionIds?: string[];
   manualGrades?: Record<string, ManualGrade>;
-  fibAnswersByQuestion?: Record<string, string[]>;
+  fibAnswersByQuestion?: Record<string, FibExtras>;
   sectionsRaw?: unknown;
   /** Teacher picks of which answers count, by choose-N section id. */
   countedChoices?: Record<string, string[]>;
@@ -294,6 +301,10 @@ export interface QuestionScoreInput {
   paperAttested?: boolean;
   /** Hybrid paper quiz: written questions answered on a printed sheet. */
   paperWrittenQuestionIds?: readonly string[];
+  /** The response doc id; fixes the student's random numbers. */
+  responseKey?: string;
+  /** The student gets the modified version; a typed-number answer on the key grades them. */
+  modified?: boolean;
 }
 
 export interface QuestionScore {
@@ -325,10 +336,11 @@ export function scoreQuestions(input: QuestionScoreInput): QuestionScore {
     if (!served.has(q.id) || notChosen.has(q.id)) continue;
     const answer = representative.get(q.id);
     const g = gradeGroupAnswer(
-      q,
+      withCalcValues(q, input.responseKey, input.modified === true),
       answer?.answer ?? '',
       input.manualGrades?.[q.id],
-      q.type === 'FIB' ? input.fibAnswersByQuestion?.[q.id] : undefined
+      q.type === 'FIB' ? input.fibAnswersByQuestion?.[q.id] : undefined,
+      trustedPaperTranscript(q, input.paperAttested, answer)
     );
     const pointsEarned = g.pointsEarned;
     let state: string = g.state;
@@ -422,15 +434,20 @@ export function isPublished(session: Doc, perStudent: Doc): boolean {
 
 export interface QuizContext {
   questions: GroupQuestion[];
-  fibAnswersByStudent: (studentUid: string) => Record<string, string[]>;
+  fibAnswersByStudent: (studentUid: string) => Record<string, FibExtras>;
   overrideQuestionIds: (studentUid: string) => string[];
+  /** The teacher gave this student the modified version of each question. */
+  modifiedStudent?: (studentUid: string) => boolean;
+  /** Stacks printed for modification groups (`paper-printed-versions`). */
+  paperCopyBatchIds?: ReadonlySet<string>;
 }
 
 /** Quiz: stored `score` (publish or score-on-submit) when present, else computed live against the key. */
 export function scoreQuizResponse(
   session: Doc,
   response: Doc,
-  ctx: QuizContext
+  ctx: QuizContext,
+  responseKey?: string
 ): RowScore {
   const status = asString(response.status);
   const parsed = parseCompletedResponse(response);
@@ -451,6 +468,7 @@ export function scoreQuizResponse(
     servedQuestionIds: served,
     manualGrades: parsed.manualGrades,
     fibAnswersByQuestion: ctx.fibAnswersByStudent(studentUid),
+    modified: ctx.modifiedStudent?.(studentUid) === true,
     sectionsRaw: session.sections,
     countedChoices: parsed.countedChoices,
     paperWrittenQuestionIds: parsePaperWrittenQuestionIds(
@@ -459,10 +477,17 @@ export function scoreQuizResponse(
     paperAttested:
       asString(response.paperBatchId) !== '' ||
       asString(response.paperWrittenBatchId) !== '',
+    responseKey: responseKey
+      ? calcAttemptKey(responseKey, response)
+      : undefined,
   });
+  const paperBatchId = asString(response.paperBatchId);
   const base = {
     classId: parsed.classId ?? null,
     published: isPublished(session, response),
+    ...(paperBatchId && ctx.paperCopyBatchIds?.has(paperBatchId)
+      ? { onPaper: true as const }
+      : {}),
     targetEvidence: completed ? q.evidence : [],
   };
   if (!completed) {
@@ -538,7 +563,7 @@ export function scoreVideoResponse(
     )
     .map((a) => ({
       questionId: asString(a.questionId),
-      answer: asString(a.answer),
+      answer: capAnswer(asString(a.answer)),
       answeredAt: toMillis(a.answeredAt) ?? undefined,
     }));
   const completedAt = toMillis(response.completedAt);
@@ -740,6 +765,46 @@ export function scoreProjectMember(
     state: scored ? 'scored' : 'awaiting-grade',
     submittedAt: toMillis(grade.gradedAt),
     attemptNumber: null,
+  };
+}
+
+/** Writing (D14): the returned score that counts, out of the points total or the rubric total; turned-in work awaits one. */
+export function scoreWritingResponse(
+  maxPoints: number | null,
+  response: Doc
+): RowScore {
+  const grade = asRecord(response.grade);
+  const status = asString(response.status);
+  const submittedAt = toMillis(response.turnedInAt);
+  const points =
+    typeof grade.pointsAwarded === 'number' ? grade.pointsAwarded : null;
+  const max =
+    typeof grade.maxPoints === 'number' && grade.maxPoints > 0
+      ? grade.maxPoints
+      : maxPoints;
+  const excused = grade.excused === true;
+  const scored = excused || (points !== null && max !== null);
+  return {
+    classId: asString(response.classId) || null,
+    // Response grades are written only at Return, which is when the student sees them.
+    published: true,
+    targetEvidence: [],
+    rawPct:
+      !excused && scored && max !== null && max > 0
+        ? round2(((points as number) / max) * 100)
+        : null,
+    points: excused ? null : points,
+    max,
+    state: scored
+      ? 'scored'
+      : submittedAt !== null && status !== 'revising'
+        ? 'awaiting-grade'
+        : status
+          ? 'in-progress'
+          : 'not-attempted',
+    submittedAt,
+    attemptNumber: null,
+    ...(excused ? { excused: true as const } : {}),
   };
 }
 

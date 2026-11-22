@@ -2,11 +2,16 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { RosterEditorModal } from './RosterEditorModal';
-import { ClassRoster } from '@/types';
+import { ClassRoster, Student } from '@/types';
 import {
   ViewAsContext,
   type ViewAsContextValue,
 } from '@/context/ViewAsContextValue';
+
+// An existing class saves on its own; closing flushes it. New Class still has Save.
+const saveClassButton = () =>
+  screen.queryByRole('button', { name: /^save$/i }) ??
+  screen.getByRole('button', { name: /^close$/i });
 
 /**
  * Tests for the row-based roster editor. Each student is a directly
@@ -123,7 +128,7 @@ describe('RosterEditorModal', () => {
     const nameInputs = screen.getAllByPlaceholderText(/^full name$/i);
     await user.type(nameInputs[1], 'Bob Jones');
 
-    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    await user.click(saveClassButton());
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('New Class', [
@@ -152,7 +157,7 @@ describe('RosterEditorModal', () => {
     );
 
     await user.type(screen.getByPlaceholderText(/class name/i), 'New Class');
-    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    await user.click(saveClassButton());
 
     expect(
       await screen.findByText(/read-only in view as/i)
@@ -196,7 +201,7 @@ describe('RosterEditorModal', () => {
     await user.type(firsts2[1], 'Bob');
     await user.type(lasts2[1], 'Jones');
 
-    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    await user.click(saveClassButton());
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith(
@@ -209,121 +214,7 @@ describe('RosterEditorModal', () => {
     });
   });
 
-  it('saves a standing accommodation set on the Accommodations tab', async () => {
-    const user = userEvent.setup();
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    const existing: ClassRoster = {
-      id: 'r1',
-      name: 'Existing Class',
-      students: [
-        { id: 's1', firstName: 'Alice', lastName: 'Smith', pin: '01' },
-      ],
-      driveFileId: null,
-      studentCount: 1,
-      createdAt: Date.now(),
-    };
-
-    render(
-      <RosterEditorModal
-        isOpen={true}
-        roster={existing}
-        onClose={vi.fn()}
-        onSave={onSave}
-      />
-    );
-
-    await user.click(screen.getByRole('tab', { name: /accommodations/i }));
-    await user.click(screen.getByRole('button', { name: /alice smith/i }));
-    await user.click(screen.getByRole('tab', { name: /^2x$/i }));
-    await user.click(screen.getByRole('button', { name: /^save$/i }));
-
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith(
-        'Existing Class',
-        expect.any(Array),
-        undefined,
-        { s1: { timeMultiplier: 2 } }
-      );
-    });
-  });
-
-  it('does not render window-shift inputs on the roster accommodations surface', async () => {
-    const user = userEvent.setup();
-    const existing: ClassRoster = {
-      id: 'r1',
-      name: 'Existing Class',
-      students: [
-        { id: 's1', firstName: 'Alice', lastName: 'Smith', pin: '01' },
-      ],
-      driveFileId: null,
-      studentCount: 1,
-      createdAt: Date.now(),
-    };
-
-    render(
-      <RosterEditorModal
-        isOpen={true}
-        roster={existing}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-      />
-    );
-
-    await user.click(screen.getByRole('tab', { name: /accommodations/i }));
-    await user.click(screen.getByRole('button', { name: /alice smith/i }));
-
-    // Standing defaults are absolute timestamps and must never be editable
-    // here — they'd be copied verbatim onto every future assignment.
-    expect(screen.queryByText(/window shift/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/opens/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/closes/i)).not.toBeInTheDocument();
-  });
-
-  it('never lets openAt/closeAt reach onSave from the roster accommodations tab', async () => {
-    const user = userEvent.setup();
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    const existing: ClassRoster = {
-      id: 'r1',
-      name: 'Existing Class',
-      students: [
-        { id: 's1', firstName: 'Alice', lastName: 'Smith', pin: '01' },
-      ],
-      driveFileId: null,
-      studentCount: 1,
-      createdAt: Date.now(),
-    };
-
-    render(
-      <RosterEditorModal
-        isOpen={true}
-        roster={existing}
-        onClose={vi.fn()}
-        onSave={onSave}
-      />
-    );
-
-    await user.click(screen.getByRole('tab', { name: /accommodations/i }));
-    await user.click(screen.getByRole('button', { name: /alice smith/i }));
-    await user.click(screen.getByRole('tab', { name: /^2x$/i }));
-    await user.click(screen.getByRole('button', { name: /^save$/i }));
-
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith(
-        'Existing Class',
-        expect.any(Array),
-        undefined,
-        { s1: { timeMultiplier: 2 } }
-      );
-    });
-    const savedOverrides = onSave.mock.calls[0][3] as Record<
-      string,
-      Record<string, unknown>
-    >;
-    expect(savedOverrides.s1).not.toHaveProperty('openAt');
-    expect(savedOverrides.s1).not.toHaveProperty('closeAt');
-  });
-
-  it('drops the student entry when a standing accommodation is cleared', async () => {
+  it('drops the student entry when a standing accommodation is removed', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockResolvedValue(undefined);
     const existing: ClassRoster = {
@@ -348,9 +239,10 @@ describe('RosterEditorModal', () => {
     );
 
     await user.click(screen.getByRole('tab', { name: /accommodations/i }));
-    await user.click(screen.getByRole('button', { name: /alice smith/i }));
-    await user.click(screen.getByRole('tab', { name: /^none$/i }));
-    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    await user.click(
+      screen.getByRole('button', { name: /remove smith, alice/i })
+    );
+    await user.click(saveClassButton());
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith(
@@ -358,6 +250,53 @@ describe('RosterEditorModal', () => {
         expect.any(Array),
         undefined,
         {}
+      );
+    });
+  });
+
+  it('writes only the students it changed on top of the latest saved overrides', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const existing: ClassRoster = {
+      id: 'r1',
+      name: 'Existing Class',
+      students: [
+        { id: 's1', firstName: 'Alice', lastName: 'Smith', pin: '01' },
+        { id: 's2', firstName: 'Bo', lastName: 'Jones', pin: '02' },
+      ],
+      defaultOverridesByStudentId: { s1: { timeMultiplier: 2 } },
+      driveFileId: null,
+      studentCount: 2,
+      createdAt: Date.now(),
+    };
+    const props = { isOpen: true, onClose: vi.fn(), onSave };
+    const { rerender } = render(
+      <RosterEditorModal roster={existing} {...props} />
+    );
+    // Changed elsewhere while this modal is open.
+    rerender(
+      <RosterEditorModal
+        roster={{
+          ...existing,
+          defaultOverridesByStudentId: {
+            s1: { timeMultiplier: 2 },
+            s2: { readAloud: true },
+          },
+        }}
+        {...props}
+      />
+    );
+    await user.click(screen.getByRole('tab', { name: /accommodations/i }));
+    await user.click(
+      screen.getByRole('button', { name: /remove smith, alice/i })
+    );
+    await user.click(saveClassButton());
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(
+        'Existing Class',
+        expect.any(Array),
+        undefined,
+        { s2: { readAloud: true } }
       );
     });
   });
@@ -388,7 +327,7 @@ describe('RosterEditorModal', () => {
     const firstInputs = screen.getAllByPlaceholderText(/^first name$/i);
     await user.type(firstInputs[0], 'Alice');
 
-    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    await user.click(saveClassButton());
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledTimes(1);
@@ -473,7 +412,7 @@ describe('RosterEditorModal', () => {
     await user.type(countField, '3');
     await user.click(screen.getByRole('button', { name: /create groups/i }));
 
-    await user.click(screen.getByRole('button', { name: /save/i }));
+    await user.click(saveClassButton());
     await waitFor(() => expect(onSave).toHaveBeenCalled());
 
     const groups = onSave.mock.calls[0][2] as ClassRoster['groups'];
@@ -557,7 +496,7 @@ describe('RosterEditorModal', () => {
     await user.click(screen.getByRole('tab', { name: /groups/i }));
     await user.click(screen.getByRole('button', { name: /split class/i }));
     await user.click(screen.getByRole('button', { name: /create groups/i }));
-    await user.click(screen.getByRole('button', { name: /save/i }));
+    await user.click(saveClassButton());
     await waitFor(() => expect(onSave).toHaveBeenCalled());
 
     const groups = onSave.mock.calls[0][2] as ClassRoster['groups'];
@@ -682,7 +621,7 @@ describe('RosterEditorModal', () => {
     await user.type(pinInputs[0], '12');
     await user.type(pinInputs[1], '42');
 
-    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    await user.click(saveClassButton());
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('PIN Class', [
@@ -756,7 +695,7 @@ describe('RosterEditorModal', () => {
       />
     );
 
-    const saveBtn = screen.getByRole('button', { name: /^save$/i });
+    const saveBtn = saveClassButton();
     expect(saveBtn).toBeDisabled();
     await user.click(saveBtn);
     expect(onSave).not.toHaveBeenCalled();
@@ -790,7 +729,7 @@ describe('RosterEditorModal', () => {
     });
     await user.click(removeButtons[0]);
 
-    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    await user.click(saveClassButton());
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('Delete Test', [
@@ -820,7 +759,7 @@ describe('RosterEditorModal', () => {
     );
 
     await user.type(screen.getByPlaceholderText(/class name/i), 'Doomed');
-    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    await user.click(saveClassButton());
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
     expect(screen.getByRole('alert')).toHaveTextContent(/could not save/i);
@@ -854,7 +793,7 @@ describe('RosterEditorModal', () => {
       expect(screen.queryByLabelText(/bell period/i)).not.toBeInTheDocument();
     });
 
-    it('saves a picked period, and leaves the call unchanged otherwise', async () => {
+    it('saves a picked period, and writes nothing when untouched', async () => {
       const user = userEvent.setup();
       const onSave = vi.fn();
       const { unmount } = render(
@@ -866,8 +805,9 @@ describe('RosterEditorModal', () => {
           bellPeriodOptions={options}
         />
       );
-      await user.click(screen.getByRole('button', { name: /save/i }));
-      expect(onSave).toHaveBeenLastCalledWith('Period 3 Bio', []);
+      // Closing an untouched class writes nothing.
+      await user.click(saveClassButton());
+      expect(onSave).not.toHaveBeenCalled();
       unmount();
 
       render(
@@ -883,7 +823,7 @@ describe('RosterEditorModal', () => {
         screen.getByLabelText(/bell period/i),
         'high|P3'
       );
-      await user.click(screen.getByRole('button', { name: /save/i }));
+      await user.click(saveClassButton());
       expect(onSave).toHaveBeenLastCalledWith(
         'Period 3 Bio',
         [],
@@ -911,7 +851,7 @@ describe('RosterEditorModal', () => {
       const select = screen.getByLabelText<HTMLSelectElement>(/bell period/i);
       expect(select.value).toBe('middle|P7');
       await user.selectOptions(select, '');
-      await user.click(screen.getByRole('button', { name: /save/i }));
+      await user.click(saveClassButton());
       expect(onSave).toHaveBeenLastCalledWith(
         'Period 3 Bio',
         [],
@@ -919,6 +859,192 @@ describe('RosterEditorModal', () => {
         undefined,
         null
       );
+    });
+  });
+
+  describe('Autosave', () => {
+    const existing: ClassRoster = {
+      id: 'r-auto',
+      name: 'Period 2',
+      driveFileId: null,
+      studentCount: 1,
+      createdAt: 0,
+      students: [{ id: 's1', firstName: 'Ada', lastName: 'Lovelace', pin: '' }],
+    };
+
+    it('saves an edit on its own, keeps the modal open and shows Saved', async () => {
+      const user = userEvent.setup();
+      const onSave = vi.fn().mockResolvedValue(undefined);
+      const onClose = vi.fn();
+      render(
+        <RosterEditorModal
+          isOpen
+          roster={existing}
+          onClose={onClose}
+          onSave={onSave}
+        />
+      );
+      expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull();
+      expect(screen.getByRole('status')).toHaveTextContent('Saved');
+      await user.type(screen.getByDisplayValue('Ada'), 'm');
+      await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1), {
+        timeout: 4000,
+      });
+      const [, students] = onSave.mock.calls[0] as [string, Student[]];
+      expect(students[0]).toMatchObject({ firstName: 'Adam', pin: '01' });
+      await waitFor(
+        () => expect(screen.getByRole('status')).toHaveTextContent('Saved'),
+        { timeout: 4000 }
+      );
+      // The PIN filled in on save shows on the row without another edit.
+      await toggleColumn(user, /quiz pin/i);
+      expect(screen.getByDisplayValue('01')).toBeInTheDocument();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('writes pending edits before closing', async () => {
+      const user = userEvent.setup();
+      const onSave = vi.fn().mockResolvedValue(undefined);
+      const onClose = vi.fn();
+      render(
+        <RosterEditorModal
+          isOpen
+          roster={existing}
+          onClose={onClose}
+          onSave={onSave}
+        />
+      );
+      const nameInput = screen.getByDisplayValue('Period 2');
+      await user.clear(nameInput);
+      await user.type(nameInput, 'Period 4');
+      await user.click(screen.getByRole('button', { name: /^close$/i }));
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onSave.mock.calls[0][0]).toBe('Period 4');
+    });
+
+    it('stays open with the error when a save fails', async () => {
+      const user = userEvent.setup();
+      const onSave = vi.fn().mockRejectedValue(new Error('drive down'));
+      const onClose = vi.fn();
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      render(
+        <RosterEditorModal
+          isOpen
+          roster={existing}
+          onClose={onClose}
+          onSave={onSave}
+        />
+      );
+      await user.type(screen.getByDisplayValue('Ada'), 'm');
+      await waitFor(
+        () => expect(screen.getByText(/couldn.t save/i)).toBeInTheDocument(),
+        { timeout: 4000 }
+      );
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        /could not save this class/i
+      );
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('never saves a class whose file failed to load', async () => {
+      const user = userEvent.setup();
+      const onSave = vi.fn().mockResolvedValue(undefined);
+      const onClose = vi.fn();
+      render(
+        <RosterEditorModal
+          isOpen
+          roster={{ ...existing, students: [], loadError: 'Drive 429' }}
+          onClose={onClose}
+          onSave={onSave}
+        />
+      );
+      expect(screen.getByRole('alert')).toHaveTextContent('Failed to load');
+      const nameInput = screen.getByDisplayValue('Period 2');
+      await user.type(nameInput, 'x');
+      await user.click(screen.getByRole('button', { name: /^close$/i }));
+      expect(onClose).toHaveBeenCalled();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+
+    it('never autosaves a class that opened unloaded, even after it loads', async () => {
+      const user = userEvent.setup();
+      const onSave = vi.fn().mockResolvedValue(undefined);
+      const onClose = vi.fn();
+      const { rerender } = render(
+        <RosterEditorModal
+          isOpen
+          roster={{ ...existing, students: [], loadError: 'Drive 429' }}
+          onClose={onClose}
+          onSave={onSave}
+        />
+      );
+      rerender(
+        <RosterEditorModal
+          isOpen
+          roster={{
+            ...existing,
+            students: [
+              { id: 's1', firstName: 'Ada', lastName: 'L', pin: '01' },
+            ],
+          }}
+          onClose={onClose}
+          onSave={onSave}
+        />
+      );
+      expect(screen.getByRole('alert')).toHaveTextContent('Failed to load');
+      await user.type(screen.getByDisplayValue('Period 2'), 'x');
+      await user.click(screen.getByRole('button', { name: /^close$/i }));
+      expect(onClose).toHaveBeenCalled();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+
+    it('does not resend groups after a grouped student is deleted', async () => {
+      const user = userEvent.setup();
+      const onSave = vi.fn().mockResolvedValue(undefined);
+      const roster: ClassRoster = {
+        ...existing,
+        students: [
+          { id: 's1', firstName: 'Ada', lastName: 'Lovelace', pin: '01' },
+          { id: 's2', firstName: 'Bo', lastName: 'Diddley', pin: '02' },
+        ],
+        groups: [{ id: 'g', name: 'G', studentIds: ['s2'] }],
+      };
+      const { rerender } = render(
+        <RosterEditorModal
+          isOpen
+          roster={roster}
+          onClose={vi.fn()}
+          onSave={onSave}
+        />
+      );
+      await user.click(
+        screen.getAllByRole('button', { name: /remove student/i })[1]
+      );
+      await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1), {
+        timeout: 4000,
+      });
+      expect(onSave.mock.calls[0][2]).toEqual([
+        { id: 'g', name: 'G', studentIds: [] },
+      ]);
+      // The host hands back the pruned roster after the save.
+      rerender(
+        <RosterEditorModal
+          isOpen
+          roster={{
+            ...roster,
+            students: [roster.students[0]],
+            groups: [{ id: 'g', name: 'G', studentIds: [] }],
+          }}
+          onClose={vi.fn()}
+          onSave={onSave}
+        />
+      );
+      await user.type(screen.getByDisplayValue('Ada'), 'm');
+      await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2), {
+        timeout: 4000,
+      });
+      expect(onSave.mock.calls[1]).toHaveLength(2);
     });
   });
 });

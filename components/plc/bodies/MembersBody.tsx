@@ -424,7 +424,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
           <span className="text-xs text-slate-500">{members.length}</span>
         </header>
         <ul className="space-y-1">
-          {members.map((m) => {
+          {members.map((m, rowIndex) => {
             const isYou = m.uid === myUid;
             const isMemberLead = m.role === 'lead';
             // Managers can act on every active member except the sitting lead
@@ -487,7 +487,11 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
                       })}
                     </label>
                     <select
-                      {...tourFieldAttr('plc-members.role', 'plc', m.uid)}
+                      {...tourFieldAttr(
+                        'plc-members.role',
+                        'plc',
+                        `row-${rowIndex + 1}`
+                      )}
                       id={`plc-role-${m.uid}`}
                       value={m.role === 'lead' ? 'member' : m.role}
                       disabled={rowBusy}

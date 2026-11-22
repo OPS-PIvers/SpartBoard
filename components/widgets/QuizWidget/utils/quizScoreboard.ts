@@ -3,6 +3,7 @@
  * Used by QuizResults (one-time send) and live scoreboard sync.
  */
 
+import { questionForResponse } from '@/utils/quizCalcResponse';
 import {
   QuizResponse,
   QuizQuestion,
@@ -14,6 +15,7 @@ import {
   isFreeResponseType,
 } from '@/types';
 import { gradeAnswer, hasPaperWrittenAwaiting } from '@/hooks/useQuizSession';
+import { gradingPaperTranscript } from '@/utils/paperWritten';
 import {
   fibAnswersForResponse,
   type FibGradingContext,
@@ -93,20 +95,21 @@ export function getEarnedPoints(
     // totals and streaks treat every essay as 0 points / incorrect, which
     // would break a student's streak any time their quiz mixes auto-graded
     // and written items.
-    const manualGrade = isFreeResponseType(q.type)
-      ? readSlotGrade(r.grading, q.id)
-      : undefined;
+    const manualGrade =
+      isFreeResponseType(q.type) || q.type === 'FIB'
+        ? readSlotGrade(r.grading, q.id)
+        : undefined;
     // Media slots fold in here (and only for questions with a `recording`
     // block) so a recorded answer isn't scored as a silent 0.
     const grade = applyMediaSlots(
       q,
       r,
       gradeAnswer(
-        q,
+        questionForResponse(q, r, fibGrading),
         ans.answer,
         manualGrade,
         fibAnswersForResponse(fibGrading, r, q.id),
-        ans.paperTranscript
+        gradingPaperTranscript(q, r, ans)
       )
     );
 
@@ -317,13 +320,20 @@ export function isResponseAwaitingGrade(
   for (const ans of representative.values()) {
     const q = qMap.get(ans.questionId);
     if (!q || r._notChosen?.includes(q.id)) continue;
-    const manualGrade = isFreeResponseType(q.type)
-      ? readSlotGrade(r.grading, q.id)
-      : undefined;
+    const manualGrade =
+      isFreeResponseType(q.type) || q.type === 'FIB'
+        ? readSlotGrade(r.grading, q.id)
+        : undefined;
     const grade = applyMediaSlots(
       q,
       r,
-      gradeAnswer(q, ans.answer, manualGrade, undefined, ans.paperTranscript)
+      gradeAnswer(
+        questionForResponse(q, r),
+        ans.answer,
+        manualGrade,
+        undefined,
+        gradingPaperTranscript(q, r, ans)
+      )
     );
     if (grade.state === 'awaiting-grade') {
       return true;

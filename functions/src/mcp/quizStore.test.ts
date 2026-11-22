@@ -17,7 +17,59 @@ const newId = () => `new-${(seq += 1)}`;
 const store = (q: FriendlyQuestion, existing?: StoredQuestion) =>
   toStoredQuestion(q, 1, existing, newId);
 
+describe('recorded prompts', () => {
+  const audio = { driveFileId: 'f1', durationSec: 5, mimeType: 'audio/mp4' };
+  const existing: StoredQuestion = {
+    id: 'q1',
+    timeLimit: 0,
+    text: '',
+    type: 'MC',
+    correctAnswer: 'Paris',
+    incorrectAnswers: ['Rome'],
+    promptAudio: audio,
+  };
+  const input = {
+    type: 'multiple_choice' as const,
+    text: '',
+    correct_answer: 'Paris',
+    incorrect_answers: ['Rome'],
+  };
+
+  it('saves an empty prompt back and keeps the recording', () => {
+    expect(store(input, existing).promptAudio).toEqual(audio);
+    expect(() => store(input)).toThrow(/text is required/);
+  });
+
+  it('flags the recording so the model leaves the text empty', () => {
+    expect(toFriendlyQuestion(existing).recorded_prompt).toBe(true);
+  });
+});
+
 describe('toStoredQuestion', () => {
+  it('drops the modified wording when the prompt is rewritten', () => {
+    const existing: StoredQuestion = {
+      id: 'q1',
+      timeLimit: 0,
+      text: 'Which planet is closest to the Sun?',
+      type: 'MC',
+      correctAnswer: 'Mercury',
+      incorrectAnswers: ['Venus'],
+      modifiedText: 'Which planet is nearest the Sun?',
+    };
+    const q = {
+      type: 'multiple_choice' as const,
+      correct_answer: 'Mercury',
+      incorrect_answers: ['Venus', 'Mars'],
+    };
+    expect(
+      store({ ...q, text: 'Which planet is closest to the Sun?' }, existing)
+        .modifiedText
+    ).toBe('Which planet is nearest the Sun?');
+    expect(
+      store({ ...q, text: 'Which planet is largest?' }, existing).modifiedText
+    ).toBeUndefined();
+  });
+
   it("keeps the teacher's printed lettering when an edit keeps the same options", () => {
     const existing: StoredQuestion = {
       id: 'q1',

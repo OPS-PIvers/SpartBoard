@@ -12,7 +12,14 @@ import {
   assertFails,
   RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  writeBatch,
+} from 'firebase/firestore';
 import {
   NOT_STAFF_DISTRICT_EMAILS,
   seedDistrictStaff,
@@ -45,8 +52,8 @@ const google = (uid: string, email: string, extra = {}) =>
     })
     .firestore();
 
-const asParticipant = () =>
-  google(PARTICIPANT_UID, 'participant.teacher@example.com');
+const PARTICIPANT_EMAIL = 'participant.teacher@orono.k12.mn.us';
+const asParticipant = () => google(PARTICIPANT_UID, PARTICIPANT_EMAIL);
 const asStaff = () => google(STAFF_UID, STAFF_EMAIL);
 const asAdmin = () => google(ADMIN_UID, ADMIN_EMAIL);
 const asOutsider = () => google(OUTSIDER_UID, 'someone@example.com');
@@ -146,7 +153,7 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
-    await seedDistrictStaff(db, [STAFF_EMAIL]);
+    await seedDistrictStaff(db, [STAFF_EMAIL, PARTICIPANT_EMAIL]);
     await setDoc(doc(db, `admins/${ADMIN_EMAIL}`), { email: ADMIN_EMAIL });
     await setDoc(doc(db, `plcs/${PLC_ID}`), {
       name: 'Grade 6 math',
@@ -234,14 +241,70 @@ describe('writes are unchanged by the read gate', () => {
     );
   });
 
-  it('synced_quizzes: a teacher stands up their own group', async () => {
+  it('an outside teacher keeps their own share group, but only while it is theirs alone (security #12)', async () => {
+    const own = (version: number) =>
+      quizDoc({
+        id: 'own',
+        version,
+        updatedAt: version,
+        participants: { [OUTSIDER_UID]: { joinedAt: 1 } },
+        updatedBy: OUTSIDER_UID,
+      });
     await assertSucceeds(
-      setDoc(
-        doc(asOutsider(), 'synced_quizzes/fresh'),
+      setDoc(doc(asOutsider(), 'synced_quizzes/own'), own(1))
+    );
+    await assertSucceeds(
+      setDoc(doc(asOutsider(), 'synced_quizzes/own'), own(2))
+    );
+  });
+
+  it('a participant who is not staff can no longer publish (security #12)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(
+        doc(db, quizPath),
         quizDoc({
-          id: 'fresh',
-          participants: { [OUTSIDER_UID]: { joinedAt: 1 } },
+          participants: {
+            [PARTICIPANT_UID]: { joinedAt: 1 },
+            [OUTSIDER_UID]: { joinedAt: 1 },
+          },
+        })
+      );
+      await setDoc(
+        doc(db, videoPath),
+        videoDoc({
+          participants: {
+            [PARTICIPANT_UID]: { joinedAt: 1 },
+            [OUTSIDER_UID]: { joinedAt: 1 },
+          },
+        })
+      );
+    });
+    await assertFails(
+      setDoc(
+        doc(asOutsider(), quizPath),
+        quizDoc({
+          version: 2,
+          updatedAt: 2000,
           updatedBy: OUTSIDER_UID,
+          participants: {
+            [PARTICIPANT_UID]: { joinedAt: 1 },
+            [OUTSIDER_UID]: { joinedAt: 1 },
+          },
+        })
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(asOutsider(), videoPath),
+        videoDoc({
+          version: 2,
+          updatedAt: 2000,
+          updatedBy: OUTSIDER_UID,
+          participants: {
+            [PARTICIPANT_UID]: { joinedAt: 1 },
+            [OUTSIDER_UID]: { joinedAt: 1 },
+          },
         })
       )
     );
@@ -263,12 +326,17 @@ describe('writes are unchanged by the read gate', () => {
   });
 
   it('synced_question_banks: a teacher creates their own bank copy', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(asOutsider(), 'synced_question_banks/fresh'),
-        bankDoc({ id: 'fresh', ownerUid: OUTSIDER_UID })
-      )
+    const db = asOutsider();
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'synced_bank_owners/fresh'), {
+      ownerUid: OUTSIDER_UID,
+      at: 1,
+    });
+    batch.set(
+      doc(db, 'synced_question_banks/fresh'),
+      bankDoc({ id: 'fresh', ownerUid: OUTSIDER_UID })
     );
+    await assertSucceeds(batch.commit());
   });
 
   it('synced_video_activities: participant publishes; staff and studentRole cannot', async () => {

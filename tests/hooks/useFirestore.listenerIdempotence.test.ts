@@ -26,6 +26,31 @@ describe('useFirestore – mock-store listener idempotence (bypass mode)', () =>
   });
 
   describe('subscribeToDashboards (MockDashboardStore)', () => {
+    it('echoes a plain save before it returns and a baseline save after', async () => {
+      const { result } = renderHook(() => useFirestore('user-1'));
+      const { subscribeToDashboards, saveDashboard } = result.current;
+      const cb = vi.fn();
+      const unsub = subscribeToDashboards(cb);
+      cb.mockClear();
+
+      await saveDashboard(makeDashboard('d0'));
+      expect(cb).toHaveBeenCalledTimes(1);
+
+      cb.mockClear();
+      await saveDashboard(makeDashboard('d0'), {
+        widgets: [],
+        background: 'bg-slate-900',
+        name: 'd0',
+        libraryOrder: '[]',
+        settings: '{}',
+        dashboardFields: {},
+      });
+      expect(cb).not.toHaveBeenCalled();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(cb).toHaveBeenCalledTimes(1);
+      unsub();
+    });
+
     it('double-subscribe + single-unsubscribe leaves one live listener', async () => {
       const { result } = renderHook(() => useFirestore('user-1'));
       const { subscribeToDashboards, saveDashboard } = result.current;

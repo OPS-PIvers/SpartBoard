@@ -64,19 +64,34 @@ beforeEach(() => {
   resetCimdCache();
   resetSigningKeyCache();
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe('isCimdClientId', () => {
-  it('accepts only https documents on Claude hosts', () => {
+  it('accepts only the pinned documents on Claude hosts', () => {
+    const MCP_PATH = '/oauth/mcp-oauth-client-metadata';
     expect(isCimdClientId(CODE_ID)).toBe(true);
-    expect(isCimdClientId('https://claude.com/oauth/x')).toBe(true);
-    expect(isCimdClientId('https://evil.example/oauth/x')).toBe(false);
-    expect(isCimdClientId('https://claude.ai.evil.com/x')).toBe(false);
-    expect(isCimdClientId('http://claude.ai/oauth/x')).toBe(false);
+    expect(isCimdClientId(`https://claude.ai${MCP_PATH}`)).toBe(true);
+    expect(isCimdClientId(`https://claude.com${MCP_PATH}`)).toBe(true);
+    // Path guard: Claude host, https, but not a pinned document.
+    expect(isCimdClientId('https://claude.com/oauth/x')).toBe(false);
+    expect(isCimdClientId('https://claude.ai/public/artifacts/x')).toBe(false);
+    expect(isCimdClientId(`${CODE_ID}/x`)).toBe(false);
     expect(isCimdClientId('https://claude.ai/')).toBe(false);
-    expect(isCimdClientId('https://claude.ai/x?a=1')).toBe(false);
-    expect(isCimdClientId('https://claude.ai:8443/x')).toBe(false);
-    expect(isCimdClientId('https://user@claude.ai/x')).toBe(false);
+    // Every other guard, each probed on a pinned path so only that guard can refuse it.
+    expect(isCimdClientId(`https://evil.example${MCP_PATH}`)).toBe(false);
+    expect(isCimdClientId(`https://claude.ai.evil.com${MCP_PATH}`)).toBe(false);
+    expect(isCimdClientId(`http://claude.ai${MCP_PATH}`)).toBe(false);
+    expect(isCimdClientId(`${CODE_ID}?a=1`)).toBe(false);
+    expect(isCimdClientId(`${CODE_ID}#frag`)).toBe(false);
+    expect(isCimdClientId(`https://claude.ai:8443${MCP_PATH}`)).toBe(false);
+    expect(isCimdClientId(`https://user@claude.ai${MCP_PATH}`)).toBe(false);
+    expect(isCimdClientId(`https://:pw@claude.ai${MCP_PATH}`)).toBe(false);
+    expect(
+      isCimdClientId('https://CLAUDE.ai/oauth/claude-code-client-metadata')
+    ).toBe(false);
     expect(isCimdClientId('eyJhbGciOiJIUzI1NiJ9.e30.sig')).toBe(false);
   });
 });
@@ -154,8 +169,59 @@ describe('fetchCimdClient', () => {
       CODE_ID,
       expect.objectContaining({ redirect: 'error' })
     );
+    resetCimdCache();
     mockFetch({ ...CODE_DOC, pad: 'x'.repeat(20_000) });
     expect(await fetchCimdClient(CODE_ID)).toBeNull();
+  });
+
+  it('stops reading a body once it passes the size cap', async () => {
+    let pulled = 0;
+    const chunk = new Uint8Array(4096).fill(120);
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        if (pulled > 500) controller.close();
+        else controller.enqueue(chunk);
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(() => Promise.resolve(new Response(body)))
+    );
+    expect(await fetchCimdClient(CODE_ID)).toBeNull();
+    expect(pulled).toBeLessThan(20);
+  });
+
+  it('counts bytes, not characters, against the cap', async () => {
+    mockFetch({ ...CODE_DOC, pad: '\u00e9'.repeat(10_000) });
+    expect(await fetchCimdClient(CODE_ID)).toBeNull();
+  });
+
+  it('remembers a failed fetch for about 30 seconds', async () => {
+    const t0 = 1_000_000;
+    const failing = mockFetch({}, 503);
+    expect(await fetchCimdClient(CODE_ID, t0)).toBeNull();
+    const good = mockFetch(CODE_DOC);
+    expect(await fetchCimdClient(CODE_ID, t0 + 29_000)).toBeNull();
+    expect(failing).toHaveBeenCalledTimes(1);
+    expect(good).not.toHaveBeenCalled();
+    expect(await fetchCimdClient(CODE_ID, t0 + 31_000)).not.toBeNull();
+    expect(good).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps serving a good document when a refetch fails', async () => {
+    const t0 = 1_000_000;
+    mockFetch(CODE_DOC);
+    const good = await fetchCimdClient(CODE_ID, t0);
+    expect(good).not.toBeNull();
+    const failing = mockFetch({}, 503);
+    const stale = t0 + 6 * 60 * 1000;
+    expect(await fetchCimdClient(CODE_ID, stale)).toEqual(good);
+    expect(failing).toHaveBeenCalledTimes(1);
+    expect(await fetchCimdClient(CODE_ID, stale + 29_000)).toEqual(good);
+    expect(failing).toHaveBeenCalledTimes(1);
+    expect(await fetchCimdClient(CODE_ID, stale + 31_000)).toEqual(good);
+    expect(failing).toHaveBeenCalledTimes(2);
   });
 
   it('caches a good document', async () => {
@@ -214,6 +280,40 @@ describe('CIMD behind the switch', () => {
     expect(
       await verifyAccessToken(db, out.json.access_token as string)
     ).toMatchObject({ uid: 't1', email: TEACHER });
+  });
+
+  it('keeps the code when the document fetch fails at the token step', async () => {
+    mockFetch(CODE_DOC);
+    const db = seed(true);
+    const verifier = randomBytes(32).toString('base64url');
+    const challenge = createHash('sha256').update(verifier).digest('base64url');
+    const redirectUri = 'http://localhost:51234/callback';
+    const approved = await authorize(
+      db,
+      { uid: 't1', token: { email: TEACHER, email_verified: true } },
+      {
+        clientId: CODE_ID,
+        redirectUri,
+        codeChallenge: challenge,
+        codeChallengeMethod: 'S256',
+        decision: 'approve',
+      }
+    );
+    if (approved.decision !== 'approve') throw new Error('expected approve');
+    const code = new URL(approved.redirectTo).searchParams.get('code') ?? '';
+    const body = {
+      grant_type: 'authorization_code',
+      code,
+      code_verifier: verifier,
+      client_id: CODE_ID,
+      redirect_uri: redirectUri,
+    };
+    resetCimdCache();
+    mockFetch({}, 503);
+    expect((await handleToken(db, body)).json.error).toBe('invalid_grant');
+    mockFetch(CODE_DOC);
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 31_000);
+    expect((await handleToken(db, body)).status).toBe(200);
   });
 
   it('keeps exact redirect matching for registered (DCR) clients', async () => {

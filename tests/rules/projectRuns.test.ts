@@ -441,6 +441,34 @@ describe('group document', () => {
     );
   });
 
+  it('denies the run teacher adding a member or moving the class directly', async () => {
+    await seed();
+    const teacherDb = asTeacher(TEACHER_UID);
+    await assertFails(
+      updateDoc(doc(teacherDb, GROUP_PATH), {
+        memberUids: [MEMBER_UID, OUTSIDER_UID],
+      })
+    );
+    await assertFails(
+      updateDoc(doc(teacherDb, GROUP_PATH), { classId: OTHER_CLASS_ID })
+    );
+    await assertFails(
+      setDoc(
+        doc(teacherDb, `project_runs/${RUN_ID}/groups/group-2`),
+        group({ id: 'group-2', memberUids: [OUTSIDER_UID] })
+      )
+    );
+    await assertSucceeds(
+      updateDoc(doc(teacherDb, GROUP_PATH), { memberUids: [] })
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(teacherDb, `project_runs/${RUN_ID}/groups/group-3`),
+        group({ id: 'group-3', memberUids: [] })
+      )
+    );
+  });
+
   it('constrains the values a member may write, not just the keys', async () => {
     await seed();
     const db = asStudent(MEMBER_UID, [CLASS_ID]);
@@ -699,6 +727,67 @@ describe('grades', () => {
     );
   });
 
+  it('never gives a member a groupmate\u2019s override or note', async () => {
+    const PEER_UID = 'projects-peer';
+    await seed({}, { memberUids: [MEMBER_UID, PEER_UID] });
+    const overridePath = (uid: string) => `${gradePath}/overrides/${uid}`;
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, gradePath), grade(true));
+      await setDoc(doc(db, overridePath(MEMBER_UID)), { points: 15 });
+      await setDoc(doc(db, overridePath(PEER_UID)), {
+        points: 9,
+        note: 'private',
+      });
+    });
+    const member = asStudent(MEMBER_UID, [CLASS_ID]);
+    const shared = await getDoc(doc(member, gradePath));
+    if (shared.get('overridesByUid') !== undefined)
+      throw new Error('shared grade carries per-member overrides');
+    await assertSucceeds(getDoc(doc(member, overridePath(MEMBER_UID))));
+    await assertFails(getDoc(doc(member, overridePath(PEER_UID))));
+    await assertFails(getDocs(collection(member, `${gradePath}/overrides`)));
+    await assertSucceeds(
+      getDocs(collection(asTeacher(TEACHER_UID), `${gradePath}/overrides`))
+    );
+    await assertFails(
+      setDoc(doc(member, overridePath(MEMBER_UID)), { points: 20 })
+    );
+  });
+
+  it('hides an override until the grade is released', async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, gradePath), grade(false));
+      await setDoc(doc(db, `${gradePath}/overrides/${MEMBER_UID}`), {
+        points: 15,
+      });
+    });
+    await assertFails(
+      getDoc(
+        doc(
+          asStudent(MEMBER_UID, [CLASS_ID]),
+          `${gradePath}/overrides/${MEMBER_UID}`
+        )
+      )
+    );
+  });
+
+  it('keeps a legacy grade with every member\u2019s overrides teacher-only', async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), gradePath), {
+        ...grade(true),
+        overridesByUid: { [MEMBER_UID]: { points: 1, note: 'x' } },
+      });
+    });
+    await assertFails(
+      getDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), gradePath))
+    );
+    await assertSucceeds(getDoc(doc(asTeacher(TEACHER_UID), gradePath)));
+  });
+
   it('is never student-writable', async () => {
     await seed();
     await assertFails(
@@ -943,6 +1032,109 @@ describe('group uploads', () => {
     );
     await assertSucceeds(
       deleteDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), uploadPath))
+    );
+  });
+});
+
+describe('a submitted group', () => {
+  const SUBMITTED = { submittedAt: 5, submittedByUid: MEMBER_UID };
+  const workPath = `${GROUP_PATH}/private/work`;
+  const uploadPath = `${GROUP_PATH}/uploads/upload-1`;
+  const work = { workLinks: [], updatedAt: 2 };
+  const upload = {
+    id: 'upload-1',
+    fileName: 'poster.pdf',
+    contentType: 'application/pdf',
+    sizeBytes: 1024,
+    uploadedByUid: MEMBER_UID,
+    uploadedAt: 1,
+    storagePath: `project_uploads/${RUN_ID}/group-1/upload-1/poster.pdf`,
+    archiveStatus: 'firebase',
+  };
+  const stepWrite = {
+    stepStates: { 'step-1': 'inProgress', 'step-2': 'notStarted' },
+    lastStepChange: { stepId: 'step-1', at: 2 },
+    updatedAt: 2,
+  };
+
+  it('never lets a member mark the group submitted or reopened themselves', async () => {
+    await seed();
+    const db = asStudent(MEMBER_UID, [CLASS_ID]);
+    await assertFails(updateDoc(doc(db, GROUP_PATH), { ...SUBMITTED }));
+    await seed({}, SUBMITTED);
+    await assertFails(updateDoc(doc(db, GROUP_PATH), { submittedAt: 0 }));
+  });
+
+  it('freezes member step, link and upload writes but keeps reads', async () => {
+    await seed({}, SUBMITTED);
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), workPath), work);
+      await setDoc(doc(ctx.firestore(), `${uploadPath}-old`), {
+        ...upload,
+        id: 'upload-1-old',
+      });
+    });
+    const db = asStudent(MEMBER_UID, [CLASS_ID]);
+    await assertFails(updateDoc(doc(db, GROUP_PATH), stepWrite));
+    await assertFails(setDoc(doc(db, workPath), work));
+    await assertFails(setDoc(doc(db, uploadPath), upload));
+    await assertFails(deleteDoc(doc(db, `${uploadPath}-old`)));
+    await assertSucceeds(getDoc(doc(db, GROUP_PATH)));
+    await assertSucceeds(getDoc(doc(db, workPath)));
+    await assertSucceeds(getDoc(doc(db, `${uploadPath}-old`)));
+  });
+
+  it('lets the teacher reopen it, which unfreezes member writes', async () => {
+    await seed({}, SUBMITTED);
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH), {
+        submittedAt: 0,
+        submittedByUid: '',
+        updatedAt: 3,
+      })
+    );
+    const db = asStudent(MEMBER_UID, [CLASS_ID]);
+    await assertSucceeds(updateDoc(doc(db, GROUP_PATH), stepWrite));
+    await assertSucceeds(setDoc(doc(db, workPath), work));
+    await assertSucceeds(setDoc(doc(db, uploadPath), upload));
+  });
+
+  it('keeps a submission and its reopen out of another teacher’s reach', async () => {
+    await seed({}, SUBMITTED);
+    await assertFails(getDoc(doc(asTeacher(OTHER_TEACHER_UID), GROUP_PATH)));
+    await assertFails(
+      updateDoc(doc(asTeacher(OTHER_TEACHER_UID), GROUP_PATH), {
+        submittedAt: 0,
+      })
+    );
+  });
+
+  it('takes a submission event from the run teacher only, never a member', async () => {
+    await seed();
+    const event = (actorUid: string, actorRole: string) => ({
+      at: 1,
+      actorUid,
+      actorRole,
+      kind: 'submission',
+      detail: 'reopened',
+    });
+    await assertFails(
+      setDoc(
+        doc(asStudent(MEMBER_UID, [CLASS_ID]), `${GROUP_PATH}/events/e1`),
+        event(MEMBER_UID, 'student')
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(TEACHER_UID), `${GROUP_PATH}/events/e2`),
+        event(TEACHER_UID, 'teacher')
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(asTeacher(OTHER_TEACHER_UID), `${GROUP_PATH}/events/e3`),
+        event(OTHER_TEACHER_UID, 'teacher')
+      )
     );
   });
 });

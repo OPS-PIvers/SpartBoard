@@ -1,5 +1,6 @@
 // Closes the signed-in teacher's walls to a Synced or View-Only board once the board stops showing them.
 
+import { viewAsSuppressesBackgroundWrites } from '@/utils/viewAsTab';
 import { useEffect, useRef } from 'react';
 import {
   useActiveBoardLinkedShareId,
@@ -29,7 +30,10 @@ export function useWallBoardAccessCleanup(uid: string | null): void {
   useEffect(() => {
     const waiting = pending.current;
     if (waiting && waiting.shareId !== boardShareId) waiting.run();
-    if (!uid || !boardShareId) return undefined;
+    // View as stages board edits (D11), so it never closes a wall on the real share.
+    if (!uid || !boardShareId || viewAsSuppressesBackgroundWrites()) {
+      return undefined;
+    }
     const keep = new Set(shownWallsKey ? shownWallsKey.split('|') : []);
     const run = () => {
       pending.current = null;

@@ -1,15 +1,12 @@
 import type { GlobalFeature, GlobalFeaturePermission } from '@/types';
+import { exceptSuffix } from './previewStatus';
 import {
   FEATURE_DEFAULTS,
   FEATURE_GROUP_LABELS,
   type FeatureGroup,
 } from '@/config/featureDefaults';
 
-/** Who a switch is on for, in a few words. */
-export const audienceSummary = (
-  permission: GlobalFeaturePermission
-): string => {
-  if (!permission.enabled) return 'Off';
+const audienceOf = (permission: GlobalFeaturePermission): string => {
   const buildings = permission.buildings?.length ?? 0;
   const where =
     buildings > 0
@@ -24,6 +21,12 @@ export const audienceSummary = (
     ? `${buildings} building${buildings === 1 ? '' : 's'}`
     : 'Everyone';
 };
+
+/** Who a switch is on for, in a few words. */
+export const audienceSummary = (permission: GlobalFeaturePermission): string =>
+  permission.enabled
+    ? `${audienceOf(permission)}${exceptSuffix(permission)}`
+    : 'Off';
 
 export interface FeatureSwitchSection {
   group?: FeatureGroup;

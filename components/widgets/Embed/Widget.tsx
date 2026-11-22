@@ -20,7 +20,10 @@ import {
   extractGoogleFileId,
 } from '@/utils/urlHelpers';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
-import { useDashboardActions } from '@/context/dashboardCanvasStore';
+import {
+  useDashboardActions,
+  useDashboardCanvasSelector,
+} from '@/context/dashboardCanvasStore';
 import { generateMiniAppCode } from '@/utils/ai';
 import { useEmbedConfig } from './hooks/useEmbedConfig';
 import { TRUSTED_EMBED_HOSTNAMES } from './trustedHostnames';
@@ -32,6 +35,7 @@ import { Z_INDEX } from '@/config/zIndex';
 import { applyAutoplay } from './applyAutoplay';
 import { applyStartAt } from './applyStartAt';
 import { applyLinkedSlide } from './applyLinkedSlide';
+import { isVideoEmbed } from './isVideoEmbed';
 import { tourAttr } from '@/config/tourAnchors';
 
 const NEW_WIDGET_SPACING = 20;
@@ -59,7 +63,12 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     zoom = 1,
     autoplay = false,
     startAtSeconds,
+    blockNewTabs = false,
   } = config;
+  const boardZoom = useDashboardCanvasSelector((s) => s.zoom);
+  const isSpotlighted = useDashboardCanvasSelector(
+    (s) => s.activeDashboard?.settings?.spotlightWidgetId === widget.id
+  );
 
   const ZOOM_STEPS = [
     0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1.0, 1.25, 1.5, 1.75,
@@ -260,7 +269,9 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   }, [refreshInterval]);
 
   const sandbox = React.useMemo(() => {
-    let base = 'allow-scripts allow-forms allow-popups';
+    let base = blockNewTabs
+      ? 'allow-scripts allow-forms'
+      : 'allow-scripts allow-forms allow-popups';
     if (mode === 'url') {
       base += ' allow-modals';
       try {
@@ -284,7 +295,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }
     }
     return base;
-  }, [mode, embedUrl, globalConfig?.whitelistUrls]);
+  }, [mode, embedUrl, globalConfig?.whitelistUrls, blockNewTabs]);
 
   const handleGenerateMiniApp = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -351,11 +362,16 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const hideUrlField = globalConfig?.hideUrlField ?? false;
   const displayMode = hideUrlField ? 'code' : mode;
+  const isVideo = isVideoEmbed(displayMode, embedUrl, html);
+  // Maximized and spotlighted widgets are portaled out of the zoomed board.
+  const boardScale =
+    widget.maximized || isSpotlighted ? 1 : Math.max(1, boardZoom);
+  const appliedZoom = isVideo ? 1 / boardScale : effectiveZoom;
   const zoomStyle = {
-    transform: `scale(${effectiveZoom})`,
+    transform: `scale(${appliedZoom})`,
     transformOrigin: 'top left',
-    width: `${100 / effectiveZoom}%`,
-    height: `${100 / effectiveZoom}%`,
+    width: `${100 / appliedZoom}%`,
+    height: `${100 / appliedZoom}%`,
   };
 
   if (displayMode === 'url' && !url) {
@@ -447,74 +463,84 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   gap: 'min(4px, 0.5vmin)',
                 }}
               >
-                <div className="flex items-center bg-white/80 backdrop-blur-xs shadow-xs border border-slate-200/50 rounded-lg overflow-hidden">
-                  <button
-                    {...tourAttr('embed.zoom-out', widget.id, widget.type)}
-                    onClick={handleZoomOut}
-                    disabled={!canZoomOut}
-                    className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    style={{ padding: 'min(8px, 1vmin)' }}
-                    title="Zoom out"
-                    aria-label="Zoom out"
-                  >
-                    <ZoomOut
-                      style={{
-                        width: 'min(16px, 2vmin)',
-                        height: 'min(16px, 2vmin)',
-                      }}
-                    />
-                  </button>
-                  <span title={isDefaultZoom ? 'Current zoom' : undefined}>
+                {!isVideo && (
+                  <div className="flex items-center bg-white/80 backdrop-blur-xs shadow-xs border border-slate-200/50 rounded-lg overflow-hidden">
                     <button
-                      {...tourAttr('embed.zoom-level', widget.id, widget.type)}
-                      onClick={handleZoomReset}
-                      disabled={isDefaultZoom}
-                      className="font-mono font-bold text-slate-600 select-none hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:cursor-default disabled:hover:text-slate-600 disabled:hover:bg-transparent"
-                      style={{
-                        minWidth: '3em',
-                        fontSize: 'min(12px, 1.5vmin)',
-                        paddingLeft: 'min(4px, 0.5vmin)',
-                        paddingRight: 'min(4px, 0.5vmin)',
-                      }}
-                      title={isDefaultZoom ? undefined : 'Reset to 100%'}
-                    >
-                      {Math.round(effectiveZoom * 100)}%
-                    </button>
-                  </span>
-                  <button
-                    {...tourAttr('embed.zoom-in', widget.id, widget.type)}
-                    onClick={handleZoomIn}
-                    disabled={!canZoomIn}
-                    className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    style={{ padding: 'min(8px, 1vmin)' }}
-                    title="Zoom in"
-                    aria-label="Zoom in"
-                  >
-                    <ZoomIn
-                      style={{
-                        width: 'min(16px, 2vmin)',
-                        height: 'min(16px, 2vmin)',
-                      }}
-                    />
-                  </button>
-                  {!isDefaultZoom && (
-                    <button
-                      {...tourAttr('embed.zoom-reset', widget.id, widget.type)}
-                      onClick={handleZoomReset}
-                      className="text-slate-400 hover:text-orange-500 hover:bg-orange-50 transition-colors border-l border-slate-200/50"
+                      {...tourAttr('embed.zoom-out', widget.id, widget.type)}
+                      onClick={handleZoomOut}
+                      disabled={!canZoomOut}
+                      className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                       style={{ padding: 'min(8px, 1vmin)' }}
-                      title="Reset zoom to 100%"
-                      aria-label="Reset zoom to 100%"
+                      title="Zoom out"
+                      aria-label="Zoom out"
                     >
-                      <RotateCcw
+                      <ZoomOut
                         style={{
-                          width: 'min(14px, 1.75vmin)',
-                          height: 'min(14px, 1.75vmin)',
+                          width: 'min(16px, 2vmin)',
+                          height: 'min(16px, 2vmin)',
                         }}
                       />
                     </button>
-                  )}
-                </div>
+                    <span title={isDefaultZoom ? 'Current zoom' : undefined}>
+                      <button
+                        {...tourAttr(
+                          'embed.zoom-level',
+                          widget.id,
+                          widget.type
+                        )}
+                        onClick={handleZoomReset}
+                        disabled={isDefaultZoom}
+                        className="font-mono font-bold text-slate-600 select-none hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:cursor-default disabled:hover:text-slate-600 disabled:hover:bg-transparent"
+                        style={{
+                          minWidth: '3em',
+                          fontSize: 'min(12px, 1.5vmin)',
+                          paddingLeft: 'min(4px, 0.5vmin)',
+                          paddingRight: 'min(4px, 0.5vmin)',
+                        }}
+                        title={isDefaultZoom ? undefined : 'Reset to 100%'}
+                      >
+                        {Math.round(effectiveZoom * 100)}%
+                      </button>
+                    </span>
+                    <button
+                      {...tourAttr('embed.zoom-in', widget.id, widget.type)}
+                      onClick={handleZoomIn}
+                      disabled={!canZoomIn}
+                      className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      style={{ padding: 'min(8px, 1vmin)' }}
+                      title="Zoom in"
+                      aria-label="Zoom in"
+                    >
+                      <ZoomIn
+                        style={{
+                          width: 'min(16px, 2vmin)',
+                          height: 'min(16px, 2vmin)',
+                        }}
+                      />
+                    </button>
+                    {!isDefaultZoom && (
+                      <button
+                        {...tourAttr(
+                          'embed.zoom-reset',
+                          widget.id,
+                          widget.type
+                        )}
+                        onClick={handleZoomReset}
+                        className="text-slate-400 hover:text-orange-500 hover:bg-orange-50 transition-colors border-l border-slate-200/50"
+                        style={{ padding: 'min(8px, 1vmin)' }}
+                        title="Reset zoom to 100%"
+                        aria-label="Reset zoom to 100%"
+                      >
+                        <RotateCcw
+                          style={{
+                            width: 'min(14px, 1.75vmin)',
+                            height: 'min(14px, 1.75vmin)',
+                          }}
+                        />
+                      </button>
+                    )}
+                  </div>
+                )}
                 {canGenerateApp && (
                   <button
                     {...tourAttr(
@@ -650,7 +676,18 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             </div>
           ) : (
             <div className="flex-1 relative overflow-hidden">
-              {displayMode === 'code' ? (
+              {displayMode === 'code' && blockNewTabs ? (
+                <iframe
+                  key={`code-blocked-${refreshKey}`}
+                  title="Embed Content"
+                  srcDoc={html}
+                  className="absolute top-0 left-0 border-none block"
+                  style={zoomStyle}
+                  sandbox="allow-scripts allow-forms"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              ) : displayMode === 'code' ? (
                 <iframe
                   key={`code-${refreshKey}`}
                   title="Embed Content"
@@ -663,7 +700,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 />
               ) : (
                 <iframe
-                  key={`url-${refreshKey}`}
+                  key={`url-${refreshKey}-${sandbox}`}
                   title="Embed Content"
                   src={finalEmbedUrl}
                   className="absolute top-0 left-0 border-none block"

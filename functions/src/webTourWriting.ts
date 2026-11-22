@@ -3,6 +3,7 @@ import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
+import { isExcludedFrom } from './permissionExclusion';
 import { Type, type Schema } from '@google/genai';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { recordAiUsage, resolveCallerIsAdmin } from './aiGeneration';
@@ -19,6 +20,7 @@ import {
 } from './mcp/webTourTools';
 import { isWebTour } from './mcp/webTours';
 import { isHardTextHit, webTourTextHits } from './mcp/webTourStudentData';
+import { safeErr } from './safeLog';
 
 type Firestore = admin.firestore.Firestore;
 type Token = { email?: string; email_verified?: boolean };
@@ -287,7 +289,7 @@ export async function runWebTourWriting(
     return { steps: parseWritingResponse(text, req) };
   } catch (error) {
     if (error instanceof HttpsError) throw error;
-    console.error('[writeWebTourTextV1] failed:', error);
+    console.error('[writeWebTourTextV1] failed:', safeErr(error));
     if (error instanceof AiUnavailableError)
       throw new HttpsError('failed-precondition', error.message);
     throw new HttpsError('internal', "Claude couldn't write these steps.");
@@ -298,13 +300,14 @@ function defaultDeps(db: Firestore): WritingDeps {
   return {
     isAdmin: (token) => resolveCallerIsAdmin(db, token),
     allowed: async (token, uid) => {
-      const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+      const { isGlobalFeatureGranted } = await import('./featureGrant');
       const ai = await db
         .collection('global_permissions')
         .doc('gemini-functions')
         .get();
       return (
         ai.data()?.enabled !== false &&
+        !isExcludedFrom(ai.data(), token.email) &&
         (await isGlobalFeatureGranted(
           db,
           WEB_TOURS_FEATURE_ID,

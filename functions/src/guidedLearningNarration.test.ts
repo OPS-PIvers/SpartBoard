@@ -35,7 +35,7 @@ vi.mock('@google-cloud/text-to-speech', () => ({
 }));
 vi.mock('./functionsInit', () => ({}));
 vi.mock('./classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
-vi.mock('./quizMediaArchive', () => ({
+vi.mock('./featureGrant', () => ({
   isGlobalFeatureGranted: vi.fn(() => Promise.resolve(true)),
 }));
 

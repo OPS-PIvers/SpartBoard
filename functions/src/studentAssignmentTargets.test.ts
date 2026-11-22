@@ -42,7 +42,12 @@ vi.mock('./secrets', () => ({
   STUDENT_PSEUDONYM_HMAC_SECRET: { value: () => 'unit-test-hmac-secret' },
 }));
 
-import { CLASSLINK_TIMEOUT_MS, computeStudentUid } from './classlinkShared';
+import {
+  CLASSLINK_FUNCTION_TIMEOUT_SECONDS,
+  CLASSLINK_TIMEOUT_MS,
+  CLASSLINK_TOTAL_BUDGET_MS,
+  computeStudentUid,
+} from './classlinkShared';
 import {
   MAX_TARGET_REFS,
   MAX_TAUGHT_CLASSES,
@@ -55,11 +60,11 @@ import {
   refKey,
   resolveTargets,
   sanitizeOverride,
-  setAssignmentTargetsV1,
   uidForRef,
   type SetAssignmentTargetsInput,
   type TargetAuthorizationContext,
 } from './studentAssignmentTargets';
+import { setAssignmentTargetsV1 } from './setAssignmentTargets';
 import * as admin from './firebaseAdmin';
 
 const HMAC = 'unit-test-hmac-secret';
@@ -84,6 +89,15 @@ interface StubState {
     op: 'set' | 'delete';
     data?: Record<string, unknown>;
   }[];
+  /** Query pages read, so the flood scan's pagination is assertable. */
+  queryPages?: number;
+}
+
+interface StubQuery {
+  select: () => StubQuery;
+  limit: (n: number) => StubQuery;
+  startAfter: (snap: { ref: { __path: string } }) => StubQuery;
+  get: () => Promise<{ docs: unknown[] }>;
 }
 
 /** Applies `{merge: true}` set semantics, `FieldValue.delete()` sentinel included. */
@@ -133,9 +147,37 @@ function makeDb(state: StubState) {
       return Promise.resolve();
     },
   });
+  const childDocs = (path: string) =>
+    [...state.docs.entries()].filter(
+      ([p]) =>
+        p.startsWith(`${path}/`) && !p.slice(path.length + 1).includes('/')
+    );
   const collectionRef = (path: string) => ({
     __path: path,
     doc: (id: string) => docRef(`${path}/${id}`),
+    where: (field: string, _op: '==', value: unknown) => {
+      const matches = () =>
+        childDocs(path)
+          .filter(([, data]) => data[field] === value)
+          .map(([p]) => p)
+          .sort();
+      const query = (max: number, after?: string): StubQuery => ({
+        select: () => query(max, after),
+        limit: (n: number) => query(n, after),
+        startAfter: (snap: { ref: { __path: string } }) =>
+          query(max, snap.ref.__path),
+        get: () => {
+          state.queryPages = (state.queryPages ?? 0) + 1;
+          return Promise.resolve({
+            docs: matches()
+              .filter((p) => after === undefined || p > after)
+              .slice(0, max)
+              .map((p) => snapFor(p)),
+          });
+        },
+      });
+      return query(Number.POSITIVE_INFINITY);
+    },
     limit: () => ({
       get: () =>
         Promise.resolve({
@@ -153,9 +195,14 @@ function makeDb(state: StubState) {
     const data = state.docs.get(path);
     return {
       exists: data !== undefined,
+      id: path.split('/').pop() ?? '',
       ref: docRef(path),
       get: (field: string) => data?.[field],
       data: () => data,
+      // Map insertion order stands in for Firestore's create time.
+      createTime: {
+        toMillis: () => [...state.docs.keys()].indexOf(path),
+      },
     };
   };
 
@@ -167,15 +214,29 @@ function makeDb(state: StubState) {
     runTransaction: async (
       fn: (tx: {
         get: (ref: { __path: string }) => Promise<unknown>;
-        set: (ref: { __path: string }, data: Record<string, unknown>) => void;
+        set: (
+          ref: { __path: string },
+          data: Record<string, unknown>,
+          options?: { merge?: boolean; mergeFields?: string[] }
+        ) => void;
         delete: (ref: { __path: string }) => void;
       }) => Promise<unknown>
     ) =>
       fn({
         get: (ref) => Promise.resolve(snapFor(ref.__path)),
-        set: (ref, data) => {
+        set: (ref, data, options) => {
           state.writes.push({ path: ref.__path, op: 'set', data });
-          applyMerge(state, ref.__path, data);
+          if (options?.mergeFields) {
+            const flat: Record<string, unknown> = {};
+            for (const f of options.mergeFields) flat[f] = data[f];
+            const next = { ...(state.docs.get(ref.__path) ?? {}) };
+            for (const [k, v] of Object.entries(flat)) {
+              if ((v as { __delete?: boolean })?.__delete === true)
+                delete next[k];
+              else next[k] = v;
+            }
+            state.docs.set(ref.__path, next);
+          } else applyMerge(state, ref.__path, data);
         },
         delete: (ref) => {
           state.writes.push({ path: ref.__path, op: 'delete' });
@@ -610,6 +671,48 @@ describe('handleSetAssignmentTargets', () => {
     expect(pointerFor()).toMatchObject({ override: { timeMultiplier: 2 } });
   });
 
+  it('drops supports from the pointer when a new override has none', async () => {
+    const supports = [
+      { kind: 'text' as const, title: 'Word bank', text: 'cell' },
+    ];
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { readAloud: true, supports },
+        },
+      })
+    );
+    expect(pointerFor().override).toEqual({ readAloud: true, supports });
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { readAloud: true },
+        },
+      })
+    );
+    expect(pointerFor().override).toEqual({ readAloud: true });
+  });
+
+  it('leaves supports out of the assignment-doc mirror', async () => {
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: {
+            readAloud: true,
+            supports: [{ kind: 'text', title: 'Word bank', text: 'cell' }],
+          },
+        },
+      })
+    );
+    const uid = computeStudentUid(SOURCED_A, HMAC);
+    const mirror = (
+      state.docs.get(assignmentPath()) as {
+        overridesByStudentUid: Record<string, unknown>;
+      }
+    ).overridesByStudentUid[uid];
+    expect(mirror).toEqual({ readAloud: true });
+  });
+
   it('clears a stored override on an explicit null for that key', async () => {
     await run(
       baseInput({
@@ -928,6 +1031,219 @@ describe('handleSetAssignmentTargets', () => {
 // would never reach their pointer doc.
 // ---------------------------------------------------------------------------
 
+describe('handleSetAssignmentTargets — assignment id bound to the session', () => {
+  it('refuses a foreign assignment id paired with the caller own session', async () => {
+    state.docs.set(`users/${TEACHER_UID}/quiz_assignments/victim-session`, {
+      id: 'victim-session',
+    });
+    await expect(
+      run(baseInput({ assignmentId: 'victim-session' }))
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(
+      [...state.docs.keys()].filter((k) => k.endsWith('/items/victim-session'))
+    ).toHaveLength(0);
+  });
+
+  it('accepts a mini-app assignment id stored on the session', async () => {
+    state.docs.set(`users/${TEACHER_UID}/miniapp_assignments/arch-1`, {
+      id: 'arch-1',
+    });
+    state.docs.set('mini_app_sessions/mini-s', {
+      teacherUid: TEACHER_UID,
+      assignmentId: 'arch-1',
+    });
+    const input = { kind: 'mini-app' as const, sessionId: 'mini-s' };
+    await run(baseInput({ ...input, assignmentId: 'arch-1' }));
+    expect(
+      state.docs.get(
+        `student_assignments/${computeStudentUid(SOURCED_A, HMAC)}/items/arch-1`
+      )
+    ).toMatchObject({ sessionId: 'mini-s', teacherUid: TEACHER_UID });
+    state.docs.set(`users/${TEACHER_UID}/miniapp_assignments/other`, {
+      id: 'other',
+    });
+    await expect(
+      run(baseInput({ ...input, assignmentId: 'other' }))
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  const victimPointerKeys = () =>
+    [...state.docs.keys()].filter((k) => k.endsWith('/items/victim-w'));
+
+  it('refuses a quiz session id that is another teacher writing session id', async () => {
+    state.docs.set('writing_assignment_sessions/victim-w', {
+      teacherUid: OTHER_TEACHER_UID,
+    });
+    state.docs.set(`users/${TEACHER_UID}/quiz_assignments/victim-w`, {
+      id: 'victim-w',
+    });
+    state.docs.set('quiz_sessions/victim-w', { teacherUid: TEACHER_UID });
+    await expect(
+      run(
+        baseInput({
+          assignmentId: 'victim-w',
+          sessionId: 'victim-w',
+          window: { closeAt: 9_999_999_999_999 },
+        })
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(victimPointerKeys()).toHaveLength(0);
+  });
+
+  it('refuses a forged mini-app assignment id naming another teacher session', async () => {
+    state.docs.set('writing_assignment_sessions/victim-w', {
+      teacherUid: OTHER_TEACHER_UID,
+    });
+    state.docs.set(`users/${TEACHER_UID}/miniapp_assignments/victim-w`, {
+      id: 'victim-w',
+    });
+    state.docs.set('mini_app_sessions/mini-s', {
+      teacherUid: TEACHER_UID,
+      assignmentId: 'victim-w',
+    });
+    await expect(
+      run(
+        baseInput({
+          kind: 'mini-app',
+          sessionId: 'mini-s',
+          assignmentId: 'victim-w',
+        })
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(victimPointerKeys()).toHaveLength(0);
+  });
+
+  it('refuses a forged mini-app assignment id another teacher mini-app session carries', async () => {
+    state.docs.set('mini_app_sessions/victim-mini', {
+      teacherUid: OTHER_TEACHER_UID,
+      assignmentId: 'victim-w',
+    });
+    state.docs.set(`users/${TEACHER_UID}/miniapp_assignments/victim-w`, {
+      id: 'victim-w',
+    });
+    state.docs.set('mini_app_sessions/mini-s', {
+      teacherUid: TEACHER_UID,
+      assignmentId: 'victim-w',
+    });
+    await expect(
+      run(
+        baseInput({
+          kind: 'mini-app',
+          sessionId: 'mini-s',
+          assignmentId: 'victim-w',
+        })
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(victimPointerKeys()).toHaveLength(0);
+  });
+});
+
+describe('handleSetAssignmentTargets — first claimant owns a mini-app key', () => {
+  it('lets the owner target when a later foreign session copies its assignment id', async () => {
+    state.docs.set(`users/${TEACHER_UID}/miniapp_assignments/owned-w`, {
+      id: 'owned-w',
+    });
+    state.docs.set('mini_app_sessions/mini-s', {
+      teacherUid: TEACHER_UID,
+      assignmentId: 'owned-w',
+    });
+    state.docs.set('mini_app_sessions/copycat', {
+      teacherUid: OTHER_TEACHER_UID,
+      assignmentId: 'owned-w',
+    });
+    const result = await run(
+      baseInput({
+        kind: 'mini-app',
+        sessionId: 'mini-s',
+        assignmentId: 'owned-w',
+      })
+    );
+    expect(result).toMatchObject({ written: 1 });
+  });
+});
+
+describe('handleSetAssignmentTargets — a flood of copied keys locks no one out', () => {
+  const flood = (i: number) => `flood-${String(i).padStart(4, '0')}`;
+  const plantFlood = (count: number) => {
+    for (let i = 0; i < count; i += 1)
+      state.docs.set(`mini_app_sessions/${flood(i)}`, {
+        teacherUid: OTHER_TEACHER_UID,
+        assignmentId: 'owned-w',
+      });
+    state.docs.set(`users/${OTHER_TEACHER_UID}/miniapp_assignments/owned-w`, {
+      id: 'owned-w',
+    });
+  };
+  const miniInput = (sessionId: string, sourcedId = SOURCED_A) =>
+    baseInput({
+      kind: 'mini-app',
+      sessionId,
+      assignmentId: 'owned-w',
+      add: [{ kind: 'classlink', sourcedId }],
+    });
+
+  beforeEach(() => {
+    state.docs.set(`users/${TEACHER_UID}/miniapp_assignments/owned-w`, {
+      id: 'owned-w',
+    });
+    state.docs.set('mini_app_sessions/mini-s', {
+      teacherUid: TEACHER_UID,
+      assignmentId: 'owned-w',
+    });
+  });
+
+  it.each([1, 51, 1200])(
+    'lets the owner target after %i planted copies and refuses the planter',
+    async (count) => {
+      plantFlood(count);
+      await expect(run(miniInput('mini-s'))).resolves.toMatchObject({
+        written: 1,
+      });
+      await expect(
+        run(miniInput(flood(count - 1), SOURCED_B), OTHER_TEACHER_UID)
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+    }
+  );
+
+  it('scans past the first page to refuse a planter whose session id is the key', async () => {
+    plantFlood(1200);
+    state.docs.set('mini_app_sessions/owned-w', {
+      teacherUid: OTHER_TEACHER_UID,
+      assignmentId: 'owned-w',
+    });
+    state.queryPages = 0;
+    await expect(
+      run(miniInput('owned-w', SOURCED_B), OTHER_TEACHER_UID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.queryPages).toBeGreaterThan(1);
+  });
+
+  it('records the owner claim so later calls skip the flood scan', async () => {
+    plantFlood(1200);
+    await run(miniInput('mini-s'));
+    expect(state.docs.get('assignment_key_claims/owned-w')).toMatchObject({
+      teacherUid: TEACHER_UID,
+    });
+    state.queryPages = 0;
+    await expect(run(miniInput('mini-s', SOURCED_B))).resolves.toMatchObject({
+      written: 1,
+    });
+    expect(state.queryPages).toBe(0);
+    await expect(
+      run(miniInput(flood(0), SOURCED_B), OTHER_TEACHER_UID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.queryPages).toBe(0);
+  });
+
+  it('writes no claim when the scan refuses the caller', async () => {
+    plantFlood(1);
+    await expect(
+      run(miniInput(flood(0), SOURCED_B), OTHER_TEACHER_UID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.docs.has('assignment_key_claims/owned-w')).toBe(false);
+  });
+});
+
 describe('handleSetAssignmentTargets — pointers owned by another teacher', () => {
   const uidA = () => computeStudentUid(SOURCED_A, HMAC);
   const victimPointer = (extra: Record<string, unknown> = {}) => ({
@@ -971,6 +1287,17 @@ describe('handleSetAssignmentTargets — pointers owned by another teacher', () 
     expect(state.docs.get(assignmentPath())).toMatchObject({
       targetStudents: [],
     });
+  });
+
+  it('treats a same-teacher pointer of another kind as foreign', async () => {
+    state.docs.set(
+      pointerPath(uidA()),
+      victimPointer({ kind: 'writing', teacherUid: TEACHER_UID })
+    );
+    const before = { ...state.docs.get(pointerPath(uidA())) };
+    const result = await run(baseInput());
+    expect(result.written).toBe(0);
+    expect(state.docs.get(pointerPath(uidA()))).toEqual(before);
   });
 
   it('does not overwrite the other teacher pointer with a skip marker', async () => {
@@ -2009,11 +2336,11 @@ describe('isTestClassAuthority', () => {
     await expect(check()).resolves.toBe(false);
   });
 
-  it('allows a super admin listed only in the legacy user_roles list', async () => {
+  it('refuses an address listed only in the retired legacy user_roles list', async () => {
     state.docs.set('admin_settings/user_roles', {
       superAdmins: ['Teacher@Orono.k12.mn.us'],
     });
-    await expect(check()).resolves.toBe(true);
+    await expect(check()).resolves.toBe(false);
   });
 
   it('refuses a legacy-listed email whose operator member doc is deactivated', async () => {
@@ -2075,6 +2402,50 @@ describe('refKey', () => {
 });
 
 describe('sanitizeOverride', () => {
+  it('keeps text, https link and Drive file supports, capped', () => {
+    const out = sanitizeOverride({
+      supports: [
+        { kind: 'text', title: ' Word bank ', text: 'cell, nucleus' },
+        { kind: 'link', title: 'Notes', url: 'https://example.org/a' },
+        { kind: 'drive', title: 'Diagram', fileId: '1AbCdEfGhIjKlMnOp' },
+        { kind: 'link', title: 'Bad', url: 'javascript:alert(1)' },
+        { kind: 'link', title: 'Plain', url: 'http://example.org' },
+        { kind: 'drive', title: 'Bad id', fileId: '../../x' },
+        { kind: 'text', title: '', text: 'no title' },
+        { kind: 'text', title: 'Long', text: 'x'.repeat(5000) },
+        { kind: 'text', title: 'Fifth', text: 'ok' },
+        { kind: 'text', title: 'Sixth', text: 'over the cap' },
+      ],
+    });
+    expect(out?.supports?.map((s) => s.title)).toEqual([
+      'Word bank',
+      'Notes',
+      'Diagram',
+      'Long',
+      'Fifth',
+    ]);
+    const long = out?.supports?.[3];
+    expect(long?.kind === 'text' && long.text.length).toBe(1000);
+  });
+
+  it('keeps speech to text only when true', () => {
+    expect(sanitizeOverride({ speechToText: true })).toEqual({
+      speechToText: true,
+    });
+    expect(sanitizeOverride({ speechToText: 'yes' })).toBeNull();
+  });
+
+  it('keeps modified questions only when true', () => {
+    expect(sanitizeOverride({ modifiedQuestions: true })).toEqual({
+      modifiedQuestions: true,
+    });
+    expect(sanitizeOverride({ modifiedQuestions: 'yes' })).toBeNull();
+  });
+
+  it('drops supports that are not a list', () => {
+    expect(sanitizeOverride({ supports: 'x' })).toBeNull();
+  });
+
   it('drops unknown keys', () => {
     expect(sanitizeOverride({ timeMultiplier: 2, evil: 'x' })).toEqual({
       timeMultiplier: 2,
@@ -2630,6 +3001,83 @@ describe('loadClassLinkMembership', () => {
           'https://tenant.example'
         )
       ).rejects.toThrow('time budget');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Every request takes the full request timeout; parallel requests overlap.
+  const slowClassLink = (classCount: number, lookupMs = 0) => {
+    axiosGet.mockImplementation(async (url: string, config?: PagedConfig) => {
+      const startedAt = Date.now();
+      await Promise.resolve();
+      const finish = <T>(data: T) => {
+        const lookup = url.endsWith('/users') || url.endsWith('/classes');
+        const took = lookup ? lookupMs : CLASSLINK_TIMEOUT_MS;
+        vi.setSystemTime(Math.max(Date.now(), startedAt + took));
+        return { data };
+      };
+      if (url.endsWith('/users'))
+        return finish({ users: [{ sourcedId: 'T1', role: 'teacher' }] });
+      if (url.endsWith('/classes')) {
+        const offset = Number(config?.params?.offset ?? 0);
+        const limit = Number(config?.params?.limit ?? classCount);
+        return finish({
+          classes: Array.from({ length: classCount }, (_, i) => ({
+            sourcedId: `class-${i}`,
+          })).slice(offset, offset + limit),
+        });
+      }
+      // Full pages, so a roster keeps paging until the budget stops it.
+      return finish({
+        users: Array.from({ length: 200 }, (_, i) => ({
+          sourcedId: `kid-${url}-${String(config?.params?.offset)}-${i}`,
+        })),
+      });
+    });
+  };
+
+  it('counts the teacher lookup and class list against the time budget', async () => {
+    vi.useFakeTimers({ now: 0, toFake: ['Date'] });
+    try {
+      // 250 classes page the class list; slow lookups use up the budget before any roster read.
+      slowClassLink(250, 50_000);
+      const read = loadClassLinkMembership(
+        'teacher@orono.k12.mn.us',
+        ['class-230'],
+        'id',
+        'secret',
+        'https://tenant.example'
+      );
+      await expect(read).rejects.toThrow('time budget');
+      const studentCalls = (axiosGet.mock.calls as unknown[][]).filter((c) =>
+        /\/students$/.test(String(c[0]))
+      );
+      expect(studentCalls).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ends a paging read within one request of the budget, inside the function timeout', async () => {
+    vi.useFakeTimers({ now: 0, toFake: ['Date'] });
+    try {
+      slowClassLink(1, CLASSLINK_TIMEOUT_MS);
+      await expect(
+        loadClassLinkMembership(
+          'teacher@orono.k12.mn.us',
+          null,
+          'id',
+          'secret',
+          'https://tenant.example'
+        )
+      ).rejects.toThrow('time budget');
+      expect(Date.now()).toBeLessThanOrEqual(
+        CLASSLINK_TOTAL_BUDGET_MS + CLASSLINK_TIMEOUT_MS
+      );
+      expect(Date.now()).toBeLessThanOrEqual(
+        CLASSLINK_FUNCTION_TIMEOUT_SECONDS * 1000
+      );
     } finally {
       vi.useRealTimers();
     }

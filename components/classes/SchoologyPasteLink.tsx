@@ -57,12 +57,15 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
       setRosterId(res.suggestions[0]?.rosterId ?? '');
       if (res.suggestions.length === 0) {
         addToast(
-          'None of your classes share students with that course.',
+          'None of your classes share students with that Schoology course.',
           'info'
         );
       }
     } catch (err) {
-      addToast(errorMessage(err, 'Couldn’t check that course link.'), 'error');
+      addToast(
+        errorMessage(err, 'Couldn’t check that Schoology course link.'),
+        'error'
+      );
     } finally {
       setChecking(false);
     }
@@ -95,7 +98,10 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
         'success'
       );
     } catch (err) {
-      addToast(errorMessage(err, 'Failed to link the course.'), 'error');
+      addToast(
+        errorMessage(err, 'Failed to link the Schoology course.'),
+        'error'
+      );
     } finally {
       setLinking(false);
     }

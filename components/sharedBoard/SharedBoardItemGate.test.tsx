@@ -80,7 +80,10 @@ const OwnWidget: React.FC<{ widget: WidgetData; local?: SharedBoardLocal }> = ({
   );
 };
 
-const gateTree = (onCopy = vi.fn(() => Promise.resolve('q1-copy'))) => (
+const gateTree = (
+  onCopy = vi.fn(() => Promise.resolve('q1-copy')),
+  withUnavailable = false
+) => (
   <DashboardContext.Provider value={dashboard}>
     <SharedBoardItemGate<{ note: string }>
       widget={widget}
@@ -95,6 +98,13 @@ const gateTree = (onCopy = vi.fn(() => Promise.resolve('q1-copy'))) => (
         </SharedBoardItemPanel>
       )}
       renderOwn={(w, local) => <OwnWidget widget={w} local={local} />}
+      {...(withUnavailable
+        ? {
+            renderUnavailable: (loading: boolean) => (
+              <span>unavailable:{loading ? 'loading' : 'missing'}</span>
+            ),
+          }
+        : {})}
     />
   </DashboardContext.Provider>
 );
@@ -116,6 +126,22 @@ describe('SharedBoardItemGate', () => {
       expect(screen.getByText('own:preview')).toBeTruthy();
       unmount();
     }
+  });
+
+  it('with an unavailable state, loads and then explains a missing colleague item instead of the teacher widget', () => {
+    sharedState = { status: 'pending', item: null };
+    const { rerender } = render(gateTree(undefined, true));
+    expect(screen.getByText('unavailable:loading')).toBeTruthy();
+    sharedState = { status: 'none', item: null };
+    rerender(gateTree(undefined, true));
+    expect(screen.getByText('unavailable:missing')).toBeTruthy();
+    expect(screen.queryByText(/^own:/)).toBeNull();
+    sharedState = foreign;
+    rerender(gateTree(undefined, true));
+    expect(screen.getByText('shared:host quiz')).toBeTruthy();
+    sharedState = { status: 'off', item: null };
+    rerender(gateTree(undefined, true));
+    expect(screen.getByText('own:preview')).toBeTruthy();
   });
 
   it('shows a colleague item read-only with Assign', () => {

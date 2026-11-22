@@ -2,6 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { resolveNextTarget, shouldGateToSso } from './studentJoinRouting';
 
 describe('resolveNextTarget', () => {
+  it("allows a Course's Class page link and nothing deeper", () => {
+    expect(resolveNextTarget('/my-assignments/course/Ab_9-x')).toBe(
+      '/my-assignments/course/Ab_9-x'
+    );
+    expect(resolveNextTarget('/my-assignments/course/a/b')).toBeNull();
+    expect(resolveNextTarget('/my-assignments/c1')).toBeNull();
+    expect(resolveNextTarget('//evil.com/my-assignments/course/x')).toBeNull();
+  });
+
   it('allows a Video Activity page and rejects other /activity paths', () => {
     expect(resolveNextTarget('/activity/abc-123')).toBe('/activity/abc-123');
     expect(resolveNextTarget('/activity/abc/extra')).toBeNull();
@@ -57,6 +66,12 @@ describe('resolveNextTarget', () => {
     );
     expect(resolveNextTarget('/flashcards/share-1')).toBeNull();
     expect(resolveNextTarget('/flashcards/a/../admin')).toBeNull();
+  });
+
+  it('allows a Writing assignment page only', () => {
+    expect(resolveNextTarget('/writing/2f0c-a1')).toBe('/writing/2f0c-a1');
+    expect(resolveNextTarget('/writing/../admin')).toBeNull();
+    expect(resolveNextTarget('/writing')).toBeNull();
   });
 });
 

@@ -17,6 +17,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { setDoc, updateDoc, doc, deleteField } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -32,8 +33,20 @@ const RULES_PATH = fileURLToPath(
 
 let testEnv: RulesTestEnvironment;
 
+// Every synced group writer is district staff (security #12); a cleared emulator needs the member docs again.
+const reseedStaff = () =>
+  testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [U1_EMAIL])
+  );
+
+const U1_EMAIL = 'u1@orono.k12.mn.us';
 const asU1 = () =>
-  testEnv.authenticatedContext(U1, { email: 'u1@example.com' }).firestore();
+  testEnv
+    .authenticatedContext(U1, {
+      email: U1_EMAIL,
+      email_verified: true,
+    })
+    .firestore();
 
 // A valid behavior map that matches the BehaviorSettings shape from Task 1.
 const BEHAVIOR = {
@@ -96,6 +109,7 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   // Seed both docs so update tests have a base document to work against.
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await seedDistrictStaff(ctx.firestore(), [U1_EMAIL]);
     await setDoc(
       doc(ctx.firestore(), `synced_quizzes/${GROUP_ID}`),
       baseQuizDoc()
@@ -155,6 +169,7 @@ describe('synced_quizzes — behavior field on create', () => {
   beforeEach(async () => {
     // Clear for create tests; no pre-seeded doc needed.
     await testEnv.clearFirestore();
+    await reseedStaff();
   });
 
   it('creator can stand up a group with a behavior map included', async () => {
@@ -226,6 +241,7 @@ describe('synced_video_activities — behavior field on update', () => {
 describe('synced_video_activities — behavior field on create', () => {
   beforeEach(async () => {
     await testEnv.clearFirestore();
+    await reseedStaff();
   });
 
   it('creator can stand up a VA group with a behavior map included', async () => {
@@ -284,6 +300,7 @@ describe('synced_video_activities — clip and notes', () => {
 
   it('creator can stand up a VA group with a clip and notes', async () => {
     await testEnv.clearFirestore();
+    await reseedStaff();
     await assertSucceeds(
       setDoc(
         doc(asU1(), `synced_video_activities/${GROUP_ID}`),
@@ -294,6 +311,7 @@ describe('synced_video_activities — clip and notes', () => {
 
   it('rejects notes that are not a list on create', async () => {
     await testEnv.clearFirestore();
+    await reseedStaff();
     await assertFails(
       setDoc(
         doc(asU1(), `synced_video_activities/${GROUP_ID}`),

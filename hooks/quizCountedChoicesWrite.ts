@@ -17,6 +17,8 @@ export { chooseCountChanges } from '@/utils/quizCountedChoices';
 import {
   buildResponseGradingContext,
   gradeResponseForPublish,
+  publishScoreFields,
+  refreshedKeyFields,
 } from '@/hooks/useQuizAssignments';
 import {
   QUIZ_SESSIONS_COLLECTION,
@@ -75,11 +77,15 @@ export async function saveCountedChoices(opts: {
     };
     // A score the student or gradebook already has must follow the new pick.
     if (typeof data.score === 'number') {
-      const graded = gradeResponseForPublish(next, ctx);
+      const graded = gradeResponseForPublish(next, ctx, opts.responseKey);
       const hadVerdicts = (data.answers ?? []).some(
         (a) => typeof a.isCorrect === 'boolean'
       );
-      update.score = graded.score ?? deleteField();
+      Object.assign(
+        update,
+        publishScoreFields(graded),
+        refreshedKeyFields(next, graded, opts.quiz, opts.responseKey, ctx)
+      );
       update.answers = hadVerdicts
         ? graded.answers
         : answersWithoutVerdicts(graded.answers);
@@ -136,8 +142,11 @@ export async function applySectionCounts(opts: {
           const data = fresh.data() as QuizResponse | undefined;
           if (!data || typeof data.score !== 'number') return;
           // Only the score moves; answers and grades are left as they are.
-          const graded = gradeResponseForPublish(data, ctx);
-          tx.update(d.ref, { score: graded.score ?? deleteField() });
+          const graded = gradeResponseForPublish(data, ctx, d.id);
+          tx.update(d.ref, {
+            ...publishScoreFields(graded),
+            ...refreshedKeyFields(data, graded, opts.quiz, d.id, ctx),
+          });
         })
       )
     );

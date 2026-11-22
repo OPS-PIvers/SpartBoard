@@ -9,6 +9,7 @@ import {
   VIDEO_ACTIVITY_SESSIONS_COLLECTION,
 } from './nrpsStore';
 import type { LtiTargetSessionArgs } from './nrpsStore';
+import { safeErr } from '../safeLog';
 
 export interface LaunchUidChoice {
   subUid: string;
@@ -41,7 +42,10 @@ export async function chooseLaunchUid(
     if (bridgedSnap.exists) return bridgedUid;
     return subSnap.exists ? subUid : bridgedUid;
   } catch (err) {
-    console.warn('[ltiPreLinkResponse] lookup failed; using bridged uid:', err);
+    console.warn(
+      '[ltiPreLinkResponse] lookup failed; using bridged uid:',
+      safeErr(err)
+    );
     return bridgedUid;
   }
 }

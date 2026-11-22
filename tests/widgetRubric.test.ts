@@ -64,8 +64,8 @@ const OMITTED_LEVELS: Partial<Record<string, string[]>> = {
 const allCriteria = rubric.dimensions.flatMap((d) => d.criteria);
 
 describe('rubric.json', () => {
-  it('is version 1.1.0 with the six weighted dimensions', () => {
-    expect(rubric.version).toBe('1.1.0');
+  it('is version 1.2.0 with the six weighted dimensions', () => {
+    expect(rubric.version).toBe('1.2.0');
     expect(rubric.dimensions.map((d) => [d.id, d.weight])).toEqual([
       ['layout', 25],
       ['interaction', 15],
@@ -157,7 +157,7 @@ describe('rubric.json', () => {
     });
     expect(byId.R3.budgets).toHaveLength(5);
     expect(byId.R4.protectedData).toHaveLength(5);
-    expect(byId.V1.banList).toHaveLength(9);
+    expect(byId.V1.banList).toHaveLength(11);
   });
 });
 

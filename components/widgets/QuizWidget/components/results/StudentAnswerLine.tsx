@@ -2,10 +2,12 @@ import React from 'react';
 import { MathText } from '@/components/common/MathText';
 import { plainPromptText } from '@/utils/promptMath';
 import {
+  Check,
   CheckCircle2,
   Circle,
   CircleSlash,
   Clock,
+  Mic,
   MinusCircle,
   Pencil,
   XCircle,
@@ -173,7 +175,22 @@ export const StudentAnswerLine: React.FC<{
   onOpenGrader?: () => void;
   /** Swaps this answer in for the one that counts in its section. */
   onCountInstead?: () => void;
-}> = ({ line, onOpenGrader, onCountInstead }) => {
+  /** The student used Speech to text on this answer. */
+  dictated?: boolean;
+  /** The translated key for the language this student was served. */
+  translatedKey?: { label: string; text: string };
+  /** Accepts this typed answer for every student in the assignment. */
+  onAccept?: () => void;
+  accepting?: boolean;
+}> = ({
+  line,
+  onOpenGrader,
+  onCountInstead,
+  dictated = false,
+  translatedKey,
+  onAccept,
+  accepting = false,
+}) => {
   const { icon: MarkIcon, className } = MARK_STYLE[line.mark];
   const answer = answerLabel(line);
   const orderSpots =
@@ -197,10 +214,9 @@ export const StudentAnswerLine: React.FC<{
           return {
             id: c.id,
             name: c.name,
-            value:
-              score && level
-                ? `${level.label} · ${formatExportPoints(score.points)} pt${score.points === 1 ? '' : 's'}`
-                : 'Not scored',
+            value: score
+              ? `${level ? `${level.label} · ` : ''}${formatExportPoints(score.points)} pt${score.points === 1 ? '' : 's'}`
+              : 'Not scored',
           };
         })
       : [];
@@ -263,6 +279,25 @@ export const StudentAnswerLine: React.FC<{
             Count this instead
           </button>
         )}
+        {onAccept && (
+          <button
+            type="button"
+            onClick={onAccept}
+            disabled={accepting}
+            aria-label={`Accept this answer for Q${line.number}`}
+            title="Counts this answer as correct for every student."
+            {...tourFieldAttr(
+              'quiz-results.accept-answer',
+              'quiz',
+              String(line.number)
+            )}
+            className="touch-target-expand relative inline-flex items-center shrink-0 rounded-sm font-sans font-semibold text-brand-blue-primary hover:underline disabled:opacity-60 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+            style={{ ...SMALL_TEXT, gap: 'min(3px, 0.8cqmin)' }}
+          >
+            <Check aria-hidden style={SMALL_ICON} />
+            Accept
+          </button>
+        )}
         {line.mark !== 'excused' && (
           <span
             className="font-sans text-brand-gray-dark tabular-nums shrink-0 text-right"
@@ -300,6 +335,20 @@ export const StudentAnswerLine: React.FC<{
               {line.mark === 'notChosen' ? 'Not chosen' : 'No answer'}
             </span>
           )}
+          {dictated && !!answer && (
+            <span
+              className="inline-flex items-center align-middle rounded-sm bg-brand-gray-lightest font-sans font-semibold text-brand-gray-dark"
+              style={{
+                ...SMALL_TEXT,
+                gap: 'min(3px, 0.8cqmin)',
+                padding: '0 min(4px, 1cqmin)',
+                marginLeft: 'min(6px, 1.5cqmin)',
+              }}
+            >
+              <Mic aria-hidden style={SMALL_ICON} />
+              Dictated
+            </span>
+          )}
         </Field>
         {!orderSpots && showsMissedKey(line) && (
           <Field label="Correct answer">
@@ -310,6 +359,9 @@ export const StudentAnswerLine: React.FC<{
               size={PICTURE_SIZE}
             />
           </Field>
+        )}
+        {!orderSpots && showsMissedKey(line) && translatedKey && (
+          <Field label={translatedKey.label}>{translatedKey.text}</Field>
         )}
         {comment && <Field label="Comment">{comment}</Field>}
         {rubricRows.map((row) => (

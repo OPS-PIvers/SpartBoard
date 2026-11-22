@@ -1,7 +1,20 @@
 // Question fields shared by the Quiz and Video Activity editors (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md slice 1).
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertCircle, ChevronDown, Plus, Sigma, Tag } from 'lucide-react';
+import {
+  AlertCircle,
+  ChevronDown,
+  Hash,
+  Layers,
+  Sigma,
+  Tag,
+  TextCursorInput,
+} from 'lucide-react';
+import { createPortal } from 'react-dom';
+import {
+  MetaInlineContext,
+  PromptFooterContext,
+} from './questionFieldContexts';
 import type {
   QuestionTargetTag,
   QuizQuestion,
@@ -37,6 +50,11 @@ import {
   PromptRichEditor,
   type PromptRichEditorHandle,
 } from './PromptRichEditor';
+import {
+  PromptAudioHost,
+  PromptAudioMicButton,
+  type PromptAudioState,
+} from './PromptAudioField';
 
 const MathAnswerField = React.lazy(
   () => import('@/components/student/keyboards/MathAnswerField')
@@ -56,7 +74,42 @@ interface QuestionPromptFieldProps {
   promptMath?: boolean;
   /** A formatted prompt box with bold, italic, underline and lists. */
   promptFormat?: boolean;
+  /** Shows the record audio mic in the prompt toolbar. */
+  promptAudio?: boolean;
+  /** Stimuli and Modified toggles in the prompt box footer. */
+  extras?: React.ReactNode;
+  /** Shows the Number link; adds a random number and returns its name, or null when full. */
+  onAddNumber?: () => string | null;
+  /** Equation, Number, Accents and Blank as icons in the formatting toolbar, not links above it. */
+  toolbarTools?: boolean;
 }
+
+/** A labeled button at the end of the prompt formatting toolbar. */
+const PromptToolButton: React.FC<{
+  /** Omitted for one-shot inserts, which aren't toggles. */
+  on?: boolean;
+  onClick: () => void;
+  anchor: TourAnchorAttrs;
+  title?: string;
+  children: React.ReactNode;
+}> = ({ on, onClick, anchor, title, children }) => (
+  <button
+    type="button"
+    aria-pressed={on}
+    // Keep the caret where the insert lands.
+    onMouseDown={(e) => e.preventDefault()}
+    onClick={onClick}
+    title={title}
+    className={`flex items-center gap-1 rounded p-1 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${
+      on
+        ? 'bg-slate-100 text-slate-900'
+        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+    }`}
+    {...anchor}
+  >
+    {children}
+  </button>
+);
 
 export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   question: q,
@@ -68,14 +121,42 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   promptAccents,
   promptMath = false,
   promptFormat = false,
+  promptAudio = false,
+  onAddNumber,
+  extras,
+  toolbarTools = false,
 }) => {
+  const canRecord = promptAudio && promptFormat;
+  // Stays mounted once audio existed, so Remove never remounts the prompt box.
+  const [hadAudio] = React.useState(!!q.promptAudio);
   const richRef = React.useRef<PromptRichEditorHandle>(null);
+  const [stimuliSlot, setStimuliSlot] = React.useState<HTMLDivElement | null>(
+    null
+  );
+  const [modifiedSlot, setModifiedSlot] = React.useState<HTMLDivElement | null>(
+    null
+  );
   const [accents, setAccents] = React.useState<AccentSetId | null>(null);
   const [equation, setEquation] = React.useState<PromptEquationDraft | null>(
     null
   );
   const setText = (text: string) =>
     onChange(allowBlanks ? fibPromptUpdate(q, text) : { text });
+  const insertNumber = () => {
+    const name = onAddNumber?.();
+    if (!name) return;
+    const token = `{${name}}`;
+    if (promptFormat) {
+      richRef.current?.insertText(token, true);
+      return;
+    }
+    const el = textareaRef.current;
+    const at = el?.selectionStart ?? q.text.length;
+    const end = el?.selectionEnd ?? at;
+    const before = q.text.slice(0, at);
+    const pad = before && !/\s$/.test(before) ? ' ' : '';
+    setText(`${before}${pad}${token}${q.text.slice(end)}`);
+  };
   const openNewEquation = () => {
     if (promptFormat) {
       setEquation({ start: -1, end: -1, math: '', editing: false });
@@ -112,122 +193,204 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
     setText(`${before}${pad}${math ? wrapPromptMath(math) : ''}${after}`);
     setEquation(null);
   };
-  const textarea = promptFormat ? (
-    <PromptRichEditor
-      ref={richRef}
-      value={q.text}
-      onChange={setText}
-      onBlur={onBlur}
-      readOnly={equation !== null && equation.start >= 0}
-      placeholder="e.g. What is the capital of France?"
-      anchor={anchor}
-    />
-  ) : (
-    <textarea
-      ref={textareaRef}
-      value={q.text}
-      onChange={(e) =>
-        onChange(
-          allowBlanks
-            ? fibPromptUpdate(q, e.target.value)
-            : { text: e.target.value }
-        )
-      }
-      onBlur={onBlur}
-      readOnly={equation !== null}
-      rows={3}
-      placeholder="e.g. What is the capital of France?"
-      className={`${inputClass} resize-y min-h-[4.75rem] max-h-[60vh]`}
-      {...anchor}
-    />
-  );
-  return (
-    <div>
-      <div className="flex items-center justify-between">
-        <label className={labelClass}>Question prompt</label>
-        <span className="flex items-center gap-3">
-          {promptMath && (
-            <KeyboardLink
-              on={equation !== null}
-              onClick={() => (equation ? setEquation(null) : openNewEquation())}
-              anchor={tourTypeAttr('quiz-editor.prompt-equation', 'quiz')}
-            >
-              <Sigma className="w-3.5 h-3.5" aria-hidden />
-              Equation
-            </KeyboardLink>
+  const insertBlank = () => {
+    if (promptFormat) {
+      richRef.current?.insertText('___', true);
+      return;
+    }
+    const el = textareaRef.current;
+    const at = el?.selectionStart ?? q.text.length;
+    const end = el?.selectionEnd ?? at;
+    const before = q.text.slice(0, at);
+    const pad = before && !/\s$/.test(before) ? ' ' : '';
+    const text = `${before}${pad}___${q.text.slice(end)}`;
+    onChange(fibPromptUpdate(q, text));
+    requestAnimationFrame(() => {
+      const caret = at + pad.length + 3;
+      el?.focus();
+      el?.setSelectionRange(caret, caret);
+    });
+  };
+  // Equation, Number, Accents and Blank: icon buttons in the formatted box, links over a plain one.
+  const promptTools = (style: 'toolbar' | 'link'): React.ReactElement[] => {
+    const Btn = style === 'toolbar' ? PromptToolButton : KeyboardLink;
+    const label = (text: string) =>
+      style === 'toolbar' ? <span className="sr-only">{text}</span> : text;
+    const tools: React.ReactElement[] = [];
+    if (promptMath)
+      tools.push(
+        <Btn
+          key="equation"
+          on={equation !== null}
+          onClick={() => (equation ? setEquation(null) : openNewEquation())}
+          title="Equation"
+          anchor={tourTypeAttr('quiz-editor.prompt-equation', 'quiz')}
+        >
+          <Sigma className="w-3.5 h-3.5" aria-hidden />
+          {label('Equation')}
+        </Btn>
+      );
+    if (onAddNumber)
+      tools.push(
+        <Btn
+          key="number"
+          onClick={insertNumber}
+          title="Number"
+          anchor={tourTypeAttr('quiz-editor.prompt-number', 'quiz')}
+        >
+          <Hash className="w-3.5 h-3.5" aria-hidden />
+          {label('Number')}
+        </Btn>
+      );
+    if (promptAccents)
+      tools.push(
+        <Btn
+          key="accents"
+          on={accents !== null}
+          onClick={() => setAccents(accents ? null : promptAccents)}
+          title="Accents"
+          anchor={tourTypeAttr('quiz-editor.prompt-accents', 'quiz')}
+        >
+          <span
+            aria-hidden
+            className="flex h-3.5 w-3.5 items-center justify-center text-sm leading-none"
+          >
+            á
+          </span>
+          {label('Accents')}
+        </Btn>
+      );
+    if (allowBlanks && q.type === 'FIB' && !q.calc)
+      tools.push(
+        <Btn
+          key="blank"
+          onClick={insertBlank}
+          title="Blank"
+          anchor={tourTypeAttr('quiz-editor.prompt-blank', 'quiz')}
+        >
+          <TextCursorInput className="w-3.5 h-3.5" aria-hidden />
+          {label('Blank')}
+        </Btn>
+      );
+    return tools;
+  };
+  const render = (audioState: PromptAudioState | null) => {
+    const textarea = promptFormat ? (
+      <PromptRichEditor
+        ref={richRef}
+        value={q.text}
+        onChange={setText}
+        onBlur={onBlur}
+        readOnly={equation !== null && equation.start >= 0}
+        placeholder={
+          q.promptAudio
+            ? 'Optional text under the audio'
+            : 'e.g. What is the capital of France?'
+        }
+        anchor={anchor}
+        toolbarEnd={[
+          ...(audioState
+            ? [
+                <PromptAudioMicButton
+                  key="mic"
+                  state={audioState}
+                  canRecord={canRecord}
+                />,
+              ]
+            : []),
+          ...(toolbarTools ? promptTools('toolbar') : []),
+        ]}
+        footer={extras}
+      />
+    ) : (
+      <textarea
+        ref={textareaRef}
+        value={q.text}
+        onChange={(e) =>
+          onChange(
+            allowBlanks
+              ? fibPromptUpdate(q, e.target.value)
+              : { text: e.target.value }
+          )
+        }
+        onBlur={onBlur}
+        readOnly={equation !== null}
+        rows={3}
+        placeholder="e.g. What is the capital of France?"
+        className={`${inputClass} resize-y min-h-[4.75rem] max-h-[60vh]`}
+        {...anchor}
+      />
+    );
+    return (
+      <div>
+        <div className="flex items-center justify-between">
+          <label className={labelClass}>Question prompt</label>
+          {!(promptFormat && toolbarTools) && (
+            <span className="flex items-center gap-3">
+              {promptTools('link')}
+            </span>
           )}
-          {promptAccents && (
-            <KeyboardLink
-              on={accents !== null}
-              onClick={() => setAccents(accents ? null : promptAccents)}
-              anchor={tourTypeAttr('quiz-editor.prompt-accents', 'quiz')}
-            >
-              <span aria-hidden>á</span>
-              Accents
-            </KeyboardLink>
-          )}
-          {allowBlanks && q.type === 'FIB' && (
-            <button
-              type="button"
-              onClick={() => {
-                if (promptFormat) {
-                  richRef.current?.insertText('___', true);
-                  return;
-                }
-                const el = textareaRef.current;
-                const at = el?.selectionStart ?? q.text.length;
-                const end = el?.selectionEnd ?? at;
-                const before = q.text.slice(0, at);
-                const pad = before && !/\s$/.test(before) ? ' ' : '';
-                const text = `${before}${pad}___${q.text.slice(end)}`;
-                onChange(fibPromptUpdate(q, text));
-                requestAnimationFrame(() => {
-                  const caret = at + pad.length + 3;
-                  el?.focus();
-                  el?.setSelectionRange(caret, caret);
-                });
-              }}
-              className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
-              {...tourTypeAttr('quiz-editor.prompt-blank', 'quiz')}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Blank
-            </button>
-          )}
-        </span>
-      </div>
-      {accents ? (
+        </div>
+        {/* Always wrapped, so toggling Accents never remounts the prompt box. */}
         <AccentKeysArea
-          accents={accents}
+          accents={accents ?? promptAccents}
+          disabled={!accents}
           beforeKeys={
-            <AccentLanguageRow
-              value={accents}
-              onChange={setAccents}
-              anchor={tourTypeAttr(
-                'quiz-editor.prompt-accent-language',
-                'quiz'
-              )}
-            />
+            accents && (
+              <AccentLanguageRow
+                value={accents}
+                onChange={setAccents}
+                anchor={tourTypeAttr(
+                  'quiz-editor.prompt-accent-language',
+                  'quiz'
+                )}
+              />
+            )
           }
         >
           {textarea}
         </AccentKeysArea>
+        {extras && (
+          <>
+            <div ref={setStimuliSlot} />
+            <div ref={setModifiedSlot} />
+          </>
+        )}
+        {equation && (
+          <PromptEquationPanel
+            key={`${equation.start}:${equation.editing}`}
+            draft={equation}
+            onDraftChange={(math) =>
+              setEquation((d) => (d ? { ...d, math } : d))
+            }
+            onCancel={() => setEquation(null)}
+            onSave={saveEquation}
+          />
+        )}
+        {hasPromptMath(q.text) && (
+          <PromptMathPreview text={q.text} onEdit={openEquation} />
+        )}
+      </div>
+    );
+  };
+  const hasExtras = !!extras;
+  const inlineValue = React.useMemo(
+    () => (hasExtras ? { stimuliSlot, modifiedSlot } : null),
+    [hasExtras, stimuliSlot, modifiedSlot]
+  );
+  return (
+    <PromptFooterContext.Provider value={inlineValue}>
+      {canRecord || hadAudio || q.promptAudio ? (
+        <PromptAudioHost
+          audio={q.promptAudio}
+          onChange={(next) => onChange({ promptAudio: next })}
+        >
+          {render}
+        </PromptAudioHost>
       ) : (
-        textarea
+        render(null)
       )}
-      {equation && (
-        <PromptEquationPanel
-          key={`${equation.start}:${equation.editing}`}
-          draft={equation}
-          onDraftChange={(math) => setEquation((d) => (d ? { ...d, math } : d))}
-          onCancel={() => setEquation(null)}
-          onSave={saveEquation}
-        />
-      )}
-      {hasPromptMath(q.text) && (
-        <PromptMathPreview text={q.text} onEdit={openEquation} />
-      )}
-    </div>
+    </PromptFooterContext.Provider>
   );
 };
 
@@ -242,14 +405,26 @@ export const MetaItem: React.FC<{
   label: string;
   htmlFor: string;
   children: React.ReactNode;
-}> = ({ label, htmlFor, children }) => (
-  <div className="flex min-h-8 items-center gap-3">
-    <label htmlFor={htmlFor} className={`${metaLabelClass} w-36`}>
-      {label}
-    </label>
-    <div className="flex min-w-0 flex-1">{children}</div>
-  </div>
-);
+}> = ({ label, htmlFor, children }) => {
+  if (React.useContext(MetaInlineContext)) {
+    return (
+      <div className="flex min-h-8 min-w-0 items-center gap-2 [&_.truncate]:overflow-visible [&_.truncate]:whitespace-normal [&_.truncate]:wrap-break-word">
+        <label htmlFor={htmlFor} className={metaLabelClass}>
+          {label}
+        </label>
+        <div className="flex min-w-0">{children}</div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex min-h-8 items-center gap-3">
+      <label htmlFor={htmlFor} className={`${metaLabelClass} w-36 max-w-[50%]`}>
+        {label}
+      </label>
+      <div className="flex min-w-0 flex-1">{children}</div>
+    </div>
+  );
+};
 
 export const MetaChevron: React.FC<{ open?: boolean }> = ({ open }) => (
   <ChevronDown
@@ -419,7 +594,7 @@ export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
   editAnchor = tourTypeAttr('quiz-editor.targets-edit', 'quiz'),
   metaList = false,
 }) => (
-  <div>
+  <div className={React.useContext(MetaInlineContext) ? 'contents' : undefined}>
     {metaList ? (
       <TargetsMetaItems
         question={q}
@@ -438,7 +613,7 @@ export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
     )}
     {promptStandards.isCurrent(q.id, q.text, q.targets) && (
       <p
-        className={`text-xs text-slate-500 ${metaList ? 'py-1' : 'mt-1'}`}
+        className={`basis-full text-xs text-slate-500 ${metaList ? 'py-1' : 'mt-1'}`}
         role="status"
       >
         {`Tagged ${promptStandards.taken?.codes.join(', ')} from the question.`}{' '}
@@ -465,6 +640,136 @@ export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
     )}
   </div>
 );
+
+/** Stimuli or Modified in the prompt box footer: icon, label and current value. */
+export const PromptFooterToggle: React.FC<{
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  filled: boolean;
+  open: boolean;
+  controls?: string;
+  hasPopup?: boolean;
+  onClick: () => void;
+  anchor: TourAnchorAttrs;
+}> = ({
+  icon: Icon,
+  label,
+  value,
+  filled,
+  open,
+  controls,
+  hasPopup,
+  onClick,
+  anchor,
+}) => (
+  <button
+    type="button"
+    aria-expanded={hasPopup ? undefined : open}
+    aria-haspopup={hasPopup ? 'dialog' : undefined}
+    aria-controls={controls}
+    onClick={onClick}
+    className="flex min-w-0 items-center gap-1.5 rounded-sm py-0.5 text-left text-xs focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+    {...anchor}
+  >
+    <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+    <span className="shrink-0 font-semibold text-slate-500">{label}</span>
+    <span
+      className={`min-w-0 wrap-break-word ${filled ? 'text-slate-800' : 'text-slate-400'}`}
+    >
+      {value}
+    </span>
+    <MetaChevron open={open} />
+  </button>
+);
+
+/** The question's modified wording, served to students in a modification group. */
+export const QuestionModifiedField: React.FC<{
+  question: Pick<QuizQuestion, 'id' | 'modifiedText'>;
+  onChange: (modifiedText: string | undefined) => void;
+  metaList?: boolean;
+}> = ({ question: q, onChange, metaList = false }) => {
+  const value = q.modifiedText ?? '';
+  const footer = React.useContext(PromptFooterContext);
+  const [open, setOpen] = React.useState(() => !metaList && value.length > 0);
+  const baseId = React.useId();
+  const toggleId = `${baseId}-modified`;
+  const textId = `${baseId}-modified-text`;
+  const expanded = open;
+  const textarea = (
+    <textarea
+      id={textId}
+      value={value}
+      onChange={(e) => onChange(e.target.value || undefined)}
+      rows={2}
+      aria-label="Modified version"
+      placeholder="The question in simpler words"
+      className={`${inputClass} resize-y`}
+      {...tourTypeAttr('quiz-editor.modified-text', 'quiz')}
+    />
+  );
+  if (footer) {
+    return (
+      <>
+        <PromptFooterToggle
+          icon={Layers}
+          label="Modified version"
+          value={value ? 'Added' : 'None'}
+          filled={!!value}
+          open={open}
+          controls={textId}
+          onClick={() => setOpen((o) => !o)}
+          anchor={tourTypeAttr('quiz-editor.modified', 'quiz')}
+        />
+        {open &&
+          footer.modifiedSlot &&
+          createPortal(
+            <div className="pt-2">{textarea}</div>,
+            footer.modifiedSlot
+          )}
+      </>
+    );
+  }
+  if (!metaList) {
+    return (
+      <div>
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-controls={textId}
+          onClick={() => setOpen((o) => !o)}
+          className={`${labelClass} flex items-center gap-1`}
+          {...tourTypeAttr('quiz-editor.modified', 'quiz')}
+        >
+          Modified version
+          <MetaChevron open={expanded} />
+        </button>
+        {expanded && textarea}
+      </div>
+    );
+  }
+  return (
+    <div>
+      <MetaItem label="Modified version" htmlFor={toggleId}>
+        <button
+          id={toggleId}
+          type="button"
+          aria-expanded={open}
+          aria-controls={textId}
+          onClick={() => setOpen((o) => !o)}
+          className={`${metaValueClass} max-w-full`}
+          {...tourTypeAttr('quiz-editor.modified', 'quiz')}
+        >
+          <span className={`min-w-0 truncate ${value ? '' : 'text-slate-400'}`}>
+            {value || 'None'}
+          </span>
+          <MetaChevron open={open} />
+        </button>
+      </MetaItem>
+      {open && <div className="pb-2">{textarea}</div>}
+    </div>
+  );
+};
 
 interface QuestionExplanationFieldProps {
   question: QuizQuestion;

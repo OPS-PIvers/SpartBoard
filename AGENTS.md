@@ -19,6 +19,8 @@ Each is explained in `CLAUDE.md`.
 - Do not run `pnpm run validate`, full `pnpm run lint`, full `pnpm run test` or `tsc` locally; CI runs them on every push. Run `pnpm exec vitest related --run <changed files>` and let the pre-commit hook lint and format staged files.
 - A new user-facing feature ships behind a flag that is off for teachers.
 - A widget config key belongs to its board unless it is purely visual.
+- Assignment widgets (Quiz, Writing, Video Activity, Flashcards, Mini Apps, Guided Learning, any new one) reuse Quiz's monitor, Live view, results and grader pieces; never build them from scratch.
+- Teacher uploads go to the teacher's Google Drive, never Firebase Storage or a Firestore blob.
 - Code comments are one short line at most.
 - `useEffect` only synchronizes with an external system, and new code never reads or writes `ref.current` during render.
 - Lint fails on warnings, on `any`, and on unhandled promises (`await` them or mark them `void`).
@@ -43,6 +45,7 @@ Each is explained in `CLAUDE.md`.
 - Specs live in `tests/e2e/`. The Playwright config starts the app with `VITE_AUTH_BYPASS=true`, so tests skip the login screen.
 - Disable animations in `beforeEach` by injecting `*, *::before, *::after { transition: none !important; animation: none !important; }` with `page.addStyleTag`.
 - For drag-and-drop (dnd-kit) you may need `.click({ force: true })` or explicit drag steps.
+- Specs that need saving to work live in `tests/e2e-emulator/` and run with `pnpm run test:e2e:emulator`, which starts the Auth and Firestore emulators (open rules, real widget). Auth bypass grants every flag there; `teacherFeatureOverrides()` switches off the ones a teacher lacks by default.
 
 ### Verified UI selectors
 

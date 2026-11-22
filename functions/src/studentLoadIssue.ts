@@ -13,6 +13,7 @@ const COLLECTIONS = new Set([
   'activity_wall_sessions',
   'flashcard_sessions',
   'project_runs',
+  'writing_assignment_sessions',
   'student_assignments',
 ]);
 const SOURCES = new Set(['class', 'pointer', 'hydrate']);

@@ -12,9 +12,27 @@ import {
 } from '@/components/widgets/QuizWidget/components/QuizEditorModal';
 import { BankEditorModal } from '@/components/widgets/QuizWidget/components/BankEditorModal';
 import { DEFAULT_RECORDING_CONFIG } from '@/config/quizRecordingDefaults';
-import type { QuestionBankData, QuizData, QuizStimulus } from '@/types';
+import type { QuestionBankData, QuizData, QuizStimulus, Rubric } from '@/types';
 import { type QuizEditorStateKey } from './devViewStates';
 import { devRichStartingPage } from './whiteboardStartingPageFixtures';
+
+const devRubric = (id: string, title: string, names: string[]): Rubric => {
+  const per = 6 / names.length;
+  return {
+    id,
+    title,
+    createdAt: 1,
+    updatedAt: 1,
+    criteria: names.map((name, i) => ({
+      id: `${id}-c${i}`,
+      name,
+      levels: [
+        { id: `${id}-c${i}-lo`, label: 'Beginning', points: 0 },
+        { id: `${id}-c${i}-hi`, label: 'Meets', points: per },
+      ],
+    })),
+  };
+};
 
 const quiz = (): QuizData => ({
   id: 'dev-quiz',
@@ -90,6 +108,18 @@ const quiz = (): QuizData => ({
       minWords: 100,
       maxWords: 200,
       enforceWordLimit: true,
+      points: 6,
+      rubricId: 'dev-rubric',
+      rubricSnapshot: devRubric('dev-rubric', 'Problem solving', [
+        'Strategy',
+        'Accuracy',
+      ]),
+      modifiedRubricId: 'dev-rubric-mod',
+      modifiedRubricSnapshot: devRubric(
+        'dev-rubric-mod',
+        'Problem solving, modified',
+        ['Shows work']
+      ),
     },
     {
       id: 'q-fr-spoken',
@@ -210,6 +240,14 @@ const stimuliQuiz = (): QuizData => {
     { id: 'stim-map', type: 'image', url: mapSvg, label: 'Cascade Range map' },
     passage,
     {
+      id: 'stim-wordbank',
+      type: 'word-bank',
+      url: '',
+      label: 'Unit 4 vocab',
+      wordBankColumns: 2,
+      text: 'Actor-Observer Bias\nBelief Perseverance\nCognitive Dissonance\nDiscrimination\nDispositional Attribution\nDownward Social Comparison\n\nEthnocentrism\nExternal Locus of Control\nFundamental Attribution Error\nImplicit Attitudes\nIn-Group Bias\nInternal Locus of Control\n\nJust-World Phenomenon\nMere Exposure Effect\nOptimistic Explanatory Style\nOut-Group Homogeneity\nPessimistic Explanatory Style\nPrejudice\n\nRelative Deprivation\nSelf-Fulfilling Prophecy\nSelf-Serving Bias\nSituational Attribution\nStereotype\nUpward Social Comparison',
+    },
+    {
       id: 'stim-untitled',
       type: 'text',
       url: '',
@@ -227,6 +265,38 @@ const stimuliQuiz = (): QuizData => {
           ? { ...q, stimulusIds: [passage.id] }
           : q
     ),
+  };
+};
+
+/** Many stimuli, several empty, like an imported quiz. */
+const manyStimuliQuiz = (): QuizData => {
+  const base = stimuliQuiz();
+  const empty = (type: 'text' | 'word-bank', n: number): QuizStimulus => ({
+    id: `stim-empty-${type}-${n}`,
+    type,
+    url: '',
+    label: type === 'text' ? 'Passage' : 'Word bank',
+    text: '',
+  });
+  return {
+    ...base,
+    stimuli: [
+      ...(base.stimuli ?? []),
+      {
+        id: 'stim-wb-short',
+        type: 'word-bank',
+        url: '',
+        label: 'Word bank',
+        text: 'mitosis\nmeiosis\nnucleus\nribosome',
+      },
+      empty('text', 1),
+      empty('word-bank', 1),
+      empty('word-bank', 2),
+      empty('text', 2),
+      empty('text', 3),
+      empty('word-bank', 3),
+      empty('text', 4),
+    ],
   };
 };
 
@@ -303,9 +373,56 @@ const MediaGateGranted: React.FC<{ children: React.ReactNode }> = ({
         ...auth,
         canAccessQuizMediaResponse: () => true,
         canAccessFeature: (id) =>
-          id === 'quiz-whiteboard-response' ||
-          id === 'quiz-stimulus-preview' ||
-          auth.canAccessFeature(id),
+          id === 'quiz-whiteboard-response' || auth.canAccessFeature(id),
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+const calcQuiz = (): QuizData => ({
+  id: 'dev-calc-quiz',
+  title: 'Speed practice',
+  createdAt: 1,
+  updatedAt: 1,
+  questions: [
+    {
+      id: 'q-calc',
+      type: 'FIB',
+      text: 'A car travels {d} km in {t} hours. What is its average speed?',
+      modifiedText:
+        'A car travels 60 km in 2 hours. What is its average speed?',
+      correctAnswer: 'd / t',
+      incorrectAnswers: [],
+      timeLimit: 0,
+      points: 2,
+      calc: {
+        seed: 'dev-seed',
+        modifiedAnswer: '30',
+        variables: [
+          { name: 'd', min: 40, max: 120, decimals: 1 },
+          { name: 't', min: 1.5, max: 4, decimals: 1 },
+        ],
+        formula: 'd / t',
+        tolerance: { kind: 'relative', percent: 1 },
+        roundTo: 2,
+        unit: 'km/h',
+      },
+    },
+  ],
+});
+
+const RandomNumbersGranted: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const auth = useAuth();
+  return (
+    <AuthContext.Provider
+      value={{
+        ...auth,
+        canAccessFeature: (id) =>
+          id === 'quiz-random-numbers' || auth.canAccessFeature(id),
       }}
     >
       {children}
@@ -338,6 +455,18 @@ export const QuizEditorDevView: React.FC<{ state: QuizEditorStateKey }> = ({
       />
     );
   }
+  if (state === 'qe-random-numbers') {
+    return (
+      <RandomNumbersGranted>
+        <QuizEditorModal
+          isOpen
+          quiz={calcQuiz()}
+          onClose={() => undefined}
+          onSave={() => Promise.resolve()}
+        />
+      </RandomNumbersGranted>
+    );
+  }
   const modal = (
     <QuizEditorModal
       key={state}
@@ -349,13 +478,17 @@ export const QuizEditorDevView: React.FC<{ state: QuizEditorStateKey }> = ({
             ? pictureOnlyQuiz()
             : state === 'qe-stimuli'
               ? stimuliQuiz()
-              : quiz()
+              : state === 'qe-stimuli-many'
+                ? manyStimuliQuiz()
+                : quiz()
       }
       onClose={() => undefined}
       onSave={() => Promise.resolve()}
     />
   );
-  return state === 'qe-gated' || state === 'qe-stimuli' ? (
+  return state === 'qe-gated' ||
+    state === 'qe-stimuli' ||
+    state === 'qe-stimuli-many' ? (
     <MediaGateGranted>{modal}</MediaGateGranted>
   ) : (
     modal

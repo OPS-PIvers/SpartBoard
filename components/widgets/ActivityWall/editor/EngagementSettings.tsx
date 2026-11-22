@@ -24,7 +24,7 @@ export const EngagementSettings: React.FC<EngagementSettingsProps> = ({
   widgetType,
   onChange,
 }) => (
-  <div className="space-y-2">
+  <div className="divide-y divide-slate-200/70">
     <ToggleRow
       label="Allow likes"
       checked={allowLikes}

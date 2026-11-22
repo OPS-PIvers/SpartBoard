@@ -38,7 +38,10 @@ import {
   ReconcileBlock,
   SyncStudent,
 } from './classlinkRosterReconcile';
-import { refreshGoogleAccessTokenForUid } from './googleOAuth';
+import {
+  DRIVE_FILE_SCOPE,
+  refreshGoogleAccessTokenForUid,
+} from './googleOAuth';
 import { assertDevDriveWritable } from './devDriveWriteGuard';
 import {
   loadTeacherClassIds,
@@ -47,6 +50,7 @@ import {
   PIN_INDEX_MAX_ENTRIES,
   type CommitRosterPinIndexEntry,
 } from './studentIdentity';
+import { safeErr } from './safeLog';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
@@ -237,7 +241,10 @@ async function writeSyncCursor(
     );
   } catch (err) {
     // A lost cursor only means the next run starts from the top.
-    console.error('[classlinkRosterSync] could not save resume cursor:', err);
+    console.error(
+      '[classlinkRosterSync] could not save resume cursor:',
+      safeErr(err)
+    );
   }
 }
 
@@ -319,7 +326,7 @@ export async function runClassLinkRosterSync(
           summary.errors += 1;
           console.error(
             `[classlinkRosterSync] roster ${rosterSnap.ref.path} failed:`,
-            err
+            safeErr(err)
           );
         }
         lastDone = here;
@@ -596,7 +603,11 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
 
   return {
     getAccessToken: async (uid) =>
-      (await refreshGoogleAccessTokenForUid(uid)).accessToken,
+      (
+        await refreshGoogleAccessTokenForUid(uid, {
+          scope: DRIVE_FILE_SCOPE,
+        })
+      ).accessToken,
 
     fetchClassStudents: async (classId) => {
       const url = `${tenantUrl}${ONEROSTER_BASE}/classes/${encodeURIComponent(

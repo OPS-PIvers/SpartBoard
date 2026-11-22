@@ -78,6 +78,13 @@ function pointerFor(sessionId: string, code: string, previous?: Doc) {
   };
 }
 
+/** A pointer that opens nothing but keeps who may reopen the code. */
+function parked(p: ReturnType<typeof pointerFor>) {
+  const { sessionId: _unused, ...rest } = p;
+  void _unused;
+  return rest;
+}
+
 export async function handlePollSessionWrite(
   db: Firestore,
   sessionId: string,
@@ -109,6 +116,10 @@ export async function handlePollSessionWrite(
       }
     }
     if (isJoinable(mine) && !holds) {
+      // Only mintPollCodeV1 starts a pointer, so a chosen code can't be taken or tested.
+      if (!ptr) return;
+      // A parked code (no session) goes back only to a teacher it was already checked for.
+      if (typeof current !== 'string' && !mayHold(ptr, sessionId, code)) return;
       tx.set(pointerRef, pointerFor(sessionId, code, ptr));
       return;
     }
@@ -128,7 +139,8 @@ export async function handlePollSessionWrite(
       if (!best || outranks(data, best.data)) best = { id: d.id, data };
     }
     if (isJoinable(mine) && (!best || best.id === sessionId)) return;
-    if (!best) tx.delete(pointerRef);
+    // Park the code rather than delete it, so its teacher's other widget can reopen it.
+    if (!best) tx.set(pointerRef, parked(pointerFor(sessionId, code, ptr)));
     else tx.set(pointerRef, pointerFor(best.id, code, ptr));
   });
 }

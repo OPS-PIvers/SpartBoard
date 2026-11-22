@@ -34,9 +34,9 @@ import {
 } from './gradeIndex';
 import {
   gradeIndexQuizResponse,
-  gradeIndexQuizSession,
   runGradeIndexRecompute,
 } from './gradeIndexTriggers';
+import { gradeIndexQuizSession } from './gradeSessionTriggers';
 import { makeStubFirestore, type StubData } from '../testing/stubFirestore';
 import type { IndexRow } from './types';
 
@@ -401,6 +401,39 @@ describe('applyDocWrite', () => {
     });
   });
 
+  it('scores a project member from their own override doc', async () => {
+    const stub = makeStubFirestore({
+      'project_runs/t1_p1': {
+        teacherUid: 't1',
+        title: 'Bridge build',
+        classIds: ['c1'],
+      },
+      'project_runs/t1_p1/groups/g1': {
+        classId: 'c1',
+        memberUids: ['u1', 'u2'],
+      },
+      'project_runs/t1_p1/grades/g1/overrides/u2': { points: 10 },
+    });
+    await applyWrite(
+      stub,
+      {
+        kind: 'projects',
+        sessionId: 't1_p1',
+        docId: 'g1',
+        before: undefined,
+        after: { points: 16, maxPoints: 20, released: true },
+      },
+      NOW,
+      rosterOf(['u1', 'u2'])
+    );
+    expect(stub.get('grade_index/projects__t1_p1__u1')).toMatchObject({
+      rawPct: 80,
+    });
+    expect(stub.get('grade_index/projects__t1_p1__u2')).toMatchObject({
+      rawPct: 50,
+    });
+  });
+
   it('keeps an Activity Wall row until the author has no submissions left', async () => {
     const stub = makeStubFirestore({
       'activity_wall_sessions/t1_w1': {
@@ -546,6 +579,51 @@ describe('recomputeSession and the dirty queue', () => {
     const later = stub.get('grade_index_sessions/quiz__qs1');
     expect(later?.failures).toBe(9);
     expect(later?.retryAt).toBeLessThanOrEqual(Date.now() + 60 * 60_000);
+  });
+
+  it('records the attempt before computing, so a killed run still backs the entry off', async () => {
+    const stub = seed({ 'quiz_sessions/qs1/responses/u1': completed() });
+    const db = stub.db as unknown as { collection: (n: string) => unknown };
+    const collection = db.collection.bind(db);
+    let midRun: Record<string, unknown> | undefined;
+    db.collection = (name: string) => {
+      if (name === 'users') {
+        midRun = stub.get('grade_index_sessions/quiz__qs1');
+        throw new Error('killed');
+      }
+      return collection(name);
+    };
+    const typed = stub.db as unknown as Db;
+    await markSessionDirty(typed, 'quiz', 'qs1', 1);
+    await drainDirtySessions(typed);
+    expect(midRun?.failures).toBe(1);
+    expect(midRun?.retryAt).toBeGreaterThan(Date.now());
+  });
+
+  it('keeps a session re-dirtied mid-run queued without a failure backoff', async () => {
+    const stub = seed({ 'quiz_sessions/qs1/responses/u1': completed() });
+    const db = stub.db as unknown as { collection: (n: string) => unknown };
+    const collection = db.collection.bind(db);
+    let bumped = false;
+    db.collection = (name: string) => {
+      if (name === 'quiz_sessions' && !bumped) {
+        bumped = true;
+        stub.store.set('grade_index_sessions/quiz__qs1', {
+          ...stub.get('grade_index_sessions/quiz__qs1'),
+          dirtyAt: Date.now() + 1,
+        });
+      }
+      return collection(name);
+    };
+    const typed = stub.db as unknown as Db;
+    await markSessionDirty(typed, 'quiz', 'qs1', 1);
+    expect(await drainDirtySessions(typed)).toEqual({
+      recomputed: 1,
+      failed: 0,
+    });
+    const queued = stub.get('grade_index_sessions/quiz__qs1');
+    expect(queued?.failures).toBe(0);
+    expect(queued?.retryAt).toBeLessThanOrEqual(Date.now());
   });
 
   it('keeps an existing backoff when the session is marked dirty again', async () => {

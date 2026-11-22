@@ -39,6 +39,7 @@ vi.mock('@/hooks/useActivityWallLibrary', () => ({
     error: null,
     saveActivity: mockSaveActivity,
     deleteActivity: vi.fn(),
+    clearActivityPosts: vi.fn(),
   }),
 }));
 
@@ -290,19 +291,19 @@ describe('WallEditorModal', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Moderation & access' })
     );
-    const seePosts = screen.getByRole('checkbox', {
+    const seePosts = screen.getByRole('switch', {
       name: /^Students can see posts/,
     });
     expect(seePosts).toBeChecked();
     fireEvent.click(seePosts);
 
     fireEvent.click(screen.getByRole('button', { name: 'Engagement' }));
-    const replies = screen.getByRole('checkbox', {
+    const replies = screen.getByRole('switch', {
       name: /^Allow comment replies/,
     });
     expect(replies).toBeDisabled();
-    fireEvent.click(screen.getByRole('checkbox', { name: /^Allow likes/ }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /^Allow comments/ }));
+    fireEvent.click(screen.getByRole('switch', { name: /^Allow likes/ }));
+    fireEvent.click(screen.getByRole('switch', { name: /^Allow comments/ }));
     expect(replies).toBeEnabled();
     fireEvent.click(replies);
 
@@ -315,6 +316,31 @@ describe('WallEditorModal', () => {
       allowComments: true,
       allowCommentResponses: true,
     });
+  });
+
+  it('saves a video-only wall and keeps the last type on', async () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('button', { name: /Wall/ }));
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'Videos' },
+    });
+    fireEvent.change(screen.getByLabelText('Prompt'), {
+      target: { value: 'Record' },
+    });
+
+    const text = screen.getByRole('switch', { name: /^Text/ });
+    expect(text).toBeChecked();
+    expect(text).toBeDisabled();
+    fireEvent.click(screen.getByRole('switch', { name: /^Video/ }));
+    expect(text).toBeEnabled();
+    fireEvent.click(text);
+    expect(text).not.toBeChecked();
+    expect(screen.getByRole('switch', { name: /^Video/ })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save wall' }));
+    await waitFor(() => expect(mockSaveActivity).toHaveBeenCalledTimes(1));
+    const saved = mockSaveActivity.mock.calls[0][0] as ActivityWallLibraryEntry;
+    expect(saved.allowedTypes).toMatchObject({ text: false, video: true });
   });
 
   it('forces comment replies off when comments are turned off', () => {
@@ -334,11 +360,11 @@ describe('WallEditorModal', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Engagement' }));
-    const replies = screen.getByRole('checkbox', {
+    const replies = screen.getByRole('switch', {
       name: /^Allow comment replies/,
     });
     expect(replies).toBeChecked();
-    fireEvent.click(screen.getByRole('checkbox', { name: /^Allow comments/ }));
+    fireEvent.click(screen.getByRole('switch', { name: /^Allow comments/ }));
     expect(replies).toBeDisabled();
     expect(replies).not.toBeChecked();
   });

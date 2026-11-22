@@ -1,5 +1,6 @@
 // Pure Sequence/Follow logic for widget Connections (docs/adr/0002); the runner component does the I/O.
 import type {
+  ConnectionBlock,
   ConnectionStep,
   FollowConnection,
   SequenceConnection,
@@ -63,6 +64,20 @@ export const liveConnections = (
     (c) => isValidConnection(c) && isConnectionLive(c, widgets)
   );
 
+/** The Schedule or Daily Schedule whose block warning starts this Sequence: its first step's first action is 'warn'. */
+export const warningScheduleOf = (
+  seq: SequenceConnection,
+  widgets: WidgetData[]
+): WidgetData | undefined => {
+  const first = liveSteps(seq, widgets)[0]?.actions[0];
+  if (first?.action !== 'warn') return undefined;
+  return widgets.find(
+    (w) =>
+      w.id === first.widgetId &&
+      (w.type === 'schedule' || w.type === 'specialist-schedule')
+  );
+};
+
 export interface StepApplyResult {
   patches: WidgetPatches;
   /** A widget had nothing to do, so the Sequence stops before this step. */
@@ -74,7 +89,8 @@ export interface StepApplyResult {
 export const applyStep = (
   step: ConnectionStep,
   widgets: WidgetData[],
-  now: number
+  now: number,
+  block?: ConnectionBlock
 ): StepApplyResult => {
   const map = byId(widgets);
   const patches: WidgetPatches = {};
@@ -85,7 +101,7 @@ export const applyStep = (
     const def = actionDefFor(w.type, a.action);
     if (!def) continue;
     const config = { ...(w.config as Config), ...(patches[w.id] ?? {}) };
-    const result = def.apply(config, now, a.params);
+    const result = def.apply(config, now, a.params, block);
     if (!result) return { patches: {}, blocked: true, ends: false };
     patches[w.id] = { ...(patches[w.id] ?? {}), ...result.patch };
     // Once a list runs out, the rest of the step doesn't happen.
@@ -96,6 +112,14 @@ export const applyStep = (
   }
   return { patches, blocked: false, ends };
 };
+
+const BLOCK_END_GRACE_MS = 5000;
+
+// A paused or removed Timer never finishes, so a Run started by a block ends with the block.
+export const runOutlivedBlock = (
+  run: { block?: { endsAt: number } } | null | undefined,
+  now: number
+): boolean => !!run?.block && now >= run.block.endsAt + BLOCK_END_GRACE_MS;
 
 export const isStepFinished = (
   step: ConnectionStep,
@@ -120,7 +144,10 @@ export const isStepFinished = (
 };
 
 // A step that holds the Run: a pause, the Next button, or a widget it waits on.
-const stepWaits = (step: ConnectionStep, widgets: WidgetData[]): boolean => {
+export const stepWaits = (
+  step: ConnectionStep,
+  widgets: WidgetData[]
+): boolean => {
   if (step.actions.length === 0) return (step.waitSeconds ?? 0) > 0;
   if (step.advance === 'next') return true;
   if (step.advance === 'now') return false;
@@ -138,6 +165,28 @@ export interface AdvanceResult {
   finished: boolean;
 }
 
+// The step a Run moves to after its current one, or null when the Run stops there.
+export const nextStepIndex = (
+  seq: SequenceConnection,
+  steps: ConnectionStep[],
+  widgets: WidgetData[]
+): number | null => {
+  const run = seq.run;
+  if (!run || steps.length === 0) return null;
+  const next = run.stepIndex + 1;
+  if (next < steps.length) return next;
+  if (seq.repeat === 'once' || run.block) return null;
+  // A pass where nothing waits would loop twice a second, so it runs once.
+  if (!steps.some((s) => stepWaits(s, widgets))) return null;
+  if (
+    seq.repeat === 'count' &&
+    run.loops + 1 >= Math.max(1, seq.repeatCount ?? 1)
+  ) {
+    return null;
+  }
+  return 0;
+};
+
 // Moves a Run from its finished step to the next one, wrapping and stopping per `repeat`.
 export const advanceRun = (
   seq: SequenceConnection,
@@ -153,25 +202,22 @@ export const advanceRun = (
     finished: true,
   });
   if (!run || steps.length === 0) return stop();
-  let next = run.stepIndex + 1;
-  let loops = run.loops;
-  if (next >= steps.length) {
-    loops += 1;
-    if (seq.repeat === 'once') return stop();
-    // A pass where nothing waits would loop twice a second, so it runs once.
-    if (!steps.some((s) => stepWaits(s, widgets))) return stop();
-    if (seq.repeat === 'count' && loops >= Math.max(1, seq.repeatCount ?? 1)) {
-      return stop();
-    }
-    next = 0;
-  }
-  const applied = applyStep(steps[next], widgets, now);
+  const next = nextStepIndex(seq, steps, widgets);
+  if (next === null) return stop();
+  const loops = next <= run.stepIndex ? run.loops + 1 : run.loops;
+  const applied = applyStep(steps[next], widgets, now, run.block);
   if (applied.blocked) return stop();
   if (applied.ends) return stop(applied.patches);
   return {
     sequence: {
       ...seq,
-      run: { deviceId, stepIndex: next, stepStartedAt: now, loops },
+      run: {
+        deviceId,
+        stepIndex: next,
+        stepStartedAt: now,
+        loops,
+        ...(run.block && { block: run.block }),
+      },
     },
     patches: applied.patches,
     finished: false,
@@ -225,7 +271,8 @@ export const joinRunByHand = (
     ...steps[index],
     actions: steps[index].actions.slice(pressedAt + 1),
   };
-  const applied = applyStep(rest, widgets, now);
+  const block = seq.run?.block;
+  const applied = applyStep(rest, widgets, now, block);
   // The rest of the step ran a list out, so the Run ends here like it does on Start and advance.
   if (applied.ends) {
     return {
@@ -242,6 +289,7 @@ export const joinRunByHand = (
         stepIndex: index,
         stepStartedAt: now,
         loops: seq.run?.loops ?? 0,
+        ...(block && { block }),
       },
     },
     patches: applied.blocked ? {} : applied.patches,
@@ -253,11 +301,12 @@ export const startRun = (
   seq: SequenceConnection,
   widgets: WidgetData[],
   now: number,
-  deviceId: string
+  deviceId: string,
+  block?: ConnectionBlock
 ): (JoinResult & { finished: boolean }) | null => {
   const steps = liveSteps(seq, widgets);
   if (steps.length === 0) return null;
-  const applied = applyStep(steps[0], widgets, now);
+  const applied = applyStep(steps[0], widgets, now, block);
   if (applied.blocked) return null;
   // Step 1 can already be the last thing to do, e.g. the Checklist's last item.
   if (applied.ends) {
@@ -271,7 +320,13 @@ export const startRun = (
     finished: false,
     sequence: {
       ...seq,
-      run: { deviceId, stepIndex: 0, stepStartedAt: now, loops: 0 },
+      run: {
+        deviceId,
+        stepIndex: 0,
+        stepStartedAt: now,
+        loops: 0,
+        ...(block && { block }),
+      },
     },
     patches: applied.patches,
   };
@@ -341,7 +396,8 @@ export const draftFromPicks = (
       follows.push({ id: newId(), kind: 'follow', ...pair });
     }
   }
-  const steps: ConnectionStep[] = ordered
+  const pickTypes = new Map(picks.map((p) => [p.id, p.type]));
+  const built: ConnectionStep[] = ordered
     .filter((p) => !followerIds.has(p.id))
     .flatMap((p) => {
       const def = connectionDefFor(p.type);
@@ -362,6 +418,16 @@ export const draftFromPicks = (
         },
       ];
     });
+  // A Timer right after a block warning counts down to the end of that block.
+  const steps = built.map((s, i): ConnectionStep => {
+    const a = s.actions[0];
+    const afterWarning = i > 0 && built[i - 1].actions[0]?.action === 'warn';
+    return afterWarning &&
+      a?.action === 'restart' &&
+      pickTypes.get(a.widgetId) === 'time-tool'
+      ? { ...s, actions: [{ ...a, action: 'start-to-block-end' }] }
+      : s;
+  });
   const sequence: SequenceConnection | null =
     steps.length >= minSteps
       ? {

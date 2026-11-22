@@ -121,6 +121,8 @@ vi.mock('@/hooks/useQuizSession', () => ({
     warningCount: 0,
   }),
   normalizeAnswer: (s: string) => s,
+  isWrittenAnswerAwaitingGrade: (_q: unknown, answer: string, grade: unknown) =>
+    !grade && answer.trim().length > 0,
   SessionEndedError,
   AttemptLimitReachedError,
 }));
@@ -586,6 +588,71 @@ describe('QuizStudentApp — recorded-answer playback on published results', () 
     expect(
       screen.getByText('Your score is being prepared. Check back soon.')
     ).toBeInTheDocument();
+  });
+});
+
+describe('QuizStudentApp — choose-N section with an extra written answer', () => {
+  const CHOOSE_QUESTIONS: QuizPublicQuestion[] = [
+    { id: 'w1', type: 'free-response', text: 'Essay 1', timeLimit: 0 },
+    { id: 'w2', type: 'free-response', text: 'Essay 2', timeLimit: 0 },
+  ];
+
+  it('does not call the uncounted extra answer still being graded', async () => {
+    hookState.session = buildSession({
+      scoreVisibility: 'score-and-responses',
+      publicQuestions: CHOOSE_QUESTIONS,
+      totalQuestions: 2,
+      sections: [
+        {
+          id: 's1',
+          title: 'Pick one',
+          chooseCount: 1,
+          questionIds: ['w1', 'w2'],
+        },
+      ],
+    });
+    hookState.myResponse = buildResponse({
+      score: 100,
+      answers: [
+        { questionId: 'w1', answer: 'First essay', answeredAt: 3 },
+        { questionId: 'w2', answer: 'Second essay', answeredAt: 4 },
+      ],
+      grading: { w1: { pointsAwarded: 1, gradedAt: 9, gradedBy: 'teacher-1' } },
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('100%')).toBeInTheDocument();
+    expect(screen.queryByText(/^Provisional\b/)).toBeNull();
+    expect(screen.queryByText(/still being graded/)).toBeNull();
+  });
+});
+
+describe('QuizStudentApp — published points', () => {
+  it('leads with points earned of points possible, percent underneath', async () => {
+    hookState.session = buildSession({ scoreVisibility: 'score-only' });
+    hookState.myResponse = buildResponse({
+      score: 75,
+      scorePoints: { earned: 18, possible: 24, attempt: 1 },
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('18 out of 24 points')).toBeInTheDocument();
+    expect(screen.getByText('75%')).toBeInTheDocument();
+  });
+
+  it('falls back to the percent when the points no longer match the score', async () => {
+    hookState.session = buildSession({ scoreVisibility: 'score-only' });
+    hookState.myResponse = buildResponse({
+      score: 80,
+      scorePoints: { earned: 18, possible: 24, attempt: 1 },
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('80%')).toBeInTheDocument();
+    expect(screen.queryByText(/out of 24 points/)).toBeNull();
   });
 });
 

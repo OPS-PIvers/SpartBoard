@@ -737,6 +737,32 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
     ]);
   });
 
+  it('prints fill in the blank as lettered write-in lines', async () => {
+    const fibQuiz = {
+      questions: [
+        QUESTIONS[0],
+        {
+          id: 'q-fib',
+          type: 'FIB',
+          text: 'The ___ makes ___.',
+          correctAnswer: 'cell\u001Fenergy',
+        },
+      ],
+    };
+    const { run } = create(writtenState(fibQuiz), writtenDeps(), WRITTEN_INPUT);
+    const result = await run();
+    const items = result.batch.pageMaps?.[0].items ?? [];
+    expect(items.find((i) => i.questionId === 'q-fib')).toMatchObject({
+      kind: 'written',
+      blanks: 2,
+    });
+    expect(result.testPaper[1]).toMatchObject({
+      text: 'The ___ (a) makes ___ (b).',
+      written: true,
+    });
+    expect(result.blankAnswers).toEqual({ 'q-fib': ['cell', 'energy'] });
+  });
+
   it('prints exactly as before without the opt-in', async () => {
     const { run } = create(writtenState(), writtenDeps(), INPUT);
     const result = await run();
@@ -757,7 +783,11 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
   });
 
   it('keeps an MC-only quiz on the classic layout even with the feature', async () => {
-    const { run } = create(baseState(), writtenDeps(), WRITTEN_INPUT);
+    const { run } = create(
+      writtenState({ questions: [QUESTIONS[0], QUESTIONS[1]] }),
+      writtenDeps(),
+      WRITTEN_INPUT
+    );
     const result = await run();
     expect('layoutVersion' in result.batch).toBe(false);
   });

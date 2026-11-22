@@ -18,6 +18,7 @@ import type {
   ProjectRun,
   VideoActivityQuestion,
   VideoActivitySession,
+  WritingAssignmentSession,
 } from '@/types';
 import type { SessionKind } from '@/hooks/useStudentAssignments';
 import { normalizeStudentSession } from '@/hooks/useGuidedLearningSession';
@@ -72,7 +73,8 @@ export type StudentPagePreviewItem =
       posts: ActivityWallSubmission[];
     }
   | { kind: 'flashcards'; session: FlashcardSession }
-  | { kind: 'projects'; run: ProjectRun };
+  | { kind: 'projects'; run: ProjectRun }
+  | { kind: 'writing'; session: WritingAssignmentSession };
 
 const COLLECTIONS: Record<SessionKind, string> = {
   quiz: 'quiz_sessions',
@@ -82,6 +84,7 @@ const COLLECTIONS: Record<SessionKind, string> = {
   'activity-wall': 'activity_wall_sessions',
   flashcards: 'flashcard_sessions',
   projects: 'project_runs',
+  writing: 'writing_assignment_sessions',
 };
 
 const readDoc = async (
@@ -229,5 +232,10 @@ export async function loadStudentPagePreviewItem(
         run: { ...run, steps: Array.isArray(run.steps) ? run.steps : [] },
       };
     }
+    case 'writing':
+      return {
+        kind,
+        session: { ...data, id: sessionId } as WritingAssignmentSession,
+      };
   }
 }

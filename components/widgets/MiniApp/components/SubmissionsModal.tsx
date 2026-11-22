@@ -61,6 +61,8 @@ interface SubmissionsModalProps {
   classIds?: string[];
   /** The live session, for the per-period chips. */
   session: MiniAppSession;
+  /** Monitor shows the live roster view even for scored apps. */
+  view?: 'monitor' | 'results';
   onClose: () => void;
 }
 
@@ -69,6 +71,7 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
   assignmentName,
   classIds,
   session,
+  view = 'results',
   onClose,
 }) => {
   const { user, orgId, ensureGoogleScope, isExternalUser } = useAuth();
@@ -192,7 +195,7 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
       />
     ) : undefined;
 
-  if (!isV2) {
+  if (!isV2 || view === 'monitor') {
     return (
       <MiniAppSubmissionsMonitor
         session={session}

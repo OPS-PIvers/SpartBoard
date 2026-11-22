@@ -23,22 +23,25 @@ import {
   deriveQuizStudentStatus,
   deriveCompletedAtStudentStatus,
   deriveSubmissionStudentStatus,
+  deriveWritingStudentStatus,
 } from '@/utils/assignmentStudentStatus';
 
-const SESSIONS_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
+export const SESSIONS_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   quiz: 'quiz_sessions',
   'video-activity': 'video_activity_sessions',
   'guided-learning': 'guided_learning_sessions',
   'mini-app': 'mini_app_sessions',
   flashcards: 'flashcard_sessions',
+  writing: 'writing_assignment_sessions',
 };
 
-const SUBCOLLECTION_BY_KIND: Record<AssignmentKind, string> = {
+export const SUBCOLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   quiz: 'responses',
   'video-activity': 'responses',
   'guided-learning': 'responses',
   'mini-app': 'submissions',
   flashcards: 'progress',
+  writing: 'responses',
 };
 
 export interface AssignmentRosterStatusResult {
@@ -105,6 +108,8 @@ export function useAssignmentRosterStatus(
           const data = d.data();
           if (kind === 'quiz') {
             next.set(d.id, deriveQuizStudentStatus(data));
+          } else if (kind === 'writing') {
+            next.set(d.id, deriveWritingStudentStatus(data));
           } else if (kind === 'mini-app') {
             next.set(d.id, deriveSubmissionStudentStatus(true));
           } else if (kind === 'flashcards') {

@@ -41,6 +41,14 @@ export interface PeriodAccessCollections {
   refreshIdle?: boolean;
   /** The hub mirror's doc id, for kinds whose assignment id is not the session id. */
   assignmentId?: string;
+  /** Kinds whose session no client writes (Writing) send the period and Let in patches through this instead. */
+  commit?: (patch: PeriodAccessPatch) => Promise<void>;
+}
+
+/** Per-period field patches and Let in passes, for a kind that saves them through a callable. */
+export interface PeriodAccessPatch {
+  periodAccess?: Record<string, Partial<PeriodAccess>>;
+  studentAccess?: Record<string, number>;
 }
 
 type PeriodSession = PeriodAccessSessionFields & {
@@ -65,7 +73,8 @@ export function capAtDue(
 
 type BellRoster = Pick<ClassRoster, 'id' | 'bellPeriod'>;
 
-function todaysBell(
+/** Today's bell window for the period's roster, end cushion included; null without a tagged bell. */
+export function todaysBell(
   access: Pick<PeriodAccess, 'rosterId'>,
   rosters: readonly BellRoster[],
   permissions: readonly FeaturePermission[] | undefined,
@@ -122,6 +131,13 @@ export function startCloseAt(
     : null;
 }
 
+/** D24's Close patch: closedAt marks it apart from Ready, pausedAt keeps a just-flushed draft. */
+export const closedRow = (now: number): Partial<PeriodAccess> => ({
+  state: 'closed',
+  closedAt: now,
+  pausedAt: now,
+});
+
 /** Teacher writes for the per-period chips and Let in now, generic over the session collection. */
 export function usePeriodAccess(
   session: PeriodSession | null,
@@ -130,6 +146,7 @@ export function usePeriodAccess(
     assignmentCollection,
     refreshIdle = true,
     assignmentId,
+    commit,
   }: PeriodAccessCollections,
   rosters: readonly BellRoster[] | undefined
 ) {
@@ -176,6 +193,20 @@ export function usePeriodAccess(
     [refs]
   );
 
+  const write = useCallback(
+    async (rows: Record<string, Partial<PeriodAccess>>) => {
+      if (Object.keys(rows).length === 0) return;
+      if (commit) {
+        await commit({ periodAccess: rows });
+        return;
+      }
+      const batch = writeBatch(db);
+      for (const [key, patch] of Object.entries(rows)) stage(batch, key, patch);
+      await batch.commit();
+    },
+    [commit, stage]
+  );
+
   // Mirrors resumeAssignment: a period that sat frozen must not finalize the moment it opens.
   const refreshStaleResponses = useCallback(
     async (keys: readonly string[]) => {
@@ -207,12 +238,12 @@ export function usePeriodAccess(
 
   /** Resolves to the assessment periods that opened with no end bell to close them. */
   const start = useCallback(
-    async (keys: readonly string[]): Promise<string[]> => {
+    async (keys: readonly string[], reopen = false): Promise<string[]> => {
       if (!session || !periodAccess || keys.length === 0) return [];
       await refreshStaleResponses(keys);
       const now = Date.now();
       const untimed: string[] = [];
-      const batch = writeBatch(db);
+      const rows: Record<string, Partial<PeriodAccess>> = {};
       for (const key of keys) {
         const access = periodAccess[key];
         if (!access) continue;
@@ -228,7 +259,7 @@ export function usePeriodAccess(
           (lockAt(session) ?? now) <= now
         )
           untimed.push(key);
-        stage(batch, key, {
+        rows[key] = {
           state: 'open',
           openAt: null,
           closeAt: capAtDue(
@@ -236,9 +267,11 @@ export function usePeriodAccess(
             lockAt(session),
             now
           ),
-        });
+          ...(reopen || access.closedAt != null ? { closedAt: null } : {}),
+          openedAt: now,
+        };
       }
-      await batch.commit();
+      await write(rows);
       return untimed;
     },
     [
@@ -247,7 +280,7 @@ export function usePeriodAccess(
       refreshStaleResponses,
       rosters,
       featurePermissions,
-      stage,
+      write,
     ]
   );
 
@@ -255,32 +288,41 @@ export function usePeriodAccess(
     async (keys: readonly string[]) => {
       if (!periodAccess || keys.length === 0) return;
       const now = Date.now();
-      const batch = writeBatch(db);
+      const rows: Record<string, Partial<PeriodAccess>> = {};
       for (const key of keys)
-        if (periodAccess[key])
-          stage(batch, key, { state: 'paused', pausedAt: now });
-      await batch.commit();
+        if (periodAccess[key]) rows[key] = { state: 'paused', pausedAt: now };
+      await write(rows);
     },
-    [periodAccess, stage]
+    [periodAccess, write]
+  );
+
+  const close = useCallback(
+    async (keys: readonly string[], now = Date.now()) => {
+      if (!periodAccess || keys.length === 0) return;
+      const rows: Record<string, Partial<PeriodAccess>> = {};
+      for (const key of keys) if (periodAccess[key]) rows[key] = closedRow(now);
+      await write(rows);
+    },
+    [periodAccess, write]
   );
 
   const extend = useCallback(
     async (key: string, by: number | null) => {
       const access = periodAccess?.[key];
       if (!access) return;
-      const batch = writeBatch(db);
-      stage(batch, key, {
-        closeAt: capAtDue(
-          by == null
-            ? null
-            : Math.max(access.closeAt ?? Date.now(), Date.now()) + by,
-          lockAt(session),
-          Date.now()
-        ),
+      await write({
+        [key]: {
+          closeAt: capAtDue(
+            by == null
+              ? null
+              : Math.max(access.closeAt ?? Date.now(), Date.now()) + by,
+            lockAt(session),
+            Date.now()
+          ),
+        },
       });
-      await batch.commit();
     },
-    [periodAccess, stage, session]
+    [periodAccess, write, session]
   );
 
   const letIn = useCallback(
@@ -292,9 +334,15 @@ export function usePeriodAccess(
         featurePermissions,
         Date.now()
       );
-      await updateDoc(refs.session, new FieldPath('studentAccess', uid), until);
+      if (commit) await commit({ studentAccess: { [uid]: until } });
+      else
+        await updateDoc(
+          refs.session,
+          new FieldPath('studentAccess', uid),
+          until
+        );
     },
-    [refs, periodAccess, rosters, featurePermissions]
+    [refs, periodAccess, rosters, featurePermissions, commit]
   );
 
   const keys = useMemo(() => Object.keys(periodAccess ?? {}), [periodAccess]);
@@ -304,6 +352,19 @@ export function usePeriodAccess(
     extendPeriod: extend,
     startAll: () => start(keys),
     pauseAll: () => pause(keys),
+    /** `at` stamps a known closedAt, for a caller that schedules work against it. */
+    closePeriod: (key: string, at?: number) => close([key], at),
+    /** D9: lets the class back in at once, exactly like Start, and clears closedAt. */
+    reopenPeriod: (key: string) => start([key], true),
+    /** Closes every class not already closed by hand, so earlier closedAt marks stand. */
+    closeAllPeriods: () =>
+      close(
+        keys.filter(
+          (k) =>
+            periodAccess?.[k]?.state !== 'closed' ||
+            periodAccess[k].closedAt == null
+        )
+      ),
     letIn,
   };
 }

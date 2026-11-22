@@ -23,25 +23,8 @@ import { getLocalIsoDate } from '@/utils/localDate';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { useSubShareCalendar } from './useSubShareCalendar';
 import { CalendarAgenda } from './CalendarAgenda';
+import { toSeconds } from './agendaUtils';
 import { tourTypeAttr } from '@/config/tourAnchors';
-
-/** Parses a time string (e.g. "14:30", "2:30 PM") into seconds since midnight, or -1 if invalid. */
-const parseTimeSeconds = (t: string | undefined): number => {
-  if (!t || !t.includes(':')) return -1;
-  const parts = t.toLowerCase().split(':');
-  let h = parseInt(parts[0], 10);
-  const mStr = parts[1].replace(/[^0-9]/g, '');
-  const m = parseInt(mStr, 10);
-
-  const isPM = t.toLowerCase().includes('pm');
-  const isAM = t.toLowerCase().includes('am');
-
-  if (isPM && h < 12) h += 12;
-  if (isAM && h === 12) h = 0;
-
-  if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) return -1;
-  return h * 3600 + m * 60;
-};
 
 export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -243,7 +226,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     // Deduplicate by date + title + start time
     const seen = new Set<string>();
     const unique = combined.filter((e) => {
-      const key = `${e.date}-${e.title}-${parseTimeSeconds(e.time)}`;
+      const key = `${e.date}-${e.title}-${toSeconds(e.time)}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -251,8 +234,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
 
     const sorted = unique.sort(
       (a, b) =>
-        a.date.localeCompare(b.date) ||
-        parseTimeSeconds(a.time) - parseTimeSeconds(b.time)
+        a.date.localeCompare(b.date) || toSeconds(a.time) - toSeconds(b.time)
     );
 
     // Filter by daysVisible if set
@@ -303,7 +285,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     (event: CalendarEvent) => {
       if (!event.time) return;
 
-      const startSeconds = parseTimeSeconds(event.time);
+      const startSeconds = toSeconds(event.time);
       if (startSeconds < 0) return;
 
       const now = new Date();
@@ -427,7 +409,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
 
               let canStartTimer = false;
               if (isToday && event.time) {
-                const startSeconds = parseTimeSeconds(event.time);
+                const startSeconds = toSeconds(event.time);
                 if (startSeconds >= 0) {
                   canStartTimer = startSeconds > nowSeconds;
                 }

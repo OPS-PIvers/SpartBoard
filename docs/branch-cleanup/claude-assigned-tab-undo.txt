@@ -1,0 +1,1 @@
+claude/assigned-tab-undo (AB-321: Undo after Close for all classes left the quiz Paused)

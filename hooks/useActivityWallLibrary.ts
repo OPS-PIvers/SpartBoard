@@ -21,6 +21,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -31,6 +32,7 @@ import { db } from '@/config/firebase';
 import type { ActivityWallLibraryEntry } from '@/types';
 import { activityWallSessionId } from '@/utils/activityWallLinks';
 import { normalizeActivityWallLibraryEntry } from '@/utils/activityWallNormalize';
+import { clearWallSubmissions } from '@/components/widgets/ActivityWall/hooks/useActivityWallSession';
 import { useSandboxedActivityWalls } from './useTourSandboxed';
 
 const COLLECTION = 'activity_wall_activities';
@@ -46,6 +48,8 @@ export interface UseActivityWallLibraryResult {
    */
   saveActivity: (entry: ActivityWallLibraryEntry) => Promise<void>;
   deleteActivity: (activityId: string) => Promise<void>;
+  /** Close the wall, delete every post, then reopen it if it was open. */
+  clearActivityPosts: (activityId: string) => Promise<void>;
 }
 
 export const useActivityWallLibrary = (
@@ -114,26 +118,60 @@ export const useActivityWallLibrary = (
     [userId]
   );
 
-  const removeActivity = useCallback(
-    async (activityId: string) => {
+  const clearThenRun = useCallback(
+    async (
+      activityId: string,
+      after: () => Promise<void>,
+      reopenOnSuccess: boolean
+    ) => {
       if (!userId) throw new Error('Not signed in');
-      // Close the live session first so students stop posting to a deleted wall.
-      await updateDoc(
-        doc(
-          db,
-          'activity_wall_sessions',
-          activityWallSessionId(userId, activityId)
-        ),
-        { acceptingResponses: false }
-      ).catch((closeError: unknown) => {
-        console.error(
-          '[useActivityWallLibrary] Close session failed:',
-          closeError
-        );
-      });
-      await deleteDoc(doc(db, 'users', userId, COLLECTION, activityId));
+      const sessionId = activityWallSessionId(userId, activityId);
+      const sessionRef = doc(db, 'activity_wall_sessions', sessionId);
+      // Close first so no post lands between clearing and finishing.
+      let closed = false;
+      let wasAccepting = true;
+      try {
+        const snap = await getDoc(sessionRef);
+        wasAccepting = snap.data()?.acceptingResponses !== false;
+        await updateDoc(sessionRef, { acceptingResponses: false });
+        closed = true;
+      } catch (closeError) {
+        if ((closeError as { code?: string }).code !== 'not-found') {
+          throw closeError;
+        }
+      }
+      const reopen = () =>
+        closed && wasAccepting
+          ? updateDoc(sessionRef, { acceptingResponses: true }).catch(
+              () => undefined
+            )
+          : Promise.resolve();
+      try {
+        await clearWallSubmissions(sessionId);
+        await after();
+      } catch (err) {
+        await reopen();
+        throw err;
+      }
+      if (reopenOnSuccess) await reopen();
     },
     [userId]
+  );
+
+  const removeActivity = useCallback(
+    (activityId: string) =>
+      clearThenRun(
+        activityId,
+        () => deleteDoc(doc(db, 'users', userId ?? '', COLLECTION, activityId)),
+        false
+      ),
+    [clearThenRun, userId]
+  );
+
+  const clearActivityPosts = useCallback(
+    (activityId: string) =>
+      clearThenRun(activityId, () => Promise.resolve(), true),
+    [clearThenRun]
   );
 
   return useSandboxedActivityWalls({
@@ -142,5 +180,6 @@ export const useActivityWallLibrary = (
     error,
     saveActivity,
     deleteActivity: removeActivity,
+    clearActivityPosts,
   });
 };

@@ -1,5 +1,4 @@
 import type { FieldCtx } from './types';
 
-// An old widget-to-widget toggle that Connections replace; hidden from teachers who have Connections.
-export const hiddenWithConnections = (ctx: FieldCtx): boolean =>
-  !ctx.canAccessFeature('widget-connections');
+// An old widget-to-widget toggle that Connections replaced; it stays off screen in the teacher app.
+export const hiddenWithConnections = (_ctx: FieldCtx): boolean => false;

@@ -1,6 +1,6 @@
-// useUnifiedAssignments — normalizes the five per-teacher assignment collections into one flat, sortable list for the Assignments hub (spec §5 D1). Read-only.
+// useUnifiedAssignments — normalizes the six per-teacher assignment collections into one flat, sortable list for the Assignments hub (spec §5 D1). Read-only.
 
-import { useMemo } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import {
   useQuizAssignments,
   type UseQuizAssignmentsResult,
@@ -9,15 +9,19 @@ import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
 import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
+import { useWritingAssignmentSessions } from '@/hooks/useWritingAssignmentSessions';
 import type {
+  AssignmentKind,
   ClassRoster,
   PeriodAccess,
+  QuizData,
+  QuizAssignment,
+  QuizMetadata,
   StudentOverride,
   StudentTargetRef,
 } from '@/types';
 
-export type AssignmentKind =
-  'quiz' | 'video-activity' | 'guided-learning' | 'mini-app' | 'flashcards';
+export type { AssignmentKind };
 
 /** Lifecycle status for the hub's status filter chip; 'paused' only applies to quiz/video-activity kinds. */
 export type UnifiedAssignmentStatus = 'active' | 'paused' | 'inactive';
@@ -32,9 +36,9 @@ export interface UnifiedAssignmentRow {
   targetSkippedCount: number;
   openAt?: number | null;
   closeAt?: number | null;
-  /** Quiz rows only: the shared due date. */
+  /** Quiz and Writing rows: the shared due date. */
   dueAt?: number | null;
-  /** Quiz rows only: a Manual due date that locks each class row. */
+  /** Quiz and Writing rows: a Manual due date that locks each class row. */
   dueLocks?: boolean;
   createdAt: number;
   /** Paired session doc id — always `id` (1:1 shared UUID, spec §1). D2 name/status resolution. */
@@ -66,6 +70,23 @@ export interface UnifiedAssignmentRow {
   periodAccess?: Record<string, PeriodAccess>;
 }
 
+/** The raw docs and whole-run writes behind the rows, for the hub's Assigned list (D18). */
+export interface UnifiedAssignmentSources {
+  quiz: ReturnType<typeof useQuizAssignments>;
+  videoActivity: ReturnType<typeof useVideoActivityAssignments>;
+  guidedLearning: ReturnType<typeof useGuidedLearningAssignments>;
+  miniApp: ReturnType<typeof useMiniAppAssignments>;
+  flashcards: ReturnType<typeof useFlashcardAssignments>;
+  writing: ReturnType<typeof useWritingAssignmentSessions>;
+}
+
+/** Dev harness only: fixture docs in place of the teacher's listeners. */
+export const UnifiedAssignmentsFixture = createContext<{
+  sources: UnifiedAssignmentSources;
+  quizzes: QuizMetadata[];
+  loadQuizData: (driveFileId: string) => Promise<QuizData>;
+} | null>(null);
+
 /** Retroactive PLC results actions, forwarded from `useQuizAssignments`. */
 export interface QuizPlcActions {
   share: UseQuizAssignmentsResult['shareAssignmentWithPlc'];
@@ -87,19 +108,67 @@ function resolveClassName(
   return '—';
 }
 
+/** A quiz assignment as a hub row, which the targeting edit path saves from. */
+export function quizAssignmentRow(
+  a: QuizAssignment,
+  rosterNamesById: Map<string, string>
+): UnifiedAssignmentRow {
+  return {
+    id: a.id,
+    kind: 'quiz',
+    title: a.quizTitle,
+    className: resolveClassName(a.className, a.rosterIds, rosterNamesById),
+    status: a.status,
+    targetMode: a.targetMode === 'students' ? 'students' : 'class',
+    targetSkippedCount: a.targetSkippedCount ?? 0,
+    openAt: a.openAt,
+    closeAt: a.closeAt,
+    dueAt: a.dueAt,
+    ...(a.dueLocks ? { dueLocks: true } : {}),
+    createdAt: a.createdAt,
+    sessionId: a.id,
+    rosterIds: a.rosterIds,
+    periodNames: a.periodNames,
+    classIds: a.classIds,
+    classPeriodByClassId: a.classPeriodByClassId,
+    targetStudents: a.targetStudents,
+    excludedTargets: a.excludedTargets,
+    overridesBySourcedId: a.overridesBySourcedId,
+    removedStudentRefs: a.removedStudentRefs,
+    ...(a.plc ? { plc: { id: a.plc.id, name: a.plc.name } } : {}),
+    ...(a.periodAccess ? { periodAccess: a.periodAccess } : {}),
+    quizId: a.quizId,
+    syncGroupId: a.sync?.groupId,
+  };
+}
+
 export const useUnifiedAssignments = (
   userId: string | undefined,
-  rosters: ClassRoster[]
+  rosters: ClassRoster[],
+  writingEnabled = true,
+  assignedTabOn = false
 ): {
   rows: UnifiedAssignmentRow[];
   loading: boolean;
   quizPlcActions: QuizPlcActions;
+  sources: UnifiedAssignmentSources;
 } => {
-  const quiz = useQuizAssignments(userId);
-  const va = useVideoActivityAssignments(userId);
-  const gl = useGuidedLearningAssignments(userId);
-  const miniApp = useMiniAppAssignments(userId);
-  const flashcards = useFlashcardAssignments(userId);
+  const fixture = useContext(UnifiedAssignmentsFixture)?.sources;
+  const uid = fixture ? undefined : userId;
+  const liveQuiz = useQuizAssignments(uid);
+  const liveVa = useVideoActivityAssignments(uid);
+  const liveGl = useGuidedLearningAssignments(uid, assignedTabOn);
+  const liveMiniApp = useMiniAppAssignments(uid);
+  const liveFlashcards = useFlashcardAssignments(uid);
+  const liveWriting = useWritingAssignmentSessions(
+    writingEnabled ? uid : undefined
+  );
+  const quiz = fixture?.quiz ?? liveQuiz;
+  const va = fixture?.videoActivity ?? liveVa;
+  const gl = fixture?.guidedLearning ?? liveGl;
+  const miniApp = fixture?.miniApp ?? liveMiniApp;
+  const flashcards = fixture?.flashcards ?? liveFlashcards;
+  const writing = fixture?.writing ?? liveWriting;
 
   const rosterNamesById = useMemo(() => {
     const map = new Map<string, string>();
@@ -108,33 +177,9 @@ export const useUnifiedAssignments = (
   }, [rosters]);
 
   const rows = useMemo<UnifiedAssignmentRow[]>(() => {
-    const quizRows: UnifiedAssignmentRow[] = quiz.assignments.map((a) => ({
-      id: a.id,
-      kind: 'quiz',
-      title: a.quizTitle,
-      className: resolveClassName(a.className, a.rosterIds, rosterNamesById),
-      status: a.status,
-      targetMode: a.targetMode === 'students' ? 'students' : 'class',
-      targetSkippedCount: a.targetSkippedCount ?? 0,
-      openAt: a.openAt,
-      closeAt: a.closeAt,
-      dueAt: a.dueAt,
-      ...(a.dueLocks ? { dueLocks: true } : {}),
-      createdAt: a.createdAt,
-      sessionId: a.id,
-      rosterIds: a.rosterIds,
-      periodNames: a.periodNames,
-      classIds: a.classIds,
-      classPeriodByClassId: a.classPeriodByClassId,
-      targetStudents: a.targetStudents,
-      excludedTargets: a.excludedTargets,
-      overridesBySourcedId: a.overridesBySourcedId,
-      removedStudentRefs: a.removedStudentRefs,
-      ...(a.plc ? { plc: { id: a.plc.id, name: a.plc.name } } : {}),
-      ...(a.periodAccess ? { periodAccess: a.periodAccess } : {}),
-      quizId: a.quizId,
-      syncGroupId: a.sync?.groupId,
-    }));
+    const quizRows = quiz.assignments.map((a) =>
+      quizAssignmentRow(a, rosterNamesById)
+    );
 
     const vaRows: UnifiedAssignmentRow[] = va.assignments.map((a) => ({
       id: a.id,
@@ -234,12 +279,41 @@ export const useUnifiedAssignments = (
       })
     );
 
+    const writingRows: UnifiedAssignmentRow[] = writing.records.map((a) => ({
+      id: a.id,
+      kind: 'writing',
+      title: a.title,
+      className:
+        (a.rosterIds ?? []).some((id) => rosterNamesById.has(id)) ||
+        !a.periodNames?.length
+          ? resolveClassName(undefined, a.rosterIds, rosterNamesById)
+          : a.periodNames.join(', '),
+      status: a.status === 'ended' ? 'inactive' : 'active',
+      targetMode: a.targetMode === 'students' ? 'students' : 'class',
+      targetSkippedCount: a.targetSkippedCount ?? 0,
+      openAt: a.openAt,
+      closeAt: a.closeAt,
+      dueAt: a.dueAt,
+      ...(a.dueLocks ? { dueLocks: true } : {}),
+      createdAt: a.createdAt,
+      sessionId: a.sessionId,
+      rosterIds: a.rosterIds,
+      periodNames: a.periodNames,
+      classIds: a.classIds,
+      targetStudents: a.targetStudents,
+      excludedTargets: a.excludedTargets,
+      overridesBySourcedId: a.overridesBySourcedId,
+      removedStudentRefs: a.removedStudentRefs,
+      ...(a.periodAccess ? { periodAccess: a.periodAccess } : {}),
+    }));
+
     return [
       ...quizRows,
       ...vaRows,
       ...glRows,
       ...miniAppRows,
       ...flashcardRows,
+      ...writingRows,
     ].sort((a, b) => b.createdAt - a.createdAt);
   }, [
     quiz.assignments,
@@ -247,6 +321,7 @@ export const useUnifiedAssignments = (
     gl.assignments,
     miniApp.assignments,
     flashcards.assignments,
+    writing.records,
     rosterNamesById,
   ]);
 
@@ -257,10 +332,19 @@ export const useUnifiedAssignments = (
       va.loading ||
       gl.loading ||
       miniApp.loading ||
-      flashcards.loading,
+      flashcards.loading ||
+      writing.loading,
     quizPlcActions: {
       share: quiz.shareAssignmentWithPlc,
       stopSharing: quiz.stopSharingAssignmentWithPlc,
+    },
+    sources: {
+      quiz,
+      videoActivity: va,
+      guidedLearning: gl,
+      miniApp,
+      flashcards,
+      writing,
     },
   };
 };

@@ -2,11 +2,7 @@
 import type * as admin from '../firebaseAdmin';
 import * as logger from 'firebase-functions/logger';
 import { withQuizSessionContent } from '../quizSessionContent';
-import {
-  GRADEBOOK_COLLECTIONS,
-  GRADEBOOK_SESSION_COLLECTIONS,
-  isResourceSession,
-} from '../gradebookCore';
+import { GRADEBOOK_COLLECTIONS, isResourceSession } from '../gradebookCore';
 import { servedFibAnswers as servedFibAnswersByLocale } from '../quizScoreOnSubmit';
 import {
   assembleRow,
@@ -21,13 +17,25 @@ import {
   scoreProjectMember,
   scoreQuizResponse,
   scoreVideoResponse,
+  scoreWritingResponse,
   parseStepTargets,
   toMillis,
   type QuizContext,
   isReviewQuiz,
 } from './gradeRowMath';
+import { writingGradingMax } from '../writingResponseState';
 import type { ClassStudents } from './projectMemberAuthority';
 import { RosterUnavailableError } from './rosterUnavailable';
+import {
+  GRADE_INDEX_QUEUE,
+  GRADE_INDEX_SETTINGS_PATH,
+  SESSION_COLLECTION,
+  __resetGradeIndexEnabledCache,
+  isGradeIndexEnabled,
+  markSessionDirty,
+  sessionWriteMatters,
+  stableStringify,
+} from './gradeIndexQueue';
 import type {
   IndexAttempt,
   IndexRow,
@@ -35,15 +43,22 @@ import type {
   RowScore,
   SessionMeta,
 } from './types';
+import { isForeignPointer } from '../pointerOwnership';
 
 type Firestore = admin.firestore.Firestore;
 type Doc = Record<string, unknown>;
 
 export const GRADE_INDEX = GRADEBOOK_COLLECTIONS.index;
-export const GRADE_INDEX_QUEUE = 'grade_index_sessions';
-export const GRADE_INDEX_SETTINGS_PATH = 'admin_settings/gradebook_index';
-
-export const SESSION_COLLECTION = GRADEBOOK_SESSION_COLLECTIONS;
+export {
+  GRADE_INDEX_QUEUE,
+  GRADE_INDEX_SETTINGS_PATH,
+  SESSION_COLLECTION,
+  __resetGradeIndexEnabledCache,
+  isGradeIndexEnabled,
+  markSessionDirty,
+  sessionWriteMatters,
+  stableStringify,
+};
 
 /** The per-student subcollection each kind keeps under its session. */
 export const STUDENT_SUBCOLLECTION: Record<GradeKind, string> = {
@@ -54,6 +69,7 @@ export const STUDENT_SUBCOLLECTION: Record<GradeKind, string> = {
   projects: 'grades',
   'mini-app': 'submissions',
   'activity-wall': 'submissions',
+  writing: 'responses',
 };
 
 const asRecord = (v: unknown): Doc =>
@@ -64,36 +80,24 @@ const asStrings = (v: unknown): string[] =>
     ? v.filter((x): x is string => typeof x === 'string' && x.length > 0)
     : [];
 
-let enabledCache: { value: boolean; at: number } | null = null;
-const ENABLED_TTL_MS = 60_000;
-
-/** The org-wide kill switch; the index writes nothing until an admin turns it on. */
-export async function isGradeIndexEnabled(
-  db: Firestore,
-  now = Date.now()
-): Promise<boolean> {
-  if (enabledCache && now - enabledCache.at < ENABLED_TTL_MS)
-    return enabledCache.value;
-  const snap = await db.doc(GRADE_INDEX_SETTINGS_PATH).get();
-  const value = snap.data()?.enabled === true;
-  enabledCache = { value, at: now };
-  return value;
-}
-
-export function __resetGradeIndexEnabledCache(): void {
-  enabledCache = null;
-}
-
 /** Everything needed to score any student of one session, loaded once. */
 export interface SessionContext {
   kind: GradeKind;
   sessionId: string;
   session: Doc;
   meta: SessionMeta;
-  score: (studentUid: string, perStudent: Doc) => RowScore | null;
+  score: (
+    studentUid: string,
+    perStudent: Doc,
+    /** The per-student doc id (a quiz response key). */
+    docId?: string
+  ) => RowScore | null;
   /** Quiz sessions only: the key and per-student answer lookups. */
   quiz?: QuizContext;
 }
+
+const writingMaxPoints = (session: Doc): number | null =>
+  writingGradingMax(session.grading);
 
 /** A doc key the index can't tie to a stable student (anonymous PIN joins). */
 const isPinKey = (docId: string): boolean => docId.startsWith('pin-');
@@ -110,6 +114,8 @@ export async function loadSessionContext(
   const teacherUid = asString(session.teacherUid);
   if (!teacherUid) return null;
   if (isResourceSession(kind, session)) return null;
+  // Ungraded Writing has nothing to put in a column.
+  if (kind === 'writing' && writingMaxPoints(session) === null) return null;
 
   if (kind === 'quiz') {
     session = await withQuizSessionContent(ref, session);
@@ -136,6 +142,12 @@ export async function loadSessionContext(
         asStrings(
           asRecord(asRecord(assignment.overridesByStudentUid)[uid]).questionIds
         ),
+      // Only a student-paced session shows the modified prompt.
+      modifiedStudent: (uid) =>
+        session.sessionMode === 'student' &&
+        asRecord(asRecord(assignment.overridesByStudentUid)[uid])
+          .modifiedQuestions === true,
+      paperCopyBatchIds: new Set(asStrings(assignment.paperCopyBatchIds)),
     };
     const s = session;
     return {
@@ -143,7 +155,8 @@ export async function loadSessionContext(
       sessionId,
       session: s,
       meta: parseSessionMeta(kind, sessionId, s, assignment),
-      score: (_uid, response) => scoreQuizResponse(s, response, ctx),
+      score: (_uid, response, docId) =>
+        scoreQuizResponse(s, response, ctx, docId),
       quiz: ctx,
     };
   }
@@ -203,6 +216,8 @@ export async function loadSessionContext(
         toMillis(submission.submittedAt),
         meta.classIds.length === 1 ? meta.classIds[0] : null
       ),
+    writing: (_uid, response) =>
+      scoreWritingResponse(writingMaxPoints(s), response),
   };
   return { kind, sessionId, session: s, meta, score: scorers[kind] };
 }
@@ -227,6 +242,8 @@ export function studentUidFor(
       return asString(data.studentUid) || null;
     case 'activity-wall':
       return data.isGuest === true ? null : asString(data.authorUid) || null;
+    case 'writing':
+      return docId;
     case 'projects':
       return null;
   }
@@ -255,7 +272,15 @@ async function targetingFor(
     .doc(meta.assignmentId)
     .get();
   const data = pointer.data();
-  if (!pointer.exists || !data || data.excluded === true)
+  if (
+    !pointer.exists ||
+    !data ||
+    data.excluded === true ||
+    isForeignPointer(data, {
+      sessionId: meta.sessionId,
+      teacherUid: meta.ownerUid,
+    })
+  )
     return { assigned: false, pointerDueAt: null };
   return { assigned: true, pointerDueAt: toMillis(data.dueAt) };
 }
@@ -408,17 +433,6 @@ async function freshStudentDoc(
   return snap.exists ? (snap.data() ?? undefined) : undefined;
 }
 
-export function stableStringify(v: unknown): string {
-  if (Array.isArray(v)) return `[${v.map(stableStringify).join(',')}]`;
-  if (v && typeof v === 'object') {
-    const entries = Object.entries(v as Doc)
-      .filter(([, x]) => x !== undefined)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-    return `{${entries.map(([k, x]) => `${JSON.stringify(k)}:${stableStringify(x)}`).join(',')}}`;
-  }
-  return JSON.stringify(v);
-}
-
 async function deleteRow(
   db: Firestore,
   kind: GradeKind,
@@ -524,6 +538,21 @@ async function projectRows(
   const group = groupSnap.data() ?? {};
   const memberUids = asStrings(group.memberUids);
   if (!grade) return { upserts: [], memberUids, denied: [] };
+  // Per-member overrides live in their own docs; a legacy map on the grade is the fallback.
+  const overrideSnap = await db
+    .collection(SESSION_COLLECTION.projects)
+    .doc(ctx.sessionId)
+    .collection('grades')
+    .doc(groupId)
+    .collection('overrides')
+    .get();
+  const scored: Doc = {
+    ...grade,
+    overridesByUid: {
+      ...asRecord(grade.overridesByUid),
+      ...Object.fromEntries(overrideSnap.docs.map((d) => [d.id, d.data()])),
+    },
+  };
   const allowed = await authority(
     ctx.meta.ownerUid,
     asString(group.classId),
@@ -540,7 +569,7 @@ async function projectRows(
         db,
         ctx,
         uid,
-        scoreProjectMember(grade, group, uid),
+        scoreProjectMember(scored, group, uid),
         previous,
         now
       )
@@ -585,6 +614,7 @@ const WATCHED: Record<GradeKind, string[]> = {
   projects: ['points', 'maxPoints', 'overridesByUid', 'released', 'gradedAt'],
   'mini-app': ['submittedAt', 'studentUid', 'best'],
   'activity-wall': ['submittedAt', 'authorUid'],
+  writing: ['status', 'grade', 'turnedInAt', 'classId', 'startedAt'],
 };
 
 export function docWriteMatters(w: DocWrite): boolean {
@@ -682,7 +712,7 @@ export async function applyDocWrite(
     const at = await wallSubmittedAt(db, w.sessionId, studentUid);
     score = at === null ? null : ctx.score(studentUid, { submittedAt: at });
   } else {
-    score = w.after ? ctx.score(studentUid, w.after) : null;
+    score = w.after ? ctx.score(studentUid, w.after, w.docId) : null;
   }
   if (!score) {
     await deleteRow(db, w.kind, w.sessionId, studentUid);
@@ -759,7 +789,7 @@ export async function recomputeSession(
           wallFirst.set(uid, Math.min(wallFirst.get(uid) ?? at, at));
           continue;
         }
-        const score = ctx.score(uid, data);
+        const score = ctx.score(uid, data, d.id);
         if (!score) continue;
         rows.push(await buildRow(db, ctx, uid, score, prevOf(uid), now));
       }
@@ -788,58 +818,6 @@ export async function recomputeSession(
     deleted++;
   }
   return { written, deleted };
-}
-
-/** Session fields whose change reshapes every row (D10 whole-session recompute). */
-const SESSION_WATCHED = [
-  'teacherUid',
-  'title',
-  'quizTitle',
-  'assignmentName',
-  'activityTitle',
-  'appTitle',
-  'prompt',
-  'rosterIds',
-  'classIds',
-  'classId',
-  'periodAccess',
-  'openAt',
-  'dueAt',
-  'closeAt',
-  'dueAtByClassId',
-  'individualTargeting',
-  'scorePublishedAt',
-  'scoreVisibility',
-  'publicSteps',
-  'publicQuestions',
-  'questionsInContent',
-  'sections',
-  'kind',
-  'workKind',
-  'assignmentId',
-];
-
-export function sessionWriteMatters(
-  before: Doc | undefined,
-  after: Doc | undefined
-): boolean {
-  if (!before || !after) return true;
-  return SESSION_WATCHED.some(
-    (f) => stableStringify(before[f]) !== stableStringify(after[f])
-  );
-}
-
-/** Queues a whole-session recompute, oldest first; an entry already backing off keeps its backoff. Entries queued before the key carried a kind are keyed by session id alone. */
-export async function markSessionDirty(
-  db: Firestore,
-  kind: GradeKind,
-  sessionId: string,
-  now = Date.now()
-): Promise<void> {
-  await db
-    .collection(GRADE_INDEX_QUEUE)
-    .doc(`${kind}__${sessionId}`)
-    .set({ kind, sessionId, dirtyAt: now }, { merge: true });
 }
 
 export const RECOMPUTE_LIMIT = 200;
@@ -874,13 +852,36 @@ export async function drainDirtySessions(
     }
     // An entry still backing off is not due yet.
     if (typeof data.retryAt === 'number' && data.retryAt > Date.now()) continue;
+    // The attempt is recorded before the compute, so a run killed mid-compute still backs the entry off.
+    const priorFailures = Number(data.failures) || 0;
+    const attempt = priorFailures + 1;
+    const claimedAt =
+      Date.now() +
+      Math.min(
+        ROSTER_RETRY_BASE_MS * 2 ** Math.min(attempt - 1, 10),
+        ROSTER_RETRY_MAX_MS
+      );
+    const claimed = await db.runTransaction(async (tx) => {
+      const current = await tx.get(doc.ref);
+      if (!current.exists || current.data()?.dirtyAt !== data.dirtyAt)
+        return false;
+      tx.update(doc.ref, {
+        failures: attempt,
+        retryAt: claimedAt,
+        dirtyAt: claimedAt,
+      });
+      return true;
+    });
+    if (!claimed) continue;
     try {
       await recomputeSession(db, kind, asString(data.sessionId) || doc.id);
       recomputed++;
       await db.runTransaction(async (tx) => {
         const current = await tx.get(doc.ref);
-        if (current.exists && current.data()?.dirtyAt === data.dirtyAt)
-          tx.delete(doc.ref);
+        if (!current.exists) return;
+        if (current.data()?.dirtyAt === claimedAt) tx.delete(doc.ref);
+        // Re-dirtied mid-run: the compute succeeded, so drop the claim's failure backoff.
+        else tx.update(doc.ref, { failures: 0, retryAt: Date.now() });
       });
     } catch (err) {
       failed++;
@@ -904,14 +905,18 @@ export async function drainDirtySessions(
           );
         await db.runTransaction(async (tx) => {
           const current = await tx.get(doc.ref);
-          if (!current.exists || current.data()?.dirtyAt !== data.dirtyAt)
-            return;
-          // dirtyAt moves to retryAt so newer work sorts ahead of the backed-off entry.
-          tx.update(doc.ref, { unavailable, retryAt, dirtyAt: retryAt });
+          if (!current.exists || current.data()?.dirtyAt !== claimedAt) return;
+          // dirtyAt moves to retryAt so newer work sorts ahead of the backed-off entry; a roster outage is not the session's failure.
+          tx.update(doc.ref, {
+            unavailable,
+            retryAt,
+            dirtyAt: retryAt,
+            failures: priorFailures,
+          });
         });
         continue;
       }
-      const failures = (Number(data.failures) || 0) + 1;
+      const failures = attempt;
       logger.error('gradeIndex: session recompute failed', {
         sessionId: asString(data.sessionId) || doc.id,
         kind,
@@ -927,7 +932,7 @@ export async function drainDirtySessions(
         );
       await db.runTransaction(async (tx) => {
         const current = await tx.get(doc.ref);
-        if (!current.exists || current.data()?.dirtyAt !== data.dirtyAt) return;
+        if (!current.exists || current.data()?.dirtyAt !== claimedAt) return;
         // dirtyAt moves to retryAt so newer work sorts ahead of the backed-off entry.
         tx.update(doc.ref, { failures, retryAt, dirtyAt: retryAt });
       });

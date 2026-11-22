@@ -4,6 +4,8 @@ import {
   applyHiddenOptions,
   applyTimeMultiplier,
   serveLocalizedQuestion,
+  applyModifiedWording,
+  applyModifiedRubric,
 } from './quizOverrideServing';
 import type { QuizPublicQuestion } from '@/types';
 
@@ -189,5 +191,74 @@ describe('serveLocalizedQuestion', () => {
         'es'
       )
     ).toBeNull();
+  });
+});
+
+describe('applyModifiedWording', () => {
+  const base: QuizPublicQuestion = {
+    ...q('1', ['A', 'B']),
+    modifiedText: 'Easy Q 1',
+    localized: { es: { text: 'P 1', choices: ['A', 'B'] } },
+  };
+  it('serves the modified prompt and keeps the choices', () => {
+    const out = applyModifiedWording(base, true);
+    expect(out.text).toBe('Easy Q 1');
+    expect(out.choices).toEqual(['A', 'B']);
+    expect(out.localized?.es.text).toBe('Easy Q 1');
+    expect(out.localized?.es.choices).toEqual(['A', 'B']);
+  });
+  it('keeps the original fill-in-the-blank when the blanks differ', () => {
+    const fib: QuizPublicQuestion = {
+      id: 'f',
+      type: 'FIB',
+      text: 'Roses are ___ and violets are ___.',
+      timeLimit: 30,
+    };
+    expect(
+      applyModifiedWording({ ...fib, modifiedText: 'Roses are ___.' }, true)
+        .text
+    ).toBe('Roses are ___ and violets are ___.');
+    expect(
+      applyModifiedWording(
+        { ...fib, modifiedText: 'Roses: ___. Violets: ___.' },
+        true
+      ).text
+    ).toBe('Roses: ___. Violets: ___.');
+  });
+  it('leaves the question alone when off or unwritten', () => {
+    expect(applyModifiedWording(base, false)).toBe(base);
+    expect(applyModifiedWording(base, undefined)).toBe(base);
+    const plain = q('2');
+    expect(applyModifiedWording(plain, true)).toBe(plain);
+  });
+});
+
+describe('applyModifiedRubric', () => {
+  const rubric = (id: string) => ({
+    id,
+    title: id,
+    createdAt: 0,
+    updatedAt: 0,
+    criteria: [],
+  });
+  const base: QuizPublicQuestion = {
+    id: 'w',
+    type: 'free-response',
+    text: 'Explain.',
+    timeLimit: 0,
+    rubricSnapshot: rubric('main'),
+    modifiedRubricSnapshot: rubric('mod'),
+    localized: { es: { text: 'Explica.', rubricSnapshot: rubric('main-es') } },
+  };
+  it('serves the modified rubric in every language', () => {
+    const out = applyModifiedRubric(base, true);
+    expect(out.rubricSnapshot?.id).toBe('mod');
+    expect(out.localized?.es.rubricSnapshot?.id).toBe('mod');
+    expect(out.text).toBe('Explain.');
+  });
+  it('keeps the main rubric when off or when there is none to replace', () => {
+    expect(applyModifiedRubric(base, false)).toBe(base);
+    const noMain = { ...base, rubricSnapshot: undefined };
+    expect(applyModifiedRubric(noMain, true)).toBe(noMain);
   });
 });

@@ -21,6 +21,9 @@ export interface FlashcardCard {
   id: string;
   term: string;
   definition: string;
+  /** The teacher's card pictures; Claude tools keep them but never set them. */
+  termImageUrl?: string;
+  definitionImageUrl?: string;
   /** Speak references (client FlashcardCardSpeak); valid only for the term they were computed for. */
   speak?: Record<string, unknown>;
 }
@@ -57,8 +60,22 @@ const refDialects = (speak: Record<string, unknown>): unknown[] =>
     ? speak.refs.map((ref) => (ref as { dialect?: unknown }).dialect)
     : [];
 
+const imageFields = (
+  card: FlashcardCard
+): Pick<FlashcardCard, 'termImageUrl' | 'definitionImageUrl'> => ({
+  ...(card.termImageUrl ? { termImageUrl: card.termImageUrl } : {}),
+  ...(card.definitionImageUrl
+    ? { definitionImageUrl: card.definitionImageUrl }
+    : {}),
+});
+
 const withoutCardSpeak = (cards: FlashcardCard[]): FlashcardCard[] =>
-  cards.map(({ id, term, definition }) => ({ id, term, definition }));
+  cards.map(({ id, term, definition, ...card }) => ({
+    id,
+    term,
+    definition,
+    ...imageFields(card as FlashcardCard),
+  }));
 
 /** Mirrors normalizeSet in hooks/useFlashcardSets.ts. */
 export function normalizeSet(
@@ -75,6 +92,7 @@ export function normalizeSet(
       id: card.id,
       term: card.term.slice(0, MAX_TERM),
       definition: card.definition.slice(0, MAX_DEFINITION),
+      ...imageFields(card),
       ...(card.speak &&
       dialectsFit(refDialects(card.speak), set.termLanguage || 'en-US')
         ? { speak: card.speak }
@@ -104,10 +122,12 @@ export function mergeCards(
       previous?.speak && previous.term === card.term
         ? previous.speak
         : undefined;
+    // A kept card keeps its pictures; term_picture and definition_picture change them after.
     return {
       id,
       term: card.term,
       definition: card.definition,
+      ...(previous ? imageFields(previous) : {}),
       ...(speak ? { speak } : {}),
     };
   });
@@ -123,42 +143,78 @@ export async function readSet(
   return { ...(snap.data() as FlashcardSet), id: snap.id };
 }
 
-/** What the public snapshot looked like when the save read it; the write fails if that has since changed. */
-export type ShareGuard =
-  { exists: false } | { exists: true; updateTime: Timestamp };
+/** A set as a save read it; the save's write fails if the set has changed since. */
+export interface LoadedSet {
+  set: FlashcardSet;
+  updateTime: Timestamp;
+}
 
-/** Reads a set's public snapshot and refuses when it belongs to another teacher. */
+export async function readSetForSave(
+  db: Firestore,
+  uid: string,
+  setId: string
+): Promise<LoadedSet | null> {
+  const snap = await db.doc(`${setsPath(uid)}/${setId}`).get();
+  if (!snap.exists) return null;
+  return {
+    set: { ...(snap.data() as FlashcardSet), id: snap.id },
+    updateTime: snap.updateTime as Timestamp,
+  };
+}
+
+/** Reads a set's public snapshot and returns its update time; refuses one that is gone or another teacher's. */
 export async function guardPublicShare(
   db: Firestore,
   uid: string,
   shareId: string
-): Promise<ShareGuard> {
+): Promise<Timestamp> {
   const snap = await db.doc(`public_flashcard_sets/${shareId}`).get();
-  if (!snap.exists) return { exists: false };
+  // A revoke deletes the snapshot first, so a missing one must not be re-created from a stale read.
+  if (!snap.exists)
+    throw new ToolError(
+      'Sharing for this set changed in SpartBoard while Claude was saving. Fetch the set again and redo the change; if it still fails, turn sharing off or share it again in SpartBoard.'
+    );
   if (snap.get('teacherUid') !== uid)
     throw new ToolError(
       'This set points at a shared page that is not yours. Re-share the set in SpartBoard, then try again.'
     );
-  return { exists: true, updateTime: snap.updateTime as Timestamp };
+  return snap.updateTime as Timestamp;
 }
 
-/** Adds the set (and its public snapshot when shared, guarded by `share`) to the batch; a changed language drops the snapshot's Speak stamp, and `speakStamp` replaces it. */
+export interface StageOptions {
+  previousTermLanguage?: string;
+  speakStamp?: Record<string, unknown>;
+  /** The public snapshot's update time from guardPublicShare; required when the set is shared. */
+  shareTime?: Timestamp;
+  /** The set as the save read it; the write then replaces it only if it is unchanged. */
+  loaded?: LoadedSet;
+}
+
+/** Adds the set (and its public snapshot when shared) to the batch; a changed language drops the snapshot's Speak stamp, and `speakStamp` replaces it. */
 export function stageSetWrite(
   db: Firestore,
   batch: WriteBatch,
   uid: string,
   set: FlashcardSet,
-  previousTermLanguage?: string,
-  speakStamp?: Record<string, unknown>,
-  share?: ShareGuard
+  { previousTermLanguage, speakStamp, shareTime, loaded }: StageOptions = {}
 ): void {
   const dropStamp =
     !speakStamp &&
     previousTermLanguage !== undefined &&
     primaryLanguage(previousTermLanguage) !== primaryLanguage(set.termLanguage);
-  batch.set(db.doc(`${setsPath(uid)}/${set.id}`), set);
+  const setRef = db.doc(`${setsPath(uid)}/${set.id}`);
+  if (loaded) {
+    const removed: Record<string, unknown> = {};
+    for (const key of Object.keys(loaded.set))
+      if (!(key in set)) removed[key] = FieldValue.delete();
+    batch.update(
+      setRef,
+      { ...removed, ...set },
+      { lastUpdateTime: loaded.updateTime }
+    );
+  } else batch.set(setRef, set);
   if (set.publicShareId) {
-    if (!share) throw new ToolError('The shared page was not checked.');
+    if (!shareTime) throw new ToolError('The shared page was not checked.');
     const ref = db.doc(`public_flashcard_sets/${set.publicShareId}`);
     // Mirrors toPublicSnapshot in hooks/useFlashcardSets.ts.
     const fields = {
@@ -172,13 +228,11 @@ export function stageSetWrite(
       updatedAt: set.updatedAt,
       ...(speakStamp ? { speak: speakStamp } : {}),
     };
-    if (share.exists)
-      batch.update(
-        ref,
-        { ...fields, ...(dropStamp ? { speak: FieldValue.delete() } : {}) },
-        { lastUpdateTime: share.updateTime }
-      );
-    else batch.create(ref, fields);
+    batch.update(
+      ref,
+      { ...fields, ...(dropStamp ? { speak: FieldValue.delete() } : {}) },
+      { lastUpdateTime: shareTime }
+    );
   }
 }
 

@@ -36,3 +36,12 @@ export function deriveSubmissionStudentStatus(
 ): AssignmentStudentStatus {
   return hasSubmission ? 'submitted' : 'not-started';
 }
+
+/** Writing: a returned piece reads as Graded, turned in as Submitted, a draft or revision as In progress. */
+export function deriveWritingStudentStatus(
+  response: { status?: unknown } | undefined
+): AssignmentStudentStatus {
+  if (!response) return 'not-started';
+  if (response.status === 'returned') return 'graded';
+  return response.status === 'turned-in' ? 'submitted' : 'in-progress';
+}

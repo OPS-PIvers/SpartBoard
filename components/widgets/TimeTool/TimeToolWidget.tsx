@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useTranslation } from 'react-i18next';
 import { WidgetData, TimeToolConfig } from '@/types';
 import { clockStateOf } from '@/utils/timeToolClock';
@@ -565,8 +566,7 @@ export const TimeToolWidget: React.FC<{
 
   const effectiveAdjustStep = Math.max(5, Math.min(60, adjustStepSeconds));
 
-  const { canAccessFeature } = useAuth();
-  const connectionsOn = canAccessFeature('widget-connections');
+  const connectionsOn = useConnectionsEnabled();
 
   const showAdjustControls = mode === 'timer' && !isEditing && !isNarrow;
   const isExpired = clockStateOf(config).phase === 'expired';

@@ -1,4 +1,5 @@
 import { imageOnlyPictures, type AnswerPicture } from './quizAnswerImages';
+import { promptLabel } from '@/utils/quizPromptText';
 import {
   isFreeResponseType,
   type QuizQuestion,
@@ -19,6 +20,7 @@ import {
   parseMultiAnswer,
 } from '@/utils/quizMultiAnswer';
 import { seededShuffle } from '@/utils/quizShuffle';
+import { orderServedQuestions } from '@/utils/questionBanks';
 import { sanitizeQuizResponse } from '@/utils/security';
 import {
   gradeQuestionForResponse,
@@ -30,6 +32,11 @@ import {
   formatRevealedAnswer,
   revealValueFor,
 } from '@/utils/quizFibAlternates';
+import {
+  questionForResponse,
+  type ModifiedSource,
+} from '@/utils/quizCalcResponse';
+import { fillCalcPrompt, formatCalcAnswer } from '@/utils/quizCalculated';
 
 /** One question as one student saw it, graded live. */
 export interface StudentQuestionLine {
@@ -98,8 +105,12 @@ export interface StudentDrilldownOptions {
   includeExplanations?: boolean;
   /** The rubric after per-student overrides; defaults to the question's snapshot. */
   rubricFor?: (question: QuizQuestion) => Rubric | undefined;
-  /** Keep the text of an extra answer that doesn't count (choose-n-pick-counted). */
+  /** Keep the text of an extra answer that doesn't count. */
   showExtraAnswers?: boolean;
+  /** Bank session: list served questions in the order they were drawn, as the student saw them. */
+  drawOrder?: boolean;
+  /** Assignment overrides, so a modified student's random-number answer is their typed-number one. */
+  modified?: ModifiedSource | null;
 }
 
 export interface StudentDrilldown {
@@ -226,15 +237,29 @@ export function computeStudentDrilldown(
   const seen = new Set<string>();
   const lines: StudentQuestionLine[] = [];
 
-  questions.forEach((q, index) => {
+  const drawn = response.servedQuestionIds;
+  // Numbered 1..n like the student's own results: draw order for bank sessions, quiz order otherwise.
+  const ordered =
+    options.drawOrder && drawn?.length
+      ? orderServedQuestions(questions, drawn)
+      : questions;
+
+  ordered.forEach((q) => {
     if (seen.has(q.id)) return;
     seen.add(q.id);
     if (!isServed(response, q.id)) return;
+    const number = lines.length + 1;
     const entry = answers.get(q.id);
     const max = q.points ?? 1;
     const manual = isFreeResponseType(q.type);
     const hasKey = !manual && q.correctAnswer.trim() !== '';
     const answer = entry && !entry.unresponded ? (entry.answer ?? '') : '';
+    // Random-number questions show this student's own numbers and answer.
+    const personal = q.calc
+      ? questionForResponse(q, response, options.modified)
+      : undefined;
+    const own = personal?.calcValues;
+    const typedNumbers = !!own && Object.keys(own).length === 0;
     const base: Pick<
       StudentQuestionLine,
       | 'questionId'
@@ -255,14 +280,23 @@ export function computeStudentDrilldown(
       | 'pictures'
     > = {
       questionId: q.id,
-      number: index + 1,
-      text: q.text,
+      number,
+      text:
+        typedNumbers && q.modifiedText
+          ? q.modifiedText
+          : q.calc && own
+            ? fillCalcPrompt(promptLabel(q), q.calc, own)
+            : promptLabel(q),
       type: q.type,
       manual,
       correctAnswerText: hasKey
-        ? q.type === 'FIB'
-          ? formatRevealedAnswer(revealValueFor(q))
-          : formatQuizAnswerText(q, { answer: q.correctAnswer })
+        ? q.calc
+          ? own && personal?.calc
+            ? formatCalcAnswer(personal.calc, own)
+            : null
+          : q.type === 'FIB'
+            ? formatRevealedAnswer(revealValueFor(q))
+            : formatQuizAnswerText(q, { answer: q.correctAnswer })
         : null,
     };
     if (q.stimulusIds?.length) base.stimulusIds = [...q.stimulusIds];

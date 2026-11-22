@@ -4,16 +4,19 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
+  fibExtrasFor,
   gradeGroupAnswer,
   parseSyncedQuestion,
   type GroupQuestion,
 } from './plcAssessmentMath';
+import { fibExtrasParts, type FibExtras } from './quizFibMatch';
 import {
   notChosenIds,
   parseChooseSections,
   parseCountedChoices,
 } from './quizSectionsChosen';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { calcAttemptKey, withCalcValues } from './quizCalculated';
 import {
   resolveServerResultsVisibility,
   visibilityIncludesResponses,
@@ -43,7 +46,9 @@ export interface ScoreContext {
   /** Pointer override subset, used when the response has no snapshot. */
   overrideQuestionIds?: string[];
   /** Accepted FIB answers by question id for the locale this student was served. */
-  fibAnswersByQuestion: Record<string, string[]>;
+  fibAnswersByQuestion: Record<string, FibExtras>;
+  /** The student gets the modified version; a typed-number answer on the key grades them. */
+  modified?: boolean;
 }
 
 const isId = (value: unknown): value is string =>
@@ -106,8 +111,14 @@ export function withoutVerdicts(
 /** Server twin of gradeResponseForPublish; null when any served question needs a teacher grade. */
 export function scoreAttempt(
   response: Record<string, unknown>,
-  ctx: ScoreContext
-): { score: number; answers: ScoreOnSubmitAnswer[] } | null {
+  ctx: ScoreContext,
+  /** The response doc id; fixes the student's random numbers. */
+  responseKey?: string
+): {
+  score: number;
+  answers: ScoreOnSubmitAnswer[];
+  points: { earned: number; possible: number; attempt: number };
+} | null {
   const answers = (
     Array.isArray(response.answers) ? response.answers : []
   ).filter(
@@ -132,6 +143,7 @@ export function scoreAttempt(
     const q = byId.get(id);
     // A served question missing from the key (stale key) can't be vouched for.
     if (!q || q.manual || q.correctAnswer === null) return null;
+    if (q.calc && !responseKey) return null;
   }
 
   const representative = representativeAnswers(answers);
@@ -146,7 +158,11 @@ export function scoreAttempt(
       return rest;
     }
     const result = gradeGroupAnswer(
-      q,
+      withCalcValues(
+        q,
+        responseKey ? calcAttemptKey(responseKey, response) : undefined,
+        ctx.modified === true
+      ),
       typeof a.answer === 'string' ? a.answer : '',
       undefined,
       q.type === 'FIB' ? ctx.fibAnswersByQuestion[q.id] : undefined
@@ -170,14 +186,22 @@ export function scoreAttempt(
   return {
     score: max === 0 ? 0 : Math.round((earned / max) * 100),
     answers: graded,
+    points: {
+      earned,
+      possible: max,
+      attempt:
+        typeof response.completedAttempts === 'number'
+          ? response.completedAttempts
+          : 0,
+    },
   };
 }
 
-/** Accepted translated FIB answers for the locale the teacher served this student. */
+/** Accepted translated FIB answers for the locale the teacher served this student, plus teacher-accepted ones. */
 export function servedFibAnswers(
   assignment: Record<string, unknown>,
   studentUid: string
-): Record<string, string[]> {
+): Record<string, FibExtras> {
   const override = asRecord(
     asRecord(assignment.overridesByStudentUid)[studentUid]
   );
@@ -187,16 +211,14 @@ export function servedFibAnswers(
       ? override.language
       : typeof served === 'string'
         ? served
-        : null;
-  if (!locale) return {};
-  const out: Record<string, string[]> = {};
+        : undefined;
+  const lenient = asStringList(assignment.lenientFibLocales);
+  const out: Record<string, FibExtras> = {};
   for (const [qid, byLocale] of Object.entries(
     asRecord(assignment.localizedFibAnswers)
   )) {
-    const list = asStringList(asRecord(byLocale)[locale]).filter(
-      (a) => a.trim() !== ''
-    );
-    if (list.length > 0) out[qid] = list;
+    const extras = fibExtrasFor(asRecord(byLocale), locale, lenient);
+    if (fibExtrasParts(extras).answers.length > 0) out[qid] = extras;
   }
   return out;
 }
@@ -252,6 +274,11 @@ export async function handleScoreQuizOnSubmit(
         .questionIds
     ),
     fibAnswersByQuestion: servedFibAnswers(assignment, callerUid),
+    // Only a student-paced session shows the modified prompt.
+    modified:
+      session.sessionMode === 'student' &&
+      asRecord(asRecord(assignment.overridesByStudentUid)[callerUid])
+        .modifiedQuestions === true,
   };
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(responseRef);
@@ -264,7 +291,7 @@ export async function handleScoreQuizOnSubmit(
     const stamped: unknown = data.scoredOnSubmitAttempt;
     if (typeof stamped === 'number' && attempt <= stamped)
       return { score: null };
-    const result = scoreAttempt(data, ctx);
+    const result = scoreAttempt(data, ctx, snap.id);
     if (!result) return { score: null };
     // Right/wrong stays off the student-readable doc unless their results show responses.
     const { visibility } = resolveServerResultsVisibility(
@@ -274,6 +301,7 @@ export async function handleScoreQuizOnSubmit(
     );
     tx.update(responseRef, {
       score: result.score,
+      scorePoints: result.points,
       answers: visibilityIncludesResponses(visibility)
         ? result.answers
         : withoutVerdicts(result.answers),

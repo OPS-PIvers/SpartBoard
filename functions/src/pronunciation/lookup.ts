@@ -262,6 +262,8 @@ interface VoiceRun {
   reader: VoiceReader;
   deadline: number;
   stopped: boolean;
+  /** Voice-eligible cards never tried, because the budget ran out or the service stopped. */
+  unreached: number;
 }
 
 /** Adds each distinct voice reading for the dialects espeak read; a card whose voices didn't all finish is marked pending. */
@@ -281,6 +283,7 @@ async function addVoiceReferences(
   );
   if (reads.length === 0) return speak;
   if (run.stopped || Date.now() >= run.deadline) {
+    run.unreached++;
     return { ...speak, g2pVersion: SPEAK_G2P_VOICES_PENDING };
   }
   const results = await Promise.allSettled(
@@ -408,11 +411,21 @@ export async function computeSpeakReferences(
   phonemizer?: Phonemizer,
   options: SpeakLookupOptions = {}
 ): Promise<SpeakLookupOutput> {
+  return (await runSpeakLookup(input, phonemizer, options)).out;
+}
+
+/** The lookup plus how many voice-eligible cards were never tried. */
+export async function runSpeakLookup(
+  input: SpeakLookupInput,
+  phonemizer?: Phonemizer,
+  options: SpeakLookupOptions = {}
+): Promise<{ out: SpeakLookupOutput; unreached: number }> {
   const p = phonemizer ?? (await loadPhonemizer());
   const run: VoiceRun = {
     reader: options.voices || createVoiceReader(),
     deadline: Date.now() + (options.voiceBudgetMs ?? DEFAULT_VOICE_BUDGET_MS),
     stopped: options.voices === false,
+    unreached: 0,
   };
   const entries: [string, FlashcardCardSpeak][] = [];
   for (const term of input.terms) {
@@ -424,7 +437,54 @@ export async function computeSpeakReferences(
   }
   // fromEntries defines own keys, so even a `__proto__` card id survives.
   const cards: Record<string, FlashcardCardSpeak> = Object.fromEntries(entries);
-  return { g2pVersion: SPEAK_G2P_VERSION, cards };
+  return {
+    out: { g2pVersion: SPEAK_G2P_VERSION, cards },
+    unreached: run.unreached,
+  };
+}
+
+// Voice terms per teacher per day; a normal week of set building stays far below it.
+export const SPEAK_VOICE_DAILY_TERMS = 2000;
+
+/** Charges `terms` voice lookups to the caller's day; refuses a batch that would pass the day's budget. */
+export async function chargeSpeakVoiceTerms(
+  db: admin.firestore.Firestore,
+  uid: string,
+  terms: number,
+  nowMs = Date.now()
+): Promise<void> {
+  const today = new Date(nowMs).toISOString().slice(0, 10);
+  const ref = db.collection('ai_usage').doc(`${uid}_speak-voices_${today}`);
+  await db.runTransaction(async (tx) => {
+    const used = Number((await tx.get(ref)).data()?.count ?? 0);
+    if (used + terms > SPEAK_VOICE_DAILY_TERMS)
+      throw new HttpsError(
+        'resource-exhausted',
+        'Daily pronunciation voice limit reached. Try again tomorrow.',
+        { reason: 'speakVoiceDaily' }
+      );
+    tx.set(ref, { count: used + terms, updatedAt: nowMs }, { merge: true });
+  });
+}
+
+/** Gives back terms charged at `chargedAtMs` that were never read. */
+export async function refundSpeakVoiceTerms(
+  db: admin.firestore.Firestore,
+  uid: string,
+  terms: number,
+  chargedAtMs: number
+): Promise<void> {
+  if (terms <= 0) return;
+  const day = new Date(chargedAtMs).toISOString().slice(0, 10);
+  const ref = db.collection('ai_usage').doc(`${uid}_speak-voices_${day}`);
+  await db.runTransaction(async (tx) => {
+    const used = Number((await tx.get(ref)).data()?.count ?? 0);
+    tx.set(
+      ref,
+      { count: Math.max(0, used - terms), updatedAt: Date.now() },
+      { merge: true }
+    );
+  });
 }
 
 export const lookupSpeakReferencesV1 = onCall(
@@ -446,7 +506,7 @@ export const lookupSpeakReferencesV1 = onCall(
     }
     const email =
       typeof auth.token.email === 'string' ? auth.token.email : null;
-    const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+    const { isGlobalFeatureGranted } = await import('../featureGrant');
     if (
       !(await isGlobalFeatureGranted(
         admin.firestore(),
@@ -461,11 +521,27 @@ export const lookupSpeakReferencesV1 = onCall(
     // The editor saves without voices, then fills them in small background batches.
     const skipVoices = isRecord(request.data) && request.data.voices === false;
     const started = Date.now();
-    const out = await computeSpeakReferences(
+    if (!skipVoices)
+      await chargeSpeakVoiceTerms(
+        admin.firestore(),
+        auth.uid,
+        input.terms.length,
+        started
+      );
+    const { out, unreached } = await runSpeakLookup(
       input,
       undefined,
       skipVoices ? { voices: false } : {}
     );
+    if (!skipVoices && unreached > 0)
+      await refundSpeakVoiceTerms(
+        admin.firestore(),
+        auth.uid,
+        unreached,
+        started
+      ).catch((err: unknown) =>
+        logger.warn('[speakLookup] refund failed', { err: String(err) })
+      );
     logger.info('[speakLookup] done', {
       terms: input.terms.length,
       dialects: input.dialects.length,

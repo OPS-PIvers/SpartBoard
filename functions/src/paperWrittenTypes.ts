@@ -31,6 +31,10 @@ export type PaperPageItem =
       lines: number;
       /** Absent = lines; mirrors root `types.ts`. */
       style?: PaperBoxStyle;
+      /** Fill in the blank: one write-in line per blank; mirrors root `types.ts`. */
+      blanks?: number;
+      /** A later page of a multi-page answer; mirrors root `types.ts`. */
+      continued?: true;
     };
 
 export interface PaperPageMap {
@@ -41,7 +45,8 @@ export interface PaperPageMap {
   prompt?: string;
 }
 
-export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
+export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | PaperBoxPages | number;
+export type PaperBoxPages = 'pages-2' | 'pages-3' | 'pages-4';
 export type PaperBoxStyle =
   'lines' | 'blank' | 'graph' | 'coordinate' | 'image';
 export type PaperTranscriptState = 'pending' | 'done' | 'blank' | 'image';
@@ -68,6 +73,8 @@ export interface PaperPrivateAnswer {
     page: number;
     state: 'ink' | 'blank';
     seat?: number;
+    /** Fill in the blank: the new scan's write-in lines. */
+    blanks?: number;
   };
   /** A custom image box: graded from the scan, archived but never transcribed. */
   noTranscript?: true;
@@ -82,7 +89,8 @@ export interface PaperTranscriptionJob {
   responseKey: string;
   scanId: string;
   page: number;
-  boxes: { questionId: string; storagePath: string }[];
+  /** `blanks`: a fill-in-the-blank box, read as one answer per write-in line. */
+  boxes: { questionId: string; storagePath: string; blanks?: number }[];
   status: PaperTranscriptionJobStatus;
   attempt: number;
   leaseUntil?: number;
@@ -209,4 +217,14 @@ export function publicTranscriptState(
   if (status === 'blank') return 'blank';
   if (status === 'image') return 'image';
   return 'pending';
+}
+
+/** Most write-in lines one fill-in-the-blank box is read as. */
+export const MAX_FIB_BLANKS = 50;
+
+/** A positive whole blank count capped at MAX_FIB_BLANKS; undefined otherwise. */
+export function cleanBlanks(raw: unknown): number | undefined {
+  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 1)
+    return undefined;
+  return Math.min(raw, MAX_FIB_BLANKS);
 }

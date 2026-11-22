@@ -36,6 +36,7 @@ import * as admin from './firebaseAdmin';
 import * as CryptoJS from 'crypto-js';
 import axios from 'axios';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { safeErr } from './safeLog';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -61,7 +62,8 @@ const GOOGLE_API_TIMEOUT_MS = 10_000;
 // acquired on demand client-side via GIS (`ensureGoogleScope`) and are NOT part
 // of the offline refresh-token grant — so requiring them here would wrongly
 // reject every new offline grant with `partial-consent`.
-const REQUIRED_DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
+export const DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const REQUIRED_DRIVE_SCOPES = [DRIVE_FILE_SCOPE];
 
 const PRIVATE_DOC_PATH = (uid: string) =>
   `users/${uid}/private/googleAuth` as const;
@@ -123,7 +125,7 @@ function decryptRefreshToken(ciphertext: Ciphertext, key: string): string {
     // throw message) is debuggable. The HttpsError swallows the cause
     // from the client by design — we don't expose internal exception
     // detail across the API boundary.
-    console.error('[decryptRefreshToken] CryptoJS decrypt threw', err);
+    console.error('[decryptRefreshToken] CryptoJS decrypt threw', safeErr(err));
     throw new HttpsError(
       'internal',
       'Failed to decrypt stored refresh token. The encryption key may have rotated.'
@@ -205,7 +207,7 @@ function transientError(message: string): HttpsError {
 }
 
 function logWarn(scope: string, err: unknown, extra?: Record<string, unknown>) {
-  console.warn(`[googleOAuth.${scope}]`, err, extra ?? {});
+  console.warn(`[googleOAuth.${scope}]`, safeErr(err), extra ?? {});
 }
 
 // Info-level log for security-relevant successful events (e.g. a successful
@@ -348,7 +350,13 @@ export const exchangeGoogleAuthCode = onCall(
  */
 export async function refreshGoogleAccessTokenForUid(
   uid: string,
-  options: { keepStoredOnFailure?: boolean } = {}
+  options: {
+    keepStoredOnFailure?: boolean;
+    /** Down-scopes the issued token to these space-separated scopes. */
+    scope?: string;
+    /** Refuses a token Google issued with any scope beyond `scope`. */
+    exactScope?: boolean;
+  } = {}
 ): Promise<{ accessToken: string; expiresIn: number }> {
   const db = admin.firestore();
   const ref = db.doc(PRIVATE_DOC_PATH(uid));
@@ -427,6 +435,7 @@ export async function refreshGoogleAccessTokenForUid(
         client_secret: GOOGLE_OAUTH_CLIENT_SECRET.value(),
         refresh_token: refreshToken,
         grant_type: 'refresh_token',
+        ...(options.scope ? { scope: options.scope } : {}),
       }).toString(),
       {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -435,6 +444,16 @@ export async function refreshGoogleAccessTokenForUid(
     );
     if (!res.data.access_token) {
       throw transientError('Google refresh returned no access_token.');
+    }
+    if (options.scope && options.exactScope) {
+      const wanted = new Set(options.scope.split(' '));
+      const got = typeof res.data.scope === 'string' ? res.data.scope : '';
+      if (!got || got.split(' ').some((s) => s && !wanted.has(s))) {
+        throw new HttpsError(
+          'permission-denied',
+          'Google issued a token wider than requested.'
+        );
+      }
     }
     return {
       accessToken: res.data.access_token,
@@ -470,6 +489,13 @@ export async function refreshGoogleAccessTokenForUid(
           'needs-consent: stored refresh token was revoked.'
         );
       }
+      // The grant lacks the narrower scope asked for; keep it and ask for consent.
+      if (googleErr === 'invalid_scope' && options.scope) {
+        throw needsConsent(
+          'partial-consent',
+          'needs-consent: the stored grant lacks the requested scope.'
+        );
+      }
       throw transientError(
         `Google refresh failed: ${googleErr ?? err.message}`
       );
@@ -499,9 +525,19 @@ export const refreshGoogleAccessToken = onCall(
     ],
   },
   async (req) => {
-    await assertViewAsAllowed(req);
+    const claim = await assertViewAsAllowed(req);
     const uid = requireAuthUid(req.auth?.uid);
-    return refreshGoogleAccessTokenForUid(uid);
+    // A View as tab gets the target's token, so it never carries more than drive.file.
+    return refreshGoogleAccessTokenForUid(
+      uid,
+      claim
+        ? {
+            scope: DRIVE_FILE_SCOPE,
+            exactScope: true,
+            keepStoredOnFailure: true,
+          }
+        : {}
+    );
   }
 );
 

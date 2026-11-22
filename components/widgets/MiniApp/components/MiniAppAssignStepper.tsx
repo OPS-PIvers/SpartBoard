@@ -127,16 +127,24 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
           value={classes}
           onChange={setClasses}
           anchor={tourTypeAttr('mini-app.stepper-class-picker', 'miniApp')}
-          rowAnchor={(classId) =>
-            tourFieldAttr('mini-app.stepper-class-row', 'miniApp', classId)
+          rowAnchor={(_classId, rowIndex) =>
+            tourFieldAttr(
+              'mini-app.stepper-class-row',
+              'miniApp',
+              `row-${rowIndex + 1}`
+            )
           }
         />
         <StudentPickMenu
           rosters={rosters}
           value={classes}
           onChange={setClasses}
-          rowAnchor={(classId) =>
-            tourFieldAttr('mini-app.stepper-student-menu', 'miniApp', classId)
+          rowAnchor={(_classId, rowIndex) =>
+            tourFieldAttr(
+              'mini-app.stepper-student-menu',
+              'miniApp',
+              `row-${rowIndex + 1}`
+            )
           }
         />
         <ModificationsLink

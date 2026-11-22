@@ -137,10 +137,16 @@ describe('firebase-deploy-with-retry.sh transient classification', () => {
 // outcomes, and returns each `--only` the script deployed.
 function runWithStubbedDeploys(
   outcomes: { exit: number; log: string }[],
-  deployOnly?: string
+  deployOnly?: string,
+  {
+    checkExits = {},
+    manifest = '',
+  }: { checkExits?: { pre?: number; post?: number }; manifest?: string } = {}
 ): {
   status: number | null;
   onlys: string[];
+  checks: string[];
+  stdout: string;
 } {
   const dir = mkdtempSync(join(tmpdir(), 'deploy-retry-'));
   const bin = join(dir, 'bin');
@@ -161,7 +167,21 @@ function runWithStubbedDeploys(
       `cat "${dir}/log$n" 2>/dev/null; exit $(cat "${dir}/exit$n" 2>/dev/null || echo 0)`,
     ].join('\n')
   );
-  stub('node', 'exit 0');
+  // codebases.mjs runs for real (against `manifest`); the delete and label checks are recorded.
+  stub(
+    'node',
+    [
+      `[[ $1 == *codebases.mjs ]] && exec "${process.execPath}" "$@"`,
+      `[[ $1 == *function-delete-check.mjs ]] || exit 0`,
+      `echo "$2 \${4:-}" >> "${dir}/checks"`,
+      `[[ $2 == pre ]] && exit ${checkExits.pre ?? 0}`,
+      `exit ${checkExits.post ?? 0}`,
+    ].join('\n')
+  );
+  if (manifest) {
+    mkdirSync(join(dir, 'functions'));
+    writeFileSync(join(dir, 'functions/codebases.json'), manifest);
+  }
   stub('sleep', 'exit 0');
   const result = spawnSync('bash', [scriptPath, 'demo'], {
     cwd: dir,
@@ -169,12 +189,26 @@ function runWithStubbedDeploys(
       ...process.env,
       PATH: `${bin}:${process.env.PATH ?? ''}`,
       RELEASE_FIRESTORE_RULES: 'false',
+      GITHUB_STEP_SUMMARY: '',
       ...(deployOnly === undefined ? {} : { FIREBASE_DEPLOY_ONLY: deployOnly }),
     },
   });
-  const onlys = readFileSync(join(dir, 'onlys'), 'utf-8').trim().split('\n');
+  const read = (name: string) => {
+    try {
+      return readFileSync(join(dir, name), 'utf-8').trim().split('\n');
+    } catch {
+      return [];
+    }
+  };
+  const onlys = read('onlys');
+  const checks = read('checks');
   rmSync(dir, { recursive: true, force: true });
-  return { status: result.status, onlys };
+  return {
+    status: result.status,
+    onlys,
+    checks,
+    stdout: String(result.stdout),
+  };
 }
 
 describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
@@ -192,7 +226,7 @@ describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
     expect(status).toBe(0);
     expect(onlys).toEqual([
       'functions,firestore:indexes,storage',
-      'functions:revokeSpotifyAuth,functions:setGoogleTasksSyncV1,firestore:indexes,storage',
+      'functions:default:revokeSpotifyAuth,functions:default:setGoogleTasksSyncV1,firestore:indexes,storage',
       'functions,firestore:indexes,storage',
     ]);
   });
@@ -214,7 +248,7 @@ describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
     expect(status).toBe(0);
     expect(onlys).toEqual([
       'functions,firestore:indexes,storage',
-      'functions:setGoogleTasksSyncV1,firestore:indexes,storage',
+      'functions:default:setGoogleTasksSyncV1,firestore:indexes,storage',
       'functions,firestore:indexes,storage',
     ]);
   });
@@ -238,8 +272,8 @@ describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
     expect(status).toBe(0);
     expect(onlys).toEqual([
       'functions,firestore:indexes,storage',
-      'functions:getViewAsDriveTokenV1,functions:lookupSpeakReferencesV1,firestore:indexes,storage',
-      'functions:getViewAsDriveTokenV1,functions:lookupSpeakReferencesV1,firestore:indexes,storage',
+      'functions:default:getViewAsDriveTokenV1,functions:default:lookupSpeakReferencesV1,firestore:indexes,storage',
+      'functions:default:getViewAsDriveTokenV1,functions:default:lookupSpeakReferencesV1,firestore:indexes,storage',
       'functions,firestore:indexes,storage',
     ]);
   });
@@ -254,12 +288,12 @@ describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
         { exit: 2, log: quotaLog },
         { exit: 0, log: '' },
       ],
-      'functions:fetchLinkPreview,functions:fetchImportImage,storage'
+      'functions:default:fetchLinkPreview,functions:default:fetchImportImage,storage'
     );
     expect(status).toBe(0);
     expect(onlys).toEqual([
-      'functions:fetchLinkPreview,functions:fetchImportImage,storage',
-      'functions:fetchLinkPreview,storage',
+      'functions:default:fetchLinkPreview,functions:default:fetchImportImage,storage',
+      'functions:default:fetchLinkPreview,storage',
     ]);
   });
 
@@ -299,6 +333,30 @@ describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
     ]);
     expect(status).toBe(2);
     expect(onlys).toHaveLength(1);
+  });
+});
+
+describe('firebase-deploy-with-retry.sh quota wait summary', () => {
+  const wait = (fn: string) =>
+    `⚠  functions: Got "Quota Exceeded" error while trying to update projects/demo/locations/us-central1/functions/${fn}. Waiting to retry...`;
+
+  it('totals the rate-limit waits across attempts in one line', () => {
+    const { status, stdout } = runWithStubbedDeploys([
+      {
+        exit: 2,
+        log: [wait('alpha'), wait('beta'), 'Error: HTTP Error: 503'].join('\n'),
+      },
+      { exit: 0, log: [wait('alpha'), wait('gamma')].join('\n') },
+    ]);
+    expect(status).toBe(0);
+    expect(stdout).toContain(
+      '::notice::Cloud Functions rate limit: 4 quota waits across 3 functions, all retried by the Firebase CLI.'
+    );
+  });
+
+  it('says nothing when no wait happened', () => {
+    const { stdout } = runWithStubbedDeploys([{ exit: 0, log: '' }]);
+    expect(stdout).not.toContain('rate limit');
   });
 });
 
@@ -368,10 +426,25 @@ describe('firebase-deploy-with-retry.sh rules release retry', () => {
     expect(sleeps).toEqual(['60', '120']);
   });
 
-  it('gives up after three releases', () => {
-    const { status, releases } = runRulesRelease([outage, outage, outage]);
+  it('waits out a 30 minute outage, as in prod runs 44238939254 and 44314799654, then gives up', () => {
+    const { status, releases, sleeps } = runRulesRelease(
+      Array.from({ length: 10 }, () => outage)
+    );
     expect(status).toBe(1);
-    expect(releases).toBe(3);
+    expect(releases).toBe(9);
+    expect(sleeps.reduce((sum, s) => sum + Number(s), 0)).toBe(1800);
+  });
+
+  it('retries the :test 503 seen in prod run 44314799654', () => {
+    const { status, releases } = runRulesRelease([
+      {
+        exit: 1,
+        log: 'POST /projects/demo:test -> 503; retrying in 8s (attempt 3/4)\nERROR: POST /projects/demo:test -> 503 {"code": 503}',
+      },
+      { exit: 0, log: 'released' },
+    ]);
+    expect(status).toBe(0);
+    expect(releases).toBe(2);
   });
 
   it('does not retry a release the API refuses', () => {
@@ -461,5 +534,187 @@ describe('firebase-deploy-with-retry.sh rules release beside the deploy', () => 
 
   it('keeps the deploy failure when the release passed', () => {
     expect(runDeployAndRelease(3, 0).status).toBe(3);
+  });
+});
+
+describe('firebase-deploy-with-retry.sh function codebases', () => {
+  const quotaLog = [
+    'Could not create or update Cloud Run service orgadminv1, Container Healthcheck failed. Quota exceeded for total allowable CPU per project per region.',
+    '',
+    'Functions deploy had errors with the following functions:',
+    '\tadmin:orgAdminV1(us-central1)',
+    '\tfetchLinkPreview(us-central1)',
+  ].join('\n');
+
+  it('retries failed functions under their own codebase, never as a bare default name', () => {
+    const { status, onlys } = runWithStubbedDeploys(
+      [
+        { exit: 2, log: quotaLog },
+        { exit: 0, log: '' },
+        { exit: 0, log: '' },
+      ],
+      'functions,storage',
+      { manifest: '{ "codebases": { "admin": ["orgAdminV1"] } }' }
+    );
+    expect(status).toBe(0);
+    expect(onlys).toEqual([
+      'functions,storage',
+      'functions:default:fetchLinkPreview,functions:admin:orgAdminV1,storage',
+      'functions,storage',
+    ]);
+  });
+
+  it('runs the delete check before every attempt and the label check once after', () => {
+    const { status, checks } = runWithStubbedDeploys(
+      [
+        { exit: 2, log: quotaLog },
+        { exit: 0, log: '' },
+        { exit: 0, log: '' },
+      ],
+      'functions,storage'
+    );
+    expect(status).toBe(0);
+    expect(checks).toEqual([
+      'pre functions,storage',
+      'pre functions:default:fetchLinkPreview,functions:default:orgAdminV1,storage',
+      'pre functions,storage',
+      'post functions,storage',
+    ]);
+  });
+
+  it('deploys nothing when the delete check fails', () => {
+    const { status, onlys, checks } = runWithStubbedDeploys(
+      [{ exit: 0, log: '' }],
+      'functions:admin,storage',
+      { checkExits: { pre: 1 } }
+    );
+    expect(status).toBe(1);
+    expect(onlys).toEqual([]);
+    expect(checks).toEqual(['pre functions:admin,storage']);
+  });
+
+  it('fails a deploy whose live labels do not match the manifest afterwards', () => {
+    const { status, onlys } = runWithStubbedDeploys(
+      [{ exit: 0, log: '' }],
+      'functions',
+      { checkExits: { post: 1 } }
+    );
+    expect(status).toBe(1);
+    expect(onlys).toEqual(['functions']);
+  });
+
+  it('retries the delete check when live functions cannot be listed', () => {
+    const { status, onlys, checks } = runWithStubbedDeploys(
+      [{ exit: 0, log: '' }],
+      'functions',
+      { checkExits: { pre: 3 } }
+    );
+    // Every attempt fails to list, so nothing deploys and the job fails after the attempt budget.
+    expect(status).toBe(1);
+    expect(onlys).toEqual([]);
+    expect(checks).toHaveLength(10);
+  });
+
+  it('warns instead of failing when the label check cannot list functions after a deploy', () => {
+    const { status, onlys, checks, stdout } = runWithStubbedDeploys(
+      [{ exit: 0, log: '' }],
+      'functions',
+      { checkExits: { post: 3 } }
+    );
+    expect(status).toBe(0);
+    expect(onlys).toEqual(['functions']);
+    expect(checks.filter((c) => c.startsWith('post'))).toHaveLength(4);
+    expect(stdout).toContain('post-deploy label check did not run');
+  });
+
+  it('skips both checks when no functions deploy', () => {
+    const { status, checks } = runWithStubbedDeploys(
+      [{ exit: 0, log: '' }],
+      'firestore:indexes,storage'
+    );
+    expect(status).toBe(0);
+    expect(checks).toEqual([]);
+  });
+});
+
+const hostingScript = resolve(
+  repoRoot,
+  '.github/scripts/hosting-deploy-with-retry.sh'
+);
+
+// Runs the hosting wrapper against a stub pnpm that replays scripted outcomes.
+function runHosting(outcomes: { exit: number; log: string }[]) {
+  const dir = mkdtempSync(join(tmpdir(), 'hosting-retry-'));
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  outcomes.forEach((o, i) => {
+    writeFileSync(join(dir, `log${i + 1}`), o.log);
+    writeFileSync(join(dir, `exit${i + 1}`), String(o.exit));
+  });
+  const stub = (name: string, body: string) => {
+    writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`);
+    chmodSync(join(bin, name), 0o755);
+  };
+  stub(
+    'pnpm',
+    [
+      `n=$(( $(cat "${dir}/count" 2>/dev/null || echo 0) + 1 )); echo $n > "${dir}/count"`,
+      `echo "$*" >> "${dir}/args"`,
+      `cat "${dir}/log$n" 2>/dev/null; exit $(cat "${dir}/exit$n" 2>/dev/null || echo 0)`,
+    ].join('\n')
+  );
+  stub('sleep', 'exit 0');
+  const result = spawnSync('bash', [hostingScript, 'demo', '--force'], {
+    cwd: dir,
+    env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}` },
+  });
+  const args = readFileSync(join(dir, 'args'), 'utf-8').trim().split('\n');
+  rmSync(dir, { recursive: true, force: true });
+  return { status: result.status, deploys: args.length, args };
+}
+
+describe('hosting-deploy-with-retry.sh', () => {
+  const blip = {
+    exit: 2,
+    log: 'Error: HTTP Error: 503, The service is currently unavailable.',
+  };
+
+  it('retries a transient error and passes extra args through', () => {
+    const { status, deploys, args } = runHosting([
+      blip,
+      { exit: 0, log: 'Deploy complete!' },
+    ]);
+    expect(status).toBe(0);
+    expect(deploys).toBe(2);
+    expect(args[0]).toBe(
+      'exec firebase deploy --only hosting --project demo --force'
+    );
+  });
+
+  it('treats an unchanged bundle as success', () => {
+    const { status, deploys } = runHosting([
+      { exit: 1, log: 'Error: version abc is the current active version' },
+    ]);
+    expect(status).toBe(0);
+    expect(deploys).toBe(1);
+  });
+
+  it('gives up after five attempts', () => {
+    const { status, deploys } = runHosting(
+      Array.from({ length: 6 }, () => blip)
+    );
+    expect(status).toBe(2);
+    expect(deploys).toBe(5);
+  });
+
+  it('does not retry a real error', () => {
+    const { status, deploys } = runHosting([
+      {
+        exit: 1,
+        log: 'Error: HTTP Error: 403, The caller does not have permission',
+      },
+    ]);
+    expect(status).toBe(1);
+    expect(deploys).toBe(1);
   });
 });

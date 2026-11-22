@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
+import { createPortal } from 'react-dom';
 import {
   render,
   screen,
@@ -894,6 +895,48 @@ describe('DraggableWindow', () => {
     expect(
       screen.queryByText(/Close widget\? Data will be lost\./i)
     ).not.toBeInTheDocument();
+  });
+
+  it('ignores Escape and Delete keydowns that bubble from a portaled dialog', () => {
+    renderComponent(
+      {},
+      createPortal(
+        <div role="dialog">
+          <button data-testid="portal-btn">Row</button>
+        </div>,
+        document.body
+      )
+    );
+    const btn = screen.getByTestId('portal-btn');
+
+    fireEvent.keyDown(btn, { key: 'Escape' });
+    fireEvent.keyDown(btn, { key: 'Delete' });
+
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText(/Close widget\? Data will be lost\./i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('leaves Escape from a portaled dialog input to the dialog', () => {
+    renderComponent(
+      {},
+      createPortal(
+        <div role="dialog">
+          <input data-testid="portal-input" />
+        </div>,
+        document.body
+      )
+    );
+    const input = screen.getByTestId('portal-input');
+    const docEscape = vi.fn();
+    document.addEventListener('keydown', docEscape);
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+    document.removeEventListener('keydown', docEscape);
+
+    expect(docEscape).toHaveBeenCalledTimes(1);
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
   });
 
   it('shows confirmation on Delete key press', () => {

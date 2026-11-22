@@ -2,7 +2,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, it, expect } from 'vitest';
 
-type Mode = 'read' | 'write' | 'outward' | 'session';
+// mixed: one read guard and one write guard, picked per action.
+type Mode = 'read' | 'write' | 'outward' | 'session' | 'mixed';
 
 // Reviewed View as mode per callable (docs/plans/shipped/ADMIN_VIEW_AS.md D7, D14); a new onCall needs a row here.
 const CALLABLE_MODES: Record<string, Mode> = {
@@ -28,6 +29,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   getQuizArtifactPlaybackUrl: 'read',
   getStudentClassDirectoryV1: 'read',
   reportStudentLoadIssueV1: 'read',
+  reportTransactionFailureV1: 'read',
   getTeammatePrintContextV1: 'read',
   getViewAsDriveTokenV1: 'read',
   listQuizMediaForOrgAdmin: 'read',
@@ -41,9 +43,15 @@ const CALLABLE_MODES: Record<string, Mode> = {
   tourPublicLinkStartV1: 'read',
   // Writes: need an unlocked View as session.
   applyPaperNewerScanV1: 'write',
+  openWritingV1: 'write',
+  takeBackWritingV1: 'write',
+  turnInTimedWritingV1: 'write',
+  turnInWritingV1: 'write',
+  writingPeerReviewV1: 'write',
   checkQuizGameAnswerV1: 'write',
   checkVideoActivityAnswerV1: 'write',
   claimOrganizationInvite: 'write',
+  claimPaperResponseV1: 'write',
   claimPollCodeV1: 'write',
   classroomAddonLoginV1: 'write',
   commitProjectGroupsV1: 'write',
@@ -60,7 +68,6 @@ const CALLABLE_MODES: Record<string, Mode> = {
   importPaperResponsesV1: 'write',
   plcMembershipV1: 'write',
   orgAdminV1: 'write',
-  shareMembershipV1: 'write',
   paperRewordSyncV1: 'write',
   leaveSyncedQuizGroup: 'write',
   leaveSyncedVideoActivityGroup: 'write',
@@ -92,6 +99,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   setPlcNormingFlagV1: 'write',
   studentLoginV1: 'write',
   submitFlashcardCheckV1: 'write',
+  submitProjectGroupV1: 'write',
   reopenFlashcardCheckV1: 'write',
   submitMiniAppResultV1: 'write',
   syncBuildingGroupV1: 'write',
@@ -109,6 +117,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   focusExtendV1: 'outward',
   focusReleaseV1: 'outward',
   focusStartV1: 'outward',
+  saveCourseV1: 'outward',
   createClassroomAttachment: 'outward',
   verifyClassroomTeacherV1: 'outward',
   createOrganizationInvites: 'outward',
@@ -149,8 +158,22 @@ const CALLABLE_MODES: Record<string, Mode> = {
   transcribeVideoWithGemini: 'outward',
   translateQuizV1: 'outward',
   translateResponseV1: 'outward',
+  transcribeSpeechV1: 'outward',
+  tidyDictationV1: 'outward',
+  getSpeechToTextAccessV1: 'outward',
   withdrawTeammatePaperBatchV1: 'outward',
   writeWebTourTextV1: 'outward',
+  freshserviceV1: 'outward',
+  assignWritingV1: 'outward',
+  deleteWritingSessionV1: 'outward',
+  endWritingSessionV1: 'outward',
+  updateWritingSessionV1: 'outward',
+  returnWritingV1: 'outward',
+  returnWritingForRevisionV1: 'outward',
+  saveWritingFeedbackV1: 'outward',
+  setWritingPeerReviewV1: 'outward',
+  // One read guard for shareHost, one write guard for joins and leaves.
+  shareMembershipV1: 'mixed',
   // The session callables read the claim themselves.
   startViewAsSessionV1: 'session',
   startViewAsStudentV1: 'session',
@@ -189,6 +212,11 @@ function modeOf(options: string | undefined): Mode | 'unknown' {
   return 'unknown';
 }
 
+function mixedModeOf(modes: (Mode | 'unknown')[]): Mode | 'repeated' {
+  const sorted = [...modes].sort().join(',');
+  return sorted === 'read,write' ? 'mixed' : 'repeated';
+}
+
 interface Found {
   file: string;
   mode: Mode | 'missing' | 'unknown' | 'repeated';
@@ -213,9 +241,9 @@ function scan(): { callables: Map<string, Found>; strays: string[] } {
           ? 'session'
           : guards.length === 0
             ? 'missing'
-            : guards.length > 1
-              ? 'repeated'
-              : modeOf(guards[0][1]);
+            : guards.length === 1
+              ? modeOf(guards[0][1])
+              : mixedModeOf(guards.map((g) => modeOf(g[1])));
       callables.set(match[1], { file, mode });
     });
   }

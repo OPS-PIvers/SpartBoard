@@ -555,6 +555,7 @@ describe('substitutes (F8)', () => {
     expect(await sessionDoc(sessionId)).toMatchObject({
       subMonitorUids: ['sub-1'],
       subMonitorUntil: NOW + 86_400_000,
+      subMonitorShares: { 'sub-1': 'share-1' },
       teacherUids: ['teacher-1'],
     });
     await shareFor(OTHER_CLASS);

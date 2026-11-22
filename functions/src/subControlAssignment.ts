@@ -32,6 +32,7 @@ import {
   type ControlKind,
   type ControlState,
 } from './subControlPatches';
+import { safeErr } from './safeLog';
 
 export { controlPatches };
 
@@ -142,7 +143,10 @@ export async function finalizeQuizResponses(
     if (result.status === 'fulfilled') {
       if (result.value) count += 1;
     } else {
-      logger.warn('[controlSubAssignment] finalize failed', result.reason);
+      logger.warn(
+        '[controlSubAssignment] finalize failed',
+        safeErr(result.reason)
+      );
     }
   }
   return count;
@@ -238,12 +242,18 @@ export async function handleControlSubAssignment(
     hasOpenPause(session.pauseSpans, session.pausedAt);
   if (repeatPause) delete patches.session.pausedAt;
   if (kind === 'quiz' && action === 'resume') {
-    await refreshIdleResponses(db, sessionId, now);
+    if (session.status === 'paused') {
+      await refreshIdleResponses(db, sessionId, now);
+    }
     const spans =
       session.status === 'paused'
         ? appendPauseSpan(session.pauseSpans, session.pausedAt, now)
         : null;
     if (spans) patches.session.pauseSpans = spans;
+  }
+  // An ended quiz drops its live answer reveals, since students can read the session doc.
+  if (kind === 'quiz' && action === 'end') {
+    patches.session.revealedAnswers = admin.firestore.FieldValue.delete();
   }
   const batch = db.batch();
   // A repeat pause writes only if no Resume landed since the read, so its kept pausedAt is still open.

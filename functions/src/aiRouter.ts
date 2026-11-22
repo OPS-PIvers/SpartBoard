@@ -1,6 +1,7 @@
 import * as admin from './firebaseAdmin';
 import type Anthropic from '@anthropic-ai/sdk';
 import {
+  AudioTranscriptionConfigMode,
   FinishReason,
   GoogleGenAI,
   type GenerateContentConfig,
@@ -19,9 +20,16 @@ import {
   AI_INTEGRATIONS_WITHOUT_FALLBACK,
   type AiIntegrationId,
 } from './aiIntegrations';
-import { providerOf, type AiProvider, type AiTier } from './aiModels';
+import {
+  AUDIO_ONLY_MODEL_IDS,
+  TRANSCRIPT_INTEGRATIONS,
+  providerOf,
+  type AiProvider,
+  type AiTier,
+} from './aiModels';
 import { CLAUDE_OUTPUT_TOKENS_DEFAULTS } from './aiLimits';
 import { normalizeModelName } from './shared';
+import { safeErr } from './safeLog';
 
 /** One of text, inline bytes or a file URI, in Gemini's part shape. */
 export interface AiPart {
@@ -46,6 +54,8 @@ export interface AiRequest {
   legacyModel?: unknown;
   /** How long Claude may take before the call falls back to Gemini; leave room in the function's own timeout. */
   claudeTimeoutMs?: number;
+  /** Used only when the model is a transcription model, which takes no instructions. */
+  transcription?: { languageCodes?: string[]; mode?: 'verbatim' | 'smart' };
 }
 
 export interface AiResult {
@@ -106,10 +116,17 @@ export function chooseModels(
   const preset = AI_INTEGRATION_DEFAULT_MODELS[req.integration];
   const allowedPreset =
     preset && config.allowedModels?.includes(preset) ? preset : undefined;
-  const model =
+  const picked =
     config.integrationModels[req.integration] ??
     normalizeModelName(req.legacyModel) ??
     allowedPreset;
+  // A transcription-only model can't return JSON or follow instructions, so other integrations skip it.
+  const model =
+    picked &&
+    AUDIO_ONLY_MODEL_IDS.includes(picked) &&
+    !TRANSCRIPT_INTEGRATIONS.includes(req.integration)
+      ? undefined
+      : picked;
   return {
     model: model ?? geminiFallback,
     geminiFallback,
@@ -142,10 +159,55 @@ export function toClaudeJsonSchema(schema: Schema): Record<string, unknown> {
   return out;
 }
 
+/** A transcription model: audio parts only, and none of the instruction, thinking or schema settings. */
+async function callTranscriber(
+  model: string,
+  req: AiRequest
+): Promise<Omit<AiResult, 'fellBack' | 'usedFallbackConfig'>> {
+  const ai = new GoogleGenAI(vertexClientOptions());
+  const result = await ai.models.generateContent({
+    model,
+    contents: [
+      { role: 'user', parts: req.parts.filter((p) => p.text === undefined) },
+    ],
+    config: {
+      audioTranscriptionConfig: {
+        languageCodes: req.transcription?.languageCodes,
+        mode:
+          req.transcription?.mode === 'smart'
+            ? AudioTranscriptionConfigMode.SMART
+            : AudioTranscriptionConfigMode.VERBATIM,
+      },
+    },
+  });
+  const candidate = result.candidates?.[0];
+  const spoken = (candidate?.content?.parts ?? [])
+    .map((p) => p.audioTranscription?.text ?? p.text ?? '')
+    .join(' ')
+    .trim();
+  const finishReason = candidate?.finishReason;
+  const usage = result.usageMetadata;
+  return {
+    text: spoken,
+    model,
+    provider: 'gemini',
+    stopped:
+      !finishReason || finishReason === FinishReason.STOP
+        ? 'complete'
+        : finishReason === FinishReason.MAX_TOKENS
+          ? 'max_tokens'
+          : 'other',
+    finishReason,
+    inputTokens: usage?.promptTokenCount ?? 0,
+    outputTokens: usage?.candidatesTokenCount ?? 0,
+  };
+}
+
 async function callGemini(
   model: string,
   req: AiRequest
 ): Promise<Omit<AiResult, 'fellBack' | 'usedFallbackConfig'>> {
+  if (AUDIO_ONLY_MODEL_IDS.includes(model)) return callTranscriber(model, req);
   const config: GenerateContentConfig = {};
   if (req.systemInstruction) config.systemInstruction = req.systemInstruction;
   if (req.responseMimeType) config.responseMimeType = req.responseMimeType;
@@ -325,7 +387,7 @@ async function logAiCall(
         { merge: true }
       );
   } catch (error) {
-    console.warn('[aiRouter] call log write failed', error);
+    console.warn('[aiRouter] call log write failed', safeErr(error));
   }
 }
 
@@ -367,7 +429,7 @@ export async function generateAi(
       } catch (error) {
         console.warn(
           `[aiRouter] ${req.integration} on ${model} failed; ${noFallback ? 'not retrying' : `retrying on ${geminiFallback}`}`,
-          error
+          safeErr(error)
         );
         await logAiCall(db, {
           integration: req.integration,

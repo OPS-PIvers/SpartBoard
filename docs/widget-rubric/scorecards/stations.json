@@ -31,7 +31,7 @@
       "note": "At 150x100 the full toolbar, four station strips and the unassigned tray all shrink together to 2.7px text and 10px targets, and the empty state is nearly invisible.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:51:33.240Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 2,
@@ -72,7 +72,7 @@
       "note": "The grid keeps the same two-column arrangement at both extremes, so the wide shape squashes station text to unreadable slivers and the tall shape breaks titles like 'Rea ding' instead of reflowing.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:51:33.240Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 3,
@@ -283,7 +283,7 @@
       "note": "Dashed borders around every tile with nested boxes inside, plus tiny description text in the label bars, date the otherwise clean face.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:51:33.240Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 2,
@@ -320,7 +320,7 @@
       "note": "Station tiles are primary, but unassigned names in the tray render larger and heavier than the assigned names inside stations, competing for attention.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:51:33.240Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 2,
@@ -372,7 +372,7 @@
       "note": "Lucide icons throughout with short labels like Shuffle and Rotate, though the icon-only absent and reset buttons are not self-explanatory.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:51:33.240Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 3,

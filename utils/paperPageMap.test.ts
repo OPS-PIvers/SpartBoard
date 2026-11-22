@@ -276,6 +276,38 @@ describe('planPaperPages packing', () => {
     }
   });
 
+  it('runs a multi-page box onto continued pages of its own, then carries on', () => {
+    for (const grid of GRIDS) {
+      const maps = plan(sheet(5, { 3: 'pages-3' }), grid);
+      expect(maps).toHaveLength(5);
+      const boxes = maps.slice(1, 4).map((m) => {
+        expect(m.items).toHaveLength(1);
+        return writtenItemsOf(m)[0];
+      });
+      expect(boxes.map((b) => b.questionId)).toEqual(['q3', 'q3', 'q3']);
+      expect(boxes.map((b) => !!b.continued)).toEqual([false, true, true]);
+      expect(boxes.every((b) => b.lines === PAPER_FULL_PAGE_LINES)).toBe(true);
+      expect(mcItemsOf(maps[4]).map((m) => m.label)).toEqual(['4', '5']);
+    }
+  });
+
+  it('runs a prompted multi-page box onto continued pages after its prompt page', () => {
+    const maps = mapsOf(
+      planPaperPages({
+        entries: [wr(1, 'pages-2')],
+        grid: 2,
+        stems: true,
+        promptRows: { q1: 6 },
+      })
+    );
+    expect(maps).toHaveLength(2);
+    expect(writtenItemsOf(maps[1])[0]).toMatchObject({
+      questionId: 'q1',
+      continued: true,
+      lines: PAPER_FULL_PAGE_LINES,
+    });
+  });
+
   it('keeps boxes in the left column on stimulus sheets, and promotes L to its own page', () => {
     const maps = plan(sheet(4, { 2: 'M', 4: 'L' }), 1);
     const [m] = writtenItemsOf(maps[0]);

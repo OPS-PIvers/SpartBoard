@@ -107,9 +107,24 @@ export const ImportShareModePicker: React.FC = () => {
 
   if (!pendingShareImport) return null;
 
-  const { preview, driveBacked, intendedMode } = pendingShareImport;
+  const { preview, driveBacked, hostStaff, hostName, hostChecking } =
+    pendingShareImport;
   const boardName = preview?.name ?? 'Shared board';
-  const hostName = preview?.linkedShareHostName;
+  // A board a non-staff account shares can only be copied; the server checked the host's account.
+  const notStaff = !driveBacked && hostStaff === false;
+  const intendedMode =
+    notStaff && pendingShareImport.intendedMode
+      ? 'copy'
+      : pendingShareImport.intendedMode;
+  const hostWarning = driveBacked
+    ? undefined
+    : notStaff
+      ? 'Only a copy can be imported.'
+      : hostStaff === undefined && !hostChecking
+        ? "We couldn't confirm who shared this board."
+        : undefined;
+  // Live modes wait for the host check; Copy never does.
+  const liveWaiting = !!hostChecking;
 
   const handlePick = (mode: SharedBoardImportMode) => {
     void importSharedBoard(mode);
@@ -117,7 +132,9 @@ export const ImportShareModePicker: React.FC = () => {
 
   const liveDisabledReason = driveBacked
     ? 'Live sync needs the host to share again from an updated version. Older share links can only be copied.'
-    : undefined;
+    : notStaff
+      ? 'Live sync works only for boards shared by staff.'
+      : undefined;
 
   // Confirmation mode: host already picked the mode; show a single card +
   // primary action. Drive-backed shares are always forced to 'copy' upstream.
@@ -132,16 +149,16 @@ export const ImportShareModePicker: React.FC = () => {
         maxWidth="max-w-md"
         contentClassName=""
         customHeader={
-          <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-slate-100">
+          <div className="flex items-start justify-between gap-3 px-5 py-3.5 bg-brand-blue-primary text-white rounded-t-2xl">
             <div className="flex items-start gap-3">
-              <div className="shrink-0 w-9 h-9 rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary flex items-center justify-center">
+              <div className="shrink-0 w-9 h-9 rounded-lg bg-white/15 text-white flex items-center justify-center">
                 <copy.Icon className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-slate-900">
+                <h2 className="text-base font-bold text-white">
                   Import shared board
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[20rem]">
+                <p className="text-xs text-white/80 mt-0.5 truncate max-w-[20rem]">
                   {boardName}
                   {hostName ? ` · from ${hostName}` : ''}
                 </p>
@@ -152,7 +169,7 @@ export const ImportShareModePicker: React.FC = () => {
               onClick={cancelPendingShareImport}
               aria-label="Close"
               {...tourAttr('share-import.close')}
-              className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
+              className="shrink-0 rounded-lg p-1 text-white/80 hover:bg-white/15 hover:text-white transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -172,6 +189,11 @@ export const ImportShareModePicker: React.FC = () => {
                 <p className="mt-1 text-xs text-slate-700 leading-relaxed">
                   {copy.body}
                 </p>
+                {hostWarning && (
+                  <p className="mt-2 text-xs font-semibold text-amber-700">
+                    {hostWarning}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -187,8 +209,9 @@ export const ImportShareModePicker: React.FC = () => {
             <button
               type="button"
               onClick={() => handlePick(intendedMode)}
+              disabled={liveWaiting && intendedMode !== 'copy'}
               {...tourAttr('share-import.confirm')}
-              className="rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold text-sm px-4 py-2 transition-colors cursor-pointer"
+              className="rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold text-sm px-4 py-2 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
             >
               {copy.primary}
             </button>
@@ -209,16 +232,16 @@ export const ImportShareModePicker: React.FC = () => {
       maxWidth="max-w-md"
       contentClassName=""
       customHeader={
-        <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-slate-100">
+        <div className="flex items-start justify-between gap-3 px-5 py-3.5 bg-brand-blue-primary text-white rounded-t-2xl">
           <div className="flex items-start gap-3">
-            <div className="shrink-0 w-9 h-9 rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary flex items-center justify-center">
+            <div className="shrink-0 w-9 h-9 rounded-lg bg-white/15 text-white flex items-center justify-center">
               <Cloud className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">
+              <h2 className="text-base font-bold text-white">
                 Import shared board
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[20rem]">
+              <p className="text-xs text-white/80 mt-0.5 truncate max-w-[20rem]">
                 {boardName}
                 {hostName ? ` · from ${hostName}` : ''}
               </p>
@@ -229,7 +252,7 @@ export const ImportShareModePicker: React.FC = () => {
             onClick={cancelPendingShareImport}
             aria-label="Close"
             {...tourAttr('share-import.close')}
-            className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
+            className="shrink-0 rounded-lg p-1 text-white/80 hover:bg-white/15 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -240,12 +263,15 @@ export const ImportShareModePicker: React.FC = () => {
         <p className="text-xs text-slate-600">
           How should this board be imported?
         </p>
+        {hostWarning && (
+          <p className="text-xs font-semibold text-amber-700">{hostWarning}</p>
+        )}
         <ModeOption
           mode="synced"
           title="Synced"
           body={MODE_COPY.synced.body}
           Icon={Cloud}
-          disabled={driveBacked}
+          disabled={driveBacked || notStaff || liveWaiting}
           disabledReason={liveDisabledReason}
           onPick={handlePick}
           tourId="share-import.mode-synced"
@@ -255,7 +281,7 @@ export const ImportShareModePicker: React.FC = () => {
           title="View-Only"
           body={MODE_COPY['view-only'].body}
           Icon={Eye}
-          disabled={driveBacked}
+          disabled={driveBacked || notStaff || liveWaiting}
           disabledReason={liveDisabledReason}
           onPick={handlePick}
           tourId="share-import.mode-view-only"

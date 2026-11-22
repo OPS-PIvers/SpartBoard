@@ -3,12 +3,14 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  ChevronLeft,
   ClipboardList,
   FileQuestion,
   Film,
   Compass,
   Blocks,
   Layers3,
+  NotebookPen,
   Search,
   X,
 } from 'lucide-react';
@@ -19,6 +21,7 @@ import { getOpenModalCount } from '@/components/common/modalStore';
 import { useServerNow } from '@/hooks/useServerNow';
 import { summarizePeriods } from '@/utils/periodAccess';
 import { AssignmentDetailPane } from './AssignmentDetailPane';
+import { HubAssignedList } from './HubAssignedList';
 import {
   tourAttr,
   tourFieldAttr,
@@ -68,6 +71,11 @@ const KIND_META: Record<
     labelKey: 'assignmentsHub.kind.flashcards',
     fallback: 'Flashcards',
   },
+  writing: {
+    icon: NotebookPen,
+    labelKey: 'assignmentsHub.kind.writing',
+    fallback: 'Writing',
+  },
 };
 
 const KIND_ORDER: AssignmentKind[] = [
@@ -76,6 +84,7 @@ const KIND_ORDER: AssignmentKind[] = [
   'guided-learning',
   'mini-app',
   'flashcards',
+  'writing',
 ];
 
 function formatWindowSummary(
@@ -228,11 +237,16 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessWidget, canAccessFeature } = useAuth();
   const { rosters } = useDashboard();
-  const { rows, loading, quizPlcActions } = useUnifiedAssignments(
+  const writingEnabled = canAccessWidget('writing');
+  // D18: the Assigned list's Active and Finished sections replace the status filter.
+  const assignedOn = canAccessFeature('assigned-tab');
+  const { rows, loading, quizPlcActions, sources } = useUnifiedAssignments(
     user?.uid,
-    rosters
+    rosters,
+    writingEnabled,
+    assignedOn
   );
 
   const [search, setSearch] = useState('');
@@ -243,6 +257,8 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
     []
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Phones show the roster in place of the list after Monitor.
+  const [phoneDetail, setPhoneDetail] = useState(false);
 
   React.useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -273,8 +289,11 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
     [classFilter, classNames]
   );
   const activeStatusFilter = useMemo(
-    () => statusFilter.filter((s) => s !== 'paused' || hasPausableKind),
-    [statusFilter, hasPausableKind]
+    () =>
+      assignedOn
+        ? []
+        : statusFilter.filter((s) => s !== 'paused' || hasPausableKind),
+    [assignedOn, statusFilter, hasPausableKind]
   );
 
   const searchTerm = search.trim().toLowerCase();
@@ -295,7 +314,9 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
     [rows, kindFilter, activeClassFilter, activeStatusFilter, searchTerm]
   );
 
-  const kindOptions: AssignmentFilterOption[] = KIND_ORDER.map((kind) => ({
+  const kindOptions: AssignmentFilterOption[] = KIND_ORDER.filter(
+    (kind) => kind !== 'writing' || writingEnabled
+  ).map((kind) => ({
     value: kind,
     label: t(KIND_META[kind].labelKey, {
       defaultValue: KIND_META[kind].fallback,
@@ -408,7 +429,9 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
         <div className="flex-1 flex overflow-hidden">
           {/* Left: filters + list */}
           {/* No overflow-hidden here — the filter dropdowns overlay the list. */}
-          <div className="w-full md:w-[380px] shrink-0 border-r border-slate-200 flex flex-col min-h-0">
+          <div
+            className={`w-full ${assignedOn ? 'md:w-[500px]' : 'md:w-[380px]'} ${assignedOn && phoneDetail && selectedRow ? 'hidden md:flex' : 'flex'} shrink-0 border-r border-slate-200 flex-col min-h-0`}
+          >
             <div className="relative z-10 p-3 border-b border-slate-100 flex flex-col gap-2">
               <div className="relative">
                 <Search
@@ -437,7 +460,9 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                   className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2.5 text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:border-brand-blue-primary/40 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/20"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div
+                className={`grid gap-2 ${assignedOn ? 'grid-cols-1' : 'grid-cols-2'}`}
+              >
                 <AssignmentFilterSelect
                   label={t('assignmentsHub.filterByType', {
                     defaultValue: 'Filter by type',
@@ -460,31 +485,33 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                   allLabel={allTypesLabel}
                   multiple
                 />
-                <AssignmentFilterSelect
-                  label={t('assignmentsHub.filterByStatus', {
-                    defaultValue: 'Filter by status',
-                  })}
-                  summary={summarize(
-                    activeStatusFilter,
-                    statusOptions,
-                    'assignmentsHub.filterStatusSummary',
-                    'Status: {{value}}',
-                    anyStatusLabel
-                  )}
-                  options={statusOptions}
-                  selected={activeStatusFilter}
-                  onChange={(next) =>
-                    setStatusFilter(next as UnifiedAssignmentStatus[])
-                  }
-                  allLabel={anyStatusLabel}
-                  anchor={tourFieldAttr(
-                    'assignments-hub.filter',
-                    'assignments-hub',
-                    'status'
-                  )}
-                />
+                {!assignedOn && (
+                  <AssignmentFilterSelect
+                    label={t('assignmentsHub.filterByStatus', {
+                      defaultValue: 'Filter by status',
+                    })}
+                    summary={summarize(
+                      activeStatusFilter,
+                      statusOptions,
+                      'assignmentsHub.filterStatusSummary',
+                      'Status: {{value}}',
+                      anyStatusLabel
+                    )}
+                    options={statusOptions}
+                    selected={activeStatusFilter}
+                    onChange={(next) =>
+                      setStatusFilter(next as UnifiedAssignmentStatus[])
+                    }
+                    allLabel={anyStatusLabel}
+                    anchor={tourFieldAttr(
+                      'assignments-hub.filter',
+                      'assignments-hub',
+                      'status'
+                    )}
+                  />
+                )}
                 {classNames.length > 1 && (
-                  <div className="col-span-2">
+                  <div className={assignedOn ? undefined : 'col-span-2'}>
                     <AssignmentFilterSelect
                       label={t('assignmentsHub.filterByClass', {
                         defaultValue: 'Filter by class',
@@ -547,6 +574,23 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                     defaultValue: 'No assignments match these filters.',
                   })}
                 </p>
+              ) : assignedOn ? (
+                <HubAssignedList
+                  rows={filteredRows}
+                  sources={sources}
+                  loading={loading}
+                  rosters={rosters}
+                  selectedId={selectedRow?.id ?? null}
+                  onSelect={(id, open) => {
+                    setSelectedId(id);
+                    if (open) setPhoneDetail(true);
+                  }}
+                  kindLabel={(kind) =>
+                    t(KIND_META[kind].labelKey, {
+                      defaultValue: KIND_META[kind].fallback,
+                    })
+                  }
+                />
               ) : (
                 <div className="space-y-1">
                   {filteredRows.map((row, rowIndex) => (
@@ -568,12 +612,27 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
           </div>
 
           {/* Right: detail pane — per-student status roster (M17 §5 D2). */}
-          <div className="hidden md:flex flex-1 min-w-0 bg-slate-50/60">
+          <div
+            className={`${assignedOn && phoneDetail && selectedRow ? 'flex' : 'hidden md:flex'} flex-1 min-w-0 flex-col bg-slate-50/60`}
+          >
+            {assignedOn && phoneDetail && selectedRow && (
+              // no-tour-anchor: phone-only way back to the list
+              <button
+                type="button"
+                onClick={() => setPhoneDetail(false)}
+                className="md:hidden flex shrink-0 items-center gap-1 px-4 py-3 text-sm font-semibold text-brand-blue-primary border-b border-slate-200"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                {t('common.back', { defaultValue: 'Back' })}
+              </button>
+            )}
             {selectedRow ? (
-              <AssignmentDetailPane
-                row={selectedRow}
-                quizPlcActions={quizPlcActions}
-              />
+              <div className="flex flex-1 min-h-0">
+                <AssignmentDetailPane
+                  row={selectedRow}
+                  quizPlcActions={quizPlcActions}
+                />
+              </div>
             ) : (
               <div className="flex flex-1 items-center justify-center p-8">
                 <p className="text-sm text-slate-400">

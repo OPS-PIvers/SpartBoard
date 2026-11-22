@@ -547,3 +547,130 @@ describe('a legacy guided learning session', () => {
     await assertSucceeds(getDoc(doc(asAnon(), sessionPath(S))));
   });
 });
+
+describe('Close and Reopen a class (ASSIGNED_TAB D24)', () => {
+  const S = 'close-reopen';
+  const SESSION = `guided_learning_sessions/${S}`;
+  const ASSIGNMENT = `users/${TEACHER_UID}/guided_learning_assignments/${S}`;
+  const closeRow = {
+    [`periodAccess.${CLASS_A}.state`]: 'closed',
+    [`periodAccess.${CLASS_A}.closedAt`]: PAST,
+    [`periodAccess.${CLASS_A}.pausedAt`]: PAST,
+  };
+  const reopenRow = {
+    [`periodAccess.${CLASS_A}.state`]: 'open',
+    [`periodAccess.${CLASS_A}.closeAt`]: null,
+    [`periodAccess.${CLASS_A}.closedAt`]: null,
+  };
+
+  beforeEach(async () => {
+    const periodAccess = { [CLASS_A]: period({ state: 'open' }) };
+    await seedSession(S, { accessMode: 'assessment', periodAccess });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), ASSIGNMENT), {
+        id: S,
+        teacherUid: TEACHER_UID,
+        periodAccess,
+      });
+    });
+  });
+
+  it('lets the owner write and read closedAt on the session and the assignment', async () => {
+    const db = asTeacher();
+    for (const path of [SESSION, ASSIGNMENT]) {
+      await assertSucceeds(updateDoc(doc(db, path), closeRow));
+      await assertSucceeds(getDoc(doc(db, path)));
+      await assertSucceeds(updateDoc(doc(db, path), reopenRow));
+    }
+  });
+
+  it('never lets a student write closedAt or read the assignment', async () => {
+    const db = asStudent();
+    await assertFails(updateDoc(doc(db, SESSION), closeRow));
+    await assertFails(getDoc(doc(db, ASSIGNMENT)));
+    await assertFails(updateDoc(doc(db, ASSIGNMENT), closeRow));
+  });
+  const more = (n: number) => ({
+    answers: Array.from({ length: n }, (_, i) => ({
+      stepId: `s${i}`,
+      answer: 'a',
+      isCorrect: null,
+    })),
+  });
+
+  it('holds student writes once the class closes and takes them again on Reopen (D9)', async () => {
+    await seedSeat(S, STUDENT_UID, CLASS_A);
+    await seedResponse(S, STUDENT_UID, { classId: CLASS_A, completedAt: null });
+    const db = asStudent();
+    await assertSucceeds(
+      updateDoc(doc(db, responsePath(S, STUDENT_UID)), more(2))
+    );
+    await assertSucceeds(updateDoc(doc(asTeacher(), SESSION), closeRow));
+    await assertSucceeds(getDoc(doc(db, responsePath(S, STUDENT_UID))));
+    await assertFails(
+      updateDoc(doc(db, responsePath(S, STUDENT_UID)), more(3))
+    );
+    await assertSucceeds(updateDoc(doc(asTeacher(), SESSION), reopenRow));
+    await assertSucceeds(
+      updateDoc(doc(db, responsePath(S, STUDENT_UID)), more(3))
+    );
+  });
+
+  it("lets the teacher turn a closed class's work in, after which the student cannot change it", async () => {
+    await seedSeat(S, STUDENT_UID, CLASS_A);
+    await seedResponse(S, STUDENT_UID, { classId: CLASS_A, completedAt: null });
+    const teacher = asTeacher();
+    await assertSucceeds(updateDoc(doc(teacher, SESSION), closeRow));
+    await assertSucceeds(
+      updateDoc(doc(teacher, responsePath(S, STUDENT_UID)), {
+        completedAt: PAST,
+      })
+    );
+    await assertSucceeds(getDoc(doc(teacher, responsePath(S, STUDENT_UID))));
+    await assertSucceeds(updateDoc(doc(teacher, SESSION), reopenRow));
+    await assertFails(
+      updateDoc(doc(asStudent(), responsePath(S, STUDENT_UID)), more(3))
+    );
+  });
+
+  it('never lets another teacher turn work in', async () => {
+    await seedResponse(S, STUDENT_UID, { classId: CLASS_A, completedAt: null });
+    await assertFails(
+      updateDoc(
+        doc(asTeacher(OTHER_TEACHER_UID), responsePath(S, STUDENT_UID)),
+        {
+          completedAt: PAST,
+        }
+      )
+    );
+    await assertFails(
+      getDoc(doc(asTeacher(OTHER_TEACHER_UID), responsePath(S, STUDENT_UID)))
+    );
+  });
+});
+
+describe('Reopen a single-line run (ASSIGNED_TAB D9)', () => {
+  const S = 'single-reopen';
+
+  it('takes a new response once the teacher clears the passed close', async () => {
+    await seedSession(S, { classIds: [CLASS_A], closeAt: PAST });
+    await assertFails(
+      setDoc(
+        doc(asStudent(), responsePath(S, STUDENT_UID)),
+        response(S, STUDENT_UID, { completedAt: null })
+      )
+    );
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), sessionPath(S)), { closeAt: null })
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asStudent(), responsePath(S, STUDENT_UID)),
+        response(S, STUDENT_UID, { completedAt: null })
+      )
+    );
+    await assertSucceeds(
+      getDoc(doc(asStudent(), responsePath(S, STUDENT_UID)))
+    );
+  });
+});

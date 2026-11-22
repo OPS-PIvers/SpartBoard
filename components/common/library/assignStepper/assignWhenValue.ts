@@ -60,23 +60,38 @@ const formatClock = (time: string): string => {
   });
 };
 
-/** The collapsed When / Available header value. */
+type FormatWhenOptions = {
+  variant: AssignWhenVariant;
+  rosterCount: number;
+  manualAvailable: boolean;
+  /** Staff audience: Manual starts the whole assignment, not each class. */
+  staff?: boolean;
+  t: TFunction;
+};
+
+/** The collapsed When / Available header value, noting late work where a close or due allows it. */
 export function formatWhenValue(
   value: AssignWhenValue,
-  {
-    variant,
-    rosterCount,
-    manualAvailable,
-    staff = false,
-    t,
-  }: {
-    variant: AssignWhenVariant;
-    rosterCount: number;
-    manualAvailable: boolean;
-    /** Staff audience: Manual starts the whole assignment, not each class. */
-    staff?: boolean;
-    t: TFunction;
-  }
+  options: FormatWhenOptions
+): string {
+  const base = formatWhenBase(value, options);
+  const { variant, manualAvailable, staff = false, t } = options;
+  if (variant !== 'when' || !value.availability.allowLate) return base;
+  const manual = value.mode === 'manual' && manualAvailable;
+  const lateShows = manual
+    ? !staff && value.availability.manualDue?.kind === 'date'
+    : true;
+  return lateShows
+    ? t('assignWhen.lateAllowedValue', {
+        when: base,
+        defaultValue: '{{when}}, late allowed',
+      })
+    : base;
+}
+
+function formatWhenBase(
+  value: AssignWhenValue,
+  { variant, rosterCount, manualAvailable, staff = false, t }: FormatWhenOptions
 ): string {
   if (variant === 'live')
     return t('assignWhen.liveValue', {

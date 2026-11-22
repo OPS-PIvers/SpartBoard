@@ -1,4 +1,8 @@
 import {
+  calcFormulaProblem,
+  calcModifiedProblem,
+} from '@/utils/quizCalcProblem';
+import {
   isFreeResponseType,
   type QuizBankSlot,
   type QuizQuestion,
@@ -42,7 +46,8 @@ export const quizIncompleteReason = (
     return `"${emptySlot.bankTitle}" draws 0 questions. Set how many to draw or remove the slot.`;
   for (let i = 0; i < questions.length; i += 1) {
     const q = questions[i];
-    if (!q.text.trim()) return `Question ${i + 1}: text is required`;
+    if (!q.text.trim() && !q.promptAudio)
+      return `Question ${i + 1}: text is required`;
     // Free-response questions have no correct answer — they are manually
     // graded after the quiz closes. A `needsKey` question saves without one
     // on purpose (D7).
@@ -52,6 +57,12 @@ export const quizIncompleteReason = (
     if (maProblem) return `Question ${i + 1}: ${maProblem}`;
     const blankProblem = blankTypeProblem(q);
     if (blankProblem) return `Question ${i + 1}: ${blankProblem}`;
+    const calcProblem =
+      q.type === 'FIB' && q.calc
+        ? (calcFormulaProblem(q.calc) ??
+          calcModifiedProblem(q.calc, q.modifiedText, q.text))
+        : null;
+    if (calcProblem) return `Question ${i + 1}: ${calcProblem}`;
   }
   return null;
 };
@@ -60,13 +71,20 @@ export const quizIncompleteReason = (
 const questionKeyProblem = (questions: QuizQuestion[]): string | null => {
   for (let i = 0; i < questions.length; i += 1) {
     const q = questions[i];
-    if (!q.text.trim()) return `question ${i + 1} has no text`;
+    if (!q.text.trim() && !q.promptAudio)
+      return `question ${i + 1} has no text`;
     if (!isFreeResponseType(q.type) && !q.needsKey && !q.correctAnswer.trim())
       return `question ${i + 1} has no correct answer`;
     const maProblem = multiAnswerProblem(q);
     if (maProblem) return `question ${i + 1}: ${maProblem}`;
     const blankProblem = blankTypeProblem(q);
     if (blankProblem) return `question ${i + 1}: ${blankProblem}`;
+    const calcProblem =
+      q.type === 'FIB' && q.calc
+        ? (calcFormulaProblem(q.calc) ??
+          calcModifiedProblem(q.calc, q.modifiedText, q.text))
+        : null;
+    if (calcProblem) return `question ${i + 1}: ${calcProblem}`;
   }
   return null;
 };

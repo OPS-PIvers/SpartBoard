@@ -64,38 +64,77 @@ describe('viewAsTab', () => {
     expect(mod.viewAsBlocksWrite()).toBe(true);
   });
 
-  it('passes raw writes in an unlocked tab only when audited or inside a scoped outward window', async () => {
+  it('passes raw writes in an unlocked tab right after the admin acts, never local-only paths, and says which need their own audit', async () => {
     vi.useFakeTimers();
     window.history.replaceState({}, '', '/?viewAs=1');
     const mod = await import('./viewAsTab');
     const session = ['quiz_sessions/s1'];
+    const response = ['quiz_sessions/s1/responses/r1'];
     const profile = ['users/u1/userProfile/profile'];
+    const board = ['users/u1/dashboards/b1'];
     expect(mod.viewAsBlocksRawWrite(session)).toBe(true);
+    expect(mod.viewAsBlocksRawWrite(response)).toBe(true);
     expect(mod.runAuditedWrite(() => mod.viewAsBlocksRawWrite(profile))).toBe(
       true
     );
+    expect(mod.viewAsRawWriteNeedsAudit(session)).toBe(false);
 
     mod.updateViewAsTabState({ unlocked: true });
-    expect(mod.viewAsBlocksRawWrite(profile)).toBe(true);
-    expect(mod.runAuditedWrite(() => mod.viewAsBlocksRawWrite(profile))).toBe(
+    expect(mod.viewAsBlocksRawWrite(session)).toBe(true);
+    window.dispatchEvent(new KeyboardEvent('keydown'));
+    expect(mod.viewAsBlocksRawWrite(session)).toBe(false);
+    expect(mod.viewAsBlocksRawWrite(response)).toBe(false);
+    expect(mod.viewAsBlocksRawWrite(profile)).toBe(false);
+    expect(mod.viewAsBlocksRawWrite([...session, ...profile])).toBe(false);
+    expect(mod.viewAsRawWriteNeedsAudit(response)).toBe(true);
+    expect(
+      mod.runAuditedWrite(() => mod.viewAsRawWriteNeedsAudit(profile))
+    ).toBe(false);
+
+    expect(mod.viewAsBlocksRawWrite(board)).toBe(true);
+    expect(mod.viewAsBlocksRawWrite([...session, ...board])).toBe(true);
+    expect(mod.viewAsBlocksRawWrite(['users/u1/plc_state/p1'])).toBe(true);
+    expect(mod.viewAsBlocksRawWrite(['plcs/p1/presence/u1'])).toBe(true);
+    expect(mod.viewAsBlocksRawWrite(['plcs/p1/notes/n1'])).toBe(false);
+    expect(mod.viewAsBlocksRawWrite([])).toBe(true);
+    expect(mod.runAuditedWrite(() => mod.viewAsBlocksRawWrite(board))).toBe(
       false
     );
 
+    vi.advanceTimersByTime(30_001);
+    expect(mod.viewAsBlocksRawWrite(response)).toBe(true);
+    expect(mod.runAuditedWrite(() => mod.viewAsBlocksRawWrite(profile))).toBe(
+      false
+    );
     mod.openViewAsOutwardWindow(['quiz_sessions', 'quiz_assignments']);
     expect(mod.viewAsBlocksRawWrite(session)).toBe(false);
-    expect(
-      mod.viewAsBlocksRawWrite(['users/u1/quiz_assignments/a1/rosters/r1'])
-    ).toBe(false);
-    expect(mod.viewAsBlocksRawWrite(profile)).toBe(true);
     expect(mod.viewAsBlocksRawWrite([...session, ...profile])).toBe(true);
-    expect(mod.viewAsBlocksRawWrite([])).toBe(true);
+    expect(mod.viewAsRawWriteNeedsAudit(session)).toBe(false);
+    expect(mod.viewAsRawWriteNeedsAudit([...session, ...profile])).toBe(true);
     vi.advanceTimersByTime(60_000);
-    expect(mod.viewAsBlocksRawWrite(session)).toBe(true);
+    expect(mod.viewAsRawWriteNeedsAudit(session)).toBe(true);
+    mod.noteViewAsUserAction();
 
     mod.updateViewAsTabState({ ended: true });
+    expect(mod.viewAsBlocksRawWrite(session)).toBe(true);
     expect(mod.runAuditedWrite(() => mod.viewAsBlocksRawWrite(profile))).toBe(
       true
     );
+    expect(mod.viewAsRawWriteNeedsAudit(session)).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it('opens the Share to PLC window over every collection the bank share batch writes', async () => {
+    vi.useFakeTimers();
+    window.history.replaceState({}, '', '/?viewAs=1');
+    const mod = await import('./viewAsTab');
+    const { VIEW_AS_WRITES } = await import('@/hooks/useViewAsOutward');
+    mod.updateViewAsTabState({ unlocked: true });
+    vi.advanceTimersByTime(30_001);
+    mod.openViewAsOutwardWindow(VIEW_AS_WRITES.sharePlc);
+    const batch = ['synced_bank_owners/g1', 'synced_question_banks/g1'];
+    expect(mod.viewAsBlocksRawWrite(batch)).toBe(false);
+    expect(mod.viewAsRawWriteNeedsAudit(batch)).toBe(false);
     vi.useRealTimers();
   });
 

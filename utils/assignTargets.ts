@@ -117,6 +117,30 @@ export function expandMixedTargeting(
   };
 }
 
+/** A saved assignment's student picks per roster, for the classes it narrowed to picked students. */
+export function savedStudentsByClass(
+  saved: {
+    targetStudents?: StudentTargetRef[];
+    studentTargetClassIds?: string[];
+  },
+  rosters: ClassRoster[]
+): Record<string, StudentTargetRef[]> {
+  const narrowed = new Set(saved.studentTargetClassIds ?? []);
+  const targets = new Set(
+    (saved.targetStudents ?? []).map(studentTargetRefKey)
+  );
+  const out: Record<string, StudentTargetRef[]> = {};
+  if (narrowed.size === 0) return out;
+  for (const roster of rosters) {
+    if (!sessionClassIdsFor(roster).some((id) => narrowed.has(id))) continue;
+    const refs = classStudentRows({ rosters, selectedRosterIds: [roster.id] })
+      .filter((row) => targets.has(row.key))
+      .map((row) => row.ref);
+    if (refs.length > 0) out[roster.id] = refs;
+  }
+  return out;
+}
+
 /** Callable payload; `previous` is the last saved value, undefined on first assign. */
 export function buildMixedTargetsPayload(
   previous: MixedTargeting | undefined,

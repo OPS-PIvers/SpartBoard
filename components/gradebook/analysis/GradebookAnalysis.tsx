@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useGradebook } from '@/components/gradebook/GradebookContext';
+import { useAuth } from '@/context/useAuth';
 import { GRADEBOOK_KIND_META } from '@/components/gradebook/kindMeta';
 import { useCompareAverages } from '@/hooks/gradebook/useCompareAverages';
 import { useTargetLookup } from '@/hooks/gradebook/useTargetLookup';
@@ -31,6 +32,10 @@ function shortName(name: string): string {
 /** D27 Data analysis tab for the selected class and grading period. */
 export const GradebookAnalysis: React.FC = () => {
   const gb = useGradebook();
+  const writingEnabled = useAuth().canAccessWidget('writing');
+  const kinds = writingEnabled
+    ? KINDS
+    : KINDS.filter((k) => k.id !== 'writing');
   const lookup = useTargetLookup();
   const [analyzeId, setAnalyzeId] = useState<string | null>(null);
   const [compareOn, setCompareOn] = useState(false);
@@ -91,7 +96,7 @@ export const GradebookAnalysis: React.FC = () => {
         roster={roster}
         categories={gb.settings.categories}
         flags={gb.settings.flags.filter((f) => f.visibility !== 'off')}
-        kinds={KINDS}
+        kinds={kinds}
         method={gb.settings.method}
         scale={gb.scale}
         targets={targets}

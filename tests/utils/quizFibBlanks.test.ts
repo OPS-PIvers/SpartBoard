@@ -144,3 +144,48 @@ describe('multi-blank fill in the blank', () => {
     expect(fibKeyFromSheetCell('Pick ___.', 'a|b')).toBe('a|b');
   });
 });
+
+describe('hasSubmittedContent on hostile input', () => {
+  const oldFixpoint = (s: string): string => {
+    let cur = s;
+    let prev: string;
+    do {
+      prev = cur;
+      cur = cur.replace(/<[^<>]*>/g, '');
+    } while (cur !== prev);
+    return cur;
+  };
+
+  it('finishes quickly on a huge run of nested brackets', () => {
+    const n = 500_000;
+    const nested = '<'.repeat(n) + '>'.repeat(n);
+    const start = Date.now();
+    expect(hasSubmittedContent(nested)).toBe(false);
+    expect(hasSubmittedContent('<'.repeat(2 * n))).toBe(true);
+    expect(hasSubmittedContent(`${nested}x`)).toBe(true);
+    expect(Date.now() - start).toBeLessThan(1000);
+  });
+
+  it('gives the same verdict as the markup-stripping fixpoint on editor output', () => {
+    const samples = [
+      '',
+      '<p><br></p>',
+      '<p>hi</p>',
+      '<<p>>',
+      '<a<b>c>',
+      'a > b < c',
+      '<a>>',
+      '<p>&nbsp;</p>',
+      '1 < 2',
+      '<<<>',
+      '>>><<<',
+    ];
+    for (const s of samples) {
+      expect(hasSubmittedContent(s)).toBe(
+        oldFixpoint(s)
+          .replace(/&nbsp;/gi, ' ')
+          .trim().length > 0
+      );
+    }
+  });
+});

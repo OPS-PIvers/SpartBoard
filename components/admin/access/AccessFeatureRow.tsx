@@ -14,14 +14,22 @@ import { MinTierSelect } from '@/components/admin/MinTierSelect';
 import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
 import {
   ADMIN_LIMITED_FEATURES,
+  DAILY_LIMIT_NOTES,
   EXTRA_DAILY_LIMITS,
   GEMINI_FEATURES,
+  MONTHLY_CAPS,
   defaultDailyLimit,
   type ExtraDailyLimit,
+  type MonthlyCap,
   DEFAULT_MODEL_TIER,
   MODEL_TIER_FEATURES,
   type AiModelTier,
 } from './useGlobalPermissionsEditor';
+import { useSpeechToTextMonthlyUsage } from './useSpeechToTextMonthlyUsage';
+import {
+  SPEECH_AI_TRANSCRIPTION_FEATURE,
+  SPEECH_ROW_KEYS,
+} from '@/config/speechToText';
 import {
   DEFAULT_OTHER_CAUSES,
   INPUT_SIGNALS_FEATURE,
@@ -99,6 +107,8 @@ const permissionChips = (
         {permission.betaUsers.length === 1 ? '' : 's'}
       </Chip>
     );
+  const excluded = permission.excludedUsers?.length ?? 0;
+  if (excluded > 0) chips.push(<Chip key="excluded">{excluded} excluded</Chip>);
   if (GEMINI_FEATURES.includes(featureId)) {
     const on = (permission.config?.dailyLimitEnabled as boolean) ?? true;
     const limit =
@@ -220,6 +230,7 @@ export const DailyLimitEditor: React.FC<{
       />
       <span className="text-xs text-slate-500">
         {extra?.note ??
+          DAILY_LIMIT_NOTES[featureId] ??
           (ADMIN_LIMITED_FEATURES.includes(featureId)
             ? 'per day. Admins included.'
             : 'per day. Admins are unlimited.')}
@@ -261,6 +272,110 @@ export const ModelTierEditor: React.FC<{
         <option value="standard">Standard</option>
         <option value="advanced">Advanced</option>
       </select>
+    </div>
+  );
+};
+
+const MONTHLY_CAP_MAX = 1_000_000;
+
+/** A district-wide monthly limit and this month's use, e.g. minutes of AI transcription. */
+export const MonthlyCapEditor: React.FC<{
+  featureId: GlobalFeature;
+  permission: GlobalFeaturePermission;
+  onUpdate: (updates: Partial<GlobalFeaturePermission>) => void;
+  cap: MonthlyCap;
+}> = ({ featureId, permission, onUpdate, cap }) => {
+  const usage = useSpeechToTextMonthlyUsage();
+  const saved = permission.config?.[cap.capKey];
+  const stored = Math.round(
+    (typeof saved === 'number' ? saved : cap.defaultValue) / cap.perUnit
+  );
+  // Raw text while editing so the field can be emptied; null shows the stored value.
+  const [draft, setDraft] = useState<string | null>(null);
+  const used = usage ? Math.round(usage[cap.usageField] / cap.perUnit) : null;
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+        Monthly limit
+      </span>
+      <input
+        type="number"
+        min={0}
+        max={MONTHLY_CAP_MAX}
+        aria-label={`${FEATURE_DEFAULTS[featureId].label} monthly limit, ${cap.unit}`}
+        {...tourFieldAttr(
+          'admin.features.monthly-cap-number',
+          'admin',
+          featureId
+        )}
+        value={draft ?? stored}
+        onChange={(e) => {
+          const raw = e.target.value;
+          const val = parseInt(raw, 10);
+          if (!Number.isFinite(val)) {
+            setDraft(raw);
+            return;
+          }
+          const clamped = Math.min(MONTHLY_CAP_MAX, Math.max(0, val));
+          setDraft(clamped === val ? raw : String(clamped));
+          onUpdate({
+            config: {
+              ...permission.config,
+              [cap.capKey]: clamped * cap.perUnit,
+            },
+          });
+        }}
+        onBlur={() => setDraft(null)}
+        className="w-24 px-2 py-1 border border-slate-200 rounded-lg text-sm font-mono focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
+      />
+      <span className="text-xs text-slate-500">
+        {cap.unit} for the whole district.
+        {used !== null &&
+          ` ${used.toLocaleString()} of ${stored.toLocaleString()} ${cap.shortUnit} this month.`}
+      </span>
+    </div>
+  );
+};
+
+/** Exact words or Smart, for the Gemini 3.5 Transcribe model. */
+export const TranscribeModeEditor: React.FC<{
+  featureId: GlobalFeature;
+  permission: GlobalFeaturePermission;
+  onUpdate: (updates: Partial<GlobalFeaturePermission>) => void;
+}> = ({ featureId, permission, onUpdate }) => {
+  const mode =
+    permission.config?.[SPEECH_ROW_KEYS.transcribeMode] === 'smart'
+      ? 'smart'
+      : 'verbatim';
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      <label
+        htmlFor={`${featureId}-transcribe-mode`}
+        className="text-xs font-bold text-slate-500 uppercase tracking-widest"
+      >
+        Transcription mode
+      </label>
+      <select
+        id={`${featureId}-transcribe-mode`}
+        {...tourFieldAttr('admin.features.transcribe-mode', 'admin', featureId)}
+        value={mode}
+        onChange={(e) =>
+          onUpdate({
+            config: {
+              ...permission.config,
+              [SPEECH_ROW_KEYS.transcribeMode]: e.target.value,
+            },
+          })
+        }
+        className="px-2 py-1 border border-slate-200 rounded-lg text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
+      >
+        <option value="verbatim">Exact words</option>
+        <option value="smart">Smart</option>
+      </select>
+      <span className="text-xs text-slate-500">
+        Only used with the Gemini 3.5 Transcribe model. Smart adds punctuation
+        but also fixes grammar and drops repeated words.
+      </span>
     </div>
   );
 };
@@ -504,6 +619,13 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
               variant="expanded"
             />
           )}
+          <BetaUsersPanel
+            kind="excluded"
+            betaUsers={permission.excludedUsers ?? []}
+            onChange={(excludedUsers) => onUpdate({ excludedUsers })}
+            showMessage={showMessage}
+            variant="expanded"
+          />
           {GEMINI_FEATURES.includes(featureId) && (
             <DailyLimitEditor
               featureId={featureId}
@@ -517,6 +639,21 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
               permission={permission}
               onUpdate={onUpdate}
               extra={EXTRA_DAILY_LIMITS[featureId]}
+            />
+          )}
+          {MONTHLY_CAPS[featureId] && (
+            <MonthlyCapEditor
+              featureId={featureId}
+              permission={permission}
+              onUpdate={onUpdate}
+              cap={MONTHLY_CAPS[featureId]}
+            />
+          )}
+          {featureId === SPEECH_AI_TRANSCRIPTION_FEATURE && (
+            <TranscribeModeEditor
+              featureId={featureId}
+              permission={permission}
+              onUpdate={onUpdate}
             />
           )}
           {MODEL_TIER_FEATURES.includes(featureId) && (

@@ -22,6 +22,7 @@ import type {
   PaperPrivateAnswer,
   QuizData,
   QuizResponse,
+  Rubric,
   WrittenAnswerGrade,
 } from '@/types';
 
@@ -56,6 +57,78 @@ const QUIZ: QuizData = {
     },
   ],
 };
+
+// `?rubric=1` grades q2 with a rubric, like Paul's DBQ essay.
+const lv = (id: string, label: string, points: number, description = '') => ({
+  id,
+  label,
+  points,
+  description,
+});
+const crit = (id: string, name: string, description: string, max: 1 | 2) => ({
+  id,
+  name,
+  description,
+  levels:
+    max === 2
+      ? [
+          lv(`${id}0`, 'Not shown', 0),
+          lv(`${id}1`, 'Partly', 1),
+          lv(
+            `${id}2`,
+            'Fully',
+            2,
+            'Uses at least four documents to support the argument.'
+          ),
+        ]
+      : [
+          lv(`${id}0`, 'Not shown', 0),
+          lv(`${id}1`, 'Shown', 1, 'Meets the criterion.'),
+        ],
+});
+const DBQ_RUBRIC: Rubric = {
+  id: 'r-dbq',
+  title: 'DBQ essay',
+  createdAt: 0,
+  updatedAt: 0,
+  criteria: [
+    crit(
+      'a',
+      'A. Contextualization',
+      'Describes the broader historical context of the prompt.',
+      1
+    ),
+    crit(
+      'b',
+      'B. Thesis',
+      'Makes a defensible claim that responds to the prompt.',
+      1
+    ),
+    crit(
+      'c',
+      'C. Document evidence',
+      'Uses the content of the documents to support the argument.',
+      2
+    ),
+    crit(
+      'd',
+      'D. Outside evidence',
+      'Uses one piece of evidence not found in the documents.',
+      1
+    ),
+    crit(
+      'e',
+      'E. Sourcing (HAPP-Y)',
+      'Explains the point of view, purpose or audience of a document.',
+      1
+    ),
+  ],
+};
+if (new URLSearchParams(window.location.search).get('rubric') === '1') {
+  const q2 = QUIZ.questions[1];
+  q2.points = 6;
+  q2.rubricSnapshot = DBQ_RUBRIC;
+}
 
 const BATCH = {
   id: 'batch-water',

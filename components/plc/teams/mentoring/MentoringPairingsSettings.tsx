@@ -54,7 +54,7 @@ export const MentoringPairingsSettings: React.FC<{ plc: Plc }> = ({ plc }) => {
       <div>
         <h3 className={HEADING}>Mentors and mentees</h3>
         <ul className="mt-2 divide-y divide-slate-100">
-          {members.map((m) => (
+          {members.map((m, rowIndex) => (
             <li key={m.uid} className="flex items-center gap-3 py-2">
               <span className="min-w-0 flex-1 truncate text-sm text-slate-800">
                 {m.displayName || m.email}
@@ -66,7 +66,7 @@ export const MentoringPairingsSettings: React.FC<{ plc: Plc }> = ({ plc }) => {
                 {...tourFieldAttr(
                   'teams.pairing.member-role',
                   'teams-mentoring',
-                  m.uid
+                  `row-${rowIndex + 1}`
                 )}
                 value={m.mentorRole ?? ''}
                 onChange={(e) =>

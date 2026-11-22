@@ -5,6 +5,7 @@ import { CellPopover } from '@/components/admin/Organization/components/primitiv
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Toggle } from '@/components/common/Toggle';
 import { tourAttr } from '@/config/tourAnchors';
+import { useAuth } from '@/context/useAuth';
 import { spaNavigate } from '@/utils/plcPath';
 import { buildGradebookPath } from '@/utils/gradebookPath';
 import {
@@ -89,6 +90,7 @@ const sortValue = (s: GradebookSort): string =>
 /** Class and period selects, View and Filter menus, and the four icon buttons (D19). */
 export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
   const gb = useGradebook();
+  const writingEnabled = useAuth().canAccessWidget('writing');
   const {
     rosters,
     rosterId,
@@ -379,7 +381,9 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
               }
             >
               <option value="all">All</option>
-              {GRADEBOOK_KINDS.map((k) => (
+              {GRADEBOOK_KINDS.filter(
+                (k) => k !== 'writing' || writingEnabled
+              ).map((k) => (
                 <option key={k} value={k}>
                   {GRADEBOOK_KIND_META[k].label}
                 </option>

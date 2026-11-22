@@ -185,6 +185,36 @@ export const IMPORT_TARGET_FEATURES: Partial<
   links: 'import-link',
 };
 
+/** A source kind with its own rollout flag, which gates every type it offers. */
+export const IMPORT_SOURCE_FEATURES = {
+  form: 'import-google-forms',
+  course: 'import-schoology-course',
+} as const satisfies Partial<Record<ImportSourceKind, GlobalFeature>>;
+
+/** Import flags that gate how a teacher brings something in, not what it becomes. */
+export const IMPORT_WAYS_IN: readonly GlobalFeature[] = [
+  'import-extension-send',
+  'import-board-drop',
+  'import-straight-to-board',
+];
+
+/** The flag a widget row under a source answers to, beyond the source's own; null when none. */
+export function importRowFeature(
+  kind: ImportSourceKind,
+  target: ImportTarget
+): GlobalFeature | null {
+  const own: GlobalFeature | undefined = (
+    IMPORT_SOURCE_FEATURES as Partial<Record<ImportSourceKind, GlobalFeature>>
+  )[kind];
+  // A quiz read from a test document or a form also needs the Quiz widget's document import.
+  const flag =
+    IMPORT_TARGET_FEATURES[target] ??
+    (target === 'quiz' && (kind === 'form' || kind === 'document')
+      ? 'quiz-document-import'
+      : null);
+  return flag === own ? null : flag;
+}
+
 /** True when this Import type is offered: launched (null), or its own flag passes. */
 export function importTypeOn(
   target: ImportTarget,
@@ -310,3 +340,12 @@ export function importSourceKind(source: PendingSource): ImportSourceKind {
   if (item || source.url) return 'web';
   return 'text';
 }
+
+/** Every Import flag that Previews > Import anything shows on a row of its own lists. */
+export const IMPORT_FLAGS_ON_ROWS: ReadonlySet<GlobalFeature> = new Set([
+  ...IMPORT_WAYS_IN,
+  ...Object.values(IMPORT_SOURCE_FEATURES),
+  ...Object.values(IMPORT_TARGET_FEATURES).filter(
+    (f): f is GlobalFeature => !!f
+  ),
+]);

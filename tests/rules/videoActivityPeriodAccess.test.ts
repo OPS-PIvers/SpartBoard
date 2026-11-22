@@ -591,3 +591,53 @@ describe('content and seats', () => {
     await assertFails(getDoc(doc(asStudent(), seatPath(OTHER_UID))));
   });
 });
+
+describe('Close and Reopen a class (ASSIGNED_TAB D24)', () => {
+  const S = 'close-reopen';
+  const SESSION = `video_activity_sessions/${S}`;
+  const ASSIGNMENT = `users/${TEACHER_UID}/video_activity_assignments/${S}`;
+  const closeRow = {
+    [`periodAccess.${CLASS_A}.state`]: 'closed',
+    [`periodAccess.${CLASS_A}.closedAt`]: PAST,
+    [`periodAccess.${CLASS_A}.pausedAt`]: PAST,
+  };
+  const reopenRow = {
+    [`periodAccess.${CLASS_A}.state`]: 'open',
+    [`periodAccess.${CLASS_A}.closeAt`]: null,
+    [`periodAccess.${CLASS_A}.closedAt`]: null,
+  };
+
+  beforeEach(async () => {
+    const periodAccess = { [CLASS_A]: period({ state: 'open' }) };
+    await seedSession(S, {
+      id: S,
+      activityId: 'act-1',
+      createdAt: 1,
+      accessMode: 'assessment',
+      periodAccess,
+    });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), ASSIGNMENT), {
+        id: S,
+        teacherUid: TEACHER_UID,
+        periodAccess,
+      });
+    });
+  });
+
+  it('lets the owner write and read closedAt on the session and the assignment', async () => {
+    const db = asTeacher();
+    for (const path of [SESSION, ASSIGNMENT]) {
+      await assertSucceeds(updateDoc(doc(db, path), closeRow));
+      await assertSucceeds(getDoc(doc(db, path)));
+      await assertSucceeds(updateDoc(doc(db, path), reopenRow));
+    }
+  });
+
+  it('never lets a student write closedAt or read the assignment', async () => {
+    const db = asStudent();
+    await assertFails(updateDoc(doc(db, SESSION), closeRow));
+    await assertFails(getDoc(doc(db, ASSIGNMENT)));
+    await assertFails(updateDoc(doc(db, ASSIGNMENT), closeRow));
+  });
+});

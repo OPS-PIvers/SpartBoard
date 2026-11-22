@@ -7,6 +7,7 @@
  */
 
 import {
+  arrayUnion,
   collection,
   deleteDoc,
   deleteField,
@@ -23,7 +24,11 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import type { PaperBatch, PaperPendingReview } from '@/types';
+import type {
+  PaperBatch,
+  PaperCopyGroupPlan,
+  PaperPendingReview,
+} from '@/types';
 
 const PAPER_BATCHES_COLLECTION = 'paper_batches';
 
@@ -39,6 +44,33 @@ export async function savePaperBatch(
   batch: PaperBatch
 ): Promise<void> {
   await setDoc(doc(batchesRef(userId), batch.id), batch);
+}
+
+/** Saves a printed group's stack and records it on its device assignment in one commit, so a failed link leaves no stray stack. */
+export async function savePrintedCopyBatch(
+  userId: string,
+  assignmentId: string,
+  batch: PaperBatch
+): Promise<void> {
+  const commit = writeBatch(db);
+  commit.set(doc(batchesRef(userId), batch.id), batch);
+  commit.update(doc(db, 'users', userId, 'quiz_assignments', assignmentId), {
+    paperCopyBatchIds: arrayUnion(batch.id),
+    updatedAt: Date.now(),
+  });
+  await commit.commit();
+}
+
+/** Records the printed groups planned at assign, so any closed before printing stay printable from the card. */
+export async function savePrintedCopyPlan(
+  userId: string,
+  assignmentId: string,
+  groups: PaperCopyGroupPlan[]
+): Promise<void> {
+  await updateDoc(doc(db, 'users', userId, 'quiz_assignments', assignmentId), {
+    paperCopyGroups: groups,
+    updatedAt: Date.now(),
+  });
 }
 
 /** One batch by id, or null when it was never saved or has been deleted. */

@@ -1,4 +1,4 @@
-// One-off: write poll_codes/{code} for joinable poll sessions last written before the pointer trigger shipped; dry run unless --apply.
+// One-off: write poll_codes/{code} for joinable sessions, and park codes only retired sessions hold so their teacher can reopen them; dry run unless --apply.
 // Usage: node scripts/backfill-poll-code-pointers.mjs --project dev|prod [--apply]   (run right after the functions deploy)
 
 import { initializeApp, applicationDefault, cert } from 'firebase-admin/app';
@@ -36,24 +36,36 @@ function outranks(mine, other) {
   return n(mine.updatedAt) > n(other.updatedAt);
 }
 
-/** The pointer each code with no pointer yet should get. */
+const ownerOf = (id, code) => id.slice(0, id.length - code.length - 1);
+
+/** The pointer each code with no pointer yet should get; a code only retired sessions hold is parked for its owner (no sessionId). */
 export function missingPointers(sessions, existingCodes) {
   const best = new Map();
+  const parked = new Map();
   for (const { id, data } of sessions) {
     const code = codeOfSessionId(id);
-    if (!code || existingCodes.has(code) || !isJoinable(data)) continue;
+    if (!code || existingCodes.has(code)) continue;
     if (data.code !== undefined && data.code !== code) continue;
+    if (!isJoinable(data)) {
+      const prev = parked.get(code);
+      const n = (v) => (typeof v === 'number' ? v : 0);
+      if (!prev || n(data.updatedAt) > n(prev.data.updatedAt)) {
+        parked.set(code, { id, data });
+      }
+      continue;
+    }
     const prev = best.get(code);
     if (!prev || outranks(data, prev.data)) best.set(code, { id, data });
   }
-  return [...best].map(([code, { id, data }]) => ({
+  const live = [...best].map(([code, { id }]) => ({
     code,
     sessionId: id,
-    teacherUid:
-      typeof data.teacherUid === 'string'
-        ? data.teacherUid
-        : id.slice(0, id.length - code.length - 1),
+    teacherUid: ownerOf(id, code),
   }));
+  const idle = [...parked]
+    .filter(([code]) => !best.has(code))
+    .map(([code, { id }]) => ({ code, teacherUid: ownerOf(id, code) }));
+  return [...live, ...idle];
 }
 
 function parseArgs(argv) {
@@ -120,7 +132,7 @@ async function main() {
     for (const p of missing.slice(i, i + BATCH_LIMIT)) {
       // create() fails the batch if the trigger wrote this code meanwhile; re-run the dry run then.
       batch.create(db.collection('poll_codes').doc(p.code), {
-        sessionId: p.sessionId,
+        ...(p.sessionId ? { sessionId: p.sessionId } : {}),
         teacherUid: p.teacherUid,
         updatedAt: Date.now(),
       });

@@ -813,6 +813,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "countdown#countToday",
       "countdown#includeWeekends",
       "drawing#shapeFill",
+      "embed#blockNewTabs",
       "flashcards#presentShuffle",
       "focus#hideNames",
       "lunchCount#isManualMode",
@@ -873,6 +874,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "requires": "settings-open",
     "keys": [
       "activity-wall#content",
+      "agenda#content",
       "arts-letters-agenda#content",
       "blending-board#content",
       "breathing#content",
@@ -967,7 +969,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "weather#content",
       "weather#display",
       "webcam#behavior",
-      "work-symbols#display"
+      "work-symbols#display",
+      "writing#content"
     ],
     "routes": [
       {
@@ -3819,6 +3822,134 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "agenda.pick-course",
+    "label": "A course in the Agenda course list",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.picker-back",
+    "label": "Back button in the Agenda course list",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.change-course",
+    "label": "Change course button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.reload",
+    "label": "Reload agenda button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.open-slides",
+    "label": "Open in Google Slides button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.set-up",
+    "label": "Set up in My Classes button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.fix-sharing",
+    "label": "Fix in My Classes button on the Agenda sharing notice",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.open-classes",
+    "label": "Open My Classes button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "focus.class",
     "label": "Class picker in Focus",
     "scope": "widget",
@@ -4585,6 +4716,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "needs": [
           "widget-on-stage"
         ]
+      },
+      {
+        "surface": "library.flashcards",
+        "kind": "widget",
+        "widget_type": "flashcards",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -4810,6 +4950,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-step.modifications",
+    "label": "Modifications step header in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-step.when",
     "label": "When step header in the Assign dialog",
     "scope": "board",
@@ -4850,7 +5003,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "assign-step.feedback",
-    "label": "Feedback step header in the Assign dialog",
+    "label": "Results or What students see step header in the Assign dialog",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -4953,8 +5106,21 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-step.writing",
+    "label": "Writing rules step header in the Writing Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-step.sharing",
-    "label": "Sharing step header in the Assign dialog",
+    "label": "Sharing step header in the Assign dialog (Additional settings and sharing in Quiz)",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -5130,7 +5296,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "assign#shuffle-questions",
       "assign#stimulus-quotes",
       "assign#tab-switch-auto-submit",
-      "assign#time-limit"
+      "assign#time-limit",
+      "assign#writing-allow-paste",
+      "assign#writing-block-print",
+      "assign#writing-recording-notice",
+      "assign#writing-spell-check",
+      "assign#writing-student-record"
     ],
     "routes": [
       {
@@ -5363,6 +5534,40 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-classes.course",
+    "label": "Course checkbox in the Assign dialog class list",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-classes",
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "assign-classes.course-expand",
+    "label": "Show the sections in a Course in the Assign dialog class list",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-classes",
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-classes.select-all",
     "label": "Select all button in the Assign dialog class list",
     "scope": "board",
@@ -5425,6 +5630,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Group button in the Assign dialog students menu",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "assign-students-group",
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -5443,6 +5650,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "key_pattern": "assign#row-[1-9]\\d*",
     "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-students-options",
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -6047,6 +6256,448 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-mods.students",
+    "label": "Students menu for a modification group in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.students-search",
+    "label": "Search box in the modification group Students menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.student",
+    "label": "Student checkbox in the modification group Students menu",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-mods-students",
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.students-clear",
+    "label": "Clear button in the modification group Students menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.students-done",
+    "label": "Done button that closes the modification group Students menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.class-group",
+    "label": "Class group button in the modification group Students menu",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-mods-class-groups",
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.answer-choices",
+    "label": "Answer choices rule for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.time",
+    "label": "Time limit rule for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.read-aloud",
+    "label": "Read aloud switch for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.speech-to-text",
+    "label": "Speech to text switch for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.printed",
+    "label": "Printed version switch for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.language",
+    "label": "Language dropdown for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.group",
+    "label": "Closed modification group row in the Assign dialog",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.add-group",
+    "label": "Another group with different changes button in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.modified-questions",
+    "label": "Modified questions switch for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.supports-add",
+    "label": "Add support button for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.supports-kind",
+    "label": "Text, Link or File choice in the Add support menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-add"
+        ],
+        "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-title",
+    "label": "Support title field for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-add"
+        ],
+        "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-body",
+    "label": "Support text or link field for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-add"
+        ],
+        "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-save",
+    "label": "Add button that saves a new support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-add"
+        ],
+        "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-cancel",
+    "label": "Cancel button for a new support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-add"
+        ],
+        "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-file-choose",
+    "label": "Choose file button for a file support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-file-drive",
+    "label": "Choose from Drive button for a file support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-file-url",
+    "label": "Paste a link field for a file support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-file-url-add",
+    "label": "Add button for a pasted file link",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-remove",
+    "label": "Remove support button for a modification group",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.remove-group",
+    "label": "Remove group button in the Assign dialog Modifications step",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
     "id": "assign-mods.open",
     "label": "Modifications link in the Assign dialog",
     "scope": "board",
@@ -6334,6 +6985,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove student button in the Choose students window",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "assign-students-legacy-remove-selected",
     "routes": [
       {
         "surface": "library.assign-student-picker",
@@ -6352,6 +7005,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class button in the Choose students window",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "assign-students-legacy-rosters",
     "routes": [
       {
         "surface": "library.assign-student-picker",
@@ -6370,6 +7025,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Group button in the Choose students window",
     "scope": "field",
     "panel": true,
+    "row_list": "assign-students-legacy-rosters",
     "routes": [
       {
         "surface": "library.assign-student-picker",
@@ -6424,6 +7080,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student checkbox in the Choose students window",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "assign-students-legacy-student",
     "routes": [
       {
         "surface": "library.assign-student-picker",
@@ -6551,6 +7209,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "row_list": "assign-targeting-remove-student",
     "routes": [
       {
         "surface": "library.assign-modal",
@@ -6668,6 +7327,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Which period is this class dropdown in the Assign window",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "assign-periods-untagged",
     "routes": [
       {
         "surface": "library.assign-modal",
@@ -6694,6 +7355,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class period checkbox in the Class Periods popup",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "assign-periods-selector-period",
     "routes": [
       {
         "surface": "library.assign-modal",
@@ -7295,7 +7958,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "editor.close",
-    "label": "Close or Cancel button in an editor dialog footer",
+    "label": "Close button or footer Cancel button in an editor dialog",
     "scope": "widget type",
     "panel": true,
     "closes": "own",
@@ -7546,6 +8209,52 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:quiz",
           "library-shell.new-menu-item:quiz#item-1"
         ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.modified",
+    "label": "Modified version row under Learning targets in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.modified-text",
+    "label": "Modified version wording box in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.modified:quiz"
+        ],
+        "reveal": "quiz-editor.modified:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -8195,6 +8904,73 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-editor.modified-rubric-attach",
+    "label": "Modified rubric: Attach in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.modified-rubric-edit",
+    "label": "Modified rubric: Edit in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.modified-rubric-detach",
+    "label": "Modified rubric: Detach in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "destructive": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-editor.fib-answer",
     "label": "Correct answer input (FIB / short answer) in the Quiz editor",
     "scope": "widget type",
@@ -8276,28 +9052,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "quiz-editor.draft-ai:quiz"
         ],
         "reveal": "quiz-editor.draft-ai:quiz",
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-editor.footer-draft-ai",
-    "label": "Draft with AI (modal footer) in the Quiz editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1"
-        ],
         "needs": [
           "widget-on-stage"
         ]
@@ -9774,7 +10528,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -9796,7 +10551,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -9818,7 +10574,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -9903,6 +10660,270 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-editor.answer-accent-language",
     "label": "Accent language row for an answer in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-number",
+    "label": "Number link on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-new-numbers",
+    "label": "New numbers button on a random-number question in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-from",
+    "label": "From field of a random number in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-to",
+    "label": "To field of a random number in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-decimals",
+    "label": "Decimals field of a random number in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-remove",
+    "label": "Remove button of a random number in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-formula",
+    "label": "Formula answer of a random-number question in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-tolerance",
+    "label": "Accept within field of a random-number question in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-tolerance-kind",
+    "label": "Percent or plus-or-minus switch of a random-number question in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-round",
+    "label": "Round to field of a random-number question in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-unit",
+    "label": "Unit field of a random-number question in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-modified-answer",
+    "label": "Modified answer field of a random-number question whose modified version has typed numbers",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -10016,7 +11037,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -10038,7 +11060,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -10060,7 +11083,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -10082,7 +11106,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -10101,6 +11126,139 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-editor.prompt-numbers",
     "label": "Numbered list button on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz",
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-record-audio",
+    "label": "Record audio button on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-audio-stop",
+    "label": "Stop recording button in the question audio popover in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-audio-play",
+    "label": "Play button for the recorded question audio in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-audio-rerecord",
+    "label": "Record again button for the question audio in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-audio-replays",
+    "label": "Replays limit for the question audio in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-audio-remove",
+    "label": "Remove button for the question audio in the Quiz editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -10304,6 +11462,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "destructive": true,
     "persists": true,
+    "row_list": "quiz-banks-picker-rows",
     "routes": [
       {
         "surface": "quiz.editor.bank-picker",
@@ -10325,6 +11484,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Bank source row (My banks or Shared with me) in Quiz banks, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-banks-picker-rows",
     "routes": [
       {
         "surface": "quiz.editor.bank-picker",
@@ -10487,6 +11648,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Question checkbox in Quiz banks, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-banks-picker-question-check",
     "routes": [
       {
         "surface": "quiz.editor.bank-picker",
@@ -10604,6 +11767,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Slot row click (selects slot; clickable div) in Quiz banks, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-banks-slot-rows",
     "routes": [
       {
         "surface": "quiz.editor",
@@ -10623,6 +11788,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Drag handle in Quiz banks, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-banks-slot-rows",
     "routes": [
       {
         "surface": "quiz.editor",
@@ -10643,6 +11810,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "row_list": "quiz-banks-slot-rows",
     "routes": [
       {
         "surface": "quiz.editor",
@@ -10751,6 +11919,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Target filter tag chips in Quiz banks, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-banks-target-filter-tag",
     "routes": [
       {
         "surface": "quiz.editor",
@@ -10924,6 +12094,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Bank row checkbox in Quiz import, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-import-cartridge-row-rows",
     "routes": [
       {
         "surface": "quiz.import.cartridge",
@@ -10944,6 +12116,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Show or hide questions in a bank in Quiz import, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-import-cartridge-row-rows",
     "routes": [
       {
         "surface": "quiz.import.cartridge",
@@ -11186,6 +12360,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Item checkbox in From Schoology review, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-import-schoology-row-rows",
     "routes": [
       {
         "surface": "quiz.import.schoology",
@@ -11204,6 +12380,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Show or hide questions in From Schoology review, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-import-schoology-row-rows",
     "routes": [
       {
         "surface": "quiz.import.schoology",
@@ -11222,6 +12400,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Update or keep both in From Schoology review, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-import-schoology-row-rows",
     "routes": [
       {
         "surface": "quiz.import.schoology",
@@ -11241,6 +12421,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "row_list": "quiz-import-schoology-row-rows",
     "routes": [
       {
         "surface": "quiz.import.schoology",
@@ -11508,6 +12689,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Answer key select in Quiz import, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-import-paper-rows",
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -11574,6 +12757,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Tag or Edit in Quiz import, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-import-paper-rows",
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -12128,6 +13313,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Preview on a shared bank row in Quiz banks, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-banks-shared",
     "routes": [
       {
         "surface": "quiz.banks",
@@ -12146,6 +13333,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Preview on a District library bank row in the Quiz library, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-banks-district",
     "routes": [
       {
         "surface": "quiz.banks",
@@ -12195,6 +13384,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Include question checkbox in Quiz import, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-import-review-rows",
     "routes": [
       {
         "surface": "quiz.import",
@@ -12214,6 +13405,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Question text textarea in Quiz import, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-import-review-rows",
     "routes": [
       {
         "surface": "quiz.import",
@@ -12291,6 +13484,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Link picture select in Quiz import, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-import-review-rows",
     "routes": [
       {
         "surface": "quiz.import",
@@ -12405,6 +13600,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Unlink or link a shared picture in Quiz import versions, by item",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-import-versions-picture-link",
     "routes": [
       {
         "surface": "quiz.import",
@@ -12511,6 +13708,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-import-targets-add-one",
     "routes": [
       {
         "surface": "quiz.import",
@@ -13222,6 +14421,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-reprint.group",
+    "label": "Group checkbox when printing paper copies again",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.paper-copies-reprint",
+        "kind": "modal",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1",
+          "quiz-library.reprint-paper-copies:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-reprint.student",
     "label": "Student checkbox when printing response sheets again",
     "scope": "field",
@@ -13506,6 +14725,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Show the key radios in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -13528,6 +14748,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Layout radios in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -13575,6 +14796,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Option toggles from TOGGLES map in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -13597,6 +14819,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Preset chips (radio group) in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -13645,6 +14868,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Report choice cards (radio group) in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -13717,6 +14941,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Per-student checkbox in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-results-student-select",
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -13726,6 +14952,159 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.print:quiz"
         ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-tab",
+    "label": "Settings and Students tabs in the Quiz print results",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-clear",
+    "label": "Clear the student picks in the Quiz print results",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
+        ],
+        "reveal": "quiz-print.results-tab:quiz#students",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-course",
+    "label": "Course checkbox in the Quiz print results student list",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-results-groups",
+    "routes": [
+      {
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
+        ],
+        "reveal": "quiz-print.results-tab:quiz#students",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-course-expand",
+    "label": "Show the sections in a Course in the Quiz print results",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-results-groups",
+    "routes": [
+      {
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
+        ],
+        "reveal": "quiz-print.results-tab:quiz#students",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-section",
+    "label": "Class checkbox in the Quiz print results student list",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-results-groups",
+    "routes": [
+      {
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
+        ],
+        "reveal": "quiz-print.results-tab:quiz#students",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-section-expand",
+    "label": "Show the students in a class in the Quiz print results",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-results-groups",
+    "routes": [
+      {
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
+        ],
+        "reveal": "quiz-print.results-tab:quiz#students",
         "needs": [
           "library-item",
           "student-data",
@@ -13761,6 +15140,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Roster expand/collapse in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-rosters",
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -13781,6 +15162,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Roster select-all checkbox in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-rosters",
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -13895,6 +15278,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Quiz image choice in picker in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-sheet-stimuli-quiz-image",
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -14286,6 +15671,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Per-student checkbox in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "row_list": "quiz-print-rosters",
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -14367,6 +15753,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-print.written-box-image",
     "label": "Written answer custom image select in the Quiz widget",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.paper-print",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:quiz#row-1",
+          "quiz-library.assign-paper:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.written-box-pages",
+    "label": "Written box page count in the Quiz widget",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -14491,12 +15897,37 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-stimuli.add-word-bank",
+    "label": "Add a word bank in the Quiz widget",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.tab-stimuli:quiz"
+        ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-stimuli.add-passage",
     "label": "Add a passage in the Quiz widget",
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -14594,6 +16025,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "needs": [
           "widget-on-stage"
         ]
+      },
+      {
+        "surface": "quiz.editor.stimulus-picker",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-stimuli.attach-toggle:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -14633,6 +16076,64 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "quiz-stimuli.attach-toggle:quiz"
         ],
         "reveal": "quiz-stimuli.attach-toggle:quiz",
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
+        "surface": "quiz.editor.stimulus-picker",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-stimuli.attach-toggle:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-stimuli.picker-add",
+    "label": "Add a stimulus row in the Quiz widget stimulus picker",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.stimulus-picker",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-stimuli.attach-toggle:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-stimuli.picker-close",
+    "label": "Close button in the Quiz widget stimulus picker",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.stimulus-picker",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-stimuli.attach-toggle:quiz"
+        ],
         "needs": [
           "widget-on-stage"
         ]
@@ -14731,7 +16232,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -14753,7 +16255,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -14772,6 +16275,48 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-stimuli.passage-text",
     "label": "Passage textarea in the Quiz widget",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.tab-stimuli:quiz"
+        ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-stimuli.word-bank-columns",
+    "label": "Word bank Columns in the Quiz widget",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.tab-stimuli:quiz"
+        ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-stimuli.word-bank-text",
+    "label": "Word bank textarea in the Quiz widget",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -14956,7 +16501,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -14980,7 +16526,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -15789,8 +17336,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.student-toggle",
     "label": "Student row expand button in Quiz results, by row",
     "scope": "field",
-    "key_pattern": "quiz#\\d+",
-    "key_hint": "quiz#0 for the first student row",
+    "row_wildcard": true,
+    "row_list": "quiz-results-students",
     "routes": [
       {
         "surface": "quiz.results",
@@ -15864,6 +17411,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Results options menu button in Quiz results, by student",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-results-students",
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -15878,6 +17427,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-results-students",
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -15895,6 +17446,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-results-students",
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -15912,6 +17465,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-results-students",
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -16237,6 +17792,21 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.counted-answers",
     "label": "Answers that count menu in Quiz results, by section",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "quiz-results-counted-answers",
+    "routes": [
+      {
+        "surface": "quiz.student-answer-line",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-results.accept-answer",
+    "label": "Accept button beside a missed fill-in-the-blank answer in a student report in Quiz results, by question",
+    "scope": "field",
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.student-answer-line",
@@ -16284,6 +17854,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.target-row-toggle",
     "label": "Target mastery row expand in Quiz results, by target",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "quiz-results-target-row-toggle",
     "routes": [
       {
         "surface": "quiz.results",
@@ -16356,6 +17928,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.targets-sort-target",
     "label": "Sort by target column in Quiz results, by column",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "quiz-results-targets-sort-target",
     "routes": [
       {
         "surface": "quiz.results",
@@ -17825,56 +19399,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-grading.student-prev",
-    "label": "Previous student in the Quiz grader",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.grader",
-        "kind": "modal",
-        "path": [
-          "library-shell.tab:quiz#archive",
-          "library-shell.archive-primary-action:quiz#row-1",
-          "quiz-grading.open:quiz"
-        ],
-        "needs": [
-          "student-data",
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-grading.student-next",
-    "label": "Next student in the Quiz grader",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.grader",
-        "kind": "modal",
-        "path": [
-          "library-shell.tab:quiz#archive",
-          "library-shell.archive-primary-action:quiz#row-1",
-          "quiz-grading.open:quiz"
-        ],
-        "needs": [
-          "student-data",
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "quiz-grading.student-select",
     "label": "Student row in queue in the Quiz grader, by student",
     "scope": "field",
@@ -18042,8 +19566,59 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.writing-playback",
+    "label": "Replay how the student wrote their answer in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.grader",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-grading.comment",
     "label": "Teacher comment box in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.grader",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.excuse",
+    "label": "Excuse button in the grader",
     "scope": "widget type",
     "panel": true,
     "persists": true,
@@ -18122,6 +19697,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Tagged-count jump in the Quiz grader, by criterion",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-grading-rubric-rows",
     "routes": [
       {
         "surface": "quiz.rubric-scoring",
@@ -18135,6 +19712,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add / hide note toggle in the Quiz grader, by criterion",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-grading-rubric-rows",
     "routes": [
       {
         "surface": "quiz.rubric-scoring",
@@ -18157,10 +19736,384 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.rubric-order",
+    "label": "Rubric level order (highest or lowest first) in the grader rubric settings",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": [
+          "quiz-grading.rubric-settings:quiz"
+        ],
+        "reveal": "quiz-grading.rubric-settings:quiz"
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-settings",
+    "label": "Rubric settings button in the grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-auto-advance",
+    "label": "Auto-advance to next category switch in the grader rubric settings",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": [
+          "quiz-grading.rubric-settings:quiz"
+        ],
+        "reveal": "quiz-grading.rubric-settings:quiz"
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-open-next",
+    "label": "Auto-open next category switch in the grader rubric settings",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": [
+          "quiz-grading.rubric-settings:quiz"
+        ],
+        "reveal": "quiz-grading.rubric-settings:quiz"
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-expand-all",
+    "label": "Expand or collapse all criteria in the grader rubric",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-view-full",
+    "label": "View rubric button in the grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-close",
+    "label": "Close button on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-order",
+    "label": "Level order switch on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-edit",
+    "label": "Edit button on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-save",
+    "label": "Save button when editing the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-cancel",
+    "label": "Cancel button when editing the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-x",
+    "label": "Close (X) on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-add-criterion",
+    "label": "Add criterion when editing the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-add-level",
+    "label": "Add level when editing the full rubric table, by criterion",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-remove-criterion",
+    "label": "Remove criterion when editing the full rubric table, by criterion",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-template",
+    "label": "Levels or Scoring guide switch when editing the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-guide-guidelines",
+    "label": "Scoring guidelines when editing the full rubric table, by part",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-guide-example",
+    "label": "Example response when editing the full rubric table, by example",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-guide-example-add",
+    "label": "Add example response when editing the full rubric table, by part",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-guide-example-remove",
+    "label": "Remove example response when editing the full rubric table, by example",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-guide-points",
+    "label": "Point max when editing the full rubric table, by part",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-remove-level",
+    "label": "Remove level when editing the full rubric table, by level",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-field",
+    "label": "Text or points field when editing the full rubric table, by field",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-criterion-toggle",
+    "label": "Criterion open / close toggle in the grader, by criterion",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-grading-rubric-rows",
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-grading.rubric-note",
     "label": "Criterion note textarea in the Quiz grader, by position",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-grading-rubric-rows",
     "routes": [
       {
         "surface": "quiz.rubric-scoring",
@@ -18174,6 +20127,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Strand tag chip in the Quiz grader, by criterion",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-grading-strand-chip",
     "routes": [
       {
         "surface": "quiz.grader",
@@ -18196,6 +20151,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Orphaned strand chip in the Quiz grader, by criterion",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-grading-strand-chip-orphan",
     "routes": [
       {
         "surface": "quiz.grader",
@@ -18232,6 +20189,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-rubric.builder-close",
     "label": "Close button on the Quiz rubric builder",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-builder",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-rubric.builder-table",
+    "label": "Edit as table button on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -18861,6 +20834,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.roster-row-actions",
     "label": "Student actions button in the Quiz monitor roster",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "quiz-monitor-roster",
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -18932,6 +20907,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class choice in the Quiz monitor Open Part menu",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-monitor-open-part-period",
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -18980,6 +20957,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Absent button on a student who has not joined, in the Quiz monitor roster",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-monitor-roster",
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -19182,6 +21161,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Live view button on a student in the Quiz monitor roster",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-monitor-roster",
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -19382,6 +21363,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.clear-hand",
     "label": "Clear raised hand button in the Quiz monitor roster",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "quiz-monitor-clear-hand",
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -19599,6 +21582,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.question-result",
     "label": "Question result row in the Quiz monitor",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "quiz-monitor-question-result",
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -20091,6 +22076,78 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "widget-on-stage"
         ]
       },
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-monitor.class-resume",
+    "label": "Resume button for the picked class in the Quiz monitor",
+    "scope": "widget type",
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-monitor.class-close",
+    "label": "Close button for the picked class in the Quiz monitor",
+    "scope": "widget type",
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-monitor.class-reopen",
+    "label": "Reopen button for the picked class in the Quiz monitor",
+    "scope": "widget type",
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -21691,6 +23748,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "reveal-grid.add-cards",
+    "label": "Add cards button on an empty Reveal Grid",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.reveal-grid.face",
+        "kind": "widget",
+        "widget_type": "reveal-grid",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "reveal-grid.start-over",
     "label": "Start over button in Reveal Grid memory mode",
     "scope": "widget",
@@ -22392,6 +24465,40 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.settings-opener"
         ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.specialist-schedule.warn-minutes",
+    "label": "Warn before the end choice in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.specialist-schedule.face",
+        "kind": "widget",
+        "widget_type": "specialist-schedule",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.specialist-schedule.warn-sound",
+    "label": "Warning sound choice in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.specialist-schedule.face",
+        "kind": "widget",
+        "widget_type": "specialist-schedule",
+        "path": [],
         "needs": [
           "widget-on-stage"
         ]
@@ -23150,29 +25257,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "roster-groups.new-empty",
-    "label": "New group button in the empty Groups tab",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups"
-        ],
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
     "id": "roster-groups.new",
-    "label": "New group button at the bottom of the Groups tab",
+    "label": "New group button on the Groups tab",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23326,8 +25412,285 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "roster-groups.back",
+    "label": "All groups button at the top of a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.name",
+    "label": "Group name box on a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.delete",
+    "label": "Delete group button on a group page",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.search",
+    "label": "Search students box on a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.select-all",
+    "label": "Select all students button on a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.clear",
+    "label": "Clear students button on a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.show-in-widgets",
+    "label": "Show in widgets switch on a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.done",
+    "label": "Done button at the bottom of a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-accommodations.list",
+    "label": "List of students on the Accommodations tab",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-accommodations.edit",
+    "label": "Edit button on a student row on the Accommodations tab",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-accommodations.back",
+    "label": "All students button at the top of a student accommodations page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-accommodations.edit:roster-accommodations"
+        ],
+        "reveal": "roster-accommodations.edit:roster-accommodations",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-accommodations.done",
+    "label": "Done button at the bottom of a student accommodations page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-accommodations.edit:roster-accommodations"
+        ],
+        "reveal": "roster-accommodations.edit:roster-accommodations",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
     "id": "group-wizard.steps",
-    "label": "Step list at the top of the group wizard",
+    "label": "Step list in the group editor",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23350,9 +25713,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.step",
-    "label": "Students, Symbol, Schedule or Alerts step button in the group wizard",
+    "label": "Students, Symbol, Schedule or Additional settings step in the group editor",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "group-wizard#schedule",
+      "group-wizard#settings",
+      "group-wizard#students",
+      "group-wizard#symbol"
+    ],
     "routes": [
       {
         "surface": "board.roster-groups",
@@ -23373,7 +25742,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.student-search",
-    "label": "Search students box in the group wizard",
+    "label": "Search students box in the group editor",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23396,9 +25765,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.student",
-    "label": "Student checkbox in the group wizard",
+    "label": "Student checkbox in the group editor",
     "scope": "field",
     "panel": true,
+    "key_pattern": "group-wizard#row-[1-9]\\d*",
+    "key_hint": "group-wizard#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "group-wizard-students",
     "routes": [
       {
         "surface": "board.roster-groups",
@@ -23419,7 +25792,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.name",
-    "label": "Group name box in the group wizard",
+    "label": "Group name box in the group editor",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23442,7 +25815,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.icon-search",
-    "label": "Search icons box in the group wizard",
+    "label": "Search icons box in the group editor",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23465,7 +25838,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.icon",
-    "label": "Icon button in the group wizard",
+    "label": "Icon button in the group editor",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -23488,7 +25861,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.color",
-    "label": "Color swatch in the group wizard",
+    "label": "Color swatch in the group editor",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -23511,7 +25884,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.preview",
-    "label": "Reminder preview in the group wizard",
+    "label": "Reminder preview in the group editor",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23534,7 +25907,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.day",
-    "label": "Weekday button in the group wizard Schedule step",
+    "label": "Weekday button in the group editor Schedule step",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -23557,7 +25930,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.alert-time",
-    "label": "Alert time box in the group wizard Schedule step",
+    "label": "Alert time box in the group editor Schedule step",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -23580,7 +25953,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.alert-lead",
-    "label": "Show reminder dropdown in the group wizard Schedule step",
+    "label": "Pops up dropdown in the group editor Schedule step",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -23603,7 +25976,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.alert-remove",
-    "label": "Remove alert button in the group wizard Schedule step",
+    "label": "Remove time button in the group editor Schedule step",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -23626,7 +25999,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.add-alert",
-    "label": "Add another alert button in the group wizard Schedule step",
+    "label": "Add another time button in the group editor Schedule step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23649,7 +26022,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.repeat",
-    "label": "Repeats dropdown in the group wizard Schedule step",
+    "label": "Repeats dropdown in the group editor Schedule step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23672,7 +26045,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.start-date",
-    "label": "Starting date box in the group wizard Schedule step",
+    "label": "Starting date box in the group editor Schedule step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23695,7 +26068,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.on-board",
-    "label": "Reminder on the board switch in the group wizard Alerts step",
+    "label": "Reminder on the board switch in the group editor Schedule step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23718,7 +26091,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.sound",
-    "label": "Sound dropdown in the group wizard Alerts step",
+    "label": "Sound dropdown in the group editor Schedule step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23741,7 +26114,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.play-sound",
-    "label": "Play sound button in the group wizard Alerts step",
+    "label": "Play sound button in the group editor Schedule step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23764,7 +26137,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.snooze",
-    "label": "Snooze dropdown in the group wizard Alerts step",
+    "label": "Snooze dropdown in the group editor Schedule step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23787,7 +26160,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.show-name",
-    "label": "Show group name switch in the group wizard Alerts step",
+    "label": "Show group name switch in the group editor Schedule step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23810,7 +26183,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.show-time",
-    "label": "Show time switch in the group wizard Alerts step",
+    "label": "Show time switch in the group editor Schedule step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23833,7 +26206,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.show-message",
-    "label": "Show a message switch in the group wizard Alerts step",
+    "label": "Show a message switch in the group editor Schedule step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23856,7 +26229,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.message",
-    "label": "Message box in the group wizard Alerts step",
+    "label": "Message box in the group editor Schedule step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23879,7 +26252,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.email-alert",
-    "label": "Email alert switch in the group wizard Alerts step",
+    "label": "Email alert switch in the group editor Schedule step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23902,7 +26275,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.email-message",
-    "label": "Email message box in the group wizard Alerts step",
+    "label": "Email message box in the group editor Schedule step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23925,7 +26298,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.group-maker",
-    "label": "Enable in Group Maker switch in the group wizard Alerts step",
+    "label": "Enable in Group Maker switch in the group editor Additional settings step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23948,30 +26321,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.cancel",
-    "label": "Cancel button on the first step of the group wizard",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.back",
-    "label": "Back button in the group wizard",
+    "label": "Cancel button in the group editor",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23994,30 +26344,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.next",
-    "label": "Next button in the group wizard",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.save-now",
-    "label": "Save group button on a middle step when editing a group",
+    "label": "Continue button on the open step in the group editor",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -24040,7 +26367,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.finish",
-    "label": "Save group button on the last step of the group wizard",
+    "label": "Save group button in the group editor",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25512,6 +27839,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.assignments",
         "kind": "shared",
         "path": []
+      },
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -25536,6 +27868,331 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "persists": true,
     "row_list": "assignment-rows",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-classes",
+    "label": "Details arrow on an Assigned tab row; shows each class",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "assignment-rows",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-class-action",
+    "label": "Open, Pause, Resume, Close or Reopen for one class in an expanded Assigned row",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "key_pattern": "[a-z-]+#(open|pause|resume|close|reopen|monitor)-[1-9]\\d*",
+    "key_hint": "quiz#open-2 is Open for the second class in the open row",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.assigned-classes"
+        ],
+        "reveal": "library-shell.assigned-classes"
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-done-section",
+    "label": "Finished section header on the Assigned tab",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-left-open-close",
+    "label": "Close on a class left open flag at the top of the Assigned tab",
+    "scope": "field",
+    "persists": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-left-open-leave",
+    "label": "Leave open on a class left open flag at the top of the Assigned tab",
+    "scope": "field",
+    "persists": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-close-all",
+    "label": "Close for all classes, in an Assigned row menu",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.archive-menu"
+        ],
+        "reveal": "library-shell.archive-menu"
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-move-to-done",
+    "label": "Move to Finished, in an Assigned row menu",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.archive-menu"
+        ],
+        "reveal": "library-shell.archive-menu"
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-reopen",
+    "label": "Reopen…, in an Assigned row menu",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.archive-menu"
+        ],
+        "reveal": "library-shell.archive-menu"
+      }
+    ]
+  },
+  {
+    "id": "assigned-reopen.class",
+    "label": "Class picker in the Reopen dialog of an Assigned row",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.assigned-reopen"
+        ],
+        "reveal": "library-shell.assigned-reopen"
+      }
+    ]
+  },
+  {
+    "id": "assigned-reopen.who",
+    "label": "Everyone or only chosen students, in the Reopen dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.assigned-reopen"
+        ],
+        "reveal": "library-shell.assigned-reopen"
+      }
+    ]
+  },
+  {
+    "id": "assigned-reopen.cancel",
+    "label": "Cancel button in the Reopen dialog of an Assigned row",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.assigned-reopen"
+        ],
+        "reveal": "library-shell.assigned-reopen"
+      }
+    ]
+  },
+  {
+    "id": "assigned-reopen.confirm",
+    "label": "Reopen button in the Reopen dialog of an Assigned row",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.assigned-reopen"
+        ],
+        "reveal": "library-shell.assigned-reopen"
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-results",
+    "label": "Results in an expanded Assigned row",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "assignment-rows",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.assigned-classes"
+        ],
+        "reveal": "library-shell.assigned-classes"
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-search",
+    "label": "Search box above the Assigned tab list",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-filter-class",
+    "label": "Class filter above the Assigned tab list",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-filter-status",
+    "label": "Status filter above the Assigned tab list",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-filter-clear",
+    "label": "Clear, beside the Assigned tab filters",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-select",
+    "label": "Select on the Assigned tab; starts picking several assignments",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-select-row",
+    "label": "Checkbox on an Assigned row while picking several assignments",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "assignment-rows",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-select-all",
+    "label": "Select all box in the Assigned tab selection bar",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-bulk-action",
+    "label": "Close, Move to Finished or Delete in the Assigned tab selection bar",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "key_pattern": "[a-z-]+#(close|move-to-done|publish|delete)",
+    "key_hint": "quiz#delete is Delete for the picked quizzes",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-select-cancel",
+    "label": "Cancel in the Assigned tab selection bar",
+    "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "library.shell",
@@ -26010,6 +28667,638 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "classes.course-expand",
+    "label": "Show the classes in a linked Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "classes",
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-open",
+    "label": "Open the Agenda dialog for a class or Course in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-done",
+    "label": "Done button in the Agenda dialog in My Classes",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-change",
+    "label": "Change the Agenda deck in the Agenda dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-paste",
+    "label": "Paste a Google Slides link for the Agenda deck",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-paste-use",
+    "label": "Use the pasted Google Slides link as the Agenda deck",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-pick",
+    "label": "Select or change the Agenda Google Slides deck in My Classes",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-open-deck",
+    "label": "Open the Agenda deck in Google Slides from My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-remove",
+    "label": "Remove the Agenda deck in My Classes",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-fix-sharing",
+    "label": "Fix who can open the Agenda deck in My Classes",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-copy-link",
+    "label": "Copy Class page link button in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-link-add",
+    "label": "Add link button for a Course in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-link-title",
+    "label": "Link title field for a Course in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open",
+          "classes.agenda-link-add"
+        ],
+        "reveal": "classes.agenda-link-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-link-url",
+    "label": "Link address field for a Course in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open",
+          "classes.agenda-link-add"
+        ],
+        "reveal": "classes.agenda-link-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-link-cancel",
+    "label": "Cancel adding a Course link in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open",
+          "classes.agenda-link-add"
+        ],
+        "reveal": "classes.agenda-link-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-link-save",
+    "label": "Save a new Course link in My Classes",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open",
+          "classes.agenda-link-add"
+        ],
+        "reveal": "classes.agenda-link-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-link-remove",
+    "label": "Remove a Course link in My Classes",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-edit",
+    "label": "Edit Course button on a linked Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "classes",
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-actions",
+    "label": "Course actions menu on a linked Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "classes",
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-sync-classlink",
+    "label": "Sync with ClassLink for a whole Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "row_wildcard": true,
+    "row_list": "classes",
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-view-student-page",
+    "label": "View Student Page for a Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "classes",
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.link-classes",
+    "label": "Link classes button in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-suggestion-link",
+    "label": "Link button on a suggested Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-suggestion-dismiss",
+    "label": "Not now button on a suggested Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-name",
+    "label": "Course name field when linking classes in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-class",
+    "label": "Class checkbox when linking classes in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-save",
+    "label": "Link or Save button when linking classes in My Classes",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-cancel",
+    "label": "Cancel button when linking classes in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-toggle",
+    "label": "Family link switch for a Course in My Classes",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-copy",
+    "label": "Copy family link button for a Course in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-deck-private",
+    "label": "Stop sharing the deck outside Orono checkbox when turning off a family link",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.family-link-toggle"
+        ],
+        "reveal": "classes.family-link-toggle"
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-cancel",
+    "label": "Cancel button in the family link confirm",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.family-link-toggle"
+        ],
+        "reveal": "classes.family-link-toggle"
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-confirm",
+    "label": "Turn on or off button in the family link confirm",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.family-link-toggle"
+        ],
+        "reveal": "classes.family-link-toggle"
+      }
+    ]
+  },
+  {
     "id": "classes.edit-roster",
     "label": "Edit class button in My Classes",
     "scope": "field",
@@ -26369,6 +29658,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-notes.action-drag",
     "label": "Drag handle button for an action item in PLC notes",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "plc-notes-action-rows",
     "routes": [
       {
         "surface": "plc.notes",
@@ -26409,6 +29700,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-assessments.drag",
     "label": "Drag handle button for an assessment in the PLC assessments tab",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "plc-assessments-rows",
     "routes": [
       {
         "surface": "plc.assessments",
@@ -27221,6 +30514,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-index.open-plc",
     "label": "Open plc button in the PLC list page",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "plc-index-open-plc",
     "routes": [
       {
         "surface": "plc.index",
@@ -27341,6 +30636,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "plc-share-pick-item",
     "routes": [
       {
         "surface": "plc.share-picker",
@@ -27354,6 +30651,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Target field in the PLC share dialog",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "plc-share-target",
     "routes": [
       {
         "surface": "plc.share-target",
@@ -27394,6 +30693,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Teammate button in the teammate print dialog",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "plc-print-teammate",
     "routes": [
       {
         "surface": "plc.assessments.teammate-print",
@@ -27418,6 +30719,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Roster checkbox checkbox in the teammate print dialog",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "plc-print-rosters",
     "routes": [
       {
         "surface": "plc.assessments.teammate-print",
@@ -27442,6 +30745,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Roster expand button in the teammate print dialog",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "plc-print-rosters",
     "routes": [
       {
         "surface": "plc.assessments.teammate-print",
@@ -27466,6 +30771,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student checkbox checkbox in the teammate print dialog",
     "scope": "field",
     "panel": true,
+    "row_list": "plc-print-rosters",
     "routes": [
       {
         "surface": "plc.assessments.teammate-print",
@@ -27729,6 +31035,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Open button in the PLC assessments tab",
     "scope": "field",
     "row_wildcard": true,
+    "row_list": "plc-assessments-rows",
     "routes": [
       {
         "surface": "plc.assessments",
@@ -27749,6 +31056,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-assessments.status",
     "label": "Status chip on a PLC assessment row",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "plc-assessments-rows",
     "routes": [
       {
         "surface": "plc.assessments",
@@ -27769,6 +31078,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-assessments.in-library",
     "label": "In your library chip on a PLC assessment row",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "plc-assessments-rows",
     "routes": [
       {
         "surface": "plc.assessments",
@@ -27791,6 +31102,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "persists": true,
     "row_wildcard": true,
+    "row_list": "plc-assessments-rows",
     "routes": [
       {
         "surface": "plc.assessments",
@@ -27813,6 +31125,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "plc-assessments-rows",
     "routes": [
       {
         "surface": "plc.assessments",
@@ -27867,6 +31180,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Menu folder button in the PLC assessments tab",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "plc-assessments-menu-folder",
     "routes": [
       {
         "surface": "plc.assessments",
@@ -27891,6 +31206,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "row_list": "plc-assessments-rows",
     "routes": [
       {
         "surface": "plc.assessments",
@@ -28036,6 +31352,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Role select in the PLC members tab",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "plc-members-role",
     "routes": [
       {
         "surface": "plc.members",
@@ -28057,6 +31375,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Transfer lead button in the PLC members tab",
     "scope": "field",
     "destructive": true,
+    "row_list": "plc-members-rows",
     "routes": [
       {
         "surface": "plc.members",
@@ -28078,6 +31397,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove button in the PLC members tab",
     "scope": "field",
     "destructive": true,
+    "row_list": "plc-members-rows",
     "routes": [
       {
         "surface": "plc.members",
@@ -28120,6 +31440,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Revoke invite button in the PLC members tab",
     "scope": "field",
     "destructive": true,
+    "row_list": "plc-members-revoke-invite",
     "routes": [
       {
         "surface": "plc.members",
@@ -28229,6 +31550,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-notes.doc-select",
     "label": "Doc select button in the PLC notes tab",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "plc-notes-doc-select",
     "routes": [
       {
         "surface": "plc.notes",
@@ -28249,6 +31572,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-notes.note-select",
     "label": "Note select button in the PLC notes tab",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "plc-notes-note-select",
     "routes": [
       {
         "surface": "plc.notes",
@@ -28603,6 +31928,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Import button in the PLC question banks tab",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "plc-banks-rows",
     "routes": [
       {
         "surface": "plc.assessments.banks",
@@ -28626,6 +31953,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "destructive": true,
     "persists": true,
+    "row_list": "plc-banks-rows",
     "routes": [
       {
         "surface": "plc.assessments.banks",
@@ -28670,6 +31998,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Import button in the PLC rubrics tab",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "plc-rubrics-rows",
     "routes": [
       {
         "surface": "plc.assessments.rubrics",
@@ -28693,6 +32023,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "destructive": true,
     "persists": true,
+    "row_list": "plc-rubrics-rows",
     "routes": [
       {
         "surface": "plc.assessments.rubrics",
@@ -28714,6 +32045,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-boards.open-board",
     "label": "Open board link in the PLC shared boards tab",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "plc-boards-open-board",
     "routes": [
       {
         "surface": "plc.shared-boards",
@@ -28757,6 +32090,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Import button in the PLC video activities tab",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "plc-video-rows",
     "routes": [
       {
         "surface": "plc.assessments.video",
@@ -28778,6 +32113,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-video.edit",
     "label": "Edit button in the PLC video activities tab",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "plc-video-rows",
     "routes": [
       {
         "surface": "plc.assessments.video",
@@ -28799,6 +32136,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-video.version-history",
     "label": "Version history button in the PLC video activities tab",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "plc-video-rows",
     "routes": [
       {
         "surface": "plc.assessments.video",
@@ -28822,6 +32161,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "destructive": true,
     "persists": true,
+    "row_list": "plc-video-rows",
     "routes": [
       {
         "surface": "plc.assessments.video",
@@ -28887,6 +32227,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Delete button in the PLC comments thread",
     "scope": "field",
     "destructive": true,
+    "row_list": "plc-comments-delete",
     "routes": [
       {
         "surface": "plc.comments",
@@ -28924,6 +32265,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-comments.mention",
     "label": "Mention button in the PLC comments thread",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "plc-comments-mention",
     "routes": [
       {
         "surface": "plc.comments",
@@ -29187,6 +32530,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Practice text field in the PLC goal editor",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "plc-goals-practice-rows",
     "routes": [
       {
         "surface": "plc.goal-editor",
@@ -29210,6 +32555,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "row_list": "plc-goals-practice-rows",
     "routes": [
       {
         "surface": "plc.goal-editor",
@@ -29495,6 +32841,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "plc-notes-action-rows",
     "routes": [
       {
         "surface": "plc.notes",
@@ -29516,6 +32864,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Action edit field in the PLC notes tab",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "plc-notes-action-rows",
     "routes": [
       {
         "surface": "plc.notes",
@@ -29537,6 +32887,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Action assignee select in the PLC notes tab",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "plc-notes-action-rows",
     "routes": [
       {
         "surface": "plc.notes",
@@ -29558,6 +32910,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Action due field in the PLC notes tab",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "plc-notes-action-rows",
     "routes": [
       {
         "surface": "plc.notes",
@@ -29580,6 +32934,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "row_list": "plc-notes-action-rows",
     "routes": [
       {
         "surface": "plc.notes",
@@ -29842,6 +33197,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Review owner select in the PLC notes tab",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "plc-notes-review-owner",
     "routes": [
       {
         "surface": "plc.notes.review",
@@ -30029,6 +33386,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Mic device button in the PLC recording controls",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "plc-recording-mic-device",
     "routes": [
       {
         "surface": "plc.notes",
@@ -30226,6 +33585,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-resources.link-open",
     "label": "Link open link in the PLC resources tab",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "plc-resources-link-rows",
     "routes": [
       {
         "surface": "plc.resources",
@@ -30247,6 +33608,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Link remove button in the PLC resources tab",
     "scope": "field",
     "destructive": true,
+    "row_list": "plc-resources-link-rows",
     "routes": [
       {
         "surface": "plc.resources",
@@ -30268,6 +33630,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Use button in the PLC resources tab",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "plc-resources-use",
     "routes": [
       {
         "surface": "plc.resources",
@@ -30329,6 +33693,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-search.result",
     "label": "Result button in the PLC search box",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "plc-search-result",
     "routes": [
       {
         "surface": "plc.dashboard",
@@ -30350,6 +33716,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Target chip remove button in the PLC settings tab",
     "scope": "field",
     "destructive": true,
+    "row_list": "plc-settings-target-chip-remove",
     "routes": [
       {
         "surface": "plc.targets",
@@ -30391,6 +33758,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Target restore button in the PLC settings tab",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "plc-settings-target-restore",
     "routes": [
       {
         "surface": "plc.targets",
@@ -30432,6 +33801,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Target archive button in the PLC settings tab",
     "scope": "field",
     "destructive": true,
+    "row_list": "plc-settings-target-archive",
     "routes": [
       {
         "surface": "plc.targets",
@@ -31018,6 +34388,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Trash restore button in the PLC settings tab",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "plc-settings-trash-restore",
     "routes": [
       {
         "surface": "plc.settings",
@@ -31575,6 +34947,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.mentoring.resource",
     "label": "Resource link in the mentoring Resources list",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-mentoring-resource",
     "routes": [
       {
         "surface": "plc.teams.program-hub",
@@ -31747,6 +35121,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Complete circle for a note action item",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "teams-actions-rows",
     "routes": [
       {
         "surface": "plc.teams.notes-dev",
@@ -31760,6 +35136,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.actions.due-date",
     "label": "Due date button for a note action item",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-actions-due-date",
     "routes": [
       {
         "surface": "plc.teams.notes-dev",
@@ -31773,6 +35151,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.actions.owner",
     "label": "Owner select for a note action item",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-actions-rows",
     "routes": [
       {
         "surface": "plc.teams.notes-dev",
@@ -31787,6 +35167,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove button for a note action item",
     "scope": "field",
     "destructive": true,
+    "row_list": "teams-actions-rows",
     "routes": [
       {
         "surface": "plc.teams.notes-dev",
@@ -31800,6 +35181,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.actions.text",
     "label": "Text box for a note action item",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-actions-rows",
     "routes": [
       {
         "surface": "plc.teams.notes-dev",
@@ -32188,6 +35571,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.building.edit-goal",
     "label": "Edit goal button in the Building Hub goals",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-building-edit-goal",
     "routes": [
       {
         "surface": "plc.teams.hub",
@@ -32244,6 +35629,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.building.quick-link",
     "label": "Quick link in the team landing page",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-building-quick-link",
     "routes": [
       {
         "surface": "plc.teams.landing-cards",
@@ -32256,6 +35643,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.building.resource",
     "label": "Resource link in the team Resources card",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-building-resource",
     "routes": [
       {
         "surface": "plc.teams.landing-cards",
@@ -32507,6 +35896,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.data.recent-assessment",
     "label": "Assessment title button in the team data recent assessments",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-data-recent-assessment",
     "routes": [
       {
         "surface": "plc.teams.data",
@@ -32728,6 +36119,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.department.decision-open",
     "label": "Open decision row in the department hub",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-department-decisions",
     "routes": [
       {
         "surface": "plc.teams.hub",
@@ -32748,6 +36141,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.department.doc-open",
     "label": "Recent doc row in the department hub",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-department-docs",
     "routes": [
       {
         "surface": "plc.teams.hub",
@@ -32769,6 +36164,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Complete circle for an open item in the department hub",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "teams-department-item-rows",
     "routes": [
       {
         "surface": "plc.teams.hub",
@@ -32789,6 +36186,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.department.item-open",
     "label": "Open item button in the department hub",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-department-item-rows",
     "routes": [
       {
         "surface": "plc.teams.hub",
@@ -32810,6 +36209,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Copy to my library button in the department hub",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "teams-department-material-rows",
     "routes": [
       {
         "surface": "plc.teams.hub",
@@ -32830,6 +36231,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.department.material-open",
     "label": "Shared material row in the department hub",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-department-material-rows",
     "routes": [
       {
         "surface": "plc.teams.hub",
@@ -33561,6 +36964,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "teams-my-items-check",
     "routes": [
       {
         "surface": "plc.teams.header-panels",
@@ -33583,6 +36988,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.note-block.assessment-picker",
     "label": "Assessment select in a note data block",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-note-block-rows-2",
     "routes": [
       {
         "surface": "plc.teams.notes-dev",
@@ -33597,6 +37004,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Clear revisit date button in a note decision block",
     "scope": "field",
     "destructive": true,
+    "row_list": "teams-note-block-rows",
     "routes": [
       {
         "surface": "plc.notes",
@@ -33617,6 +37025,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.note-block.decision-status",
     "label": "Mark decided button in a note decision block",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-note-block-rows",
     "routes": [
       {
         "surface": "plc.notes",
@@ -33637,6 +37047,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.note-block.decision-text",
     "label": "Decision text box in a note decision block",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-note-block-rows",
     "routes": [
       {
         "surface": "plc.notes",
@@ -33657,6 +37069,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.note-block.link-picker",
     "label": "Link select in a note decision block",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-note-block-rows-2",
     "routes": [
       {
         "surface": "plc.teams.notes-dev",
@@ -33670,6 +37084,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.note-block.open-data",
     "label": "Open in Data overview button in a note data block",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-note-block-rows",
     "routes": [
       {
         "surface": "plc.notes",
@@ -33690,6 +37106,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.note-block.open-link",
     "label": "Linked item button in a note decision block",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-note-block-rows",
     "routes": [
       {
         "surface": "plc.notes",
@@ -33711,6 +37129,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove agenda item button in a note",
     "scope": "field",
     "destructive": true,
+    "row_list": "teams-note-block-rows",
     "routes": [
       {
         "surface": "plc.notes",
@@ -33732,6 +37151,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove block button in a note data block",
     "scope": "field",
     "destructive": true,
+    "row_list": "teams-note-block-rows",
     "routes": [
       {
         "surface": "plc.notes",
@@ -33753,6 +37173,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove block button in a note decision block",
     "scope": "field",
     "destructive": true,
+    "row_list": "teams-note-block-rows",
     "routes": [
       {
         "surface": "plc.notes",
@@ -33773,6 +37194,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.note-block.revisit-date",
     "label": "Revisit date button in a note decision block",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-note-block-rows",
     "routes": [
       {
         "surface": "plc.notes",
@@ -33862,6 +37285,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.notes.list-entry",
     "label": "Note or doc entry in the Notes & Docs list",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-notes-list-entry",
     "routes": [
       {
         "surface": "plc.teams.notes-dev",
@@ -33993,6 +37418,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Role select for a member in the mentoring pairings settings",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "teams-pairing-member-role",
     "routes": [
       {
         "surface": "plc.settings",
@@ -34054,6 +37481,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove button for a pair in the mentoring pairings settings",
     "scope": "field",
     "destructive": true,
+    "row_list": "teams-pairing-remove",
     "routes": [
       {
         "surface": "plc.settings",
@@ -34398,6 +37826,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "row_list": "teams-targets-archive",
     "routes": [
       {
         "surface": "plc.teams.data.tag-questions",
@@ -34639,6 +38068,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.tracker.open-submission",
     "label": "Open submission button in the mentoring task tracker",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-tracker-open-rows",
     "routes": [
       {
         "surface": "plc.teams.workspace",
@@ -34659,6 +38090,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.tracker.open-workspace",
     "label": "Open workspace button in the mentoring task tracker",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-tracker-open-rows",
     "routes": [
       {
         "surface": "plc.teams.workspace",
@@ -34882,6 +38315,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Acknowledge button on a team update",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "teams-update-rows-2",
     "routes": [
       {
         "surface": "plc.updates",
@@ -34904,6 +38339,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "row_list": "teams-update-rows",
     "routes": [
       {
         "surface": "plc.updates",
@@ -34925,6 +38361,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Edit item in the update options menu",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "teams-update-rows",
     "routes": [
       {
         "surface": "plc.updates",
@@ -34945,6 +38383,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.update.open-attachment",
     "label": "Attachment link in a team update",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-update-open-rows",
     "routes": [
       {
         "surface": "plc.updates",
@@ -34965,6 +38405,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.update.open-link",
     "label": "Link in a team update",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-update-open-rows",
     "routes": [
       {
         "surface": "plc.updates",
@@ -34985,6 +38427,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.update.options",
     "label": "Update options button on a team update",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-update-rows",
     "routes": [
       {
         "surface": "plc.updates",
@@ -35007,6 +38451,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "teams-update-rows",
     "routes": [
       {
         "surface": "plc.updates",
@@ -35028,6 +38474,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Reaction button on a team update",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "teams-update-react",
     "routes": [
       {
         "surface": "plc.updates",
@@ -35048,6 +38496,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.update.roster-show-all",
     "label": "Show all button in an update acknowledgement list",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-update-roster-show-all",
     "routes": [
       {
         "surface": "plc.updates",
@@ -35068,6 +38518,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.update.see-who",
     "label": "See who button on a team update",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-update-rows-2",
     "routes": [
       {
         "surface": "plc.updates",
@@ -35100,6 +38552,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.updates.latest-item",
     "label": "Update title button in the Latest updates card",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-updates-latest-item",
     "routes": [
       {
         "surface": "plc.teams.landing-cards",
@@ -35113,6 +38567,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Complete circle for an action item in a mentoring workspace",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "teams-workspace-action-check",
     "routes": [
       {
         "surface": "plc.teams.workspace.pair",
@@ -35311,6 +38767,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.workspace.open-check-in",
     "label": "Check-in row in a mentoring workspace",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-workspace-open-check-in",
     "routes": [
       {
         "surface": "plc.teams.workspace.pair",
@@ -35332,6 +38790,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.workspace.open-doc",
     "label": "Working doc row in a mentoring workspace",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-workspace-open-doc",
     "routes": [
       {
         "surface": "plc.teams.workspace.pair",
@@ -35353,6 +38813,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.workspace.open-task-doc",
     "label": "Open doc button for a task in a mentoring workspace",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-workspace-rows",
     "routes": [
       {
         "surface": "plc.teams.workspace.pair",
@@ -35375,6 +38837,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Submit button for a task in a mentoring workspace",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "teams-workspace-rows",
     "routes": [
       {
         "surface": "plc.teams.workspace.pair",
@@ -35396,6 +38860,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.workspace.view-submission",
     "label": "View button for a task in a mentoring workspace",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "teams-workspace-rows",
     "routes": [
       {
         "surface": "plc.teams.workspace.pair",
@@ -37143,23 +40609,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "admin.help-center.web-tour-copy-link",
-    "label": "Copy link button for a web tour in tour health",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.web-tours-page",
-        "kind": "page",
-        "url": "/web-tours",
-        "path": [],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
     "id": "admin.help-center.unmapped-copy",
     "label": "Copy all button for unmapped anchors",
     "scope": "board",
@@ -37364,6 +40813,38 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "admin.features.model-tier",
     "label": "Model select on a feature row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.features.monthly-cap-number",
+    "label": "Monthly limit box on a feature row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.features.transcribe-mode",
+    "label": "Transcription mode select on the AI transcription row",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -43735,7 +47216,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.district-library.targeting",
-    "label": "Who sees it button in a District library row",
+    "label": "Access button in a District library row",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -44062,7 +47543,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.district-library.folder-targeting",
-    "label": "Who sees this folder button, by folder id",
+    "label": "Folder Access button, by folder id",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -44180,6 +47661,82 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "admin.district-library.row-menu",
     "label": "More actions menu in a District library row",
     "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.select",
+    "label": "Select button for District library bulk actions",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.select-all",
+    "label": "Select all in District library selection",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.select-row",
+    "label": "Checkbox on a District library row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.bulk-move",
+    "label": "Move button for selected District library items",
+    "scope": "board",
     "panel": true,
     "routes": [
       {
@@ -44996,6 +48553,54 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "admin.beta.remove",
     "label": "Remove beta user button",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.excluded.email",
+    "label": "Add excluded user email box",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.excluded.add",
+    "label": "Add excluded user button",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.excluded.remove",
+    "label": "Remove excluded user button",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -48401,6 +52006,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Column or row name box in the Activity Wall editor",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "activity-wall-editor-sections",
     "routes": [
       {
         "surface": "library.activity-wall.editor",
@@ -48420,6 +52027,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Move column or row up button in the Activity Wall editor",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "activity-wall-editor-sections",
     "routes": [
       {
         "surface": "library.activity-wall.editor",
@@ -48439,6 +52048,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Move column or row down button in the Activity Wall editor",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "activity-wall-editor-sections",
     "routes": [
       {
         "surface": "library.activity-wall.editor",
@@ -48459,6 +52070,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "row_list": "activity-wall-editor-sections",
     "routes": [
       {
         "surface": "library.activity-wall.editor",
@@ -48497,6 +52109,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Time period name box in the Activity Wall editor",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "activity-wall-editor-periods",
     "routes": [
       {
         "surface": "library.activity-wall.editor",
@@ -48516,6 +52130,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Time period start box in the Activity Wall editor",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "activity-wall-editor-periods",
     "routes": [
       {
         "surface": "library.activity-wall.editor",
@@ -48535,6 +52151,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Time period end box in the Activity Wall editor",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "activity-wall-editor-periods",
     "routes": [
       {
         "surface": "library.activity-wall.editor",
@@ -48555,6 +52173,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "row_list": "activity-wall-editor-periods",
     "routes": [
       {
         "surface": "library.activity-wall.editor",
@@ -48861,6 +52480,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "projects.group-expand",
     "label": "Expand group button on the Projects board",
     "scope": "widget type",
+    "requires": "widget-restored",
+    "keys": [
+      "projects"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.projects.board",
+        "kind": "panel",
+        "widget_type": "projects",
+        "path": [
+          "library-shell.card-primary-action:projects#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "projects.group-reopen",
+    "label": "Reopen a submitted group on the Projects board",
+    "scope": "widget type",
+    "persists": true,
     "requires": "widget-restored",
     "keys": [
       "projects"
@@ -50147,6 +53791,96 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards.card-term-alternate",
+    "label": "Add accepted answer button on a term in the Flashcards editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.card-definition-alternate",
+    "label": "Add accepted answer button on a definition in the Flashcards editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.card-term-image",
+    "label": "Add image button on a term in the Flashcards editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.card-definition-image",
+    "label": "Add image button on a definition in the Flashcards editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.card-insert",
+    "label": "Add card button between cards in the Flashcards editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "flashcards.card-delete",
     "label": "Delete button on a card in the Flashcards editor",
     "scope": "field",
@@ -50188,70 +53922,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "flashcards-editor.draft-ai",
-    "label": "Draft with AI (list header) in the Flashcards set editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-editor.footer-draft-ai",
-    "label": "Draft with AI (footer) in the Flashcards set editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-editor.add-menu",
-    "label": "More ways to add menu in the Flashcards set editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-editor.add-blank",
-    "label": "Add-menu item: Blank card in the Flashcards set editor",
+    "label": "Draft with AI in the Flashcards set editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -50587,27 +54258,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove pronunciation button in the Flashcards editor",
     "scope": "field",
     "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.add-card",
-    "label": "Add card button in the Flashcards editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
     "routes": [
       {
         "surface": "library.flashcards.editor",
@@ -51715,6 +55365,29 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "mini-app.archive-results",
+    "label": "Results item in a Mini App assignment row menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [
+          "library-shell.archive-menu:miniApp#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:miniApp#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "mini-app.archive-publish-scores",
     "label": "Publish scores item in a Mini App Completed assignment row menu",
     "scope": "widget type",
@@ -52170,6 +55843,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "video-activity.creator-result",
     "label": "Video search result in the creator",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "video-activity-creator-result",
     "routes": [
       {
         "surface": "library.video-activity.creator",
@@ -52334,6 +56009,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "destructive": true,
     "persists": true,
     "sandboxed": true,
+    "row_list": "video-activity-editor-question-delete",
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -52759,6 +56435,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "video-activity.live-jump-question",
     "label": "Jump to question button in the live question list",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "video-activity-live-jump-question",
     "routes": [
       {
         "surface": "library.video-activity.live",
@@ -53012,6 +56690,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "video-activity.monitor-question-result",
     "label": "Question result row in the video activity monitor",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "video-activity-monitor-question-result",
     "routes": [
       {
         "surface": "library.video-activity.live",
@@ -53154,6 +56834,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "persists": true,
     "sandboxed": true,
+    "row_wildcard": true,
+    "row_list": "video-activity-timeline-marker",
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -54820,6 +58502,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tour-editor.copy-for-claude",
+    "label": "Copy for Claude option in the web tour editor More actions menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "path": [
+          "web-tours.new",
+          "web-tour-editor.menu"
+        ],
+        "reveal": "web-tour-editor.menu",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tour-editor.write-asked",
     "label": "Run again for questions button in the web tour editor",
     "scope": "board",
@@ -55005,8 +58707,168 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "web-tours.copy-link",
-    "label": "Copy link button for a web tour on the Web tours page",
+    "label": "Share button for a web tour on the Web tours page",
     "scope": "field",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.share-tour-url",
+    "label": "Tour URL item in a web tour Share menu on the Web tours page",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [
+          "web-tours.copy-link:web-tours"
+        ],
+        "reveal": "web-tours.copy-link:web-tours",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.share-steps-url",
+    "label": "Steps URL item in a web tour Share menu on the Web tours page",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [
+          "web-tours.copy-link:web-tours"
+        ],
+        "reveal": "web-tours.copy-link:web-tours",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.share-freshservice",
+    "label": "FreshService item in a web tour Share menu on the Web tours page",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [
+          "web-tours.copy-link:web-tours"
+        ],
+        "reveal": "web-tours.copy-link:web-tours",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.freshservice-settings",
+    "label": "FreshService settings button on the Web tours page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.share-html-file",
+    "label": "HTML file item in a web tour Share menu on the Web tours page",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [
+          "web-tours.copy-link:web-tours"
+        ],
+        "reveal": "web-tours.copy-link:web-tours",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.title",
+    "label": "Tour name you can rename on the Web tours page",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.status",
+    "label": "Fix issues button for a web tour on the Web tours page",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.search",
+    "label": "Search box on the Web tours page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.filter",
+    "label": "Show filter on the Web tours page",
+    "scope": "board",
     "routes": [
       {
         "surface": "board.web-tours-page",
@@ -58690,6 +62552,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "dock.saved-item",
     "label": "Saved widget button in the dock",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "dock-saved-rows",
     "routes": [
       {
         "surface": "board.dock",
@@ -58705,6 +62569,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove from dock button on a saved widget",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "dock-saved-rows",
     "routes": [
       {
         "surface": "board.dock",
@@ -58721,6 +62587,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "row_list": "dock-saved-rows",
     "routes": [
       {
         "surface": "board.dock",
@@ -58735,6 +62602,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "dock.folder-open",
     "label": "Folder button in the dock",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "dock-folder-rows",
     "routes": [
       {
         "surface": "board.dock",
@@ -58751,6 +62620,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "row_list": "dock-folder-rows",
     "routes": [
       {
         "surface": "board.dock",
@@ -58766,6 +62636,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Rename button in a dock folder",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "dock-folder-rows",
     "routes": [
       {
         "surface": "board.dock",
@@ -59320,6 +63192,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "library-saved-rows",
     "routes": [
       {
         "surface": "board.widget-library",
@@ -59337,6 +63211,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "row_list": "library-saved-rows",
     "routes": [
       {
         "surface": "board.widget-library",
@@ -59353,6 +63228,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Saved widget tile in the widget library",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "library-saved-rows",
     "routes": [
       {
         "surface": "board.widget-library",
@@ -59369,6 +63246,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Custom widget tile in the widget library",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "library-custom-item",
     "routes": [
       {
         "surface": "board.widget-library",
@@ -59512,6 +63391,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Board button in the menu boards list",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "sidebar-board-item",
     "routes": [
       {
         "surface": "board.sidebar",
@@ -59609,6 +63490,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class row in the dock class menu",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "classes-roster-menu-item",
     "routes": [
       {
         "surface": "board.class-roster-menu",
@@ -59653,6 +63536,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Board row in the boards menu",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "board-nav-rows",
     "routes": [
       {
         "surface": "board",
@@ -59669,6 +63554,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Rename button on a board row",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "board-nav-rows",
     "routes": [
       {
         "surface": "board",
@@ -59685,6 +63572,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Move to collection button on a board row",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "board-nav-rows",
     "routes": [
       {
         "surface": "board",
@@ -59732,6 +63621,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Collection row in the collection menu",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "board-nav-collection-rows",
     "routes": [
       {
         "surface": "board.collection-switcher",
@@ -59747,6 +63638,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Rename button on a collection row",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "board-nav-collection-rows",
     "routes": [
       {
         "surface": "board.collection-switcher",
@@ -59826,6 +63719,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "board-nav-move-target",
     "routes": [
       {
         "surface": "board.move-board-menu",
@@ -61347,6 +65242,46 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "settings.settings-defaults-save",
+    "label": "Save as my default button on the Settings tab",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.settings-defaults-reset",
+    "label": "Reset to my default button on the Settings tab",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "settings.window-background",
     "label": "Window background color on the Style tab",
     "scope": "widget",
@@ -62737,11 +66672,78 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "publish-scores.unpublish-confirm",
+    "label": "Unpublish button that confirms, in the publish scores dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.publish-scores",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "publish-scores.unpublish-cancel",
+    "label": "Cancel beside the Unpublish confirm in the publish scores dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.publish-scores",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "publish-scores.confirm",
     "label": "Publish or Update button in the publish scores dialog",
     "scope": "board",
     "panel": true,
     "persists": true,
+    "routes": [
+      {
+        "surface": "library.publish-scores",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "publish-in-progress.cancel",
+    "label": "Cancel button in the in-progress publish check",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.publish-scores",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "publish-in-progress.end-and-publish",
+    "label": "End and publish button in the in-progress publish check",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.publish-scores",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "publish-in-progress.confirm",
+    "label": "Confirm button in the in-progress publish check",
+    "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "library.publish-scores",
@@ -62757,6 +66759,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      },
+      {
         "surface": "library.override-row",
         "kind": "shared",
         "path": []
@@ -62769,6 +66787,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      },
       {
         "surface": "library.override-row",
         "kind": "shared",
@@ -62796,6 +66830,64 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      },
+      {
+        "surface": "library.override-row",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "override-row.speech-to-text",
+    "label": "Speech to text checkbox in the override editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      },
+      {
+        "surface": "library.override-row",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "override-row.spelling-help",
+    "label": "Spelling help checkbox in the override editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
         "surface": "library.override-row",
         "kind": "shared",
         "path": []
@@ -62808,6 +66900,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      },
       {
         "surface": "library.override-row",
         "kind": "shared",
@@ -62835,6 +66943,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      },
+      {
         "surface": "library.override-row",
         "kind": "shared",
         "path": []
@@ -62847,6 +66971,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      },
       {
         "surface": "library.override-row",
         "kind": "shared",
@@ -62861,6 +67001,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      },
+      {
         "surface": "library.override-row",
         "kind": "shared",
         "path": []
@@ -62874,6 +67030,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      },
+      {
         "surface": "library.override-row",
         "kind": "shared",
         "path": []
@@ -62886,6 +67058,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      },
       {
         "surface": "library.override-row",
         "kind": "shared",
@@ -63761,6 +67949,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "classes-widget.roster-row",
     "label": "Class to switch to in Classes",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "classes-widget-roster-row",
     "routes": [
       {
         "surface": "widgets.classes.face",
@@ -63911,6 +68101,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "url.open-link",
     "label": "Link button in Links",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "url-open-link",
     "routes": [
       {
         "surface": "widgets.url.face",
@@ -66609,8 +70801,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "math-tool.add-piece",
-    "label": "Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks, place value), by tool and piece",
+    "label": "Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks), by tool and piece",
     "scope": "field",
+    "key_pattern": "mathTool#(algebra-tiles\\.(x2-pos|x2-neg|x-pos|x-neg|unit-pos|unit-neg)|base-10\\.(flat|rod|unit)|pattern-blocks\\.(hexagon|trapezoid|triangle|rhombus-wide|rhombus-narrow|square))",
+    "key_hint": "mathTool#base-10.rod, mathTool#algebra-tiles.x-pos",
     "routes": [
       {
         "surface": "widgets.math-tool.face",
@@ -66625,7 +70819,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "math-tool.clear",
-    "label": "Clear button on a Math Tool (coordinate plane, geoboard, place value)",
+    "label": "Clear button on a Math Tool (coordinate plane, geoboard)",
     "scope": "widget type",
     "destructive": true,
     "keys": [
@@ -66686,6 +70880,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "math-tool.calculator-key",
     "label": "Calculator key, by label (digits, operators, AC, =)",
     "scope": "field",
+    "key_pattern": "mathTool#([0-9]|AC|\\+/−|%|÷|×|−|\\+|⌫|\\.|=)",
+    "key_hint": "mathTool#7 is the 7 key; mathTool#AC is the clear key",
     "routes": [
       {
         "surface": "widgets.math-tool.face",
@@ -66702,6 +70898,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "math-tool.denominator",
     "label": "Denominator toggle in Fraction Tiles, by denominator",
     "scope": "field",
+    "key_pattern": "mathTool#(1|2|3|4|5|6|8|10|12)",
+    "key_hint": "mathTool#4 is the fourths toggle",
     "routes": [
       {
         "surface": "widgets.math-tool.face",
@@ -66718,6 +70916,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "math-tool.number-line-mode",
     "label": "Number line mode button (integers, decimals, fractions), by mode",
     "scope": "field",
+    "key_pattern": "mathTool#(integers|decimals|fractions)",
+    "key_hint": "mathTool#decimals",
     "routes": [
       {
         "surface": "widgets.math-tool.face",
@@ -68288,11 +72488,90 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.schedule.event-warning",
+    "label": "Warn before this ends toggle for an event in Schedule settings, by event row",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
+    "routes": [
+      {
+        "surface": "widgets.schedule.settings",
+        "kind": "settings-drawer",
+        "widget_type": "schedule",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.schedule.event-warning-minutes",
+    "label": "Minutes-before-end choice for an event warning in Schedule settings, by event row",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
+    "routes": [
+      {
+        "surface": "widgets.schedule.settings",
+        "kind": "settings-drawer",
+        "widget_type": "schedule",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.schedule.event-warning-sound",
+    "label": "Warning sound choice for an event in Schedule settings, by event row",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
+    "routes": [
+      {
+        "surface": "widgets.schedule.settings",
+        "kind": "settings-drawer",
+        "widget_type": "schedule",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "override-row.extended-time",
     "label": "Extended time options in a student override",
     "scope": "board",
     "panel": true,
     "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      },
       {
         "surface": "library.override-row",
         "kind": "shared",
@@ -68354,6 +72633,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Group row under a class in the Randomizer class menu",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "random-class-group",
     "routes": [
       {
         "surface": "widgets.random.face",
@@ -68371,6 +72652,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Group row under a class in the Seating Chart class menu",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "seating-class-group",
     "routes": [
       {
         "surface": "widgets.seating-chart.face",
@@ -68428,6 +72711,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student button in the absent students dialog",
     "scope": "field",
     "panel": true,
+    "persists": true,
+    "row_wildcard": true,
+    "row_list": "absent-students-student",
     "routes": [
       {
         "surface": "board.absent-students",
@@ -68854,6 +73140,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class checkbox in the Flashcards assign dialog class list",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "flashcards-stepper-class-row",
     "routes": [
       {
         "surface": "library.flashcards.assign",
@@ -68874,6 +73162,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student picker button for one class in the Flashcards assign dialog",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "flashcards-stepper-student-menu",
     "routes": [
       {
         "surface": "library.flashcards.assign",
@@ -69283,6 +73573,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Card row in the Flashcards monitor Card results",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "flashcards-card-result",
     "routes": [
       {
         "surface": "library.flashcards.results",
@@ -69939,6 +74231,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class checkbox in the Mini App assign dialog class list",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "mini-app-stepper-class-row",
     "routes": [
       {
         "surface": "library.mini-app.assign",
@@ -69959,6 +74253,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student picker button for one class in the Mini App assign dialog",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "mini-app-stepper-student-menu",
     "routes": [
       {
         "surface": "library.mini-app.assign",
@@ -70174,6 +74470,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "gradebook-cell-flag-option",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.cell",
@@ -70220,6 +74518,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "gradebook-settings-flag-rows",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.settings",
@@ -70262,6 +74562,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "gradebook-settings-category-rows",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.settings",
@@ -70666,6 +74968,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "gradebook.grid.column-header",
     "label": "Assignment column header in the gradebook",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "gradebook-grid-column-header",
     "routes": [
       {
         "surface": "guidedLearning.gradebook",
@@ -70684,6 +74988,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "gradebook.grid.student-name",
     "label": "Student name button in the gradebook",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "gradebook-grid-students",
     "routes": [
       {
         "surface": "guidedLearning.gradebook",
@@ -70702,6 +75008,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "gradebook.grid.cell",
     "label": "Score cell in the gradebook",
     "scope": "field",
+    "row_list": "gradebook-grid-students",
     "routes": [
       {
         "surface": "guidedLearning.gradebook",
@@ -71267,6 +75574,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "gradebook-column-standard-option",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.column",
@@ -71600,6 +75909,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "gradebook-settings-applies-option",
     "routes": [
       {
         "surface": "guidedLearning.gradebook",
@@ -71663,6 +75974,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "gradebook-settings-flag-rows",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.settings",
@@ -71684,6 +75997,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "gradebook-settings-flag-rows",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.settings",
@@ -71705,6 +76020,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "gradebook-settings-flag-rows",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.settings",
@@ -71726,6 +76043,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "gradebook-settings-flag-rows",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.settings",
@@ -71747,6 +76066,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "gradebook-settings-flag-rows",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.settings",
@@ -71768,6 +76089,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "gradebook-settings-flag-rows",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.settings",
@@ -71789,6 +76112,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "row_list": "gradebook-settings-flag-rows",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.settings",
@@ -71873,6 +76197,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "gradebook-settings-category-rows",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.settings",
@@ -71894,6 +76220,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "row_list": "gradebook-settings-category-rows",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.settings",
@@ -72360,6 +76687,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "gradebook.analysis.insight",
     "label": "Needs attention item on the Data analysis tab",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "gradebook-analysis-insight",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
@@ -72380,6 +76709,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "gradebook.analysis.bar-row",
     "label": "Bar chart row label in the gradebook analysis cards",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "gradebook-analysis-bar-row",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
@@ -72400,6 +76731,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "gradebook.analysis.heatmap-column",
     "label": "Learning target column button in the standards heatmap",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "gradebook-analysis-heatmap-column",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
@@ -72420,6 +76753,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "gradebook.analysis.heatmap-row",
     "label": "Student row button in the standards heatmap",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "gradebook-analysis-heatmap-row",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
@@ -72463,6 +76798,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Not submitted student button in the assignment analysis window",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "gradebook-analyze-student",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analyze",
@@ -72630,6 +76967,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "gradebook.student.evidence",
     "label": "Evidence button for a learning target in the student gradebook view",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "gradebook-student-targets",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.student",
@@ -72650,6 +76989,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "gradebook.student.edit-cell",
     "label": "Edit button for an assignment in the student gradebook view",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "gradebook-student-assignments",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.student",
@@ -73221,6 +77562,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Folder row in the folder picker",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "gl-folder-picker-folder",
     "routes": [
       {
         "surface": "guidedLearning.editor",
@@ -73354,6 +77697,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Folder row in the folder picker",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "flashcards-folder-picker-folder",
     "routes": [
       {
         "surface": "library.flashcards",
@@ -73439,6 +77784,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Folder row in the folder picker",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "mini-app-folder-picker-folder",
     "routes": [
       {
         "surface": "library.mini-app",
@@ -73524,6 +77871,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Folder row in the folder picker",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-library-folder-picker-folder",
     "routes": [
       {
         "surface": "quiz.face",
@@ -73648,6 +77997,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Folder row in the folder picker",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-banks-folder-picker-folder",
     "routes": [
       {
         "surface": "quiz.banks",
@@ -73734,6 +78085,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Folder row in the folder picker",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "video-activity-folder-picker-folder",
     "routes": [
       {
         "surface": "library.video-activity",
@@ -73910,6 +78263,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Question row in the Video Activity results",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "video-activity-results-questions",
     "routes": [
       {
         "surface": "library.video-activity.results",
@@ -73970,6 +78325,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Mark button on a short-answer question in the Video Activity results",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "video-activity-results-questions",
     "routes": [
       {
         "surface": "library.video-activity.results",
@@ -73991,6 +78348,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_list": "video-activity-results-questions",
     "routes": [
       {
         "surface": "library.video-activity.results",
@@ -74304,6 +78662,1150 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         ],
         "needs": [
           "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.stepper-class-picker",
+    "label": "Class list in the Writing assign dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.assign",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.stepper-class-row",
+    "label": "Class checkbox in the Writing assign dialog class list",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "writing-stepper-class-row",
+    "routes": [
+      {
+        "surface": "widgets.writing.assign",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.stepper-student-menu",
+    "label": "Student picker button for one class in the Writing assign dialog",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "writing-stepper-student-menu",
+    "routes": [
+      {
+        "surface": "widgets.writing.assign",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.selection-mode",
+    "label": "Select button in the Writing library",
+    "scope": "widget",
+    "requires": "widget-restored",
+    "routes": [
+      {
+        "surface": "widgets.writing.face",
+        "kind": "widget",
+        "widget_type": "writing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.bulk-move",
+    "label": "Move to folder button in the Writing bulk action bar",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.face",
+        "kind": "widget",
+        "widget_type": "writing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.bulk-delete",
+    "label": "Delete button in the Writing bulk action bar",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.face",
+        "kind": "widget",
+        "widget_type": "writing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.bulk-clear",
+    "label": "Clear selection button in the Writing bulk action bar",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.face",
+        "kind": "widget",
+        "widget_type": "writing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.archive-monitor",
+    "label": "Monitor item in a Writing assignment row menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.face",
+        "kind": "widget",
+        "widget_type": "writing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.back",
+    "label": "Back button in the Writing monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.class-picker",
+    "label": "Class picker in the Writing monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.period-start",
+    "label": "Start button for the picked class in the Writing monitor",
+    "scope": "widget type",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.period-pause",
+    "label": "Pause button for the picked class in the Writing monitor",
+    "scope": "widget type",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.period-more-time",
+    "label": "More time button in the Writing monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.period-extend",
+    "label": "Extend time option in the Writing monitor More time menu",
+    "scope": "widget type",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.status-bucket",
+    "label": "Student status count in the Writing monitor",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.word-counts",
+    "label": "Word counts switch in the Writing monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.peer-review",
+    "label": "Peer review button in the Writing monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.access",
+    "label": "Partners can choice in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.pair-all",
+    "label": "Pair everyone at random button in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.pair-rest",
+    "label": "Pair the rest at random button in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.clear",
+    "label": "Clear pairs button in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.partner",
+    "label": "Partner box for one student in the Writing peer review setup",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "writing-peer-partner",
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.start",
+    "label": "Start peer review or Save button in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.end",
+    "label": "End peer review button in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.live-view",
+    "label": "Live view button on a student in the Writing monitor",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-live-view.previous",
+    "label": "Previous student button in Writing Live view",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.live-view",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.live-view:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-live-view.next",
+    "label": "Next student button in Writing Live view",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.live-view",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.live-view:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-live-view.close",
+    "label": "Close button in Writing Live view",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.live-view",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.live-view:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-live-view.tell-student",
+    "label": "Notify student when viewing switch in Writing Live view",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.live-view",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.live-view:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-live-view.nudge-note",
+    "label": "Nudge note picker in Writing Live view",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.live-view",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.live-view:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-live-view.nudge",
+    "label": "Nudge button in Writing Live view",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.live-view",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.live-view:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.tab-prompt",
+    "label": "Prompt tab in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.tab-stimuli",
+    "label": "Stimuli tab in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.prompt",
+    "label": "Prompt box in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.grading-ungraded",
+    "label": "Ungraded option in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.grading-points",
+    "label": "Points option in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.grading-rubric",
+    "label": "Rubric option in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.points",
+    "label": "Points box in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1",
+          "writing-editor.grading-points"
+        ],
+        "reveal": "writing-editor.grading-points",
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.rubric-edit",
+    "label": "Rubric: Edit in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1",
+          "writing-editor.grading-rubric"
+        ],
+        "reveal": "writing-editor.grading-rubric",
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.rubric-detach",
+    "label": "Rubric: Detach in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1",
+          "writing-editor.grading-rubric"
+        ],
+        "reveal": "writing-editor.grading-rubric",
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.folder",
+    "label": "Folder picker in the Writing editor header",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.save",
+    "label": "Save button in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.back",
+    "label": "Back button in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.grade",
+    "label": "Grade button in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.hide-names",
+    "label": "Hide names button in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.drill-students",
+    "label": "Students row in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.sort",
+    "label": "Student sort in Writing results",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-results.drill-students:writing"
+        ],
+        "reveal": "writing-results.drill-students:writing",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.student-row",
+    "label": "Student row in Writing results",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-results.drill-students:writing"
+        ],
+        "reveal": "writing-results.drill-students:writing",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-grading.return",
+    "label": "Return button in the Writing grader",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.grader",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-results.grade:writing"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-grading.return-revision",
+    "label": "Return for revision button in the Writing grader",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.grader",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-results.grade:writing"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-grading.writing-record",
+    "label": "Writing record button in the Writing grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.grader",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-results.grade:writing"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-grading.student-record",
+    "label": "Students can replay their own writing checkbox in the Writing grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.grader",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-results.grade:writing"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
           "widget-on-stage"
         ]
       }
@@ -76385,6 +81887,229 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "roster-editor.accommodations-group",
+    "label": "Group row on the roster editor Accommodations tab",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "roster-editor#row-[1-9]\\d*",
+    "key_hint": "roster-editor#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "roster-accommodation-groups",
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-add",
+    "label": "Add menu for students and groups on the roster editor Accommodations tab",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-search",
+    "label": "Search box in the Accommodations Add menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.accommodations-add"
+        ],
+        "reveal": "roster-editor.accommodations-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-pick-group",
+    "label": "Group checkbox in the Accommodations Add menu",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "key_pattern": "roster-editor#row-[1-9]\\d*",
+    "key_hint": "roster-editor#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "roster-accommodations-pick-groups",
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.accommodations-add"
+        ],
+        "reveal": "roster-editor.accommodations-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-pick-student",
+    "label": "Student checkbox in the Accommodations Add menu",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "key_pattern": "roster-editor#row-[1-9]\\d*",
+    "key_hint": "roster-editor#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "roster-accommodations-pick-students",
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.accommodations-add"
+        ],
+        "reveal": "roster-editor.accommodations-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-answer-choices",
+    "label": "Answer choices control for a student or group in the roster editor Accommodations tab",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-modified-questions",
+    "label": "Modified questions switch for a student or group in the roster editor Accommodations tab",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-done",
+    "label": "Done button that closes the Accommodations Add menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.accommodations-add"
+        ],
+        "reveal": "roster-editor.accommodations-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-remove",
+    "label": "Remove button on a row of the roster editor Accommodations tab",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
     "id": "roster-editor.accommodations-add-student",
     "label": "Add Student button on the empty roster editor Accommodations tab",
     "scope": "board",
@@ -76480,6 +82205,52 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-library.reprint-sheets",
     "label": "Print response sheets item in a paper assignment menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.import-paper-copies",
+    "label": "Import paper responses item in a quiz assignment menu, for printed group copies",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.reprint-paper-copies",
+    "label": "Print paper copies item in a quiz assignment menu, for printed group copies",
     "scope": "widget type",
     "panel": true,
     "keys": [

@@ -8,6 +8,7 @@ import { MathText } from '@/components/common/MathText';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { isMultiBlank, joinBlanks, splitBlanks } from '@/utils/quizFibBlanks';
 import React, { useEffect, useMemo, useRef } from 'react';
+import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { useTranslation } from 'react-i18next';
 import { Languages, Loader2 } from 'lucide-react';
 import type { QuestionTranslation, QuizData, QuizMetadata } from '@/types';
@@ -147,7 +148,7 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                       : 'border-slate-200 bg-white text-slate-600 hover:border-brand-blue-primary'
                   }`}
                 >
-                  {language.nativeLabel}
+                  {languageDisplayLabel(language.code)}
                   <span
                     className={`ml-2 font-normal ${active ? 'text-white/80' : 'text-slate-500'}`}
                   >
@@ -416,7 +417,7 @@ export const QuizLanguagesDetailPane: React.FC<QuizLanguagesPaneProps> = ({
     <div className="custom-scrollbar h-full overflow-y-auto bg-white px-6 py-5">
       <div className="mb-4 flex items-baseline justify-between">
         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-          {language?.nativeLabel ?? selectedLocale}
+          {languageDisplayLabel(selectedLocale)}
         </h4>
         {language && !isAppLocale(language.code) && (
           <p className="text-xxs text-slate-500">

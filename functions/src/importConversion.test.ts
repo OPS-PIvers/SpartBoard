@@ -27,7 +27,7 @@ vi.mock('./aiGeneration', () => ({
   resolveCallerIsAdmin: vi.fn(),
 }));
 vi.mock('./districtStaff', () => ({ isDistrictStaffToken: vi.fn() }));
-vi.mock('./quizMediaArchive', () => ({ isGlobalFeatureGranted: vi.fn() }));
+vi.mock('./featureGrant', () => ({ isGlobalFeatureGranted: vi.fn() }));
 
 import type * as admin from './firebaseAdmin';
 import {
@@ -51,7 +51,7 @@ import {
 } from './importConversionAi';
 import { BOARD_TEMPLATES } from './mcp/boardEngine.gen';
 import { importAiAccess } from './importSettings';
-import { isGlobalFeatureGranted } from './quizMediaArchive';
+import { isGlobalFeatureGranted } from './featureGrant';
 
 const SOURCE = {
   title: 'The water cycle',
@@ -360,7 +360,7 @@ describe('runConversion', () => {
     expect(board.target).toBe('board');
   });
 
-  it('refunds the charge when the model fails or answers badly', async () => {
+  it('refunds the charge when the model call itself throws', async () => {
     const d = deps({
       generate: vi.fn(() => Promise.reject(new Error('boom'))),
     });
@@ -368,12 +368,25 @@ describe('runConversion', () => {
       runConversion(req('flashcards'), 'u', TOKEN, d)
     ).rejects.toMatchObject({ code: 'internal' });
     expect(d.refund).toHaveBeenCalledWith(CHARGE);
+  });
 
+  it('keeps the charge when the model replied but the answer is unusable', async () => {
     const e = deps({ generate: vi.fn(() => Promise.resolve('{"cards":[]}')) });
     await expect(
       runConversion(req('flashcards'), 'u', TOKEN, e)
     ).rejects.toMatchObject({ code: 'failed-precondition' });
-    expect(e.refund).toHaveBeenCalledWith(CHARGE);
+    expect(e.refund).not.toHaveBeenCalled();
+  });
+
+  it('refunds the charge when it fails before the model is called', async () => {
+    const d = deps({
+      maxInputChars: vi.fn(() => Promise.reject(new Error('config'))),
+    });
+    await expect(
+      runConversion(req('flashcards'), 'u', TOKEN, d)
+    ).rejects.toMatchObject({ code: 'internal' });
+    expect(d.generate).not.toHaveBeenCalled();
+    expect(d.refund).toHaveBeenCalledWith(CHARGE);
   });
 
   it('rejects a bad board widget list before charging', async () => {

@@ -45,16 +45,39 @@ export const SYNCED_USER_COLLECTIONS = [
   'userProfile',
   'video_activities',
   'video_activity_folders',
+  'writing_assignments',
+  'writing_folders',
 ] as const;
 
-// Legacy roster docs that predate the Drive migration can still hold students[] inline; it never leaves prod.
-export function stripInlinePii(
+// Fields that never leave prod: inline roster names, and links to shares, linked collections and synced groups that exist only on prod.
+export const DROPPED_FIELDS: Record<string, readonly string[]> = {
+  rosters: ['students'],
+  dashboards: [
+    'linkedShareId',
+    'linkedShareRole',
+    'linkedShareHostName',
+    'linkedShareHostUid',
+    'linkedShareEnded',
+  ],
+  collections: [
+    'linkedCollectionId',
+    'linkedCollectionRole',
+    'linkedCollectionEnded',
+    'linkedSectionId',
+  ],
+  quizzes: ['sync'],
+  question_banks: ['sync'],
+  video_activities: ['sync'],
+};
+
+export function stripProdOnlyFields(
   collection: string,
   fields: Record<string, RestValue>
 ): Record<string, RestValue> {
-  if (collection !== 'rosters') return fields;
+  const dropped = DROPPED_FIELDS[collection];
+  if (!dropped) return fields;
   return Object.fromEntries(
-    Object.entries(fields).filter(([key]) => key !== 'students')
+    Object.entries(fields).filter(([key]) => !dropped.includes(key))
   );
 }
 
@@ -331,7 +354,7 @@ export const syncMyMaterialsFromProdV1 = onCall(
           if (e.fields)
             void writer.set(
               db.doc(e.path),
-              fromRestFields(stripInlinePii(name, e.fields), swapUid)
+              fromRestFields(stripProdOnlyFields(name, e.fields), swapUid)
             );
         }
       } finally {
@@ -386,6 +409,8 @@ const NO_PRUNE = new Set(['admins']);
 // Kill switches forced off in dev regardless of prod's value.
 export const DEV_OVERRIDES: Record<string, Record<string, unknown>> = {
   'admin_settings/classlink_sync': { enabled: false },
+  // Dev ClassLink never counts a list, so enforce would refuse every dev class.
+  'admin_settings/verified_classes_fill': { enforce: false },
 };
 
 const keepString = (s: string) => s;

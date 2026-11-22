@@ -223,6 +223,7 @@ describe('usePeriodAccess', () => {
       'periodAccess.cl-1.state': 'open',
       'periodAccess.cl-1.openAt': null,
       'periodAccess.cl-1.closeAt': at(9, 5) + BELL_CLOSE_CUSHION_MS,
+      'periodAccess.cl-1.openedAt': at(8, 30),
     };
     expect(fieldWrites('quiz_sessions/s1')).toEqual([expected]);
     expect(fieldWrites('users/teacher-1/quiz_assignments/s1')).toEqual([
@@ -343,6 +344,106 @@ describe('usePeriodAccess', () => {
     expect(ref).toBe('quiz_sessions/s1');
     expect(path.segments).toEqual(['studentAccess', 'student-9']);
     expect(until).toBe(at(9, 5) + BELL_CLOSE_CUSHION_MS);
+  });
+
+  it('sends Start, Pause and Let in through commit when the kind saves by callable', async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      usePeriodAccess(
+        session,
+        {
+          sessionCollection: 'writing_assignment_sessions',
+          assignmentCollection: 'writing_assignment_records',
+          refreshIdle: false,
+          commit: send,
+        },
+        rosters
+      )
+    );
+    await act(async () => {
+      await result.current.startPeriod('cl-1');
+      await result.current.pausePeriod('cl-1');
+      await result.current.letIn('student-9');
+    });
+    expect(writeBatch).not.toHaveBeenCalled();
+    expect(updateDoc).not.toHaveBeenCalled();
+    expect(getDocs).not.toHaveBeenCalled();
+    expect(send.mock.calls.map(([p]: unknown[]) => p)).toEqual([
+      {
+        periodAccess: {
+          'cl-1': {
+            state: 'open',
+            openAt: null,
+            closeAt: at(9, 5) + BELL_CLOSE_CUSHION_MS,
+            openedAt: at(8, 30),
+          },
+        },
+      },
+      { periodAccess: { 'cl-1': { state: 'paused', pausedAt: at(8, 30) } } },
+      { studentAccess: { 'student-9': at(9, 5) + BELL_CLOSE_CUSHION_MS } },
+    ]);
+  });
+
+  it('closes a class with a closedAt mark and reopens it straight to open', async () => {
+    (getDocs as Mock).mockResolvedValue({ docs: [] });
+    const closed = {
+      ...session,
+      periodAccess: {
+        'cl-1': period({ rosterId: 'r1', closedAt: at(8, 0) }),
+        'roster:r5': period({ rosterId: 'r5', state: 'open' }),
+      },
+    };
+    const { result } = renderHook(() =>
+      usePeriodAccess(closed, collections, rosters)
+    );
+    await act(async () => {
+      await result.current.closePeriod('roster:r5');
+      await result.current.reopenPeriod('cl-1');
+    });
+    const writes = [
+      {
+        'periodAccess.roster:r5.state': 'closed',
+        'periodAccess.roster:r5.closedAt': at(8, 30),
+        'periodAccess.roster:r5.pausedAt': at(8, 30),
+      },
+      {
+        'periodAccess.cl-1.state': 'open',
+        'periodAccess.cl-1.openAt': null,
+        'periodAccess.cl-1.closeAt': at(9, 5) + BELL_CLOSE_CUSHION_MS,
+        'periodAccess.cl-1.closedAt': null,
+        'periodAccess.cl-1.openedAt': at(8, 30),
+      },
+    ];
+    expect(fieldWrites('quiz_sessions/s1')).toEqual(writes);
+    expect(fieldWrites('users/teacher-1/quiz_assignments/s1')).toEqual(writes);
+  });
+
+  it('closes every class not already closed by hand, through commit too', async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const mixed = {
+      ...session,
+      periodAccess: {
+        a: period({ state: 'open' }),
+        b: period({ state: 'paused' }),
+        ready: period({}),
+        done: period({ closedAt: at(8, 0) }),
+      },
+    };
+    const { result } = renderHook(() =>
+      usePeriodAccess(
+        mixed,
+        { ...collections, refreshIdle: false, commit: send },
+        rosters
+      )
+    );
+    await act(async () => {
+      await result.current.closeAllPeriods();
+    });
+    const row = { state: 'closed', closedAt: at(8, 30), pausedAt: at(8, 30) };
+    expect(send).toHaveBeenCalledWith({
+      periodAccess: { a: row, b: row, ready: row },
+    });
+    expect(writeBatch).not.toHaveBeenCalled();
   });
 
   it('extends a live period by ten minutes or clears its close', async () => {

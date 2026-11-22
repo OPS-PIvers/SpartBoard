@@ -126,14 +126,14 @@ export const GradebookAnalyzeView: React.FC<GradebookAnalyzeViewProps> = ({
             <div className="text-xs text-slate-500">Everyone submitted.</div>
           ) : (
             <div className="flex flex-col gap-2.5">
-              {summary.notSubmitted.map((s) => (
+              {summary.notSubmitted.map((s, rowIndex) => (
                 <button
                   key={s.uid}
                   type="button"
                   {...tourFieldAttr(
                     'gradebook.analyze.student',
                     'gradebook',
-                    s.uid
+                    `row-${rowIndex + 1}`
                   )}
                   onClick={() => onOpenStudent(s.uid)}
                   className="self-start text-left text-xs text-slate-700 hover:text-brand-blue-primary hover:underline"

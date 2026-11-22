@@ -30,8 +30,8 @@ import type { ActivityWallLibraryEntry } from '@/types';
 import { ACTIVITY_WALL_DEFAULT_APPEARANCE } from '@/types';
 import { LAYOUT_OPTIONS } from './editor/layoutOptions';
 import { activityWallSessionId } from '@/utils/activityWallLinks';
-import { clearWallSubmissions } from './hooks/useActivityWallSession';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 interface WallLibraryModalProps {
   open: boolean;
@@ -47,6 +47,7 @@ interface WallLibraryModalProps {
   badgesFor?: (entry: ActivityWallLibraryEntry) => LibraryBadge[];
   onDuplicate: (entry: ActivityWallLibraryEntry) => Promise<void>;
   onDelete: (entryId: string) => Promise<void>;
+  onClearPosts: (entryId: string) => Promise<void>;
   addToast: (message: string, tone: 'success' | 'error' | 'info') => void;
   confirm: (message: string) => Promise<boolean>;
 }
@@ -92,6 +93,7 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
   badgesFor,
   onDuplicate,
   onDelete,
+  onClearPosts,
   addToast,
   confirm,
 }) => {
@@ -153,7 +155,7 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
         return;
       }
       try {
-        await clearWallSubmissions(activityWallSessionId(uid, entry.id));
+        await onClearPosts(entry.id);
         setCounts((prev) => ({ ...prev, [entry.id]: 0 }));
         addToast('Posts cleared.', 'success');
       } catch (err) {
@@ -161,7 +163,7 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
         addToast('Could not clear posts.', 'error');
       }
     },
-    [addToast, confirm, uid]
+    [addToast, confirm, onClearPosts, uid]
   );
 
   const handleDelete = useCallback(
@@ -176,7 +178,6 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
       }
       try {
         const sessionId = activityWallSessionId(uid, entry.id);
-        await clearWallSubmissions(sessionId);
         await onDelete(entry.id);
         await deleteDoc(doc(db, 'activity_wall_sessions', sessionId)).catch(
           () => {
@@ -211,6 +212,7 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
 
   return (
     <Modal
+      accent={LIBRARY_HEADER_ACCENTS['activity-wall']}
       isOpen
       onClose={onClose}
       title="Activity Walls"

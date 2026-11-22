@@ -34,28 +34,56 @@ import {
 import { StudentItemPreview } from './StudentItemPreview';
 import { logError } from '@/utils/logError';
 import { studentPageClassId } from '@/utils/studentPageClassId';
+import {
+  useClassPageAgendas,
+  type ClassPageView,
+} from '@/hooks/useClassPageAgendas';
+import { ClassPageAgenda } from '@/components/student/landing/ClassPageAgenda';
 
 const NO_CHECKS: TurnInMap = {};
 
 interface ClassStudentPagePreviewProps {
   roster: ClassRoster;
+  /** A Course's sections, switched from the header; each section's students see only their own. */
+  sections?: readonly ClassRoster[];
   onClose: () => void;
+}
+
+interface SectionPicker {
+  sections: readonly ClassRoster[];
+  value: string;
+  onChange: (id: string) => void;
 }
 
 /** My Classes "View Student Page": the class's /my-assignments page from the teacher's own sessions; nothing is written. */
 export const ClassStudentPagePreview: React.FC<
   ClassStudentPagePreviewProps
-> = ({ roster, onClose }) => {
-  const { user, canAccessFeature } = useAuth();
+> = ({ roster: initial, sections, onClose }) => {
+  const { user, canAccessFeature, canAccessWidget } = useAuth();
+  const [pickedId, setPickedId] = useState(initial.id);
+  const roster = sections?.find((s) => s.id === pickedId) ?? initial;
   const { enabled: projectsEnabled } = useProjectsWidgetSettings();
   const { status, assignments } = useClassStudentPagePreview(
     user?.uid,
     studentPageClassId(roster) ?? '',
-    projectsEnabled
+    projectsEnabled,
+    canAccessWidget('writing')
+  );
+  // Only this teacher's own copy, as the preview leaves out a co-teacher's work.
+  const classPage = useClassPageAgendas(
+    canAccessFeature('course-agenda') ? studentPageClassId(roster) : null,
+    user?.uid ?? null
   );
   return (
     <ClassStudentPageView
+      key={roster.id}
       roster={roster}
+      sectionPicker={
+        sections && sections.length > 1
+          ? { sections, value: roster.id, onChange: setPickedId }
+          : undefined
+      }
+      classPage={classPage}
       teacherName={user?.displayName ?? ''}
       status={status}
       assignments={assignments}
@@ -74,6 +102,12 @@ interface ClassStudentPageViewProps {
   onClose: () => void;
   /** Fixture loader for the dev harness. */
   loadItem?: typeof loadStudentPagePreviewItem;
+  /** The class's Agenda and pinned links, above the tabs. */
+  classPage?: ClassPageView;
+  /** Fixture decks on the dev harness. */
+  agendaEmbedUrlFor?: (fileId: string) => string;
+  /** Switches between a Course's sections in the header. */
+  sectionPicker?: SectionPicker;
 }
 
 /** The preview's page; data comes from the container, or fixtures on /class-student-page-dev. */
@@ -85,6 +119,9 @@ export const ClassStudentPageView: React.FC<ClassStudentPageViewProps> = ({
   tabAwayTimerOn,
   onClose,
   loadItem = loadStudentPagePreviewItem,
+  classPage,
+  agendaEmbedUrlFor,
+  sectionPicker,
 }) => {
   const { showAlert } = useDialog();
   const classId = studentPageClassId(roster) ?? '';
@@ -194,9 +231,25 @@ export const ClassStudentPageView: React.FC<ClassStudentPageViewProps> = ({
         <div className="flex min-w-0 items-center gap-1.5 font-bold text-white">
           <Eye className="h-4 w-4 shrink-0" aria-hidden />
           <span className="shrink-0">Student page</span>
-          <span className="truncate font-normal text-slate-300">
-            {roster.name}
-          </span>
+          {sectionPicker ? (
+            <select
+              value={sectionPicker.value}
+              onChange={(e) => sectionPicker.onChange(e.target.value)}
+              aria-label="Section"
+              // no-tour-anchor: inside a full-screen preview a tour never opens on its own
+              className="min-w-0 max-w-full rounded-md border border-slate-600 bg-slate-800 px-2 py-1 font-semibold text-white"
+            >
+              {sectionPicker.sections.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="truncate font-normal text-slate-300">
+              {roster.name}
+            </span>
+          )}
         </div>
         {opening && (
           <Loader2
@@ -241,6 +294,15 @@ export const ClassStudentPageView: React.FC<ClassStudentPageViewProps> = ({
             onSignOut={onClose}
             onLockedClick={(a) => open(a.kind, a.sessionId)}
             onOpenGradeOnly={onOpenGradeOnly}
+            classTop={
+              classPage &&
+              (classPage.agendas.length || classPage.links.length) ? (
+                <ClassPageAgenda
+                  view={classPage}
+                  embedUrlFor={agendaEmbedUrlFor}
+                />
+              ) : undefined
+            }
             notice={
               status === 'error' ? (
                 <p

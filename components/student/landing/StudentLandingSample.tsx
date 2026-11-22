@@ -7,7 +7,10 @@ import type {
 } from '@/hooks/useStudentAssignments';
 import type { TurnInMap } from '@/hooks/useStudentTurnIns';
 import type { StudentGradesState } from '@/hooks/useStudentGrades';
-import { DEFAULT_PROFICIENCY_SCALE } from '@/utils/gradebook/gradebookCore';
+import {
+  DEFAULT_PROFICIENCY_SCALE,
+  type GradebookKind,
+} from '@/utils/gradebook/gradebookCore';
 import {
   seenMarksFor,
   studentGradeRows,
@@ -56,8 +59,10 @@ interface Fixture {
   graded?: boolean;
   flashcardKind?: 'check' | 'study';
   live?: boolean;
-  /** A Manual start class: closed until the teacher starts it, or started. */
-  manualStart?: 'closed' | 'open';
+  /** A Manual start class: closed until the teacher starts it, started, or paused. */
+  manualStart?: 'closed' | 'open' | 'paused';
+  /** The teacher paused the whole quiz. */
+  paused?: boolean;
 }
 
 function fixtures(inClass: boolean): Fixture[] {
@@ -163,6 +168,24 @@ function fixtures(inClass: boolean): Fixture[] {
       turnIn: 'not-started',
       dueAt: at(-4),
       ended: true,
+    },
+    {
+      id: 'e13',
+      cls: 'eng',
+      kind: 'flashcards',
+      flashcardKind: 'check',
+      title: 'Poetry terms check',
+      turnIn: 'in-progress',
+      ended: true,
+    },
+    {
+      id: 'e14',
+      cls: 'eng',
+      kind: 'video-activity',
+      title: 'Figurative language in songs',
+      turnIn: 'not-started',
+      dueAt: at(-2),
+      closeAt: at(4),
     },
     {
       id: 'b1',
@@ -278,7 +301,21 @@ function fixtures(inClass: boolean): Fixture[] {
       kind: 'video-activity',
       title: 'The Silk Road',
       manualStart: 'open',
-      dueAt: at(1),
+    },
+    {
+      id: 'h7',
+      cls: 'his',
+      kind: 'quiz',
+      title: 'Map skills check',
+      paused: true,
+      dueAt: at(2),
+    },
+    {
+      id: 'h8',
+      cls: 'his',
+      kind: 'quiz',
+      title: 'Ancient Greece quiz',
+      manualStart: 'paused',
     },
     {
       id: 'h4',
@@ -327,6 +364,7 @@ function toSummary(f: Fixture, nowMs: number): AssignmentSummary {
     flashcardKind: f.flashcardKind,
     workKind: f.resource ? 'resource' : 'work',
     live: f.live,
+    held: f.paused ? 'paused' : undefined,
     periodGate: f.manualStart
       ? {
           accessMode: 'assessment',
@@ -349,7 +387,7 @@ function toSummary(f: Fixture, nowMs: number): AssignmentSummary {
 type GradeFixture = [
   id: string,
   cls: string,
-  kind: SessionKind,
+  kind: GradebookKind,
   title: string,
   dueDays: number,
   points: number | null,
@@ -431,6 +469,8 @@ interface StudentLandingSampleProps {
   initialTab?: LandingTab;
   /** Fill the parent box instead of the viewport. */
   embedded?: boolean;
+  /** Fixture Agenda and links per class, on the dev harness only. */
+  classTopFor?: (classId: string) => React.ReactNode;
 }
 
 export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
@@ -439,6 +479,7 @@ export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
   initialClassId,
   initialTab = 'assignments',
   embedded,
+  classTopFor,
 }) => {
   const nowMs = inClass ? IN_CLASS : AFTER_SCHOOL;
   const [selected, setSelected] = useState<string | null>(
@@ -460,7 +501,7 @@ export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
     return { assignments: list.map((f) => toSummary(f, nowMs)), checks: map };
   }, [inClass, nowMs]);
   const partition = useMemo(
-    () => partitionLanding(assignments, checks, nowMs),
+    () => partitionLanding(assignments, checks, nowMs, 'dev-student'),
     [assignments, checks, nowMs]
   );
   const grades = useMemo<StudentGradesState | undefined>(
@@ -507,6 +548,7 @@ export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
       onLockedClick={() => undefined}
       onOpenGradeOnly={() => undefined}
       embedded={embedded}
+      classTop={selected && classTopFor ? classTopFor(selected) : undefined}
     />
   );
 };

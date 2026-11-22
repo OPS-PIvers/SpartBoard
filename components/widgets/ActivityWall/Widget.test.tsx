@@ -105,6 +105,7 @@ vi.mock('@/hooks/useActivityWallLibrary', () => ({
     error: null,
     saveActivity: mockSaveActivity,
     deleteActivity: mockDeleteActivity,
+    clearActivityPosts: vi.fn(),
   }),
 }));
 
@@ -142,6 +143,10 @@ vi.mock('@/utils/googleOAuthRefresh', () => ({
 }));
 
 import type { SharedWallEditRequest } from './sharedWallEdit';
+
+vi.mock('@/hooks/useConnectionsEnabled', () => ({
+  useConnectionsEnabled: () => true,
+}));
 
 vi.mock('./sharedWallEdit', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./sharedWallEdit')>()),
@@ -518,6 +523,30 @@ describe('ActivityWallWidget', () => {
     });
   });
 
+  it('opens Share with the student link when the clipboard refuses', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    renderWidget();
+    await waitFor(() =>
+      expect(getWidgetShareLink('widget-1')).toContain('teacher-1_wall-1')
+    );
+    expect(screen.queryByLabelText('Student link URL')).toBeNull();
+    const [copy] = await screen.findAllByRole('button', {
+      name: 'Copy student link',
+    });
+    await userEvent.click(copy);
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    expect(mockAddToast).toHaveBeenLastCalledWith(
+      'Could not copy link. Please copy manually.',
+      'error'
+    );
+    const field = await screen.findByLabelText('Student link URL');
+    expect((field as HTMLInputElement).value).toContain('teacher-1_wall-1');
+  });
+
   it('shows the empty state and opens the library when no wall is active', async () => {
     mockLibraryEntries.current = [];
     render(
@@ -688,10 +717,32 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
 
   beforeEach(() => {
     mockLinkedShareId.current = 'share-1';
+    mockRecordedHost.current = 'host-1';
     mockLibraryEntries.current = [];
     mockGetDoc.mockResolvedValue({
       data: () => ({ originalAuthor: 'host-1' }),
     });
+  });
+
+  it("doesn't list the board while its host is unrecorded, whatever the share doc names", async () => {
+    mockRecordedHost.current = null;
+    mockLibraryEntries.current = [makeEntry()];
+    sessionDocData = {
+      'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
+        boardShareIds: [],
+      },
+    };
+    renderWidget();
+    await screen.findByText('Warm Up');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(mockSetDoc).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
+      }),
+      expect.anything(),
+      expect.anything()
+    );
   });
 
   it("shows the host's wall read-only to a View-Only member", async () => {

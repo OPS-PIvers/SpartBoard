@@ -1,0 +1,1 @@
+claude/library-new-menu-survives-load (Quiz/Review library New menu no longer closes when the library finishes loading, AB-311)

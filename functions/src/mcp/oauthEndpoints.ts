@@ -23,6 +23,7 @@ import {
   refreshGrant,
   revokeByRefreshToken,
 } from './grants';
+import { safeErr } from '../safeLog';
 
 export function protectedResourceMetadata() {
   return {
@@ -141,6 +142,10 @@ export async function handleToken(
           'code, code_verifier and client_id are required'
         );
       }
+      // Verify first: a slow or failed CIMD fetch must not burn the code.
+      if (!(await verifyClientId(db, clientId))) {
+        throw new OAuthError('invalid_grant', 'Unknown client');
+      }
       const stored = await consumeAuthCode(db, code);
       if (!stored)
         throw new OAuthError('invalid_grant', 'Unknown or expired code');
@@ -155,9 +160,6 @@ export async function handleToken(
       }
       if (!pkceMatches(verifier, stored.codeChallenge)) {
         throw new OAuthError('invalid_grant', 'PKCE verification failed');
-      }
-      if (!(await verifyClientId(db, clientId))) {
-        throw new OAuthError('invalid_grant', 'Unknown client');
       }
       const tokens = await createGrant(db, {
         uid: stored.uid,
@@ -271,7 +273,7 @@ export const mcpOAuth = onRequest(
       }
       res.status(404).json({ error: 'not_found' });
     } catch (err) {
-      console.error('[mcpOAuth] failed', { path, err });
+      console.error('[mcpOAuth] failed', { path, err: safeErr(err) });
       sendOAuthError(res, 500, 'server_error', 'Something went wrong');
     }
   }

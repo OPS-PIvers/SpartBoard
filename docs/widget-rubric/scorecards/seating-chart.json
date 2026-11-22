@@ -38,7 +38,7 @@
       },
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:44:20.653Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 1,
@@ -78,7 +78,7 @@
       },
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:44:20.653Z",
-      "stale": false
+      "stale": true
     },
     "S5": {
       "score": 1,
@@ -255,7 +255,7 @@
       "note": "The style is clean, but every seat is a double-bordered box and the empty state is faint gray on gray.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:44:20.653Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 3,
@@ -292,7 +292,7 @@
       "note": "The seat grid is clearly primary, and the tabs, class title and Pick Random step down in size, though the empty placeholder box at the top-left pulls the eye.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:44:20.653Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 2,
@@ -344,7 +344,7 @@
       "note": "Labels are short and plain (Interact, Assign, Setup, Pick Random), with lucide icons only.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:44:20.653Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 2,

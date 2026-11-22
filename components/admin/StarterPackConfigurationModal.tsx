@@ -557,7 +557,7 @@ export const StarterPackConfigurationModal: React.FC<
   if (!isOpen) return null;
 
   const header = (
-    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+    <div className="px-6 py-3.5 flex items-center justify-between gap-3 bg-brand-blue-primary text-white rounded-t-2xl shrink-0">
       <div className="flex items-center gap-3">
         {view === 'editor' && (
           <button
@@ -567,23 +567,23 @@ export const StarterPackConfigurationModal: React.FC<
               'starter-pack',
               'back'
             )}
-            className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
+            className="p-1.5 hover:bg-white/15 rounded-lg transition-colors text-white/80"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
         )}
-        <div className="bg-indigo-500 p-2 rounded-xl text-white">
+        <div className="bg-white/15 p-2 rounded-xl text-white">
           <Package className="w-6 h-6" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-slate-800">
+          <h2 className="text-lg font-bold text-white">
             {view === 'list'
               ? 'Starter Packs Administration'
               : editingId
                 ? 'Edit Starter Pack'
                 : 'New Starter Pack'}
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-white/80">
             {view === 'list'
               ? 'Manage building-wide starter packs available to all teachers'
               : 'Configure pack metadata and widget layout'}
@@ -593,7 +593,7 @@ export const StarterPackConfigurationModal: React.FC<
       <button
         onClick={onClose}
         {...tourTypeAttr('admin.widget-config.close', 'starter-pack')}
-        className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-600"
+        className="p-2 hover:bg-white/15 rounded-xl transition-colors text-white/80 hover:text-white"
       >
         <X className="w-5 h-5" />
       </button>
@@ -639,7 +639,7 @@ export const StarterPackConfigurationModal: React.FC<
       footer={footer}
       className="p-0! bg-slate-50!"
       contentClassName="bg-slate-50"
-      footerClassName="px-6 py-4 border-t border-slate-100 bg-white flex items-center justify-between w-full shrink-0"
+      footerClassName="px-6 py-4 flex items-center justify-between w-full"
     >
       {view === 'list' ? (
         /* ── Pack List ── */

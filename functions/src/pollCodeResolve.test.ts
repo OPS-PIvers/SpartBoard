@@ -34,13 +34,18 @@ import {
   mintPollCodeV1,
   normalizePollCodeInput,
   pollJoinId,
+  refundSlot,
   resolvePollCode,
-  type RecordMiss,
+  takeLookupSlot,
   CALLER_WINDOW_MS,
   GLOBAL_WINDOW_MS,
   POLL_CODE_CALLER_MAX_MISSES,
   POLL_CODE_GLOBAL_MAX_MISSES,
+  POLL_CODE_GLOBAL_SHARDS,
+  POLL_CODE_SHARD_MAX_MISSES,
+  POLL_CODE_SHARD_PROBES,
   POLL_CODE_MINT_MAX_PER_HOUR,
+  PARKED_CODE_TTL_MS,
   RESERVATION_TTL_MS,
 } from './pollCodeResolve';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
@@ -49,7 +54,26 @@ type Db = Parameters<typeof resolvePollCode>[0];
 const NOW = 60 * 60 * 1000 * 10;
 const CALLER_DOC = (uid: string, now = NOW) =>
   `poll_code_limits/uid__${uid}__${Math.floor(now / CALLER_WINDOW_MS)}`;
-const GLOBAL_DOC = `poll_code_limits/global__${Math.floor(NOW / GLOBAL_WINDOW_MS)}`;
+const SHARD_DOC = (shard: number, now = NOW) =>
+  `poll_code_limits/global__${Math.floor(now / GLOBAL_WINDOW_MS)}__${shard}`;
+const shardMisses = (stub: { get: (p: string) => StubData | undefined }) =>
+  Array.from({ length: POLL_CODE_GLOBAL_SHARDS }, (_, i) =>
+    Number(stub.get(SHARD_DOC(i))?.misses ?? 0)
+  );
+const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+// A picker that returns each of `picks` in turn, then the last one forever.
+const picks = (...order: number[]) => {
+  let i = 0;
+  return () => order[Math.min(i++, order.length - 1)];
+};
+// Every shard already at its cap, so the district-wide budget is spent.
+const fullShards = (): Record<string, StubData> =>
+  Object.fromEntries(
+    Array.from({ length: POLL_CODE_GLOBAL_SHARDS }, (_, i) => [
+      SHARD_DOC(i),
+      { misses: POLL_CODE_SHARD_MAX_MISSES },
+    ])
+  );
 
 const live: Record<string, StubData> = {
   'poll_codes/K3F9Q': { sessionId: 't1_K3F9Q', teacherUid: 't1' },
@@ -57,20 +81,14 @@ const live: Record<string, StubData> = {
 };
 
 const setup = (seed: Record<string, StubData> = live) => {
-  const stub = makeStubFirestore(seed);
-  // Plain read-modify-write stand-in for the FieldValue increments.
-  const recordMiss: RecordMiss = (caller, global, code) => {
-    const c = stub.get(caller.path);
-    const codes = Array.isArray(c?.codes) ? (c.codes as string[]) : [];
-    stub.store.set(caller.path, { codes: [...codes, code] });
-    const misses = stub.get(global.path)?.misses;
-    stub.store.set(global.path, {
-      misses: (typeof misses === 'number' ? misses : 0) + 1,
-    });
-    return Promise.resolve();
-  };
-  const resolve = (uid: string, code: string, now = NOW) =>
-    resolvePollCode(stub.db as unknown as Db, uid, code, now, recordMiss).then(
+  const stub = makeStubFirestore(seed, { serialTransactions: true });
+  const resolve = (
+    uid: string,
+    code: string,
+    now = NOW,
+    pickShard: () => number = () => 0
+  ) =>
+    resolvePollCode(stub.db as unknown as Db, uid, code, now, pickShard).then(
       (join) => join?.sessionId ?? null
     );
   return { stub, db: stub.db as unknown as Db, resolve };
@@ -169,7 +187,7 @@ describe('resolvePollCode', () => {
       expect(await resolve('anon1', 'AAAAA')).toBeNull();
     }
     expect(stub.get(CALLER_DOC('anon1'))?.codes).toEqual(['AAAAA']);
-    expect(stub.get(GLOBAL_DOC)?.misses).toBe(1);
+    expect(stub.get(SHARD_DOC(0))?.misses).toBe(1);
   });
 
   it('refuses a capped caller with resource-exhausted, even for a live code', async () => {
@@ -191,32 +209,299 @@ describe('resolvePollCode', () => {
     );
   });
 
-  it('never refuses a valid code over the shared count, and warns once', async () => {
+  it('at the global cap, refuses every fresh uid with no free allowance, live code or not', async () => {
+    const { stub, resolve } = setup({ ...live, ...fullShards() });
+    for (const shard of [0, 4, POLL_CODE_GLOBAL_SHARDS - 1]) {
+      await expect(
+        resolve(`fresh${shard}`, 'K3F9Q', NOW, () => shard)
+      ).rejects.toMatchObject({ code: 'resource-exhausted' });
+      await expect(
+        resolve(`fresh${shard}`, 'YYYYY', NOW, () => shard)
+      ).rejects.toMatchObject({ code: 'resource-exhausted' });
+    }
+    expect(stub.has(`poll_joins/${pollJoinId('t1_K3F9Q', 'fresh0')}`)).toBe(
+      false
+    );
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it('answers a code the caller already missed at the global cap, and resets in the next window', async () => {
     const { resolve } = setup({
       ...live,
-      [GLOBAL_DOC]: { misses: POLL_CODE_GLOBAL_MAX_MISSES },
+      ...fullShards(),
       [CALLER_DOC('missing')]: { codes: ['ZZZZZ'] },
     });
-    expect(await resolve('fresh-uid', 'K3F9Q')).toBe('t1_K3F9Q');
-    expect(await resolve('missing', 'K3F9Q')).toBe('t1_K3F9Q');
-    expect(await resolve('missing', 'YYYYY')).toBeNull();
-    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(await resolve('missing', 'ZZZZZ')).toBeNull();
+    await expect(resolve('anon2', 'K3F9Q')).rejects.toMatchObject({
+      code: 'resource-exhausted',
+    });
+    expect(await resolve('anon2', 'K3F9Q', NOW + GLOBAL_WINDOW_MS)).toBe(
+      't1_K3F9Q'
+    );
   });
 
-  it('never fails the call when a counter write fails', async () => {
-    const stub = makeStubFirestore(live);
-    const failing: RecordMiss = () => Promise.reject(new Error('contention'));
+  it('lets a device that already joined rejoin at the global cap, but nobody else', async () => {
+    const { stub, resolve } = setup({
+      ...live,
+      ...fullShards(),
+      [`poll_joins/${pollJoinId('t1_K3F9Q', 'member')}`]: {
+        sessionId: 't1_K3F9Q',
+        uid: 'member',
+      },
+    });
+    expect(await resolve('member', 'K3F9Q')).toBe('t1_K3F9Q');
+    expect(stub.get(`poll_joins/${pollJoinId('t1_K3F9Q', 'member')}`)).toEqual(
+      expect.objectContaining({ joinedAt: NOW })
+    );
+    await expect(resolve('outsider', 'K3F9Q')).rejects.toMatchObject({
+      code: 'resource-exhausted',
+    });
+    // A wrong code gets no answer from the rejoin path.
+    await expect(resolve('member', 'YYYYY')).rejects.toMatchObject({
+      code: 'resource-exhausted',
+    });
+  });
+
+  it('lets a capped caller who already joined rejoin', async () => {
+    const { resolve } = setup({
+      ...live,
+      [`poll_joins/${pollJoinId('t1_K3F9Q', 'member')}`]: {
+        sessionId: 't1_K3F9Q',
+        uid: 'member',
+      },
+    });
+    await fillCaller(resolve, 'member', POLL_CODE_CALLER_MAX_MISSES);
+    expect(await resolve('member', 'K3F9Q')).toBe('t1_K3F9Q');
+  });
+
+  it('never lets concurrent fresh uids exceed the global cap', async () => {
+    const { stub, resolve } = setup();
+    const n = POLL_CODE_GLOBAL_MAX_MISSES + 100;
+    const results = await Promise.allSettled(
+      Array.from({ length: n }, (_, i) =>
+        resolve(`bot${i}`, `M${i}`, NOW, () => i)
+      )
+    );
+    const answered = results.filter((r) => r.status === 'fulfilled');
+    const refused = results.filter((r) => r.status === 'rejected');
+    expect(answered).toHaveLength(POLL_CODE_GLOBAL_MAX_MISSES);
+    expect(refused).toHaveLength(100);
+    expect(sum(shardMisses(stub))).toBe(POLL_CODE_GLOBAL_MAX_MISSES);
+  });
+
+  it('keeps the shards from summing past the district cap', () => {
+    expect(
+      POLL_CODE_GLOBAL_SHARDS * POLL_CODE_SHARD_MAX_MISSES
+    ).toBeLessThanOrEqual(POLL_CODE_GLOBAL_MAX_MISSES);
+    expect(POLL_CODE_SHARD_PROBES).toBeLessThanOrEqual(POLL_CODE_GLOBAL_SHARDS);
+  });
+
+  it('moves to another shard when the chosen one is full', async () => {
+    const { stub, resolve } = setup({
+      ...live,
+      [SHARD_DOC(7)]: { misses: POLL_CODE_SHARD_MAX_MISSES },
+    });
+    expect(await resolve('anon1', 'AAAAA', NOW, picks(7, 8))).toBeNull();
+    expect(stub.get(SHARD_DOC(7))?.misses).toBe(POLL_CODE_SHARD_MAX_MISSES);
+    expect(stub.get(SHARD_DOC(8))?.misses).toBe(1);
+    expect(stub.get(CALLER_DOC('anon1'))?.codes).toEqual(['AAAAA']);
+  });
+
+  it('never probes the same shard twice, even if the picker repeats itself', async () => {
+    const { stub, resolve } = setup({
+      ...live,
+      [SHARD_DOC(5)]: { misses: POLL_CODE_SHARD_MAX_MISSES },
+    });
+    expect(await resolve('anon1', 'AAAAA', NOW, () => 5)).toBeNull();
+    expect(stub.get(SHARD_DOC(6))?.misses).toBe(1);
+  });
+
+  it('refuses only once every probed shard is full', async () => {
+    const full = Object.fromEntries(
+      Array.from({ length: POLL_CODE_SHARD_PROBES }, (_, i) => [
+        SHARD_DOC(i),
+        { misses: POLL_CODE_SHARD_MAX_MISSES },
+      ])
+    );
+    const order = Array.from({ length: POLL_CODE_SHARD_PROBES }, (_, i) => i);
+    const { stub, resolve } = setup({ ...live, ...full });
     await expect(
-      resolvePollCode(stub.db as unknown as Db, 'a', 'AAAAA', NOW, failing)
-    ).resolves.toBeNull();
+      resolve('anon1', 'K3F9Q', NOW, picks(...order))
+    ).rejects.toMatchObject({ code: 'resource-exhausted' });
+    expect(stub.has(CALLER_DOC('anon1'))).toBe(false);
+    expect(stub.has(`poll_joins/${pollJoinId('t1_K3F9Q', 'anon1')}`)).toBe(
+      false
+    );
+    // One more probe's worth of room on the last shard is enough to get through.
+    stub.store.set(SHARD_DOC(order.length - 1), { misses: 0 });
+    expect(await resolve('anon1', 'AAAAA', NOW, picks(...order))).toBeNull();
+    expect(stub.get(SHARD_DOC(order.length - 1))?.misses).toBe(1);
   });
 
-  it('counts misses with blind increments by default', async () => {
+  it('stops probing after the probe budget while other shards still have room', async () => {
+    const { stub, resolve } = setup(live);
+    const order = Array.from({ length: POLL_CODE_SHARD_PROBES }, (_, i) => i);
+    for (const i of order) {
+      stub.store.set(SHARD_DOC(i), { misses: POLL_CODE_SHARD_MAX_MISSES });
+    }
+    stub.store.set(SHARD_DOC(POLL_CODE_SHARD_PROBES), { misses: 0 });
+    await expect(
+      resolve('anon1', 'AAAAA', NOW, picks(...order, POLL_CODE_SHARD_PROBES))
+    ).rejects.toMatchObject({ code: 'resource-exhausted' });
+    expect(stub.get(SHARD_DOC(POLL_CODE_SHARD_PROBES))?.misses).toBe(0);
+  });
+
+  it('never lets random shard picks exceed the global cap either', async () => {
+    const { stub, resolve } = setup();
+    const results = await Promise.allSettled(
+      Array.from({ length: 500 }, (_, i) =>
+        resolve(`bot${i}`, `M${i}`, NOW, () =>
+          Math.floor(Math.random() * POLL_CODE_GLOBAL_SHARDS)
+        )
+      )
+    );
+    const answered = results.filter((r) => r.status === 'fulfilled').length;
+    expect(answered).toBeLessThanOrEqual(POLL_CODE_GLOBAL_MAX_MISSES);
+    for (const misses of shardMisses(stub)) {
+      expect(misses).toBeLessThanOrEqual(POLL_CODE_SHARD_MAX_MISSES);
+    }
+    expect(sum(shardMisses(stub))).toBeLessThanOrEqual(
+      POLL_CODE_GLOBAL_MAX_MISSES
+    );
+  });
+
+  it('lets a whole school of 500 devices join at once, with the default shard picker', async () => {
+    const { stub } = setup();
+    const results = await Promise.allSettled(
+      Array.from({ length: 500 }, (_, i) =>
+        resolvePollCode(stub.db as unknown as Db, `kid${i}`, 'K3F9Q', NOW)
+      )
+    );
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(500);
+    expect(sum(shardMisses(stub))).toBe(0);
+    expect(stub.has(`poll_joins/${pollJoinId('t1_K3F9Q', 'kid499')}`)).toBe(
+      true
+    );
+  });
+
+  it('lets classes of 30 join at once while the district is two thirds through its miss budget', async () => {
+    const seeded = Object.fromEntries(
+      Array.from({ length: POLL_CODE_GLOBAL_SHARDS }, (_, i) => [
+        SHARD_DOC(i),
+        { misses: POLL_CODE_SHARD_MAX_MISSES - 1 },
+      ])
+    );
+    const { stub } = setup({ ...live, ...seeded });
+    // A seeded generator keeps the shard picks, and so the test, repeatable.
+    let seed = 12345;
+    const pick = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return Math.floor(seed / 65536) % POLL_CODE_GLOBAL_SHARDS;
+    };
+    for (let wave = 0; wave < 5; wave += 1) {
+      const results = await Promise.allSettled(
+        Array.from({ length: 30 }, (_, i) =>
+          resolvePollCode(
+            stub.db as unknown as Db,
+            `kid${wave}_${i}`,
+            'K3F9Q',
+            NOW,
+            pick
+          )
+        )
+      );
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(30);
+    }
+    expect(
+      shardMisses(stub).every((m) => m === POLL_CODE_SHARD_MAX_MISSES - 1)
+    ).toBe(true);
+  });
+
+  it('still answers a hit when the refund cannot be written', async () => {
+    const { stub, resolve } = setup();
+    let limitWrites = 0;
+    stub.hooks.beforeWrite = (_op, path) => {
+      // The first two limit writes are the reservation; the refund is the third.
+      if (path.startsWith('poll_code_limits/') && (limitWrites += 1) > 2) {
+        throw new Error('contended');
+      }
+    };
+    expect(await resolve('anon1', 'K3F9Q')).toBe('t1_K3F9Q');
+    expect(stub.has(`poll_joins/${pollJoinId('t1_K3F9Q', 'anon1')}`)).toBe(
+      true
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      '[pollCode] slot refund failed',
+      expect.any(Error)
+    );
+  });
+
+  it('keeps resolving valid codes while a sweep is under way', async () => {
+    const { resolve } = setup();
+    for (let i = 0; i < (POLL_CODE_GLOBAL_MAX_MISSES * 2) / 3; i += 1) {
+      await resolve(`bot${i}`, `M${i}`, NOW, () => i);
+    }
+    expect(await resolve('student', 'K3F9Q', NOW, () => 9)).toBe('t1_K3F9Q');
+  });
+
+  it('gives the global reservation back on a hit, so joining never spends the district budget', async () => {
+    const { stub, resolve } = setup();
+    for (let i = 0; i < 40; i += 1) {
+      expect(await resolve(`s${i}`, 'K3F9Q')).toBe('t1_K3F9Q');
+    }
+    expect(stub.get(SHARD_DOC(0))?.misses).toBe(0);
+  });
+
+  it('returns the shard reservation even after a twin request already cleared the caller code', async () => {
+    const { stub, db } = setup();
+    const slot = await takeLookupSlot(db, 'twice', 'K3F9Q', NOW, () => 0);
+    expect(stub.get(SHARD_DOC(0))?.misses).toBe(1);
+    await slot.callerRef.set({ codes: [] }, { merge: true });
+    await refundSlot(db, slot, 'K3F9Q');
+    expect(stub.get(SHARD_DOC(0))?.misses).toBe(0);
+  });
+
+  it('gives a parallel burst from one caller at most the cap (security #8)', async () => {
+    const { resolve } = setup();
+    const n = POLL_CODE_CALLER_MAX_MISSES + 5;
+    const results = await Promise.allSettled(
+      Array.from({ length: n }, (_, i) => resolve('burst', `P${i}`))
+    );
+    const answered = results.filter((r) => r.status === 'fulfilled');
+    expect(answered).toHaveLength(POLL_CODE_CALLER_MAX_MISSES);
+  });
+
+  it('gives back the slot on a hit, so joining never uses up the budget', async () => {
+    const { stub, resolve } = setup();
+    expect(await resolve('anon1', 'K3F9Q')).toBe('t1_K3F9Q');
+    expect(stub.get(CALLER_DOC('anon1'))?.codes).toEqual([]);
+  });
+
+  it('gives back a slot when a code that missed later hits', async () => {
+    const { stub, resolve } = setup({});
+    expect(await resolve('anon1', 'K3F9Q')).toBeNull();
+    stub.store.set('poll_codes/K3F9Q', live['poll_codes/K3F9Q']);
+    stub.store.set('poll_sessions/t1_K3F9Q', live['poll_sessions/t1_K3F9Q']);
+    expect(await resolve('anon1', 'K3F9Q')).toBe('t1_K3F9Q');
+    expect(stub.get(CALLER_DOC('anon1'))?.codes).toEqual([]);
+  });
+
+  it('fails closed when the budget cannot be reserved', async () => {
     const stub = makeStubFirestore(live);
-    await resolvePollCode(stub.db as unknown as Db, 'a', 'AAAAA', NOW);
-    const byPath = new Map(stub.writes.map((w) => [w.path, w.data]));
-    expect(byPath.get(GLOBAL_DOC)?.misses).toEqual({ __increment: 1 });
-    expect(byPath.get(CALLER_DOC('a'))?.codes).toEqual({ __union: ['AAAAA'] });
+    stub.hooks.beforeWrite = (_op, path) => {
+      if (path.startsWith('poll_code_limits/')) throw new Error('down');
+    };
+    await expect(
+      resolvePollCode(stub.db as unknown as Db, 'a', 'K3F9Q', NOW)
+    ).rejects.toThrow('down');
+    expect(stub.has(`poll_joins/${pollJoinId('t1_K3F9Q', 'a')}`)).toBe(false);
+  });
+
+  it('reserves the caller slot and one global miss together before the lookup', async () => {
+    const stub = makeStubFirestore(live);
+    await resolvePollCode(stub.db as unknown as Db, 'a', 'AAAAA', NOW, () => 3);
+    expect(stub.get(SHARD_DOC(3))?.misses).toBe(1);
+    expect(stub.get(CALLER_DOC('a'))?.codes).toEqual(['AAAAA']);
   });
 
   it('ignores an empty code', async () => {
@@ -264,6 +549,20 @@ describe('mintPollCode', () => {
     const picks = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2];
     expect(await mintPollCode(db, 't1', NOW, () => picks.shift() ?? 0)).toBe(
       'DDDDD'
+    );
+  });
+
+  it('reclaims a parked code only after its long hold (review of #9)', async () => {
+    const { db } = setup({
+      'poll_codes/AAAAA': { teacherUid: 'x', updatedAt: NOW - 1000 },
+      'poll_codes/CCCCC': {
+        teacherUid: 'x',
+        updatedAt: NOW - PARKED_CODE_TTL_MS - 1,
+      },
+    });
+    const picks = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1];
+    expect(await mintPollCode(db, 't1', NOW, () => picks.shift() ?? 0)).toBe(
+      'CCCCC'
     );
   });
 
@@ -434,11 +733,17 @@ describe('claimPollCode', () => {
     });
   });
 
-  it('is a no-op for the holder and when no pointer exists', async () => {
+  it('is a no-op for the holder, and refuses a missing code like any other (security #9)', async () => {
     expect(await claim(seed(board()), 'tA')).toBe(true);
     const empty = makeStubFirestore({ 'shared_boards/sb1': board() });
-    expect(await claim(empty, 'tB')).toBe(false);
+    const missing = await claim(empty, 'tB').catch((e: Error) => e);
+    const held = await claim(seed(board()), 'tX').catch((e: Error) => e);
+    expect(missing).toMatchObject({ code: 'permission-denied' });
+    expect((missing as Error).message).toBe((held as Error).message);
     expect(empty.has('poll_codes/K3F9Q')).toBe(false);
+    expect(
+      Array.from(empty.store.keys()).some((k) => k.includes('uid__tB__'))
+    ).toBe(true);
   });
 
   it('refuses a teacher who is not on the board, or only views it', async () => {
@@ -524,6 +829,34 @@ describe('claimPollCode', () => {
         'tX'
       )
     ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('shares the global miss budget: a refused claim counts, a won one is given back, and the cap refuses', async () => {
+    const stub = seed(board());
+    await claimPollCode(
+      stub.db as unknown as Db,
+      'tB',
+      'K3F9Q',
+      'sb1',
+      NOW,
+      () => 2
+    );
+    expect(stub.get(SHARD_DOC(2))?.misses ?? 0).toBe(0);
+    await expect(
+      claimPollCode(
+        stub.db as unknown as Db,
+        'tX',
+        'K3F9Q',
+        'sb1',
+        NOW,
+        () => 2
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(stub.get(SHARD_DOC(2))?.misses).toBe(1);
+    const full = seed(board(), fullShards());
+    await expect(
+      claimPollCode(full.db as unknown as Db, 'tB', 'K3F9Q', 'sb1', NOW)
+    ).rejects.toMatchObject({ code: 'resource-exhausted' });
   });
 
   it('rejects a malformed board id', async () => {

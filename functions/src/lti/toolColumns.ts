@@ -22,6 +22,7 @@ import {
   type ExceptionWrite,
   type GradingCategory,
 } from '../schoology/restClient';
+import { safeErr } from '../safeLog';
 
 /** How long a create claim blocks a second create; covers four 15 s calls plus redirects. */
 export const CREATE_LEASE_MS = 180_000;
@@ -248,7 +249,10 @@ async function publishLinkedColumn(
     await deps.rest.publishColumn(contextId, columnId);
     return true;
   } catch (err) {
-    console.warn('[toolColumns] publishing a linked column failed:', err);
+    console.warn(
+      '[toolColumns] publishing a linked column failed:',
+      safeErr(err)
+    );
     return false;
   }
 }
@@ -274,7 +278,10 @@ async function ensureColumn(
         (await publishLinkedColumn(deps, contextId, existing.lineitemUrl))
       ) {
         await deps.store.markPublished(contextId).catch((err: unknown) => {
-          console.warn('[toolColumns] saving the publish flag failed:', err);
+          console.warn(
+            '[toolColumns] saving the publish flag failed:',
+            safeErr(err)
+          );
         });
       }
       return { kind: 'ready', record: existing, created: false };
@@ -333,14 +340,20 @@ async function ensureColumn(
         await deps.rest.setColumnCategory(contextId, columnId, categoryId);
         savedCategory = categoryId;
       } catch (err) {
-        console.warn('[toolColumns] setting the column category failed:', err);
+        console.warn(
+          '[toolColumns] setting the column category failed:',
+          safeErr(err)
+        );
       }
     }
     if (deps.rest && input.dueDate && columnId) {
       try {
         await deps.rest.setColumnDue(contextId, columnId, input.dueDate);
       } catch (err) {
-        console.warn('[toolColumns] setting the due date failed:', err);
+        console.warn(
+          '[toolColumns] setting the due date failed:',
+          safeErr(err)
+        );
       }
     }
     const published = await publishLinkedColumn(deps, contextId, item.id);
@@ -378,7 +391,7 @@ async function checkCategory(
   try {
     current = await deps.rest.getColumnCategory(contextId, record.columnId);
   } catch (err) {
-    console.warn('[toolColumns] column category read failed:', err);
+    console.warn('[toolColumns] column category read failed:', safeErr(err));
     // A column never given a category stays flagged until a read proves otherwise.
     return record.categoryId === null;
   }
@@ -396,7 +409,7 @@ async function checkCategory(
     await deps.store.setPref(contextId, pickedCategoryId);
     return false;
   } catch (err) {
-    console.warn('[toolColumns] category repair failed:', err);
+    console.warn('[toolColumns] category repair failed:', safeErr(err));
     return true;
   }
 }
@@ -431,7 +444,7 @@ async function matchMembers(
       byEmail = await deps.testClassUids(section.testClassId);
     }
   } catch (err) {
-    console.warn('[toolColumns] class roster lookup failed:', err);
+    console.warn('[toolColumns] class roster lookup failed:', safeErr(err));
   }
   const out = new Map<string, { sub: string; subUid: string }>();
   learners.forEach((m, i) => {
@@ -607,7 +620,7 @@ async function markMissing(
     );
     cells = new Map(grades.map((g) => [g.enrollmentId, g]));
   } catch (err) {
-    console.warn('[toolColumns] REST read for Missing failed:', err);
+    console.warn('[toolColumns] REST read for Missing failed:', safeErr(err));
     return entries;
   }
 
@@ -654,7 +667,7 @@ async function markMissing(
       }))
     );
   } catch (err) {
-    console.warn('[toolColumns] setting Missing failed:', err);
+    console.warn('[toolColumns] setting Missing failed:', safeErr(err));
     oks = rows.map(() => false);
   }
   rows.forEach((r, i) => {

@@ -1,5 +1,6 @@
 /** Balanced bank slots on paper: print-time dealing and self-contained written pages (QUIZ_IMPORT_VERSIONS.md V24-V25). */
 
+import { promptLabelOf } from '@/utils/quizPromptText';
 import { choicePictureFields } from '@/utils/quizAnswerImages';
 import type {
   PaperBatch,
@@ -26,7 +27,7 @@ import {
   type PaperQuizAnalysis,
 } from './paperSheetPlan';
 import { promptHeaderRows } from './paperPageMap';
-import { isPaperBoxSize, paperBoxLines } from './paperWritten';
+import { isPaperBoxSize, paperBoxRoom } from './paperWritten';
 import type { PaperPrintVersion, PaperPromptPage } from './paperSheetPrint';
 
 /** Most distinct versions one stack prints; past it the slots stay off paper. */
@@ -207,7 +208,7 @@ export function planPaperVersions(
   const sizeAt = (i: number): PaperBoxSize =>
     versions.reduce<PaperBoxSize>((size, v) => {
       const e = v.analysis.entries[i];
-      return e.kind === 'written' && paperBoxLines(e.size) > paperBoxLines(size)
+      return e.kind === 'written' && paperBoxRoom(e.size) > paperBoxRoom(size)
         ? e.size
         : size;
     }, 'S');
@@ -373,7 +374,7 @@ export function printVersionsFor(
       ...(questionText
         ? {
             questionTexts: rows.map((r) => ({
-              text: plan.questionsById.get(r.questionId)?.text ?? '',
+              text: promptLabelOf(plan.questionsById.get(r.questionId)),
               choices: choiceOrder[r.questionId] ?? [],
               ...choicePictureFields(
                 plan.questionsById.get(r.questionId),

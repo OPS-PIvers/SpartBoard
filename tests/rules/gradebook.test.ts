@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   initializeTestEnvironment,
   assertSucceeds,
@@ -259,6 +259,44 @@ describe('gradebook_marks', () => {
     );
   });
 
+  it("takes a Writing mark and column on the owner's own Writing session, and reads them back", async () => {
+    const WS = 'writing-session-1';
+    const OTHER_WS = 'writing-session-2';
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `writing_assignment_sessions/${WS}`), {
+        teacherUid: TEACHER,
+      });
+      await setDoc(
+        doc(ctx.firestore(), `writing_assignment_sessions/${OTHER_WS}`),
+        { teacherUid: OTHER }
+      );
+    });
+    const db = teacherDb();
+    await assertSucceeds(
+      setDoc(
+        doc(db, `gradebook_marks/${WS}__${STUDENT}`),
+        mark({ kind: 'writing', sessionId: WS })
+      )
+    );
+    await assertSucceeds(getDoc(doc(db, `gradebook_marks/${WS}__${STUDENT}`)));
+    await assertFails(
+      getDoc(doc(otherDb(), `gradebook_marks/${WS}__${STUDENT}`))
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(db, `gradebook_columns/${WS}`),
+        column({ kind: 'writing', sessionId: WS })
+      )
+    );
+    await assertSucceeds(getDoc(doc(db, `gradebook_columns/${WS}`)));
+    await assertFails(
+      setDoc(
+        doc(db, `gradebook_marks/${OTHER_WS}__${STUDENT}`),
+        mark({ kind: 'writing', sessionId: OTHER_WS })
+      )
+    );
+  });
+
   it('refuses a mismatched id, a spoofed owner, editors or bad fields', async () => {
     const db = teacherDb();
     await assertFails(
@@ -417,6 +455,17 @@ describe('gradebook_columns', () => {
         )
       )
     );
+  });
+
+  it('reads a column not set up yet as missing instead of failing', async () => {
+    const snap = await assertSucceeds(
+      getDoc(doc(teacherDb(), `gradebook_columns/${SESSION}`))
+    );
+    expect(snap.exists()).toBe(false);
+    await assertSucceeds(
+      setDoc(doc(teacherDb(), `gradebook_columns/${SESSION}`), column())
+    );
+    await assertFails(getDoc(doc(otherDb(), `gradebook_columns/${SESSION}`)));
   });
 
   it("refuses another teacher's session, bad values and outside reads", async () => {

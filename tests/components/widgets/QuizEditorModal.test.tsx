@@ -244,3 +244,34 @@ describe('QuizEditorModal tabs and behavior (D10)', () => {
     expect(screen.getByText('Language')).toBeInTheDocument();
   });
 });
+
+describe('QuizEditorModal re-score warning', () => {
+  it('warns that editing changes the scores of earlier assignments', () => {
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={fakeQuiz}
+        rescoredAssignmentCount={2}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByText(
+        'This quiz has 2 assignments. Editing it changes their scores. Duplicate it to make a retake.'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('shows no warning when no assignment would be re-scored', () => {
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={fakeQuiz}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    expect(screen.queryByText(/Duplicate it to make a retake/)).toBeNull();
+  });
+});

@@ -38,13 +38,15 @@ export interface PaperTestJob {
     label: string;
     questions: readonly PaperTestQuestion[];
   }[];
+  /** A printed group's supports, on a page after the questions. */
+  supports?: readonly { title: string; body: string }[];
 }
 
 const STYLES = `
   @page { size: 215.9mm 279.4mm; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 11pt; }
-  .brand { display: flex; align-items: center; gap: 3mm; margin-bottom: 5mm; }
+  .brand { display: flex; align-items: center; justify-content: center; gap: 3mm; }
   .brand svg { display: block; }
   .brand-tag { font-size: 8pt; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
   h1 { font-size: 15pt; margin: 0 0 4mm; }
@@ -64,6 +66,11 @@ const STYLES = `
   .version { break-before: page; }
   .version:first-child { break-before: auto; }
   .version-label { font-size: 12pt; font-weight: bold; margin: -2mm 0 4mm; }
+  .supports { break-before: page; }
+  .supports h2 { font-size: 13pt; margin: 0 0 4mm; }
+  .supports section { break-inside: avoid; margin-bottom: 5mm; }
+  .supports h3 { font-size: 11pt; margin: 0 0 1mm; }
+  .supports p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 `;
 
 function choiceHtml(text: string, picture: ChoicePicture | null | undefined) {
@@ -97,11 +104,21 @@ function testHtml(
   questions: readonly PaperTestQuestion[],
   label?: string
 ): string {
-  return `<div class="brand">${spartronLogoSvg(4.2)}<span class="brand-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div><h1>${escapeHtml(quizTitle)}</h1>${
+  return `<h1>${escapeHtml(quizTitle)}</h1>${
     label ? `<p class="version-label">${escapeHtml(label)}</p>` : ''
   }
 <div class="meta"><div>Name <span></span></div><div>Class <span></span></div></div>
 <ol class="q">${questions.map(questionHtml).join('')}</ol>`;
+}
+
+function supportsHtml(supports: PaperTestJob['supports']): string {
+  if (!supports?.length) return '';
+  return `<div class="supports"><h2>Supports</h2>${supports
+    .map(
+      (s) =>
+        `<section><h3>${escapeHtml(s.title)}</h3><p>${escapeHtml(s.body)}</p></section>`
+    )
+    .join('')}</div>`;
 }
 
 /** The document `printPaperTest` would write. Exported for tests. */
@@ -114,7 +131,7 @@ export function buildPaperTestHtml(job: PaperTestJob): string {
       )
       .join('');
   }
-  return testHtml(job.quizTitle, job.questions);
+  return testHtml(job.quizTitle, job.questions) + supportsHtml(job.supports);
 }
 
 export function printPaperTest(
@@ -132,6 +149,8 @@ export function printPaperTest(
       styles: STYLES,
       body: buildPaperTestHtml(job),
       marginMm: { vertical: 18, horizontal: 20 },
+      // Same mark, size and place as the bubble sheet's footer.
+      footer: `<div class="brand">${spartronLogoSvg(4.2)}<span class="brand-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div>`,
     },
     openWindow
   );
