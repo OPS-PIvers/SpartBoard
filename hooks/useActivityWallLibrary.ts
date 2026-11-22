@@ -34,6 +34,7 @@ import { activityWallSessionId } from '@/utils/activityWallLinks';
 import { normalizeActivityWallLibraryEntry } from '@/utils/activityWallNormalize';
 import { clearWallSubmissions } from '@/components/widgets/ActivityWall/hooks/useActivityWallSession';
 import { useSandboxedActivityWalls } from './useTourSandboxed';
+import { WallStillClosedError } from '@/utils/activityWallErrors';
 
 const COLLECTION = 'activity_wall_activities';
 
@@ -142,18 +143,20 @@ export const useActivityWallLibrary = (
       }
       const reopen = () =>
         closed && wasAccepting
-          ? updateDoc(sessionRef, { acceptingResponses: true }).catch(
-              () => undefined
-            )
+          ? updateDoc(sessionRef, { acceptingResponses: true })
           : Promise.resolve();
       try {
         await clearWallSubmissions(sessionId);
         await after();
       } catch (err) {
-        await reopen();
+        await reopen().catch(() => undefined);
         throw err;
       }
-      if (reopenOnSuccess) await reopen();
+      if (reopenOnSuccess) {
+        await reopen().catch((err: unknown) => {
+          throw new WallStillClosedError(err);
+        });
+      }
     },
     [userId]
   );
