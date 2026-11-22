@@ -24,7 +24,10 @@ const MAX_DOC_BYTES = 16 * 1024;
 const FETCH_TIMEOUT_MS = 3000;
 const MAX_CACHED = 20;
 
-const docCache = new Map<string, { client: CimdClient | null; at: number }>();
+const docCache = new Map<
+  string,
+  { client: CimdClient | null; expires: number }
+>();
 
 /** Test hook: forget cached switch reads and documents. */
 export function resetCimdCache(): void {
@@ -103,15 +106,15 @@ export async function fetchCimdClient(
 ): Promise<CimdClient | null> {
   if (!isCimdClientId(clientId)) return null;
   const cached = docCache.get(clientId);
-  if (
-    cached &&
-    now - cached.at < (cached.client ? DOC_CACHE_MS : FAIL_CACHE_MS)
-  ) {
-    return cached.client;
-  }
-  const client = await loadCimdClient(clientId);
+  if (cached && now < cached.expires) return cached.client;
+  const fresh = await loadCimdClient(clientId);
+  // Stale-if-error: a failed refetch keeps serving the last good document.
+  const client = fresh ?? cached?.client ?? null;
   if (docCache.size >= MAX_CACHED) docCache.clear();
-  docCache.set(clientId, { client, at: now });
+  docCache.set(clientId, {
+    client,
+    expires: now + (fresh ? DOC_CACHE_MS : FAIL_CACHE_MS),
+  });
   return client;
 }
 

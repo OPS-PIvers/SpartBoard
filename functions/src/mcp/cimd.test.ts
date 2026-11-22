@@ -88,7 +88,7 @@ describe('isCimdClientId', () => {
     expect(isCimdClientId(`${CODE_ID}#frag`)).toBe(false);
     expect(isCimdClientId(`https://claude.ai:8443${MCP_PATH}`)).toBe(false);
     expect(isCimdClientId(`https://user@claude.ai${MCP_PATH}`)).toBe(false);
-    expect(isCimdClientId(`https://user:pw@claude.ai${MCP_PATH}`)).toBe(false);
+    expect(isCimdClientId(`https://:pw@claude.ai${MCP_PATH}`)).toBe(false);
     expect(
       isCimdClientId('https://CLAUDE.ai/oauth/claude-code-client-metadata')
     ).toBe(false);
@@ -207,6 +207,21 @@ describe('fetchCimdClient', () => {
     expect(good).not.toHaveBeenCalled();
     expect(await fetchCimdClient(CODE_ID, t0 + 31_000)).not.toBeNull();
     expect(good).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps serving a good document when a refetch fails', async () => {
+    const t0 = 1_000_000;
+    mockFetch(CODE_DOC);
+    const good = await fetchCimdClient(CODE_ID, t0);
+    expect(good).not.toBeNull();
+    const failing = mockFetch({}, 503);
+    const stale = t0 + 6 * 60 * 1000;
+    expect(await fetchCimdClient(CODE_ID, stale)).toEqual(good);
+    expect(failing).toHaveBeenCalledTimes(1);
+    expect(await fetchCimdClient(CODE_ID, stale + 29_000)).toEqual(good);
+    expect(failing).toHaveBeenCalledTimes(1);
+    expect(await fetchCimdClient(CODE_ID, stale + 31_000)).toEqual(good);
+    expect(failing).toHaveBeenCalledTimes(2);
   });
 
   it('caches a good document', async () => {
