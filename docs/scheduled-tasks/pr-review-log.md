@@ -5176,3 +5176,12 @@ rather than "no data") is also still open.
 - Comments processed: 5 total — 1 fixed, 4 were approvals with no change requested (no inline review threads on any PR)
 - Fixes pushed: #6430 + nightly/dashboard-2026-11-20 — `folderPath` stops at hoisted top-level cycle members so breadcrumbs match (e3c11b60)
 - Reviews posted: 7
+
+## 2026-11-22
+- PRs reviewed: #6531 fix(embed): honor autoplay and start-at on youtube-nocookie embeds; #6530 fix(rosters): keep Google Classroom link and sync fields when reading roster docs; #6529 fix(plc): malformed percent escape in a /plc URL no longer crashes the app; #6528 fix(admin): let Calendar config number fields be cleared and retyped; #6527 fix(nrps): keep commas in Link rel=next URL and read multi-value rel
+- Comments processed: 9 total — 0 fixed, 9 needed no change (4 bot "no issues found" summaries, 5 bot "review skipped: no extra usage" notices; there were no inline review threads, so nothing to reply to)
+- Fixes pushed: none
+- Reviews posted: 5
+  - Ready: #6531, #6530, #6529, #6527 (#6527 still had unit shards running at review time).
+  - Ready with minor notes: #6528 (each field's clamp is written in both `normalize` and `onCommit`; cosmetic).
+- Notes: Nothing was changed, so I didn't run lint, type-check or tests locally. CI `summary` was green on #6528–#6531.
