@@ -20,20 +20,6 @@
       "density": "SPARSE_ALL"
     },
     {
-      "collectionGroup": "submissions",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "storageCleanupPending",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "storageCleanupAttemptedAt",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "flashcard_sessions",
       "queryScope": "COLLECTION",
       "fields": [

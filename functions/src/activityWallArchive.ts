@@ -43,6 +43,30 @@ export const ACTIVITY_WALL_MEDIA_ROOT = 'activity_wall_media';
 export const LEGACY_ACTIVITY_WALL_MEDIA_ROOT = 'activity_wall_photos';
 export const SESSIONS_COLLECTION = 'activity_wall_sessions';
 export const SUBMISSIONS_COLLECTION = 'submissions';
+/** Server-only retry queue for failed transit deletes (default-deny rules); keeps bookkeeping off the client-whitelisted submission doc. */
+export const CLEANUP_QUEUE_COLLECTION = 'activity_wall_cleanup_queue';
+
+export function cleanupQueueDocId(
+  sessionId: string,
+  submissionId: string
+): string {
+  return `${sessionId}__${submissionId}`;
+}
+
+/** Adds the submission to the cleanup queue (attemptedAt 0); a no-op if already queued. */
+export async function enqueueStorageCleanup(submissionRef: {
+  id: string;
+  parent: { parent: { id: string } | null };
+  firestore: admin.firestore.Firestore;
+}): Promise<void> {
+  const sessionId = submissionRef.parent.parent?.id;
+  if (!sessionId) return;
+  await submissionRef.firestore
+    .collection(CLEANUP_QUEUE_COLLECTION)
+    .doc(cleanupQueueDocId(sessionId, submissionRef.id))
+    .create({ sessionId, submissionId: submissionRef.id, attemptedAt: 0 })
+    .catch(() => undefined);
+}
 
 /** Mirrors the per-kind caps this brief specifies for `storage.rules`. */
 export const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
@@ -953,11 +977,9 @@ export async function finalizeResumedSubmission(
   } catch {
     if (written) {
       await submissionRef
-        .set(
-          { storageCleanupPending: true, storageCleanupAttemptedAt: 0 },
-          { merge: true }
-        )
+        .set({ storageCleanupPending: true }, { merge: true })
         .catch(() => undefined);
+      await enqueueStorageCleanup(submissionRef);
     }
   }
   if (!written) return { archiveStatus: 'skipped' };

@@ -15,7 +15,9 @@ import {
   ACTIVITY_WALL_MEDIA_ROOT,
   LEGACY_ACTIVITY_WALL_MEDIA_ROOT,
   ORPHAN_OBJECT_AGE_MS,
+  CLEANUP_QUEUE_COLLECTION,
   SESSIONS_COLLECTION,
+  enqueueStorageCleanup,
   SUBMISSIONS_COLLECTION,
   archiveActivityWallMediaCore,
   buildDefaultWallArchiveDeps,
@@ -33,10 +35,9 @@ export const SUBMISSION_PAGE_SIZE = 100;
 export const MAX_CLEANUP_RETRIES_PER_RUN = 200;
 /** Wall-clock budget for the cleanup phase so the orphan sweep still runs inside the 540 s timeout. */
 export const CLEANUP_BUDGET_MS = 180 * 1000;
-/** Last cleanup attempt (ms); 0 until tried. Retries go oldest-attempt first. */
-export const CLEANUP_ATTEMPT_FIELD = 'storageCleanupAttemptedAt';
 /** Runaway guard on cleanup query pages. */
 const MAX_CLEANUP_PAGES = 20;
+const MAX_BACKFILL_PAGES = 5;
 /** Bucket listing page size; pages are followed until the prefix is exhausted. */
 export const STORAGE_PAGE_SIZE = 500;
 /** Runaway guard on the listing loop, not an expected volume. */
@@ -181,66 +182,102 @@ async function retryStragglers(
  * delete failed; nothing else in the codebase reads the flag, so this is the
  * only retry path for those leftover objects.
  */
+/** Flags set before the queue existed: enqueue them so they join the ordered retry. */
+async function enqueueLegacyCleanupFlags(
+  db: Firestore,
+  deps: WallSweepDeps,
+  runStart: number
+): Promise<void> {
+  let cursor: admin.firestore.QueryDocumentSnapshot | null = null;
+  for (let pages = 0; pages < MAX_BACKFILL_PAGES; pages++) {
+    let query = db
+      .collectionGroup(SUBMISSIONS_COLLECTION)
+      .where('storageCleanupPending', '==', true)
+      .limit(SUBMISSION_PAGE_SIZE);
+    if (cursor) query = query.startAfter(cursor);
+    const page = await query.get();
+    if (page.empty) return;
+    cursor = page.docs[page.docs.length - 1] ?? null;
+    for (const docSnap of page.docs) {
+      if (deps.now() - runStart >= CLEANUP_BUDGET_MS) return;
+      const sessionRef = docSnap.ref.parent.parent;
+      if (!sessionRef || sessionRef.parent.id !== SESSIONS_COLLECTION) continue;
+      await enqueueStorageCleanup(docSnap.ref);
+    }
+    if (page.size < SUBMISSION_PAGE_SIZE) return;
+  }
+}
+
+/**
+ * `storageCleanupPending` is set when an archive succeeded but the transit
+ * delete failed; the queue collection orders retries by last attempt so
+ * repeat failures cannot starve later docs.
+ */
 async function retryStorageCleanup(
   db: Firestore,
   deps: WallSweepDeps,
   summary: WallSweepSummary
 ): Promise<void> {
   const runStart = deps.now();
+  await enqueueLegacyCleanupFlags(db, deps, runStart);
   for (
     let pages = 0;
     pages < MAX_CLEANUP_PAGES &&
     summary.cleanupRetried < MAX_CLEANUP_RETRIES_PER_RUN;
     pages++
   ) {
-    // Oldest attempt first; a doc handled this run is cleared or stamped >= runStart, so it leaves the window.
+    // A doc handled this run is deleted or stamped >= runStart, so it leaves the window.
     const page = await db
-      .collectionGroup(SUBMISSIONS_COLLECTION)
-      .where('storageCleanupPending', '==', true)
-      .orderBy(CLEANUP_ATTEMPT_FIELD)
+      .collection(CLEANUP_QUEUE_COLLECTION)
+      .orderBy('attemptedAt')
       .endBefore(runStart)
       .limit(SUBMISSION_PAGE_SIZE)
       .get();
     if (page.empty) break;
 
-    for (const docSnap of page.docs) {
+    for (const queued of page.docs) {
       if (summary.cleanupRetried >= MAX_CLEANUP_RETRIES_PER_RUN) return;
       if (deps.now() - runStart >= CLEANUP_BUDGET_MS) return;
-      const sessionRef = docSnap.ref.parent.parent;
-      // The collection group also matches unrelated `submissions` subtrees.
-      if (!sessionRef || sessionRef.parent.id !== SESSIONS_COLLECTION) {
-        await docSnap.ref
-          .set({ [CLEANUP_ATTEMPT_FIELD]: deps.now() }, { merge: true })
-          .catch(() => undefined);
+      const entry = (queued.data() ?? {}) as Record<string, unknown>;
+      const sessionId =
+        typeof entry.sessionId === 'string' ? entry.sessionId : '';
+      const submissionId =
+        typeof entry.submissionId === 'string' ? entry.submissionId : '';
+      if (!sessionId || !submissionId) {
+        await queued.ref.delete().catch(() => undefined);
         continue;
       }
       summary.cleanupRetried++;
       try {
         // Legacy prefix is flat per session, so filter to this submission.
         const modernObjects = await deps.listObjects(
-          `${ACTIVITY_WALL_MEDIA_ROOT}/${sessionRef.id}/${docSnap.id}/`
+          `${ACTIVITY_WALL_MEDIA_ROOT}/${sessionId}/${submissionId}/`
         );
         const legacyCandidates = await deps.listObjects(
-          `${LEGACY_ACTIVITY_WALL_MEDIA_ROOT}/${sessionRef.id}/`
+          `${LEGACY_ACTIVITY_WALL_MEDIA_ROOT}/${sessionId}/`
         );
         const legacyObjects = legacyCandidates.filter(
           (object) =>
-            parseMediaObjectName(object.name)?.submissionId === docSnap.id
+            parseMediaObjectName(object.name)?.submissionId === submissionId
         );
         for (const object of [...modernObjects, ...legacyObjects]) {
           await deps.deleteObject(object.name);
         }
-        await docSnap.ref.set(
-          {
+        // update() so a deleted submission is not recreated as a stub.
+        await db
+          .collection(SESSIONS_COLLECTION)
+          .doc(sessionId)
+          .collection(SUBMISSIONS_COLLECTION)
+          .doc(submissionId)
+          .update({
             storageCleanupPending: admin.firestore.FieldValue.delete(),
-            [CLEANUP_ATTEMPT_FIELD]: admin.firestore.FieldValue.delete(),
-          },
-          { merge: true }
-        );
+          })
+          .catch(() => undefined);
+        await queued.ref.delete();
         summary.cleanupCleared++;
       } catch {
-        await docSnap.ref
-          .set({ [CLEANUP_ATTEMPT_FIELD]: deps.now() }, { merge: true })
+        await queued.ref
+          .set({ attemptedAt: deps.now() }, { merge: true })
           .catch(() => undefined);
       }
     }
