@@ -153,4 +153,43 @@ describe('stimulus picker dialog', () => {
       screen.queryByRole('button', { name: 'Close' })
     ).not.toBeInTheDocument();
   });
+
+  it('shows the On paper switch only when paper tests are on, and saves a pick', async () => {
+    const state = {
+      ...makeState(),
+      updateStimulus: vi.fn(),
+    } as unknown as QuizEditorController;
+    const { unmount } = render(
+      <QuestionStimulusSection
+        state={state}
+        questionId="q1"
+        metaList
+        pickerModal
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
+    expect(screen.queryByRole('radiogroup', { name: 'On paper' })).toBeNull();
+    unmount();
+    render(
+      <QuestionStimulusSection
+        state={state}
+        questionId="q1"
+        metaList
+        pickerModal
+        paperPlacement
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
+    const group = screen.getByRole('radiogroup', { name: 'On paper' });
+    // Used by one question, so it starts with the question.
+    expect(
+      within(group).getByRole('radio', { name: 'With the question' })
+    ).toHaveAttribute('aria-checked', 'true');
+    await userEvent.click(
+      within(group).getByRole('radio', { name: 'Resource page' })
+    );
+    expect(state.updateStimulus).toHaveBeenCalledWith('w1', {
+      paperPlacement: 'resource',
+    });
+  });
 });

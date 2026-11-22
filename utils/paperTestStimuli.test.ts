@@ -3,7 +3,8 @@ import type { QuizStimulus } from '@/types';
 import {
   attachPaperTestStimuli,
   paperTestStimulus,
-  stimulusForLine,
+  resourceLetter,
+  resourceLine,
 } from './paperTestStimuli';
 import { buildPaperTestHtml } from './paperTestPrint';
 
@@ -86,59 +87,86 @@ describe('paperTestStimulus', () => {
 describe('attachPaperTestStimuli', () => {
   const stimuli = [
     stim({ id: 'p', text: 'Passage' }),
+    stim({ id: 'w', type: 'word-bank', text: 'a\nb' }),
     stim({
       id: 'i',
       type: 'image',
       url: 'https://x/a.png',
       placement: 'inline',
     }),
+    stim({ id: 'short', text: 'Short', paperPlacement: 'question' }),
+    stim({ id: 'big', text: 'Long article', paperPlacement: 'resource' }),
   ];
   const questions = new Map([
-    ['q1', { id: 'q1', stimulusIds: [] }],
-    ['q2', { id: 'q2', stimulusIds: ['p', 'i'] }],
-    ['q3', { id: 'q3', stimulusIds: ['p'] }],
-    ['q4', { id: 'q4', stimulusIds: ['missing'] }],
+    ['q1', { id: 'q1', stimulusIds: ['w'] }],
+    ['q2', { id: 'q2', stimulusIds: ['p', 'i', 'short'] }],
+    ['q3', { id: 'q3', stimulusIds: ['p', 'short', 'big'] }],
+    ['q4', { id: 'q4', stimulusIds: ['missing', 'i'] }],
   ]);
   const files = { images: { i: 'https://x/a.png' }, pages: {} };
+  const printed = [
+    { questionId: 'q1', row: 1 },
+    { questionId: 'q3', row: 2 },
+    { questionId: 'q2', row: 3 },
+    { questionId: 'q4', row: 4 },
+  ];
 
-  it('prints a shared stimulus once, above the first question that uses it', () => {
-    const out = attachPaperTestStimuli(
-      [
-        { questionId: 'q1', row: 1 },
-        { questionId: 'q3', row: 2 },
-        { questionId: 'q2', row: 3 },
-        { questionId: 'q4', row: 4 },
-      ],
+  it('prints a one-question stimulus in its question and lettered resources for shared ones', () => {
+    const { questions: out, resources } = attachPaperTestStimuli(
+      printed,
       questions,
       stimuli,
       files
     );
-    expect(out.has('q1')).toBe(false);
-    expect(out.get('q3')?.block).toEqual({
-      forRows: [2, 3],
-      items: [{ kind: 'text', text: 'Passage' }],
+    expect(out.get('q1')).toEqual({
+      stimuli: [{ kind: 'word-bank', groups: [['a', 'b']], columns: 1 }],
     });
-    // The in-question picture prints in its question; the passage is already above.
+    // Lettered in the order students first meet them.
+    expect(resources.map((r) => r.letter)).toEqual(['A', 'B']);
+    expect(resources[0].item).toEqual({ kind: 'text', text: 'Passage' });
+    expect(resources[1].item).toEqual({ kind: 'text', text: 'Long article' });
+    expect(out.get('q3')).toEqual({
+      stimuli: [{ kind: 'text', text: 'Short' }],
+      resources: ['A', 'B'],
+    });
+    // An in-question picture stays in each question, even when shared.
     expect(out.get('q2')).toEqual({
-      inline: [{ kind: 'image', src: 'https://x/a.png' }],
+      stimuli: [
+        { kind: 'image', src: 'https://x/a.png' },
+        { kind: 'text', text: 'Short' },
+      ],
+      resources: ['A'],
     });
-    expect(out.has('q4')).toBe(false);
+    expect(out.get('q4')).toEqual({
+      stimuli: [{ kind: 'image', src: 'https://x/a.png' }],
+    });
+  });
+
+  it('counts only printed questions when picking the default', () => {
+    const { questions: out, resources } = attachPaperTestStimuli(
+      [{ questionId: 'q2', row: 1 }],
+      questions,
+      stimuli,
+      files
+    );
+    expect(resources).toEqual([]);
+    expect(out.get('q2')?.stimuli).toHaveLength(3);
   });
 });
 
-describe('stimulusForLine', () => {
-  it('names the questions a stimulus goes with', () => {
-    expect(stimulusForLine([3])).toBe('For question 3');
-    expect(stimulusForLine([3, 4])).toBe('For questions 3 and 4');
-    expect(stimulusForLine([3, 4, 5])).toBe('For questions 3 to 5');
-    expect(stimulusForLine(['2', '4', '7', '8', '9'])).toBe(
-      'For questions 2, 4 and 7 to 9'
-    );
+describe('resource lines and letters', () => {
+  it('names the resources a question uses', () => {
+    expect(resourceLine(['A'])).toBe('Use Resource A.');
+    expect(resourceLine(['A', 'B'])).toBe('Use Resources A and B.');
+    expect(resourceLine(['A', 'B', 'C'])).toBe('Use Resources A, B and C.');
+    expect(resourceLetter(0)).toBe('A');
+    expect(resourceLetter(25)).toBe('Z');
+    expect(resourceLetter(26)).toBe('AA');
   });
 });
 
 describe('stimuli on the test paper', () => {
-  it('prints the block before its first question and escapes teacher text', () => {
+  it('prints question text, then stimuli, then choices, and resources after the questions', () => {
     const html = buildPaperTestHtml({
       quizTitle: 'Reading',
       questions: [
@@ -146,28 +174,55 @@ describe('stimuli on the test paper', () => {
           row: 1,
           text: 'Who is the hero?',
           choices: ['Ann', 'Bo'],
-          stimuli: {
-            forRows: [1, 2],
-            items: [
-              { kind: 'text', title: 'The <Fox>', text: 'A & B' },
-              { kind: 'link', title: 'Video', url: 'https://youtu.be/a' },
-            ],
-          },
+          stimuli: [{ kind: 'text', title: 'The <Fox>', text: 'A & B' }],
         },
         {
           row: 2,
-          text: 'Pick the picture',
+          text: 'Pick one',
           choices: ['Yes', 'No'],
-          inlineStimuli: [{ kind: 'image', src: 'https://x/a.png' }],
+          resources: ['A'],
+        },
+      ],
+      resources: [
+        {
+          letter: 'A',
+          item: { kind: 'link', title: 'Video', url: 'https://youtu.be/a' },
         },
       ],
     });
-    expect(html.indexOf('For questions 1 and 2')).toBeLessThan(
-      html.indexOf('Who is the hero?')
-    );
+    const text = html.indexOf('Who is the hero?');
+    const stimulus = html.indexOf('A &amp; B');
+    const choice = html.indexOf('Ann');
+    expect(text).toBeLessThan(stimulus);
+    expect(stimulus).toBeLessThan(choice);
     expect(html).toContain('<h3>The &lt;Fox&gt;</h3>');
-    expect(html).toContain('A &amp; B');
+    expect(html).toContain('<p class="use-res">Use Resource A.</p>');
+    expect(html.indexOf('<h2>Resource A</h2>')).toBeGreaterThan(
+      html.indexOf('Pick one')
+    );
     expect(html).toContain('<strong>Video:</strong> https://youtu.be/a');
-    expect(html).toContain('<div class="q-stim"><div class="stim-item"><img');
+  });
+});
+
+describe('long stimuli in a question', () => {
+  it('lets a question with a long passage split across pages', () => {
+    const html = buildPaperTestHtml({
+      quizTitle: 'R',
+      questions: [
+        {
+          row: 1,
+          text: 'Short',
+          choices: ['a', 'b'],
+          stimuli: [{ kind: 'text', text: 'word '.repeat(200) }],
+        },
+        {
+          row: 2,
+          text: 'Short too',
+          choices: ['a', 'b'],
+          stimuli: [{ kind: 'text', text: 'A short note.' }],
+        },
+      ],
+    });
+    expect(html.match(/<li class="tall">/g)).toHaveLength(1);
   });
 });

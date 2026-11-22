@@ -4021,6 +4021,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-stimuli.paper-placement': {
+    label: 'On paper switch for a stimulus in the Quiz widget stimulus picker',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-stimuli.picker-close': {
     label: 'Return button in the Quiz widget stimulus picker',
     perWidgetType: true,

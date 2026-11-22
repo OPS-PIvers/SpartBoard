@@ -1,5 +1,9 @@
-// The stimuli a printed test paper carries: each prints once, above the first question that uses it.
-import type { QuizQuestion, QuizStimulus } from '@/types';
+// The stimuli a printed test paper carries: inside a question, or once on a lettered resource page.
+import type {
+  QuizQuestion,
+  QuizStimulus,
+  QuizStimulusPaperPlacement,
+} from '@/types';
 import { parseWordBank, wordBankColumns } from './quizWordBank';
 
 /** One stimulus as the test paper prints it. */
@@ -14,12 +18,6 @@ export type PaperTestStimulus =
   | { kind: 'image'; title?: string; src: string }
   | { kind: 'pages'; title?: string; srcs: string[] }
   | { kind: 'link'; title: string; url: string };
-
-/** Stimuli printed above a question, with the printed numbers of every question that uses them. */
-export interface PaperTestStimulusBlock {
-  forRows: readonly (number | string)[];
-  items: PaperTestStimulus[];
-}
 
 /** Pictures fetched before the print window opens, by stimulus id. */
 export interface PaperTestStimulusFiles {
@@ -112,90 +110,105 @@ export interface PrintedQuestionRef {
   row: number | string;
 }
 
-/** Per printed question: the shared stimuli printed above it and the pictures printed in it. */
+/** Per printed question: stimuli printed inside it and the resources it points to. */
 export interface PrintedQuestionStimuli {
-  block?: PaperTestStimulusBlock;
-  inline?: PaperTestStimulus[];
+  stimuli?: PaperTestStimulus[];
+  /** Resource letters, as in "Use Resource A." */
+  resources?: string[];
+}
+
+/** One resource page section: "Resource A" and what it prints. */
+export interface PaperTestResource {
+  letter: string;
+  item: PaperTestStimulus;
+}
+
+/** Where a stimulus prints when the teacher hasn't picked: with its one question, else as a resource. */
+export function defaultPaperPlacement(
+  s: Pick<QuizStimulus, 'type' | 'placement'>,
+  questionCount: number
+): QuizStimulusPaperPlacement {
+  // A picture the teacher put in the question stays in it, as students see it.
+  if (s.type === 'image' && s.placement === 'inline') return 'question';
+  return questionCount > 1 ? 'resource' : 'question';
+}
+
+export function paperPlacementOf(
+  s: Pick<QuizStimulus, 'type' | 'placement' | 'paperPlacement'>,
+  questionCount: number
+): QuizStimulusPaperPlacement {
+  return s.paperPlacement ?? defaultPaperPlacement(s, questionCount);
+}
+
+/** A, B ... Z, then AA, AB. */
+export function resourceLetter(index: number): string {
+  let n = index;
+  let out = '';
+  do {
+    out = String.fromCharCode(65 + (n % 26)) + out;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return out;
 }
 
 /**
- * Places each stimulus once, above the first printed question that uses it.
- * An image the teacher put in the question prints inside each question, as students see it.
+ * Splits a test's stimuli between questions and resource pages. A resource is
+ * lettered in the order students first meet it.
  */
 export function attachPaperTestStimuli(
   printed: readonly PrintedQuestionRef[],
   questionsById: ReadonlyMap<string, Pick<QuizQuestion, 'id' | 'stimulusIds'>>,
   stimuli: readonly QuizStimulus[],
   files: PaperTestStimulusFiles
-): Map<string, PrintedQuestionStimuli> {
+): {
+  questions: Map<string, PrintedQuestionStimuli>;
+  resources: PaperTestResource[];
+} {
   const byId = new Map(stimuli.map((s) => [s.id, s]));
-  const rowsFor = new Map<string, (number | string)[]>();
+  const uses = new Map<string, number>();
+  for (const p of printed)
+    for (const id of new Set(questionsById.get(p.questionId)?.stimulusIds))
+      uses.set(id, (uses.get(id) ?? 0) + 1);
+  const items = new Map<string, PaperTestStimulus | null>();
+  const itemOf = (s: QuizStimulus) => {
+    if (!items.has(s.id)) items.set(s.id, paperTestStimulus(s, files));
+    return items.get(s.id) ?? null;
+  };
+  const letters = new Map<string, string>();
+  const resources: PaperTestResource[] = [];
+  const questions = new Map<string, PrintedQuestionStimuli>();
   for (const p of printed) {
-    for (const id of questionsById.get(p.questionId)?.stimulusIds ?? []) {
-      if (!byId.has(id)) continue;
-      const rows = rowsFor.get(id) ?? [];
-      rows.push(p.row);
-      rowsFor.set(id, rows);
-    }
-  }
-  const placed = new Set<string>();
-  const out = new Map<string, PrintedQuestionStimuli>();
-  for (const p of printed) {
-    const ids = questionsById.get(p.questionId)?.stimulusIds ?? [];
-    const blockItems: PaperTestStimulus[] = [];
-    const blockRows: (number | string)[] = [];
-    const inline: PaperTestStimulus[] = [];
-    for (const id of ids) {
+    const inQuestion: PaperTestStimulus[] = [];
+    const refs: string[] = [];
+    for (const id of new Set(questionsById.get(p.questionId)?.stimulusIds)) {
       const s = byId.get(id);
-      if (!s) continue;
-      if (s.type === 'image' && s.placement === 'inline') {
-        const item = paperTestStimulus(s, files);
-        if (item) inline.push(item);
+      const item = s ? itemOf(s) : null;
+      if (!s || !item) continue;
+      if (paperPlacementOf(s, uses.get(id) ?? 0) === 'question') {
+        inQuestion.push(item);
         continue;
       }
-      if (placed.has(id)) continue;
-      placed.add(id);
-      const item = paperTestStimulus(s, files);
-      if (!item) continue;
-      blockItems.push(item);
-      for (const row of rowsFor.get(id) ?? [])
-        if (!blockRows.includes(row)) blockRows.push(row);
+      let letter = letters.get(id);
+      if (!letter) {
+        letter = resourceLetter(resources.length);
+        letters.set(id, letter);
+        resources.push({ letter, item });
+      }
+      refs.push(letter);
     }
-    const entry: PrintedQuestionStimuli = {
-      ...(blockItems.length
-        ? { block: { forRows: blockRows, items: blockItems } }
-        : {}),
-      ...(inline.length ? { inline } : {}),
-    };
-    if (entry.block || entry.inline) out.set(p.questionId, entry);
+    if (inQuestion.length || refs.length)
+      questions.set(p.questionId, {
+        ...(inQuestion.length ? { stimuli: inQuestion } : {}),
+        ...(refs.length ? { resources: refs } : {}),
+      });
   }
-  return out;
+  return { questions, resources };
 }
 
-/** "For question 3", "For questions 3 to 5", "For questions 2, 4 and 7 to 9". */
-export function stimulusForLine(rows: readonly (number | string)[]): string {
-  if (rows.length === 0) return '';
-  if (rows.length === 1) return `For question ${rows[0]}`;
-  const num = (r: number | string | undefined): number | null =>
-    typeof r === 'number'
-      ? r
-      : r !== undefined && /^\d+$/.test(r)
-        ? Number(r)
-        : null;
-  const parts: string[] = [];
-  let i = 0;
-  while (i < rows.length) {
-    let end = i;
-    for (;;) {
-      const a = num(rows[end]);
-      const b = num(rows[end + 1]);
-      if (a === null || b === null || b !== a + 1) break;
-      end += 1;
-    }
-    if (end - i >= 2) parts.push(`${rows[i]} to ${rows[end]}`);
-    else for (let k = i; k <= end; k += 1) parts.push(String(rows[k]));
-    i = end + 1;
-  }
-  const last = parts.pop();
-  return `For questions ${parts.length ? `${parts.join(', ')} and ${last}` : last}`;
+/** "Use Resource A." or "Use Resources A and B." */
+export function resourceLine(letters: readonly string[]): string {
+  if (letters.length === 0) return '';
+  if (letters.length === 1) return `Use Resource ${letters[0]}.`;
+  const head = letters.slice(0, -1).join(', ');
+  return `Use Resources ${head} and ${letters[letters.length - 1]}.`;
 }
