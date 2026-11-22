@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { DraftNumberField } from './DraftNumberField';
 import {
   X,
   Plus,
@@ -426,8 +427,7 @@ export const CalendarConfigurationModal: React.FC<
                     <span className="text-xxs font-bold text-slate-500 uppercase tracking-widest">
                       Every
                     </span>
-                    <input
-                      type="number"
+                    <DraftNumberField
                       {...tourFieldAttr(
                         'admin.widget-config.field',
                         'calendar',
@@ -436,18 +436,17 @@ export const CalendarConfigurationModal: React.FC<
                       min="1"
                       max="24"
                       value={config.updateFrequencyHours ?? 4}
-                      onChange={(e) => {
-                        // Ignore a non-finite parse (empty field) — NaN freshness never skips, so the fetcher would sync every run.
-                        const next = parseInt(e.target.value, 10);
-                        if (Number.isFinite(next)) {
-                          updateGlobal({
-                            updateFrequencyHours: Math.min(
-                              24,
-                              Math.max(1, next)
-                            ),
-                          });
-                        }
-                      }}
+                      normalize={(n) =>
+                        Math.min(24, Math.max(1, Math.round(n)))
+                      }
+                      onCommit={(n) =>
+                        updateGlobal({
+                          updateFrequencyHours: Math.min(
+                            24,
+                            Math.max(1, Math.round(n))
+                          ),
+                        })
+                      }
                       className="w-10 text-xs font-black text-blue-700 text-center bg-transparent outline-hidden"
                     />
                     <span className="text-xxs font-bold text-slate-500 uppercase tracking-widest">
@@ -834,9 +833,8 @@ export const CalendarConfigurationModal: React.FC<
                     >
                       Default Days Visible
                     </label>
-                    <input
+                    <DraftNumberField
                       id={`cal-days-visible-${selectedBuildingId}`}
-                      type="number"
                       {...tourFieldAttr(
                         'admin.widget-config.field',
                         'calendar',
@@ -845,15 +843,14 @@ export const CalendarConfigurationModal: React.FC<
                       min="1"
                       max="30"
                       value={currentBuildingConfig.daysVisible ?? 5}
-                      onChange={(e) => {
-                        // Ignore a non-finite parse (empty field) — NaN would reach Firestore and fail the whole save.
-                        const next = parseInt(e.target.value, 10);
-                        if (Number.isFinite(next)) {
-                          updateBuilding({
-                            daysVisible: Math.min(30, Math.max(1, next)),
-                          });
-                        }
-                      }}
+                      normalize={(n) =>
+                        Math.min(30, Math.max(1, Math.round(n)))
+                      }
+                      onCommit={(n) =>
+                        updateBuilding({
+                          daysVisible: Math.min(30, Math.max(1, Math.round(n))),
+                        })
+                      }
                       className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden bg-white"
                     />
                   </div>
