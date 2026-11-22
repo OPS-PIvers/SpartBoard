@@ -81,11 +81,11 @@ const TINT: Record<Tint, string> = {
   reopen: OUTLINE_BLUE,
   'choose-class': OUTLINE_BLUE,
 };
-const BADGE: Record<AccessBadge['tone'], string> = {
-  success: 'bg-emerald-100 text-emerald-700',
-  warn: 'bg-amber-100 text-amber-700',
-  info: 'bg-blue-100 text-blue-700',
-  neutral: 'bg-slate-200 text-slate-600',
+const WORD: Record<AccessBadge['tone'], string> = {
+  success: 'text-emerald-700',
+  warn: 'text-amber-700',
+  info: 'text-brand-blue-primary',
+  neutral: 'text-slate-500',
 };
 
 const ICON = { width: 'min(14px, 4cqmin)', height: 'min(14px, 4cqmin)' };
@@ -97,37 +97,31 @@ const BTN_STYLE: React.CSSProperties = {
   fontSize: 'min(12px, 3.5cqmin)',
 };
 const GREY_TEXT: React.CSSProperties = { fontSize: 'min(12.5px, 3.6cqmin)' };
-// Title, chip and grey text share the first three tracks in the row and in its panel.
+// Title, status word and grey text share the first three tracks in the row and in its panel.
 const ROW_GRID = `grid items-center grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.4fr)_var(--asg-btn)_var(--asg-ic)_var(--asg-ic)] [@container(max-width:600px)]:grid-cols-[minmax(0,1fr)_auto_var(--asg-ic)_var(--asg-ic)]`;
 const PANEL_GRID = `grid items-center grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.4fr)_calc(var(--asg-btn)+2*var(--asg-ic)+2*var(--asg-gap))] [@container(max-width:600px)]:grid-cols-[minmax(0,1fr)_auto]`;
-// The chip and grey text are two cells when wide and one wrapped line when narrow.
+// The status word and grey text are two cells when wide and one wrapped line when narrow.
 const STATUS_CELLS = `contents [@container(max-width:600px)]:col-span-full [@container(max-width:600px)]:row-start-2 [@container(max-width:600px)]:flex [@container(max-width:600px)]:flex-wrap [@container(max-width:600px)]:items-center`;
 
-const Chip: React.FC<{ badge: AccessBadge }> = ({ badge }) => (
-  <span className="flex min-w-0">
-    <span
-      className={`inline-flex min-w-0 items-center rounded-full font-bold uppercase tracking-wide ${BADGE[badge.tone]}`}
-      style={{
-        gap: 'min(4px, 1cqmin)',
-        fontSize: 'min(10px, 3cqmin)',
-        padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
-      }}
-    >
-      {badge.dot && (
-        <span
-          aria-hidden="true"
-          className="shrink-0 rounded-full bg-current"
-          style={{ width: 'min(6px, 1.5cqmin)', height: 'min(6px, 1.5cqmin)' }}
-        />
-      )}
-      <span className="truncate">{badge.label}</span>
-    </span>
+const StatusWord: React.FC<{ badge: AccessBadge }> = ({ badge }) => (
+  <span
+    className={`flex min-w-0 items-center font-semibold ${WORD[badge.tone]}`}
+    style={{ ...GREY_TEXT, gap: 'min(5px, 1.2cqmin)' }}
+  >
+    {badge.dot && (
+      <span
+        aria-hidden="true"
+        className="shrink-0 rounded-full bg-current"
+        style={{ width: 'min(6px, 1.5cqmin)', height: 'min(6px, 1.5cqmin)' }}
+      />
+    )}
+    <span className="min-w-0 [overflow-wrap:anywhere]">{badge.label}</span>
   </span>
 );
 
 const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
-/** One assignment on the Assigned tab: title, status chip, grey text and the next step. */
+/** One assignment on the Assigned tab: title, status word, grey text and the next step. */
 export const AssignedRow: React.FC<AssignedRowProps> = ({
   title,
   status,
@@ -255,7 +249,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
             {title}
           </div>
           <div className={STATUS_CELLS} style={{ gap: 'min(8px, 2cqmin)' }}>
-            {badge ? <Chip badge={badge} /> : <span aria-hidden="true" />}
+            <StatusWord badge={badge} />
             <div
               className="flex min-w-0 flex-wrap items-center text-slate-500 tabular-nums"
               style={{ ...GREY_TEXT, columnGap: 'min(8px, 2cqmin)' }}
@@ -388,7 +382,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                     paddingLeft: 'min(14px, 3.2cqmin)',
                   }}
                 >
-                  <Chip badge={classBadge(c)} />
+                  <StatusWord badge={classBadge(c)} />
                   <div
                     className="min-w-0 text-slate-500 tabular-nums"
                     style={GREY_TEXT}
