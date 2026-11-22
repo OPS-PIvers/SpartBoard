@@ -110,10 +110,14 @@ describe('stimulus picker dialog', () => {
     ).toHaveTextContent('plates meet');
   });
 
-  it('shows an empty passage without a preview', async () => {
+  it('edits empty text in place', async () => {
+    const state = {
+      ...makeState(),
+      updateStimulus: vi.fn(),
+    } as unknown as QuizEditorController;
     render(
       <QuestionStimulusSection
-        state={makeState()}
+        state={state}
         questionId="q1"
         metaList
         pickerModal
@@ -121,10 +125,82 @@ describe('stimulus picker dialog', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
     await userEvent.click(screen.getByText('Passage 2'));
-    expect(screen.getByText('This passage is empty.')).toBeInTheDocument();
+    const box = screen.getByRole('textbox', { name: 'Text' });
+    await userEvent.type(box, 'A');
+    expect(state.updateStimulus).toHaveBeenLastCalledWith('e2', { text: 'A' });
   });
 
-  it('closes back to the question with Return', async () => {
+  it('sets word bank columns in place', async () => {
+    const state = {
+      ...makeState(),
+      updateStimulus: vi.fn(),
+    } as unknown as QuizEditorController;
+    render(
+      <QuestionStimulusSection
+        state={state}
+        questionId="q1"
+        metaList
+        pickerModal
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
+    expect(screen.getByRole('textbox', { name: 'Word bank' })).toHaveValue(
+      'mitosis\nmeiosis'
+    );
+    const group = screen.getByRole('radiogroup', { name: 'Columns' });
+    await userEvent.click(within(group).getByRole('radio', { name: '2' }));
+    expect(state.updateStimulus).toHaveBeenCalledWith('w1', {
+      wordBankColumns: 2,
+    });
+  });
+
+  it('adds text or a word bank from Add a stimulus', async () => {
+    const state = {
+      ...makeState(),
+      addStimulus: vi.fn(),
+    } as unknown as QuizEditorController;
+    const { unmount } = render(
+      <QuestionStimulusSection
+        state={state}
+        questionId="q1"
+        metaList
+        pickerModal
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Add a stimulus' })
+    );
+    expect(screen.queryByRole('button', { name: 'Word bank' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Text' }));
+    expect(state.addStimulus).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: 'text' })
+    );
+    expect(state.toggleStimulusOnQuestion).toHaveBeenLastCalledWith(
+      vi.mocked(state.addStimulus).mock.calls[0][0].id,
+      'q1'
+    );
+    unmount();
+    render(
+      <QuestionStimulusSection
+        state={state}
+        questionId="q1"
+        metaList
+        pickerModal
+        wordBankAvailable
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Add a stimulus' })
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Word bank' }));
+    expect(state.addStimulus).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: 'word-bank' })
+    );
+  });
+
+  it('closes back to the question with Back to quiz', async () => {
     render(
       <QuestionStimulusSection
         state={makeState()}
@@ -134,12 +210,12 @@ describe('stimulus picker dialog', () => {
       />
     );
     await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Return' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back to quiz' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Stimuli' })).toBeInTheDocument();
   });
 
-  it('shows Return in place of the close X', async () => {
+  it('shows Back to quiz in place of the close X', async () => {
     render(
       <QuestionStimulusSection
         state={makeState()}
