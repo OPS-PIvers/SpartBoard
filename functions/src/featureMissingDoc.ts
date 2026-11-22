@@ -45,6 +45,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-time-limit',
   'group-reminders',
   'class-groups-redesign',
+  'classlink-clean-names',
   'share-content-safeguards',
   'guided-learning-ai',
   'routine-guide',

@@ -45,6 +45,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'blooms-ai',
   'class-groups-redesign',
   'class-student-page',
+  'classlink-clean-names',
   'claude-connector',
   'claude-connector-guided-learning',
   'claude-picture-uploads',
