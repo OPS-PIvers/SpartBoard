@@ -376,6 +376,47 @@ describe('queue and sweep', () => {
     expect(store.docs.has(marker())).toBe(false);
   });
 
+  it('re-queues a closed class for its first live pass expiry, then turns the student in', async () => {
+    const end = NOW + 30 * 60_000;
+    store.docs.set(
+      S,
+      session(
+        { state: 'closed', closedAt: CLOSED_AT },
+        { studentAccess: { late: end, later: end + 60_000 } }
+      )
+    );
+    open('late', { classId: 'p1' });
+    open('later', { classId: 'p1' });
+    await queueClose();
+    const r = await runVideoClassTurnIns(db as never, NOW);
+    expect(r).toMatchObject({ turnedIn: 0, requeued: 1 });
+    expect(store.docs.get(marker())).toMatchObject({ dueAt: end, attempts: 0 });
+    expect((await runVideoClassTurnIns(db as never, end - 1)).markers).toBe(0);
+    const r2 = await runVideoClassTurnIns(db as never, end + 1);
+    expect(r2).toMatchObject({ turnedIn: 1, requeued: 1 });
+    expect(turnedIn()).toEqual(['late']);
+    expect(store.docs.get(marker())).toMatchObject({ dueAt: end + 60_000 });
+    await runVideoClassTurnIns(db as never, end + 60_001);
+    expect(turnedIn()).toEqual(['late', 'later']);
+    expect(store.docs.has(marker())).toBe(false);
+  });
+
+  it('does not re-queue for reopened-for, unlocked or blank students', async () => {
+    store.docs.set(
+      S,
+      session(
+        { state: 'closed', closedAt: CLOSED_AT },
+        { studentAccess: { blank: NOW + 1000 }, reopenedFor: ['picked'] }
+      )
+    );
+    open('picked', { classId: 'p1' });
+    open('blank', { classId: 'p1', answers: [] });
+    await queueClose();
+    const r = await runVideoClassTurnIns(db as never, NOW);
+    expect(r.requeued).toBe(0);
+    expect(store.docs.has(marker())).toBe(false);
+  });
+
   it('clears a stale marker without writing', async () => {
     store.docs.set(S, session({ state: 'open', closedAt: null }));
     open('a', { classId: 'p1' });

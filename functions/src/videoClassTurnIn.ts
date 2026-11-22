@@ -129,6 +129,18 @@ function hadPass(session: Doc, r: Doc): boolean {
   );
 }
 
+/** When a let-in student's pass ends, if they're left open only because of it. */
+function passExpiry(session: Doc, r: Doc, now: number): number | null {
+  if (r.unlocked === true || !Array.isArray(r.answers) || !r.answers.length)
+    return null;
+  const uid = typeof r.studentUid === 'string' ? r.studentUid : '';
+  if (!uid) return null;
+  if (Array.isArray(session.reopenedFor) && session.reopenedFor.includes(uid))
+    return null;
+  const pass = (session.studentAccess as Doc | undefined)?.[uid];
+  return typeof pass === 'number' && pass > now ? pass : null;
+}
+
 export type TurnInOutcome = 'stale' | 'done';
 
 /** Turns in one closed class's unfinished attempts, as videoClassTurnIn.ts does from the teacher's tab. */
@@ -139,7 +151,11 @@ export async function turnInClosedVideoClass(
   closedAt: number,
   now: number,
   serverClosedAt: number = now
-): Promise<{ outcome: TurnInOutcome; turnedIn: number }> {
+): Promise<{
+  outcome: TurnInOutcome;
+  turnedIn: number;
+  recheckAt?: number;
+}> {
   const sessionRef = db.collection(SESSIONS).doc(sessionId);
   const session = (await sessionRef.get()).data();
   if (!session || !stillClosed(session, classKey, closedAt))
@@ -156,6 +172,15 @@ export async function turnInClosedVideoClass(
   });
   // Turned in when the teacher's tab would have done it, so a late sweep doesn't make on-time work Late.
   const at = Math.min(now, serverClosedAt + TURN_IN_DELAY_MS);
+  // Let-in students stay open now; look again when the first pass ends.
+  let recheckAt: number | undefined;
+  for (const d of open.docs) {
+    const r = d.data();
+    if (!inClass(r, classKey, label)) continue;
+    const end = passExpiry(session, r, now);
+    if (end !== null && (recheckAt === undefined || end < recheckAt))
+      recheckAt = end;
+  }
   const results = await Promise.allSettled(
     picked.map((d) =>
       db.runTransaction(async (tx) => {
@@ -186,7 +211,7 @@ export async function turnInClosedVideoClass(
   const turnedIn = results.filter(
     (r) => r.status === 'fulfilled' && r.value
   ).length;
-  return { outcome: 'done', turnedIn };
+  return { outcome: 'done', turnedIn, recheckAt };
 }
 
 export interface VideoClassTurnInRunResult {
@@ -195,6 +220,7 @@ export interface VideoClassTurnInRunResult {
   stale: number;
   failed: number;
   gaveUp: number;
+  requeued: number;
 }
 
 /** Runs every queued turn-in whose grace has passed, then clears its marker. */
@@ -214,6 +240,7 @@ export async function runVideoClassTurnIns(
     stale: 0,
     failed: 0,
     gaveUp: 0,
+    requeued: 0,
   };
   for (const marker of due.docs) {
     const m: Doc = marker.data();
@@ -244,7 +271,19 @@ export async function runVideoClassTurnIns(
       );
       if (r.outcome === 'stale') result.stale++;
       result.turnedIn += r.turnedIn;
-      await clear();
+      if (r.outcome === 'done' && r.recheckAt !== undefined) {
+        result.requeued++;
+        await marker.ref
+          .update(
+            {
+              dueAt: r.recheckAt,
+              attempts: 0,
+              queuedAt: now,
+            },
+            { lastUpdateTime: marker.updateTime }
+          )
+          .catch(() => {});
+      } else await clear();
     } catch (err) {
       result.failed++;
       logger.warn('[videoClassTurnIns] turn-in failed', {
