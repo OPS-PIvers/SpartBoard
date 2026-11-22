@@ -83,6 +83,17 @@ describe('parseNextLink', () => {
     expect(parseNextLink(header)).toBe('https://lms/m?page=3');
   });
 
+  it('keeps commas inside the next URL and reads multi-value rel', () => {
+    expect(
+      parseNextLink(
+        '<https://lms/m?ids=1,2&page=2>; rel="next", <https://lms/m>; rel="first"'
+      )
+    ).toBe('https://lms/m?ids=1,2&page=2');
+    expect(parseNextLink('<https://lms/m?page=2>; rel="next last"')).toBe(
+      'https://lms/m?page=2'
+    );
+  });
+
   it('returns null when no next link / empty / null', () => {
     expect(parseNextLink('<https://lms/m>; rel="first"')).toBeNull();
     expect(parseNextLink('')).toBeNull();

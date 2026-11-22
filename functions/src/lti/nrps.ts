@@ -70,9 +70,10 @@ const asStr = (v: unknown): string =>
 export function parseNextLink(linkHeader: string | null): string | null {
   if (!linkHeader) return null;
   // Header form: `<https://…?page=2>; rel="next", <https://…>; rel="first"`
-  for (const part of linkHeader.split(',')) {
-    const m = part.match(/<([^>]+)>\s*;\s*rel\s*=\s*"?([^";]+)"?/i);
-    if (m && m[2].trim().toLowerCase() === 'next') return m[1].trim();
+  for (const m of linkHeader.matchAll(/<([^>]*)>([^<]*)/g)) {
+    const rel = /;\s*rel\s*=\s*(?:"([^"]*)"|([^\s;,]+))/i.exec(m[2]);
+    const tokens = (rel?.[1] ?? rel?.[2] ?? '').toLowerCase().split(/\s+/);
+    if (tokens.includes('next')) return m[1].trim();
   }
   return null;
 }

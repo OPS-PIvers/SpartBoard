@@ -798,6 +798,12 @@
 | 2026-11-21 | State & Data | Dock persist effect skipped a write when the dock was reverted while the previous write was in flight (the saved-marker updated only after the write landed), leaving Firestore on the stale dock. Marker now set when the write is sent, restored on failure. Test fails before, passes after. PR: [#6507](https://github.com/OPS-PIvers/SpartBoard/pull/6507) |
 | 2026-11-21 | Admin & Config | Activity Wall "Default Max Posts Per Student" snapped a cleared box back to 0 and saved 0. Now `DraftNumberField`. Test fails before, passes after. PR: [#6505](https://github.com/OPS-PIvers/SpartBoard/pull/6505) |
 | 2026-11-21 | Build & Tooling | Perf: `resolveStaffEmailsForUids` checked staff one member at a time in the weekly PLC digest. Now `Promise.all` per Auth batch; test asserts peak concurrency (1 before, 20 after). PR: [#6506](https://github.com/OPS-PIvers/SpartBoard/pull/6506) |
+| 2026-11-22 | Baseline | `pnpm run validate` green on `dev-paul` at `af11c2f2`. |
+| 2026-11-22 | Widgets | Embed Autoplay/Start-at ignored `youtube-nocookie.com` URLs (two private host checks drifted from the trusted-host list). Shared `isYouTubeHost`. Test fails before, passes after. PR: [#6531](https://github.com/OPS-PIvers/SpartBoard/pull/6531) |
+| 2026-11-22 | Dashboard & Layout | `parsePlcPath` threw `URIError` on a malformed percent escape during `App` render, crashing the signed-in app. Decode now falls back to the raw segment like `parseGradebookPath`. Test fails before, passes after. PR: [#6529](https://github.com/OPS-PIvers/SpartBoard/pull/6529) |
+| 2026-11-22 | State & Data | `validateRosterMeta` dropped `googleClassroomCourseId`, `classlinkSyncSummary`, `classlinkSyncBlocked`, so linked classes looked unlinked after any snapshot. Copied and validated. Test fails before, passes after. PR: [#6530](https://github.com/OPS-PIvers/SpartBoard/pull/6530) |
+| 2026-11-22 | Admin & Config | Calendar config sync-frequency and Days Visible inputs snapped back when cleared. Now `DraftNumberField`. Test fails before, passes after. PR: [#6528](https://github.com/OPS-PIvers/SpartBoard/pull/6528) |
+| 2026-11-22 | Build & Tooling | `parseNextLink` (NRPS) split the Link header on commas, so a next URL containing a comma stopped pagination after page 1 (roster truncated), and missed `rel="next last"`. Regex scan of `<url>params`. Test fails before, passes after. PR: [#6527](https://github.com/OPS-PIvers/SpartBoard/pull/6527) |
 
 ## Backlog
 
@@ -1310,6 +1316,11 @@
 | Build & Tooling | 2026-11-21: `plcWeeklyDigest` per-PLC loop is serial (and awaits two independent reads in sequence); `verifiedClasses` `getUsers`/`db.getAll` passes serial per 100; `googleTasks` ~697 serial `in` chunks; `verifiedClasses` `remaining` also counts teachers past `FILL_MAX_TEACHERS_PER_RUN` (intent unconfirmed). |
 | State & Data | 2026-11-21: navigation-memory debounce in `DashboardContext` (~1095) drops its pending write on unmount (same class as the sign-out fix); `googleCalendarService` `allDayDates` clips with UTC date slices (unverified); `useStudentProjectRun` `myOverride` not cleared when `released` flips back (masked). |
 | Dashboard & Layout | 2026-11-21: `AssignmentsHubModal` `kindFilter` not pruned when Writing is turned off; `useClaudeBoardActivity` toasts only the first eligible board per snapshot; `replayClipboardAsPaste` names SVG pastes `pasted-image.svg+xml`; a same-`itemId` `HELP_OPEN_EVENT` while Help is open does nothing; `useResponsesByPath` never prunes; mini-app row `className`/`title` disagree between `useUnifiedAssignments` and `HubAssignedList`. |
+| Build & Tooling | 2026-11-22: `ssrfGuard` has no `192.88.99.` (6to4 relay) entry (low); `tourCounts.countPublicView` leaves a 1.5 s timer pending (harmless); audit `lti/ags.ts`, `lineItems.ts` and ClassLink roster sync for the same silent pagination truncation | 2026-11-22 | open |
+| Admin & Config | 2026-11-22: `SmartNotebookConfigurationPanel` `storageLimitMb` snaps back when cleared (clear means reset to default, needs a product call); `NumberLineConfigurationPanel` `valueAsNumber` gives NaN on empty; `StarterPackConfigurationModal` ~1113/1313 unchecked | 2026-11-22 | open |
+| Dashboard & Layout | 2026-11-22, unverified: `ImageLightbox` Escape on `document` capture also closes a `captureEscape` Modal beneath it and lacks `isEscapeFromWidgetInput`; `useMountedBoardCache` may not keep never-visited pinned live boards mounted; `StepSlider` unbounded `steps[index]`, `TabAwayClock` NaN at `limitMs` 0 (both unreachable today) | 2026-11-22 | open |
+| State & Data | 2026-11-22: `applyFinalScoresToEntries` ignores late deductions on raw-source scores while `buildGradebookPushPlan` pushes the deducted pct (needs a product call); `SCORE_DISTRIBUTION_BANDS` integer maxes drop fractional scores (latent); `rubricCsv.unguardCell` strips a real leading `'`; `useMountedBoardCache` default `new Set()` defeats its memo; `pruneRosterFileContent` leaves dangling `restrictedStudentIds` after a ClassLink resync | 2026-11-22 | open |
+| Widgets | 2026-11-22: Calendar personal events fetched once per token, 30-day window goes stale across midnight; Embed `sandbox` `allow-same-origin` omits `youtube-nocookie.com` (may be intentional, needs a decision); Dice `roll()` unmount leaves `rollingRef` true (harmless) | 2026-11-22 | open |
 
 ## Notes & Gotchas
 
@@ -1798,3 +1809,7 @@
 - 2026-11-21: four fixes (#6505-#6508), Widgets clean. Subagents ran scoped checks only; I swapped each source file back to `origin/dev-paul` to confirm every new test fails before and passes after, then ran one merged-tree `validate` + `build:all` (green) in a detached worktree with four merged branches. `dev-paul` did not move. Baseline about 1 h, gate about 1 h. Foreground `sleep` is blocked; use Monitor with an until-loop and re-arm it every 30 min.
 
 - Run count: **130** | Last run: **2026-11-21**
+
+- 2026-11-22: five fixes (#6527-#6531), no area clean. Subagents ran scoped checks only; I swapped each source file back to `origin/dev-paul` to confirm every new test fails before and passes after, then ran one merged-tree `validate` + `build:all` in a detached worktree. A fresh worktree needs `node_modules`, `functions/node_modules` and `extension/node_modules` symlinked or type-check fails on the `chrome` types. Subagents again leaked edits into each other's worktrees (restore foreign files before commit).
+
+- Run count: **131** | Last run: **2026-11-22**
