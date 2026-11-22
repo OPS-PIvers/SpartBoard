@@ -1009,21 +1009,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Published quiz results list every answer option. Admin-only until Paul has used it with a class.
-  'quiz-recap-all-options': {
-    label: 'Quiz results: all answer options',
-    icon: ListChecks,
-    description:
-      "Published results show every answer option. The student's pick is marked right or wrong.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    modalLabel: 'All answer options',
-    group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
+
   // Quiz assign waits for the save, so a failed save keeps the teacher's choices. Admin-only until Paul has used it.
   'quiz-assign-waits-for-save': {
     label: 'Quiz assign waits for the save',
