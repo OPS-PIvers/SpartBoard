@@ -1235,7 +1235,7 @@ const AttachStimulusSection: React.FC<{
               className={fileButtonClass}
             >
               <FileText className="h-3.5 w-3.5" aria-hidden />
-              Passage
+              Text
             </button>
           )}
           {inPicker && wordBankAvailable && (

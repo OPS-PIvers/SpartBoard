@@ -328,7 +328,7 @@ const TextStimulusEditor: React.FC<{
   return (
     <div className="flex h-full min-h-[12rem] flex-col gap-3">
       <label htmlFor={fieldId} className="sr-only">
-        {isWordBank ? 'Word bank' : 'Passage'}
+        {isWordBank ? 'Word bank' : 'Text'}
       </label>
       <textarea
         id={fieldId}

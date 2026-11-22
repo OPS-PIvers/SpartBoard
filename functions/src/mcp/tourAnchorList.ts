@@ -16011,7 +16011,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-stimuli.attach-passage",
-    "label": "Add a stimulus Passage button in the Quiz widget stimulus picker",
+    "label": "Add a stimulus Text button in the Quiz widget stimulus picker",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -16186,7 +16186,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-stimuli.picker-text",
-    "label": "Passage or word bank text box in the Quiz widget stimulus picker",
+    "label": "Text or word bank text box in the Quiz widget stimulus picker",
     "scope": "widget type",
     "panel": true,
     "keys": [

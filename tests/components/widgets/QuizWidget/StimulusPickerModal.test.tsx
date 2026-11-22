@@ -110,7 +110,7 @@ describe('stimulus picker dialog', () => {
     ).toHaveTextContent('plates meet');
   });
 
-  it('edits an empty passage in place', async () => {
+  it('edits empty text in place', async () => {
     const state = {
       ...makeState(),
       updateStimulus: vi.fn(),
@@ -125,7 +125,7 @@ describe('stimulus picker dialog', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
     await userEvent.click(screen.getByText('Passage 2'));
-    const box = screen.getByRole('textbox', { name: 'Passage' });
+    const box = screen.getByRole('textbox', { name: 'Text' });
     await userEvent.type(box, 'A');
     expect(state.updateStimulus).toHaveBeenLastCalledWith('e2', { text: 'A' });
   });
@@ -154,7 +154,7 @@ describe('stimulus picker dialog', () => {
     });
   });
 
-  it('adds a passage or word bank from Add a stimulus', async () => {
+  it('adds text or a word bank from Add a stimulus', async () => {
     const state = {
       ...makeState(),
       addStimulus: vi.fn(),
@@ -172,7 +172,7 @@ describe('stimulus picker dialog', () => {
       screen.getByRole('button', { name: 'Add a stimulus' })
     );
     expect(screen.queryByRole('button', { name: 'Word bank' })).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Passage' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Text' }));
     expect(state.addStimulus).toHaveBeenLastCalledWith(
       expect.objectContaining({ type: 'text' })
     );
