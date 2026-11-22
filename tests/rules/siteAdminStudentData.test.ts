@@ -205,7 +205,9 @@ beforeEach(async () => {
   await seed(LIVE_SESSION, { isActive: true, frozen: false, code: 'LIVE01' });
   // A revoked share, so only the owner and site admins still reach its comments and likes.
   await seed(WALL_SHARE, {
+    id: 'share-1',
     originalAuthor: TEACHER_UID,
+    createdAt: 1,
     sessionId: `${TEACHER_UID}_wall-1`,
     revoked: true,
   });
