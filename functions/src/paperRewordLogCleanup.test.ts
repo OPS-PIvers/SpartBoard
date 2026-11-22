@@ -26,7 +26,10 @@ vi.mock('firebase-functions/logger', () => ({
 import * as admin from './firebaseAdmin';
 import { cleanupPaperRewordLog } from './paperRewordLogCleanup';
 
-type Handler = (event: { params: Record<string, string> }) => Promise<void>;
+type Handler = (event: {
+  params: Record<string, string>;
+  time?: string;
+}) => Promise<void>;
 
 let deletedPaths: string[];
 let failWith: Error | null;
@@ -59,9 +62,10 @@ describe('cleanupPaperRewordLog', () => {
     expect(opts?.retry).toBe(true);
   });
 
-  const run = () =>
+  const run = (time = new Date().toISOString()) =>
     (cleanupPaperRewordLog as unknown as Handler)({
       params: { sessionId: 'sess-1', responseKey: 'resp-1' },
+      time,
     });
 
   it('removes the reword log of the deleted response', async () => {
@@ -74,5 +78,12 @@ describe('cleanupPaperRewordLog', () => {
   it('rethrows a failed sweep so the trigger can retry', async () => {
     failWith = new Error('boom');
     await expect(run()).rejects.toThrow('boom');
+  });
+
+  it('drops an event older than the retry budget', async () => {
+    failWith = new Error('boom');
+    await expect(
+      run(new Date(Date.now() - 2 * 3600 * 1000).toISOString())
+    ).resolves.toBeUndefined();
   });
 });
