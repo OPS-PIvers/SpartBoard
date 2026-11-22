@@ -100,7 +100,7 @@ describe('accessBadge and detailText', () => {
     expect(mainActionLabel(s.action, 0)).toBe('Monitor');
   });
 
-  it('keeps grading out of the chip once every class is closed', () => {
+  it('keeps grading out of the status word once every class is closed', () => {
     const s = derive(
       {
         status: 'inactive',
@@ -114,11 +114,11 @@ describe('accessBadge and detailText', () => {
     expect(mainActionLabel(s.action, 3)).toBe('Grade (3)');
   });
 
-  it('gives a Finished row no chip', () => {
+  it('gives a Finished row the same Closed word its classes show', () => {
     const s = derive({ status: 'inactive' });
     expect(s.bucket).toBe('done');
-    expect(accessBadge(s)).toBeNull();
-    expect(detailText(s, NOW)).toBe('Closed');
+    expect(accessBadge(s)).toEqual({ label: 'Closed', tone: 'neutral' });
+    expect(detailText(s, NOW)).toBe('');
   });
 
   it('reads View only for a share', () => {
