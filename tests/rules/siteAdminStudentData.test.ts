@@ -315,6 +315,21 @@ describe('synced building admin', () => {
     await assertFails(deleteDoc(doc(db(), WALL_LIKE)));
   });
 
+  it("cannot list, reopen or delete another teacher's wall share", async () => {
+    await assertFails(
+      getDocs(
+        query(
+          collection(db(), 'shared_activity_walls'),
+          where('originalAuthor', '==', TEACHER_UID)
+        )
+      )
+    );
+    await assertFails(
+      updateDoc(doc(db(), WALL_SHARE), { revoked: false, expiresAt: null })
+    );
+    await assertFails(deleteDoc(doc(db(), WALL_SHARE)));
+  });
+
   it('keeps its own poll, live and Next Up sessions as their teacher', async () => {
     const own = `uid-${ADMINS.syncedBuilding}`;
     await assertSucceeds(getDoc(doc(db(), `poll_sessions/${own}_poll-2`)));
@@ -389,6 +404,20 @@ describe.each([
       updateDoc(doc(db, NEXTUP_SESSION), { isActive: false })
     );
   });
+
+  it('lists, reopens and deletes a wall share', async () => {
+    const db = as(email);
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(db, 'shared_activity_walls'),
+          where('originalAuthor', '==', TEACHER_UID)
+        )
+      )
+    );
+    await assertSucceeds(updateDoc(doc(db, WALL_SHARE), { revoked: false }));
+    await assertSucceeds(deleteDoc(doc(db, WALL_SHARE)));
+  });
 });
 
 describe('session teacher', () => {
@@ -413,6 +442,29 @@ describe('session teacher', () => {
         )
       )
     );
+  });
+
+  it('lists, reopens and deletes its own wall share', async () => {
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(db(), 'shared_activity_walls'),
+          where('originalAuthor', '==', TEACHER_UID)
+        )
+      )
+    );
+    await assertSucceeds(updateDoc(doc(db(), WALL_SHARE), { revoked: false }));
+    await assertSucceeds(deleteDoc(doc(db(), WALL_SHARE)));
+  });
+
+  it('updates its own poll session', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `organizations/orono/members/${TEACHER_EMAIL}`),
+        { status: 'active', roleId: 'teacher' }
+      );
+    });
+    await assertSucceeds(updateDoc(doc(db(), POLL_SESSION), { active: false }));
   });
 
   it('resets votes, writes Next Up and moderates wall feedback', async () => {

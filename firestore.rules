@@ -2032,7 +2032,7 @@ service cloud.firestore {
       // LIST is query-scoped (see /shared_boards list): unpinned revoked/expiresAt
       // fall back to their permissive defaults, so the viewer branch would let any
       // caller enumerate every share. Viewers only ever `get` one share by id.
-      allow list: if signedIn() && authorOrAdmin();
+      allow list: if signedIn() && (isOrigAuthor() || isSiteAdmin());
 
       // Identity fields + the sessionId-ownership check force the doc to be
       // created by the teacher who owns the underlying session (can't publish
@@ -2066,13 +2066,13 @@ service cloud.firestore {
       // attribution); toggles (allow*, expiresAt, revoked) stay mutable for
       // revoke-without-delete and toggle-after-publish.
       allow update: if signedIn() &&
-        authorOrAdmin() &&
+        (isOrigAuthor() || isSiteAdmin()) &&
         sameId() &&
         unchanged('sessionId') &&
         unchanged('originalAuthor') &&
         unchanged('createdAt');
       allow delete: if signedIn() &&
-        authorOrAdmin();
+        (isOrigAuthor() || isSiteAdmin());
 
       // Comments — any authenticated viewer (incl. anonymous) can create.
       // Parent share must allow comments; replies (parentCommentId != null)
