@@ -1068,6 +1068,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-monitor.student-unlock-attempt': ['quiz.monitor'],
     'quiz-monitor.student-reopen': ['quiz.monitor'],
     'quiz-monitor.student-submit': ['quiz.monitor'],
+    'quiz-monitor.student-release-paper': ['quiz.monitor'],
     'quiz-monitor.student-unlock-results': ['quiz.monitor'],
     'quiz-monitor.student-remove': ['quiz.monitor'],
     'quiz-monitor.roster-sort': ['quiz.monitor'],

@@ -657,6 +657,32 @@ const validateRosterMeta = (
   if (typeof d.ltiContextId === 'string') {
     meta.ltiContextId = d.ltiContextId;
   }
+  if (typeof d.googleClassroomCourseId === 'string') {
+    meta.googleClassroomCourseId = d.googleClassroomCourseId;
+  }
+  if (d.classlinkSyncSummary && typeof d.classlinkSyncSummary === 'object') {
+    const c = d.classlinkSyncSummary as Record<string, unknown>;
+    if (
+      typeof c.at === 'number' &&
+      typeof c.addedCount === 'number' &&
+      typeof c.removedCount === 'number'
+    ) {
+      meta.classlinkSyncSummary = {
+        at: c.at,
+        addedCount: c.addedCount,
+        removedCount: c.removedCount,
+      };
+    }
+  }
+  if (d.classlinkSyncBlocked && typeof d.classlinkSyncBlocked === 'object') {
+    const b = d.classlinkSyncBlocked as Record<string, unknown>;
+    if (
+      (b.reason === 'empty-upstream' || b.reason === 'mass-removal') &&
+      typeof b.at === 'number'
+    ) {
+      meta.classlinkSyncBlocked = { reason: b.reason, at: b.at };
+    }
+  }
   if (d.bellPeriod && typeof d.bellPeriod === 'object') {
     const b = d.bellPeriod as Record<string, unknown>;
     if (typeof b.buildingId === 'string' && typeof b.periodId === 'string') {
