@@ -23,7 +23,12 @@ import { studentCanEnter } from '@/utils/periodAccess';
 import { canTeacherSubmit, isTabLockedOut } from '@/utils/quizTeacherSubmit';
 import { MonitorStudent } from './useMonitorData';
 import { BucketKey } from './StatusBuckets';
-import { MonitorFilterBy, MonitorSortBy, orderRoster } from './monitorUtils';
+import {
+  MonitorFilterBy,
+  MonitorSortBy,
+  isClaimedPaperRow,
+  orderRoster,
+} from './monitorUtils';
 import {
   BAND_TINT,
   rosterFieldStyle as fieldStyle,
@@ -72,6 +77,8 @@ interface RosterListProps {
   onReopen?: (key: string) => void;
   /** Turns in a student's saved answers for them. */
   onSubmitForStudent?: (key: string) => void;
+  /** Hands a claimed scanned row back to its PIN so another device can join. */
+  onReleasePaperRow?: (key: string) => void;
   onUnlockResults?: (key: string) => void;
   onClearHand?: (key: string) => void;
   /** Per-period sessions: unlock one student past their period's state. */
@@ -120,6 +127,7 @@ const RowMenu: React.FC<{
   onUnlockAttempt?: (key: string) => void;
   onReopen?: (key: string) => void;
   onSubmitForStudent?: (key: string) => void;
+  onReleasePaperRow?: (key: string) => void;
   onUnlockResults?: (key: string) => void;
   onLetIn?: (studentUid: string) => void;
   onOpenPart?: (key: string, part: number) => void;
@@ -136,6 +144,7 @@ const RowMenu: React.FC<{
   onUnlockAttempt,
   onReopen,
   onSubmitForStudent,
+  onReleasePaperRow,
   onUnlockResults,
   onLetIn,
   onOpenPart,
@@ -202,6 +211,13 @@ const RowMenu: React.FC<{
       tour: tourTypeAttr('quiz-monitor.student-submit', 'quiz'),
       onClick: () => onSubmitForStudent(student.key),
     });
+  if (onReleasePaperRow && isClaimedPaperRow(student.key, r))
+    items.push({
+      label: 'Let student rejoin',
+      closes: true,
+      tour: tourTypeAttr('quiz-monitor.student-release-paper', 'quiz'),
+      onClick: () => onReleasePaperRow(student.key),
+    });
   if (r.resultsLockedOut && onUnlockResults)
     items.push({
       label: 'Unlock results',
@@ -244,6 +260,7 @@ export const RosterList: React.FC<RosterListProps> = ({
   onUnlockAttempt,
   onReopen,
   onSubmitForStudent,
+  onReleasePaperRow,
   onUnlockResults,
   onClearHand,
   onLetIn,
@@ -619,6 +636,7 @@ export const RosterList: React.FC<RosterListProps> = ({
               onUnlockAttempt={onUnlockAttempt}
               onReopen={onReopen}
               onSubmitForStudent={onSubmitForStudent}
+              onReleasePaperRow={onReleasePaperRow}
               onUnlockResults={onUnlockResults}
               overridesBySourcedId={overridesBySourcedId}
               targetRefKeyByStudentUid={targetRefKeyByStudentUid}

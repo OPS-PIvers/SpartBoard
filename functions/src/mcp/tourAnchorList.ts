@@ -21057,6 +21057,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-monitor.student-release-paper",
+    "label": "Let student rejoin item in the Quiz monitor student menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.roster-row-actions:quiz"
+        ],
+        "reveal": "quiz-monitor.roster-row-actions:quiz",
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-monitor.student-unlock-results",
     "label": "Unlock results item in the Quiz monitor student menu",
     "scope": "widget type",
