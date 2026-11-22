@@ -234,7 +234,8 @@ export function teammateQuizStimuli(
       typeof s.id === 'string' &&
       typeof s.type === 'string' &&
       (s.url === undefined || typeof s.url === 'string') &&
-      (s.text === undefined || typeof s.text === 'string')
+      (s.text === undefined || typeof s.text === 'string') &&
+      (s.tabLabel === undefined || typeof s.tabLabel === 'string')
   );
   const questionsById = new Map<
     string,
@@ -247,8 +248,13 @@ export function teammateQuizStimuli(
       : [];
     if (ids.length) questionsById.set(q.id, { id: q.id, stimulusIds: ids });
   }
+  const used = new Set(
+    [...questionsById.values()].flatMap((q) => q.stimulusIds ?? [])
+  );
   return {
-    stimuli: stimuli.map((s) => ({ ...s, url: s.url ?? '' })),
+    stimuli: stimuli
+      .filter((s) => used.has(s.id))
+      .map((s) => ({ ...s, url: s.url ?? '' })),
     questionsById,
   };
 }

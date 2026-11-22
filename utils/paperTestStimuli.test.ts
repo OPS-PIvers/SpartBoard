@@ -241,6 +241,8 @@ describe('teammate test paper', () => {
       { id: 'p', type: 'text', text: 'Shared passage' },
       { id: 'n', type: 'text', text: 'Only here' },
       { id: 'bad', type: 3 },
+      { id: 'unused', type: 'text', text: 'No question uses this' },
+      { id: 'q', type: 'text', text: 'x', tabLabel: 5 },
       null,
     ],
   });
