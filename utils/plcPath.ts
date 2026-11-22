@@ -68,7 +68,13 @@ export function parsePlcPath(pathname: string): ParsedPlcPath {
     .replace(/^\/plc/, '')
     .split('/')
     .filter((s) => s.length > 0)
-    .map((s) => decodeURIComponent(s));
+    .map((s) => {
+      try {
+        return decodeURIComponent(s);
+      } catch {
+        return s;
+      }
+    });
 
   const plcId = segments[0] ?? null;
   if (!plcId) return fallback;
