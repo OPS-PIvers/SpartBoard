@@ -87,6 +87,7 @@ import {
   MAX_STORAGE_PAGES,
   MAX_CLEANUP_RETRIES_PER_RUN,
   CLEANUP_BUDGET_MS,
+  type StorageObject,
   STUCK_SUBMISSION_AGE_MS,
 } from './sweepActivityWallArchives';
 
@@ -795,22 +796,38 @@ describe('sweepActivityWallArchives', () => {
   const FAILING = 250;
   function makeCleanupDb(
     total: number,
-    opts: { queued?: boolean; stragglersError?: boolean } = {}
+    opts: {
+      queued?: boolean;
+      queuedCount?: number;
+      invalid?: number;
+      legacyEmpty?: boolean;
+      stragglersError?: boolean;
+    } = {}
   ) {
     const state = new Map<
       string,
       { pending: boolean; attemptedAt: number | undefined }
     >();
     const ids = Array.from({ length: total }, (_, i) => `sub-${i}`);
-    for (const id of ids) {
+    ids.forEach((id, i) => {
+      const queuedAlready =
+        opts.queuedCount !== undefined
+          ? i < opts.queuedCount
+          : opts.queued !== false;
       state.set(id, {
         pending: true,
-        attemptedAt: opts.queued === false ? undefined : 0,
+        attemptedAt: queuedAlready
+          ? opts.queuedCount !== undefined
+            ? NOW
+            : 0
+          : undefined,
       });
-    }
+    });
+    const cursor: { after?: string } = {};
     const empty = { empty: true, size: 0, docs: [] };
     const subDocRef = (id: string) => ({
       id,
+      path: `${SESSIONS_COLLECTION}/${SESSION_ID}/submissions/${id}`,
       parent: {
         parent: { id: SESSION_ID, parent: { id: SESSIONS_COLLECTION } },
       },
@@ -822,13 +839,21 @@ describe('sweepActivityWallArchives', () => {
       docs,
     });
     const db: Record<string, unknown> = {
+      doc: (path: string) => ({
+        get: () =>
+          Promise.resolve({
+            exists: true,
+            id: path.split('/').pop(),
+            ref: { path },
+          }),
+      }),
       collectionGroup: () => ({
         where: (field: string) => ({
           limit: (n: number) => {
             const at = (after?: { id: string }) => {
               const pending = ids.filter((id) => state.get(id)?.pending);
               const from = after ? pending.indexOf(after.id) + 1 : 0;
-              const docs = pending
+              const docs = (opts.legacyEmpty ? [] : pending)
                 .slice(from, from + n)
                 .map((id) => ({ id, ref: subDocRef(id) }));
               return { get: () => Promise.resolve(page(docs)) };
@@ -849,6 +874,11 @@ describe('sweepActivityWallArchives', () => {
         if (name === CLEANUP_QUEUE_COLLECTION) {
           return {
             doc: (docId: string) => ({
+              get: () => Promise.resolve({ data: () => cursor }),
+              set: (data: { after: string }) => {
+                cursor.after = data.after;
+                return Promise.resolve();
+              },
               create: (data: { attemptedAt: number }) => {
                 const id = docId.split('__')[1] ?? '';
                 const entry = state.get(id);
@@ -877,10 +907,10 @@ describe('sweepActivityWallArchives', () => {
                       )
                       .slice(0, n)
                       .map((id) => ({
-                        data: () => ({
-                          sessionId: SESSION_ID,
-                          submissionId: id,
-                        }),
+                        data: () =>
+                          Number(id.slice(4)) < (opts.invalid ?? 0)
+                            ? {}
+                            : { sessionId: SESSION_ID, submissionId: id },
                         ref: {
                           delete: () => {
                             const e = state.get(id);
@@ -920,7 +950,7 @@ describe('sweepActivityWallArchives', () => {
     const deps = (
       now: () => number,
       overrides: Partial<{
-        listObjects: (prefix: string) => Promise<unknown[]>;
+        listObjects: (prefix: string) => Promise<StorageObject[]>;
       }> = {}
     ) => ({
       archiveOne: vi.fn(() => Promise.resolve()),
@@ -1000,8 +1030,23 @@ describe('sweepActivityWallArchives', () => {
       for (const entry of state.values()) expect(entry.attemptedAt).toBe(NOW);
     });
 
+    it('backfills later legacy flags when the first 500 stay unqueueable', async () => {
+      const { state, db, deps } = makeCleanupDb(700, { queuedCount: 500 });
+      await runSweepActivityWallArchives(
+        db as never,
+        deps(() => NOW)
+      );
+      expect(state.get('sub-650')?.pending).toBe(true);
+      await runSweepActivityWallArchives(
+        db as never,
+        deps(() => NOW)
+      );
+      expect(state.get('sub-650')?.pending).toBe(false);
+      expect(state.get('sub-699')?.pending).toBe(false);
+    });
+
     it('never exceeds the per-run cap within a page', async () => {
-      const { db, deps } = makeCleanupDb(299);
+      const { db, deps } = makeCleanupDb(299, { invalid: 5 });
       const summary = await runSweepActivityWallArchives(
         db as never,
         deps(() => NOW)
@@ -1010,7 +1055,7 @@ describe('sweepActivityWallArchives', () => {
     });
 
     it('stops retrying once the wall-clock budget is spent', async () => {
-      const { db, deps } = makeCleanupDb(10);
+      const { db, deps } = makeCleanupDb(10, { legacyEmpty: true });
       let t = NOW;
       const summary = await runSweepActivityWallArchives(
         db as never,
@@ -1057,9 +1102,6 @@ describe('sweepActivityWallArchives', () => {
     const db = {
       collectionGroup: () => ({
         where: (field: string) => ({
-          limit: () => ({
-            get: () => Promise.resolve({ empty: true, size: 0, docs: [] }),
-          }),
           orderBy: () => ({
             limit: () => ({
               get: () =>

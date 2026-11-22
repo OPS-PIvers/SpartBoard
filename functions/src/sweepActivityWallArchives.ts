@@ -38,6 +38,8 @@ export const CLEANUP_BUDGET_MS = 180 * 1000;
 /** Runaway guard on cleanup query pages. */
 const MAX_CLEANUP_PAGES = 20;
 const MAX_BACKFILL_PAGES = 5;
+/** Queue doc holding the legacy-flag backfill position; it has no attemptedAt, so the retry query skips it. */
+export const BACKFILL_CURSOR_DOC = '_backfill_cursor';
 /** Bucket listing page size; pages are followed until the prefix is exhausted. */
 export const STORAGE_PAGE_SIZE = 500;
 /** Runaway guard on the listing loop, not an expected volume. */
@@ -177,18 +179,21 @@ async function retryStragglers(
   }
 }
 
-/**
- * `storageCleanupPending` is set when an archive succeeded but the transit
- * delete failed; nothing else in the codebase reads the flag, so this is the
- * only retry path for those leftover objects.
- */
-/** Flags set before the queue existed: enqueue them so they join the ordered retry. */
+/** Enqueues flags that predate the queue; a saved cursor (a queue doc with no attemptedAt) pages onward and wraps at the end. */
 async function enqueueLegacyCleanupFlags(
   db: Firestore,
   deps: WallSweepDeps,
   runStart: number
 ): Promise<void> {
-  let cursor: admin.firestore.QueryDocumentSnapshot | null = null;
+  const cursorRef = db
+    .collection(CLEANUP_QUEUE_COLLECTION)
+    .doc(BACKFILL_CURSOR_DOC);
+  const saved: unknown = (await cursorRef.get()).data()?.after;
+  let cursor: admin.firestore.DocumentSnapshot | null = null;
+  if (typeof saved === 'string' && saved) {
+    const snap = await db.doc(saved).get();
+    if (snap.exists) cursor = snap;
+  }
   for (let pages = 0; pages < MAX_BACKFILL_PAGES; pages++) {
     let query = db
       .collectionGroup(SUBMISSIONS_COLLECTION)
@@ -196,23 +201,26 @@ async function enqueueLegacyCleanupFlags(
       .limit(SUBMISSION_PAGE_SIZE);
     if (cursor) query = query.startAfter(cursor);
     const page = await query.get();
-    if (page.empty) return;
-    cursor = page.docs[page.docs.length - 1] ?? null;
+    const last = page.docs[page.docs.length - 1];
     for (const docSnap of page.docs) {
-      if (deps.now() - runStart >= CLEANUP_BUDGET_MS) return;
+      if (deps.now() - runStart >= CLEANUP_BUDGET_MS) {
+        await cursorRef.set({ after: docSnap.ref.path }, { merge: true });
+        return;
+      }
       const sessionRef = docSnap.ref.parent.parent;
       if (!sessionRef || sessionRef.parent.id !== SESSIONS_COLLECTION) continue;
       await enqueueStorageCleanup(docSnap.ref);
     }
-    if (page.size < SUBMISSION_PAGE_SIZE) return;
+    if (!last || page.size < SUBMISSION_PAGE_SIZE) {
+      await cursorRef.set({ after: '' }, { merge: true });
+      return;
+    }
+    cursor = last;
   }
+  if (cursor) await cursorRef.set({ after: cursor.ref.path }, { merge: true });
 }
 
-/**
- * `storageCleanupPending` is set when an archive succeeded but the transit
- * delete failed; the queue collection orders retries by last attempt so
- * repeat failures cannot starve later docs.
- */
+/** Retries pending transit deletes oldest-attempt first from the cleanup queue. */
 async function retryStorageCleanup(
   db: Firestore,
   deps: WallSweepDeps,
