@@ -176,6 +176,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     loading: libraryLoading,
     saveActivity,
     deleteActivity,
+    clearActivityPosts,
   } = useActivityWallLibrary(inSubShare ? undefined : user?.uid);
 
   const ownEntry = useMemo(
@@ -1123,6 +1124,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           }}
           onDuplicate={duplicateWall}
           onDelete={removeWall}
+          onClearPosts={clearActivityPosts}
           addToast={addToast}
           confirm={(message) =>
             showConfirm(message, {

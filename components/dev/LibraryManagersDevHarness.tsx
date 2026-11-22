@@ -1081,6 +1081,7 @@ const ActivityWallView: React.FC = () => (
     onEdit={noop}
     onDuplicate={asyncNoop}
     onDelete={asyncNoop}
+    onClearPosts={asyncNoop}
     addToast={noop}
     confirm={() => Promise.resolve(false)}
   />

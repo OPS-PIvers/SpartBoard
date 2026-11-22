@@ -364,6 +364,97 @@ describe('useActivityWallLibrary — saveActivity', () => {
   });
 });
 
+describe('useActivityWallLibrary — clearActivityPosts', () => {
+  const sessionPath = `activity_wall_sessions/${USER_UID}_act-7`;
+
+  it('closes, clears, then reopens the wall without deleting it', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const { result } = renderHook(() => useActivityWallLibrary(USER_UID));
+
+    await act(async () => {
+      await result.current.clearActivityPosts('act-7');
+    });
+
+    expect(mockUpdateDoc.mock.calls).toEqual([
+      [sessionPath, { acceptingResponses: false }],
+      [sessionPath, { acceptingResponses: true }],
+    ]);
+    expect(mockClear).toHaveBeenCalledWith(`${USER_UID}_act-7`);
+    expect(mockDeleteDoc).not.toHaveBeenCalled();
+    const [close, clear, reopen] = [
+      mockUpdateDoc.mock.invocationCallOrder[0],
+      mockClear.mock.invocationCallOrder[0],
+      mockUpdateDoc.mock.invocationCallOrder[1],
+    ];
+    expect(close).toBeLessThan(clear);
+    expect(clear).toBeLessThan(reopen);
+  });
+
+  it('leaves a wall that was already closed closed', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    mockGetDoc.mockResolvedValueOnce({
+      data: () => ({ acceptingResponses: false }),
+    });
+    const { result } = renderHook(() => useActivityWallLibrary(USER_UID));
+
+    await act(async () => {
+      await result.current.clearActivityPosts('act-7');
+    });
+
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
+    expect(mockClear).toHaveBeenCalledTimes(1);
+  });
+
+  it('reopens the wall when clearing fails', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    mockClear.mockRejectedValueOnce(new Error('boom'));
+    const { result } = renderHook(() => useActivityWallLibrary(USER_UID));
+
+    await act(async () => {
+      await expect(result.current.clearActivityPosts('act-7')).rejects.toThrow(
+        'boom'
+      );
+    });
+
+    expect(mockUpdateDoc).toHaveBeenLastCalledWith(sessionPath, {
+      acceptingResponses: true,
+    });
+  });
+
+  it('aborts without clearing when the close fails', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const denied = Object.assign(new Error('denied'), {
+      code: 'permission-denied',
+    });
+    mockUpdateDoc.mockRejectedValueOnce(denied);
+    const { result } = renderHook(() => useActivityWallLibrary(USER_UID));
+
+    await act(async () => {
+      await expect(result.current.clearActivityPosts('act-7')).rejects.toBe(
+        denied
+      );
+    });
+
+    expect(mockClear).not.toHaveBeenCalled();
+  });
+
+  it('does not touch the real session during a tour sandbox', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    startTourSandbox();
+    try {
+      const { result } = renderHook(() => useActivityWallLibrary(USER_UID));
+      await act(async () => {
+        await result.current.clearActivityPosts('act-7');
+      });
+    } finally {
+      endTourSandbox();
+    }
+
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
+    expect(mockClear).not.toHaveBeenCalled();
+  });
+});
+
 describe('useActivityWallLibrary — deleteActivity', () => {
   it('deletes the document at the activity-id path', async () => {
     mockOnSnapshot.mockReturnValue(() => undefined);
