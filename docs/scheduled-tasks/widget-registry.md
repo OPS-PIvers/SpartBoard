@@ -112,6 +112,8 @@ _2026-09-26 action: Item selection ran across today's reading list (the three da
 
 ## Open
 
+_2026-11-22 action: Sunday daily run. Nothing In Progress in any journal. No actionable Open items in widget-registry, css-scaling or typescript-eslint (only LOW portaled-popover design calls remain, unchanged); Sunday audit filed 0 issues. Rebase onto `dev-paul` conflicts (unrelated histories, aborted); tree already synced via earlier merge. No code change._
+
 _2026-11-21 action: Saturday daily run. Nothing In Progress in any journal. No Open items in widget-registry or typescript-eslint; css-scaling's two LOW items are portaled popover menus where scaling is a design call (unchanged). Saturday audit filed 0 issues. Rebase onto `dev-paul` conflicts (unrelated histories, aborted). No code change._
 
 _2026-11-20 action: Friday daily run. Nothing In Progress in any journal. No actionable Open items in widget-registry, css-scaling or typescript-eslint (only LOW portaled-popover design calls remain, unchanged); Friday audit at 05:14 filed 0 issues. Rebase onto `dev-paul` conflicts (unrelated histories, aborted). No code change._
