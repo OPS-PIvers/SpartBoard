@@ -4022,11 +4022,6 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-stimuli.picker-close': {
-    label: 'Close button in the Quiz widget stimulus picker',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-stimuli.picker-return': {
     label: 'Return button in the Quiz widget stimulus picker',
     perWidgetType: true,
     panel: true,
