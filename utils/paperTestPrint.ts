@@ -15,6 +15,11 @@ import { CHOICE_LETTERS } from './paperSheetLayout';
 import { isPlaceholderLetterChoices } from './paperSheetPlan';
 import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
 import type { ChoicePicture } from './quizAnswerImages';
+import {
+  resourceLine,
+  type PaperTestResource,
+  type PaperTestStimulus,
+} from './paperTestStimuli';
 
 export interface PaperTestQuestion {
   /** Number printed on the answer sheet: the row, or the quiz position on a sheet with written boxes (D11). */
@@ -28,6 +33,10 @@ export interface PaperTestQuestion {
   written?: boolean;
   /** A section heading printed above this question, the first of its section (E15). */
   section?: { title: string; directions?: string; chooseLine?: string };
+  /** Stimuli printed in the question, between its text and its choices. */
+  stimuli?: readonly PaperTestStimulus[];
+  /** Letters of the resource pages this question uses. */
+  resources?: readonly string[];
 }
 
 export interface PaperTestJob {
@@ -37,7 +46,10 @@ export interface PaperTestJob {
   versions?: readonly {
     label: string;
     questions: readonly PaperTestQuestion[];
+    resources?: readonly PaperTestResource[];
   }[];
+  /** Stimuli shared by several questions, printed after the questions. */
+  resources?: readonly PaperTestResource[];
   /** A printed group's supports, on a page after the questions. */
   supports?: readonly { title: string; body: string }[];
 }
@@ -71,12 +83,83 @@ const STYLES = `
   .supports section { break-inside: avoid; margin-bottom: 5mm; }
   .supports h3 { font-size: 11pt; margin: 0 0 1mm; }
   .supports p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  ol.q > li.tall { break-inside: auto; }
+  .resources { break-before: page; }
+  .resource { margin: 0 0 6mm; }
+  .resource h2 { font-size: 13pt; margin: 0 0 2mm; break-after: avoid; }
+  .use-res { margin: 1.5mm 0 0; font-weight: bold; }
+  .stim-item { margin: 0 0 3mm; }
+  .stim-item h3 { font-size: 11pt; margin: 0 0 1mm; break-after: avoid; }
+  .stim-text { border: 0.3mm solid #000; padding: 3mm 4mm; white-space: pre-wrap; line-height: 1.45; overflow-wrap: anywhere; }
+  .stim-img { display: block; max-width: 100%; max-height: 200mm; object-fit: contain; break-inside: avoid; }
+  .stim-page { display: block; width: 100%; max-height: 220mm; object-fit: contain; border: 0.2mm solid #999; break-inside: avoid; margin-bottom: 2mm; }
+  .stim-bank { display: grid; gap: 1.5mm 3mm; border: 0.3mm solid #000; padding: 3mm; }
+  .stim-bank + .stim-bank { margin-top: 2mm; }
+  .stim-bank span { border: 0.2mm solid #666; padding: 1mm 2mm; text-align: center; }
+  .stim-link { margin: 0; overflow-wrap: anywhere; }
+  .q-stim { margin: 2mm 0 0; }
+  .q-stim .stim-img { max-height: 110mm; }
 `;
 
 function choiceHtml(text: string, picture: ChoicePicture | null | undefined) {
   if (!picture) return escapeHtml(plainMathText(text));
   const img = `<img class="cpic" src="${escapeHtml(picture.url)}" alt="${escapeHtml(picture.alt ?? '')}">`;
   return picture.only ? img : `${img}${escapeHtml(plainMathText(text))}`;
+}
+
+function stimulusItemHtml(item: PaperTestStimulus): string {
+  const heading =
+    item.kind !== 'link' && item.title
+      ? `<h3>${escapeHtml(item.title)}</h3>`
+      : '';
+  switch (item.kind) {
+    case 'text':
+      return `<div class="stim-item">${heading}<div class="stim-text">${escapeHtml(item.text)}</div></div>`;
+    case 'word-bank':
+      return `<div class="stim-item">${heading}${item.groups
+        .map(
+          (g) =>
+            `<div class="stim-bank" style="grid-template-columns: repeat(${item.columns}, 1fr)">${g
+              .map((w) => `<span>${escapeHtml(w)}</span>`)
+              .join('')}</div>`
+        )
+        .join('')}</div>`;
+    case 'image':
+      return `<div class="stim-item">${heading}<img class="stim-img" src="${escapeHtml(item.src)}" alt=""></div>`;
+    case 'pages':
+      return `<div class="stim-item">${heading}${item.srcs
+        .map((src) => `<img class="stim-page" src="${escapeHtml(src)}" alt="">`)
+        .join('')}</div>`;
+    case 'link':
+      return `<div class="stim-item"><p class="stim-link"><strong>${escapeHtml(item.title)}:</strong> ${escapeHtml(item.url)}</p></div>`;
+  }
+}
+
+function resourcesHtml(
+  resources: readonly PaperTestResource[] | undefined
+): string {
+  if (!resources?.length) return '';
+  return `<div class="resources">${resources
+    .map(
+      (r) =>
+        `<section class="resource"><h2>Resource ${escapeHtml(r.letter)}</h2>${stimulusItemHtml(r.item)}</section>`
+    )
+    .join('')}</div>`;
+}
+
+/** A question whose stimuli could fill most of a page may split, so it doesn't leave a blank page behind. */
+function isTall(stimuli: readonly PaperTestStimulus[] | undefined): boolean {
+  if (!stimuli?.length) return false;
+  const images = stimuli.filter((x) => x.kind === 'image').length;
+  return (
+    images > 1 ||
+    stimuli.some(
+      (x) =>
+        x.kind === 'pages' ||
+        (x.kind === 'text' && x.text.length > 600) ||
+        (x.kind === 'word-bank' && x.groups.flat().length > 24)
+    )
+  );
 }
 
 function questionHtml(q: PaperTestQuestion): string {
@@ -96,7 +179,14 @@ function questionHtml(q: PaperTestQuestion): string {
         q.section.directions ? `<p>${escapeHtml(q.section.directions)}</p>` : ''
       }${q.section.chooseLine ? `<p><strong>${escapeHtml(q.section.chooseLine)}</strong></p>` : ''}</li>`
     : '';
-  return `${section}<li><span class="num">${escapeHtml(String(q.row))}.</span><div><div class="text">${promptPrintHtml(q.text)}</div>${choices}</div></li>`;
+  const stimuli = q.stimuli?.length
+    ? `<div class="q-stim">${q.stimuli.map(stimulusItemHtml).join('')}</div>`
+    : '';
+  const uses = q.resources?.length
+    ? `<p class="use-res">${escapeHtml(resourceLine(q.resources))}</p>`
+    : '';
+  const tall = isTall(q.stimuli) ? ' class="tall"' : '';
+  return `${section}<li${tall}><span class="num">${escapeHtml(String(q.row))}.</span><div><div class="text">${promptPrintHtml(q.text)}</div>${stimuli}${uses}${choices}</div></li>`;
 }
 
 function testHtml(
@@ -127,11 +217,15 @@ export function buildPaperTestHtml(job: PaperTestJob): string {
     return job.versions
       .map(
         (v) =>
-          `<section class="version">${testHtml(job.quizTitle, v.questions, v.label)}</section>`
+          `<section class="version">${testHtml(job.quizTitle, v.questions, v.label)}${resourcesHtml(v.resources)}</section>`
       )
       .join('');
   }
-  return testHtml(job.quizTitle, job.questions) + supportsHtml(job.supports);
+  return (
+    testHtml(job.quizTitle, job.questions) +
+    resourcesHtml(job.resources) +
+    supportsHtml(job.supports)
+  );
 }
 
 export function printPaperTest(
@@ -143,11 +237,14 @@ export function printPaperTest(
     !job.versions?.some((v) => v.questions.length)
   )
     return;
+  const body = buildPaperTestHtml(job);
   printHtmlDocument(
     {
       title: `${job.quizTitle} — test`,
       styles: STYLES,
-      body: buildPaperTestHtml(job),
+      body,
+      // Stimulus pictures and pages are large; an undecoded one prints as a blank box.
+      awaitImages: body.includes('<img'),
       marginMm: { vertical: 18, horizontal: 20 },
       // Same mark, size and place as the bubble sheet's footer.
       footer: `<div class="brand">${spartronLogoSvg(4.2)}<span class="brand-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div>`,

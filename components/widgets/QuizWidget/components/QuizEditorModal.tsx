@@ -136,6 +136,7 @@ const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
       (sa.calculator ?? '') !== (sb.calculator ?? '') ||
       (sa.tabLabel ?? '') !== (sb.tabLabel ?? '') ||
       (sa.placement ?? '') !== (sb.placement ?? '') ||
+      (sa.paperPlacement ?? '') !== (sb.paperPlacement ?? '') ||
       (sa.wordBankColumns ?? 1) !== (sb.wordBankColumns ?? 1)
     ) {
       return false;

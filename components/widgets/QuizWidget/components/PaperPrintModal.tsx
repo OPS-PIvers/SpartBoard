@@ -23,6 +23,7 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
+  Loader2,
   Printer,
   Share2,
   X,
@@ -144,6 +145,8 @@ import {
 } from '@/utils/paperSheetVersions';
 import { resolveQuizAssignment, type BankContent } from '@/utils/questionBanks';
 import { printPaperTest } from '@/utils/paperTestPrint';
+import { attachPaperTestStimuli } from '@/utils/paperTestStimuli';
+import { usePaperTestStimulusFiles } from '@/hooks/usePaperTestStimulusFiles';
 import type {
   PrintedSupport,
   PrintedTranslation,
@@ -600,6 +603,17 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     ];
   }, [sheetStimuli, promptSets, boxImageStimuli]);
   const sheetImages = usePaperSheetStimulusImages(imageStimuli);
+  // Stimuli a printed question uses, fetched now so the test paper prints them on the click.
+  const testStimuli = useMemo(() => {
+    const entries = versionPlan
+      ? versionPlan.versions.flatMap((v) => v.analysis.entries)
+      : analysis.entries;
+    const used = new Set(
+      entries.flatMap((e) => questionsById.get(e.questionId)?.stimulusIds ?? [])
+    );
+    return quizStimuli.filter((s) => used.has(s.id));
+  }, [versionPlan, analysis.entries, questionsById, quizStimuli]);
+  const testStimulusFiles = usePaperTestStimulusFiles(testStimuli);
   const sharing = usePaperSheetImageSharing(sheetStimuli, inPlcGroup);
   /** Set once the teacher has answered the sharing ask, either way. */
   const [sharingAnswered, setSharingAnswered] = useState(false);
@@ -1259,7 +1273,13 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         // Paper prints only these, so the choose line counts only them.
         const printedIds = printed.map((r) => r.questionId);
         const headed = new Set<string>();
-        return printed.flatMap((r) => {
+        const placed = attachPaperTestStimuli(
+          printed,
+          questionsById,
+          quizStimuli,
+          testStimulusFiles.files
+        );
+        const questions = printed.flatMap((r) => {
           const q = questionsById.get(r.questionId);
           if (!q) return [];
           const choices = r.written
@@ -1297,9 +1317,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               ...choicePictureFields(q, choices),
               ...(r.written ? { written: true } : {}),
               ...(heading ? { section: heading } : {}),
+              ...placed.questions.get(q.id),
             },
           ];
         });
+        return { questions, resources: placed.resources };
       };
       // Each version gets its own copy of the test, headed with its label (V24).
       printTest(
@@ -1309,12 +1331,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               questions: [],
               versions: versionPlan.versions.map((v) => ({
                 label: v.label,
-                questions: questionsOf(v.analysis),
+                ...questionsOf(v.analysis),
               })),
             }
           : {
               quizTitle: group?.translation?.title ?? quiz.title,
-              questions: questionsOf(analysis),
+              ...questionsOf(analysis),
               ...(group?.supports?.length ? { supports: group.supports } : {}),
             }
       );
@@ -1467,10 +1489,15 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             <button
               type="button"
               onClick={handlePrintTest}
+              disabled={testStimulusFiles.loading}
               {...tourTypeAttr('quiz-print.print-test-paper', 'quiz')}
-              className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark"
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-60"
             >
-              <FileText className="h-4 w-4" />
+              {testStimulusFiles.loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <FileText className="h-4 w-4" />
+              )}
               Print test paper
             </button>
           </div>

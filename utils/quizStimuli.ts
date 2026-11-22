@@ -143,7 +143,12 @@ export function projectSessionStimuli(
     if (!referenced.has(s.id) || seen.has(s.id)) continue;
     seen.add(s.id);
     // Authoring-only fields stay off the session doc; reviewed text travels via readAloudTextByStimulusId.
-    const { readAloudText: _t, readAloudSource: _src, ...rest } = s;
+    const {
+      readAloudText: _t,
+      readAloudSource: _src,
+      paperPlacement: _paper,
+      ...rest
+    } = s;
     out.push({ ...rest, label: '' });
   }
   return out;

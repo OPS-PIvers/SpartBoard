@@ -4533,7 +4533,12 @@ export interface QuizStimulus {
   wordBankColumns?: 1 | 2 | 3;
   /** image only: beside the question or in it; absent = beside (M13). */
   placement?: QuizStimulusPlacement;
+  /** Printed test paper: in each question or on a resource page; absent = by how many questions use it. */
+  paperPlacement?: QuizStimulusPaperPlacement;
 }
+
+/** Where a stimulus prints on the paper test. */
+export type QuizStimulusPaperPlacement = 'question' | 'resource';
 
 /** Where an image stimulus shows: in the panel beside the question, or above the question. */
 export type QuizStimulusPlacement = 'panel' | 'inline';
@@ -5781,7 +5786,7 @@ export interface QuizSession
   allowStimulusQuotes?: boolean;
   /** Stamped only with the quiz-cross-out flag; absent = no cross-out buttons. */
   allowCrossOut?: boolean;
-  /** Stamped only with the quiz-recap-all-options flag; the published recap lists every choice. */
+  /** Stamped at assign and publish; the published recap lists every choice. */
   recapAllOptions?: boolean;
   /** Stamped only with the input-signals flag; with Focus mode on the student page records input counters. */
   inputSignals?: boolean;
@@ -11880,8 +11885,6 @@ export type GlobalFeature =
   | 'drive-only-uploads'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
-  /** Published quiz results list every answer option, with the student's pick marked. */
-  | 'quiz-recap-all-options'
   /** Quiz assign stays open with a spinner until the save finishes, and shows a failed save inline. */
   | 'quiz-assign-waits-for-save'
   /** Each quiz assignment keeps a copy of the questions it was given, so later edits never change its scores. */
@@ -11902,6 +11905,7 @@ export type GlobalFeature =
   | 'group-reminders'
   /** Edit Class: groups open as pages that hold their accommodations; Accommodations lists every student. */
   | 'class-groups-redesign'
+  | 'classlink-clean-names'
   /** Group reminders: the Symbol step of the class group editor. */
   | 'group-symbols'
   /** Group reminders: the Schedule step and the reminders it pops on the board. */
