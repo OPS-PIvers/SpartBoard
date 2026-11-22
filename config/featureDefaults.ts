@@ -1563,7 +1563,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     description:
       'Bring a file, link, web page or pasted text into SpartBoard, and send pages with the Chrome extension.',
     stage: 'preview',
-    afterLaunch: 'retire',
+    afterLaunch: 'keep',
+    category: 'integrations',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
