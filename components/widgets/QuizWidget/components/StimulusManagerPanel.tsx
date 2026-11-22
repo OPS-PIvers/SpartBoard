@@ -1194,7 +1194,7 @@ const AttachStimulusSection: React.FC<{
           : 'None attached';
 
   const onAdded = setPickerSelectedId;
-  const addArea = (inPicker: boolean) => (
+  const addArea = (inPicker: boolean, extraSources?: React.ReactNode) => (
     <>
       <div
         className={`flex flex-col items-center gap-2 rounded-lg border border-dashed px-2.5 py-2.5 ${
@@ -1222,38 +1222,7 @@ const AttachStimulusSection: React.FC<{
               onAdded(added.id);
             }}
           />
-          {inPicker && (
-            <button
-              type="button"
-              onClick={() => {
-                const added = intake.addPassage();
-                onToggle(added.id);
-                onAdded(added.id);
-              }}
-              disabled={intake.busy}
-              {...tourTypeAttr('quiz-stimuli.attach-passage', 'quiz')}
-              className={fileButtonClass}
-            >
-              <FileText className="h-3.5 w-3.5" aria-hidden />
-              Text
-            </button>
-          )}
-          {inPicker && wordBankAvailable && (
-            <button
-              type="button"
-              onClick={() => {
-                const added = intake.addWordBank();
-                onToggle(added.id);
-                onAdded(added.id);
-              }}
-              disabled={intake.busy}
-              {...tourTypeAttr('quiz-stimuli.attach-word-bank', 'quiz')}
-              className={fileButtonClass}
-            >
-              <ListPlus className="h-3.5 w-3.5" aria-hidden />
-              Word bank
-            </button>
-          )}
+          {extraSources}
           {calculatorAvailable && (
             <button
               type="button"
@@ -1412,7 +1381,22 @@ const AttachStimulusSection: React.FC<{
       onToggle={onToggle}
       selectedId={pickerSelectedId}
       onSelect={setPickerSelectedId}
-      addArea={addArea(true)}
+      addArea={(extra) => addArea(true, extra)}
+      busy={intake.busy}
+      onAddText={() => {
+        const added = intake.addPassage();
+        onToggle(added.id);
+        onAdded(added.id);
+      }}
+      onAddWordBank={
+        wordBankAvailable
+          ? () => {
+              const added = intake.addWordBank();
+              onToggle(added.id);
+              onAdded(added.id);
+            }
+          : undefined
+      }
       onUpdateStimulus={state.updateStimulus}
       {...(paperPlacement
         ? {

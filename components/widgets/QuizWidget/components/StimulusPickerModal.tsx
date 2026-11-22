@@ -1,5 +1,6 @@
 import React from 'react';
-import { Check, Plus } from 'lucide-react';
+import { Check, FileText, ListPlus, Plus } from 'lucide-react';
+import { fileAddButtonClass } from '@/components/common/fileAdd/FileAddSources';
 import { PICKER_ADD } from './stimulusPickerSelection';
 import type {
   QuizStimulus,
@@ -49,8 +50,12 @@ export const StimulusPickerModal: React.FC<{
   /** A stimulus id, or PICKER_ADD for the add sources. */
   selectedId: string;
   onSelect: (id: string) => void;
-  /** Upload, Drive, link and calculator sources. */
-  addArea: React.ReactNode;
+  /** Upload, Drive, link and calculator sources, with the picker's own buttons in the row. */
+  addArea: (extraSources: React.ReactNode) => React.ReactNode;
+  busy: boolean;
+  onAddText: () => void;
+  /** Absent when word banks are off. */
+  onAddWordBank?: () => void;
   /** Paper tests are on: each stimulus gets an "On paper" switch. */
   onPaperPlacement?: (
     stimulusId: string,
@@ -71,6 +76,9 @@ export const StimulusPickerModal: React.FC<{
   selectedId,
   onSelect: setSelectedId,
   addArea,
+  busy,
+  onAddText,
+  onAddWordBank,
   onPaperPlacement,
   paperUseCount,
   onUpdateStimulus,
@@ -100,7 +108,13 @@ export const StimulusPickerModal: React.FC<{
           actions={
             <>
               {autosave && (
-                <span className="hidden sm:inline-flex">
+                <span
+                  className={
+                    autosave.status === 'error'
+                      ? 'inline-flex'
+                      : 'hidden sm:inline-flex'
+                  }
+                >
                   <AutosaveIndicator
                     status={autosave.status}
                     onRetry={() => void autosave.flush()}
@@ -306,7 +320,37 @@ export const StimulusPickerModal: React.FC<{
               <h3 className="mb-3 text-base font-bold text-slate-800">
                 Add a stimulus
               </h3>
-              <div className="space-y-2">{addArea}</div>
+              <div className="space-y-2">
+                {addArea(
+                  <>
+                    <button
+                      type="button"
+                      onClick={onAddText}
+                      disabled={busy}
+                      {...tourTypeAttr('quiz-stimuli.attach-passage', 'quiz')}
+                      className={fileAddButtonClass}
+                    >
+                      <FileText className="h-3.5 w-3.5" aria-hidden />
+                      Text
+                    </button>
+                    {onAddWordBank && (
+                      <button
+                        type="button"
+                        onClick={onAddWordBank}
+                        disabled={busy}
+                        {...tourTypeAttr(
+                          'quiz-stimuli.attach-word-bank',
+                          'quiz'
+                        )}
+                        className={fileAddButtonClass}
+                      >
+                        <ListPlus className="h-3.5 w-3.5" aria-hidden />
+                        Word bank
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>

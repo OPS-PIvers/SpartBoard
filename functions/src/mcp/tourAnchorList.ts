@@ -16019,12 +16019,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ],
     "routes": [
       {
-        "surface": "quiz.editor",
-        "kind": "editor",
+        "surface": "quiz.editor.stimulus-picker",
+        "kind": "modal",
         "path": [
           "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1"
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-stimuli.attach-toggle:quiz",
+          "quiz-stimuli.picker-add:quiz"
         ],
+        "reveal": "quiz-stimuli.picker-add:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -16041,12 +16044,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ],
     "routes": [
       {
-        "surface": "quiz.editor",
-        "kind": "editor",
+        "surface": "quiz.editor.stimulus-picker",
+        "kind": "modal",
         "path": [
           "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1"
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-stimuli.attach-toggle:quiz",
+          "quiz-stimuli.picker-add:quiz"
         ],
+        "reveal": "quiz-stimuli.picker-add:quiz",
         "needs": [
           "widget-on-stage"
         ]
