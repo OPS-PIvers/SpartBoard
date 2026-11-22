@@ -21057,6 +21057,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-monitor.student-release-paper",
+    "label": "Let student rejoin item in the Quiz monitor student menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ]
+  },
+  {
     "id": "quiz-monitor.student-unlock-results",
     "label": "Unlock results item in the Quiz monitor student menu",
     "scope": "widget type",

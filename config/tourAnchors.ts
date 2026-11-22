@@ -5245,6 +5245,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-monitor.student-release-paper': {
+    label: 'Let student rejoin item in the Quiz monitor student menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
   'quiz-monitor.student-unlock-results': {
     label: 'Unlock results item in the Quiz monitor student menu',
     perWidgetType: true,
