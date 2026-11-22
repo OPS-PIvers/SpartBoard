@@ -138,12 +138,12 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
         onClose={close}
         customHeader={<></>}
         maxWidth="max-w-xl"
-        className="bg-white rounded-2xl shadow-2xl overflow-hidden"
+        className="h-[min(90dvh,52rem)] bg-white rounded-2xl shadow-2xl overflow-hidden"
         contentClassName=""
         ariaLabel={title}
         zIndex={zIndex}
       >
-        <div className="flex max-h-[90vh] flex-col">{overlayView}</div>
+        <div className="flex h-full min-h-0 flex-col">{overlayView}</div>
       </Modal>
     );
   }
@@ -277,7 +277,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
       footerClassName=""
       maxWidth="max-w-xl"
       // Fixed height so opening a step never resizes the dialog.
-      className="h-[min(90vh,52rem)] bg-white rounded-2xl shadow-2xl overflow-hidden"
+      className="h-[min(90dvh,52rem)] bg-white rounded-2xl shadow-2xl overflow-hidden"
       contentClassName="px-6 py-5"
       ariaLabelledby={titleId}
       zIndex={zIndex}

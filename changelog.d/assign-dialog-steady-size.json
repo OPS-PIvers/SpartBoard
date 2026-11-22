@@ -5,6 +5,36 @@
       "widget": "quiz",
       "date": "2026-11-22",
       "text": "The Assign window stays the same size as you open each step."
+    },
+    {
+      "id": "video-activity-assign-steady-size-2026-11-22",
+      "widget": "video-activity",
+      "date": "2026-11-22",
+      "text": "The Assign window stays the same size as you open each step."
+    },
+    {
+      "id": "flashcards-assign-steady-size-2026-11-22",
+      "widget": "flashcards",
+      "date": "2026-11-22",
+      "text": "The Assign window stays the same size as you open each step."
+    },
+    {
+      "id": "guided-learning-assign-steady-size-2026-11-22",
+      "widget": "guided-learning",
+      "date": "2026-11-22",
+      "text": "The Assign window stays the same size as you open each step."
+    },
+    {
+      "id": "miniApp-assign-steady-size-2026-11-22",
+      "widget": "miniApp",
+      "date": "2026-11-22",
+      "text": "The Assign window stays the same size as you open each step."
+    },
+    {
+      "id": "writing-assign-steady-size-2026-11-22",
+      "widget": "writing",
+      "date": "2026-11-22",
+      "text": "The Assign window stays the same size as you open each step."
     }
   ]
 }
