@@ -676,6 +676,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'quiz-modified-stimuli': {
+    label: 'Modified stimuli',
+    icon: Layers,
+    description:
+      "A question's modified version can show different stimuli to students with modified questions.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Question editor metadata as labeled fields. Admin-only until Paul has tested it in prod.
   'question-editor-fields': {
     label: 'Question editor fields',

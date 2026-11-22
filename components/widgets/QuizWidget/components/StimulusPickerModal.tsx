@@ -41,7 +41,7 @@ export const StimulusPickerModal: React.FC<{
   stimuli: QuizStimulus[];
   attachedIds: string[] | undefined;
   /** "question" or "bank": names what the stimuli attach to. */
-  ownerNoun: 'question' | 'bank';
+  ownerNoun: 'question' | 'bank' | 'modified version';
   /** Short name on the add button, e.g. "Q3". */
   ownerLabel: string;
   /** Where each stimulus is used, e.g. "Q1, Q3". */

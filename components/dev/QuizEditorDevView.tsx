@@ -268,6 +268,23 @@ const stimuliQuiz = (): QuizData => {
   };
 };
 
+/** A question whose modified version has its own simpler passage. */
+const modifiedStimuliQuiz = (): QuizData => {
+  const base = stimuliQuiz();
+  return {
+    ...base,
+    questions: base.questions.map((q, i) =>
+      i === 1
+        ? {
+            ...q,
+            modifiedText: 'What is the capital city of France?',
+            modifiedStimulusIds: ['stim-untitled'],
+          }
+        : q
+    ),
+  };
+};
+
 /** Many stimuli, several empty, like an imported quiz. */
 const manyStimuliQuiz = (): QuizData => {
   const base = stimuliQuiz();
@@ -480,7 +497,9 @@ export const QuizEditorDevView: React.FC<{ state: QuizEditorStateKey }> = ({
               ? stimuliQuiz()
               : state === 'qe-stimuli-many'
                 ? manyStimuliQuiz()
-                : quiz()
+                : state === 'qe-modified-stimuli'
+                  ? modifiedStimuliQuiz()
+                  : quiz()
       }
       onClose={() => undefined}
       onSave={() => Promise.resolve()}
@@ -488,7 +507,8 @@ export const QuizEditorDevView: React.FC<{ state: QuizEditorStateKey }> = ({
   );
   return state === 'qe-gated' ||
     state === 'qe-stimuli' ||
-    state === 'qe-stimuli-many' ? (
+    state === 'qe-stimuli-many' ||
+    state === 'qe-modified-stimuli' ? (
     <MediaGateGranted>{modal}</MediaGateGranted>
   ) : (
     modal

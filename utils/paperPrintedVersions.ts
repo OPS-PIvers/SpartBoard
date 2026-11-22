@@ -21,7 +21,7 @@ export const PAPER_PRINTED_VERSIONS_FEATURE = 'paper-printed-versions';
 
 const INCORRECT_ID = /-incorrect-(\d+)$/;
 
-/** The quiz as this group's students see it: fewer answer choices and modified wording. */
+/** The quiz as this group's students see it: fewer answer choices, modified wording and stimuli. */
 export function printedGroupQuiz(
   quiz: QuizData,
   group: Pick<ModificationGroup, 'answerChoices' | 'modifiedQuestions'>
@@ -35,6 +35,8 @@ export function printedGroupQuiz(
     let next = q;
     const modified = q.modifiedText?.trim();
     if (group.modifiedQuestions && modified) next = { ...next, text: modified };
+    if (group.modifiedQuestions && q.modifiedStimulusIds?.length)
+      next = { ...next, stimulusIds: q.modifiedStimulusIds };
     // The teacher's own test paper letters every option, so its rows stay whole.
     const ids = q.paperOwnTest ? undefined : hidden[q.id];
     if (ids?.length) {

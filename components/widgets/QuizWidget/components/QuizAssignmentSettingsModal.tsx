@@ -524,7 +524,11 @@ export const QuizAssignmentSettingsModal: React.FC<
                 },
                 hasQuestionTimeLimits: questions.some((q) => q.timeLimit > 0),
                 hasModifiedQuestions: questions.some(
-                  (q) => !!q.modifiedText?.trim() || !!q.modifiedRubricSnapshot
+                  (q) =>
+                    !!q.modifiedText?.trim() ||
+                    !!q.modifiedRubricSnapshot ||
+                    !!q.modifiedStimulusIds?.length ||
+                    !!q.modifiedPromptAudio
                 ),
               },
             }

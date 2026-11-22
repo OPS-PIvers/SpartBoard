@@ -58,7 +58,12 @@ export function buildQuizAuthoringAdvisory(
   }
 
   if (translationAvailable) {
-    const referenced = new Set(questions.flatMap((q) => q.stimulusIds ?? []));
+    const referenced = new Set(
+      questions.flatMap((q) => [
+        ...(q.stimulusIds ?? []),
+        ...(q.modifiedStimulusIds ?? []),
+      ])
+    );
     const imageCount = (stimuli ?? []).filter(
       (s) => referenced.has(s.id) && (s.type === 'image' || s.type === 'pdf')
     ).length;

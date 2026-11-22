@@ -2101,6 +2101,21 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.modified-stimuli': {
+    label: 'Modified version stimuli picker in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified-question-toggle': {
+    label: 'Modified question checkbox in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified-stimuli-toggle': {
+    label: 'Modified stimuli checkbox in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.dok': {
     label: 'DOK level select beside Learning targets in the Quiz editor',
     perWidgetType: true,
