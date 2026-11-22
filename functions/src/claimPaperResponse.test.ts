@@ -4,7 +4,11 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 vi.mock('./viewAsGuard', () => ({ assertViewAsAllowed: vi.fn() }));
 
-import { handleClaimPaperResponse } from './claimPaperResponse';
+import {
+  __resetReleaseLimits,
+  handleClaimPaperResponse,
+  handleReleasePaperResponse,
+} from './claimPaperResponse';
 import {
   PIN_LOGIN_MAX_FAILURES,
   PIN_LOGIN_SESSION_MAX_FAILURES,
@@ -314,5 +318,94 @@ describe('handleClaimPaperResponse', () => {
     await expect(
       claim({ uid: 'anon-fresh', anonymous: true })
     ).resolves.toEqual({ claimed: false, reason: 'rate-limited' });
+  });
+});
+
+describe('handleReleasePaperResponse', () => {
+  const TEACHER_CALLER = { uid: TEACHER, anonymous: false, studentRole: false };
+  const release = (
+    caller: Parameters<typeof handleReleasePaperResponse>[1] = TEACHER_CALLER,
+    raw: unknown = { sessionId: SESSION, responseKey: KEY },
+    now = NOW
+  ) => handleReleasePaperResponse(db, caller, raw, now);
+
+  beforeEach(() => {
+    __resetReleaseLimits();
+    row({ studentUid: 'anon-1' });
+  });
+
+  it('puts a claimed row back at its PIN key, then the next PIN join can claim it', async () => {
+    await expect(release()).resolves.toEqual({ released: true });
+    const after = store.get(ROW_PATH);
+    expect(after?.studentUid).toBe(KEY);
+    expect(after?.answers).toEqual([
+      { questionId: 'q2', paperScanId: 'scan-1' },
+    ]);
+    await expect(claim({ uid: 'anon-2', anonymous: true })).resolves.toEqual({
+      claimed: true,
+    });
+    expect(store.get(ROW_PATH)?.studentUid).toBe('anon-2');
+  });
+
+  it('is idempotent for a row already at its PIN key', async () => {
+    row();
+    await expect(release()).resolves.toEqual({ released: true });
+    expect(store.get(ROW_PATH)?.studentUid).toBe(KEY);
+  });
+
+  it('refuses a teacher who does not own the session', async () => {
+    await expect(
+      release({ uid: 'teacher-2', anonymous: false, studentRole: false })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(store.get(ROW_PATH)?.studentUid).toBe('anon-1');
+  });
+
+  it('refuses students, anonymous devices and signed-out callers', async () => {
+    await expect(
+      release({ uid: TEACHER, anonymous: false, studentRole: true })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(
+      release({ uid: 'anon-1', anonymous: true, studentRole: false })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(release(null)).rejects.toMatchObject({
+      code: 'unauthenticated',
+    });
+    expect(store.get(ROW_PATH)?.studentUid).toBe('anon-1');
+  });
+
+  it('refuses a key that is not a PIN row or a path', async () => {
+    for (const responseKey of ['uid-1', 'pin-a/b', '']) {
+      await expect(
+        release(TEACHER_CALLER, { sessionId: SESSION, responseKey })
+      ).rejects.toMatchObject({ code: 'invalid-argument' });
+    }
+  });
+
+  it('leaves a row with no scanned written answers alone', async () => {
+    row({ studentUid: 'anon-1', paperWrittenBatchId: undefined });
+    await expect(release()).resolves.toEqual({
+      released: false,
+      reason: 'not-claimed',
+    });
+    expect(store.get(ROW_PATH)?.studentUid).toBe('anon-1');
+  });
+
+  it('reports a missing row', async () => {
+    store.delete(ROW_PATH);
+    await expect(release()).resolves.toEqual({
+      released: false,
+      reason: 'not-found',
+    });
+  });
+
+  it('rate limits a teacher after 30 releases a minute', async () => {
+    for (let i = 0; i < 30; i++) await release();
+    await expect(release()).resolves.toEqual({
+      released: false,
+      reason: 'rate-limited',
+    });
+    await expect(
+      release(TEACHER_CALLER, undefined, NOW + 61_000)
+    ).resolves.toEqual({ released: true });
   });
 });
