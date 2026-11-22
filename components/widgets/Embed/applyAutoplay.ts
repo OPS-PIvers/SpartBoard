@@ -1,3 +1,5 @@
+import { isYouTubeHost } from './isYouTubeHost';
+
 /**
  * Appends `?autoplay=1&mute=1` to YouTube embed URLs so the browser will
  * honor autoplay. Returns the original URL unchanged otherwise.
@@ -13,9 +15,7 @@ export function applyAutoplay(embedUrl: string, autoplay: boolean): string {
   if (!autoplay || !embedUrl) return embedUrl;
   try {
     const u = new URL(embedUrl);
-    const host = u.hostname.toLowerCase();
-    const isYouTube = host === 'youtube.com' || host.endsWith('.youtube.com');
-    if (isYouTube) {
+    if (isYouTubeHost(u.hostname)) {
       u.searchParams.set('autoplay', '1');
       // YouTube requires mute=1 for reliable autoplay in most browsers
       u.searchParams.set('mute', '1');

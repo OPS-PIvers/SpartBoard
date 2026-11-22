@@ -1,3 +1,5 @@
+import { isYouTubeHost } from './isYouTubeHost';
+
 /**
  * Appends `&start=N` to YouTube embed URLs so the player begins at the given
  * offset (seconds). Returns the original URL unchanged otherwise.
@@ -22,14 +24,12 @@ export function applyStartAt(
   if (!startAtSeconds || startAtSeconds <= 0 || !embedUrl) return embedUrl;
   try {
     const u = new URL(embedUrl);
-    const host = u.hostname.toLowerCase();
-    const isYouTubeHost =
-      host === 'youtube.com' || host.endsWith('.youtube.com');
     // Require the embed path explicitly: the `start` query param is only
     // honored by `/embed/` URLs. Watch URLs and short links (`youtu.be`)
     // would silently ignore it, so we leave them unchanged rather than
     // producing a URL that looks valid but doesn't seek.
-    if (!isYouTubeHost || !u.pathname.startsWith('/embed/')) return embedUrl;
+    if (!isYouTubeHost(u.hostname) || !u.pathname.startsWith('/embed/'))
+      return embedUrl;
     u.searchParams.set('start', String(Math.floor(startAtSeconds)));
     return u.toString();
   } catch {
