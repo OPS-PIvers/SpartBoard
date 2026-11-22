@@ -16147,6 +16147,20 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "keys": [
       "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.stimulus-picker",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-stimuli.attach-toggle:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
