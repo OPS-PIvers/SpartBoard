@@ -1022,6 +1022,8 @@ export const QuestionStimulusSection: React.FC<{
   questionId: string;
   /** `quiz-calculator-stimulus` gate. */
   calculatorAvailable?: boolean;
+  /** `quiz-word-bank` gate. */
+  wordBankAvailable?: boolean;
   /** Attaches an image pasted inside this element to the question; absent turns pasting off. */
   pasteScopeRef?: React.RefObject<HTMLElement | null>;
   /** `question-editor-fields`: a row of the light metadata list. */
@@ -1034,6 +1036,7 @@ export const QuestionStimulusSection: React.FC<{
   state,
   questionId,
   calculatorAvailable = false,
+  wordBankAvailable = false,
   pasteScopeRef,
   metaList = false,
   pickerModal = false,
@@ -1045,6 +1048,7 @@ export const QuestionStimulusSection: React.FC<{
       state={state}
       attachedIds={question?.stimulusIds}
       calculatorAvailable={calculatorAvailable}
+      wordBankAvailable={wordBankAvailable}
       pasteScopeRef={pasteScopeRef}
       metaList={metaList}
       pickerModal={pickerModal}
@@ -1064,6 +1068,7 @@ export const SlotStimulusSection: React.FC<{
   state: QuizEditorController;
   slotId: string;
   calculatorAvailable?: boolean;
+  wordBankAvailable?: boolean;
   metaList?: boolean;
   pickerModal?: boolean;
   paperPlacement?: boolean;
@@ -1071,6 +1076,7 @@ export const SlotStimulusSection: React.FC<{
   state,
   slotId,
   calculatorAvailable = false,
+  wordBankAvailable = false,
   metaList = false,
   pickerModal = false,
   paperPlacement = false,
@@ -1081,6 +1087,7 @@ export const SlotStimulusSection: React.FC<{
       state={state}
       attachedIds={slot?.stimulusIds}
       calculatorAvailable={calculatorAvailable}
+      wordBankAvailable={wordBankAvailable}
       metaList={metaList}
       pickerModal={pickerModal}
       paperPlacement={paperPlacement}
@@ -1096,6 +1103,7 @@ const AttachStimulusSection: React.FC<{
   state: QuizEditorController;
   attachedIds: string[] | undefined;
   calculatorAvailable: boolean;
+  wordBankAvailable: boolean;
   pasteScopeRef?: React.RefObject<HTMLElement | null>;
   /** The question or slot shown; a change closes the open preview. */
   ownerId?: string;
@@ -1109,6 +1117,7 @@ const AttachStimulusSection: React.FC<{
   state,
   attachedIds,
   calculatorAvailable,
+  wordBankAvailable,
   pasteScopeRef,
   ownerId,
   metaList = false,
@@ -1213,6 +1222,38 @@ const AttachStimulusSection: React.FC<{
               onAdded(added.id);
             }}
           />
+          {inPicker && (
+            <button
+              type="button"
+              onClick={() => {
+                const added = intake.addPassage();
+                onToggle(added.id);
+                onAdded(added.id);
+              }}
+              disabled={intake.busy}
+              {...tourTypeAttr('quiz-stimuli.attach-passage', 'quiz')}
+              className={fileButtonClass}
+            >
+              <FileText className="h-3.5 w-3.5" aria-hidden />
+              Passage
+            </button>
+          )}
+          {inPicker && wordBankAvailable && (
+            <button
+              type="button"
+              onClick={() => {
+                const added = intake.addWordBank();
+                onToggle(added.id);
+                onAdded(added.id);
+              }}
+              disabled={intake.busy}
+              {...tourTypeAttr('quiz-stimuli.attach-word-bank', 'quiz')}
+              className={fileButtonClass}
+            >
+              <ListPlus className="h-3.5 w-3.5" aria-hidden />
+              Word bank
+            </button>
+          )}
           {calculatorAvailable && (
             <button
               type="button"
@@ -1372,6 +1413,7 @@ const AttachStimulusSection: React.FC<{
       selectedId={pickerSelectedId}
       onSelect={setPickerSelectedId}
       addArea={addArea(true)}
+      onUpdateStimulus={state.updateStimulus}
       {...(paperPlacement
         ? {
             onPaperPlacement: (id: string, v: QuizStimulusPaperPlacement) =>

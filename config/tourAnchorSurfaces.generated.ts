@@ -828,6 +828,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-stimuli.attach-all-questions': ['quiz.editor'],
     'quiz-stimuli.attach-bank-slot': ['quiz.editor'],
     'quiz-stimuli.attach-calculator': ['quiz.editor'],
+    'quiz-stimuli.attach-passage': ['quiz.editor'],
+    'quiz-stimuli.attach-word-bank': ['quiz.editor'],
     'quiz-stimuli.attach-preview': [
       'quiz.editor',
       'quiz.editor.stimulus-picker',
@@ -839,6 +841,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     ],
     'quiz-stimuli.picker-add': ['quiz.editor.stimulus-picker'],
     'quiz-stimuli.paper-placement': ['quiz.editor.stimulus-picker'],
+    'quiz-stimuli.picker-text': ['quiz.editor.stimulus-picker'],
+    'quiz-stimuli.picker-word-bank-columns': ['quiz.editor.stimulus-picker'],
     'quiz-stimuli.picker-close': ['quiz.editor.stimulus-picker'],
     'quiz-stimuli.attach-toggle': ['quiz.editor'],
     'quiz-stimuli.card-delete': ['quiz.editor'],

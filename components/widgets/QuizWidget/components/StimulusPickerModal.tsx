@@ -58,6 +58,8 @@ export const StimulusPickerModal: React.FC<{
   ) => void;
   /** Questions a stimulus can print with; a bank draw counts as several. */
   paperUseCount?: (stimulusId: string) => number;
+  /** Edits a passage or word bank in place. */
+  onUpdateStimulus?: (id: string, updates: Partial<QuizStimulus>) => void;
   onClose: () => void;
 }> = ({
   stimuli,
@@ -71,6 +73,7 @@ export const StimulusPickerModal: React.FC<{
   addArea,
   onPaperPlacement,
   paperUseCount,
+  onUpdateStimulus,
   onClose,
 }) => {
   const selected = stimuli.find((s) => s.id === selectedId) ?? null;
@@ -97,11 +100,13 @@ export const StimulusPickerModal: React.FC<{
           actions={
             <>
               {autosave && (
-                <AutosaveIndicator
-                  status={autosave.status}
-                  onRetry={() => void autosave.flush()}
-                  onAccent
-                />
+                <span className="hidden sm:inline-flex">
+                  <AutosaveIndicator
+                    status={autosave.status}
+                    onRetry={() => void autosave.flush()}
+                    onAccent
+                  />
+                </span>
               )}
               <button
                 type="button"
@@ -109,7 +114,7 @@ export const StimulusPickerModal: React.FC<{
                 {...tourTypeAttr('quiz-stimuli.picker-close', 'quiz')}
                 className="rounded-lg bg-white px-4 py-1.5 text-sm font-semibold text-slate-800 transition-colors hover:bg-white/90"
               >
-                Return
+                Back to quiz
               </button>
             </>
           }
@@ -117,7 +122,7 @@ export const StimulusPickerModal: React.FC<{
       }
       zIndex="z-modal-deep"
       maxWidth="max-w-5xl"
-      contentClassName="p-0"
+      contentClassName="p-0 rounded-b-2xl"
     >
       <div className="flex h-[min(calc(90vh-4.5rem),680px)] flex-col sm:flex-row">
         <div className="flex max-h-[50%] shrink-0 flex-col border-b border-slate-200 bg-slate-100 sm:max-h-none sm:w-80 sm:border-b-0 sm:border-r">
@@ -267,7 +272,16 @@ export const StimulusPickerModal: React.FC<{
                 data-testid="attach-stimulus-preview"
                 className="flex-1 overflow-y-auto custom-scrollbar px-5 pb-6 pt-4"
               >
-                {isEmptyTextStimulus(selected) ? (
+                {onUpdateStimulus &&
+                (selected.type === 'text' || selected.type === 'word-bank') ? (
+                  <TextStimulusEditor
+                    key={selected.id}
+                    stimulus={selected}
+                    onChange={(updates) =>
+                      onUpdateStimulus(selected.id, updates)
+                    }
+                  />
+                ) : isEmptyTextStimulus(selected) ? (
                   <div className="flex h-full flex-col items-center justify-center text-center">
                     <p className="text-sm font-semibold text-slate-700">
                       This {STIMULUS_TYPE_LABELS[selected.type].toLowerCase()}{' '}
@@ -298,5 +312,56 @@ export const StimulusPickerModal: React.FC<{
         </div>
       </div>
     </Modal>
+  );
+};
+
+const COLUMN_VALUES = { '1': 1, '2': 2, '3': 3 } as const;
+const COLUMN_KEYS = { 1: '1', 2: '2', 3: '3' } as const;
+
+/** Passage or word bank text, edited right in the picker. */
+const TextStimulusEditor: React.FC<{
+  stimulus: QuizStimulus;
+  onChange: (updates: Partial<QuizStimulus>) => void;
+}> = ({ stimulus, onChange }) => {
+  const isWordBank = stimulus.type === 'word-bank';
+  const fieldId = `picker-text-${stimulus.id}`;
+  return (
+    <div className="flex h-full min-h-[12rem] flex-col gap-3">
+      <label htmlFor={fieldId} className="sr-only">
+        {isWordBank ? 'Word bank' : 'Passage'}
+      </label>
+      <textarea
+        id={fieldId}
+        value={stimulus.text ?? ''}
+        onChange={(e) => onChange({ text: e.target.value })}
+        placeholder={
+          isWordBank
+            ? 'Put each word or phrase on its own line.'
+            : 'Paste or type the passage students will read.'
+        }
+        {...tourTypeAttr('quiz-stimuli.picker-text', 'quiz')}
+        className="min-h-0 w-full flex-1 resize-none rounded-lg border-2 border-slate-200 px-3 py-2.5 text-sm leading-relaxed text-slate-800 focus:border-brand-blue-primary/50 focus:outline-hidden"
+      />
+      {isWordBank && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-slate-600">Columns</span>
+          <SegmentedControl
+            role="radiogroup"
+            ariaLabel="Columns"
+            value={COLUMN_KEYS[stimulus.wordBankColumns ?? 1]}
+            onChange={(v) => onChange({ wordBankColumns: COLUMN_VALUES[v] })}
+            anchor={tourTypeAttr(
+              'quiz-stimuli.picker-word-bank-columns',
+              'quiz'
+            )}
+            options={[
+              { value: '1', label: '1' },
+              { value: '2', label: '2' },
+              { value: '3', label: '3' },
+            ]}
+          />
+        </div>
+      )}
+    </div>
   );
 };

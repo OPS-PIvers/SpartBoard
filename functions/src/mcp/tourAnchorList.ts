@@ -16010,6 +16010,50 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-stimuli.attach-passage",
+    "label": "Add a stimulus Passage button in the Quiz widget stimulus picker",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-stimuli.attach-word-bank",
+    "label": "Add a stimulus Word bank button in the Quiz widget stimulus picker",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-stimuli.attach-preview",
     "label": "Per-stimulus preview button in the Quiz widget attach list",
     "scope": "field",
@@ -16141,8 +16185,54 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-stimuli.picker-text",
+    "label": "Passage or word bank text box in the Quiz widget stimulus picker",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.stimulus-picker",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-stimuli.attach-toggle:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-stimuli.picker-word-bank-columns",
+    "label": "Word bank Columns switch in the Quiz widget stimulus picker",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.stimulus-picker",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-stimuli.attach-toggle:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-stimuli.picker-close",
-    "label": "Return button in the Quiz widget stimulus picker",
+    "label": "Back to quiz button in the Quiz widget stimulus picker",
     "scope": "widget type",
     "panel": true,
     "keys": [
