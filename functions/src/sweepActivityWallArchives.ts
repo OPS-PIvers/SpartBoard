@@ -194,6 +194,7 @@ async function enqueueLegacyCleanupFlags(
     const snap = await db.doc(saved).get();
     if (snap.exists) cursor = snap;
   }
+  let lastDone = cursor ? cursor.ref.path : '';
   for (let pages = 0; pages < MAX_BACKFILL_PAGES; pages++) {
     let query = db
       .collectionGroup(SUBMISSIONS_COLLECTION)
@@ -204,12 +205,14 @@ async function enqueueLegacyCleanupFlags(
     const last = page.docs[page.docs.length - 1];
     for (const docSnap of page.docs) {
       if (deps.now() - runStart >= CLEANUP_BUDGET_MS) {
-        await cursorRef.set({ after: docSnap.ref.path }, { merge: true });
+        await cursorRef.set({ after: lastDone }, { merge: true });
         return;
       }
       const sessionRef = docSnap.ref.parent.parent;
-      if (!sessionRef || sessionRef.parent.id !== SESSIONS_COLLECTION) continue;
-      await enqueueStorageCleanup(docSnap.ref);
+      if (sessionRef && sessionRef.parent.id === SESSIONS_COLLECTION) {
+        await enqueueStorageCleanup(docSnap.ref);
+      }
+      lastDone = docSnap.ref.path;
     }
     if (!last || page.size < SUBMISSION_PAGE_SIZE) {
       await cursorRef.set({ after: '' }, { merge: true });
