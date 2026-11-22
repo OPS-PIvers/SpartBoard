@@ -95,8 +95,19 @@ export const StimulusPickerModal: React.FC<{
       zIndex="z-modal-deep"
       maxWidth="max-w-5xl"
       contentClassName="p-0"
+      footerClassName="flex justify-center px-6 py-3"
+      footer={
+        <button
+          type="button"
+          onClick={onClose}
+          {...tourTypeAttr('quiz-stimuli.picker-return', 'quiz')}
+          className="min-w-32 rounded-lg bg-brand-blue-primary px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark"
+        >
+          Return
+        </button>
+      }
     >
-      <div className="flex h-[min(calc(90vh-4.5rem),680px)] flex-col sm:flex-row">
+      <div className="flex h-[min(calc(90vh-8.5rem),680px)] flex-col sm:flex-row">
         <div className="flex max-h-[50%] shrink-0 flex-col border-b border-slate-200 bg-slate-100 sm:max-h-none sm:w-80 sm:border-b-0 sm:border-r">
           <div className="flex items-baseline justify-between gap-2 px-4 pb-2 pt-3">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-600">

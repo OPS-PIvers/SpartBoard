@@ -839,6 +839,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     ],
     'quiz-stimuli.picker-add': ['quiz.editor.stimulus-picker'],
     'quiz-stimuli.picker-close': ['quiz.editor.stimulus-picker'],
+    'quiz-stimuli.picker-return': ['quiz.editor.stimulus-picker'],
     'quiz-stimuli.attach-toggle': ['quiz.editor'],
     'quiz-stimuli.card-delete': ['quiz.editor'],
     'quiz-stimuli.card-expand': ['quiz.editor'],

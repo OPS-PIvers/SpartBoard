@@ -16141,6 +16141,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-stimuli.picker-return",
+    "label": "Return button in the Quiz widget stimulus picker",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ]
+  },
+  {
     "id": "quiz-stimuli.attach-toggle",
     "label": "Attach section Stimuli disclosure in the Quiz widget",
     "scope": "widget type",
