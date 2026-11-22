@@ -4104,7 +4104,7 @@ export const ActiveQuiz: React.FC<{
     currentQuestion,
     localizedStrings
   );
-  // The recording is the original wording, so a modified prompt drops it.
+  // Already served: a modified prompt carries only its own recording.
   const promptAudio = currentQuestion.promptAudio;
   const promptAudioViews = playsUsedFor(promptAudioPlayId(currentQuestion.id));
   // Only a limited recording needs its plays counted on the response.
