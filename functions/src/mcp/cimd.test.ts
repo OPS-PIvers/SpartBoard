@@ -224,6 +224,15 @@ describe('fetchCimdClient', () => {
     expect(failing).toHaveBeenCalledTimes(2);
   });
 
+  it('stops serving the old document an hour after the last good fetch', async () => {
+    const t0 = 1_000_000;
+    mockFetch(CODE_DOC);
+    expect(await fetchCimdClient(CODE_ID, t0)).not.toBeNull();
+    mockFetch({}, 503);
+    expect(await fetchCimdClient(CODE_ID, t0 + 59 * 60 * 1000)).not.toBeNull();
+    expect(await fetchCimdClient(CODE_ID, t0 + 61 * 60 * 1000)).toBeNull();
+  });
+
   it('caches a good document', async () => {
     const fn = mockFetch(CODE_DOC);
     expect(await fetchCimdClient(CODE_ID)).not.toBeNull();

@@ -30,6 +30,7 @@ import type { ActivityWallLibraryEntry } from '@/types';
 import { ACTIVITY_WALL_DEFAULT_APPEARANCE } from '@/types';
 import { LAYOUT_OPTIONS } from './editor/layoutOptions';
 import { activityWallSessionId } from '@/utils/activityWallLinks';
+import { WallStillClosedError } from '@/utils/activityWallErrors';
 import { tourTypeAttr } from '@/config/tourAnchors';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
@@ -159,6 +160,11 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
         setCounts((prev) => ({ ...prev, [entry.id]: 0 }));
         addToast('Posts cleared.', 'success');
       } catch (err) {
+        if (err instanceof WallStillClosedError) {
+          setCounts((prev) => ({ ...prev, [entry.id]: 0 }));
+          addToast('Posts cleared. Open the wall again for students.', 'error');
+          return;
+        }
         console.error('[ActivityWall] Failed to clear posts:', err);
         addToast('Could not clear posts.', 'error');
       }
