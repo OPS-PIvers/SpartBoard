@@ -156,6 +156,7 @@ export {
 } from './importPaperResponses';
 // Keeps scanned paper answers matching a teacher's reworded choices.
 export { paperRewordSyncV1 } from './paperRewordSync';
+export { cleanupPaperRewordLog } from './paperRewordLogCleanup';
 // Paper answer sheets, delegated: printing a PLC teammate's stack while they
 // are out. The context read is separate from the two writes.
 export { getTeammatePrintContextV1 } from './getTeammatePrintContext';

@@ -1,0 +1,1 @@
+claude/backlog-ab-175-20261121 (AB-175: trigger removes paper_reword_log when a response is deleted)

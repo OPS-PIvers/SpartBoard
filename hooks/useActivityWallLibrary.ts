@@ -48,6 +48,8 @@ export interface UseActivityWallLibraryResult {
    */
   saveActivity: (entry: ActivityWallLibraryEntry) => Promise<void>;
   deleteActivity: (activityId: string) => Promise<void>;
+  /** Close the wall, delete every post, then reopen it if it was open. */
+  clearActivityPosts: (activityId: string) => Promise<void>;
 }
 
 export const useActivityWallLibrary = (
@@ -116,12 +118,16 @@ export const useActivityWallLibrary = (
     [userId]
   );
 
-  const removeActivity = useCallback(
-    async (activityId: string) => {
+  const clearThenRun = useCallback(
+    async (
+      activityId: string,
+      after: () => Promise<void>,
+      reopenOnSuccess: boolean
+    ) => {
       if (!userId) throw new Error('Not signed in');
       const sessionId = activityWallSessionId(userId, activityId);
       const sessionRef = doc(db, 'activity_wall_sessions', sessionId);
-      // Close first so no post lands between clearing and deleting.
+      // Close first so no post lands between clearing and finishing.
       let closed = false;
       let wasAccepting = true;
       try {
@@ -134,19 +140,38 @@ export const useActivityWallLibrary = (
           throw closeError;
         }
       }
+      const reopen = () =>
+        closed && wasAccepting
+          ? updateDoc(sessionRef, { acceptingResponses: true }).catch(
+              () => undefined
+            )
+          : Promise.resolve();
       try {
         await clearWallSubmissions(sessionId);
-        await deleteDoc(doc(db, 'users', userId, COLLECTION, activityId));
+        await after();
       } catch (err) {
-        if (closed && wasAccepting) {
-          await updateDoc(sessionRef, { acceptingResponses: true }).catch(
-            () => undefined
-          );
-        }
+        await reopen();
         throw err;
       }
+      if (reopenOnSuccess) await reopen();
     },
     [userId]
+  );
+
+  const removeActivity = useCallback(
+    (activityId: string) =>
+      clearThenRun(
+        activityId,
+        () => deleteDoc(doc(db, 'users', userId ?? '', COLLECTION, activityId)),
+        false
+      ),
+    [clearThenRun, userId]
+  );
+
+  const clearActivityPosts = useCallback(
+    (activityId: string) =>
+      clearThenRun(activityId, () => Promise.resolve(), true),
+    [clearThenRun]
   );
 
   return useSandboxedActivityWalls({
@@ -155,5 +180,6 @@ export const useActivityWallLibrary = (
     error,
     saveActivity,
     deleteActivity: removeActivity,
+    clearActivityPosts,
   });
 };

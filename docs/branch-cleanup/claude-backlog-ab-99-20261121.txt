@@ -1,0 +1,1 @@
+claude/backlog-ab-99-20261121 (AB-99: Activity Wall cleanup retries rotate by last-attempt stamp with per-doc cap and time budget)

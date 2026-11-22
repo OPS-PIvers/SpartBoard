@@ -3886,6 +3886,7 @@ describe('index barrel — deployed export set', () => {
     'importPaperResponsesV1',
     'publishPaperResultsV1',
     'paperRewordSyncV1',
+    'cleanupPaperRewordLog',
     // Paper answer sheets, delegated to a PLC teammate (read path)
     'getTeammatePrintContextV1',
     'createTeammatePaperBatchV1',
