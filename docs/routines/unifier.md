@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 153_
-_Last run: 2026-11-21_
+_Run count: 154_
+_Last run: 2026-11-22_
 _Base branch: dev-paul_
 
 ---
@@ -580,6 +580,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-11-22 | `nightly/unifier-log-2026-11-22` | D1/D2/D3/D4/D5 | Aligned (run 154) — light probe of `cd6ffb9f^..dev-paul` (31 commits, 29 non-test client files). Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`/`common/Toast`, no new `Widget.tsx`; the only brand hex is the already-excepted `BRAND_RED` in `stepsHtmlExport.ts`. One new `Settings.tsx` (`components/tours/web/FreshserviceSettings.tsx`) is an admin tour form with its own local label class and no exclusive-choice picker, so no D3 drift. No subagents dispatched, no code shipped; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |
 | 2026-11-21 | `claude/kind-johnson-2b3p9g` | D1/D2/D3/D4/D5 | Aligned (run 153) — light probe of `4c027ad5..dev-paul` (733 commits, 183 added/modified non-test client files). Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`/`common/Toast`, no new `Widget.tsx`/`Settings.tsx`, no new D3 label combos. Two hits resolved as non-drift: `components/tours/web/stepsHtmlExport.ts` `BRAND_RED = '#ad2122'` (canvas stroke/fill in a standalone HTML export, no CSS vars available — same class as the canvas/export exceptions); `WebTourList.tsx:323` `role="group"` is a share-action menu, not an exclusive-choice picker. No subagents dispatched, no code shipped; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |
 | 2026-11-20 | `claude/kind-johnson-lgng0g` | D1/D2/D3/D4/D5 | Aligned (run 152) — light probe of `c859a9fc..dev-paul` (231 commits, 615 non-test client files). Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`/`common/Toast`, no `#2d3f89`/`#ad2122`/`#4356a0`, no new `Widget.tsx`/`Settings.tsx`; three added `text-xxs font-bold uppercase tracking-widest text-slate-400` labels are the existing D3-backlogged pattern, not unified. No subagents dispatched, no code shipped; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |
 | 2026-11-19 | `claude/kind-johnson-64jqqf` | D1/D2/D3/D4/D5 | Aligned (run 151) — light probe of `c859a9fc..dev-paul` (68 commits, 480 non-test client files). Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`/`common/Toast`, no `#2d3f89`/`#ad2122`/`#4356a0`; one new widget-adjacent file (`QuizWidget/components/RubricGradingSettings.tsx`, uses `role="radiogroup"`/`switch`, no hand-rolled SettingsLabel combo, own-widget scope). Existing `aria-pressed`/`role="group"` hits are pre-known toggle shapes (D3 backlog). No subagents dispatched, no code shipped; `pnpm run validate` skipped (CLAUDE.md bars full local runs; CI is the gate). | — |
