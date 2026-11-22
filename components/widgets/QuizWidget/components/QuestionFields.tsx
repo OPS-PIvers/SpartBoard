@@ -82,6 +82,9 @@ interface QuestionPromptFieldProps {
   onAddNumber?: () => string | null;
   /** Equation, Number, Accents and Blank as icons in the formatting toolbar, not links above it. */
   toolbarTools?: boolean;
+  /** The heading over the box; null hides it. */
+  label?: string | null;
+  placeholder?: string;
 }
 
 /** A labeled button at the end of the prompt formatting toolbar. */
@@ -125,6 +128,8 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   onAddNumber,
   extras,
   toolbarTools = false,
+  label = 'Question prompt',
+  placeholder = 'e.g. What is the capital of France?',
 }) => {
   const canRecord = promptAudio && promptFormat;
   // Stays mounted once audio existed, so Remove never remounts the prompt box.
@@ -283,9 +288,7 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
         onBlur={onBlur}
         readOnly={equation !== null && equation.start >= 0}
         placeholder={
-          q.promptAudio
-            ? 'Optional text under the audio'
-            : 'e.g. What is the capital of France?'
+          q.promptAudio ? 'Optional text under the audio' : placeholder
         }
         anchor={anchor}
         toolbarEnd={[
@@ -316,7 +319,7 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
         onBlur={onBlur}
         readOnly={equation !== null}
         rows={3}
-        placeholder="e.g. What is the capital of France?"
+        placeholder={placeholder}
         className={`${inputClass} resize-y min-h-[4.75rem] max-h-[60vh]`}
         {...anchor}
       />
@@ -324,7 +327,7 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
     return (
       <div>
         <div className="flex items-center justify-between">
-          <label className={labelClass}>Question prompt</label>
+          {label !== null && <label className={labelClass}>{label}</label>}
           {!(promptFormat && toolbarTools) && (
             <span className="flex items-center gap-3">
               {promptTools('link')}
@@ -683,15 +686,89 @@ export const PromptFooterToggle: React.FC<{
   </button>
 );
 
-/** The question's modified wording, served to students in a modification group. */
+/** `quiz-modified-stimuli`: the modified version's own prompt box and stimuli, each switched on separately. */
+export interface ModifiedVersionParts {
+  prompt: React.ReactNode;
+  stimuli: React.ReactNode;
+  hasPrompt: boolean;
+  hasStimuli: boolean;
+  onClearPrompt: () => void;
+  onClearStimuli: () => void;
+}
+
+const ModifiedPartRow: React.FC<{
+  label: string;
+  on: boolean;
+  onChange: (on: boolean) => void;
+  anchor: TourAnchorAttrs;
+  children: React.ReactNode;
+}> = ({ label, on, onChange, anchor, children }) => {
+  const id = React.useId();
+  return (
+    <div>
+      <label
+        htmlFor={id}
+        className="flex w-fit cursor-pointer select-none items-center gap-2 py-1 text-xs font-semibold text-slate-600"
+      >
+        <input
+          id={id}
+          type="checkbox"
+          checked={on}
+          onChange={(e) => onChange(e.target.checked)}
+          className="h-3.5 w-3.5 accent-brand-blue-primary"
+          {...anchor}
+        />
+        {label}
+      </label>
+      {on && <div className="pb-1 pt-1">{children}</div>}
+    </div>
+  );
+};
+
+const ModifiedPartsBody: React.FC<{ parts: ModifiedVersionParts }> = ({
+  parts,
+}) => {
+  const [promptOn, setPromptOn] = React.useState(parts.hasPrompt);
+  const [stimuliOn, setStimuliOn] = React.useState(parts.hasStimuli);
+  return (
+    <div className="space-y-1">
+      <ModifiedPartRow
+        label="Modified question"
+        on={promptOn || parts.hasPrompt}
+        onChange={(on) => {
+          setPromptOn(on);
+          if (!on) parts.onClearPrompt();
+        }}
+        anchor={tourTypeAttr('quiz-editor.modified-question-toggle', 'quiz')}
+      >
+        {parts.prompt}
+      </ModifiedPartRow>
+      <ModifiedPartRow
+        label="Modified stimuli"
+        on={stimuliOn || parts.hasStimuli}
+        onChange={(on) => {
+          setStimuliOn(on);
+          if (!on) parts.onClearStimuli();
+        }}
+        anchor={tourTypeAttr('quiz-editor.modified-stimuli-toggle', 'quiz')}
+      >
+        {parts.stimuli}
+      </ModifiedPartRow>
+    </div>
+  );
+};
+
+/** The question's modified version, served to students in a modification group. */
 export const QuestionModifiedField: React.FC<{
   question: Pick<QuizQuestion, 'id' | 'modifiedText'>;
   onChange: (modifiedText: string | undefined) => void;
   metaList?: boolean;
-}> = ({ question: q, onChange, metaList = false }) => {
+  parts?: ModifiedVersionParts;
+}> = ({ question: q, onChange, metaList = false, parts }) => {
   const value = q.modifiedText ?? '';
+  const added = parts ? parts.hasPrompt || parts.hasStimuli : value.length > 0;
   const footer = React.useContext(PromptFooterContext);
-  const [open, setOpen] = React.useState(() => !metaList && value.length > 0);
+  const [open, setOpen] = React.useState(() => !metaList && added);
   const baseId = React.useId();
   const toggleId = `${baseId}-modified`;
   const textId = `${baseId}-modified-text`;
@@ -708,14 +785,15 @@ export const QuestionModifiedField: React.FC<{
       {...tourTypeAttr('quiz-editor.modified-text', 'quiz')}
     />
   );
+  const body = parts ? <ModifiedPartsBody parts={parts} /> : textarea;
   if (footer) {
     return (
       <>
         <PromptFooterToggle
           icon={Layers}
           label="Modified version"
-          value={value ? 'Added' : 'None'}
-          filled={!!value}
+          value={added ? 'Added' : 'None'}
+          filled={added}
           open={open}
           controls={textId}
           onClick={() => setOpen((o) => !o)}
@@ -724,7 +802,9 @@ export const QuestionModifiedField: React.FC<{
         {open &&
           footer.modifiedSlot &&
           createPortal(
-            <div className="pt-2">{textarea}</div>,
+            <div className="pt-2" id={parts ? textId : undefined}>
+              {body}
+            </div>,
             footer.modifiedSlot
           )}
       </>
@@ -744,7 +824,7 @@ export const QuestionModifiedField: React.FC<{
           Modified version
           <MetaChevron open={expanded} />
         </button>
-        {expanded && textarea}
+        {expanded && body}
       </div>
     );
   }
@@ -760,13 +840,13 @@ export const QuestionModifiedField: React.FC<{
           className={`${metaValueClass} max-w-full`}
           {...tourTypeAttr('quiz-editor.modified', 'quiz')}
         >
-          <span className={`min-w-0 truncate ${value ? '' : 'text-slate-400'}`}>
-            {value || 'None'}
+          <span className={`min-w-0 truncate ${added ? '' : 'text-slate-400'}`}>
+            {parts ? (added ? 'Added' : 'None') : value || 'None'}
           </span>
           <MetaChevron open={open} />
         </button>
       </MetaItem>
-      {open && <div className="pb-2">{textarea}</div>}
+      {open && <div className="pb-2">{body}</div>}
     </div>
   );
 };

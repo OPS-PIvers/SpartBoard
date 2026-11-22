@@ -2667,11 +2667,12 @@ export const ActiveQuiz: React.FC<{
     answerOptionShuffleEnabled,
     studentShuffleSeed,
   ]);
+  // True when the words changed; a stimuli-only modified version keeps the prompt.
   const modifiedServed =
     !!baseQuestion &&
     isStudentPaced &&
-    applyModifiedWording(baseQuestion, override?.modifiedQuestions) !==
-      baseQuestion;
+    applyModifiedWording(baseQuestion, override?.modifiedQuestions).text !==
+      baseQuestion.text;
   // Live view (QUIZ_LIVE_VIEW.md D12): position is reported only while the teacher's stamp is ahead.
   const liveView = watching ? null : myResponse?.liveView;
   const liveViewUntil = liveView?.until ?? 0;
@@ -4104,7 +4105,7 @@ export const ActiveQuiz: React.FC<{
     localizedStrings
   );
   // The recording is the original wording, so a modified prompt drops it.
-  const promptAudio = modifiedServed ? undefined : currentQuestion.promptAudio;
+  const promptAudio = currentQuestion.promptAudio;
   const promptAudioViews = playsUsedFor(promptAudioPlayId(currentQuestion.id));
   // Only a limited recording needs its plays counted on the response.
   const recordPromptAudioView = promptAudio?.playLimit
@@ -4849,7 +4850,7 @@ export const ActiveQuiz: React.FC<{
               </div>
             )}
 
-            {/* Question; the recorded audio is the original wording, so a modified prompt has none yet. */}
+            {/* Question; a modified prompt plays only its own recording. */}
             {readAloudOn &&
             !modifiedServed &&
             (!promptAudio || displayQuestion.text.trim() !== '') ? (

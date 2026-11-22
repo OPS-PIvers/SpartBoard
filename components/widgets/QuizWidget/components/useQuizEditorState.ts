@@ -136,8 +136,12 @@ export interface QuizEditorController {
   updateStimulus: (id: string, updates: Partial<QuizStimulus>) => void;
   /** Removes the entry AND strips its id from every question. */
   deleteStimulus: (id: string) => void;
-  /** Attach/detach one stimulus on one question. */
-  toggleStimulusOnQuestion: (stimulusId: string, questionId: string) => void;
+  /** Attach/detach one stimulus on one question, or on its modified version. */
+  toggleStimulusOnQuestion: (
+    stimulusId: string,
+    questionId: string,
+    modified?: boolean
+  ) => void;
   /** Attach/detach one stimulus on every question a random bank slot draws. */
   toggleStimulusOnSlot: (stimulusId: string, slotId: string) => void;
   /** Attach the stimulus to every question and bank slot (or detach from all). */
@@ -556,9 +560,14 @@ export function useQuizEditorState({
     // references a deleted entry.
     setQuestions((qs) =>
       qs.map((q) => {
-        if (!q.stimulusIds?.includes(id)) return q;
-        const kept = q.stimulusIds.filter((sid) => sid !== id);
-        return { ...q, stimulusIds: kept.length > 0 ? kept : undefined };
+        let out = q;
+        for (const key of ['stimulusIds', 'modifiedStimulusIds'] as const) {
+          const ids = q[key];
+          if (!ids?.includes(id)) continue;
+          const kept = ids.filter((sid) => sid !== id);
+          out = { ...out, [key]: kept.length > 0 ? kept : undefined };
+        }
+        return out;
       })
     );
     setBankSlots((slots) =>
@@ -584,18 +593,19 @@ export function useQuizEditorState({
   );
 
   const toggleStimulusOnQuestion = useCallback(
-    (stimulusId: string, questionId: string) => {
+    (stimulusId: string, questionId: string, modified = false) => {
+      const key = modified ? 'modifiedStimulusIds' : 'stimulusIds';
       setQuestions((prev) =>
         prev.map((q) => {
           if (q.id !== questionId) return q;
-          const current = q.stimulusIds ?? [];
+          const current = q[key] ?? [];
           const attached = current.includes(stimulusId);
           const nextIds = attached
             ? current.filter((sid) => sid !== stimulusId)
             : [...current, stimulusId];
           return {
             ...q,
-            stimulusIds: nextIds.length > 0 ? nextIds : undefined,
+            [key]: nextIds.length > 0 ? nextIds : undefined,
           };
         })
       );
@@ -609,13 +619,30 @@ export function useQuizEditorState({
         prev.map((q) => {
           const current = q.stimulusIds ?? [];
           const has = current.includes(stimulusId);
-          if (attached === has) return q;
+          const modified = q.modifiedStimulusIds;
+          // A modified version with its own stimuli gets the shared one too.
+          const nextModified =
+            modified?.length && attached !== modified.includes(stimulusId)
+              ? attached
+                ? [...modified, stimulusId]
+                : modified.filter((sid) => sid !== stimulusId)
+              : modified;
+          if (attached === has && nextModified === modified) return q;
           const nextIds = attached
-            ? [...current, stimulusId]
+            ? has
+              ? current
+              : [...current, stimulusId]
             : current.filter((sid) => sid !== stimulusId);
           return {
             ...q,
             stimulusIds: nextIds.length > 0 ? nextIds : undefined,
+            ...(modified
+              ? {
+                  modifiedStimulusIds: nextModified?.length
+                    ? nextModified
+                    : undefined,
+                }
+              : {}),
           };
         })
       );

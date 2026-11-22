@@ -494,6 +494,10 @@ export function toPublicQuestion(
   if (q.stimulusIds && q.stimulusIds.length > 0) {
     base.stimulusIds = [...q.stimulusIds];
   }
+  if (q.modifiedStimulusIds?.length)
+    base.modifiedStimulusIds = [...q.modifiedStimulusIds];
+  if (q.modifiedPromptAudio?.driveFileId)
+    base.modifiedPromptAudio = { ...q.modifiedPromptAudio };
   // Carries no answer key; the student client and the archival callable both
   // read `takeLimit`/`limitSeconds` off the session doc. Absent stays absent.
   // Only written types render a recorder; a stray block elsewhere would hide

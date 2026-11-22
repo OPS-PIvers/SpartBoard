@@ -231,6 +231,28 @@ describe('applyModifiedWording', () => {
     const plain = q('2');
     expect(applyModifiedWording(plain, true)).toBe(plain);
   });
+  it('serves the modified stimuli with or without modified wording', () => {
+    const withStim: QuizPublicQuestion = {
+      ...q('3'),
+      stimulusIds: ['s1'],
+      modifiedStimulusIds: ['s2'],
+    };
+    const onlyStim = applyModifiedWording(withStim, true);
+    expect(onlyStim.stimulusIds).toEqual(['s2']);
+    expect(onlyStim.text).toBe('Q 3');
+    const both = applyModifiedWording(
+      { ...withStim, modifiedText: 'Easy Q 3' },
+      true
+    );
+    expect(both.stimulusIds).toEqual(['s2']);
+    expect(both.text).toBe('Easy Q 3');
+    expect(applyModifiedWording(withStim, false)).toBe(withStim);
+    const textOnly = applyModifiedWording(
+      { ...q('4'), stimulusIds: ['s1'], modifiedText: 'Easy' },
+      true
+    );
+    expect(textOnly.stimulusIds).toEqual(['s1']);
+  });
 });
 
 describe('applyModifiedRubric', () => {

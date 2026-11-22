@@ -8,7 +8,11 @@
  * students can load them — the teacher is prompted to confirm on every
  * attach (never auto-shared silently).
  */
-import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import {
+  tourFieldAttr,
+  tourTypeAttr,
+  type TourAnchorAttrs,
+} from '@/config/tourAnchors';
 import React, { useCallback, useContext, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -37,6 +41,7 @@ import {
   detectStimulusTypeFromFile,
   detectStimulusTypeFromUrl,
   isPlayLimitedType,
+  questionsUsingModifiedStimulus,
   questionsUsingStimulus,
   stimulusDisplayName,
   stimulusPickerTitle,
@@ -1059,6 +1064,38 @@ export const QuestionStimulusSection: React.FC<{
   );
 };
 
+/** The modified version's stimuli: shown instead of the question's to students with modified questions. */
+export const ModifiedStimulusSection: React.FC<{
+  state: QuizEditorController;
+  questionId: string;
+  calculatorAvailable?: boolean;
+  paperPlacement?: boolean;
+}> = ({
+  state,
+  questionId,
+  calculatorAvailable = false,
+  paperPlacement = false,
+}) => {
+  const question = state.questions.find((q) => q.id === questionId);
+  return (
+    <AttachStimulusSection
+      state={state}
+      attachedIds={question?.modifiedStimulusIds}
+      calculatorAvailable={calculatorAvailable}
+      pickerModal
+      paperPlacement={paperPlacement}
+      ownerNoun="modified version"
+      ownerLabel={`Q${state.questions.findIndex((q) => q.id === questionId) + 1} modified`}
+      ownerId={`${questionId}:modified`}
+      emptyValue="Same as the question"
+      anchor={tourTypeAttr('quiz-editor.modified-stimuli', 'quiz')}
+      onToggle={(stimulusId) =>
+        state.toggleStimulusOnQuestion(stimulusId, questionId, true)
+      }
+    />
+  );
+};
+
 /** Attach section for a random bank slot: stimuli shown with every drawn question. */
 export const SlotStimulusSection: React.FC<{
   state: QuizEditorController;
@@ -1102,8 +1139,12 @@ const AttachStimulusSection: React.FC<{
   metaList?: boolean;
   pickerModal?: boolean;
   paperPlacement?: boolean;
-  ownerNoun: 'question' | 'bank';
+  ownerNoun: 'question' | 'bank' | 'modified version';
   ownerLabel: string;
+  /** The footer value when nothing is attached. */
+  emptyValue?: string;
+  /** The picker toggle's live-tour anchor. */
+  anchor?: TourAnchorAttrs;
   onToggle: (stimulusId: string) => void;
 }> = ({
   state,
@@ -1116,6 +1157,8 @@ const AttachStimulusSection: React.FC<{
   paperPlacement = false,
   ownerNoun,
   ownerLabel,
+  emptyValue = 'None',
+  anchor = tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz'),
   onToggle,
 }) => {
   const { stimuli, questions, bankSlots } = state;
@@ -1253,6 +1296,9 @@ const AttachStimulusSection: React.FC<{
               ...questionsUsingStimulus(questions, s.id).map(
                 (i) => `Q${i + 1}`
               ),
+              ...questionsUsingModifiedStimulus(questions, s.id).map(
+                (i) => `Q${i + 1} modified`
+              ),
               ...bankSlots
                 .filter((slot) => slot.stimulusIds?.includes(s.id))
                 .map((slot) => slot.bankTitle),
@@ -1357,6 +1403,9 @@ const AttachStimulusSection: React.FC<{
   };
   const usedOn = (stimulusId: string) => [
     ...questionsUsingStimulus(questions, stimulusId).map((i) => `Q${i + 1}`),
+    ...questionsUsingModifiedStimulus(questions, stimulusId).map(
+      (i) => `Q${i + 1} modified`
+    ),
     ...bankSlots
       .filter((slot) => slot.stimulusIds?.includes(stimulusId))
       .map((slot) => slot.bankTitle),
@@ -1377,8 +1426,12 @@ const AttachStimulusSection: React.FC<{
             onPaperPlacement: (id: string, v: QuizStimulusPaperPlacement) =>
               state.updateStimulus(id, { paperPlacement: v }),
             // A bank draw prints with every drawn question, so it counts as shared.
+            // A question's original and modified version never print on one paper, so it counts once.
             paperUseCount: (id: string) =>
-              questionsUsingStimulus(questions, id).length +
+              new Set([
+                ...questionsUsingStimulus(questions, id),
+                ...questionsUsingModifiedStimulus(questions, id),
+              ]).size +
               2 *
                 bankSlots.filter((slot) => slot.stimulusIds?.includes(id))
                   .length,
@@ -1398,12 +1451,12 @@ const AttachStimulusSection: React.FC<{
         <PromptFooterToggle
           icon={FileText}
           label="Stimuli"
-          value={drop.dragging || attachedCount > 0 ? summary : 'None'}
+          value={drop.dragging || attachedCount > 0 ? summary : emptyValue}
           filled={attachedCount > 0}
           open={pickerModal ? pickerOpen : open}
           hasPopup={pickerModal}
           onClick={() => (pickerModal ? openPicker() : setOpen((o) => !o))}
-          anchor={tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz')}
+          anchor={anchor}
         />
         {picker}
         {!pickerModal &&
@@ -1431,7 +1484,7 @@ const AttachStimulusSection: React.FC<{
             onClick={openPicker}
             aria-haspopup="dialog"
             aria-describedby={`${fieldId}-value`}
-            {...tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz')}
+            {...anchor}
             className={`${metaValueClass} max-w-full py-1`}
           >
             <span
@@ -1465,7 +1518,7 @@ const AttachStimulusSection: React.FC<{
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
             aria-describedby={`${fieldId}-value`}
-            {...tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz')}
+            {...anchor}
             className={`${metaValueClass} max-w-full`}
           >
             <span
@@ -1497,7 +1550,7 @@ const AttachStimulusSection: React.FC<{
         onClick={pickerModal ? openPicker : () => setOpen((o) => !o)}
         aria-expanded={pickerModal ? undefined : open}
         aria-haspopup={pickerModal ? 'dialog' : undefined}
-        {...tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz')}
+        {...anchor}
         className="w-full flex items-center gap-2 px-3 py-2 text-left"
       >
         {open && !pickerModal ? (

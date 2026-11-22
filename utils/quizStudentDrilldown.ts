@@ -33,6 +33,7 @@ import {
   revealValueFor,
 } from '@/utils/quizFibAlternates';
 import {
+  isModifiedStudent,
   questionForResponse,
   type ModifiedSource,
 } from '@/utils/quizCalcResponse';
@@ -299,7 +300,13 @@ export function computeStudentDrilldown(
             : formatQuizAnswerText(q, { answer: q.correctAnswer })
         : null,
     };
-    if (q.stimulusIds?.length) base.stimulusIds = [...q.stimulusIds];
+    // A modified student saw the modified version's stimuli.
+    const shownStimulusIds =
+      q.modifiedStimulusIds?.length &&
+      isModifiedStudent(response, options.modified)
+        ? q.modifiedStimulusIds
+        : q.stimulusIds;
+    if (shownStimulusIds?.length) base.stimulusIds = [...shownStimulusIds];
     if (options.includeExplanations) {
       const explained = explanationsForQuestion(q);
       if (explained) base.explanation = explained;

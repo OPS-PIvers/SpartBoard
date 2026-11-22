@@ -4588,6 +4588,10 @@ export interface QuizQuestion {
   text: string;
   /** Modified wording of the prompt for students in a group with modified questions; same answer key. */
   modifiedText?: string;
+  /** Ids of `QuizData.stimuli` shown instead of `stimulusIds` to students with modified questions; absent = the same stimuli. */
+  modifiedStimulusIds?: string[];
+  /** The recorded modified prompt, played to students with modified questions instead of `promptAudio`. */
+  modifiedPromptAudio?: QuestionAudio;
   /** The teacher's recorded prompt, played to students with or instead of `text`. */
   promptAudio?: QuestionAudio;
   type: QuizQuestionType;
@@ -5425,6 +5429,10 @@ export interface QuizPublicQuestion {
   promptAudio?: QuestionAudio;
   /** The teacher's modified prompt, shown only to students whose override asks for it. */
   modifiedText?: string;
+  /** Ids into `QuizSession.stimuli` shown instead of `stimulusIds` to students whose override asks for modified questions. */
+  modifiedStimulusIds?: string[];
+  /** Projected verbatim from {@link QuizQuestion.modifiedPromptAudio}. */
+  modifiedPromptAudio?: QuestionAudio;
   timeLimit: number;
   /** MC/MA: all answer choices pre-shuffled (correct identity unknown) */
   choices?: string[];
@@ -11844,6 +11852,8 @@ export type GlobalFeature =
   | 'quiz-word-bank'
   /** Quiz editor attaches stimuli in a list-and-preview dialog instead of an inline checklist. */
   | 'quiz-stimulus-picker'
+  /** A question's modified version can show different stimuli. */
+  | 'quiz-modified-stimuli'
   /** Question editor metadata (stimuli, targets, DOK) as labeled fields like Type and Points. */
   | 'question-editor-fields'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */

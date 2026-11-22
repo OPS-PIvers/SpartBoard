@@ -115,22 +115,33 @@ export function stimulusMediaUrl(s: QuizStimulus): string {
  * Returns the same array when nothing changed so React state and dirty
  * checks aren't churned.
  */
-export function sanitizeStimulusPointers<T extends { stimulusIds?: string[] }>(
-  questions: T[],
-  stimuli: QuizStimulus[] | undefined
-): T[] {
+export function sanitizeStimulusPointers<
+  T extends { stimulusIds?: string[]; modifiedStimulusIds?: string[] },
+>(questions: T[], stimuli: QuizStimulus[] | undefined): T[] {
   const valid = new Set((stimuli ?? []).map((s) => s.id));
   let changed = false;
   const next = questions.map((q) => {
-    if (!q.stimulusIds || q.stimulusIds.length === 0) return q;
-    const kept = q.stimulusIds.filter((id) => valid.has(id));
-    if (kept.length === q.stimulusIds.length) return q;
-    changed = true;
-    // `undefined` is dropped by JSON.stringify (Drive) and by Firestore's
-    // `ignoreUndefinedProperties` (synced-group publishes).
-    return { ...q, stimulusIds: kept.length > 0 ? kept : undefined };
+    let out = q;
+    for (const key of ['stimulusIds', 'modifiedStimulusIds'] as const) {
+      const ids = q[key];
+      if (!ids || ids.length === 0) continue;
+      const kept = ids.filter((id) => valid.has(id));
+      if (kept.length === ids.length) continue;
+      changed = true;
+      // `undefined` is dropped by JSON.stringify (Drive) and by Firestore's
+      // `ignoreUndefinedProperties` (synced-group publishes).
+      out = { ...out, [key]: kept.length > 0 ? kept : undefined };
+    }
+    return out;
   });
   return changed ? next : questions;
+}
+
+/** Every stimulus id a question can show: its own and its modified version's. */
+export function allQuestionStimulusIds(
+  q: Pick<QuizQuestion, 'stimulusIds' | 'modifiedStimulusIds'>
+): string[] {
+  return [...(q.stimulusIds ?? []), ...(q.modifiedStimulusIds ?? [])];
 }
 
 /**
@@ -142,7 +153,7 @@ export function projectSessionStimuli(
 ): QuizStimulus[] {
   const referenced = new Set<string>();
   for (const q of quiz.questions) {
-    for (const id of q.stimulusIds ?? []) referenced.add(id);
+    for (const id of allQuestionStimulusIds(q)) referenced.add(id);
   }
   // Drive-sync/arrayUnion races can write the same stimulus id twice into
   // `stimuli` (same bug class as dedupeQuestionsById) — fence it here too.
@@ -169,7 +180,7 @@ export function readAloudTextByStimulusId(
 ): Record<string, string> {
   const referenced = new Set<string>();
   for (const q of quiz.questions) {
-    for (const id of q.stimulusIds ?? []) referenced.add(id);
+    for (const id of allQuestionStimulusIds(q)) referenced.add(id);
   }
   const out: Record<string, string> = {};
   for (const s of quiz.stimuli ?? []) {
@@ -264,6 +275,18 @@ export function questionsUsingStimulus(
   const out: number[] = [];
   questions.forEach((q, i) => {
     if (q.stimulusIds?.includes(stimulusId)) out.push(i);
+  });
+  return out;
+}
+
+/** Indexes of questions whose modified version shows this stimulus. */
+export function questionsUsingModifiedStimulus(
+  questions: readonly Pick<QuizQuestion, 'modifiedStimulusIds'>[],
+  stimulusId: string
+): number[] {
+  const out: number[] = [];
+  questions.forEach((q, i) => {
+    if (q.modifiedStimulusIds?.includes(stimulusId)) out.push(i);
   });
   return out;
 }

@@ -50,19 +50,28 @@ export function applyHiddenOptions(
   return reindexChoiceArray(question, 'choices', kept);
 }
 
-/** The teacher's modified prompt in place of the original, in every language until it has its own translation. */
+/** The teacher's modified prompt, recording and stimuli in place of the originals, in every language until it has its own translation. */
 export function applyModifiedWording(
   question: QuizPublicQuestion,
   on: boolean | undefined
 ): QuizPublicQuestion {
+  if (!on) return question;
+  let out = question.modifiedStimulusIds?.length
+    ? { ...question, stimulusIds: question.modifiedStimulusIds }
+    : question;
   const text = question.modifiedText;
-  if (!on || !text) return question;
+  if (!text) {
+    // A recording-only modified prompt keeps the original words.
+    return question.modifiedPromptAudio
+      ? { ...out, promptAudio: question.modifiedPromptAudio }
+      : out;
+  }
   // Fill-in-the-blank wording must keep the same blanks, or the boxes misnumber.
   if (
     question.type === 'FIB' &&
     countTextBlanks(text) !== countTextBlanks(question.text)
   )
-    return question;
+    return out;
   const localized = question.localized
     ? Object.fromEntries(
         Object.entries(question.localized).map(([loc, strings]) => [
@@ -71,7 +80,17 @@ export function applyModifiedWording(
         ])
       )
     : undefined;
-  return { ...question, text, ...(localized ? { localized } : {}) };
+  // The original recording speaks the original words, so it never plays over modified ones.
+  const { promptAudio: _original, ...rest } = out;
+  out = {
+    ...rest,
+    text,
+    ...(localized ? { localized } : {}),
+    ...(question.modifiedPromptAudio
+      ? { promptAudio: question.modifiedPromptAudio }
+      : {}),
+  };
+  return out;
 }
 
 /** The modified rubric in place of the original, in every language until it has its own translation. */
