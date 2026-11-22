@@ -123,4 +123,19 @@ describe('stimulus picker dialog', () => {
     await userEvent.click(screen.getByText('Passage 2'));
     expect(screen.getByText('This passage is empty.')).toBeInTheDocument();
   });
+
+  it('closes back to the question with Return', async () => {
+    render(
+      <QuestionStimulusSection
+        state={makeState()}
+        questionId="q1"
+        metaList
+        pickerModal
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Return' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Stimuli' })).toBeInTheDocument();
+  });
 });

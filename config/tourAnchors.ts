@@ -4026,6 +4026,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-stimuli.picker-return': {
+    label: 'Return button in the Quiz widget stimulus picker',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-stimuli.attach-toggle': {
     label: 'Attach section Stimuli disclosure in the Quiz widget',
     perWidgetType: true,
