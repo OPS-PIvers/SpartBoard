@@ -15,6 +15,9 @@ import {
 
 /** Longer files print as their link; a test paper is not the place for a whole book. */
 export const MAX_STIMULUS_PAGES = 40;
+/** Pages across the whole test, so a Chromebook can still decode the print window. */
+export const MAX_TEST_PAGES = 60;
+const FETCH_TIMEOUT_MS = 20_000;
 
 const EMPTY: PaperTestStimulusFiles = { images: {}, pages: {} };
 
@@ -28,7 +31,9 @@ const keyOf = (stimuli: readonly QuizStimulus[]): string =>
 async function fetchBlob(url: string): Promise<Blob | null> {
   if (!/^https:\/\//i.test(url)) return null;
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     return res.ok ? await res.blob() : null;
   } catch {
     return null;
@@ -77,6 +82,7 @@ export function usePaperTestStimulusFiles(
         ...Object.values(images.src).filter((u) => u.startsWith('blob:'))
       );
       const pages: Record<string, string[]> = {};
+      let pageTotal = 0;
       for (const s of fetched) {
         if (s.type === 'image' || !live) continue;
         let blob: Blob | null = null;
@@ -96,7 +102,12 @@ export function usePaperTestStimulusFiles(
         try {
           const pdf = await openPdfPages(blob);
           try {
-            if (pdf.pageCount > MAX_STIMULUS_PAGES) continue;
+            if (
+              pdf.pageCount > MAX_STIMULUS_PAGES ||
+              pageTotal + pdf.pageCount > MAX_TEST_PAGES
+            )
+              continue;
+            pageTotal += pdf.pageCount;
             const srcs: string[] = [];
             for (let n = 1; n <= pdf.pageCount && live; n += 1)
               srcs.push(keep((await pdf.render(n)).blob));
@@ -120,6 +131,8 @@ export function usePaperTestStimulusFiles(
     return () => {
       live = false;
       for (const url of objectUrls) URL.revokeObjectURL(url);
+      // Those URLs are gone, so report loading until the next run lands.
+      setResolved({ key: '', files: EMPTY });
     };
     // `stimuli` is rebuilt on every render; `key` is what changes what has to be fetched.
     // eslint-disable-next-line react-hooks/exhaustive-deps

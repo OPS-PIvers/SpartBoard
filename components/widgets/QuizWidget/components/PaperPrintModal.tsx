@@ -605,11 +605,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const sheetImages = usePaperSheetStimulusImages(imageStimuli);
   // Stimuli a printed question uses, fetched now so the test paper prints them on the click.
   const testStimuli = useMemo(() => {
+    const entries = versionPlan
+      ? versionPlan.versions.flatMap((v) => v.analysis.entries)
+      : analysis.entries;
     const used = new Set(
-      [...questionsById.values()].flatMap((q) => q.stimulusIds ?? [])
+      entries.flatMap((e) => questionsById.get(e.questionId)?.stimulusIds ?? [])
     );
     return quizStimuli.filter((s) => used.has(s.id));
-  }, [questionsById, quizStimuli]);
+  }, [versionPlan, analysis.entries, questionsById, quizStimuli]);
   const testStimulusFiles = usePaperTestStimulusFiles(testStimuli);
   const sharing = usePaperSheetImageSharing(sheetStimuli, inPlcGroup);
   /** Set once the teacher has answered the sharing ask, either way. */
