@@ -18,6 +18,8 @@ export const MAX_STIMULUS_PAGES = 40;
 /** Pages across the whole test, so a Chromebook can still decode the print window. */
 export const MAX_TEST_PAGES = 60;
 const FETCH_TIMEOUT_MS = 20_000;
+// Whole-dialog cap: a stalled image or PDF render must not keep Print disabled.
+const LOAD_TIMEOUT_MS = 60_000;
 
 const EMPTY: PaperTestStimulusFiles = { images: {}, pages: {} };
 
@@ -123,16 +125,24 @@ export function usePaperTestStimulusFiles(
       return { images: images.src, pages };
     };
 
-    void run()
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // A stalled image or PDF prints as links rather than leaving the button disabled.
+    const timedOut = new Promise<PaperTestStimulusFiles>((resolve) => {
+      timer = setTimeout(() => resolve(EMPTY), LOAD_TIMEOUT_MS);
+    });
+    void Promise.race([
       // A failed fetch prints as links rather than leaving the button disabled.
-      .catch((): PaperTestStimulusFiles => EMPTY)
-      .then((files) => {
-        if (live) setResolved({ key, files });
-        // Unmounted mid-fetch: free what finished after the cleanup ran.
-        else for (const url of objectUrls) URL.revokeObjectURL(url);
-      });
+      run().catch((): PaperTestStimulusFiles => EMPTY),
+      timedOut,
+    ]).then((files) => {
+      clearTimeout(timer);
+      if (live) setResolved({ key, files });
+      // Unmounted mid-fetch: free what finished after the cleanup ran.
+      else for (const url of objectUrls) URL.revokeObjectURL(url);
+    });
     return () => {
       live = false;
+      clearTimeout(timer);
       for (const url of objectUrls) URL.revokeObjectURL(url);
       // Those URLs are gone, so report loading until the next run lands.
       setResolved({ key: '', files: EMPTY });
