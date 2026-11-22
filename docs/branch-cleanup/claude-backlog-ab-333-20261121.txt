@@ -1,0 +1,1 @@
+claude/backlog-ab-333-20261121 (AB-333: gcPlcOrphans keeps groups with live header markers and prunes stale ones; backfill script for pre-#6408 groups)
