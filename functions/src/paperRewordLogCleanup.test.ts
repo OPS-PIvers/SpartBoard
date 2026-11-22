@@ -5,8 +5,17 @@ vi.mock('./firebaseAdmin', () => ({
   initializeApp: vi.fn(),
   firestore: vi.fn(),
 }));
+const captured = vi.hoisted(() => ({
+  opts: undefined as { document: string; retry?: boolean } | undefined,
+}));
 vi.mock('firebase-functions/v2/firestore', () => ({
-  onDocumentDeleted: vi.fn((_opts: unknown, handler: unknown) => handler),
+  onDocumentDeleted: (
+    opts: { document: string; retry?: boolean },
+    handler: unknown
+  ) => {
+    captured.opts = opts;
+    return handler;
+  },
 }));
 vi.mock('firebase-functions/logger', () => ({
   info: vi.fn(),
@@ -42,6 +51,14 @@ beforeEach(() => {
 });
 
 describe('cleanupPaperRewordLog', () => {
+  it('listens on response deletes and retries failures', () => {
+    const opts = captured.opts;
+    expect(opts?.document).toBe(
+      'quiz_sessions/{sessionId}/responses/{responseKey}'
+    );
+    expect(opts?.retry).toBe(true);
+  });
+
   const run = () =>
     (cleanupPaperRewordLog as unknown as Handler)({
       params: { sessionId: 'sess-1', responseKey: 'resp-1' },

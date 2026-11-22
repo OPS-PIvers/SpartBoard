@@ -24,6 +24,7 @@ export const cleanupPaperRewordLog = onDocumentDeleted(
     document: 'quiz_sessions/{sessionId}/responses/{responseKey}',
     memory: '256MiB',
     maxInstances: 5,
+    retry: true,
   },
   async (event) => {
     const { sessionId, responseKey } = event.params;
