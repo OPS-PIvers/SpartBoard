@@ -1129,7 +1129,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Short ClassLink class names',
     icon: Download,
     description:
-      'Classes imported from ClassLink get a short name with the course, term and period.',
+      'Classes imported from ClassLink get a short name with the course and period.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

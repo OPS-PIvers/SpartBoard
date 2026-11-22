@@ -105,7 +105,7 @@ export const parseClassTitle = (
   };
 };
 
-/** A short roster name like "English I A (S1, P2)", or null when the title doesn't look like an SIS title. */
+/** A short roster name like "English I A (P2)", or null when the title doesn't look like an SIS title. */
 export const cleanClassLinkName = (
   cls: Pick<ClassLinkClass, 'title' | 'periods'>
 ): string | null => {
@@ -114,9 +114,10 @@ export const cleanClassLinkName = (
     readClassPeriods(cls as ClassLinkClass)
   );
   if (!parsed) return null;
-  const { term, course, periods } = parsed;
-  const tags = [term, ...periods.map((p) => `P${p}`)].filter(Boolean);
-  return tags.length > 0 ? `${course} (${tags.join(', ')})` : course;
+  const { course, periods } = parsed;
+  return periods.length > 0
+    ? `${course} (${periods.map((p) => `P${p}`).join(', ')})`
+    : course;
 };
 
 const countNames = (names: Map<string, string>): Map<string, number> => {

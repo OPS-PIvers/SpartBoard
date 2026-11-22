@@ -129,11 +129,11 @@ describe('ClassLinkImportDialog', () => {
       <ClassLinkImportDialog isOpen mode={{ kind: 'new' }} onClose={vi.fn()} />
     );
 
-    expect(await screen.findByText('English I A (S1, P2)')).toBeInTheDocument();
+    expect(await screen.findByText('English I A (P2)')).toBeInTheDocument();
     expect(screen.getByText(sisClass.title)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /import/i }));
     await waitFor(() => expect(addRoster).toHaveBeenCalled());
-    expect(addRoster.mock.calls[0][0]).toBe('English I A (S1, P2)');
+    expect(addRoster.mock.calls[0][0]).toBe('English I A (P2)');
   });
 
   it('keeps the full ClassLink name when the flag is off', async () => {
@@ -152,6 +152,6 @@ describe('ClassLinkImportDialog', () => {
     expect(addRoster.mock.calls[0][0]).toBe(
       `English - ${sisClass.title} (18119)`
     );
-    expect(screen.queryByText('English I A (S1, P2)')).not.toBeInTheDocument();
+    expect(screen.queryByText('English I A (P2)')).not.toBeInTheDocument();
   });
 });

@@ -74,14 +74,14 @@ describe('tidyCourseCase', () => {
 
 describe('cleanClassLinkName', () => {
   const cls = { title: `${T}ENGLISH I A(2)` };
-  it('names the course with its term and period', () => {
-    expect(cleanClassLinkName(cls)).toBe('English I A (S1, P2)');
+  it('names the course with its period', () => {
+    expect(cleanClassLinkName(cls)).toBe('English I A (P2)');
     expect(cleanClassLinkName({ title: 'Ivers, J ART(3)' })).toBe('Art (P3)');
   });
 
   it('lists every OneRoster period', () => {
     const multi = { title: '(S1) Ivers, J MATH 7', periods: ['1', '2'] };
-    expect(cleanClassLinkName(multi)).toBe('Math 7 (S1, P1, P2)');
+    expect(cleanClassLinkName(multi)).toBe('Math 7 (P1, P2)');
   });
 });
 
@@ -98,9 +98,9 @@ describe('buildCleanClassNames', () => {
       { sourcedId: 'test:x', title: '(S1) Ivers, J TEST(1)' },
       { sourcedId: 'd', title: 'Homeroom' },
     ]);
-    expect(names.get('a')).toBe('English I A (S1, P2) (18119)');
-    expect(names.get('b')).toBe('English I A (S1, P2) (18666)');
-    expect(names.get('c')).toBe('English I A (S1, P3)');
+    expect(names.get('a')).toBe('English I A (P2) (18119)');
+    expect(names.get('b')).toBe('English I A (P2) (18666)');
+    expect(names.get('c')).toBe('English I A (P3)');
     expect(names.has('test:x')).toBe(false);
     expect(names.has('d')).toBe(false);
   });
@@ -112,7 +112,7 @@ describe('buildCleanClassNames', () => {
       { sourcedId: 'c', title: '(S1) Nohner, L MATH 7(1)' },
     ]);
     expect(names.has('a')).toBe(false);
-    expect(names.get('b')).toBe('Math 7 (S1, P1) (9)');
+    expect(names.get('b')).toBe('Math 7 (P1) (9)');
     expect(names.has('c')).toBe(false);
   });
 });
