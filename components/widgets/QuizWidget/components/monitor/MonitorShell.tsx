@@ -146,6 +146,8 @@ export interface QuizLiveMonitorProps {
   onReopenStudent?: (responseKey: string) => Promise<void>;
   /** Turn in a student's saved answers by response-doc key. */
   onSubmitForStudent?: (responseKey: string) => Promise<void>;
+  /** Hands a claimed scanned row back to its PIN so another device can join. */
+  onReleasePaperRow?: (responseKey: string) => Promise<void>;
   /** Unlock a results-view lockout by response-doc key. */
   onUnlockResultsForStudent?: (responseKey: string) => Promise<void>;
   /** Clear a student's raised hand by response-doc key. */
@@ -254,6 +256,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     onUnlockStudent,
     onReopenStudent,
     onSubmitForStudent,
+    onReleasePaperRow,
     onUnlockResultsForStudent,
     onClearHand,
     onRevealAnswer,
@@ -1015,6 +1018,24 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     [onSubmitForStudent, showConfirm, addToast]
   );
 
+  const handleReleasePaperRow = useCallback(
+    async (key: string) => {
+      const ok = await showConfirm(
+        'Their old device will lose this row. Their scanned answers stay. They can join again with their PIN.',
+        { title: 'Let this student rejoin?', confirmLabel: 'Let rejoin' }
+      );
+      if (!ok) return;
+      try {
+        await onReleasePaperRow?.(key);
+        addToast('Student can rejoin.', 'success');
+      } catch (err) {
+        logError('QuizLiveMonitor.releasePaperRow', err);
+        addToast('Could not free this row. Try again.', 'error');
+      }
+    },
+    [onReleasePaperRow, showConfirm, addToast]
+  );
+
   const handleUnlockResults = useCallback(
     async (key: string) => {
       try {
@@ -1430,6 +1451,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 onReopen={onReopenStudent ? handleReopen : undefined}
                 onSubmitForStudent={
                   onSubmitForStudent ? handleSubmitForStudent : undefined
+                }
+                onReleasePaperRow={
+                  onReleasePaperRow ? handleReleasePaperRow : undefined
                 }
                 onUnlockResults={
                   onUnlockResultsForStudent ? handleUnlockResults : undefined
