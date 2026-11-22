@@ -23,6 +23,7 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
+  Loader2,
   Printer,
   Share2,
   X,
@@ -144,6 +145,8 @@ import {
 } from '@/utils/paperSheetVersions';
 import { resolveQuizAssignment, type BankContent } from '@/utils/questionBanks';
 import { printPaperTest } from '@/utils/paperTestPrint';
+import { attachPaperTestStimuli } from '@/utils/paperTestStimuli';
+import { usePaperTestStimulusFiles } from '@/hooks/usePaperTestStimulusFiles';
 import type {
   PrintedSupport,
   PrintedTranslation,
@@ -600,6 +603,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     ];
   }, [sheetStimuli, promptSets, boxImageStimuli]);
   const sheetImages = usePaperSheetStimulusImages(imageStimuli);
+  // Stimuli a printed question uses, fetched now so the test paper prints them on the click.
+  const testStimuli = useMemo(() => {
+    const used = new Set(
+      [...questionsById.values()].flatMap((q) => q.stimulusIds ?? [])
+    );
+    return quizStimuli.filter((s) => used.has(s.id));
+  }, [questionsById, quizStimuli]);
+  const testStimulusFiles = usePaperTestStimulusFiles(testStimuli);
   const sharing = usePaperSheetImageSharing(sheetStimuli, inPlcGroup);
   /** Set once the teacher has answered the sharing ask, either way. */
   const [sharingAnswered, setSharingAnswered] = useState(false);
@@ -1259,6 +1270,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         // Paper prints only these, so the choose line counts only them.
         const printedIds = printed.map((r) => r.questionId);
         const headed = new Set<string>();
+        const stimuliOf = attachPaperTestStimuli(
+          printed,
+          questionsById,
+          quizStimuli,
+          testStimulusFiles.files
+        );
         return printed.flatMap((r) => {
           const q = questionsById.get(r.questionId);
           if (!q) return [];
@@ -1297,6 +1314,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               ...choicePictureFields(q, choices),
               ...(r.written ? { written: true } : {}),
               ...(heading ? { section: heading } : {}),
+              ...(stimuliOf.get(q.id)?.block
+                ? { stimuli: stimuliOf.get(q.id)?.block }
+                : {}),
+              ...(stimuliOf.get(q.id)?.inline
+                ? { inlineStimuli: stimuliOf.get(q.id)?.inline }
+                : {}),
             },
           ];
         });
@@ -1467,10 +1490,15 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             <button
               type="button"
               onClick={handlePrintTest}
+              disabled={testStimulusFiles.loading}
               {...tourTypeAttr('quiz-print.print-test-paper', 'quiz')}
-              className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark"
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-60"
             >
-              <FileText className="h-4 w-4" />
+              {testStimulusFiles.loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <FileText className="h-4 w-4" />
+              )}
               Print test paper
             </button>
           </div>
