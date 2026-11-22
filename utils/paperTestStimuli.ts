@@ -212,3 +212,72 @@ export function resourceLine(letters: readonly string[]): string {
   const head = letters.slice(0, -1).join(', ');
   return `Use Resources ${head} and ${letters[letters.length - 1]}.`;
 }
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null;
+
+/** A teammate's copy of the owner's quiz stimuli, checked because it arrives untyped. */
+export interface TeammateQuizStimuli {
+  stimuli: QuizStimulus[];
+  questionsById: Map<string, Pick<QuizQuestion, 'id' | 'stimulusIds'>>;
+}
+
+export function teammateQuizStimuli(
+  quiz:
+    | { questions: readonly unknown[]; stimuli?: readonly unknown[] }
+    | null
+    | undefined
+): TeammateQuizStimuli {
+  const stimuli = (quiz?.stimuli ?? []).filter(
+    (s): s is QuizStimulus =>
+      isRecord(s) &&
+      typeof s.id === 'string' &&
+      typeof s.type === 'string' &&
+      (s.url === undefined || typeof s.url === 'string') &&
+      (s.text === undefined || typeof s.text === 'string')
+  );
+  const questionsById = new Map<
+    string,
+    Pick<QuizQuestion, 'id' | 'stimulusIds'>
+  >();
+  for (const q of quiz?.questions ?? []) {
+    if (!isRecord(q) || typeof q.id !== 'string') continue;
+    const ids = Array.isArray(q.stimulusIds)
+      ? q.stimulusIds.filter((id): id is string => typeof id === 'string')
+      : [];
+    if (ids.length) questionsById.set(q.id, { id: q.id, stimulusIds: ids });
+  }
+  return {
+    stimuli: stimuli.map((s) => ({ ...s, url: s.url ?? '' })),
+    questionsById,
+  };
+}
+
+/** Adds the owner's stimuli to the test paper rows the server built; rows from an older server print as before. */
+export function teammateTestPaper<
+  Row extends { row: number | string; questionId?: string },
+>(
+  rows: readonly Row[],
+  quiz: TeammateQuizStimuli,
+  files: PaperTestStimulusFiles
+): {
+  questions: (Omit<Row, 'questionId'> & PrintedQuestionStimuli)[];
+  resources: PaperTestResource[];
+} {
+  const printed = rows.flatMap((r) =>
+    r.questionId ? [{ questionId: r.questionId, row: r.row }] : []
+  );
+  const placed = attachPaperTestStimuli(
+    printed,
+    quiz.questionsById,
+    quiz.stimuli,
+    files
+  );
+  return {
+    questions: rows.map(({ questionId, ...rest }) => ({
+      ...rest,
+      ...(questionId ? placed.questions.get(questionId) : undefined),
+    })),
+    resources: placed.resources,
+  };
+}

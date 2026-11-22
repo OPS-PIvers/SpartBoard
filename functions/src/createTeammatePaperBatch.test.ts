@@ -732,7 +732,13 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
     expect(batchWrite(writes)?.data.pageMaps).toEqual(result.batch.pageMaps);
     expect(result.testPaper).toEqual([
       expect.objectContaining({ row: 1 }),
-      { row: 2, text: 'Explain why', choices: [], written: true },
+      {
+        row: 2,
+        questionId: 'q-essay',
+        text: 'Explain why',
+        choices: [],
+        written: true,
+      },
       expect.objectContaining({ row: 3 }),
     ]);
   });

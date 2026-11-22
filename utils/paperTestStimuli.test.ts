@@ -5,6 +5,8 @@ import {
   paperTestStimulus,
   resourceLetter,
   resourceLine,
+  teammateQuizStimuli,
+  teammateTestPaper,
 } from './paperTestStimuli';
 import { buildPaperTestHtml } from './paperTestPrint';
 
@@ -224,5 +226,68 @@ describe('long stimuli in a question', () => {
       ],
     });
     expect(html.match(/<li class="tall">/g)).toHaveLength(1);
+  });
+});
+
+describe('teammate test paper', () => {
+  const quiz = teammateQuizStimuli({
+    questions: [
+      { id: 'q1', stimulusIds: ['p', 7] },
+      { id: 'q2', stimulusIds: ['p', 'n'] },
+      { id: 'q3' },
+      'junk',
+    ],
+    stimuli: [
+      { id: 'p', type: 'text', text: 'Shared passage' },
+      { id: 'n', type: 'text', text: 'Only here' },
+      { id: 'bad', type: 3 },
+      null,
+    ],
+  });
+
+  it('keeps only well formed stimuli and question links', () => {
+    expect(quiz.stimuli.map((s) => s.id)).toEqual(['p', 'n']);
+    expect(quiz.questionsById.get('q1')?.stimulusIds).toEqual(['p']);
+    expect(quiz.questionsById.has('q3')).toBe(false);
+  });
+
+  it('adds stimuli to rows by question and drops the question id', () => {
+    const { questions, resources } = teammateTestPaper(
+      [
+        { row: 1, questionId: 'q1', text: 'One', choices: ['a'] },
+        { row: 2, questionId: 'q2', text: 'Two', choices: ['a'] },
+        { row: 3, text: 'Old server row', choices: ['a'] },
+      ],
+      quiz,
+      NO_FILES
+    );
+    expect(resources).toEqual([
+      { letter: 'A', item: { kind: 'text', text: 'Shared passage' } },
+    ]);
+    expect(questions[0]).toEqual({
+      row: 1,
+      text: 'One',
+      choices: ['a'],
+      resources: ['A'],
+    });
+    expect(questions[1]).toMatchObject({
+      stimuli: [{ kind: 'text', text: 'Only here' }],
+      resources: ['A'],
+    });
+    expect(questions[2]).toEqual({
+      row: 3,
+      text: 'Old server row',
+      choices: ['a'],
+    });
+  });
+
+  it('prints as before when the quiz has no stimuli', () => {
+    const rows = [{ row: 1, questionId: 'q1', text: 'One', choices: ['a'] }];
+    expect(
+      teammateTestPaper(rows, teammateQuizStimuli(undefined), NO_FILES)
+    ).toEqual({
+      questions: [{ row: 1, text: 'One', choices: ['a'] }],
+      resources: [],
+    });
   });
 });
