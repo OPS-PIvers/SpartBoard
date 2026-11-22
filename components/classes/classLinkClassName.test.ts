@@ -13,21 +13,21 @@ describe('parseClassTitle', () => {
     expect(parseClassTitle(`${T}ENGLISH I A(2)`)).toEqual({
       term: 'S1',
       course: 'English I A',
-      period: '2',
+      periods: ['2'],
     });
     expect(
       parseClassTitle('(S2) Ivers, J READING FOR HIGH SCHOOL SUCCESS(5)')
     ).toEqual({
       term: 'S2',
       course: 'Reading for High School Success',
-      period: '5',
+      periods: ['5'],
     });
   });
 
   it('falls back to OneRoster periods when the title has none', () => {
     expect(parseClassTitle('(S1) Ivers, J AP BIOLOGY', ['3'])).toMatchObject({
       course: 'AP Biology',
-      period: '3',
+      periods: ['3'],
     });
   });
 
@@ -35,6 +35,27 @@ describe('parseClassTitle', () => {
     expect(parseClassTitle('Spanish II A(5)')).toBeNull();
     expect(parseClassTitle('Mock Period 1 (test)')).toBeNull();
     expect(parseClassTitle('(S1) ')).toBeNull();
+    expect(parseClassTitle('(S1) CHOIR, A CAPPELLA(2)')).toBeNull();
+    expect(parseClassTitle('(S1) Erickson, T')).toBeNull();
+  });
+
+  it('handles multi-word surnames, full first names and co-teachers with initials', () => {
+    expect(parseClassTitle('(S1) De La Cruz, K ENGLISH I A(2)')?.course).toBe(
+      'English I A'
+    );
+    expect(parseClassTitle('(S1) Erickson, Tom MATH 7(1)')?.course).toBe(
+      'Math 7'
+    );
+    expect(parseClassTitle('(S1) Erickson, T /Frie, J MATH 7(1)')?.course).toBe(
+      'Math 7'
+    );
+  });
+
+  it('only reads a number in parentheses as a period', () => {
+    expect(parseClassTitle('(S1) Erickson, T BIOLOGY (H)')).toMatchObject({
+      course: 'Biology (H)',
+      periods: [],
+    });
   });
 });
 
@@ -42,6 +63,8 @@ describe('tidyCourseCase', () => {
   it('title-cases all-caps names but keeps numerals and acronyms', () => {
     expect(tidyCourseCase('AP US HISTORY II')).toBe('AP US History II');
     expect(tidyCourseCase('BIOLOGY 1-2')).toBe('Biology 1-2');
+    expect(tidyCourseCase('IB HL MATH')).toBe('IB HL Math');
+    expect(tidyCourseCase('6TH GRADE SCIENCE')).toBe('6th Grade Science');
   });
 
   it('leaves mixed-case names alone', () => {
@@ -57,6 +80,14 @@ describe('cleanClassLinkName', () => {
       'English I A, Period 2'
     );
     expect(cleanClassLinkName(cls, 'period-course')).toBe('P2 English I A');
+  });
+
+  it('lists every OneRoster period', () => {
+    const multi = { title: '(S1) Ivers, J MATH 7', periods: ['1', '2'] };
+    expect(cleanClassLinkName(multi)).toBe('Math 7 (S1, P1, P2)');
+    expect(cleanClassLinkName(multi, 'course-period')).toBe(
+      'Math 7, Periods 1, 2'
+    );
   });
 });
 
@@ -78,5 +109,16 @@ describe('buildCleanClassNames', () => {
     expect(names.get('c')).toBe('English I A (S1, P3)');
     expect(names.has('test:x')).toBe(false);
     expect(names.has('d')).toBe(false);
+  });
+
+  it('keeps the full title when a repeat has no class code', () => {
+    const names = buildCleanClassNames([
+      { sourcedId: 'a', title: '(S1) Ivers, J MATH 7(1)' },
+      { sourcedId: 'b', title: '(S1) Frie, K MATH 7(1)', classCode: '9' },
+      { sourcedId: 'c', title: '(S1) Nohner, L MATH 7(1)' },
+    ]);
+    expect(names.has('a')).toBe(false);
+    expect(names.get('b')).toBe('Math 7 (S1, P1) (9)');
+    expect(names.has('c')).toBe(false);
   });
 });

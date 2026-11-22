@@ -7,18 +7,25 @@ export type ClassNameStyle =
 export interface ParsedClassTitle {
   term?: string;
   course: string;
-  period?: string;
+  periods: string[];
 }
 
 const TERM_RE = /^\(\s*([A-Z]{1,3}\d{0,2})\s*\)\s*/i;
-const TRAILING_PERIOD_RE = /\s*\(\s*([A-Z0-9]{1,4})\s*\)\s*$/i;
-// "Erickson, T /Frie/Ivers/Nohner " or "Ivers, J ": last name, initial, optional /co-teachers.
-const TEACHERS_RE =
-  /^[A-Z][A-Za-z'’-]*(?:\s[A-Z][A-Za-z'’-]*)?,\s*[A-Z]\.?(?:\s*\/\s*[A-Z][A-Za-z'’-]*)*\s+/;
+const TRAILING_PERIOD_RE = /\s*\(\s*(\d{1,2}[A-Z]?)\s*\)\s*$/i;
+// A name word has a lowercase letter, so all-caps course text like "CHOIR, A" is never read as a teacher.
+const NAME = "[A-Z][A-Za-z'’-]*[a-z][A-Za-z'’-]*";
+const GIVEN = `(?:[A-Z]\\.?|${NAME})`;
+// "Erickson, T /Frie/Ivers/Nohner " or "De La Cruz, K ": surname, initial, optional /co-teachers.
+const TEACHERS_RE = new RegExp(
+  `^${NAME}(?:\\s${NAME}){0,2},\\s*${GIVEN}(?:\\s*\\/\\s*${NAME}(?:,\\s*${GIVEN})?)*(?:\\s+|$)`
+);
 const ROMAN_RE = /^(?:I|II|III|IV|V|VI|VII|VIII|IX|X)$/;
+const ORDINAL_RE = /^(\d+)(ST|ND|RD|TH)$/;
 const KEEP_UPPER = new Set([
   'AP',
   'IB',
+  'HL',
+  'SL',
   'CIS',
   'PE',
   'ELL',
@@ -55,6 +62,8 @@ const SMALL_WORDS = new Set([
 
 const titleWord = (word: string, isFirst: boolean): string => {
   if (!/[A-Z]/.test(word)) return word;
+  const ordinal = ORDINAL_RE.exec(word);
+  if (ordinal) return `${ordinal[1]}${ordinal[2].toLowerCase()}`;
   if (ROMAN_RE.test(word) || KEEP_UPPER.has(word) || /\d/.test(word))
     return word;
   if (word.length === 1) return word;
@@ -86,12 +95,17 @@ export const parseClassTitle = (
   const periodMatch = TRAILING_PERIOD_RE.exec(rest);
   if (periodMatch) rest = rest.slice(0, periodMatch.index);
   const teachersMatch = TEACHERS_RE.exec(rest);
-  if (teachersMatch) rest = rest.slice(teachersMatch[0].length);
-  const course = rest.replace(/\s+/g, ' ').trim();
-  if (!course || (!termMatch && !teachersMatch)) return null;
-  const period =
-    periodMatch?.[1] ?? (periods.length > 0 ? periods.join(', ') : undefined);
-  return { term, course: tidyCourseCase(course), period };
+  if (!teachersMatch) return null;
+  const course = rest
+    .slice(teachersMatch[0].length)
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!course || /[,/]/.test(course)) return null;
+  return {
+    term,
+    course: tidyCourseCase(course),
+    periods: periodMatch ? [periodMatch[1]] : [...periods],
+  };
 };
 
 /** A short, readable roster name for a ClassLink class, or null when the title doesn't look like an SIS title. */
@@ -104,34 +118,44 @@ export const cleanClassLinkName = (
     readClassPeriods(cls as ClassLinkClass)
   );
   if (!parsed) return null;
-  const { term, course, period } = parsed;
-  if (style === 'period-course')
-    return period ? `P${period} ${course}` : course;
+  const { term, course, periods } = parsed;
+  const short = periods.map((p) => `P${p}`).join(', ');
+  if (style === 'period-course') return short ? `${short} ${course}` : course;
   if (style === 'course-term-period') {
-    const tags = [term, period ? `P${period}` : undefined].filter(Boolean);
+    const tags = [term, short].filter(Boolean);
     return tags.length > 0 ? `${course} (${tags.join(', ')})` : course;
   }
-  return period ? `${course}, Period ${period}` : course;
+  if (periods.length === 0) return course;
+  const label = periods.length > 1 ? 'Periods' : 'Period';
+  return `${course}, ${label} ${periods.join(', ')}`;
 };
 
-/** Clean names keyed by sourcedId; repeated names get their class code so sections stay distinct. */
+const countNames = (names: Map<string, string>): Map<string, number> => {
+  const counts = new Map<string, number>();
+  for (const name of names.values())
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  return counts;
+};
+
+/** Clean names keyed by sourcedId; repeats get their class code, and any still repeated keep the full title. */
 export const buildCleanClassNames = (
   classes: readonly ClassLinkClass[],
   style: ClassNameStyle = 'course-term-period'
 ): Map<string, string> => {
   const names = new Map<string, string>();
-  const counts = new Map<string, number>();
   for (const cls of classes) {
     if (cls.sourcedId.startsWith('test:')) continue;
     const name = cleanClassLinkName(cls, style);
-    if (!name || name === cls.title) continue;
-    names.set(cls.sourcedId, name);
-    counts.set(name, (counts.get(name) ?? 0) + 1);
+    if (name && name !== cls.title) names.set(cls.sourcedId, name);
   }
+  const counts = countNames(names);
   for (const cls of classes) {
     const name = names.get(cls.sourcedId);
     if (name && (counts.get(name) ?? 0) > 1 && cls.classCode)
       names.set(cls.sourcedId, `${name} (${cls.classCode})`);
   }
+  const finalCounts = countNames(names);
+  for (const [id, name] of [...names])
+    if ((finalCounts.get(name) ?? 0) > 1) names.delete(id);
   return names;
 };
