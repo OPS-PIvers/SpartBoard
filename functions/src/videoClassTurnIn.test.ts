@@ -376,6 +376,123 @@ describe('queue and sweep', () => {
     expect(store.docs.has(marker())).toBe(false);
   });
 
+  it('re-queues a closed class for its first live pass expiry, then turns the student in', async () => {
+    const end = NOW + 30 * 60_000;
+    store.docs.set(
+      S,
+      session(
+        { state: 'closed', closedAt: CLOSED_AT },
+        { studentAccess: { late: end, later: end + 60_000 } }
+      )
+    );
+    open('late', { classId: 'p1' });
+    open('later', { classId: 'p1' });
+    await queueClose();
+    const r = await runVideoClassTurnIns(db as never, NOW);
+    expect(r).toMatchObject({ turnedIn: 0, requeued: 1 });
+    expect(store.docs.get(marker())).toMatchObject({ dueAt: end, attempts: 0 });
+    expect((await runVideoClassTurnIns(db as never, end - 1)).markers).toBe(0);
+    const r2 = await runVideoClassTurnIns(db as never, end + 1);
+    expect(r2).toMatchObject({ turnedIn: 1, requeued: 1 });
+    expect(turnedIn()).toEqual(['late']);
+    expect(store.docs.get(marker())).toMatchObject({ dueAt: end + 60_000 });
+    await runVideoClassTurnIns(db as never, end + 60_001);
+    expect(turnedIn()).toEqual(['late', 'later']);
+    expect(store.docs.has(marker())).toBe(false);
+  });
+
+  it('does not re-queue for reopened-for or unlocked students, but does for a blank row with a live pass', async () => {
+    store.docs.set(
+      S,
+      session(
+        { state: 'closed', closedAt: CLOSED_AT },
+        { studentAccess: { u: NOW + 1000 }, reopenedFor: ['picked'] }
+      )
+    );
+    open('picked', { classId: 'p1' });
+    open('u', { classId: 'p1', unlocked: true });
+    await queueClose();
+    const r = await runVideoClassTurnIns(db as never, NOW);
+    expect(r.requeued).toBe(0);
+    expect(store.docs.has(marker())).toBe(false);
+    open('blank', { classId: 'p1', answers: [] });
+    store.docs.set(
+      S,
+      session(
+        { state: 'closed', closedAt: CLOSED_AT },
+        { studentAccess: { blank: NOW + 1000 } }
+      )
+    );
+    await queueClose();
+    expect((await runVideoClassTurnIns(db as never, NOW)).requeued).toBe(1);
+    const r2 = await runVideoClassTurnIns(db as never, NOW + 2000);
+    expect(r2).toMatchObject({ turnedIn: 0, requeued: 0 });
+    expect(store.docs.has(marker())).toBe(false);
+  });
+
+  it('queues a marker when a pass is granted after the class closed', async () => {
+    const closed = session({ state: 'closed', closedAt: CLOSED_AT });
+    const end = NOW + 60_000;
+    await queueClosedClasses(
+      db as never,
+      's1',
+      closed,
+      { ...closed, studentAccess: { a: end } },
+      NOW
+    );
+    expect(store.docs.get(marker())).toMatchObject({
+      closedAt: CLOSED_AT,
+      dueAt: end,
+    });
+    const end2 = NOW + 30_000;
+    await queueClosedClasses(
+      db as never,
+      's1',
+      { ...closed, studentAccess: { a: end } },
+      { ...closed, studentAccess: { a: end, b: end2 } },
+      NOW
+    );
+    expect(store.docs.get(marker())?.dueAt).toBe(end2);
+    await queueClosedClasses(
+      db as never,
+      's1',
+      { ...closed, studentAccess: { a: end, b: end2 } },
+      { ...closed, studentAccess: { a: end, b: end2, c: end + 1 } },
+      NOW
+    );
+    expect(store.docs.get(marker())?.dueAt).toBe(end2);
+  });
+
+  it('queues a marker when a reopen is removed from a closed class', async () => {
+    const closed = session({ state: 'closed', closedAt: CLOSED_AT });
+    await queueClosedClasses(
+      db as never,
+      's1',
+      { ...closed, reopenedFor: ['a'] },
+      closed,
+      NOW
+    );
+    expect(store.docs.get(marker())?.dueAt).toBe(NOW + TURN_IN_DELAY_MS);
+  });
+
+  it('counts a pass granted while a run is in flight', async () => {
+    store.docs.set(S, session({ state: 'closed', closedAt: CLOSED_AT }));
+    open('a', { classId: 'p1' });
+    open('b', { classId: 'p1' });
+    const end = NOW + 60_000;
+    store.onTx = () => {
+      store.docs.set(
+        S,
+        session(
+          { state: 'closed', closedAt: CLOSED_AT },
+          { studentAccess: { b: end } }
+        )
+      );
+    };
+    const r = await run();
+    expect(r.recheckAt).toBe(end);
+  });
+
   it('clears a stale marker without writing', async () => {
     store.docs.set(S, session({ state: 'open', closedAt: null }));
     open('a', { classId: 'p1' });
