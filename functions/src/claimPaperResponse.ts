@@ -218,3 +218,103 @@ export const claimPaperResponseV1 = onCall(
     return handleClaimPaperResponse(admin.firestore(), caller, request.data);
   }
 );
+
+export type ReleasePaperResponseResult =
+  | { released: true }
+  | { released: false; reason: 'not-claimed' | 'not-found' | 'rate-limited' };
+
+interface ReleaseCaller {
+  uid: string;
+  anonymous: boolean;
+  studentRole: boolean;
+}
+
+const RELEASE_WINDOW_MS = 60_000;
+const RELEASE_MAX_PER_WINDOW = 30;
+const releaseCalls = new Map<string, number[]>();
+
+function releaseLimited(uid: string, now: number): boolean {
+  const recent = (releaseCalls.get(uid) ?? []).filter(
+    (t) => now - t < RELEASE_WINDOW_MS
+  );
+  if (recent.length >= RELEASE_MAX_PER_WINDOW) {
+    releaseCalls.set(uid, recent);
+    return true;
+  }
+  recent.push(now);
+  releaseCalls.set(uid, recent);
+  return false;
+}
+
+export function __resetReleaseLimits(): void {
+  releaseCalls.clear();
+}
+
+/** The session's teacher hands a claimed scan-first row back to its PIN key so the next PIN join can claim it. */
+export async function handleReleasePaperResponse(
+  db: admin.firestore.Firestore,
+  caller: ReleaseCaller | null,
+  raw: unknown,
+  now: number = Date.now()
+): Promise<ReleasePaperResponseResult> {
+  if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
+  if (caller.anonymous || caller.studentRole) {
+    throw new HttpsError('permission-denied', 'Teachers only.');
+  }
+  const data = (raw ?? {}) as Record<string, unknown>;
+  const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
+  const responseKey =
+    typeof data.responseKey === 'string' ? data.responseKey : '';
+  if (
+    !sessionId ||
+    sessionId.includes('/') ||
+    !responseKey ||
+    responseKey.includes('/') ||
+    !responseKey.startsWith('pin-')
+  ) {
+    throw new HttpsError(
+      'invalid-argument',
+      'sessionId and responseKey are required.'
+    );
+  }
+  const sessionRef = db.collection('quiz_sessions').doc(sessionId);
+  const sessionSnap = await sessionRef.get();
+  if (!sessionSnap.exists || sessionSnap.data()?.teacherUid !== caller.uid) {
+    throw new HttpsError(
+      'permission-denied',
+      'Only the teacher who owns this session can release a row.'
+    );
+  }
+  if (releaseLimited(caller.uid, now)) {
+    return { released: false, reason: 'rate-limited' };
+  }
+  const responseRef = sessionRef.collection('responses').doc(responseKey);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(responseRef);
+    if (!snap.exists) return { released: false, reason: 'not-found' } as const;
+    const row = snap.data() ?? {};
+    if (typeof row.paperWrittenBatchId !== 'string') {
+      return { released: false, reason: 'not-claimed' } as const;
+    }
+    // Already at its PIN key: nothing to release, and a retry after a lost reply lands here.
+    if (row.studentUid === responseKey) return { released: true } as const;
+    tx.update(responseRef, { studentUid: responseKey });
+    return { released: true } as const;
+  });
+}
+
+export const releasePaperResponseV1 = onCall(
+  { memory: '256MiB', invoker: 'public', cors: ALLOWED_ORIGINS },
+  async (request) => {
+    await assertViewAsAllowed(request);
+    const auth = request.auth;
+    const caller = auth
+      ? {
+          uid: auth.uid,
+          anonymous: auth.token.firebase?.sign_in_provider === 'anonymous',
+          studentRole: auth.token.studentRole === true,
+        }
+      : null;
+    return handleReleasePaperResponse(admin.firestore(), caller, request.data);
+  }
+);

@@ -233,6 +233,7 @@ import {
   responseColorIndex,
 } from './utils/resolveDisplayName';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
+import { releasePaperRow } from '@/hooks/quizSession/joinHelpers';
 import { QuizLiveMonitor } from './components/QuizLiveMonitor';
 import { PaperPrintModal } from './components/PaperPrintModal';
 import {
@@ -3364,6 +3365,7 @@ const TeacherQuizWidget: React.FC<{
           onUnlockStudent={unlockStudentAttempt}
           onReopenStudent={reopenStudentAttempt}
           onSubmitForStudent={submitForStudent}
+          onReleasePaperRow={(key) => releasePaperRow(liveSession.id, key)}
           onUnlockResultsForStudent={unlockResultsForStudent}
           onClearHand={clearHandForStudent}
           onRevealAnswer={revealAnswer}
