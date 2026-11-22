@@ -271,3 +271,10 @@ describe('buildPlcPath', () => {
     }
   });
 });
+
+describe('parsePlcPath malformed encoding', () => {
+  it('does not throw on a truncated percent escape', () => {
+    expect(() => parsePlcPath('/plc/abc%E0%A4%A/data')).not.toThrow();
+    expect(parsePlcPath('/plc/abc%/docs/d%1').plcId).toBe('abc%');
+  });
+});
