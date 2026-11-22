@@ -254,6 +254,24 @@ describe('PreviewsPanel', () => {
     expect(screen.queryByTestId('graduate-quiz-time-limit')).toBeNull();
   });
 
+  it('holds Import anything on Previews while its options are in preview', async () => {
+    savedPermissions = [
+      {
+        featureId: 'universal-import',
+        enabled: true,
+        accessLevel: 'public',
+        betaUsers: [],
+        buildings: [],
+      },
+    ];
+    await renderPanel();
+    expect(
+      await screen.findByTestId('access-row-universal-import')
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('graduate-universal-import')).toBeNull();
+    expect(screen.queryByTestId('retire-universal-import')).toBeNull();
+  });
+
   it('keeps a graduated flag off the Previews tab', async () => {
     savedPermissions = [
       {

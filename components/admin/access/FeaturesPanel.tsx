@@ -7,6 +7,7 @@ import {
 } from '@/config/featureDefaults';
 import { AccessFeatureRow } from './AccessFeatureRow';
 import { AssignmentModesSection } from './AssignmentModesSection';
+import { ImportOffersSection } from './ImportOffersSection';
 import { AccessSearchEmpty, AdminSearchField } from './AdminSearchField';
 import {
   ASSIGNMENT_MODES_SEARCH_FIELDS,
@@ -80,7 +81,11 @@ export const FeaturesPanel: React.FC = () => {
                 onUpdate={(updates) => editor.updatePermission(id, updates)}
                 onSave={() => void editor.savePermission(id)}
                 showMessage={editor.showMessage}
-              />
+              >
+                {id === 'universal-import' && (
+                  <ImportOffersSection editor={editor} />
+                )}
+              </AccessFeatureRow>
             ))}
           </div>
         </section>
