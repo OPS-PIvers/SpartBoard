@@ -2022,7 +2022,7 @@ service cloud.firestore {
       // could keep reading a gallery's title/prompt/sessionId forever after revoke.
       allow get: if signedIn() && (
         isOrigAuthor()
-        || isAdmin()
+        || isSiteAdmin()
         || (
           existing().get('revoked', false) != true
           && (existing().get('expiresAt', null) == null

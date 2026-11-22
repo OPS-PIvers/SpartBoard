@@ -317,6 +317,10 @@ describe('synced building admin', () => {
     await assertFails(deleteDoc(doc(db(), WALL_LIKE)));
   });
 
+  it("cannot read another teacher's revoked wall share", async () => {
+    await assertFails(getDoc(doc(db(), WALL_SHARE)));
+  });
+
   it("cannot list, reopen or delete another teacher's wall share", async () => {
     await assertFails(
       getDocs(
@@ -420,6 +424,20 @@ describe.each([
     await assertSucceeds(updateDoc(doc(db, WALL_SHARE), { revoked: false }));
     await assertSucceeds(deleteDoc(doc(db, WALL_SHARE)));
   });
+
+  it('reads live sessions, revoked shares and wall feedback', async () => {
+    const db = as(email);
+    for (const path of [LIVE_SESSION, WALL_SHARE, WALL_COMMENT, WALL_LIKE]) {
+      await assertSucceeds(getDoc(doc(db, path)));
+    }
+  });
+
+  it('resets votes, removes Next Up sessions and moderates wall feedback', async () => {
+    const db = as(email);
+    for (const path of [POLL_VOTE, WALL_COMMENT, WALL_LIKE, NEXTUP_SESSION]) {
+      await assertSucceeds(deleteDoc(doc(db, path)));
+    }
+  });
 });
 
 describe('session teacher', () => {
@@ -433,7 +451,13 @@ describe('session teacher', () => {
       .firestore();
 
   it('reads its live and poll sessions and the wall feedback on its revoked share', async () => {
-    for (const path of [LIVE_SESSION, POLL_SESSION, WALL_COMMENT, WALL_LIKE]) {
+    for (const path of [
+      LIVE_SESSION,
+      POLL_SESSION,
+      WALL_SHARE,
+      WALL_COMMENT,
+      WALL_LIKE,
+    ]) {
       await assertSucceeds(getDoc(doc(db(), path)));
     }
     await assertSucceeds(
