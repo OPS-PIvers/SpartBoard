@@ -3879,12 +3879,14 @@ describe('index barrel — deployed export set', () => {
     'submitProjectGroupV1',
     'pinLoginV1',
     'claimPaperResponseV1',
+    'releasePaperResponseV1',
     // Individual assignment targeting (M17 A2 / A2b)
     'setAssignmentTargetsV1',
     // Paper answer sheets (Increment 2 + Q34 pointers)
     'importPaperResponsesV1',
     'publishPaperResultsV1',
     'paperRewordSyncV1',
+    'cleanupPaperRewordLog',
     // Paper answer sheets, delegated to a PLC teammate (read path)
     'getTeammatePrintContextV1',
     'createTeammatePaperBatchV1',

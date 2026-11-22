@@ -74,6 +74,7 @@ import {
   teacherUidFromSessionId,
   MAX_ARCHIVE_ATTEMPTS,
   SESSIONS_COLLECTION,
+  CLEANUP_QUEUE_COLLECTION,
   STREAM_DOWNLOAD_THRESHOLD_BYTES,
   type WallArchiveDeps,
 } from './activityWallArchive';
@@ -84,6 +85,9 @@ import {
   listBucketObjects,
   runSweepActivityWallArchives,
   MAX_STORAGE_PAGES,
+  MAX_CLEANUP_RETRIES_PER_RUN,
+  CLEANUP_BUDGET_MS,
+  type StorageObject,
   STUCK_SUBMISSION_AGE_MS,
 } from './sweepActivityWallArchives';
 
@@ -789,116 +793,280 @@ describe('sweepActivityWallArchives', () => {
     expect(submissionState.storagePath).toBeUndefined();
   });
 
-  it('retries a pending storage cleanup and clears the flag on success', async () => {
-    const submissionState: Bag = {
-      archiveStatus: 'archived',
-      storageCleanupPending: true,
-    };
-    const submissionRef = {
-      id: SUBMISSION_ID,
+  const FAILING = 250;
+  function makeCleanupDb(
+    total: number,
+    opts: {
+      queued?: boolean;
+      queuedCount?: number;
+      invalid?: number;
+      legacyEmpty?: boolean;
+      stragglersError?: boolean;
+    } = {}
+  ) {
+    const state = new Map<
+      string,
+      { pending: boolean; attemptedAt: number | undefined }
+    >();
+    const ids = Array.from({ length: total }, (_, i) => `sub-${i}`);
+    ids.forEach((id, i) => {
+      const queuedAlready =
+        opts.queuedCount !== undefined
+          ? i < opts.queuedCount
+          : opts.queued !== false;
+      state.set(id, {
+        pending: true,
+        attemptedAt: queuedAlready
+          ? opts.queuedCount !== undefined
+            ? NOW
+            : 0
+          : undefined,
+      });
+    });
+    const cursor: { after?: string } = {};
+    const empty = { empty: true, size: 0, docs: [] };
+    const subDocRef = (id: string) => ({
+      id,
+      path: `${SESSIONS_COLLECTION}/${SESSION_ID}/submissions/${id}`,
       parent: {
         parent: { id: SESSION_ID, parent: { id: SESSIONS_COLLECTION } },
       },
-      set: (data: Bag) => {
-        mergeInto(submissionState, data);
-        return Promise.resolve();
-      },
-    };
-    const docSnap = { id: SUBMISSION_ID, ref: submissionRef };
-    const db = {
+      firestore: db,
+    });
+    const page = (docs: unknown[]) => ({
+      empty: !docs.length,
+      size: docs.length,
+      docs,
+    });
+    const db: Record<string, unknown> = {
+      doc: (path: string) => ({
+        get: () =>
+          Promise.resolve({
+            exists: true,
+            id: path.split('/').pop(),
+            ref: { path },
+          }),
+      }),
       collectionGroup: () => ({
         where: (field: string) => ({
-          limit: () => ({
-            get: () =>
-              Promise.resolve(
-                field === 'storageCleanupPending'
-                  ? { empty: false, size: 1, docs: [docSnap] }
-                  : { empty: true, size: 0, docs: [] }
-              ),
-          }),
+          limit: (n: number) => {
+            const at = (after?: { id: string }) => {
+              const pending = ids.filter((id) => state.get(id)?.pending);
+              const from = after ? pending.indexOf(after.id) + 1 : 0;
+              const docs = (opts.legacyEmpty ? [] : pending)
+                .slice(from, from + n)
+                .map((id) => ({ id, ref: subDocRef(id) }));
+              return { get: () => Promise.resolve(page(docs)) };
+            };
+            return { ...at(), startAfter: at };
+          },
           orderBy: () => ({
             limit: () => ({
-              get: () => Promise.resolve({ empty: true, size: 0, docs: [] }),
+              get: () =>
+                field === 'archiveStatus' && opts.stragglersError
+                  ? Promise.reject(new Error('query failed'))
+                  : Promise.resolve(empty),
             }),
           }),
         }),
       }),
+      collection: (name: string) => {
+        if (name === CLEANUP_QUEUE_COLLECTION) {
+          return {
+            doc: (docId: string) => ({
+              get: () => Promise.resolve({ data: () => cursor }),
+              set: (data: { after: string }) => {
+                cursor.after = data.after;
+                return Promise.resolve();
+              },
+              create: (data: { attemptedAt: number }) => {
+                const id = docId.split('__')[1] ?? '';
+                const entry = state.get(id);
+                if (!entry || entry.attemptedAt !== undefined) {
+                  return Promise.reject(new Error('exists'));
+                }
+                entry.attemptedAt = data.attemptedAt;
+                return Promise.resolve();
+              },
+            }),
+            orderBy: () => ({
+              endBefore: (before: number) => ({
+                limit: (n: number) => ({
+                  get: () => {
+                    const docs = ids
+                      .filter((id) => {
+                        const e = state.get(id);
+                        return (
+                          e?.attemptedAt !== undefined && e.attemptedAt < before
+                        );
+                      })
+                      .sort(
+                        (x, y) =>
+                          (state.get(x)?.attemptedAt ?? 0) -
+                          (state.get(y)?.attemptedAt ?? 0)
+                      )
+                      .slice(0, n)
+                      .map((id) => ({
+                        data: () =>
+                          Number(id.slice(4)) < (opts.invalid ?? 0)
+                            ? {}
+                            : { sessionId: SESSION_ID, submissionId: id },
+                        ref: {
+                          delete: () => {
+                            const e = state.get(id);
+                            if (e) e.attemptedAt = undefined;
+                            return Promise.resolve();
+                          },
+                          set: (data: { attemptedAt: number }) => {
+                            const e = state.get(id);
+                            if (e) e.attemptedAt = data.attemptedAt;
+                            return Promise.resolve();
+                          },
+                        },
+                      }));
+                    return Promise.resolve(page(docs));
+                  },
+                }),
+              }),
+            }),
+          };
+        }
+        return {
+          doc: () => ({
+            collection: () => ({
+              doc: (id: string) => ({
+                get: () => Promise.resolve({ exists: false }),
+                update: () => {
+                  const e = state.get(id);
+                  if (e) e.pending = false;
+                  return Promise.resolve();
+                },
+              }),
+            }),
+          }),
+        };
+      },
     };
-    const deleteObject = vi.fn(() => Promise.resolve());
-    const summary = await runSweepActivityWallArchives(db as never, {
+    const deps = (
+      now: () => number,
+      overrides: Partial<{
+        listObjects: (prefix: string) => Promise<StorageObject[]>;
+      }> = {}
+    ) => ({
       archiveOne: vi.fn(() => Promise.resolve()),
-      listObjects: vi.fn((prefix: string) =>
+      listObjects: vi.fn((prefix: string) => {
+        if (overrides.listObjects) return overrides.listObjects(prefix);
+        const n = Number(/sub-(\d+)/.exec(prefix)?.[1] ?? -1);
+        return n >= 0 && n < FAILING
+          ? Promise.reject(new Error('storage down'))
+          : Promise.resolve([]);
+      }),
+      deleteObject: vi.fn(() => Promise.resolve()),
+      now,
+    });
+    return { state, db, deps };
+  }
+
+  it('retries a pending storage cleanup and clears the flag and queue entry on success', async () => {
+    const { state, db, deps } = makeCleanupDb(1);
+    const d = deps(() => NOW, {
+      listObjects: (prefix) =>
         Promise.resolve(
-          prefix === `activity_wall_media/${SESSION_ID}/${SUBMISSION_ID}/`
+          prefix === `activity_wall_media/${SESSION_ID}/sub-0/`
             ? [{ name: GOOD_PATH, createdAt: NOW }]
             : []
-        )
-      ),
-      deleteObject,
-      now: () => NOW,
+        ),
     });
-
-    expect(deleteObject).toHaveBeenCalledWith(GOOD_PATH);
+    const summary = await runSweepActivityWallArchives(db as never, d);
+    expect(d.deleteObject).toHaveBeenCalledWith(GOOD_PATH);
     expect(summary.cleanupRetried).toBe(1);
     expect(summary.cleanupCleared).toBe(1);
-    expect(submissionState.storageCleanupPending).toBeUndefined();
+    expect(state.get('sub-0')).toEqual({
+      pending: false,
+      attemptedAt: undefined,
+    });
   });
 
-  it('pages past a full page of failing cleanups to reach later flagged docs', async () => {
-    const PAGE = 100;
-    const cleared: string[] = [];
-    const mk = (i: number) => ({
-      id: `sub-${i}`,
-      ref: {
-        parent: {
-          parent: { id: SESSION_ID, parent: { id: SESSIONS_COLLECTION } },
-        },
-        set: () => {
-          cleared.push(`sub-${i}`);
-          return Promise.resolve();
-        },
-      },
+  it('clears a legacy-prefix submission cleanup', async () => {
+    const legacyPath = `activity_wall_photos/${SESSION_ID}/sub-0.jpg`;
+    const { db, deps } = makeCleanupDb(1);
+    const d = deps(() => NOW, {
+      listObjects: (prefix) =>
+        Promise.resolve(
+          prefix === `activity_wall_photos/${SESSION_ID}/`
+            ? [{ name: legacyPath, createdAt: NOW }]
+            : []
+        ),
     });
-    const all = Array.from({ length: PAGE + 1 }, (_, i) => mk(i));
-    const cleanupPage = (start: number) => {
-      const docs = all.slice(start, start + PAGE);
-      return {
-        get: () =>
-          Promise.resolve({ empty: !docs.length, size: docs.length, docs }),
-      };
-    };
-    const cleanupQuery = {
-      limit: () => ({
-        ...cleanupPage(0),
-        startAfter: () => cleanupPage(PAGE),
-      }),
-    };
-    const empty = { empty: true, size: 0, docs: [] };
-    const db = {
-      collectionGroup: () => ({
-        where: (field: string) =>
-          field === 'storageCleanupPending'
-            ? cleanupQuery
-            : {
-                orderBy: () => ({
-                  limit: () => ({ get: () => Promise.resolve(empty) }),
-                }),
-              },
-      }),
-    };
-    const summary = await runSweepActivityWallArchives(db as never, {
-      archiveOne: vi.fn(() => Promise.resolve()),
-      listObjects: vi.fn((prefix: string) =>
-        prefix.includes('sub-100') || prefix.startsWith('activity_wall_photos')
-          ? Promise.resolve([])
-          : Promise.reject(new Error('storage down'))
-      ),
-      deleteObject: vi.fn(() => Promise.resolve()),
-      now: () => NOW,
+    const summary = await runSweepActivityWallArchives(db as never, d);
+    expect(d.deleteObject).toHaveBeenCalledWith(legacyPath);
+    expect(summary.cleanupCleared).toBe(1);
+  });
+
+  describe('storage cleanup retries', () => {
+    it('retries a later doc within two runs despite more failing docs than the cap', async () => {
+      const { state, db, deps } = makeCleanupDb(300);
+      const first = await runSweepActivityWallArchives(
+        db as never,
+        deps(() => NOW)
+      );
+      expect(first.cleanupRetried).toBe(MAX_CLEANUP_RETRIES_PER_RUN);
+      expect(state.get('sub-299')?.pending).toBe(true);
+      const second = await runSweepActivityWallArchives(
+        db as never,
+        deps(() => NOW + 3_600_000)
+      );
+      expect(second.cleanupRetried).toBe(MAX_CLEANUP_RETRIES_PER_RUN);
+      expect(state.get('sub-299')?.pending).toBe(false);
     });
 
-    expect(summary.cleanupRetried).toBe(PAGE + 1);
-    expect(cleared).toEqual(['sub-100']);
+    it('enqueues legacy flags that have no queue entry so they are retried', async () => {
+      const { state, db, deps } = makeCleanupDb(5, { queued: false });
+      const summary = await runSweepActivityWallArchives(
+        db as never,
+        deps(() => NOW)
+      );
+      expect(summary.cleanupRetried).toBe(5);
+      for (const entry of state.values()) expect(entry.attemptedAt).toBe(NOW);
+    });
+
+    it('backfills later legacy flags when the first 500 stay unqueueable', async () => {
+      const { state, db, deps } = makeCleanupDb(700, { queuedCount: 500 });
+      await runSweepActivityWallArchives(
+        db as never,
+        deps(() => NOW)
+      );
+      expect(state.get('sub-650')?.pending).toBe(true);
+      await runSweepActivityWallArchives(
+        db as never,
+        deps(() => NOW)
+      );
+      expect(state.get('sub-650')?.pending).toBe(false);
+      expect(state.get('sub-699')?.pending).toBe(false);
+    });
+
+    it('never exceeds the per-run cap within a page', async () => {
+      const { db, deps } = makeCleanupDb(299, { invalid: 5 });
+      const summary = await runSweepActivityWallArchives(
+        db as never,
+        deps(() => NOW)
+      );
+      expect(summary.cleanupRetried).toBe(MAX_CLEANUP_RETRIES_PER_RUN);
+    });
+
+    it('stops retrying once the wall-clock budget is spent', async () => {
+      const { db, deps } = makeCleanupDb(10, { legacyEmpty: true });
+      let t = NOW;
+      const summary = await runSweepActivityWallArchives(
+        db as never,
+        deps(() => {
+          const v = t;
+          t += CLEANUP_BUDGET_MS / 2;
+          return v;
+        })
+      );
+      expect(summary.cleanupRetried).toBeLessThan(10);
+    });
   });
 
   it('retries a stuck failed doc and a stale syncing doc, skips a fresh one', async () => {
@@ -980,129 +1148,14 @@ describe('sweepActivityWallArchives', () => {
   });
 
   it('records a phase error but still runs the remaining phases', async () => {
-    const cleanupState: Bag = {
-      archiveStatus: 'archived',
-      storageCleanupPending: true,
-    };
-    const cleanupRef = {
-      id: SUBMISSION_ID,
-      parent: {
-        parent: { id: SESSION_ID, parent: { id: SESSIONS_COLLECTION } },
-      },
-      set: (data: Bag) => {
-        mergeInto(cleanupState, data);
-        return Promise.resolve();
-      },
-    };
-    const cleanupDoc = { id: SUBMISSION_ID, ref: cleanupRef };
-    const db = {
-      collectionGroup: () => ({
-        where: (field: string) => ({
-          orderBy: () => ({
-            limit: () => ({
-              get: () =>
-                field === 'archiveStatus'
-                  ? Promise.reject(new Error('query failed'))
-                  : Promise.resolve({ empty: true, size: 0, docs: [] }),
-            }),
-          }),
-          limit: () => ({
-            get: () =>
-              Promise.resolve(
-                field === 'storageCleanupPending'
-                  ? { empty: false, size: 1, docs: [cleanupDoc] }
-                  : { empty: true, size: 0, docs: [] }
-              ),
-          }),
-        }),
-      }),
-      collection: () => ({
-        doc: () => ({
-          collection: () => ({
-            doc: () => ({
-              get: () => Promise.resolve({ exists: false }),
-            }),
-          }),
-        }),
-      }),
-    };
-    const deleteObject = vi.fn(() => Promise.resolve());
-    const summary = await runSweepActivityWallArchives(db as never, {
-      archiveOne: vi.fn(() => Promise.resolve()),
-      listObjects: vi.fn((prefix: string) =>
-        Promise.resolve(
-          prefix === `activity_wall_media/${SESSION_ID}/${SUBMISSION_ID}/`
-            ? [{ name: GOOD_PATH, createdAt: NOW }]
-            : []
-        )
-      ),
-      deleteObject,
-      now: () => NOW,
-    });
-
+    const { state, db, deps } = makeCleanupDb(1, { stragglersError: true });
+    const d = deps(() => NOW, { listObjects: () => Promise.resolve([]) });
+    const summary = await runSweepActivityWallArchives(db as never, d);
     expect(summary.phaseErrors).toHaveLength(1);
     expect(summary.phaseErrors[0]).toContain('retryStragglers');
     expect(summary.cleanupRetried).toBe(1);
     expect(summary.cleanupCleared).toBe(1);
-    expect(cleanupState.storageCleanupPending).toBeUndefined();
-  });
-
-  it('clears a pending cleanup flag for a legacy-prefix submission', async () => {
-    const legacyPath = `activity_wall_photos/${SESSION_ID}/${SUBMISSION_ID}.jpg`;
-    const submissionState: Bag = {
-      archiveStatus: 'archived',
-      storageCleanupPending: true,
-    };
-    const submissionRef = {
-      id: SUBMISSION_ID,
-      parent: {
-        parent: { id: SESSION_ID, parent: { id: SESSIONS_COLLECTION } },
-      },
-      set: (data: Bag) => {
-        mergeInto(submissionState, data);
-        return Promise.resolve();
-      },
-    };
-    const docSnap = { id: SUBMISSION_ID, ref: submissionRef };
-    const db = {
-      collectionGroup: () => ({
-        where: (field: string) => ({
-          limit: () => ({
-            get: () =>
-              Promise.resolve(
-                field === 'storageCleanupPending'
-                  ? { empty: false, size: 1, docs: [docSnap] }
-                  : { empty: true, size: 0, docs: [] }
-              ),
-          }),
-          orderBy: () => ({
-            limit: () => ({
-              get: () => Promise.resolve({ empty: true, size: 0, docs: [] }),
-            }),
-          }),
-        }),
-      }),
-    };
-    const deleteObject = vi.fn(() => Promise.resolve());
-    const summary = await runSweepActivityWallArchives(db as never, {
-      archiveOne: vi.fn(() => Promise.resolve()),
-      listObjects: vi.fn((prefix: string) => {
-        if (prefix === `activity_wall_media/${SESSION_ID}/${SUBMISSION_ID}/`) {
-          return Promise.resolve([]);
-        }
-        if (prefix === `activity_wall_photos/${SESSION_ID}/`) {
-          return Promise.resolve([{ name: legacyPath, createdAt: NOW }]);
-        }
-        return Promise.resolve([]);
-      }),
-      deleteObject,
-      now: () => NOW,
-    });
-
-    expect(deleteObject).toHaveBeenCalledWith(legacyPath);
-    expect(summary.cleanupRetried).toBe(1);
-    expect(summary.cleanupCleared).toBe(1);
-    expect(submissionState.storageCleanupPending).toBeUndefined();
+    expect(state.get('sub-0')?.pending).toBe(false);
   });
 });
 

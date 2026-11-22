@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ActivityWallLibraryEntry } from '@/types';
 
 let postCount = 2;
+const onClearPosts = vi.fn((_id: string) => Promise.resolve());
 const mockGetCountFromServer = vi.fn(() =>
   Promise.resolve({ data: () => ({ count: postCount }) })
 );
@@ -17,11 +18,8 @@ vi.mock('firebase/firestore', () => ({
   doc: vi.fn(() => ({})),
   getCountFromServer: () => mockGetCountFromServer(),
 }));
-vi.mock('./hooks/useActivityWallSession', () => ({
-  clearWallSubmissions: vi.fn(() => Promise.resolve()),
-}));
-
 import { WallLibraryModal } from './WallLibraryModal';
+import { WallStillClosedError } from '@/utils/activityWallErrors';
 
 const entry: ActivityWallLibraryEntry = {
   id: 'wall-1',
@@ -48,6 +46,7 @@ const modal = (open: boolean) => (
     onEdit={vi.fn()}
     onDuplicate={vi.fn(() => Promise.resolve())}
     onDelete={vi.fn(() => Promise.resolve())}
+    onClearPosts={onClearPosts}
     addToast={vi.fn()}
     confirm={() => Promise.resolve(true)}
   />
@@ -66,6 +65,7 @@ const libraryModal = (entries: ActivityWallLibraryEntry[]) => (
     onEdit={vi.fn()}
     onDuplicate={vi.fn(() => Promise.resolve())}
     onDelete={vi.fn(() => Promise.resolve())}
+    onClearPosts={onClearPosts}
     addToast={vi.fn()}
     confirm={() => Promise.resolve(true)}
   />
@@ -74,6 +74,7 @@ const libraryModal = (entries: ActivityWallLibraryEntry[]) => (
 describe('WallLibraryModal post counts', () => {
   beforeEach(() => {
     postCount = 2;
+    onClearPosts.mockClear();
     mockGetCountFromServer.mockClear();
   });
 
@@ -120,5 +121,38 @@ describe('WallLibraryModal empty state', () => {
     // Only the toolbar's persistent primary action remains — the empty
     // state itself renders no action button for a filtered-no-match result.
     expect(screen.getAllByRole('button', { name: 'New wall' })).toHaveLength(1);
+  });
+});
+
+describe('WallLibraryModal clear posts', () => {
+  it('clears through onClearPosts and zeroes the count', async () => {
+    postCount = 2;
+    onClearPosts.mockClear();
+    render(modal(true));
+    expect(await screen.findByText(/2 posts/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    await userEvent.click(
+      screen.getByRole('menuitem', { name: /Clear posts/ })
+    );
+    await waitFor(() => expect(onClearPosts).toHaveBeenCalledWith('wall-1'));
+    await waitFor(() =>
+      expect(screen.queryByText(/2 posts/)).not.toBeInTheDocument()
+    );
+  });
+
+  it('still zeroes the count when the wall could not reopen', async () => {
+    postCount = 2;
+    onClearPosts.mockClear();
+    onClearPosts.mockRejectedValueOnce(new WallStillClosedError('offline'));
+    render(modal(true));
+    expect(await screen.findByText(/2 posts/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    await userEvent.click(
+      screen.getByRole('menuitem', { name: /Clear posts/ })
+    );
+    await waitFor(() => expect(onClearPosts).toHaveBeenCalledWith('wall-1'));
+    await waitFor(() =>
+      expect(screen.queryByText(/2 posts/)).not.toBeInTheDocument()
+    );
   });
 });

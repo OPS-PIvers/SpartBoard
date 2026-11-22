@@ -18,11 +18,18 @@ const CIMD_PATHS = new Set([
   '/oauth/mcp-oauth-client-metadata',
 ]);
 const DOC_CACHE_MS = 5 * 60 * 1000;
+// A failed fetch is remembered briefly so token retries don't refetch the document each time.
+const FAIL_CACHE_MS = 30 * 1000;
 const MAX_DOC_BYTES = 16 * 1024;
 const FETCH_TIMEOUT_MS = 3000;
 const MAX_CACHED = 20;
+// A failed refetch serves the last good document for at most this long.
+const MAX_STALE_MS = 60 * 60 * 1000;
 
-const docCache = new Map<string, { client: CimdClient; at: number }>();
+const docCache = new Map<
+  string,
+  { client: CimdClient | null; expires: number; goodAt: number }
+>();
 
 /** Test hook: forget cached switch reads and documents. */
 export function resetCimdCache(): void {
@@ -101,7 +108,22 @@ export async function fetchCimdClient(
 ): Promise<CimdClient | null> {
   if (!isCimdClientId(clientId)) return null;
   const cached = docCache.get(clientId);
-  if (cached && now - cached.at < DOC_CACHE_MS) return cached.client;
+  if (cached && now < cached.expires) return cached.client;
+  const fresh = await loadCimdClient(clientId);
+  // Stale-if-error: a failed refetch keeps serving the last good document, up to MAX_STALE_MS.
+  const stale =
+    cached && now - cached.goodAt < MAX_STALE_MS ? cached.client : null;
+  const client = fresh ?? stale;
+  if (docCache.size >= MAX_CACHED) docCache.clear();
+  docCache.set(clientId, {
+    client,
+    expires: now + (fresh ? DOC_CACHE_MS : FAIL_CACHE_MS),
+    goodAt: fresh ? now : stale && cached ? cached.goodAt : 0,
+  });
+  return client;
+}
+
+async function loadCimdClient(clientId: string): Promise<CimdClient | null> {
   try {
     const res = await fetch(clientId, {
       redirect: 'error',
@@ -111,11 +133,7 @@ export async function fetchCimdClient(
     if (!res.ok) return null;
     const text = await readCappedText(res);
     if (text === null) return null;
-    const client = parseCimdDocument(clientId, JSON.parse(text) as unknown);
-    if (!client) return null;
-    if (docCache.size >= MAX_CACHED) docCache.clear();
-    docCache.set(clientId, { client, at: now });
-    return client;
+    return parseCimdDocument(clientId, JSON.parse(text) as unknown);
   } catch (err) {
     console.warn('[cimd] fetch failed', { clientId, err: safeErr(err) });
     return null;

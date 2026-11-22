@@ -57,6 +57,74 @@ export function newlyClosed(
   return out;
 }
 
+function passesOf(session: Doc | undefined): Record<string, number> {
+  const a = session?.studentAccess;
+  const out: Record<string, number> = {};
+  if (a && typeof a === 'object')
+    for (const [uid, v] of Object.entries(a as Doc))
+      if (typeof v === 'number') out[uid] = v;
+  return out;
+}
+
+function reopenedOf(session: Doc | undefined): string[] {
+  const r = session?.reopenedFor;
+  return Array.isArray(r)
+    ? r.filter((x): x is string => typeof x === 'string')
+    : [];
+}
+
+/** A pass granted or a reopen removed on an already-closed class (re)queues its marker for when the pass ends. */
+async function queuePassChanges(
+  db: Firestore,
+  sessionId: string,
+  before: Doc | undefined,
+  after: Doc | undefined,
+  serverNow: number,
+  closedNow: Array<[string, number]>
+): Promise<void> {
+  const was = passesOf(before);
+  const granted = Object.entries(passesOf(after))
+    .filter(([uid, end]) => end > serverNow && was[uid] !== end)
+    .map(([, end]) => end);
+  const nowReopened = new Set(reopenedOf(after));
+  const unReopened = reopenedOf(before).some((u) => !nowReopened.has(u));
+  if (!granted.length && !unReopened) return;
+  const due = Math.min(
+    ...granted,
+    ...(unReopened ? [serverNow + TURN_IN_DELAY_MS] : [])
+  );
+  const fresh = new Set(closedNow.map(([k]) => k));
+  const jobs = Object.entries(rowsOf(after))
+    .filter(
+      ([key, row]) =>
+        !fresh.has(key) &&
+        row?.state === 'closed' &&
+        typeof row.closedAt === 'number'
+    )
+    .map(([classKey, row]) => {
+      const closedAt = row.closedAt as number;
+      const ref = db.collection(TURN_INS).doc(markerId(sessionId, classKey));
+      return db.runTransaction(async (tx) => {
+        const prev = (await tx.get(ref)).data();
+        if (prev?.closedAt === closedAt && typeof prev.dueAt === 'number') {
+          if (prev.dueAt <= due) return;
+          tx.set(ref, { ...prev, dueAt: due });
+          return;
+        }
+        tx.set(ref, {
+          sessionId,
+          classKey,
+          closedAt,
+          serverClosedAt: closedAt,
+          queuedAt: serverNow,
+          attempts: 0,
+          dueAt: due,
+        });
+      });
+    });
+  await Promise.all(jobs);
+}
+
 /** Queues a turn-in for each class this session write closed; `serverNow` is the event's server time, so the teacher's clock never sets the stamp. */
 export async function queueClosedClasses(
   db: Firestore,
@@ -66,6 +134,7 @@ export async function queueClosedClasses(
   serverNow: number
 ): Promise<number> {
   const closed = newlyClosed(before, after);
+  await queuePassChanges(db, sessionId, before, after, serverNow, closed);
   await Promise.all(
     closed.map(([classKey, closedAt]) => {
       const ref = db.collection(TURN_INS).doc(markerId(sessionId, classKey));
@@ -129,6 +198,17 @@ function hadPass(session: Doc, r: Doc): boolean {
   );
 }
 
+/** When a let-in student's pass ends, if they're left open only because of it. */
+function passExpiry(session: Doc, r: Doc, now: number): number | null {
+  if (r.unlocked === true) return null;
+  const uid = typeof r.studentUid === 'string' ? r.studentUid : '';
+  if (!uid) return null;
+  if (Array.isArray(session.reopenedFor) && session.reopenedFor.includes(uid))
+    return null;
+  const pass = (session.studentAccess as Doc | undefined)?.[uid];
+  return typeof pass === 'number' && pass > now ? pass : null;
+}
+
 export type TurnInOutcome = 'stale' | 'done';
 
 /** Turns in one closed class's unfinished attempts, as videoClassTurnIn.ts does from the teacher's tab. */
@@ -139,7 +219,11 @@ export async function turnInClosedVideoClass(
   closedAt: number,
   now: number,
   serverClosedAt: number = now
-): Promise<{ outcome: TurnInOutcome; turnedIn: number }> {
+): Promise<{
+  outcome: TurnInOutcome;
+  turnedIn: number;
+  recheckAt?: number;
+}> {
   const sessionRef = db.collection(SESSIONS).doc(sessionId);
   const session = (await sessionRef.get()).data();
   if (!session || !stillClosed(session, classKey, closedAt))
@@ -186,7 +270,23 @@ export async function turnInClosedVideoClass(
   const turnedIn = results.filter(
     (r) => r.status === 'fulfilled' && r.value
   ).length;
-  return { outcome: 'done', turnedIn };
+  // Re-read so a pass granted during the run is counted; look again when the first one ends.
+  const fresh = (await sessionRef.get()).data() ?? session;
+  let recheckAt: number | undefined;
+  if (stillClosed(fresh, classKey, closedAt)) {
+    const left = await sessionRef
+      .collection('responses')
+      .where('completedAt', '==', null)
+      .get();
+    for (const d of left.docs) {
+      const r = d.data();
+      if (!inClass(r, classKey, label)) continue;
+      const end = passExpiry(fresh, r, now);
+      if (end !== null && (recheckAt === undefined || end < recheckAt))
+        recheckAt = end;
+    }
+  }
+  return { outcome: 'done', turnedIn, recheckAt };
 }
 
 export interface VideoClassTurnInRunResult {
@@ -195,6 +295,7 @@ export interface VideoClassTurnInRunResult {
   stale: number;
   failed: number;
   gaveUp: number;
+  requeued: number;
 }
 
 /** Runs every queued turn-in whose grace has passed, then clears its marker. */
@@ -214,6 +315,7 @@ export async function runVideoClassTurnIns(
     stale: 0,
     failed: 0,
     gaveUp: 0,
+    requeued: 0,
   };
   for (const marker of due.docs) {
     const m: Doc = marker.data();
@@ -244,7 +346,25 @@ export async function runVideoClassTurnIns(
       );
       if (r.outcome === 'stale') result.stale++;
       result.turnedIn += r.turnedIn;
-      await clear();
+      if (r.outcome === 'done' && r.recheckAt !== undefined) {
+        result.requeued++;
+        await marker.ref
+          .update(
+            {
+              dueAt: r.recheckAt,
+              attempts: 0,
+              queuedAt: now,
+            },
+            { lastUpdateTime: marker.updateTime }
+          )
+          .catch((err) =>
+            logger.warn('[videoClassTurnIns] re-queue failed', {
+              sessionId,
+              classKey,
+              err: String(err),
+            })
+          );
+      } else await clear();
     } catch (err) {
       result.failed++;
       logger.warn('[videoClassTurnIns] turn-in failed', {

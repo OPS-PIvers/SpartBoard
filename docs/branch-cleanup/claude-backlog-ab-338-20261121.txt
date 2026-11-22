@@ -1,0 +1,1 @@
+claude/backlog-ab-338-20261121 (AB-338: Activity Wall Clear posts closes the wall while clearing, then reopens it)

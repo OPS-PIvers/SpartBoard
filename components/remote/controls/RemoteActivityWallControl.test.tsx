@@ -51,6 +51,7 @@ vi.mock('@/hooks/useActivityWallLibrary', () => ({
     error: null,
     saveActivity: mockSaveActivity,
     deleteActivity: vi.fn(),
+    clearActivityPosts: vi.fn(),
   }),
 }));
 

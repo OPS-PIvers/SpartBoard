@@ -14,7 +14,17 @@ import {
   assertSucceeds,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-site-admin-student-data';
 const TEACHER_UID = 'teacher-uid';
@@ -41,6 +51,14 @@ const ARCHIVED = `quiz_sessions/${SESSION_ID}/archived_responses/${RESPONSE_KEY}
 const VA_LEDGER = `video_activity_attempt_ledger/${VA_SESSION_ID}__${STUDENT_UID}`;
 const MA_ATTEMPT = `${MA_SUBMISSION}/attempts/a1`;
 const HIDDEN_WORDS = `poll_sessions/${TEACHER_UID}_poll-1/hidden_words/q1`;
+const POLL_SESSION = `poll_sessions/${TEACHER_UID}_poll-1`;
+const POLL_VOTE = `${POLL_SESSION}/votes/0_voter-1`;
+const NEXTUP_SESSION = `nextup_sessions/${TEACHER_UID}_w1`;
+const LIVE_SESSION = `sessions/${TEACHER_UID}`;
+const WALL_SHARE = 'shared_activity_walls/share-1';
+const WALL_COMMENT = `${WALL_SHARE}/comments/c1`;
+const WALL_LIKE = `${WALL_SHARE}/likes/l1`;
+const TEACHER_EMAIL = 'teacher@orono.k12.mn.us';
 const STUDENT_READS = [
   HISTORY,
   ATTEMPT,
@@ -50,6 +68,10 @@ const STUDENT_READS = [
   VA_LEDGER,
   MA_ATTEMPT,
   HIDDEN_WORDS,
+  POLL_SESSION,
+  LIVE_SESSION,
+  WALL_COMMENT,
+  WALL_LIKE,
 ];
 const STUDENT_DELETES = [
   LEDGER,
@@ -58,6 +80,10 @@ const STUDENT_DELETES = [
   HIDDEN_WORDS,
   NEXTUP_ENTRY,
   POLL_ANSWER,
+  POLL_VOTE,
+  NEXTUP_SESSION,
+  WALL_COMMENT,
+  WALL_LIKE,
 ];
 
 const ADMINS = {
@@ -169,6 +195,32 @@ beforeEach(async () => {
   });
   await seed(MA_ATTEMPT, { score: 1 });
   await seed(HIDDEN_WORDS, { words: ['x'] });
+  await seed(POLL_SESSION, {
+    teacherUid: TEACHER_UID,
+    active: true,
+    optionCounts: [2],
+  });
+  await seed(POLL_VOTE, { questionIndex: 0, optionIndex: 1, votedAt: 1 });
+  await seed(NEXTUP_SESSION, { isActive: true });
+  await seed(LIVE_SESSION, { isActive: true, frozen: false, code: 'LIVE01' });
+  // A revoked share, so only the owner and site admins still reach its comments and likes.
+  await seed(WALL_SHARE, {
+    id: 'share-1',
+    originalAuthor: TEACHER_UID,
+    createdAt: 1,
+    sessionId: `${TEACHER_UID}_wall-1`,
+    revoked: true,
+  });
+  await seed(WALL_COMMENT, { authorUid: STUDENT_UID, content: 'Ada' });
+  await seed(WALL_LIKE, { authorUid: STUDENT_UID, submissionId: 's1' });
+  await seed(`poll_sessions/uid-${ADMINS.syncedBuilding}_poll-2`, {
+    teacherUid: `uid-${ADMINS.syncedBuilding}`,
+    active: true,
+  });
+  await seed(`poll_sessions/uid-${ADMINS.syncedBuilding}_poll-2/votes/0_v1`, {
+    questionIndex: 0,
+  });
+  await seed(`sessions/uid-${ADMINS.syncedBuilding}`, { code: 'OWN001' });
   await seed(`quiz_sessions/${OWN_SESSION_ID}`, {
     teacherUid: `uid-${ADMINS.syncedBuilding}`,
     status: 'active',
@@ -228,6 +280,74 @@ describe('synced building admin', () => {
     await assertSucceeds(deleteDoc(doc(db(), OWN_RESPONSE)));
   });
 
+  it("cannot read, list, write or reset another teacher's poll session", async () => {
+    await assertFails(getDoc(doc(db(), POLL_SESSION)));
+    await assertFails(
+      getDocs(
+        query(
+          collection(db(), 'poll_sessions'),
+          where('teacherUid', '==', TEACHER_UID)
+        )
+      )
+    );
+    await assertFails(updateDoc(doc(db(), POLL_SESSION), { active: false }));
+    await assertFails(
+      setDoc(doc(db(), `poll_sessions/${TEACHER_UID}_poll-9`), {
+        teacherUid: TEACHER_UID,
+      })
+    );
+    await assertFails(deleteDoc(doc(db(), POLL_VOTE)));
+  });
+
+  it("cannot read another teacher's live session or write their Next Up session", async () => {
+    await assertFails(getDoc(doc(db(), LIVE_SESSION)));
+    await assertFails(
+      updateDoc(doc(db(), NEXTUP_SESSION), { isActive: false })
+    );
+    await assertFails(
+      setDoc(doc(db(), `nextup_sessions/${TEACHER_UID}_w2`), { isActive: true })
+    );
+    await assertFails(deleteDoc(doc(db(), NEXTUP_SESSION)));
+  });
+
+  it('cannot read or delete comments and likes on a revoked wall share', async () => {
+    await assertFails(getDoc(doc(db(), WALL_COMMENT)));
+    await assertFails(getDoc(doc(db(), WALL_LIKE)));
+    await assertFails(deleteDoc(doc(db(), WALL_COMMENT)));
+    await assertFails(deleteDoc(doc(db(), WALL_LIKE)));
+  });
+
+  it("cannot read another teacher's revoked wall share", async () => {
+    await assertFails(getDoc(doc(db(), WALL_SHARE)));
+  });
+
+  it("cannot list, reopen or delete another teacher's wall share", async () => {
+    await assertFails(
+      getDocs(
+        query(
+          collection(db(), 'shared_activity_walls'),
+          where('originalAuthor', '==', TEACHER_UID)
+        )
+      )
+    );
+    await assertFails(
+      updateDoc(doc(db(), WALL_SHARE), { revoked: false, expiresAt: null })
+    );
+    await assertFails(deleteDoc(doc(db(), WALL_SHARE)));
+  });
+
+  it('keeps its own poll, live and Next Up sessions as their teacher', async () => {
+    const own = `uid-${ADMINS.syncedBuilding}`;
+    await assertSucceeds(getDoc(doc(db(), `poll_sessions/${own}_poll-2`)));
+    await assertSucceeds(
+      deleteDoc(doc(db(), `poll_sessions/${own}_poll-2/votes/0_v1`))
+    );
+    await assertSucceeds(getDoc(doc(db(), `sessions/${own}`)));
+    await assertSucceeds(
+      setDoc(doc(db(), `nextup_sessions/${own}_w1`), { isActive: true })
+    );
+  });
+
   it('still writes ordinary admin settings', async () => {
     await assertSucceeds(
       setDoc(doc(db(), 'admin_settings/app_settings'), { a: 1 })
@@ -267,5 +387,129 @@ describe.each([
     for (const path of STUDENT_DELETES) {
       await assertSucceeds(deleteDoc(doc(db, path)));
     }
+  });
+});
+
+describe.each([
+  ['hand-made admin', ADMINS.handMade],
+  ['synced super admin', ADMINS.syncedSuper],
+  ['synced domain admin', ADMINS.syncedDomain],
+])('%s on session docs', (_label, email) => {
+  it('lists, writes and resets polls and writes Next Up sessions', async () => {
+    const db = as(email);
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(db, 'poll_sessions'),
+          where('teacherUid', '==', TEACHER_UID)
+        )
+      )
+    );
+    await assertSucceeds(updateDoc(doc(db, POLL_SESSION), { active: false }));
+    await assertSucceeds(
+      updateDoc(doc(db, NEXTUP_SESSION), { isActive: false })
+    );
+  });
+
+  it('lists, reopens and deletes a wall share', async () => {
+    const db = as(email);
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(db, 'shared_activity_walls'),
+          where('originalAuthor', '==', TEACHER_UID)
+        )
+      )
+    );
+    await assertSucceeds(updateDoc(doc(db, WALL_SHARE), { revoked: false }));
+    await assertSucceeds(deleteDoc(doc(db, WALL_SHARE)));
+  });
+
+  it('reads live sessions, revoked shares and wall feedback', async () => {
+    const db = as(email);
+    for (const path of [LIVE_SESSION, WALL_SHARE, WALL_COMMENT, WALL_LIKE]) {
+      await assertSucceeds(getDoc(doc(db, path)));
+    }
+  });
+
+  it('resets votes, removes Next Up sessions and moderates wall feedback', async () => {
+    const db = as(email);
+    for (const path of [POLL_VOTE, WALL_COMMENT, WALL_LIKE, NEXTUP_SESSION]) {
+      await assertSucceeds(deleteDoc(doc(db, path)));
+    }
+  });
+});
+
+describe('session teacher', () => {
+  const db = () =>
+    testEnv
+      .authenticatedContext(TEACHER_UID, {
+        email: TEACHER_EMAIL,
+        email_verified: true,
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+
+  it('reads its live and poll sessions and the wall feedback on its revoked share', async () => {
+    for (const path of [
+      LIVE_SESSION,
+      POLL_SESSION,
+      WALL_SHARE,
+      WALL_COMMENT,
+      WALL_LIKE,
+    ]) {
+      await assertSucceeds(getDoc(doc(db(), path)));
+    }
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(db(), 'poll_sessions'),
+          where('teacherUid', '==', TEACHER_UID)
+        )
+      )
+    );
+  });
+
+  it('lists, reopens and deletes its own wall share', async () => {
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(db(), 'shared_activity_walls'),
+          where('originalAuthor', '==', TEACHER_UID)
+        )
+      )
+    );
+    await assertSucceeds(updateDoc(doc(db(), WALL_SHARE), { revoked: false }));
+    await assertSucceeds(deleteDoc(doc(db(), WALL_SHARE)));
+  });
+
+  it('updates its own poll session', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `organizations/orono/members/${TEACHER_EMAIL}`),
+        { status: 'active', roleId: 'teacher' }
+      );
+    });
+    await assertSucceeds(updateDoc(doc(db(), POLL_SESSION), { active: false }));
+  });
+
+  it('resets votes, writes Next Up and moderates wall feedback', async () => {
+    await assertSucceeds(
+      updateDoc(doc(db(), NEXTUP_SESSION), { isActive: false })
+    );
+    for (const path of [POLL_VOTE, WALL_COMMENT, WALL_LIKE, NEXTUP_SESSION]) {
+      await assertSucceeds(deleteDoc(doc(db(), path)));
+    }
+  });
+});
+
+describe('another signed-in teacher', () => {
+  it("cannot reach a session's docs it does not own", async () => {
+    const db = as('other-teacher@orono.k12.mn.us');
+    for (const path of [LIVE_SESSION, POLL_SESSION, WALL_COMMENT]) {
+      await assertFails(getDoc(doc(db, path)));
+    }
+    await assertFails(updateDoc(doc(db, NEXTUP_SESSION), { isActive: false }));
+    await assertFails(deleteDoc(doc(db, POLL_VOTE)));
   });
 });

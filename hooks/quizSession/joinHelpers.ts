@@ -138,6 +138,25 @@ export async function findExistingResponseDoc(
   return { key: deterministicKey, snap: deterministicSnap };
 }
 
+/** Teacher: hands a claimed scanned row back to its PIN so the next PIN join can claim it; throws when the server refuses. */
+export async function releasePaperRow(
+  sessionId: string,
+  responseKey: string
+): Promise<void> {
+  const res = await httpsCallable<
+    { sessionId: string; responseKey: string },
+    { released: boolean; reason?: string }
+  >(
+    functions,
+    'releasePaperResponseV1'
+  )({ sessionId, responseKey });
+  if (!res.data.released) {
+    throw new Error(
+      `Could not release the row: ${res.data.reason ?? 'unknown'}`
+    );
+  }
+}
+
 /** Asks the server to hand this PIN device a scan-first hybrid row the paper import left unowned; false when there is none. */
 export async function claimScannedResponse(
   sessionId: string,

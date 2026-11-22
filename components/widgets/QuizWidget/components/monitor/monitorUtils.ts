@@ -135,3 +135,10 @@ export function orderRoster<T>(
       compareStudents(sortable(a), sortable(b), applyToolbar ? sortBy : 'first')
     );
 }
+
+/** A scan-first PIN row a device has taken over (its studentUid left the PIN key). */
+export const isClaimedPaperRow = (
+  key: string,
+  r: { paperWrittenBatchId?: string; studentUid?: string }
+): boolean =>
+  key.startsWith('pin-') && !!r.paperWrittenBatchId && r.studentUid !== key;

@@ -64,24 +64,34 @@ beforeEach(() => {
   resetCimdCache();
   resetSigningKeyCache();
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe('isCimdClientId', () => {
-  it('accepts only https documents on Claude hosts', () => {
+  it('accepts only the pinned documents on Claude hosts', () => {
+    const MCP_PATH = '/oauth/mcp-oauth-client-metadata';
     expect(isCimdClientId(CODE_ID)).toBe(true);
-    expect(
-      isCimdClientId('https://claude.ai/oauth/mcp-oauth-client-metadata')
-    ).toBe(true);
+    expect(isCimdClientId(`https://claude.ai${MCP_PATH}`)).toBe(true);
+    expect(isCimdClientId(`https://claude.com${MCP_PATH}`)).toBe(true);
+    // Path guard: Claude host, https, but not a pinned document.
     expect(isCimdClientId('https://claude.com/oauth/x')).toBe(false);
     expect(isCimdClientId('https://claude.ai/public/artifacts/x')).toBe(false);
     expect(isCimdClientId(`${CODE_ID}/x`)).toBe(false);
-    expect(isCimdClientId('https://evil.example/oauth/x')).toBe(false);
-    expect(isCimdClientId('https://claude.ai.evil.com/x')).toBe(false);
-    expect(isCimdClientId('http://claude.ai/oauth/x')).toBe(false);
     expect(isCimdClientId('https://claude.ai/')).toBe(false);
-    expect(isCimdClientId('https://claude.ai/x?a=1')).toBe(false);
-    expect(isCimdClientId('https://claude.ai:8443/x')).toBe(false);
-    expect(isCimdClientId('https://user@claude.ai/x')).toBe(false);
+    // Every other guard, each probed on a pinned path so only that guard can refuse it.
+    expect(isCimdClientId(`https://evil.example${MCP_PATH}`)).toBe(false);
+    expect(isCimdClientId(`https://claude.ai.evil.com${MCP_PATH}`)).toBe(false);
+    expect(isCimdClientId(`http://claude.ai${MCP_PATH}`)).toBe(false);
+    expect(isCimdClientId(`${CODE_ID}?a=1`)).toBe(false);
+    expect(isCimdClientId(`${CODE_ID}#frag`)).toBe(false);
+    expect(isCimdClientId(`https://claude.ai:8443${MCP_PATH}`)).toBe(false);
+    expect(isCimdClientId(`https://user@claude.ai${MCP_PATH}`)).toBe(false);
+    expect(isCimdClientId(`https://:pw@claude.ai${MCP_PATH}`)).toBe(false);
+    expect(
+      isCimdClientId('https://CLAUDE.ai/oauth/claude-code-client-metadata')
+    ).toBe(false);
     expect(isCimdClientId('eyJhbGciOiJIUzI1NiJ9.e30.sig')).toBe(false);
   });
 });
@@ -159,6 +169,7 @@ describe('fetchCimdClient', () => {
       CODE_ID,
       expect.objectContaining({ redirect: 'error' })
     );
+    resetCimdCache();
     mockFetch({ ...CODE_DOC, pad: 'x'.repeat(20_000) });
     expect(await fetchCimdClient(CODE_ID)).toBeNull();
   });
@@ -184,6 +195,42 @@ describe('fetchCimdClient', () => {
   it('counts bytes, not characters, against the cap', async () => {
     mockFetch({ ...CODE_DOC, pad: '\u00e9'.repeat(10_000) });
     expect(await fetchCimdClient(CODE_ID)).toBeNull();
+  });
+
+  it('remembers a failed fetch for about 30 seconds', async () => {
+    const t0 = 1_000_000;
+    const failing = mockFetch({}, 503);
+    expect(await fetchCimdClient(CODE_ID, t0)).toBeNull();
+    const good = mockFetch(CODE_DOC);
+    expect(await fetchCimdClient(CODE_ID, t0 + 29_000)).toBeNull();
+    expect(failing).toHaveBeenCalledTimes(1);
+    expect(good).not.toHaveBeenCalled();
+    expect(await fetchCimdClient(CODE_ID, t0 + 31_000)).not.toBeNull();
+    expect(good).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps serving a good document when a refetch fails', async () => {
+    const t0 = 1_000_000;
+    mockFetch(CODE_DOC);
+    const good = await fetchCimdClient(CODE_ID, t0);
+    expect(good).not.toBeNull();
+    const failing = mockFetch({}, 503);
+    const stale = t0 + 6 * 60 * 1000;
+    expect(await fetchCimdClient(CODE_ID, stale)).toEqual(good);
+    expect(failing).toHaveBeenCalledTimes(1);
+    expect(await fetchCimdClient(CODE_ID, stale + 29_000)).toEqual(good);
+    expect(failing).toHaveBeenCalledTimes(1);
+    expect(await fetchCimdClient(CODE_ID, stale + 31_000)).toEqual(good);
+    expect(failing).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops serving the old document an hour after the last good fetch', async () => {
+    const t0 = 1_000_000;
+    mockFetch(CODE_DOC);
+    expect(await fetchCimdClient(CODE_ID, t0)).not.toBeNull();
+    mockFetch({}, 503);
+    expect(await fetchCimdClient(CODE_ID, t0 + 59 * 60 * 1000)).not.toBeNull();
+    expect(await fetchCimdClient(CODE_ID, t0 + 61 * 60 * 1000)).toBeNull();
   });
 
   it('caches a good document', async () => {
@@ -274,6 +321,7 @@ describe('CIMD behind the switch', () => {
     mockFetch({}, 503);
     expect((await handleToken(db, body)).json.error).toBe('invalid_grant');
     mockFetch(CODE_DOC);
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 31_000);
     expect((await handleToken(db, body)).status).toBe(200);
   });
 
