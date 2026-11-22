@@ -463,6 +463,55 @@ describe('PlcTeammatePrintModal — printing', () => {
     expect(printTest).toHaveBeenCalledWith({
       quizTitle: 'Unit 3 CFA',
       questions: PRINTED.testPaper,
+      resources: [],
+    });
+  });
+
+  it('prints the owner’s question stimuli on the test paper', async () => {
+    createBatch.mockResolvedValue({
+      ...PRINTED,
+      testPaper: [
+        { row: 1, questionId: 'q1', text: 'Q1', choices: ['a', 'b'] },
+        { row: 2, questionId: 'q2', text: 'Q2', choices: ['a', 'b'] },
+      ],
+    });
+    open(
+      makeContext({
+        quiz: {
+          id: 'their-quiz',
+          title: 'Unit 3 CFA',
+          questions: [
+            { id: 'q1', stimulusIds: ['story', 'note'] },
+            { id: 'q2', stimulusIds: ['story'] },
+          ],
+          stimuli: [
+            { id: 'story', type: 'text', url: '', text: 'A shared story' },
+            { id: 'note', type: 'text', url: '', text: 'A short note' },
+          ],
+        },
+      })
+    );
+    pick('Bob Teacher');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Period 1' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Print test paper/ })
+    );
+    expect(printTest).toHaveBeenCalledWith({
+      quizTitle: 'Unit 3 CFA',
+      questions: [
+        {
+          row: 1,
+          text: 'Q1',
+          choices: ['a', 'b'],
+          stimuli: [{ kind: 'text', text: 'A short note' }],
+          resources: ['A'],
+        },
+        { row: 2, text: 'Q2', choices: ['a', 'b'], resources: ['A'] },
+      ],
+      resources: [
+        { letter: 'A', item: { kind: 'text', text: 'A shared story' } },
+      ],
     });
   });
 

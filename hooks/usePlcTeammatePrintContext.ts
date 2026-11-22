@@ -92,7 +92,8 @@ export interface CreateTeammatePaperBatchResult {
   sheets: PaperSheetPlan[];
   quizTitle: string;
   printedForTeacherName: string;
-  testPaper: PaperTestQuestion[];
+  /** `questionId` is absent from servers deployed before test papers carried stimuli. */
+  testPaper: (PaperTestQuestion & { questionId?: string })[];
   /** Fill in the blank: each blank's answer by question id, for the answer key. */
   blankAnswers?: Record<string, string[]>;
   /** The server had to create their copy of the quiz to bind the batch to (D9). */
