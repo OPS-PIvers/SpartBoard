@@ -1,9 +1,6 @@
 import type { ClassLinkClass } from '@/types';
 import { readClassPeriods } from './classLinkPeriods';
 
-export type ClassNameStyle =
-  'course-period' | 'period-course' | 'course-term-period';
-
 export interface ParsedClassTitle {
   term?: string;
   course: string;
@@ -108,10 +105,9 @@ export const parseClassTitle = (
   };
 };
 
-/** A short, readable roster name for a ClassLink class, or null when the title doesn't look like an SIS title. */
+/** A short roster name like "English I A (S1, P2)", or null when the title doesn't look like an SIS title. */
 export const cleanClassLinkName = (
-  cls: Pick<ClassLinkClass, 'title' | 'periods'>,
-  style: ClassNameStyle = 'course-term-period'
+  cls: Pick<ClassLinkClass, 'title' | 'periods'>
 ): string | null => {
   const parsed = parseClassTitle(
     cls.title,
@@ -119,15 +115,8 @@ export const cleanClassLinkName = (
   );
   if (!parsed) return null;
   const { term, course, periods } = parsed;
-  const short = periods.map((p) => `P${p}`).join(', ');
-  if (style === 'period-course') return short ? `${short} ${course}` : course;
-  if (style === 'course-term-period') {
-    const tags = [term, short].filter(Boolean);
-    return tags.length > 0 ? `${course} (${tags.join(', ')})` : course;
-  }
-  if (periods.length === 0) return course;
-  const label = periods.length > 1 ? 'Periods' : 'Period';
-  return `${course}, ${label} ${periods.join(', ')}`;
+  const tags = [term, ...periods.map((p) => `P${p}`)].filter(Boolean);
+  return tags.length > 0 ? `${course} (${tags.join(', ')})` : course;
 };
 
 const countNames = (names: Map<string, string>): Map<string, number> => {
@@ -139,13 +128,12 @@ const countNames = (names: Map<string, string>): Map<string, number> => {
 
 /** Clean names keyed by sourcedId; repeats get their class code, and any still repeated keep the full title. */
 export const buildCleanClassNames = (
-  classes: readonly ClassLinkClass[],
-  style: ClassNameStyle = 'course-term-period'
+  classes: readonly ClassLinkClass[]
 ): Map<string, string> => {
   const names = new Map<string, string>();
   for (const cls of classes) {
     if (cls.sourcedId.startsWith('test:')) continue;
-    const name = cleanClassLinkName(cls, style);
+    const name = cleanClassLinkName(cls);
     if (name && name !== cls.title) names.set(cls.sourcedId, name);
   }
   const counts = countNames(names);

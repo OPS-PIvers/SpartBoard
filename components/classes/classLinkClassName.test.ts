@@ -74,20 +74,14 @@ describe('tidyCourseCase', () => {
 
 describe('cleanClassLinkName', () => {
   const cls = { title: `${T}ENGLISH I A(2)` };
-  it('formats each style', () => {
+  it('names the course with its term and period', () => {
     expect(cleanClassLinkName(cls)).toBe('English I A (S1, P2)');
-    expect(cleanClassLinkName(cls, 'course-period')).toBe(
-      'English I A, Period 2'
-    );
-    expect(cleanClassLinkName(cls, 'period-course')).toBe('P2 English I A');
+    expect(cleanClassLinkName({ title: 'Ivers, J ART(3)' })).toBe('Art (P3)');
   });
 
   it('lists every OneRoster period', () => {
     const multi = { title: '(S1) Ivers, J MATH 7', periods: ['1', '2'] };
     expect(cleanClassLinkName(multi)).toBe('Math 7 (S1, P1, P2)');
-    expect(cleanClassLinkName(multi, 'course-period')).toBe(
-      'Math 7, Periods 1, 2'
-    );
   });
 });
 
