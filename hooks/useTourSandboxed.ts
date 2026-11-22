@@ -384,6 +384,8 @@ export function useSandboxedActivityWalls(
       sandboxRemove('activity-wall', id);
       return Promise.resolve();
     },
+    clearActivityPosts: (id) =>
+      isSandboxed(id) ? Promise.resolve() : api.clearActivityPosts(id),
   });
 }
 
