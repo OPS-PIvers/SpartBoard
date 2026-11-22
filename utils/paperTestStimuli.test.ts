@@ -104,6 +104,8 @@ describe('stimulusDocFileId', () => {
       `https://docs.google.com/presentation/d/${id}/edit#slide=id.p`,
       `https://docs.google.com/spreadsheets/d/${id}/edit`,
       `https://docs.google.com/document/u/1/d/${id}/preview`,
+      `https://docs.google.com/a/orono.k12.mn.us/document/d/${id}/edit`,
+      `https://docs.google.com/document/d/${id}/edit?resourcekey=0-abc`,
     ]) {
       expect(stimulusDocFileId(doc(url))).toBe(id);
       expect(isFetchedStimulus(doc(url))).toBe(true);

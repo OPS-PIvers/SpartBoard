@@ -119,4 +119,39 @@ describe('usePaperTestStimulusFiles with a pasted Google Doc', () => {
     );
     expect(result.current.files.pages.doc).toHaveLength(2);
   });
+
+  it('keeps the pages that loaded when a later doc hits the overall cap', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      const slowId = '9ZyXwVuTsRqPoNmLkJiHgFe';
+      const two = [
+        ...pasted,
+        {
+          id: 'slow',
+          type: 'gdoc-embed',
+          label: '',
+          url: `https://docs.google.com/document/d/${slowId}/edit`,
+        },
+      ] as unknown as QuizStimulus[];
+      fetchMock.mockImplementation((url: string) =>
+        url.includes(slowId)
+          ? new Promise(() => undefined)
+          : Promise.resolve({
+              ok: true,
+              blob: () => Promise.resolve(new Blob(['%PDF'])),
+            })
+      );
+      const { result } = renderHook(() =>
+        usePaperTestStimulusFiles(two, { publicOnly: true })
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(61_000);
+      });
+      expect(result.current.loading).toBe(false);
+      expect(result.current.files.pages.doc).toHaveLength(2);
+      expect(result.current.files.pages.slow).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

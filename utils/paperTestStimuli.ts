@@ -29,7 +29,7 @@ export interface PaperTestStimulusFiles {
 const GDOC_KIND = /docs\.google\.com\/(document|presentation|spreadsheets)\//i;
 // A published-to-web link (`/d/e/2PACX…`) carries no Drive file id.
 const GDOC_FILE_ID =
-  /docs\.google\.com\/(?:document|presentation|spreadsheets)\/(?:u\/\d+\/)?d\/(?!e\/)([\w-]{10,})/i;
+  /docs\.google\.com\/(?:a\/[^/]+\/)?(?:document|presentation|spreadsheets)\/(?:u\/\d+\/)?d\/(?!e\/)([\w-]{10,})/i;
 
 /** The Drive file behind a Doc, Slides or Sheets stimulus, so its pages can print. */
 export function stimulusDocFileId(s: QuizStimulus): string | null {
