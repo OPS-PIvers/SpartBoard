@@ -31,6 +31,12 @@ export const MAX_SUBMISSIONS_PER_RUN = 500;
 export const SUBMISSION_PAGE_SIZE = 100;
 /** Storage-cleanup retries per run; each lists Storage twice, so keep the run inside its timeout. */
 export const MAX_CLEANUP_RETRIES_PER_RUN = 200;
+/** Wall-clock budget for the cleanup phase so the orphan sweep still runs inside the 540 s timeout. */
+export const CLEANUP_BUDGET_MS = 180 * 1000;
+/** Last cleanup attempt (ms); 0 until tried. Retries go oldest-attempt first. */
+export const CLEANUP_ATTEMPT_FIELD = 'storageCleanupAttemptedAt';
+/** Runaway guard on cleanup query pages. */
+const MAX_CLEANUP_PAGES = 20;
 /** Bucket listing page size; pages are followed until the prefix is exhausted. */
 export const STORAGE_PAGE_SIZE = 500;
 /** Runaway guard on the listing loop, not an expected volume. */
@@ -180,22 +186,34 @@ async function retryStorageCleanup(
   deps: WallSweepDeps,
   summary: WallSweepSummary
 ): Promise<void> {
-  let cursor: admin.firestore.QueryDocumentSnapshot | null = null;
-  while (summary.cleanupRetried < MAX_CLEANUP_RETRIES_PER_RUN) {
-    // Failed cleanups keep the flag, so walk past them rather than re-reading the same first page.
-    let query = db
+  const runStart = deps.now();
+  for (
+    let pages = 0;
+    pages < MAX_CLEANUP_PAGES &&
+    summary.cleanupRetried < MAX_CLEANUP_RETRIES_PER_RUN;
+    pages++
+  ) {
+    // Oldest attempt first; a doc handled this run is cleared or stamped >= runStart, so it leaves the window.
+    const page = await db
       .collectionGroup(SUBMISSIONS_COLLECTION)
       .where('storageCleanupPending', '==', true)
-      .limit(SUBMISSION_PAGE_SIZE);
-    if (cursor) query = query.startAfter(cursor);
-    const page = await query.get();
+      .orderBy(CLEANUP_ATTEMPT_FIELD)
+      .endBefore(runStart)
+      .limit(SUBMISSION_PAGE_SIZE)
+      .get();
     if (page.empty) break;
-    cursor = page.docs[page.docs.length - 1] ?? null;
 
     for (const docSnap of page.docs) {
+      if (summary.cleanupRetried >= MAX_CLEANUP_RETRIES_PER_RUN) return;
+      if (deps.now() - runStart >= CLEANUP_BUDGET_MS) return;
       const sessionRef = docSnap.ref.parent.parent;
       // The collection group also matches unrelated `submissions` subtrees.
-      if (!sessionRef || sessionRef.parent.id !== SESSIONS_COLLECTION) continue;
+      if (!sessionRef || sessionRef.parent.id !== SESSIONS_COLLECTION) {
+        await docSnap.ref
+          .set({ [CLEANUP_ATTEMPT_FIELD]: deps.now() }, { merge: true })
+          .catch(() => undefined);
+        continue;
+      }
       summary.cleanupRetried++;
       try {
         // Legacy prefix is flat per session, so filter to this submission.
@@ -213,12 +231,17 @@ async function retryStorageCleanup(
           await deps.deleteObject(object.name);
         }
         await docSnap.ref.set(
-          { storageCleanupPending: admin.firestore.FieldValue.delete() },
+          {
+            storageCleanupPending: admin.firestore.FieldValue.delete(),
+            [CLEANUP_ATTEMPT_FIELD]: admin.firestore.FieldValue.delete(),
+          },
           { merge: true }
         );
         summary.cleanupCleared++;
       } catch {
-        continue;
+        await docSnap.ref
+          .set({ [CLEANUP_ATTEMPT_FIELD]: deps.now() }, { merge: true })
+          .catch(() => undefined);
       }
     }
 

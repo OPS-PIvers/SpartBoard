@@ -953,7 +953,10 @@ export async function finalizeResumedSubmission(
   } catch {
     if (written) {
       await submissionRef
-        .set({ storageCleanupPending: true }, { merge: true })
+        .set(
+          { storageCleanupPending: true, storageCleanupAttemptedAt: 0 },
+          { merge: true }
+        )
         .catch(() => undefined);
     }
   }
