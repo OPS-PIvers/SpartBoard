@@ -462,6 +462,8 @@ export const SURFACES: TourSurfaceMap = {
         'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-reopen': 'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-submit': 'quiz-monitor.roster-row-actions:quiz',
+      'quiz-monitor.student-release-paper':
+        'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-unlock-results':
         'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-remove': 'quiz-monitor.roster-row-actions:quiz',

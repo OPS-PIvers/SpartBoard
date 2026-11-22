@@ -8,6 +8,7 @@ import {
   matchesFilter,
   studentFlags,
   proficiencyBand,
+  isClaimedPaperRow,
 } from './monitorUtils';
 import { buildDistribution } from '@/utils/answerDistribution';
 
@@ -207,5 +208,28 @@ describe('joinCodesAllowedForBuildings', () => {
     expect(
       joinCodesAllowedForBuildings({ enabled: true, buildings: ['a'] }, ['a'])
     ).toBe(true);
+  });
+});
+
+describe('isClaimedPaperRow', () => {
+  const KEY = 'pin-period_1-1234';
+  it('is true once a device owns a scanned PIN row', () => {
+    expect(
+      isClaimedPaperRow(KEY, {
+        paperWrittenBatchId: 'b1',
+        studentUid: 'anon-1',
+      })
+    ).toBe(true);
+  });
+  it('is false while the row is still at its PIN key', () => {
+    expect(
+      isClaimedPaperRow(KEY, { paperWrittenBatchId: 'b1', studentUid: KEY })
+    ).toBe(false);
+  });
+  it('is false without scanned answers or for a non-PIN row', () => {
+    expect(isClaimedPaperRow(KEY, { studentUid: 'anon-1' })).toBe(false);
+    expect(
+      isClaimedPaperRow('uid-1', { paperWrittenBatchId: 'b1', studentUid: 'x' })
+    ).toBe(false);
   });
 });
