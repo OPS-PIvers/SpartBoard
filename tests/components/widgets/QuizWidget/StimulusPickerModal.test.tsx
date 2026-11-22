@@ -138,4 +138,19 @@ describe('stimulus picker dialog', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Stimuli' })).toBeInTheDocument();
   });
+
+  it('shows Return in place of the close X', async () => {
+    render(
+      <QuestionStimulusSection
+        state={makeState()}
+        questionId="q1"
+        metaList
+        pickerModal
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
+    expect(
+      screen.queryByRole('button', { name: 'Close' })
+    ).not.toBeInTheDocument();
+  });
 });
