@@ -33,12 +33,13 @@ const keyOf = (stimuli: readonly QuizStimulus[]): string =>
 
 /** A Drive export capped like a plain fetch; null when it fails or runs long. */
 function withTimeout(p: Promise<Blob>): Promise<Blob | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   return Promise.race([
     p.catch(() => null),
-    new Promise<null>((resolve) =>
-      setTimeout(() => resolve(null), FETCH_TIMEOUT_MS)
-    ),
-  ]);
+    new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), FETCH_TIMEOUT_MS);
+    }),
+  ]).finally(() => clearTimeout(timer));
 }
 
 async function fetchBlob(url: string): Promise<Blob | null> {
