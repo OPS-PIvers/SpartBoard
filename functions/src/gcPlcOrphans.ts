@@ -305,40 +305,63 @@ const HEADER_COLLECTIONS: readonly string[] = [
   ...PLC_HEADER_COLLECTIONS['video-activity'],
 ];
 
-/** Removes a group's header detach markers whose PLC header is gone and returns how many are still live (header present and not soft-deleted). */
+interface MarkerPrune {
+  live: number;
+  removed: number;
+  /** Markers left after pruning, so a reaped group takes them along. */
+  remaining: admin.firestore.DocumentReference[];
+}
+
+/** Removes a group's header detach markers whose PLC header is gone; a failed read keeps the group (live 1). */
 async function pruneHeaderMarkers(
   db: Firestore,
   groupRef: admin.firestore.DocumentReference
-): Promise<{ live: number; removed: number }> {
-  const snap = await groupRef.collection(PLC_DETACHED_SUBCOLLECTION).get();
-  const stale: admin.firestore.DocumentReference[] = [];
-  let live = 0;
-  for (const marker of snap.docs) {
-    if (!marker.id.startsWith(HEADER_MARKER_PREFIX)) continue;
-    const m = marker.data();
-    const plcId: unknown = m.plcId;
-    const coll: unknown = m.headerCollection;
-    const headerId: unknown = m.plcContentId;
-    if (
-      typeof plcId !== 'string' ||
-      typeof headerId !== 'string' ||
-      typeof coll !== 'string' ||
-      !HEADER_COLLECTIONS.includes(coll)
-    ) {
-      stale.push(marker.ref);
-      continue;
-    }
-    const header = await db
-      .collection('plcs')
-      .doc(plcId)
-      .collection(coll)
-      .doc(headerId)
+): Promise<MarkerPrune> {
+  try {
+    const snap = await groupRef
+      .collection(PLC_DETACHED_SUBCOLLECTION)
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .startAt(HEADER_MARKER_PREFIX)
+      .endAt(`${HEADER_MARKER_PREFIX}\uf8ff`)
       .get();
-    if (!header.exists) stale.push(marker.ref);
-    else if (!header.data()?.deletedAt) live += 1;
+    const stale: admin.firestore.DocumentReference[] = [];
+    const remaining: admin.firestore.DocumentReference[] = [];
+    let live = 0;
+    for (const marker of snap.docs) {
+      const m = marker.data();
+      const plcId: unknown = m.plcId;
+      const coll: unknown = m.headerCollection;
+      const headerId: unknown = m.plcContentId;
+      if (
+        typeof plcId !== 'string' ||
+        typeof headerId !== 'string' ||
+        typeof coll !== 'string' ||
+        !HEADER_COLLECTIONS.includes(coll)
+      ) {
+        stale.push(marker.ref);
+        continue;
+      }
+      const header = await db
+        .collection('plcs')
+        .doc(plcId)
+        .collection(coll)
+        .doc(headerId)
+        .get();
+      if (!header.exists) {
+        stale.push(marker.ref);
+        continue;
+      }
+      remaining.push(marker.ref);
+      if (!header.data()?.deletedAt) live += 1;
+    }
+    const removed = await deleteRefs(db, stale);
+    return { live, removed, remaining };
+  } catch (err) {
+    console.error(
+      `[gcPlcOrphans] header marker sweep failed for ${groupRef.path}: ${String(err)}`
+    );
+    return { live: 1, removed: 0, remaining: [] };
   }
-  const removed = await deleteRefs(db, stale);
-  return { live, removed };
 }
 
 /**
@@ -350,7 +373,8 @@ async function pruneHeaderMarkers(
  */
 async function sweepEmptyGroups(
   db: Firestore,
-  counts: CategoryCounts
+  counts: CategoryCounts,
+  prunedGroups: Set<string>
 ): Promise<number> {
   let total = 0;
   for (const collection of SYNCED_GROUP_COLLECTIONS) {
@@ -366,15 +390,21 @@ async function sweepEmptyGroups(
       if (page.size === 0) break;
 
       const reapable: admin.firestore.DocumentReference[] = [];
+      const reapableMarkers: admin.firestore.DocumentReference[] = [];
       for (const doc of page.docs) {
         visited += 1;
         if (!isEmptyGroup(doc.data())) continue;
         // A live PLC header marker means a teammate can still join through it.
         const markers = await pruneHeaderMarkers(db, doc.ref);
+        prunedGroups.add(doc.ref.path);
         counts.staleHeaderMarkers += markers.removed;
-        if (markers.live === 0) reapable.push(doc.ref);
+        if (markers.live === 0) {
+          reapable.push(doc.ref);
+          reapableMarkers.push(...markers.remaining);
+        }
       }
       if (reapable.length > 0) {
+        await deleteRefs(db, reapableMarkers);
         total += await deleteRefs(db, reapable);
       }
 
@@ -490,7 +520,9 @@ async function sweepPlc(
   plcRef: admin.firestore.DocumentReference,
   now: number,
   purge: PurgeRecording
-): Promise<Omit<CategoryCounts, 'emptyGroups' | 'versionOverflow'>> {
+): Promise<
+  Omit<CategoryCounts, 'emptyGroups' | 'versionOverflow' | 'staleHeaderMarkers'>
+> {
   // (b) Activity events older than ~90 days. Query by createdAt where the
   // index allows; fall back to a bounded scan + client filter so the sweep
   // works even before a composite index exists.
@@ -615,7 +647,8 @@ export async function runGcPlcOrphans(
   };
 
   // (a) + (e) operate on the canonical synced-group collections (PLC-independent).
-  counts.emptyGroups = await sweepEmptyGroups(db, counts);
+  const prunedGroups = new Set<string>();
+  counts.emptyGroups = await sweepEmptyGroups(db, counts, prunedGroups);
   for (const collection of SYNCED_GROUP_COLLECTIONS) {
     // Paginated (startAfter cursor on document id) — mirrors sweepEmptyGroups
     // above. A single un-paginated page silently skipped every group past
@@ -635,9 +668,11 @@ export async function runGcPlcOrphans(
       for (const doc of page.docs) {
         groupsVisited += 1;
         counts.versionOverflow += await sweepVersionOverflow(db, doc.ref);
-        counts.staleHeaderMarkers += (
-          await pruneHeaderMarkers(db, doc.ref)
-        ).removed;
+        if (!prunedGroups.has(doc.ref.path)) {
+          counts.staleHeaderMarkers += (
+            await pruneHeaderMarkers(db, doc.ref)
+          ).removed;
+        }
       }
 
       lastGroupDoc = page.docs[page.docs.length - 1];

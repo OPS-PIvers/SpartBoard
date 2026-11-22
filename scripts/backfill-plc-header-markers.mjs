@@ -46,12 +46,20 @@ export function planMarkers({ group, records, headers, existingIds }) {
 }
 
 function parseArgs(argv) {
-  const args = { apply: false, project: null, help: false };
+  const args = { apply: false, project: null, help: false, confirmProd: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--apply') args.apply = true;
-    else if (a === '--project') args.project = argv[++i] ?? null;
-    else if (a === '--help' || a === '-h') args.help = true;
+    else if (a === '--confirm-prod') args.confirmProd = true;
+    else if (a === '--project') {
+      const v = argv[++i];
+      args.project =
+        v === 'dev'
+          ? 'spartboard-dev'
+          : v === 'prod'
+            ? 'spartboard'
+            : 'invalid';
+    } else if (a === '--help' || a === '-h') args.help = true;
   }
   return args;
 }
@@ -74,24 +82,28 @@ function credential(project) {
   return applicationDefault();
 }
 
-async function headersFor(db, groupCollection, groupId) {
+async function headersFor(db, groupCollection, groupId, uids) {
   const out = [];
-  for (const coll of GROUPS[groupCollection]) {
-    const snap = await db
-      .collectionGroup(coll)
-      .where('syncGroupId', '==', groupId)
-      .get();
-    for (const d of snap.docs) {
-      const plcRef = d.ref.parent.parent;
-      if (!plcRef || plcRef.parent.id !== 'plcs') continue;
-      out.push({
-        plcId: plcRef.id,
-        headerCollection: coll,
-        headerId: d.id,
-        sharedBy: d.get('sharedBy'),
-        deletedAt: d.get('deletedAt'),
-        createMs: d.createTime.toMillis(),
-      });
+  for (const uid of uids) {
+    for (const coll of GROUPS[groupCollection]) {
+      // sharedBy + syncGroupId matches the existing composite indexes.
+      const snap = await db
+        .collectionGroup(coll)
+        .where('sharedBy', '==', uid)
+        .where('syncGroupId', '==', groupId)
+        .get();
+      for (const d of snap.docs) {
+        const plcRef = d.ref.parent.parent;
+        if (!plcRef || plcRef.parent.id !== 'plcs') continue;
+        out.push({
+          plcId: plcRef.id,
+          headerCollection: coll,
+          headerId: d.id,
+          sharedBy: uid,
+          deletedAt: d.get('deletedAt'),
+          createMs: d.createTime.toMillis(),
+        });
+      }
     }
   }
   return out;
@@ -99,11 +111,15 @@ async function headersFor(db, groupCollection, groupId) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  if (args.help || !args.project) {
+  if (args.help || !args.project || args.project === 'invalid') {
     console.log(
-      'Usage: node scripts/backfill-plc-header-markers.mjs --project <id> [--apply]'
+      'Usage: node scripts/backfill-plc-header-markers.mjs --project dev|prod [--apply] [--confirm-prod]'
     );
     process.exit(args.help ? 0 : 1);
+  }
+  if (args.apply && args.project === 'spartboard' && !args.confirmProd) {
+    console.error("--apply on prod also needs --confirm-prod (Paul's word).");
+    process.exit(1);
   }
 
   initializeApp({
@@ -122,7 +138,12 @@ async function main() {
       const planned = planMarkers({
         group: g.data(),
         records,
-        headers: await headersFor(db, groupCollection, g.id),
+        headers: await headersFor(
+          db,
+          groupCollection,
+          g.id,
+          records.map((r) => r.id).filter((id) => !id.startsWith('hdr:'))
+        ),
         existingIds: records.map((r) => r.id),
       });
       for (const p of planned)
