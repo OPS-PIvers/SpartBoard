@@ -18,11 +18,13 @@ const CIMD_PATHS = new Set([
   '/oauth/mcp-oauth-client-metadata',
 ]);
 const DOC_CACHE_MS = 5 * 60 * 1000;
+// A failed fetch is remembered briefly so token retries don't refetch the document each time.
+const FAIL_CACHE_MS = 30 * 1000;
 const MAX_DOC_BYTES = 16 * 1024;
 const FETCH_TIMEOUT_MS = 3000;
 const MAX_CACHED = 20;
 
-const docCache = new Map<string, { client: CimdClient; at: number }>();
+const docCache = new Map<string, { client: CimdClient | null; at: number }>();
 
 /** Test hook: forget cached switch reads and documents. */
 export function resetCimdCache(): void {
@@ -101,7 +103,19 @@ export async function fetchCimdClient(
 ): Promise<CimdClient | null> {
   if (!isCimdClientId(clientId)) return null;
   const cached = docCache.get(clientId);
-  if (cached && now - cached.at < DOC_CACHE_MS) return cached.client;
+  if (
+    cached &&
+    now - cached.at < (cached.client ? DOC_CACHE_MS : FAIL_CACHE_MS)
+  ) {
+    return cached.client;
+  }
+  const client = await loadCimdClient(clientId);
+  if (docCache.size >= MAX_CACHED) docCache.clear();
+  docCache.set(clientId, { client, at: now });
+  return client;
+}
+
+async function loadCimdClient(clientId: string): Promise<CimdClient | null> {
   try {
     const res = await fetch(clientId, {
       redirect: 'error',
@@ -111,11 +125,7 @@ export async function fetchCimdClient(
     if (!res.ok) return null;
     const text = await readCappedText(res);
     if (text === null) return null;
-    const client = parseCimdDocument(clientId, JSON.parse(text) as unknown);
-    if (!client) return null;
-    if (docCache.size >= MAX_CACHED) docCache.clear();
-    docCache.set(clientId, { client, at: now });
-    return client;
+    return parseCimdDocument(clientId, JSON.parse(text) as unknown);
   } catch (err) {
     console.warn('[cimd] fetch failed', { clientId, err: safeErr(err) });
     return null;
