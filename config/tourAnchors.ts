@@ -4001,6 +4001,16 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-stimuli.attach-passage': {
+    label: 'Add a stimulus Text button in the Quiz widget stimulus picker',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.attach-word-bank': {
+    label: 'Add a stimulus Word bank button in the Quiz widget stimulus picker',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-stimuli.attach-preview': {
     label: 'Per-stimulus preview button in the Quiz widget attach list',
     perField: true,
@@ -4026,8 +4036,18 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-stimuli.picker-text': {
+    label: 'Text or word bank text box in the Quiz widget stimulus picker',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.picker-word-bank-columns': {
+    label: 'Word bank Columns switch in the Quiz widget stimulus picker',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-stimuli.picker-close': {
-    label: 'Return button in the Quiz widget stimulus picker',
+    label: 'Back to quiz button in the Quiz widget stimulus picker',
     perWidgetType: true,
     panel: true,
   },

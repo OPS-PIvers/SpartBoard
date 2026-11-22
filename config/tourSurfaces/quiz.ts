@@ -170,6 +170,10 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'modal',
     opensWith: 'quiz-stimuli.attach-toggle:quiz',
     files: [`${C}StimulusPickerModal.tsx`],
+    inner: {
+      'quiz-stimuli.attach-passage': 'quiz-stimuli.picker-add:quiz',
+      'quiz-stimuli.attach-word-bank': 'quiz-stimuli.picker-add:quiz',
+    },
   },
   'quiz.editor.bank-picker': {
     label: 'Add from question bank dialog',
