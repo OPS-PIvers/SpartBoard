@@ -89,6 +89,15 @@ export function driveMediaUrl(fileId: string): string | null {
   )}?alt=media&key=${encodeURIComponent(key)}`;
 }
 
+/** A Doc, Slides or Sheets file as a PDF, readable when it is shared with anyone who has the link. */
+export function drivePdfExportUrl(fileId: string): string | null {
+  const key = import.meta.env.VITE_FIREBASE_API_KEY as string | undefined;
+  if (!key) return null;
+  return `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(
+    fileId
+  )}/export?mimeType=application%2Fpdf&key=${encodeURIComponent(key)}`;
+}
+
 /** Best `<img>`/`<video>`/`<audio>` source for a stimulus. */
 export function stimulusMediaUrl(s: QuizStimulus): string {
   // A passage has no file to fetch; its content travels on the stimulus.

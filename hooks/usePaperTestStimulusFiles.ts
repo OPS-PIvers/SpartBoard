@@ -7,9 +7,10 @@ import {
   resolveStimulusImages,
 } from '@/utils/paperSheetStimulusImages';
 import { openPdfPages } from '@/utils/paperSheetPdfPage';
-import { driveMediaUrl } from '@/utils/quizStimuli';
+import { driveMediaUrl, drivePdfExportUrl } from '@/utils/quizStimuli';
 import {
   isFetchedStimulus,
+  stimulusDocFileId,
   type PaperTestStimulusFiles,
 } from '@/utils/paperTestStimuli';
 
@@ -29,6 +30,17 @@ const keyOf = (stimuli: readonly QuizStimulus[]): string =>
     .map((s) => `${s.id}:${s.type}:${s.driveFileId ?? s.url}`)
     .sort()
     .join('|');
+
+/** A Drive export capped like a plain fetch; null when it fails or runs long. */
+function withTimeout(p: Promise<Blob>): Promise<Blob | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    p.catch(() => null),
+    new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), FETCH_TIMEOUT_MS);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
 
 async function fetchBlob(url: string): Promise<Blob | null> {
   if (!/^https:\/\//i.test(url)) return null;
@@ -67,6 +79,10 @@ export function usePaperTestStimulusFiles(
     const ownBlob = async (fileId: string) =>
       publicOnly ? null : ((await getDriveFileAsBlob(fileId))?.blob ?? null);
 
+    // What has loaded so far, so the overall cap keeps it instead of dropping everything.
+    let imageSrcs: Record<string, string> = {};
+    const pages: Record<string, string[]> = {};
+    let capped = false;
     const run = async (): Promise<PaperTestStimulusFiles> => {
       const images = await resolveStimulusImages(
         fetched
@@ -83,16 +99,19 @@ export function usePaperTestStimulusFiles(
       objectUrls.push(
         ...Object.values(images.src).filter((u) => u.startsWith('blob:'))
       );
-      const pages: Record<string, string[]> = {};
+      imageSrcs = images.src;
       let pageTotal = 0;
       for (const s of fetched) {
-        if (s.type === 'image' || !live) continue;
+        if (s.type === 'image' || !live || capped) continue;
         let blob: Blob | null = null;
-        if (s.type === 'gdoc-embed' && s.driveFileId) {
+        const docId = stimulusDocFileId(s);
+        if (docId) {
+          // The teacher's own access first, then the link anyone can view.
           blob =
-            publicOnly || !driveService
+            (publicOnly || !driveService
               ? null
-              : await driveService.exportAsPdf(s.driveFileId).catch(() => null);
+              : await withTimeout(driveService.exportAsPdf(docId))) ??
+            (await fetchBlob(drivePdfExportUrl(docId) ?? ''));
         } else if (s.driveFileId) {
           blob =
             (await ownBlob(s.driveFileId)) ??
@@ -111,9 +130,9 @@ export function usePaperTestStimulusFiles(
               continue;
             pageTotal += pdf.pageCount;
             const srcs: string[] = [];
-            for (let n = 1; n <= pdf.pageCount && live; n += 1)
+            for (let n = 1; n <= pdf.pageCount && live && !capped; n += 1)
               srcs.push(keep((await pdf.render(n)).blob));
-            pages[s.id] = srcs;
+            if (srcs.length === pdf.pageCount) pages[s.id] = srcs;
           } finally {
             pdf.close();
           }
@@ -128,7 +147,10 @@ export function usePaperTestStimulusFiles(
     let timer: ReturnType<typeof setTimeout> | undefined;
     // A stalled image or PDF prints as links rather than leaving the button disabled.
     const timedOut = new Promise<PaperTestStimulusFiles>((resolve) => {
-      timer = setTimeout(() => resolve(EMPTY), LOAD_TIMEOUT_MS);
+      timer = setTimeout(() => {
+        capped = true;
+        resolve({ images: { ...imageSrcs }, pages: { ...pages } });
+      }, LOAD_TIMEOUT_MS);
     });
     void Promise.race([
       // A failed fetch prints as links rather than leaving the button disabled.
