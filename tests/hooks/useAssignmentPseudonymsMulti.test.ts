@@ -121,7 +121,7 @@ describe('useAssignmentPseudonymsMulti', () => {
   });
 
   it('names students who left a class without counting them as members', async () => {
-    setHandler(({ classId }) =>
+    setHandler(({ classId }): CallableReturn =>
       classId === 'class-a'
         ? {
             data: {
