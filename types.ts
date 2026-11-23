@@ -11862,6 +11862,8 @@ export type GlobalFeature =
   | 'paper-handwritten-responses'
   /** Written answers that run over two to four whole pages. */
   | 'paper-multi-page-answers'
+  /** A live preview of one student's printed packet in the paper print dialogs. */
+  | 'paper-print-preview'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
   | 'paper-written-hybrid'
   | 'paper-reword-sync'

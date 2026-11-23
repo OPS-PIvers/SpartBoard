@@ -43,6 +43,8 @@ export interface AssignStepperProps {
   stickyFooter?: boolean;
   /** False when submit only saves a local draft, so View as neither locks nor confirms it. */
   viewAsGuard?: boolean;
+  /** A panel beside the steps, in a wider dialog. */
+  aside?: React.ReactNode;
 }
 
 export const AssignStepper: React.FC<AssignStepperProps> = ({
@@ -67,6 +69,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
   submitAnchor = tourAttr('assign-stepper.submit'),
   viewAsGuard = true,
   stickyFooter = false,
+  aside,
 }) => {
   const titleId = useId();
   const outward = useViewAsOutward();
@@ -265,6 +268,33 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
           {submitButton}
         </div>
       </div>
+    );
+  }
+
+  if (aside) {
+    return (
+      <Modal
+        isOpen={isOpen}
+        onClose={close}
+        customHeader={header}
+        footer={footer}
+        footerClassName=""
+        maxWidth="max-w-6xl"
+        className="h-[min(90dvh,52rem)] bg-white rounded-2xl shadow-2xl overflow-hidden"
+        contentClassName=""
+        ariaLabelledby={titleId}
+        zIndex={zIndex}
+      >
+        <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 md:w-xl md:flex-none">
+            {topSwitch && <div className="mb-4">{topSwitch}</div>}
+            {stepList}
+          </div>
+          <div className="flex h-[40%] min-h-0 flex-col border-t border-slate-200 bg-slate-100 md:h-auto md:flex-1 md:border-l md:border-t-0">
+            {aside}
+          </div>
+        </div>
+      </Modal>
     );
   }
 

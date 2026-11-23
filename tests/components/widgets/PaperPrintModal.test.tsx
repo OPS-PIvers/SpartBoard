@@ -91,7 +91,10 @@ import type {
   ExtractedQuestion,
   ExtractedQuiz,
 } from '@/utils/quizDocumentImport';
-import type { PaperPrintJob } from '@/utils/paperSheetPrint';
+import {
+  buildPaperSheetsHtml,
+  type PaperPrintJob,
+} from '@/utils/paperSheetPrint';
 
 const mc = (id: string, distractors = 3): QuizQuestion => ({
   id,
@@ -167,6 +170,76 @@ describe('PaperPrintModal', () => {
     drive.listFilePermissions.mockReset();
     drive.listFilePermissions.mockResolvedValue([]);
     drive.makePublic.mockResolvedValue(undefined);
+  });
+
+  describe('live preview', () => {
+    const resizeObserver = globalThis.ResizeObserver;
+    beforeEach(() => {
+      features.add('paper-print-preview');
+      globalThis.ResizeObserver = class {
+        constructor(private cb: ResizeObserverCallback) {}
+        observe() {
+          this.cb(
+            [
+              {
+                contentRect: { width: 400, height: 600 },
+              } as ResizeObserverEntry,
+            ],
+            this
+          );
+        }
+        unobserve() {
+          return undefined;
+        }
+        disconnect() {
+          return undefined;
+        }
+      };
+    });
+    afterEach(() => {
+      globalThis.ResizeObserver = resizeObserver;
+    });
+    const pages = () => screen.getAllByTitle<HTMLIFrameElement>(/^Page \d+$/);
+    // Every preview page, as one string.
+    const frame = () => ({
+      srcdoc: pages()
+        .map((p) => p.srcdoc)
+        .join(''),
+    });
+
+    it("draws the first student's packet without saving anything", () => {
+      const { onSaveBatch, print } = setup();
+      // A spare sheet until someone is picked.
+      expect(frame().srcdoc).toContain('Name ______');
+      selectWholeClass();
+      expect(frame().srcdoc).toContain('Alvarez, Sam');
+      expect(frame().srcdoc).not.toContain('Baker, Jo');
+      expect(onSaveBatch).not.toHaveBeenCalled();
+      expect(print).not.toHaveBeenCalled();
+    });
+
+    it('draws the same pages the print sends', async () => {
+      const { print } = setup({
+        quiz: quiz({ questions: [{ ...mc('q1'), text: 'Which is a cell?' }] }),
+      });
+      selectWholeClass();
+      fireEvent.click(screen.getByRole('switch', { name: /question text/i }));
+      const preview = frame().srcdoc;
+      expect(preview).toContain('Which is a cell?');
+      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+      await waitFor(() => expect(print).toHaveBeenCalled());
+      const job = print.mock.calls[0][0];
+      const first = buildPaperSheetsHtml({ ...job, sheets: [job.sheets[0]] });
+      expect(preview).toContain('Which is a cell?');
+      expect(pages()).toHaveLength(first.match(/class="sheet"/g)?.length ?? 0);
+      for (const p of pages()) expect(p.getAttribute('sandbox')).toBe('');
+    });
+
+    it('stays off without the flag', () => {
+      features.clear();
+      setup();
+      expect(screen.queryByRole('list', { name: 'Printed pages' })).toBeNull();
+    });
   });
 
   it('cannot print until somebody is getting a sheet', () => {

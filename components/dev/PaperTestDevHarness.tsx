@@ -340,6 +340,44 @@ const ESSAY_TEXT_QUIZ: QuizData = {
   ],
 };
 
+// MC questions plus a written answer with a text stimulus, for the print preview.
+const PREVIEW_QUIZ: QuizData = {
+  ...ESSAY_TEXT_QUIZ,
+  title: 'Cells unit test',
+  questions: [
+    ...[
+      [
+        'Which part of the cell holds its DNA?',
+        'Nucleus',
+        ['Ribosome', 'Vacuole', 'Cell wall'],
+      ],
+      [
+        'Which part makes proteins?',
+        'Ribosome',
+        ['Nucleus', 'Vacuole', 'Chloroplast'],
+      ],
+      [
+        'Which structure do plant cells have that animal cells do not?',
+        'Cell wall',
+        ['Nucleus', 'Membrane', 'Ribosome'],
+      ],
+      [
+        'Where does photosynthesis happen?',
+        'Chloroplast',
+        ['Mitochondria', 'Nucleus', 'Vacuole'],
+      ],
+    ].map(([text, correct, wrong], i) => ({
+      id: `p${i + 1}`,
+      timeLimit: 0,
+      text: text as string,
+      type: 'MC' as const,
+      correctAnswer: correct as string,
+      incorrectAnswers: wrong as string[],
+    })),
+    { ...ESSAY_TEXT_QUIZ.questions[0], paperBoxSize: 'full' as const },
+  ],
+};
+
 // ?drive=0 shows the no-Drive hint; ?uploads=fail makes every upload fail.
 const PaperImport: React.FC = () => {
   const { canAccessFeature } = useAuth();
@@ -529,6 +567,21 @@ const VIEWS = {
       />
     );
   },
+  // Needs the paper-print-preview flag (admins have it).
+  preview: () => (
+    <PaperPrintModal
+      quiz={PREVIEW_QUIZ}
+      rosters={ROSTERS}
+      assign={{
+        plcs: [],
+        initialSharing: { plcMode: false, plcId: '' },
+        onCreateAssignment: () => Promise.resolve(),
+      }}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
   'printed-stimuli': () => (
     <PaperPrintModal
       quiz={printedGroupQuiz(STIMULI_QUIZ, {
