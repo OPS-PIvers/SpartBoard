@@ -112,6 +112,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'paper-student-copy',
   'paper-written-hybrid',
   'personal-spotify',
+  'picked-student-names',
   'plc-docs-toolbar',
   'plc-goal-coach',
   'plc-meeting-ai-notes',

@@ -1,5 +1,10 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
+  pickedClassSizes,
+  pickedStudents,
+  type PickedStudents,
+} from '@/utils/assignedStudents';
+import {
   collection,
   doc,
   FieldPath,
@@ -16,6 +21,7 @@ import type {
   FlashcardProgress,
   GuidedLearningResponse,
   QuizMetadata,
+  StudentTargetRef,
   VideoActivityResponse,
   WritingAssignmentRecord,
   WritingResponse,
@@ -113,6 +119,8 @@ type OtherRun = AssignmentRun & {
   sessionId?: string;
   rosterIds?: string[];
   resultsVersion?: number;
+  targetMode?: 'class' | 'students';
+  targetStudents?: StudentTargetRef[];
 };
 
 interface OtherRowModel {
@@ -123,6 +131,7 @@ interface OtherRowModel {
   run: OtherRun;
   /** Set on Writing rows, whose class actions go through the server. */
   writing?: WritingAssignmentRecord;
+  picked: PickedStudents | null;
 }
 
 type HubItem =
@@ -367,10 +376,13 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
           const n = sizeOf(run.rosterIds[0]);
           if (n != null) classSizes[''] = n;
         }
+        const picked = pickedStudents(run, rosters);
         const extras: AssignedExtras = {
           responses: counted?.responses ?? null,
           needsGrading: counted?.needsGrading ?? null,
-          classSizes,
+          classSizes: picked
+            ? pickedClassSizes(picked, run.periodAccess)
+            : classSizes,
           bellFor: (access) =>
             todaysBell(access, rosters, featurePermissions, now),
         };
@@ -382,6 +394,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
           run,
           writing,
           status: deriveAssignedStatus(input, now),
+          picked,
         };
       }),
     [runs, responsesByPath, rosters, featurePermissions, now]
@@ -755,6 +768,8 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
         onSelect={onSelect}
         selectAnchor={selectAnchor}
         hideCounts={miniAppByClass(row.kind, run)}
+        picked={row.picked}
+        periodAccess={run.periodAccess}
       />
     </>
   );

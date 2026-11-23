@@ -11,7 +11,12 @@ import {
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
-import type { ClassRoster } from '@/types';
+import type { ClassRoster, StudentTargetRef } from '@/types';
+import {
+  pickedClassSizes,
+  pickedStudents,
+  type PickedStudents,
+} from '@/utils/assignedStudents';
 import { todaysBell } from '@/hooks/usePeriodAccess';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import {
@@ -51,6 +56,8 @@ export interface RunAssignment extends AssignmentRun {
   createdAt: number;
   rosterIds?: string[];
   scoreVisibility?: string | null;
+  targetMode?: 'class' | 'students';
+  targetStudents?: StudentTargetRef[];
 }
 
 export interface RunAssignedTabProps<A extends RunAssignment> {
@@ -195,6 +202,7 @@ interface RowModel<A> {
   bells: Record<string, EpochWindow | null>;
   viewOnly: boolean;
   published: boolean;
+  picked: PickedStudents | null;
 }
 
 /** The Assigned tab for a kind driven by `useAssignmentClassActions` (ASSIGNED_TAB.md slice 5). */
@@ -244,9 +252,18 @@ export function RunAssignedTab<A extends RunAssignment>(
       const n = sizeOf(a.rosterIds[0]);
       if (n != null) classSizes[''] = n;
     }
+    const picked = pickedStudents(a, rosters);
+    const sizes = picked
+      ? pickedClassSizes(picked, a.periodAccess)
+      : classSizes;
     const status = deriveAssignedStatus(
       // Neither kind has teacher-graded work.
-      toInput(a, { responses, needsGrading: 0, classSizes, bellFor }),
+      toInput(a, {
+        responses,
+        needsGrading: 0,
+        classSizes: sizes,
+        bellFor,
+      }),
       now
     );
     return {
@@ -256,6 +273,7 @@ export function RunAssignedTab<A extends RunAssignment>(
       bells,
       viewOnly: viewOnly(a),
       published: scoresShown(a.scoreVisibility),
+      picked,
     };
   });
 
@@ -620,6 +638,8 @@ function RunAssignedRowHost<A extends RunAssignment>({
         busy={busy}
         tourIndex={index}
         tourWidgetType={tourWidgetType}
+        picked={row.picked}
+        periodAccess={a.periodAccess}
       />
     </>
   );
