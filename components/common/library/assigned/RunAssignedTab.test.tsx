@@ -153,7 +153,7 @@ describe('RunAssignedTab', () => {
     ]);
   });
 
-  it('a row with several classes offers Close for all classes and Reopen… once one is closed', () => {
+  it('a row with several classes offers Close for all classes and Reopen once one is closed', () => {
     renderTab([
       ma({
         periodAccess: {
@@ -167,13 +167,13 @@ describe('RunAssignedTab', () => {
       'Open app',
       'Edit classes',
       'Close for all classes',
-      'Reopen…',
+      'Reopen',
       'Move to Finished',
       'Delete',
     ]);
   });
 
-  it('all closed and Active: no links or settings, Publish scores… and Reopen…', () => {
+  it('all closed and Active: no links or settings, Publish scores and Reopen', () => {
     const a = ma({
       status: 'inactive',
       resultsVersion: 2,
@@ -184,14 +184,14 @@ describe('RunAssignedTab', () => {
     });
     renderTab([a], { a1: miniAppRowResponses(a, [{}]) });
     expect(menuItems()).toEqual([
-      'Publish scores…',
-      'Reopen…',
+      'Publish scores',
+      'Reopen',
       'Move to Finished',
       'Delete',
     ]);
   });
 
-  it('Reopen… asks which class and reopens it for everyone', async () => {
+  it('Reopen asks which class and reopens it for everyone', async () => {
     renderTab([
       ma({
         periodAccess: {
@@ -202,7 +202,7 @@ describe('RunAssignedTab', () => {
       }),
     ]);
     menuItems();
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Reopen…' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Reopen' }));
     const dialog = screen.getByRole('dialog');
     expect(
       within(dialog).getByRole('radio', { name: 'Everyone in the class' })
@@ -223,7 +223,7 @@ describe('RunAssignedTab', () => {
     expect(actions.reopenClass).toHaveBeenCalledWith('p2');
   });
 
-  it('a Finished row keeps Publish scores…, Reopen… and Delete', async () => {
+  it('a Finished row keeps Publish scores, Reopen and Delete', async () => {
     renderTab([
       ma({
         status: 'inactive',
@@ -232,7 +232,7 @@ describe('RunAssignedTab', () => {
       } as Partial<MiniAppAssignment>),
     ]);
     await userEvent.click(screen.getByRole('button', { name: /^Finished/ }));
-    expect(menuItems()).toEqual(['Publish scores…', 'Reopen…', 'Delete']);
+    expect(menuItems()).toEqual(['Publish scores', 'Reopen', 'Delete']);
   });
 
   it('several classes with classless submissions show the total, not per-class counts', async () => {
