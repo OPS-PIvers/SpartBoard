@@ -1,6 +1,16 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
 import type { ChangelogWidgetNote } from '@/hooks/useChangelog';
-import { dismissWidgetWhatsNew, pickWidgetNote } from './useWidgetWhatsNew';
+import {
+  dismissWidgetWhatsNew,
+  pickWidgetNote,
+  useWidgetWhatsNew,
+} from './useWidgetWhatsNew';
+
+const mockNotes = vi.hoisted(() => ({ list: [] as unknown[] }));
+vi.mock('@/hooks/useChangelog', () => ({
+  useChangelog: () => ({ widgetNotes: mockNotes.list }),
+}));
 
 const NOW = new Date('2026-10-20T12:00:00').getTime();
 const DAY = 24 * 60 * 60 * 1000;
@@ -89,5 +99,24 @@ describe('dismissWidgetWhatsNew', () => {
     expect(
       JSON.parse(localStorage.getItem('widget-whats-new-dismissed') ?? '')
     ).toEqual(['a:calendar', 'b:clock']);
+  });
+});
+
+describe('useWidgetWhatsNew dismiss', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('hides every live note for the widget at once, not one at a time', () => {
+    const today = new Date().toISOString().slice(0, 10);
+    mockNotes.list = [
+      note('cal-a', 'calendar', today),
+      note('cal-b', 'calendar', today),
+      note('clock-a', 'clock', today),
+    ];
+    const { result } = renderHook(() => useWidgetWhatsNew('calendar'));
+    expect(result.current.note).not.toBeNull();
+    act(() => result.current.dismiss());
+    expect(result.current.note).toBeNull();
+    const clock = renderHook(() => useWidgetWhatsNew('clock'));
+    expect(clock.result.current.note?.id).toBe('clock-a');
   });
 });
