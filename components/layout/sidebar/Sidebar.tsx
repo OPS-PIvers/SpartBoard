@@ -90,13 +90,15 @@ declare const __APP_BUILD_DATE__: string;
 const buildDate = new Date(
   typeof __APP_BUILD_DATE__ === 'undefined' ? '' : __APP_BUILD_DATE__
 );
-const buildDateLabel = Number.isNaN(buildDate.getTime())
-  ? null
-  : buildDate.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+const formatBuildDate = (language: string | undefined): string | null => {
+  if (Number.isNaN(buildDate.getTime())) return null;
+  const opts = { month: 'short', day: 'numeric', year: 'numeric' } as const;
+  try {
+    return buildDate.toLocaleDateString(language, opts);
+  } catch {
+    return buildDate.toLocaleDateString(undefined, opts);
+  }
+};
 
 type MenuSection = 'main' | 'classes' | 'plcs' | 'google-drive';
 
@@ -136,7 +138,8 @@ const PlcsMenuButton: React.FC<PlcsMenuButtonProps> = ({
 };
 
 export const Sidebar: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const buildDateLabel = formatBuildDate(i18n?.language);
   const { showConfirm } = useDialog();
   const [isOpen, setIsOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<MenuSection>('main');
@@ -525,7 +528,7 @@ export const Sidebar: React.FC = () => {
                     variant="ghost"
                     size="md"
                     shape="square"
-                    className="-ml-1.5 !text-white/80 hover:!bg-white/15 hover:!text-white"
+                    className="-ml-1.5 text-white/80! hover:bg-white/15! hover:text-white! focus-visible:ring-white! focus-visible:ring-offset-brand-blue-primary!"
                   />
                 ) : (
                   <div className="w-9 h-9 shrink-0 bg-white/15 rounded-lg flex items-center justify-center overflow-hidden">
@@ -560,7 +563,7 @@ export const Sidebar: React.FC = () => {
                 label={t('sidebar.header.closeMenu')}
                 variant="ghost"
                 size="md"
-                className="!text-white/80 hover:!bg-white/15 hover:!text-white"
+                className="text-white/80! hover:bg-white/15! hover:text-white! focus-visible:ring-white! focus-visible:ring-offset-brand-blue-primary!"
               />
             </div>
 
