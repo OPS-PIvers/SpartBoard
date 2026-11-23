@@ -24,6 +24,7 @@ function deps(over: Partial<FreshserviceDeps> = {}) {
   const d: FreshserviceDeps = {
     isAdmin: () => Promise.resolve(true),
     allowed: () => Promise.resolve(true),
+    isAuthor: () => Promise.resolve(false),
     loadSite: () => Promise.resolve(ready),
     saveSite: (c) => {
       saved.site = c;
@@ -352,5 +353,39 @@ describe('runFreshservice', () => {
     expect(() =>
       parseFreshserviceRequest({ action: 'createCategory', name: ' ' })
     ).toThrow('name');
+  });
+
+  it('lets a tour author send and file articles but not change the settings', async () => {
+    const author = {
+      isAdmin: () => Promise.resolve(false),
+      allowed: () => Promise.resolve(false),
+      isAuthor: () => Promise.resolve(true),
+    };
+    const { d, saved } = deps(author);
+    expect(await runFreshservice(send, 'u', token, d)).toEqual({
+      sent: true,
+      articleId: 7,
+    });
+    expect(await runFreshservice({ action: 'status' }, 'u', token, d)).toEqual({
+      domain: 'orono.freshservice.com',
+      folderId: '42',
+      hasKey: true,
+    });
+    await expect(
+      runFreshservice(
+        { action: 'save', domain: 'new.freshservice.com', folderId: '9' },
+        'u',
+        token,
+        d
+      )
+    ).rejects.toThrow('Only an admin');
+    expect(saved.site).toBeUndefined();
+    const stranger = deps({
+      ...author,
+      isAuthor: () => Promise.resolve(false),
+    });
+    await expect(runFreshservice(send, 'u', token, stranger.d)).rejects.toThrow(
+      'not turned on'
+    );
   });
 });

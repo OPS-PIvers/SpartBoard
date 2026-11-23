@@ -19,6 +19,7 @@ import {
   type TokenInfo,
 } from './extensionAuth';
 import { safeErr } from './safeLog';
+import { authorPassesFlag, isListedTourAuthor } from './tourAuthors';
 
 export {
   DISTRICT_DOMAIN,
@@ -542,10 +543,19 @@ function defaultDeps(db: Firestore): ExtensionDeps {
         (await db.collection('admins').doc(email).get()).exists;
       if (!staff) return false;
       const { isGlobalFeatureGranted } = await import('./featureGrant');
-      return isGlobalFeatureGranted(db, WEB_TOURS_FEATURE_ID, email, uid ?? '');
+      return (
+        (await isGlobalFeatureGranted(
+          db,
+          WEB_TOURS_FEATURE_ID,
+          email,
+          uid ?? ''
+        )) || authorPassesFlag(db, WEB_TOURS_FEATURE_ID, email)
+      );
     },
+    // The extension shows Record, Manage tours and Edit tour from this, so an author counts (WEB_TOUR_AUTHORS.md E1).
     isAdmin: async (email) =>
-      (await db.collection('admins').doc(email).get()).exists,
+      (await db.collection('admins').doc(email).get()).exists ||
+      isListedTourAuthor(db, email),
   };
 }
 

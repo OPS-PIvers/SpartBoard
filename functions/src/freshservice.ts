@@ -8,6 +8,7 @@ import { resolveCallerIsAdmin } from './aiGeneration';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { GL_TOURS_COLLECTION } from './glTours';
 import { safeErr } from './safeLog';
+import { authorPassesFlag } from './tourAuthors';
 
 type Firestore = admin.firestore.Firestore;
 type Token = { email?: string; [k: string]: unknown };
@@ -203,6 +204,8 @@ export function parseFreshserviceRequest(data: unknown): FreshserviceRequest {
 export interface FreshserviceDeps {
   isAdmin: (token: Token) => Promise<boolean>;
   allowed: (token: Token, uid: string) => Promise<boolean>;
+  /** A listed tour author for whom the flag is on. */
+  isAuthor: (token: Token) => Promise<boolean>;
   loadSite: () => Promise<FreshserviceSite | null>;
   saveSite: (site: FreshserviceSite, by: string) => Promise<void>;
   /** The key from Secret Manager; null when the secret or its access grant isn't set up. */
@@ -498,10 +501,20 @@ export async function runFreshservice(
   | { id: string | null }
   | { sent: boolean; articleId?: number }
 > {
-  if (!(await deps.isAdmin(token)) || !(await deps.allowed(token, uid)))
+  const isAdmin = await deps.isAdmin(token);
+  // A tour author sends and files articles; the saved site and folder stay with admins (WEB_TOUR_AUTHORS.md B5).
+  const ok = isAdmin
+    ? await deps.allowed(token, uid)
+    : await deps.isAuthor(token);
+  if (!ok)
     throw new HttpsError(
       'permission-denied',
       'FreshService sync is not turned on for this account.'
+    );
+  if (req.action === 'save' && !isAdmin)
+    throw new HttpsError(
+      'permission-denied',
+      'Only an admin can change the FreshService settings.'
     );
   const by = token.email ?? uid;
   if (req.action === 'status')
@@ -568,6 +581,9 @@ async function loadApiKeyFromSecretManager(
 function defaultDeps(db: Firestore): FreshserviceDeps {
   return {
     isAdmin: (token) => resolveCallerIsAdmin(db, token),
+    isAuthor: async (token) =>
+      token.email_verified === true &&
+      authorPassesFlag(db, FRESHSERVICE_FEATURE_ID, token.email),
     allowed: async (token, uid) => {
       const { isGlobalFeatureGranted } = await import('./featureGrant');
       return isGlobalFeatureGranted(
