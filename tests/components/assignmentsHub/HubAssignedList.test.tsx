@@ -263,11 +263,11 @@ describe('HubAssignedList', () => {
     expect(classActions.closeAll).toHaveBeenCalled();
   });
 
-  it('a Finished quiz offers Reopen… with Everyone only', () => {
+  it('a Finished quiz offers Reopen with Everyone only', () => {
     renderList([row('q1', 'quiz')]);
     fireEvent.click(screen.getByRole('button', { name: /Finished/ }));
-    expect(menuItems()).toEqual(['Reopen…']);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Reopen…' }));
+    expect(menuItems()).toEqual(['Reopen']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reopen' }));
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getAllByRole('radio')).toHaveLength(1);
   });

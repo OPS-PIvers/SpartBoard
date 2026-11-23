@@ -142,6 +142,7 @@ export const ASSIGNED_FIXTURES: QuizAssignment[] = [
     status: 'inactive',
     createdAt: now - 13 * DAY,
     scoreVisibility: 'score-only',
+    plc: { id: 'plc-sci', name: 'Grade 7 Science PLC', memberEmails: [] },
     periodAccess: rows(() => closed),
   }),
   base('metric', 'Metric Units Check', {
