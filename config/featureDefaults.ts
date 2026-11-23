@@ -559,13 +559,13 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
   // Print/scan paper answer sheets. Admin-only until opened up; the district
   // switch (admin_settings/paper_answer_sheets) must also be on.
   'paper-answer-sheets': {
-    label: 'Paper answer sheets (Scantron replacement)',
+    label: 'Paper response sheets (Scantron replacement)',
     icon: Printer,
     description: 'Print bubble sheets and import scans.',
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
-    modalLabel: 'Paper answer sheets',
+    modalLabel: 'Paper response sheets',
     group: 'questions',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,

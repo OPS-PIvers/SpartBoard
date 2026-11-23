@@ -5081,7 +5081,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "assign-step.sheets",
-    "label": "Answer sheets step header in the Assign on paper dialog",
+    "label": "Response sheets step header in the Assign on paper dialog",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -15988,7 +15988,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-stimuli.add-passage",
-    "label": "Add a passage in the Quiz widget",
+    "label": "Add text in the Quiz widget",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -16459,7 +16459,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-stimuli.passage-text",
-    "label": "Passage textarea in the Quiz widget",
+    "label": "Text box in the Quiz widget",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -82508,7 +82508,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-library.reprint-written-sheets",
-    "label": "Print written answer sheets item in a quiz assignment menu, for written answers on paper",
+    "label": "Print written response sheets item in a quiz assignment menu, for written answers on paper",
     "scope": "widget type",
     "panel": true,
     "keys": [

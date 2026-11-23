@@ -132,7 +132,21 @@ import {
   type PaperBoxStylePick,
 } from '@/utils/paperWritten';
 import { splitBlanks } from '@/utils/quizFibBlanks';
-import { printPaperSheets } from '@/utils/paperSheetPrint';
+import {
+  printPaperSheets,
+  type PaperPromptPage,
+} from '@/utils/paperSheetPrint';
+import {
+  browserBlockMeasure,
+  estimateBlockMm,
+  planSheetStimuli,
+  type BlockMeasure,
+} from '@/utils/paperSheetStimulusBlocks';
+import {
+  blockPromptRows,
+  layoutSheetStimuli,
+  type SheetStimuliSet,
+} from '@/utils/paperSheetStimuliLayout';
 import {
   planPaperVersions,
   printVersionsFor,
@@ -439,6 +453,17 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     () => versionPlan?.stimuli ?? quiz.stimuli ?? [],
     [versionPlan, quiz.stimuli]
   );
+  // Stimuli a printed question uses, fetched now so the test paper prints them on the click.
+  const testStimuli = useMemo(() => {
+    const entries = versionPlan
+      ? versionPlan.versions.flatMap((v) => v.analysis.entries)
+      : analysis.entries;
+    const used = new Set(
+      entries.flatMap((e) => questionsById.get(e.questionId)?.stimulusIds ?? [])
+    );
+    return quizStimuli.filter((s) => used.has(s.id));
+  }, [versionPlan, analysis.entries, questionsById, quizStimuli]);
+  const testStimulusFiles = usePaperTestStimulusFiles(testStimuli);
   // A long written prompt and its figures print whole above its box, on the box's page.
   const promptIds = useMemo(
     () =>
@@ -501,17 +526,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     : analysis.rows.length;
   // A quiz with no bubble questions has no choices to count.
   const showChoiceCount = isStub || questionCount > 0;
-  /** Stem per written question, for the header above its box. */
-  const writtenTextsOf = (a: typeof analysis): Record<string, string> =>
-    Object.fromEntries(
-      a.written.flatMap((w) => {
-        const q = questionsById.get(w.questionId);
-        const text = q?.type === 'FIB' ? letteredBlanks(q.text) : q?.text;
-        return text && !promptIds.has(w.questionId)
-          ? [[w.questionId, text]]
-          : [];
-      })
-    );
   const blankAnswersOf = (a: typeof analysis): Record<string, string[]> =>
     Object.fromEntries(
       a.written.flatMap((w) => {
@@ -537,6 +551,97 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const questionTextLayout =
     includeQuestionText && !isStub && sheetStimuli.length === 0;
   const grid = questionTextLayout ? 'questions' : columnsPerPage;
+  const blockMeasure = useMemo(
+    (): BlockMeasure => browserBlockMeasure() ?? estimateBlockMm,
+    []
+  );
+  // A response sheet with question text is the whole test, so it prints every stimulus too.
+  const stimuliSets = useMemo((): SheetStimuliSet[] | null => {
+    if (!questionTextLayout || testStimulusFiles.loading) return null;
+    const setOf = (
+      entries: readonly PaperSheetEntry[],
+      mapIds: readonly string[]
+    ): SheetStimuliSet => ({
+      entries,
+      mapIds,
+      plan: planSheetStimuli(
+        entries.map((e) => ({ questionId: e.questionId, row: e.label })),
+        questionsById,
+        quizStimuli,
+        testStimulusFiles.files,
+        blockMeasure
+      ),
+    });
+    if (versionPlan) {
+      const template = versionPlan.template.entries.map((e) => e.questionId);
+      return versionPlan.versions.map((v) =>
+        setOf(v.analysis.entries, template)
+      );
+    }
+    return [
+      setOf(
+        analysis.entries,
+        analysis.entries.map((e) => e.questionId)
+      ),
+    ];
+  }, [
+    questionTextLayout,
+    testStimulusFiles.loading,
+    testStimulusFiles.files,
+    versionPlan,
+    analysis.entries,
+    questionsById,
+    quizStimuli,
+    blockMeasure,
+  ]);
+  const stimuliLayout = useMemo(
+    () => (stimuliSets ? layoutSheetStimuli(stimuliSets, promptIds) : null),
+    [stimuliSets, promptIds]
+  );
+  /** Written questions that print their prompt above the box, with or without a stimulus block. */
+  const sheetPromptIds = useMemo(
+    () => new Set([...promptIds, ...(stimuliLayout?.promptIds ?? [])]),
+    [stimuliLayout, promptIds]
+  );
+  const sheetPromptRows = useMemo(
+    () =>
+      stimuliLayout && stimuliSets
+        ? {
+            ...promptRows,
+            ...blockPromptRows(
+              stimuliLayout,
+              stimuliSets,
+              questionsById,
+              !!versionPlan
+            ),
+          }
+        : promptRows,
+    [stimuliLayout, stimuliSets, promptRows, questionsById, versionPlan]
+  );
+  /** The prompt each prompted box prints; on a question-text sheet its pictures move into the block. */
+  const sheetPromptsFor = (
+    setIndex: number,
+    textOf: (mapId: string) => string | undefined
+  ): Record<string, PaperPromptPage> =>
+    Object.fromEntries(
+      [...sheetPromptIds].flatMap((id) => {
+        const text = textOf(id);
+        if (text === undefined) return [];
+        const block = stimuliLayout?.sets[setIndex]?.prompts[id];
+        return [[id, { text, stimuli: [], ...(block ? { block } : {}) }]];
+      })
+    );
+  /** Stem per written question, for the header above its box. */
+  const writtenTextsOf = (a: typeof analysis): Record<string, string> =>
+    Object.fromEntries(
+      a.written.flatMap((w) => {
+        const q = questionsById.get(w.questionId);
+        const text = q?.type === 'FIB' ? letteredBlanks(q.text) : q?.text;
+        return text && !sheetPromptIds.has(w.questionId)
+          ? [[w.questionId, text]]
+          : [];
+      })
+    );
   // Each question-text row is sized to its own stem, so those sheets always print by page map.
   const stemLines = useMemo(() => {
     if (!questionTextLayout) return undefined;
@@ -553,9 +658,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         stems: !isStub,
         choiceCount,
         ...(stemLines ? { stemLines } : {}),
-        ...(Object.keys(promptRows).length > 0 ? { promptRows } : {}),
+        ...(Object.keys(sheetPromptRows).length > 0
+          ? { promptRows: sheetPromptRows }
+          : {}),
+        ...(stimuliLayout && Object.keys(stimuliLayout.stimulusMm).length > 0
+          ? { stimulusMm: stimuliLayout.stimulusMm }
+          : {}),
       }),
-    [grid, isStub, choiceCount, stemLines, promptRows]
+    [grid, isStub, choiceCount, stemLines, sheetPromptRows, stimuliLayout]
   );
   // Only a sheet with written boxes, question text or versions prints by page map; every other sheet keeps today's layout.
   const pagePlan = useMemo((): PlanPaperPagesResult | null => {
@@ -603,17 +713,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     ];
   }, [sheetStimuli, promptSets, boxImageStimuli]);
   const sheetImages = usePaperSheetStimulusImages(imageStimuli);
-  // Stimuli a printed question uses, fetched now so the test paper prints them on the click.
-  const testStimuli = useMemo(() => {
-    const entries = versionPlan
-      ? versionPlan.versions.flatMap((v) => v.analysis.entries)
-      : analysis.entries;
-    const used = new Set(
-      entries.flatMap((e) => questionsById.get(e.questionId)?.stimulusIds ?? [])
-    );
-    return quizStimuli.filter((s) => used.has(s.id));
-  }, [versionPlan, analysis.entries, questionsById, quizStimuli]);
-  const testStimulusFiles = usePaperTestStimulusFiles(testStimuli);
   const sharing = usePaperSheetImageSharing(sheetStimuli, inPlcGroup);
   /** Set once the teacher has answered the sharing ask, either way. */
   const [sharingAnswered, setSharingAnswered] = useState(false);
@@ -698,7 +797,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       size: { widthPx: number; heightPx: number } | null
     ): Promise<PaperSheetStimulus | null> => {
       if (!driveService) {
-        onError('Connect Google Drive to add an image to the answer sheet.');
+        onError('Connect Google Drive to add an image to the response sheet.');
         return null;
       }
       // Uploaded unshared: it stays the teacher's until the quiz is
@@ -734,7 +833,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       }
       // Said now rather than after a PDF has been parsed and a page picked.
       if (!driveService) {
-        onError('Connect Google Drive to add an image to the answer sheet.');
+        onError('Connect Google Drive to add an image to the response sheet.');
         return null;
       }
       setStimulusBusy(true);
@@ -842,6 +941,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       ? pagePlan.pageMaps.length
       : pagePlan.pageCount
     : pageCountForQuestions(questionCount, grid);
+  const firstStimuli = stimuliLayout?.sets[0];
+  const stimulusPagesPerSheet = firstStimuli
+    ? (stimuliSets?.[0]?.plan.resourcePages.length ?? 0) +
+      Object.values(firstStimuli.pagesBefore).reduce((n, p) => n + p.length, 0)
+    : 0;
+  const printedPages =
+    sheetCount * pagesPerSheet +
+    (sheetCount - (includeKeySheet ? 1 : 0)) * stimulusPagesPerSheet;
   const canPrint =
     sheetCount > 0 &&
     questionCount + writtenCount > 0 &&
@@ -850,6 +957,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     !printing &&
     !stimulusBusy &&
     !sheetImages.loading &&
+    // A question-text sheet prints the stimuli, so it waits until they have loaded.
+    !(questionTextLayout && !stimuliLayout) &&
     // A click that beat the Drive lookup would skip the sharing ask entirely.
     !sharing.checking;
 
@@ -1119,12 +1228,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               questionTexts: sheetQuestions.map((q) => {
                 const english = batch.choiceOrder?.[q.id] ?? [];
                 const tr = group?.translation?.questions[q.id];
+                const stimulus = stimuliLayout?.sets[0]?.rows.get(q.id);
                 return {
                   text: plainPromptText(
                     tr?.text?.trim() ? tr.text : promptLabel(q)
                   ),
                   choices: english.map((c) => tr?.choices?.[c] ?? c),
                   ...choicePictureFields(q, english),
+                  ...(stimulus ? { stimulus } : {}),
                 };
               }),
             }
@@ -1151,7 +1262,23 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                     ),
                   }
                 : {}),
-              ...(promptIds.size > 0 ? { prompts: promptPages } : {}),
+              ...(stimuliLayout
+                ? {
+                    ...(sheetPromptIds.size > 0
+                      ? {
+                          prompts: sheetPromptsFor(
+                            0,
+                            (id) => questionsById.get(id)?.text
+                          ),
+                        }
+                      : {}),
+                    stimulusBlocks: stimuliLayout.sets[0]?.written ?? {},
+                    pagesBefore: stimuliLayout.sets[0]?.pagesBefore ?? {},
+                    resourcePages: stimuliSets?.[0]?.plan.resourcePages ?? [],
+                  }
+                : promptIds.size > 0
+                  ? { prompts: promptPages }
+                  : {}),
             }
           : {}),
         ...(versionPlan
@@ -1160,7 +1287,36 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 versionPlan,
                 batch.choiceOrder ?? {},
                 batch.sheetLayout === 'questions'
-              ),
+              ).map((v, k) => {
+                const forSet = stimuliLayout?.sets[k];
+                const set = stimuliSets?.[k];
+                if (!forSet || !set) return v;
+                // Each version prints its own questions' stimuli in the template's places.
+                const actual = new Map(
+                  set.mapIds.map((id, i) => [id, set.entries[i]?.questionId])
+                );
+                const rows = versionPlan.versions[k].analysis.rows;
+                return {
+                  ...v,
+                  ...(v.questionTexts
+                    ? {
+                        questionTexts: v.questionTexts.map((qt, r) => {
+                          const stimulus = forSet.rows.get(
+                            rows[r]?.questionId ?? ''
+                          );
+                          return stimulus ? { ...qt, stimulus } : qt;
+                        }),
+                      }
+                    : {}),
+                  prompts: sheetPromptsFor(k, (id) => {
+                    const qid = actual.get(id);
+                    return qid ? questionsById.get(qid)?.text : undefined;
+                  }),
+                  stimulusBlocks: forSet.written,
+                  pagesBefore: forSet.pagesBefore,
+                  resourcePages: set.plan.resourcePages,
+                };
+              }),
             }
           : {}),
         ...(imageStimuli.length > sheetStimuli.length
@@ -1177,12 +1333,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               },
             }
           : {}),
+        // The sheets are the whole test; close once the window has the stimulus pictures it borrows.
+        ...(stimuliLayout ? { onImagesReady: onClose } : {}),
         sheets,
       });
       // An authored quiz needs its test paper printed from the same batch, so
       // the letters on the paper match the order the import will decode.
       if (isStub && sheetStimuli.length === 0) onClose();
-      else if (!isStub) setPrintedBatch(batch);
+      else if (!isStub && !stimuliLayout) setPrintedBatch(batch);
     } catch (err) {
       onError(
         err instanceof Error ? err.message : 'Could not print response sheets.'
@@ -1534,7 +1692,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     ? tooManyPagesMessage(pagesPerSheet)
     : sheetCount === 0
       ? 'Pick at least one student or spare sheet.'
-      : null;
+      : questionTextLayout && !stimuliLayout
+        ? 'Loading stimuli.'
+        : null;
 
   const setupBody = (
     <div className={assign ? 'space-y-4' : 'space-y-4 px-5 pb-5 pt-4'}>
@@ -2228,8 +2388,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               : sheetCount === 0
                 ? 'Pick at least one student or spare sheet.'
                 : `${sheetCount} sheet${sheetCount === 1 ? '' : 's'} · ${
-                    sheetCount * pagesPerSheet
-                  } page${sheetCount * pagesPerSheet === 1 ? '' : 's'}${
+                    printedPages
+                  } page${printedPages === 1 ? '' : 's'}${
                     versionPlan && versionPlan.versions.length > 1
                       ? ` · ${versionPlan.versions.length} versions`
                       : ''

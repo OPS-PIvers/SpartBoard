@@ -381,7 +381,7 @@ export async function authorizeDelegatedPrint(
   if (paperSettings.data()?.enabled !== true)
     throw new HttpsError(
       'failed-precondition',
-      'Paper answer sheets are not enabled.'
+      'Paper response sheets are not enabled.'
     );
   if (delegatedSettings.data()?.enabled !== true)
     throw new HttpsError(

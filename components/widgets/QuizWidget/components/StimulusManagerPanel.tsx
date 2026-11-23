@@ -332,7 +332,7 @@ function useStimulusIntake(state: StimulusListState) {
       type: 'text',
       url: '',
       text: '',
-      label: 'Passage',
+      label: 'Text',
       readAloudSource: 'text',
     };
     state.addStimulus(stimulus);
@@ -498,7 +498,7 @@ export const StimulusManagerPanel: React.FC<{
               className="shrink-0 flex items-center gap-2 px-3 py-2 bg-white border-2 border-slate-300 hover:border-brand-blue-primary/50 disabled:opacity-40 rounded-lg text-sm font-bold text-slate-700"
             >
               <FileText className="w-4 h-4" />
-              Add a passage
+              Add text
             </button>
             {wordBankAvailable && (
               <button
@@ -806,7 +806,7 @@ const StimulusCard: React.FC<{
           {s.type === 'text' ? (
             <div>
               <label className={labelClass} htmlFor={`passage-${s.id}`}>
-                Passage
+                Text
               </label>
               <textarea
                 id={`passage-${s.id}`}
@@ -818,7 +818,7 @@ const StimulusCard: React.FC<{
                 value={s.text ?? ''}
                 onChange={(e) => updateStimulus(s.id, { text: e.target.value })}
                 rows={6}
-                placeholder="Paste or type the passage students will read."
+                placeholder="Paste or type the text students will read."
                 className="w-full px-2.5 py-2 border-2 border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-hidden focus:border-brand-blue-primary/50"
               />
             </div>

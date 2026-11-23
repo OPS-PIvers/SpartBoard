@@ -104,7 +104,7 @@ describe('PreviewsPanel', () => {
   it('pairs a district switch with its access flag on one row', async () => {
     await renderPanel();
     const row = screen.getByTestId('access-row-paper-answer-sheets');
-    expect(row).toContainElement(district('Paper answer sheets'));
+    expect(row).toContainElement(district('Paper response sheets'));
     expect(row).toHaveTextContent('Off everywhere');
   });
 
@@ -295,7 +295,7 @@ describe('PreviewsPanel', () => {
   it('shows each switch at its saved state, with a missing doc reading as off', async () => {
     await renderPanel();
     expect(district('PLC collaborative notes')).toBeChecked();
-    expect(district('Paper answer sheets')).not.toBeChecked();
+    expect(district('Paper response sheets')).not.toBeChecked();
     expect(district('Class groups in widgets')).not.toBeChecked();
     expect(district('Projects widget')).not.toBeChecked();
   });
@@ -332,7 +332,7 @@ describe('PreviewsPanel', () => {
 
   it('writes {enabled:true} to the right doc when a switch is turned on', async () => {
     await renderPanel();
-    fireEvent.click(district('Paper answer sheets'));
+    fireEvent.click(district('Paper response sheets'));
     await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
     expect(setDocMock.mock.calls[0][0].path).toBe(
       'admin_settings/paper_answer_sheets'
@@ -408,7 +408,7 @@ describe('PreviewsPanel', () => {
       new Error('Missing or insufficient permissions.')
     );
     await renderPanel();
-    fireEvent.click(district('Paper answer sheets'));
+    fireEvent.click(district('Paper response sheets'));
     expect(
       await screen.findByText(/insufficient permissions/)
     ).toBeInTheDocument();

@@ -17,6 +17,7 @@ import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
 import type { ChoicePicture } from './quizAnswerImages';
 import {
   resourceLine,
+  type PaperTestPage,
   type PaperTestResource,
   type PaperTestStimulus,
 } from './paperTestStimuli';
@@ -92,7 +93,7 @@ const STYLES = `
   .stim-item h3 { font-size: 11pt; margin: 0 0 1mm; break-after: avoid; }
   .stim-text { border: 0.3mm solid #000; padding: 3mm 4mm; white-space: pre-wrap; line-height: 1.45; overflow-wrap: anywhere; }
   .stim-img { display: block; max-width: 100%; max-height: 200mm; object-fit: contain; break-inside: avoid; }
-  .stim-page { display: block; width: 100%; max-height: 220mm; object-fit: contain; border: 0.2mm solid #999; break-inside: avoid; margin-bottom: 2mm; }
+  .stim-page { display: block; max-width: 100%; height: auto; break-inside: avoid; margin: 0 0 4mm; }
   .stim-bank { display: grid; gap: 1.5mm 3mm; border: 0.3mm solid #000; padding: 3mm; }
   .stim-bank + .stim-bank { margin-top: 2mm; }
   .stim-bank span { border: 0.2mm solid #666; padding: 1mm 2mm; text-align: center; }
@@ -105,6 +106,15 @@ function choiceHtml(text: string, picture: ChoicePicture | null | undefined) {
   if (!picture) return escapeHtml(plainMathText(text));
   const img = `<img class="cpic" src="${escapeHtml(picture.url)}" alt="${escapeHtml(picture.alt ?? '')}">`;
   return picture.only ? img : `${img}${escapeHtml(plainMathText(text))}`;
+}
+
+/** Tallest a file page prints, so it fits one sheet under its heading. */
+const PAGE_MAX_H_MM = 215;
+
+/** A file page prints at its original size, narrowed only to fit the sheet's height; CSS caps it at the column width. */
+function pageWidthMm(pg: PaperTestPage): number {
+  if (pg.heightMm <= PAGE_MAX_H_MM) return pg.widthMm;
+  return (pg.widthMm * PAGE_MAX_H_MM) / pg.heightMm;
 }
 
 function stimulusItemHtml(item: PaperTestStimulus): string {
@@ -127,8 +137,11 @@ function stimulusItemHtml(item: PaperTestStimulus): string {
     case 'image':
       return `<div class="stim-item">${heading}<img class="stim-img" src="${escapeHtml(item.src)}" alt=""></div>`;
     case 'pages':
-      return `<div class="stim-item">${heading}${item.srcs
-        .map((src) => `<img class="stim-page" src="${escapeHtml(src)}" alt="">`)
+      return `<div class="stim-item">${heading}${item.pages
+        .map(
+          (pg) =>
+            `<img class="stim-page" src="${escapeHtml(pg.src)}" alt="" style="width:${pageWidthMm(pg).toFixed(1)}mm">`
+        )
         .join('')}</div>`;
     case 'link':
       return `<div class="stim-item"><p class="stim-link"><strong>${escapeHtml(item.title)}:</strong> ${escapeHtml(item.url)}</p></div>`;
@@ -165,7 +178,7 @@ function isTall(stimuli: readonly PaperTestStimulus[] | undefined): boolean {
 function questionHtml(q: PaperTestQuestion): string {
   // A stub's options are just the bubble letters, which say nothing to a student.
   const choices = q.written
-    ? '<p class="written">Answer on your answer sheet</p>'
+    ? '<p class="written">Write your answer on your response sheet.</p>'
     : isPlaceholderLetterChoices(q.choices)
       ? ''
       : `<ol class="c">${q.choices

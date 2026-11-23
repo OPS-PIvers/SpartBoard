@@ -3952,7 +3952,7 @@ const TeacherQuizWidget: React.FC<{
                       quizId: meta.id,
                     });
                     fail(
-                      'Could not save the written answer sheets. Try again.'
+                      'Could not save the written response sheets. Try again.'
                     );
                     return;
                   }
@@ -4011,7 +4011,7 @@ const TeacherQuizWidget: React.FC<{
               logError('QuizWidget.assignment.writtenOnPaper', err, {
                 quizId: meta.id,
               });
-              fail('Could not save the written answer sheets. Try again.');
+              fail('Could not save the written response sheets. Try again.');
               return;
             }
             paperWritten = {

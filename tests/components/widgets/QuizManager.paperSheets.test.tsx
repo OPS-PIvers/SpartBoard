@@ -288,7 +288,7 @@ describe('QuizManager — written answers on paper card', () => {
     expect(screen.getByText('Paper 18/26 scanned')).toBeTruthy();
     openRowMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Paper' }));
-    expect(screen.getByText('Print written answer sheets')).toBeTruthy();
+    expect(screen.getByText('Print written response sheets')).toBeTruthy();
     fireEvent.click(screen.getByText('Import written answers'));
     expect(onImportPaperResponses).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'qa-hybrid' })

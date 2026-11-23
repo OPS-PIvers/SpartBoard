@@ -321,7 +321,7 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
       isOpen
       onClose={onClose}
       title={
-        writtenOnly ? 'Print written answer sheets' : 'Print response sheets'
+        writtenOnly ? 'Print written response sheets' : 'Print response sheets'
       }
       maxWidth="max-w-md"
       footer={

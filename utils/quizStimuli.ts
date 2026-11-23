@@ -38,7 +38,7 @@ export const STIMULUS_TYPE_LABELS: Record<QuizStimulusType, string> = {
   video: 'Video',
   youtube: 'YouTube',
   'gdoc-embed': 'Doc/Slides embed',
-  text: 'Passage',
+  text: 'Text',
   'word-bank': 'Word bank',
   calculator: 'Calculator',
 };
@@ -291,13 +291,29 @@ export function questionsUsingModifiedStimulus(
   return out;
 }
 
+// Text stimuli were called "Passage" until November 2026, and saved quizzes keep that default.
+const LEGACY_DEFAULT_LABELS: Partial<Record<QuizStimulusType, string>> = {
+  text: 'Passage',
+};
+
+/** True for the name a new stimulus of this type starts with, which counts as unnamed. */
+export function isDefaultStimulusLabel(
+  type: QuizStimulusType,
+  label: string
+): boolean {
+  return (
+    label === STIMULUS_TYPE_LABELS[type] ||
+    label === LEGACY_DEFAULT_LABELS[type]
+  );
+}
+
 /** Teacher-facing name: a custom label, else the passage's opening words, else a file name, else the type. */
 export function stimulusDisplayName(
   s: Pick<QuizStimulus, 'label' | 'text' | 'url' | 'type' | 'driveFileId'>
 ): string {
   const typeLabel = STIMULUS_TYPE_LABELS[s.type];
   const label = s.label.trim();
-  if (label && label !== typeLabel) return label;
+  if (label && !isDefaultStimulusLabel(s.type, label)) return label;
   const passage = s.text?.replace(/\s+/g, ' ').trim();
   if (passage) return clip(passage);
   if (s.driveFileId || /^data:/i.test(s.url)) return typeLabel;
@@ -319,7 +335,10 @@ export function stimulusPickerTitle(
 ): string {
   const typeLabel = STIMULUS_TYPE_LABELS[s.type];
   const label = s.label.trim();
-  if (s.type === 'word-bank' && (!label || label === typeLabel)) {
+  if (
+    s.type === 'word-bank' &&
+    (!label || isDefaultStimulusLabel(s.type, label))
+  ) {
     const words = (s.text ?? '')
       .split('\n')
       .map((w) => w.trim())

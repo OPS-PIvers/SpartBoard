@@ -1,5 +1,5 @@
 /**
- * "Add to the answer sheet" — the only place paper sheet stimuli are authored
+ * "Add to the response sheet" — the only place paper sheet stimuli are authored
  * (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md D18). Collapsed until the teacher
  * opens it, so a teacher who never wants one never sees it.
  *
@@ -359,7 +359,7 @@ export const PaperSheetStimuliSection: React.FC<
           <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
         )}
         <span className="flex-1 text-sm font-semibold text-slate-800">
-          Add to the answer sheet
+          Add to the response sheet
         </span>
         <span className="text-xs text-slate-500">
           {stimuli.length === 0

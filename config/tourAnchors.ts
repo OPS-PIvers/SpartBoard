@@ -1234,7 +1234,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'assign-step.sheets': {
-    label: 'Answer sheets step header in the Assign on paper dialog',
+    label: 'Response sheets step header in the Assign on paper dialog',
     panel: true,
   },
   'assign-step.written': {
@@ -3997,7 +3997,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-stimuli.add-passage': {
-    label: 'Add a passage in the Quiz widget',
+    label: 'Add text in the Quiz widget',
     perWidgetType: true,
     panel: true,
   },
@@ -4098,7 +4098,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-stimuli.passage-text': {
-    label: 'Passage textarea in the Quiz widget',
+    label: 'Text box in the Quiz widget',
     perField: true,
     panel: true,
   },
@@ -19233,7 +19233,7 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.reprint-written-sheets': {
     label:
-      'Print written answer sheets item in a quiz assignment menu, for written answers on paper',
+      'Print written response sheets item in a quiz assignment menu, for written answers on paper',
     perWidgetType: true,
     panel: true,
   },

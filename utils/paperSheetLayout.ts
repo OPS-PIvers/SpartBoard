@@ -148,9 +148,13 @@ export const WRITTEN_HEADER_ROWS_WITH_STEM = 2;
 export const WRITTEN_HEADER_ROWS_NUMBER_ONLY = 1;
 /** Space left under a written block before the next row, as under a bubble (8 mm row, 5 mm bubble). */
 export const WRITTEN_BLOCK_GAP_MM = 3;
-/** Full-width box extent; clears the bottom corner windows at any height. */
-export const WRITTEN_BOX_X_MM = 38;
-export const WRITTEN_BOX_W_MM = 140;
+/** Full-width box extent: as wide as the corner windows allow, so it is clear of them at any height. */
+export const WRITTEN_BOX_X_MM = 35;
+export const WRITTEN_BOX_W_MM = 146;
+/** A written block with a page of its own starts just under the header, not at the bubble grid. */
+export const OWN_PAGE_TOP_MM = 48;
+/** Lowest a written box may reach: where a Full box on the bubble grid always ended. */
+export const WRITTEN_BOX_BOTTOM_MM = 263;
 /** Header extent, number included; starts at the answer column's number. */
 export const WRITTEN_HEADER_X_MM = 24;
 /** One-column (stimulus) sheets keep boxes in the left column, clear of the stimulus. */
@@ -169,6 +173,8 @@ export const PROMPT_GUTTER_MM = 4;
 export const PROMPT_LABEL_MM = 7;
 /** Most header rows a prompt takes, so at least 12 lines stay to write on. */
 export const PROMPT_MAX_ROWS = 14;
+/** A prompt that also prints its stimuli may take more, so at least 7 lines stay to write on. */
+export const PROMPT_MAX_ROWS_WITH_STIMULUS = 20;
 
 /** Left edge of each answer column's question-number label. */
 export const COLUMN_X_MM: readonly number[] = [24, 116];

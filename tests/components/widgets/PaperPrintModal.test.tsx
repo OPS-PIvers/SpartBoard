@@ -615,7 +615,7 @@ describe('PaperPrintModal', () => {
       expect(screen.getByText(/2 sheets · 2 pages/)).toBeInTheDocument();
 
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.click(screen.getByRole('button', { name: 'From Drive' }));
       await screen.findByText('1 item');
@@ -731,7 +731,7 @@ describe('PaperPrintModal', () => {
         target: { value: 'Pop quiz' },
       });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.click(screen.getByRole('button', { name: 'From Drive' }));
       await screen.findByText('1 item');
@@ -760,7 +760,7 @@ describe('PaperPrintModal', () => {
         target: { value: 'Pop quiz' },
       });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.click(screen.getByRole('button', { name: 'From Drive' }));
       await screen.findByText('1 item');
@@ -947,7 +947,7 @@ describe('PaperPrintModal', () => {
     const choosePdf = async () => {
       setup({ quiz: quiz() });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
       return screen.findByText(/Which page goes on the sheet\?/);
@@ -995,7 +995,7 @@ describe('PaperPrintModal', () => {
     it('carries the rendered size, so auto-fit knows the page shape', async () => {
       const { print } = setup({ quiz: quiz() });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
       await pickPage(1);
@@ -1014,7 +1014,7 @@ describe('PaperPrintModal', () => {
       pdfPageCount = 1;
       setup({ quiz: quiz() });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
       await pickPage(1);
@@ -1044,7 +1044,7 @@ describe('PaperPrintModal', () => {
       );
       const { onError } = setup({ quiz: quiz() });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
       await pickPage(1);
@@ -1059,12 +1059,12 @@ describe('PaperPrintModal', () => {
       driveConnected = false;
       const { onError } = setup({ quiz: quiz() });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
       await waitFor(() =>
         expect(onError).toHaveBeenCalledWith(
-          'Connect Google Drive to add an image to the answer sheet.'
+          'Connect Google Drive to add an image to the response sheet.'
         )
       );
       // No page picker to work through first.
@@ -1075,7 +1075,7 @@ describe('PaperPrintModal', () => {
     it('lets the PDF go even if the modal is closed out from under it', async () => {
       const { unmount } = setup({ quiz: quiz() });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
       await screen.findByLabelText('Page number');
@@ -1089,7 +1089,7 @@ describe('PaperPrintModal', () => {
     it('still turns away a file that is neither an image nor a PDF', async () => {
       const { onError } = setup({ quiz: quiz() });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.change(fileInput(), {
         target: {
@@ -1663,7 +1663,7 @@ describe('PaperPrintModal on the Assign on paper stepper', () => {
     const submit = screen.getByRole('button', { name: /Assign and print/ });
     fireEvent.click(submit);
     await waitFor(() => expect(onError).toHaveBeenCalledWith('offline'));
-    fireEvent.click(screen.getByText('Answer sheets'));
+    fireEvent.click(screen.getByText('Response sheets'));
     fireEvent.change(screen.getByLabelText(/Blank spare sheets/i), {
       target: { value: '5' },
     });

@@ -33,6 +33,10 @@ const TOTAL_BITS = DATA_BITS + CRC_BITS;
 
 export const MAX_SEAT = (1 << SEAT_BITS) - 1;
 export const MAX_PAGE = (1 << PAGE_BITS) - 1;
+/** The page number a printed resource page carries, so an import skips it; sheets stop one short. */
+export const RESOURCE_PAGE = MAX_PAGE;
+/** Most pages one student's sheet may print. */
+export const MAX_SHEET_PAGE = MAX_PAGE - 1;
 export const BATCH_TAG_MASK = (1 << BATCH_TAG_BITS) - 1;
 
 const FLAG_KEY_SHEET = 0b01;

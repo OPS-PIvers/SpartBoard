@@ -288,7 +288,7 @@ const RESULT_GLYPH: Record<StudentOutcome, string> = {
 
 const STIMULUS_KIND: Record<QuizStimulus['type'], string> = {
   image: 'Picture',
-  text: 'Passage',
+  text: 'Text',
   pdf: 'PDF',
   audio: 'Audio',
   video: 'Video',

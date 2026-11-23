@@ -2011,7 +2011,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       if (a.writtenOnPaper && a.paperBatchId && onReprintPaperSheets) {
         secondaries.push({
           id: 'reprint-written',
-          label: 'Print written answer sheets',
+          label: 'Print written response sheets',
           icon: Printer,
           anchor: tourTypeAttr('quiz-library.reprint-written-sheets', 'quiz'),
           onClick: () => onReprintPaperSheets(a),

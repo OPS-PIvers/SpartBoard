@@ -115,13 +115,13 @@ describe('written questions on the test paper (D18)', () => {
       ],
     });
     expect(html).toContain('<span class="num">2.</span>');
-    expect(html).toContain('Answer on your answer sheet');
+    expect(html).toContain('Write your answer on your response sheet.');
     expect(html.indexOf('Explain why.')).toBeLessThan(
-      html.indexOf('Answer on your answer sheet')
+      html.indexOf('Write your answer on your response sheet.')
     );
-    expect(html.indexOf('Answer on your answer sheet')).toBeLessThan(
-      html.indexOf('Pick one')
-    );
+    expect(
+      html.indexOf('Write your answer on your response sheet.')
+    ).toBeLessThan(html.indexOf('Pick one'));
     expect(html.match(/class="letter"/g)).toHaveLength(4);
   });
 });

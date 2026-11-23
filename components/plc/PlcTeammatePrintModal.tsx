@@ -433,13 +433,13 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
             {ownerName
               ? t('plcDashboard.teammatePrint.stimuliNotShared', {
                   defaultValue:
-                    '{{images}} aren’t shared with the PLC and won’t print. Ask {{owner}} to share them from Print answer sheets.',
+                    '{{images}} aren’t shared with the PLC and won’t print. Ask {{owner}} to share them from Print response sheets.',
                   images: failedStimulusNames,
                   owner: ownerName,
                 })
               : t('plcDashboard.teammatePrint.stimuliNotSharedNoOwner', {
                   defaultValue:
-                    '{{images}} aren’t shared with the PLC and won’t print. Whoever added them can share them from Print answer sheets.',
+                    '{{images}} aren’t shared with the PLC and won’t print. Whoever added them can share them from Print response sheets.',
                   images: failedStimulusNames,
                 })}
           </span>

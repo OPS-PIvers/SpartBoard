@@ -239,7 +239,7 @@ export async function handlePaperRewordSync(
   if (settings.data()?.enabled !== true) {
     throw new HttpsError(
       'failed-precondition',
-      'Paper answer sheets are not enabled.'
+      'Paper response sheets are not enabled.'
     );
   }
   if (!(await granted())) {
