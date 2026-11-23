@@ -1,3 +1,4 @@
+import { tourAttr } from '@/config/tourAnchors';
 import React, { useMemo, useState } from 'react';
 import { PromptText } from '@/components/common/PromptText';
 import {
@@ -437,6 +438,7 @@ const LiveQuestionCard: React.FC<{
       )}
       <div className="px-5 pb-5">
         <button
+          {...tourAttr('student.video-activity.live-submit')}
           type="button"
           onClick={handleSubmit}
           disabled={!canSubmit}

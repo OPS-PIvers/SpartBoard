@@ -59621,6 +59621,235 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "gl-player.video-close",
+    "label": "Close button on a video step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.answer-choice",
+    "label": "Answer choice on a multiple choice step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.match-select",
+    "label": "Match picker on a matching step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.sort-up",
+    "label": "Move up button on a sorting step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.sort-down",
+    "label": "Move down button on a sorting step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.question-submit",
+    "label": "Submit button on a question step in the player",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.change-answer",
+    "label": "Change answer button on a question step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.question-continue",
+    "label": "Continue button after answering a question step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.reveal-answer",
+    "label": "Show answer button on a question step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.popover-close",
+    "label": "Close button on a text popover in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.banner-close",
+    "label": "Close button on a banner in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.audio-play",
+    "label": "Play or pause button on an audio step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
     "id": "gl-results.back",
     "label": "Back button in the results header",
     "scope": "board",
@@ -85606,6 +85835,447 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.flashcard-share",
         "kind": "modal",
         "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.period-option",
+    "label": "Class option on the student Video Activity class picker",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.period-continue",
+    "label": "Continue button on the student Video Activity class picker",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.period-back",
+    "label": "Go Back button on the student Video Activity class picker",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.pin",
+    "label": "PIN box on the student Video Activity join page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.join",
+    "label": "Join button on the student Video Activity join page",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.answer-option",
+    "label": "Answer choice on a student Video Activity question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.answer-check",
+    "label": "Answer checkbox on a student Video Activity choose-all question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.answer-blank",
+    "label": "Fill in the blank box on a student Video Activity question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.answer-text",
+    "label": "Written answer box on a student Video Activity question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.submit-answer",
+    "label": "Submit Answer button on a student Video Activity question",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.live-submit",
+    "label": "Submit button on a live student Video Activity question",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.note-continue",
+    "label": "Continue button on a student Video Activity note stop",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.resume",
+    "label": "Resume Activity button after a teacher unlocks a student Video Activity",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.tab-warning-return",
+    "label": "Return to Activity button on the student Video Activity tab warning",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.finish",
+    "label": "Finish activity button when a student Video Activity submit failed",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.finish-retry",
+    "label": "Try again button on the student Video Activity finished page",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.back-link",
+    "label": "Back to my assignments link in the student Video Activity",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.error-retry",
+    "label": "Try again button on the student Video Activity error page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.video-retry",
+    "label": "Try again button when the student Video Activity video fails",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.period-option",
+    "label": "Class option on the student Guided Learning class picker",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.change-class",
+    "label": "Change class button on the student Guided Learning start page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.pin",
+    "label": "PIN box on the student Guided Learning start page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.start",
+    "label": "Start button on the student Guided Learning start page",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.done",
+    "label": "Done button in the student Guided Learning player",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.finished-submit",
+    "label": "Submit button on the student Guided Learning finished card",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.finished-back",
+    "label": "Back button on the student Guided Learning finished card",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.replay",
+    "label": "Replay button on the student Guided Learning end page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
       }
     ]
   }

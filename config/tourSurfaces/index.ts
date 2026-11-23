@@ -7,6 +7,8 @@ import { SURFACES as LIBRARY } from './library';
 import { SURFACES as GUIDED_LEARNING } from './guidedLearning';
 import { SURFACES as WIDGETS } from './widgets';
 import { SURFACES as STUDENT_QUIZ } from './studentQuiz';
+import { SURFACES as STUDENT_VIDEO } from './studentVideo';
+import { SURFACES as STUDENT_GUIDED_LEARNING } from './studentGuidedLearning';
 
 export * from './types';
 
@@ -20,6 +22,8 @@ export const TOUR_SURFACE_AREAS = {
   guidedLearning: GUIDED_LEARNING,
   widgets: WIDGETS,
   studentQuiz: STUDENT_QUIZ,
+  studentVideo: STUDENT_VIDEO,
+  studentGuidedLearning: STUDENT_GUIDED_LEARNING,
 } as const;
 
 export const TOUR_SURFACES: Readonly<Record<string, TourSurfaceDef>> =

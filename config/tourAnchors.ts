@@ -13792,6 +13792,41 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'gl-player.scrubber': { label: 'Watch scrubber in the player' },
+  'gl-player.video-close': {
+    label: 'Close button on a video step in the player',
+  },
+  'gl-player.answer-choice': {
+    label: 'Answer choice on a multiple choice step in the player',
+  },
+  'gl-player.match-select': {
+    label: 'Match picker on a matching step in the player',
+  },
+  'gl-player.sort-up': {
+    label: 'Move up button on a sorting step in the player',
+  },
+  'gl-player.sort-down': {
+    label: 'Move down button on a sorting step in the player',
+  },
+  'gl-player.question-submit': {
+    label: 'Submit button on a question step in the player',
+    persists: true,
+  },
+  'gl-player.change-answer': {
+    label: 'Change answer button on a question step in the player',
+  },
+  'gl-player.question-continue': {
+    label: 'Continue button after answering a question step in the player',
+  },
+  'gl-player.reveal-answer': {
+    label: 'Show answer button on a question step in the player',
+  },
+  'gl-player.popover-close': {
+    label: 'Close button on a text popover in the player',
+  },
+  'gl-player.banner-close': { label: 'Close button on a banner in the player' },
+  'gl-player.audio-play': {
+    label: 'Play or pause button on an audio step in the player',
+  },
   'gl-results.back': { label: 'Back button in the results header' },
   'gl-results.export': { label: 'Export button in the results header' },
   'gl-results.class-picker': { label: 'Class picker select in results' },
@@ -20020,6 +20055,99 @@ export const TOUR_ANCHORS = {
     label: 'Embed code box in the flashcard Share dialog',
     perWidgetType: true,
     panel: true,
+  },
+  'student.video-activity.period-option': {
+    label: 'Class option on the student Video Activity class picker',
+  },
+  'student.video-activity.period-continue': {
+    label: 'Continue button on the student Video Activity class picker',
+    persists: true,
+  },
+  'student.video-activity.period-back': {
+    label: 'Go Back button on the student Video Activity class picker',
+  },
+  'student.video-activity.pin': {
+    label: 'PIN box on the student Video Activity join page',
+  },
+  'student.video-activity.join': {
+    label: 'Join button on the student Video Activity join page',
+    persists: true,
+  },
+  'student.video-activity.answer-option': {
+    label: 'Answer choice on a student Video Activity question',
+  },
+  'student.video-activity.answer-check': {
+    label: 'Answer checkbox on a student Video Activity choose-all question',
+  },
+  'student.video-activity.answer-blank': {
+    label: 'Fill in the blank box on a student Video Activity question',
+  },
+  'student.video-activity.answer-text': {
+    label: 'Written answer box on a student Video Activity question',
+  },
+  'student.video-activity.submit-answer': {
+    label: 'Submit Answer button on a student Video Activity question',
+    persists: true,
+  },
+  'student.video-activity.live-submit': {
+    label: 'Submit button on a live student Video Activity question',
+    persists: true,
+  },
+  'student.video-activity.note-continue': {
+    label: 'Continue button on a student Video Activity note stop',
+  },
+  'student.video-activity.resume': {
+    label:
+      'Resume Activity button after a teacher unlocks a student Video Activity',
+  },
+  'student.video-activity.tab-warning-return': {
+    label:
+      'Return to Activity button on the student Video Activity tab warning',
+  },
+  'student.video-activity.finish': {
+    label: 'Finish activity button when a student Video Activity submit failed',
+    persists: true,
+  },
+  'student.video-activity.finish-retry': {
+    label: 'Try again button on the student Video Activity finished page',
+    persists: true,
+  },
+  'student.video-activity.back-link': {
+    label: 'Back to my assignments link in the student Video Activity',
+  },
+  'student.video-activity.error-retry': {
+    label: 'Try again button on the student Video Activity error page',
+  },
+  'student.video-activity.video-retry': {
+    label: 'Try again button when the student Video Activity video fails',
+  },
+
+  'student.guided-learning.period-option': {
+    label: 'Class option on the student Guided Learning class picker',
+  },
+  'student.guided-learning.change-class': {
+    label: 'Change class button on the student Guided Learning start page',
+  },
+  'student.guided-learning.pin': {
+    label: 'PIN box on the student Guided Learning start page',
+  },
+  'student.guided-learning.start': {
+    label: 'Start button on the student Guided Learning start page',
+    persists: true,
+  },
+  'student.guided-learning.done': {
+    label: 'Done button in the student Guided Learning player',
+    persists: true,
+  },
+  'student.guided-learning.finished-submit': {
+    label: 'Submit button on the student Guided Learning finished card',
+    persists: true,
+  },
+  'student.guided-learning.finished-back': {
+    label: 'Back button on the student Guided Learning finished card',
+  },
+  'student.guided-learning.replay': {
+    label: 'Replay button on the student Guided Learning end page',
   },
 } as const satisfies Record<string, TourAnchorDef>;
 
