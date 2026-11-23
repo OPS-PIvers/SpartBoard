@@ -936,7 +936,9 @@ import {
   claimScannedResponse,
   getErrorCode,
   logQuizJoinFirestoreError,
+  NOT_IN_CLASS_MESSAGE,
   seatRef,
+  sharesClass,
 } from '@/hooks/quizSession/joinHelpers';
 
 // ─── Teacher hook ─────────────────────────────────────────────────────────────
@@ -2549,6 +2551,21 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           }
         }
 
+        // Mirrors the rules' class gate, so a signed-in student outside every class on the run hears why.
+        if (!isAnonymous) {
+          const claims = (
+            await Promise.resolve()
+              .then(() => currentUser?.getIdTokenResult())
+              .catch(() => null)
+          )?.claims;
+          if (
+            claims?.studentRole === true &&
+            !sharesClass(sessionData.classIds, claims.classIds)
+          ) {
+            throw new Error(NOT_IN_CLASS_MESSAGE);
+          }
+        }
+
         // Deterministic doc key: stable per-roster-student for PIN auth so
         // the attempt limit can't be bypassed by clearing storage / switching
         // device. studentRole users still key by their auth uid (stable per
@@ -3129,7 +3146,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             "It looks like you're already in this quiz on another tab or device. Close any other tabs you have this quiz open in and try again. If you're still stuck, ask your teacher to release your attempt.";
         } else if (getErrorCode(err) === 'permission-denied') {
           msg =
-            "You can't join this quiz. Ask your teacher to make sure you're enrolled in the right class.";
+            "You can't join this quiz right now. Ask your teacher for help.";
         } else if (err instanceof Error) {
           msg = err.message;
         } else {

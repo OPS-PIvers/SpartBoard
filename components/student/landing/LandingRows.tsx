@@ -113,27 +113,20 @@ const OpenLabel: React.FC = () => (
   </span>
 );
 
-/** A row that says why it can't open yet instead of navigating. */
+/** A row that can't open yet: its text says why, and it does nothing on click. */
 const LockedRow: React.FC<{
-  message: string;
   children: React.ReactNode;
   tour?: TourAnchorAttrs;
-}> = ({ message, children, tour }) => {
-  const { showAlert } = useDialog();
-  return (
-    <button
-      type="button"
-      onClick={() =>
-        void showAlert(message, { title: 'Not open', variant: 'info' })
-      }
-      {...tour}
-      className={`${ROW_CLASS} opacity-60`}
-    >
-      {children}
-      <LockMark />
-    </button>
-  );
-};
+}> = ({ children, tour }) => (
+  <div
+    aria-disabled="true"
+    {...tour}
+    className={`${ROW_CLASS} cursor-default opacity-60`}
+  >
+    {children}
+    <LockMark />
+  </div>
+);
 
 const OpenRow: React.FC<{
   href: string;
@@ -248,14 +241,16 @@ export const WorkRow: React.FC<WorkRowProps> = ({
   const gate = a.periodGate;
   const periodLocked =
     !!gate && !studentCanEnter(gate, gate.periodKeys, pseudonymUid, nowMs);
-  const locked = periodLocked || a.held !== undefined;
-  const lockLine = a.held
-    ? a.held === 'paused'
-      ? 'Paused'
-      : 'Not open yet'
-    : periodLocked
-      ? periodLockLine(gate, nowMs)
-      : null;
+  const locked = periodLocked || a.held !== undefined || !!a.outsideClasses;
+  const lockLine = a.outsideClasses
+    ? 'Ask your teacher'
+    : a.held
+      ? a.held === 'paused'
+        ? 'Paused'
+        : 'Not open yet'
+      : periodLocked
+        ? periodLockLine(gate, nowMs)
+        : null;
   const live = workAvailability(row, nowMs, pseudonymUid) === 'live';
   const tour = tourFieldAttr(
     'student.assignments.work-row',
@@ -293,20 +288,11 @@ export const WorkRow: React.FC<WorkRowProps> = ({
       </span>
     </>
   );
-  if (row.state === 'upcoming') {
-    const message =
-      a.openAt !== undefined
-        ? `${formatOpensLabel(a.openAt)}. Not available yet.`
-        : 'Not available yet.';
-    return (
-      <LockedRow message={message} tour={tour}>
-        {body}
-      </LockedRow>
-    );
+  if (row.state === 'upcoming' || locked) {
+    return <LockedRow tour={tour}>{body}</LockedRow>;
   }
-  // A class not started yet still opens, to the waiting screen where the teacher sees the student.
   return (
-    <OpenRow href={a.openHref} available={!locked} live={live} tour={tour}>
+    <OpenRow href={a.openHref} live={live} tour={tour}>
       {body}
     </OpenRow>
   );
@@ -356,9 +342,7 @@ export const ResourceRow: React.FC<{
     <div className="flex items-center">
       <div className="min-w-0 flex-1">
         {upcoming ? (
-          <LockedRow message={`${meta}. Not available yet.`} tour={tour}>
-            {body}
-          </LockedRow>
+          <LockedRow tour={tour}>{body}</LockedRow>
         ) : (
           <OpenRow href={a.openHref} tour={tour}>
             {body}

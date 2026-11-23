@@ -63,6 +63,8 @@ interface Fixture {
   manualStart?: 'closed' | 'open' | 'paused';
   /** The teacher paused the whole quiz. */
   paused?: boolean;
+  /** Picked by name on a run for a class the student isn't in. */
+  outsideClasses?: boolean;
 }
 
 function fixtures(inClass: boolean): Fixture[] {
@@ -365,6 +367,7 @@ function toSummary(f: Fixture, nowMs: number): AssignmentSummary {
     workKind: f.resource ? 'resource' : 'work',
     live: f.live,
     held: f.paused ? 'paused' : undefined,
+    outsideClasses: f.outsideClasses ? true : undefined,
     periodGate: f.manualStart
       ? {
           accessMode: 'assessment',
@@ -471,6 +474,8 @@ interface StudentLandingSampleProps {
   embedded?: boolean;
   /** Fixture Agenda and links per class, on the dev harness only. */
   classTopFor?: (classId: string) => React.ReactNode;
+  /** Adds a run picked from another class's roster, on the dev harness only. */
+  outsideClassesDemo?: boolean;
 }
 
 export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
@@ -480,6 +485,7 @@ export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
   initialTab = 'assignments',
   embedded,
   classTopFor,
+  outsideClassesDemo,
 }) => {
   const nowMs = inClass ? IN_CLASS : AFTER_SCHOOL;
   const [selected, setSelected] = useState<string | null>(
@@ -488,6 +494,14 @@ export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
   const [tab, setTab] = useState<LandingTab>(initialTab);
   const { assignments, checks } = useMemo(() => {
     const list = fixtures(inClass);
+    if (outsideClassesDemo)
+      list.push({
+        id: 'h9',
+        cls: 'his',
+        kind: 'quiz',
+        title: 'Grammar Test 2 M1',
+        outsideClasses: true,
+      });
     const map: TurnInMap = {};
     for (const f of list) {
       if (f.turnIn) {
@@ -499,7 +513,7 @@ export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
       }
     }
     return { assignments: list.map((f) => toSummary(f, nowMs)), checks: map };
-  }, [inClass, nowMs]);
+  }, [inClass, nowMs, outsideClassesDemo]);
   const partition = useMemo(
     () => partitionLanding(assignments, checks, nowMs, 'dev-student'),
     [assignments, checks, nowMs]
