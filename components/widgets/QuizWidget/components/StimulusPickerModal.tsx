@@ -381,7 +381,7 @@ const TextStimulusEditor: React.FC<{
         placeholder={
           isWordBank
             ? 'Put each word or phrase on its own line.'
-            : 'Paste or type the passage students will read.'
+            : 'Paste or type the text students will read.'
         }
         {...tourTypeAttr('quiz-stimuli.picker-text', 'quiz')}
         className="min-h-0 w-full flex-1 resize-none rounded-lg border-2 border-slate-200 px-3 py-2.5 text-sm leading-relaxed text-slate-800 focus:border-brand-blue-primary/50 focus:outline-hidden"
