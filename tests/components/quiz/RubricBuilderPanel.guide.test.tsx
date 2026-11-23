@@ -49,13 +49,13 @@ describe('RubricBuilderPanel scoring guide', () => {
     open(onAttach);
     fireEvent.click(screen.getByRole('radio', { name: 'Scoring guide' }));
     await waitFor(() =>
-      expect(screen.getByLabelText('Part 1 label')).toBeTruthy()
+      expect(screen.getByLabelText('Criterion 1 name')).toBeTruthy()
     );
 
-    fireEvent.change(screen.getByLabelText('Title', { selector: 'input' }), {
+    fireEvent.change(screen.getByLabelText('Rubric title'), {
       target: { value: 'Pain study' },
     });
-    fireEvent.change(screen.getByLabelText('Part 1 label'), {
+    fireEvent.change(screen.getByLabelText('Criterion 1 name'), {
       target: { value: '(A) Research method' },
     });
     fireEvent.change(screen.getByLabelText('Part 1 scoring guidelines'), {

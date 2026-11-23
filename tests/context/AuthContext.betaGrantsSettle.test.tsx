@@ -104,9 +104,9 @@ describe('AuthContext beta grants settle gate', () => {
         (onNext as unknown as SnapCb)({
           forEach: (cb: (d: { id: string; data: () => unknown }) => void) =>
             cb({
-              id: 'drive-only-uploads',
+              id: 'paper-kept-pages',
               data: () => ({
-                featureId: 'drive-only-uploads',
+                featureId: 'paper-kept-pages',
                 accessLevel: 'beta',
                 betaUsers: [],
                 enabled: true,
@@ -141,10 +141,10 @@ describe('AuthContext beta grants settle gate', () => {
 
     act(() => {
       (grantsCb as unknown as SnapCb)({
-        data: () => ({ features: [], global: ['drive-only-uploads'] }),
+        data: () => ({ features: [], global: ['paper-kept-pages'] }),
       });
     });
     await waitFor(() => expect(getCtx().globalPermissionsLoaded).toBe(true));
-    expect(getCtx().canAccessFeature('drive-only-uploads')).toBe(true);
+    expect(getCtx().canAccessFeature('paper-kept-pages')).toBe(true);
   });
 });

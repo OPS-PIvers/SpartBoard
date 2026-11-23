@@ -61,14 +61,7 @@ const makeState = () =>
 describe('stimulus picker dialog', () => {
   it('opens on the attached stimulus and names every row', async () => {
     const state = makeState();
-    render(
-      <QuestionStimulusSection
-        state={state}
-        questionId="q1"
-        metaList
-        pickerModal
-      />
-    );
+    render(<QuestionStimulusSection state={state} questionId="q1" metaList />);
     const row = screen.getByRole('button', { name: 'Stimuli' });
     expect(row).toHaveTextContent('mitosis, meiosis');
     expect(row).toHaveAttribute('aria-haspopup', 'dialog');
@@ -88,14 +81,7 @@ describe('stimulus picker dialog', () => {
 
   it('attaches from the row check and from the preview', async () => {
     const state = makeState();
-    render(
-      <QuestionStimulusSection
-        state={state}
-        questionId="q1"
-        metaList
-        pickerModal
-      />
-    );
+    render(<QuestionStimulusSection state={state} questionId="q1" metaList />);
     await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
     const dialog = screen.getByRole('dialog');
     await userEvent.click(
@@ -115,14 +101,7 @@ describe('stimulus picker dialog', () => {
       ...makeState(),
       updateStimulus: vi.fn(),
     } as unknown as QuizEditorController;
-    render(
-      <QuestionStimulusSection
-        state={state}
-        questionId="q1"
-        metaList
-        pickerModal
-      />
-    );
+    render(<QuestionStimulusSection state={state} questionId="q1" metaList />);
     await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
     await userEvent.click(screen.getByText('Text 2'));
     const box = screen.getByRole('textbox', { name: 'Text' });
@@ -135,14 +114,7 @@ describe('stimulus picker dialog', () => {
       ...makeState(),
       updateStimulus: vi.fn(),
     } as unknown as QuizEditorController;
-    render(
-      <QuestionStimulusSection
-        state={state}
-        questionId="q1"
-        metaList
-        pickerModal
-      />
-    );
+    render(<QuestionStimulusSection state={state} questionId="q1" metaList />);
     await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
     expect(screen.getByRole('textbox', { name: 'Word bank' })).toHaveValue(
       'mitosis\nmeiosis'
@@ -160,12 +132,7 @@ describe('stimulus picker dialog', () => {
       addStimulus: vi.fn(),
     } as unknown as QuizEditorController;
     const { unmount } = render(
-      <QuestionStimulusSection
-        state={state}
-        questionId="q1"
-        metaList
-        pickerModal
-      />
+      <QuestionStimulusSection state={state} questionId="q1" metaList />
     );
     await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
     await userEvent.click(
@@ -186,7 +153,6 @@ describe('stimulus picker dialog', () => {
         state={state}
         questionId="q1"
         metaList
-        pickerModal
         wordBankAvailable
       />
     );
@@ -202,12 +168,7 @@ describe('stimulus picker dialog', () => {
 
   it('closes back to the question with Back to quiz', async () => {
     render(
-      <QuestionStimulusSection
-        state={makeState()}
-        questionId="q1"
-        metaList
-        pickerModal
-      />
+      <QuestionStimulusSection state={makeState()} questionId="q1" metaList />
     );
     await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
     await userEvent.click(screen.getByRole('button', { name: 'Back to quiz' }));
@@ -217,12 +178,7 @@ describe('stimulus picker dialog', () => {
 
   it('shows Back to quiz in place of the close X', async () => {
     render(
-      <QuestionStimulusSection
-        state={makeState()}
-        questionId="q1"
-        metaList
-        pickerModal
-      />
+      <QuestionStimulusSection state={makeState()} questionId="q1" metaList />
     );
     await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
     expect(
@@ -236,12 +192,7 @@ describe('stimulus picker dialog', () => {
       updateStimulus: vi.fn(),
     } as unknown as QuizEditorController;
     const { unmount } = render(
-      <QuestionStimulusSection
-        state={state}
-        questionId="q1"
-        metaList
-        pickerModal
-      />
+      <QuestionStimulusSection state={state} questionId="q1" metaList />
     );
     await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
     expect(screen.queryByRole('radiogroup', { name: 'On paper' })).toBeNull();
@@ -251,7 +202,6 @@ describe('stimulus picker dialog', () => {
         state={state}
         questionId="q1"
         metaList
-        pickerModal
         paperPlacement
       />
     );

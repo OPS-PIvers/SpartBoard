@@ -63,7 +63,7 @@ let db: Firestore;
 let storage: FirebaseStorage;
 let functions: Functions;
 let googleProvider: GoogleAuthProvider;
-let quickSignInProvider: GoogleAuthProvider;
+let driveConsentProvider: GoogleAuthProvider;
 
 /**
  * Google OAuth scopes the app requests at sign-in and when SILENTLY refreshing
@@ -158,15 +158,12 @@ if (isConfigured) {
   functions = getFunctions(app, 'us-central1');
   googleProvider = new GoogleAuthProvider();
   GOOGLE_OAUTH_SCOPES.forEach((scope) => googleProvider.addScope(scope));
-  // Force Google's consent screen on every sign-in. Without this, returning
-  // users who previously authorized SpartBoard with fewer scopes get a
-  // Firebase user without a Drive accessToken — they then have to click
-  // "Connect Drive" manually to recover their data on a new device.
-  googleProvider.setCustomParameters({ prompt: 'consent' });
-  // Quick sign-in preview: pick an account; Google still asks for any scope not yet granted.
-  quickSignInProvider = new GoogleAuthProvider();
-  GOOGLE_OAUTH_SCOPES.forEach((scope) => quickSignInProvider.addScope(scope));
-  quickSignInProvider.setCustomParameters({ prompt: 'select_account' });
+  // Pick an account; Google still asks for any scope not yet granted.
+  googleProvider.setCustomParameters({ prompt: 'select_account' });
+  // Drive reconnect shows the full consent screen again.
+  driveConsentProvider = new GoogleAuthProvider();
+  GOOGLE_OAUTH_SCOPES.forEach((scope) => driveConsentProvider.addScope(scope));
+  driveConsentProvider.setCustomParameters({ prompt: 'consent' });
 } else {
   // Mock objects to prevent crashes when importing
   auth = {
@@ -188,9 +185,9 @@ if (isConfigured) {
   storage = {} as unknown as FirebaseStorage;
   functions = {} as unknown as Functions;
   googleProvider = {} as unknown as GoogleAuthProvider;
-  quickSignInProvider = {} as unknown as GoogleAuthProvider;
+  driveConsentProvider = {} as unknown as GoogleAuthProvider;
   app = {} as unknown as FirebaseApp;
   console.warn('Firebase is not configured. Missing VITE_FIREBASE_API_KEY.');
 }
 
-export { auth, db, storage, functions, googleProvider, quickSignInProvider };
+export { auth, db, storage, functions, googleProvider, driveConsentProvider };

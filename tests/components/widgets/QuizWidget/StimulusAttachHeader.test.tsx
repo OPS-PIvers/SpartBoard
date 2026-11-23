@@ -1,7 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom/vitest';
 import type { QuizQuestion, QuizStimulus } from '@/types';
 import type { QuizEditorController } from '@/components/widgets/QuizWidget/components/useQuizEditorState';
@@ -49,47 +48,11 @@ const state = {
   toggleStimulusOnQuestion: vi.fn(),
 } as unknown as QuizEditorController;
 
-describe('attach list preview', () => {
-  it('names attached stimuli in the collapsed header and previews a passage', async () => {
+describe('attach section header', () => {
+  it('names attached stimuli in the collapsed header', () => {
     render(<QuestionStimulusSection state={state} questionId="q1" />);
-    const header = screen.getByRole('button', { name: /Stimuli/ });
-    expect(header).toHaveTextContent(
+    expect(screen.getByRole('button', { name: /Stimuli/ })).toHaveTextContent(
       'The quick brown fox jumped over the lazy dog.'
     );
-    await userEvent.click(header);
-    expect(
-      screen.queryByRole('button', { name: /^Preview Calculator/ })
-    ).not.toBeInTheDocument();
-    await userEvent.click(
-      screen.getByRole('button', { name: /^Preview The quick brown fox/ })
-    );
-    expect(screen.getByTestId('attach-stimulus-preview')).toHaveTextContent(
-      'lazy dog'
-    );
-    await userEvent.click(
-      screen.getByRole('button', { name: /^Hide The quick brown fox/ })
-    );
-    expect(
-      screen.queryByTestId('attach-stimulus-preview')
-    ).not.toBeInTheDocument();
-  });
-
-  it('closes the preview when the question changes', async () => {
-    const two = {
-      ...state,
-      questions: [question, { ...question, id: 'q2' }],
-    };
-    const { rerender } = render(
-      <QuestionStimulusSection state={two} questionId="q1" />
-    );
-    await userEvent.click(screen.getByRole('button', { name: /Stimuli/ }));
-    await userEvent.click(
-      screen.getByRole('button', { name: /^Preview The quick brown fox/ })
-    );
-    expect(screen.getByTestId('attach-stimulus-preview')).toBeInTheDocument();
-    rerender(<QuestionStimulusSection state={two} questionId="q2" />);
-    expect(
-      screen.queryByTestId('attach-stimulus-preview')
-    ).not.toBeInTheDocument();
   });
 });

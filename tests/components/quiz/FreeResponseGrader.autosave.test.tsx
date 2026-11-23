@@ -117,9 +117,13 @@ describe('FreeResponseGrader — auto-save', () => {
   it('writes once, immediately, when the rubric is complete', async () => {
     const onSave = vi.fn<SaveFn>().mockResolvedValue(undefined);
     renderGrader(onSave);
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
     expect(onSave).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Strong/, pressed: false })
+    );
     await flush();
     expect(onSave).toHaveBeenCalledTimes(1);
     const [rk, key, grade] = onSave.mock.calls[0];
@@ -133,9 +137,13 @@ describe('FreeResponseGrader — auto-save', () => {
   it('still writes once when the rubric is clicked slowly', async () => {
     const onSave = vi.fn<SaveFn>().mockResolvedValue(undefined);
     renderGrader(onSave);
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
     tick(5000);
-    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Strong/, pressed: false })
+    );
     tick(5000);
     await flush();
     expect(onSave).toHaveBeenCalledTimes(1);
@@ -144,8 +152,12 @@ describe('FreeResponseGrader — auto-save', () => {
   it('debounces a comment tweak after completion into a second write', async () => {
     const onSave = vi.fn<SaveFn>().mockResolvedValue(undefined);
     renderGrader(onSave);
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
-    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Strong/, pressed: false })
+    );
     await flush();
     fireEvent.change(screen.getByLabelText(/Overall comment/i), {
       target: { value: 'Good' },
@@ -164,7 +176,9 @@ describe('FreeResponseGrader — auto-save', () => {
   it('banks a partial rubric when the teacher moves on', async () => {
     const onSave = vi.fn<SaveFn>().mockResolvedValue(undefined);
     renderGrader(onSave);
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
     tick(5000);
     expect(onSave).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: /^Next ungraded/i }));
@@ -190,8 +204,12 @@ describe('FreeResponseGrader — auto-save', () => {
   it('shows a retry chip after a failed write and never blocks navigation', async () => {
     const onSave = vi.fn<SaveFn>().mockRejectedValue(new Error('offline'));
     renderGrader(onSave);
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
-    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Strong/, pressed: false })
+    );
     await flush();
     expect(onSave).toHaveBeenCalledTimes(1);
     // Navigation works while the queue is still retrying.
@@ -221,8 +239,12 @@ describe('FreeResponseGrader — auto-save', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     try {
       renderGrader(onSave, onClose);
-      fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
-      fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+      fireEvent.click(
+        screen.getByRole('button', { name: /Meets/, pressed: false })
+      );
+      fireEvent.click(
+        screen.getByRole('button', { name: /Strong/, pressed: false })
+      );
       await flush();
       fireEvent.click(screen.getAllByRole('button', { name: /^Close$/ })[0]);
       await flush();

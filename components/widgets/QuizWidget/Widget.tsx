@@ -271,7 +271,6 @@ import {
   planHybridWrittenBatch,
 } from '@/utils/paperWrittenHybrid';
 import {
-  PAPER_PRINTED_VERSIONS_FEATURE,
   printedGroupForPrint,
   printedGroupQuiz,
   printedGroupRecord,
@@ -1067,8 +1066,7 @@ const TeacherQuizWidget: React.FC<{
     canAccessFeature(PAPER_HANDWRITTEN_FEATURE) &&
     canAccessFeature(PAPER_WRITTEN_HYBRID_FEATURE);
   // A modification group's printed version, scanned back into the device assignment.
-  const printedVersionsOn =
-    !!paperUid && canAccessFeature(PAPER_PRINTED_VERSIONS_FEATURE);
+  const printedVersionsOn = !!paperUid;
   const [paperGroupReprint, setPaperGroupReprint] = useState<
     PaperReprintGroup[] | null
   >(null);
@@ -1473,11 +1471,10 @@ const TeacherQuizWidget: React.FC<{
     [loadBankContentsForQuiz, addToast]
   );
 
-  const freezeAssignments = canAccessFeature('quiz-frozen-assignments');
   // A copy of the questions as assigned, so editing the quiz later can't re-score the assignment.
   const freezeForAssign = useCallback(
     async (data: QuizData): Promise<string | undefined> => {
-      if (!freezeAssignments || quizHasBankSlots(data)) return undefined;
+      if (quizHasBankSlots(data)) return undefined;
       try {
         return await saveDriveSnapshot(data);
       } catch (err) {
@@ -1486,7 +1483,7 @@ const TeacherQuizWidget: React.FC<{
         return undefined;
       }
     },
-    [freezeAssignments, saveDriveSnapshot]
+    [saveDriveSnapshot]
   );
 
   // Frozen assignments grade against their Drive copy, under today's answer keys.
@@ -3691,11 +3688,9 @@ const TeacherQuizWidget: React.FC<{
           dueAtByRosterId?: Record<string, number>,
           stepper?: QuizStepperAssign
         ) => {
-          // Flag on, a failure rejects so the stepper stays open and shows it inline.
-          const waitsForSave = canAccessFeature('quiz-assign-waits-for-save');
-          const fail = (message: string): void => {
-            if (waitsForSave) throw new Error(message);
-            addToast(message, 'error');
+          // A failure rejects so the stepper stays open and shows it inline.
+          const fail = (message: string): never => {
+            throw new Error(message);
           };
           // F1 fix — reuse the content QuizManager already fetched for the
           // B2 override editor (when the teacher expanded individual
@@ -3703,10 +3698,7 @@ const TeacherQuizWidget: React.FC<{
           // assigns never populate `preloadedQuizData`, so they still fetch
           // exactly once, here.
           const data = preloadedQuizData ?? (await loadQuiz(meta));
-          if (!data) {
-            if (waitsForSave) throw new Error('Could not load the quiz.');
-            return;
-          }
+          if (!data) throw new Error('Could not load the quiz.');
           // Autosave persists unfinished work, so assign can no longer assume
           // a saved quiz is a finished one.
           const blocker = quizAssignBlocker(data);
@@ -3741,11 +3733,7 @@ const TeacherQuizWidget: React.FC<{
               resolved = resolveQuizAssignment(data, contents);
             } catch (err) {
               if (err instanceof BankSlotResolutionError) {
-                if (waitsForSave)
-                  throw new Error(err.problems.map((p) => p.message).join(' '));
-                for (const problem of err.problems) {
-                  addToast(problem.message, 'error');
-                }
+                fail(err.problems.map((p) => p.message).join(' '));
               } else {
                 logError('QuizWidget.assignment.resolveBanks', err, {
                   quizId: meta.id,
@@ -4793,9 +4781,7 @@ const TeacherQuizWidget: React.FC<{
           (a) => a.quizId === editingMeta?.id && a.hasPaperResponses
         )}
         rescoredAssignmentCount={
-          freezeAssignments && editingMeta
-            ? unfrozenAssignmentCount(editingMeta.id, assignments)
-            : 0
+          editingMeta ? unfrozenAssignmentCount(editingMeta.id, assignments) : 0
         }
         bankApi={bankApi}
         // A synced quiz publishes a new version to its PLC on every save, so

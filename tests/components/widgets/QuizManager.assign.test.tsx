@@ -124,6 +124,15 @@ function makeQuizMeta(overrides: Partial<QuizMetadata> = {}): QuizMetadata {
   };
 }
 
+vi.mock('@/hooks/useLastAssignSettings', async (orig) => ({
+  ...(await orig<typeof import('@/hooks/useLastAssignSettings')>()),
+  useLastAssignSettings: () => ({
+    lastUsed: null,
+    loaded: true,
+    save: vi.fn(),
+  }),
+}));
+
 describe('QuizManager assign stepper', () => {
   afterEach(() => {
     mockPlcs = [];
@@ -203,7 +212,7 @@ describe('QuizManager assign stepper', () => {
     });
   });
 
-  it('defaults to Manual when bell periods exist: no due date, closed classes', async () => {
+  it('defaults to Manual when bell periods exist: due when ended, closed classes', async () => {
     const onAssign = vi.fn();
     const dialog = await openStepper(onAssign, {
       periodAccess: {
@@ -213,7 +222,7 @@ describe('QuizManager assign stepper', () => {
       } as unknown as React.ComponentProps<typeof QuizManager>['periodAccess'],
     });
     expect(
-      within(dialog).getByText('Manual. You start and pause each class.')
+      within(dialog).getByText('Manual, due when ended')
     ).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());

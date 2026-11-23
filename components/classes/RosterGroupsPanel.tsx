@@ -1,4 +1,4 @@
-// Groups tab of Edit Class (class-groups-redesign): a group list, then one page per group with its students and accommodations.
+// Groups tab of Edit Class: a group list, then one page per group with its students and accommodations.
 import React, { useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, Pencil, Plus, Search, Trash2 } from 'lucide-react';

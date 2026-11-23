@@ -2,9 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 vi.mock('@/config/firebase', () => ({ functions: {} }));
-vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature: () => false }),
-}));
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 
 const { pushMock, categoriesMock } = vi.hoisted(() => ({

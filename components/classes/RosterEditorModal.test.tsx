@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { RosterEditorModal } from './RosterEditorModal';
@@ -7,6 +7,10 @@ import {
   ViewAsContext,
   type ViewAsContextValue,
 } from '@/context/ViewAsContextValue';
+
+vi.mock('@/components/common/library/assignStepper/SupportsEditor', () => ({
+  SupportsEditor: () => null,
+}));
 
 // An existing class saves on its own; closing flushes it. New Class still has Save.
 const saveClassButton = () =>
@@ -214,7 +218,7 @@ describe('RosterEditorModal', () => {
     });
   });
 
-  it('drops the student entry when a standing accommodation is removed', async () => {
+  it('drops the student entry when their only accommodation is cleared', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockResolvedValue(undefined);
     const existing: ClassRoster = {
@@ -240,7 +244,15 @@ describe('RosterEditorModal', () => {
 
     await user.click(screen.getByRole('tab', { name: /accommodations/i }));
     await user.click(
-      screen.getByRole('button', { name: /remove smith, alice/i })
+      screen.getByRole('button', {
+        name: 'Edit accommodations for Smith, Alice',
+      })
+    );
+    await user.click(
+      within(screen.getByRole('radiogroup', { name: 'Time limit' })).getByRole(
+        'radio',
+        { name: 'Same as class' }
+      )
     );
     await user.click(saveClassButton());
 
@@ -288,7 +300,15 @@ describe('RosterEditorModal', () => {
     );
     await user.click(screen.getByRole('tab', { name: /accommodations/i }));
     await user.click(
-      screen.getByRole('button', { name: /remove smith, alice/i })
+      screen.getByRole('button', {
+        name: 'Edit accommodations for Smith, Alice',
+      })
+    );
+    await user.click(
+      within(screen.getByRole('radiogroup', { name: 'Time limit' })).getByRole(
+        'radio',
+        { name: 'Same as class' }
+      )
     );
     await user.click(saveClassButton());
     await waitFor(() => {

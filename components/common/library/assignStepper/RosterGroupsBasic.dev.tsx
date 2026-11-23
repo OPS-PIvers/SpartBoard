@@ -71,7 +71,6 @@ const Preview: React.FC = () => (
     roster={ROSTER}
     onClose={() => undefined}
     onSave={() => undefined}
-    groupsRedesign={!window.location.search.includes('old')}
     readAloudAvailable
     speechToTextAvailable
   />

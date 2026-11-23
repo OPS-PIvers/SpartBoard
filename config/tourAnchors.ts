@@ -3710,11 +3710,6 @@ export const TOUR_ANCHORS = {
     panel: true,
     persists: true,
   },
-  'quiz-print.results-more-options': {
-    label: 'More print options disclosure in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-print.results-option-toggle': {
     label: 'Option toggles from TOGGLES map in the Quiz widget',
     perField: true,
@@ -5005,21 +5000,6 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'quiz-grading-strand-chip-orphan',
   },
-  'quiz-rubric.builder-resize': {
-    label: 'Resize handle on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.builder-close': {
-    label: 'Close button on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.builder-table': {
-    label: 'Edit as table button on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-rubric.builder-library': {
     label: 'Library select on the Quiz rubric builder',
     perWidgetType: true,
@@ -5033,99 +5013,6 @@ export const TOUR_ANCHORS = {
   'quiz-rubric.builder-import': {
     label: 'Import shared rubric on the Quiz rubric builder',
     perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.builder-title': {
-    label: 'Rubric title input on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.criterion-name': {
-    label: 'Criterion name input on the Quiz rubric builder, by criterion',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.criterion-up': {
-    label: 'Move criterion up on the Quiz rubric builder, by position',
-    perField: true,
-    panel: true,
-    keyPattern: 'quiz#[1-9]\\d*',
-    keyHint: 'quiz#1 for the first criterion',
-  },
-  'quiz-rubric.criterion-down': {
-    label: 'Move criterion down on the Quiz rubric builder, by position',
-    perField: true,
-    panel: true,
-    keyPattern: 'quiz#[1-9]\\d*',
-    keyHint: 'quiz#1 for the first criterion',
-  },
-  'quiz-rubric.criterion-remove': {
-    label: 'Remove criterion on the Quiz rubric builder, by position',
-    perField: true,
-    destructive: true,
-    panel: true,
-    keyPattern: 'quiz#[1-9]\\d*',
-    keyHint: 'quiz#1 for the first criterion',
-  },
-  'quiz-rubric.level-label': {
-    label: 'Level label textarea on the Quiz rubric builder, by level',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.level-points': {
-    label: 'Level points input on the Quiz rubric builder, by level',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.level-description': {
-    label: 'Level description textarea on the Quiz rubric builder, by level',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.level-remove': {
-    label: 'Remove level on the Quiz rubric builder, by level',
-    perField: true,
-    destructive: true,
-    panel: true,
-  },
-  'quiz-rubric.level-add': {
-    label: 'Add level on the Quiz rubric builder, by criterion',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.criterion-add': {
-    label: 'Add criterion on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.template': {
-    label: 'Levels or Scoring guide switch on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.guide-guidelines': {
-    label: 'Scoring guidelines textarea on the Quiz rubric builder, by part',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.guide-example': {
-    label: 'Example response textarea on the Quiz rubric builder, by example',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.guide-example-add': {
-    label: 'Add example response on the Quiz rubric builder, by part',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.guide-example-remove': {
-    label: 'Remove example response on the Quiz rubric builder, by example',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.guide-points': {
-    label: 'Point max input on the Quiz rubric builder, by part',
-    perField: true,
     panel: true,
   },
   'quiz-rubric.csv-import': {
@@ -19094,64 +18981,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  'roster-editor.add-group': {
-    label: 'New Group button on the empty roster editor Groups tab',
-    panel: true,
-  },
-  'roster-editor.group-members': {
-    label: 'Edit group members button on a roster editor group, keyed group-N',
-    perField: true,
-    panel: true,
-  },
-  'roster-editor.group-name': {
-    label: 'Group name box on a roster editor group',
-    perField: true,
-    panel: true,
-  },
-  'roster-editor.group-remove': {
-    label: 'Remove group button on a roster editor group',
-    perField: true,
-    destructive: true,
-    panel: true,
-  },
-  'roster-editor.accommodations-group': {
-    label: 'Group row on the roster editor Accommodations tab',
-    perField: true,
-    panel: true,
-    keyPattern: 'roster-editor#row-[1-9]\\d*',
-    keyHint: 'roster-editor#row-1 for the first row',
-    rows: true,
-    rowList: 'roster-accommodation-groups',
-  },
-  'roster-editor.accommodations-add': {
-    label:
-      'Add menu for students and groups on the roster editor Accommodations tab',
-    panel: true,
-  },
-  'roster-editor.accommodations-search': {
-    label: 'Search box in the Accommodations Add menu',
-    panel: true,
-  },
-  'roster-editor.accommodations-pick-group': {
-    label: 'Group checkbox in the Accommodations Add menu',
-    perField: true,
-    panel: true,
-    persists: true,
-    keyPattern: 'roster-editor#row-[1-9]\\d*',
-    keyHint: 'roster-editor#row-1 for the first row',
-    rows: true,
-    rowList: 'roster-accommodations-pick-groups',
-  },
-  'roster-editor.accommodations-pick-student': {
-    label: 'Student checkbox in the Accommodations Add menu',
-    perField: true,
-    panel: true,
-    persists: true,
-    keyPattern: 'roster-editor#row-[1-9]\\d*',
-    keyHint: 'roster-editor#row-1 for the first row',
-    rows: true,
-    rowList: 'roster-accommodations-pick-students',
-  },
   'roster-editor.accommodations-answer-choices': {
     label:
       'Answer choices control for a student or group in the roster editor Accommodations tab',
@@ -19160,16 +18989,6 @@ export const TOUR_ANCHORS = {
   'roster-editor.accommodations-modified-questions': {
     label:
       'Modified questions switch for a student or group in the roster editor Accommodations tab',
-    panel: true,
-  },
-  'roster-editor.accommodations-done': {
-    label: 'Done button that closes the Accommodations Add menu',
-    panel: true,
-  },
-  'roster-editor.accommodations-remove': {
-    label: 'Remove button on a row of the roster editor Accommodations tab',
-    perField: true,
-    destructive: true,
     panel: true,
   },
   'roster-editor.accommodations-add-student': {

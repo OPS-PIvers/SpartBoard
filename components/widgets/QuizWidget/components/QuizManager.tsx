@@ -223,7 +223,7 @@ export interface QuizStepperAssign {
     boxSizes: Record<string, PaperBoxSize>;
     boxStyles: Record<string, PaperBoxStylePick>;
   };
-  /** Modification groups that print their version at assign (`paper-printed-versions`). */
+  /** Modification groups that print their version at assign. */
   printedGroups?: PrintedGroupPick[];
 }
 
@@ -355,7 +355,7 @@ interface QuizManagerProps {
   hasLooseStack?: (quizId: string) => boolean;
   /** Assign can put written questions on paper (`paper-written-hybrid` and the paper gates). */
   writtenOnPaperAvailable?: boolean;
-  /** A modification group can print its version at assign (`paper-printed-versions` and the paper gates). */
+  /** A modification group can print its version at assign (with the paper gates). */
   printedVersionsAvailable?: boolean;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
@@ -1101,7 +1101,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const [assignWritten, setAssignWritten] = useState<WrittenAnswersValue>(
     DEFAULT_WRITTEN_ANSWERS
   );
-  const assignWaitsForSave = canAccessFeature('quiz-assign-waits-for-save');
   const [assignError, setAssignError] = useState<string | null>(null);
   const assignAudience = useAssignAudience();
   const assignToStaff = assignAudience.audience === 'staff';
@@ -2413,7 +2412,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         validRosterIds.includes(id)
       )
     );
-    if (assignWaitsForSave) setAssignError(null);
+    setAssignError(null);
     const saved = onAssign(
       assignTarget,
       behavior,
@@ -2443,12 +2442,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           : {}),
       }
     );
-    if (!assignWaitsForSave) {
-      if (!assignToStaff) assignWhenState.remember(assignWhen);
-      resetAssign();
-      return;
-    }
-    // Flag on: the stepper keeps its spinner until the save settles and stays open on failure.
+    // The stepper keeps its spinner until the save settles and stays open on failure.
     return Promise.resolve(saved).then(
       () => {
         if (!assignToStaff) assignWhenState.remember(assignWhen);

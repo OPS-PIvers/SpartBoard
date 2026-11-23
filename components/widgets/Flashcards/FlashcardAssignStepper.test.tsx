@@ -140,6 +140,15 @@ const assign = () =>
 const lastSubmission = (onAssign: ReturnType<typeof vi.fn>) =>
   onAssign.mock.calls[0][0] as FlashcardAssignSubmission;
 
+vi.mock('@/hooks/useLastAssignSettings', async (orig) => ({
+  ...(await orig<typeof import('@/hooks/useLastAssignSettings')>()),
+  useLastAssignSettings: () => ({
+    lastUsed: null,
+    loaded: true,
+    save: vi.fn(),
+  }),
+}));
+
 describe('FlashcardAssignStepper', () => {
   beforeEach(() => {
     lastUsed.value = null;

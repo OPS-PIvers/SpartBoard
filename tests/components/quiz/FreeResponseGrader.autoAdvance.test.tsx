@@ -149,9 +149,13 @@ afterEach(() => vi.useRealTimers());
 describe('FreeResponseGrader — auto-advance', () => {
   it('arms on the last rubric criterion and moves on after the delay', async () => {
     renderGrader(quizWith(true), [responseFor('a'), responseFor('b')]);
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
     expect(isArmed()).toBe(false);
-    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Strong/, pressed: false })
+    );
     expect(isArmed()).toBe(true);
     tick(ADVANCE_DELAY_MS - 1);
     expect(screen.getByText('Student 1 of 2')).toBeTruthy();
@@ -163,8 +167,12 @@ describe('FreeResponseGrader — auto-advance', () => {
 
   it('cancels when the teacher touches the right rail again', async () => {
     renderGrader(quizWith(true), [responseFor('a'), responseFor('b')]);
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
-    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Strong/, pressed: false })
+    );
     expect(isArmed()).toBe(true);
     fireEvent.pointerDown(screen.getByLabelText(/Overall comment/i));
     expect(isArmed()).toBe(false);
@@ -223,7 +231,9 @@ describe('FreeResponseGrader — auto-advance', () => {
       responseFor('a', { q1: saved }),
       responseFor('b'),
     ]);
-    fireEvent.click(screen.getByRole('radio', { name: /Below/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Below/, pressed: false })
+    );
     expect(isArmed()).toBe(false);
     tick(REEDIT_DEBOUNCE_MS);
     await flush();
@@ -245,8 +255,12 @@ describe('FreeResponseGrader — auto-advance', () => {
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-checked')).toBe('false');
     expect(onAutoAdvanceChange).toHaveBeenCalledWith(false);
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
-    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Strong/, pressed: false })
+    );
     expect(isArmed()).toBe(false);
     tick(ADVANCE_DELAY_MS + 100);
     await flush();

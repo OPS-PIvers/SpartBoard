@@ -1,4 +1,4 @@
-// `/writing-grader-dev?view=results|grader|student|table[&structure=1]&grading=points|rubric|dreamhome|ungraded[&v2=1][&order=low-first][&jump=1][&opennext=0]`: Writing results, grader and feedback on fixtures.
+// `/writing-grader-dev?view=results|grader|student|table[&structure=1]&grading=points|rubric|dreamhome|ungraded[&order=low-first][&jump=1][&opennext=0]`: Writing results, grader and feedback on fixtures.
 import React, { useMemo, useState } from 'react';
 import type {
   Rubric,
@@ -403,7 +403,6 @@ export const WritingGraderDevHarness: React.FC = () => {
       }) as unknown as DashboardContextValue,
     []
   );
-  const v2 = params.get('v2') === '1';
   const [rubricLevelOrder, setRubricLevelOrder] = useState<RubricLevelOrder>(
     params.get('order') === 'low-first' ? 'low-first' : 'high-first'
   );
@@ -413,26 +412,21 @@ export const WritingGraderDevHarness: React.FC = () => {
   const [rubricOpenNext, setRubricOpenNext] = useState(
     params.get('opennext') !== '0'
   );
-  const auth = useMemo<AuthContextType | undefined>(
-    () =>
-      v2
-        ? {
-            ...mockAuth,
-            canAccessFeature: (id) => id === 'rubric-grading-v2',
-            rubricLevelOrder,
-            rubricAutoAdvance,
-            rubricOpenNext,
-            updateAccountPreferences: (u) => {
-              if (u.rubricLevelOrder) setRubricLevelOrder(u.rubricLevelOrder);
-              if (u.rubricAutoAdvance !== undefined)
-                setRubricAutoAdvance(u.rubricAutoAdvance);
-              if (u.rubricOpenNext !== undefined)
-                setRubricOpenNext(u.rubricOpenNext);
-              return Promise.resolve();
-            },
-          }
-        : undefined,
-    [v2, rubricLevelOrder, rubricAutoAdvance, rubricOpenNext]
+  const auth = useMemo<AuthContextType>(
+    () => ({
+      ...mockAuth,
+      rubricLevelOrder,
+      rubricAutoAdvance,
+      rubricOpenNext,
+      updateAccountPreferences: (u) => {
+        if (u.rubricLevelOrder) setRubricLevelOrder(u.rubricLevelOrder);
+        if (u.rubricAutoAdvance !== undefined)
+          setRubricAutoAdvance(u.rubricAutoAdvance);
+        if (u.rubricOpenNext !== undefined) setRubricOpenNext(u.rubricOpenNext);
+        return Promise.resolve();
+      },
+    }),
+    [rubricLevelOrder, rubricAutoAdvance, rubricOpenNext]
   );
   const responses = NAMES.flatMap(([uid, , , status]) =>
     status ? [response(uid, status, grading)] : []

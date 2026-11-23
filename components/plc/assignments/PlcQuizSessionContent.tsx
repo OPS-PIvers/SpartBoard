@@ -64,7 +64,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
+  const { user } = useAuth();
   const { addToast, rosters } = useDashboard();
   const { loadQuizData } = useQuiz(user?.uid);
   const {
@@ -313,11 +313,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
       responses={responses}
       config={config}
       session={session}
-      paperCopyBatchIds={
-        canAccessFeature('paper-printed-versions')
-          ? assignment.paperCopyBatchIds
-          : undefined
-      }
+      paperCopyBatchIds={assignment.paperCopyBatchIds}
       tabWarningsEnabled={session?.tabWarningsEnabled ?? true}
       onBack={onClose}
       onDeleteResponse={removeStudent}

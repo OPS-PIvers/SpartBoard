@@ -312,9 +312,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       ),
       authContext?.selectedBuildings ?? []
     );
-  const paperCopiesOn =
-    authContext?.canAccessFeature?.('paper-printed-versions') === true &&
-    authContext.user?.uid === session.teacherUid;
+  const paperCopiesOn = authContext?.user?.uid === session.teacherUid;
   const paperSeats = usePaperCopySeats(
     session.teacherUid,
     paperCopiesOn ? rosterTargets?.paperCopyBatchIds : null,

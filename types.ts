@@ -11850,12 +11850,8 @@ export type GlobalFeature =
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
   | 'quiz-word-bank'
-  /** Quiz editor attaches stimuli in a list-and-preview dialog instead of an inline checklist. */
-  | 'quiz-stimulus-picker'
   /** A question's modified version can show different stimuli. */
   | 'quiz-modified-stimuli'
-  /** Question editor metadata (stimuli, targets, DOK) as labeled fields like Type and Points. */
-  | 'question-editor-fields'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
@@ -11891,20 +11887,8 @@ export type GlobalFeature =
   | 'quiz-live-view-nudge-note'
   /** Live view's Screenshot button. */
   | 'quiz-live-view-screenshot'
-  /** Sign-in picks an account instead of forcing Google's consent page; idle sign-out after 30 days instead of 7. */
-  | 'quick-sign-in'
-  /** Teacher picture and PDF uploads need Google Drive; without it they ask to reconnect instead of saving to Firebase Storage. */
-  | 'drive-only-uploads'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
-  /** Quiz assign stays open with a spinner until the save finishes, and shows a failed save inline. */
-  | 'quiz-assign-waits-for-save'
-  /** Each quiz assignment keeps a copy of the questions it was given, so later edits never change its scores. */
-  | 'quiz-frozen-assignments'
-  /** Rubric grading redesign: one-tap level buttons, expandable criteria, level order switch, full-rubric table. */
-  | 'rubric-grading-v2'
-  /** Quiz assign: a modification group can get a printed version, scanned back into the same results. */
-  | 'paper-printed-versions'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -11915,8 +11899,6 @@ export type GlobalFeature =
   | 'routine-guide'
   /** Class groups with a weekly schedule that pop a reminder on the open board. */
   | 'group-reminders'
-  /** Edit Class: groups open as pages that hold their accommodations; Accommodations lists every student. */
-  | 'class-groups-redesign'
   | 'classlink-clean-names'
   /** Group reminders: the Symbol step of the class group editor. */
   | 'group-symbols'
@@ -12002,8 +11984,6 @@ export type GlobalFeature =
   | 'import-straight-to-board'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
   | 'video-import-ai'
-  /** Manual assignments get a due date, and Assign remembers the When step. */
-  | 'assign-due-date'
   /** Library and Assigned tabs with a status per class (docs/plans/ASSIGNED_TAB.md D19). */
   | 'assigned-tab'
   /** Writing peer review: teachers pair students to read, comment on or suggest edits to each other's writing. */
@@ -12013,8 +11993,6 @@ export type GlobalFeature =
   /** Teachers record their voice for a quiz question prompt. */
   | 'quiz-question-audio'
   | 'quiz-random-numbers'
-  /** Print results with Settings and Students tabs and a Course > class > student picker. */
-  | 'results-print-v2'
   /** Widget update notes listed in the sidebar What's New instead of a button under each widget. */
   | 'widget-notes-in-whats-new';
 
