@@ -307,7 +307,12 @@ export function promptRowsFor(
   const out: Record<string, number> = {};
   for (const prompts of promptSets) {
     for (const [id, page] of Object.entries(prompts)) {
-      const rows = promptHeaderRows(page.text, page.stimuli.length, labelled);
+      const rows = promptHeaderRows(
+        page.text,
+        page.stimuli.length,
+        labelled,
+        page.block?.heightMm ?? 0
+      );
       out[id] = Math.max(out[id] ?? 0, rows);
     }
   }

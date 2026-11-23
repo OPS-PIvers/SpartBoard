@@ -295,8 +295,10 @@ export function toStoredQuestion(
       base[k] = v;
     }
     // A rewritten prompt makes the teacher's modified wording stale.
-    if (existing.text !== text || existing.type !== type)
+    if (existing.text !== text || existing.type !== type) {
       delete base.modifiedText;
+      delete base.modifiedPromptAudio;
+    }
   }
   if (input.points !== undefined) base.points = input.points;
   if (input.dok === null) delete base.dok;

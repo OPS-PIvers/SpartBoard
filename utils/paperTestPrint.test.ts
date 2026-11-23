@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildPaperTestHtml, printPaperTest } from './paperTestPrint';
+import {
+  buildPaperTestHtml,
+  PAPER_TEST_PACKET_STYLES,
+  paperTestPacketCopies,
+  printPaperTest,
+} from './paperTestPrint';
 
 const job = {
   quizTitle: 'Unit 3 Test',
@@ -115,13 +120,35 @@ describe('written questions on the test paper (D18)', () => {
       ],
     });
     expect(html).toContain('<span class="num">2.</span>');
-    expect(html).toContain('Answer on your answer sheet');
+    expect(html).toContain('Write your answer on your response sheet.');
     expect(html.indexOf('Explain why.')).toBeLessThan(
-      html.indexOf('Answer on your answer sheet')
+      html.indexOf('Write your answer on your response sheet.')
     );
-    expect(html.indexOf('Answer on your answer sheet')).toBeLessThan(
-      html.indexOf('Pick one')
-    );
+    expect(
+      html.indexOf('Write your answer on your response sheet.')
+    ).toBeLessThan(html.indexOf('Pick one'));
     expect(html.match(/class="letter"/g)).toHaveLength(4);
+  });
+});
+
+describe('test paper copies inside the response sheet document', () => {
+  it('prints one scoped copy per version', () => {
+    const q = { row: 1, text: 'Pick one', choices: ['Red', 'Blue'] };
+    const copies = paperTestPacketCopies({
+      quizTitle: 'Unit 3 Test',
+      questions: [],
+      versions: [
+        { label: 'Version A', questions: [q] },
+        { label: 'Version B', questions: [q] },
+      ],
+    });
+    expect(copies).toHaveLength(2);
+    expect(copies[1]).toContain('Version B');
+    expect(copies.every((c) => c.startsWith('<div class="tp">'))).toBe(true);
+    // Every rule is scoped, so the sheets' own classes are left alone.
+    const rules = PAPER_TEST_PACKET_STYLES.split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.includes('{'));
+    expect(rules.every((l) => l.startsWith('.tp'))).toBe(true);
   });
 });

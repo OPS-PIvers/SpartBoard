@@ -1,0 +1,11 @@
+{
+  "widgetNotes": [
+    {
+      "id": "quiz-paper-printed-stimuli-2026-11-22",
+      "widget": "quiz",
+      "date": "2026-11-22",
+      "text": "Response sheets with question text now print every stimulus, including text, word banks, pictures, PDFs and Google Docs. Each one prints with its question or on a resource page.",
+      "feature": "paper-answer-sheets"
+    }
+  ]
+}

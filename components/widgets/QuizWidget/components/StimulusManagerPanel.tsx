@@ -8,7 +8,11 @@
  * students can load them — the teacher is prompted to confirm on every
  * attach (never auto-shared silently).
  */
-import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import {
+  tourFieldAttr,
+  tourTypeAttr,
+  type TourAnchorAttrs,
+} from '@/config/tourAnchors';
 import React, { useCallback, useContext, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -37,6 +41,7 @@ import {
   detectStimulusTypeFromFile,
   detectStimulusTypeFromUrl,
   isPlayLimitedType,
+  questionsUsingModifiedStimulus,
   questionsUsingStimulus,
   stimulusDisplayName,
   stimulusPickerTitle,
@@ -327,7 +332,7 @@ function useStimulusIntake(state: StimulusListState) {
       type: 'text',
       url: '',
       text: '',
-      label: 'Passage',
+      label: 'Text',
       readAloudSource: 'text',
     };
     state.addStimulus(stimulus);
@@ -493,7 +498,7 @@ export const StimulusManagerPanel: React.FC<{
               className="shrink-0 flex items-center gap-2 px-3 py-2 bg-white border-2 border-slate-300 hover:border-brand-blue-primary/50 disabled:opacity-40 rounded-lg text-sm font-bold text-slate-700"
             >
               <FileText className="w-4 h-4" />
-              Add a passage
+              Add text
             </button>
             {wordBankAvailable && (
               <button
@@ -801,7 +806,7 @@ const StimulusCard: React.FC<{
           {s.type === 'text' ? (
             <div>
               <label className={labelClass} htmlFor={`passage-${s.id}`}>
-                Passage
+                Text
               </label>
               <textarea
                 id={`passage-${s.id}`}
@@ -813,7 +818,7 @@ const StimulusCard: React.FC<{
                 value={s.text ?? ''}
                 onChange={(e) => updateStimulus(s.id, { text: e.target.value })}
                 rows={6}
-                placeholder="Paste or type the passage students will read."
+                placeholder="Paste or type the text students will read."
                 className="w-full px-2.5 py-2 border-2 border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-hidden focus:border-brand-blue-primary/50"
               />
             </div>
@@ -1022,6 +1027,8 @@ export const QuestionStimulusSection: React.FC<{
   questionId: string;
   /** `quiz-calculator-stimulus` gate. */
   calculatorAvailable?: boolean;
+  /** `quiz-word-bank` gate. */
+  wordBankAvailable?: boolean;
   /** Attaches an image pasted inside this element to the question; absent turns pasting off. */
   pasteScopeRef?: React.RefObject<HTMLElement | null>;
   /** `question-editor-fields`: a row of the light metadata list. */
@@ -1034,6 +1041,7 @@ export const QuestionStimulusSection: React.FC<{
   state,
   questionId,
   calculatorAvailable = false,
+  wordBankAvailable = false,
   pasteScopeRef,
   metaList = false,
   pickerModal = false,
@@ -1045,6 +1053,7 @@ export const QuestionStimulusSection: React.FC<{
       state={state}
       attachedIds={question?.stimulusIds}
       calculatorAvailable={calculatorAvailable}
+      wordBankAvailable={wordBankAvailable}
       pasteScopeRef={pasteScopeRef}
       metaList={metaList}
       pickerModal={pickerModal}
@@ -1059,11 +1068,47 @@ export const QuestionStimulusSection: React.FC<{
   );
 };
 
+/** The modified version's stimuli: shown instead of the question's to students with modified questions. */
+export const ModifiedStimulusSection: React.FC<{
+  state: QuizEditorController;
+  questionId: string;
+  calculatorAvailable?: boolean;
+  wordBankAvailable?: boolean;
+  paperPlacement?: boolean;
+}> = ({
+  state,
+  questionId,
+  calculatorAvailable = false,
+  wordBankAvailable = false,
+  paperPlacement = false,
+}) => {
+  const question = state.questions.find((q) => q.id === questionId);
+  return (
+    <AttachStimulusSection
+      state={state}
+      attachedIds={question?.modifiedStimulusIds}
+      calculatorAvailable={calculatorAvailable}
+      wordBankAvailable={wordBankAvailable}
+      pickerModal
+      paperPlacement={paperPlacement}
+      ownerNoun="modified version"
+      ownerLabel={`Q${state.questions.findIndex((q) => q.id === questionId) + 1} modified`}
+      ownerId={`${questionId}:modified`}
+      emptyValue="Same as the question"
+      anchor={tourTypeAttr('quiz-editor.modified-stimuli', 'quiz')}
+      onToggle={(stimulusId) =>
+        state.toggleStimulusOnQuestion(stimulusId, questionId, true)
+      }
+    />
+  );
+};
+
 /** Attach section for a random bank slot: stimuli shown with every drawn question. */
 export const SlotStimulusSection: React.FC<{
   state: QuizEditorController;
   slotId: string;
   calculatorAvailable?: boolean;
+  wordBankAvailable?: boolean;
   metaList?: boolean;
   pickerModal?: boolean;
   paperPlacement?: boolean;
@@ -1071,6 +1116,7 @@ export const SlotStimulusSection: React.FC<{
   state,
   slotId,
   calculatorAvailable = false,
+  wordBankAvailable = false,
   metaList = false,
   pickerModal = false,
   paperPlacement = false,
@@ -1081,6 +1127,7 @@ export const SlotStimulusSection: React.FC<{
       state={state}
       attachedIds={slot?.stimulusIds}
       calculatorAvailable={calculatorAvailable}
+      wordBankAvailable={wordBankAvailable}
       metaList={metaList}
       pickerModal={pickerModal}
       paperPlacement={paperPlacement}
@@ -1096,19 +1143,25 @@ const AttachStimulusSection: React.FC<{
   state: QuizEditorController;
   attachedIds: string[] | undefined;
   calculatorAvailable: boolean;
+  wordBankAvailable: boolean;
   pasteScopeRef?: React.RefObject<HTMLElement | null>;
   /** The question or slot shown; a change closes the open preview. */
   ownerId?: string;
   metaList?: boolean;
   pickerModal?: boolean;
   paperPlacement?: boolean;
-  ownerNoun: 'question' | 'bank';
+  ownerNoun: 'question' | 'bank' | 'modified version';
   ownerLabel: string;
+  /** The footer value when nothing is attached. */
+  emptyValue?: string;
+  /** The picker toggle's live-tour anchor. */
+  anchor?: TourAnchorAttrs;
   onToggle: (stimulusId: string) => void;
 }> = ({
   state,
   attachedIds,
   calculatorAvailable,
+  wordBankAvailable,
   pasteScopeRef,
   ownerId,
   metaList = false,
@@ -1116,6 +1169,8 @@ const AttachStimulusSection: React.FC<{
   paperPlacement = false,
   ownerNoun,
   ownerLabel,
+  emptyValue = 'None',
+  anchor = tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz'),
   onToggle,
 }) => {
   const { stimuli, questions, bankSlots } = state;
@@ -1185,7 +1240,7 @@ const AttachStimulusSection: React.FC<{
           : 'None attached';
 
   const onAdded = setPickerSelectedId;
-  const addArea = (inPicker: boolean) => (
+  const addArea = (inPicker: boolean, extraSources?: React.ReactNode) => (
     <>
       <div
         className={`flex flex-col items-center gap-2 rounded-lg border border-dashed px-2.5 py-2.5 ${
@@ -1213,6 +1268,7 @@ const AttachStimulusSection: React.FC<{
               onAdded(added.id);
             }}
           />
+          {extraSources}
           {calculatorAvailable && (
             <button
               type="button"
@@ -1252,6 +1308,9 @@ const AttachStimulusSection: React.FC<{
             const usedOn = [
               ...questionsUsingStimulus(questions, s.id).map(
                 (i) => `Q${i + 1}`
+              ),
+              ...questionsUsingModifiedStimulus(questions, s.id).map(
+                (i) => `Q${i + 1} modified`
               ),
               ...bankSlots
                 .filter((slot) => slot.stimulusIds?.includes(s.id))
@@ -1357,6 +1416,9 @@ const AttachStimulusSection: React.FC<{
   };
   const usedOn = (stimulusId: string) => [
     ...questionsUsingStimulus(questions, stimulusId).map((i) => `Q${i + 1}`),
+    ...questionsUsingModifiedStimulus(questions, stimulusId).map(
+      (i) => `Q${i + 1} modified`
+    ),
     ...bankSlots
       .filter((slot) => slot.stimulusIds?.includes(stimulusId))
       .map((slot) => slot.bankTitle),
@@ -1371,14 +1433,34 @@ const AttachStimulusSection: React.FC<{
       onToggle={onToggle}
       selectedId={pickerSelectedId}
       onSelect={setPickerSelectedId}
-      addArea={addArea(true)}
+      addArea={(extra) => addArea(true, extra)}
+      busy={intake.busy}
+      onAddText={() => {
+        const added = intake.addPassage();
+        onToggle(added.id);
+        onAdded(added.id);
+      }}
+      onAddWordBank={
+        wordBankAvailable
+          ? () => {
+              const added = intake.addWordBank();
+              onToggle(added.id);
+              onAdded(added.id);
+            }
+          : undefined
+      }
+      onUpdateStimulus={state.updateStimulus}
       {...(paperPlacement
         ? {
             onPaperPlacement: (id: string, v: QuizStimulusPaperPlacement) =>
               state.updateStimulus(id, { paperPlacement: v }),
             // A bank draw prints with every drawn question, so it counts as shared.
+            // A question's original and modified version never print on one paper, so it counts once.
             paperUseCount: (id: string) =>
-              questionsUsingStimulus(questions, id).length +
+              new Set([
+                ...questionsUsingStimulus(questions, id),
+                ...questionsUsingModifiedStimulus(questions, id),
+              ]).size +
               2 *
                 bankSlots.filter((slot) => slot.stimulusIds?.includes(id))
                   .length,
@@ -1398,12 +1480,12 @@ const AttachStimulusSection: React.FC<{
         <PromptFooterToggle
           icon={FileText}
           label="Stimuli"
-          value={drop.dragging || attachedCount > 0 ? summary : 'None'}
+          value={drop.dragging || attachedCount > 0 ? summary : emptyValue}
           filled={attachedCount > 0}
           open={pickerModal ? pickerOpen : open}
           hasPopup={pickerModal}
           onClick={() => (pickerModal ? openPicker() : setOpen((o) => !o))}
-          anchor={tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz')}
+          anchor={anchor}
         />
         {picker}
         {!pickerModal &&
@@ -1431,7 +1513,7 @@ const AttachStimulusSection: React.FC<{
             onClick={openPicker}
             aria-haspopup="dialog"
             aria-describedby={`${fieldId}-value`}
-            {...tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz')}
+            {...anchor}
             className={`${metaValueClass} max-w-full py-1`}
           >
             <span
@@ -1465,7 +1547,7 @@ const AttachStimulusSection: React.FC<{
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
             aria-describedby={`${fieldId}-value`}
-            {...tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz')}
+            {...anchor}
             className={`${metaValueClass} max-w-full`}
           >
             <span
@@ -1497,7 +1579,7 @@ const AttachStimulusSection: React.FC<{
         onClick={pickerModal ? openPicker : () => setOpen((o) => !o)}
         aria-expanded={pickerModal ? undefined : open}
         aria-haspopup={pickerModal ? 'dialog' : undefined}
-        {...tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz')}
+        {...anchor}
         className="w-full flex items-center gap-2 px-3 py-2 text-left"
       >
         {open && !pickerModal ? (

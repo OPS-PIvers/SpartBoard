@@ -218,7 +218,7 @@ describe('QuizStudentApp — written answers on paper', () => {
     render(<QuizStudentApp />);
 
     expect(
-      await screen.findByText('Write your answer on your paper answer sheet.')
+      await screen.findByText('Write your answer on your paper response sheet.')
     ).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByText(/to go\./)).toBeNull();
@@ -236,7 +236,7 @@ describe('QuizStudentApp — written answers on paper', () => {
     hookState.myResponse = emptyResponse();
     render(<QuizStudentApp />);
 
-    await screen.findByText('Write your answer on your paper answer sheet.');
+    await screen.findByText('Write your answer on your paper response sheet.');
     const submit = screen.getByRole('button', { name: /SUBMIT/i });
     expect(submit).toBeEnabled();
     fireEvent.click(submit);
@@ -255,7 +255,7 @@ describe('QuizStudentApp — written answers on paper', () => {
       await screen.findByText(/Explain your reasoning/i)
     ).toBeInTheDocument();
     expect(
-      screen.queryByText('Write your answer on your paper answer sheet.')
+      screen.queryByText('Write your answer on your paper response sheet.')
     ).toBeNull();
     expect(await screen.findByRole('textbox')).toBeInTheDocument();
   });

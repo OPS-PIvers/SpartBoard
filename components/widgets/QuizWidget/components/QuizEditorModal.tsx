@@ -200,6 +200,8 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       (qa.paperBoxSize ?? '') !== (qb.paperBoxSize ?? '') ||
       (qa.paperBoxStyle ?? '') !== (qb.paperBoxStyle ?? '') ||
       (qa.stimulusIds ?? []).join('|') !== (qb.stimulusIds ?? []).join('|') ||
+      (qa.modifiedStimulusIds ?? []).join('|') !==
+        (qb.modifiedStimulusIds ?? []).join('|') ||
       (qa.orderingImages ?? []).join('|') !==
         (qb.orderingImages ?? []).join('|') ||
       JSON.stringify(qa.answerImages ?? []) !==
@@ -211,6 +213,10 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       targetIdsKey(qa.targets) !== targetIdsKey(qb.targets) ||
       (qa.explanation ?? '') !== (qb.explanation ?? '') ||
       (qa.modifiedText ?? '') !== (qb.modifiedText ?? '') ||
+      JSON.stringify(qa.promptAudio ?? null) !==
+        JSON.stringify(qb.promptAudio ?? null) ||
+      JSON.stringify(qa.modifiedPromptAudio ?? null) !==
+        JSON.stringify(qb.modifiedPromptAudio ?? null) ||
       JSON.stringify(qa.optionExplanations ?? {}) !==
         JSON.stringify(qb.optionExplanations ?? {}) ||
       qa.dok !== qb.dok ||

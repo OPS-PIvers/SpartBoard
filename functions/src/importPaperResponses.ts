@@ -477,7 +477,7 @@ export async function handleImportPaperResponses(
   if (settings.data()?.enabled !== true)
     throw new HttpsError(
       'failed-precondition',
-      'Paper answer sheets are not enabled.'
+      'Paper response sheets are not enabled.'
     );
 
   const userRef = db.collection('users').doc(caller.uid);
@@ -1223,7 +1223,7 @@ export async function handlePublishPaperResults(
   if (settings.data()?.enabled !== true)
     throw new HttpsError(
       'failed-precondition',
-      'Paper answer sheets are not enabled.'
+      'Paper response sheets are not enabled.'
     );
 
   const userRef = db.collection('users').doc(caller.uid);

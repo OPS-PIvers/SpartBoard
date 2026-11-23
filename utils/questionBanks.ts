@@ -116,9 +116,11 @@ export function copyBankQuestions(
     const targets = mergeTargets(q.targets, bank.targets);
     if (targets) copy.targets = targets;
     else delete copy.targets;
-    if (q.stimulusIds && q.stimulusIds.length > 0) {
+    for (const key of ['stimulusIds', 'modifiedStimulusIds'] as const) {
+      const ids = q[key];
+      if (!ids || ids.length === 0) continue;
       const mapped: string[] = [];
-      for (const sid of q.stimulusIds) {
+      for (const sid of ids) {
         const source = bank.stimuli?.find((s) => s.id === sid);
         if (!source) continue;
         let mappedId = stimulusIdMap.get(sid);
@@ -129,8 +131,8 @@ export function copyBankQuestions(
         }
         mapped.push(mappedId);
       }
-      if (mapped.length > 0) copy.stimulusIds = mapped;
-      else delete copy.stimulusIds;
+      if (mapped.length > 0) copy[key] = mapped;
+      else delete copy[key];
     }
     questions.push(copy);
   }
@@ -332,9 +334,11 @@ export function resolveQuizAssignment(
       const targets = mergeTargets(source.targets, bank.targets);
       if (targets) frozen.targets = targets;
       else delete frozen.targets;
-      if (source.stimulusIds && source.stimulusIds.length > 0) {
+      for (const key of ['stimulusIds', 'modifiedStimulusIds'] as const) {
+        const ids = source[key];
+        if (!ids || ids.length === 0) continue;
         const kept: string[] = [];
-        for (const sid of source.stimulusIds) {
+        for (const sid of ids) {
           const stim = bank.stimuli?.find((s) => s.id === sid);
           if (!stim) continue;
           if (!stimulusIds.has(sid)) {
@@ -343,8 +347,8 @@ export function resolveQuizAssignment(
           }
           kept.push(sid);
         }
-        if (kept.length > 0) frozen.stimulusIds = kept;
-        else delete frozen.stimulusIds;
+        if (kept.length > 0) frozen[key] = kept;
+        else delete frozen[key];
       }
       if (slotStimulusIds.length > 0) {
         const own = frozen.stimulusIds ?? [];
@@ -352,6 +356,13 @@ export function resolveQuizAssignment(
           ...slotStimulusIds.filter((sid) => !own.includes(sid)),
           ...own,
         ];
+        // The slot's stimuli show with the modified version too.
+        const modified = frozen.modifiedStimulusIds;
+        if (modified?.length)
+          frozen.modifiedStimulusIds = [
+            ...slotStimulusIds.filter((sid) => !modified.includes(sid)),
+            ...modified,
+          ];
       }
       questions.push(frozen);
       poolQuestionIds.push(frozen.id);

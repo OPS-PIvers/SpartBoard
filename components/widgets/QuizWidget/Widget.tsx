@@ -290,7 +290,7 @@ import {
   stimulusLoadErrorMessage,
 } from '@/utils/paperSheetStimulusImages';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
-import { MAX_PAGE } from '@/utils/paperSheetMarker';
+import { MAX_SHEET_PAGE } from '@/utils/paperSheetMarker';
 import {
   deletePaperBatch,
   subscribePaperBatchIndex,
@@ -3952,7 +3952,7 @@ const TeacherQuizWidget: React.FC<{
                       quizId: meta.id,
                     });
                     fail(
-                      'Could not save the written answer sheets. Try again.'
+                      'Could not save the written response sheets. Try again.'
                     );
                     return;
                   }
@@ -3969,7 +3969,7 @@ const TeacherQuizWidget: React.FC<{
             });
             if (!plan.ok && plan.reason === 'too-many-pages') {
               fail(
-                `This sheet needs ${plan.pageCount} pages. The most one sheet can print is ${MAX_PAGE}.`
+                `This sheet needs ${plan.pageCount} pages. The most one sheet can print is ${MAX_SHEET_PAGE}.`
               );
               return;
             }
@@ -4011,7 +4011,7 @@ const TeacherQuizWidget: React.FC<{
               logError('QuizWidget.assignment.writtenOnPaper', err, {
                 quizId: meta.id,
               });
-              fail('Could not save the written answer sheets. Try again.');
+              fail('Could not save the written response sheets. Try again.');
               return;
             }
             paperWritten = {

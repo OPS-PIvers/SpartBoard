@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { QuizStimulus } from '@/types';
 import {
   attachPaperTestStimuli,
+  isFetchedStimulus,
   paperTestStimulus,
   resourceLetter,
   resourceLine,
+  stimulusDocFileId,
   teammateQuizStimuli,
   teammateTestPaper,
 } from './paperTestStimuli';
@@ -43,6 +45,7 @@ describe('paperTestStimulus', () => {
     });
   });
 
+  const pg = (src: string) => ({ src, widthMm: 150, heightMm: 90 });
   it('prints fetched pictures and pages, and a link for what paper cannot show', () => {
     const img = stim({ id: 'i', type: 'image', driveFileId: 'f1' });
     expect(
@@ -50,8 +53,11 @@ describe('paperTestStimulus', () => {
     ).toEqual({ kind: 'image', src: 'blob:x' });
     const pdf = stim({ id: 'd', type: 'pdf', driveFileId: 'f2' });
     expect(
-      paperTestStimulus(pdf, { images: {}, pages: { d: ['blob:1', 'blob:2'] } })
-    ).toEqual({ kind: 'pages', srcs: ['blob:1', 'blob:2'] });
+      paperTestStimulus(pdf, {
+        images: {},
+        pages: { d: [pg('blob:1'), pg('blob:2')] },
+      })
+    ).toEqual({ kind: 'pages', pages: [pg('blob:1'), pg('blob:2')] });
     // A PDF that would not load still points students at it.
     expect(paperTestStimulus(pdf, NO_FILES)).toEqual({
       kind: 'link',
@@ -83,6 +89,52 @@ describe('paperTestStimulus', () => {
     expect(paperTestStimulus(stim({ id: 'e', text: '  ' }), NO_FILES)).toBe(
       null
     );
+  });
+});
+
+describe('stimulusDocFileId', () => {
+  const doc = (url: string, driveFileId?: string) =>
+    stim({
+      id: 'd',
+      type: 'gdoc-embed',
+      url,
+      ...(driveFileId ? { driveFileId } : {}),
+    });
+
+  it('reads the file id from a pasted Doc, Slides or Sheets link', () => {
+    const id = '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abc';
+    for (const url of [
+      `https://docs.google.com/document/d/${id}/edit?usp=sharing`,
+      `https://docs.google.com/presentation/d/${id}/edit#slide=id.p`,
+      `https://docs.google.com/spreadsheets/d/${id}/edit`,
+      `https://docs.google.com/document/u/1/d/${id}/preview`,
+      `https://docs.google.com/a/orono.k12.mn.us/document/d/${id}/edit`,
+      `https://docs.google.com/document/d/${id}/edit?resourcekey=0-abc`,
+    ]) {
+      expect(stimulusDocFileId(doc(url))).toBe(id);
+      expect(isFetchedStimulus(doc(url))).toBe(true);
+    }
+  });
+
+  it('prefers the saved Drive file and skips links with no file id', () => {
+    expect(
+      stimulusDocFileId(doc('https://docs.google.com/document/d/x/edit', 'f1'))
+    ).toBe('f1');
+    const published = doc(
+      'https://docs.google.com/document/d/e/2PACX-1vQabcdefghijklmnop/pub'
+    );
+    expect(stimulusDocFileId(published)).toBeNull();
+    expect(isFetchedStimulus(published)).toBe(false);
+    expect(stimulusDocFileId(doc('https://example.com/page'))).toBeNull();
+    expect(
+      stimulusDocFileId(
+        stim({
+          id: 'p',
+          type: 'pdf',
+          url: 'https://docs.google.com/document/d/1AbCdEfGhIjKlMn/edit',
+        })
+      )
+    ).toBeNull();
   });
 });
 

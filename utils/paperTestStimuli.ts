@@ -15,24 +15,48 @@ export type PaperTestStimulus =
       groups: string[][];
       columns: 1 | 2 | 3;
     }
-  | { kind: 'image'; title?: string; src: string }
-  | { kind: 'pages'; title?: string; srcs: string[] }
+  | {
+      kind: 'image';
+      title?: string;
+      src: string;
+      widthPx?: number;
+      heightPx?: number;
+    }
+  | { kind: 'pages'; title?: string; pages: PaperTestPage[] }
   | { kind: 'link'; title: string; url: string };
+
+/** One page of a file, cut to its inked part, at its size on the original page. */
+export interface PaperTestPage {
+  src: string;
+  widthMm: number;
+  heightMm: number;
+}
 
 /** Pictures fetched before the print window opens, by stimulus id. */
 export interface PaperTestStimulusFiles {
   images: Readonly<Record<string, string>>;
+  /** Each picture's pixel size, when it decoded, so a sheet can size it before printing. */
+  imageSizes?: Readonly<Record<string, { widthPx: number; heightPx: number }>>;
   /** A PDF, Doc or Slides file rendered page by page. */
-  pages: Readonly<Record<string, readonly string[]>>;
+  pages: Readonly<Record<string, readonly PaperTestPage[]>>;
+}
+
+const GDOC_KIND = /docs\.google\.com\/(document|presentation|spreadsheets)\//i;
+// A published-to-web link (`/d/e/2PACX…`) carries no Drive file id.
+const GDOC_FILE_ID =
+  /docs\.google\.com\/(?:a\/[^/]+\/)?(?:document|presentation|spreadsheets)\/(?:u\/\d+\/)?d\/(?!e\/)([\w-]{10,})/i;
+
+/** The Drive file behind a Doc, Slides or Sheets stimulus, so its pages can print. */
+export function stimulusDocFileId(s: QuizStimulus): string | null {
+  if (s.type !== 'gdoc-embed') return null;
+  return s.driveFileId ?? GDOC_FILE_ID.exec(s.url)?.[1] ?? null;
 }
 
 /** Stimuli whose content has to be fetched and drawn before printing. */
 export function isFetchedStimulus(s: QuizStimulus): boolean {
   if (s.type === 'image' || s.type === 'pdf') return !!s.driveFileId || !!s.url;
-  return s.type === 'gdoc-embed' && !!s.driveFileId;
+  return !!stimulusDocFileId(s);
 }
-
-const GDOC_KIND = /docs\.google\.com\/(document|presentation|spreadsheets)\//i;
 
 /** What a stimulus that can't print on paper is called next to its link. */
 export function stimulusLinkTitle(s: QuizStimulus): string {
@@ -97,9 +121,20 @@ export function paperTestStimulus(
       break;
   }
   const image = files.images[s.id];
-  if (image) return { kind: 'image', ...withTitle, src: image };
+  if (image)
+    return {
+      kind: 'image',
+      ...withTitle,
+      src: image,
+      ...(files.imageSizes?.[s.id] ?? {}),
+    };
   const pages = files.pages[s.id];
-  if (pages?.length) return { kind: 'pages', ...withTitle, srcs: [...pages] };
+  if (pages?.length)
+    return {
+      kind: 'pages',
+      ...withTitle,
+      pages: pages.map((pg) => ({ ...pg })),
+    };
   const url = stimulusLink(s);
   return url ? { kind: 'link', title: stimulusLinkTitle(s), url } : null;
 }
@@ -159,11 +194,18 @@ export function attachPaperTestStimuli(
   printed: readonly PrintedQuestionRef[],
   questionsById: ReadonlyMap<string, Pick<QuizQuestion, 'id' | 'stimulusIds'>>,
   stimuli: readonly QuizStimulus[],
-  files: PaperTestStimulusFiles
+  files: PaperTestStimulusFiles,
+  /** Stimuli too tall to print with their question, which print as resources whatever the placement. */
+  forceResource?: ReadonlySet<string>,
+  /** Stimuli the caller prints itself, left out of both. */
+  leaveOut?: ReadonlySet<string>
 ): {
   questions: Map<string, PrintedQuestionStimuli>;
   resources: PaperTestResource[];
+  /** Ids of the stimuli each question prints in itself, in order. */
+  inlineIds: Map<string, string[]>;
 } {
+  const inlineIds = new Map<string, string[]>();
   const byId = new Map(stimuli.map((s) => [s.id, s]));
   const uses = new Map<string, number>();
   for (const p of printed)
@@ -182,10 +224,17 @@ export function attachPaperTestStimuli(
     const refs: string[] = [];
     for (const id of new Set(questionsById.get(p.questionId)?.stimulusIds)) {
       const s = byId.get(id);
-      const item = s ? itemOf(s) : null;
+      const item = s && !leaveOut?.has(id) ? itemOf(s) : null;
       if (!s || !item) continue;
-      if (paperPlacementOf(s, uses.get(id) ?? 0) === 'question') {
+      if (
+        !forceResource?.has(id) &&
+        paperPlacementOf(s, uses.get(id) ?? 0) === 'question'
+      ) {
         inQuestion.push(item);
+        inlineIds.set(p.questionId, [
+          ...(inlineIds.get(p.questionId) ?? []),
+          id,
+        ]);
         continue;
       }
       let letter = letters.get(id);
@@ -202,7 +251,7 @@ export function attachPaperTestStimuli(
         ...(refs.length ? { resources: refs } : {}),
       });
   }
-  return { questions, resources };
+  return { questions, resources, inlineIds };
 }
 
 /** "Use Resource A." or "Use Resources A and B." */
