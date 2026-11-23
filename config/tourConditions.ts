@@ -50,6 +50,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'modification-groups',
   'paper-fill-in-blank',
   'project-submit',
+  'question-editor-fields',
   'quiz-dok',
   'quiz-explanations',
   'quiz-import-equations',

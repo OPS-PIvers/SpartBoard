@@ -64,7 +64,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-word-bank',
   'quiz-stimulus-picker',
   'quiz-modified-stimuli',
-  'question-editor-fields',
   'lunch-count-redesign',
   'weather-details',
   'seating-chart-plans',

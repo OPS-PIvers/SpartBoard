@@ -7,7 +7,6 @@ import {
   Hash,
   Layers,
   Sigma,
-  Tag,
   TextCursorInput,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -25,7 +24,6 @@ import {
   tourAttr,
   tourTypeAttr,
 } from '@/config/tourAnchors';
-import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import type { useStandardsFromPrompt } from '@/components/quiz/targets/useStandardsFromPrompt';
 import { questionNeedsKey } from '@/utils/quizNeedsKey';
@@ -490,43 +488,6 @@ const DokSelect: React.FC<{
   );
 };
 
-const LegacyTargetsRows: React.FC<{
-  question: Pick<QuizQuestion, 'targets' | 'dok'>;
-  onChange: (targets: QuestionTargetTag[] | undefined) => void;
-  onDokChange?: (dok: QuizQuestion['dok']) => void;
-  onOpen: () => void;
-  editAnchor: TourAnchorAttrs;
-}> = ({ question: q, onChange, onDokChange, onOpen, editAnchor }) => (
-  <>
-    <div className="flex items-center justify-between mb-1">
-      <label className={labelClass}>Learning targets</label>
-      <div className="flex items-center gap-3">
-        {onDokChange && <DokSelect value={q.dok} onChange={onDokChange} />}
-        <button
-          type="button"
-          onClick={onOpen}
-          className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
-          {...editAnchor}
-        >
-          <Tag className="w-3.5 h-3.5" />
-          {q.targets?.length ? 'Edit' : 'Add'}
-        </button>
-      </div>
-    </div>
-    {q.targets?.length ? (
-      <TargetChips
-        targets={q.targets}
-        onRemove={(id) => {
-          const remaining = (q.targets ?? []).filter((t) => t.id !== id);
-          onChange(remaining.length ? remaining : undefined);
-        }}
-      />
-    ) : (
-      <p className="text-xs text-slate-500">No targets.</p>
-    )}
-  </>
-);
-
 const TargetsMetaItems: React.FC<{
   question: Pick<QuizQuestion, 'id' | 'targets' | 'dok'>;
   onDokChange?: (dok: QuizQuestion['dok']) => void;
@@ -583,8 +544,6 @@ interface QuestionTargetsFieldProps {
   pickerOpen: boolean;
   onPickerOpenChange: (open: boolean) => void;
   editAnchor?: TourAnchorAttrs;
-  /** `question-editor-fields`: rows of the light metadata list. */
-  metaList?: boolean;
 }
 
 export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
@@ -595,30 +554,16 @@ export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
   pickerOpen,
   onPickerOpenChange,
   editAnchor = tourTypeAttr('quiz-editor.targets-edit', 'quiz'),
-  metaList = false,
 }) => (
   <div className={React.useContext(MetaInlineContext) ? 'contents' : undefined}>
-    {metaList ? (
-      <TargetsMetaItems
-        question={q}
-        onDokChange={onDokChange}
-        onOpen={() => onPickerOpenChange(true)}
-        editAnchor={editAnchor}
-      />
-    ) : (
-      <LegacyTargetsRows
-        question={q}
-        onChange={onChange}
-        onDokChange={onDokChange}
-        onOpen={() => onPickerOpenChange(true)}
-        editAnchor={editAnchor}
-      />
-    )}
+    <TargetsMetaItems
+      question={q}
+      onDokChange={onDokChange}
+      onOpen={() => onPickerOpenChange(true)}
+      editAnchor={editAnchor}
+    />
     {promptStandards.isCurrent(q.id, q.text, q.targets) && (
-      <p
-        className={`basis-full text-xs text-slate-500 ${metaList ? 'py-1' : 'mt-1'}`}
-        role="status"
-      >
+      <p className="basis-full py-1 text-xs text-slate-500" role="status">
         {`Tagged ${promptStandards.taken?.codes.join(', ')} from the question.`}{' '}
         <button
           type="button"
@@ -762,17 +707,15 @@ const ModifiedPartsBody: React.FC<{ parts: ModifiedVersionParts }> = ({
 export const QuestionModifiedField: React.FC<{
   question: Pick<QuizQuestion, 'id' | 'modifiedText'>;
   onChange: (modifiedText: string | undefined) => void;
-  metaList?: boolean;
   parts?: ModifiedVersionParts;
-}> = ({ question: q, onChange, metaList = false, parts }) => {
+}> = ({ question: q, onChange, parts }) => {
   const value = q.modifiedText ?? '';
   const added = parts ? parts.hasPrompt || parts.hasStimuli : value.length > 0;
   const footer = React.useContext(PromptFooterContext);
-  const [open, setOpen] = React.useState(() => !metaList && added);
+  const [open, setOpen] = React.useState(false);
   const baseId = React.useId();
   const toggleId = `${baseId}-modified`;
   const textId = `${baseId}-modified-text`;
-  const expanded = open;
   const textarea = (
     <textarea
       id={textId}
@@ -808,24 +751,6 @@ export const QuestionModifiedField: React.FC<{
             footer.modifiedSlot
           )}
       </>
-    );
-  }
-  if (!metaList) {
-    return (
-      <div>
-        <button
-          type="button"
-          aria-expanded={expanded}
-          aria-controls={textId}
-          onClick={() => setOpen((o) => !o)}
-          className={`${labelClass} flex items-center gap-1`}
-          {...tourTypeAttr('quiz-editor.modified', 'quiz')}
-        >
-          Modified version
-          <MetaChevron open={expanded} />
-        </button>
-        {expanded && body}
-      </div>
     );
   }
   return (

@@ -1028,9 +1028,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const timeLimitLockedByRecording = mediaResponseAllowed && !!q.recording;
   // Spoken answers on: Type, Format, Time limit and Points share one compact line.
   const compactRow = mediaResponseAllowed;
-  const metaList = canAccessFeature('question-editor-fields');
-  // Stimuli and Modified sit in the prompt box footer; targets and DOK share one line.
-  const inPrompt = metaList;
   const stimulusField = (
     <QuestionStimulusSection
       state={state}
@@ -1038,7 +1035,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
       wordBankAvailable={canAccessFeature('quiz-word-bank')}
       pasteScopeRef={paneRef}
-      metaList={metaList}
+      metaList
       pickerModal={canAccessFeature('quiz-stimulus-picker')}
       paperPlacement={canAccessFeature('paper-answer-sheets')}
     />
@@ -1051,7 +1048,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       promptStandards={promptStandards}
       pickerOpen={pickerOpen}
       onPickerOpenChange={setPickerOpen}
-      metaList={metaList}
     />
   );
   const modifiedField = (
@@ -1059,7 +1055,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       key={q.id}
       question={q}
       onChange={(modifiedText) => updateQuestion(q.id, { modifiedText })}
-      metaList={metaList}
       parts={
         canAccessFeature('quiz-modified-stimuli')
           ? {
@@ -1144,15 +1139,14 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           promptAccents={defaultAccents}
           promptMath
           promptFormat
-          toolbarTools={inPrompt}
+          toolbarTools
           promptAudio={canAccessFeature('quiz-question-audio')}
           extras={
-            inPrompt ? (
-              <>
-                {stimulusField}
-                {modifiedField}
-              </>
-            ) : undefined
+            // Stimuli and Modified sit in the prompt box footer.
+            <>
+              {stimulusField}
+              {modifiedField}
+            </>
           }
           onAddNumber={
             randomNumbersOn &&
@@ -1177,24 +1171,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           />
         )}
 
-        {inPrompt ? (
-          <MetaInlineContext.Provider value>
-            <div className="flex flex-wrap items-center gap-x-8 border-y border-slate-200 py-1">
-              {targetsField}
-            </div>
-          </MetaInlineContext.Provider>
-        ) : (
-          <div
-            className={
-              metaList ? 'border-y border-slate-200 py-1' : 'space-y-4'
-            }
-          >
-            {/* Under the prompt, matching where students see it. */}
-            {stimulusField}
+        {/* Targets and DOK share one line. */}
+        <MetaInlineContext.Provider value>
+          <div className="flex flex-wrap items-center gap-x-8 border-y border-slate-200 py-1">
             {targetsField}
-            {modifiedField}
           </div>
-        )}
+        </MetaInlineContext.Provider>
 
         {/* Type / format / time / points row */}
         <div

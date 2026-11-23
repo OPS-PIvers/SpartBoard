@@ -1031,7 +1031,7 @@ export const QuestionStimulusSection: React.FC<{
   wordBankAvailable?: boolean;
   /** Attaches an image pasted inside this element to the question; absent turns pasting off. */
   pasteScopeRef?: React.RefObject<HTMLElement | null>;
-  /** `question-editor-fields`: a row of the light metadata list. */
+  /** A row of the light metadata list. */
   metaList?: boolean;
   /** `quiz-stimulus-picker`: attach in a list-and-preview dialog. */
   pickerModal?: boolean;
