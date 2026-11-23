@@ -3102,6 +3102,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'web-tours.filter': ['board.web-tours-page'],
     'web-tours.filter-site': ['board.web-tours-page'],
     'web-tours.filter-author': ['board.web-tours-page'],
+    'web-tours.filter-fresh': ['board.web-tours-page'],
     'web-tours.sort': ['board.web-tours-page'],
     'web-tour-editor.title': ['board.web-tour-editor'],
     'web-tour-editor.start-page': ['board.web-tour-editor'],

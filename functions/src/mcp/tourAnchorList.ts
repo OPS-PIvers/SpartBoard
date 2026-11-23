@@ -27685,7 +27685,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.assigned-reopen",
-    "label": "Reopen…, in an Assigned row menu",
+    "label": "Reopen, in an Assigned row menu",
     "scope": "board",
     "panel": true,
     "persists": true,
@@ -58648,6 +58648,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "web-tours.filter-author",
     "label": "Author filter on the Web tours page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.filter-fresh",
+    "label": "FreshService filter on the Web tours page",
     "scope": "board",
     "routes": [
       {

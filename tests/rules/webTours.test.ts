@@ -418,6 +418,30 @@ describe('tour authors', () => {
     );
   });
 
+  it('lets an author read FreshService article records and nobody write them', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'freshservice_articles/w1'), {
+        articleId: 7,
+      });
+    });
+    const db = asAuthor().firestore();
+    await assertSucceeds(getDocs(collection(db, 'freshservice_articles')));
+    await assertSucceeds(
+      getDocs(collection(asAdmin().firestore(), 'freshservice_articles'))
+    );
+    await assertFails(
+      setDoc(doc(db, 'freshservice_articles/w1'), { articleId: 8 })
+    );
+    await assertFails(
+      setDoc(doc(asAdmin().firestore(), 'freshservice_articles/w1'), {
+        articleId: 8,
+      })
+    );
+    await assertFails(
+      getDocs(collection(asStaff().firestore(), 'freshservice_articles'))
+    );
+  });
+
   it('lets an author turn a public link on as themselves and off for anyone', async () => {
     const link = (confirmedBy: string) => ({
       token: 't',
@@ -442,6 +466,47 @@ describe('tour authors', () => {
       setDoc(doc(db, `${LINKS}/w1`), link('someone@orono.k12.mn.us'))
     );
     await assertFails(deleteDoc(doc(db, `${LINKS}/w1`)));
+    // Someone else's link: an author can't switch it back on, move its address or change its kind.
+    const off = { reason: 'admin', at: 2 };
+    await assertFails(setDoc(doc(db, `${LINKS}/w1`), link(ADMIN_EMAIL)));
+    await assertFails(
+      setDoc(doc(db, `${LINKS}/w1`), { ...link(ADMIN_EMAIL), off, token: 'x' })
+    );
+    await assertFails(
+      setDoc(doc(db, `${LINKS}/w1`), {
+        ...link(ADMIN_EMAIL),
+        off,
+        kind: 'live',
+      })
+    );
+    // An author never confirms a link for a SpartBoard tour, though they can switch one off.
+    await assertFails(
+      setDoc(doc(db, `${LINKS}/a3`), { ...link(AUTHOR_EMAIL), kind: 'live' })
+    );
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `${LINKS}/s1`), {
+        ...link(ADMIN_EMAIL),
+        kind: 'live',
+      });
+    });
+    await assertFails(
+      setDoc(doc(db, `${LINKS}/s1`), { ...link(AUTHOR_EMAIL), kind: 'live' })
+    );
+    await assertSucceeds(
+      setDoc(doc(db, `${LINKS}/s1`), {
+        ...link(ADMIN_EMAIL),
+        kind: 'live',
+        off,
+      })
+    );
+    // Nor do they take over a SpartBoard tour's record by relabelling it a web tour.
+    await assertFails(setDoc(doc(db, `${LINKS}/s1`), link(AUTHOR_EMAIL)));
+    await assertSucceeds(
+      setDoc(doc(asAdmin().firestore(), `${LINKS}/s1`), {
+        ...link(ADMIN_EMAIL),
+        kind: 'live',
+      })
+    );
     const staff = asStaff().firestore();
     await assertFails(getDoc(doc(staff, `${LINKS}/w1`)));
     await assertFails(

@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
 import { WebToursPage } from './WebToursPage';
@@ -14,6 +14,16 @@ vi.mock('./useTourAuthor', () => ({
     author: true,
     passes: () => true,
   }),
+}));
+const fresh = vi.hoisted(() => ({
+  articles: null as Record<
+    string,
+    { published: boolean; url: string | null; sentAt: number }
+  > | null,
+}));
+vi.mock('./freshserviceArticles', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./freshserviceArticles')>()),
+  useFreshserviceArticles: () => fresh.articles,
 }));
 const h = vi.hoisted(() => ({
   onDrafts: null as ((sets: GuidedLearningSet[]) => void) | null,
@@ -126,6 +136,7 @@ describe('WebToursPage', () => {
     h.load.mockReset();
     h.copy.mockReset();
     h.published = new Map();
+    fresh.articles = null;
     h.publicUrl = null;
     h.save.mockReset();
     h.remove.mockReset().mockResolvedValue(undefined);
@@ -150,7 +161,7 @@ describe('WebToursPage', () => {
     expect(rows[0]).toHaveTextContent('1 step · example.com');
     expect(rows[0]).toHaveTextContent('12 views · 1 finished');
     expect(rows[0]).not.toHaveTextContent('link view');
-    expect(rows[1]).toHaveTextContent('Draft');
+    expect(rows[1]).toHaveTextContent('Check tour');
     expect(rows[1]).not.toHaveTextContent('views');
     expect(
       screen.getByRole('button', { name: 'Play Older tour' })
@@ -197,6 +208,66 @@ describe('WebToursPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete Tour A' }));
     expect(await screen.findByText('Web tour deleted.')).toBeInTheDocument();
     expect(h.remove).toHaveBeenCalledWith('a');
+  });
+
+  it('shows each tour in FreshService as a draft, published or needing an update', () => {
+    const url = 'https://orono.freshservice.com/a/solutions/articles/7';
+    fresh.articles = {
+      a: { published: false, url, sentAt: 300 },
+      b: { published: true, url: null, sentAt: 300 },
+      c: { published: true, url, sentAt: 100 },
+    };
+    h.published = new Map(
+      ['a', 'b', 'c', 'd'].map((id) => [
+        id,
+        { set: { surface: 'web', steps: [] }, publishedAt: 200 },
+      ])
+    );
+    render(<WebToursPage />);
+    showDrafts([
+      tour('a', 'Tour A'),
+      tour('b', 'Tour B'),
+      tour('c', 'Tour C'),
+      tour('d', 'Tour D'),
+    ]);
+    const cell = (title: string) =>
+      within(
+        screen
+          .getAllByTestId('web-tour-row')
+          .find((r) => r.textContent?.includes(title)) as HTMLElement
+      ).getByTestId('web-tour-fresh');
+    expect(cell('Tour A')).toHaveTextContent('Draft');
+    expect(within(cell('Tour A')).getByRole('link')).toHaveAttribute(
+      'href',
+      url
+    );
+    expect(cell('Tour B')).toHaveTextContent('Published');
+    expect(within(cell('Tour B')).queryByRole('link')).toBeNull();
+    expect(cell('Tour C')).toHaveTextContent('Needs update');
+    expect(cell('Tour D')).toBeEmptyDOMElement();
+
+    const visible = () =>
+      screen
+        .getAllByTestId('web-tour-row')
+        .filter((r) => !r.hidden)
+        .map((r) => r.textContent?.match(/Tour [A-D]/)?.[0]);
+    const pick = (value: string) =>
+      fireEvent.change(screen.getByLabelText('FreshService'), {
+        target: { value },
+      });
+    pick('unsent');
+    expect(visible()).toEqual(['Tour D']);
+    pick('stale');
+    expect(visible()).toEqual(['Tour C']);
+    pick('sent');
+    expect(visible().sort()).toEqual(['Tour A', 'Tour B', 'Tour C']);
+  });
+
+  it('leaves the FreshService column and filter out when there is nothing to read', () => {
+    render(<WebToursPage />);
+    showDrafts([tour('a', 'Tour A')]);
+    expect(screen.queryByTestId('web-tour-fresh')).toBeNull();
+    expect(screen.queryByLabelText('FreshService')).toBeNull();
   });
 
   it('hides Delete from an author on a tour someone else made', () => {

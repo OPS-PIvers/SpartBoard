@@ -150,11 +150,11 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
     await panel.getByRole('button', { name: 'Finished 1' }).click();
     await reads(`${QUIZ} Closed`);
     expect(await rowMenuItems(page, library)).toEqual([
-      'Publish scores…',
-      'Reopen…',
+      'Publish scores',
+      'Reopen',
       'Delete',
     ]);
-    await page.getByRole('menuitem', { name: 'Reopen…' }).click();
+    await page.getByRole('menuitem', { name: 'Reopen' }).click();
     const reopen = page.getByRole('dialog', { name: `Reopen ${QUIZ}` });
     await expect(reopen.getByRole('radio')).toHaveText([
       'Everyone in the class',
@@ -164,7 +164,7 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
     await reopen.getByRole('button', { name: 'Cancel' }).click();
     await expect(reopen).toBeHidden();
     await rowMenuItems(page, library);
-    await page.getByRole('menuitem', { name: 'Publish scores…' }).click();
+    await page.getByRole('menuitem', { name: 'Publish scores' }).click();
     const publish = page.getByRole('dialog', {
       name: 'Publish scores to students',
     });

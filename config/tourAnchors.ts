@@ -6824,7 +6824,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'library-shell.assigned-reopen': {
-    label: 'Reopen…, in an Assigned row menu',
+    label: 'Reopen, in an Assigned row menu',
     persists: true,
     panel: true,
   },
@@ -13649,6 +13649,9 @@ export const TOUR_ANCHORS = {
   },
   'web-tours.filter-author': {
     label: 'Author filter on the Web tours page',
+  },
+  'web-tours.filter-fresh': {
+    label: 'FreshService filter on the Web tours page',
   },
   'web-tours.sort': { label: 'Sort choice on the Web tours page' },
   'web-tour-editor.title': { label: 'Title field in the web tour editor' },

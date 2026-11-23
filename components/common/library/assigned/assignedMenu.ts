@@ -12,6 +12,7 @@ const NOT_ON_ASSIGNED = new Set([
   'get-link',
   'share-with-peers',
   'share-with-plc',
+  'stop-sharing-plc',
   'reopen',
   'reopen-all',
   'reopen-students',
@@ -89,7 +90,7 @@ export function assignedMenu(o: AssignedMenuOptions): LibraryMenuAction[] {
     m.id === 'publish-scores'
       ? {
           ...m,
-          label: o.published ? 'Published scores…' : 'Publish scores…',
+          label: o.published ? 'Publish settings' : 'Publish scores',
           submenu: undefined,
         }
       : m
@@ -110,7 +111,7 @@ export function assignedMenu(o: AssignedMenuOptions): LibraryMenuAction[] {
   if (o.onReopen && (viewOnly ? allClosed : anyClosed))
     lifecycle.push({
       id: 'assigned-reopen',
-      label: viewOnly ? 'Reopen' : 'Reopen…',
+      label: 'Reopen',
       icon: RotateCcw,
       anchor:
         o.reopenAnchor ??
@@ -130,9 +131,12 @@ export function assignedMenu(o: AssignedMenuOptions): LibraryMenuAction[] {
     });
   for (const item of lifecycle) item.disabled = !!o.busy;
 
+  // Menu labels carry no trailing ellipsis.
   return [
     ...kept.filter((m) => !m.destructive),
     ...lifecycle,
     ...kept.filter((m) => m.destructive),
-  ];
+  ].map((m) =>
+    m.label.endsWith('…') ? { ...m, label: m.label.slice(0, -1).trimEnd() } : m
+  );
 }
