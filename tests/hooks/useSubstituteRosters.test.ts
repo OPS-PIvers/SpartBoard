@@ -8,6 +8,11 @@ import type { SubstituteShareRoster } from '@/types';
 const downloadFile = vi.fn();
 
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
+const serverLoad = vi.fn();
+vi.mock('firebase/functions', () => ({
+  httpsCallable: () => serverLoad,
+}));
+vi.mock('@/config/firebase', () => ({ functions: {} }));
 vi.mock('@/hooks/useGooglePicker', () => ({ useGooglePicker: vi.fn() }));
 vi.mock('@/utils/googleDriveService', () => ({
   GoogleDriveService: function GoogleDriveService() {
@@ -116,8 +121,34 @@ describe('useSubstituteRosters', () => {
         : Promise.reject(new Error('404'))
     );
     const { result } = renderHook(() => useSubstituteRosters(shared));
-    await waitFor(() => expect(result.current.status).toBe('ready'));
+    await waitFor(() => expect(result.current.status).toBe('partial'));
     expect(result.current.rosters.map((r) => r.id)).toEqual(['r1']);
+  });
+
+  it('keeps the load button after the sub ticks only some of the files', async () => {
+    const shared: SubstituteShareRoster[] = [
+      ...SHARED,
+      { id: 'r2', name: 'Period 2', driveFileId: 'file-2' },
+    ];
+    downloadFile.mockRejectedValue(new Error('404'));
+    const { result } = renderHook(() => useSubstituteRosters(shared));
+    await waitFor(() => expect(result.current.status).toBe('locked'));
+
+    openPicker.mockResolvedValue({ id: 'file-1', name: 'r', mimeType: '' });
+    downloadFile.mockImplementation((fileId: string) =>
+      fileId === 'file-1'
+        ? Promise.resolve(rosterBlob())
+        : Promise.reject(new Error('404'))
+    );
+    await act(() => result.current.loadRosters());
+    expect(result.current.status).toBe('partial');
+    expect(result.current.rosters.map((r) => r.id)).toEqual(['r1']);
+
+    // Second pass: the sub ticks the rest, and the first class list never blinks out.
+    downloadFile.mockResolvedValue(rosterBlob());
+    await act(() => result.current.loadRosters());
+    expect(result.current.status).toBe('ready');
+    expect(result.current.rosters.map((r) => r.id)).toEqual(['r1', 'r2']);
   });
 
   it('retries the download when the Picker grant lands a beat late', async () => {
@@ -176,12 +207,12 @@ describe('useSubstituteRosters', () => {
       });
     });
 
-    it('locks the share until the sub picks both files', async () => {
+    it('keeps the share unlockable until the sub picks both files', async () => {
       serve(() => Promise.reject(new Error('404')));
       const { result } = renderHook(() =>
         useSubstituteRosters(SHARED, 'names-file')
       );
-      await waitFor(() => expect(result.current.status).toBe('locked'));
+      await waitFor(() => expect(result.current.status).toBe('partial'));
 
       openPicker.mockResolvedValue({ id: 'file-1', name: 'r', mimeType: '' });
       serve(() => Promise.resolve(namesBlob()));
@@ -195,19 +226,19 @@ describe('useSubstituteRosters', () => {
       });
     });
 
-    // The expiry sweep trashes the file, so a stale id must not cost the sub
-    // the class lists they can still read.
-    it('hands over the class lists when only the names file is gone', async () => {
+    // A names file the sub did not tick must not cost them the class lists,
+    // and the button has to stay so they can go back for it.
+    it('hands over the class lists and stays unlockable when the names file is unread', async () => {
       serve(() => Promise.reject(new Error('404')));
       const { result } = renderHook(() =>
         useSubstituteRosters(SHARED, 'names-file')
       );
-      await waitFor(() => expect(result.current.status).toBe('locked'));
+      await waitFor(() => expect(result.current.status).toBe('partial'));
 
       openPicker.mockResolvedValue({ id: 'file-1', name: 'r', mimeType: '' });
       await act(() => result.current.loadRosters());
 
-      expect(result.current.status).toBe('ready');
+      expect(result.current.status).toBe('partial');
       expect(result.current.rosters).toHaveLength(1);
       expect(result.current.names).toBeNull();
     });
@@ -223,6 +254,75 @@ describe('useSubstituteRosters', () => {
       expect(result.current.names?.boards.b1.w1).toEqual({
         firstNames: 'Ada',
       });
+    });
+  });
+
+  // A named sub gets the files read from the teacher's Drive by the server.
+  describe('the server read', () => {
+    const students = [{ id: 's1', firstName: 'Ada', lastName: 'Lovelace' }];
+    const namesBody = {
+      version: 1,
+      boards: { b1: { w1: { firstNames: 'Ada' } } },
+    };
+
+    it('loads class lists and names with no Drive call and no Picker', async () => {
+      serverLoad.mockResolvedValue({
+        data: {
+          status: 'ok',
+          rosters: [{ id: 'r1', body: { version: 2, students } }],
+          names: namesBody,
+          missing: 0,
+        },
+      });
+      const { result } = renderHook(() =>
+        useSubstituteRosters(SHARED, 'names-file', 'share-1')
+      );
+      await waitFor(() => expect(result.current.status).toBe('ready'));
+      expect(serverLoad).toHaveBeenCalledWith({ shareId: 'share-1' });
+      expect(result.current.rosters[0].students[0].firstName).toBe('Ada');
+      expect(result.current.names?.boards.b1.w1).toEqual({ firstNames: 'Ada' });
+      expect(downloadFile).not.toHaveBeenCalled();
+      expect(openPicker).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the Picker flow when the teacher has to reconnect Drive', async () => {
+      serverLoad.mockResolvedValue({ data: { status: 'needs-host' } });
+      downloadFile.mockRejectedValue(new Error('404'));
+      const { result } = renderHook(() =>
+        useSubstituteRosters(SHARED, undefined, 'share-1')
+      );
+      await waitFor(() => expect(result.current.status).toBe('locked'));
+    });
+
+    it('falls back when the sub is not named on the share', async () => {
+      serverLoad.mockRejectedValue(
+        Object.assign(new Error('denied'), {
+          code: 'functions/permission-denied',
+        })
+      );
+      downloadFile.mockResolvedValue(rosterBlob());
+      const { result } = renderHook(() =>
+        useSubstituteRosters(SHARED, undefined, 'share-1')
+      );
+      await waitFor(() => expect(result.current.status).toBe('ready'));
+      expect(downloadFile).toHaveBeenCalled();
+      expect(console.error).not.toHaveBeenCalled();
+    });
+
+    it('keeps the load button when the server could not read every file', async () => {
+      serverLoad.mockResolvedValue({
+        data: {
+          status: 'ok',
+          rosters: [{ id: 'r1', body: { version: 2, students } }],
+          names: null,
+          missing: 1,
+        },
+      });
+      const { result } = renderHook(() =>
+        useSubstituteRosters(SHARED, 'names-file', 'share-1')
+      );
+      await waitFor(() => expect(result.current.status).toBe('partial'));
+      expect(result.current.rosters).toHaveLength(1);
     });
   });
 });

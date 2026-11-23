@@ -74,8 +74,14 @@ vi.mock('@/context/useDashboard', () => ({
 }));
 
 const flags = vi.hoisted(() => new Set<string>());
+const grant = vi.hoisted(() => ({
+  missing: false,
+  capture: vi.fn(() => Promise.resolve(true)),
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
+    offlineGrantMissing: grant.missing,
+    captureOfflineGrant: grant.capture,
     selectedBuildings: ['high'],
     hasOrg: true,
     canAccessFeature: (id: string) => flags.has(id),
@@ -640,6 +646,54 @@ describe('ShareWithSubModal — what could not be collected', () => {
       screen.getByText('Some widget content did not come along')
     ).toBeTruthy();
     expect(screen.getByText('Drawing on Period 3')).toBeTruthy();
+  });
+
+  it('keeps a Drive problem on the link screen instead of a passing toast', async () => {
+    shareSubstituteCollection.mockImplementation((input: unknown) => {
+      (input as { onWarnings?: (m: string[]) => void }).onWarnings?.([
+        'Share created, but roster access could not be granted to: sub@orono.k12.mn.us.',
+      ]);
+      return Promise.resolve('share-1');
+    });
+
+    openModal();
+    await share();
+
+    expect(
+      screen.getByText('Student names may not reach your sub')
+    ).toBeTruthy();
+    expect(screen.getByText(/roster access could not be granted/)).toBeTruthy();
+  });
+
+  it('asks a teacher without background Drive access to connect before sharing', async () => {
+    grant.missing = true;
+    grant.capture.mockClear();
+    shareSubstituteCollection.mockImplementation(() =>
+      Promise.resolve('share-1')
+    );
+
+    openModal();
+    await share();
+
+    expect(grant.capture).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/Google Drive is not connected/)).toBeNull();
+    grant.missing = false;
+  });
+
+  it('still shares, with a warning, when the teacher declines to connect Drive', async () => {
+    grant.missing = true;
+    grant.capture.mockImplementationOnce(() => Promise.resolve(false));
+    shareSubstituteCollection.mockImplementation(() =>
+      Promise.resolve('share-1')
+    );
+
+    openModal();
+    await share();
+
+    expect(
+      await screen.findByText(/Google Drive is not connected/)
+    ).toBeTruthy();
+    grant.missing = false;
   });
 
   it('says nothing when everything came along', async () => {

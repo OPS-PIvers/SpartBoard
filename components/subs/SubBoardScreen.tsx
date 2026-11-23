@@ -17,7 +17,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ArrowLeft, Loader2, Users } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { SubProfileToolbar } from './SubProfileToolbar';
 import { teacherCardAccent, teacherInitials } from './subsView';
 import { useSubstituteShare } from '@/hooks/useSubstituteShares';
@@ -25,10 +25,10 @@ import { useSubstituteRosters } from '@/hooks/useSubstituteRosters';
 import { SubsDashboardProvider } from './SubsDashboardProvider';
 import { useSubsControl } from './SubsControlContext';
 import { SubBoardCanvas } from './SubBoardCanvas';
+import { SubRosterPrompt } from './SubRosterPrompt';
 import { GroupReminderHost } from '@/components/groupReminders/GroupReminderHost';
 import { useAuth } from '@/context/useAuth';
 import type { SubstituteShareDoc } from '@/hooks/useSubstituteShares';
-import type { SubRosterStatus } from '@/hooks/useSubstituteRosters';
 
 interface SubBoardScreenProps {
   shareId: string;
@@ -157,8 +157,9 @@ export const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
       />
 
       <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
-        <RosterLoadButton
+        <SubRosterPrompt
           status={rosterStatus}
+          teacherName={teacherName}
           onLoad={() => void loadRosters()}
         />
         <div className="hidden md:flex items-center gap-2 rounded-full bg-white/85 backdrop-blur-xl border border-slate-200/70 shadow-md px-3 py-1.5 text-[11px] font-medium text-slate-600 pointer-events-none">
@@ -174,40 +175,6 @@ export const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
       {canAccessFeature('group-reminders') &&
         canAccessFeature('group-schedules') && <GroupReminderHost />}
     </div>
-  );
-};
-
-const RosterLoadButton: React.FC<{
-  status: SubRosterStatus;
-  onLoad: () => void;
-}> = ({ status, onLoad }) => {
-  if (status === 'none' || status === 'ready') return null;
-  if (status === 'checking' || status === 'loading') {
-    return (
-      <div
-        role="status"
-        className="flex items-center gap-2 rounded-full bg-white/85 backdrop-blur-xl border border-slate-200/70 shadow-md px-3 py-1.5 text-xs text-slate-600"
-      >
-        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-        Loading class list…
-      </div>
-    );
-  }
-  const failed = status === 'error';
-  const Icon = failed ? AlertCircle : Users;
-  return (
-    <button /* no-tour-anchor: substitute portal, never on the board */
-      type="button"
-      onClick={onLoad}
-      className={`flex items-center gap-2 rounded-full backdrop-blur-xl border px-3 py-1.5 text-xs font-bold shadow-md transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
-        failed
-          ? 'bg-amber-50/95 hover:bg-amber-100 border-amber-300 text-amber-800'
-          : 'bg-white/85 hover:bg-white border-slate-200/70 text-brand-blue-primary'
-      }`}
-    >
-      <Icon className="w-3.5 h-3.5" aria-hidden />
-      {failed ? "Couldn't load class list — try again" : 'Load class list'}
-    </button>
   );
 };
 
