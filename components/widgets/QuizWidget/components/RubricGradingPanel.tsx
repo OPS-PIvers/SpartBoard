@@ -1,4 +1,4 @@
-// Rubric grading (rubric-grading-v2): one-tap level bars, expandable criteria with level descriptions.
+// Rubric grading: one-tap level bars, expandable criteria with level descriptions.
 import React, {
   useCallback,
   useLayoutEffect,

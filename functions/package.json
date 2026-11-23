@@ -52,7 +52,7 @@
   "pnpm": {
     "overrides": {
       "body-parser": "^2.4.0",
-      "hono": "^4.13.16",
+      "hono": "^4.13.21",
       "@hono/node-server": "^2.1.11",
       "fast-uri": "^3.1.9",
       "lodash": "^4.17.23",

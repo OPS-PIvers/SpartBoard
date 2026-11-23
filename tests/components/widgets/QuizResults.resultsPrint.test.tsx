@@ -43,7 +43,6 @@ vi.mock('@/hooks/useQuizResponseAttempts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/useQuizResponseAttempts')>()),
   useQuizResponseAttempts: () => null,
 }));
-let printV2 = true;
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessQuizMediaResponse: () => false,
@@ -53,7 +52,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     orgId: null,
     isExternalUser: false,
-    canAccessFeature: (id: string) => id === 'results-print-v2' && printV2,
+    canAccessFeature: () => false,
     updateAccountPreferences: vi.fn().mockResolvedValue(undefined),
   }),
 }));
@@ -204,19 +203,6 @@ describe('QuizResults — results print', () => {
     printQuizResults.mockReset();
     printStudentReport.mockReset();
     localStorage.clear();
-    printV2 = true;
-  });
-
-  it('keeps the old layout while the redesign preview is off', () => {
-    printV2 = false;
-    renderResults();
-    fireEvent.click(screen.getByRole('button', { name: 'Print results' }));
-    const d = within(dialog());
-    expect(d.queryByRole('tab', { name: 'Settings' })).toBeNull();
-    expect(d.getByRole('button', { name: 'Select none' })).toBeInTheDocument();
-    expect(
-      d.getAllByRole('checkbox').filter((c) => (c as HTMLInputElement).checked)
-    ).toHaveLength(3);
   });
 
   it('opens from the header with every listed student ticked, joined ones included', () => {

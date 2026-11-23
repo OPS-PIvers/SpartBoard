@@ -8,7 +8,6 @@ import {
   deleteObject,
 } from 'firebase/storage';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
-import { useAuth } from '@/context/useAuth';
 import {
   __resetDriveAuthErrorsForTests,
   isDriveAuthError,
@@ -25,10 +24,6 @@ vi.mock('firebase/storage', () => ({
   storage: {},
 }));
 
-vi.mock('@/context/useAuth', () => ({
-  useAuth: vi.fn(),
-}));
-
 vi.mock('@/hooks/useGoogleDrive', () => ({
   useGoogleDrive: vi.fn(),
 }));
@@ -39,8 +34,6 @@ Object.defineProperty(URL, 'revokeObjectURL', {
   value: mockRevokeObjectURL,
   writable: true,
 });
-
-let driveOnly = false;
 
 describe('useStorage', () => {
   const mockUploadBytes = uploadBytes as Mock;
@@ -65,12 +58,7 @@ describe('useStorage', () => {
     mockDriveService.isInAppFolder.mockResolvedValue(true);
     // Default: Drive not connected
     mockUseGoogleDrive.mockReturnValue({ driveService: null });
-    driveOnly = false;
     __resetDriveAuthErrorsForTests();
-    (useAuth as Mock).mockReturnValue({
-      canAccessFeature: (id: string) =>
-        id === 'drive-only-uploads' && driveOnly,
-    });
 
     mockRef.mockReturnValue('mock-ref');
     mockUploadBytes.mockResolvedValue({ ref: 'mock-snapshot-ref' });
@@ -162,21 +150,6 @@ describe('useStorage', () => {
       expect(url).toBe('https://lh3.googleusercontent.com/d/drive-file-id');
       expect(mockUploadBytes).not.toHaveBeenCalled();
     });
-
-    it('should fall back to Firebase Storage when Drive is not connected', async () => {
-      mockUseGoogleDrive.mockReturnValue({ driveService: null });
-
-      const { result } = renderHook(() => useStorage());
-
-      let url;
-      await act(async () => {
-        url = await result.current.uploadBackgroundImage('user123', mockFile);
-      });
-
-      expect(mockUploadBytes).toHaveBeenCalled();
-      expect(url).toBe('https://firebase.storage/url');
-      expect(mockDriveService.uploadFile).not.toHaveBeenCalled();
-    });
   });
 
   describe('uploadHotspotImage', () => {
@@ -208,21 +181,6 @@ describe('useStorage', () => {
       );
       expect(url).toBe('https://lh3.googleusercontent.com/d/hotspot-drive-id');
       expect(mockUploadBytes).not.toHaveBeenCalled();
-    });
-
-    it('should fall back to Firebase Storage when Drive is not connected', async () => {
-      mockUseGoogleDrive.mockReturnValue({ driveService: null });
-
-      const { result } = renderHook(() => useStorage());
-
-      let url;
-      await act(async () => {
-        url = await result.current.uploadHotspotImage('user123', mockFile);
-      });
-
-      expect(mockUploadBytes).toHaveBeenCalled();
-      expect(url).toBe('https://firebase.storage/url');
-      expect(mockDriveService.uploadFile).not.toHaveBeenCalled();
     });
   });
 
@@ -391,26 +349,8 @@ describe('useStorage', () => {
         storagePath: 'https://drive.google.com/file/d/pdf-drive-id/view',
       });
     });
-
-    it('should fall back to Firebase Storage when Drive is not connected', async () => {
-      mockUseGoogleDrive.mockReturnValue({ driveService: null });
-
-      const pdfFile = new File(['pdf content'], 'test.pdf', {
-        type: 'application/pdf',
-      });
-      const { result } = renderHook(() => useStorage());
-
-      let pdfResult: { url: string; storagePath: string } | undefined;
-      await act(async () => {
-        pdfResult = await result.current.uploadPdf('user123', pdfFile);
-      });
-
-      expect(mockUploadBytes).toHaveBeenCalled();
-      expect(pdfResult?.url).toBe('https://firebase.storage/url');
-      expect(pdfResult?.storagePath).toMatch(/users\/user123\/pdfs\/.*/);
-    });
   });
-  describe('with Uploads save to Drive only on', () => {
+  describe('without Drive', () => {
     const uploads = [
       ['uploadBackgroundImage'],
       ['uploadSticker'],
@@ -422,7 +362,6 @@ describe('useStorage', () => {
     it.each(uploads)(
       '%s asks to reconnect Drive instead of saving to Storage',
       async (method) => {
-        driveOnly = true;
         const prompt = vi.fn();
         setDriveAuthErrorHandler(prompt);
         const { result } = renderHook(() => useStorage());
@@ -440,7 +379,6 @@ describe('useStorage', () => {
     );
 
     it('shows one prompt for a batch, and again once the toast has gone', async () => {
-      driveOnly = true;
       const prompt = vi.fn();
       setDriveAuthErrorHandler(prompt);
       const now = vi.spyOn(Date, 'now').mockReturnValue(100_000);
@@ -460,7 +398,6 @@ describe('useStorage', () => {
     });
 
     it('lets an admin district image fall back to Storage', async () => {
-      driveOnly = true;
       mockUploadBytes.mockResolvedValue({ ref: 'r' });
       mockGetDownloadURL.mockResolvedValue('https://firebase.storage/url');
       const { result } = renderHook(() => useStorage());
@@ -474,7 +411,6 @@ describe('useStorage', () => {
     });
 
     it('screenshots also need Drive', async () => {
-      driveOnly = true;
       const { result } = renderHook(() => useStorage());
       let caught: unknown;
       await act(async () => {
@@ -489,7 +425,6 @@ describe('useStorage', () => {
     });
 
     it('admin uploads still save to Storage', async () => {
-      driveOnly = true;
       const { result } = renderHook(() => useStorage());
       await act(async () => {
         await result.current.uploadAdminSticker(mockFile);

@@ -154,7 +154,6 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-stimuli.attach-all-questions': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.attach-question': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.attach-bank-slot': 'quiz-editor.tab-stimuli:quiz',
-      'quiz-stimuli.attach-stimulus': 'quiz-stimuli.attach-toggle:quiz',
       'quiz-library.language-locale': 'quiz-editor.tab-languages:quiz',
       'quiz-library.language-generate': 'quiz-editor.tab-languages:quiz',
       'quiz-library.language-regenerate-stale':

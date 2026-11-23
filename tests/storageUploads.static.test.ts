@@ -27,8 +27,8 @@ const CLIENT_SDK_WRITES: Record<string, number> = {
   'hooks/useDistrictLibraryAdmin.ts': 1,
   // Student project uploads.
   'hooks/useProjectUploads.ts': 1,
-  // Raw helpers uploadFile and uploadFileWithProgress, uploadScreenshot's no-Drive fallback, admin weather images.
-  'hooks/useStorage.ts': 4,
+  // Raw helpers uploadFile and uploadFileWithProgress, admin weather images.
+  'hooks/useStorage.ts': 3,
   // Group meeting audio, transcribed by a function.
   'utils/meetingRecording/backend.ts': 1,
   // Student quiz response media.
@@ -50,8 +50,8 @@ const STORAGE_HELPER_CALLS: Record<string, number> = {
   'components/widgets/SmartNotebook/Widget.tsx': 9,
   'hooks/useNotebookSharing.ts': 3,
   'utils/notebookUpload.ts': 3,
-  // No-Drive fallbacks, admin assets and GL media inside the hook itself.
-  'hooks/useStorage.ts': 20,
+  // District-asset fallbacks, admin assets and GL media inside the hook itself.
+  'hooks/useStorage.ts': 17,
 };
 
 // Admin SDK writes (.save, .upload, createWriteStream) in server files that touch a bucket, per file.

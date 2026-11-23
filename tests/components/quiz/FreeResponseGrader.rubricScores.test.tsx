@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 
 // EditorModalShell calls these hooks unconditionally. Stub them so the
 // grader can render outside a full provider tree.
@@ -104,7 +104,6 @@ describe('FreeResponseGrader — rubric scoring', () => {
       />
     );
     expect(screen.queryByLabelText('Rubric scoring')).toBeNull();
-    expect(screen.queryAllByRole('radio')).toHaveLength(0);
   });
 
   it('mounts the rubric panel when the question carries a snapshot', () => {
@@ -118,8 +117,12 @@ describe('FreeResponseGrader — rubric scoring', () => {
       />
     );
     expect(screen.getByLabelText('Rubric scoring')).toBeInTheDocument();
-    expect(screen.getByText('Essay rubric')).toBeInTheDocument();
-    expect(screen.getAllByRole('radio')).toHaveLength(4);
+    expect(screen.getByText('Thesis')).toBeInTheDocument();
+    expect(
+      within(screen.getByLabelText('Rubric scoring')).getAllByRole('button', {
+        pressed: false,
+      })
+    ).toHaveLength(4);
   });
 
   it('auto-fills the points field once every criterion has a level', () => {
@@ -133,10 +136,14 @@ describe('FreeResponseGrader — rubric scoring', () => {
       />
     );
     const pts = screen.getByLabelText(/^Score$/);
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
     // Only one of two criteria scored — no auto-fill yet.
     expect(pts).toHaveValue(null);
-    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Strong/, pressed: false })
+    );
     expect(pts).toHaveValue(7);
   });
 
@@ -152,8 +159,12 @@ describe('FreeResponseGrader — rubric scoring', () => {
         onClose={vi.fn()}
       />
     );
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
-    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Strong/, pressed: false })
+    );
     expect(screen.getByLabelText(/^Score$/)).toHaveValue(5);
   });
 
@@ -170,8 +181,12 @@ describe('FreeResponseGrader — rubric scoring', () => {
         onClose={vi.fn()}
       />
     );
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
-    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Strong/, pressed: false })
+    );
     await saveGrade();
     expect(onSaveGrade).toHaveBeenCalledTimes(1);
     const [, , grade] = onSaveGrade.mock.calls[0];
@@ -195,7 +210,9 @@ describe('FreeResponseGrader — rubric scoring', () => {
         onClose={vi.fn()}
       />
     );
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
     const pts = screen.getByLabelText(/^Score$/);
     expect(pts).toHaveValue(null);
     // The teacher still owes a numeric score, so they enter one by hand;
@@ -220,8 +237,12 @@ describe('FreeResponseGrader — rubric scoring', () => {
       />
     );
     const pts = screen.getByLabelText(/^Score$/);
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
-    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Strong/, pressed: false })
+    );
     expect(pts).toHaveValue(7);
     fireEvent.change(pts, { target: { value: '5' } });
     fireEvent.click(
@@ -244,10 +265,16 @@ describe('FreeResponseGrader — rubric scoring', () => {
       />
     );
     const pts = screen.getByLabelText(/^Score$/);
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
-    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Strong/, pressed: false })
+    );
     expect(pts).toHaveValue(7);
-    fireEvent.click(screen.getByRole('radio', { name: /Below/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Below/, pressed: false })
+    );
     expect(pts).toHaveValue(5);
   });
 
@@ -262,10 +289,16 @@ describe('FreeResponseGrader — rubric scoring', () => {
       />
     );
     const pts = screen.getByLabelText(/^Score$/);
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
-    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Strong/, pressed: false })
+    );
     fireEvent.change(pts, { target: { value: '2' } });
-    fireEvent.click(screen.getByRole('radio', { name: /Below/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Below/, pressed: false })
+    );
     expect(pts).toHaveValue(2);
   });
 
@@ -282,7 +315,9 @@ describe('FreeResponseGrader — rubric scoring', () => {
         onClose={vi.fn()}
       />
     );
-    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Meets/, pressed: false })
+    );
     const pts = screen.getByLabelText(/^Score$/);
     expect(pts).toHaveValue(null);
     expect(screen.getByText(/1 of 2 criteria scored/)).toBeInTheDocument();
@@ -313,7 +348,9 @@ describe('FreeResponseGrader — rubric scoring', () => {
         onClose={vi.fn()}
       />
     );
-    expect(screen.getByRole('radio', { name: /Below/ })).toBeChecked();
+    expect(
+      screen.getByRole('button', { name: /Below/, pressed: true })
+    ).toBeInTheDocument();
     expect(screen.getByText(/1 of 2 criteria scored/)).toBeInTheDocument();
   });
 });

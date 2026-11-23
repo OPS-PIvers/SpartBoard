@@ -588,12 +588,6 @@ export const SURFACES: TourSurfaceMap = {
     needs: ['class'],
     inner: {
       'classes.restrictions-filter': 'classes.restrictions-trigger',
-      'roster-editor.accommodations-search': 'roster-editor.accommodations-add',
-      'roster-editor.accommodations-pick-group':
-        'roster-editor.accommodations-add',
-      'roster-editor.accommodations-pick-student':
-        'roster-editor.accommodations-add',
-      'roster-editor.accommodations-done': 'roster-editor.accommodations-add',
       'roster-accommodations.back':
         'roster-accommodations.edit:roster-accommodations',
       'roster-accommodations.done':

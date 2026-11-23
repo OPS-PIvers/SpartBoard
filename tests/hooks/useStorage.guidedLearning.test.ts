@@ -19,9 +19,6 @@ vi.mock('firebase/storage', () => ({
   getStorage: vi.fn(() => ({})),
 }));
 vi.mock('@/hooks/useGoogleDrive', () => ({ useGoogleDrive: vi.fn() }));
-vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature: () => false }),
-}));
 
 const thumb = vi.hoisted(() => ({
   blob: null as Blob | null,
@@ -96,20 +93,20 @@ describe('uploadGuidedLearningImage', () => {
     });
   });
 
-  it('falls back to Storage with cacheControl when a personal set has no Drive', async () => {
+  it('asks to reconnect Drive when a personal set has no Drive', async () => {
     (useGoogleDrive as Mock).mockReturnValue({ driveService: null });
     thumb.blob = null;
     const { result } = renderHook(() => useStorage());
+    let caught: unknown;
     await act(async () => {
-      await result.current.uploadGuidedLearningImage(
-        'u1',
-        slide(),
-        'slide.webp'
-      );
+      await result.current
+        .uploadGuidedLearningImage('u1', slide(), 'slide.webp')
+        .catch((e: unknown) => {
+          caught = e;
+        });
     });
-    const calls = (uploadBytesResumable as Mock).mock.calls;
-    expect(calls).toHaveLength(1);
-    expect(calls[0][2]).toEqual(IMMUTABLE);
+    expect(caught).toBeInstanceOf(Error);
+    expect(uploadBytesResumable as Mock).not.toHaveBeenCalled();
   });
 
   it('still returns the slide when the thumbnail upload fails', async () => {

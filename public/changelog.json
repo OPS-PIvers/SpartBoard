@@ -2973,8 +2973,7 @@
       "id": "quiz-stimulus-picker-2026-11-20c",
       "widget": "quiz",
       "date": "2026-11-20",
-      "text": "Attach stimuli in a dialog. Pick one from the list and see a preview beside it.",
-      "feature": "quiz-stimulus-picker"
+      "text": "Attach stimuli in a dialog. Pick one from the list and see a preview beside it."
     },
     {
       "id": "video-activity-score-only-2026-11-20c",
@@ -3018,8 +3017,7 @@
       "id": "quiz-print-results-2026-11-20",
       "widget": "quiz",
       "date": "2026-11-20",
-      "text": "Print results has Settings and Students tabs. Pick students by course and class.",
-      "feature": "results-print-v2"
+      "text": "Print results has Settings and Students tabs. Pick students by course and class."
     },
     {
       "id": "quiz-recap-all-options-2026-11-20",
@@ -3117,8 +3115,7 @@
       "id": "quiz-rubric-grading-2026-11-17",
       "widget": "quiz",
       "date": "2026-11-17",
-      "text": "Grade with a rubric in one tap per criterion, and open the full rubric table while you grade.",
-      "feature": "rubric-grading-v2"
+      "text": "Grade with a rubric in one tap per criterion, and open the full rubric table while you grade."
     },
     {
       "id": "quiz-paper-fill-in-blank-2026-11-17",

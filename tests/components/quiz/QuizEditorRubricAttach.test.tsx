@@ -225,10 +225,10 @@ describe('QuizEditor — rubric attach/detach points stash', () => {
     open();
     selectQuestion('Question one');
     fireEvent.click(detail().getByRole('button', { name: 'Attach Rubric' }));
-    expect(screen.getByLabelText('Rubric builder')).toBeInTheDocument();
+    expect(screen.getByLabelText('Rubric title')).toBeInTheDocument();
 
     selectQuestion('Question two');
-    expect(screen.queryByLabelText('Rubric builder')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Rubric title')).not.toBeInTheDocument();
   });
 });
 

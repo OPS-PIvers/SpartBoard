@@ -664,7 +664,6 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
           speechToTextAvailable={canAccessFeature(SPEECH_TO_TEXT_FEATURE)}
           groupRemindersEnabled={groupRemindersEnabled}
           groupReminderEmailsEnabled={groupReminderEmails.enabled}
-          groupsRedesign={canAccessFeature('class-groups-redesign')}
           groupSteps={{
             symbol: canAccessFeature('group-symbols'),
             schedule: canAccessFeature('group-schedules'),

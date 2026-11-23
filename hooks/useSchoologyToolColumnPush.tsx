@@ -1,9 +1,7 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { functions } from '@/config/firebase';
-import { useAuth } from '@/context/useAuth';
 import { ToolColumnPushDialog } from '@/components/schoology/ToolColumnPushDialog';
 import { logError } from '@/utils/logError';
-import { ASSIGN_DUE_DATE_FEATURE } from '@/hooks/useLastAssignWhen';
 import { ltiPushErrorMessage } from '@/utils/ltiGradePush';
 import {
   fetchToolColumnCategories,
@@ -74,7 +72,6 @@ export function useSchoologyToolColumnPush({
   busy: boolean;
   dialog: React.ReactNode;
 } {
-  const { canAccessFeature } = useAuth();
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<{
     data: ToolColumnCategoriesData;
@@ -165,11 +162,7 @@ export function useSchoologyToolColumnPush({
       setPending({
         data,
         payload,
-        dueDate: startingDueDate(
-          closeAt,
-          dueAt,
-          canAccessFeature(ASSIGN_DUE_DATE_FEATURE) ? endedAt : null
-        ),
+        dueDate: startingDueDate(closeAt, dueAt, endedAt),
       });
       return;
     }

@@ -1,4 +1,4 @@
-// The rubric-grading-v2 preview opens the builder as the full rubric modal.
+// The builder opens as the full rubric modal.
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { Rubric } from '@/types';
@@ -40,7 +40,6 @@ import { RubricBuilderPanel } from '@/components/widgets/QuizWidget/components/R
 
 const auth: AuthContextType = {
   ...mockAuth,
-  canAccessFeature: (id) => id === 'rubric-grading-v2',
   rubricLevelOrder: 'high-first',
   updateAccountPreferences: vi.fn().mockResolvedValue(undefined),
 };
@@ -60,7 +59,6 @@ describe('RubricBuilderPanel as the rubric modal', () => {
       </AuthContext.Provider>
     );
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Rubric builder')).toBeNull();
     fireEvent.change(screen.getByLabelText('Library'), {
       target: { value: LIBRARY_RUBRIC.id },
     });
@@ -73,18 +71,5 @@ describe('RubricBuilderPanel as the rubric modal', () => {
     const attached = onAttach.mock.calls[0][0] as Rubric;
     expect(attached.id).toBe('rub-1');
     expect(attached.criteria[0].name).toBe('Claim');
-  });
-
-  it('keeps the side panel when the preview is off', () => {
-    render(
-      <RubricBuilderPanel
-        questionId="q1"
-        onAttach={vi.fn()}
-        onDetach={vi.fn()}
-        onClose={vi.fn()}
-        teacherUid="uid-test"
-      />
-    );
-    expect(screen.getByLabelText('Rubric builder')).toBeInTheDocument();
   });
 });

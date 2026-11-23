@@ -1,25 +1,14 @@
-// Rubric library + criteria/levels builder slide-over (M12 spec §6.1).
+// Rubric library + criteria/levels builder in the rubric modal (M12 spec §6.1).
 
-import React, {
-  useCallback,
-  useContext,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
-  ArrowDown,
-  ArrowUp,
   Check,
   Copy,
   Download,
   ExternalLink,
   Loader2,
-  Plus,
   Share2,
-  Table2,
-  Trash2,
   Upload,
   X,
 } from 'lucide-react';
@@ -36,17 +25,10 @@ import {
   RUBRIC_MIN_LEVELS,
   rubricMaxPoints,
 } from '@/utils/rubricPoints';
-import { AuthContext } from '@/context/AuthContextValue';
 import { useRubricLevelOrder } from '@/hooks/useRubricLevelOrder';
 import { RubricTableModal } from './RubricTableModal';
-import {
-  GuideRowFields,
-  RubricTemplateSwitch,
-  type GuideFieldAnchor,
-} from './RubricGuideFields';
-import { useRubricTemplateSwitch } from '@/hooks/useRubricTemplateSwitch';
-import { isScoringGuide, newGuideRow } from '@/utils/rubricGuide';
-import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { isScoringGuide } from '@/utils/rubricGuide';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 export interface RubricBuilderPanelProps {
   questionId: string;
@@ -58,7 +40,6 @@ export interface RubricBuilderPanelProps {
   attachLabel?: string;
   /** Attaching needs this total, so a modified rubric scores out of the same points. */
   requiredTotal?: number;
-  heading?: string;
 }
 
 const labelClass =
@@ -68,36 +49,6 @@ const inputClass =
 
 const MIN_LEVELS = RUBRIC_MIN_LEVELS;
 const MAX_LEVELS = RUBRIC_MAX_LEVELS;
-const MIN_CRITERIA = 1;
-
-const PANEL_WIDTH_KEY = 'spartboard_rubric_builder_width';
-const DEFAULT_PANEL_WIDTH = 640;
-const MIN_PANEL_WIDTH = 400;
-const MAX_PANEL_FRACTION = 0.85;
-
-const readStoredPanelWidth = (): number => {
-  try {
-    const v = parseInt(localStorage.getItem(PANEL_WIDTH_KEY) ?? '', 10);
-    if (Number.isFinite(v) && v >= MIN_PANEL_WIDTH) return v;
-  } catch {
-    // localStorage unavailable — fall through to the default.
-  }
-  return DEFAULT_PANEL_WIDTH;
-};
-
-const storePanelWidth = (w: number) => {
-  try {
-    localStorage.setItem(PANEL_WIDTH_KEY, String(w));
-  } catch {
-    // Best-effort persistence only.
-  }
-};
-
-const autoGrow = (el: HTMLTextAreaElement | null) => {
-  if (!el) return;
-  el.style.height = 'auto';
-  el.style.height = `${el.scrollHeight}px`;
-};
 
 // Order-stable projection of the meaningful fields, used to detect unsaved
 // edits without false-positiving on key insertion order.
@@ -172,21 +123,6 @@ const validateRubric = (rubric: Rubric): string[] => {
   return errors;
 };
 
-const builderGuideAnchor: GuideFieldAnchor = (field, key) => {
-  switch (field) {
-    case 'guidelines':
-      return tourFieldAttr('quiz-rubric.guide-guidelines', 'quiz', key);
-    case 'example':
-      return tourFieldAttr('quiz-rubric.guide-example', 'quiz', key);
-    case 'example-add':
-      return tourFieldAttr('quiz-rubric.guide-example-add', 'quiz', key);
-    case 'example-remove':
-      return tourFieldAttr('quiz-rubric.guide-example-remove', 'quiz', key);
-    case 'points':
-      return tourFieldAttr('quiz-rubric.guide-points', 'quiz', key);
-  }
-};
-
 // Accepts a bare share id or a pasted share URL (`/share/rubric/{id}`) and
 // returns the id, mirroring how quiz share links resolve to a doc id.
 const extractShareId = (input: string): string => {
@@ -207,14 +143,6 @@ const extractShareId = (input: string): string => {
   }
 };
 
-const move = <T,>(list: T[], from: number, to: number): T[] => {
-  if (to < 0 || to >= list.length) return list;
-  const next = [...list];
-  const [item] = next.splice(from, 1);
-  next.splice(to, 0, item);
-  return next;
-};
-
 export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   existingSnapshot,
   onAttach,
@@ -223,7 +151,6 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   teacherUid,
   attachLabel = 'Attach to question',
   requiredTotal,
-  heading = 'Rubric',
 }) => {
   const { rubrics, saveRubric, shareRubric, importSharedRubric } =
     useRubrics(teacherUid);
@@ -251,61 +178,11 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const didAutoFocus = useRef(false);
-  const asideRef = useRef<HTMLElement>(null);
-  const [panelWidth, setPanelWidth] = useState<number>(readStoredPanelWidth);
   const [showCsvHelp, setShowCsvHelp] = useState(false);
   const [csvDragOver, setCsvDragOver] = useState(false);
-  const [tableOpen, setTableOpen] = useState(false);
   // Remounts the rubric modal when a library pick or CSV replaces the draft.
   const [loadCount, setLoadCount] = useState(0);
-  const tableEditor =
-    useContext(AuthContext)?.canAccessFeature('rubric-grading-v2') ?? false;
   const [levelOrder, switchLevelOrder] = useRubricLevelOrder();
-
-  // Clamp against the containing block (the editor modal body), not the DOM
-  // parent — the panel may stretch across both editor panes.
-  const clampPanelWidth = useCallback((w: number): number => {
-    const boundsWidth =
-      asideRef.current?.offsetParent?.getBoundingClientRect().width ?? 0;
-    const max = boundsWidth
-      ? Math.max(MIN_PANEL_WIDTH, Math.round(boundsWidth * MAX_PANEL_FRACTION))
-      : Number.MAX_SAFE_INTEGER;
-    return Math.min(max, Math.max(MIN_PANEL_WIDTH, Math.round(w)));
-  }, []);
-
-  const handleResizeStart = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      const bounds = asideRef.current?.offsetParent;
-      if (!bounds) return;
-      const rect = bounds.getBoundingClientRect();
-      let latest = panelWidth;
-      const onMove = (ev: PointerEvent) => {
-        latest = clampPanelWidth(rect.right - ev.clientX);
-        setPanelWidth(latest);
-      };
-      const onUp = () => {
-        window.removeEventListener('pointermove', onMove);
-        window.removeEventListener('pointerup', onUp);
-        storePanelWidth(latest);
-      };
-      window.addEventListener('pointermove', onMove);
-      window.addEventListener('pointerup', onUp);
-    },
-    [clampPanelWidth, panelWidth]
-  );
-
-  const nudgePanelWidth = useCallback(
-    (delta: number) => {
-      setPanelWidth((prev) => {
-        const next = clampPanelWidth(prev + delta);
-        storePanelWidth(next);
-        return next;
-      });
-    },
-    [clampPanelWidth]
-  );
 
   const handleDownloadTemplate = () => {
     const blob = new Blob([RUBRIC_TEMPLATE_CSV], {
@@ -319,18 +196,9 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  // Move focus into the panel once on open.
-  const focusCloseButton = useCallback((el: HTMLButtonElement | null) => {
-    if (el && !didAutoFocus.current) {
-      didAutoFocus.current = true;
-      el.focus();
-    }
-  }, []);
-
   const errors = useMemo(() => validateRubric(draft), [draft]);
   const guide = isScoringGuide(draft);
 
-  const switchTemplate = useRubricTemplateSwitch(draft, setDraft);
   const maxSum = rubricMaxPoints(draft);
   const totalMismatch = requiredTotal !== undefined && maxSum !== requiredTotal;
 
@@ -340,37 +208,6 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
     !!existingSnapshot &&
     !!libraryCopy &&
     libraryCopy.updatedAt > existingSnapshot.updatedAt;
-
-  const patchCriterion = useCallback(
-    (criterionId: string, patch: Partial<RubricCriterion>) => {
-      setDraft((prev) => ({
-        ...prev,
-        criteria: prev.criteria.map((c) =>
-          c.id === criterionId ? { ...c, ...patch } : c
-        ),
-      }));
-    },
-    []
-  );
-
-  const patchLevel = useCallback(
-    (criterionId: string, levelId: string, patch: Partial<RubricLevel>) => {
-      setDraft((prev) => ({
-        ...prev,
-        criteria: prev.criteria.map((c) =>
-          c.id === criterionId
-            ? {
-                ...c,
-                levels: c.levels.map((l) =>
-                  l.id === levelId ? { ...l, ...patch } : l
-                ),
-              }
-            : c
-        ),
-      }));
-    },
-    []
-  );
 
   const handleImportFile = async (file: File) => {
     const text = await file.text();
@@ -543,21 +380,9 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   );
   const importBox = (
     <>
-      <div
-        className={
-          tableEditor
-            ? 'space-y-1'
-            : 'border border-slate-200 rounded-lg p-3 space-y-2'
-        }
-      >
+      <div className="space-y-1">
         <div className="flex items-center justify-between gap-2">
-          <p
-            className={
-              tableEditor ? labelClass : 'text-xs font-bold text-slate-700'
-            }
-          >
-            Import from code or link
-          </p>
+          <p className={labelClass}>Import from code or link</p>
         </div>
         <div className="flex gap-2">
           <input
@@ -720,42 +545,11 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
       )}
     </>
   );
-  const footerButtons = (
-    <>
-      <div className="flex gap-2">
-        <button
-          onClick={() => void handleSaveToLibrary()}
-          disabled={errors.length > 0}
-          {...tourTypeAttr('quiz-rubric.save-library', 'quiz')}
-          className="flex-1 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors disabled:opacity-40"
-        >
-          Save to library
-        </button>
-        <button
-          onClick={handleAttach}
-          {...tourTypeAttr('quiz-rubric.attach', 'quiz')}
-          disabled={errors.length > 0 || totalMismatch}
-          className="flex-1 px-3 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-40"
-        >
-          {attachLabel}
-        </button>
-      </div>
-      {existingSnapshot && (
-        <button
-          onClick={onDetach}
-          {...tourTypeAttr('quiz-rubric.detach', 'quiz')}
-          className="w-full px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
-        >
-          Detach rubric
-        </button>
-      )}
-    </>
-  );
   const csvHelp = (
     <>
       {showCsvHelp && (
         <div
-          className={`${tableEditor ? 'fixed z-modal-deep-content' : 'absolute z-40'} inset-0 bg-slate-900/40 flex items-center justify-center p-4`}
+          className="fixed z-modal-deep-content inset-0 bg-slate-900/40 flex items-center justify-center p-4"
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
               e.stopPropagation();
@@ -844,429 +638,82 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
     </>
   );
 
-  if (tableEditor) {
-    return (
-      // Keeps Escape in the rubric modal from also closing the host editor.
-      <div onKeyDown={(e) => e.stopPropagation()}>
-        <RubricTableModal
-          key={loadCount}
-          rubric={draft}
-          order={levelOrder}
-          onOrderChange={switchLevelOrder}
-          scores={new Map()}
-          onClose={onClose}
-          editStructure
-          controlled={{
-            draft,
-            setDraft,
-            toolbar: (
-              <div className="mb-4 space-y-3">
-                {isStale && (
-                  <p className="flex items-center gap-2 text-sm font-semibold text-amber-800">
-                    <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
-                    Library copy changed. Re-attach to update.
-                  </p>
-                )}
-                <div className="grid gap-3 md:grid-cols-2">
-                  {libraryField}
-                  {importBox}
-                </div>
-              </div>
-            ),
-            belowTable: (
-              <div className="mt-4 space-y-2">
-                {actions}
-                {messages}
-              </div>
-            ),
-            footer: (
-              <div className="flex flex-col items-center gap-2">
-                {totalMismatch && (
-                  <p className="text-sm font-bold text-rose-700" role="alert">
-                    {`Total must be ${requiredTotal} points to match the main rubric.`}
-                  </p>
-                )}
-                <div className="flex flex-wrap justify-center gap-3">
-                  {existingSnapshot && (
-                    <button
-                      type="button"
-                      onClick={onDetach}
-                      {...tourTypeAttr('quiz-rubric.detach', 'quiz')}
-                      className="rounded-lg px-4 py-2.5 text-sm font-bold text-rose-700 transition-colors hover:bg-rose-50"
-                    >
-                      Detach rubric
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveToLibrary()}
-                    disabled={errors.length > 0}
-                    {...tourTypeAttr('quiz-rubric.save-library', 'quiz')}
-                    className="rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    Save to library
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleAttach}
-                    disabled={errors.length > 0 || totalMismatch}
-                    {...tourTypeAttr('quiz-rubric.attach', 'quiz')}
-                    className="rounded-lg bg-brand-blue-primary px-8 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-50"
-                  >
-                    {attachLabel}
-                  </button>
-                </div>
-              </div>
-            ),
-          }}
-        />
-        {csvHelp}
-      </div>
-    );
-  }
-
   return (
-    <aside
-      ref={asideRef}
-      className="absolute inset-y-0 right-0 max-w-full bg-white border-l border-slate-200 shadow-xl z-20 flex flex-col"
-      style={{ width: panelWidth }}
-      aria-label="Rubric builder"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.stopPropagation();
-          onClose();
-        }
-      }}
-    >
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize rubric builder"
-        {...tourTypeAttr('quiz-rubric.builder-resize', 'quiz')}
-        tabIndex={0}
-        onPointerDown={handleResizeStart}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowLeft') {
-            e.preventDefault();
-            nudgePanelWidth(32);
-          } else if (e.key === 'ArrowRight') {
-            e.preventDefault();
-            nudgePanelWidth(-32);
-          }
-        }}
-        className="absolute inset-y-0 left-0 w-1.5 cursor-col-resize hover:bg-brand-blue-primary/30 focus:outline-hidden focus:bg-brand-blue-primary/40 z-30 touch-none"
-      />
-      <header className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
-        <h3 className="font-bold text-slate-900 text-sm">{heading}</h3>
-        <button
-          ref={focusCloseButton}
-          onClick={onClose}
-          aria-label="Close rubric builder"
-          {...tourTypeAttr('quiz-rubric.builder-close', 'quiz')}
-          className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-sm transition-colors focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </header>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {isStale && (
-          <div className="flex gap-2 p-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <p>Library copy changed. Re-attach to update.</p>
-          </div>
-        )}
-
-        {libraryField}
-
-        {importBox}
-
-        <div>
-          <label className={labelClass} htmlFor="rubric-title">
-            Title
-          </label>
-          <input
-            id="rubric-title"
-            {...tourTypeAttr('quiz-rubric.builder-title', 'quiz')}
-            type="text"
-            value={draft.title}
-            onChange={(e) =>
-              setDraft((prev) => ({ ...prev, title: e.target.value }))
-            }
-            placeholder="e.g. Argumentative Paragraph"
-            className={inputClass}
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <RubricTemplateSwitch
-            guide={guide}
-            onSwitch={(toGuide) => void switchTemplate(toGuide)}
-            anchor={tourTypeAttr('quiz-rubric.template', 'quiz')}
-          />
-          {tableEditor && !guide && (
-            <button
-              type="button"
-              onClick={() => setTableOpen(true)}
-              {...tourTypeAttr('quiz-rubric.builder-table', 'quiz')}
-              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-bold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
-            >
-              <Table2 className="h-4 w-4" aria-hidden />
-              Edit as table
-            </button>
-          )}
-        </div>
-
-        {draft.criteria.map((c, ci) => (
-          <div
-            key={c.id}
-            className="border border-slate-200 rounded-lg p-3 space-y-2"
-          >
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={c.name}
-                onChange={(e) => patchCriterion(c.id, { name: e.target.value })}
-                placeholder={
-                  c.guide
-                    ? `Part ${ci + 1} (e.g. A: Research method)`
-                    : `Criterion ${ci + 1}`
-                }
-                aria-label={
-                  c.guide ? `Part ${ci + 1} label` : `Criterion ${ci + 1} name`
-                }
-                {...tourFieldAttr(
-                  'quiz-rubric.criterion-name',
-                  'quiz',
-                  String(ci + 1)
-                )}
-                className={inputClass}
-              />
-              <button
-                onClick={() =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    criteria: move(prev.criteria, ci, ci - 1),
-                  }))
-                }
-                disabled={ci === 0}
-                aria-label={`Move criterion ${ci + 1} up`}
-                {...tourFieldAttr(
-                  'quiz-rubric.criterion-up',
-                  'quiz',
-                  String(ci + 1)
-                )}
-                className="p-1 rounded-sm text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-30 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
-              >
-                <ArrowUp className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    criteria: move(prev.criteria, ci, ci + 1),
-                  }))
-                }
-                disabled={ci === draft.criteria.length - 1}
-                aria-label={`Move criterion ${ci + 1} down`}
-                {...tourFieldAttr(
-                  'quiz-rubric.criterion-down',
-                  'quiz',
-                  String(ci + 1)
-                )}
-                className="p-1 rounded-sm text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-30 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
-              >
-                <ArrowDown className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    criteria: prev.criteria.filter((x) => x.id !== c.id),
-                  }))
-                }
-                disabled={draft.criteria.length <= MIN_CRITERIA}
-                aria-label={`Remove criterion ${ci + 1}`}
-                {...tourFieldAttr(
-                  'quiz-rubric.criterion-remove',
-                  'quiz',
-                  String(ci + 1)
-                )}
-                className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+    // Keeps Escape in the rubric modal from also closing the host editor.
+    <div onKeyDown={(e) => e.stopPropagation()}>
+      <RubricTableModal
+        key={loadCount}
+        rubric={draft}
+        order={levelOrder}
+        onOrderChange={switchLevelOrder}
+        scores={new Map()}
+        onClose={onClose}
+        editStructure
+        controlled={{
+          draft,
+          setDraft,
+          toolbar: (
+            <div className="mb-4 space-y-3">
+              {isStale && (
+                <p className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+                  <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
+                  Library copy changed. Re-attach to update.
+                </p>
+              )}
+              <div className="grid gap-3 md:grid-cols-2">
+                {libraryField}
+                {importBox}
+              </div>
             </div>
-
-            {c.guide ? (
-              <GuideRowFields
-                criterion={c}
-                index={ci}
-                onPatch={(patch) => patchCriterion(c.id, patch)}
-                anchor={builderGuideAnchor}
-              />
-            ) : (
-              <>
-                {c.levels.map((l, li) => (
-                  <div key={l.id} className="flex items-start gap-2">
-                    <textarea
-                      rows={1}
-                      ref={autoGrow}
-                      value={l.label}
-                      onChange={(e) => {
-                        patchLevel(c.id, l.id, { label: e.target.value });
-                        autoGrow(e.target);
-                      }}
-                      placeholder="Level label"
-                      aria-label={`Criterion ${ci + 1} level ${li + 1} label`}
-                      {...tourFieldAttr(
-                        'quiz-rubric.level-label',
-                        'quiz',
-                        `${ci + 1}-${li + 1}`
-                      )}
-                      className={`${inputClass} resize-y overflow-hidden min-h-[38px]`}
-                    />
-                    <input
-                      type="number"
-                      min={0}
-                      value={l.points}
-                      onChange={(e) =>
-                        patchLevel(c.id, l.id, {
-                          points: parseInt(e.target.value, 10) || 0,
-                        })
-                      }
-                      aria-label={`Criterion ${ci + 1} level ${li + 1} points`}
-                      {...tourFieldAttr(
-                        'quiz-rubric.level-points',
-                        'quiz',
-                        `${ci + 1}-${li + 1}`
-                      )}
-                      className={`${inputClass} w-20`}
-                    />
-                    <textarea
-                      rows={1}
-                      ref={autoGrow}
-                      value={l.description ?? ''}
-                      onChange={(e) => {
-                        patchLevel(c.id, l.id, {
-                          description: e.target.value || undefined,
-                        });
-                        autoGrow(e.target);
-                      }}
-                      placeholder="Description"
-                      aria-label={`Criterion ${ci + 1} level ${li + 1} description`}
-                      {...tourFieldAttr(
-                        'quiz-rubric.level-description',
-                        'quiz',
-                        `${ci + 1}-${li + 1}`
-                      )}
-                      className={`${inputClass} resize-y overflow-hidden min-h-[38px]`}
-                    />
-                    <button
-                      onClick={() =>
-                        patchCriterion(c.id, {
-                          levels: c.levels.filter((x) => x.id !== l.id),
-                        })
-                      }
-                      disabled={c.levels.length <= MIN_LEVELS}
-                      aria-label={`Remove criterion ${ci + 1} level ${li + 1}`}
-                      {...tourFieldAttr(
-                        'quiz-rubric.level-remove',
-                        'quiz',
-                        `${ci + 1}-${li + 1}`
-                      )}
-                      className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-
-                {c.levels.length < MAX_LEVELS && (
+          ),
+          belowTable: (
+            <div className="mt-4 space-y-2">
+              {actions}
+              {messages}
+            </div>
+          ),
+          footer: (
+            <div className="flex flex-col items-center gap-2">
+              {totalMismatch && (
+                <p className="text-sm font-bold text-rose-700" role="alert">
+                  {`Total must be ${requiredTotal} points to match the main rubric.`}
+                </p>
+              )}
+              <div className="flex flex-wrap justify-center gap-3">
+                {existingSnapshot && (
                   <button
-                    onClick={() =>
-                      patchCriterion(c.id, {
-                        levels: [
-                          ...c.levels,
-                          newLevel(
-                            c.levels.reduce(
-                              (m, l) => Math.max(m, l.points),
-                              -1
-                            ) + 1
-                          ),
-                        ],
-                      })
-                    }
-                    {...tourFieldAttr(
-                      'quiz-rubric.level-add',
-                      'quiz',
-                      String(ci + 1)
-                    )}
-                    className="flex items-center gap-1.5 text-xs font-bold text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
+                    type="button"
+                    onClick={onDetach}
+                    {...tourTypeAttr('quiz-rubric.detach', 'quiz')}
+                    className="rounded-lg px-4 py-2.5 text-sm font-bold text-rose-700 transition-colors hover:bg-rose-50"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add Level
+                    Detach rubric
                   </button>
                 )}
-              </>
-            )}
-          </div>
-        ))}
-
-        <button
-          onClick={() =>
-            setDraft((prev) => ({
-              ...prev,
-              criteria: [
-                ...prev.criteria,
-                guide ? newGuideRow() : newCriterion(),
-              ],
-            }))
-          }
-          {...tourTypeAttr('quiz-rubric.criterion-add', 'quiz')}
-          className="flex items-center justify-center gap-1.5 w-full py-2 border-2 border-dashed border-slate-300 hover:border-brand-blue-primary/40 hover:bg-slate-100 hover:text-brand-blue-primary rounded-lg text-slate-600 font-bold text-xs transition-all"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          {guide ? 'Add Part' : 'Add Criterion'}
-        </button>
-
-        {actions}
-
-        {messages}
-      </div>
-
-      <footer className="border-t border-slate-200 p-4 space-y-2">
-        <p className="text-xs text-slate-600 font-bold">
-          Total points: {maxSum}
-        </p>
-        {totalMismatch && (
-          <p className="text-xs font-bold text-rose-700" role="alert">
-            {`Total must be ${requiredTotal} points to match the main rubric.`}
-          </p>
-        )}
-        {footerButtons}
-      </footer>
-
+                <button
+                  type="button"
+                  onClick={() => void handleSaveToLibrary()}
+                  disabled={errors.length > 0}
+                  {...tourTypeAttr('quiz-rubric.save-library', 'quiz')}
+                  className="rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Save to library
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAttach}
+                  disabled={errors.length > 0 || totalMismatch}
+                  {...tourTypeAttr('quiz-rubric.attach', 'quiz')}
+                  className="rounded-lg bg-brand-blue-primary px-8 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-50"
+                >
+                  {attachLabel}
+                </button>
+              </div>
+            </div>
+          ),
+        }}
+      />
       {csvHelp}
-      {tableOpen && (
-        // Keeps Escape in the table from also closing the builder.
-        <div onKeyDown={(e) => e.stopPropagation()}>
-          <RubricTableModal
-            rubric={draft}
-            order={levelOrder}
-            onOrderChange={switchLevelOrder}
-            scores={new Map()}
-            onClose={() => setTableOpen(false)}
-            onSave={(next) => {
-              setDraft(next);
-              return Promise.resolve();
-            }}
-            initialEditing
-            editStructure
-            saveLabel="Done"
-          />
-        </div>
-      )}
-    </aside>
+    </div>
   );
 };

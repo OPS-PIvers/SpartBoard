@@ -241,7 +241,7 @@ export interface ResultsPrintJob {
   writtenMode?: WrittenReturnMode;
   /** The teacher has `paper-image-markup`: image markup prints with the written feedback. */
   imageMarkup?: boolean;
-  /** `results-print-v2`: one-choice picks leave right or wrong to the row label. */
+  /** One-choice picks leave right or wrong to the row label. */
   compactMarks?: boolean;
 }
 
