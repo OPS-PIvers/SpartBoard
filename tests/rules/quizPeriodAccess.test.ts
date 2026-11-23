@@ -609,6 +609,33 @@ describe('content/questions', () => {
     await assertSucceeds(getDoc(doc(asAnon(), contentPath)));
   });
 
+  it('locks out the old device once a paper row release removes its seat', async () => {
+    await seedResponse(S, ANON_KEY, {
+      studentUid: ANON_UID,
+      classId: LOCAL_KEY,
+      pin: '1234',
+      paperWrittenBatchId: 'batch-1',
+    });
+    await seedSeat(S, ANON_UID, ANON_KEY);
+    await assertSucceeds(getDoc(doc(asAnon(), contentPath)));
+    // What releasePaperResponseV1 writes.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      const batch = writeBatch(db);
+      batch.update(doc(db, `quiz_sessions/${S}/responses/${ANON_KEY}`), {
+        studentUid: ANON_KEY,
+      });
+      batch.delete(doc(db, `quiz_sessions/${S}/seats/${ANON_UID}`));
+      await batch.commit();
+    });
+    await assertFails(getDoc(doc(asAnon(), contentPath)));
+    await assertFails(
+      setDoc(doc(asAnon(), `quiz_sessions/${S}/seats/${ANON_UID}`), {
+        responseKey: ANON_KEY,
+      })
+    );
+  });
+
   it('refuses a seat pointing at another student response', async () => {
     await assertFails(
       setDoc(doc(asAnon(), `quiz_sessions/${S}/seats/${ANON_UID}`), {
