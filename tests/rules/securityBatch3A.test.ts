@@ -317,7 +317,7 @@ describe('public flashcard pages need a teacher account', () => {
   });
 });
 
-describe('building admin status changes stop at higher tiers', () => {
+describe('member status changes go through orgAdminV1 only', () => {
   const BA = 'ba3a@orono.k12.mn.us';
   const DA = 'da3a@orono.k12.mn.us';
   const SA = 'sa3a@orono.k12.mn.us';
@@ -349,30 +349,16 @@ describe('building admin status changes stop at higher tiers', () => {
     );
   });
 
-  it('still denies a super admin target, and lets a domain admin change one', async () => {
+  it('denies any client status change on a super admin or teacher, for every tier', async () => {
+    await seed(path(DA), member(DA, 'domain_admin', 'active'));
     await assertFails(
       updateDoc(doc(asOrgUser(BA), path(SA)), { status: 'inactive' })
     );
-    await seed(path(DA), member(DA, 'domain_admin', 'active'));
-    await seed(
-      path('t2@orono.k12.mn.us'),
-      member('t2@orono.k12.mn.us', 'domain_admin', 'inactive')
-    );
-    await assertSucceeds(
-      updateDoc(doc(asOrgUser(DA), path('t2@orono.k12.mn.us')), {
-        status: 'active',
-      })
-    );
-  });
-
-  it('still lets a building admin deactivate a teacher in their building', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asOrgUser(BA), path(T)), { status: 'inactive' })
-    );
-    // Reactivating is a domain admin's call.
-    await assertFails(
-      updateDoc(doc(asOrgUser(BA), path(T)), { status: 'active' })
-    );
+    for (const actor of [BA, DA, SA]) {
+      await assertFails(
+        updateDoc(doc(asOrgUser(actor), path(T)), { status: 'inactive' })
+      );
+    }
   });
 });
 

@@ -1,6 +1,6 @@
 // Firestore security-rules tests: a super admin's operator-org member doc must be
-// active to grant the tier, member status accepts only active|invited|inactive, any
-// other stored status revokes access, and a building admin cannot reactivate anyone.
+// active to grant the tier, and any stored status other than active or invited
+// revokes access. Member status writes go through orgAdminV1 (functions tests).
 //
 // Requires a running Firestore emulator. Invoke via:
 //   pnpm run test:rules
@@ -46,6 +46,7 @@ const as = (email: string) =>
 
 const memberPath = (email: string, orgId = OPERATOR) =>
   `organizations/${orgId}/members/${email}`;
+const testClassPath = `organizations/${OPERATOR}/testClasses/mock-1`;
 const dashboardPath = (email: string) =>
   `users/${uidFor(email)}/dashboards/board-1`;
 const member = (
@@ -162,92 +163,22 @@ describe('super admin tier requires an active member doc', () => {
   });
 });
 
-describe('a legacy-list address is an ordinary member', () => {
-  beforeEach(async () => {
-    await seed('admin_settings/user_roles', { superAdmins: [TEACHER_EMAIL] });
-  });
-
-  it('domain and building admins may deactivate it', async () => {
-    await assertSucceeds(
-      updateDoc(doc(as(BUILDING_EMAIL), memberPath(TEACHER_EMAIL)), {
-        status: 'inactive',
-      })
-    );
-    await assertSucceeds(
-      updateDoc(doc(as(DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)), {
-        status: 'inactive',
-      })
-    );
-  });
-
-  it('a domain admin may create it as inactive', async () => {
-    const email = 'legacy.only@orono.k12.mn.us';
-    await seed('admin_settings/user_roles', { superAdmins: [email] });
-    await assertSucceeds(
-      setDoc(
-        doc(as(DOMAIN_EMAIL), memberPath(email)),
-        member(email, 'teacher', 'inactive')
-      )
-    );
-  });
-
-  it('a domain admin may delete it while inactive', async () => {
-    await seed(
-      memberPath(TEACHER_EMAIL),
-      member(TEACHER_EMAIL, 'teacher', 'inactive')
-    );
-    await assertSucceeds(
-      deleteDoc(doc(as(DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)))
-    );
-  });
-});
-
-describe('member status writes accept only active, invited, inactive', () => {
-  for (const status of ['active', 'invited', 'inactive']) {
-    it(`domain and super admins may write ${status}`, async () => {
-      await assertSucceeds(
-        updateDoc(doc(as(DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)), { status })
-      );
-      await assertSucceeds(
-        updateDoc(doc(as(SUPER_EMAIL), memberPath(TEACHER_EMAIL)), { status })
-      );
-    });
-  }
-
-  for (const status of ['removed', 'foo', '']) {
-    it(`no admin may write "${status}"`, async () => {
-      await assertFails(
-        updateDoc(doc(as(DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)), { status })
-      );
-      await assertFails(
-        updateDoc(doc(as(SUPER_EMAIL), memberPath(TEACHER_EMAIL)), { status })
-      );
-      await assertFails(
-        updateDoc(doc(as(BUILDING_EMAIL), memberPath(TEACHER_EMAIL)), {
-          status,
-        })
-      );
-    });
-
-    it(`create refuses status "${status}"`, async () => {
-      const email = 'new.person@orono.k12.mn.us';
+describe('member docs take no client status writes', () => {
+  it('no admin tier writes another member, whatever the status', async () => {
+    for (const actor of [SUPER_EMAIL, DOMAIN_EMAIL, BUILDING_EMAIL]) {
+      for (const status of ['active', 'invited', 'inactive', 'removed']) {
+        await assertFails(
+          updateDoc(doc(as(actor), memberPath(TEACHER_EMAIL)), { status })
+        );
+      }
       await assertFails(
         setDoc(
-          doc(as(DOMAIN_EMAIL), memberPath(email)),
-          member(email, 'teacher', status)
+          doc(as(actor), memberPath('new.person@orono.k12.mn.us')),
+          member('new.person@orono.k12.mn.us', 'teacher', 'invited')
         )
       );
-    });
-  }
-
-  it('create accepts invited', async () => {
-    const email = 'new.person@orono.k12.mn.us';
-    await assertSucceeds(
-      setDoc(
-        doc(as(DOMAIN_EMAIL), memberPath(email)),
-        member(email, 'teacher', 'invited')
-      )
-    );
+      await assertFails(deleteDoc(doc(as(actor), memberPath(TEACHER_EMAIL))));
+    }
   });
 
   it('a member with no status field can still stamp lastActive', async () => {
@@ -264,6 +195,12 @@ describe('member status writes accept only active, invited, inactive', () => {
 });
 
 describe('any status other than active or invited revokes access', () => {
+  it('an active domain admin holds the admin tier', async () => {
+    await assertSucceeds(
+      setDoc(doc(as(DOMAIN_EMAIL), testClassPath), { name: 'Mock' })
+    );
+  });
+
   for (const status of ['active', 'invited', undefined]) {
     it(`status ${String(status)}: reads and writes own dashboard`, async () => {
       await seed(
@@ -305,70 +242,8 @@ describe('any status other than active or invited revokes access', () => {
         member(DOMAIN_EMAIL, 'domain_admin', status)
       );
       await assertFails(
-        updateDoc(doc(as(DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)), {
-          status: 'inactive',
-        })
+        setDoc(doc(as(DOMAIN_EMAIL), testClassPath), { name: 'Mock' })
       );
     });
   }
-});
-
-describe('building admins deactivate but never reactivate', () => {
-  it('may deactivate a member in their building', async () => {
-    await assertSucceeds(
-      updateDoc(doc(as(BUILDING_EMAIL), memberPath(TEACHER_EMAIL)), {
-        status: 'inactive',
-      })
-    );
-  });
-
-  it('may activate an invited member in their building', async () => {
-    await seed(
-      memberPath(TEACHER_EMAIL),
-      member(TEACHER_EMAIL, 'teacher', 'invited')
-    );
-    await assertSucceeds(
-      updateDoc(doc(as(BUILDING_EMAIL), memberPath(TEACHER_EMAIL)), {
-        status: 'active',
-      })
-    );
-  });
-
-  for (const status of ['active', 'invited']) {
-    it(`is DENIED moving an inactive member to ${status}`, async () => {
-      await seed(
-        memberPath(TEACHER_EMAIL),
-        member(TEACHER_EMAIL, 'teacher', 'inactive')
-      );
-      await assertFails(
-        updateDoc(doc(as(BUILDING_EMAIL), memberPath(TEACHER_EMAIL)), {
-          status,
-        })
-      );
-    });
-  }
-
-  it('may re-save an inactive member as inactive (bulk deactivate)', async () => {
-    await seed(
-      memberPath(TEACHER_EMAIL),
-      member(TEACHER_EMAIL, 'teacher', 'inactive')
-    );
-    await assertSucceeds(
-      updateDoc(doc(as(BUILDING_EMAIL), memberPath(TEACHER_EMAIL)), {
-        status: 'inactive',
-      })
-    );
-  });
-
-  it('a domain admin may reactivate', async () => {
-    await seed(
-      memberPath(TEACHER_EMAIL),
-      member(TEACHER_EMAIL, 'teacher', 'inactive')
-    );
-    await assertSucceeds(
-      updateDoc(doc(as(DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)), {
-        status: 'active',
-      })
-    );
-  });
 });
