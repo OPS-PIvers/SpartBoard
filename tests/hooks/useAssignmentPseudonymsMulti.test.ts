@@ -30,6 +30,7 @@ interface PseudonymEntry {
 }
 interface CallableResult {
   pseudonyms: Record<string, PseudonymEntry>;
+  formerPseudonyms?: Record<string, PseudonymEntry>;
 }
 type CallableReturn =
   Promise<{ data: CallableResult }> | { data: CallableResult };
@@ -117,6 +118,46 @@ describe('useAssignmentPseudonymsMulti', () => {
     expect(result.current.byStudentUid.get('uid-1')?.givenName).toBe('Alex');
     expect(result.current.byStudentUid.get('uid-2')?.givenName).toBe('Pat');
     expect(loggedErrors).toHaveLength(0);
+  });
+
+  it('names students who left a class without counting them as members', async () => {
+    setHandler(({ classId }) =>
+      classId === 'class-a'
+        ? {
+            data: {
+              pseudonyms: {
+                p1: studentEntry('uid-1', 'pseudo-1', 'Alex', 'Lee'),
+              },
+              formerPseudonyms: {
+                p2: studentEntry('uid-2', 'pseudo-2', 'Sam', 'Moved'),
+                p3: studentEntry('uid-3', 'pseudo-3', 'Kim', 'Both'),
+              },
+            },
+          }
+        : {
+            data: {
+              pseudonyms: {
+                p3: studentEntry('uid-3', 'pseudo-3', 'Kim', 'Both'),
+              },
+            },
+          }
+    );
+
+    const aid = nextAssignmentId();
+    const { result } = renderHook(() =>
+      useAssignmentPseudonymsMulti(aid, ['class-a', 'class-b'], 'org-1')
+    );
+
+    await waitFor(() => {
+      expect(result.current.byStudentUid.size).toBe(3);
+    });
+    expect(result.current.byStudentUid.get('uid-2')?.givenName).toBe('Sam');
+    expect(
+      result.current.byAssignmentPseudonym.get('pseudo-2')?.givenName
+    ).toBe('Sam');
+    // Enrolled in class-b, so not a former student overall.
+    expect([...(result.current.formerStudentUids ?? [])]).toEqual(['uid-2']);
+    expect(result.current.targetRefKeyByStudentUid.has('uid-2')).toBe(false);
   });
 
   it('keeps surviving classes when one classId throws — partial resolution', async () => {

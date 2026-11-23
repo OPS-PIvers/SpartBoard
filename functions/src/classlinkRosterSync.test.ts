@@ -57,7 +57,7 @@ function buildHarness(rosters: FakeRoster[]) {
   const taught = new Map<string, Set<string> | null>();
   const teachLookups: string[] = [];
   const upstreamFetches: string[] = [];
-  const memberWrites: { classId: string; ids: string[] }[] = [];
+  const memberWrites: { uid: string; classId: string; ids: string[] }[] = [];
   const grants = new Map<string, boolean>();
   const driveVersions = new Map<string, string>();
 
@@ -174,8 +174,8 @@ function buildHarness(rosters: FakeRoster[]) {
       pinIndexCalls.push({ path: rosterRef.path, students, enrolled });
       return Promise.resolve();
     },
-    recordClassMembers: (classId, ids) => {
-      memberWrites.push({ classId, ids });
+    recordClassMembers: (uid, classId, ids) => {
+      memberWrites.push({ uid, classId, ids });
       return Promise.resolve();
     },
     now: () => 1_000_000,
@@ -293,7 +293,11 @@ describe('runClassLinkRosterSync', () => {
     harness = buildHarness(rosters);
     await runClassLinkRosterSync(harness.db, harness.deps, ENABLED);
     expect(harness.memberWrites).toEqual([
-      { classId: rosters[0].data.classlinkClassId, ids: ['s1', 's3'] },
+      {
+        uid: 'u1',
+        classId: rosters[0].data.classlinkClassId,
+        ids: ['s1', 's3'],
+      },
     ]);
 
     harness = buildHarness(rosters);

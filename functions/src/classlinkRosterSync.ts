@@ -104,7 +104,11 @@ export interface ClassLinkSyncDeps {
     classId: string
   ) => Promise<{ students: ClassLinkStudent[]; complete: boolean }>;
   /** Remembers who ClassLink listed in the class, so results keep names after a student leaves. */
-  recordClassMembers?: (classId: string, sourcedIds: string[]) => Promise<void>;
+  recordClassMembers?: (
+    teacherUid: string,
+    classId: string,
+    sourcedIds: string[]
+  ) => Promise<void>;
   readRosterFile: (
     accessToken: string,
     fileId: string
@@ -431,7 +435,7 @@ async function syncOneRoster(
       .map((u) => u.sourcedId)
       .filter((id): id is string => typeof id === 'string' && id.length > 0);
     try {
-      await deps.recordClassMembers(classId, ids);
+      await deps.recordClassMembers(uid, classId, ids);
     } catch (err) {
       console.warn(
         `[classlinkRosterSync] ${rosterSnap.ref.path}: class members not recorded:`,
@@ -751,8 +755,8 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
       }
     },
 
-    recordClassMembers: (classId, sourcedIds) =>
-      recordClassMembers(db, classId, sourcedIds, Date.now()),
+    recordClassMembers: (teacherUid, classId, sourcedIds) =>
+      recordClassMembers(db, teacherUid, classId, sourcedIds, Date.now()),
 
     now: () => Date.now(),
   };

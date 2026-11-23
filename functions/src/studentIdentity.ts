@@ -970,7 +970,7 @@ export const getPseudonymsForAssignmentV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    await assertViewAsAllowed(request, { read: true });
+    const viewAs = await assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
@@ -1247,34 +1247,50 @@ export const getPseudonymsForAssignmentV1 = onCall(
         studentsUrl,
         { headers: { ...studentsHeaders } }
       );
-      const current = studentsResp.data.users ?? [];
-      const currentIds = current
-        .map((s) => s.sourcedId)
+      const students = studentsResp.data.users ?? [];
+      const currentIds = students
+        .map((st) => st.sourcedId)
         .filter((id): id is string => !!id);
-      // Students who have left the class keep their names on older results.
+      // Students who left this teacher's class keep their names on older results.
       const db = admin.firestore();
       const now = Date.now();
+      const teacherUid = request.auth.uid;
       let former: ClassLinkStudent[] = [];
+      let stored: Record<string, number> | undefined;
       try {
-        const stored = await loadClassMembers(db, classId);
+        stored = await loadClassMembers(db, teacherUid, classId);
         const formerIds = formerMemberIds(stored, new Set(currentIds), now);
-        [former] = await Promise.all([
-          formerIds.length > 0
-            ? fetchFormerStudents(formerIds, {
-                tenantUrl: cleanTenantUrl,
-                classlinkClientId,
-                classlinkClientSecret,
-              })
-            : Promise.resolve([]),
-          recordClassMembers(db, classId, currentIds, now, stored),
-        ]);
+        if (formerIds.length > 0) {
+          former = await fetchFormerStudents(formerIds, {
+            tenantUrl: cleanTenantUrl,
+            classlinkClientId,
+            classlinkClientSecret,
+          });
+        }
       } catch (err) {
         console.warn(
           '[getPseudonymsForAssignmentV1] former members unavailable:',
           safeErr(err)
         );
       }
-      const students = [...current, ...former];
+      // A read-only View as session never writes.
+      if (!viewAs && stored) {
+        try {
+          await recordClassMembers(
+            db,
+            teacherUid,
+            classId,
+            currentIds,
+            now,
+            stored
+          );
+        } catch (err) {
+          console.warn(
+            '[getPseudonymsForAssignmentV1] class members not recorded:',
+            safeErr(err)
+          );
+        }
+      }
 
       // Return both pseudonyms so teacher viewers can match whichever one
       // the response doc is keyed by:
@@ -1313,7 +1329,33 @@ export const getPseudonymsForAssignmentV1 = onCall(
           familyName: s.familyName ?? '',
         };
       }
-      return { pseudonyms };
+      // Kept apart from `pseudonyms`, which screens treat as the class list; these are for names only.
+      const formerPseudonyms: Record<
+        string,
+        {
+          studentUid: string;
+          assignmentPseudonym: string;
+          givenName: string;
+          familyName: string;
+        }
+      > = {};
+      for (const st of former) {
+        if (!st.sourcedId || pseudonyms[st.sourcedId]) continue;
+        const studentUid = computeStudentUid(st.sourcedId, hmacSecret);
+        formerPseudonyms[st.sourcedId] = {
+          studentUid,
+          assignmentPseudonym: computeAssignmentPseudonym(
+            studentUid,
+            assignmentId,
+            hmacSecret
+          ),
+          givenName: st.givenName ?? '',
+          familyName: st.familyName ?? '',
+        };
+      }
+      return Object.keys(formerPseudonyms).length > 0
+        ? { pseudonyms, formerPseudonyms }
+        : { pseudonyms };
     } catch (err) {
       if (err instanceof HttpsError) throw err;
       if (axios.isAxiosError(err)) {
