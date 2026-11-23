@@ -58575,6 +58575,54 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tours.filter-site",
+    "label": "Website filter on the Web tours page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.filter-author",
+    "label": "Author filter on the Web tours page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.sort",
+    "label": "Sort choice on the Web tours page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tour-editor.title",
     "label": "Title field in the web tour editor",
     "scope": "board",
