@@ -82941,7 +82941,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "student.quiz.back-to-list",
     "label": "Back to assignments button",
-    "scope": "board"
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
   },
   {
     "id": "student.quiz.rubric-toggle",
