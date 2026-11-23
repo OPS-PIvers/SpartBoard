@@ -19,6 +19,15 @@ describe('paperPrintWords', () => {
     }
   });
 
+  it('uses e before I in Spanish and singular words for one Somali resource', () => {
+    expect(paperPrintWords('es').useResources(['H', 'I'])).toBe(
+      'Usa los recursos H e I.'
+    );
+    const so = paperPrintWords('so');
+    expect(so.useResources(['A'])).toBe('Isticmaal Isha A.');
+    expect(so.useResources(['A', 'B'])).toBe('Isticmaal Ilaha A iyo B.');
+  });
+
   it('has its own words for every translation language', () => {
     for (const code of QUIZ_TRANSLATION_ALL_CODES) {
       const w = paperPrintWords(code);

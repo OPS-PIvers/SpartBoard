@@ -149,19 +149,20 @@ export function browserBlockMeasure(): BlockMeasure | null {
   box.className = 'sb';
   box.style.position = 'relative';
   host.append(style, box);
-  document.body.append(host);
-  // jsdom lays nothing out, so every height reads 0.
-  box.innerHTML = '<div class="sb-text">x</div>';
-  if (box.getBoundingClientRect().height === 0) {
+  // The box joins the page only while it measures, so no hidden node outlives the dialog.
+  const heightOf = (html: string): number => {
+    document.body.append(host);
+    box.innerHTML = html;
+    const h = box.getBoundingClientRect().height;
+    box.innerHTML = '';
     host.remove();
-    return null;
-  }
+    return h;
+  };
+  // jsdom lays nothing out, so every height reads 0.
+  if (heightOf('<div class="sb-text">x</div>') === 0) return null;
   return (html, widthMm) => {
     box.style.width = `${widthMm}mm`;
-    box.innerHTML = html;
-    const h = box.getBoundingClientRect().height * PX_TO_MM;
-    box.innerHTML = '';
-    return h;
+    return heightOf(html) * PX_TO_MM;
   };
 }
 

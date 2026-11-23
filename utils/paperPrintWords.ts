@@ -14,7 +14,7 @@ interface WordSet {
   resource: string;
   question: string;
   continued: string;
-  and: string;
+  and: (next: string) => string;
   writeOnSheet: string;
 }
 
@@ -24,7 +24,7 @@ const WORDS: Record<string, WordSet> = {
     resource: 'Resource',
     question: 'Question',
     continued: 'continued',
-    and: 'and',
+    and: () => 'and',
     writeOnSheet: 'Write your answer on your response sheet.',
   },
   es: {
@@ -32,15 +32,15 @@ const WORDS: Record<string, WordSet> = {
     resource: 'Recurso',
     question: 'Pregunta',
     continued: 'continuación',
-    and: 'y',
+    and: (next) => (/^i/i.test(next) ? 'e' : 'y'),
     writeOnSheet: 'Escribe tu respuesta en tu hoja de respuestas.',
   },
   so: {
-    use: (l) => `Isticmaal Ilaha ${l}.`,
-    resource: 'Ilaha',
-    question: "Su'aasha",
+    use: (l, p) => `Isticmaal ${p ? 'Ilaha' : 'Isha'} ${l}.`,
+    resource: 'Isha',
+    question: "Su'aal",
     continued: 'sii socda',
-    and: 'iyo',
+    and: () => 'iyo',
     writeOnSheet: 'Ku qor jawaabtaada warqadda jawaabaha.',
   },
   hmn: {
@@ -48,16 +48,16 @@ const WORDS: Record<string, WordSet> = {
     resource: 'Ntaub Ntawv',
     question: 'Lo Lus Nug',
     continued: 'txuas ntxiv',
-    and: 'thiab',
+    and: () => 'thiab',
     writeOnSheet: 'Sau koj cov lus teb rau ntawm koj daim ntawv teb.',
   },
   ru: {
-    use: (l, p) => `Используй ${p ? 'ресурсы' : 'ресурс'} ${l}.`,
-    resource: 'Ресурс',
+    use: (l, p) => `Используй ${p ? 'источники' : 'источник'} ${l}.`,
+    resource: 'Источник',
     question: 'Вопрос',
     continued: 'продолжение',
-    and: 'и',
-    writeOnSheet: 'Запиши ответ в своём бланке ответов.',
+    and: () => 'и',
+    writeOnSheet: 'Запиши ответ на бланке ответов.',
   },
 };
 
@@ -71,7 +71,7 @@ export function paperPrintWords(language?: string): PaperPrintWords {
       const list =
         letters.length === 1
           ? letters[0]
-          : `${letters.slice(0, -1).join(', ')} ${w.and} ${letters[letters.length - 1]}`;
+          : `${letters.slice(0, -1).join(', ')} ${w.and(letters[letters.length - 1])} ${letters[letters.length - 1]}`;
       return w.use(list, letters.length > 1);
     },
     resource: (letter) => `${w.resource} ${letter}`,

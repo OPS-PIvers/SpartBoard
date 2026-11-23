@@ -1164,6 +1164,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     return versionPlan
       ? {
           quizTitle: quiz.title,
+          ...(printLanguage ? { language: printLanguage } : {}),
           questions: [],
           versions: versionPlan.versions.map((v) => ({
             label: v.label,
