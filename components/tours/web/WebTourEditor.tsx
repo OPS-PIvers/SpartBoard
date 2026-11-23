@@ -724,7 +724,7 @@ const WebTourEditorBody: React.FC<{
     ...(canDelete
       ? [
           {
-            id: 'delete',
+            id: 'delete' as const,
             label: 'Delete web tour',
             icon: Trash2,
             danger: true,
