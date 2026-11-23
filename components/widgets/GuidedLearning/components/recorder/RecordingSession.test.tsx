@@ -208,6 +208,23 @@ describe('RecordingSession', () => {
     ).toBeInTheDocument();
   });
 
+  it('blurs a class that loads after recording starts, such as a sub board opened mid-recording', () => {
+    const empty = { ...dashboard, rosters: [] } as DashboardContextValue;
+    const tree = (value: DashboardContextValue) => (
+      <DashboardContext.Provider value={value}>
+        <RecordingSession onEnd={vi.fn()} origin="subs" />
+      </DashboardContext.Provider>
+    );
+    const { rerender } = render(tree(empty));
+    fireEvent.change(screen.getByLabelText('What does this tour show?'), {
+      target: { value: 'Open a board' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(h.matcher).toBeNull();
+    rerender(tree(dashboard));
+    expect(h.matcher?.test('alice nguyen')).toBe(true);
+  });
+
   it('records with the roster names, then uploads only the reviewed frames and opens the editor', async () => {
     renderSession();
     fireEvent.change(screen.getByLabelText('What does this tour show?'), {
