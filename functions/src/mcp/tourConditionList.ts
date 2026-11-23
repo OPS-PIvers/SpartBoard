@@ -151,6 +151,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'speech-to-text-tidy-up',
   'staff-audience',
   'student-gradebook',
+  'substitute-sharing',
   'tab-away-timer',
   'universal-import',
   'video-activity-ai',

@@ -24,7 +24,8 @@ interface CollectionContextMenuProps {
   onColor: () => void;
   canShare: boolean;
   onShare: () => void;
-  onShareWithSub: () => void;
+  /** Omitted when substitute sharing is off. */
+  onShareWithSub?: () => void;
   /** This teacher's part in a live Synced / View-Only share of this collection. */
   liveShareRole?: 'host' | 'member' | null;
   onStopSharing?: () => void;
@@ -98,13 +99,15 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
       icon: Share2,
       action: onShare,
     });
-    items.push({
-      label: subShareEndsAt
-        ? t('subShare.menu.update', { defaultValue: 'Update sub share…' })
-        : t('subShare.menu.share', { defaultValue: 'Share with a sub…' }),
-      icon: UserCheck,
-      action: onShareWithSub,
-    });
+    if (onShareWithSub) {
+      items.push({
+        label: subShareEndsAt
+          ? t('subShare.menu.update', { defaultValue: 'Update sub share…' })
+          : t('subShare.menu.share', { defaultValue: 'Share with a sub…' }),
+        icon: UserCheck,
+        action: onShareWithSub,
+      });
+    }
   }
 
   if (liveShareRole === 'host' && onStopSharing) {

@@ -11,7 +11,13 @@
  */
 
 import React, { useEffect } from 'react';
-import { GraduationCap, Loader2, LogOut, ShieldAlert } from 'lucide-react';
+import {
+  GraduationCap,
+  Loader2,
+  LogOut,
+  ShieldAlert,
+  UserX,
+} from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 
 const ALLOWED_DOMAIN = '@orono.k12.mn.us';
@@ -26,7 +32,15 @@ interface Props {
 }
 
 export const SubsAuthGate: React.FC<Props> = ({ children }) => {
-  const { user, loading, roleResolved, signInWithGoogle, signOut } = useAuth();
+  const {
+    user,
+    loading,
+    roleResolved,
+    globalPermissionsLoaded,
+    canAccessFeature,
+    signInWithGoogle,
+    signOut,
+  } = useAuth();
   const email = user?.email ?? null;
   const allowed = isAllowedEmail(email);
 
@@ -89,6 +103,45 @@ export const SubsAuthGate: React.FC<Props> = ({ children }) => {
             The Substitute Portal is restricted to{' '}
             <span className="font-mono text-slate-800">@orono.k12.mn.us</span>{' '}
             accounts. Signing you out — try again with your district account.
+          </p>
+          <button /* no-tour-anchor: substitute portal, never on the board */
+            type="button"
+            onClick={() => void signOut()}
+            className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Sign out
+          </button>
+        </div>
+      </PortalShell>
+    );
+  }
+
+  if (!globalPermissionsLoaded) {
+    return (
+      <PortalShell>
+        <div className="flex flex-col items-center gap-3 text-slate-500">
+          <Loader2 className="w-8 h-8 animate-spin" />
+          <span className="text-sm">Checking sign-in…</span>
+        </div>
+      </PortalShell>
+    );
+  }
+
+  // Admin kill switch: Admin Settings > Access > Features > Substitute sharing.
+  if (!canAccessFeature('substitute-sharing')) {
+    return (
+      <PortalShell>
+        <div className="max-w-md w-full mx-auto text-center">
+          <div className="mx-auto w-12 h-12 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center">
+            <UserX className="w-6 h-6 text-slate-500" />
+          </div>
+          <h1 className="mt-4 text-xl font-bold tracking-tight">
+            The Substitute Portal is off
+          </h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Your district turned off the Substitute Portal. Ask the school
+            office for help.
           </p>
           <button /* no-tour-anchor: substitute portal, never on the board */
             type="button"

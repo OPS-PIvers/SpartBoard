@@ -64,6 +64,7 @@ import {
   Shapes,
   Settings2,
   Users,
+  UserCheck,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -198,6 +199,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Board Sharing',
     icon: Share2,
     description: 'Share a board by link.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    category: 'sharing',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
+  // Admin kill switch for every substitute feature: Share with a sub and the /subs portal.
+  'substitute-sharing': {
+    label: 'Substitute sharing',
+    icon: UserCheck,
+    description:
+      'Teachers can share boards with a sub. Subs can open the Substitute Portal.',
     stage: 'permanent',
     afterLaunch: 'keep',
     category: 'sharing',
