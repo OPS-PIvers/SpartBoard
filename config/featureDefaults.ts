@@ -1121,7 +1121,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'View Student Page',
     icon: Eye,
     description: "Teachers open a class's student page from My Classes.",
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
     category: 'students',
     defaultAccessLevel: 'admin',
