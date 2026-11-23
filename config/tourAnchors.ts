@@ -19301,6 +19301,15 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   // Substitute portal (/subs): the building and board pickers, the sub board's chrome and Help.
+  'student.help': { label: 'Help button on student pages (bottom right)' },
+  'student.help-tour': {
+    label: 'A live tour in the student Help menu, keyed row-N',
+    perField: true,
+    keyPattern: 'student-help#row-[1-9]\\d*',
+    keyHint: 'student-help#row-1 for the first tour',
+    panel: true,
+    rows: true,
+  },
   'subs.help': { label: 'Help button on every substitute portal screen' },
   'subs.help-tour': {
     label: 'A live tour in the substitute portal Help menu, keyed row-N',

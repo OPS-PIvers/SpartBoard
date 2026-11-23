@@ -82924,6 +82924,36 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "student.help",
+    "label": "Help button on student pages (bottom right)",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student.help",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.help-tour",
+    "label": "A live tour in the student Help menu, keyed row-N",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "student-help#row-[1-9]\\d*",
+    "key_hint": "student-help#row-1 for the first tour",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student.help-menu",
+        "kind": "menu",
+        "path": [
+          "student.help"
+        ]
+      }
+    ]
+  },
+  {
     "id": "subs.help",
     "label": "Help button on every substitute portal screen",
     "scope": "board",

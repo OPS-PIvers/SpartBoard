@@ -33,6 +33,7 @@ import { ViewAsGate } from './context/ViewAsContext';
 import { ViewAsBanner } from './components/viewAs/ViewAsBanner';
 import { ViewAsSaveToast } from './components/viewAs/ViewAsSaveToast';
 import { StudentPreviewGate } from './components/viewAs/StudentPreviewGate';
+import { StudentTours } from './components/student/tours/StudentTours';
 
 // Lazy load heavy components for code splitting
 // Using named export pattern: import(...).then(module => ({ default: module.ExportName }))
@@ -2041,6 +2042,7 @@ const App: React.FC = () => {
         <Suspense fallback={<FullPageLoader />}>
           <VideoActivityStudentApp />
         </Suspense>
+        <StudentTours />
         <DialogContainer />
       </DialogProvider>
     );
@@ -2053,6 +2055,7 @@ const App: React.FC = () => {
         <Suspense fallback={<FullPageLoader />}>
           <ActivityWallStudentApp />
         </Suspense>
+        <StudentTours />
         <DialogContainer />
       </DialogProvider>
     );
@@ -2084,6 +2087,7 @@ const App: React.FC = () => {
         <Suspense fallback={<FullPageLoader />}>
           <GuidedLearningStudentApp />
         </Suspense>
+        <StudentTours />
         <DialogContainer />
       </DialogProvider>
     );
@@ -2115,6 +2119,7 @@ const App: React.FC = () => {
             <Suspense fallback={<FullPageLoader />}>
               <MyAssignmentsPage />
             </Suspense>
+            <StudentTours />
           </RequireStudentAuth>
         </StudentAuthProvider>
         <DialogContainer />
@@ -2177,6 +2182,7 @@ const App: React.FC = () => {
         <Suspense fallback={<FullPageLoader />}>
           <QuizStudentApp />
         </Suspense>
+        <StudentTours />
         <DialogContainer />
       </DialogProvider>
     );
