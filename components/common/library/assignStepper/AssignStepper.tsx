@@ -1,6 +1,6 @@
 // Accordion assign dialog: optional top switch, one open step, Assign always in the footer (docs/plans/shipped/ASSIGN_STEPPER.md D1).
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Loader2, Rocket } from 'lucide-react';
+import { Loader2, Rocket, UserPlus } from 'lucide-react';
 import { ModalHeader } from '@/components/common/ModalHeader';
 import { Modal } from '@/components/common/Modal';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
@@ -45,16 +45,21 @@ export interface AssignStepperProps {
   viewAsGuard?: boolean;
   /** A panel beside the steps, in a wider dialog. */
   aside?: React.ReactNode;
+  /** The picked classes join an open assignment: later steps grey out and submit says so. */
+  joining?: boolean;
 }
+
+export const ADD_TO_ASSIGNMENT = 'Add to assignment';
+const KEPT_AS_IS = 'Kept as is';
 
 export const AssignStepper: React.FC<AssignStepperProps> = ({
   isOpen,
   onClose,
   title,
   topSwitch,
-  steps,
-  submitLabel,
-  submitIcon: SubmitIcon = Rocket,
+  steps: givenSteps,
+  submitLabel: givenSubmitLabel,
+  submitIcon: givenSubmitIcon = Rocket,
   onSubmit,
   submitting: submittingProp = false,
   disabled = false,
@@ -70,8 +75,18 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
   viewAsGuard = true,
   stickyFooter = false,
   aside,
+  joining = false,
 }) => {
   const titleId = useId();
+  const steps = joining
+    ? givenSteps.map((step, i) =>
+        i === 0
+          ? step
+          : { ...step, value: KEPT_AS_IS, body: null, disabled: true }
+      )
+    : givenSteps;
+  const submitLabel = joining ? ADD_TO_ASSIGNMENT : givenSubmitLabel;
+  const SubmitIcon = joining ? UserPlus : givenSubmitIcon;
   const outward = useViewAsOutward();
   const [openIndex, setOpenIndex] = useState(0);
   const [wasOpen, setWasOpen] = useState(isOpen);
@@ -201,7 +216,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
   const AltIcon = altAction?.icon;
   const footer = (
     <div className="flex items-center justify-end gap-2 px-6 py-3">
-      {altAction && (
+      {altAction && !joining && (
         <button
           {...altAction.anchor}
           type="button"

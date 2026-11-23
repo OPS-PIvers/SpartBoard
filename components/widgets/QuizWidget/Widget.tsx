@@ -28,6 +28,8 @@ import {
   previousRosterIdsFor,
   uncheckedRosterClassIds,
 } from '@/utils/assignmentClassEdit';
+import { dueLockAt } from '@/utils/periodAccess';
+import { addToOpenAssignment } from '@/utils/openAssignmentClasses';
 import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { isGameSession } from '@/utils/reviewResults';
 import { useReviewLaunch } from './useReviewLaunch';
@@ -3042,6 +3044,24 @@ const TeacherQuizWidget: React.FC<{
     );
   }
 
+  // Assign's "Add to the X assignment": the picked classes join an open copy instead of a new one.
+  const addClassesToAssignment = (
+    assignmentId: string,
+    addRosterIds: string[]
+  ): Promise<boolean> => {
+    const target = assignments.find((a) => a.id === assignmentId);
+    return addToOpenAssignment({
+      assignments,
+      assignmentId,
+      rosters,
+      addRosterIds,
+      dueLockAt: target ? dueLockAt(target) : null,
+      save: (a, edit) =>
+        setAssignmentRosters(a.id, edit, edit.periodAccessRows, [], []),
+      toast: addToast,
+    });
+  };
+
   // The live session's Tab warnings value wins, since the old monitor switch wrote only the session.
   const withLiveTabWarnings = (a: QuizAssignment): QuizAssignment =>
     liveSession?.id === a.id && liveSession.tabWarningsEnabled !== undefined
@@ -3493,6 +3513,7 @@ const TeacherQuizWidget: React.FC<{
         periodAccess={assignPeriodCtx}
         defaultTeacherName={user?.displayName ?? undefined}
         assignmentMode={quizAssignmentMode}
+        onAddClassesToAssignment={addClassesToAssignment}
         quizzes={quizzes}
         folderDeleteActions={{
           isBlocked: (id) =>

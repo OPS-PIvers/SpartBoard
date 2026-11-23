@@ -12,6 +12,7 @@ import type {
   LikeInfo,
   PostCommentInput,
 } from './useWallEngagement';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 export interface EngagementFooterProps {
   submission: ActivityWallSubmission;
@@ -79,8 +80,12 @@ export const EngagementFooter: React.FC<EngagementFooterProps> = ({
       <div className="flex items-center justify-end gap-3">
         {flags.allowLikes && (
           <button
-            // no-tour-anchor: like button on a wall post, one per post
             type="button"
+            {...tourFieldAttr(
+              'student.activity-wall.like',
+              'student-wall',
+              submission.id
+            )}
             onClick={() => void toggleLike()}
             disabled={likeBusy || !writable}
             className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-50 ${

@@ -10,6 +10,11 @@ import {
   type AssignStepId,
 } from '@/components/common/library/assignStepper/assignSteps';
 import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
+import {
+  ALREADY_ASSIGNED_REASON,
+  useAssignOpenCheck,
+  type AssignOpenProps,
+} from '@/components/common/library/assignStepper/assignOpenCheck';
 import { StudentPickMenu } from '@/components/common/library/assignStepper/StudentPickMenu';
 import {
   formatClassesValue,
@@ -61,6 +66,8 @@ export interface WritingAssignStepperProps {
   onClose: () => void;
   /** Resolves false when the assign failed. */
   onAssign: (submission: WritingAssignSubmission) => Promise<boolean | void>;
+  /** This item's assignments, to lock classes it is open for. */
+  openAssignments?: AssignOpenProps['openAssignments'];
 }
 
 const CTX = { kind: 'work' as const };
@@ -71,6 +78,7 @@ export const WritingAssignStepper: React.FC<WritingAssignStepperProps> = ({
   rosters,
   onClose,
   onAssign,
+  openAssignments,
 }) => {
   const { t } = useTranslation();
   const auth = useContext(AuthContext);
@@ -103,11 +111,18 @@ export const WritingAssignStepper: React.FC<WritingAssignStepperProps> = ({
       rosters.filter((r) => !r.loadError && classes.classIds.includes(r.id)),
     [rosters, classes.classIds]
   );
-  const disabledReason = !picked.some(rosterHasSsoClass)
-    ? 'Select at least one ClassLink class.'
-    : whenBackwards(when, picked, undefined, 'work')
-      ? t('assignAvailability.closesBeforeOpens', 'Closes before it opens.')
-      : undefined;
+  const openCheck = useAssignOpenCheck(
+    openAssignments,
+    rosters.filter((r) => !r.loadError),
+    classes
+  );
+  const disabledReason = openCheck.pickedOpen
+    ? ALREADY_ASSIGNED_REASON
+    : !picked.some(rosterHasSsoClass)
+      ? 'Select at least one ClassLink class.'
+      : whenBackwards(when, picked, undefined, 'work')
+        ? t('assignAvailability.closesBeforeOpens', 'Closes before it opens.')
+        : undefined;
 
   const bodies: Partial<
     Record<AssignStepId, { value: string; body: React.ReactNode }>
@@ -120,6 +135,7 @@ export const WritingAssignStepper: React.FC<WritingAssignStepperProps> = ({
             rosters={rosters}
             value={classes}
             onChange={setClasses}
+            open={openCheck.checklist}
             anchor={tourTypeAttr('writing.stepper-class-picker', 'writing')}
             rowAnchor={(_classId, rowIndex) =>
               tourFieldAttr(

@@ -14,6 +14,11 @@ import {
   type AssignStepDef,
 } from '@/components/common/library/assignStepper/assignSteps';
 import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
+import {
+  ALREADY_ASSIGNED_REASON,
+  useAssignOpenCheck,
+  type AssignOpenProps,
+} from '@/components/common/library/assignStepper/assignOpenCheck';
 import { StudentPickMenu } from '@/components/common/library/assignStepper/StudentPickMenu';
 import {
   formatClassesValue,
@@ -63,6 +68,8 @@ export interface MiniAppAssignStepperProps {
   onClose: () => void;
   /** Mini App results on: adds the Attempts and results step for submitted work. */
   resultsDefault?: MiniAppResultsChoice;
+  openAssignments?: AssignOpenProps['openAssignments'];
+  onAddToOpen?: AssignOpenProps['onAddToOpen'];
 }
 
 export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
@@ -77,6 +84,8 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
   onSubmit,
   onClose,
   resultsDefault,
+  openAssignments,
+  onAddToOpen,
 }) => {
   const { t } = useTranslation();
   const [kind, setKind] = useState<AssignKind>(defaultKind);
@@ -106,6 +115,13 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
   const audienceState = useAssignAudience();
   const staff = audienceState.audience === 'staff';
 
+  const openCheck = useAssignOpenCheck(
+    staff || !onAddToOpen ? null : openAssignments,
+    rosters.filter((r) => !r.loadError),
+    classes,
+    kind
+  );
+
   const pickedRosters = staff
     ? []
     : rosters.filter((r) => classes.classIds.includes(r.id));
@@ -126,6 +142,7 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
           rosters={rosters}
           value={classes}
           onChange={setClasses}
+          open={openCheck.checklist}
           anchor={tourTypeAttr('mini-app.stepper-class-picker', 'miniApp')}
           rowAnchor={(_classId, rowIndex) =>
             tourFieldAttr(
@@ -232,13 +249,24 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
       steps={steps}
       submitLabel="Assign"
       submitting={submitting}
-      disabled={nameMissing || backwards}
+      joining={openCheck.joining}
+      disabled={
+        openCheck.pickedOpen ||
+        (!openCheck.joining && (nameMissing || backwards))
+      }
       disabledReason={
-        backwards
-          ? t('assignAvailability.closesBeforeOpens', 'Closes before it opens.')
-          : undefined
+        openCheck.pickedOpen
+          ? ALREADY_ASSIGNED_REASON
+          : backwards
+            ? t(
+                'assignAvailability.closesBeforeOpens',
+                'Closes before it opens.'
+              )
+            : undefined
       }
       onSubmit={() => {
+        if (openCheck.joinTarget && onAddToOpen)
+          return onAddToOpen(openCheck.joinTarget.id, openCheck.classIds);
         if (!staff && variant === 'when') rememberWhen(when);
         return onSubmit(
           staff
