@@ -6779,11 +6779,15 @@ export interface PaperPrintedGroupRecord {
   number: number;
   answerChoices: 'all' | 'drop-one' | 'two';
   modifiedQuestions?: boolean;
-  /** The questions the group answers; absent = every question. */
-  questionIds?: string[];
   supports?: QuizSupport[];
   /** The group's language, so a reprint prints the same translation. */
   language?: string;
+  /** One student's copy printed from the monitor, rather than a group's stack. */
+  single?: true;
+  /** Option text left off per question id: a student copy's own hidden answer choices. */
+  hiddenChoices?: Record<string, string[]>;
+  /** The questions a student copy or group printed, when given only some. */
+  questionIds?: string[];
 }
 
 /** A printed group planned at assign, kept so a version closed before printing can still print. */
@@ -11871,6 +11875,7 @@ export type GlobalFeature =
   | 'paper-multi-page-answers'
   /** A live preview of one student's printed packet in the paper print dialogs. */
   | 'paper-print-preview'
+  | 'paper-student-copy'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
   | 'paper-written-hybrid'
   | 'paper-reword-sync'

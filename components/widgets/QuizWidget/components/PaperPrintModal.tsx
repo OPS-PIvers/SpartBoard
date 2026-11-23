@@ -273,6 +273,8 @@ export interface PaperPrintGroup {
   supports?: readonly PrintedSupport[];
   /** The group's language on the test paper; the answer sheet stays in English. */
   translation?: PrintedTranslation;
+  /** Prints by page map, so a scan reads the rows of a student's own question subset. */
+  servedQuestionIds?: readonly string[];
 }
 
 /** What the print dialog records on an authored quiz. */
@@ -712,7 +714,13 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   );
   // Only a sheet with written boxes, question text or versions prints by page map; every other sheet keeps today's layout.
   const pagePlan = useMemo((): PlanPaperPagesResult | null => {
-    if (writtenCount === 0 && !questionTextLayout && !versionPlan) return null;
+    if (
+      writtenCount === 0 &&
+      !questionTextLayout &&
+      !versionPlan &&
+      !group?.servedQuestionIds
+    )
+      return null;
     return planPages(
       isStub
         ? stubEntries(stubQuestionCount, stubWrittenInRange, (n) => `stub-${n}`)
@@ -722,6 +730,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     writtenCount,
     questionTextLayout,
     versionPlan,
+    group?.servedQuestionIds,
     planPages,
     isStub,
     stubQuestionCount,

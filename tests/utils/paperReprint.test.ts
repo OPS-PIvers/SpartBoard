@@ -84,6 +84,17 @@ describe('paperReprint', () => {
         { rows } as never
       )
     ).toBe('versions');
+    // A student copy of a question subset has one plain version and reprints.
+    expect(
+      reprintBlocker(
+        {
+          ...BATCH,
+          printedGroup: { number: 0, answerChoices: 'all', single: true },
+          versions: [{ label: '', servedQuestionIds: ['q1', 'q2'], swaps: {} }],
+        },
+        { rows } as never
+      )
+    ).toBeNull();
   });
 
   it('blocks a stack whose questions were reordered since printing', () => {

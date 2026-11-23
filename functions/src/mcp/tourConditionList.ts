@@ -109,6 +109,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'paper-pages-student-view',
   'paper-print-preview',
   'paper-reword-sync',
+  'paper-student-copy',
   'paper-written-hybrid',
   'personal-spotify',
   'plc-docs-toolbar',
