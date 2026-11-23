@@ -1,4 +1,11 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, {
+  Suspense,
+  lazy,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from 'react';
 import {
   ChevronDown,
   Globe,
@@ -27,7 +34,7 @@ import {
   stepsFileName,
   webTourStepsHtml,
 } from './stepsHtmlExport';
-import { sendTourToFreshservice, useCanFreshservice } from './freshservice';
+import { useCanFreshservice } from './freshservice';
 import {
   stepStatusRows,
   tourStatus,
@@ -71,6 +78,12 @@ export interface RowFacts {
 }
 
 export type Notice = { text: string; tone: 'success' | 'error' };
+
+const FreshserviceSendDialog = lazy(() =>
+  import('./FreshserviceSendDialog').then((m) => ({
+    default: m.FreshserviceSendDialog,
+  }))
+);
 
 const stepName = (row: StepStatusRow) =>
   `${row.index + 1}. ${row.label || 'Untitled step'}`;
@@ -263,31 +276,10 @@ const ShareMenu: React.FC<{
   };
 
   const canFresh = useCanFreshservice();
-  const toFreshservice = async () => {
+  const [freshOpen, setFreshOpen] = useState(false);
+  const toFreshservice = () => {
     closeMenu();
-    if (!live) return;
-    setBusy(true);
-    try {
-      const res = await sendTourToFreshservice(set.id, labels, live);
-      onNotice(
-        res.kind === 'not-set-up'
-          ? { tone: 'error', text: 'Set up FreshService first.' }
-          : res.missing > 0
-            ? {
-                tone: 'error',
-                text: `Sent to FreshService. ${res.missing} picture${res.missing === 1 ? '' : 's'} couldn't load.`,
-              }
-            : { tone: 'success', text: 'Sent to FreshService.' }
-      );
-    } catch (err) {
-      logError('WebTourList freshservice', err, { setId: set.id });
-      onNotice({
-        tone: 'error',
-        text: "The steps couldn't be sent to FreshService.",
-      });
-    } finally {
-      setBusy(false);
-    }
+    if (live) setFreshOpen(true);
   };
 
   const stepsReason = live ? null : 'Publish the tour first.';
@@ -371,7 +363,7 @@ const ShareMenu: React.FC<{
           {canFresh && (
             <button
               type="button"
-              onClick={() => void toFreshservice()}
+              onClick={toFreshservice}
               disabled={!live}
               className={item}
               {...tourFieldAttr(
@@ -384,13 +376,26 @@ const ShareMenu: React.FC<{
                 FreshService
               </span>
               <span className="text-xs text-slate-600">
-                {stepsReason ?? 'Updates its help article.'}
+                {stepsReason ?? 'Sends its help article as a draft.'}
               </span>
             </button>
           )}
         </div>
       )}
       {publicLink.dialog}
+      {freshOpen && live && (
+        <Suspense fallback={null}>
+          <FreshserviceSendDialog
+            set={live}
+            labels={labels}
+            onClose={() => setFreshOpen(false)}
+            onDone={(notice) => {
+              setFreshOpen(false);
+              onNotice(notice);
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   parseFreshserviceRequest,
   runFreshservice,
+  type ArticleRecord,
   type FreshserviceDeps,
   type FreshserviceSite,
 } from './freshservice';
@@ -15,7 +16,11 @@ const reply = (status: number, body: unknown) =>
   ({ status, json: () => Promise.resolve(body) }) as Response;
 
 function deps(over: Partial<FreshserviceDeps> = {}) {
-  const saved: { site?: FreshserviceSite; articleId?: number } = {};
+  const saved: {
+    site?: FreshserviceSite;
+    articleId?: number;
+    record?: ArticleRecord;
+  } = {};
   const d: FreshserviceDeps = {
     isAdmin: () => Promise.resolve(true),
     allowed: () => Promise.resolve(true),
@@ -26,9 +31,10 @@ function deps(over: Partial<FreshserviceDeps> = {}) {
     },
     loadApiKey: () => Promise.resolve('abcdefgh1234'),
     publishedTitle: () => Promise.resolve('Enable Markdown'),
-    articleId: () => Promise.resolve(null),
-    saveArticleId: (_s, id) => {
-      saved.articleId = id;
+    article: () => Promise.resolve(null),
+    saveArticle: (_s, record) => {
+      saved.articleId = record.articleId;
+      saved.record = record;
       return Promise.resolve();
     },
     fetch: vi.fn(() => Promise.resolve(reply(201, { article: { id: 7 } }))),
@@ -141,7 +147,7 @@ describe('runFreshservice', () => {
   });
 
   it('updates the saved article, and makes it again when it was deleted', async () => {
-    const { d } = deps({ articleId: () => Promise.resolve(7) });
+    const { d } = deps({ article: () => Promise.resolve({ articleId: 7 }) });
     vi.mocked(d.fetch).mockResolvedValueOnce(
       reply(200, { article: { id: 7 } })
     );
@@ -154,7 +160,7 @@ describe('runFreshservice', () => {
     expect(put.redirect).toBe('error');
     expect(JSON.parse(put.body as string)).toMatchObject({ folder_id: 42 });
 
-    const gone = deps({ articleId: () => Promise.resolve(7) });
+    const gone = deps({ article: () => Promise.resolve({ articleId: 7 }) });
     vi.mocked(gone.d.fetch)
       .mockResolvedValueOnce(reply(404, {}))
       .mockResolvedValueOnce(reply(201, { article: { id: 8 } }));
@@ -175,5 +181,176 @@ describe('runFreshservice', () => {
     await expect(runFreshservice(send, 'u', token, badKey.d)).rejects.toThrow(
       'API key'
     );
+  });
+
+  it('sends the chosen folder, tags and keywords and reuses them on the next publish', async () => {
+    const { d, saved } = deps();
+    const options = {
+      folderId: '77',
+      tags: ['Schoology'],
+      keywords: ['embed'],
+    };
+    await runFreshservice({ ...send, options }, 'u', token, d);
+    const post = vi.mocked(d.fetch).mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(post.body as string)).toMatchObject({
+      folder_id: 77,
+      tags: ['Schoology'],
+      keywords: ['embed'],
+      status: 1,
+    });
+    expect(saved.record).toEqual({ articleId: 7, ...options });
+
+    const again = deps({
+      article: () => Promise.resolve({ articleId: 7, ...options }),
+    });
+    await runFreshservice(send, 'u', token, again.d);
+    const put = vi.mocked(again.d.fetch).mock.calls[0][1] as RequestInit;
+    expect(put.method).toBe('PUT');
+    expect(JSON.parse(put.body as string)).toEqual({
+      title: 'Enable Markdown',
+      description: '<p>x</p>',
+      folder_id: 77,
+      tags: ['Schoology'],
+      keywords: ['embed'],
+    });
+  });
+
+  it('leaves tags alone on an article nobody labelled here', async () => {
+    const { d } = deps({ article: () => Promise.resolve({ articleId: 7 }) });
+    await runFreshservice(send, 'u', token, d);
+    const body = JSON.parse(
+      (vi.mocked(d.fetch).mock.calls[0][1] as RequestInit).body as string
+    ) as Record<string, unknown>;
+    expect(body).not.toHaveProperty('tags');
+    expect(body).not.toHaveProperty('keywords');
+  });
+
+  it('lists categories with their folders and what the tour last used', async () => {
+    const { d } = deps({
+      article: () =>
+        Promise.resolve({ articleId: 7, folderId: '11', tags: ['a'] }),
+    });
+    vi.mocked(d.fetch)
+      .mockResolvedValueOnce(
+        reply(200, { categories: [{ id: 1, name: 'Knowledge Base' }] })
+      )
+      .mockResolvedValueOnce(
+        reply(200, {
+          folders: [{ id: 11, name: 'General', visibility: 2 }, { id: 'x' }],
+        })
+      );
+    expect(
+      await runFreshservice(
+        { action: 'catalog', setId: 'tour1' },
+        'u',
+        token,
+        d
+      )
+    ).toEqual({
+      ready: true,
+      defaultFolderId: '42',
+      saved: { folderId: '11', tags: ['a'], keywords: [] },
+      categories: [
+        {
+          id: '1',
+          name: 'Knowledge Base',
+          folders: [{ id: '11', name: 'General', visibility: 2 }],
+        },
+      ],
+    });
+    const urls = vi.mocked(d.fetch).mock.calls.map((c) => c[0]);
+    expect(urls).toEqual([
+      'https://orono.freshservice.com/api/v2/solutions/categories?per_page=100&page=1',
+      'https://orono.freshservice.com/api/v2/solutions/folders?category_id=1&per_page=100&page=1',
+    ]);
+    expect(
+      (vi.mocked(d.fetch).mock.calls[0][1] as RequestInit).body
+    ).toBeUndefined();
+  });
+
+  it('creates a folder with its visibility and a category by name', async () => {
+    const { d } = deps();
+    vi.mocked(d.fetch)
+      .mockResolvedValueOnce(reply(201, { folder: { id: 55 } }))
+      .mockResolvedValueOnce(reply(201, { category: { id: 66 } }))
+      .mockResolvedValueOnce(reply(409, {}));
+    expect(
+      await runFreshservice(
+        {
+          action: 'createFolder',
+          categoryId: '3',
+          name: 'Schoology',
+          visibility: 2,
+        },
+        'u',
+        token,
+        d
+      )
+    ).toEqual({ id: '55' });
+    const [url, init] = vi.mocked(d.fetch).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
+    expect(url).toBe('https://orono.freshservice.com/api/v2/solutions/folders');
+    expect(JSON.parse(init.body as string)).toEqual({
+      name: 'Schoology',
+      category_id: 3,
+      visibility: 2,
+    });
+    expect(
+      await runFreshservice(
+        { action: 'createCategory', name: 'Teacher guides' },
+        'u',
+        token,
+        d
+      )
+    ).toEqual({ id: '66' });
+    await expect(
+      runFreshservice({ action: 'createCategory', name: 'Dup' }, 'u', token, d)
+    ).rejects.toThrow('already be in use');
+  });
+
+  it('checks the new requests', () => {
+    expect(
+      parseFreshserviceRequest({
+        action: 'send',
+        setId: 'tour1',
+        html: '<p>x</p>',
+        options: {
+          folderId: '9',
+          tags: [' Google ', 'google', ''],
+          keywords: ['sign  in'],
+        },
+      })
+    ).toMatchObject({
+      options: { folderId: '9', tags: ['Google'], keywords: ['sign in'] },
+    });
+    expect(() =>
+      parseFreshserviceRequest({
+        action: 'send',
+        setId: 'tour1',
+        html: 'a',
+        options: { folderId: 'x' },
+      })
+    ).toThrow('folder');
+    expect(() =>
+      parseFreshserviceRequest({
+        action: 'send',
+        setId: 'tour1',
+        html: 'a',
+        options: { folderId: '9', tags: ['x'.repeat(33)] },
+      })
+    ).toThrow('32');
+    expect(() =>
+      parseFreshserviceRequest({
+        action: 'createFolder',
+        categoryId: '3',
+        name: 'A',
+        visibility: 4,
+      })
+    ).toThrow('see the folder');
+    expect(() =>
+      parseFreshserviceRequest({ action: 'createCategory', name: ' ' })
+    ).toThrow('name');
   });
 });
