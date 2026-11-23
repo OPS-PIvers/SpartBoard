@@ -101,4 +101,27 @@ describe('layoutSheetStimuli', () => {
     expect(layout.sets[0].prompts.slot?.heightMm).toBe(20);
     expect(layout.sets[0].written.slot).toBeUndefined();
   });
+  it('prints every version block in the header when any version prompts that box', () => {
+    const layout = layoutSheetStimuli(
+      [
+        {
+          entries: [wr('a', '1', 'S')],
+          mapIds: ['slot'],
+          plan: plan({ a: 5 }),
+        },
+        {
+          entries: [wr('b', '1', 'S')],
+          mapIds: ['slot'],
+          plan: plan({ b: 250 }),
+        },
+      ],
+      new Set()
+    );
+    expect([...layout.promptIds]).toEqual(['slot']);
+    expect(layout.sets.map((set) => set.prompts.slot?.heightMm)).toEqual([
+      5, 250,
+    ]);
+    expect(layout.sets[0].written.slot).toBeUndefined();
+    expect(layout.stimulusMm.slot).toBeUndefined();
+  });
 });
