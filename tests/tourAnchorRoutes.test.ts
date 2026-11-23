@@ -63,10 +63,14 @@ const AREA_ROOTS: Record<Area, readonly string[]> = {
   guidedLearning: [
     'components/widgets/GuidedLearning/',
     'components/gradebook/',
-    'components/student/',
   ],
   widgets: ['components/widgets/'],
   studentQuiz: ['components/quiz/'],
+  studentWall: [
+    'components/activityWall/',
+    'components/activityWall/render/SubmissionCard.tsx',
+  ],
+  studentAssignments: ['components/student/'],
   studentVideo: ['components/videoActivity/'],
   studentGuidedLearning: ['components/guidedLearning/'],
 };
