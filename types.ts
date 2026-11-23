@@ -11899,8 +11899,6 @@ export type GlobalFeature =
   | 'routine-guide'
   /** Class groups with a weekly schedule that pop a reminder on the open board. */
   | 'group-reminders'
-  /** Edit Class: groups open as pages that hold their accommodations; Accommodations lists every student. */
-  | 'class-groups-redesign'
   | 'classlink-clean-names'
   /** Group reminders: the Symbol step of the class group editor. */
   | 'group-symbols'

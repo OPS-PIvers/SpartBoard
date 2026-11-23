@@ -18981,64 +18981,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  'roster-editor.add-group': {
-    label: 'New Group button on the empty roster editor Groups tab',
-    panel: true,
-  },
-  'roster-editor.group-members': {
-    label: 'Edit group members button on a roster editor group, keyed group-N',
-    perField: true,
-    panel: true,
-  },
-  'roster-editor.group-name': {
-    label: 'Group name box on a roster editor group',
-    perField: true,
-    panel: true,
-  },
-  'roster-editor.group-remove': {
-    label: 'Remove group button on a roster editor group',
-    perField: true,
-    destructive: true,
-    panel: true,
-  },
-  'roster-editor.accommodations-group': {
-    label: 'Group row on the roster editor Accommodations tab',
-    perField: true,
-    panel: true,
-    keyPattern: 'roster-editor#row-[1-9]\\d*',
-    keyHint: 'roster-editor#row-1 for the first row',
-    rows: true,
-    rowList: 'roster-accommodation-groups',
-  },
-  'roster-editor.accommodations-add': {
-    label:
-      'Add menu for students and groups on the roster editor Accommodations tab',
-    panel: true,
-  },
-  'roster-editor.accommodations-search': {
-    label: 'Search box in the Accommodations Add menu',
-    panel: true,
-  },
-  'roster-editor.accommodations-pick-group': {
-    label: 'Group checkbox in the Accommodations Add menu',
-    perField: true,
-    panel: true,
-    persists: true,
-    keyPattern: 'roster-editor#row-[1-9]\\d*',
-    keyHint: 'roster-editor#row-1 for the first row',
-    rows: true,
-    rowList: 'roster-accommodations-pick-groups',
-  },
-  'roster-editor.accommodations-pick-student': {
-    label: 'Student checkbox in the Accommodations Add menu',
-    perField: true,
-    panel: true,
-    persists: true,
-    keyPattern: 'roster-editor#row-[1-9]\\d*',
-    keyHint: 'roster-editor#row-1 for the first row',
-    rows: true,
-    rowList: 'roster-accommodations-pick-students',
-  },
   'roster-editor.accommodations-answer-choices': {
     label:
       'Answer choices control for a student or group in the roster editor Accommodations tab',
@@ -19047,16 +18989,6 @@ export const TOUR_ANCHORS = {
   'roster-editor.accommodations-modified-questions': {
     label:
       'Modified questions switch for a student or group in the roster editor Accommodations tab',
-    panel: true,
-  },
-  'roster-editor.accommodations-done': {
-    label: 'Done button that closes the Accommodations Add menu',
-    panel: true,
-  },
-  'roster-editor.accommodations-remove': {
-    label: 'Remove button on a row of the roster editor Accommodations tab',
-    perField: true,
-    destructive: true,
     panel: true,
   },
   'roster-editor.accommodations-add-student': {

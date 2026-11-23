@@ -1,4 +1,4 @@
-// Accommodations tab of Edit Class (class-groups-redesign): every student, with what their groups give and what is their own.
+// Accommodations tab of Edit Class: every student, with what their groups give and what is their own.
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, Pencil } from 'lucide-react';
