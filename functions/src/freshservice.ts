@@ -106,16 +106,21 @@ const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 function parseTerms(v: unknown, what: string, maxChars: number): string[] {
   if (v === undefined || v === null) return [];
   if (!Array.isArray(v)) throw bad(`The ${what} are not valid.`);
+  const tooMany = () => bad(`Use ${MAX_TERMS} ${what} or fewer.`);
+  // Checked before the loop, so an oversized list costs nothing to turn down.
+  if (v.length > MAX_TERMS * 5) throw tooMany();
+  const seen = new Set<string>();
   const out: string[] = [];
   for (const raw of v) {
     const term = str(raw).replace(/\s+/g, ' ');
     if (!term) continue;
     if (term.length > maxChars)
       throw bad(`Keep each of the ${what} to ${maxChars} characters.`);
-    if (!out.some((o) => o.toLowerCase() === term.toLowerCase()))
-      out.push(term);
+    if (seen.has(term.toLowerCase())) continue;
+    seen.add(term.toLowerCase());
+    out.push(term);
+    if (out.length > MAX_TERMS) throw tooMany();
   }
-  if (out.length > MAX_TERMS) throw bad(`Use ${MAX_TERMS} ${what} or fewer.`);
   return out;
 }
 
