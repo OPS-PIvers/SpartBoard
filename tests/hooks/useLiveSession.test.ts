@@ -346,7 +346,13 @@ describe('useLiveSession — startSession code claimed between probe and commit'
       session = await result.current.startSession('widget-1', 'clock');
     });
     expect(batch.commit).toHaveBeenCalledTimes(2);
-    expect(session?.code).toBeTruthy();
+    const codes = batch.set.mock.calls
+      .map((c) => c[1] as { code?: string })
+      .filter((d) => d.code)
+      .map((d) => d.code);
+    expect(codes).toHaveLength(2);
+    expect(codes[1]).not.toBe(codes[0]);
+    expect(session?.code).toBe(codes[1]);
   });
 
   it('gives up after 3 refused batches', async () => {
