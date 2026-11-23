@@ -1,5 +1,22 @@
 import type { Collection } from '@/types';
 
+// Walks parent links from an unreachable collection to the member its chain loops back on, so only a cycle member is hoisted, never a branch hanging off one.
+export const cycleMemberOf = (
+  start: Collection,
+  byId: ReadonlyMap<string, Collection>
+): Collection => {
+  const seen = new Set<string>();
+  let c = start;
+  while (!seen.has(c.id)) {
+    seen.add(c.id);
+    const up =
+      c.parentCollectionId != null ? byId.get(c.parentCollectionId) : undefined;
+    if (!up) break;
+    c = up;
+  }
+  return c;
+};
+
 // Groups collections by parent for O(1) child lookup; orphans (parent id doesn't resolve) surface at root, mirroring boardNavMenu.ts's flattenCollections.
 export const buildChildrenByParent = (
   collections: Collection[]
@@ -36,8 +53,10 @@ export const buildChildrenByParent = (
     }
   };
   markFrom(null);
-  for (const c of [...collections].sort((a, b) => a.order - b.order)) {
-    if (reached.has(c.id)) continue;
+  const byId = new Map(collections.map((c) => [c.id, c]));
+  for (const start of [...collections].sort((a, b) => a.order - b.order)) {
+    if (reached.has(start.id)) continue;
+    const c = cycleMemberOf(start, byId);
     const bucket = m.get(c.parentCollectionId);
     const idx = bucket ? bucket.indexOf(c) : -1;
     if (idx !== -1) bucket?.splice(idx, 1);

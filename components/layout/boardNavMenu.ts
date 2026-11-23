@@ -1,5 +1,6 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { Collection } from '@/types';
+import { cycleMemberOf } from '@/components/boardsModal/collectionTreeUtils';
 
 export const MENU_PANEL_CLASS =
   'absolute bottom-full left-0 mb-2 w-64 max-h-[60vh] overflow-y-auto rounded-2xl border border-white/20 bg-slate-900/80 backdrop-blur-xl shadow-2xl py-1.5 animate-in fade-in slide-in-from-bottom-2 duration-150';
@@ -60,8 +61,10 @@ export const flattenCollections = (
     walk(c.id, 1);
   }
   // Parent cycles (two-tab races) are unreachable from root; surface them there too.
-  for (const c of [...collections].sort((a, b) => a.order - b.order)) {
-    if (visited.has(c.id)) continue;
+  const byId = new Map(collections.map((c) => [c.id, c]));
+  for (const start of [...collections].sort((a, b) => a.order - b.order)) {
+    if (visited.has(start.id)) continue;
+    const c = cycleMemberOf(start, byId);
     visited.add(c.id);
     out.push({ c, depth: 0, effectiveParentId: null });
     walk(c.id, 1);
