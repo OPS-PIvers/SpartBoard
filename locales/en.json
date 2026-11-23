@@ -6121,7 +6121,10 @@
   "widgetWhatsNew": {
     "label": "What's new",
     "dismiss": "Dismiss",
-    "gotIt": "Got it"
+    "gotIt": "Got it",
+    "listTitle": "Widget updates",
+    "more": "{{count}} more",
+    "showLess": "Show less"
   },
   "rubricGuide": {
     "examples": "Example responses",

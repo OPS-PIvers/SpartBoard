@@ -1879,6 +1879,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'widget-notes-in-whats-new': {
+    label: "Widget updates in What's New",
+    icon: Sparkles,
+    description:
+      "Widget update notes are listed in What's New instead of under each widget.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'assignments-hub': {
     label: 'Assignments hub',
     icon: ClipboardList,

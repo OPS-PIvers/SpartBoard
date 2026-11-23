@@ -118,8 +118,12 @@ interface WidgetWhatsNewProps {
 }
 
 /** A widget's what's-new button below its window; teacher boards only (the subs portal has no AuthProvider). */
-export const WidgetWhatsNew: React.FC<WidgetWhatsNewProps> = (props) =>
-  useContext(AuthContext) ? <WidgetWhatsNewNotice {...props} /> : null;
+export const WidgetWhatsNew: React.FC<WidgetWhatsNewProps> = (props) => {
+  const auth = useContext(AuthContext);
+  // With the list in What's New, notes no longer float under each widget.
+  if (!auth || auth.canAccessFeature('widget-notes-in-whats-new')) return null;
+  return <WidgetWhatsNewNotice {...props} />;
+};
 
 const WidgetWhatsNewNotice: React.FC<WidgetWhatsNewProps> = ({
   widgetType,

@@ -1,9 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
+import React from 'react';
 import type { ChangelogWidgetNote } from '@/hooks/useChangelog';
+import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import {
   dismissWidgetWhatsNew,
+  groupWidgetNotes,
   pickWidgetNote,
+  useWidgetNotesList,
   useWidgetWhatsNew,
 } from './useWidgetWhatsNew';
 
@@ -118,5 +122,54 @@ describe('useWidgetWhatsNew dismiss', () => {
     expect(result.current.note).toBeNull();
     const clock = renderHook(() => useWidgetWhatsNew('clock'));
     expect(clock.result.current.note?.id).toBe('clock-a');
+  });
+});
+
+describe('useWidgetNotesList', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('lists every widget newest first and marks them all seen at once', () => {
+    mockNotes.list = [
+      note('cal-old', 'calendar', '2026-10-01'),
+      note('clock-new', 'clock', '2099-01-01'),
+      note('cal-new', 'calendar', new Date().toISOString().slice(0, 10)),
+      note('dice-new', 'dice', new Date().toISOString().slice(0, 10)),
+      note('clock-today', 'clock', new Date().toISOString().slice(0, 10)),
+    ];
+    const auth = {
+      canAccessWidget: (w: string) => w !== 'clock',
+      canAccessFeature: () => true,
+    } as unknown as AuthContextType;
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(AuthContext.Provider, { value: auth }, children);
+    const { result } = renderHook(() => useWidgetNotesList(), { wrapper });
+    expect(
+      result.current.groups.map((g) => [g.widget, g.notes.map((n) => n.id)])
+    ).toEqual([
+      ['calendar', ['cal-new']],
+      ['dice', ['dice-new']],
+    ]);
+    expect(result.current.hasUnseen).toBe(true);
+    act(() => result.current.markSeen());
+    expect(result.current.hasUnseen).toBe(false);
+    expect(result.current.groups).toHaveLength(2);
+    const pill = renderHook(() => useWidgetWhatsNew('dice'));
+    expect(pill.result.current.note).toBeNull();
+  });
+});
+
+describe('groupWidgetNotes', () => {
+  it('lists a note shared by several widgets only under the first', () => {
+    const shared = { text: 'Same change' };
+    expect(
+      groupWidgetNotes([
+        note('q1', 'quiz', '2026-11-20', shared),
+        note('v1', 'video-activity', '2026-11-20', shared),
+        note('v2', 'video-activity', '2026-11-19'),
+      ]).map((g) => [g.widget, g.notes.map((n) => n.id)])
+    ).toEqual([
+      ['quiz', ['q1']],
+      ['video-activity', ['v2']],
+    ]);
   });
 });
