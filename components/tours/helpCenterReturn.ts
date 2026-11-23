@@ -29,7 +29,7 @@ export const openInHelpCenterAction = (
   onClick: () => requestOpenHelpCenter({ selectId: itemId }),
 });
 
-/** Ends a recorded or edited tour: a Help Center start goes back there (H13), a widget recording toasts (H2). */
+/** Ends a recorded or edited tour: a Help Center start goes back there (H13), a widget or /subs recording toasts (H2). */
 export function endTourSession(
   origin: TourOrigin | undefined,
   setId: string,
@@ -38,5 +38,6 @@ export function endTourSession(
   const itemId = takeFiledHelpItem(setId);
   if (origin === 'help-center')
     requestOpenHelpCenter(itemId ? { selectId: itemId } : {});
-  else if (origin === 'widget' && itemId) announce(itemId);
+  else if ((origin === 'widget' || origin === 'subs') && itemId)
+    announce(itemId);
 }

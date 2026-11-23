@@ -7,6 +7,8 @@ import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 import { useSubCollectionShares } from './useSubCollectionShares';
 import { buildDirectoryEntries } from './subDirectory';
 import { SubDirectoryCard } from './SubDirectoryCard';
+import { tourAttr } from '@/config/tourAnchors';
+import { SubsHelpButton } from './tours/SubsHelpButton';
 
 interface TeacherDirectoryScreenProps {
   buildingId: string;
@@ -75,14 +77,18 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
             </div>
           </div>
         </div>
-        <button /* no-tour-anchor: substitute portal, never on the board */
-          type="button"
-          onClick={onChangeBuilding}
-          className="inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-2.5 py-1.5 text-xs transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Change building
-        </button>
+        <div className="flex items-center gap-2">
+          <SubsHelpButton variant="header" />
+          <button
+            type="button"
+            onClick={onChangeBuilding}
+            className="inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-2.5 py-1.5 text-xs transition-colors cursor-pointer"
+            {...tourAttr('subs.change-building')}
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Change building
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 px-8 pb-12">
@@ -136,9 +142,10 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
                 No teachers in this building have shared a substitute board
                 today. Check with the office or try a different building.
               </p>
-              <button /* no-tour-anchor: substitute portal, never on the board */
+              <button
                 type="button"
                 onClick={onChangeBuilding}
+                {...tourAttr('subs.empty-change-building')}
                 className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
@@ -147,10 +154,11 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {entries.map((entry) => (
+              {entries.map((entry, i) => (
                 <SubDirectoryCard
                   key={entry.key}
                   entry={entry}
+                  row={i + 1}
                   buildingName={building?.name ?? ''}
                   onPickBoard={onPickBoard}
                   onPickCollectionBoard={onPickCollectionBoard}

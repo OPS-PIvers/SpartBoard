@@ -1778,6 +1778,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'subs-live-tours': {
+    label: 'Live tours for subs',
+    icon: UserCheck,
+    description:
+      'Subs get a Help button with live tours. Admins record them on the sub page.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'assignments-hub': {
     label: 'Assignments hub',
     icon: ClipboardList,

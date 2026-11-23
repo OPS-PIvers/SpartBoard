@@ -573,3 +573,132 @@ describe('help_resources — delete', () => {
     );
   });
 });
+
+// audience 'subs' marks a /subs portal tour; reads are the same as any item's.
+describe('help_resources — audience', () => {
+  const subsTour = (id: string, overrides: Record<string, unknown> = {}) =>
+    validItem(id, {
+      kind: 'guided-learning',
+      setId: 'set-subs',
+      url: null,
+      embedType: null,
+      audience: 'subs',
+      ...overrides,
+    });
+
+  it('a super admin can create a substitute tour', async () => {
+    await assertSucceeds(
+      setDoc(doc(asSuper(), 'help_resources/subs-1'), subsTour('subs-1'))
+    );
+  });
+
+  it('an explicit teachers audience is accepted', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asSuper(), 'help_resources/teachers-1'),
+        subsTour('teachers-1', { audience: 'teachers' })
+      )
+    );
+  });
+
+  it('an unknown audience is rejected', async () => {
+    await assertFails(
+      setDoc(
+        doc(asSuper(), 'help_resources/students-1'),
+        subsTour('students-1', { audience: 'students' })
+      )
+    );
+  });
+
+  it('a non-string audience is rejected', async () => {
+    await assertFails(
+      setDoc(
+        doc(asSuper(), 'help_resources/bool-1'),
+        subsTour('bool-1', { audience: true })
+      )
+    );
+  });
+
+  it('a plain teacher cannot create a substitute tour', async () => {
+    await assertFails(
+      setDoc(
+        doc(asTeacher(), 'help_resources/subs-teacher'),
+        subsTour('subs-teacher', {
+          createdBy: TEACHER_UID,
+          createdByEmail: TEACHER_EMAIL,
+        })
+      )
+    );
+  });
+
+  describe('on an existing item', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        const db = ctx.firestore();
+        await setDoc(doc(db, 'help_resources/subs-2'), subsTour('subs-2'));
+        await setDoc(
+          doc(db, 'help_resources/org-subs'),
+          subsTour('org-subs', {
+            orgId: ORG_A,
+            createdBy: ORG_ADMIN_UID,
+            createdByEmail: ORG_ADMIN_EMAIL,
+          })
+        );
+      });
+    });
+
+    it('a signed-in staff member reads a global substitute tour', async () => {
+      await assertSucceeds(getDoc(doc(asTeacher(), 'help_resources/subs-2')));
+    });
+
+    it('an org member reads their org substitute tour', async () => {
+      await assertSucceeds(getDoc(doc(asTeacher(), 'help_resources/org-subs')));
+    });
+
+    it("another org's member cannot read it", async () => {
+      await assertFails(getDoc(doc(asTeacherB(), 'help_resources/org-subs')));
+    });
+
+    it('an anonymous PIN student cannot read a substitute tour', async () => {
+      await assertFails(getDoc(doc(asAnonStudent(), 'help_resources/subs-2')));
+    });
+
+    it('a GIS student cannot read a substitute tour', async () => {
+      await assertFails(getDoc(doc(asGisStudent(), 'help_resources/org-subs')));
+    });
+
+    it('an org admin can switch it back to teachers', async () => {
+      await assertSucceeds(
+        updateDoc(doc(asOrgAdmin(), 'help_resources/org-subs'), {
+          audience: 'teachers',
+          updatedAt: 2000,
+        })
+      );
+    });
+
+    it('an admin cannot set an unknown audience', async () => {
+      await assertFails(
+        updateDoc(doc(asSuper(), 'help_resources/subs-2'), {
+          audience: 'everyone',
+          updatedAt: 2000,
+        })
+      );
+    });
+
+    it('a teacher cannot change the audience', async () => {
+      await assertFails(
+        updateDoc(doc(asTeacher(), 'help_resources/org-subs'), {
+          audience: 'teachers',
+        })
+      );
+    });
+
+    it('a teacher can still bump openCount by one', async () => {
+      await assertSucceeds(
+        updateDoc(doc(asTeacher(), 'help_resources/org-subs'), {
+          openCount: 1,
+        })
+      );
+    });
+  });
+});

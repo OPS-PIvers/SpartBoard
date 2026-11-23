@@ -39794,6 +39794,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.help-center.new-record-subs-tour",
+    "label": "Record a Live tour for subs in the Help Center New menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.help-center.new-move",
     "label": "Move from library in the Help Center New menu",
     "scope": "board",
@@ -39936,6 +39955,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "admin.help-center.detail-category",
     "label": "Category select on the selected Help Center item",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.detail-audience",
+    "label": "Who sees it select (Teachers or Substitutes) on a selected live tour",
     "scope": "board",
     "panel": true,
     "persists": true,
@@ -82880,6 +82919,365 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.sub-launch",
         "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.help",
+    "label": "Help button on every substitute portal screen",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-portal",
+        "kind": "page",
+        "url": "/subs",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.help-tour",
+    "label": "A live tour in the substitute portal Help menu, keyed row-N",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "subs-help#row-[1-9]\\d*",
+    "key_hint": "subs-help#row-1 for the first tour",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.subs-help",
+        "kind": "menu",
+        "path": [
+          "subs.help"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "subs.help-record",
+    "label": "Record a tour in the substitute portal Help menu (admins)",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.subs-help",
+        "kind": "menu",
+        "path": [
+          "subs.help"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "subs.sign-out",
+    "label": "Sign out on the substitute building picker",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-portal",
+        "kind": "page",
+        "url": "/subs",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.building",
+    "label": "A building card on the substitute building picker, keyed row-N",
+    "scope": "field",
+    "key_pattern": "subs-building#row-[1-9]\\d*",
+    "key_hint": "subs-building#row-1 for the first building",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.subs-portal",
+        "kind": "page",
+        "url": "/subs",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.change-building",
+    "label": "Change building on the substitute teacher list",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-portal",
+        "kind": "page",
+        "url": "/subs",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.empty-change-building",
+    "label": "Change building when no boards are shared in that building",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-portal",
+        "kind": "page",
+        "url": "/subs",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.board",
+    "label": "A board card on the substitute teacher list, keyed row-N",
+    "scope": "field",
+    "key_pattern": "subs-directory#row-[1-9]\\d*",
+    "key_hint": "subs-directory#row-1 for the first card",
+    "row_wildcard": true,
+    "row_list": "subs-directory",
+    "routes": [
+      {
+        "surface": "board.subs-portal",
+        "kind": "page",
+        "url": "/subs",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.collection-board",
+    "label": "A board inside a shared collection card on the substitute teacher list",
+    "scope": "field",
+    "key_pattern": "subs-directory#row-[1-9]\\d*-board-[1-9]\\d*",
+    "key_hint": "subs-directory#row-1-board-2 for the second board in the first card",
+    "routes": [
+      {
+        "surface": "board.subs-portal",
+        "kind": "page",
+        "url": "/subs",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.board-menu",
+    "label": "Board menu with the teacher's name on a substitute board",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.board-menu-reset",
+    "label": "Reset board in the substitute board menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": [
+          "subs.board-menu"
+        ],
+        "reveal": "subs.board-menu"
+      }
+    ]
+  },
+  {
+    "id": "subs.board-menu-directory",
+    "label": "Back to teacher list in the substitute board menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": [
+          "subs.board-menu"
+        ],
+        "reveal": "subs.board-menu"
+      }
+    ]
+  },
+  {
+    "id": "subs.board-menu-building",
+    "label": "Change building in the substitute board menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": [
+          "subs.board-menu"
+        ],
+        "reveal": "subs.board-menu"
+      }
+    ]
+  },
+  {
+    "id": "subs.board-menu-sign-out",
+    "label": "Sign out in the substitute board menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": [
+          "subs.board-menu"
+        ],
+        "reveal": "subs.board-menu"
+      }
+    ]
+  },
+  {
+    "id": "subs.load-classes",
+    "label": "Button on a substitute board that loads the teacher's class lists",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.load-classes-confirm",
+    "label": "Confirm button in the substitute class list prompt",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": [
+          "subs.load-classes"
+        ],
+        "reveal": "subs.load-classes"
+      }
+    ]
+  },
+  {
+    "id": "subs.load-classes-later",
+    "label": "Not now in the substitute class list prompt",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": [
+          "subs.load-classes"
+        ],
+        "reveal": "subs.load-classes"
+      }
+    ]
+  },
+  {
+    "id": "subs.nav-previous",
+    "label": "Previous board on a substitute collection board",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.nav-next",
+    "label": "Next board on a substitute collection board",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.nav-menu",
+    "label": "Button that lists the teacher's boards on a substitute collection board",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.nav-board",
+    "label": "A board in the substitute collection board list, keyed row-N",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "subs-nav#row-[1-9]\\d*",
+    "key_hint": "subs-nav#row-1 for the first board",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": [
+          "subs.nav-menu"
+        ],
+        "reveal": "subs.nav-menu"
+      }
+    ]
+  },
+  {
+    "id": "subs.nav-retry",
+    "label": "Try again after a substitute collection board failed to open",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.update-reload",
+    "label": "Reload after the teacher updated the shared substitute boards",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.error-back",
+    "label": "Back button after a substitute board expired or failed to load",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
         "path": []
       }
     ]

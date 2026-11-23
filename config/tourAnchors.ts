@@ -9623,6 +9623,10 @@ export const TOUR_ANCHORS = {
     label: 'Record a Live tour in the Help Center New menu',
     panel: true,
   },
+  'admin.help-center.new-record-subs-tour': {
+    label: 'Record a Live tour for subs in the Help Center New menu',
+    panel: true,
+  },
   'admin.help-center.new-move': {
     label: 'Move from library in the Help Center New menu',
     panel: true,
@@ -9659,6 +9663,12 @@ export const TOUR_ANCHORS = {
   },
   'admin.help-center.detail-category': {
     label: 'Category select on the selected Help Center item',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.detail-audience': {
+    label:
+      'Who sees it select (Teachers or Substitutes) on a selected live tour',
     persists: true,
     panel: true,
   },
@@ -19289,6 +19299,106 @@ export const TOUR_ANCHORS = {
   'sub-launch.end-cancel': {
     label: 'Cancel button when ending a substitute-started run',
     panel: true,
+  },
+  // Substitute portal (/subs): the building and board pickers, the sub board's chrome and Help.
+  'subs.help': { label: 'Help button on every substitute portal screen' },
+  'subs.help-tour': {
+    label: 'A live tour in the substitute portal Help menu, keyed row-N',
+    perField: true,
+    keyPattern: 'subs-help#row-[1-9]\\d*',
+    keyHint: 'subs-help#row-1 for the first tour',
+    panel: true,
+    rows: true,
+  },
+  'subs.help-record': {
+    label: 'Record a tour in the substitute portal Help menu (admins)',
+    panel: true,
+    creates: true,
+  },
+  'subs.sign-out': { label: 'Sign out on the substitute building picker' },
+  'subs.building': {
+    label: 'A building card on the substitute building picker, keyed row-N',
+    perField: true,
+    keyPattern: 'subs-building#row-[1-9]\\d*',
+    keyHint: 'subs-building#row-1 for the first building',
+    rows: true,
+  },
+  'subs.change-building': {
+    label: 'Change building on the substitute teacher list',
+  },
+  'subs.empty-change-building': {
+    label: 'Change building when no boards are shared in that building',
+  },
+  'subs.board': {
+    label: 'A board card on the substitute teacher list, keyed row-N',
+    perField: true,
+    keyPattern: 'subs-directory#row-[1-9]\\d*',
+    keyHint: 'subs-directory#row-1 for the first card',
+    rows: true,
+    rowList: 'subs-directory',
+  },
+  'subs.collection-board': {
+    label:
+      'A board inside a shared collection card on the substitute teacher list',
+    perField: true,
+    keyPattern: 'subs-directory#row-[1-9]\\d*-board-[1-9]\\d*',
+    keyHint:
+      'subs-directory#row-1-board-2 for the second board in the first card',
+  },
+  'subs.board-menu': {
+    label: "Board menu with the teacher's name on a substitute board",
+  },
+  'subs.board-menu-reset': {
+    label: 'Reset board in the substitute board menu',
+    panel: true,
+  },
+  'subs.board-menu-directory': {
+    label: 'Back to teacher list in the substitute board menu',
+    panel: true,
+  },
+  'subs.board-menu-building': {
+    label: 'Change building in the substitute board menu',
+    panel: true,
+  },
+  'subs.board-menu-sign-out': {
+    label: 'Sign out in the substitute board menu',
+    panel: true,
+  },
+  'subs.load-classes': {
+    label: "Button on a substitute board that loads the teacher's class lists",
+  },
+  'subs.load-classes-confirm': {
+    label: 'Confirm button in the substitute class list prompt',
+    panel: true,
+  },
+  'subs.load-classes-later': {
+    label: 'Not now in the substitute class list prompt',
+    panel: true,
+  },
+  'subs.nav-previous': {
+    label: 'Previous board on a substitute collection board',
+  },
+  'subs.nav-next': { label: 'Next board on a substitute collection board' },
+  'subs.nav-menu': {
+    label:
+      "Button that lists the teacher's boards on a substitute collection board",
+  },
+  'subs.nav-board': {
+    label: 'A board in the substitute collection board list, keyed row-N',
+    perField: true,
+    keyPattern: 'subs-nav#row-[1-9]\\d*',
+    keyHint: 'subs-nav#row-1 for the first board',
+    panel: true,
+    rows: true,
+  },
+  'subs.nav-retry': {
+    label: 'Try again after a substitute collection board failed to open',
+  },
+  'subs.update-reload': {
+    label: 'Reload after the teacher updated the shared substitute boards',
+  },
+  'subs.error-back': {
+    label: 'Back button after a substitute board expired or failed to load',
   },
   // A colleague's quiz, video activity or guided activity open on a shared board.
   'colleague-item.assign': {

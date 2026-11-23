@@ -215,6 +215,52 @@ describe('useHelpResources', () => {
     expect(withHidden.current.items).toHaveLength(1);
   });
 
+  it('keeps substitute tours out of the teacher list and teacher items out of the subs list', async () => {
+    const subsItem = { ...rawGlobalItem, title: 'Subs tour', audience: 'subs' };
+    mockOnSnapshot.mockImplementation(
+      (
+        ref: { clauses?: unknown[] } | string,
+        onNext: (snap: { data?: () => unknown; docs?: unknown[] }) => void
+      ) => {
+        if (ref === 'help_center/config-ref') {
+          queueMicrotask(() => onNext({ data: () => undefined }));
+        } else {
+          queueMicrotask(() =>
+            onNext({
+              docs: [
+                { id: 't1', data: () => rawGlobalItem },
+                { id: 's1', data: () => subsItem },
+              ],
+            })
+          );
+        }
+        return () => undefined;
+      }
+    );
+
+    const { result: teachers } = renderHook(
+      () => useHelpResources({ includeHidden: false }),
+      { wrapper: makeAuthWrapper() }
+    );
+    await waitFor(() => expect(teachers.current.loading).toBe(false));
+    expect(teachers.current.items.map((i) => i.id)).toEqual(['t1']);
+
+    const { result: subs } = renderHook(
+      () => useHelpResources({ includeHidden: false, audience: 'subs' }),
+      { wrapper: makeAuthWrapper() }
+    );
+    await waitFor(() => expect(subs.current.loading).toBe(false));
+    expect(subs.current.items.map((i) => i.id)).toEqual(['s1']);
+    expect(subs.current.items[0].audience).toBe('subs');
+
+    const { result: admin } = renderHook(
+      () => useHelpResources({ includeHidden: true }),
+      { wrapper: makeAuthWrapper() }
+    );
+    await waitFor(() => expect(admin.current.loading).toBe(false));
+    expect(admin.current.items).toHaveLength(2);
+  });
+
   it('keeps Unfiled items and embeds from teachers but not from admins', async () => {
     const unfiled = { ...rawGlobalItem, title: 'Unfiled', categoryId: '' };
     const embed = {

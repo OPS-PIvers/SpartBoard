@@ -5364,6 +5364,7 @@ service cloud.firestore {
     // admin only); an org-scoped item is written by that org's admins, or by a
     // real super admin for any org, and read by its members (also any super
     // admin). Teachers may only bump openCount, by exactly one.
+    // audience 'subs' marks a /subs portal tour; the client filters on it, reads stay as they are.
     match /help_resources/{itemId} {
       // isSuperAdmin() is also a fallback on the org-scoped branch (not just
       // the global one): without it, a real super admin could read any org's
@@ -5379,8 +5380,9 @@ service cloud.firestore {
         return d.id == itemId
           && d.keys().hasOnly(['id', 'kind', 'title', 'description', 'categoryId', 'order',
                'visible', 'orgId', 'widgetTypes', 'url', 'embedType', 'setId', 'openCount',
-               'createdBy', 'createdByEmail', 'createdAt', 'updatedAt'])
+               'createdBy', 'createdByEmail', 'createdAt', 'updatedAt', 'audience'])
           && d.kind in ['embed', 'guided-learning']
+          && d.get('audience', 'teachers') in ['teachers', 'subs']
           && d.title is string && d.title.size() > 0 && d.title.size() <= 200
           && d.description is string && d.description.size() <= 1000
           && d.categoryId is string && d.order is int && d.visible is bool

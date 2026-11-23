@@ -31,11 +31,16 @@ import { Modal } from '@/components/common/Modal';
 import { TourStepList } from '@/components/tours/TourStepList';
 import { requestRecordTour } from '@/components/tours/tourState';
 import { requestEditTour } from '@/components/tours/editor/tourEditStore';
+import {
+  subsEditTourUrl,
+  subsRecordTourUrl,
+} from '@/components/subs/tours/subsTourLinks';
 import { isLiveTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import type { GuidedLearningSet } from '@/types';
 import {
   DEFAULT_HELP_CATEGORIES,
   HELP_PUBLISH_REFUSAL_TEXT,
+  helpAudienceOf,
   isUnfiled,
   type HelpCategory,
   type HelpPublishRefusal,
@@ -90,6 +95,7 @@ export const HelpCenterManager: React.FC = () => {
   const { user, orgId, roleId, isAdmin, canAccessFeature } = useAuth();
   const { showConfirm } = useDialog();
   const isSuperAdmin = isSuperAdminActor(user?.email, roleId, orgId);
+  const subsTours = canAccessFeature('subs-live-tours');
   const {
     items,
     categories,
@@ -387,7 +393,10 @@ export const HelpCenterManager: React.FC = () => {
   const handleEdit = async (item: HelpResourceItem) => {
     if (!item.setId) return;
     if (infoOf(item).kind === 'live-tour') {
-      requestEditTour({ setId: item.setId, origin: 'help-center' });
+      // A substitute tour's controls are on /subs, so its editor opens there.
+      if (helpAudienceOf(item) === 'subs')
+        window.open(subsEditTourUrl(item.setId), '_blank', 'noopener');
+      else requestEditTour({ setId: item.setId, origin: 'help-center' });
       return;
     }
     try {
@@ -437,6 +446,18 @@ export const HelpCenterManager: React.FC = () => {
         requestRecordTour('help-center');
       },
     },
+    ...(subsTours
+      ? [
+          {
+            label: 'Record a Live tour for subs',
+            anchor: tourAttr('admin.help-center.new-record-subs-tour'),
+            onClick: () => {
+              setNewOpen(false);
+              window.open(subsRecordTourUrl(), '_blank', 'noopener');
+            },
+          },
+        ]
+      : []),
     {
       label: 'Move from library',
       anchor: tourAttr('admin.help-center.new-move'),
@@ -638,6 +659,7 @@ export const HelpCenterManager: React.FC = () => {
                 scopeLabel={scopeLabel(selected)}
                 scopeOptions={scopeOptions}
                 onBack={() => setPhoneDetail(false)}
+                showAudience={subsTours}
                 onPatch={(patch) => handlePatch(selected, patch)}
                 onScopeChange={(next) => handleScopeChange(selected, next)}
                 onEdit={() => void handleEdit(selected)}

@@ -1,4 +1,4 @@
-import React, { useContext, useRef, useState } from 'react';
+import React, { useContext, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Circle, EyeOff, ShieldCheck } from 'lucide-react';
@@ -12,7 +12,7 @@ import { useGuidedLearning } from '@/hooks/useGuidedLearning';
 import { prepareImageForUpload } from '@/utils/guidedLearningMedia';
 import { TourRecorder } from './TourRecorder';
 import { FrameReview } from './FrameReview';
-import { buildNameMatcher, type NameMatcher } from './redaction';
+import { buildNameMatcher, type RosterPerson } from './redaction';
 import { buildRecordedSet } from './buildRecordedSet';
 import { draftRecordedStepText } from './draftStepText';
 import type { TourRecording } from './useTourCapture';
@@ -44,7 +44,7 @@ interface Boards {
 
 type Phase =
   | { kind: 'intro' }
-  | ({ kind: 'recording'; matcher: NameMatcher | null } & Boards)
+  | ({ kind: 'recording'; people: RosterPerson[] } & Boards)
   | ({ kind: 'review'; recording: TourRecording } & Boards);
 
 const newId = () =>
@@ -88,8 +88,19 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
   const filed = useRef<string | null>(null);
   const [setId] = useState(newId);
 
-  const rosters = dashboard?.rosters ?? [];
+  const rosters = useMemo(() => dashboard?.rosters ?? [], [dashboard?.rosters]);
   const unloaded = rosters.filter((r) => r.loadError).length;
+  // Names at the start plus any class loaded since (a sub opens boards mid-recording); they never leave the matcher.
+  const matcher = useMemo(
+    () =>
+      phase.kind === 'recording'
+        ? buildNameMatcher([
+            ...phase.people,
+            ...rosters.flatMap((r) => r.students),
+          ])
+        : null,
+    [phase, rosters]
+  );
   const boardRef = useRef<WidgetData[]>([]);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   boardRef.current = dashboard?.activeDashboard?.widgets ?? [];
@@ -121,7 +132,11 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
       return;
     }
     try {
-      const item = await createHiddenHelpItem(set, author);
+      const item = await createHiddenHelpItem(
+        set,
+        author,
+        origin === 'subs' ? { audience: 'subs' } : {}
+      );
       filed.current = item.id;
       noteFiledHelpItem(set.id, item.id);
     } catch (err) {
@@ -137,13 +152,12 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
   };
 
   const begin = () => {
-    // Built once, before recording starts; the roster names never leave this matcher.
-    const matcher = buildNameMatcher(rosters.flatMap((r) => r.students));
+    const people = rosters.flatMap((r) => r.students);
     const board = dashboard?.activeDashboard?.widgets ?? [];
     const widgets = board.map(({ id, type }) => ({ id, type }));
     setPhase({
       kind: 'recording',
-      matcher,
+      people,
       widgets,
       startBoard: boardLayoutOf(board),
     });
@@ -263,7 +277,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
     const { widgets, startBoard } = phase;
     return (
       <TourRecorder
-        matcher={phase.matcher}
+        matcher={matcher}
         snapshot={snapshot}
         onFinish={(recording) =>
           recording.frames.length > 0

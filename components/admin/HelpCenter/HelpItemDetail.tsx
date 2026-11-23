@@ -14,6 +14,8 @@ import type { GuidedLearningSet, InternalToolType, WidgetType } from '@/types';
 import {
   HELP_PUBLISH_REFUSAL_TEXT,
   UNFILED_CATEGORY_ID,
+  helpAudienceOf,
+  type HelpAudience,
   type HelpCategory,
   type HelpPublishRefusal,
   type HelpResourceItem,
@@ -58,6 +60,8 @@ interface HelpItemDetailProps {
   scopeLabel: string;
   /** Present when the viewer may move the item between scopes (super admins). */
   scopeOptions: ScopeOption[] | null;
+  /** Shows Who sees it on a live tour, while substitute tours are in preview. */
+  showAudience: boolean;
   onBack: () => void;
   onPatch: (patch: HelpItemFieldPatch) => Promise<void>;
   onScopeChange: (orgId: string | null) => Promise<void>;
@@ -79,6 +83,7 @@ export const HelpItemDetail: React.FC<HelpItemDetailProps> = ({
   canWrite,
   scopeLabel,
   scopeOptions,
+  showAudience,
   onBack,
   onPatch,
   onScopeChange,
@@ -268,6 +273,25 @@ export const HelpItemDetail: React.FC<HelpItemDetailProps> = ({
               ))}
             </Select>
           </Field>
+          {isTour && showAudience && (
+            <Field label="Who sees it" htmlFor="help-detail-audience">
+              <Select
+                id="help-detail-audience"
+                value={helpAudienceOf(item)}
+                disabled={busy !== null}
+                {...tourAttr('admin.help-center.detail-audience')}
+                onChange={(e) =>
+                  void run('audience', () =>
+                    onPatch({ audience: e.target.value as HelpAudience })
+                  )
+                }
+                className="h-11!"
+              >
+                <option value="teachers">Teachers</option>
+                <option value="subs">Substitutes</option>
+              </Select>
+            </Field>
+          )}
           <Field label="Widgets">
             <ChecklistSelect
               anchor={tourAttr('admin.help-center.related-widgets')}

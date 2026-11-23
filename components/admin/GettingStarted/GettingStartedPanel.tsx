@@ -1,4 +1,5 @@
 // Admin card for `admin_settings/getting_started`: which tours, in what order and tier (D17).
+import { helpAudienceOf } from '@/types/helpCenter';
 import React, { useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { ArrowDown, ArrowUp, Footprints, Loader2, Plus, X } from 'lucide-react';
@@ -88,6 +89,7 @@ export const GettingStartedPanel: React.FC = () => {
       item.kind === 'guided-learning' &&
       !!item.setId &&
       liveSetIds.has(item.setId) &&
+      helpAudienceOf(item) === 'teachers' &&
       !listed.has(item.id)
   );
   const full = tours.length >= GETTING_STARTED_MAX_TOURS;

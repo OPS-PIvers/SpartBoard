@@ -43,7 +43,16 @@ export interface HelpResourceItem {
   createdByEmail: string; // display snapshot
   createdAt: number; // ms epoch int
   updatedAt: number;
+  /** Who it's for; missing means teachers. */
+  audience?: HelpAudience;
 }
+
+/** Teachers see an item in the Help Center; substitutes see it in the /subs portal. */
+export type HelpAudience = 'teachers' | 'subs';
+
+export const helpAudienceOf = (
+  item: Pick<HelpResourceItem, 'audience'>
+): HelpAudience => (item.audience === 'subs' ? 'subs' : 'teachers');
 
 /** An item with no category yet; it can't be published until it has one. */
 export const UNFILED_CATEGORY_ID = '';

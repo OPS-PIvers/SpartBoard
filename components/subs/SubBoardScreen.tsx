@@ -28,6 +28,8 @@ import { SubBoardCanvas } from './SubBoardCanvas';
 import { SubRosterPrompt } from './SubRosterPrompt';
 import { GroupReminderHost } from '@/components/groupReminders/GroupReminderHost';
 import { useAuth } from '@/context/useAuth';
+import { tourAttr } from '@/config/tourAnchors';
+import { SubsHelpButton } from './tours/SubsHelpButton';
 import type { SubstituteShareDoc } from '@/hooks/useSubstituteShares';
 
 interface SubBoardScreenProps {
@@ -157,6 +159,7 @@ export const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
       />
 
       <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
+        <SubsHelpButton variant="board" />
         <SubRosterPrompt
           status={rosterStatus}
           teacherName={teacherName}
@@ -191,9 +194,10 @@ export const ExpiredOrErrorPanel: React.FC<{
       <p className="mt-2 text-sm text-slate-600">
         {hint ?? 'Returning you to the teacher directory.'}
       </p>
-      <button /* no-tour-anchor: substitute portal, never on the board */
+      <button
         type="button"
         onClick={onBack}
+        {...tourAttr('subs.error-back')}
         className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
       >
         <ArrowLeft className="w-3.5 h-3.5" />
