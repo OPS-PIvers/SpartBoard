@@ -91,7 +91,13 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     shareSubstituteCollection,
     updateSubstituteCollectionShare,
   } = useDashboard();
-  const { selectedBuildings, hasOrg, canAccessFeature } = useAuth();
+  const {
+    selectedBuildings,
+    hasOrg,
+    canAccessFeature,
+    offlineGrantMissing,
+    captureOfflineGrant,
+  } = useAuth();
   const adminBuildings = useAdminBuildings();
   const headingId = useId();
 
@@ -308,6 +314,18 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     setMissed([]);
     setDriveWarnings([]);
     try {
+      // The server reads class lists for a named sub with this grant; asked first so the popup keeps the click.
+      const grantWarnings =
+        offlineGrantMissing &&
+        selectedEmails.length > 0 &&
+        !(await captureOfflineGrant())
+          ? [
+              t('shareWithSub.driveNotConnected', {
+                defaultValue:
+                  'Google Drive is not connected, so your sub has to load the class lists by hand. Share again and choose Allow to fix this.',
+              }),
+            ]
+          : [];
       let shareId: string;
       if (existing) {
         shareId = existing.shareId;
@@ -347,6 +365,9 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
           ...(approvedCalendarIds ? { calendarIds: approvedCalendarIds } : {}),
         });
       }
+      if (grantWarnings.length > 0) {
+        setDriveWarnings((prev) => [...grantWarnings, ...prev]);
+      }
       const url = `${window.location.origin}/subs/s/${shareId}`;
       setCreatedUrl(url);
       try {
@@ -384,6 +405,8 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     rosters,
     activeRosterId,
     canAccessFeature,
+    offlineGrantMissing,
+    captureOfflineGrant,
     existing,
     sourceId,
     shareSubstituteCollection,
@@ -678,7 +701,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
             >
               <p className="font-bold">
                 {t('shareWithSub.driveWarningsTitle', {
-                  defaultValue: 'Your sub will not see student names yet',
+                  defaultValue: 'Student names may not reach your sub',
                 })}
               </p>
               <ul className="mt-1 ml-4 list-disc">

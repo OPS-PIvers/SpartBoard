@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { parseRosterFileBody } from '@/hooks/useRosters';
@@ -35,12 +37,11 @@ const GRANT_RETRY_DELAY_MS = 1200;
 const EMPTY_SHARED: SubstituteShareRoster[] = [];
 const EMPTY_ROSTERS: ClassRoster[] = [];
 
-async function downloadRoster(
-  drive: GoogleDriveService,
-  meta: SubstituteShareRoster
-): Promise<ClassRoster> {
-  const blob = await drive.downloadFile(meta.driveFileId);
-  const content = parseRosterFileBody(JSON.parse(await blob.text()));
+function rosterFromBody(
+  meta: SubstituteShareRoster,
+  body: unknown
+): ClassRoster {
+  const content = parseRosterFileBody(body);
   const students = assignPins(content.students, { randomForLinked: false });
   return {
     id: meta.id,
@@ -52,6 +53,14 @@ async function downloadRoster(
     groups: content.groups,
     defaultOverridesByStudentId: content.defaultOverridesByStudentId,
   };
+}
+
+async function downloadRoster(
+  drive: GoogleDriveService,
+  meta: SubstituteShareRoster
+): Promise<ClassRoster> {
+  const blob = await drive.downloadFile(meta.driveFileId);
+  return rosterFromBody(meta, JSON.parse(await blob.text()));
 }
 
 async function downloadNames(
@@ -117,6 +126,49 @@ async function downloadAfterPick(
   return downloadShareFiles(drive, shared, namesFileId);
 }
 
+type ServedFiles =
+  | { status: 'needs-host' }
+  | {
+      status: 'ok';
+      rosters: Array<{ id: string; body: unknown }>;
+      names: unknown;
+      missing: number;
+    };
+
+/** The share's files read server-side from the teacher's Drive, or null when that path gave nothing. */
+async function loadFromServer(
+  shareId: string,
+  shared: SubstituteShareRoster[]
+): Promise<ShareFiles | null> {
+  const { data } = await httpsCallable<{ shareId: string }, ServedFiles>(
+    functions,
+    'loadSubShareFilesV1'
+  )({ shareId });
+  if (data.status !== 'ok') return null;
+  const metaById = new Map(shared.map((m) => [m.id, m]));
+  let unparsed = 0;
+  const rosters = data.rosters.flatMap((r) => {
+    const meta = metaById.get(r.id);
+    if (!meta) return [];
+    try {
+      return [rosterFromBody(meta, r.body)];
+    } catch {
+      unparsed += 1;
+      return [];
+    }
+  });
+  let names: SubShareNamesFile | null = null;
+  if (data.names != null) {
+    try {
+      names = parseSubShareNames(data.names);
+    } catch {
+      unparsed += 1;
+    }
+  }
+  if (rosters.length === 0 && !names) return null;
+  return { rosters, names, missing: data.missing + unparsed };
+}
+
 const statusOf = (files: ShareFiles): 'ready' | 'partial' =>
   files.missing === 0 ? 'ready' : 'partial';
 
@@ -126,7 +178,9 @@ const statusOf = (files: ShareFiles): 'ready' | 'partial' =>
  */
 export function useSubstituteRosters(
   sharedRosters: SubstituteShareRoster[] | undefined,
-  namesFileId?: string
+  namesFileId?: string,
+  /** A collection share's id; lets the server read the files for a named sub. */
+  shareId?: string
 ): SubstituteRosterState {
   const { googleAccessToken, refreshGoogleToken, ensureGoogleScope } =
     useAuth();
@@ -143,38 +197,61 @@ export function useSubstituteRosters(
   const [result, setResult] = useState<RosterResult | null>(null);
   const current = result?.key === key ? result : null;
 
-  // Files picked on an earlier visit stay readable, so try silently first.
+  // The server reads for a named sub; otherwise files picked on an earlier visit are tried silently.
   useEffect(() => {
-    if (!key || !googleAccessToken) return;
+    if (!key) return;
     let cancelled = false;
-    const drive = new GoogleDriveService(googleAccessToken, refreshGoogleToken);
-    downloadShareFiles(drive, shared, namesFileId).then(
-      (files) => {
-        if (cancelled) return;
-        setResult((prev) =>
-          prev?.key === key && prev.status === 'ready'
-            ? prev
-            : {
-                key,
-                status: statusOf(files),
-                rosters: files.rosters,
-                names: files.names,
-              }
+    const take = (files: ShareFiles) =>
+      setResult((prev) =>
+        prev?.key === key && prev.status === 'ready'
+          ? prev
+          : {
+              key,
+              status: statusOf(files),
+              rosters: files.rosters,
+              names: files.names,
+            }
+      );
+    const lock = () =>
+      setResult((prev) =>
+        prev?.key === key && prev.status !== 'locked'
+          ? prev
+          : { key, status: 'locked', rosters: EMPTY_ROSTERS, names: null }
+      );
+    void (async () => {
+      if (shareId) {
+        const served = await loadFromServer(shareId, shared).catch(
+          (err: unknown) => {
+            logError('useSubstituteRosters.loadFromServer', err, { shareId });
+            return null;
+          }
         );
-      },
-      () => {
         if (cancelled) return;
-        setResult((prev) =>
-          prev?.key === key && prev.status !== 'locked'
-            ? prev
-            : { key, status: 'locked', rosters: EMPTY_ROSTERS, names: null }
-        );
+        if (served) return take(served);
       }
-    );
+      if (!googleAccessToken) return lock();
+      const drive = new GoogleDriveService(
+        googleAccessToken,
+        refreshGoogleToken
+      );
+      try {
+        const files = await downloadShareFiles(drive, shared, namesFileId);
+        if (!cancelled) take(files);
+      } catch {
+        if (!cancelled) lock();
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [key, shared, namesFileId, googleAccessToken, refreshGoogleToken]);
+  }, [
+    key,
+    shared,
+    namesFileId,
+    shareId,
+    googleAccessToken,
+    refreshGoogleToken,
+  ]);
 
   const loadRosters = useCallback(async () => {
     if (!key) return;
@@ -240,7 +317,8 @@ export function useSubstituteRosters(
 
   const status: SubRosterStatus = !key
     ? 'none'
-    : (current?.status ?? (googleAccessToken ? 'checking' : 'locked'));
+    : (current?.status ??
+      (googleAccessToken || shareId ? 'checking' : 'locked'));
 
   return {
     rosters: current?.rosters ?? EMPTY_ROSTERS,

@@ -33,6 +33,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   getTeammatePrintContextV1: 'read',
   getViewAsDriveTokenV1: 'read',
   listQuizMediaForOrgAdmin: 'read',
+  loadSubShareFilesV1: 'read',
   listSpeakWordsToCheckV1: 'read',
   lookupSpeakReferencesV1: 'read',
   hearSpeakIpaV1: 'read',

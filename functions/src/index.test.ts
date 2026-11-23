@@ -3915,6 +3915,7 @@ describe('index barrel — deployed export set', () => {
     'writingPeerReviewV1',
     // Substitute shares
     'launchSubAssignmentV1',
+    'loadSubShareFilesV1',
     // Flashcards Check submission
     'submitFlashcardCheckV1',
     'recordFlashcardCheckRatingsV1',

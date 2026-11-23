@@ -149,7 +149,8 @@ export const SubCollectionBoardScreen: React.FC<
 
   const rosterState = useSubstituteRosters(
     shown?.share.sharedRosters ?? share?.sharedRosters,
-    shown?.share.namesFileId ?? share?.namesFileId
+    shown?.share.namesFileId ?? share?.namesFileId,
+    shareId
   );
   const [expired, setExpired] = useState(false);
 

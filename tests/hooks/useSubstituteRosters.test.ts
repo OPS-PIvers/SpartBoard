@@ -8,6 +8,11 @@ import type { SubstituteShareRoster } from '@/types';
 const downloadFile = vi.fn();
 
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
+const serverLoad = vi.fn();
+vi.mock('firebase/functions', () => ({
+  httpsCallable: () => serverLoad,
+}));
+vi.mock('@/config/firebase', () => ({ functions: {} }));
 vi.mock('@/hooks/useGooglePicker', () => ({ useGooglePicker: vi.fn() }));
 vi.mock('@/utils/googleDriveService', () => ({
   GoogleDriveService: function GoogleDriveService() {
@@ -249,6 +254,70 @@ describe('useSubstituteRosters', () => {
       expect(result.current.names?.boards.b1.w1).toEqual({
         firstNames: 'Ada',
       });
+    });
+  });
+
+  // A named sub gets the files read from the teacher's Drive by the server.
+  describe('the server read', () => {
+    const students = [{ id: 's1', firstName: 'Ada', lastName: 'Lovelace' }];
+    const namesBody = {
+      version: 1,
+      boards: { b1: { w1: { firstNames: 'Ada' } } },
+    };
+
+    it('loads class lists and names with no Drive call and no Picker', async () => {
+      serverLoad.mockResolvedValue({
+        data: {
+          status: 'ok',
+          rosters: [{ id: 'r1', body: { version: 2, students } }],
+          names: namesBody,
+          missing: 0,
+        },
+      });
+      const { result } = renderHook(() =>
+        useSubstituteRosters(SHARED, 'names-file', 'share-1')
+      );
+      await waitFor(() => expect(result.current.status).toBe('ready'));
+      expect(serverLoad).toHaveBeenCalledWith({ shareId: 'share-1' });
+      expect(result.current.rosters[0].students[0].firstName).toBe('Ada');
+      expect(result.current.names?.boards.b1.w1).toEqual({ firstNames: 'Ada' });
+      expect(downloadFile).not.toHaveBeenCalled();
+      expect(openPicker).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the Picker flow when the teacher has to reconnect Drive', async () => {
+      serverLoad.mockResolvedValue({ data: { status: 'needs-host' } });
+      downloadFile.mockRejectedValue(new Error('404'));
+      const { result } = renderHook(() =>
+        useSubstituteRosters(SHARED, undefined, 'share-1')
+      );
+      await waitFor(() => expect(result.current.status).toBe('locked'));
+    });
+
+    it('falls back when the sub is not named on the share', async () => {
+      serverLoad.mockRejectedValue(new Error('permission-denied'));
+      downloadFile.mockResolvedValue(rosterBlob());
+      const { result } = renderHook(() =>
+        useSubstituteRosters(SHARED, undefined, 'share-1')
+      );
+      await waitFor(() => expect(result.current.status).toBe('ready'));
+      expect(downloadFile).toHaveBeenCalled();
+    });
+
+    it('keeps the load button when the server could not read every file', async () => {
+      serverLoad.mockResolvedValue({
+        data: {
+          status: 'ok',
+          rosters: [{ id: 'r1', body: { version: 2, students } }],
+          names: null,
+          missing: 1,
+        },
+      });
+      const { result } = renderHook(() =>
+        useSubstituteRosters(SHARED, 'names-file', 'share-1')
+      );
+      await waitFor(() => expect(result.current.status).toBe('partial'));
+      expect(result.current.rosters).toHaveLength(1);
     });
   });
 });
