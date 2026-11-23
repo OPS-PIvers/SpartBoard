@@ -6804,6 +6804,8 @@ export interface PaperBatch {
   spareSeats: number[];
   /** Seat carrying the bubbled ANSWER KEY sheet, when one was printed (plan Q16). */
   keySheetSeat?: number;
+  /** Every key seat, one per version, when a versioned stack printed more than one key; the first is `keySheetSeat`. */
+  keySheetSeats?: number[];
   /**
    * Option text per question id in the lettered order the test paper printed
    * (A first). Authored quizzes only; import maps a bubbled letter through it
@@ -6827,7 +6829,7 @@ export interface PaperBatch {
   pageMaps?: PaperPageMap[];
   /** Present iff `seatVersions` is; version 0 is what `pageMaps` carries. */
   versions?: PaperBatchVersion[];
-  /** Seat -> index into `versions`; the key sheet is absent and reads as version 0. */
+  /** Seat -> index into `versions`, keys included; a seat that is absent reads as version 0. */
   seatVersions?: Record<number, number>;
   /** Printed for a modification group of a device assignment: the rules its version applied, so a reprint matches. */
   printedGroup?: PaperPrintedGroupRecord;
