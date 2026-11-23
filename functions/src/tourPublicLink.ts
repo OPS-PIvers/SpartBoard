@@ -22,6 +22,7 @@ import {
   type PublicLinkOffReason,
   type PublicLinkRecord,
   type PublicTour,
+  type PublicTourKind,
 } from './tourPublicLinkModel';
 import { isListedTourAuthor } from './tourAuthors';
 
@@ -34,7 +35,7 @@ export interface PublicLinkDeps {
   /** The published copy's `set`, or null when the tour isn't published. */
   loadPublished: (setId: string) => Promise<unknown>;
   /** The confirming admin still has an /admins doc. */
-  isAdmin: (email: string) => Promise<boolean>;
+  isAdmin: (email: string, kind: PublicTourKind) => Promise<boolean>;
   latchOff: (setId: string, reason: PublicLinkOffReason) => Promise<void>;
   bucket: string;
   /** The Storage object's current generation, or null when it is gone. */
@@ -66,7 +67,7 @@ export async function resolvePublicTour(
   const link = await deps.findLink(token);
   if (!link || link.record.off) return null;
   const { setId, record } = link;
-  if (!(await deps.isAdmin(record.confirmedBy))) {
+  if (!(await deps.isAdmin(record.confirmedBy, record.kind))) {
     await latch(deps, setId, 'confirmer');
     return null;
   }
@@ -228,12 +229,12 @@ export function defaultPublicLinkDeps(
       const snap = await db.collection(GL_TOURS_COLLECTION).doc(setId).get();
       return snap.exists ? ((snap.get('set') as unknown) ?? null) : null;
     },
-    // A link stays live while its confirmer is an admin or a tour author (WEB_TOUR_AUTHORS.md P2).
-    async isAdmin(email) {
+    // A link stays live while its confirmer is an admin, or a tour author for a web tour (WEB_TOUR_AUTHORS.md P2).
+    async isAdmin(email, kind) {
       return (
         !!email &&
         ((await db.collection('admins').doc(email).get()).exists ||
-          (await isListedTourAuthor(db, email)))
+          (kind === 'web' && (await isListedTourAuthor(db, email))))
       );
     },
     countView: (setId) => countPublicView(db, setId),

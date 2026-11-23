@@ -227,12 +227,11 @@ export const WebToursPage: React.FC = () => {
         : { ...cur, [setId]: next };
     });
 
-  const changeView = (patch: Partial<ListView>) =>
-    setView((cur) => {
-      const next = { ...cur, ...patch };
-      writeView(next);
-      return next;
-    });
+  const changeView = (patch: Partial<ListView>) => {
+    const next = { ...view, ...patch };
+    writeView(next);
+    setView(next);
+  };
 
   const sites = [
     ...new Set((tours ?? []).flatMap((t) => webTourSite(t) ?? [])),
