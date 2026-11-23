@@ -195,6 +195,7 @@ export const FileField: React.FC<FileFieldProps> = ({
           )}
         </div>
         <input
+          // no-tour-anchor: hidden file input; tours point at the upload area label around it
           type="file"
           accept={ACCEPT_BY_TYPE[type]}
           aria-label={FIELD_LABEL[type]}
