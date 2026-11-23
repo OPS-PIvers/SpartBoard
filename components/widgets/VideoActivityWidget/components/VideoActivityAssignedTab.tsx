@@ -43,6 +43,11 @@ import {
   videoActivityAssignedResponse,
 } from '@/utils/assignedAdapters';
 import { BELL_CLOSE_CUSHION_MS, type EpochWindow } from '@/utils/periodPlan';
+import {
+  pickedClassSizes,
+  pickedStudents,
+  type PickedStudents,
+} from '@/utils/assignedStudents';
 import { logError } from '@/utils/logError';
 import { isVideoActivityResponseAwaitingGrade } from '@/utils/videoActivityGrading';
 import { scoredVideoActivityQuestions } from '@/utils/videoActivityLive';
@@ -266,6 +271,7 @@ interface RowModel {
   owesTurnIn: boolean;
   viewOnly: boolean;
   published: boolean;
+  picked: PickedStudents | null;
 }
 
 /** The Video Activity Assigned tab: one row per assignment, one status per class (ASSIGNED_TAB.md slice 5). */
@@ -339,11 +345,15 @@ export const VideoActivityAssignedTab: React.FC<
           const n = sizeOf(a.rosterIds[0]);
           if (n != null) classSizes[''] = n;
         }
+        const picked = pickedStudents(a, rosters);
+        const sizes = picked
+          ? pickedClassSizes(picked, a.periodAccess)
+          : classSizes;
         const status = deriveAssignedStatus(
           videoActivityAssignedInput(a, {
             responses: responses?.map(videoActivityAssignedResponse) ?? null,
             needsGrading,
-            classSizes,
+            classSizes: sizes,
             bellFor: (access) => bellFor({ rosterId: access.rosterId }),
           }),
           now
@@ -363,6 +373,7 @@ export const VideoActivityAssignedTab: React.FC<
           owesTurnIn,
           viewOnly: a.mode === 'view-only',
           published: scoresShown(a.scoreVisibility),
+          picked,
         };
       }),
     [
@@ -729,6 +740,8 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
         busy={busy}
         tourIndex={index}
         tourWidgetType="video-activity"
+        picked={row.picked}
+        periodAccess={a.periodAccess}
       />
     </>
   );

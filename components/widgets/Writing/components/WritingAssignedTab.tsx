@@ -1,5 +1,10 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
+  pickedClassSizes,
+  pickedStudents,
+  type PickedStudents,
+} from '@/utils/assignedStudents';
+import {
   collection,
   doc,
   getCountFromServer,
@@ -209,6 +214,7 @@ interface RowModel {
   record: WritingAssignmentRecord;
   needsGrading: number | null;
   bells: Record<string, EpochWindow | null>;
+  picked: PickedStudents | null;
 }
 
 /** The Writing Assigned tab on the shared row and list (ASSIGNED_TAB.md slice 5). */
@@ -273,13 +279,16 @@ export const WritingAssignedTab: React.FC<WritingAssignedTabProps> = ({
           const n = sizeOf(r.rosterIds[0]);
           if (n != null) classSizes[''] = n;
         }
+        const picked = pickedStudents(r, rosters);
         const input = writingAssignedInput(
           r,
           isLive ? grading : { grading: { mode: 'ungraded' } },
           {
             responses: isLive ? responses : [],
             needsGrading: isLive ? needsGrading : 0,
-            classSizes,
+            classSizes: picked
+              ? pickedClassSizes(picked, r.periodAccess)
+              : classSizes,
             bellFor: (access) => bellFor({ rosterId: access.rosterId }),
           }
         );
@@ -287,7 +296,7 @@ export const WritingAssignedTab: React.FC<WritingAssignedTabProps> = ({
           { ...input, publishesScores: false },
           now
         );
-        return { id: r.id, status, record: r, needsGrading, bells };
+        return { id: r.id, status, record: r, needsGrading, bells, picked };
       }),
     [records, countsById, gradingById, rosters, featurePermissions, now]
   );
@@ -386,7 +395,7 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
   onResults,
   onDelete,
 }) => {
-  const { record: r, status, needsGrading, bells } = row;
+  const { record: r, status, needsGrading, bells, picked } = row;
   const { addToast } = useDashboard();
   const actions = useWritingClassActions(r, rosters);
   const run = usePeriodRunner('WritingAssignedTab.class');
@@ -522,6 +531,8 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
         busy={busy}
         tourIndex={index}
         tourWidgetType="writing"
+        picked={picked}
+        periodAccess={r.periodAccess}
       />
     </>
   );

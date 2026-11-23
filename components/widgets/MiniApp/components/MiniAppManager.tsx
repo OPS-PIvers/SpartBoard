@@ -107,6 +107,7 @@ import {
   useLibraryDeleteConfirm,
 } from '@/components/common/library/useLibraryDeleteConfirm';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { pickedStudents } from '@/utils/assignedStudents';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -310,6 +311,7 @@ const MiniAppArchiveRow: React.FC<{
   /** The Quiz-style row: date and class list in the meta line. */
   aligned: boolean;
   classNamesFor?: (assignment: MiniAppAssignment) => string[];
+  rosters: readonly ClassRoster[];
 }> = ({
   assignment,
   mode,
@@ -319,6 +321,7 @@ const MiniAppArchiveRow: React.FC<{
   tourIndex,
   aligned,
   classNamesFor,
+  rosters,
 }) => {
   const isViewOnly = assignment.mode === 'view-only';
   // Admin-only by default — view-count display fires one Firestore
@@ -376,7 +379,10 @@ const MiniAppArchiveRow: React.FC<{
               </span>
             )}
           {aligned && classList && (
-            <AssignmentClassNames names={classNamesFor(assignment)} />
+            <AssignmentClassNames
+              names={classNamesFor(assignment)}
+              picked={pickedStudents(assignment, rosters)}
+            />
           )}
         </>
       }
@@ -1392,6 +1398,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           {activeAssignments.map((a, index) => (
             <MiniAppArchiveRow
               key={a.id}
+              rosters={rosters}
               assignment={a}
               mode="active"
               status={statusBadge(a, 'active')}
@@ -1448,6 +1455,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             return (
               <MiniAppArchiveRow
                 key={a.id}
+                rosters={rosters}
                 assignment={a}
                 mode="archive"
                 status={statusBadge(a, 'archive')}

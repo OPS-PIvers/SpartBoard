@@ -7,6 +7,7 @@ import {
   type DashboardContextValue,
 } from '@/context/DashboardContextValue';
 import { ToastContainer } from '@/components/common/ToastContainer';
+import { PickedLayoutContext } from '@/components/common/library/pickedLayoutContext';
 import type { Toast } from '@/types';
 import { DialogProvider } from '@/context/DialogContext';
 import { DialogContainer } from '@/components/common/DialogContainer';
@@ -403,6 +404,9 @@ const PERIOD_ACCESS: AssignPeriodAccessContext = {
   onTagRoster: noop,
 };
 
+const PICKED_ON =
+  new URLSearchParams(window.location.search).get('picked') === '1';
+
 // ?district=1 adds District library banks and their read-only preview.
 const WITH_DISTRICT =
   new URLSearchParams(window.location.search).get('district') === '1';
@@ -503,7 +507,7 @@ const QuizView: React.FC<{
         onResults={noop}
         onDelete={noop}
         onShare={noop}
-        rosters={ROSTERS}
+        rosters={PICKED_ON ? [...ROSTERS, ...ASSIGNED_ROSTERS] : ROSTERS}
         periodAccess={PERIOD_ACCESS}
         config={QUIZ_CONFIG}
         managerTab={tab}
@@ -526,22 +530,35 @@ const QuizView: React.FC<{
         onEditBank={noop}
         onDuplicateBank={noop}
         onDeleteBank={noop}
-        assignments={QUIZ_ASSIGNMENTS.map((a, i) =>
-          i === 1
-            ? {
-                ...a,
-                paper: true,
-                paperBatchId: 'batch-1',
-                hasPaperResponses: true,
-                scoreVisibility: 'score-only' as const,
-              }
-            : i === 2
-              ? { ...a, sync: { groupId: 'g1', syncedVersion: 1 } }
-              : i === 4
-                ? // Assigned before the quiz's last save: shows "Edited since assigned".
-                  { ...a, createdAt: a.createdAt - 7200_000 }
-                : a
-        )}
+        assignments={[
+          ...(PICKED_ON
+            ? ASSIGNED_FIXTURES.filter((a) => a.targetMode === 'students').map(
+                (a) => ({
+                  ...a,
+                  periodNames: (a.rosterIds ?? []).map(
+                    (id) =>
+                      ASSIGNED_ROSTERS.find((r) => r.id === id)?.name ?? id
+                  ),
+                })
+              )
+            : []),
+          ...QUIZ_ASSIGNMENTS.map((a, i) =>
+            i === 1
+              ? {
+                  ...a,
+                  paper: true,
+                  paperBatchId: 'batch-1',
+                  hasPaperResponses: true,
+                  scoreVisibility: 'score-only' as const,
+                }
+              : i === 2
+                ? { ...a, sync: { groupId: 'g1', syncedVersion: 1 } }
+                : i === 4
+                  ? // Assigned before the quiz's last save: shows "Edited since assigned".
+                    { ...a, createdAt: a.createdAt - 7200_000 }
+                  : a
+          ),
+        ]}
         syncedGroups={
           new Map([['g1', { id: 'g1', version: 2, title: 'Synced' } as never]])
         }
@@ -1181,6 +1198,10 @@ const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
 };
 
 const SIZE = new URLSearchParams(window.location.search);
+// ?students=a|b|c picks the picked-students layout; ?picked=1 puts picked runs on In progress.
+const LAYOUT = (['a', 'b', 'c'] as const).find(
+  (l) => l === SIZE.get('students')
+);
 
 const readView = (): HarnessView => {
   const requested = new URLSearchParams(window.location.search).get('view');
@@ -1250,7 +1271,9 @@ export const LibraryManagersDevHarness: React.FC = () => {
                 containerType: 'size',
               }}
             >
-              <View key={view} />
+              <PickedLayoutContext.Provider value={LAYOUT ?? 'a'}>
+                <View key={view} />
+              </PickedLayoutContext.Provider>
             </div>
           </div>
           <DialogContainer />

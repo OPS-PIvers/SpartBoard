@@ -109,6 +109,8 @@ import { requestRecordTour } from '@/components/tours/tourState';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { pickedStudents } from '@/utils/assignedStudents';
+import { AssignmentClassNames } from '@/components/common/library/AssignmentClassNames';
 
 // Lazy so the preview player chunk loads only when a teacher hits Play preview.
 const LazyGuidedLearningPlayer = lazy(() =>
@@ -1334,6 +1336,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       });
     }
 
+    const picked = pickedStudents(a, rosters);
     const subtitle = (
       <span className="inline-flex items-center gap-2">
         <span>
@@ -1343,6 +1346,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
           )}
         </span>
         {isViewOnly && <ViewCountSubtitle sessionId={a.sessionId} />}
+        {picked && (
+          <AssignmentClassNames
+            names={picked.classes.map((c) => c.label)}
+            picked={picked}
+          />
+        )}
       </span>
     );
 

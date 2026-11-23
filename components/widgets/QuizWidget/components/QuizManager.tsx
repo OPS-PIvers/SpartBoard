@@ -146,6 +146,7 @@ import {
 } from '@/components/common/library';
 import { earliestDueAt } from '@/utils/perClassDueDates';
 import { AssignmentClassNames } from '@/components/common/library/AssignmentClassNames';
+import { pickedStudents } from '@/utils/assignedStudents';
 import { applyWhen } from '@/utils/assignAvailability';
 import { QuizAssignStepper } from './QuizAssignStepper';
 import {
@@ -3235,6 +3236,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           quizUpdatedAtById={quizUpdatedAtById}
           onSyncNow={onSyncAssignment ? confirmSyncAssignment : undefined}
           skippedTargetsByAssignmentId={skippedTargetsByAssignmentId}
+          rosters={rosters}
           emptyTitle={
             isViewOnly ? 'No active shares' : 'No quizzes in progress'
           }
@@ -3255,6 +3257,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           buildActions={buildArchiveActions}
           syncedGroups={syncedGroups}
           quizUpdatedAtById={quizUpdatedAtById}
+          rosters={rosters}
           emptyTitle={
             isViewOnly
               ? 'No archived shares'
@@ -3827,6 +3830,7 @@ const AssignmentsList: React.FC<{
   /** Library quiz id to its last content save, for the "Edited since assigned" note. */
   quizUpdatedAtById?: ReadonlyMap<string, number>;
   onSyncNow?: (a: QuizAssignment) => void | Promise<void>;
+  rosters: ClassRoster[];
   skippedTargetsByAssignmentId?: Record<
     string,
     { ref: StudentTargetRef; reason: string }[]
@@ -3843,6 +3847,7 @@ const AssignmentsList: React.FC<{
   quizUpdatedAtById,
   onSyncNow,
   skippedTargetsByAssignmentId,
+  rosters,
   emptyTitle,
   emptySub,
   tourWidgetType,
@@ -3881,6 +3886,7 @@ const AssignmentsList: React.FC<{
           quizUpdatedAtById={quizUpdatedAtById}
           onSyncNow={onSyncNow}
           skippedTargets={skippedTargetsByAssignmentId?.[a.id]}
+          rosters={rosters}
           tourIndex={index}
           tourWidgetType={tourWidgetType}
         />
@@ -3920,6 +3926,7 @@ interface QuizArchiveRowProps {
   onSyncNow?: (a: QuizAssignment) => void | Promise<void>;
   /** M17 skipped-ref row marker (spec §5 B3) — see `skippedTargetsByAssignmentId`. */
   skippedTargets?: { ref: StudentTargetRef; reason: string }[];
+  rosters: ClassRoster[];
   tourIndex?: number;
   tourWidgetType: 'quiz' | 'review';
 }
@@ -3938,9 +3945,11 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   quizUpdatedAtById,
   onSyncNow,
   skippedTargets,
+  rosters,
   tourIndex,
   tourWidgetType,
 }) => {
+  const picked = useMemo(() => pickedStudents(a, rosters), [a, rosters]);
   const assignmentIsViewOnly = a.mode === 'view-only';
   // Skipped-ref durability (canonical rule) — prefer the in-memory names
   // from this session's `setAssignmentTargetsV1` call; fall back to the
@@ -4143,7 +4152,7 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
         ) : noPeriods ? (
           <span className="font-semibold text-amber-600">No classes</span>
         ) : (
-          <AssignmentClassNames names={periods} />
+          <AssignmentClassNames names={periods} picked={picked} />
         )}
       </>
     );

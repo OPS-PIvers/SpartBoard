@@ -17,6 +17,16 @@ import {
 import { AssignedCheckbox } from './AssignedBulk';
 import { useAssignedRowSelect } from './assignedBulkContext';
 import { AssignedFocusClassContext } from './assignedFilterContext';
+import {
+  ELSEWHERE_LABEL,
+  namesByClassKey,
+  studentCountLabel,
+  unnamedLabel,
+  type PickedStudents,
+} from '@/utils/assignedStudents';
+import { PickedNames, PickedStudentsButton } from '../PickedStudentNames';
+import { usePickedLayout } from '../pickedLayoutContext';
+import type { PeriodAccess } from '@/types';
 
 export interface AssignedRowProps {
   title: string;
@@ -60,6 +70,10 @@ export interface AssignedRowProps {
   selectAnchor?: TourAnchorAttrs;
   /** Drops turned-in counts the caller can't place in a class. */
   hideCounts?: boolean;
+  /** A run that went to picked students names them under each class. */
+  picked?: PickedStudents | null;
+  /** The run's classes, to place each picked student. */
+  periodAccess?: Record<string, Pick<PeriodAccess, 'rosterId'>>;
 }
 
 type MainKind = AssignedStatus['action']['kind'];
@@ -172,8 +186,13 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   onSelect,
   selectAnchor,
   hideCounts = false,
+  picked,
+  periodAccess,
 }) => {
   const [expanded, setExpanded] = useState(false);
+  const layout = usePickedLayout();
+  const namesBy = picked ? namesByClassKey(picked, periodAccess) : {};
+  const nameRows = layout === 'b';
   const select = useAssignedRowSelect();
   const focusLabel = useContext(AssignedFocusClassContext);
   const rowKey = `row-${tourIndex + 1}`;
@@ -282,6 +301,12 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
               style={{ ...GREY_TEXT, columnGap: 'min(8px, 2cqmin)' }}
             >
               {grey && <span className="min-w-0">{grey}</span>}
+              {picked &&
+                (layout === 'c' ? (
+                  <PickedStudentsButton picked={picked} />
+                ) : (
+                  <span>{studentCountLabel(picked.count)}</span>
+                ))}
               {meta}
             </div>
           </div>
@@ -400,7 +425,8 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                     paddingLeft: 'min(14px, 3.2cqmin)',
                   }}
                 >
-                  {c.label || 'All students'}
+                  {c.label ||
+                    (picked ? studentCountLabel(picked.count) : 'All students')}
                 </div>
                 <div
                   className={STATUS_CELLS}
@@ -441,9 +467,46 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                     </button>
                   ))}
                 </div>
+                {layout !== 'c' && (namesBy[c.key]?.length ?? 0) > 0 && (
+                  <PickedNames
+                    names={namesBy[c.key]}
+                    rows={nameRows}
+                    className="col-span-full"
+                    style={{ ...GREY_TEXT, paddingLeft: 'min(14px, 3.2cqmin)' }}
+                  />
+                )}
               </div>
             );
           })}
+          {picked &&
+            layout !== 'c' &&
+            (picked.elsewhere.length > 0 || picked.unnamed > 0) && (
+              <div
+                className="border-b border-slate-200/70"
+                style={{
+                  ...GREY_TEXT,
+                  padding:
+                    'min(7px, 1.6cqmin) 0 min(7px, 1.6cqmin) min(14px, 3.2cqmin)',
+                }}
+              >
+                {picked.elsewhere.length > 0 && (
+                  <>
+                    <div
+                      className="font-semibold text-brand-blue-dark"
+                      style={{ fontSize: 'min(13px, 3.8cqmin)' }}
+                    >
+                      {ELSEWHERE_LABEL}
+                    </div>
+                    <PickedNames names={picked.elsewhere} rows={nameRows} />
+                  </>
+                )}
+                {picked.unnamed > 0 && (
+                  <p className="text-slate-500">
+                    {unnamedLabel(picked.unnamed)}
+                  </p>
+                )}
+              </div>
+            )}
           <div
             className={PANEL_GRID}
             style={{

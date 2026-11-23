@@ -1,4 +1,9 @@
 import { scoresShown } from '@/utils/assignedStatus';
+import {
+  pickedClassSizes,
+  pickedStudents,
+  type PickedStudents,
+} from '@/utils/assignedStudents';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
   collection,
@@ -200,6 +205,7 @@ export interface QuizAssignedRowModel {
   published: boolean;
   /** Responses so far; null where the row has no listener. */
   responseCount: number | null;
+  picked: PickedStudents | null;
 }
 
 /** Quiz rows for any Assigned list: the widget tab and the Assignments hub (D18). */
@@ -264,11 +270,15 @@ export function useQuizAssignedRows(
           const n = sizeOf(a.rosterIds[0]);
           if (n != null) classSizes[''] = n;
         }
+        const picked = pickedStudents(a, rosters);
+        const sizes = picked
+          ? pickedClassSizes(picked, a.periodAccess)
+          : classSizes;
         const status = deriveAssignedStatus(
           quizAssignedInput(a, {
             responses,
             needsGrading,
-            classSizes,
+            classSizes: sizes,
             bellFor: (access) => bellFor({ rosterId: access.rosterId }),
           }),
           now
@@ -282,6 +292,7 @@ export function useQuizAssignedRows(
           viewOnly: a.mode === 'view-only',
           published: scoresShown(a.scoreVisibility),
           responseCount: wantsLiveData(a) ? (responses?.length ?? null) : null,
+          picked,
         };
       }),
     [
@@ -470,7 +481,7 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
   onSelect,
   selectAnchor,
 }) => {
-  const { assignment: a, status, needsGrading, bells } = row;
+  const { assignment: a, status, needsGrading, bells, picked } = row;
   const { user } = useAuth();
   const { addToast } = useDashboard();
   const actions = useQuizClassActions(a, lifecycle, rosters);
@@ -681,6 +692,8 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
         selected={selected}
         onSelect={onSelect}
         selectAnchor={selectAnchor}
+        picked={picked}
+        periodAccess={a.periodAccess}
       />
     </>
   );

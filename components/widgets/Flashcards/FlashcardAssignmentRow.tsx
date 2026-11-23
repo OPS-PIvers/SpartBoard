@@ -26,6 +26,7 @@ import {
 } from './utils/flashcardAssignmentRow';
 import { AssignmentArchiveCard } from '@/components/common/library';
 import { AssignmentClassNames } from '@/components/common/library/AssignmentClassNames';
+import { pickedStudents } from '@/utils/assignedStudents';
 import type { LibraryMenuAction } from '@/components/common/library';
 
 export interface FlashcardAssignmentRowHandlers {
@@ -229,7 +230,10 @@ export const FlashcardAssignmentRow: React.FC<FlashcardAssignmentRowProps> = ({
         </span>
       )}
       {classes.length > 0 ? (
-        <AssignmentClassNames names={classes} />
+        <AssignmentClassNames
+          names={classes}
+          picked={pickedStudents(a, rosters)}
+        />
       ) : a.audience === 'staff' ? (
         <span className="font-semibold">Staff</span>
       ) : mode === 'active' ? (

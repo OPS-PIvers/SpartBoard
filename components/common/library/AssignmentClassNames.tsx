@@ -2,18 +2,57 @@ import React from 'react';
 import { Z_INDEX } from '@/config/zIndex';
 import { BadgePopover } from '@/components/common/BadgePopover';
 import { classCountLabel, uniqueClassNames } from './assignmentClassLabels';
+import {
+  studentCountLabel,
+  type PickedStudents,
+} from '@/utils/assignedStudents';
+import {
+  PickedStudentGroups,
+  PickedStudentsButton,
+} from './PickedStudentNames';
+import { usePickedLayout } from './pickedLayoutContext';
 
 interface AssignmentClassNamesProps {
   names: readonly (string | null | undefined)[];
+  /** A run that went to picked students lists them too. */
+  picked?: PickedStudents | null;
 }
 
 /** "N classes" in an assignment row; tap it to list every class in full. */
 export const AssignmentClassNames: React.FC<AssignmentClassNamesProps> = ({
   names,
+  picked,
 }) => {
+  const layout = usePickedLayout();
   const list = uniqueClassNames(names);
   if (list.length === 0) return null;
-  const label = classCountLabel(list.length);
+  if (picked && layout === 'c')
+    return (
+      <>
+        <AssignmentClassNames names={names} />
+        <PickedStudentsButton picked={picked} />
+      </>
+    );
+  const label = picked
+    ? `${classCountLabel(list.length)} · ${studentCountLabel(picked.count)}`
+    : classCountLabel(list.length);
+  if (picked)
+    return (
+      <BadgePopover
+        triggerLabel={label}
+        dialogLabel="Students"
+        triggerClassName="touch-target-expand"
+        panelZIndex={Z_INDEX.popover}
+        panel={<PickedStudentGroups picked={picked} rows={layout === 'b'} />}
+      >
+        <span
+          data-testid="assignment-class-names"
+          className="font-semibold underline decoration-current/40 underline-offset-2 hover:decoration-current"
+        >
+          {label}
+        </span>
+      </BadgePopover>
+    );
   return (
     <BadgePopover
       triggerLabel={label}
