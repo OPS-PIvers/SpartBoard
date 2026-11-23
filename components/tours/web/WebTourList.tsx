@@ -8,7 +8,6 @@ import React, {
   useState,
 } from 'react';
 import {
-  Link2,
   Check,
   ChevronDown,
   Globe,
@@ -19,6 +18,7 @@ import {
   Share2,
   Trash2,
   Wrench,
+  Upload,
 } from 'lucide-react';
 import type { GuidedLearningSet } from '@/types';
 import { useDialog } from '@/context/useDialog';
@@ -84,12 +84,10 @@ export type PublishState = 'draft' | 'changed' | 'published';
 // The list is one grid and each row a subgrid, so columns size to their content and still line up.
 // Website and Author get their own columns from xl up; below that they sit under the title.
 const LIST_GRID =
-  'lg:grid lg:gap-x-5 lg:grid-cols-[minmax(12rem,1fr)_repeat(4,auto)] 2xl:grid-cols-[minmax(12rem,1fr)_repeat(6,auto)]';
+  'lg:grid lg:gap-x-5 lg:grid-cols-[minmax(12rem,1fr)_repeat(2,auto)] 2xl:grid-cols-[minmax(12rem,1fr)_repeat(4,auto)]';
 const LIST_GRID_FRESH =
-  'lg:grid lg:gap-x-5 lg:grid-cols-[minmax(12rem,1fr)_repeat(5,auto)] 2xl:grid-cols-[minmax(12rem,1fr)_repeat(7,auto)]';
+  'lg:grid lg:gap-x-5 lg:grid-cols-[minmax(12rem,1fr)_repeat(3,auto)] 2xl:grid-cols-[minmax(12rem,1fr)_repeat(5,auto)]';
 const ROW_GRID = 'lg:col-span-full lg:grid lg:grid-cols-subgrid';
-// Row buttons are icons alone between lg and xl, where the title needs the room.
-const rowLabel = 'lg:hidden xl:inline';
 
 /** What the page's search and filter read about each row. */
 export interface RowFacts {
@@ -329,7 +327,7 @@ const ShareMenu: React.FC<{
         ) : (
           <Share2 className="h-4 w-4" aria-hidden="true" />
         )}
-        <span className={rowLabel}>Share</span>
+        Share
         <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
       {open && (
@@ -492,19 +490,6 @@ const WebTourRow: React.FC<{
   const site = webTourSite(set);
   const stepCount = set.steps.length;
 
-  const publishMark = publish && (
-    <Badge tone={publish === 'draft' ? 'neutral' : 'success'}>
-      {publish === 'draft' ? 'Draft' : 'Published'}
-    </Badge>
-  );
-  const publicMark = publicOn ? (
-    <span title="Public link on" className="inline-flex">
-      <Badge tone="info">
-        <Link2 className="h-3.5 w-3.5 lg:my-0.5" aria-hidden="true" />
-        <span className="ml-1 lg:sr-only">Public link on</span>
-      </Badge>
-    </span>
-  ) : null;
   const freshBadge = fresh !== 'none' && (
     <Badge
       tone={
@@ -538,10 +523,13 @@ const WebTourRow: React.FC<{
     ) : (
       freshBadge
     );
-  // One button is the check's status and the way to act on it: fix, check, or check again.
+  // One label says where the tour stands and is the button for its next step.
+  const amber =
+    'bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-300 hover:bg-amber-100';
   const check =
     status === 'issues'
       ? {
+          state: 'issues',
           label: 'Fix issues',
           icon: Wrench,
           name: `Fix issues in ${title}`,
@@ -549,29 +537,44 @@ const WebTourRow: React.FC<{
           tone: 'bg-red-50 text-red-800 ring-1 ring-inset ring-red-300 hover:bg-red-100',
           go: () => onEdit(set, problems[0]?.stepId),
         }
-      : status === 'passed' && publish !== 'changed'
+      : publish === 'published'
         ? {
-            label: 'Verified',
+            state: 'published',
+            label: 'Published',
             icon: Check,
-            name: `${title} is verified. Check it again`,
-            hint: 'Every step passed the last check. Opens the editor to check again.',
+            name: `${title} is published. Check it again`,
+            hint: 'Published with no changes since. Opens the editor to check it again.',
             tone: 'bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-300 hover:bg-emerald-100',
             go: () => onCheck(set),
           }
-        : {
-            label: 'Check tour',
-            icon: Radar,
-            name:
-              publish === 'changed'
-                ? `Check ${title}, changed since publish`
-                : `Check ${title}`,
-            hint:
-              publish === 'changed'
-                ? 'You changed this tour after publishing. Check it, then publish again.'
-                : 'Opens the editor to play the tour on its website and check every step',
-            tone: 'bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-300 hover:bg-amber-100',
-            go: () => onCheck(set),
-          };
+        : status === 'passed'
+          ? {
+              state: 'ready',
+              label: 'Ready to publish',
+              icon: Upload,
+              name: `${title} is ready to publish`,
+              hint:
+                publish === 'changed'
+                  ? 'Your changes passed the check. Open the editor to publish them.'
+                  : 'Every step passed the check. Open the editor to publish.',
+              tone: 'bg-brand-blue-lighter text-brand-blue-dark ring-1 ring-inset ring-brand-blue-primary/30 hover:ring-brand-blue-primary/60',
+              go: () => onCheck(set),
+            }
+          : {
+              state: 'check',
+              label: 'Check tour',
+              icon: Radar,
+              name:
+                publish === 'changed'
+                  ? `Check ${title}, changed since publish`
+                  : `Check ${title}`,
+              hint:
+                publish === 'changed'
+                  ? 'You changed this tour after publishing. Check it, then publish again.'
+                  : 'Opens the editor to play the tour on its website and check every step',
+              tone: amber,
+              go: () => onCheck(set),
+            };
   const CheckIcon = check.icon;
   const checkControl = (
     <button
@@ -580,7 +583,7 @@ const WebTourRow: React.FC<{
       aria-label={check.name}
       title={check.hint}
       data-changed={publish === 'changed' || undefined}
-      data-check={status}
+      data-check={check.state}
       className={`inline-flex min-h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-xs font-semibold touch-target-expand ${focusRing} ${check.tone}`}
       {...tourFieldAttr(
         status === 'issues' ? 'web-tours.status' : 'web-tours.check',
@@ -616,6 +619,7 @@ const WebTourRow: React.FC<{
       {set.authorName && (
         <span className="2xl:hidden">{` · by ${set.authorName}`}</span>
       )}
+      {publicOn && ' · public link on'}
       {counts && (
         <span
           data-testid="web-tour-counts"
@@ -665,10 +669,12 @@ const WebTourRow: React.FC<{
         {set.authorName}
       </div>
       <div className="flex flex-wrap items-center gap-1.5 pl-8 lg:contents">
-        <div>{publishMark}</div>
-        <div>{publicMark}</div>
-        <div>{checkControl}</div>
-        {articles && <div data-testid="web-tour-fresh">{freshMark}</div>}
+        <div className="lg:justify-self-center">{publish && checkControl}</div>
+        {articles && (
+          <div data-testid="web-tour-fresh" className="lg:justify-self-center">
+            {freshMark}
+          </div>
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-0.5 pl-8 lg:flex-nowrap lg:justify-end lg:pl-0">
         <button
@@ -680,7 +686,7 @@ const WebTourRow: React.FC<{
           {...tourFieldAttr('web-tours.edit', 'web-tours', set.id)}
         >
           <Pencil className="h-4 w-4" aria-hidden="true" />
-          <span className={rowLabel}>Edit</span>
+          Edit
         </button>
         <button
           type="button"
@@ -694,7 +700,7 @@ const WebTourRow: React.FC<{
           {...tourFieldAttr('web-tours.play', 'web-tours', set.id)}
         >
           <Play className="h-4 w-4" aria-hidden="true" />
-          <span className={rowLabel}>Play</span>
+          Play
         </button>
         <ShareMenu
           set={set}
@@ -774,10 +780,8 @@ export const WebTourList: React.FC<{
         <span className="pl-8">Tour</span>
         <span className="hidden 2xl:block">Website</span>
         <span className="hidden 2xl:block">Author</span>
-        <span>Status</span>
-        <span>Public link</span>
-        <span>Check</span>
-        {articles && <span>FreshService</span>}
+        <span className="text-center">Status</span>
+        {articles && <span className="text-center">FreshService</span>}
         <span />
       </li>
       {[...tours].sort(sort === 'name' ? byName : byNewest).map((set) => (
