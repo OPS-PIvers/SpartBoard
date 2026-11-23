@@ -26,7 +26,13 @@ import {
 } from '@/components/tours/webTours';
 import { logError } from '@/utils/logError';
 import { EDIT_WEB_TOUR_PARAM } from './tourLinks';
-import { WebTourList, type Notice, type RowFacts } from './WebTourList';
+import {
+  WebTourList,
+  type Notice,
+  type RowFacts,
+  type TourSort,
+} from './WebTourList';
+import { AuthContext } from '@/context/AuthContextValue';
 import { webTourSite } from './tourLinks';
 import { webToursDevSeed } from './webToursDevSeed';
 import { useCanFreshserviceSettings } from './freshservice';
@@ -54,6 +60,50 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'public', label: 'Public link on' },
 ];
 
+const ME = 'me';
+const VIEW_KEY = 'spartboard.webTours.view';
+
+/** The list's filter and sort choices, kept per browser. */
+interface ListView {
+  filter: Filter;
+  site: string;
+  author: string;
+  sort: TourSort;
+}
+
+const DEFAULT_VIEW: ListView = {
+  filter: 'all',
+  site: '',
+  author: '',
+  sort: 'newest',
+};
+
+function readView(): ListView {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null');
+    if (!raw || typeof raw !== 'object') return DEFAULT_VIEW;
+    const v = raw as Record<string, unknown>;
+    return {
+      filter: FILTERS.some((f) => f.value === v.filter)
+        ? (v.filter as Filter)
+        : 'all',
+      site: typeof v.site === 'string' ? v.site : '',
+      author: typeof v.author === 'string' ? v.author : '',
+      sort: v.sort === 'name' ? 'name' : 'newest',
+    };
+  } catch {
+    return DEFAULT_VIEW;
+  }
+}
+
+function writeView(view: ListView): void {
+  try {
+    localStorage.setItem(VIEW_KEY, JSON.stringify(view));
+  } catch {
+    // A browser that blocks storage just forgets the choices.
+  }
+}
+
 const matchesFilter = (filter: Filter, facts: RowFacts | undefined) => {
   if (filter === 'all') return true;
   if (!facts) return false;
@@ -78,7 +128,8 @@ export const WebToursPage: React.FC = () => {
     stepId?: string;
   } | null>(null);
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<Filter>('all');
+  const [view, setView] = useState<ListView>(readView);
+  const myUid = useContext(AuthContext)?.user?.uid ?? null;
   const [facts, setFacts] = useState<Record<string, RowFacts>>({});
   const [notice, setNotice] = useState<Notice | null>(null);
   const noticeTimer = useRef<number | null>(null);
@@ -151,15 +202,42 @@ export const WebToursPage: React.FC = () => {
         : { ...cur, [setId]: next };
     });
 
+  const changeView = (patch: Partial<ListView>) =>
+    setView((cur) => {
+      const next = { ...cur, ...patch };
+      writeView(next);
+      return next;
+    });
+
+  const sites = [
+    ...new Set((tours ?? []).flatMap((t) => webTourSite(t) ?? [])),
+  ].sort();
+  const authors = [
+    ...new Map(
+      (tours ?? []).flatMap((t) =>
+        t.authorUid ? [[t.authorUid, t.authorName ?? 'Unknown'] as const] : []
+      )
+    ),
+  ].sort((a, b) => a[1].localeCompare(b[1]));
+  // A remembered choice that no tour matches any more falls back to everything.
+  const site = sites.includes(view.site) ? view.site : '';
+  const author =
+    view.author === ME || authors.some(([uid]) => uid === view.author)
+      ? view.author
+      : '';
+  const { filter, sort } = view;
+
   const q = query.trim().toLowerCase();
   const hiddenIds = new Set(
     (tours ?? [])
       .filter(
         (t) =>
           (q &&
-            !`${t.title.trim() || 'Untitled web tour'} ${webTourSite(t) ?? ''}`
+            !`${t.title.trim() || 'Untitled web tour'} ${webTourSite(t) ?? ''} ${t.authorName ?? ''}`
               .toLowerCase()
               .includes(q)) ||
+          (site && webTourSite(t) !== site) ||
+          (author && t.authorUid !== (author === ME ? myUid : author)) ||
           !matchesFilter(filter, facts[t.id])
       )
       .map((t) => t.id)
@@ -298,8 +376,8 @@ export const WebToursPage: React.FC = () => {
         ) : (
           <div className="flex flex-col gap-3">
             {tours.length > 0 && (
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <label className="relative min-w-0 flex-1">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <label className="relative min-w-0 flex-1 sm:min-w-64">
                   <span className="sr-only">Search web tours</span>
                   <Search
                     className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -309,16 +387,51 @@ export const WebToursPage: React.FC = () => {
                     type="search"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search by name or website"
+                    placeholder="Search by name, website or author"
                     className={`min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-500 ${focusRing}`}
                     {...tourAttr('web-tours.search')}
                   />
                 </label>
-                <label className="sm:w-56">
+                <label className="sm:w-48">
+                  <span className="sr-only">Website</span>
+                  <select
+                    value={site}
+                    onChange={(e) => changeView({ site: e.target.value })}
+                    className={`min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 ${focusRing}`}
+                    {...tourAttr('web-tours.filter-site')}
+                  >
+                    <option value="">All websites</option>
+                    {sites.map((host) => (
+                      <option key={host} value={host}>
+                        {host}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="sm:w-44">
+                  <span className="sr-only">Author</span>
+                  <select
+                    value={author}
+                    onChange={(e) => changeView({ author: e.target.value })}
+                    className={`min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 ${focusRing}`}
+                    {...tourAttr('web-tours.filter-author')}
+                  >
+                    <option value="">Anyone</option>
+                    <option value={ME}>Me</option>
+                    {authors.map(([uid, name]) => (
+                      <option key={uid} value={uid}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="sm:w-48">
                   <span className="sr-only">Show</span>
                   <select
                     value={filter}
-                    onChange={(e) => setFilter(e.target.value as Filter)}
+                    onChange={(e) =>
+                      changeView({ filter: e.target.value as Filter })
+                    }
                     className={`min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 ${focusRing}`}
                     {...tourAttr('web-tours.filter')}
                   >
@@ -329,11 +442,26 @@ export const WebToursPage: React.FC = () => {
                     ))}
                   </select>
                 </label>
+                <label className="sm:w-40">
+                  <span className="sr-only">Sort</span>
+                  <select
+                    value={sort}
+                    onChange={(e) =>
+                      changeView({ sort: e.target.value as TourSort })
+                    }
+                    className={`min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 ${focusRing}`}
+                    {...tourAttr('web-tours.sort')}
+                  >
+                    <option value="newest">Newest first</option>
+                    <option value="name">Name</option>
+                  </select>
+                </label>
               </div>
             )}
             <WebTourList
               tours={tours}
               hiddenIds={hiddenIds}
+              sort={sort}
               onEdit={edit}
               onCheck={edit}
               onRename={rename}

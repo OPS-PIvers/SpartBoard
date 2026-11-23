@@ -132,6 +132,7 @@ describe('WebToursPage', () => {
     h.confirm.mockReset().mockResolvedValue(true);
     h.requestOn.mockReset();
     window.history.replaceState(null, '', '/web-tours');
+    localStorage.clear();
   });
 
   it('lists the drafts newest first with their publish state', () => {
@@ -377,6 +378,70 @@ describe('WebToursPage', () => {
     expect(visible()[0]).toContain('Docs markdown');
     fireEvent.change(search, { target: { value: 'gmail' } });
     expect(screen.getByText('No tours match.')).toBeInTheDocument();
+  });
+
+  it('filters by website and author, sorts by name, and remembers the choices', () => {
+    const sets = [
+      tour('a', 'Zebra tour', {
+        updatedAt: 300,
+        authorUid: 'u1',
+        authorName: 'Pat Lee',
+      }),
+      tour('b', 'Apple tour', {
+        updatedAt: 200,
+        authorUid: 'u2',
+        authorName: 'Sam Roe',
+        steps: [
+          { id: 'b-s1', web: { urlPattern: 'https://docs.google.com/*' } },
+        ] as never,
+      }),
+    ];
+    const first = render(<WebToursPage />);
+    showDrafts(sets);
+    const visible = () =>
+      screen
+        .getAllByTestId('web-tour-row')
+        .filter((r) => !r.hidden)
+        .map((r) => r.textContent ?? '');
+    expect(visible()[0]).toContain('Zebra tour');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort' }), {
+      target: { value: 'name' },
+    });
+    expect(visible()[0]).toContain('Apple tour');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Website' }), {
+      target: { value: 'docs.google.com' },
+    });
+    expect(visible()).toHaveLength(1);
+    expect(visible()[0]).toContain('Apple tour');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Author' }), {
+      target: { value: 'u1' },
+    });
+    expect(screen.getByText('No tours match.')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Website' }), {
+      target: { value: '' },
+    });
+    expect(visible()).toHaveLength(1);
+    expect(visible()[0]).toContain('Zebra tour');
+    fireEvent.change(
+      screen.getByRole('searchbox', { name: 'Search web tours' }),
+      { target: { value: 'sam roe' } }
+    );
+    expect(screen.getByText('No tours match.')).toBeInTheDocument();
+
+    first.unmount();
+    render(<WebToursPage />);
+    showDrafts(sets);
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: 'Author' }).value
+    ).toBe('u1');
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: 'Sort' }).value
+    ).toBe('name');
+    showDrafts([sets[1]]);
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: 'Author' }).value
+    ).toBe('');
+    expect(visible()).toHaveLength(1);
   });
 
   it('shows Fix issues for a failed check and opens the editor on the first bad step', async () => {
