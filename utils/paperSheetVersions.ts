@@ -14,6 +14,7 @@ import type {
 } from '@/types';
 import {
   drawServedQuestionIds,
+  secureShuffle,
   type ResolvedQuizAssignment,
 } from './questionBanks';
 import {
@@ -23,9 +24,11 @@ import {
 } from './quizBalancedDeal';
 import {
   analyzePaperQuiz,
+  seededRandom,
   type AnalyzePaperQuizOptions,
   type PaperQuizAnalysis,
 } from './paperSheetPlan';
+import { splitBlanks } from './quizFibBlanks';
 import { promptHeaderRows } from './paperPageMap';
 import { isPaperBoxSize, paperBoxRoom } from './paperWritten';
 import type { PaperPrintVersion, PaperPromptPage } from './paperSheetPrint';
@@ -148,29 +151,135 @@ function rotationPeriod(slots: ResolvedQuizAssignment['sessionSlots']): number {
   return period;
 }
 
+/** How many sheets a stack with random bank pulls draws for, and the seed that keeps each draw stable. */
+export interface PaperRandomForms {
+  /** Sheets to draw for; one form each, up to {@link MAX_PAPER_VERSIONS}. */
+  count: number;
+  seed: string;
+}
+
+type PaperKind = 'mc' | 'written' | 'off';
+
+/** What a pool question prints as on its own: a bubble row, a written box, or nothing. */
+function paperKindOf(
+  quiz: QuizData,
+  question: QuizQuestion,
+  options: AnalyzePaperQuizOptions
+): PaperKind {
+  const one = analyzePaperQuiz(
+    {
+      ...quiz,
+      questions: [question],
+      bankSlots: undefined,
+      order: undefined,
+      sections: undefined,
+    },
+    options
+  );
+  return one.entries[0]?.kind ?? 'off';
+}
+
+/**
+ * Each form's draw for one random slot. Questions that print are drawn first,
+ * and every form keeps the first form's mix of bubble rows and written boxes
+ * so one sheet layout serves the whole stack.
+ */
+function drawRandomForms(
+  pool: readonly string[],
+  count: number,
+  kindOf: (id: string) => PaperKind,
+  formCount: number,
+  rng: (form: number) => (n: number) => number
+): string[][] {
+  const byKind: Record<PaperKind, string[]> = { mc: [], written: [], off: [] };
+  for (const id of pool) byKind[kindOf(id)].push(id);
+  const printable = [...byKind.mc, ...byKind.written];
+  const first = rng(0);
+  const firstDraw = secureShuffle(
+    printable.length >= count
+      ? secureShuffle(printable, first).slice(0, count)
+      : [
+          ...printable,
+          ...secureShuffle(byKind.off, first).slice(
+            0,
+            count - printable.length
+          ),
+        ],
+    first
+  );
+  const pattern = firstDraw.map(kindOf);
+  const forms = [firstDraw];
+  for (let k = 1; k < formCount; k += 1) {
+    const next = rng(k);
+    const drawn: Record<PaperKind, string[]> = {
+      mc: secureShuffle(byKind.mc, next),
+      written: secureShuffle(byKind.written, next),
+      off: secureShuffle(byKind.off, next),
+    };
+    forms.push(pattern.map((kind) => drawn[kind].shift() as string));
+  }
+  return forms;
+}
+
 /**
  * Deal each balanced slot in turn, one version per turn, until the rotation
- * repeats. Null when the quiz has no balanced slot, a slot that still draws at
- * random, too many versions, or versions that would not share one layout.
+ * repeats. Random slots draw one form per sheet instead (`forms`). Null when
+ * the quiz has no slot, random slots with no `forms`, too many balanced
+ * versions, or versions that would not share one layout.
  */
 export function planPaperVersions(
   quiz: QuizData,
   resolved: ResolvedQuizAssignment,
-  options: AnalyzePaperQuizOptions = {}
+  options: AnalyzePaperQuizOptions = {},
+  forms?: PaperRandomForms
 ): PaperVersionPlan | null {
   const slots = resolved.sessionSlots;
-  if (slots.length === 0 || !slots.every(isBalancedSlot)) return null;
-  const period = rotationPeriod(slots);
+  if (slots.length === 0) return null;
+  const random = slots.filter((s) => !isBalancedSlot(s));
+  const randomDraws = random.some(
+    (s) => s.count > 0 && s.poolQuestionIds.length > 0
+  );
+  if (randomDraws && !forms) return null;
+  const period = randomDraws
+    ? Math.min(Math.max(1, Math.floor(forms?.count ?? 1)), MAX_PAPER_VERSIONS)
+    : rotationPeriod(slots);
   if (period > MAX_PAPER_VERSIONS) return null;
 
   const questionsById = new Map(resolved.questions.map((q) => [q.id, q]));
   const publicIds = resolved.questions.map((q) => q.id);
+  const kinds = new Map<string, PaperKind>();
+  const kindOf = (id: string): PaperKind => {
+    let kind = kinds.get(id);
+    if (!kind) {
+      const q = questionsById.get(id);
+      kind = q ? paperKindOf(quiz, q, options) : 'off';
+      kinds.set(id, kind);
+    }
+    return kind;
+  };
+  const randomForms = new Map(
+    random.map((slot) => [
+      slot.id,
+      drawRandomForms(
+        slot.poolQuestionIds,
+        Math.min(slot.count, slot.poolQuestionIds.length),
+        kindOf,
+        period,
+        (form) => {
+          const next = seededRandom(`${forms?.seed ?? ''}:${slot.id}:${form}`);
+          return (n) => Math.floor(next() * n);
+        }
+      ),
+    ])
+  );
   const versions: PaperVersionDraft[] = [];
   for (let turn = 0; turn < period; turn += 1) {
     const dealt = new Map(
       slots.map((slot) => [
         slot.id,
-        dealFromRotation(slot.poolQuestionIds, slot.count, turn, new Set()),
+        isBalancedSlot(slot)
+          ? dealFromRotation(slot.poolQuestionIds, slot.count, turn, new Set())
+          : (randomForms.get(slot.id)?.[turn] ?? []),
       ])
     );
     const servedQuestionIds = drawServedQuestionIds(
@@ -194,8 +303,11 @@ export function planPaperVersions(
       questionsById,
       resolved.stimuli
     );
+    const labels = servedVersionLabels(slots, servedQuestionIds);
+    // Random forms are numbered so each sheet, test paper and key can be matched.
+    if (randomDraws && period > 1) labels.push(`Version ${turn + 1}`);
     versions.push({
-      label: servedVersionLabels(slots, servedQuestionIds).join(', '),
+      label: labels.join(', '),
       servedQuestionIds,
       quiz: versionQuiz,
       analysis,
@@ -359,10 +471,12 @@ export function printVersionsFor(
   return plan.versions.map((v) => {
     const writtenTexts: Record<string, string> = {};
     const prompts: Record<string, PaperPromptPage> = {};
+    const blankAnswers: Record<string, string[]> = {};
     v.analysis.entries.forEach((e, i) => {
       const at = template[i].questionId;
       const q = plan.questionsById.get(e.questionId);
       if (!q || e.kind !== 'written') return;
+      if (q.type === 'FIB') blankAnswers[at] = splitBlanks(q.correctAnswer);
       // A box after a prompt page leaves its header to the number alone.
       if (q.text && !plan.promptIds.has(at)) writtenTexts[at] = q.text;
       if (plan.promptIds.has(at))
@@ -376,6 +490,7 @@ export function printVersionsFor(
       label: v.label,
       writtenTexts,
       prompts,
+      ...(Object.keys(blankAnswers).length > 0 ? { blankAnswers } : {}),
       ...(questionText
         ? {
             questionTexts: rows.map((r) => ({

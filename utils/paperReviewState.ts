@@ -16,6 +16,7 @@ import type {
   AssembleResult,
   SheetAnswer,
 } from './paperImportAssemble';
+import { isPaperKeySeat } from './paperSheetPlan';
 
 export interface ReviewState {
   assembled: AssembleResult;
@@ -148,6 +149,6 @@ export function pendingReviewMatches(
       s.answers.every((a) => a.question < batch.questionCount) &&
       (batch.seats[s.seat] !== undefined ||
         batch.spareSeats.includes(s.seat) ||
-        batch.keySheetSeat === s.seat)
+        isPaperKeySeat(batch, s.seat))
   );
 }

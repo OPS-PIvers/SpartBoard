@@ -34,7 +34,7 @@ import { effectiveChooseCount, sessionSectionsFor } from './quizSections';
 import { fibBlankCount } from './quizFibBlanks';
 
 /** Small deterministic PRNG so an option set always shuffles the same way. */
-function seededRandom(seed: string): () => number {
+export function seededRandom(seed: string): () => number {
   let h = 0x811c9dc5;
   for (let i = 0; i < seed.length; i += 1) {
     h ^= seed.charCodeAt(i);
@@ -339,6 +339,13 @@ export interface PaperBatchInput {
   createdAt: number;
 }
 
+/** True when the seat printed an answer key; a versioned stack may print one per version. */
+export const isPaperKeySeat = (
+  batch: Pick<PaperBatch, 'keySheetSeat' | 'keySheetSeats'>,
+  seat: number
+): boolean =>
+  batch.keySheetSeat === seat || !!batch.keySheetSeats?.includes(seat);
+
 export interface PaperBatchPlan {
   batch: PaperBatch;
   sheets: PaperSheetPlan[];
@@ -410,17 +417,24 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     });
   }
 
-  let keySheetSeat: number | undefined;
+  // A stack in versions gets one key per version, each headed with its label.
+  const keySheetSeats: number[] = [];
   if (input.includeKeySheet) {
-    keySheetSeat = takeSeat();
-    sheets.push({
-      seat: keySheetSeat,
-      student: null,
-      displayName: 'ANSWER KEY',
-      className: '',
-      isKeySheet: true,
-    });
+    for (let k = 0; k < Math.max(1, versionCount); k += 1) {
+      const seat = takeSeat();
+      keySheetSeats.push(seat);
+      if (versionCount > 0) seatVersions[seat] = k;
+      sheets.push({
+        seat,
+        student: null,
+        displayName: 'ANSWER KEY',
+        className: '',
+        isKeySheet: true,
+        ...(versionCount > 0 ? { versionIndex: k } : {}),
+      });
+    }
   }
+  const keySheetSeat = keySheetSeats[0];
 
   const choiceOrder: Record<string, string[]> = {};
   for (const q of input.questions ?? []) {
@@ -439,6 +453,7 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     seats,
     spareSeats,
     ...(keySheetSeat !== undefined ? { keySheetSeat } : {}),
+    ...(keySheetSeats.length > 1 ? { keySheetSeats } : {}),
     ...(Object.keys(choiceOrder).length > 0 ? { choiceOrder } : {}),
     pagesPerSheet: input.pageMaps
       ? input.pageMaps.length

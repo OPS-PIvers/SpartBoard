@@ -345,6 +345,8 @@ interface BatchDoc {
   seats?: Record<string, { rosterId?: unknown; studentId?: unknown }>;
   spareSeats?: unknown;
   keySheetSeat?: unknown;
+  /** Every key seat when a versioned stack printed one key per version. */
+  keySheetSeats?: unknown;
   layoutVersion?: unknown;
   pageMaps?: unknown;
   /** Balanced versions dealt at print time (QUIZ_IMPORT_VERSIONS.md V24). */
@@ -525,7 +527,11 @@ export async function handleImportPaperResponses(
 
   const versionBySeat = new Map<number, SeatVersion>();
   for (const sheet of input.sheets) {
-    if (batch.keySheetSeat === sheet.seat)
+    if (
+      batch.keySheetSeat === sheet.seat ||
+      (Array.isArray(batch.keySheetSeats) &&
+        batch.keySheetSeats.includes(sheet.seat))
+    )
       invalid(`Seat ${sheet.seat} is the answer key, not a student.`);
     const version = seatVersion(batch, sheet.seat);
     if (version) {

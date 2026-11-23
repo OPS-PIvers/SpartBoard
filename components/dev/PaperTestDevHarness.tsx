@@ -15,7 +15,11 @@ import {
 } from '@/components/widgets/QuizWidget/components/QuizManager';
 import { PaperImportModal } from '@/components/widgets/QuizWidget/components/PaperImportModal';
 import { PaperPrintModal } from '@/components/widgets/QuizWidget/components/PaperPrintModal';
-import { printedGroupQuiz } from '@/utils/paperPrintedVersions';
+import {
+  printedGroupQuiz,
+  printedGroupResolved,
+} from '@/utils/paperPrintedVersions';
+import { resolveQuizAssignment } from '@/utils/questionBanks';
 import { PaperReprintModal } from '@/components/widgets/QuizWidget/components/PaperReprintModal';
 import { PaperGroupReprintModal } from '@/components/widgets/QuizWidget/components/PaperGroupReprintModal';
 import type {
@@ -187,6 +191,77 @@ const ASSIGN_QUIZ: QuizData = {
     incorrectAnswers: ['Ribosome', 'Vacuole', 'Cell wall'],
   })),
 };
+
+// A random pull of 3 from an 8-question bank: every sheet prints its own draw.
+const BANK_POOL: QuizData['questions'] = [
+  [
+    'Which organelle makes proteins?',
+    'Ribosome',
+    ['Nucleus', 'Vacuole', 'Cell wall'],
+  ],
+  [
+    'Which organelle holds the DNA?',
+    'Nucleus',
+    ['Ribosome', 'Golgi body', 'Vacuole'],
+  ],
+  [
+    'Where does photosynthesis happen?',
+    'Chloroplast',
+    ['Mitochondria', 'Nucleus', 'Ribosome'],
+  ],
+  [
+    'Which part controls what enters the cell?',
+    'Cell membrane',
+    ['Cell wall', 'Vacuole', 'Nucleus'],
+  ],
+  [
+    'Which organelle releases energy from food?',
+    'Mitochondria',
+    ['Chloroplast', 'Ribosome', 'Golgi body'],
+  ],
+  [
+    'Which structure stores water in plant cells?',
+    'Vacuole',
+    ['Nucleus', 'Ribosome', 'Cell membrane'],
+  ],
+  [
+    'Which cells have a cell wall?',
+    'Plant cells',
+    ['Animal cells', 'Both', 'Neither'],
+  ],
+  [
+    'Which organelle packages proteins?',
+    'Golgi body',
+    ['Nucleus', 'Vacuole', 'Chloroplast'],
+  ],
+].map(([text, correct, wrong], i) => ({
+  id: `bq${i + 1}`,
+  timeLimit: 0,
+  text: text as string,
+  type: 'MC' as const,
+  correctAnswer: correct as string,
+  incorrectAnswers: wrong as string[],
+}));
+const BANK_QUIZ: QuizData = {
+  ...QUIZ,
+  title: 'Organelles check',
+  questions: ASSIGN_QUIZ.questions.slice(0, 2),
+  bankSlots: [
+    {
+      id: 'slot-1',
+      bankId: 'bank-1',
+      bankTitle: 'Organelles',
+      mode: 'random',
+      count: 3,
+    },
+  ],
+};
+const BANK_RESOLVED = resolveQuizAssignment(
+  BANK_QUIZ,
+  new Map([
+    ['bank-1', { id: 'bank-1', title: 'Organelles', questions: BANK_POOL }],
+  ])
+);
 
 const PaperAssign: React.FC = () => (
   <PaperPrintModal
@@ -582,6 +657,39 @@ const VIEWS = {
       onError={noop}
     />
   ),
+  // Needs the paper-print-preview flag (admins have it).
+  bank: () => (
+    <PaperPrintModal
+      quiz={BANK_QUIZ}
+      resolved={BANK_RESOLVED}
+      rosters={ROSTERS}
+      assign={{
+        plcs: [],
+        initialSharing: { plcMode: false, plcId: '' },
+        onCreateAssignment: () => Promise.resolve(),
+      }}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
+  'printed-bank': () => {
+    const group = { answerChoices: 'two' as const, modifiedQuestions: true };
+    return (
+      <PaperPrintModal
+        quiz={printedGroupQuiz(BANK_QUIZ, group)}
+        resolved={printedGroupResolved(BANK_RESOLVED, BANK_QUIZ, group)}
+        group={{
+          label: 'Group 1',
+          students: { r1: ['r1-s0', 'r1-s3'] },
+        }}
+        rosters={ROSTERS}
+        onSaveBatch={() => Promise.resolve()}
+        onClose={noop}
+        onError={noop}
+      />
+    );
+  },
   'printed-stimuli': () => (
     <PaperPrintModal
       quiz={printedGroupQuiz(STIMULI_QUIZ, {

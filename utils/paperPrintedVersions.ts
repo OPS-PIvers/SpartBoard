@@ -10,6 +10,7 @@ import type {
 } from '@/types';
 import { toOverrideEditorQuestions } from '@/components/common/library/toOverrideEditorQuestions';
 import { multiAnswerOptions } from '@/utils/quizMultiAnswer';
+import type { ResolvedQuizAssignment } from '@/utils/questionBanks';
 import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
 import {
   hiddenOptionIdsForRule,
@@ -53,6 +54,21 @@ export function printedGroupQuiz(
     return next;
   });
   return { ...quiz, questions };
+}
+
+/** The assignment's bank pools as this group's students see them. */
+export function printedGroupResolved(
+  resolved: ResolvedQuizAssignment,
+  quiz: QuizData,
+  group: Pick<ModificationGroup, 'answerChoices' | 'modifiedQuestions'>
+): ResolvedQuizAssignment {
+  return {
+    ...resolved,
+    questions: printedGroupQuiz(
+      { ...quiz, questions: resolved.questions, stimuli: resolved.stimuli },
+      group
+    ).questions,
+  };
 }
 
 /** Supports printed at the end of the test paper; a link or Drive file prints as its title and address. */

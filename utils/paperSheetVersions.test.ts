@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ClassRoster, PaperBatch, QuizData, QuizQuestion } from '@/types';
-import { resolveQuizAssignment, type BankContent } from './questionBanks';
+import {
+  isValidDraw,
+  resolveQuizAssignment,
+  type BankContent,
+} from './questionBanks';
 import { analyzePaperQuiz, planPaperBatch } from './paperSheetPlan';
 import { ownPageLines, planPaperPages } from './paperPageMap';
 import {
@@ -138,6 +142,122 @@ describe('planPaperVersions', () => {
     ).toBeNull();
   });
 
+  it('draws one valid random form per sheet, steady for a seed', () => {
+    const pool: BankContent = {
+      ...bank,
+      questions: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6'].map((id) => mc(id, id)),
+    };
+    const random: QuizData = {
+      ...quiz,
+      bankSlots: [{ ...slot, dealing: 'random', count: 2 }],
+    };
+    const r = resolveQuizAssignment(random, new Map([['bank-1', pool]]));
+    const plan = planPaperVersions(random, r, {}, { count: 4, seed: 's' });
+    expect(plan?.records).toHaveLength(4);
+    expect(plan?.records.map((v) => v.label)).toEqual([
+      'Version 1',
+      'Version 2',
+      'Version 3',
+      'Version 4',
+    ]);
+    for (const v of plan?.records ?? []) {
+      expect(
+        isValidDraw(
+          r.questions.map((q) => q.id),
+          r.sessionSlots,
+          v.servedQuestionIds
+        )
+      ).toBe(true);
+      expect(v.servedQuestionIds[0]).toBe('q1');
+    }
+    expect(plan?.template.exclusions).toEqual([]);
+    // More sheets add forms after the ones already drawn.
+    const more = planPaperVersions(random, r, {}, { count: 6, seed: 's' });
+    expect(more?.records.slice(0, 4)).toEqual(plan?.records);
+    // One sheet needs no label.
+    expect(
+      planPaperVersions(random, r, {}, { count: 1, seed: 's' })?.records[0]
+        .label
+    ).toBe('');
+    // Never more forms than a stack can hold.
+    expect(
+      planPaperVersions(random, r, {}, { count: 90, seed: 's' })?.records
+    ).toHaveLength(26);
+  });
+
+  it('keeps every random form on one layout and prefers questions that print', () => {
+    const matching: QuizQuestion = {
+      ...mc('x1'),
+      type: 'Matching',
+    };
+    const pool: BankContent = {
+      ...bank,
+      questions: [
+        mc('m1'),
+        mc('m2'),
+        mc('m3'),
+        frq('f1', 'Explain one.'),
+        frq('f2', 'Explain two.'),
+        matching,
+      ],
+    };
+    const random: QuizData = {
+      ...quiz,
+      bankSlots: [{ ...slot, dealing: 'random', count: 3 }],
+    };
+    const r = resolveQuizAssignment(random, new Map([['bank-1', pool]]));
+    for (const seed of ['a', 'b', 'c', 'd']) {
+      const plan = planPaperVersions(
+        random,
+        r,
+        { written: true },
+        { count: 8, seed }
+      );
+      expect(plan).not.toBeNull();
+      if (!plan) return;
+      expect(plan.template.exclusions).toEqual([]);
+      const kinds = (ids: readonly string[]) =>
+        ids.map((id) => (id.startsWith('f') ? 'w' : 'm')).join('');
+      const first = kinds(plan.records[0].servedQuestionIds);
+      for (const v of plan.records) {
+        expect(v.servedQuestionIds).not.toContain('x1');
+        expect(kinds(v.servedQuestionIds)).toBe(first);
+      }
+    }
+  });
+
+  it("gives each version's key its own fill in the blank answers", () => {
+    const fib = (id: string, answer: string): QuizQuestion => ({
+      ...mc(id),
+      type: 'FIB',
+      text: `${id} is ___`,
+      correctAnswer: answer,
+      incorrectAnswers: [],
+    });
+    const pool: BankContent = {
+      ...bank,
+      questions: [fib('f1', 'one'), fib('f2', 'two')],
+    };
+    const random: QuizData = {
+      ...quiz,
+      bankSlots: [{ ...slot, dealing: 'random', count: 1 }],
+    };
+    const r = resolveQuizAssignment(random, new Map([['bank-1', pool]]));
+    const plan = planPaperVersions(
+      random,
+      r,
+      { written: true, fib: true },
+      { count: 2, seed: 'k' }
+    );
+    if (!plan) throw new Error('no plan');
+    const at = plan.template.entries[1].questionId;
+    const answers = printVersionsFor(plan, {}, false).map(
+      (v) => v.blankAnswers?.[at]
+    );
+    const served = plan.records.map((v) => v.servedQuestionIds[1]);
+    expect(answers).toEqual(served.map((id) => [id === 'f1' ? 'one' : 'two']));
+  });
+
   it('counts versions to the rotation period of every slot', () => {
     const three: BankContent = {
       ...bank,
@@ -270,14 +390,7 @@ describe('print-time dealing', () => {
   it('alternates versions in seat order within each class and across the spares', () => {
     const { batch, sheets } = printedBatch();
     expect(sheets.map((s) => s.versionIndex ?? null)).toEqual([
-      0,
-      1,
-      0,
-      0,
-      1,
-      0,
-      1,
-      null,
+      0, 1, 0, 0, 1, 0, 1, 0, 1,
     ]);
     expect(batch.seatVersions).toEqual({
       1: 0,
@@ -287,8 +400,17 @@ describe('print-time dealing', () => {
       5: 1,
       6: 0,
       7: 1,
+      8: 0,
+      9: 1,
     });
+    // One answer key per version.
+    expect(sheets.filter((s) => s.isKeySheet).map((s) => s.seat)).toEqual([
+      8, 9,
+    ]);
+    expect(batch.keySheetSeat).toBe(8);
+    expect(batch.keySheetSeats).toEqual([8, 9]);
     expect(seatQuestionId(batch, 2, 'vA')).toBe('vB');
+    expect(seatQuestionId(batch, 9, 'vA')).toBe('vB');
     expect(seatQuestionId(batch, 8, 'vA')).toBe('vA');
     expect(
       pageMapsForSeat(batch, 2)?.flatMap((m) =>
