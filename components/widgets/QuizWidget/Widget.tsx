@@ -5070,14 +5070,23 @@ const TeacherQuizWidget: React.FC<{
               plcMode: !!paperAssignPlc,
               plcId: paperAssignPlc?.plc.id ?? '',
             },
-            onCreateAssignment: async ({ batchId, periodNames, sharing }) => {
+            onCreateAssignment: async ({
+              batchId,
+              periodNames,
+              sharing,
+              quiz,
+            }) => {
               // Pools with the PLC the quiz syncs from unless Sharing was turned off.
-              await createPaperAssignment(paperPrintMeta, paperPrintQuiz, {
-                batchId,
-                periodNames,
-                pool:
-                  paperAssignPlc && sharing?.plcMode ? paperAssignPlc : null,
-              });
+              await createPaperAssignment(
+                paperPrintMeta,
+                quiz ?? paperPrintQuiz,
+                {
+                  batchId,
+                  periodNames,
+                  pool:
+                    paperAssignPlc && sharing?.plcMode ? paperAssignPlc : null,
+                }
+              );
             },
           }}
           rosters={rosters}
@@ -5099,7 +5108,7 @@ const TeacherQuizWidget: React.FC<{
                   // A District library copy is read-only: this print uses the setup and its batch records the layout.
                   if (isDistrictCopy(paperPrintMeta)) {
                     setPaperPrintQuiz(next);
-                    return;
+                    return next;
                   }
                   try {
                     setPaperPrintMeta(
@@ -5117,6 +5126,7 @@ const TeacherQuizWidget: React.FC<{
                     );
                   }
                   setPaperPrintQuiz(next);
+                  return next;
                 }
               : undefined
           }
