@@ -1247,7 +1247,7 @@ const TeacherQuizWidget: React.FC<{
     setPrintedQueue({
       assignmentId,
       groups: picks.map((given, i) => {
-        // Bank draws deal their own versions, so a question subset prints only without them.
+        // A bank draw replaces a question subset on devices too (QuizStudentApp drawIds).
         const { questionIds: _subset, ...withoutSubset } = given;
         const pick = resolved ? withoutSubset : given;
         return {
@@ -1309,8 +1309,6 @@ const TeacherQuizWidget: React.FC<{
     const name = student
       ? [student.lastName, student.firstName].filter(Boolean).join(', ')
       : seat.name;
-    if (resolved && override?.questionIds?.length)
-      addToast('Paper copies of bank quizzes print every question.', 'info');
     await queuePrintedGroups(
       assignment.id,
       data,
