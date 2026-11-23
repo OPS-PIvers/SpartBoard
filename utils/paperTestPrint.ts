@@ -216,7 +216,7 @@ function testHtml(
   return `<h1>${escapeHtml(quizTitle)}</h1>${
     label ? `<p class="version-label">${escapeHtml(label)}</p>` : ''
   }
-<div class="meta"><div>Name <span></span></div><div>Class <span></span></div></div>
+<div class="meta"><div>${escapeHtml(words.name)} <span></span></div><div>${escapeHtml(words.className)} <span></span></div></div>
 <ol class="q">${questions.map((q) => questionHtml(q, words)).join('')}</ol>`;
 }
 

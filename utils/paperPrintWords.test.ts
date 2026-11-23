@@ -33,6 +33,8 @@ describe('paperPrintWords', () => {
       const w = paperPrintWords(code);
       expect(w.writeOnSheet).not.toBe(ENGLISH_PRINT_WORDS.writeOnSheet);
       expect(w.resource('A')).not.toBe('Resource A');
+      expect(w.name).not.toBe('Name');
+      expect(w.className).not.toBe('Class');
     }
   });
 

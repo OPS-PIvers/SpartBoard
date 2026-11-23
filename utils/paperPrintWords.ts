@@ -7,6 +7,8 @@ export interface PaperPrintWords {
   question: (row: string | number) => string;
   continued: (title: string) => string;
   writeOnSheet: string;
+  name: string;
+  className: string;
 }
 
 interface WordSet {
@@ -16,6 +18,8 @@ interface WordSet {
   continued: string;
   and: (next: string) => string;
   writeOnSheet: string;
+  name: string;
+  className: string;
 }
 
 const WORDS: Record<string, WordSet> = {
@@ -26,6 +30,8 @@ const WORDS: Record<string, WordSet> = {
     continued: 'continued',
     and: () => 'and',
     writeOnSheet: 'Write your answer on your response sheet.',
+    name: 'Name',
+    className: 'Class',
   },
   es: {
     use: (l, p) => `Usa ${p ? 'los recursos' : 'el recurso'} ${l}.`,
@@ -34,6 +40,8 @@ const WORDS: Record<string, WordSet> = {
     continued: 'continuación',
     and: (next) => (/^i/i.test(next) ? 'e' : 'y'),
     writeOnSheet: 'Escribe tu respuesta en tu hoja de respuestas.',
+    name: 'Nombre',
+    className: 'Clase',
   },
   so: {
     use: (l, p) => `Isticmaal ${p ? 'Ilaha' : 'Isha'} ${l}.`,
@@ -42,6 +50,8 @@ const WORDS: Record<string, WordSet> = {
     continued: 'sii socda',
     and: () => 'iyo',
     writeOnSheet: 'Ku qor jawaabtaada warqadda jawaabaha.',
+    name: 'Magaca',
+    className: 'Fasalka',
   },
   hmn: {
     use: (l) => `Siv Ntaub Ntawv ${l}.`,
@@ -50,6 +60,8 @@ const WORDS: Record<string, WordSet> = {
     continued: 'txuas ntxiv',
     and: () => 'thiab',
     writeOnSheet: 'Sau koj cov lus teb rau ntawm koj daim ntawv teb.',
+    name: 'Npe',
+    className: 'Chav Kawm',
   },
   ru: {
     use: (l, p) => `Используй ${p ? 'источники' : 'источник'} ${l}.`,
@@ -58,6 +70,8 @@ const WORDS: Record<string, WordSet> = {
     continued: 'продолжение',
     and: () => 'и',
     writeOnSheet: 'Запиши ответ на бланке ответов.',
+    name: 'Имя',
+    className: 'Класс',
   },
 };
 
@@ -78,6 +92,8 @@ export function paperPrintWords(language?: string): PaperPrintWords {
     question: (row) => `${w.question} ${row}`,
     continued: (title) => `${title} (${w.continued})`,
     writeOnSheet: w.writeOnSheet,
+    name: w.name,
+    className: w.className,
   };
 }
 
