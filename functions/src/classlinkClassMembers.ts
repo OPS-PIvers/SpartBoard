@@ -7,6 +7,7 @@ import {
   ONEROSTER_BASE,
   getOAuthHeaders,
 } from './classlinkShared';
+import { BoundedLruMap } from './utils/boundedLruMap';
 
 /** `classlink_class_members/{teacherUid}__{classId}`: `{ members: { [sourcedId]: lastSeenMs } }`. No client access. */
 export const CLASS_MEMBERS_COLLECTION = 'classlink_class_members';
@@ -19,6 +20,12 @@ export const MAX_FORMER_MEMBERS = 40;
 /** The whole former-student lookup gives up after this, keeping what it found. */
 export const FORMER_LOOKUP_BUDGET_MS = 6000;
 const LOOKUP_CONCURRENCY = 8;
+const NAME_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+/** Per-instance cache, so reopening results doesn't repeat the lookups. Null means "not a student we can name". */
+const nameCache = new BoundedLruMap<
+  string,
+  { at: number; student: ClassLinkStudent | null }
+>(5000);
 
 export type MemberMap = Record<string, number>;
 
@@ -121,7 +128,14 @@ export async function fetchFormerStudents(
 ): Promise<ClassLinkStudent[]> {
   const base = creds.tenantUrl.replace(/\/$/, '');
   const found: ClassLinkStudent[] = [];
-  const queue = [...ids];
+  const queue: string[] = [];
+  const now = Date.now();
+  for (const id of ids) {
+    const hit = nameCache.get(id);
+    if (hit && now - hit.at < NAME_CACHE_TTL_MS) {
+      if (hit.student) found.push(hit.student);
+    } else queue.push(id);
+  }
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), budgetMs);
   const lookup = async (id: string): Promise<void> => {
@@ -141,7 +155,16 @@ export async function fetchFormerStudents(
         signal: abort.signal,
       });
       const user = res.data?.user;
-      if (user?.sourcedId === id && user.role === 'student') found.push(user);
+      const student =
+        user?.sourcedId === id && user.role === 'student'
+          ? {
+              sourcedId: id,
+              givenName: user.givenName,
+              familyName: user.familyName,
+            }
+          : null;
+      nameCache.set(id, { at: Date.now(), student });
+      if (student) found.push(student);
     } catch {
       // Best effort: a missing or slow lookup leaves that student unnamed.
     }
