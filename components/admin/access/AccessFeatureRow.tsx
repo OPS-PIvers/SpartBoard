@@ -125,7 +125,9 @@ export const AccessLevelPicker: React.FC<{
   onChange: (level: AccessLevel) => void;
   label: string;
   anchorKey?: string;
-}> = ({ value, onChange, label, anchorKey }) => (
+  /** Show words and taller buttons inside a narrow row container (the stacked phone row). */
+  narrowLabels?: boolean;
+}> = ({ value, onChange, label, anchorKey, narrowLabels = false }) => (
   <div
     {...(anchorKey
       ? tourFieldAttr('admin.access.level', 'admin', anchorKey)
@@ -146,14 +148,18 @@ export const AccessLevelPicker: React.FC<{
         aria-checked={value === level}
         tabIndex={value === level ? 0 : -1}
         onClick={() => onChange(level)}
-        className={`px-2 py-1 rounded-md border text-xs font-medium flex items-center gap-1 transition-colors ${
+        className={`px-2 py-1 ${narrowLabels ? '@max-2xl:py-2 @max-2xl:px-2.5' : ''} rounded-md border text-xs font-medium flex items-center gap-1 transition-colors ${
           value === level
             ? LEVEL_ACTIVE[level]
             : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
         }`}
       >
         <Icon className="w-3.5 h-3.5" aria-hidden />
-        <span className="hidden sm:inline">{text}</span>
+        <span
+          className={`hidden sm:inline ${narrowLabels ? '@max-2xl:inline' : ''}`}
+        >
+          {text}
+        </span>
       </button>
     ))}
   </div>
@@ -482,6 +488,72 @@ export const InputSignsEditor: React.FC<{
   );
 };
 
+/** The row's always-visible part: one line when wide, stacked when narrow (phones). */
+const AccessRowHeader: React.FC<{
+  featureId: GlobalFeature;
+  label: string;
+  icon: React.ReactNode;
+  chips: React.ReactNode[];
+  status: React.ReactNode;
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  panelId: string;
+  lead?: React.ReactNode;
+  toggle: React.ReactNode;
+  picker: React.ReactNode;
+  save: React.ReactNode;
+}> = ({
+  featureId,
+  label,
+  icon,
+  chips,
+  status,
+  expanded,
+  onToggleExpanded,
+  panelId,
+  lead,
+  toggle,
+  picker,
+  save,
+}) => (
+  <div className="flex flex-wrap @2xl:flex-nowrap items-center gap-x-3 gap-y-2 p-3 hover:bg-slate-50 transition-colors">
+    <button
+      type="button"
+      onClick={onToggleExpanded}
+      aria-expanded={expanded}
+      aria-controls={panelId}
+      {...tourFieldAttr('admin.access.expand', 'admin', featureId)}
+      className="order-1 flex items-center gap-3 min-w-0 flex-1 text-left"
+    >
+      <span className="bg-brand-blue-lighter p-2 rounded-lg text-brand-blue-primary shrink-0">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5 flex-wrap">
+          <span className="font-bold text-slate-800 text-sm">{label}</span>
+          {chips}
+        </span>
+        <span className="block text-xs @2xl:text-xxs text-slate-500 @2xl:truncate">
+          {status}
+        </span>
+      </span>
+      <ChevronDown
+        className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`}
+        aria-hidden
+      />
+    </button>
+    {/* Narrow: the switch sits on the name line, like iOS Settings. */}
+    <span className="order-2 @2xl:order-3 flex shrink-0">{toggle}</span>
+    <div className="order-3 basis-full flex flex-wrap items-center gap-x-3 gap-y-2 pl-11 @2xl:contents">
+      <span className="flex items-center gap-3 empty:hidden @2xl:order-2">
+        {lead}
+      </span>
+      <span className="flex @2xl:order-4">{picker}</span>
+      <span className="flex ml-auto @2xl:ml-0 @2xl:order-5">{save}</span>
+    </div>
+  </div>
+);
+
 interface AccessFeatureRowProps {
   featureId: GlobalFeature;
   permission: GlobalFeaturePermission;
@@ -532,38 +604,25 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
   const Icon = def.icon;
   const panelId = `access-row-${featureId}`;
   return (
-    <div data-testid={`access-row-${featureId}`} className="bg-white">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 p-3 hover:bg-slate-50 transition-colors">
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          aria-expanded={expanded}
-          aria-controls={panelId}
-          {...tourFieldAttr('admin.access.expand', 'admin', featureId)}
-          className="flex items-center gap-3 min-w-0 flex-1 text-left"
-        >
-          <span className="bg-brand-blue-lighter p-2 rounded-lg text-brand-blue-primary shrink-0">
-            <Icon className="w-4 h-4" aria-hidden />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-bold text-slate-800 text-sm">
-                {displayLabel ?? def.label}
-              </span>
-              {permissionChips(featureId, permission, isSaved)}
-              {extraChips}
-            </span>
-            <span className="block text-xxs text-slate-500 truncate">
-              {status ?? def.description}
-            </span>
-          </span>
-          <ChevronDown
-            className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`}
-            aria-hidden
-          />
-        </button>
-        <div className="flex items-center gap-3 ml-auto">
-          {lead}
+    <div
+      data-testid={`access-row-${featureId}`}
+      className="bg-white"
+      style={{ containerType: 'inline-size' }}
+    >
+      <AccessRowHeader
+        featureId={featureId}
+        label={displayLabel ?? def.label}
+        icon={<Icon className="w-4 h-4" aria-hidden />}
+        chips={[
+          ...permissionChips(featureId, permission, isSaved),
+          ...extraChips,
+        ]}
+        status={status ?? def.description}
+        expanded={expanded}
+        onToggleExpanded={() => setExpanded((v) => !v)}
+        panelId={panelId}
+        lead={lead}
+        toggle={
           <Toggle
             checked={permission.enabled}
             onChange={(checked) => onUpdate({ enabled: checked })}
@@ -571,12 +630,17 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
             label={`${def.label} enabled`}
             anchor={tourFieldAttr('admin.access.enabled', 'admin', featureId)}
           />
+        }
+        picker={
           <AccessLevelPicker
             value={permission.accessLevel}
             onChange={(accessLevel) => onUpdate({ accessLevel })}
             label={def.label}
             anchorKey={featureId}
+            narrowLabels
           />
+        }
+        save={
           <button
             type="button"
             onClick={onSave}
@@ -584,7 +648,7 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
             aria-label={`Save ${def.label}`}
             {...tourFieldAttr('admin.access.save', 'admin', featureId)}
             title={hasUnsaved ? 'Save changes' : 'No changes to save'}
-            className={`p-2 rounded-lg transition-colors disabled:cursor-not-allowed ${
+            className={`relative touch-target-expand p-2 rounded-lg transition-colors disabled:cursor-not-allowed ${
               hasUnsaved
                 ? 'bg-orange-600 hover:bg-orange-700 text-white'
                 : 'text-slate-300'
@@ -592,8 +656,8 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
           >
             <Save className="w-4 h-4" />
           </button>
-        </div>
-      </div>
+        }
+      />
       {expanded && (
         <div
           id={panelId}

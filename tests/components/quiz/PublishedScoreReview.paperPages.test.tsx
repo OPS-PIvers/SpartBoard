@@ -140,14 +140,14 @@ describe('PublishedScoreReview scanned answer sheet', () => {
   it('shows each kept page in sheet order', async () => {
     const { loadPaperPage } = renderReview({});
     expect(
-      await screen.findByRole('heading', { name: 'Your answer sheet' })
+      await screen.findByRole('heading', { name: 'Your response sheet' })
     ).toBeInTheDocument();
     const pages = await screen.findAllByRole('img', {
-      name: /of your answer sheet/,
+      name: /of your response sheet/,
     });
     expect(pages.map((img) => img.getAttribute('alt'))).toEqual([
-      'Page 1 of your answer sheet',
-      'Page 2 of your answer sheet',
+      'Page 1 of your response sheet',
+      'Page 2 of your response sheet',
     ]);
     expect(pages[0]).toHaveAttribute('src', 'data:image/webp;base64,P1');
     expect(loadPaperPage).toHaveBeenCalledWith({
@@ -165,13 +165,13 @@ describe('PublishedScoreReview scanned answer sheet', () => {
     );
     renderReview({ loadPaperPage });
     expect(
-      screen.queryByRole('heading', { name: 'Your answer sheet' })
+      screen.queryByRole('heading', { name: 'Your response sheet' })
     ).not.toBeInTheDocument();
     await waitFor(() => expect(loadPaperPage).toHaveBeenCalledTimes(1));
     await new Promise((r) => setTimeout(r, 20));
     expect(loadPaperPage).toHaveBeenCalledTimes(1);
     expect(
-      screen.queryByRole('heading', { name: 'Your answer sheet' })
+      screen.queryByRole('heading', { name: 'Your response sheet' })
     ).not.toBeInTheDocument();
   });
 
@@ -185,7 +185,7 @@ describe('PublishedScoreReview scanned answer sheet', () => {
     fail = false;
     retry.click();
     expect(
-      await screen.findByRole('img', { name: 'Page 2 of your answer sheet' })
+      await screen.findByRole('img', { name: 'Page 2 of your response sheet' })
     ).toBeInTheDocument();
   });
 
@@ -196,7 +196,7 @@ describe('PublishedScoreReview scanned answer sheet', () => {
     const { loadPaperPage } = renderReview(opts);
     expect(loadPaperPage).not.toHaveBeenCalled();
     expect(
-      screen.queryByRole('heading', { name: 'Your answer sheet' })
+      screen.queryByRole('heading', { name: 'Your response sheet' })
     ).not.toBeInTheDocument();
   });
 });

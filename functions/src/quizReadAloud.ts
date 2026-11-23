@@ -185,6 +185,7 @@ interface SessionQuestion {
   matchingRight?: unknown;
   orderingItems?: unknown;
   stimulusIds?: unknown;
+  modifiedStimulusIds?: unknown;
   placeholder?: unknown;
   rubricSnapshot?: unknown;
   localized?: unknown;
@@ -1478,7 +1479,11 @@ export async function synthesizeQuizAudio(
         'Stimulus read-aloud is English only.'
       );
     const sid = request.part.stimulusId;
-    if (!strings(question.stimulusIds).includes(sid))
+    // A modified student hears the modified version's stimuli.
+    if (
+      !strings(question.stimulusIds).includes(sid) &&
+      !strings(question.modifiedStimulusIds).includes(sid)
+    )
       throw new HttpsError(
         'invalid-argument',
         'Stimulus is not attached to this question.'

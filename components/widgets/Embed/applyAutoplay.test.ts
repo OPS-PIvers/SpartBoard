@@ -60,3 +60,11 @@ describe('applyAutoplay', () => {
     expect(applyAutoplay(url, true)).toBe(url);
   });
 });
+
+describe('applyAutoplay nocookie', () => {
+  it('appends autoplay and mute for youtube-nocookie embed URLs', () => {
+    expect(
+      applyAutoplay('https://www.youtube-nocookie.com/embed/abc123', true)
+    ).toBe('https://www.youtube-nocookie.com/embed/abc123?autoplay=1&mute=1');
+  });
+});

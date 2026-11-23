@@ -88,7 +88,7 @@ export const BoardBackgroundDefaultsPanel: React.FC<Props> = ({
       aria-label={label}
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}
-      className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800"
+      className="min-w-0 sm:flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800"
     >
       <option value="">{inheritLabel}</option>
       {options.map((o) => (
@@ -104,8 +104,8 @@ export const BoardBackgroundDefaultsPanel: React.FC<Props> = ({
       <h3 className="text-sm font-bold text-slate-700">
         Default for new boards
       </h3>
-      <label className="flex items-center gap-3 text-sm text-slate-700">
-        <span className="w-40 shrink-0 font-semibold">District</span>
+      <label className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3 text-sm text-slate-700">
+        <span className="sm:w-40 shrink-0 font-semibold">District</span>
         {select(
           defaults.district,
           setDistrict,
@@ -117,9 +117,9 @@ export const BoardBackgroundDefaultsPanel: React.FC<Props> = ({
       {buildings.map((b) => (
         <label
           key={b.id}
-          className="flex items-center gap-3 text-sm text-slate-700"
+          className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3 text-sm text-slate-700"
         >
-          <span className="w-40 shrink-0 truncate" title={b.name}>
+          <span className="sm:w-40 shrink-0 sm:truncate" title={b.name}>
             {b.name}
           </span>
           {select(

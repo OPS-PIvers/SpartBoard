@@ -170,6 +170,10 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'modal',
     opensWith: 'quiz-stimuli.attach-toggle:quiz',
     files: [`${C}StimulusPickerModal.tsx`],
+    inner: {
+      'quiz-stimuli.attach-passage': 'quiz-stimuli.picker-add:quiz',
+      'quiz-stimuli.attach-word-bank': 'quiz-stimuli.picker-add:quiz',
+    },
   },
   'quiz.editor.bank-picker': {
     label: 'Add from question bank dialog',
@@ -462,6 +466,8 @@ export const SURFACES: TourSurfaceMap = {
         'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-reopen': 'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-submit': 'quiz-monitor.roster-row-actions:quiz',
+      'quiz-monitor.student-release-paper':
+        'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-unlock-results':
         'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-remove': 'quiz-monitor.roster-row-actions:quiz',

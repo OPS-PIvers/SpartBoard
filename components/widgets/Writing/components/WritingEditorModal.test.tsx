@@ -160,11 +160,11 @@ describe('WritingEditorModal', () => {
   it('adds a passage on the Stimuli tab without quiz question controls', async () => {
     const onSave = renderEditor();
     fireEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
-    fireEvent.click(screen.getByRole('button', { name: /Add a passage/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Add text/ }));
     expect(screen.queryByText('Shown on')).not.toBeInTheDocument();
     expect(screen.queryByText('unassigned')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Expand stimulus' }));
-    fireEvent.change(screen.getByLabelText('Passage'), {
+    fireEvent.change(screen.getByLabelText('Text'), {
       target: { value: 'Read this first.' },
     });
     closeEditor();

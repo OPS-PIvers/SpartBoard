@@ -96,3 +96,11 @@ describe('applyStartAt', () => {
     expect(applyStartAt(url, 30)).toBe(url);
   });
 });
+
+describe('applyStartAt nocookie', () => {
+  it('adds start for youtube-nocookie embed URLs', () => {
+    expect(
+      applyStartAt('https://www.youtube-nocookie.com/embed/abc123', 42)
+    ).toBe('https://www.youtube-nocookie.com/embed/abc123?start=42');
+  });
+});

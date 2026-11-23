@@ -8,13 +8,21 @@ import { plainMathText, promptPrintHtml } from './promptMath';
 
 import {
   escapeHtml,
+  marginStyles,
   printHtmlDocument,
+  withDrawnMargins,
   type OpenWindow,
 } from './printHtmlDocument';
 import { CHOICE_LETTERS } from './paperSheetLayout';
 import { isPlaceholderLetterChoices } from './paperSheetPlan';
 import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
 import type { ChoicePicture } from './quizAnswerImages';
+import {
+  type PaperTestPage,
+  type PaperTestResource,
+  type PaperTestStimulus,
+} from './paperTestStimuli';
+import { paperPrintWords, type PaperPrintWords } from './paperPrintWords';
 
 export interface PaperTestQuestion {
   /** Number printed on the answer sheet: the row, or the quiz position on a sheet with written boxes (D11). */
@@ -28,6 +36,10 @@ export interface PaperTestQuestion {
   written?: boolean;
   /** A section heading printed above this question, the first of its section (E15). */
   section?: { title: string; directions?: string; chooseLine?: string };
+  /** Stimuli printed in the question, between its text and its choices. */
+  stimuli?: readonly PaperTestStimulus[];
+  /** Letters of the resource pages this question uses. */
+  resources?: readonly string[];
 }
 
 export interface PaperTestJob {
@@ -37,9 +49,14 @@ export interface PaperTestJob {
   versions?: readonly {
     label: string;
     questions: readonly PaperTestQuestion[];
+    resources?: readonly PaperTestResource[];
   }[];
+  /** Stimuli shared by several questions, printed after the questions. */
+  resources?: readonly PaperTestResource[];
   /** A printed group's supports, on a page after the questions. */
   supports?: readonly { title: string; body: string }[];
+  /** The copy's language, for the words printed around stimuli; absent = English. */
+  language?: string;
 }
 
 const STYLES = `
@@ -71,6 +88,22 @@ const STYLES = `
   .supports section { break-inside: avoid; margin-bottom: 5mm; }
   .supports h3 { font-size: 11pt; margin: 0 0 1mm; }
   .supports p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  ol.q > li.tall { break-inside: auto; }
+  .resources { break-before: page; }
+  .resource { margin: 0 0 6mm; }
+  .resource h2 { font-size: 18pt; text-align: center; padding-bottom: 1.5mm; border-bottom: 0.4mm solid #000; margin: 0 0 3mm; break-after: avoid; }
+  .use-res { margin: 1.5mm 0 0; font-weight: bold; }
+  .stim-item { margin: 0 0 3mm; }
+  .stim-item h3 { font-size: 11pt; margin: 0 0 1mm; break-after: avoid; }
+  .stim-text { border: 0.3mm solid #000; padding: 3mm 4mm; white-space: pre-wrap; line-height: 1.45; overflow-wrap: anywhere; }
+  .stim-img { display: block; max-width: 100%; max-height: 200mm; object-fit: contain; break-inside: avoid; }
+  .stim-page { display: block; max-width: 100%; height: auto; break-inside: avoid; margin: 0 0 4mm; }
+  .stim-bank { display: grid; gap: 1.5mm 3mm; border: 0.3mm solid #000; padding: 3mm; }
+  .stim-bank + .stim-bank { margin-top: 2mm; }
+  .stim-bank span { border: 0.2mm solid #666; padding: 1mm 2mm; text-align: center; }
+  .stim-link { margin: 0; overflow-wrap: anywhere; }
+  .q-stim { margin: 2mm 0 0; }
+  .q-stim .stim-img { max-height: 110mm; }
 `;
 
 function choiceHtml(text: string, picture: ChoicePicture | null | undefined) {
@@ -79,10 +112,78 @@ function choiceHtml(text: string, picture: ChoicePicture | null | undefined) {
   return picture.only ? img : `${img}${escapeHtml(plainMathText(text))}`;
 }
 
-function questionHtml(q: PaperTestQuestion): string {
+/** Tallest a file page prints, so it fits one sheet under its heading. */
+const PAGE_MAX_H_MM = 215;
+
+/** A file page prints at its original size, narrowed only to fit the sheet's height; CSS caps it at the column width. */
+function pageWidthMm(pg: PaperTestPage): number {
+  if (pg.heightMm <= PAGE_MAX_H_MM) return pg.widthMm;
+  return (pg.widthMm * PAGE_MAX_H_MM) / pg.heightMm;
+}
+
+function stimulusItemHtml(item: PaperTestStimulus): string {
+  const heading =
+    item.kind !== 'link' && item.title
+      ? `<h3>${escapeHtml(item.title)}</h3>`
+      : '';
+  switch (item.kind) {
+    case 'text':
+      return `<div class="stim-item">${heading}<div class="stim-text">${escapeHtml(item.text)}</div></div>`;
+    case 'word-bank':
+      return `<div class="stim-item">${heading}${item.groups
+        .map(
+          (g) =>
+            `<div class="stim-bank" style="grid-template-columns: repeat(${item.columns}, 1fr)">${g
+              .map((w) => `<span>${escapeHtml(w)}</span>`)
+              .join('')}</div>`
+        )
+        .join('')}</div>`;
+    case 'image':
+      return `<div class="stim-item">${heading}<img class="stim-img" src="${escapeHtml(item.src)}" alt=""></div>`;
+    case 'pages':
+      return `<div class="stim-item">${heading}${item.pages
+        .map(
+          (pg) =>
+            `<img class="stim-page" src="${escapeHtml(pg.src)}" alt="" style="width:${pageWidthMm(pg).toFixed(1)}mm">`
+        )
+        .join('')}</div>`;
+    case 'link':
+      return `<div class="stim-item"><p class="stim-link"><strong>${escapeHtml(item.title)}:</strong> ${escapeHtml(item.url)}</p></div>`;
+  }
+}
+
+function resourcesHtml(
+  resources: readonly PaperTestResource[] | undefined,
+  words: PaperPrintWords
+): string {
+  if (!resources?.length) return '';
+  return `<div class="resources">${resources
+    .map(
+      (r) =>
+        `<section class="resource"><h2>${escapeHtml(words.resource(r.letter))}</h2>${stimulusItemHtml(r.item)}</section>`
+    )
+    .join('')}</div>`;
+}
+
+/** A question whose stimuli could fill most of a page may split, so it doesn't leave a blank page behind. */
+function isTall(stimuli: readonly PaperTestStimulus[] | undefined): boolean {
+  if (!stimuli?.length) return false;
+  const images = stimuli.filter((x) => x.kind === 'image').length;
+  return (
+    images > 1 ||
+    stimuli.some(
+      (x) =>
+        x.kind === 'pages' ||
+        (x.kind === 'text' && x.text.length > 600) ||
+        (x.kind === 'word-bank' && x.groups.flat().length > 24)
+    )
+  );
+}
+
+function questionHtml(q: PaperTestQuestion, words: PaperPrintWords): string {
   // A stub's options are just the bubble letters, which say nothing to a student.
   const choices = q.written
-    ? '<p class="written">Answer on your answer sheet</p>'
+    ? `<p class="written">${escapeHtml(words.writeOnSheet)}</p>`
     : isPlaceholderLetterChoices(q.choices)
       ? ''
       : `<ol class="c">${q.choices
@@ -96,19 +197,27 @@ function questionHtml(q: PaperTestQuestion): string {
         q.section.directions ? `<p>${escapeHtml(q.section.directions)}</p>` : ''
       }${q.section.chooseLine ? `<p><strong>${escapeHtml(q.section.chooseLine)}</strong></p>` : ''}</li>`
     : '';
-  return `${section}<li><span class="num">${escapeHtml(String(q.row))}.</span><div><div class="text">${promptPrintHtml(q.text)}</div>${choices}</div></li>`;
+  const stimuli = q.stimuli?.length
+    ? `<div class="q-stim">${q.stimuli.map(stimulusItemHtml).join('')}</div>`
+    : '';
+  const uses = q.resources?.length
+    ? `<p class="use-res">${escapeHtml(words.useResources(q.resources))}</p>`
+    : '';
+  const tall = isTall(q.stimuli) ? ' class="tall"' : '';
+  return `${section}<li${tall}><span class="num">${escapeHtml(String(q.row))}.</span><div><div class="text">${promptPrintHtml(q.text)}</div>${stimuli}${uses}${choices}</div></li>`;
 }
 
 function testHtml(
   quizTitle: string,
   questions: readonly PaperTestQuestion[],
+  words: PaperPrintWords,
   label?: string
 ): string {
   return `<h1>${escapeHtml(quizTitle)}</h1>${
     label ? `<p class="version-label">${escapeHtml(label)}</p>` : ''
   }
-<div class="meta"><div>Name <span></span></div><div>Class <span></span></div></div>
-<ol class="q">${questions.map(questionHtml).join('')}</ol>`;
+<div class="meta"><div>${escapeHtml(words.name)} <span></span></div><div>${escapeHtml(words.className)} <span></span></div></div>
+<ol class="q">${questions.map((q) => questionHtml(q, words)).join('')}</ol>`;
 }
 
 function supportsHtml(supports: PaperTestJob['supports']): string {
@@ -123,15 +232,67 @@ function supportsHtml(supports: PaperTestJob['supports']): string {
 
 /** The document `printPaperTest` would write. Exported for tests. */
 export function buildPaperTestHtml(job: PaperTestJob): string {
+  const words = paperPrintWords(job.language);
   if (job.versions?.length) {
     return job.versions
       .map(
         (v) =>
-          `<section class="version">${testHtml(job.quizTitle, v.questions, v.label)}</section>`
+          `<section class="version">${testHtml(job.quizTitle, v.questions, words, v.label)}${resourcesHtml(v.resources, words)}</section>`
       )
       .join('');
   }
-  return testHtml(job.quizTitle, job.questions) + supportsHtml(job.supports);
+  return (
+    testHtml(job.quizTitle, job.questions, words) +
+    resourcesHtml(job.resources, words) +
+    supportsHtml(job.supports)
+  );
+}
+
+/** Test paper styles scoped under `.tp`, so a copy can sit beside the response sheets in one document. */
+function scopedStyles(css: string): string {
+  return css
+    .split('\n')
+    .map((line) => {
+      if (line.trim().startsWith('@')) return '';
+      const m = /^(\s*)([^{]+)\{(.*)$/.exec(line);
+      if (!m) return line;
+      const sel = m[2].trim();
+      if (sel === '*') return `${m[1]}.tp, .tp * {${m[3]}`;
+      if (sel === 'body') return `${m[1]}.tp {${m[3]}`;
+      const scoped = sel
+        .split(',')
+        .map((x) => `.tp ${x.trim()}`)
+        .join(', ');
+      return `${m[1]}${scoped} {${m[3]}`;
+    })
+    .join('\n');
+}
+
+const TEST_MARGINS = { vertical: 18, horizontal: 20 };
+const testFooter = (): string =>
+  `<div class="brand">${spartronLogoSvg(4.2)}<span class="brand-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div>`;
+
+/** Styles for test paper copies printed inside the response sheet document. */
+export const PAPER_TEST_PACKET_STYLES = `${scopedStyles(STYLES)}${scopedStyles(
+  marginStyles(TEST_MARGINS)
+)}
+  .tp { break-after: page; }
+  .tp .num { position: static; font-size: inherit; text-align: left; line-height: inherit; }
+`;
+
+/** One test paper copy per version (or one for the whole quiz), to print at the front of each student's packet. */
+export function paperTestPacketCopies(job: PaperTestJob): string[] {
+  const words = paperPrintWords(job.language);
+  const copy = (body: string): string =>
+    `<div class="tp">${withDrawnMargins(body, testFooter())}</div>`;
+  if (job.versions?.length)
+    return job.versions.map((v) =>
+      copy(
+        testHtml(job.quizTitle, v.questions, words, v.label) +
+          resourcesHtml(v.resources, words)
+      )
+    );
+  return [copy(buildPaperTestHtml(job))];
 }
 
 export function printPaperTest(
@@ -143,14 +304,17 @@ export function printPaperTest(
     !job.versions?.some((v) => v.questions.length)
   )
     return;
+  const body = buildPaperTestHtml(job);
   printHtmlDocument(
     {
       title: `${job.quizTitle} — test`,
       styles: STYLES,
-      body: buildPaperTestHtml(job),
-      marginMm: { vertical: 18, horizontal: 20 },
+      body,
+      // Stimulus pictures and pages are large; an undecoded one prints as a blank box.
+      awaitImages: body.includes('<img'),
+      marginMm: TEST_MARGINS,
       // Same mark, size and place as the bubble sheet's footer.
-      footer: `<div class="brand">${spartronLogoSvg(4.2)}<span class="brand-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div>`,
+      footer: testFooter(),
     },
     openWindow
   );

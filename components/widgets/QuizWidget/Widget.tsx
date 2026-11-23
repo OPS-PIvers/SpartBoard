@@ -79,6 +79,8 @@ import {
 } from '@/utils/questionBanks';
 import {
   assignmentFrozenFileId,
+  paperFrozenFileId,
+  loadPaperQuizWithFallback,
   loadAssignmentAnswerKeyQuiz,
   unfrozenAssignmentCount,
   withCurrentAnswerKeys,
@@ -233,6 +235,7 @@ import {
   responseColorIndex,
 } from './utils/resolveDisplayName';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
+import { releasePaperRow } from '@/hooks/quizSession/joinHelpers';
 import { QuizLiveMonitor } from './components/QuizLiveMonitor';
 import { PaperPrintModal } from './components/PaperPrintModal';
 import {
@@ -289,7 +292,7 @@ import {
   stimulusLoadErrorMessage,
 } from '@/utils/paperSheetStimulusImages';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
-import { MAX_PAGE } from '@/utils/paperSheetMarker';
+import { MAX_SHEET_PAGE } from '@/utils/paperSheetMarker';
 import {
   deletePaperBatch,
   subscribePaperBatchIndex,
@@ -1507,6 +1510,17 @@ const TeacherQuizWidget: React.FC<{
     },
     [loadQuiz, loadQuizData, loadBankContentsForQuiz]
   );
+
+  // A frozen paper assignment scans and reprints against its copy; bank-draw hybrids and unfrozen ones use the library quiz.
+  const loadPaperQuiz = (
+    assignment: QuizAssignment,
+    meta: QuizMetadata
+  ): Promise<QuizData | null> =>
+    loadPaperQuizWithFallback(
+      paperFrozenFileId(assignment),
+      () => loadAnswerKeyQuiz(meta, assignment),
+      () => loadQuiz(meta)
+    );
 
   // Publish reads the key without the loading pane, which would unmount the open Publish dialog.
   const loadAnswerKeyQuizQuietly = useCallback(
@@ -3364,6 +3378,7 @@ const TeacherQuizWidget: React.FC<{
           onUnlockStudent={unlockStudentAttempt}
           onReopenStudent={reopenStudentAttempt}
           onSubmitForStudent={submitForStudent}
+          onReleasePaperRow={(key) => releasePaperRow(liveSession.id, key)}
           onUnlockResultsForStudent={unlockResultsForStudent}
           onClearHand={clearHandForStudent}
           onRevealAnswer={revealAnswer}
@@ -3513,7 +3528,7 @@ const TeacherQuizWidget: React.FC<{
           paperSheets.enabled && !isReview && user?.uid
             ? async (assignment, opts) => {
                 const meta = paperAssignmentMeta(assignment);
-                const data = await loadQuiz(meta);
+                const data = await loadPaperQuiz(assignment, meta);
                 if (!data) return;
                 const copyIds = assignment.paperCopyBatchIds ?? [];
                 const batches = (
@@ -3541,7 +3556,10 @@ const TeacherQuizWidget: React.FC<{
         onReprintPaperSheets={
           paperUid
             ? async (assignment, opts) => {
-                const data = await loadQuiz(paperAssignmentMeta(assignment));
+                const data = await loadPaperQuiz(
+                  assignment,
+                  paperAssignmentMeta(assignment)
+                );
                 if (!data) return;
                 const stacks = await listPaperBatchesForQuiz(
                   paperUid,
@@ -3762,9 +3780,6 @@ const TeacherQuizWidget: React.FC<{
             assignDriveFileId = resolvedDriveFileId;
             sessionBankSlots = resolved.sessionSlots;
           }
-          const frozenDriveFileId = resolvedDriveFileId
-            ? undefined
-            : await freezeForAssign(data);
 
           // Hidden option ids resolve to option text here so they never reach a student-readable pointer doc.
           const {
@@ -3950,7 +3965,7 @@ const TeacherQuizWidget: React.FC<{
                       quizId: meta.id,
                     });
                     fail(
-                      'Could not save the written answer sheets. Try again.'
+                      'Could not save the written response sheets. Try again.'
                     );
                     return;
                   }
@@ -3967,7 +3982,7 @@ const TeacherQuizWidget: React.FC<{
             });
             if (!plan.ok && plan.reason === 'too-many-pages') {
               fail(
-                `This sheet needs ${plan.pageCount} pages. The most one sheet can print is ${MAX_PAGE}.`
+                `This sheet needs ${plan.pageCount} pages. The most one sheet can print is ${MAX_SHEET_PAGE}.`
               );
               return;
             }
@@ -4009,7 +4024,7 @@ const TeacherQuizWidget: React.FC<{
               logError('QuizWidget.assignment.writtenOnPaper', err, {
                 quizId: meta.id,
               });
-              fail('Could not save the written answer sheets. Try again.');
+              fail('Could not save the written response sheets. Try again.');
               return;
             }
             paperWritten = {
@@ -4029,6 +4044,11 @@ const TeacherQuizWidget: React.FC<{
                 ...(release ? { onImagesReady: release } : {}),
               });
           }
+
+          // Frozen after the box setup, so a reprint from the copy matches the printed sheets.
+          const frozenDriveFileId = resolvedDriveFileId
+            ? undefined
+            : await freezeForAssign({ ...data, questions: assignQuestions });
 
           let assignmentSaved = false;
           try {

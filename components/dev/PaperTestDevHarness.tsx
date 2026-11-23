@@ -25,6 +25,7 @@ import type {
   QuizConfig,
   QuizData,
   QuizMetadata,
+  QuizStimulus,
 } from '@/types';
 
 const NOW = Date.UTC(2026, 10, 4, 15);
@@ -218,6 +219,165 @@ const WRITTEN_QUIZ: QuizData = {
   ],
 };
 
+// A screenshot script serves the example.test PDF; the picture is inline so the print window can draw it.
+const CELL_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250" viewBox="0 0 400 250"><rect width="400" height="250" fill="#fff"/><ellipse cx="200" cy="125" rx="170" ry="105" fill="#eef5e8" stroke="#000" stroke-width="3"/><circle cx="200" cy="125" r="40" fill="#c9cdf0" stroke="#000" stroke-width="2"/><text x="200" y="130" font-family="Arial" font-size="14" text-anchor="middle">nucleus</text><text x="40" y="20" font-family="Arial" font-size="14">cell membrane</text></svg>'
+)}`;
+const STIMULI_QUIZ: QuizData = {
+  ...QUIZ,
+  title: 'Cells reading check',
+  stimuli: [
+    {
+      id: 'st-passage',
+      type: 'text',
+      url: '',
+      label: 'Cell passage',
+      tabLabel: 'The Cell',
+      text: "Every living thing is made of cells. A cell is the smallest unit of life.\n\nPlant cells have a cell wall and chloroplasts. Animal cells do not. Both have a nucleus, which holds the cell's DNA.",
+    },
+    {
+      id: 'st-bank',
+      type: 'word-bank',
+      url: '',
+      label: '',
+      text: 'nucleus\nribosome\nvacuole\nchloroplast\n\ncell wall\nmembrane',
+      wordBankColumns: 3,
+    },
+    {
+      id: 'st-diagram',
+      type: 'image',
+      url: CELL_SVG,
+      label: 'Cell diagram',
+    },
+    {
+      id: 'st-inline',
+      type: 'image',
+      url: CELL_SVG,
+      label: '',
+      placement: 'inline',
+    },
+    {
+      id: 'st-article',
+      type: 'pdf',
+      url: 'https://example.test/article.pdf',
+      label: 'Article',
+      tabLabel: 'Article',
+    },
+    {
+      id: 'st-video',
+      type: 'youtube',
+      url: 'https://www.youtube.com/watch?v=URUJD5NEXC8',
+      label: '',
+    },
+    {
+      id: 'st-note',
+      type: 'text',
+      url: '',
+      label: 'Lab note',
+      text: 'Use the microscope on low power first.',
+      paperPlacement: 'question',
+    },
+    {
+      id: 'st-doc',
+      type: 'gdoc-embed',
+      url: 'https://docs.google.com/document/d/1AbCdEfGhIjK/edit',
+      label: '',
+    },
+  ],
+  questions: (
+    [
+      ['What is the smallest unit of life?', []],
+      ['Which part holds the DNA?', ['st-passage']],
+      ['Which cells have a cell wall?', ['st-passage']],
+      [
+        'Which word names the green part of a plant cell?',
+        ['st-passage', 'st-bank'],
+      ],
+      ['Which label points to the nucleus?', ['st-diagram']],
+      ['What does this picture show?', ['st-inline']],
+      ['What is the main idea of the article?', ['st-article']],
+      ['Where do animal cells get energy?', ['st-article', 'st-video']],
+      ['Which lab step comes first?', ['st-doc', 'st-note']],
+      ['Which tool do you use to see cells?', ['st-note']],
+    ] as const
+  ).map(([text, ids], i) => ({
+    id: `s${i + 1}`,
+    timeLimit: 0,
+    text,
+    type: 'MC' as const,
+    correctAnswer: 'Nucleus',
+    incorrectAnswers: ['Ribosome', 'Vacuole', 'Cell wall'],
+    stimulusIds: [...ids],
+  })),
+};
+
+// Paul's report: one full-page essay question using a text stimulus.
+const ESSAY_TEXT_QUIZ: QuizData = {
+  ...QUIZ,
+  title: 'Sample quiz with stimuli',
+  stimuli: [
+    {
+      id: 'st-frames',
+      type: 'text',
+      url: '',
+      label: 'Passage',
+      tabLabel: 'Sentence Frames',
+      text: "Claim Frames\nThe claim is the first sentence in your body paragraph. As you write, consider using one of the three options below:\n\nOption 1: Through the interweaving of [specific plot events], [character developments], and [literary devices], [author] crafts a compelling exploration of [theme].\n\nOption 2: The theme of [theme] emerges most powerfully through [author's] strategic use of [specific literary elements].",
+      readAloudSource: 'text',
+    },
+  ],
+  questions: [
+    {
+      id: 'e1',
+      timeLimit: 0,
+      text: 'Use one of the provided sentence frames to write your response.',
+      type: 'free-response',
+      correctAnswer: '',
+      incorrectAnswers: [],
+      stimulusIds: ['st-frames'],
+      paperBoxSize: 'full',
+    },
+  ],
+};
+
+// MC questions plus a written answer with a text stimulus, for the print preview.
+const PREVIEW_QUIZ: QuizData = {
+  ...ESSAY_TEXT_QUIZ,
+  title: 'Cells unit test',
+  questions: [
+    ...[
+      [
+        'Which part of the cell holds its DNA?',
+        'Nucleus',
+        ['Ribosome', 'Vacuole', 'Cell wall'],
+      ],
+      [
+        'Which part makes proteins?',
+        'Ribosome',
+        ['Nucleus', 'Vacuole', 'Chloroplast'],
+      ],
+      [
+        'Which structure do plant cells have that animal cells do not?',
+        'Cell wall',
+        ['Nucleus', 'Membrane', 'Ribosome'],
+      ],
+      [
+        'Where does photosynthesis happen?',
+        'Chloroplast',
+        ['Mitochondria', 'Nucleus', 'Vacuole'],
+      ],
+    ].map(([text, correct, wrong], i) => ({
+      id: `p${i + 1}`,
+      timeLimit: 0,
+      text: text as string,
+      type: 'MC' as const,
+      correctAnswer: correct as string,
+      incorrectAnswers: wrong as string[],
+    })),
+    { ...ESSAY_TEXT_QUIZ.questions[0], paperBoxSize: 'full' as const },
+  ],
+};
+
 // ?drive=0 shows the no-Drive hint; ?uploads=fail makes every upload fail.
 const PaperImport: React.FC = () => {
   const { canAccessFeature } = useAuth();
@@ -347,6 +507,91 @@ const VIEWS = {
             ])
           ),
         },
+      }}
+      rosters={ROSTERS}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
+  stimuli: () => (
+    <PaperPrintModal
+      quiz={STIMULI_QUIZ}
+      rosters={ROSTERS}
+      assign={{
+        plcs: [],
+        initialSharing: { plcMode: false, plcId: '' },
+        onCreateAssignment: () => Promise.resolve(),
+      }}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
+  'essay-text': () => {
+    const params = new URLSearchParams(window.location.search);
+    const placement = params.get('place');
+    // ?stim=pdf swaps the text for a PDF the screenshot script serves.
+    const asPdf = params.get('stim') === 'pdf';
+    // ?long=1 repeats the text so it overflows a shared page.
+    const long = params.get('long') === '1';
+    return (
+      <PaperPrintModal
+        quiz={{
+          ...ESSAY_TEXT_QUIZ,
+          stimuli: ESSAY_TEXT_QUIZ.stimuli?.map((s) => {
+            const st: QuizStimulus = asPdf
+              ? {
+                  id: s.id,
+                  type: 'pdf',
+                  url: 'https://example.test/frames.pdf',
+                  label: 'Claim Frames.pdf',
+                }
+              : long
+                ? { ...s, text: Array(6).fill(s.text).join('\n\n') }
+                : s;
+            return placement === 'question' || placement === 'resource'
+              ? { ...st, paperPlacement: placement }
+              : st;
+          }),
+        }}
+        rosters={ROSTERS}
+        assign={{
+          plcs: [],
+          initialSharing: { plcMode: false, plcId: '' },
+          onCreateAssignment: () => Promise.resolve(),
+        }}
+        onSaveBatch={() => Promise.resolve()}
+        onClose={noop}
+        onError={noop}
+      />
+    );
+  },
+  // Needs the paper-print-preview flag (admins have it).
+  preview: () => (
+    <PaperPrintModal
+      quiz={PREVIEW_QUIZ}
+      rosters={ROSTERS}
+      assign={{
+        plcs: [],
+        initialSharing: { plcMode: false, plcId: '' },
+        onCreateAssignment: () => Promise.resolve(),
+      }}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
+  'printed-stimuli': () => (
+    <PaperPrintModal
+      quiz={printedGroupQuiz(STIMULI_QUIZ, {
+        answerChoices: 'two',
+        modifiedQuestions: true,
+      })}
+      group={{
+        label: 'Group 1',
+        students: { r1: ['r1-s0', 'r1-s3'] },
+        supports: [{ title: 'Word bank', body: 'nucleus, ribosome' }],
       }}
       rosters={ROSTERS}
       onSaveBatch={() => Promise.resolve()}

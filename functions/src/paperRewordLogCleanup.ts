@@ -4,6 +4,9 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
 
+// Retries stop after this, so a lasting failure can't retry for the 7-day default.
+const MAX_EVENT_AGE_SECONDS = 3600;
+
 export async function deletePaperRewordLog(
   db: admin.firestore.Firestore,
   sessionId: string,
@@ -28,6 +31,15 @@ export const cleanupPaperRewordLog = onDocumentDeleted(
   },
   async (event) => {
     const { sessionId, responseKey } = event.params;
+    const ageSeconds = (Date.now() - Date.parse(event.time)) / 1000;
+    if (ageSeconds > MAX_EVENT_AGE_SECONDS) {
+      logger.error('paperRewordLogCleanup: dropping event past retry budget', {
+        sessionId,
+        responseKey,
+        ageSeconds,
+      });
+      return;
+    }
     try {
       await deletePaperRewordLog(admin.firestore(), sessionId, responseKey);
     } catch (err) {

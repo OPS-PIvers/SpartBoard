@@ -81,6 +81,10 @@ export const PreviewRow: React.FC<{
   const ready = isReadyToGraduate(permission, saved, districtOn);
   const def = FEATURE_DEFAULTS[featureId];
   const retire = def.afterLaunch === 'retire';
+  // A group parent graduates only once its add-ons have left Previews.
+  const hasPreviewOptions =
+    previewGroupChildren(featureId, previewFeatures(editor.graduated)).length >
+    0;
   const graduating = editor.saving.has(featureId);
   const graduate = () => {
     const home = def.widget
@@ -107,7 +111,7 @@ export const PreviewRow: React.FC<{
       lead={
         <>
           {sw && <DistrictSwitch sw={sw} state={district} />}
-          {ready && !retire && (
+          {ready && !retire && !hasPreviewOptions && (
             <button
               type="button"
               onClick={graduate}
@@ -170,7 +174,7 @@ const RolloutOnlyRow: React.FC<{ sw: RolloutSwitch }> = ({ sw }) => {
         <span className="block font-bold text-slate-800 text-sm">
           {sw.title}
         </span>
-        <span className="block text-xxs text-slate-500 truncate">
+        <span className="block text-xs sm:text-xxs text-slate-500 sm:truncate">
           {state.enabled === null
             ? sw.description
             : state.enabled

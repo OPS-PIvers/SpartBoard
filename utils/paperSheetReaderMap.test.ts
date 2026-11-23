@@ -7,7 +7,13 @@ import {
   type SyntheticWriting,
 } from '@/tests/testHelpers/paperSheetRaster';
 import { planPaperPages, type PaperSheetEntry } from './paperPageMap';
-import { type PaperGrid } from './paperSheetLayout';
+import {
+  QUESTION_CHOICE_TOP_MM,
+  QUESTION_STEM_W_MM,
+  QUESTION_STEM_X_MM,
+  type PaperGrid,
+} from './paperSheetLayout';
+import { BLOCK_GAP_MM } from './paperSheetStimulusBlocks';
 import { paperBatchTag } from './paperSheetMarker';
 import {
   cropWrittenBox,
@@ -178,6 +184,50 @@ describe('readPaperPage on a page-map sheet', () => {
     expect(result.rows.every((r) => !r.doubt)).toBe(true);
     expect(result.written[0].state).toBe('ink');
   });
+
+  it.each([0x60, 0x80, 0xa0])(
+    'keeps bubble reads right beside a mid-tone picture block at grey %i',
+    (tone) => {
+      const entries = [mc(1), mc(2), mc(3), mc(4)];
+      const result = planPaperPages({
+        entries,
+        grid: 'questions',
+        stems: true,
+        choiceCount: 4,
+        stemLines: Object.fromEntries(entries.map((e) => [e.questionId, 1])),
+        stimulusMm: { q1: 90, q3: 60 },
+      });
+      if (!result.ok) throw new Error('plan refused');
+      const maps = result.pageMaps;
+      const map = maps[0];
+      const items = map.items.flatMap((i) => (i.kind === 'mc' ? [i] : []));
+      const artwork = items.flatMap((item) => {
+        const h =
+          item.questionId === 'q1' ? 90 : item.questionId === 'q3' ? 60 : 0;
+        if (!h) return [];
+        const y = item.originMm.y + QUESTION_CHOICE_TOP_MM - BLOCK_GAP_MM - h;
+        return [
+          {
+            rect: { x: QUESTION_STEM_X_MM, y, w: QUESTION_STEM_W_MM, h },
+            tone,
+          },
+        ];
+      });
+      const marks: SyntheticMark[] = items.map((_, row) => ({
+        row,
+        choice: (row + 1) % 4,
+      }));
+      const read1 = read(
+        maps,
+        paint(map, { marks, artwork, printedLetters: true }),
+        'questions'
+      );
+      expect(read1.rows.map((r) => r.choice)).toEqual(
+        marks.map((m) => m.choice)
+      );
+      expect(read1.rows.every((r) => !r.doubt)).toBe(true);
+    }
+  );
 
   it('reads a skewed, upside-down page the same as a straight one', () => {
     const maps = plan(MIXED, 2);

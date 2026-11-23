@@ -16,6 +16,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'live-tour-editing-v2',
   'paper-handwritten-responses',
   'paper-multi-page-answers',
+  'paper-print-preview',
   'paper-written-hybrid',
   'paper-reword-sync',
   'paper-kept-pages',
@@ -36,7 +37,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'drive-only-uploads',
   'quick-sign-in',
   'quiz-score-on-submit',
-  'quiz-recap-all-options',
   'quiz-assign-waits-for-save',
   'quiz-frozen-assignments',
   'rubric-grading-v2',
@@ -46,6 +46,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-time-limit',
   'group-reminders',
   'class-groups-redesign',
+  'classlink-clean-names',
   'share-content-safeguards',
   'guided-learning-ai',
   'routine-guide',
@@ -62,6 +63,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-calculator-stimulus',
   'quiz-word-bank',
   'quiz-stimulus-picker',
+  'quiz-modified-stimuli',
   'question-editor-fields',
   'lunch-count-redesign',
   'weather-details',
@@ -100,6 +102,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-question-audio',
   'quiz-random-numbers',
   'results-print-v2',
+  'widget-notes-in-whats-new',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

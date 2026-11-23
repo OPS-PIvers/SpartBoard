@@ -280,6 +280,29 @@ describe('useRosters — subscription', () => {
     expect(result.current.rosters[0].retiredPinsAt).toEqual({ '01': 1234 });
   });
 
+  it('carries the Google Classroom link and nightly-sync fields from the roster doc', async () => {
+    currentDriveService = null;
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [
+      metaDoc('r1', {
+        googleClassroomCourseId: 'course-9',
+        classlinkSyncSummary: { at: 5, addedCount: 2, removedCount: 1 },
+        classlinkSyncBlocked: { reason: 'mass-removal', at: 6 },
+      }),
+    ]);
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+    expect(result.current.rosters[0].googleClassroomCourseId).toBe('course-9');
+    expect(result.current.rosters[0].classlinkSyncSummary).toEqual({
+      at: 5,
+      addedCount: 2,
+      removedCount: 1,
+    });
+    expect(result.current.rosters[0].classlinkSyncBlocked).toEqual({
+      reason: 'mass-removal',
+      at: 6,
+    });
+  });
+
   it('merges Drive students into roster metadata and caches on success', async () => {
     currentDriveService = makeDriveService({
       downloadFile: vi.fn().mockResolvedValue(

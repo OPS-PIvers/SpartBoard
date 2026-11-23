@@ -559,13 +559,13 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
   // Print/scan paper answer sheets. Admin-only until opened up; the district
   // switch (admin_settings/paper_answer_sheets) must also be on.
   'paper-answer-sheets': {
-    label: 'Paper answer sheets (Scantron replacement)',
+    label: 'Paper response sheets (Scantron replacement)',
     icon: Printer,
     description: 'Print bubble sheets and import scans.',
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
-    modalLabel: 'Paper answer sheets',
+    modalLabel: 'Paper response sheets',
     group: 'questions',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
@@ -676,6 +676,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'quiz-modified-stimuli': {
+    label: 'Modified stimuli',
+    icon: Layers,
+    description:
+      "A question's modified version can show different stimuli to students with modified questions.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Question editor metadata as labeled fields. Admin-only until Paul has tested it in prod.
   'question-editor-fields': {
     label: 'Question editor fields',
@@ -734,6 +745,22 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     modalLabel: 'Multi-page written answers',
     group: 'questions',
     requires: 'paper-handwritten-responses',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Live page preview beside the paper print options.
+  'paper-print-preview': {
+    label: 'Paper print preview',
+    icon: Eye,
+    description:
+      'See each printed page while you set up paper response sheets.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Print preview',
+    group: 'questions',
+    requires: 'paper-answer-sheets',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1009,21 +1036,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Published quiz results list every answer option. Admin-only until Paul has used it with a class.
-  'quiz-recap-all-options': {
-    label: 'Quiz results: all answer options',
-    icon: ListChecks,
-    description:
-      "Published results show every answer option. The student's pick is marked right or wrong.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    modalLabel: 'All answer options',
-    group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
+
   // Quiz assign waits for the save, so a failed save keeps the teacher's choices. Admin-only until Paul has used it.
   'quiz-assign-waits-for-save': {
     label: 'Quiz assign waits for the save',
@@ -1133,6 +1146,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: UsersRound,
     description:
       'Edit Class groups open as pages that hold their accommodations. Accommodations lists every student.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'classlink-clean-names': {
+    label: 'Short ClassLink class names',
+    icon: Download,
+    description:
+      'Classes imported from ClassLink get a short name with the course and period.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1577,7 +1601,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     description:
       'Bring a file, link, web page or pasted text into SpartBoard, and send pages with the Chrome extension.',
     stage: 'preview',
-    afterLaunch: 'retire',
+    afterLaunch: 'keep',
+    category: 'integrations',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1864,6 +1889,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Users,
     description:
       "Teachers pair students to read, comment on or suggest edits to each other's writing.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'widget-notes-in-whats-new': {
+    label: "Widget updates in What's New",
+    icon: Sparkles,
+    description:
+      "Widget update notes are listed in What's New instead of under each widget.",
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

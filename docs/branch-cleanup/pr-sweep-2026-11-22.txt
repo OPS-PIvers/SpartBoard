@@ -1,0 +1,7 @@
+nightly/unifier-log-2026-11-22 (unifier run 154 log, #6525)
+nightly/debugger-log-2026-11-22 (debugger run 131 log, #6532)
+nightly/build-2026-11-22 (NRPS Link header fix, #6527)
+nightly/dashboard-2026-11-22 (plc path decode fix, #6529)
+nightly/state-2026-11-22 (roster meta fields fix, #6530)
+nightly/admin-2026-11-22 (Calendar config number fields, #6528)
+nightly/widgets-2026-11-22 (Embed youtube-nocookie fix, #6531)

@@ -24,7 +24,7 @@ const turnedIn = (submitted: number, total: number | null) =>
     ? `${submitted} of ${total} turned in`
     : `${submitted} turned in`;
 
-/** The row's one status chip: where its classes stand, never grading or publishing. */
+/** The row's status word: where its classes stand, never grading or publishing. */
 export interface AccessBadge {
   label: string;
   tone: 'success' | 'warn' | 'info' | 'neutral';
@@ -39,7 +39,7 @@ const BADGE_TONE: Record<ClassStatus, AccessBadge['tone']> = {
   closed: 'neutral',
 };
 
-/** One class's chip, as the expanded row and a class filter show it. */
+/** One class's status word, as the expanded row and a class filter show it. */
 export function classBadge(c: AssignedClass): AccessBadge {
   return {
     label: CLASS_STATUS_WORD[c.status],
@@ -55,9 +55,8 @@ const named = (word: string, of: AssignedClass[], single: boolean) =>
       ? `${word} · ${of[0].label}`
       : `${word} · ${of.length} classes`;
 
-/** Null on a Finished row, where every class is closed and a chip says nothing. */
-export function accessBadge(s: AssignedStatus): AccessBadge | null {
-  if (s.bucket === 'done') return null;
+/** Where the row's classes stand, in the same column as each class's word. */
+export function accessBadge(s: AssignedStatus): AccessBadge {
   const by = (st: ClassStatus) => s.classes.filter((c) => c.status === st);
   const open = by('open');
   if (open.length > 0)
@@ -74,7 +73,7 @@ export function accessBadge(s: AssignedStatus): AccessBadge | null {
   return { label: 'Closed', tone: 'neutral' };
 }
 
-/** The grey text beside the chip: counts, what is waiting and when it opens. */
+/** The grey text beside the status word: counts, what is waiting and when it opens. */
 export function detailText(
   s: AssignedStatus,
   nowMs: number,
@@ -135,7 +134,7 @@ export function detailText(
       parts.push('View only');
       break;
     case 'done':
-      parts.push(line.scoresPublished ? 'Scores published' : 'Closed');
+      if (line.scoresPublished) parts.push('Scores published');
       break;
   }
   if (line.kind !== 'needs-grading' && s.grading === 'needs-grading')

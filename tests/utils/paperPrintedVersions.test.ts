@@ -71,6 +71,19 @@ describe('printedGroupQuiz', () => {
     expect(printed.questions[1].text).toBe('Question q2');
   });
 
+  it('prints the modified stimuli only for a group with modified questions', () => {
+    const q = quiz([
+      mc('q1', { stimulusIds: ['s1'], modifiedStimulusIds: ['s2'] }),
+      mc('q2', { stimulusIds: ['s1'] }),
+    ]);
+    const printed = printedGroupQuiz(q, group({ modifiedQuestions: true }));
+    expect(printed.questions[0].stimulusIds).toEqual(['s2']);
+    expect(printed.questions[1].stimulusIds).toEqual(['s1']);
+    expect(printedGroupQuiz(q, group({})).questions[0].stimulusIds).toEqual([
+      's1',
+    ]);
+  });
+
   it("keeps every option on the teacher's own test paper", () => {
     const q = quiz([mc('q1', { paperOwnTest: true })]);
     const printed = printedGroupQuiz(q, group({ answerChoices: 'two' }));

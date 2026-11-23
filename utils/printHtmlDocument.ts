@@ -45,7 +45,10 @@ export interface PrintableDocument {
 
 // Chrome repeats a table's thead and tfoot on every printed page, which gives
 // each page its top and bottom margin once `@page` has none.
-const marginStyles = (m: { vertical: number; horizontal: number }): string => `
+export const marginStyles = (m: {
+  vertical: number;
+  horizontal: number;
+}): string => `
   @page { margin: 0; }
   table.page-margins { width: 100%; border-collapse: collapse; }
   table.page-margins > thead td, table.page-margins > tfoot td { height: ${m.vertical}mm; padding: 0; }
@@ -53,7 +56,7 @@ const marginStyles = (m: { vertical: number; horizontal: number }): string => `
   table.page-margins > tbody > tr > td { padding: 0 ${m.horizontal}mm; }
 `;
 
-const withDrawnMargins = (body: string, footer = ''): string =>
+export const withDrawnMargins = (body: string, footer = ''): string =>
   `<table class="page-margins"><thead><tr><td></td></tr></thead><tfoot><tr><td>${footer}</td></tr></tfoot><tbody><tr><td>${body}</td></tr></tbody></table>`;
 
 /** Throws the same pop-up message as `exportPdf` when the window is blocked. */

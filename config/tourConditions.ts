@@ -60,6 +60,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'quiz-ordering-list',
   'quiz-ordering-results',
   'quiz-prompt-formatting',
+  'quiz-recap-all-options',
   'quiz-reopen-submission',
   'quiz-results-tools',
   'quiz-review-step',

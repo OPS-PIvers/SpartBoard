@@ -163,7 +163,7 @@ describe('QuizEditorModal isDirty (stimuli compare)', () => {
 
     const context = within(screen.getByTestId('context-pane'));
     fireEvent.click(context.getByRole('button', { name: 'Expand stimulus' }));
-    fireEvent.change(context.getByLabelText('Passage'), {
+    fireEvent.change(context.getByLabelText('Text'), {
       target: { value: 'The tide pool holds more life than it looks.' },
     });
 

@@ -14,7 +14,7 @@ import {
   planPaperPages as clientPages,
   type PaperSheetEntry,
 } from '@/utils/paperPageMap';
-import { MAX_PAGE as CLIENT_MAX_PAGE } from '@/utils/paperSheetMarker';
+import { MAX_SHEET_PAGE as CLIENT_MAX_PAGE } from '@/utils/paperSheetMarker';
 import {
   analyzePaperQuiz as serverAnalyze,
   paperChoiceOrder as serverChoiceOrder,

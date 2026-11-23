@@ -236,8 +236,8 @@ describe('stimulusPickerTitle', () => {
   ];
   it('numbers unnamed stimuli among their own type only', () => {
     expect(stimulusPickerTitle(list[0], list)).toBe('Gift of the Magi');
-    expect(stimulusPickerTitle(list[1], list)).toBe('Passage 1');
-    expect(stimulusPickerTitle(list[2], list)).toBe('Passage 2');
+    expect(stimulusPickerTitle(list[1], list)).toBe('Text 1');
+    expect(stimulusPickerTitle(list[2], list)).toBe('Text 2');
     expect(stimulusPickerTitle(list[4], list)).toBe('Word bank');
   });
   it('lists word bank choices', () => {

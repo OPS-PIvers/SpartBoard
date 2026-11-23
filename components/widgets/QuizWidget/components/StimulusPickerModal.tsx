@@ -1,7 +1,14 @@
 import React from 'react';
-import { Check, Plus } from 'lucide-react';
+import { Check, FileText, ListPlus, Plus } from 'lucide-react';
+import { fileAddButtonClass } from '@/components/common/fileAdd/FileAddSources';
 import { PICKER_ADD } from './stimulusPickerSelection';
-import type { QuizStimulus, QuizStimulusType } from '@/types';
+import type {
+  QuizStimulus,
+  QuizStimulusPaperPlacement,
+  QuizStimulusType,
+} from '@/types';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
+import { paperPlacementOf } from '@/utils/paperTestStimuli';
 import { Modal } from '@/components/common/Modal';
 import { ModalHeader } from '@/components/common/ModalHeader';
 import { AutosaveIndicator } from '@/components/common/EditorModalShell';
@@ -34,7 +41,7 @@ export const StimulusPickerModal: React.FC<{
   stimuli: QuizStimulus[];
   attachedIds: string[] | undefined;
   /** "question" or "bank": names what the stimuli attach to. */
-  ownerNoun: 'question' | 'bank';
+  ownerNoun: 'question' | 'bank' | 'modified version';
   /** Short name on the add button, e.g. "Q3". */
   ownerLabel: string;
   /** Where each stimulus is used, e.g. "Q1, Q3". */
@@ -43,8 +50,21 @@ export const StimulusPickerModal: React.FC<{
   /** A stimulus id, or PICKER_ADD for the add sources. */
   selectedId: string;
   onSelect: (id: string) => void;
-  /** Upload, Drive, link and calculator sources. */
-  addArea: React.ReactNode;
+  /** Upload, Drive, link and calculator sources, with the picker's own buttons in the row. */
+  addArea: (extraSources: React.ReactNode) => React.ReactNode;
+  busy: boolean;
+  onAddText: () => void;
+  /** Absent when word banks are off. */
+  onAddWordBank?: () => void;
+  /** Paper tests are on: each stimulus gets an "On paper" switch. */
+  onPaperPlacement?: (
+    stimulusId: string,
+    placement: QuizStimulusPaperPlacement
+  ) => void;
+  /** Questions a stimulus can print with; a bank draw counts as several. */
+  paperUseCount?: (stimulusId: string) => number;
+  /** Edits a passage or word bank in place. */
+  onUpdateStimulus?: (id: string, updates: Partial<QuizStimulus>) => void;
   onClose: () => void;
 }> = ({
   stimuli,
@@ -56,6 +76,12 @@ export const StimulusPickerModal: React.FC<{
   selectedId,
   onSelect: setSelectedId,
   addArea,
+  busy,
+  onAddText,
+  onAddWordBank,
+  onPaperPlacement,
+  paperUseCount,
+  onUpdateStimulus,
   onClose,
 }) => {
   const selected = stimuli.find((s) => s.id === selectedId) ?? null;
@@ -80,21 +106,37 @@ export const StimulusPickerModal: React.FC<{
           title={title}
           accent={LIBRARY_HEADER_ACCENTS.quiz}
           actions={
-            autosave && (
-              <AutosaveIndicator
-                status={autosave.status}
-                onRetry={() => void autosave.flush()}
-                onAccent
-              />
-            )
+            <>
+              {autosave && (
+                <span
+                  className={
+                    autosave.status === 'error'
+                      ? 'inline-flex'
+                      : 'hidden sm:inline-flex'
+                  }
+                >
+                  <AutosaveIndicator
+                    status={autosave.status}
+                    onRetry={() => void autosave.flush()}
+                    onAccent
+                  />
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={onClose}
+                {...tourTypeAttr('quiz-stimuli.picker-close', 'quiz')}
+                className="rounded-lg bg-white px-4 py-1.5 text-sm font-semibold text-slate-800 transition-colors hover:bg-white/90"
+              >
+                Back to quiz
+              </button>
+            </>
           }
-          onClose={onClose}
-          closeAttrs={tourTypeAttr('quiz-stimuli.picker-close', 'quiz')}
         />
       }
       zIndex="z-modal-deep"
       maxWidth="max-w-5xl"
-      contentClassName="p-0"
+      contentClassName="p-0 rounded-b-2xl"
     >
       <div className="flex h-[min(calc(90vh-4.5rem),680px)] flex-col sm:flex-row">
         <div className="flex max-h-[50%] shrink-0 flex-col border-b border-slate-200 bg-slate-100 sm:max-h-none sm:w-80 sm:border-b-0 sm:border-r">
@@ -214,12 +256,46 @@ export const StimulusPickerModal: React.FC<{
                     {usageText(selected.id)}
                   </p>
                 </div>
+                {onPaperPlacement && selected.type !== 'calculator' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-600">
+                      On paper
+                    </span>
+                    <SegmentedControl
+                      role="radiogroup"
+                      ariaLabel="On paper"
+                      value={paperPlacementOf(
+                        selected,
+                        paperUseCount?.(selected.id) ??
+                          usedOn(selected.id).length
+                      )}
+                      onChange={(v) => onPaperPlacement(selected.id, v)}
+                      anchor={tourTypeAttr(
+                        'quiz-stimuli.paper-placement',
+                        'quiz'
+                      )}
+                      options={[
+                        { value: 'question', label: 'With the question' },
+                        { value: 'resource', label: 'Resource page' },
+                      ]}
+                    />
+                  </div>
+                )}
               </div>
               <div
                 data-testid="attach-stimulus-preview"
                 className="flex-1 overflow-y-auto custom-scrollbar px-5 pb-6 pt-4"
               >
-                {isEmptyTextStimulus(selected) ? (
+                {onUpdateStimulus &&
+                (selected.type === 'text' || selected.type === 'word-bank') ? (
+                  <TextStimulusEditor
+                    key={selected.id}
+                    stimulus={selected}
+                    onChange={(updates) =>
+                      onUpdateStimulus(selected.id, updates)
+                    }
+                  />
+                ) : isEmptyTextStimulus(selected) ? (
                   <div className="flex h-full flex-col items-center justify-center text-center">
                     <p className="text-sm font-semibold text-slate-700">
                       This {STIMULUS_TYPE_LABELS[selected.type].toLowerCase()}{' '}
@@ -244,11 +320,92 @@ export const StimulusPickerModal: React.FC<{
               <h3 className="mb-3 text-base font-bold text-slate-800">
                 Add a stimulus
               </h3>
-              <div className="space-y-2">{addArea}</div>
+              <div className="space-y-2">
+                {addArea(
+                  <>
+                    <button
+                      type="button"
+                      onClick={onAddText}
+                      disabled={busy}
+                      {...tourTypeAttr('quiz-stimuli.attach-passage', 'quiz')}
+                      className={fileAddButtonClass}
+                    >
+                      <FileText className="h-3.5 w-3.5" aria-hidden />
+                      Text
+                    </button>
+                    {onAddWordBank && (
+                      <button
+                        type="button"
+                        onClick={onAddWordBank}
+                        disabled={busy}
+                        {...tourTypeAttr(
+                          'quiz-stimuli.attach-word-bank',
+                          'quiz'
+                        )}
+                        className={fileAddButtonClass}
+                      >
+                        <ListPlus className="h-3.5 w-3.5" aria-hidden />
+                        Word bank
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>
       </div>
     </Modal>
+  );
+};
+
+const COLUMN_VALUES = { '1': 1, '2': 2, '3': 3 } as const;
+const COLUMN_KEYS = { 1: '1', 2: '2', 3: '3' } as const;
+
+/** Passage or word bank text, edited right in the picker. */
+const TextStimulusEditor: React.FC<{
+  stimulus: QuizStimulus;
+  onChange: (updates: Partial<QuizStimulus>) => void;
+}> = ({ stimulus, onChange }) => {
+  const isWordBank = stimulus.type === 'word-bank';
+  const fieldId = `picker-text-${stimulus.id}`;
+  return (
+    <div className="flex h-full min-h-[12rem] flex-col gap-3">
+      <label htmlFor={fieldId} className="sr-only">
+        {isWordBank ? 'Word bank' : 'Text'}
+      </label>
+      <textarea
+        id={fieldId}
+        value={stimulus.text ?? ''}
+        onChange={(e) => onChange({ text: e.target.value })}
+        placeholder={
+          isWordBank
+            ? 'Put each word or phrase on its own line.'
+            : 'Paste or type the text students will read.'
+        }
+        {...tourTypeAttr('quiz-stimuli.picker-text', 'quiz')}
+        className="min-h-0 w-full flex-1 resize-none rounded-lg border-2 border-slate-200 px-3 py-2.5 text-sm leading-relaxed text-slate-800 focus:border-brand-blue-primary/50 focus:outline-hidden"
+      />
+      {isWordBank && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-slate-600">Columns</span>
+          <SegmentedControl
+            role="radiogroup"
+            ariaLabel="Columns"
+            value={COLUMN_KEYS[stimulus.wordBankColumns ?? 1]}
+            onChange={(v) => onChange({ wordBankColumns: COLUMN_VALUES[v] })}
+            anchor={tourTypeAttr(
+              'quiz-stimuli.picker-word-bank-columns',
+              'quiz'
+            )}
+            options={[
+              { value: '1', label: '1' },
+              { value: '2', label: '2' },
+              { value: '3', label: '3' },
+            ]}
+          />
+        </div>
+      )}
+    </div>
   );
 };

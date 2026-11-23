@@ -71,6 +71,8 @@ export interface SyntheticSheetOptions {
   questionText?: boolean;
   /** Artwork stacked from the top of the stimulus band. */
   stimuli?: SyntheticStimulus[];
+  /** Grey blocks anywhere on the page, such as a question's stimulus block. */
+  artwork?: { rect: RectMm; tone: number }[];
   /**
    * Paint the page from a v2 page map instead of arithmetic: bubbles at each MC
    * item's origin, and each written box's rule lines as the sheet prints them.
@@ -314,6 +316,8 @@ export function paintSyntheticSheet(opts: SyntheticSheetOptions): RasterPage {
     );
     stimulusTopMm += h;
   }
+
+  for (const art of opts.artwork ?? []) fillRect(art.rect, 1, art.tone);
 
   if (opts.noise) {
     for (let i = 0; i < width * height; i += 1) {

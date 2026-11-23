@@ -496,13 +496,15 @@ const WRITTEN_LINE_PITCH_MM = ROW_PITCH_MM;
 const WRITTEN_HEADER_ROWS_WITH_STEM = 2;
 const WRITTEN_HEADER_ROWS_NUMBER_ONLY = 1;
 const WRITTEN_BLOCK_GAP_MM = 3;
-const WRITTEN_BOX_X_MM = 38;
-const WRITTEN_BOX_W_MM = 140;
+const WRITTEN_BOX_X_MM = 35;
+const WRITTEN_BOX_W_MM = 146;
+const OWN_PAGE_TOP_MM = 48;
+const WRITTEN_BOX_BOTTOM_MM = 263;
 const WRITTEN_HEADER_X_MM = 24;
 const WRITTEN_ONE_COLUMN_X_MM = 24;
 const WRITTEN_ONE_COLUMN_W_MM = 58;
-/** Mirrors `MAX_PAGE` in `utils/paperSheetMarker.ts` — 6 page bits. */
-export const MAX_PAGE = 63;
+/** Mirrors `MAX_SHEET_PAGE` in `utils/paperSheetMarker.ts`: 6 page bits, the last kept for resource pages. */
+export const MAX_PAGE = 62;
 
 export interface PlanPaperPagesInput {
   entries: readonly PaperSheetEntry[];
@@ -566,13 +568,22 @@ function writtenBlock(
 const FULL_WIDTH = { x: WRITTEN_BOX_X_MM, w: WRITTEN_BOX_W_MM };
 const ONE_COLUMN = { x: WRITTEN_ONE_COLUMN_X_MM, w: WRITTEN_ONE_COLUMN_W_MM };
 
+/** Mirrors `ownPageLines` in `utils/paperPageMap.ts`. */
+const ownPageLines = (rows: number): number =>
+  Math.floor(
+    (WRITTEN_BOX_BOTTOM_MM -
+      OWN_PAGE_TOP_MM -
+      (rows * ROW_PITCH_MM - WRITTEN_BLOCK_GAP_MM)) /
+      WRITTEN_LINE_PITCH_MM
+  );
+
 /** Mirrors `continuationBlocks` in `utils/paperPageMap.ts`. */
 function continuationBlocks(entry: WrittenEntry): WrittenItem[] {
   return Array.from({ length: paperBoxPages(entry.size) - 1 }, () => ({
     ...writtenBlock(
       entry,
-      GRID_TOP_MM,
-      PAPER_FULL_PAGE_LINES,
+      OWN_PAGE_TOP_MM,
+      ownPageLines(WRITTEN_HEADER_ROWS_NUMBER_ONLY),
       false,
       FULL_WIDTH
     ),
@@ -655,8 +666,8 @@ function planQuestionTextPages(
       current().push(
         writtenBlock(
           entry,
-          GRID_TOP_MM,
-          PAPER_FULL_PAGE_LINES,
+          OWN_PAGE_TOP_MM,
+          ownPageLines(headerRows(stems)),
           stems,
           FULL_WIDTH
         )
@@ -726,8 +737,13 @@ export function planPaperPages(
   });
   const placeOwnPage = (entry: WrittenEntry): void => {
     if (current().length > 0) newPage();
-    const lines = Math.min(paperBoxLines(entry.size), PAPER_FULL_PAGE_LINES);
-    current().push(writtenBlock(entry, GRID_TOP_MM, lines, stems, FULL_WIDTH));
+    const lines =
+      paperBoxLines(entry.size) >= PAPER_FULL_PAGE_LINES
+        ? ownPageLines(headerRows(stems))
+        : paperBoxLines(entry.size);
+    current().push(
+      writtenBlock(entry, OWN_PAGE_TOP_MM, lines, stems, FULL_WIDTH)
+    );
     for (const block of continuationBlocks(entry)) pages.push([block]);
     cursor = Number.POSITIVE_INFINITY;
   };

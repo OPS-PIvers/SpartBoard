@@ -4,7 +4,11 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 vi.mock('./viewAsGuard', () => ({ assertViewAsAllowed: vi.fn() }));
 
-import { handleClaimPaperResponse } from './claimPaperResponse';
+import {
+  __resetReleaseLimits,
+  handleClaimPaperResponse,
+  handleReleasePaperResponse,
+} from './claimPaperResponse';
 import {
   PIN_LOGIN_MAX_FAILURES,
   PIN_LOGIN_SESSION_MAX_FAILURES,
@@ -19,10 +23,17 @@ const ANON = { uid: 'anon-1', anonymous: true };
 
 let store: Map<string, Record<string, unknown>>;
 
+interface FakeQuery {
+  query: { coll: string; field: string; value: unknown };
+}
+interface FakeColl {
+  doc: (id: string) => FakeRef;
+  where: (field: string, op: '==', value: unknown) => FakeQuery;
+}
 interface FakeRef {
   path: string;
   id: string;
-  collection: (name: string) => { doc: (id: string) => FakeRef };
+  collection: (name: string) => FakeColl;
   get: () => Promise<FakeSnap>;
 }
 interface FakeSnap {
@@ -35,27 +46,46 @@ function ref(path: string): FakeRef {
   return {
     path,
     id: path.split('/').pop() ?? '',
-    collection: (name) => ({ doc: (id) => ref(`${path}/${name}/${id}`) }),
+    collection: (name) => coll(`${path}/${name}`),
     get: () => Promise.resolve(snap(path)),
   };
+}
+function coll(path: string): FakeColl {
+  return {
+    doc: (id) => ref(`${path}/${id}`),
+    where: (field, _op, value) => ({ query: { coll: path, field, value } }),
+  };
+}
+function runQuery({ query: q }: FakeQuery): { docs: FakeSnap[] } {
+  const docs = [...store.keys()]
+    .filter(
+      (k) =>
+        k.startsWith(`${q.coll}/`) &&
+        !k.slice(q.coll.length + 1).includes('/') &&
+        store.get(k)?.[q.field] === q.value
+    )
+    .map(snap);
+  return { docs };
 }
 function snap(path: string): FakeSnap {
   const d = store.get(path);
   return { exists: !!d, ref: ref(path), data: () => d };
 }
 const db = {
-  collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`) }),
+  collection: (name: string) => coll(name),
   runTransaction: async <T>(
     fn: (tx: {
-      get: (r: FakeRef) => Promise<FakeSnap>;
+      get: (r: FakeRef | FakeQuery) => Promise<unknown>;
       set: (r: FakeRef, d: Record<string, unknown>) => void;
       update: (r: FakeRef, d: Record<string, unknown>) => void;
+      delete: (r: FakeRef) => void;
     }) => Promise<T>
   ): Promise<T> =>
     fn({
-      get: (r) => Promise.resolve(snap(r.path)),
+      get: (r) => Promise.resolve('query' in r ? runQuery(r) : snap(r.path)),
       set: (r, d) => store.set(r.path, d),
       update: (r, d) => store.set(r.path, { ...store.get(r.path), ...d }),
+      delete: (r) => store.delete(r.path),
     }),
 } as unknown as admin.firestore.Firestore;
 
@@ -314,5 +344,138 @@ describe('handleClaimPaperResponse', () => {
     await expect(
       claim({ uid: 'anon-fresh', anonymous: true })
     ).resolves.toEqual({ claimed: false, reason: 'rate-limited' });
+  });
+});
+
+describe('handleReleasePaperResponse', () => {
+  const TEACHER_CALLER = { uid: TEACHER, anonymous: false, studentRole: false };
+  const release = (
+    caller: Parameters<typeof handleReleasePaperResponse>[1] = TEACHER_CALLER,
+    raw: unknown = { sessionId: SESSION, responseKey: KEY },
+    now = NOW
+  ) => handleReleasePaperResponse(db, caller, raw, now);
+
+  beforeEach(() => {
+    __resetReleaseLimits();
+    row({ studentUid: 'anon-1' });
+  });
+
+  it('puts a claimed row back at its PIN key, then the next PIN join can claim it', async () => {
+    await expect(release()).resolves.toEqual({ released: true });
+    const after = store.get(ROW_PATH);
+    expect(after?.studentUid).toBe(KEY);
+    expect(after?.answers).toEqual([
+      { questionId: 'q2', paperScanId: 'scan-1' },
+    ]);
+    await expect(claim({ uid: 'anon-2', anonymous: true })).resolves.toEqual({
+      claimed: true,
+    });
+    expect(store.get(ROW_PATH)?.studentUid).toBe('anon-2');
+  });
+
+  it("removes the old device's seat so it loses question access", async () => {
+    const seat = (uid: string) => `quiz_sessions/${SESSION}/seats/${uid}`;
+    store.set(seat('anon-1'), { responseKey: KEY });
+    store.set(seat('anon-9'), { responseKey: 'pin-period_1-5678' });
+    store.set(`quiz_sessions/other/seats/anon-1`, { responseKey: KEY });
+    await expect(release()).resolves.toEqual({ released: true });
+    expect(store.has(seat('anon-1'))).toBe(false);
+    expect(store.has(seat('anon-9'))).toBe(true);
+    expect(store.has('quiz_sessions/other/seats/anon-1')).toBe(true);
+  });
+
+  it("drops the old device's Let in now pass and keeps everyone else's", async () => {
+    session({ studentAccess: { 'anon-1': NOW + 60_000, 'anon-2': NOW + 1 } });
+    await release();
+    expect(store.get(`quiz_sessions/${SESSION}`)?.studentAccess).toEqual({
+      'anon-2': NOW + 1,
+    });
+    expect(store.get(`quiz_sessions/${SESSION}`)?.teacherUid).toBe(TEACHER);
+  });
+
+  it('leaves passes alone when the row is already at its PIN key', async () => {
+    row();
+    session({ studentAccess: { [KEY]: NOW + 1, 'anon-1': NOW + 1 } });
+    await release();
+    expect(store.get(`quiz_sessions/${SESSION}`)?.studentAccess).toEqual({
+      [KEY]: NOW + 1,
+      'anon-1': NOW + 1,
+    });
+  });
+
+  it('clears a stale seat on a row already at its PIN key', async () => {
+    row();
+    store.set(`quiz_sessions/${SESSION}/seats/anon-1`, { responseKey: KEY });
+    await expect(release()).resolves.toEqual({ released: true });
+    expect(store.has(`quiz_sessions/${SESSION}/seats/anon-1`)).toBe(false);
+  });
+
+  it('keeps seats when the row was never claimed from paper', async () => {
+    row({ studentUid: 'anon-1', paperWrittenBatchId: undefined });
+    store.set(`quiz_sessions/${SESSION}/seats/anon-1`, { responseKey: KEY });
+    await release();
+    expect(store.has(`quiz_sessions/${SESSION}/seats/anon-1`)).toBe(true);
+  });
+
+  it('is idempotent for a row already at its PIN key', async () => {
+    row();
+    await expect(release()).resolves.toEqual({ released: true });
+    expect(store.get(ROW_PATH)?.studentUid).toBe(KEY);
+  });
+
+  it('refuses a teacher who does not own the session', async () => {
+    await expect(
+      release({ uid: 'teacher-2', anonymous: false, studentRole: false })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(store.get(ROW_PATH)?.studentUid).toBe('anon-1');
+  });
+
+  it('refuses students, anonymous devices and signed-out callers', async () => {
+    await expect(
+      release({ uid: TEACHER, anonymous: false, studentRole: true })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(
+      release({ uid: 'anon-1', anonymous: true, studentRole: false })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(release(null)).rejects.toMatchObject({
+      code: 'unauthenticated',
+    });
+    expect(store.get(ROW_PATH)?.studentUid).toBe('anon-1');
+  });
+
+  it('refuses a key that is not a PIN row or a path', async () => {
+    for (const responseKey of ['uid-1', 'pin-a/b', '']) {
+      await expect(
+        release(TEACHER_CALLER, { sessionId: SESSION, responseKey })
+      ).rejects.toMatchObject({ code: 'invalid-argument' });
+    }
+  });
+
+  it('leaves a row with no scanned written answers alone', async () => {
+    row({ studentUid: 'anon-1', paperWrittenBatchId: undefined });
+    await expect(release()).resolves.toEqual({
+      released: false,
+      reason: 'not-claimed',
+    });
+    expect(store.get(ROW_PATH)?.studentUid).toBe('anon-1');
+  });
+
+  it('reports a missing row', async () => {
+    store.delete(ROW_PATH);
+    await expect(release()).resolves.toEqual({
+      released: false,
+      reason: 'not-found',
+    });
+  });
+
+  it('rate limits a teacher after 30 releases a minute', async () => {
+    for (let i = 0; i < 30; i++) await release();
+    await expect(release()).resolves.toEqual({
+      released: false,
+      reason: 'rate-limited',
+    });
+    await expect(
+      release(TEACHER_CALLER, undefined, NOW + 61_000)
+    ).resolves.toEqual({ released: true });
   });
 });

@@ -149,6 +149,8 @@ export function assemblePaperScan(
 
   const ordered = [...pages].sort((a, b) => a.scanIndex - b.scanIndex);
   for (const { scanIndex, read } of ordered) {
+    // A resource page went out with the sheets and has nothing to read.
+    if (read.status === 'resource-page') continue;
     if (read.status !== 'ok') {
       unreadablePages.push(scanIndex);
       continue;

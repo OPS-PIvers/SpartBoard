@@ -119,7 +119,7 @@ export function shuffleQuestionForStudent(
  * units. Units are emitted in the order of their first member.
  */
 export function groupIntoStimulusUnits<
-  T extends Pick<QuizPublicQuestion, 'stimulusIds'>,
+  T extends Pick<QuizPublicQuestion, 'stimulusIds' | 'modifiedStimulusIds'>,
 >(questions: readonly T[]): T[][] {
   // Union-find over question indices, merged via shared stimulus ids.
   const parent = questions.map((_, i) => i);
@@ -130,7 +130,11 @@ export function groupIntoStimulusUnits<
   };
   const firstIndexByStimulus = new Map<string, number>();
   questions.forEach((q, i) => {
-    for (const sid of q.stimulusIds ?? []) {
+    // Modified versions' stimuli count too, so a modified student's shared passage stays together.
+    for (const sid of [
+      ...(q.stimulusIds ?? []),
+      ...(q.modifiedStimulusIds ?? []),
+    ]) {
       const first = firstIndexByStimulus.get(sid);
       if (first === undefined) firstIndexByStimulus.set(sid, i);
       else union(first, i);

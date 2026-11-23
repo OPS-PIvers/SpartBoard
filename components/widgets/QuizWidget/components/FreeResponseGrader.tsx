@@ -82,7 +82,10 @@ import { wordCounterLabel, wordLimitStatus } from '@/utils/wordLimit';
 import { highlightClass, htmlToPlainText } from '@/utils/writtenAnnotations';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { sumRubricScorePoints } from '@/utils/rubricPoints';
-import { resolveRubricForResponse } from '@/utils/rubricOverrideResolution';
+import {
+  resolveRubricForResponse,
+  stimulusIdsForResponse,
+} from '@/utils/rubricOverrideResolution';
 import {
   collectMediaSlots,
   isSlotExcused,
@@ -2354,7 +2357,15 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
               <PromptText text={promptLabel(question)} />
             </p>
             <CollapsibleStimuli
-              stimuli={resolveStimuli(question.stimulusIds, quiz.stimuli)}
+              stimuli={resolveStimuli(
+                stimulusIdsForResponse(
+                  question,
+                  response?.studentUid,
+                  overridesBySourcedId,
+                  targetRefKeyByStudentUid
+                ),
+                quiz.stimuli
+              )}
             />
           </div>
 

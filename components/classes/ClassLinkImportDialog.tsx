@@ -21,6 +21,7 @@ import { tourFieldAttr } from '@/config/tourAnchors';
 import { useTeacherBellPeriodOptions } from '@/hooks/useTeacherBellPeriods';
 import { matchBellPeriod } from '@/utils/bellSchedule';
 import { backfillRosters, readClassPeriods } from './classLinkPeriods';
+import { buildCleanClassNames } from './classLinkClassName';
 
 const TEST_PREFIX = 'test:';
 
@@ -111,7 +112,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
 }) => {
   const { t } = useTranslation();
   const { rosters, addRoster, updateRoster, addToast } = useDashboard();
-  const { orgId, roleId } = useAuth();
+  const { orgId, roleId, canAccessFeature } = useAuth();
   const bellOptions = useTeacherBellPeriodOptions();
   const backfillRef = useRef({ rosters, updateRoster, bellOptions });
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
@@ -240,6 +241,13 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
     };
   }, [isOpen, t, canReadTestClassesForOrg, orgId]);
 
+  const cleanNames = canAccessFeature('classlink-clean-names');
+  const cleanedNames = useMemo(
+    () =>
+      cleanNames ? buildCleanClassNames(classes) : new Map<string, string>(),
+    [classes, cleanNames]
+  );
+
   const handleImportNew = async (cls: ClassLinkClass) => {
     setPendingId(cls.sourcedId);
     try {
@@ -256,7 +264,9 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
           }));
       const subjectPrefix = cls.subject ? `${cls.subject} - ` : '';
       const codeSuffix = cls.classCode ? ` (${cls.classCode})` : '';
-      const displayName = `${subjectPrefix}${cls.title}${codeSuffix}`;
+      const displayName =
+        cleanedNames.get(cls.sourcedId) ??
+        `${subjectPrefix}${cls.title}${codeSuffix}`;
       const rosterMeta = buildClassLinkRosterMeta(
         cls,
         orgId,
@@ -266,7 +276,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
       addToast(
         t('toasts.classLink.imported', {
           defaultValue: 'Imported {{name}}',
-          name: cls.title,
+          name: cleanedNames.get(cls.sourcedId) ?? cls.title,
         }),
         'success'
       );
@@ -420,7 +430,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
       )}
 
       {!loading && !error && classes.length > 0 && (
-        <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
+        <ul className="max-h-[60vh] overflow-y-auto scroll-bleed pb-2">
           {classes
             // Test classes don't carry ClassLinkStudent records (no sourcedIds
             // or full names), so `mergeClassLinkStudents` can't diff them
@@ -438,19 +448,19 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
                 : (studentsByClass[cls.sourcedId]?.length ?? 0);
               const isPending = pendingId === cls.sourcedId;
               return (
-                <div
+                <li
                   key={cls.sourcedId}
                   {...tourFieldAttr(
                     'classlink-import.class-row',
                     'classlink-import',
                     `row-${i + 1}`
                   )}
-                  className="flex items-center justify-between gap-3 p-3 border border-slate-200 rounded-xl bg-white hover:border-brand-blue-primary hover:shadow-xs transition-all"
+                  className="flex items-center justify-between gap-3 py-3 border-b border-slate-200 first:border-t"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <div className="text-sm font-bold text-slate-800 truncate">
-                        {cls.title}
+                    <div className="flex items-start gap-1.5 min-w-0">
+                      <div className="text-sm font-bold text-slate-800 break-words min-w-0">
+                        {cleanedNames.get(cls.sourcedId) ?? cls.title}
                       </div>
                       {isTestClass && (
                         <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-700 border border-amber-200">
@@ -460,7 +470,12 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
                         </span>
                       )}
                     </div>
-                    <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
+                    {cleanedNames.has(cls.sourcedId) && (
+                      <div className="text-xs text-slate-500 break-words">
+                        {cls.title}
+                      </div>
+                    )}
+                    <div className="mt-0.5 text-xxs font-semibold text-slate-400 uppercase tracking-widest">
                       {t('sidebar.classes.studentCount', {
                         count,
                         defaultValue: '{{count}} Student',
@@ -498,10 +513,10 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
                           defaultValue: 'Merge',
                         })}
                   </button>
-                </div>
+                </li>
               );
             })}
-        </div>
+        </ul>
       )}
     </Modal>
   );

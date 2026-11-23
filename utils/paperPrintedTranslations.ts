@@ -49,12 +49,13 @@ export async function printedGroupTranslations(
         )
           entries[q.id] = entry;
       }
-      return printedTranslation(
+      const tr = printedTranslation(
         quiz,
         entries,
         p.group,
         loaded.titleByLocale[code]
       );
+      return tr ? { ...tr, language: code } : undefined;
     });
   } catch (err) {
     console.warn('[paperPrintedTranslations] printing in English:', err);

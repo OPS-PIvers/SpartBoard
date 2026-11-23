@@ -107,7 +107,7 @@ const TITLES: Record<AssignStepId, string> = {
   cards: 'Cards',
   speak: 'Speak',
   study: 'Study settings',
-  sheets: 'Answer sheets',
+  sheets: 'Response sheets',
   written: 'Written answers',
   writing: 'Writing rules',
   sharing: 'Sharing',

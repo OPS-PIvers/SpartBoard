@@ -11,7 +11,13 @@ import {
 } from '@/config/tourAnchors';
 import { useAuth } from '@/context/useAuth';
 import { usePaperSheetStimulusImages } from '@/hooks/usePaperSheetStimulusImages';
-import type { ClassRoster, PaperBatch, QuizData, Student } from '@/types';
+import type {
+  ClassRoster,
+  PaperBatch,
+  QuizData,
+  QuizStimulus,
+  Student,
+} from '@/types';
 import { analyzePaperQuiz } from '@/utils/paperSheetPlan';
 import { paperGridOf } from '@/utils/paperSheetLayout';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
@@ -24,6 +30,17 @@ import {
 import { PAPER_HANDWRITTEN_FEATURE } from '@/utils/paperWritten';
 import type { PrintedTranslation } from '@/utils/paperPrintedVersions';
 import { writtenOnlyAnalysis } from '@/utils/paperWrittenHybrid';
+import { usePaperTestStimulusFiles } from '@/hooks/usePaperTestStimulusFiles';
+import { paperPrintWords } from '@/utils/paperPrintWords';
+import {
+  browserBlockMeasure,
+  estimateBlockMm,
+  planSheetStimuli,
+} from '@/utils/paperSheetStimulusBlocks';
+import {
+  layoutSheetStimuli,
+  type SheetStimuliSet,
+} from '@/utils/paperSheetStimuliLayout';
 import {
   reprintBlocker,
   reprintClasses,
@@ -210,6 +227,52 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
     ];
   }, [sheetStimuli, prompts]);
   const sheetImages = usePaperSheetStimulusImages(imageStimuli);
+  // A question-text sheet is the whole test, so it reprints its stimuli in the places its page maps reserved.
+  const usedTestStimuli = useMemo(() => {
+    const out = new Map<string, QuizStimulus>();
+    stacks.forEach(({ quiz, batch }, i) => {
+      if (writtenOnly || batch.sheetLayout !== 'questions' || !analyses[i])
+        return;
+      const byId = new Map(quiz.questions.map((q) => [q.id, q]));
+      const used = new Set(
+        analyses[i].entries.flatMap(
+          (e) => byId.get(e.questionId)?.stimulusIds ?? []
+        )
+      );
+      for (const st of quiz.stimuli ?? [])
+        if (used.has(st.id)) out.set(st.id, st);
+    });
+    return [...out.values()];
+  }, [stacks, analyses, writtenOnly]);
+  const testStimulusFiles = usePaperTestStimulusFiles(usedTestStimuli);
+  const stimuliLayouts = useMemo(
+    () =>
+      stacks.map(({ quiz, batch, translation }, i) => {
+        if (
+          usedTestStimuli.length === 0 ||
+          testStimulusFiles.loading ||
+          batch.sheetLayout !== 'questions' ||
+          !analyses[i]
+        )
+          return null;
+        const entries = analyses[i].entries;
+        const set: SheetStimuliSet = {
+          entries,
+          mapIds: entries.map((e) => e.questionId),
+          slots: entries,
+          plan: planSheetStimuli(
+            entries.map((e) => ({ questionId: e.questionId, row: e.label })),
+            new Map(quiz.questions.map((q) => [q.id, q])),
+            quiz.stimuli ?? [],
+            testStimulusFiles.files,
+            browserBlockMeasure() ?? estimateBlockMm,
+            paperPrintWords(translation?.language)
+          ),
+        };
+        return { set, layout: layoutSheetStimuli([set], prompts[i].ids) };
+      }),
+    [stacks, analyses, prompts, usedTestStimuli, testStimulusFiles]
+  );
 
   const toggle = (key: string) => {
     const next = new Set(picked);
@@ -229,7 +292,11 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
     ),
   ].sort((a, b) => a - b);
 
-  const canPrint = !blocker && picked.size > 0 && !sheetImages.loading;
+  const canPrint =
+    !blocker &&
+    picked.size > 0 &&
+    !sheetImages.loading &&
+    !testStimulusFiles.loading;
 
   const handlePrint = () => {
     if (sheetImages.failed.length > 0) {
@@ -240,7 +307,13 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
     if (stackIndex === undefined) return;
     const { quiz, batch, translation } = stacks[stackIndex];
     const analysis = analyses[stackIndex];
-    const { ids: promptIds, pages: promptPages } = prompts[stackIndex];
+    const { ids: basePromptIds, pages: promptPages } = prompts[stackIndex];
+    const stimuli = stimuliLayouts[stackIndex];
+    const forSet = stimuli?.layout.sets[0];
+    const promptIds = new Set([
+      ...basePromptIds,
+      ...(stimuli?.layout.promptIds ?? []),
+    ]);
     const versionQuestions = new Map(quiz.questions.map((q) => [q.id, q]));
     const sheetQuestions = analysis.rows.flatMap((r) => {
       const q = versionQuestions.get(r.questionId);
@@ -264,6 +337,7 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
       [...picked].filter((k) => !k.startsWith(`${stackIndex}:`))
     );
     const done = remaining.size === 0;
+    const waitsForImages = imageStimuli.length > 0 || !!stimuli;
     try {
       print({
         batchId: batch.id,
@@ -277,11 +351,13 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
           ? {
               questionTexts: sheetQuestions.map((q) => {
                 const tr = translation?.questions[q.id];
+                const stimulus = forSet?.rows.get(q.id);
                 return {
                   text: tr?.text?.trim() ? tr.text : promptLabel(q),
                   choices: (batch.choiceOrder?.[q.id] ?? []).map(
                     (c) => tr?.choices?.[c] ?? c
                   ),
+                  ...(stimulus ? { stimulus } : {}),
                 };
               }),
             }
@@ -293,21 +369,50 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
           ? {
               pageMaps: batch.pageMaps,
               writtenTexts,
-              ...(promptIds.size > 0 ? { prompts: promptPages } : {}),
+              ...(forSet && stimuli
+                ? {
+                    ...(promptIds.size > 0
+                      ? {
+                          prompts: Object.fromEntries(
+                            [...promptIds].flatMap((id) => {
+                              const text = versionQuestions.get(id)?.text;
+                              if (text === undefined) return [];
+                              const block = forSet.prompts[id];
+                              return [
+                                [
+                                  id,
+                                  {
+                                    text,
+                                    stimuli: [],
+                                    ...(block ? { block } : {}),
+                                  },
+                                ],
+                              ];
+                            })
+                          ),
+                        }
+                      : {}),
+                    stimulusBlocks: forSet.written,
+                    pagesBefore: forSet.pagesBefore,
+                    resourcePages: stimuli.set.plan.resourcePages,
+                  }
+                : promptIds.size > 0
+                  ? { prompts: promptPages }
+                  : {}),
             }
           : {}),
         ...(imageStimuli.length > 0
           ? {
               ...(sheetStimuli.length > 0 ? { sheetStimuli } : {}),
               stimulusImageSrc: sheetImages.src,
-              // Closing revokes the image URLs, so wait until the print window has them.
-              ...(done ? { onImagesReady: onClose } : {}),
             }
           : {}),
+        // Closing revokes the image URLs, so wait until the print window has them.
+        ...(done && waitsForImages ? { onImagesReady: onClose } : {}),
         sheets: reprintSheets(reprintClasses(batch, rosters), seats),
       });
       if (!done) setPicked(remaining);
-      else if (imageStimuli.length === 0) onClose();
+      else if (!waitsForImages) onClose();
     } catch (err) {
       onError(
         err instanceof Error ? err.message : 'Could not print response sheets.'
@@ -321,7 +426,7 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
       isOpen
       onClose={onClose}
       title={
-        writtenOnly ? 'Print written answer sheets' : 'Print response sheets'
+        writtenOnly ? 'Print written response sheets' : 'Print response sheets'
       }
       maxWidth="max-w-md"
       footer={

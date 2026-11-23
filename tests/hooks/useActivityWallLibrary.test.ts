@@ -13,6 +13,7 @@ import {
 import { clearWallSubmissions } from '@/components/widgets/ActivityWall/hooks/useActivityWallSession';
 import { endTourSandbox, startTourSandbox } from '@/utils/tourSandbox';
 import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
+import { WallStillClosedError } from '@/utils/activityWallErrors';
 import type { ActivityWallLibraryEntry } from '@/types';
 
 vi.mock('firebase/firestore', () => ({
@@ -419,6 +420,22 @@ describe('useActivityWallLibrary — clearActivityPosts', () => {
     expect(mockUpdateDoc).toHaveBeenLastCalledWith(sessionPath, {
       acceptingResponses: true,
     });
+  });
+
+  it('reports a wall it could not reopen after clearing', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    mockUpdateDoc
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('offline'));
+    const { result } = renderHook(() => useActivityWallLibrary(USER_UID));
+
+    await act(async () => {
+      await expect(
+        result.current.clearActivityPosts('act-7')
+      ).rejects.toBeInstanceOf(WallStillClosedError);
+    });
+
+    expect(mockClear).toHaveBeenCalledTimes(1);
   });
 
   it('aborts without clearing when the close fails', async () => {

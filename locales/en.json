@@ -851,7 +851,7 @@
         "comment_added": "{{actor}} commented on {{target}}",
         "item_deleted": "{{actor}} deleted {{target}}",
         "item_restored": "{{actor}} restored {{target}}",
-        "paper_printed": "{{actor}} printed answer sheets for {{target}}"
+        "paper_printed": "{{actor}} printed response sheets for {{target}}"
       }
     },
     "comments": {
@@ -3740,7 +3740,7 @@
     "startFailed": "Couldn't start Part {{part}}. Try again."
   },
   "quizPaperWritten": {
-    "writeOnSheet": "Write your answer on your paper answer sheet."
+    "writeOnSheet": "Write your answer on your paper response sheet."
   },
   "quizBlanks": {
     "blankN": "Blank {{n}}",
@@ -4054,9 +4054,9 @@
       }
     },
     "paperReview": {
-      "sheetHeading": "Your answer sheet",
-      "sheetAlt": "Page {{number}} of your answer sheet",
-      "sheetLoading": "Loading your answer sheet",
+      "sheetHeading": "Your response sheet",
+      "sheetAlt": "Page {{number}} of your response sheet",
+      "sheetLoading": "Loading your response sheet",
       "sheetUnavailable": "Page {{number}} could not load.",
       "handwriting": "Your handwriting",
       "cropAlt": "Your handwritten answer, question {{number}}",
@@ -6121,7 +6121,10 @@
   "widgetWhatsNew": {
     "label": "What's new",
     "dismiss": "Dismiss",
-    "gotIt": "Got it"
+    "gotIt": "Got it",
+    "listTitle": "Widget updates",
+    "more": "{{count}} more",
+    "showLess": "Show less"
   },
   "rubricGuide": {
     "examples": "Example responses",

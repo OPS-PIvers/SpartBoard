@@ -38,7 +38,7 @@ export const STIMULUS_TYPE_LABELS: Record<QuizStimulusType, string> = {
   video: 'Video',
   youtube: 'YouTube',
   'gdoc-embed': 'Doc/Slides embed',
-  text: 'Passage',
+  text: 'Text',
   'word-bank': 'Word bank',
   calculator: 'Calculator',
 };
@@ -89,6 +89,15 @@ export function driveMediaUrl(fileId: string): string | null {
   )}?alt=media&key=${encodeURIComponent(key)}`;
 }
 
+/** A Doc, Slides or Sheets file as a PDF, readable when it is shared with anyone who has the link. */
+export function drivePdfExportUrl(fileId: string): string | null {
+  const key = import.meta.env.VITE_FIREBASE_API_KEY as string | undefined;
+  if (!key) return null;
+  return `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(
+    fileId
+  )}/export?mimeType=application%2Fpdf&key=${encodeURIComponent(key)}`;
+}
+
 /** Best `<img>`/`<video>`/`<audio>` source for a stimulus. */
 export function stimulusMediaUrl(s: QuizStimulus): string {
   // A passage has no file to fetch; its content travels on the stimulus.
@@ -106,22 +115,33 @@ export function stimulusMediaUrl(s: QuizStimulus): string {
  * Returns the same array when nothing changed so React state and dirty
  * checks aren't churned.
  */
-export function sanitizeStimulusPointers<T extends { stimulusIds?: string[] }>(
-  questions: T[],
-  stimuli: QuizStimulus[] | undefined
-): T[] {
+export function sanitizeStimulusPointers<
+  T extends { stimulusIds?: string[]; modifiedStimulusIds?: string[] },
+>(questions: T[], stimuli: QuizStimulus[] | undefined): T[] {
   const valid = new Set((stimuli ?? []).map((s) => s.id));
   let changed = false;
   const next = questions.map((q) => {
-    if (!q.stimulusIds || q.stimulusIds.length === 0) return q;
-    const kept = q.stimulusIds.filter((id) => valid.has(id));
-    if (kept.length === q.stimulusIds.length) return q;
-    changed = true;
-    // `undefined` is dropped by JSON.stringify (Drive) and by Firestore's
-    // `ignoreUndefinedProperties` (synced-group publishes).
-    return { ...q, stimulusIds: kept.length > 0 ? kept : undefined };
+    let out = q;
+    for (const key of ['stimulusIds', 'modifiedStimulusIds'] as const) {
+      const ids = q[key];
+      if (!ids || ids.length === 0) continue;
+      const kept = ids.filter((id) => valid.has(id));
+      if (kept.length === ids.length) continue;
+      changed = true;
+      // `undefined` is dropped by JSON.stringify (Drive) and by Firestore's
+      // `ignoreUndefinedProperties` (synced-group publishes).
+      out = { ...out, [key]: kept.length > 0 ? kept : undefined };
+    }
+    return out;
   });
   return changed ? next : questions;
+}
+
+/** Every stimulus id a question can show: its own and its modified version's. */
+export function allQuestionStimulusIds(
+  q: Pick<QuizQuestion, 'stimulusIds' | 'modifiedStimulusIds'>
+): string[] {
+  return [...(q.stimulusIds ?? []), ...(q.modifiedStimulusIds ?? [])];
 }
 
 /**
@@ -133,7 +153,7 @@ export function projectSessionStimuli(
 ): QuizStimulus[] {
   const referenced = new Set<string>();
   for (const q of quiz.questions) {
-    for (const id of q.stimulusIds ?? []) referenced.add(id);
+    for (const id of allQuestionStimulusIds(q)) referenced.add(id);
   }
   // Drive-sync/arrayUnion races can write the same stimulus id twice into
   // `stimuli` (same bug class as dedupeQuestionsById) — fence it here too.
@@ -143,7 +163,12 @@ export function projectSessionStimuli(
     if (!referenced.has(s.id) || seen.has(s.id)) continue;
     seen.add(s.id);
     // Authoring-only fields stay off the session doc; reviewed text travels via readAloudTextByStimulusId.
-    const { readAloudText: _t, readAloudSource: _src, ...rest } = s;
+    const {
+      readAloudText: _t,
+      readAloudSource: _src,
+      paperPlacement: _paper,
+      ...rest
+    } = s;
     out.push({ ...rest, label: '' });
   }
   return out;
@@ -155,7 +180,7 @@ export function readAloudTextByStimulusId(
 ): Record<string, string> {
   const referenced = new Set<string>();
   for (const q of quiz.questions) {
-    for (const id of q.stimulusIds ?? []) referenced.add(id);
+    for (const id of allQuestionStimulusIds(q)) referenced.add(id);
   }
   const out: Record<string, string> = {};
   for (const s of quiz.stimuli ?? []) {
@@ -254,13 +279,41 @@ export function questionsUsingStimulus(
   return out;
 }
 
+/** Indexes of questions whose modified version shows this stimulus. */
+export function questionsUsingModifiedStimulus(
+  questions: readonly Pick<QuizQuestion, 'modifiedStimulusIds'>[],
+  stimulusId: string
+): number[] {
+  const out: number[] = [];
+  questions.forEach((q, i) => {
+    if (q.modifiedStimulusIds?.includes(stimulusId)) out.push(i);
+  });
+  return out;
+}
+
+// Text stimuli were called "Passage" until November 2026, and saved quizzes keep that default.
+const LEGACY_DEFAULT_LABELS: Partial<Record<QuizStimulusType, string>> = {
+  text: 'Passage',
+};
+
+/** True for the name a new stimulus of this type starts with, which counts as unnamed. */
+export function isDefaultStimulusLabel(
+  type: QuizStimulusType,
+  label: string
+): boolean {
+  return (
+    label === STIMULUS_TYPE_LABELS[type] ||
+    label === LEGACY_DEFAULT_LABELS[type]
+  );
+}
+
 /** Teacher-facing name: a custom label, else the passage's opening words, else a file name, else the type. */
 export function stimulusDisplayName(
   s: Pick<QuizStimulus, 'label' | 'text' | 'url' | 'type' | 'driveFileId'>
 ): string {
   const typeLabel = STIMULUS_TYPE_LABELS[s.type];
   const label = s.label.trim();
-  if (label && label !== typeLabel) return label;
+  if (label && !isDefaultStimulusLabel(s.type, label)) return label;
   const passage = s.text?.replace(/\s+/g, ' ').trim();
   if (passage) return clip(passage);
   if (s.driveFileId || /^data:/i.test(s.url)) return typeLabel;
@@ -282,7 +335,10 @@ export function stimulusPickerTitle(
 ): string {
   const typeLabel = STIMULUS_TYPE_LABELS[s.type];
   const label = s.label.trim();
-  if (s.type === 'word-bank' && (!label || label === typeLabel)) {
+  if (
+    s.type === 'word-bank' &&
+    (!label || isDefaultStimulusLabel(s.type, label))
+  ) {
     const words = (s.text ?? '')
       .split('\n')
       .map((w) => w.trim())

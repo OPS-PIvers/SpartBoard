@@ -1,5 +1,5 @@
 /**
- * The "Add to the answer sheet" editor (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md
+ * The "Add to the response sheet" editor (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md
  * D8, D10, D11, D13, D18). Presentational, so every source and every edit is
  * checked through the list it hands back.
  */
@@ -50,7 +50,7 @@ const setup = (
 
 const expand = () =>
   fireEvent.click(
-    screen.getByRole('button', { name: /Add to the answer sheet/ })
+    screen.getByRole('button', { name: /Add to the response sheet/ })
   );
 
 describe('PaperSheetStimuliSection', () => {
