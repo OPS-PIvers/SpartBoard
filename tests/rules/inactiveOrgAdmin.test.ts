@@ -1,6 +1,6 @@
 // Firestore security-rules tests: a deactivated (status 'inactive') domain or
-// building admin loses the org-admin tier, and no non-super admin can change
-// their own member roleId or status (so a deactivation can't be self-reversed).
+// building admin loses the org-admin tier, and no client can change a member's
+// roleId or status (orgAdminV1 owns those writes), so a deactivation can't be self-reversed.
 //
 // Requires a running Firestore emulator. Invoke via:
 //   pnpm run test:rules
@@ -183,18 +183,18 @@ describe('no self-reactivation or self role change', () => {
     );
   });
 
-  it('active domain admin can still edit own name and lastActive', async () => {
-    await assertSucceeds(
-      updateDoc(doc(as(DOMAIN_EMAIL), memberPath(DOMAIN_EMAIL)), {
-        name: 'New Name',
-      })
-    );
+  it('active domain admin can stamp own lastActive and nothing else', async () => {
     await assertSucceeds(
       updateDoc(doc(as(DOMAIN_EMAIL), memberPath(DOMAIN_EMAIL)), {
         lastActive: '2026-10-25T00:00:00.000Z',
       })
     );
-    await assertSucceeds(
+    await assertFails(
+      updateDoc(doc(as(DOMAIN_EMAIL), memberPath(DOMAIN_EMAIL)), {
+        name: 'New Name',
+      })
+    );
+    await assertFails(
       updateDoc(doc(as(DOMAIN_EMAIL), memberPath(DOMAIN_EMAIL)), {
         buildingIds: ['high', 'middle'],
       })
@@ -209,13 +209,13 @@ describe('no self-reactivation or self role change', () => {
     );
   });
 
-  it('active admins can still deactivate another member', async () => {
-    await assertSucceeds(
+  it('active admins cannot change another member status from the client', async () => {
+    await assertFails(
       updateDoc(doc(as(BUILDING_EMAIL), memberPath(TEACHER_EMAIL)), {
         status: 'inactive',
       })
     );
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(as(DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)), {
         status: 'active',
       })
@@ -254,24 +254,13 @@ describe('admins who keep the tier', () => {
     await assertSucceeds(getDoc(doc(as(LEGACY_EMAIL), analyticsPath)));
   });
 
-  it('domain admin with no status field can still update another member', async () => {
-    await assertSucceeds(
-      updateDoc(doc(as(LEGACY_EMAIL), memberPath(TEACHER_EMAIL)), {
-        status: 'inactive',
-      })
-    );
-  });
-
-  it('super admin can reactivate an inactive domain admin', async () => {
-    await assertSucceeds(
+  it('a super admin still cannot write member status from the client', async () => {
+    await assertFails(
       updateDoc(doc(as(SUPER_EMAIL), memberPath(INACTIVE_DOMAIN_EMAIL)), {
         status: 'active',
       })
     );
-  });
-
-  it('super admin can change their own status', async () => {
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(as(SUPER_EMAIL), memberPath(SUPER_EMAIL)), {
         status: 'inactive',
       })

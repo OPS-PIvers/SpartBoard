@@ -118,10 +118,6 @@ service cloud.firestore {
     function liveStatus(d) {
       return d.get('status', 'active') in ['active', 'invited'];
     }
-    // The only member status values a client may store.
-    function memberStatusOk() {
-      return incoming().get('status', 'active') in ['active', 'invited', 'inactive'];
-    }
     // Staff audience: a session with audience 'staff' takes only district
     // staff, whose response names them from their own token; any other session's
     // responses carry no staff fields, so a student cannot pose as staff.
@@ -493,17 +489,6 @@ service cloud.firestore {
              operatorMember().data.get('status', 'active') == 'active';
     }
 
-    // Returns the caller's /organizations/{orgId}/members/{email} doc data.
-    // Callers must guard with isOrgMember(orgId) first; otherwise get() fails.
-    function orgMember(orgId) {
-      return dbGet4('organizations', orgId, 'members', myEmail()).data;
-    }
-
-    // True when a building is among the caller's managed buildingIds (prod has no legacy long-form ids, PT-175).
-    function manages(orgId, buildingId) {
-      return buildingId in orgMember(orgId).get('buildingIds', []);
-    }
-
     // The caller's roleId within an org, or empty string when not a member or
     // deactivated (Deactivate keeps roleId, so the admin tier must check status).
     function memberRole(orgId, emailLower) {
@@ -576,137 +561,22 @@ service cloud.firestore {
              !isStudentRoleUser() && notDeactivated();
     }
 
-    // ---- Organizations collection (Phase 3: scoped writes enabled) ----
-    // Super admins: any field, any org. Domain admins: org-wide writes for their org
-    // (except AI/plan flags, super-admin only). Building admins: read-only except
-    // member `status` for a member whose buildingIds intersect their own, never roleId.
-    // System roles (`system: true`) are client-immutable.
-    // Ordering: isOrgMember() (one exists()) precedes isSuperAdmin() (exists()+get())
-    // so the common teacher path stays cheap.
-
+    // ---- Organizations collection ----
+    // Every org, building, domain, role and member write goes through orgAdminV1
+    // (Admin SDK); clients only read, plus the self lastActive stamp below.
     match /organizations/{orgId} {
       allow read: if isOrgMember(orgId) || isSuperAdmin();
-      // Super admins: create/delete, AI/plan, status. Domain admins: identity
-      // fields for their own org only. users/buildings are server-derived counts,
-      // never client-settable at the domain-admin tier.
-      allow delete: if isSuperAdmin();
-      allow create: if isSuperAdmin() &&
-        (!('claudeManagedAuth' in incoming()) ||
-         managedAuthShape(incoming().claudeManagedAuth));
-      // claudeManagedAuth is a trusted token issuer: super admins only, in a pinned shape.
-      allow update: if (isSuperAdmin() && managedAuthOk()) ||
-        (isDomainAdmin(orgId) &&
-         changedOnly([
-           'name', 'shortName', 'shortCode', 'state', 'primaryAdminEmail',
-           'seedColor', 'supportUrl'
-         ]));
-      function managedAuthOk() {
-        return incoming().get('claudeManagedAuth', null) ==
-            existing().get('claudeManagedAuth', null) ||
-          managedAuthShape(incoming().get('claudeManagedAuth', null));
-      }
-      function managedAuthShape(m) {
-        return m is map && m.keys().hasOnly(['enabled', 'issuer']) &&
-          m.enabled is bool && m.issuer is string && m.issuer.size() <= 300 &&
-          m.issuer.matches('https://[^\\s?#@]+');
-      }
 
       match /buildings/{buildingId} {
         allow read: if isOrgMember(orgId) || isSuperAdmin();
-        // Only domain+ admins can create/delete buildings. Create must carry
-        // the canonical orgId + matching doc id, pin `users == 0` (derived
-        // count, server-managed), and only include the known building fields
-        // so clients can't seed unexpected attributes.
-        allow create: if (orgAdmin(orgId)) &&
-          incoming().orgId == orgId &&
-          incoming().id == buildingId &&
-          incoming().users == 0 &&
-          newKeys().hasOnly([
-            'id', 'orgId', 'name', 'address', 'grades', 'type',
-            'adminEmails', 'users'
-          ]);
-        allow delete: if orgAdmin(orgId);
-        // Domain+ admins edit any building in their org; building admins edit
-        // only buildings they manage. Both tiers share a field whitelist so
-        // neither can touch identity fields (id, orgId) or the server-managed
-        // `users` count. Super admins are unrestricted.
-        allow update: if isSuperAdmin() ||
-            ((isDomainAdmin(orgId) ||
-              (isBuildingAdmin(orgId) &&
-               manages(orgId, buildingId))) &&
-             sameId() &&
-             unchanged('orgId') &&
-             changedOnly([
-               'name', 'address', 'grades', 'type', 'adminEmails'
-             ]));
       }
 
       match /domains/{domainId} {
         allow read: if isOrgMember(orgId) || isSuperAdmin();
-        // Domain/super admin only. Create pins canonical orgId + doc id, forces
-        // status:'pending' and users:0, and hasOnly([...]) blocks stray fields.
-        // `domain` must be normalized (leading '@', lowercase, dotted hostname) on BOTH
-        // create and update: resolveOrgIdForDomain (classlinkShared.ts) resolves a user's
-        // org via EXACT-match query and never normalizes the STORED side, so a mismatched
-        // value would be accepted here and then fail org resolution forever, silently.
-        allow create: if (orgAdmin(orgId)) &&
-          incoming().orgId == orgId &&
-          incoming().id == domainId &&
-          incoming().status == 'pending' &&
-          incoming().users == 0 &&
-          incoming().domain.matches('^@[a-z0-9.-]+[.][a-z]{2,}$') &&
-          newKeys().hasOnly([
-            'id', 'orgId', 'domain', 'authMethod', 'status', 'role',
-            'users', 'addedAt'
-          ]);
-        allow delete: if orgAdmin(orgId);
-        allow update: if (orgAdmin(orgId)) &&
-          incoming().domain.matches('^@[a-z0-9.-]+[.][a-z]{2,}$') &&
-          (isSuperAdmin() ||
-           (sameId() &&
-            unchanged('orgId') &&
-            // A verified domain can't be renamed: that would claim another org's domain unverified.
-            (existing().get('status', '') != 'verified' || unchanged('domain')) &&
-            changedOnly([
-              'domain', 'authMethod', 'role'
-            ])));
       }
 
       match /roles/{roleId} {
         allow read: if isOrgMember(orgId) || isSuperAdmin();
-        // System roles are migration-seeded and client-immutable, except super
-        // admins may patch `perms` (see update branch). Client-created roles must
-        // pin path identity, be system:false, and stay within the schema so
-        // clients can't attach unexpected fields.
-        allow create: if (orgAdmin(orgId)) &&
-          incoming().id == roleId &&
-          incoming().system == false &&
-          newKeys().hasAll(['id', 'name', 'system', 'perms']) &&
-          newKeys().hasOnly([
-            'id', 'name', 'blurb', 'color', 'system', 'perms'
-          ]);
-        // Update pins id + system and blocks unknown fields. Super admins may
-        // also edit `perms` on system roles (system:true preserved); domain
-        // admins stay locked out of system docs.
-        allow update: if
-          (isSuperAdmin() &&
-           unchanged('system') &&
-           sameId() &&
-           ((existing().system == true &&
-             changedOnly(['perms'])) ||
-            (existing().system != true &&
-             changedOnly([
-               'name', 'blurb', 'color', 'perms'
-             ])))) ||
-          (isDomainAdmin(orgId) &&
-           existing().system != true &&
-           unchanged('system') &&
-           sameId() &&
-           changedOnly([
-             'name', 'blurb', 'color', 'perms'
-           ]));
-        allow delete: if (orgAdmin(orgId)) &&
-          existing().system != true;
       }
 
       match /members/{emailLower} {
@@ -722,75 +592,18 @@ service cloud.firestore {
                         emailVerified())) ||
                     isOrgMember(orgId) ||
                     isSuperAdmin();
-        // Domain+ admins manage members via a field whitelist so identity fields (email,
-        // orgId, uid, addedBy, addedBySource) stay pinned. `uid` is NOT update-whitelisted:
-        // the first-sign-in uid link must go through a CF so no client can reassign a uid
-        // and hijack the account. Building admins may update only `status` on members whose
-        // buildingIds intersect their own. Create pins doc id == lowercased email (so
-        // isOrgMember()'s lookup resolves) and forces data.email == emailLower (F15).
-        // Only a super admin may create a super_admin member (same anti-escalation as update).
-        allow create: if memberStatusOk() && (isSuperAdmin() ||
-                          (isDomainAdmin(orgId) && incoming().get('roleId', '') != 'super_admin')) &&
-          incoming().email == incoming().email.lower() &&
-          incoming().email == emailLower &&
-          incoming().orgId == orgId &&
-          newKeys().hasAll(['email', 'orgId', 'roleId', 'buildingIds', 'status']) &&
-          newKeys().hasOnly([
-            'email', 'orgId', 'roleId', 'buildingIds', 'status',
-            'name', 'invitedAt', 'addedBy', 'addedBySource'
-          ]);
-        // A domain admin may not remove a super_admin member.
-        allow delete: if isSuperAdmin() ||
-          (isDomainAdmin(orgId) && existing().get('roleId', '') != 'super_admin');
-        allow update: if memberStatusOk() && (isSuperAdmin() ||
-          (isDomainAdmin(orgId) &&
-           unchanged('email') &&
-           unchanged('orgId') &&
-           changedOnly([
-             'roleId', 'buildingIds', 'status', 'name', 'invitedAt', 'lastActive'
-           ]) &&
-           // No self-service role or status change (e.g. undoing a deactivation).
-           (emailLower != myEmail() ||
-            (incoming().get('roleId', '') == existing().get('roleId', '') &&
-             incoming().get('status', '') == existing().get('status', ''))) &&
-           // Anti-escalation: roleId=='super_admin' is a live isSuperAdmin() grant
-           // (isMemberSuperAdmin()), so a domain admin must not write it (incl.
-           // onto their own doc). On a doc that already has it, a domain admin may
-           // edit other fields but not demote or deactivate it. Only a super admin
-           // (first disjunct) can grant or revoke it.
-           (existing().get('roleId', '') == 'super_admin'
-              ? (incoming().get('roleId', '') == 'super_admin' &&
-                 incoming().get('status', '') == existing().get('status', ''))
-              : incoming().get('roleId', '') != 'super_admin')) ||
-          // Building admin may flip `status` on a member whose buildingIds overlap
-          // their own. An empty list on either side = no overlap, so an unscoped
-          // member (buildingIds: []) is not editable until a domain admin assigns a building.
-          (isBuildingAdmin(orgId) &&
-           emailLower != myEmail() &&
-           // Never a higher tier, in either direction.
-           !(existing().get('roleId', '') in ['super_admin', 'domain_admin']) &&
-           existing().get('buildingIds', []).hasAny(orgMember(orgId).get('buildingIds', [])) &&
-           // Deactivate only: reactivating is a domain admin's call.
-           (liveStatus(existing()) || !liveStatus(incoming())) &&
-           changedOnly(['status'])) ||
-          // Self-write: a user may stamp `lastActive` on their own member doc.
-          // Strictly bound — email/orgId must match and only `lastActive` may
-          // change, so it can't escalate role/buildingIds/status or touch another
-          // user. Powers the admin panel's "Last active" column without a CF.
-          (signedIn() &&
-           tok().email != null &&
-           emailVerified() &&
-           myEmail() == emailLower &&
-           viewAsOk() &&
-           unchanged('email') &&
-           unchanged('orgId') &&
-           changedOnly(['lastActive'])));
+        // Self-write: a user may stamp only `lastActive` on their own member doc.
+        allow update: if signedIn() &&
+          tok().email != null &&
+          emailVerified() &&
+          myEmail() == emailLower &&
+          viewAsOk() &&
+          unchanged('email') &&
+          unchanged('orgId') &&
+          changedOnly(['lastActive']);
       }
 
-      // Remove-from-org tombstone: auto-enroll (Admin SDK) skips these emails.
-      match /removedMembers/{emailLower} {
-        allow write: if orgAdmin(orgId);
-      }
+      // /removedMembers/{email}: remove-from-org tombstones, Admin SDK only (no client access).
 
       // /invitations/{token}: no client access; Cloud Functions own it (Phase 4 wires acceptance).
 
