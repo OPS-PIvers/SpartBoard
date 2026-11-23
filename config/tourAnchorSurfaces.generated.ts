@@ -2161,6 +2161,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'admin.help-center.web-tours-link': ['admin.help-center'],
     'admin.help-center.new-record-tour': ['admin.help-center'],
     'admin.help-center.new-record-subs-tour': ['admin.help-center'],
+    'admin.help-center.new-record-students-tour': ['admin.help-center'],
     'admin.help-center.new-move': ['admin.help-center'],
     'admin.help-center.new-picture-guide': ['admin.help-center'],
     'admin.help-center.item-row': ['admin.help-center'],

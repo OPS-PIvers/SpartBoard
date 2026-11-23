@@ -95,7 +95,7 @@ const message = (err: unknown) =>
 
 export const HelpCenterManager: React.FC = () => {
   const { user, orgId, roleId, isAdmin, canAccessFeature } = useAuth();
-  const { showConfirm } = useDialog();
+  const { showAlert, showConfirm } = useDialog();
   const isSuperAdmin = isSuperAdminActor(user?.email, roleId, orgId);
   const subsTours = canAccessFeature('subs-live-tours');
   const studentTours = canAccessFeature('student-live-tours');
@@ -482,6 +482,21 @@ export const HelpCenterManager: React.FC = () => {
             onClick: () => {
               setNewOpen(false);
               window.open(subsRecordTourUrl(), '_blank', 'noopener');
+            },
+          },
+        ]
+      : []),
+    ...(studentTours
+      ? [
+          {
+            label: 'Record a Live tour for students',
+            anchor: tourAttr('admin.help-center.new-record-students-tour'),
+            onClick: () => {
+              setNewOpen(false);
+              void showAlert(
+                "Open View as for a teacher. Select View as student on a student's row. Then select Help > Record a tour.",
+                { title: 'Record a Live tour for students' }
+              );
             },
           },
         ]

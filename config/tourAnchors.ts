@@ -9917,6 +9917,10 @@ export const TOUR_ANCHORS = {
     label: 'Record a Live tour for subs in the Help Center New menu',
     panel: true,
   },
+  'admin.help-center.new-record-students-tour': {
+    label: 'Record a Live tour for students in the Help Center New menu',
+    panel: true,
+  },
   'admin.help-center.new-move': {
     label: 'Move from library in the Help Center New menu',
     panel: true,
