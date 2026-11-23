@@ -1184,14 +1184,15 @@ service cloud.firestore {
       allow delete: if isAdmin() || (isTourAuthor() && existing().authorUid == authUid());
     }
 
-    // A tour's public link record (WEB_TOUR_AUTHORS.md P1): an author reads it, turns it on under their own
-    // email, and may change one someone else confirmed only without touching confirmedBy (turning it off).
-    // On a create the second test reads a missing doc and fails closed.
+    // A tour's public link record (WEB_TOUR_AUTHORS.md P1): an author reads it, turns a web tour's link on
+    // under their own email (never over a SpartBoard tour's record), and may otherwise only switch a link off.
+    // Admins write through /admin_settings. On a create the last test reads a missing doc and fails closed.
     match /admin_settings/tour_public_links/tours/{setId} {
       allow read: if isTourAuthor();
       allow create, update: if isTourAuthor() &&
-        (incoming().get('confirmedBy', '') == tok().email.lower() ||
-         incoming().get('confirmedBy', '') == existing().get('confirmedBy', ''));
+        ((incoming().get('confirmedBy', '') == tok().email.lower() && incoming().get('kind', '') == 'web' &&
+          (noDoc() || existing().get('kind', '') == 'web')) ||
+         (changedOnly(['off']) && incoming().get('off', null) != null));
     }
 
     // Published live tours (P7-3): staff read, admins publish; students never run tours.

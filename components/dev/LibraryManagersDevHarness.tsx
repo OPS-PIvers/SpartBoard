@@ -553,6 +553,7 @@ const QuizView: React.FC<{
         onArchiveEditSettings={noop}
         onArchiveShare={asyncNoop}
         onArchiveSharePlcResults={noop}
+        onArchiveStopSharingPlc={asyncNoop}
         onArchivePublishScores={asyncNoop}
         onArchiveUnpublishScores={asyncNoop}
         onArchivePauseResume={asyncNoop}

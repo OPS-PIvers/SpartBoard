@@ -6824,7 +6824,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'library-shell.assigned-reopen': {
-    label: 'Reopen…, in an Assigned row menu',
+    label: 'Reopen, in an Assigned row menu',
     persists: true,
     panel: true,
   },
