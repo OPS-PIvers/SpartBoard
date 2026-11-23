@@ -343,6 +343,7 @@ export function paginateStimuli(
     let first = true;
     const flush = () => {
       const text = current.replace(/\s+$/, '');
+      current = '';
       if (!text) return;
       const part: PaperTestStimulus = {
         kind: 'text',
@@ -354,7 +355,6 @@ export function paginateStimuli(
         html: sheetStimulusItemHtml(part, w, h, !first),
       });
       first = false;
-      current = '';
     };
     const htmlFor = (text: string) =>
       sheetStimulusItemHtml(
