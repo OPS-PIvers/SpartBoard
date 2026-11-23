@@ -22,11 +22,7 @@ import {
   type PaperTestResource,
   type PaperTestStimulus,
 } from './paperTestStimuli';
-import {
-  paperGroupInstruction,
-  paperPrintWords,
-  type PaperPrintWords,
-} from './paperPrintWords';
+import { paperPrintWords, type PaperPrintWords } from './paperPrintWords';
 import type { PaperRowGroup } from '@/types';
 
 export interface PaperTestQuestion {
@@ -201,11 +197,15 @@ const letteredHtml = (choices: readonly string[]): string =>
     .join('')}</ol>`;
 
 /** Instruction and lettered lists for matching, ordering and choose all. */
-function groupHtml(q: PaperTestQuestion, group: PaperRowGroup): string {
+function groupHtml(
+  q: PaperTestQuestion,
+  group: PaperRowGroup,
+  words: PaperPrintWords
+): string {
   const row = String(q.row);
   const terms = q.terms ?? [];
   const inst = `<p class="group-line">${escapeHtml(
-    paperGroupInstruction(group, {
+    words.groupInstruction(group, {
       across: false,
       unusedLetters: terms.length < q.choices.length,
       firstRow: `${row}.1`,
@@ -224,7 +224,7 @@ function groupHtml(q: PaperTestQuestion, group: PaperRowGroup): string {
 function questionHtml(q: PaperTestQuestion, words: PaperPrintWords): string {
   // A stub's options are just the bubble letters, which say nothing to a student.
   const choices = q.group
-    ? groupHtml(q, q.group)
+    ? groupHtml(q, q.group, words)
     : q.written
       ? `<p class="written">${escapeHtml(words.writeOnSheet)}</p>`
       : isPlaceholderLetterChoices(q.choices)

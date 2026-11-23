@@ -721,6 +721,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             ...t,
             ...(tr?.text?.trim() ? { text: tr.text } : {}),
             options: t.options.map((o) => tr?.choices?.[o] ?? o),
+            ...(t.terms
+              ? { terms: t.terms.map((term) => tr?.terms?.[term] ?? term) }
+              : {}),
             ...(stimulus ? { stimulus } : {}),
           },
         ];
@@ -1261,7 +1264,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                   ...(r.group === 'match'
                     ? {
                         terms: matchingPairs(q.correctAnswer).map(
-                          ([left]) => left
+                          ([left]) => tr?.terms?.[left] ?? left
                         ),
                       }
                     : {}),
@@ -1309,6 +1312,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     return {
       batchId: batch.id,
       quizTitle,
+      ...(printLanguage ? { language: printLanguage } : {}),
       ...(testCopies
         ? {
             testPaper: testCopies[0],

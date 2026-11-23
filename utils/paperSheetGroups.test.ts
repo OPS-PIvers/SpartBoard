@@ -579,4 +579,33 @@ describe('grouped questions on paper', () => {
       unresponded: 'paper-unclear',
     });
   });
+
+  it('prints the fixed words in the copy language', () => {
+    const batch = stack('questions');
+    const html = buildPaperSheetsHtml({
+      batchId: batch.id,
+      quizTitle: QUIZ.title,
+      questionCount: batch.questionCount,
+      choiceCount: batch.choiceCount,
+      sheets: [
+        {
+          seat: 1,
+          student: batch.seats[1],
+          displayName: 'Berg, Priya',
+          className: 'Period 1',
+          isKeySheet: false,
+        },
+      ],
+      columnsPerPage: 'questions',
+      pageMaps: batch.pageMaps,
+      language: 'es',
+      groupTexts: groupTextsFor(
+        analysis,
+        new Map(QUIZ.questions.map((x) => [x.id, x])),
+        batch.choiceOrder ?? {}
+      ),
+    });
+    expect(html).toContain('Selecciona todas las respuestas correctas.');
+    expect(html).not.toContain('Select all that apply.');
+  });
 });

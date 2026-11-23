@@ -94,7 +94,7 @@ import {
   type OpenWindow,
 } from './printHtmlDocument';
 import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
-import { PAPER_GROUP_TITLES, paperGroupInstruction } from './paperPrintWords';
+import { paperPrintWords, type PaperPrintWords } from './paperPrintWords';
 import {
   cropViewportMm,
   markupCommentRows,
@@ -148,6 +148,8 @@ export interface PaperPrintJob {
   writtenTexts?: Readonly<Record<string, string>>;
   /** Matching, ordering and choose all text by page map id. */
   groupTexts?: Readonly<Record<string, PaperGroupText>>;
+  /** The copy's language, for the fixed words around grouped questions; absent = English. */
+  language?: string;
   /** Image `src` per written question id, printed lightly inside a custom image box. */
   writtenImages?: Readonly<Record<string, string>>;
   /** Fill in the blank: each blank's answer by question id, printed on the answer key's lines. */
@@ -462,7 +464,8 @@ function groupRowHtml(
   item: McPageItem,
   grid: PaperGrid,
   fill: SheetFill | undefined,
-  text: PaperGroupText | undefined
+  text: PaperGroupText | undefined,
+  words: PaperPrintWords
 ): string {
   const group = item.group ?? 'all';
   const choices = item.choices ?? 2;
@@ -490,7 +493,7 @@ function groupRowHtml(
     if (part === 0) {
       const first = itemBubbleRectMm(item, 0, grid);
       parts.push(
-        `<div class="grp-title" style="left:${mm(first.x)};top:${mm(o.y - ROW_PITCH_MM + 0.4)}">${escapeHtml(PAPER_GROUP_TITLES[group])}</div>`
+        `<div class="grp-title" style="left:${mm(first.x)};top:${mm(o.y - ROW_PITCH_MM + 0.4)}">${escapeHtml(words.groupTitle(group))}</div>`
       );
       for (let c = 0; c < Math.min(choices, item.wrap ?? choices); c += 1) {
         const r = itemBubbleRectMm(item, c, grid);
@@ -511,7 +514,7 @@ function groupRowHtml(
       `<div class="num qnum" style="left:${mm(COLUMN_X_MM[0])};top:${mm(top)};width:${mm(NUMBER_WIDTH_MM - 2)}">${escapeHtml(item.label)}</div>`,
       `<div class="qt-stem" style="left:${mm(QUESTION_STEM_X_MM)};top:${mm(top)};width:${mm(QUESTION_STEM_W_MM)}">${escapeHtml(plainPromptText(text?.text ?? ''))}</div>`,
       `<div class="grp-inst" style="left:${mm(QUESTION_STEM_X_MM)};top:${mm(top + stemMm)};width:${mm(QUESTION_STEM_W_MM)}">${escapeHtml(
-        paperGroupInstruction(group, {
+        words.groupInstruction(group, {
           across: !!item.across,
           unusedLetters: (text?.terms?.length ?? choices) < choices,
         })
@@ -1169,7 +1172,13 @@ function mapPageBodyHtml(
   for (const item of map.items) {
     if (item.kind === 'mc' && item.group) {
       parts.push(
-        groupRowHtml(item, map.grid, fill, job.groupTexts?.[item.questionId])
+        groupRowHtml(
+          item,
+          map.grid,
+          fill,
+          job.groupTexts?.[item.questionId],
+          paperPrintWords(job.language)
+        )
       );
     } else if (item.kind === 'mc') {
       parts.push(

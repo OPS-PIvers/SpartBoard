@@ -11,6 +11,7 @@ import type {
 } from '@/types';
 import { toOverrideEditorQuestions } from '@/components/common/library/toOverrideEditorQuestions';
 import { multiAnswerOptions } from '@/utils/quizMultiAnswer';
+import { matchingPairs } from '@/utils/paperSheetPlan';
 import type { ResolvedQuizAssignment } from '@/utils/questionBanks';
 import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
 import {
@@ -305,9 +306,51 @@ export interface PrintedTranslation {
   language?: string;
   questions: Record<
     string,
-    { text?: string; choices?: Record<string, string> }
+    {
+      text?: string;
+      choices?: Record<string, string>;
+      /** Matching terms, English to localized. */
+      terms?: Record<string, string>;
+    }
   >;
 }
+
+/** English to localized, only when both lists line up one to one. */
+const zipWords = (
+  english: readonly string[],
+  localized: readonly string[] | undefined
+): Record<string, string> | undefined =>
+  localized?.length === english.length &&
+  new Set(english).size === english.length
+    ? Object.fromEntries(english.map((e, i) => [e, localized[i]]))
+    : undefined;
+
+/** Matching and ordering: their printed options and terms, from the translation's own fields. */
+const groupWords = (
+  q: QuizQuestion,
+  tr: QuestionTranslation
+): { choices?: Record<string, string>; terms?: Record<string, string> } => {
+  if (q.type === 'Ordering') {
+    const choices = zipWords(q.correctAnswer.split('|'), tr.orderingItems);
+    return choices ? { choices } : {};
+  }
+  if (q.type !== 'Matching') return {};
+  const pairs = matchingPairs(q.correctAnswer);
+  const rights = zipWords(
+    pairs.map(([, right]) => right),
+    tr.matchingRight
+  );
+  const extras = zipWords(
+    (q.matchingDistractors ?? []).filter(Boolean),
+    tr.matchingDistractors
+  );
+  const terms = zipWords(
+    pairs.map(([left]) => left),
+    tr.matchingLeft
+  );
+  const choices = rights ? { ...rights, ...(extras ?? {}) } : undefined;
+  return { ...(choices ? { choices } : {}), ...(terms ? { terms } : {}) };
+};
 
 const englishChoices = (q: QuizQuestion): string[] | null => {
   if (q.type === 'MC')
@@ -327,7 +370,7 @@ export function printedTranslation(
   for (const q of quiz.questions) {
     const tr = entries[q.id];
     if (!tr) continue;
-    const out: { text?: string; choices?: Record<string, string> } = {};
+    const out: PrintedTranslation['questions'][string] = {};
     // A group's modified wording is the teacher's own text, so it prints as written.
     const modified = group.modifiedQuestions && !!q.modifiedText?.trim();
     if (!modified && tr.text) out.text = tr.text;
@@ -341,7 +384,8 @@ export function printedTranslation(
       out.choices = Object.fromEntries(
         english.map((e, i) => [e, localized[i]])
       );
-    if (out.text || out.choices) questions[q.id] = out;
+    Object.assign(out, groupWords(q, tr));
+    if (out.text || out.choices || out.terms) questions[q.id] = out;
   }
   if (Object.keys(questions).length === 0) return undefined;
   return { ...(title ? { title } : {}), questions };
