@@ -295,13 +295,18 @@ describe('useSubstituteRosters', () => {
     });
 
     it('falls back when the sub is not named on the share', async () => {
-      serverLoad.mockRejectedValue(new Error('permission-denied'));
+      serverLoad.mockRejectedValue(
+        Object.assign(new Error('denied'), {
+          code: 'functions/permission-denied',
+        })
+      );
       downloadFile.mockResolvedValue(rosterBlob());
       const { result } = renderHook(() =>
         useSubstituteRosters(SHARED, undefined, 'share-1')
       );
       await waitFor(() => expect(result.current.status).toBe('ready'));
       expect(downloadFile).toHaveBeenCalled();
+      expect(console.error).not.toHaveBeenCalled();
     });
 
     it('keeps the load button when the server could not read every file', async () => {

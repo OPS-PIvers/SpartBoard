@@ -222,7 +222,11 @@ export function useSubstituteRosters(
       if (shareId) {
         const served = await loadFromServer(shareId, shared).catch(
           (err: unknown) => {
-            logError('useSubstituteRosters.loadFromServer', err, { shareId });
+            // A sub the share does not name is refused every time; that is the Picker path, not an error.
+            const code = (err as { code?: string } | null)?.code;
+            if (code !== 'functions/permission-denied') {
+              logError('useSubstituteRosters.loadFromServer', err, { shareId });
+            }
             return null;
           }
         );
