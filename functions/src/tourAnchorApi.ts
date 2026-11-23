@@ -45,8 +45,10 @@ const STAMP_KEYS = new Set(['updatedAt', 'firstSeenAt', 'reboundAt']);
 const millis = (t: Stamp) =>
   typeof t?.toMillis === 'function' ? t.toMillis() : 0;
 
-const hasOccurrences = (data: QueueDoc) =>
-  Array.isArray(data.occurrences) && data.occurrences.length > 0;
+// A request_tour_anchors item has no steps yet but still wants an anchor.
+const isWanted = (data: QueueDoc) =>
+  (Array.isArray(data.occurrences) && data.occurrences.length > 0) ||
+  data.requested === true;
 
 /** Stored states a routine result may replace; rebound and emptied items stay put. */
 export const RESOLVABLE_FROM = new Set(['open', 'pr-open', 'needs-human']);
@@ -60,7 +62,7 @@ export function selectOpenItems(
   return docs
     .filter(
       ({ data }) =>
-        hasOccurrences(data) &&
+        isWanted(data) &&
         (data.status === 'open' ||
           (includeNeedsHuman && data.status === 'needs-human') ||
           (data.status === 'pr-open' &&
@@ -204,7 +206,7 @@ export const tourAnchorApi = onRequest(
             const data = (snap.data() ?? {}) as QueueDoc;
             if (
               !RESOLVABLE_FROM.has(String(data.status)) ||
-              (r.status === 'needs-human' && !hasOccurrences(data))
+              (r.status === 'needs-human' && !isWanted(data))
             ) {
               skipped.push(r.fingerprint);
               return;

@@ -78,7 +78,7 @@ The result lists it in `inserted_steps`, with the id of the step it went before.
 
 **Things the runner does for you.** An anchor with `requires` is set up before the runner looks: it expands the dock, selects the widget, restores it, scrolls it into view, or opens the settings drawer on the right tab. A tour that is about a widget's settings can still start with a `click` on `widget.settings-opener:<type>`, so teachers learn where the gear is; after that, every settings step on that widget stays in the open drawer.
 
-**Controls with no anchor.** When `list_tour_anchors` has nothing for a control, use `"anchor": ""` with `fallback` (its ARIA role and English accessible name) and fill `missing_anchor` (where it is and what it does). The step works in English only, and a developer is asked to tag it. Prefer a tagged control nearby when one says the same thing.
+**Controls with no anchor.** When `list_tour_anchors` has nothing for a control, use `"anchor": ""` with `fallback` (its ARIA role and English accessible name) and fill `missing_anchor` (where it is and what it does). The step works in English only, and a developer is asked to tag it. Prefer a tagged control nearby when one says the same thing. To ask for anchors before you write the tour, call `request_tour_anchors` with each control's role, name and place. A routine opens a pull request that tags them. `list_tour_anchor_requests` shows when each one is `ready`; then use its `anchor_ready` in `tour.anchor`.
 
 **Editors that save as you go.** The quiz editor autosaves and shows no Save button, so a quiz tour leaves it with `editor.close:quiz` (the **Close** button) before its closing step. `editor.save` is for editors with a Save button, such as the video activity editor.
 

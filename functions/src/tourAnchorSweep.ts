@@ -11,6 +11,7 @@ import './functionsInit';
 
 export const TOUR_ANCHOR_RETENTION_MS = 90 * DAY_MS;
 const PAGE = 400;
+const STEPLESS_CAP = 2000;
 
 type Query = admin.firestore.Query;
 
@@ -36,18 +37,37 @@ export function sweepQueries(db: admin.firestore.Firestore, now: number) {
     // Only rebound items carry reboundAt.
     rebound: db.collection(TOUR_ANCHOR_QUEUE).where('reboundAt', '<', cutoff),
     batches: db.collection(TOUR_ANCHOR_BATCHES).where('createdAt', '<', cutoff),
+    requested: db
+      .collection(TOUR_ANCHOR_QUEUE)
+      .where('requestedAt', '<', cutoff),
   };
 }
 
 export async function runTourAnchorSweep(
   db: admin.firestore.Firestore,
   now: number = Date.now()
-): Promise<{ rebound: number; batches: number }> {
+): Promise<{ rebound: number; batches: number; requested: number }> {
   const q = sweepQueries(db, now);
   return {
     rebound: await deleteAll(db, q.rebound),
     batches: await deleteAll(db, q.batches),
+    requested: await deleteStepless(db, q.requested),
   };
+}
+
+/** Old request_tour_anchors items no saved step ever used; a step's item stays for its rebind. */
+async function deleteStepless(db: admin.firestore.Firestore, query: Query) {
+  const snap = await query.limit(STEPLESS_CAP).get();
+  const stepless = snap.docs.filter((d) => {
+    const o: unknown = d.get('occurrences');
+    return !Array.isArray(o) || o.length === 0;
+  });
+  for (let i = 0; i < stepless.length; i += PAGE) {
+    const batch = db.batch();
+    stepless.slice(i, i + PAGE).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+  return stepless.length;
 }
 
 export const tourAnchorSweep = onSchedule(

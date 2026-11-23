@@ -217,6 +217,19 @@ describe('selectOpenItems', () => {
     ).toEqual([]);
   });
 
+  it('serves a requested item that no step uses yet', () => {
+    const items = selectOpenItems(
+      [
+        {
+          id: 'asked',
+          data: { status: 'open', occurrences: [], requested: true },
+        },
+      ],
+      0
+    );
+    expect(items.map((i) => i.fingerprint)).toEqual(['asked']);
+  });
+
   it('drops reboundAt and returns ISO timestamps', () => {
     const [item] = selectOpenItems(
       [
