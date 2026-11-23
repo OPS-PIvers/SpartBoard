@@ -70,6 +70,8 @@ const AMBER = `bg-amber-50 text-amber-800 ${RING} ring-amber-200 hover:bg-amber-
 const OUTLINE_BLUE = `bg-white text-brand-blue-primary ${RING} ring-brand-blue-light/40 hover:bg-brand-blue-lighter`;
 const SOLID_BLUE = `bg-brand-blue-primary text-white ${RING} ring-brand-blue-primary hover:bg-brand-blue-dark`;
 const RED = `bg-red-50 text-brand-red-primary ${RING} ring-red-200 hover:bg-red-100`;
+// Monitor and Results both show the class's work, so they share a look.
+const MONITOR = `bg-brand-blue-lighter text-brand-blue-primary ${RING} ring-brand-blue-light/30 hover:bg-brand-blue-lighter/60`;
 // Publish is the one solid button, so it never reads as the amber Paused word.
 const TINT: Record<Tint, string> = {
   open: GREEN,
@@ -77,9 +79,9 @@ const TINT: Record<Tint, string> = {
   pause: AMBER,
   publish: SOLID_BLUE,
   close: `bg-slate-100 text-slate-700 ${RING} ring-slate-300 hover:bg-slate-200`,
-  monitor: `bg-brand-blue-lighter text-brand-blue-primary ${RING} ring-brand-blue-light/30 hover:bg-brand-blue-lighter/60`,
+  monitor: MONITOR,
   grade: RED,
-  results: `bg-white text-slate-600 ${RING} ring-slate-300 hover:bg-slate-50`,
+  results: MONITOR,
   reopen: OUTLINE_BLUE,
   'choose-class': OUTLINE_BLUE,
 };
