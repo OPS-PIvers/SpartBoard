@@ -48,6 +48,12 @@ import { assertViewAsAllowed } from './viewAsGuard';
 import { BoundedLruMap } from './utils/boundedLruMap';
 import { studentFirstName } from './studentFirstName';
 import { safeErr } from './safeLog';
+import {
+  fetchFormerStudents,
+  formerMemberIds,
+  loadClassMembers,
+  recordClassMembers,
+} from './classlinkClassMembers';
 
 // Student identity (ClassLink-via-Google) — PII-free auth flow
 // ---------------------------------------------------------------------------
@@ -1241,7 +1247,34 @@ export const getPseudonymsForAssignmentV1 = onCall(
         studentsUrl,
         { headers: { ...studentsHeaders } }
       );
-      const students = studentsResp.data.users ?? [];
+      const current = studentsResp.data.users ?? [];
+      const currentIds = current
+        .map((s) => s.sourcedId)
+        .filter((id): id is string => !!id);
+      // Students who have left the class keep their names on older results.
+      const db = admin.firestore();
+      const now = Date.now();
+      let former: ClassLinkStudent[] = [];
+      try {
+        const stored = await loadClassMembers(db, classId);
+        const formerIds = formerMemberIds(stored, new Set(currentIds), now);
+        [former] = await Promise.all([
+          formerIds.length > 0
+            ? fetchFormerStudents(formerIds, {
+                tenantUrl: cleanTenantUrl,
+                classlinkClientId,
+                classlinkClientSecret,
+              })
+            : Promise.resolve([]),
+          recordClassMembers(db, classId, currentIds, now, stored),
+        ]);
+      } catch (err) {
+        console.warn(
+          '[getPseudonymsForAssignmentV1] former members unavailable:',
+          safeErr(err)
+        );
+      }
+      const students = [...current, ...former];
 
       // Return both pseudonyms so teacher viewers can match whichever one
       // the response doc is keyed by:

@@ -76,6 +76,10 @@ import {
   normalizeClassTargetsEnforceSettings,
   normalizeVerifiedClassesFillSettings,
 } from '@/config/verifiedClassesFill';
+import {
+  CLASSLINK_SYNC_SETTINGS_DOC,
+  normalizeClassLinkSyncSettings,
+} from '@/config/classlinkSync';
 
 export interface RolloutSwitch {
   docId: string;
@@ -246,5 +250,13 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
       'Teachers whose class list ClassLink has never confirmed can no longer assign to a class. Turn on once the fill has given every teacher a list.',
     superAdminOnly: true,
     normalize: normalizeClassTargetsEnforceSettings,
+  },
+  {
+    docId: CLASSLINK_SYNC_SETTINGS_DOC,
+    title: 'Nightly ClassLink roster sync',
+    description:
+      'Each night at 2:30 AM, students who changed ClassLink classes move to their new class. On by default.',
+    superAdminOnly: true,
+    normalize: normalizeClassLinkSyncSettings,
   },
 ];

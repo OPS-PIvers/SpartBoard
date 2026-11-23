@@ -2949,6 +2949,57 @@ describe('getPseudonymsForAssignmentV1', () => {
     expect(res.skipped).toBeUndefined();
   });
 
+  it('names a student who has left the class, and remembers who is in it now', async () => {
+    seedOneRoster();
+    const base = h.axiosGet!;
+    h.axiosGet = async (url: string, cfg?: unknown) => {
+      if (url.endsWith('/users/SID-OLD'))
+        return {
+          data: {
+            user: {
+              sourcedId: 'SID-OLD',
+              givenName: 'Sam',
+              familyName: 'Moved',
+              role: 'student',
+            },
+          },
+        };
+      if (url.endsWith('/users/SID-GONE')) throw new Error('404');
+      return base(url, cfg);
+    };
+    const recent = Date.now() - 1000;
+    h.docStore.set('classlink_class_members/CL1', {
+      members: { 'SID-A': recent, 'SID-OLD': recent, 'SID-GONE': recent },
+    });
+
+    const res = await callPseudonymsForAssignment({
+      auth: TEACHER,
+      data: { assignmentId: ASSIGNMENT, classId: 'CL1' },
+    });
+
+    expect(Object.keys(res.pseudonyms).sort()).toEqual([
+      'SID-A',
+      'SID-B',
+      'SID-OLD',
+    ]);
+    expect(res.pseudonyms['SID-OLD']).toMatchObject({
+      studentUid: computeStudentUid('SID-OLD', HMAC),
+      givenName: 'Sam',
+      familyName: 'Moved',
+    });
+    const members = (
+      h.docStore.get('classlink_class_members/CL1') as {
+        members: Record<string, number>;
+      }
+    ).members;
+    expect(Object.keys(members).sort()).toEqual([
+      'SID-A',
+      'SID-B',
+      'SID-GONE',
+      'SID-OLD',
+    ]);
+  });
+
   it('refs path resolves only the targeted subset of a class', async () => {
     seedOneRoster();
     h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL1' });

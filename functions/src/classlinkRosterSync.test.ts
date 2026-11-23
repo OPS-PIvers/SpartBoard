@@ -5,6 +5,7 @@ import {
   ClassLinkSyncDeps,
   RosterFileContent,
   SyncSettings,
+  readSyncSettings,
 } from './classlinkRosterSync';
 import * as admin from './firebaseAdmin';
 import { ClassLinkStudent } from './classlinkShared';
@@ -56,6 +57,7 @@ function buildHarness(rosters: FakeRoster[]) {
   const taught = new Map<string, Set<string> | null>();
   const teachLookups: string[] = [];
   const upstreamFetches: string[] = [];
+  const memberWrites: { classId: string; ids: string[] }[] = [];
   const grants = new Map<string, boolean>();
   const driveVersions = new Map<string, string>();
 
@@ -172,6 +174,10 @@ function buildHarness(rosters: FakeRoster[]) {
       pinIndexCalls.push({ path: rosterRef.path, students, enrolled });
       return Promise.resolve();
     },
+    recordClassMembers: (classId, ids) => {
+      memberWrites.push({ classId, ids });
+      return Promise.resolve();
+    },
     now: () => 1_000_000,
   };
 
@@ -187,6 +193,7 @@ function buildHarness(rosters: FakeRoster[]) {
     taught,
     teachLookups,
     upstreamFetches,
+    memberWrites,
     cursorWrites,
     setCursor: (c: unknown) => {
       storedCursor = c;
@@ -272,6 +279,29 @@ describe('runClassLinkRosterSync', () => {
       classlinkSyncedAt: 1_000_000,
       classlinkSyncSummary: { at: 1_000_000, addedCount: 1, removedCount: 1 },
     });
+  });
+
+  it('remembers who ClassLink lists in the class, but not in dry run', async () => {
+    const rosters = [
+      classlinkRoster(
+        'users/u1/rosters/r1',
+        'u1',
+        [student('Ada', '01', 's1')],
+        [up('s1', 'Ada'), up('s3', 'Zoe')]
+      ),
+    ];
+    harness = buildHarness(rosters);
+    await runClassLinkRosterSync(harness.db, harness.deps, ENABLED);
+    expect(harness.memberWrites).toEqual([
+      { classId: rosters[0].data.classlinkClassId, ids: ['s1', 's3'] },
+    ]);
+
+    harness = buildHarness(rosters);
+    await runClassLinkRosterSync(harness.db, harness.deps, {
+      enabled: true,
+      dryRun: true,
+    });
+    expect(harness.memberWrites).toEqual([]);
   });
 
   // The Firestore roster doc is contractually free of student PII — names live
@@ -1103,5 +1133,37 @@ describe('parseRosterFileBody', () => {
 
   it('throws on an unrecognized payload', () => {
     expect(() => parseRosterFileBody({ nope: true })).toThrow();
+  });
+});
+
+describe('readSyncSettings', () => {
+  const dbWith = (data: Record<string, unknown> | undefined) =>
+    ({
+      doc: () => ({ get: () => Promise.resolve({ data: () => data }) }),
+    }) as unknown as admin.firestore.Firestore;
+
+  it('runs live when the settings doc is missing', async () => {
+    expect(await readSyncSettings(dbWith(undefined))).toEqual({
+      enabled: true,
+      dryRun: false,
+    });
+  });
+
+  it('stops only on a literal enabled false', async () => {
+    expect((await readSyncSettings(dbWith({ enabled: false }))).enabled).toBe(
+      false
+    );
+    expect((await readSyncSettings(dbWith({ enabled: 'no' }))).enabled).toBe(
+      true
+    );
+  });
+
+  it('dry runs only on a literal dryRun true', async () => {
+    expect((await readSyncSettings(dbWith({ dryRun: true }))).dryRun).toBe(
+      true
+    );
+    expect((await readSyncSettings(dbWith({ dryRun: 'yes' }))).dryRun).toBe(
+      false
+    );
   });
 });
