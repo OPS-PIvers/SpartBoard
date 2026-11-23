@@ -207,8 +207,9 @@ async function candidateTaughtClasses(
         classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
         tenantUrl: CLASSLINK_TENANT_URL.value(),
       });
-    } catch {
-      // Already logged by the ClassLink helper; an unconfirmed owner is rejected.
+    } catch (err) {
+      // A list too long to read stays that way, so it rejects the owner instead of reading as an outage.
+      if (isClassListTruncated(err)) ids = null;
     }
     rosterTaughtCache.set(uid, { ids, at: Date.now() });
     return ids;
@@ -867,6 +868,18 @@ export const getStudentClassDirectoryV1 = onCall(
             safeErr(err)
           );
         }
+        // The next sign-in keeps an unconfirmed section only if the last claim had it.
+        if (customToken) {
+          await db
+            .doc(`${STUDENT_SECTIONS_COLLECTION}/${uid}`)
+            .set({ classIds: nextClaim }, { merge: true })
+            .catch((err: unknown) => {
+              console.error(
+                '[getStudentClassDirectoryV1] student_sections write failed:',
+                safeErr(err)
+              );
+            });
+        }
       }
     }
 
@@ -1347,6 +1360,17 @@ function assertClassLinkCreds(creds: ClassLinkCreds): void {
   }
 }
 
+const CLASS_LIST_TRUNCATED = 'class-list-truncated';
+
+/** True for the `unavailable` error `loadTeacherClassIds` throws when the class list runs past the page cap. */
+function isClassListTruncated(err: unknown): boolean {
+  return (
+    err instanceof HttpsError &&
+    (err.details as { reason?: unknown } | undefined)?.reason ===
+      CLASS_LIST_TRUNCATED
+  );
+}
+
 /** Log a ClassLink failure by class only and surface it as `unavailable`. */
 function classLinkUnavailable(tag: string, err: unknown): never {
   if (err instanceof HttpsError) throw err;
@@ -1398,7 +1422,12 @@ export async function loadTeacherClassIds(
       'classes',
       creds
     );
-    if (!classes) throw new Error('class list truncated');
+    if (!classes) {
+      console.error('[loadTeacherClassIds] class list truncated');
+      throw new HttpsError('unavailable', 'Roster service unavailable.', {
+        reason: CLASS_LIST_TRUNCATED,
+      });
+    }
     return new Set(
       classes
         .map((c) => c.sourcedId)
