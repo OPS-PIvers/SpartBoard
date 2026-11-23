@@ -1,0 +1,2 @@
+release-fix/paper-freeze-saved-quiz
+claude/project-thread-kmcxoc (release 2026.11.23c branch)
