@@ -24,7 +24,8 @@ const loadItemSet = async (
     return null;
   });
   if (draft) return draft;
-  if (failed) throw failed;
+  if (failed)
+    throw failed instanceof Error ? failed : new Error('Help set read failed');
   return null;
 };
 
