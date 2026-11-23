@@ -58,8 +58,10 @@ beforeEach(() => {
 describe('webTourCleanup', () => {
   it('deletes the web snapshot and the picture folder when the draft is deleted', async () => {
     h.store.set(`${SNAP}/w1`, { surface: 'web', set: {} });
+    h.store.set('freshservice_articles/w1', { articleId: 7 });
     await trigger({ params: { setId: 'w1' } });
     expect(h.store.has(`${SNAP}/w1`)).toBe(false);
+    expect(h.store.has('freshservice_articles/w1')).toBe(false);
     expect(h.deleted).toEqual(['web_tour_pictures/w1/']);
   });
 

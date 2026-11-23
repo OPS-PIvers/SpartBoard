@@ -18,7 +18,7 @@ import {
   ref,
   uploadBytes,
 } from 'firebase/storage';
-import { db, storage } from '@/config/firebase';
+import { auth, db, storage } from '@/config/firebase';
 import type {
   GuidedLearningSet,
   GuidedLearningStep,
@@ -137,16 +137,43 @@ const stampFor = (setId: string): number => {
   return now;
 };
 
+/** Who made the tour: the stored author wins, and a tour saved for the first time gets the signed-in person. */
+function authorOf(
+  set: GuidedLearningSet,
+  saved: { exists: boolean; authorUid: unknown; authorName: unknown } | null
+): { authorUid?: string; authorName?: string } {
+  const pair = (uid: unknown, name: unknown) =>
+    typeof uid === 'string' && uid
+      ? {
+          authorUid: uid,
+          ...(typeof name === 'string' && name ? { authorName: name } : {}),
+        }
+      : null;
+  const kept =
+    pair(saved?.authorUid, saved?.authorName) ??
+    pair(set.authorUid, set.authorName);
+  if (kept) return kept;
+  // An offline save can't tell a new tour from an old one, so it never stamps.
+  if (!saved || saved.exists) return {};
+  const me = auth.currentUser;
+  return pair(me?.uid, me?.displayName ?? me?.email) ?? {};
+}
+
 /** Saves a web tour draft. Admins only (rules). */
 export async function saveWebTourDraft(set: GuidedLearningSet): Promise<void> {
   // A copy loaded before a Claude step edit lacks its revision pictures, so the stored list is merged in.
   const now = stampFor(set.id);
   // Offline the read fails; the write still has to queue, so it keeps the copy's own list.
-  const savedList: unknown = await getDoc(draftRef(set.id)).then(
-    (snap): unknown =>
-      snap.exists() ? (snap.get('webRevisionPictures') as unknown) : undefined,
-    () => undefined
+  const saved = await getDoc(draftRef(set.id)).then(
+    (snap) => ({
+      exists: snap.exists(),
+      list: snap.get('webRevisionPictures') as unknown,
+      authorUid: snap.get('authorUid') as unknown,
+      authorName: snap.get('authorName') as unknown,
+    }),
+    () => null
   );
+  const savedList = saved?.exists ? saved.list : undefined;
   const byPath = new Map<string, number>();
   for (const e of [
     ...liveRevisionPictures(set.webRevisionPictures, now),
@@ -160,6 +187,7 @@ export async function saveWebTourDraft(set: GuidedLearningSet): Promise<void> {
   const data = {
     ...stored({ ...set, webRevisionPictures: undefined }),
     ...(webRevisionPictures.length ? { webRevisionPictures } : {}),
+    ...authorOf(set, saved),
     surface: 'web',
     updatedAt: now,
   };
@@ -271,6 +299,7 @@ export async function duplicateWebTourDraft(
     title: `${set.title} (Copy)`,
     helpCenter: set.helpCenter,
     ...(set.webGoal ? { webGoal: set.webGoal } : {}),
+    ...(set.webStartUrl ? { webStartUrl: set.webStartUrl } : {}),
   };
   const uploaded: string[] = [];
   try {

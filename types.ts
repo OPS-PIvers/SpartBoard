@@ -9382,6 +9382,8 @@ export interface WebTourBinding {
   showWhen?: WebTourCondition;
   /** Moves on when this holds instead of at the learner's action: the target goes away, or the address matches. */
   doneWhen?: WebTourCondition;
+  /** The https page Go and a start on this step open; absent = the address guessed from `urlPattern`. */
+  openUrl?: string;
 }
 
 export interface WebTourStudentDataCheck {
@@ -9560,6 +9562,8 @@ export interface GuidedLearningSet {
   /** Building set owned by the Help Center: edited in Admin Settings, hidden from the library. */
   helpCenter?: boolean;
   authorUid?: string;
+  /** The author's display name, kept beside `authorUid` so a list can show it without a lookup. */
+  authorName?: string;
   /**
    * Hotspot pulse animation for the player. Default `'consistent'` (matches
    * pre-feature behavior — a continuous breathing pulse). `'reminder'` does
@@ -9616,6 +9620,8 @@ export interface GuidedLearningSet {
   webPicturesChecked?: WebTourStudentDataCheck;
   /** Web tours: what the tour explains, for Claude; never published. */
   webGoal?: string;
+  /** Web tours: the https page the tour opens on; absent = the first step's page. */
+  webStartUrl?: string;
   /** Web tours: the last Check tour run, which Publish needs passing for these targets (C13). */
   webTourChecked?: WebTourCheckRun;
   /** Web tours: suggested fixes from check runs, by step id; never published. */

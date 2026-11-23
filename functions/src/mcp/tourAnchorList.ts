@@ -58365,6 +58365,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tours.delete",
+    "label": "Delete button for a web tour on the Web tours page",
+    "scope": "field",
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tours.play",
     "label": "Play button for a published web tour on the Web tours page",
     "scope": "field",
@@ -58575,6 +58593,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "web-tour-editor.title",
     "label": "Title field in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "path": [
+          "web-tours.new",
+          "web-tour-editor.tab-settings"
+        ],
+        "reveal": "web-tour-editor.tab-settings",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.start-page",
+    "label": "Start page field on the web tour editor Settings tab",
     "scope": "board",
     "routes": [
       {

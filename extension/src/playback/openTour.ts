@@ -10,6 +10,7 @@ import {
 } from '@/components/tours/web/extensionProtocol';
 import {
   buildStartTour,
+  openablePage,
   startUrlOf,
   type HandoffTargetStep,
 } from '@/components/tours/web/handoff';
@@ -94,6 +95,12 @@ function withMarkup(step: HandoffTargetStep, raw: unknown): HandoffTargetStep {
   };
 }
 
+/** The step with the page the admin set on it, sent beside the steps; anything malformed is left off. */
+function withOpenUrl(step: HandoffTargetStep, raw: unknown): HandoffTargetStep {
+  const openUrl = typeof raw === 'string' ? openablePage(raw) : null;
+  return openUrl ? { ...step, web: { ...step.web, openUrl } } : step;
+}
+
 /** Each step's own clues by id, so a run's suggested fixes keep only the site's clues (C15). */
 export type StepLocators = Record<string, WebTourLocator>;
 
@@ -104,6 +111,7 @@ export function openedTour(
 ): { start: ParsedStart; locators: StepLocators } | null {
   if (!isObj(raw) || !Array.isArray(raw.steps)) return null;
   const conditions = isObj(raw.conditions) ? raw.conditions : {};
+  const openUrls = isObj(raw.openUrls) ? raw.openUrls : {};
   // The server sends a picture's markup with the picture (webTourLoadV1).
   const pictureMarkup = (id: string): unknown =>
     isObj(raw.pictures) ? raw.pictures[id] : undefined;
@@ -117,7 +125,10 @@ export function openedTour(
   const steps = kept
     .filter((s): s is HandoffTargetStep => !isMessageOf(s))
     .map((s) =>
-      withMarkup(withConditions(s, conditions[s.id]), pictureMarkup(s.id))
+      withOpenUrl(
+        withMarkup(withConditions(s, conditions[s.id]), pictureMarkup(s.id)),
+        openUrls[s.id]
+      )
     );
   const pictures = new Map<string, WebTourPictureBytes>();
   if (isObj(raw.pictures)) {
@@ -126,7 +137,10 @@ export function openedTour(
       if (pic) pictures.set(id, pic);
     }
   }
-  const startUrl = startUrlOf(steps);
+  const startUrl = startUrlOf(
+    steps,
+    typeof raw.startPage === 'string' ? raw.startPage : undefined
+  );
   const version = raw.version;
   if (!startUrl || !Number.isInteger(version)) return null;
   let tour;
@@ -137,6 +151,7 @@ export function openedTour(
       typeof raw.title === 'string' ? raw.title : '',
       steps,
       pictures,
+      true,
       true,
       true
     );

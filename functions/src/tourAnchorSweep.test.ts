@@ -11,7 +11,8 @@ const h = vi.hoisted(
     pages: Record<string, number[]>;
     wheres: unknown[][];
     deleted: string[];
-  } => ({ pages: {}, wheres: [], deleted: [] })
+    updated: Array<[string, unknown]>;
+  } => ({ pages: {}, wheres: [], deleted: [], updated: [] })
 );
 
 vi.mock('./firebaseAdmin', () => ({
@@ -19,6 +20,7 @@ vi.mock('./firebaseAdmin', () => ({
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {
     Timestamp: { fromMillis: (ms: number) => ({ ms }) },
+    FieldValue: { delete: () => 'DELETE' },
   }),
 }));
 
@@ -32,12 +34,15 @@ const fakeDb = () =>
     collection: (name: string) => ({
       where: (...args: unknown[]) => {
         h.wheres.push([name, ...args]);
+        const key = `${name}.${String(args[0])}`;
         return {
           limit: () => ({
             get: () => {
-              const size = h.pages[name].shift() ?? 0;
+              const size = h.pages[key].shift() ?? 0;
               const docs = Array.from({ length: size }, (_, i) => ({
-                ref: `${name}/${i}`,
+                ref: `${key}/${i}`,
+                // The first requested item has a step, so the sweep keeps it.
+                get: () => (i === 0 ? [{ setId: 's', stepId: 'a' }] : []),
               }));
               return Promise.resolve({ empty: size === 0, size, docs });
             },
@@ -47,14 +52,20 @@ const fakeDb = () =>
     }),
     batch: () => ({
       delete: (ref: string) => h.deleted.push(ref),
+      update: (ref: string, data: unknown) => h.updated.push([ref, data]),
       commit: () => Promise.resolve(),
     }),
   }) as never;
 
 beforeEach(() => {
-  h.pages = { tour_anchor_queue: [2], tour_anchor_batches: [400, 1] };
+  h.pages = {
+    'tour_anchor_queue.reboundAt': [2],
+    'tour_anchor_batches.createdAt': [400, 1],
+    'tour_anchor_queue.requestedAt': [3],
+  };
   h.wheres = [];
   h.deleted = [];
+  h.updated = [];
 });
 
 describe('runTourAnchorSweep', () => {
@@ -65,8 +76,13 @@ describe('runTourAnchorSweep', () => {
     expect(h.wheres).toEqual([
       ['tour_anchor_queue', 'reboundAt', '<', cutoff],
       ['tour_anchor_batches', 'createdAt', '<', cutoff],
+      ['tour_anchor_queue', 'requestedAt', '<', cutoff],
     ]);
-    expect(result).toEqual({ rebound: 2, batches: 401 });
-    expect(h.deleted).toHaveLength(403);
+    expect(result).toEqual({ rebound: 2, batches: 401, requested: 2 });
+    expect(h.deleted).toHaveLength(405);
+    expect(h.deleted).not.toContain('tour_anchor_queue.requestedAt/0');
+    expect(h.updated).toEqual([
+      ['tour_anchor_queue.requestedAt/0', { requestedAt: 'DELETE' }],
+    ]);
   });
 });

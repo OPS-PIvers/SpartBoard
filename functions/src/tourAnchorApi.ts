@@ -10,6 +10,7 @@ import {
   FINGERPRINT_RE,
   TOUR_ANCHOR_QUEUE,
 } from './tourAnchorQueue';
+import { TOUR_ANCHOR_LIST } from './mcp/tourAnchorList';
 import './functionsInit';
 import { safeErr } from './safeLog';
 
@@ -45,8 +46,19 @@ const STAMP_KEYS = new Set(['updatedAt', 'firstSeenAt', 'reboundAt']);
 const millis = (t: Stamp) =>
   typeof t?.toMillis === 'function' ? t.toMillis() : 0;
 
-const hasOccurrences = (data: QueueDoc) =>
+const hasSteps = (data: QueueDoc) =>
   Array.isArray(data.occurrences) && data.occurrences.length > 0;
+
+// A request_tour_anchors item has no steps yet but still wants an anchor.
+const isWanted = (data: QueueDoc) => hasSteps(data) || data.requested === true;
+
+const DEPLOYED = new Set(TOUR_ANCHOR_LIST.map((a) => a.id));
+
+/** A stale PR is retried unless a stepless request's anchor already shipped; it has no steps to rebind. */
+const retryStalePr = (data: QueueDoc) =>
+  hasSteps(data) ||
+  typeof data.anchorId !== 'string' ||
+  !DEPLOYED.has(data.anchorId.split(/[:#]/)[0]);
 
 /** Stored states a routine result may replace; rebound and emptied items stay put. */
 export const RESOLVABLE_FROM = new Set(['open', 'pr-open', 'needs-human']);
@@ -60,11 +72,12 @@ export function selectOpenItems(
   return docs
     .filter(
       ({ data }) =>
-        hasOccurrences(data) &&
+        isWanted(data) &&
         (data.status === 'open' ||
           (includeNeedsHuman && data.status === 'needs-human') ||
           (data.status === 'pr-open' &&
-            now - millis(data.updatedAt) > STALE_PR_MS))
+            now - millis(data.updatedAt) > STALE_PR_MS &&
+            retryStalePr(data)))
     )
     .sort((a, b) => millis(a.data.firstSeenAt) - millis(b.data.firstSeenAt))
     .slice(0, API_ITEM_CAP)
@@ -204,7 +217,7 @@ export const tourAnchorApi = onRequest(
             const data = (snap.data() ?? {}) as QueueDoc;
             if (
               !RESOLVABLE_FROM.has(String(data.status)) ||
-              (r.status === 'needs-human' && !hasOccurrences(data))
+              (r.status === 'needs-human' && !isWanted(data))
             ) {
               skipped.push(r.fingerprint);
               return;

@@ -298,6 +298,7 @@ export const SURFACES: TourSurfaceMap = {
       'web-tour-editor.duplicate': 'web-tour-editor.menu',
       'web-tour-editor.delete': 'web-tour-editor.menu',
       'web-tour-editor.title': 'web-tour-editor.tab-settings',
+      'web-tour-editor.start-page': 'web-tour-editor.tab-settings',
       'web-tour-editor.goal': 'web-tour-editor.tab-settings',
       'web-tour-editor.picture-blur': 'web-tour-editor.picture',
       'web-tour-editor.picture-crop': 'web-tour-editor.picture',

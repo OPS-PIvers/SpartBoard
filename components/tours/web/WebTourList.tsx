@@ -1,4 +1,11 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, {
+  Suspense,
+  lazy,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from 'react';
 import {
   ChevronDown,
   Globe,
@@ -7,9 +14,12 @@ import {
   Play,
   Radar,
   Share2,
+  Trash2,
   Wrench,
 } from 'lucide-react';
 import type { GuidedLearningSet } from '@/types';
+import { useDialog } from '@/context/useDialog';
+import { deleteWebTourDraft } from '@/components/tours/webTours';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { chromeMuted, focusRing } from '@/components/common/lightChrome';
 import { usePublishedTour } from '@/components/tours/publishedTours';
@@ -27,7 +37,7 @@ import {
   stepsFileName,
   webTourStepsHtml,
 } from './stepsHtmlExport';
-import { sendTourToFreshservice, useCanFreshservice } from './freshservice';
+import { useCanFreshservice } from './freshservice';
 import {
   stepStatusRows,
   tourStatus,
@@ -71,6 +81,12 @@ export interface RowFacts {
 }
 
 export type Notice = { text: string; tone: 'success' | 'error' };
+
+const FreshserviceSendDialog = lazy(() =>
+  import('./FreshserviceSendDialog').then((m) => ({
+    default: m.FreshserviceSendDialog,
+  }))
+);
 
 const stepName = (row: StepStatusRow) =>
   `${row.index + 1}. ${row.label || 'Untitled step'}`;
@@ -263,31 +279,10 @@ const ShareMenu: React.FC<{
   };
 
   const canFresh = useCanFreshservice();
-  const toFreshservice = async () => {
+  const [freshOpen, setFreshOpen] = useState(false);
+  const toFreshservice = () => {
     closeMenu();
-    if (!live) return;
-    setBusy(true);
-    try {
-      const res = await sendTourToFreshservice(set.id, labels, live);
-      onNotice(
-        res.kind === 'not-set-up'
-          ? { tone: 'error', text: 'Set up FreshService first.' }
-          : res.missing > 0
-            ? {
-                tone: 'error',
-                text: `Sent to FreshService. ${res.missing} picture${res.missing === 1 ? '' : 's'} couldn't load.`,
-              }
-            : { tone: 'success', text: 'Sent to FreshService.' }
-      );
-    } catch (err) {
-      logError('WebTourList freshservice', err, { setId: set.id });
-      onNotice({
-        tone: 'error',
-        text: "The steps couldn't be sent to FreshService.",
-      });
-    } finally {
-      setBusy(false);
-    }
+    if (live) setFreshOpen(true);
   };
 
   const stepsReason = live ? null : 'Publish the tour first.';
@@ -371,7 +366,7 @@ const ShareMenu: React.FC<{
           {canFresh && (
             <button
               type="button"
-              onClick={() => void toFreshservice()}
+              onClick={toFreshservice}
               disabled={!live}
               className={item}
               {...tourFieldAttr(
@@ -384,13 +379,26 @@ const ShareMenu: React.FC<{
                 FreshService
               </span>
               <span className="text-xs text-slate-600">
-                {stepsReason ?? 'Updates its help article.'}
+                {stepsReason ?? 'Sends its help article as a draft.'}
               </span>
             </button>
           )}
         </div>
       )}
       {publicLink.dialog}
+      {freshOpen && live && (
+        <Suspense fallback={null}>
+          <FreshserviceSendDialog
+            set={live}
+            labels={labels}
+            onClose={() => setFreshOpen(false)}
+            onDone={(notice) => {
+              setFreshOpen(false);
+              onNotice(notice);
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };
@@ -478,10 +486,27 @@ const WebTourRow: React.FC<{
       </button>
     ) : null;
 
+  const { showConfirm } = useDialog();
+  const remove = async () => {
+    const ok = await showConfirm(
+      'This deletes the web tour, its pictures and its published copy. A FreshService article made from it stays in FreshService.',
+      { title: `Delete ${title}`, variant: 'danger', confirmLabel: 'Delete' }
+    );
+    if (!ok) return;
+    try {
+      await deleteWebTourDraft(set.id);
+      onNotice({ tone: 'success', text: 'Web tour deleted.' });
+    } catch (err) {
+      logError('WebTourList delete', err, { setId: set.id });
+      onNotice({ tone: 'error', text: "The tour couldn't be deleted." });
+    }
+  };
+
   const meta = (
     <p className={`mt-0.5 text-xs ${chromeMuted}`}>
       {stepCount} step{stepCount === 1 ? '' : 's'}
       {site ? ` · ${site}` : ''}
+      {set.authorName ? ` · by ${set.authorName}` : ''}
       {counts && (
         <span
           data-testid="web-tour-counts"
@@ -580,6 +605,16 @@ const WebTourRow: React.FC<{
           copyLink={copyLink}
           onNotice={onNotice}
         />
+        <button
+          type="button"
+          onClick={() => void remove()}
+          aria-label={`Delete ${title}`}
+          title="Delete"
+          className={`${rowBtnBase} text-slate-500 hover:bg-red-50 hover:text-red-700`}
+          {...tourFieldAttr('web-tours.delete', 'web-tours', set.id)}
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+        </button>
       </div>
     </li>
   );

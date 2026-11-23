@@ -13584,6 +13584,12 @@ export const TOUR_ANCHORS = {
     label: 'Check tour button for a web tour on the Web tours page',
     perField: true,
   },
+  'web-tours.delete': {
+    label: 'Delete button for a web tour on the Web tours page',
+    perField: true,
+    destructive: true,
+    persists: true,
+  },
   'web-tours.play': {
     label: 'Play button for a published web tour on the Web tours page',
     perField: true,
@@ -13629,6 +13635,9 @@ export const TOUR_ANCHORS = {
   'web-tours.search': { label: 'Search box on the Web tours page' },
   'web-tours.filter': { label: 'Show filter on the Web tours page' },
   'web-tour-editor.title': { label: 'Title field in the web tour editor' },
+  'web-tour-editor.start-page': {
+    label: 'Start page field on the web tour editor Settings tab',
+  },
   'web-tour-editor.play': {
     label: 'Play button in the web tour editor header',
   },

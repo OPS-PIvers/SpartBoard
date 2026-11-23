@@ -3,6 +3,7 @@ import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import { GL_TOURS_COLLECTION } from './glTours';
+import { FRESHSERVICE_ARTICLES } from './freshservice';
 import './functionsInit';
 
 export const WEB_TOURS_COLLECTION = 'building_web_tours';
@@ -13,7 +14,7 @@ export interface WebTourCleanupDeps {
   deletePrefix: (prefix: string) => Promise<void>;
 }
 
-/** Deletes the set's published web snapshot (never a SpartBoard one) and its picture folder, unless the draft was re-created. */
+/** Deletes the set's published web snapshot (never a SpartBoard one), its FreshService record and its picture folder, unless the draft was re-created. */
 export async function cleanUpDeletedWebTour(
   setId: string,
   deps: WebTourCleanupDeps
@@ -23,6 +24,8 @@ export async function cleanUpDeletedWebTour(
   const snapRef = deps.db.collection(GL_TOURS_COLLECTION).doc(setId);
   const snap = await snapRef.get();
   if (snap.exists && snap.get('surface') === 'web') await snapRef.delete();
+  // The article itself stays in FreshService; only the link to this tour goes.
+  await deps.db.collection(FRESHSERVICE_ARTICLES).doc(setId).delete();
   await deps.deletePrefix(`${WEB_TOUR_PICTURES_PREFIX}/${setId}/`);
 }
 

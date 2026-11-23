@@ -1838,3 +1838,72 @@ describe('playback across sites (WEB_TOURS_CROSS_SITE.md)', () => {
     expect(await c.isPlaying(9)).toBe(false);
   });
 });
+
+describe('start page and step page', () => {
+  const VIDS = 'https://docs.google.com/videos/d/*/edit';
+  const NEW_VIDEO = 'https://docs.google.com/videos/d/abc123/edit';
+
+  it('opens a start page on another host and plays once it redirects to the first step', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const p = crossSite([step('v1', VIDS), step('v2', VIDS)]);
+    await c.start({ ...p, tour: { ...p.tour, startUrl: 'https://vids.new/' } });
+    expect(h.navigated.at(-1)?.url).toBe('https://vids.new/');
+    await c.committed(7, 0, NEW_VIDEO);
+    expect(h.lastRenderIn(7)).toMatchObject({ status: 'seeking', current: 1 });
+  });
+
+  it('offers Go to the start on the first step site after sign-in, without reopening the start page', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const p = crossSite([step('v1', VIDS)]);
+    await c.start({ ...p, tour: { ...p.tour, startUrl: 'https://vids.new/' } });
+    await c.committed(7, 0, 'https://docs.google.com/videos/u/0/');
+    expect(h.lastRenderIn(7)).toMatchObject({
+      status: 'armed',
+      goStart: true,
+    });
+    expect(
+      h.navigated.filter((n) => n.url === 'https://vids.new/').length
+    ).toBe(1);
+  });
+
+  it('opens a step page with Go instead of the guessed address', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(
+      crossSite([
+        step('g1', GEMINI),
+        step('v1', VIDS, { openUrl: 'https://vids.new/' }),
+      ])
+    );
+    await c.committed(7, 0, GEMINI);
+    await found(h, c, 7);
+    await c.frameReport(7, 0, {
+      type: 'wt:acted',
+      token: h.lastSeek().msg.token as string,
+    });
+    expect(h.lastRenderIn(7)).toMatchObject({
+      status: 'switch',
+      go: 'docs.google.com',
+    });
+    await c.overlayAction(7, 0, 'go');
+    expect(h.navigated.at(-1)).toMatchObject({
+      tabId: 8,
+      url: 'https://vids.new/',
+    });
+    await c.committed(8, 0, NEW_VIDEO);
+    expect(h.lastRenderIn(8)).toMatchObject({ status: 'seeking', current: 2 });
+  });
+
+  it('opens a later step page when a start begins on that step', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const p = crossSite([
+      step('g1', GEMINI),
+      step('v1', VIDS, { openUrl: 'https://vids.new/' }),
+    ]);
+    await c.start({ ...p, stepIndex: 1 });
+    expect(h.navigated.at(-1)?.url).toBe('https://vids.new/');
+  });
+});
