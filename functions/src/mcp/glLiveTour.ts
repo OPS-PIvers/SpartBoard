@@ -30,7 +30,9 @@ import {
 } from './glTools';
 import {
   planAnchorRequests,
+  readyAnchorRef,
   type AnchorRequest,
+  type QueueItem,
   type MissingAnchorNote,
 } from './glAnchorRequests';
 import { TOUR_ANCHOR_LIST } from './tourAnchorList';
@@ -68,6 +70,8 @@ import {
 } from './tourNarration';
 import { safeErr } from '../safeLog';
 
+export { readyAnchorRef };
+
 export const HELP_RESOURCES = 'help_resources';
 export const ADMIN_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'create_live_tour',
@@ -77,6 +81,8 @@ export const ADMIN_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'list_help_center_categories',
   'get_live_tour_guide',
   'start_live_tour_picture_upload',
+  'request_tour_anchors',
+  'list_tour_anchor_requests',
 ]);
 export const GL_TOURS = 'building_guided_learning_tours';
 
@@ -230,31 +236,6 @@ type EditStep = z.infer<typeof editStep>;
 
 const WIDGET_TYPES = new Set(WIDGET_TYPE_LIST);
 const KNOWN_ANCHORS = new Set(TOUR_ANCHOR_LIST.map((a) => a.id));
-const SCOPE_OF = new Map(TOUR_ANCHOR_LIST.map((a) => [a.id, a.scope]));
-
-export interface QueueItem {
-  status?: unknown;
-  anchorId?: unknown;
-  widgetType?: unknown;
-}
-
-/** The anchor ref Live tour health's Rebind would write for a queue item; mirrors reboundAnchorRef in components/tours/anchorQueue.ts. */
-export function readyAnchorRef(item: QueueItem): string | null {
-  const ref = item.anchorId;
-  if (typeof ref !== 'string' || !ref) return null;
-  if (['open', 'rebound', 'needs-human'].includes(String(item.status)))
-    return null;
-  const [head, fieldKey] = ref.split('#');
-  const [id, refType] = head.split(':');
-  const scope = SCOPE_OF.get(id);
-  if (!scope) return null;
-  if (scope === 'board') return ref;
-  const type =
-    refType || (typeof item.widgetType === 'string' ? item.widgetType : '');
-  if (!type) return null;
-  if (scope !== 'field') return `${id}:${type}`;
-  return fieldKey ? `${id}:${type}#${fieldKey}` : null;
-}
 
 /** Step id → the anchor its recorded control was tagged with since, from the anchor queue. */
 async function readyAnchors(
