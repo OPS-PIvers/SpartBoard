@@ -1,16 +1,16 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "stations",
-  "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-18T15:51:33.240Z",
+  "rubricVersion": "1.2.0",
+  "gradedAt": "2026-11-23T05:15:00.010Z",
   "stale": false,
   "criteria": {
     "I5": {
       "score": null,
       "source": "script",
       "note": "N/A by rule",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "S1": {
@@ -22,16 +22,16 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/envelope-min__empty.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/envelope-min__typical.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/envelope-min__stress.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/envelope-min__empty.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/envelope-min__stress.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "At 150x100 the full toolbar, four station strips and the unassigned tray all shrink together to 2.7px text and 10px targets, and the empty state is nearly invisible.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
-      "stale": true
+      "note": "At 150×100 the four toolbar buttons keep their size while the stations collapse into unreadable colored slivers with 2.7 px text and 9.92 px tap targets.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
+      "stale": false
     },
     "S2": {
       "score": 2,
@@ -42,15 +42,15 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/large-1400x900__typical.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/large-1400x900__stress.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/large-1400x900__typical.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/large-1400x900__stress.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "Icons and tiles grow to fill 1400x900, but name pills stay small inside large empty roster panels and the unassigned tray text stays tiny, leaving giant gaps.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "note": "At 1400×900 the card is 99% filled but the station icons balloon to about 270 px while student names stay around 13 px in mostly empty member panels.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "S3": {
@@ -62,17 +62,17 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/widest-aspect__typical.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/widest-aspect__stress.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/tallest-aspect__typical.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/tallest-aspect__stress.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/widest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/widest-aspect__stress.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/tallest-aspect__stress.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "The grid keeps the same two-column arrangement at both extremes, so the wide shape squashes station text to unreadable slivers and the tall shape breaks titles like 'Rea ding' instead of reflowing.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
-      "stale": true
+      "note": "The widest shape keeps the same grid squashed into thin rows with microscopic titles, and the tallest keeps two columns where titles break mid-word (\"Rea ding\").",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
+      "stale": false
     },
     "S4": {
       "score": 3,
@@ -82,12 +82,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "S5": {
@@ -98,14 +98,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__empty.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__stress.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__empty.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__stress.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "S6": {
@@ -116,13 +116,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/envelope-min__typical.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/envelope-min__stress.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/envelope-min__stress.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "S7": {
@@ -134,14 +134,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/envelope-min__typical.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "The envelope uses the global 150x100 floor, which matches what a multi-station roster genuinely needs to be tested at.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "note": "The minimum sits at the global 150×100 floor, so nothing is hidden from small-size testing, though the content does not hold up there.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "S8": {
@@ -153,15 +153,15 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/maximized-1920x1080__empty.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/maximized-1920x1080__typical.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/maximized-1920x1080__stress.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/maximized-1920x1080__stress.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "Maximized fills the screen with huge icons and mostly empty roster panels holding small name pills, reading as an enlarged card rather than a presenting layout.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "note": "At 1920×1080 it is the default card enlarged, with giant icons and name chips still too small to read from the back of a room.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "I1": {
@@ -172,12 +172,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "I2": {
@@ -188,12 +188,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "I3": {
@@ -205,12 +205,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "I4": {
@@ -221,12 +221,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "I6": {
@@ -238,13 +238,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "The default screenshot shows no pressed or selected states on the toolbar or station controls, so feedback cannot be confirmed beyond the shared Button styling.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "note": "The screenshots show only resting buttons and chips, with no pressed, active or selected state visible on any control.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "I7": {
@@ -255,16 +255,16 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/envelope-min__typical__selected.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical__selected.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/large-1400x900__typical__selected.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/widest-aspect__typical__selected.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/tallest-aspect__typical__selected.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical__selected.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/tallest-aspect__typical__selected.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "V1": {
@@ -276,14 +276,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "Dashed borders around every tile with nested boxes inside, plus tiny description text in the label bars, date the otherwise clean face.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
-      "stale": true
+      "note": "Every station is boxed in a dashed border with a second inner box, the description text is tiny, and the header title is cut to \"STATIO…\".",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
+      "stale": false
     },
     "V2": {
       "score": 2,
@@ -294,14 +294,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__stress.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__stress.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "The station grid reads at a glance, but 32 controls, 51 boxes and 17 colors make the face busy.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "note": "The purpose reads at a glance, but 32 controls, 121 words, 35 borders and 51 boxes make a busy face, and the ten-station stress view is denser still.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "V3": {
@@ -313,14 +313,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "Station tiles are primary, but unassigned names in the tray render larger and heavier than the assigned names inside stations, competing for attention.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
-      "stale": true
+      "note": "Station icons and titles lead, but the bold class chip and toolbar buttons are just as heavy, and the unassigned chips are larger than the assigned names.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
+      "stale": false
     },
     "V4": {
       "score": 2,
@@ -331,13 +331,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "Shared Button and ScaledEmptyState are used, but the face carries one-off dashed tile styling and eight one-off colors.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "note": "The face uses four shared components but carries eight one-off colors and a raw control, and the dashed station boxes are styled just for this widget.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "V5": {
@@ -348,12 +348,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "V6": {
@@ -365,14 +365,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "Lucide icons throughout with short labels like Shuffle and Rotate, though the icon-only absent and reset buttons are not self-explanatory.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
-      "stale": true
+      "note": "Labels are short and plain (Shuffle, Rotate, Unassigned) with a single lucide icon set and no copy guard violations.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
+      "stale": false
     },
     "C1": {
       "score": 3,
@@ -383,13 +383,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "Station names, icons, colors, descriptions, capacity and class roster are all configurable with no obvious hardcoded classroom choice.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "note": "The drawer exposes each station's title, description, max students, color, icon or image and order, plus a Style tab.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "C2": {
@@ -419,13 +419,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__empty.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__empty.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "On first drop the widget has no stations and is unusable until the teacher configures them.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "note": "The default drop is an empty gray card that shows nothing useful until stations are added in settings.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "C5": {
@@ -437,13 +437,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__empty.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__empty.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "A 'No stations yet / Flip to add your first station' empty state exists, but its white-on-light-gray text is nearly invisible and the action is not on the face.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "note": "The empty state has an icon, \"No stations yet\" and one line, but the text is nearly invisible white on light gray and there is no button on the face.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "R1": {
@@ -455,14 +455,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__empty.png",
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__empty.png",
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "The empty state is designed but barely legible, and no other designed state with recovery is visible in the screenshots.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "note": "The typical view is designed, but the only other state shown is the empty one, and it is washed out to the point of being hard to read.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "R2": {
@@ -473,12 +473,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "R3": {
@@ -489,12 +489,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "R4": {
@@ -506,13 +506,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "Only student names appear, which are the point of a station assignment board, and no protected fields are on the face.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "note": "Only student names appear on the face, which are the point of a station grouping, and no other protected data is shown.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "E1": {
@@ -524,13 +524,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "note": "The class roster link works and shows its state on the face via the Period 3 Science chip, though a rotation-timer connection is a candidate to propose.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "note": "The linked class shows on the face as the \"Period 3 Science\" chip next to an absent-students button, with no connection that only adds noise.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     },
     "E3": {
@@ -542,12 +542,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical.png"
+          "scripts/widget-grader/out/loop-stations-2026-11-23/screenshots/stations/default__typical.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:15:00.010Z",
       "stale": false
     }
   },
@@ -555,30 +555,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "gradedAt": "2026-10-18T15:51:33.240Z"
+      "gradedAt": "2026-11-23T05:15:00.010Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "gradedAt": "2026-10-18T15:51:33.240Z"
+      "gradedAt": "2026-11-23T05:15:00.010Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "gradedAt": "2026-10-18T15:51:33.240Z"
+      "gradedAt": "2026-11-23T05:15:00.010Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "loop-stations-2026-11-23"
       },
-      "gradedAt": "2026-10-18T15:51:33.240Z"
+      "gradedAt": "2026-11-23T05:15:00.010Z"
     }
   }
 }
