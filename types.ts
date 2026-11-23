@@ -11895,8 +11895,6 @@ export type GlobalFeature =
   | 'quiz-assign-waits-for-save'
   /** Each quiz assignment keeps a copy of the questions it was given, so later edits never change its scores. */
   | 'quiz-frozen-assignments'
-  /** Rubric grading redesign: one-tap level buttons, expandable criteria, level order switch, full-rubric table. */
-  | 'rubric-grading-v2'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */

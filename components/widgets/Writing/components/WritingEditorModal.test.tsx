@@ -112,17 +112,16 @@ describe('WritingEditorModal', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Rubric' }));
     // Nothing is graded by rubric until one is attached.
     expect(screen.getByRole('radio', { name: 'Ungraded' })).toBeChecked();
-    fireEvent.change(
-      screen.getByLabelText('Title', { selector: '#rubric-title' }),
-      { target: { value: 'Essay rubric' } }
-    );
+    fireEvent.change(screen.getByLabelText('Rubric title'), {
+      target: { value: 'Essay rubric' },
+    });
     fireEvent.change(screen.getByLabelText('Criterion 1 name'), {
       target: { value: 'Claim' },
     });
-    fireEvent.change(screen.getByLabelText('Criterion 1 level 1 label'), {
+    fireEvent.change(screen.getByLabelText('Level 1 name'), {
       target: { value: 'Below' },
     });
-    fireEvent.change(screen.getByLabelText('Criterion 1 level 2 label'), {
+    fireEvent.change(screen.getByLabelText('Level 2 name'), {
       target: { value: 'Meets' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Attach/ }));

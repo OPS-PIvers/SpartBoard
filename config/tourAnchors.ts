@@ -5005,21 +5005,6 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'quiz-grading-strand-chip-orphan',
   },
-  'quiz-rubric.builder-resize': {
-    label: 'Resize handle on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.builder-close': {
-    label: 'Close button on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.builder-table': {
-    label: 'Edit as table button on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-rubric.builder-library': {
     label: 'Library select on the Quiz rubric builder',
     perWidgetType: true,
@@ -5033,99 +5018,6 @@ export const TOUR_ANCHORS = {
   'quiz-rubric.builder-import': {
     label: 'Import shared rubric on the Quiz rubric builder',
     perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.builder-title': {
-    label: 'Rubric title input on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.criterion-name': {
-    label: 'Criterion name input on the Quiz rubric builder, by criterion',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.criterion-up': {
-    label: 'Move criterion up on the Quiz rubric builder, by position',
-    perField: true,
-    panel: true,
-    keyPattern: 'quiz#[1-9]\\d*',
-    keyHint: 'quiz#1 for the first criterion',
-  },
-  'quiz-rubric.criterion-down': {
-    label: 'Move criterion down on the Quiz rubric builder, by position',
-    perField: true,
-    panel: true,
-    keyPattern: 'quiz#[1-9]\\d*',
-    keyHint: 'quiz#1 for the first criterion',
-  },
-  'quiz-rubric.criterion-remove': {
-    label: 'Remove criterion on the Quiz rubric builder, by position',
-    perField: true,
-    destructive: true,
-    panel: true,
-    keyPattern: 'quiz#[1-9]\\d*',
-    keyHint: 'quiz#1 for the first criterion',
-  },
-  'quiz-rubric.level-label': {
-    label: 'Level label textarea on the Quiz rubric builder, by level',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.level-points': {
-    label: 'Level points input on the Quiz rubric builder, by level',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.level-description': {
-    label: 'Level description textarea on the Quiz rubric builder, by level',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.level-remove': {
-    label: 'Remove level on the Quiz rubric builder, by level',
-    perField: true,
-    destructive: true,
-    panel: true,
-  },
-  'quiz-rubric.level-add': {
-    label: 'Add level on the Quiz rubric builder, by criterion',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.criterion-add': {
-    label: 'Add criterion on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.template': {
-    label: 'Levels or Scoring guide switch on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.guide-guidelines': {
-    label: 'Scoring guidelines textarea on the Quiz rubric builder, by part',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.guide-example': {
-    label: 'Example response textarea on the Quiz rubric builder, by example',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.guide-example-add': {
-    label: 'Add example response on the Quiz rubric builder, by part',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.guide-example-remove': {
-    label: 'Remove example response on the Quiz rubric builder, by example',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.guide-points': {
-    label: 'Point max input on the Quiz rubric builder, by part',
-    perField: true,
     panel: true,
   },
   'quiz-rubric.csv-import': {

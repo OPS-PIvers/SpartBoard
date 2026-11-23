@@ -37,7 +37,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-score-on-submit',
   'quiz-assign-waits-for-save',
   'quiz-frozen-assignments',
-  'rubric-grading-v2',
   'gradebook',
   'student-gradebook',
   'quiz-time-limit',

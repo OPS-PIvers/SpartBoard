@@ -73,6 +73,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'quiz-stimulus-tabs',
   'quiz-submit-for-student',
   'reopen-selected-students',
+  'rubric-grading-v2',
   'schoology-push-due-date',
   'share-import-confirm',
   'sparty',

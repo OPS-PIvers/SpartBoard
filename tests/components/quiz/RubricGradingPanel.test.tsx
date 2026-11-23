@@ -42,7 +42,6 @@ let renders = 0;
 
 const renderPanel = (
   opts: {
-    flag?: boolean;
     order?: RubricLevelOrder;
     updateAccountPreferences?: AuthContextType['updateAccountPreferences'];
     hideTotal?: boolean;
@@ -54,8 +53,7 @@ const renderPanel = (
   const onChange = vi.fn<(s: WrittenAnswerRubricScore[], p: number) => void>();
   const auth: AuthContextType = {
     ...mockAuth,
-    canAccessFeature: (id) =>
-      id === 'rubric-grading-v2' ? opts.flag !== false : true,
+    canAccessFeature: () => true,
     rubricLevelOrder: opts.order ?? 'high-first',
     rubricAutoAdvance: opts.autoAdvance ?? false,
     rubricOpenNext: opts.openNext ?? true,
@@ -84,13 +82,7 @@ const levelButtons = (criterionName: string) =>
     screen.getByRole('group', { name: new RegExp(criterionName) })
   ).getAllByRole('button', { pressed: false });
 
-describe('RubricGradingPanel (rubric-grading-v2)', () => {
-  it('keeps the legacy radio panel when the flag is off', () => {
-    renderPanel({ flag: false });
-    expect(screen.getAllByRole('radio').length).toBeGreaterThan(0);
-    expect(screen.queryByRole('button', { name: /View rubric/ })).toBeNull();
-  });
-
+describe('RubricGradingPanel', () => {
   it('shows collapsed point buttons, highest first by default', () => {
     renderPanel();
     expect(
