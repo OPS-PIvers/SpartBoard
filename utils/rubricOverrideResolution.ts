@@ -87,3 +87,19 @@ export function withOwnCriterionIds(
     ),
   };
 }
+
+/** The stimuli this response's student saw: the modified version's when they get modified questions. */
+export function stimulusIdsForResponse(
+  question: { stimulusIds?: string[]; modifiedStimulusIds?: string[] },
+  responseStudentUid: string | null | undefined,
+  overridesBySourcedId: Record<string, StudentOverride> | null | undefined,
+  targetRefKeyByStudentUid: Map<string, string> | null | undefined
+): string[] | undefined {
+  if (!question.modifiedStimulusIds?.length || !responseStudentUid)
+    return question.stimulusIds;
+  const targetRefKey = targetRefKeyByStudentUid?.get(responseStudentUid);
+  const modified =
+    !!targetRefKey &&
+    overridesBySourcedId?.[targetRefKey]?.modifiedQuestions === true;
+  return modified ? question.modifiedStimulusIds : question.stimulusIds;
+}

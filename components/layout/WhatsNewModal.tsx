@@ -21,6 +21,8 @@ import {
 import { requestStartTour } from '@/components/tours/tourState';
 import { useHasLiveTour } from '@/components/tours/useTourOffers';
 import { tourAttr } from '@/config/tourAnchors';
+import { WhatsNewWidgetUpdates } from '@/components/layout/WhatsNewWidgetUpdates';
+import type { WidgetNotesList } from '@/hooks/useWidgetWhatsNew';
 
 interface WhatsNewModalProps {
   isOpen: boolean;
@@ -29,6 +31,8 @@ interface WhatsNewModalProps {
   currentVersion: string;
   updateAvailable?: boolean;
   onUpdate?: () => void;
+  /** Widget update notes to list above the release notes. */
+  widgetUpdates?: WidgetNotesList;
 }
 
 const GROUP_ORDER: ChangelogHighlightType[] = ['feature', 'improvement', 'fix'];
@@ -259,6 +263,7 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
   currentVersion,
   updateAvailable = false,
   onUpdate,
+  widgetUpdates,
 }) => {
   const { t } = useTranslation();
   const { entries, loading, error, latestVersion, entriesSinceCurrent } =
@@ -305,6 +310,10 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
   }, [mode, entries, currentVersion, entriesSinceCurrent]);
 
   const showUpdateButton = mode === 'preview' || updateAvailable;
+  const widgetList =
+    mode === 'browse' && widgetUpdates && widgetUpdates.groups.length > 0
+      ? widgetUpdates
+      : null;
 
   const footer = (
     <div className="flex justify-end gap-2">
@@ -358,7 +367,10 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
             })}
           </p>
         )}
-        {!loading && !error && visibleEntries.length === 0 && (
+        {!loading && !error && widgetList && (
+          <WhatsNewWidgetUpdates list={widgetList} onShowTour={showTour} />
+        )}
+        {!loading && !error && visibleEntries.length === 0 && !widgetList && (
           <div className="py-8 text-center">
             <Sparkles className="w-10 h-10 text-brand-blue-primary mx-auto mb-2" />
             <p className="text-sm font-bold text-slate-700">

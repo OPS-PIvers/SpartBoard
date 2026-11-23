@@ -28,6 +28,7 @@ import {
   analyzePaperQuiz,
   isPaperBoxSize,
   isPaperBoxStyle,
+  MAX_PAGE,
   planPaperBatch,
   planPaperPages,
   type PaperBatchDoc,
@@ -95,6 +96,8 @@ export interface WithdrawTeammatePaperBatchInput {
 export interface TeammateTestPaperRow {
   /** Printed number: the sheet row, or the quiz position on a layoutVersion 2 batch. */
   row: number;
+  /** Lets the client place the question's stimuli on the test paper. */
+  questionId: string;
   text: string;
   choices: string[];
   /** A handwritten question; only on a layoutVersion 2 batch. */
@@ -139,6 +142,7 @@ const testPaperRow = (
   const pictures = choicePicturesFor(q, choices);
   return {
     row,
+    questionId: q.id,
     text: q.text ?? '',
     choices,
     ...(pictures ? { choicePictures: pictures } : {}),
@@ -672,7 +676,7 @@ export async function handleCreateTeammatePaperBatch(
     if (!pages.ok)
       throw new HttpsError(
         'failed-precondition',
-        `This test needs ${pages.pageCount} pages per student; the most a sheet can carry is 63.`
+        `This test needs ${pages.pageCount} pages per student; the most a sheet can carry is ${MAX_PAGE}.`
       );
     pageMaps = pages.pageMaps;
   }
@@ -815,7 +819,7 @@ export async function handleCreateTeammatePaperBatch(
         const text =
           q.type === 'FIB' ? letteredBlanks(q.text ?? '') : (q.text ?? '');
         return e.kind === 'written'
-          ? [{ row, text, choices: [], written: true }]
+          ? [{ row, questionId: q.id, text, choices: [], written: true }]
           : [testPaperRow(row, q, choicesOf(q))];
       })
     : analysis.rows.flatMap((r): TeammateTestPaperRow[] => {

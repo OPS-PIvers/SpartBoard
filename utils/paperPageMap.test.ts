@@ -3,6 +3,7 @@ import type { PaperBoxSize, PaperGrid, PaperPageMap } from '@/types';
 import {
   isStimulusFreePage,
   mcItemsOf,
+  ownPageLines,
   planPaperPages,
   promptHeaderRows,
   questionSlotLines,
@@ -21,12 +22,16 @@ import {
   MAX_CHOICE_COUNT,
   PAGE_HEIGHT_MM,
   PROMPT_MAX_ROWS,
+  PROMPT_MAX_ROWS_WITH_STIMULUS,
   QUESTION_GRID_BOTTOM_MM,
   QUESTION_GRID_TOP_MM,
   QUESTION_ROW_GAP_MM,
   QUESTION_STEM_H_MM,
   PAGE_WIDTH_MM,
   STIMULUS_RECT_MM,
+  OWN_PAGE_TOP_MM,
+  WRITTEN_HEADER_ROWS_NUMBER_ONLY,
+  WRITTEN_HEADER_ROWS_WITH_STEM,
   bubbleRectAtOriginMm,
   bubbleRectMm,
   cornerWindowsMm,
@@ -35,9 +40,9 @@ import {
   questionsPerPage,
   type RectMm,
 } from './paperSheetLayout';
-import { MAX_PAGE } from './paperSheetMarker';
+import { MAX_SHEET_PAGE as MAX_PAGE } from './paperSheetMarker';
 import { READER_THRESHOLDS } from './paperSheetReader';
-import { PAPER_FULL_PAGE_LINES, paperBoxLines } from './paperWritten';
+import { paperBoxLines } from './paperWritten';
 
 const overlaps = (a: RectMm, b: RectMm): boolean =>
   a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
@@ -270,7 +275,7 @@ describe('planPaperPages packing', () => {
       expect(maps[1].items).toHaveLength(1);
       const [full] = writtenItemsOf(maps[1]);
       expect(full.questionId).toBe('q3');
-      expect(full.lines).toBe(PAPER_FULL_PAGE_LINES);
+      expect(full.lines).toBe(ownPageLines(WRITTEN_HEADER_ROWS_WITH_STEM));
       expect(isStimulusFreePage(maps[1])).toBe(true);
       expect(mcItemsOf(maps[2]).map((m) => m.label)).toEqual(['4', '5']);
     }
@@ -286,7 +291,12 @@ describe('planPaperPages packing', () => {
       });
       expect(boxes.map((b) => b.questionId)).toEqual(['q3', 'q3', 'q3']);
       expect(boxes.map((b) => !!b.continued)).toEqual([false, true, true]);
-      expect(boxes.every((b) => b.lines === PAPER_FULL_PAGE_LINES)).toBe(true);
+      const rest = ownPageLines(WRITTEN_HEADER_ROWS_NUMBER_ONLY);
+      expect(boxes.map((b) => b.lines)).toEqual([
+        ownPageLines(WRITTEN_HEADER_ROWS_WITH_STEM),
+        rest,
+        rest,
+      ]);
       expect(mcItemsOf(maps[4]).map((m) => m.label)).toEqual(['4', '5']);
     }
   });
@@ -304,7 +314,7 @@ describe('planPaperPages packing', () => {
     expect(writtenItemsOf(maps[1])[0]).toMatchObject({
       questionId: 'q1',
       continued: true,
-      lines: PAPER_FULL_PAGE_LINES,
+      lines: ownPageLines(WRITTEN_HEADER_ROWS_NUMBER_ONLY),
     });
   });
 
@@ -442,7 +452,9 @@ describe('custom box sizes and prompts on the box page', () => {
     expect(writtenItemsOf(maps[0])[0].lines).toBe(15);
     const tall = plan(sheet(3, { 2: 24 }), 2);
     expect(tall).toHaveLength(3);
-    expect(writtenItemsOf(tall[1])[0].lines).toBe(24);
+    expect(writtenItemsOf(tall[1])[0].lines).toBe(
+      ownPageLines(WRITTEN_HEADER_ROWS_WITH_STEM)
+    );
   });
 
   it.each(GRIDS)(
@@ -459,11 +471,11 @@ describe('custom box sizes and prompts on the box page', () => {
       expect(maps).toHaveLength(3);
       const [box] = writtenItemsOf(maps[1]);
       expect(maps[1].items).toHaveLength(1);
-      expect(box.headerMm.y).toBe(58);
+      expect(box.headerMm.y).toBe(OWN_PAGE_TOP_MM);
       expect(box.headerMm.h).toBe(6 * 8 - 3);
-      expect(box.boxMm.y).toBe(58 + 6 * 8 - 3);
+      expect(box.boxMm.y).toBe(OWN_PAGE_TOP_MM + 6 * 8 - 3);
       // A 1 page box takes every row the prompt leaves.
-      expect(box.lines).toBe(26 - 6);
+      expect(box.lines).toBe(ownPageLines(6));
     }
   );
 
@@ -485,7 +497,9 @@ describe('custom box sizes and prompts on the box page', () => {
         promptRows: { q1: 40 },
       })
     );
-    expect(writtenItemsOf(long[0])[0].lines).toBe(26 - PROMPT_MAX_ROWS);
+    expect(writtenItemsOf(long[0])[0].lines).toBe(
+      ownPageLines(PROMPT_MAX_ROWS_WITH_STIMULUS)
+    );
   });
 
   it('sizes a prompt header from its text and figures', () => {

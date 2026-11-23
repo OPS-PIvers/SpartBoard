@@ -32,6 +32,7 @@ import {
   PROMPT_GUTTER_MM,
   PROMPT_LABEL_MM,
   PROMPT_MAX_ROWS,
+  PROMPT_MAX_ROWS_WITH_STIMULUS,
   PT_CHAR_MM,
   PT_LINE_MM,
   QUESTION_CHOICE_LINE_MM,
@@ -51,6 +52,8 @@ import {
   WRITTEN_BLOCK_GAP_MM,
   WRITTEN_BOX_W_MM,
   WRITTEN_BOX_X_MM,
+  WRITTEN_BOX_BOTTOM_MM,
+  OWN_PAGE_TOP_MM,
   WRITTEN_HEADER_ROWS_NUMBER_ONLY,
   WRITTEN_HEADER_ROWS_WITH_STEM,
   WRITTEN_HEADER_X_MM,
@@ -59,7 +62,7 @@ import {
   WRITTEN_ONE_COLUMN_X_MM,
   type RectMm,
 } from './paperSheetLayout';
-import { MAX_PAGE } from './paperSheetMarker';
+import { MAX_SHEET_PAGE } from './paperSheetMarker';
 
 /** One thing the sheet prints, in test order. */
 export type PaperSheetEntry =
@@ -86,7 +89,17 @@ export interface PlanPaperPagesInput {
   stemLines?: Readonly<Record<string, number>>;
   /** Header rows per written question that prints its whole prompt above its box, on a page of its own. */
   promptRows?: Readonly<Record<string, number>>;
+  /** Question-text sheets: height in mm of the stimuli a question prints between its stem and its answers. */
+  stimulusMm?: Readonly<Record<string, number>>;
 }
+
+/** Room a stimulus block adds to a question-text row: the block and a gap on each side, less the gap the row had. */
+const stimulusRoom = (mmTall: number | undefined): number =>
+  mmTall ? mmTall + 2 * STIMULUS_GAP_MM - STEM_TO_CHOICES_MM : 0;
+/** Mirrors `BLOCK_GAP_MM` in `paperSheetStimulusBlocks.ts`. */
+const STIMULUS_GAP_MM = 1.5;
+/** The gap a plain row leaves between its stem box and its first choice. */
+const STEM_TO_CHOICES_MM = QUESTION_CHOICE_TOP_MM - QUESTION_STEM_H_MM;
 
 export type PlanPaperPagesResult =
   | { ok: true; pageMaps: PaperPageMap[] }
@@ -149,8 +162,14 @@ const ownsPage = (size: PaperBoxSize, grid: PaperGrid): boolean =>
   paperBoxLines(size) >= PAPER_FULL_PAGE_LINES ||
   (grid === 1 && paperBoxLines(size) >= PAPER_BOX_LINES.L);
 
-/** Rows a page gives a header plus its box: a Full box's own page. */
-const PAGE_BLOCK_ROWS = WRITTEN_HEADER_ROWS_WITH_STEM + PAPER_FULL_PAGE_LINES;
+/** Lines a box gets on a page of its own, under a header of `rows` grid rows. */
+export const ownPageLines = (rows: number): number =>
+  Math.floor(
+    (WRITTEN_BOX_BOTTOM_MM -
+      OWN_PAGE_TOP_MM -
+      (rows * ROW_PITCH_MM - WRITTEN_BLOCK_GAP_MM)) /
+      WRITTEN_LINE_PITCH_MM
+  );
 
 /** A prompt and its box on one page; a Full box takes every row the prompt leaves. */
 function promptBlock(
@@ -159,14 +178,14 @@ function promptBlock(
 ): WrittenItem {
   const header = Math.min(
     Math.max(rows, WRITTEN_HEADER_ROWS_WITH_STEM),
-    PROMPT_MAX_ROWS
+    PROMPT_MAX_ROWS_WITH_STIMULUS
   );
-  const room = PAGE_BLOCK_ROWS - header;
+  const room = ownPageLines(header);
   const lines =
     paperBoxLines(entry.size) >= PAPER_FULL_PAGE_LINES
       ? room
       : Math.min(paperBoxLines(entry.size), room);
-  return writtenBlock(entry, GRID_TOP_MM, lines, true, FULL_WIDTH, header);
+  return writtenBlock(entry, OWN_PAGE_TOP_MM, lines, true, FULL_WIDTH, header);
 }
 
 /** The extra whole pages a multi-page box runs onto, after its first. */
@@ -176,8 +195,8 @@ function continuationBlocks(
   return Array.from({ length: paperBoxPages(entry.size) - 1 }, () => ({
     ...writtenBlock(
       entry,
-      GRID_TOP_MM,
-      PAPER_FULL_PAGE_LINES,
+      OWN_PAGE_TOP_MM,
+      ownPageLines(WRITTEN_HEADER_ROWS_NUMBER_ONLY),
       false,
       FULL_WIDTH
     ),
@@ -189,7 +208,8 @@ function continuationBlocks(
 export function promptHeaderRows(
   text: string,
   figures: number,
-  labelled: boolean
+  labelled: boolean,
+  stimulusMm = 0
 ): number {
   const left = WRITTEN_HEADER_X_MM + NUMBER_WIDTH_MM;
   const right =
@@ -205,11 +225,13 @@ export function promptHeaderRows(
     .reduce((n, p) => n + Math.max(1, Math.ceil(p.length / charsPerLine)), 0);
   const textH =
     textLines * PROMPT_BASE_PT * PT_LINE_MM + (labelled ? PROMPT_LABEL_MM : 0);
-  const h = Math.max(textH, figures > 0 ? PROMPT_FIGURE_MIN_H_MM : 0);
+  const h =
+    Math.max(textH, figures > 0 ? PROMPT_FIGURE_MIN_H_MM : 0) +
+    (stimulusMm > 0 ? stimulusMm + STIMULUS_GAP_MM : 0);
   const rows = Math.ceil((h + WRITTEN_BLOCK_GAP_MM) / ROW_PITCH_MM);
   return Math.min(
     Math.max(rows, WRITTEN_HEADER_ROWS_WITH_STEM),
-    PROMPT_MAX_ROWS
+    stimulusMm > 0 ? PROMPT_MAX_ROWS_WITH_STIMULUS : PROMPT_MAX_ROWS
   );
 }
 
@@ -267,8 +289,13 @@ export function planPaperPages(
     entry: Extract<PaperSheetEntry, { kind: 'written' }>
   ): void => {
     if (current().length > 0) newPage();
-    const lines = Math.min(paperBoxLines(entry.size), PAPER_FULL_PAGE_LINES);
-    current().push(writtenBlock(entry, GRID_TOP_MM, lines, stems, FULL_WIDTH));
+    const lines =
+      paperBoxLines(entry.size) >= PAPER_FULL_PAGE_LINES
+        ? ownPageLines(headerRows(stems))
+        : paperBoxLines(entry.size);
+    current().push(
+      writtenBlock(entry, OWN_PAGE_TOP_MM, lines, stems, FULL_WIDTH)
+    );
     for (const block of continuationBlocks(entry)) pages.push([block]);
     // Nothing shares a page with it; the next entry starts a fresh one.
     cursor = Number.POSITIVE_INFINITY;
@@ -362,7 +389,7 @@ export function planPaperPages(
     }
   }
 
-  if (pages.length > MAX_PAGE) {
+  if (pages.length > MAX_SHEET_PAGE) {
     return { ok: false, reason: 'too-many-pages', pageCount: pages.length };
   }
   return {
@@ -417,13 +444,14 @@ function planQuestionTextPages(
       );
       // The stem bottom-aligns in its box, so the row origin sits above the first printed line.
       const unused = QUESTION_STEM_H_MM - lines * QUESTION_STEM_LINE_MM;
-      const top = place(choicesH - unused);
+      const room = stimulusRoom(input.stimulusMm?.[entry.questionId]);
+      const top = place(choicesH - unused + room);
       current().push({
         kind: 'mc',
         questionId: entry.questionId,
         sheetRow: sheetRow++,
         label: entry.label,
-        originMm: { x: COLUMN_X_MM[0], y: top - unused },
+        originMm: { x: COLUMN_X_MM[0], y: top - unused + room },
       });
       continue;
     }
@@ -440,8 +468,8 @@ function planQuestionTextPages(
       current().push(
         writtenBlock(
           entry,
-          GRID_TOP_MM,
-          PAPER_FULL_PAGE_LINES,
+          OWN_PAGE_TOP_MM,
+          ownPageLines(headerRows(stems)),
           stems,
           FULL_WIDTH
         )
@@ -453,7 +481,10 @@ function planQuestionTextPages(
     }
     const size = entry.size;
     const lines = questionSlotLines(questionSlotsFor(size));
-    const top = place(QUESTION_CHOICE_TOP_MM + lines * WRITTEN_LINE_PITCH_MM);
+    const room = stimulusRoom(input.stimulusMm?.[entry.questionId]);
+    const top = place(
+      QUESTION_CHOICE_TOP_MM + room + lines * WRITTEN_LINE_PITCH_MM
+    );
     current().push({
       kind: 'written',
       questionId: entry.questionId,
@@ -466,7 +497,7 @@ function planQuestionTextPages(
       },
       boxMm: {
         x: WRITTEN_BOX_X_MM,
-        y: top + QUESTION_CHOICE_TOP_MM,
+        y: top + QUESTION_CHOICE_TOP_MM + room,
         w: WRITTEN_BOX_W_MM,
         h: lines * WRITTEN_LINE_PITCH_MM,
       },
@@ -475,7 +506,7 @@ function planQuestionTextPages(
     });
   }
 
-  if (pages.length > MAX_PAGE) {
+  if (pages.length > MAX_SHEET_PAGE) {
     return { ok: false, reason: 'too-many-pages', pageCount: pages.length };
   }
   return {

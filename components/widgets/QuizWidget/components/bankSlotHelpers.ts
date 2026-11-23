@@ -1,3 +1,4 @@
+import { allQuestionStimulusIds } from '@/utils/quizStimuli';
 import type {
   QuestionTargetTag,
   QuizBankSlot,
@@ -60,6 +61,6 @@ export const referencedStimuli = (
   questions: readonly QuizQuestion[],
   stimuli: readonly QuizStimulus[]
 ): QuizStimulus[] => {
-  const wanted = new Set(questions.flatMap((q) => q.stimulusIds ?? []));
+  const wanted = new Set(questions.flatMap(allQuestionStimulusIds));
   return stimuli.filter((s) => wanted.has(s.id));
 };

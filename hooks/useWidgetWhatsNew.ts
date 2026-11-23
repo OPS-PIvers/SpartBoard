@@ -54,8 +54,11 @@ const subscribe = (onChange: () => void): (() => void) => {
   };
 };
 
-export const dismissWidgetWhatsNew = (id: string): void => {
-  const next = [...new Set([...parseDismissed(readDismissed()), id])];
+export const dismissWidgetWhatsNew = (
+  ids: string | readonly string[]
+): void => {
+  const add = typeof ids === 'string' ? [ids] : ids;
+  const next = [...new Set([...parseDismissed(readDismissed()), ...add])];
   try {
     localStorage.setItem(DISMISSED_KEY, JSON.stringify(next));
   } catch {
@@ -81,11 +84,16 @@ const readFirstSeen = (): Record<string, number> => {
   }
 };
 
-const markFirstSeen = (id: string, at: number): void => {
+const markFirstSeen = (ids: string | readonly string[], at: number): void => {
   const seen = readFirstSeen();
-  if (seen[id] !== undefined) return;
+  const fresh = (typeof ids === 'string' ? [ids] : ids).filter(
+    (id) => seen[id] === undefined
+  );
+  if (fresh.length === 0) return;
+  const next = { ...seen };
+  for (const id of fresh) next[id] = at;
   try {
-    localStorage.setItem(FIRST_SEEN_KEY, JSON.stringify({ ...seen, [id]: at }));
+    localStorage.setItem(FIRST_SEEN_KEY, JSON.stringify(next));
   } catch {
     // Storage blocked: the 30 days restart on the next reload.
   }
@@ -103,16 +111,20 @@ interface PickOptions {
 }
 
 /**
- * The newest undismissed, live note for a widget type. Ungated notes run 30 days from their date;
+ * A widget type's undismissed, live notes, newest first. Ungated notes run 30 days from their date;
  * gated notes run 30 days from when this teacher first sees them, within 180 days of the date.
  */
-export const pickWidgetNote = (
+export const liveWidgetNotes = (
   notes: readonly ChangelogWidgetNote[],
-  widgetType: WidgetType,
+  widgetType: WidgetType | null,
   { dismissed, firstSeen, now, canUseFeature }: PickOptions
-): WidgetWhatsNewNote | null => {
-  const live = notes
-    .filter((n) => n.widget === widgetType && !dismissed.includes(n.id))
+): ChangelogWidgetNote[] =>
+  notes
+    .filter(
+      (n) =>
+        (widgetType === null || n.widget === widgetType) &&
+        !dismissed.includes(n.id)
+    )
     .filter((n) => now >= dayStart(n.date))
     .filter((n) => !n.feature || canUseFeature(n.feature))
     .filter((n) => {
@@ -123,7 +135,14 @@ export const pickWidgetNote = (
       return now - (firstSeen[n.id] ?? now) <= NOTE_LIFETIME_DAYS * DAY_MS;
     })
     .sort((a, b) => b.date.localeCompare(a.date));
-  const note = live[0];
+
+/** The newest live note for a widget type. */
+export const pickWidgetNote = (
+  notes: readonly ChangelogWidgetNote[],
+  widgetType: WidgetType,
+  options: PickOptions
+): WidgetWhatsNewNote | null => {
+  const note = liveWidgetNotes(notes, widgetType, options)[0];
   return note
     ? { id: note.id, text: note.text, tourSetId: note.tourSetId }
     : null;
@@ -132,7 +151,70 @@ export const pickWidgetNote = (
 const isKnownFeature = (feature: string): feature is GlobalFeature =>
   Object.prototype.hasOwnProperty.call(FEATURE_DEFAULTS, feature);
 
-/** This widget type's current what's-new note, and a dismiss that hides it on every board. */
+/** Groups live notes by widget type, newest first; a note shared by several widgets is listed only under the first. */
+export const groupWidgetNotes = (
+  notes: readonly ChangelogWidgetNote[]
+): { widget: WidgetType; notes: ChangelogWidgetNote[] }[] => {
+  const groups = new Map<WidgetType, ChangelogWidgetNote[]>();
+  const texts = new Set<string>();
+  for (const n of notes) {
+    if (texts.has(n.text)) continue;
+    texts.add(n.text);
+    groups.set(n.widget, [...(groups.get(n.widget) ?? []), n]);
+  }
+  return [...groups.entries()].map(([widget, list]) => ({
+    widget,
+    notes: list,
+  }));
+};
+
+/** Every widget's live notes for the What's New list, whether this teacher has any unseen, and a way to mark them all seen. */
+const NO_NOTES: readonly ChangelogWidgetNote[] = [];
+
+export const useWidgetNotesList = () => {
+  const widgetNotes = useChangelog().widgetNotes ?? NO_NOTES;
+  const auth = useContext(AuthContext);
+  const canAccessFeature = auth?.canAccessFeature;
+  const canAccessWidget = auth?.canAccessWidget;
+  const [now] = useState(() => Date.now());
+  const [firstSeen] = useState(readFirstSeen);
+  const dismissedRaw = useSyncExternalStore(
+    subscribe,
+    readDismissed,
+    () => '[]'
+  );
+  const options = {
+    firstSeen,
+    now,
+    canUseFeature: (feature: string) =>
+      !isKnownFeature(feature) || canAccessFeature?.(feature) === true,
+  };
+  const all = liveWidgetNotes(
+    widgetNotes.filter((n) => canAccessWidget?.(n.widget) === true),
+    null,
+    { ...options, dismissed: [] }
+  );
+  const dismissed = parseDismissed(dismissedRaw);
+  const unseenIds = all
+    .filter((n) => !dismissed.includes(n.id))
+    .map((n) => n.id)
+    .join('\n');
+  const markSeen = () => {
+    if (!unseenIds) return;
+    const ids = unseenIds.split('\n');
+    markFirstSeen(ids, now);
+    dismissWidgetWhatsNew(ids);
+  };
+  return {
+    groups: groupWidgetNotes(all),
+    hasUnseen: unseenIds !== '',
+    markSeen,
+  };
+};
+
+export type WidgetNotesList = ReturnType<typeof useWidgetNotesList>;
+
+/** This widget type's current what's-new note, and a dismiss that hides all its live notes on every board. */
 export const useWidgetWhatsNew = (widgetType: WidgetType) => {
   const { widgetNotes } = useChangelog();
   const canAccessFeature = useContext(AuthContext)?.canAccessFeature;
@@ -143,19 +225,24 @@ export const useWidgetWhatsNew = (widgetType: WidgetType) => {
     readDismissed,
     () => '[]'
   );
-  const note = pickWidgetNote(widgetNotes, widgetType, {
+  const live = liveWidgetNotes(widgetNotes, widgetType, {
     dismissed: parseDismissed(dismissedRaw),
     firstSeen,
     now,
     canUseFeature: (feature) =>
       !isKnownFeature(feature) || canAccessFeature?.(feature) === true,
   });
+  const top = live[0];
+  const note: WidgetWhatsNewNote | null = top
+    ? { id: top.id, text: top.text, tourSetId: top.tourSetId }
+    : null;
   const noteId = note?.id;
+  const liveIds = live.map((n) => n.id).join('\n');
   useEffect(() => {
     if (noteId) markFirstSeen(noteId, now);
   }, [noteId, now]);
   const dismiss = useCallback(() => {
-    if (noteId) dismissWidgetWhatsNew(noteId);
-  }, [noteId]);
+    if (liveIds) dismissWidgetWhatsNew(liveIds.split('\n'));
+  }, [liveIds]);
   return { note, dismiss };
 };

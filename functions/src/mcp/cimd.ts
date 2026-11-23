@@ -23,10 +23,12 @@ const FAIL_CACHE_MS = 30 * 1000;
 const MAX_DOC_BYTES = 16 * 1024;
 const FETCH_TIMEOUT_MS = 3000;
 const MAX_CACHED = 20;
+// A failed refetch serves the last good document for at most this long.
+const MAX_STALE_MS = 60 * 60 * 1000;
 
 const docCache = new Map<
   string,
-  { client: CimdClient | null; expires: number }
+  { client: CimdClient | null; expires: number; goodAt: number }
 >();
 
 /** Test hook: forget cached switch reads and documents. */
@@ -108,12 +110,15 @@ export async function fetchCimdClient(
   const cached = docCache.get(clientId);
   if (cached && now < cached.expires) return cached.client;
   const fresh = await loadCimdClient(clientId);
-  // Stale-if-error: a failed refetch keeps serving the last good document.
-  const client = fresh ?? cached?.client ?? null;
+  // Stale-if-error: a failed refetch keeps serving the last good document, up to MAX_STALE_MS.
+  const stale =
+    cached && now - cached.goodAt < MAX_STALE_MS ? cached.client : null;
+  const client = fresh ?? stale;
   if (docCache.size >= MAX_CACHED) docCache.clear();
   docCache.set(clientId, {
     client,
     expires: now + (fresh ? DOC_CACHE_MS : FAIL_CACHE_MS),
+    goodAt: fresh ? now : stale && cached ? cached.goodAt : 0,
   });
   return client;
 }

@@ -66,6 +66,7 @@ import {
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 import { DraftNumberInput } from './DraftNumberInput';
 import {
+  ModifiedStimulusSection,
   QuestionStimulusSection,
   SlotStimulusSection,
 } from './StimulusManagerPanel';
@@ -878,6 +879,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     [uploadWhiteboardImage]
   );
   const promptRef = useRef<HTMLTextAreaElement>(null);
+  const modifiedPromptRef = useRef<HTMLTextAreaElement>(null);
   const paneRef = useRef<HTMLDivElement>(null);
   const promptTextRef = useRef(selectedQuestion?.text);
   // The formatted prompt box has no textarea, so fall back to the saved text.
@@ -997,7 +999,9 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             state={state}
             slotId={selectedSlot.id}
             calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+            wordBankAvailable={canAccessFeature('quiz-word-bank')}
             pickerModal={canAccessFeature('quiz-stimulus-picker')}
+            paperPlacement={canAccessFeature('paper-answer-sheets')}
           />
         }
       />
@@ -1032,9 +1036,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       state={state}
       questionId={q.id}
       calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+      wordBankAvailable={canAccessFeature('quiz-word-bank')}
       pasteScopeRef={paneRef}
       metaList={metaList}
       pickerModal={canAccessFeature('quiz-stimulus-picker')}
+      paperPlacement={canAccessFeature('paper-answer-sheets')}
     />
   );
   const targetsField = (
@@ -1054,6 +1060,66 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       question={q}
       onChange={(modifiedText) => updateQuestion(q.id, { modifiedText })}
       metaList={metaList}
+      parts={
+        canAccessFeature('quiz-modified-stimuli')
+          ? {
+              prompt: (
+                <QuestionPromptField
+                  key={`${q.id}:modified`}
+                  question={{
+                    ...q,
+                    text: q.modifiedText ?? '',
+                    promptAudio: q.modifiedPromptAudio,
+                  }}
+                  onChange={(updates) =>
+                    updateQuestion(q.id, {
+                      ...('text' in updates
+                        ? {
+                            modifiedText: updates.text?.length
+                              ? updates.text
+                              : undefined,
+                          }
+                        : {}),
+                      ...('promptAudio' in updates
+                        ? { modifiedPromptAudio: updates.promptAudio }
+                        : {}),
+                    })
+                  }
+                  textareaRef={modifiedPromptRef}
+                  allowBlanks={false}
+                  anchor={tourTypeAttr('quiz-editor.modified-text', 'quiz')}
+                  label={null}
+                  placeholder="The question in simpler words"
+                  promptAccents={defaultAccents}
+                  promptMath
+                  promptFormat
+                  toolbarTools
+                  promptAudio={canAccessFeature('quiz-question-audio')}
+                />
+              ),
+              stimuli: (
+                <ModifiedStimulusSection
+                  state={state}
+                  questionId={q.id}
+                  calculatorAvailable={canAccessFeature(
+                    'quiz-calculator-stimulus'
+                  )}
+                  wordBankAvailable={canAccessFeature('quiz-word-bank')}
+                  paperPlacement={canAccessFeature('paper-answer-sheets')}
+                />
+              ),
+              hasPrompt: !!q.modifiedText || !!q.modifiedPromptAudio,
+              hasStimuli: (q.modifiedStimulusIds?.length ?? 0) > 0,
+              onClearPrompt: () =>
+                updateQuestion(q.id, {
+                  modifiedText: undefined,
+                  modifiedPromptAudio: undefined,
+                }),
+              onClearStimuli: () =>
+                updateQuestion(q.id, { modifiedStimulusIds: undefined }),
+            }
+          : undefined
+      }
     />
   );
 
@@ -1102,7 +1168,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               : undefined
           }
         />
-        {q.type === 'FIB' && q.calc && (
+        {randomNumbersOn && q.type === 'FIB' && q.calc && (
           <CalcNumbersSection
             question={q}
             onChange={(updates) => updateQuestion(q.id, updates)}

@@ -362,40 +362,25 @@ describe('admin powers under a view-as token', () => {
 });
 
 describe('org admin roles under a view-as token', () => {
-  it('a building admin target cannot use its org admin powers', async () => {
+  it('a domain admin target cannot use its org admin write powers', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), `organizations/orono/members/${TEACHER_EMAIL}`),
         {
-          roleId: 'building_admin',
-          buildingIds: ['high'],
-          status: 'active',
-        }
-      );
-      await setDoc(
-        doc(ctx.firestore(), 'organizations/orono/members/kid@orono.k12.mn.us'),
-        {
-          roleId: 'teacher',
+          roleId: 'domain_admin',
           buildingIds: ['high'],
           status: 'active',
         }
       );
     });
-    const real = asTeacher().firestore();
+    const testClass = 'organizations/orono/testClasses/mock-1';
     await assertSucceeds(
-      setDoc(
-        doc(real, 'organizations/orono/members/kid@orono.k12.mn.us'),
-        { status: 'inactive' },
-        { merge: true }
-      )
+      setDoc(doc(asTeacher().firestore(), testClass), { name: 'Mock' })
     );
-    const tab = asViewAs({ ro: false }).firestore();
     await assertFails(
-      setDoc(
-        doc(tab, 'organizations/orono/members/kid@orono.k12.mn.us'),
-        { status: 'active' },
-        { merge: true }
-      )
+      setDoc(doc(asViewAs({ ro: false }).firestore(), testClass), {
+        name: 'Mock 2',
+      })
     );
   });
 });

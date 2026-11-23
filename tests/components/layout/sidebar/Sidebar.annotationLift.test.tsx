@@ -22,6 +22,7 @@ vi.mock('@/hooks/useFirstRun', () => ({
 }));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
+    canAccessFeature: () => false,
     user: { uid: 'teacher-1', email: 'teacher@example.com' },
     signOut: vi.fn(),
     isAdmin: false,

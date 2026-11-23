@@ -4533,7 +4533,12 @@ export interface QuizStimulus {
   wordBankColumns?: 1 | 2 | 3;
   /** image only: beside the question or in it; absent = beside (M13). */
   placement?: QuizStimulusPlacement;
+  /** Printed test paper: in each question or on a resource page; absent = by how many questions use it. */
+  paperPlacement?: QuizStimulusPaperPlacement;
 }
+
+/** Where a stimulus prints on the paper test. */
+export type QuizStimulusPaperPlacement = 'question' | 'resource';
 
 /** Where an image stimulus shows: in the panel beside the question, or above the question. */
 export type QuizStimulusPlacement = 'panel' | 'inline';
@@ -4583,6 +4588,10 @@ export interface QuizQuestion {
   text: string;
   /** Modified wording of the prompt for students in a group with modified questions; same answer key. */
   modifiedText?: string;
+  /** Ids of `QuizData.stimuli` shown instead of `stimulusIds` to students with modified questions; absent = the same stimuli. */
+  modifiedStimulusIds?: string[];
+  /** The recorded modified prompt, played to students with modified questions instead of `promptAudio`. */
+  modifiedPromptAudio?: QuestionAudio;
   /** The teacher's recorded prompt, played to students with or instead of `text`. */
   promptAudio?: QuestionAudio;
   type: QuizQuestionType;
@@ -5420,6 +5429,10 @@ export interface QuizPublicQuestion {
   promptAudio?: QuestionAudio;
   /** The teacher's modified prompt, shown only to students whose override asks for it. */
   modifiedText?: string;
+  /** Ids into `QuizSession.stimuli` shown instead of `stimulusIds` to students whose override asks for modified questions. */
+  modifiedStimulusIds?: string[];
+  /** Projected verbatim from {@link QuizQuestion.modifiedPromptAudio}. */
+  modifiedPromptAudio?: QuestionAudio;
   timeLimit: number;
   /** MC/MA: all answer choices pre-shuffled (correct identity unknown) */
   choices?: string[];
@@ -5781,7 +5794,7 @@ export interface QuizSession
   allowStimulusQuotes?: boolean;
   /** Stamped only with the quiz-cross-out flag; absent = no cross-out buttons. */
   allowCrossOut?: boolean;
-  /** Stamped only with the quiz-recap-all-options flag; the published recap lists every choice. */
+  /** Stamped at assign and publish; the published recap lists every choice. */
   recapAllOptions?: boolean;
   /** Stamped only with the input-signals flag; with Focus mode on the student page records input counters. */
   inputSignals?: boolean;
@@ -11839,6 +11852,8 @@ export type GlobalFeature =
   | 'quiz-word-bank'
   /** Quiz editor attaches stimuli in a list-and-preview dialog instead of an inline checklist. */
   | 'quiz-stimulus-picker'
+  /** A question's modified version can show different stimuli. */
+  | 'quiz-modified-stimuli'
   /** Question editor metadata (stimuli, targets, DOK) as labeled fields like Type and Points. */
   | 'question-editor-fields'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
@@ -11847,6 +11862,8 @@ export type GlobalFeature =
   | 'paper-handwritten-responses'
   /** Written answers that run over two to four whole pages. */
   | 'paper-multi-page-answers'
+  /** A live preview of one student's printed packet in the paper print dialogs. */
+  | 'paper-print-preview'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
   | 'paper-written-hybrid'
   | 'paper-reword-sync'
@@ -11880,8 +11897,6 @@ export type GlobalFeature =
   | 'drive-only-uploads'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
-  /** Published quiz results list every answer option, with the student's pick marked. */
-  | 'quiz-recap-all-options'
   /** Quiz assign stays open with a spinner until the save finishes, and shows a failed save inline. */
   | 'quiz-assign-waits-for-save'
   /** Each quiz assignment keeps a copy of the questions it was given, so later edits never change its scores. */
@@ -11902,6 +11917,7 @@ export type GlobalFeature =
   | 'group-reminders'
   /** Edit Class: groups open as pages that hold their accommodations; Accommodations lists every student. */
   | 'class-groups-redesign'
+  | 'classlink-clean-names'
   /** Group reminders: the Symbol step of the class group editor. */
   | 'group-symbols'
   /** Group reminders: the Schedule step and the reminders it pops on the board. */
@@ -11998,7 +12014,9 @@ export type GlobalFeature =
   | 'quiz-question-audio'
   | 'quiz-random-numbers'
   /** Print results with Settings and Students tabs and a Course > class > student picker. */
-  | 'results-print-v2';
+  | 'results-print-v2'
+  /** Widget update notes listed in the sidebar What's New instead of a button under each widget. */
+  | 'widget-notes-in-whats-new';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {

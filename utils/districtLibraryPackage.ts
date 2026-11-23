@@ -54,6 +54,7 @@ export interface DistrictPackageQuestion {
   correctAnswer?: string;
   incorrectAnswers?: string[];
   stimulusIds?: string[];
+  modifiedStimulusIds?: string[];
   blankType?: string;
   blankChoices?: unknown;
   wordBank?: unknown;
@@ -401,11 +402,13 @@ function checkQuestions(
     if (q.incorrectAnswers !== undefined && !isStrList(q.incorrectAnswers)) {
       errors.push(`${qPath}: incorrectAnswers must be a list of text.`);
     }
-    if (q.stimulusIds !== undefined) {
-      if (!isStrList(q.stimulusIds)) {
-        errors.push(`${qPath}: stimulusIds must be a list of text.`);
+    for (const key of ['stimulusIds', 'modifiedStimulusIds'] as const) {
+      const ids = q[key];
+      if (ids === undefined) continue;
+      if (!isStrList(ids)) {
+        errors.push(`${qPath}: ${key} must be a list of text.`);
       } else {
-        for (const sid of q.stimulusIds) {
+        for (const sid of ids) {
           if (!stimulusIds.has(sid)) {
             errors.push(
               `${qPath} points at stimulus "${sid}", which the file does not have.`

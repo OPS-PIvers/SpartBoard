@@ -44,6 +44,7 @@ import {
   WHATSNEW_SEEN_EVENT_NAME,
   WHATSNEW_LAST_SEEN_STORAGE_KEY,
 } from '@/hooks/useChangelog';
+import { useWidgetNotesList } from '@/hooks/useWidgetWhatsNew';
 import { useFirstRun } from '@/hooks/useFirstRun';
 import { useAppVersion } from '@/hooks/useAppVersion';
 import { GlassCard } from '@/components/common/GlassCard';
@@ -274,17 +275,22 @@ export const Sidebar: React.FC = () => {
   const { latestVersion } = useChangelog();
   const { updateAvailable, reloadApp } = useAppVersion();
   const firstRun = useFirstRun();
+  const widgetNotes = useWidgetNotesList();
+  const widgetNotesInMenu = canAccessFeature('widget-notes-in-whats-new');
   // Quiet start holds the badge (D7).
   const hasUnreadWhatsNew =
     !firstRun.quiet &&
-    latestVersion !== null &&
-    latestVersion !== lastSeenWhatsNew;
+    ((latestVersion !== null && latestVersion !== lastSeenWhatsNew) ||
+      (widgetNotesInMenu && widgetNotes.hasUnseen));
   // A brand-new teacher's What's New starts from today, so there's no backlog when quiet start ends (D7).
   const startsFromToday =
     firstRun.firstRun && lastSeenWhatsNew === null && latestVersion !== null;
+  const markWidgetNotesSeen = widgetNotes.markSeen;
   useEffect(() => {
-    if (startsFromToday) writeLastSeenVersion(latestVersion);
-  }, [startsFromToday, latestVersion]);
+    if (!startsFromToday) return;
+    writeLastSeenVersion(latestVersion);
+    if (widgetNotesInMenu) markWidgetNotesSeen();
+  }, [startsFromToday, latestVersion, widgetNotesInMenu, markWidgetNotesSeen]);
   const closeWhatsNew = () => {
     setShowWhatsNew(false);
     setLastSeenWhatsNew(readLastSeenVersion());
@@ -461,6 +467,7 @@ export const Sidebar: React.FC = () => {
           currentVersion={__APP_VERSION__}
           updateAvailable={updateAvailable}
           onUpdate={reloadApp}
+          widgetUpdates={widgetNotesInMenu ? widgetNotes : undefined}
         />
       )}
 

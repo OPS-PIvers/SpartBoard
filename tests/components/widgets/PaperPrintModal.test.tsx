@@ -91,8 +91,10 @@ import type {
   ExtractedQuestion,
   ExtractedQuiz,
 } from '@/utils/quizDocumentImport';
-import type { PaperPrintJob } from '@/utils/paperSheetPrint';
-import type { PaperTestJob } from '@/utils/paperTestPrint';
+import {
+  buildPaperSheetsHtml,
+  type PaperPrintJob,
+} from '@/utils/paperSheetPrint';
 
 const mc = (id: string, distractors = 3): QuizQuestion => ({
   id,
@@ -170,6 +172,76 @@ describe('PaperPrintModal', () => {
     drive.makePublic.mockResolvedValue(undefined);
   });
 
+  describe('live preview', () => {
+    const resizeObserver = globalThis.ResizeObserver;
+    beforeEach(() => {
+      features.add('paper-print-preview');
+      globalThis.ResizeObserver = class {
+        constructor(private cb: ResizeObserverCallback) {}
+        observe() {
+          this.cb(
+            [
+              {
+                contentRect: { width: 400, height: 600 },
+              } as ResizeObserverEntry,
+            ],
+            this
+          );
+        }
+        unobserve() {
+          return undefined;
+        }
+        disconnect() {
+          return undefined;
+        }
+      };
+    });
+    afterEach(() => {
+      globalThis.ResizeObserver = resizeObserver;
+    });
+    const pages = () => screen.getAllByTitle<HTMLIFrameElement>(/^Page \d+$/);
+    // Every preview page, as one string.
+    const frame = () => ({
+      srcdoc: pages()
+        .map((p) => p.srcdoc)
+        .join(''),
+    });
+
+    it("draws the first student's packet without saving anything", () => {
+      const { onSaveBatch, print } = setup();
+      // A spare sheet until someone is picked.
+      expect(frame().srcdoc).toContain('Name ______');
+      selectWholeClass();
+      expect(frame().srcdoc).toContain('Alvarez, Sam');
+      expect(frame().srcdoc).not.toContain('Baker, Jo');
+      expect(onSaveBatch).not.toHaveBeenCalled();
+      expect(print).not.toHaveBeenCalled();
+    });
+
+    it('draws the same pages the print sends', async () => {
+      const { print } = setup({
+        quiz: quiz({ questions: [{ ...mc('q1'), text: 'Which is a cell?' }] }),
+      });
+      selectWholeClass();
+      fireEvent.click(screen.getByRole('switch', { name: /question text/i }));
+      const preview = frame().srcdoc;
+      expect(preview).toContain('Which is a cell?');
+      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+      await waitFor(() => expect(print).toHaveBeenCalled());
+      const job = print.mock.calls[0][0];
+      const first = buildPaperSheetsHtml({ ...job, sheets: [job.sheets[0]] });
+      expect(preview).toContain('Which is a cell?');
+      expect(pages()).toHaveLength(first.match(/class="sheet"/g)?.length ?? 0);
+      for (const p of pages()) expect(p.getAttribute('sandbox')).toBe('');
+    });
+
+    it('stays off without the flag', () => {
+      features.clear();
+      setup();
+      expect(screen.queryByRole('list', { name: 'Printed pages' })).toBeNull();
+    });
+  });
+
   it('cannot print until somebody is getting a sheet', () => {
     setup({ quiz: quiz(), rosters: [{ ...roster, students: [] }] });
     fireEvent.change(screen.getByLabelText(/Blank spare sheets/i), {
@@ -231,9 +303,8 @@ describe('PaperPrintModal', () => {
     ]);
   });
 
-  it('records the printed choice order and offers the matching test paper next', async () => {
-    const printTest = vi.fn<(job: PaperTestJob) => void>();
-    const { onSaveBatch, print, onClose } = setup({ printTest });
+  it('records the printed choice order and opens each packet with the matching test paper', async () => {
+    const { onSaveBatch, print, onClose } = setup();
     selectWholeClass();
     fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
     await waitFor(() => expect(print).toHaveBeenCalled());
@@ -244,36 +315,18 @@ describe('PaperPrintModal', () => {
       'd1',
       'd2',
     ]);
+    const job = print.mock.calls[0][0];
+    const paper = job.testPaper ?? '';
+    expect(paper).toContain('Unit 3 Test');
+    expect(job.testPaperStyles).toContain('.tp ');
+    const lists = [...paper.matchAll(/<ol class="c">(.*?)<\/ol>/g)].map((m) =>
+      [...m[1].matchAll(/<span class="text">([^<]*)<\/span>/g)].map((c) => c[1])
+    );
+    expect(lists).toEqual([batch.choiceOrder?.q1, batch.choiceOrder?.q2]);
+    // The window closes the dialog once it has the pictures it borrows.
     expect(onClose).not.toHaveBeenCalled();
-    expect(
-      screen.getByText(/Response sheets sent to print/)
-    ).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /Print test paper/ }));
-    expect(printTest).toHaveBeenCalledOnce();
-    const job = printTest.mock.calls[0][0];
-    expect(job.quizTitle).toBe('Unit 3 Test');
-    expect(job.questions.map((q) => q.row)).toEqual([1, 2]);
-    expect(job.questions[0].choices).toEqual(batch.choiceOrder?.q1);
-    expect(job.questions[1].choices).toEqual(batch.choiceOrder?.q2);
-
-    fireEvent.click(screen.getByRole('button', { name: /^Done$/ }));
+    job.onImagesReady?.();
     expect(onClose).toHaveBeenCalledOnce();
-  });
-
-  it('surfaces a blocked pop-up on the test paper without losing the batch', async () => {
-    const printTest = vi.fn(() => {
-      throw new Error('Printing blocked: please allow pop-ups for this site.');
-    });
-    const { print, onError } = setup({ printTest });
-    selectWholeClass();
-    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
-    await waitFor(() => expect(print).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: /Print test paper/ }));
-    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/pop-ups/));
-    expect(
-      screen.getByRole('button', { name: /Print test paper/ })
-    ).toBeInTheDocument();
   });
 
   it('warns about questions that cannot be bubbled', () => {
@@ -615,7 +668,7 @@ describe('PaperPrintModal', () => {
       expect(screen.getByText(/2 sheets · 2 pages/)).toBeInTheDocument();
 
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.click(screen.getByRole('button', { name: 'From Drive' }));
       await screen.findByText('1 item');
@@ -681,7 +734,7 @@ describe('PaperPrintModal', () => {
       const order: string[] = [];
       const onSavePrintSetup = vi.fn(() => {
         order.push('quiz');
-        return Promise.resolve();
+        return Promise.resolve(undefined);
       });
       const onSaveBatch = vi.fn(() => {
         order.push('batch');
@@ -731,7 +784,7 @@ describe('PaperPrintModal', () => {
         target: { value: 'Pop quiz' },
       });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.click(screen.getByRole('button', { name: 'From Drive' }));
       await screen.findByText('1 item');
@@ -760,7 +813,7 @@ describe('PaperPrintModal', () => {
         target: { value: 'Pop quiz' },
       });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.click(screen.getByRole('button', { name: 'From Drive' }));
       await screen.findByText('1 item');
@@ -894,21 +947,6 @@ describe('PaperPrintModal', () => {
       expect(drive.makePublic).not.toHaveBeenCalled();
     });
 
-    it('does not ask again in the same sitting', async () => {
-      const { print } = setup({ quiz: withGraph(), inPlcGroup: true });
-      await waitFor(() => expect(drive.listFilePermissions).toHaveBeenCalled());
-      selectWholeClass();
-      clickPrint();
-      fireEvent.click(
-        await screen.findByRole('button', { name: /Print without sharing/ })
-      );
-      await waitFor(() => expect(print).toHaveBeenCalled());
-
-      fireEvent.click(screen.getByRole('button', { name: /Print test paper/ }));
-      // Back on the sheet screen the teacher would print again; no second ask.
-      expect(screen.queryByText(/is only visible to you/)).toBeNull();
-    });
-
     it('says nothing about an image the PLC can already open', async () => {
       drive.listFilePermissions.mockResolvedValue([
         { id: 'perm-1', type: 'anyone' },
@@ -947,7 +985,7 @@ describe('PaperPrintModal', () => {
     const choosePdf = async () => {
       setup({ quiz: quiz() });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
       return screen.findByText(/Which page goes on the sheet\?/);
@@ -995,7 +1033,7 @@ describe('PaperPrintModal', () => {
     it('carries the rendered size, so auto-fit knows the page shape', async () => {
       const { print } = setup({ quiz: quiz() });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
       await pickPage(1);
@@ -1014,7 +1052,7 @@ describe('PaperPrintModal', () => {
       pdfPageCount = 1;
       setup({ quiz: quiz() });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
       await pickPage(1);
@@ -1044,7 +1082,7 @@ describe('PaperPrintModal', () => {
       );
       const { onError } = setup({ quiz: quiz() });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
       await pickPage(1);
@@ -1059,12 +1097,12 @@ describe('PaperPrintModal', () => {
       driveConnected = false;
       const { onError } = setup({ quiz: quiz() });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
       await waitFor(() =>
         expect(onError).toHaveBeenCalledWith(
-          'Connect Google Drive to add an image to the answer sheet.'
+          'Connect Google Drive to add an image to the response sheet.'
         )
       );
       // No page picker to work through first.
@@ -1075,7 +1113,7 @@ describe('PaperPrintModal', () => {
     it('lets the PDF go even if the modal is closed out from under it', async () => {
       const { unmount } = setup({ quiz: quiz() });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
       await screen.findByLabelText('Page number');
@@ -1089,7 +1127,7 @@ describe('PaperPrintModal', () => {
     it('still turns away a file that is neither an image nor a PDF', async () => {
       const { onError } = setup({ quiz: quiz() });
       fireEvent.click(
-        screen.getByRole('button', { name: /Add to the answer sheet/ })
+        screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.change(fileInput(), {
         target: {
@@ -1398,20 +1436,30 @@ describe('PaperPrintModal with handwritten answers', () => {
   });
 
   it('prints written questions in place on the test paper, numbered like the sheet', async () => {
-    const printTest = vi.fn<(job: PaperTestJob) => void>();
     const { print } = setup({
       quiz: quiz({ questions: [mc('q1'), fr('w1'), mc('q2')] }),
-      printTest,
     });
     await printIt(print);
-    fireEvent.click(screen.getByRole('button', { name: /Print test paper/ }));
-    const job = printTest.mock.calls[0][0];
-    expect(job.questions.map((q) => [q.row, !!q.written])).toEqual([
-      ['1', false],
-      ['2', true],
-      ['3', false],
-    ]);
-    expect(job.questions[1].choices).toEqual([]);
+    const paper = print.mock.calls[0][0].testPaper ?? '';
+    expect(
+      [...paper.matchAll(/<span class="num">(\d+)\.<\/span>/g)].map((m) => m[1])
+    ).toEqual(['1', '2', '3']);
+    expect(paper.match(/class="written"/g)).toHaveLength(1);
+  });
+
+  it("prints a translated group's test paper words in its language", async () => {
+    const { print } = setup({
+      quiz: quiz({ questions: [mc('q1'), fr('w1')] }),
+      group: {
+        label: 'Group 1 · Spanish',
+        students: { r1: ['s1'] },
+        translation: { language: 'es', questions: {} },
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    const paper = print.mock.calls[0][0].testPaper ?? '';
+    expect(paper).toContain('Escribe tu respuesta en tu hoja de respuestas.');
   });
 
   it('turns a stub number marked written into a free-response question', async () => {
@@ -1621,6 +1669,41 @@ describe('PaperPrintModal on the Assign on paper stepper', () => {
     });
   });
 
+  it('makes the paper assignment from the quiz this print just saved', async () => {
+    features.add('paper-handwritten-responses');
+    const fr = (
+      id: string,
+      over: Partial<QuizQuestion> = {}
+    ): QuizQuestion => ({
+      id,
+      timeLimit: 0,
+      text: `Explain ${id}`,
+      type: 'free-response',
+      correctAnswer: '',
+      incorrectAnswers: [],
+      ...over,
+    });
+    const saved = quiz({ questions: [fr('w1', { paperBoxSize: 'S' })] });
+    const onSavePrintSetup = vi.fn().mockResolvedValue(saved);
+    const { onCreateAssignment, print } = assignSetup(
+      {},
+      { quiz: quiz({ questions: [fr('w1')] }), onSavePrintSetup }
+    );
+    pickPeriod1();
+    fireEvent.click(screen.getByText('Response sheets'));
+    fireEvent.change(screen.getByLabelText('Question 1 box size'), {
+      target: { value: 'custom' },
+    });
+    fireEvent.change(screen.getByLabelText('Question 1 box size, lines'), {
+      target: { value: '15' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Assign and print/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    expect(onCreateAssignment).toHaveBeenCalledWith(
+      expect.objectContaining({ quiz: saved })
+    );
+  });
+
   it('never prints when the paper assignment could not be made', async () => {
     const onCreateAssignment = vi.fn().mockRejectedValue(new Error('offline'));
     const { print, onError } = assignSetup({ onCreateAssignment });
@@ -1663,7 +1746,7 @@ describe('PaperPrintModal on the Assign on paper stepper', () => {
     const submit = screen.getByRole('button', { name: /Assign and print/ });
     fireEvent.click(submit);
     await waitFor(() => expect(onError).toHaveBeenCalledWith('offline'));
-    fireEvent.click(screen.getByText('Answer sheets'));
+    fireEvent.click(screen.getByText('Response sheets'));
     fireEvent.change(screen.getByLabelText(/Blank spare sheets/i), {
       target: { value: '5' },
     });

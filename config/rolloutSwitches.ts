@@ -105,14 +105,14 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
   {
     docId: PAPER_ANSWER_SHEETS_SETTINGS_DOC,
     feature: 'paper-answer-sheets',
-    title: 'Paper answer sheets',
+    title: 'Paper response sheets',
     description: 'Print bubble sheets and import scans.',
     normalize: normalizePaperAnswerSheetsSettings,
   },
   {
     docId: PLC_DELEGATED_PRINTING_SETTINGS_DOC,
     title: 'Print response sheets for a PLC teammate',
-    description: "Print a teammate's sheets. Needs paper answer sheets.",
+    description: "Print a teammate's sheets. Needs paper response sheets.",
     normalize: normalizePlcDelegatedPrintingSettings,
   },
   {

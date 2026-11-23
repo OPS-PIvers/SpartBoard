@@ -38,6 +38,7 @@ import {
   ROWS_PER_COLUMN,
   STIMULUS_RECT_MM,
   QUESTION_CHOICE_TEXT_GAP_MM,
+  QUESTION_CHOICE_TOP_MM,
   QUESTION_STEM_H_MM,
   QUESTION_STEM_W_MM,
   QUESTION_STEM_X_MM,
@@ -62,13 +63,25 @@ import {
   writtenRuleYsMm,
 } from './paperPageMap';
 import { isPlaceholderLetterChoices } from './paperSheetPlan';
-import { encodePaperMarker, paperBatchTag } from './paperSheetMarker';
+import {
+  encodePaperMarker,
+  paperBatchTag,
+  RESOURCE_PAGE,
+} from './paperSheetMarker';
 import type { PaperSheetPlan } from './paperSheetPlan';
 import {
   CAPTION_SIZE_PT,
   layoutSheetStimuli,
 } from './paperSheetStimulusLayout';
 import { renderTemplateSvg } from './paperSheetTemplateSvg';
+import {
+  BLOCK_GAP_MM,
+  RESOURCE_BODY_MM,
+  RESOURCE_TITLE_TOP_MM,
+  SHEET_BLOCK_STYLES,
+  type SheetResourcePage,
+  type SheetStimulusBlock,
+} from './paperSheetStimulusBlocks';
 import {
   escapeHtml,
   printHtmlDocument,
@@ -134,12 +147,24 @@ export interface PaperPrintJob {
   prompts?: Readonly<Record<string, PaperPromptPage>>;
   /** Per-version text, chosen by each sheet's `versionIndex`; keys stay the page maps' ids (V24). */
   versions?: readonly PaperPrintVersion[];
+  /** A written question's own stimuli, above its box, by page map id. */
+  stimulusBlocks?: Readonly<Record<string, SheetStimulusBlock>>;
+  /** Pages after each student's sheet with the stimuli several questions share. */
+  resourcePages?: readonly SheetResourcePage[];
+  /** By page map id: stimulus pages printed just before that question's page. */
+  pagesBefore?: Readonly<Record<string, readonly SheetResourcePage[]>>;
+  /** A test paper copy printed at the front of each student's packet. */
+  testPaper?: string;
+  /** Styles the test paper copies need. */
+  testPaperStyles?: string;
 }
 
 /** A written question's full prompt and its figures, printed on the page before its box. */
 export interface PaperPromptPage {
   text: string;
   stimuli: readonly PaperSheetStimulus[];
+  /** The question's own stimuli, printed under the text in the header. */
+  block?: SheetStimulusBlock;
 }
 
 /** What one version prints in place of the job's own text. */
@@ -149,6 +174,10 @@ export interface PaperPrintVersion {
   rowLabels?: readonly (string | undefined)[];
   writtenTexts?: Readonly<Record<string, string>>;
   prompts?: Readonly<Record<string, PaperPromptPage>>;
+  stimulusBlocks?: Readonly<Record<string, SheetStimulusBlock>>;
+  resourcePages?: readonly SheetResourcePage[];
+  pagesBefore?: Readonly<Record<string, readonly SheetResourcePage[]>>;
+  testPaper?: string;
 }
 
 /** What a question-text row prints beside its bubbles. */
@@ -158,6 +187,8 @@ export interface PaperSheetQuestionText {
   choices: readonly string[];
   /** A picture per choice, null where none; only a picture-only choice prints its picture here. */
   choicePictures?: readonly (ChoicePicture | null)[];
+  /** The question's own stimuli, between its stem and its choices. */
+  stimulus?: SheetStimulusBlock;
 }
 
 /** A graded paper response redrawn onto its sheet (docs/plans/shipped/QUIZ_RESULTS_PRINT.md D22-D23). */
@@ -337,6 +368,13 @@ function columnLegendsHtml(
   return parts.join('');
 }
 
+/** A stimulus block at its place on the sheet. */
+function blockHtml(block: SheetStimulusBlock, x: number, y: number): string {
+  return `<div class="sb" style="left:${mm(x)};top:${mm(y)};width:${mm(
+    QUESTION_STEM_W_MM
+  )};height:${mm(block.heightMm)}">${block.html}</div>`;
+}
+
 /** The stem above a question's bubbles, and each choice's text beside its own bubble. */
 function questionTextHtml(
   origin: PointMm,
@@ -347,13 +385,20 @@ function questionTextHtml(
   const number = numberDiv(
     `left:${mm(origin.x - QUESTION_STEM_X_MM)};top:0;width:${mm(NUMBER_WIDTH_MM - 2)}`
   );
+  // A stimulus sits on the choices, and the stem moves up above it by the room the plan reserved.
+  const s = q.stimulus;
+  const stimTop = s
+    ? origin.y + QUESTION_CHOICE_TOP_MM - BLOCK_GAP_MM - s.heightMm
+    : 0;
+  const stemTop = s ? stimTop - BLOCK_GAP_MM - QUESTION_STEM_H_MM : origin.y;
   const parts = [
     `<div class="qt-stem-box" style="left:${mm(QUESTION_STEM_X_MM)};top:${mm(
-      origin.y
+      stemTop
     )};width:${mm(QUESTION_STEM_W_MM)};height:${mm(QUESTION_STEM_H_MM)}"><div class="qt-stem-line">${number}<div class="qt-stem">${escapeHtml(
       plainPromptText(q.text)
     )}</div></div></div>`,
   ];
+  if (s) parts.push(blockHtml(s, QUESTION_STEM_X_MM, stimTop));
   // A stub's options are just the bubble letters, which say nothing to a student.
   if (!isPlaceholderLetterChoices(q.choices)) {
     q.choices.slice(0, MAX_CHOICE_COUNT).forEach((choice, i) => {
@@ -528,11 +573,15 @@ function promptHeaderHtml(
     );
     top += PROMPT_LABEL_MM;
   }
-  const textH = h.y + h.h - top;
+  // The question's own stimuli sit at the foot of the header, just above the box.
+  const block = prompt.page.block;
+  const bottom = block ? h.y + h.h - block.heightMm - BLOCK_GAP_MM : h.y + h.h;
+  const textH = bottom - top;
   const pt = promptFontPt(plainPromptText(prompt.page.text), w, textH);
   parts.push(
     `<div class="pr-text" style="left:${mm(x)};top:${mm(top)};width:${mm(w)};height:${mm(textH)};font-size:${pt}pt">${escapeHtml(plainPromptText(prompt.page.text))}</div>`
   );
+  if (block) parts.push(blockHtml(block, x, h.y + h.h - block.heightMm));
   for (const item of placed) {
     const r = item.rect;
     parts.push(
@@ -708,7 +757,8 @@ function writtenItemHtml(
   prompt?: WrittenPrompt,
   imageSrc?: string,
   blankAnswers?: readonly string[],
-  slice?: CropSlice
+  slice?: CropSlice,
+  block?: SheetStimulusBlock
 ): string {
   const h = item.headerMm;
   const pointsW = fill?.points ? WRITTEN_POINTS_MM : 0;
@@ -741,6 +791,11 @@ function writtenItemHtml(
     );
   }
   const b = item.boxMm;
+  // The plan left room above the box for the question's own stimuli.
+  if (block && !prompt && !item.continued)
+    parts.push(
+      blockHtml(block, QUESTION_STEM_X_MM, b.y - BLOCK_GAP_MM - block.heightMm)
+    );
   const box = `left:${mm(b.x)};top:${mm(b.y)};width:${mm(b.w)};height:${mm(b.h)}`;
   // A box rounded up to whole slots has spare lines; only the first `blanks` are blanks.
   const ruleYs = item.blanks ? writtenRuleYsMm(item) : [];
@@ -1007,7 +1062,8 @@ function mapPageBodyHtml(
             : undefined,
           job.writtenImages?.[item.questionId],
           job.blankAnswers?.[item.questionId],
-          slices?.get(`${map.page}:${item.questionId}`)
+          slices?.get(`${map.page}:${item.questionId}`),
+          job.stimulusBlocks?.[item.questionId]
         )
       );
     }
@@ -1026,6 +1082,16 @@ function sheetPagesHtml(
   pageCount: number,
   fill?: SheetFill
 ): string {
+  return sheetPageList(sheet, printJob, pageCount, fill).join('');
+}
+
+/** Each printed page of one sheet, in order. */
+function sheetPageList(
+  sheet: PaperSheetPlan,
+  printJob: PaperPrintJob,
+  pageCount: number,
+  fill?: SheetFill
+): string[] {
   const version =
     sheet.versionIndex !== undefined
       ? printJob.versions?.[sheet.versionIndex]
@@ -1039,6 +1105,14 @@ function sheetPagesHtml(
         ...(version.rowLabels ? { rowLabels: version.rowLabels } : {}),
         ...(version.writtenTexts ? { writtenTexts: version.writtenTexts } : {}),
         ...(version.prompts ? { prompts: version.prompts } : {}),
+        ...(version.stimulusBlocks
+          ? { stimulusBlocks: version.stimulusBlocks }
+          : {}),
+        ...(version.resourcePages
+          ? { resourcePages: version.resourcePages }
+          : {}),
+        ...(version.pagesBefore ? { pagesBefore: version.pagesBefore } : {}),
+        ...(version.testPaper ? { testPaper: version.testPaper } : {}),
       }
     : printJob;
   const versionLabel = version?.label;
@@ -1048,8 +1122,18 @@ function sheetPagesHtml(
   );
   const columnsPerPage = job.columnsPerPage ?? DEFAULT_COLUMNS_PER_PAGE;
   const pages: string[] = [];
+  // Stimulus pages only go out with a student's own unmarked sheet.
+  const packet = !fill && !sheet.isKeySheet;
+  if (packet && job.testPaper) pages.push(job.testPaper);
   for (let page = 1; page <= pageCount; page += 1) {
     const map = job.pageMaps?.[page - 1];
+    if (packet && map) {
+      for (const item of map.items) {
+        if (item.kind === 'written' && item.continued) continue;
+        for (const r of job.pagesBefore?.[item.questionId] ?? [])
+          pages.push(stimulusPageHtml(job, sheet, r));
+      }
+    }
     let body: string;
     if (map) {
       body = mapPageBodyHtml(map, job, sheet, choiceCount, fill, versionLabel);
@@ -1086,7 +1170,47 @@ function sheetPagesHtml(
       )}${body}${stimuliHtml(job, page)}${footerHtml()}</div>`
     );
   }
-  return pages.join('');
+  // Each student's packet carries the shared stimuli; a reprint or the key does not.
+  if (packet) {
+    for (const r of job.resourcePages ?? [])
+      pages.push(stimulusPageHtml(job, sheet, r));
+  }
+  return pages;
+}
+
+/** A stimulus page in a student's packet; its marker tells an import to skip it. */
+function stimulusPageHtml(
+  job: PaperPrintJob,
+  sheet: PaperSheetPlan,
+  r: SheetResourcePage
+): string {
+  return `<div class="sheet">${registrationMarksHtml()}${markerHtml(
+    job.batchId,
+    sheet.seat,
+    RESOURCE_PAGE,
+    false,
+    false
+  )}${resourceHeaderHtml(sheet, job.quizTitle, r.title)}<div class="sb" style="left:${mm(
+    RESOURCE_BODY_MM.x
+  )};top:${mm(RESOURCE_BODY_MM.y)};width:${mm(RESOURCE_BODY_MM.w)};height:${mm(
+    RESOURCE_BODY_MM.h
+  )}">${r.html}</div>${footerHtml()}</div>`;
+}
+
+/** A resource page's header: whose packet it is, and which resource. */
+function resourceHeaderHtml(
+  sheet: PaperSheetPlan,
+  quizTitle: string,
+  title: string
+): string {
+  return `<div class="hdr" style="left:${mm(HEADER_RECT_MM.x)};top:${mm(
+    HEADER_RECT_MM.y
+  )};width:${mm(HEADER_RECT_MM.w)};height:${mm(HEADER_RECT_MM.h)}">
+      <div class="hdr-name">${escapeHtml(sheet.displayName)}</div>
+      <div class="hdr-quiz">${escapeHtml(quizTitle)}</div>
+    </div><div class="res-title" style="left:${mm(RESOURCE_BODY_MM.x)};top:${mm(
+      RESOURCE_TITLE_TOP_MM
+    )};width:${mm(RESOURCE_BODY_MM.w)}">${escapeHtml(title)}</div>`;
 }
 
 const SHEET_STYLES = `
@@ -1172,6 +1296,7 @@ const SHEET_STYLES = `
   .hdr-key { letter-spacing: 0.08em; }
   .hdr-quiz { font-size: 11pt; }
   .hdr-meta { font-size: 9pt; color: #333; }
+  .res-title { position: absolute; font-size: 18pt; font-weight: 700; line-height: 1.2; text-align: center; padding-bottom: 1.5mm; border-bottom: 0.4mm solid #000; }${SHEET_BLOCK_STYLES}
   .num {
     font-size: 8pt;
     text-align: right;
@@ -1271,17 +1396,41 @@ export function printPaperSheets(
   if (job.sheets.length === 0) return;
   printHtmlDocument(
     {
-      title: `${job.quizTitle} — answer sheets`,
-      styles: STYLES,
+      title: `${job.quizTitle} — response sheets`,
+      styles: STYLES + (job.testPaperStyles ?? ''),
       body: buildPaperSheetsHtml(job),
       // A remote image that has not decoded yet prints as an empty box.
       awaitImages:
         !!job.sheetStimuli?.length ||
         hasPromptImages(job) ||
-        Object.keys(job.writtenImages ?? {}).length > 0,
+        Object.keys(job.writtenImages ?? {}).length > 0 ||
+        hasBlockImages(job) ||
+        [job, ...(job.versions ?? [])].some((s) =>
+          s.testPaper?.includes('<img')
+        ),
       ...(job.onImagesReady ? { onImagesReady: job.onImagesReady } : {}),
     },
     openWindow
+  );
+}
+
+/** Stimulus blocks and resource pages print pictures the window has to decode first. */
+function hasBlockImages(job: PaperPrintJob): boolean {
+  const sets = [job, ...(job.versions ?? [])];
+  return sets.some(
+    (s) =>
+      Object.values(s.stimulusBlocks ?? {}).some((b) =>
+        b.html.includes('<img')
+      ) ||
+      (s.resourcePages ?? []).some((r) => r.html.includes('<img')) ||
+      Object.values(s.pagesBefore ?? {}).some((ps) =>
+        ps.some((r) => r.html.includes('<img'))
+      ) ||
+      Object.values(s.prompts ?? {}).some((p) =>
+        p.block?.html.includes('<img')
+      ) ||
+      ('questionTexts' in s &&
+        (s.questionTexts ?? []).some((q) => q.stimulus?.html.includes('<img')))
   );
 }
 
@@ -1296,4 +1445,30 @@ export function buildPaperSheetsHtml(job: PaperPrintJob): string {
     ? job.pageMaps.length
     : pageCountForQuestions(job.questionCount, job.columnsPerPage);
   return job.sheets.map((s) => sheetPagesHtml(s, job, pageCount)).join('');
+}
+
+/** A preview page's kind: a fixed-size sheet, or a test paper copy that runs as long as it needs. */
+export interface PaperPreviewPage {
+  kind: 'sheet' | 'test';
+  /** A whole document for one sandboxed frame. */
+  doc: string;
+}
+
+/** Each page of the job's first sheet, for the print dialog's preview. */
+export function buildPaperSheetsPreviewPages(
+  job: PaperPrintJob
+): PaperPreviewPage[] {
+  const sheet = job.sheets[0];
+  if (!sheet) return [];
+  const pageCount = job.pageMaps
+    ? job.pageMaps.length
+    : pageCountForQuestions(job.questionCount, job.columnsPerPage);
+  const styles = `${STYLES}${job.testPaperStyles ?? ''}
+  .tp { width: ${PAGE_WIDTH_MM}mm; }
+  .tp > table.page-margins { min-height: ${PAGE_HEIGHT_MM}mm; }
+  .tp > table.page-margins > tbody > tr > td { vertical-align: top; }`;
+  return sheetPageList(sheet, job, pageCount).map((html) => ({
+    kind: html.startsWith('<div class="tp">') ? 'test' : 'sheet',
+    doc: `<!doctype html><html><head><meta charset="utf-8"><style>${styles}</style></head><body>${html}</body></html>`,
+  }));
 }
