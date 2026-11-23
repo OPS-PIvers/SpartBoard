@@ -143,6 +143,7 @@ import {
   planSheetStimuli,
   type BlockMeasure,
 } from '@/utils/paperSheetStimulusBlocks';
+import { paperPrintWords } from '@/utils/paperPrintWords';
 import {
   blockPromptRows,
   layoutSheetStimuli,
@@ -558,6 +559,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     (): BlockMeasure => browserBlockMeasure() ?? estimateBlockMm,
     []
   );
+  const printLanguage = group?.translation?.language;
+  const printWords = useMemo(
+    () => paperPrintWords(printLanguage),
+    [printLanguage]
+  );
   // A response sheet with question text is the whole test, so it prints every stimulus too.
   const stimuliSets = useMemo((): SheetStimuliSet[] | null => {
     if (!questionTextLayout || testStimulusFiles.loading) return null;
@@ -573,7 +579,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         questionsById,
         quizStimuli,
         testStimulusFiles.files,
-        blockMeasure
+        blockMeasure,
+        printWords
       ),
     });
     if (versionPlan) {
@@ -592,6 +599,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     questionsById,
     quizStimuli,
     blockMeasure,
+    printWords,
   ]);
   const stimuliLayout = useMemo(
     () => (stimuliSets ? layoutSheetStimuli(stimuliSets, promptIds) : null),
@@ -1161,6 +1169,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     return versionPlan
       ? {
           quizTitle: quiz.title,
+          ...(printLanguage ? { language: printLanguage } : {}),
           questions: [],
           versions: versionPlan.versions.map((v) => ({
             label: v.label,
@@ -1169,6 +1178,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         }
       : {
           quizTitle: group?.translation?.title ?? quiz.title,
+          ...(printLanguage ? { language: printLanguage } : {}),
           ...questionsOf(analysis),
           ...(group?.supports?.length ? { supports: group.supports } : {}),
         };

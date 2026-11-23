@@ -1442,6 +1442,21 @@ describe('PaperPrintModal with handwritten answers', () => {
     expect(paper.match(/class="written"/g)).toHaveLength(1);
   });
 
+  it("prints a translated group's test paper words in its language", async () => {
+    const { print } = setup({
+      quiz: quiz({ questions: [mc('q1'), fr('w1')] }),
+      group: {
+        label: 'Group 1 · Spanish',
+        students: { r1: ['s1'] },
+        translation: { language: 'es', questions: {} },
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    const paper = print.mock.calls[0][0].testPaper ?? '';
+    expect(paper).toContain('Escribe tu respuesta en tu hoja de respuestas.');
+  });
+
   it('turns a stub number marked written into a free-response question', async () => {
     const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
     const { onSaveBatch, print } = setup({
