@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-11-16_
+_Last audited: 2026-11-23_
 _Last action: 2026-08-30 (starterPacks `notDeactivated()` gate, via nightly debugger routine)_
+
+_2026-11-23: Weekly audit (Monday). 119 distinct collection()/collectionGroup() names in components/context/hooks/utils/functions src each map to a match block in `firestore.rules`; none unprotected. 0 new issues._
 
 _2026-11-16: Weekly audit (Monday). Cross-referenced collection names against `firestore.rules`. Unmatched names (`ai_usage_refunds`, `focus_class_locks`, `mcp_oauth_codes`, `notesJobs`, `paper_reword_log`, `plcCreators`, `student_sections`) are referenced only from Admin SDK code in `functions/src`; default-deny covers them. 0 HIGH, 0 new issues._
 

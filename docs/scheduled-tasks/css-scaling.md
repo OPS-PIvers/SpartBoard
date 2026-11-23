@@ -3,9 +3,11 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-11-22_
+_Last audited: 2026-11-23_
 _Last action: 2026-10-22 — LOW SmartNotebook Viewer page-counter `minWidth` scaled with cqmin (moved to Completed). Prior: 2026-10-21 — LOW MusicWidget landscape status row `gap-2` replaced with `min(8px, 2cqh)` gap (moved to Completed). Prior: 2026-10-18 — LOW `MiniAppAssignModal` skipped-students warning text scaled with cqmin (both duplicate entries moved to Completed). Prior: 2026-10-17 — LOW Soundboard active-sound dot scaled with cqmin._
 
+
+_2026-11-23: Daily audit (Monday). No `max-w/h-[Npx]` classes in any `Widget.tsx`. Open LOW portaled-dropdown items unchanged. 0 new issues._
 
 _2026-11-22: Daily audit (Sunday). 0 `max-w/h-[Npx]` caps in any `Widget.tsx`; fixed-px hits are container-query breakpoints and known exempt items. 0 new issues._
 _2026-11-21: Daily audit (Saturday), against `origin/dev-paul` (`d04ad618d`). No `max-h/w-[Npx]` classes or hardcoded pixel width/height/fontSize inline styles in any `Widget.tsx`. 0 new issues._

@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-11-18_
+_Last audited: 2026-11-23_
 _Last action: 2026-10-19 — Claude MCP connector: added `functions/src/mcp/tools.test.ts` (34 tests); the HIGH item is resolved and moved to Completed. Prior: 2026-10-12 — `quizTools.test.ts`; 2026-10-05 — `videoTools.test.ts`; 2026-09-28 — auth gate, write-budget/revision infra._
+
+_2026-11-23: Weekly audit (Monday). `pnpm test --run` hit the 560s sandbox timeout with no FAIL lines in ~940 completed lines, so the result is inconclusive; CI runs the full gate. Coverage gap items unchanged. 0 new issues._
 
 _2026-11-18: Weekly audit (Wednesday). `vitest run`: 2518/2519 files, 26854 tests pass; 1 suite fails to load (`tests/liveTourGuideSync.test.ts`, cannot resolve `zod` from `functions/src/mcp/glLiveTour.ts`) because sandbox `functions/node_modules` is stale, not a code regression. Filename-match scan finds widget dirs with no test file: BlendingBoard, CarRiderPro, MathToolInstance, MathTools, Onboarding, WorkSymbols; many utils/hooks lack a same-named test (tests may be named differently), not re-classified this run. `functions/src/index.test.ts` coverage not re-diffed. 0 new issues._
 

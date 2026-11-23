@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-11-18_
+_Last audited: 2026-11-23_
 _Last action: 2026-05-01_
+
+_2026-11-23: Weekly audit (Monday). `Object.assign({}` in DashboardContext.tsx: 0 (already extracted). `as unknown as`: 264 sites in 113 non-test files, covered by existing Open items. 0 new issues._
 
 _2026-11-18: Weekly audit (Wednesday, light pass). `Object.assign({}, defaults` 0 matches in DashboardContext.tsx; `as unknown as` 241 and `as WidgetConfig` 11 (non-test), classification not redone; 0 `console.log` in app dirs. 0 new issues._
 
