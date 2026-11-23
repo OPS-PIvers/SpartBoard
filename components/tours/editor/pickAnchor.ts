@@ -48,7 +48,8 @@ export function resolvePickTarget(
   target: Element | null,
   slots: TourSlots = {}
 ): PickTarget | null {
-  if (!target || target.closest('[data-tour-ignore]')) return null;
+  // An inert subtree, such as the Live view's copy of a student's screen, can't be clicked.
+  if (!target || target.closest('[data-tour-ignore], [inert]')) return null;
   const tagged = registeredAnchorAt(target, slots);
   const control = untaggedControlOf(target, tagged?.element ?? null);
   return control ? untaggedPick(control) : tagged;

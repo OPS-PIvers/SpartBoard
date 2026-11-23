@@ -8,7 +8,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pause, Play } from 'lucide-react';
 import { formatClock } from './formatClock';
-import { tourAttr } from '@/config/tourAnchors';
 
 export const TakeReviewPlayer: React.FC<{
   src: string;
@@ -98,7 +97,7 @@ export const TakeReviewPlayer: React.FC<{
         onTimeUpdate={(e) => setElapsedMs(e.currentTarget.currentTime * 1000)}
       />
       <button
-        {...tourAttr('student.quiz.recording-play')}
+        // no-tour-anchor: also the teacher's narration player in the Guided Learning studio
         type="button"
         onClick={toggle}
         aria-label={

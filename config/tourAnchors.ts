@@ -19176,15 +19176,13 @@ export const TOUR_ANCHORS = {
   },
   'student.quiz.recording-redo': {
     label: 'Redo a recorded answer',
+    destructive: true,
   },
   'student.quiz.whiteboard-page-retry': {
     label: 'Try again when the starting page does not load',
   },
   'student.quiz.microphone-allow': {
     label: 'Allow microphone button',
-  },
-  'student.quiz.recording-play': {
-    label: 'Play or pause a recording before submitting',
   },
   'student.quiz.read-aloud': {
     label: 'Read question button on the read-aloud bar',

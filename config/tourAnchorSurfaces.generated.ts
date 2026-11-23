@@ -4470,7 +4470,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'student.quiz.recording-redo': ['student-quiz.page'],
     'student.quiz.whiteboard-page-retry': ['student-quiz.page'],
     'student.quiz.microphone-allow': ['student-quiz.page'],
-    'student.quiz.recording-play': ['student-quiz.page'],
     'student.quiz.read-aloud': ['student-quiz.page'],
     'student.quiz.read-aloud-speed': ['student-quiz.page'],
     'student.quiz.read-aloud-auto': ['student-quiz.page'],

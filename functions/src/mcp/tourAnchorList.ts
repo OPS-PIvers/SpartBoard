@@ -82324,6 +82324,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "student.quiz.recording-redo",
     "label": "Redo a recorded answer",
     "scope": "board",
+    "destructive": true,
     "routes": [
       {
         "surface": "student-quiz.page",
@@ -82349,19 +82350,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "student.quiz.microphone-allow",
     "label": "Allow microphone button",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "student-quiz.page",
-        "kind": "page",
-        "url": "/quiz",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "student.quiz.recording-play",
-    "label": "Play or pause a recording before submitting",
     "scope": "board",
     "routes": [
       {

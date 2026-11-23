@@ -42,6 +42,13 @@ describe('resolvePickTarget', () => {
     expect(resolvePickTarget(document.getElementById('t'))).toBeNull();
   });
 
+  it('ignores controls inside an inert subtree', () => {
+    mount(
+      '<div inert><button data-tour="dock.open-tools" id="t">x</button></div>'
+    );
+    expect(resolvePickTarget(document.getElementById('t'))).toBeNull();
+  });
+
   it('records the widget type, field and slot of a widget-scoped anchor', () => {
     mount(
       '<div data-tour="widget.window" data-tour-widget="w-2" data-tour-widget-type="time-tool"><button id="t" data-tour="widget.settings-opener" data-tour-widget="w-2" data-tour-widget-type="time-tool">s</button></div>'
