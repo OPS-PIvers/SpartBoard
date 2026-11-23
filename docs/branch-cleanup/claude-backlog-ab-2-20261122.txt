@@ -1,0 +1,1 @@
+claude/backlog-ab-2-20261122 (AB-2: retry start on claimed join code; C3 stays open)

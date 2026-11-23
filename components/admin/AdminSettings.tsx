@@ -424,47 +424,49 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-modal bg-slate-50 flex flex-col overscroll-none"
+      className="fixed inset-0 z-modal bg-slate-50 flex flex-col overscroll-none pointer-coarse:[&_input]:text-base pointer-coarse:[&_select]:text-base pointer-coarse:[&_textarea]:text-base"
       role="dialog"
       aria-modal="true"
       aria-labelledby="admin-settings-title"
     >
       <div className="bg-white w-full h-full overflow-hidden flex flex-col">
         {/* Mobile-only header — back button + current section title. Desktop closes from the rail. */}
-        <div className="md:hidden bg-brand-blue-dark text-white h-14 px-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2 overflow-hidden min-w-0">
-            {!showMobileMenu && (
-              <button
-                onClick={() => setShowMobileMenu(true)}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors shrink-0 -ml-2"
-                aria-label="Back to menu"
-                {...tourAttr('admin.settings.mobile-back')}
+        <div className="md:hidden bg-brand-blue-dark text-white pt-[env(safe-area-inset-top,0px)] pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] shrink-0">
+          <div className="h-14 flex items-center justify-between">
+            <div className="flex items-center gap-2 overflow-hidden min-w-0">
+              {!showMobileMenu && (
+                <button
+                  onClick={() => setShowMobileMenu(true)}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors shrink-0 -ml-2"
+                  aria-label="Back to menu"
+                  {...tourAttr('admin.settings.mobile-back')}
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+              )}
+              <h2
+                id="admin-settings-title"
+                className="text-lg font-bold truncate"
               >
-                <ChevronLeft className="w-6 h-6" />
-              </button>
-            )}
-            <h2
-              id="admin-settings-title"
-              className="text-lg font-bold truncate"
-            >
-              {mobileTitle}
-            </h2>
-          </div>
+                {mobileTitle}
+              </h2>
+            </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-lg transition-colors shrink-0 -mr-2"
-            aria-label="Close settings"
-            {...tourAttr('admin.settings.close')}
-          >
-            <X className="w-6 h-6" />
-          </button>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors shrink-0 -mr-2"
+              aria-label="Close settings"
+              {...tourAttr('admin.settings.close')}
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         {/* Body — dark rail (desktop) + light content panel */}
         <div className="flex-1 flex overflow-hidden">
           {/* Vertical rail (desktop/tablet): icon+label at lg, icon-only at md */}
-          <div className="hidden md:flex flex-col md:w-[76px] lg:w-60 shrink-0 bg-brand-blue-dark text-white">
+          <div className="hidden md:flex flex-col md:w-[calc(76px+env(safe-area-inset-left,0px))] lg:w-[calc(15rem+env(safe-area-inset-left,0px))] shrink-0 bg-brand-blue-dark text-white pt-[env(safe-area-inset-top,0px)] pl-[env(safe-area-inset-left,0px)] pb-[env(safe-area-inset-bottom,0px)]">
             <div className="flex items-center gap-1 h-14 px-3 lg:px-2 shrink-0">
               <button
                 onClick={onClose}
@@ -513,10 +515,10 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           </div>
 
           {/* Content column */}
-          <div className="flex-1 min-w-0 overflow-y-auto overscroll-none touch-pan-y bg-slate-50">
+          <div className="flex-1 min-w-0 overflow-y-auto overscroll-none touch-pan-y bg-slate-50 md:pt-[env(safe-area-inset-top,0px)] pl-[env(safe-area-inset-left,0px)] md:pl-0 pr-[env(safe-area-inset-right,0px)]">
             {/* Mobile drill-in menu */}
             <div className={`md:hidden ${showMobileMenu ? 'block' : 'hidden'}`}>
-              <div className="flex flex-col py-2">
+              <div className="flex flex-col pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
                 {groups.map((group) => (
                   <div key={group.id}>
                     <div className="px-4 pt-4 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -555,7 +557,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             {/* Tab panels (desktop always; mobile when a panel is selected) */}
             <AccessSearchProvider goToTab={setActiveTab}>
               <div
-                className={`${!showMobileMenu ? 'block' : 'hidden md:block'} p-4 md:p-6 ${activeTabFills ? 'h-full' : ''}`}
+                className={`${!showMobileMenu ? 'block' : 'hidden md:block'} p-4 md:p-6 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] md:pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] ${activeTabFills ? 'h-full' : ''}`}
               >
                 {tabs.map((tab) => {
                   const TabComponent = tab.component;

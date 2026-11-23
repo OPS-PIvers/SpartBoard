@@ -475,6 +475,18 @@ export function publicQuestionIds(publicQuestions: unknown[]): string[] {
     .map((q) => q.id);
 }
 
+/** Seed each served random-number question carried, by session question id. */
+function publicCalcSeeds(publicQuestions: unknown[]): Map<string, string> {
+  const seeds = new Map<string, string>();
+  for (const raw of publicQuestions) {
+    if (typeof raw !== 'object' || raw === null) continue;
+    const r = raw as Record<string, unknown>;
+    if (typeof r.id === 'string' && typeof r.calcSeed === 'string')
+      seeds.set(r.id, r.calcSeed);
+  }
+  return seeds;
+}
+
 function mergeTargets(
   existing: QuestionTargetSnapshot[],
   incoming: QuestionTargetSnapshot[]
@@ -1191,6 +1203,7 @@ export function computeAssessmentAggregate(
     }
 
     const paperWritten = new Set(session.paperWrittenQuestionIds ?? []);
+    const servedSeeds = publicCalcSeeds(session.publicQuestions);
     for (const r of completed) {
       studentCount++;
       teacher.studentCount++;
@@ -1240,9 +1253,17 @@ export function computeAssessmentAggregate(
         }
         const a = representative.get(sessionQid);
         // Numbers come from the question id the student was served.
+        const servedSeed = servedSeeds.get(sessionQid);
         const own = question.calc
           ? withCalcValues(
-              { ...question, id: sessionQid },
+              {
+                ...question,
+                id: sessionQid,
+                calc: {
+                  ...question.calc,
+                  seed: servedSeed ?? question.calc.seed,
+                },
+              },
               r.responseKey,
               session.overridesByStudentUid?.[r.studentUid]
                 ?.modifiedQuestions === true

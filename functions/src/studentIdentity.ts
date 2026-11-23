@@ -207,8 +207,9 @@ async function candidateTaughtClasses(
         classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
         tenantUrl: CLASSLINK_TENANT_URL.value(),
       });
-    } catch {
-      // Already logged by the ClassLink helper; an unconfirmed owner is rejected.
+    } catch (err) {
+      // A list too long to read stays that way, so it rejects the owner instead of reading as an outage.
+      if (isClassListTruncated(err)) ids = null;
     }
     rosterTaughtCache.set(uid, { ids, at: Date.now() });
     return ids;
@@ -354,6 +355,14 @@ const readBellPeriod = (
     ? { buildingId, periodId }
     : undefined;
 };
+
+const readSectionIds = (raw: unknown[]): string[] =>
+  raw
+    .filter((c): c is string => typeof c === 'string' && c.length > 0)
+    .slice(0, STUDENT_SECTIONS_MAX);
+
+const sameIdList = (a: readonly string[], b: readonly string[]): boolean =>
+  a.length === b.length && a.every((id, i) => id === b[i]);
 
 const sameIdSet = (a: readonly string[], b: readonly string[]): boolean => {
   if (a.length !== b.length) return false;
@@ -721,9 +730,7 @@ export const getStudentClassDirectoryV1 = onCall(
         .catch(() => null);
       const data = sectionsSnap?.exists ? sectionsSnap.data() : undefined;
       if (data && data.orgId === orgId && Array.isArray(data.sectionIds)) {
-        storedSectionIds = (data.sectionIds as unknown[])
-          .filter((c): c is string => typeof c === 'string' && c.length > 0)
-          .slice(0, STUDENT_SECTIONS_MAX);
+        storedSectionIds = readSectionIds(data.sectionIds);
       }
     }
     const candidateIds = [
@@ -866,6 +873,29 @@ export const getStudentClassDirectoryV1 = onCall(
             '[getStudentClassDirectoryV1] createCustomToken failed:',
             safeErr(err)
           );
+        }
+        // The next sign-in keeps an unconfirmed section only if the last claim had it.
+        if (customToken) {
+          const sectionsRef = db.doc(`${STUDENT_SECTIONS_COLLECTION}/${uid}`);
+          const readIds = storedSectionIds;
+          await db
+            .runTransaction(async (tx) => {
+              const cur = (await tx.get(sectionsRef)).data();
+              // A sign-in that rewrote the record since this call read it wins.
+              if (
+                cur?.orgId !== orgId ||
+                !Array.isArray(cur.sectionIds) ||
+                !sameIdList(readSectionIds(cur.sectionIds), readIds)
+              )
+                return;
+              tx.set(sectionsRef, { classIds: nextClaim }, { merge: true });
+            })
+            .catch((err: unknown) => {
+              console.error(
+                '[getStudentClassDirectoryV1] student_sections write failed:',
+                safeErr(err)
+              );
+            });
         }
       }
     }
@@ -1347,6 +1377,17 @@ function assertClassLinkCreds(creds: ClassLinkCreds): void {
   }
 }
 
+const CLASS_LIST_TRUNCATED = 'class-list-truncated';
+
+/** True for the `unavailable` error `loadTeacherClassIds` throws when the class list runs past the page cap. */
+function isClassListTruncated(err: unknown): boolean {
+  return (
+    err instanceof HttpsError &&
+    (err.details as { reason?: unknown } | undefined)?.reason ===
+      CLASS_LIST_TRUNCATED
+  );
+}
+
 /** Log a ClassLink failure by class only and surface it as `unavailable`. */
 function classLinkUnavailable(tag: string, err: unknown): never {
   if (err instanceof HttpsError) throw err;
@@ -1398,7 +1439,12 @@ export async function loadTeacherClassIds(
       'classes',
       creds
     );
-    if (!classes) throw new Error('class list truncated');
+    if (!classes) {
+      console.error('[loadTeacherClassIds] class list truncated');
+      throw new HttpsError('unavailable', 'Roster service unavailable.', {
+        reason: CLASS_LIST_TRUNCATED,
+      });
+    }
     return new Set(
       classes
         .map((c) => c.sourcedId)

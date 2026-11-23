@@ -18,7 +18,6 @@ import { setDoc, getDoc, doc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-superadmin-roleid';
 const ORG_ID = 'orono';
-const NEW_ORG_ID = 'brand-new-org';
 
 const ROLE_SUPER_EMAIL = 'role.super@orono.k12.mn.us';
 const TEACHER_EMAIL = 'plain.teacher@orono.k12.mn.us';
@@ -55,22 +54,6 @@ const asLegacy = () =>
       email_verified: true,
     })
     .firestore();
-
-const orgFields = (id: string) => ({
-  id,
-  name: 'New Org',
-  shortName: 'New',
-  shortCode: 'NEW',
-  state: 'MN',
-  plan: 'basic',
-  aiEnabled: false,
-  primaryAdminEmail: ROLE_SUPER_EMAIL,
-  createdAt: '2026-01-01',
-  users: 0,
-  buildings: 0,
-  status: 'active',
-  seedColor: 'bg-indigo-600',
-});
 
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
@@ -120,12 +103,11 @@ beforeEach(async () => {
 });
 
 describe('super admin via member roleId only', () => {
-  it('member with roleId super_admin can create an organization (super-admin-only)', async () => {
+  const userRoles = { superAdmins: [] };
+
+  it('member with roleId super_admin can write user_roles (super-admin-only)', async () => {
     await assertSucceeds(
-      setDoc(
-        doc(asRoleSuper(), `organizations/${NEW_ORG_ID}`),
-        orgFields(NEW_ORG_ID)
-      )
+      setDoc(doc(asRoleSuper(), 'admin_settings/user_roles'), userRoles)
     );
   });
 
@@ -133,21 +115,15 @@ describe('super admin via member roleId only', () => {
     await assertSucceeds(getDoc(doc(asRoleSuper(), `organizations/${ORG_ID}`)));
   });
 
-  it('plain teacher member is NOT granted super-admin access (org create denied)', async () => {
+  it('plain teacher member is NOT granted super-admin access (user_roles write denied)', async () => {
     await assertFails(
-      setDoc(
-        doc(asTeacher(), `organizations/${NEW_ORG_ID}`),
-        orgFields(NEW_ORG_ID)
-      )
+      setDoc(doc(asTeacher(), 'admin_settings/user_roles'), userRoles)
     );
   });
 
   it('an address only on the retired legacy list is NOT a super admin', async () => {
     await assertFails(
-      setDoc(
-        doc(asLegacy(), `organizations/${NEW_ORG_ID}`),
-        orgFields(NEW_ORG_ID)
-      )
+      setDoc(doc(asLegacy(), 'admin_settings/user_roles'), userRoles)
     );
     await assertFails(getDoc(doc(asLegacy(), `organizations/${ORG_ID}`)));
   });

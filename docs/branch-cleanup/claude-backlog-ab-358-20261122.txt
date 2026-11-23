@@ -1,0 +1,1 @@
+claude/backlog-ab-358-20261122 (AB-358: release paper row deletes the old device's seat)

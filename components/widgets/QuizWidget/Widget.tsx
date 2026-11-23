@@ -79,6 +79,8 @@ import {
 } from '@/utils/questionBanks';
 import {
   assignmentFrozenFileId,
+  paperFrozenFileId,
+  loadPaperQuizWithFallback,
   loadAssignmentAnswerKeyQuiz,
   unfrozenAssignmentCount,
   withCurrentAnswerKeys,
@@ -1508,6 +1510,17 @@ const TeacherQuizWidget: React.FC<{
     },
     [loadQuiz, loadQuizData, loadBankContentsForQuiz]
   );
+
+  // A frozen paper assignment scans and reprints against its copy; bank-draw hybrids and unfrozen ones use the library quiz.
+  const loadPaperQuiz = (
+    assignment: QuizAssignment,
+    meta: QuizMetadata
+  ): Promise<QuizData | null> =>
+    loadPaperQuizWithFallback(
+      paperFrozenFileId(assignment),
+      () => loadAnswerKeyQuiz(meta, assignment),
+      () => loadQuiz(meta)
+    );
 
   // Publish reads the key without the loading pane, which would unmount the open Publish dialog.
   const loadAnswerKeyQuizQuietly = useCallback(
@@ -3515,7 +3528,7 @@ const TeacherQuizWidget: React.FC<{
           paperSheets.enabled && !isReview && user?.uid
             ? async (assignment, opts) => {
                 const meta = paperAssignmentMeta(assignment);
-                const data = await loadQuiz(meta);
+                const data = await loadPaperQuiz(assignment, meta);
                 if (!data) return;
                 const copyIds = assignment.paperCopyBatchIds ?? [];
                 const batches = (
@@ -3543,7 +3556,10 @@ const TeacherQuizWidget: React.FC<{
         onReprintPaperSheets={
           paperUid
             ? async (assignment, opts) => {
-                const data = await loadQuiz(paperAssignmentMeta(assignment));
+                const data = await loadPaperQuiz(
+                  assignment,
+                  paperAssignmentMeta(assignment)
+                );
                 if (!data) return;
                 const stacks = await listPaperBatchesForQuiz(
                   paperUid,
@@ -3764,9 +3780,6 @@ const TeacherQuizWidget: React.FC<{
             assignDriveFileId = resolvedDriveFileId;
             sessionBankSlots = resolved.sessionSlots;
           }
-          const frozenDriveFileId = resolvedDriveFileId
-            ? undefined
-            : await freezeForAssign(data);
 
           // Hidden option ids resolve to option text here so they never reach a student-readable pointer doc.
           const {
@@ -4031,6 +4044,11 @@ const TeacherQuizWidget: React.FC<{
                 ...(release ? { onImagesReady: release } : {}),
               });
           }
+
+          // Frozen after the box setup, so a reprint from the copy matches the printed sheets.
+          const frozenDriveFileId = resolvedDriveFileId
+            ? undefined
+            : await freezeForAssign({ ...data, questions: assignQuestions });
 
           let assignmentSaved = false;
           try {
@@ -5052,14 +5070,23 @@ const TeacherQuizWidget: React.FC<{
               plcMode: !!paperAssignPlc,
               plcId: paperAssignPlc?.plc.id ?? '',
             },
-            onCreateAssignment: async ({ batchId, periodNames, sharing }) => {
+            onCreateAssignment: async ({
+              batchId,
+              periodNames,
+              sharing,
+              quiz,
+            }) => {
               // Pools with the PLC the quiz syncs from unless Sharing was turned off.
-              await createPaperAssignment(paperPrintMeta, paperPrintQuiz, {
-                batchId,
-                periodNames,
-                pool:
-                  paperAssignPlc && sharing?.plcMode ? paperAssignPlc : null,
-              });
+              await createPaperAssignment(
+                paperPrintMeta,
+                quiz ?? paperPrintQuiz,
+                {
+                  batchId,
+                  periodNames,
+                  pool:
+                    paperAssignPlc && sharing?.plcMode ? paperAssignPlc : null,
+                }
+              );
             },
           }}
           rosters={rosters}
@@ -5081,7 +5108,7 @@ const TeacherQuizWidget: React.FC<{
                   // A District library copy is read-only: this print uses the setup and its batch records the layout.
                   if (isDistrictCopy(paperPrintMeta)) {
                     setPaperPrintQuiz(next);
-                    return;
+                    return next;
                   }
                   try {
                     setPaperPrintMeta(
@@ -5099,6 +5126,7 @@ const TeacherQuizWidget: React.FC<{
                     );
                   }
                   setPaperPrintQuiz(next);
+                  return next;
                 }
               : undefined
           }

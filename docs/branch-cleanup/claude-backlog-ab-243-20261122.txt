@@ -1,0 +1,1 @@
+claude/backlog-ab-243-20261122 (AB-243: store re-minted class claims, treat truncated class lists apart from outages)

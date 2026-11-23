@@ -1168,7 +1168,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               : undefined
           }
         />
-        {q.type === 'FIB' && q.calc && (
+        {randomNumbersOn && q.type === 'FIB' && q.calc && (
           <CalcNumbersSection
             question={q}
             onChange={(updates) => updateQuestion(q.id, updates)}
