@@ -25519,133 +25519,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "group-wizard.steps",
-    "label": "Step list in the group editor",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.step",
-    "label": "Students, Symbol, Schedule or Additional settings step in the group editor",
-    "scope": "field",
-    "panel": true,
-    "keys": [
-      "group-wizard#schedule",
-      "group-wizard#settings",
-      "group-wizard#students",
-      "group-wizard#symbol"
-    ],
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.student-search",
-    "label": "Search students box in the group editor",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.student",
-    "label": "Student checkbox in the group editor",
-    "scope": "field",
-    "panel": true,
-    "key_pattern": "group-wizard#row-[1-9]\\d*",
-    "key_hint": "group-wizard#row-1 for the first row",
-    "row_wildcard": true,
-    "row_list": "group-wizard-students",
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.name",
-    "label": "Group name box in the group editor",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
     "id": "group-wizard.icon-search",
-    "label": "Search icons box in the group editor",
+    "label": "Search icons box on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25657,9 +25532,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -25668,7 +25543,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.icon",
-    "label": "Icon button in the group editor",
+    "label": "Icon button on a group page",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -25680,9 +25555,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -25691,7 +25566,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.color",
-    "label": "Color swatch in the group editor",
+    "label": "Color swatch on a group page",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -25703,9 +25578,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -25714,7 +25589,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.preview",
-    "label": "Reminder preview in the group editor",
+    "label": "Reminder preview on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25726,9 +25601,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -25737,7 +25612,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.day",
-    "label": "Weekday button in the group editor Schedule step",
+    "label": "Weekday button in a group page Schedule section",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -25749,9 +25624,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -25760,7 +25635,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.alert-time",
-    "label": "Alert time box in the group editor Schedule step",
+    "label": "Alert time box on a group page",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -25772,9 +25647,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -25783,7 +25658,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.alert-lead",
-    "label": "Pops up dropdown in the group editor Schedule step",
+    "label": "Pops up dropdown on a group page",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -25795,9 +25670,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -25806,7 +25681,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.alert-remove",
-    "label": "Remove time button in the group editor Schedule step",
+    "label": "Remove time button on a group page",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -25818,9 +25693,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -25829,7 +25704,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.add-alert",
-    "label": "Add another time button in the group editor Schedule step",
+    "label": "Add another time button on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25841,9 +25716,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -25852,7 +25727,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.repeat",
-    "label": "Repeats dropdown in the group editor Schedule step",
+    "label": "Repeats dropdown on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25864,9 +25739,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -25875,7 +25750,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.start-date",
-    "label": "Starting date box in the group editor Schedule step",
+    "label": "Starting date box on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25887,9 +25762,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -25898,7 +25773,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.on-board",
-    "label": "Reminder on the board switch in the group editor Schedule step",
+    "label": "Reminder on the board switch on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25910,9 +25785,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -25921,7 +25796,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.sound",
-    "label": "Sound dropdown in the group editor Schedule step",
+    "label": "Sound dropdown on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25933,9 +25808,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -25944,7 +25819,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.play-sound",
-    "label": "Play sound button in the group editor Schedule step",
+    "label": "Play sound button on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25956,9 +25831,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -25967,7 +25842,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.snooze",
-    "label": "Snooze dropdown in the group editor Schedule step",
+    "label": "Snooze dropdown on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25979,9 +25854,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -25990,7 +25865,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.show-name",
-    "label": "Show group name switch in the group editor Schedule step",
+    "label": "Show group name switch on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -26002,9 +25877,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -26013,7 +25888,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.show-time",
-    "label": "Show time switch in the group editor Schedule step",
+    "label": "Show time switch on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -26025,9 +25900,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -26036,7 +25911,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.show-message",
-    "label": "Show a message switch in the group editor Schedule step",
+    "label": "Show a message switch on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -26048,9 +25923,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -26059,7 +25934,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.message",
-    "label": "Message box in the group editor Schedule step",
+    "label": "Message box on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -26071,9 +25946,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -26082,7 +25957,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.email-alert",
-    "label": "Email alert switch in the group editor Schedule step",
+    "label": "Email alert switch on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -26094,9 +25969,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]
@@ -26105,7 +25980,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.email-message",
-    "label": "Email message box in the group editor Schedule step",
+    "label": "Email message box on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -26117,101 +25992,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
+          "roster-groups.edit:roster-groups"
         ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.group-maker",
-    "label": "Enable in Group Maker switch in the group editor Additional settings step",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.cancel",
-    "label": "Cancel button in the group editor",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.next",
-    "label": "Continue button on the open step in the group editor",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.finish",
-    "label": "Save group button in the group editor",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
+        "reveal": "roster-groups.edit:roster-groups",
         "needs": [
           "class"
         ]

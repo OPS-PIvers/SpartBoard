@@ -15,7 +15,6 @@ import {
   RosterBellPeriod,
 } from '@/types';
 import type { BuildingBellPeriodOption } from '@/utils/bellSchedule';
-import { GroupRemindersPanel } from './GroupRemindersPanel';
 import { RosterGroupsPanel } from './RosterGroupsPanel';
 import { RosterAccommodationsByStudent } from './RosterAccommodationsByStudent';
 import { ALL_GROUP_STEPS, type GroupEditorSteps } from '@/utils/groupReminders';
@@ -522,16 +521,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
           )}
         </div>
 
-        {activeTab === 'groups' && roster && groupRemindersEnabled ? (
-          <GroupRemindersPanel
-            rosterName={name.trim()}
-            groups={groups}
-            emailAlertsEnabled={groupReminderEmailsEnabled}
-            steps={groupSteps}
-            students={validStudents}
-            onChange={setGroups}
-          />
-        ) : activeTab === 'groups' && roster ? (
+        {activeTab === 'groups' && roster ? (
           <RosterGroupsPanel
             groups={groups}
             students={validStudents}
@@ -541,6 +531,15 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             readAloudAvailable={readAloudAvailable}
             speechToTextAvailable={speechToTextAvailable}
             onSharingChange={sharingChange}
+            reminders={
+              groupRemindersEnabled
+                ? {
+                    rosterName: name.trim(),
+                    emailAlertsEnabled: groupReminderEmailsEnabled,
+                    steps: groupSteps,
+                  }
+                : undefined
+            }
           />
         ) : activeTab === 'accommodations' && roster ? (
           <RosterAccommodationsByStudent

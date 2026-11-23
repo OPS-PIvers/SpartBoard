@@ -19,6 +19,25 @@ import { StandingAccommodationRules } from './StandingAccommodationRules';
 import { DialogContext } from '@/context/DialogContextValue';
 import { Toggle } from '@/components/common/Toggle';
 import { ROW_BUTTON, lastFirst, sortByLastName } from './rosterGroupsShared';
+import {
+  GroupReminderSection,
+  GroupSymbolSection,
+} from './GroupReminderSections';
+import { useGroupSchedulePrint } from './useGroupSchedulePrint';
+import { GroupSymbol } from '@/components/groupReminders/GroupSymbol';
+import {
+  type GroupEditorSteps,
+  defaultGroupSymbol,
+  formatReminderSummary,
+  groupTint,
+} from '@/utils/groupReminders';
+
+/** Group reminders flag: symbol and schedule on each group, per-step gates. */
+export interface GroupRemindersOptions {
+  rosterName: string;
+  emailAlertsEnabled: boolean;
+  steps: GroupEditorSteps;
+}
 
 export interface RosterGroupsPanelProps {
   groups: RosterGroup[];
@@ -31,6 +50,7 @@ export interface RosterGroupsPanelProps {
   readAloudAvailable: boolean;
   speechToTextAvailable: boolean;
   onSharingChange?: (sharing: boolean) => void;
+  reminders?: GroupRemindersOptions;
 }
 
 /** Joiners get the group's settings; leavers lose them unless another of their groups gives the same. */
@@ -95,8 +115,20 @@ const useConfirmedMembership = () => {
 };
 
 export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
-  const { groups, students, onChange, overrides, onOverridesChange } = props;
+  const {
+    groups,
+    students,
+    onChange,
+    overrides,
+    onOverridesChange,
+    reminders,
+  } = props;
   const { t } = useTranslation();
+  const printSchedule = useGroupSchedulePrint();
+  const [printError, setPrintError] = useState<string | null>(null);
+  const scheduled =
+    !!reminders?.steps.schedule &&
+    groups.some((g) => !!g.reminder?.enabled && g.reminder.days.length > 0);
   const confirmMembership = useConfirmedMembership();
   const [openId, setOpenId] = useState<string | null>(null);
   const [freshId, setFreshId] = useState<string | null>(null);
@@ -113,7 +145,8 @@ export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
       name: '',
       studentIds: [],
       // Hidden from board widgets until the teacher turns it on, so a support group's name stays private.
-      inGroupMaker: false,
+      ...(showsWidgets(reminders) ? { inGroupMaker: false } : {}),
+      ...(reminders?.steps.symbol ? { symbol: defaultGroupSymbol() } : {}),
     };
     onChange([...groups, group]);
     setOpenId(group.id);
@@ -189,6 +222,7 @@ export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
                   rowKey={`group-${index + 1}`}
                   sorted={sorted}
                   overrides={overrides}
+                  reminders={reminders}
                   onEdit={() => setOpenId(group.id)}
                   onDelete={() => remove(group.id)}
                 />
@@ -197,16 +231,36 @@ export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
           </>
         )}
       </div>
+      {printError && (
+        <p
+          role="alert"
+          className="shrink-0 mx-3 mb-2 px-3 py-2 text-xs font-semibold text-red-800 bg-red-50 border border-red-300 rounded-lg"
+        >
+          {printError}
+        </p>
+      )}
       <div className="shrink-0">
         <SplitClassFooter
           students={students}
           onAddGroups={(made) => onChange([...groups, ...made])}
           onNewGroup={groups.length > 0 ? addGroup : undefined}
+          onPrint={
+            scheduled && reminders
+              ? () =>
+                  setPrintError(
+                    printSchedule(reminders.rosterName, groups, students)
+                  )
+              : undefined
+          }
         />
       </div>
     </div>
   );
 };
+
+/** Without Group reminders the Widgets switch always shows; with it, the Additional settings gate decides. */
+const showsWidgets = (reminders?: GroupRemindersOptions) =>
+  !reminders || reminders.steps.settings;
 
 const GroupName: React.FC<{ name: string }> = ({ name }) => {
   const { t } = useTranslation();
@@ -224,10 +278,21 @@ const GroupRow: React.FC<{
   rowKey: string;
   sorted: Student[];
   overrides: Record<string, StudentOverride>;
+  reminders?: GroupRemindersOptions;
   onEdit: () => void;
   onDelete: () => void;
-}> = ({ group, rowKey, sorted, overrides, onEdit, onDelete }) => {
+}> = ({ group, rowKey, sorted, overrides, reminders, onEdit, onDelete }) => {
   const { t } = useTranslation();
+  const r = group.reminder;
+  const schedule =
+    r && r.days.length > 0
+      ? r.enabled
+        ? formatReminderSummary(
+            r,
+            t('groupReminders.everyTwoWeeks', { defaultValue: 'every 2 weeks' })
+          )
+        : t('groupReminders.reminderOff', { defaultValue: 'Off' })
+      : t('groupReminders.reminderNone', { defaultValue: 'None' });
   const members = sorted.filter((s) => group.studentIds.includes(s.id));
   const accommodations = summarizeOverride(
     groupSharedOverride(
@@ -242,6 +307,15 @@ const GroupRow: React.FC<{
       {...tourFieldAttr('roster-groups.row', 'roster-groups', rowKey)}
       className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3 px-4 py-3"
     >
+      {reminders?.steps.symbol && (
+        <span
+          aria-hidden="true"
+          className="hidden sm:flex shrink-0 w-10 h-10 rounded-lg items-center justify-center"
+          style={{ background: groupTint(group.symbol) }}
+        >
+          <GroupSymbol symbol={group.symbol} className="w-6 h-6" />
+        </span>
+      )}
       {/* no-tour-anchor: the row's Edit button is the anchored control */}
       <button
         onClick={onEdit}
@@ -264,14 +338,16 @@ const GroupRow: React.FC<{
                 defaultValue: 'No students yet.',
               })}
         </span>
-        <span className="text-slate-500">
-          <span className="font-semibold text-slate-700">
-            {t('sidebar.classes.widgetsLabel', { defaultValue: 'Widgets:' })}
-          </span>{' '}
-          {group.inGroupMaker === false
-            ? t('sidebar.classes.widgetsHidden', { defaultValue: 'Hidden' })
-            : t('sidebar.classes.widgetsShown', { defaultValue: 'Shown' })}
-        </span>
+        {showsWidgets(reminders) && (
+          <span className="text-slate-500">
+            <span className="font-semibold text-slate-700">
+              {t('sidebar.classes.widgetsLabel', { defaultValue: 'Widgets:' })}
+            </span>{' '}
+            {group.inGroupMaker === false
+              ? t('sidebar.classes.widgetsHidden', { defaultValue: 'Hidden' })
+              : t('sidebar.classes.widgetsShown', { defaultValue: 'Shown' })}
+          </span>
+        )}
         <span className="text-slate-500">
           <span className="font-semibold text-slate-700">
             {t('sidebar.classes.accommodationsLabel', {
@@ -284,6 +360,16 @@ const GroupRow: React.FC<{
                 defaultValue: 'None',
               })}
         </span>
+        {reminders?.steps.schedule && (
+          <span className="text-slate-500">
+            <span className="font-semibold text-slate-700">
+              {t('sidebar.classes.scheduleLabel', {
+                defaultValue: 'Schedule:',
+              })}
+            </span>{' '}
+            {schedule}
+          </span>
+        )}
       </button>
       <div className="flex gap-2">
         <button
@@ -347,6 +433,7 @@ const GroupPage: React.FC<
   readAloudAvailable,
   speechToTextAvailable,
   onSharingChange,
+  reminders,
 }) => {
   const { t } = useTranslation();
   const confirmMembership = useConfirmedMembership();
@@ -436,30 +523,33 @@ const GroupPage: React.FC<
             onChange={changeMembers}
           />
         </Section>
-        <Section
-          title={t('sidebar.classes.widgetsHeading', {
-            defaultValue: 'Widgets',
-          })}
-        >
-          <div className="flex items-center justify-between gap-4 min-h-9">
-            <span className="flex flex-col">
-              <span className="text-sm font-semibold text-slate-800">
-                {showLabel}
+        {showsWidgets(reminders) && (
+          <Section
+            title={t('sidebar.classes.widgetsHeading', {
+              defaultValue: 'Widgets',
+            })}
+          >
+            <div className="flex items-center justify-between gap-4 min-h-9">
+              <span className="flex flex-col">
+                <span className="text-sm font-semibold text-slate-800">
+                  {showLabel}
+                </span>
+                <span className="text-sm text-slate-500">
+                  {t('sidebar.classes.showInWidgetsHint', {
+                    defaultValue:
+                      'Students can see the group name on the board.',
+                  })}
+                </span>
               </span>
-              <span className="text-sm text-slate-500">
-                {t('sidebar.classes.showInWidgetsHint', {
-                  defaultValue: 'Students can see the group name on the board.',
-                })}
-              </span>
-            </span>
-            <Toggle
-              checked={group.inGroupMaker !== false}
-              onChange={(on) => onPatch({ inGroupMaker: on })}
-              label={showLabel}
-              anchor={tourAttr('roster-groups.show-in-widgets')}
-            />
-          </div>
-        </Section>
+              <Toggle
+                checked={group.inGroupMaker !== false}
+                onChange={(on) => onPatch({ inGroupMaker: on })}
+                label={showLabel}
+                anchor={tourAttr('roster-groups.show-in-widgets')}
+              />
+            </div>
+          </Section>
+        )}
         <Section
           title={t('sidebar.classes.accommodationsHeading', {
             defaultValue: 'Accommodations',
@@ -488,6 +578,26 @@ const GroupPage: React.FC<
             </p>
           )}
         </Section>
+        {reminders?.steps.symbol && (
+          <Section
+            title={t('groupReminders.stepSymbol', { defaultValue: 'Symbol' })}
+          >
+            <GroupSymbolSection group={group} onPatch={onPatch} />
+          </Section>
+        )}
+        {reminders?.steps.schedule && (
+          <Section
+            title={t('groupReminders.stepSchedule', {
+              defaultValue: 'Schedule',
+            })}
+          >
+            <GroupReminderSection
+              group={group}
+              emailAlertsEnabled={reminders.emailAlertsEnabled}
+              onPatch={onPatch}
+            />
+          </Section>
+        )}
       </div>
       <div className="flex justify-center px-3 py-3 border-t border-slate-200">
         <button
