@@ -14,6 +14,11 @@ import {
   type AssignStepDef,
 } from '@/components/common/library/assignStepper/assignSteps';
 import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
+import {
+  ALREADY_ASSIGNED_REASON,
+  useAssignOpenCheck,
+  type AssignOpenProps,
+} from '@/components/common/library/assignStepper/assignOpenCheck';
 import { StudentPickMenu } from '@/components/common/library/assignStepper/StudentPickMenu';
 import {
   formatClassesValue,
@@ -59,6 +64,8 @@ export const GuidedLearningAssignStepper: React.FC<{
   periodAccess?: AssignPeriodAccessContext;
   onClose: () => void;
   onAssign: (assign: GuidedLearningStepperAssign) => void | Promise<void>;
+  openAssignments?: AssignOpenProps['openAssignments'];
+  onAddToOpen?: AssignOpenProps['onAddToOpen'];
 }> = ({
   title,
   rosters,
@@ -68,6 +75,8 @@ export const GuidedLearningAssignStepper: React.FC<{
   periodAccess,
   onClose,
   onAssign,
+  openAssignments,
+  onAddToOpen,
 }) => {
   const { t } = useTranslation();
   const visibleRosters = rosters.filter((r) => !r.loadError);
@@ -98,6 +107,12 @@ export const GuidedLearningAssignStepper: React.FC<{
   const [modificationsOpen, setModificationsOpen] = useState(false);
   const audienceState = useAssignAudience();
   const staff = audienceState.audience === 'staff';
+
+  const openCheck = useAssignOpenCheck(
+    staff || !onAddToOpen ? null : openAssignments,
+    visibleRosters,
+    classes
+  );
 
   const picked = staff
     ? []
@@ -137,6 +152,7 @@ export const GuidedLearningAssignStepper: React.FC<{
           body: (
             <div className="space-y-3">
               <ClassChecklist
+                open={openCheck.checklist}
                 rosters={visibleRosters}
                 value={classes}
                 onChange={setClasses}
@@ -200,12 +216,22 @@ export const GuidedLearningAssignStepper: React.FC<{
       }
       steps={steps}
       submitLabel="Assign"
-      onSubmit={handleAssign}
-      disabled={backwards}
+      joining={openCheck.joining}
+      onSubmit={() =>
+        openCheck.joinTarget && onAddToOpen
+          ? onAddToOpen(openCheck.joinTarget.id, openCheck.classIds)
+          : handleAssign()
+      }
+      disabled={openCheck.pickedOpen || (!openCheck.joining && backwards)}
       disabledReason={
-        backwards
-          ? t('assignAvailability.closesBeforeOpens', 'Closes before it opens.')
-          : undefined
+        openCheck.pickedOpen
+          ? ALREADY_ASSIGNED_REASON
+          : backwards
+            ? t(
+                'assignAvailability.closesBeforeOpens',
+                'Closes before it opens.'
+              )
+            : undefined
       }
       overlayView={
         modificationsOpen ? (

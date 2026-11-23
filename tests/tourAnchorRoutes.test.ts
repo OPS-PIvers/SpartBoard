@@ -59,9 +59,15 @@ const AREA_ROOTS: Record<Area, readonly string[]> = {
   guidedLearning: [
     'components/widgets/GuidedLearning/',
     'components/gradebook/',
-    'components/student/',
   ],
   widgets: ['components/widgets/'],
+  studentWall: [
+    'components/activityWall/',
+    'components/activityWall/render/SubmissionCard.tsx',
+  ],
+  studentAssignments: ['components/student/'],
+  studentVideo: ['components/videoActivity/'],
+  studentGuidedLearning: ['components/guidedLearning/'],
 };
 
 const longest = <T>(path: string, entries: [string, T][]): T | undefined => {

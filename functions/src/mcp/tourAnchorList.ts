@@ -3311,6 +3311,1116 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "student.activity-wall.identity-name",
+    "label": "Your name box before a student posts on a wall",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.identity-pin",
+    "label": "Your PIN box before a student posts on a wall",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.identity-continue",
+    "label": "Continue button before a student posts on a wall",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.image-size",
+    "label": "Images size button in the student wall header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.add-post",
+    "label": "Add post (or Add word) button on the student wall",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.like",
+    "label": "Like button on a post on the student wall",
+    "scope": "field",
+    "persists": true,
+    "row_wildcard": true,
+    "row_list": "student-wall-posts",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.comment-name",
+    "label": "Your name box in a post comment form on the student wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "student-wall-posts",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.comment-pin",
+    "label": "PIN box in a post comment form on the student wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "student-wall-posts",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.comment-text",
+    "label": "Leave a comment box on a post on the student wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "student-wall-posts",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.comment-send",
+    "label": "Send comment button on a post on the student wall",
+    "scope": "field",
+    "persists": true,
+    "row_wildcard": true,
+    "row_list": "student-wall-posts",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.reply",
+    "label": "Reply button on a comment on the student wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.reply-name",
+    "label": "Your name box in a reply form on the student wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.reply-pin",
+    "label": "PIN box in a reply form on the student wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.reply-text",
+    "label": "Write a reply box on the student wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.reply-send",
+    "label": "Send reply button on the student wall",
+    "scope": "field",
+    "persists": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.post-edit",
+    "label": "Edit button on the student's own post on the wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "student-wall-posts",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.post-delete",
+    "label": "Delete button on the student's own post on the wall",
+    "scope": "field",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.composer-close",
+    "label": "Close button in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.post-type",
+    "label": "Post type button (Text, Photo, Link and more) in the wall post form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "student-wall#(text|photo|video|file|link)",
+    "key_hint": "student-wall#photo for the Photo button",
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.word",
+    "label": "Your word or phrase box in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.title",
+    "label": "Title box in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.body",
+    "label": "Your response box in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.link-url",
+    "label": "Link box in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.link-title",
+    "label": "Say something about it box for a link in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.file-pick",
+    "label": "Photo, video or file upload area in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.file-remove",
+    "label": "Remove button for the picked file in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.column",
+    "label": "Column picker in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.table-row",
+    "label": "Row picker in the wall post form on a table wall",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.table-column",
+    "label": "Column picker in the wall post form on a table wall",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.group",
+    "label": "Group picker in the wall post form on a timeline",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.date-year",
+    "label": "Year box for the start or end date in the wall post form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "student-wall#(start|end)",
+    "key_hint": "student-wall#start for the start date",
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.date-era",
+    "label": "Era picker for the start or end date in the wall post form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "student-wall#(start|end)",
+    "key_hint": "student-wall#start for the start date",
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.date-accuracy",
+    "label": "Accuracy picker for the date in the wall post form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "student-wall#start",
+    "key_hint": "student-wall#start",
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.date-month",
+    "label": "Month picker for the start or end date in the wall post form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "student-wall#(start|end)",
+    "key_hint": "student-wall#start for the start date",
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.date-day",
+    "label": "Day picker for the start or end date in the wall post form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "student-wall#(start|end)",
+    "key_hint": "student-wall#start for the start date",
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.add-end-date",
+    "label": "Add end date button in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.remove-end-date",
+    "label": "Remove end date button in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.when-label",
+    "label": "When box in the wall post form on a timeline without dates",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.pin-coordinates",
+    "label": "Enter coordinates button under the map in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.pin-latitude",
+    "label": "Latitude box in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.pin-longitude",
+    "label": "Longitude box in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.pin-set",
+    "label": "Set pin button in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.post-submit",
+    "label": "Post (or Save) button in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.class-menu",
+    "label": "Class name button that opens the class list on a phone",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.overview",
+    "label": "Overview row in the student class list",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.class",
+    "label": "A class in the student class list, keyed row-N",
+    "scope": "field",
+    "key_pattern": "student-assignments#row-[1-9]\\d*",
+    "key_hint": "student-assignments#row-1 for the first class",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.sign-out",
+    "label": "Sign out button on My Assignments",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.tab",
+    "label": "Assignments, Resources and Completed tabs for a class",
+    "scope": "field",
+    "key_pattern": "student-assignments#(assignments|resources|completed)",
+    "key_hint": "student-assignments#resources for the Resources tab",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.see-resources",
+    "label": "See resources link when a class has no work left",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.see-all",
+    "label": "See all assignments link on the Overview",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.see-all-resources",
+    "label": "See all resources link on the Overview",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.live-join",
+    "label": "Join button on a live assignment banner",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.work-row",
+    "label": "An assignment row on My Assignments",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "student-work",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.resource-row",
+    "label": "A resource row on My Assignments",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "student-resources",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.gallery",
+    "label": "Gallery link on an Activity Wall resource row",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "student-resources",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.agenda-open",
+    "label": "Open in Google Slides link under a class Agenda",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.class-link",
+    "label": "A pinned link on a class page, keyed row-N",
+    "scope": "field",
+    "key_pattern": "student-assignments#row-[1-9]\\d*",
+    "key_hint": "student-assignments#row-1 for the first link",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.done",
+    "label": "Done button in the student page header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
     "id": "time-tool.start-pause",
     "label": "Start or pause button in Timer/Stopwatch",
     "scope": "widget",
@@ -5559,6 +6669,32 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "key_hint": "assign#row-1 for the first row",
     "row_wildcard": true,
     "row_list": "assign-classes",
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "assign-classes.add-to-open",
+    "label": "Add to the open assignment choice in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "assign-classes.assign-separately",
+    "label": "Make a separate assignment choice in the Assign dialog",
+    "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -59621,6 +60757,235 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "gl-player.video-close",
+    "label": "Close button on a video step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.answer-choice",
+    "label": "Answer choice on a multiple choice step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.match-select",
+    "label": "Match picker on a matching step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.sort-up",
+    "label": "Move up button on a sorting step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.sort-down",
+    "label": "Move down button on a sorting step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.question-submit",
+    "label": "Submit button on a question step in the player",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.change-answer",
+    "label": "Change answer button on a question step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.question-continue",
+    "label": "Continue button after answering a question step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.reveal-answer",
+    "label": "Show answer button on a question step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.popover-close",
+    "label": "Close button on a text popover in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.banner-close",
+    "label": "Close button on a banner in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.audio-play",
+    "label": "Play or pause button on an audio step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
     "id": "gl-results.back",
     "label": "Back button in the results header",
     "scope": "board",
@@ -76854,7 +78219,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "routes": [
       {
-        "surface": "guidedLearning.student-app",
+        "surface": "student-assignments.page",
         "kind": "page",
         "url": "/my-assignments",
         "path": [],
@@ -76870,7 +78235,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "routes": [
       {
-        "surface": "guidedLearning.student-app",
+        "surface": "student-assignments.page",
         "kind": "page",
         "url": "/my-assignments",
         "path": [],
@@ -76886,7 +78251,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "routes": [
       {
-        "surface": "guidedLearning.student-app",
+        "surface": "student-assignments.page",
         "kind": "page",
         "url": "/my-assignments",
         "path": [],
@@ -76902,7 +78267,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "routes": [
       {
-        "surface": "guidedLearning.student-app",
+        "surface": "student-assignments.page",
         "kind": "page",
         "url": "/my-assignments",
         "path": [],
@@ -84274,6 +85639,447 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.flashcard-share",
         "kind": "modal",
         "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.period-option",
+    "label": "Class option on the student Video Activity class picker",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.period-continue",
+    "label": "Continue button on the student Video Activity class picker",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.period-back",
+    "label": "Go Back button on the student Video Activity class picker",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.pin",
+    "label": "PIN box on the student Video Activity join page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.join",
+    "label": "Join button on the student Video Activity join page",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.answer-option",
+    "label": "Answer choice on a student Video Activity question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.answer-check",
+    "label": "Answer checkbox on a student Video Activity choose-all question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.answer-blank",
+    "label": "Fill in the blank box on a student Video Activity question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.answer-text",
+    "label": "Written answer box on a student Video Activity question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.submit-answer",
+    "label": "Submit Answer button on a student Video Activity question",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.live-submit",
+    "label": "Submit button on a live student Video Activity question",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.note-continue",
+    "label": "Continue button on a student Video Activity note stop",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.resume",
+    "label": "Resume Activity button after a teacher unlocks a student Video Activity",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.tab-warning-return",
+    "label": "Return to Activity button on the student Video Activity tab warning",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.finish",
+    "label": "Finish activity button when a student Video Activity submit failed",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.finish-retry",
+    "label": "Try again button on the student Video Activity finished page",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.back-link",
+    "label": "Back to my assignments link in the student Video Activity",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.error-retry",
+    "label": "Try again button on the student Video Activity error page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.video-retry",
+    "label": "Try again button when the student Video Activity video fails",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.period-option",
+    "label": "Class option on the student Guided Learning class picker",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.change-class",
+    "label": "Change class button on the student Guided Learning start page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.pin",
+    "label": "PIN box on the student Guided Learning start page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.start",
+    "label": "Start button on the student Guided Learning start page",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.done",
+    "label": "Done button in the student Guided Learning player",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.finished-submit",
+    "label": "Submit button on the student Guided Learning finished card",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.finished-back",
+    "label": "Back button on the student Guided Learning finished card",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.replay",
+    "label": "Replay button on the student Guided Learning end page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
       }
     ]
   }

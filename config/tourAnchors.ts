@@ -757,6 +757,288 @@ export const TOUR_ANCHORS = {
     label: "Edit wall button on a colleague's Activity Wall",
     perWidget: true,
   },
+  // Student Activity Wall page (/activity-wall/{sessionId}).
+  'student.activity-wall.identity-name': {
+    label: 'Your name box before a student posts on a wall',
+  },
+  'student.activity-wall.identity-pin': {
+    label: 'Your PIN box before a student posts on a wall',
+  },
+  'student.activity-wall.identity-continue': {
+    label: 'Continue button before a student posts on a wall',
+  },
+  'student.activity-wall.image-size': {
+    label: 'Images size button in the student wall header',
+  },
+  'student.activity-wall.add-post': {
+    label: 'Add post (or Add word) button on the student wall',
+  },
+  'student.activity-wall.like': {
+    label: 'Like button on a post on the student wall',
+    perField: true,
+    persists: true,
+    rows: true,
+    rowList: 'student-wall-posts',
+  },
+  'student.activity-wall.comment-name': {
+    label: 'Your name box in a post comment form on the student wall',
+    perField: true,
+    rows: true,
+    rowList: 'student-wall-posts',
+  },
+  'student.activity-wall.comment-pin': {
+    label: 'PIN box in a post comment form on the student wall',
+    perField: true,
+    rows: true,
+    rowList: 'student-wall-posts',
+  },
+  'student.activity-wall.comment-text': {
+    label: 'Leave a comment box on a post on the student wall',
+    perField: true,
+    rows: true,
+    rowList: 'student-wall-posts',
+  },
+  'student.activity-wall.comment-send': {
+    label: 'Send comment button on a post on the student wall',
+    perField: true,
+    persists: true,
+    rows: true,
+    rowList: 'student-wall-posts',
+  },
+  'student.activity-wall.reply': {
+    label: 'Reply button on a comment on the student wall',
+    perField: true,
+    rows: true,
+  },
+  'student.activity-wall.reply-name': {
+    label: 'Your name box in a reply form on the student wall',
+    perField: true,
+    rows: true,
+  },
+  'student.activity-wall.reply-pin': {
+    label: 'PIN box in a reply form on the student wall',
+    perField: true,
+    rows: true,
+  },
+  'student.activity-wall.reply-text': {
+    label: 'Write a reply box on the student wall',
+    perField: true,
+    rows: true,
+  },
+  'student.activity-wall.reply-send': {
+    label: 'Send reply button on the student wall',
+    perField: true,
+    persists: true,
+    rows: true,
+  },
+  'student.activity-wall.post-edit': {
+    label: "Edit button on the student's own post on the wall",
+    perField: true,
+    rows: true,
+    rowList: 'student-wall-posts',
+  },
+  'student.activity-wall.post-delete': {
+    label: "Delete button on the student's own post on the wall",
+    perField: true,
+    destructive: true,
+  },
+  'student.activity-wall.composer-close': {
+    label: 'Close button in the wall post form',
+    panel: true,
+    closes: 'own',
+  },
+  'student.activity-wall.post-type': {
+    label:
+      'Post type button (Text, Photo, Link and more) in the wall post form',
+    perField: true,
+    keyPattern: 'student-wall#(text|photo|video|file|link)',
+    keyHint: 'student-wall#photo for the Photo button',
+    panel: true,
+  },
+  'student.activity-wall.word': {
+    label: 'Your word or phrase box in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.title': {
+    label: 'Title box in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.body': {
+    label: 'Your response box in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.link-url': {
+    label: 'Link box in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.link-title': {
+    label: 'Say something about it box for a link in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.file-pick': {
+    label: 'Photo, video or file upload area in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.file-remove': {
+    label: 'Remove button for the picked file in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.column': {
+    label: 'Column picker in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.table-row': {
+    label: 'Row picker in the wall post form on a table wall',
+    panel: true,
+  },
+  'student.activity-wall.table-column': {
+    label: 'Column picker in the wall post form on a table wall',
+    panel: true,
+  },
+  'student.activity-wall.group': {
+    label: 'Group picker in the wall post form on a timeline',
+    panel: true,
+  },
+  'student.activity-wall.date-year': {
+    label: 'Year box for the start or end date in the wall post form',
+    perField: true,
+    keyPattern: 'student-wall#(start|end)',
+    keyHint: 'student-wall#start for the start date',
+    panel: true,
+  },
+  'student.activity-wall.date-era': {
+    label: 'Era picker for the start or end date in the wall post form',
+    perField: true,
+    keyPattern: 'student-wall#(start|end)',
+    keyHint: 'student-wall#start for the start date',
+    panel: true,
+  },
+  'student.activity-wall.date-accuracy': {
+    label: 'Accuracy picker for the date in the wall post form',
+    perField: true,
+    keyPattern: 'student-wall#start',
+    keyHint: 'student-wall#start',
+    panel: true,
+  },
+  'student.activity-wall.date-month': {
+    label: 'Month picker for the start or end date in the wall post form',
+    perField: true,
+    keyPattern: 'student-wall#(start|end)',
+    keyHint: 'student-wall#start for the start date',
+    panel: true,
+  },
+  'student.activity-wall.date-day': {
+    label: 'Day picker for the start or end date in the wall post form',
+    perField: true,
+    keyPattern: 'student-wall#(start|end)',
+    keyHint: 'student-wall#start for the start date',
+    panel: true,
+  },
+  'student.activity-wall.add-end-date': {
+    label: 'Add end date button in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.remove-end-date': {
+    label: 'Remove end date button in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.when-label': {
+    label: 'When box in the wall post form on a timeline without dates',
+    panel: true,
+  },
+  'student.activity-wall.pin-coordinates': {
+    label: 'Enter coordinates button under the map in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.pin-latitude': {
+    label: 'Latitude box in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.pin-longitude': {
+    label: 'Longitude box in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.pin-set': {
+    label: 'Set pin button in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.post-submit': {
+    label: 'Post (or Save) button in the wall post form',
+    panel: true,
+    persists: true,
+  },
+
+  // Student My Assignments page (/my-assignments).
+  'student.assignments.class-menu': {
+    label: 'Class name button that opens the class list on a phone',
+  },
+  'student.assignments.overview': {
+    label: 'Overview row in the student class list',
+  },
+  'student.assignments.class': {
+    label: 'A class in the student class list, keyed row-N',
+    perField: true,
+    keyPattern: 'student-assignments#row-[1-9]\\d*',
+    keyHint: 'student-assignments#row-1 for the first class',
+    rows: true,
+  },
+  'student.assignments.sign-out': {
+    label: 'Sign out button on My Assignments',
+    persists: true,
+  },
+  'student.assignments.tab': {
+    label: 'Assignments, Resources and Completed tabs for a class',
+    perField: true,
+    keyPattern: 'student-assignments#(assignments|resources|completed)',
+    keyHint: 'student-assignments#resources for the Resources tab',
+  },
+  'student.assignments.see-resources': {
+    label: 'See resources link when a class has no work left',
+  },
+  'student.assignments.see-all': {
+    label: 'See all assignments link on the Overview',
+  },
+  'student.assignments.see-all-resources': {
+    label: 'See all resources link on the Overview',
+  },
+  'student.assignments.live-join': {
+    label: 'Join button on a live assignment banner',
+    perField: true,
+    rows: true,
+  },
+  'student.assignments.work-row': {
+    label: 'An assignment row on My Assignments',
+    perField: true,
+    rows: true,
+    rowList: 'student-work',
+  },
+  'student.assignments.resource-row': {
+    label: 'A resource row on My Assignments',
+    perField: true,
+    rows: true,
+    rowList: 'student-resources',
+  },
+  'student.assignments.gallery': {
+    label: 'Gallery link on an Activity Wall resource row',
+    perField: true,
+    rows: true,
+    rowList: 'student-resources',
+  },
+  'student.assignments.agenda-open': {
+    label: 'Open in Google Slides link under a class Agenda',
+    perField: true,
+    rows: true,
+  },
+  'student.assignments.class-link': {
+    label: 'A pinned link on a class page, keyed row-N',
+    perField: true,
+    keyPattern: 'student-assignments#row-[1-9]\\d*',
+    keyHint: 'student-assignments#row-1 for the first link',
+    rows: true,
+  },
+  'student.assignments.done': {
+    label: 'Done button in the student page header',
+  },
   'time-tool.start-pause': {
     label: 'Start or pause button in Timer/Stopwatch',
     perWidget: true,
@@ -1375,6 +1657,14 @@ export const TOUR_ANCHORS = {
     panel: true,
     rows: true,
     rowList: 'assign-classes',
+  },
+  'assign-classes.add-to-open': {
+    label: 'Add to the open assignment choice in the Assign dialog',
+    panel: true,
+  },
+  'assign-classes.assign-separately': {
+    label: 'Make a separate assignment choice in the Assign dialog',
+    panel: true,
   },
   'assign-classes.select-all': {
     label: 'Select all button in the Assign dialog class list',
@@ -13792,6 +14082,41 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'gl-player.scrubber': { label: 'Watch scrubber in the player' },
+  'gl-player.video-close': {
+    label: 'Close button on a video step in the player',
+  },
+  'gl-player.answer-choice': {
+    label: 'Answer choice on a multiple choice step in the player',
+  },
+  'gl-player.match-select': {
+    label: 'Match picker on a matching step in the player',
+  },
+  'gl-player.sort-up': {
+    label: 'Move up button on a sorting step in the player',
+  },
+  'gl-player.sort-down': {
+    label: 'Move down button on a sorting step in the player',
+  },
+  'gl-player.question-submit': {
+    label: 'Submit button on a question step in the player',
+    persists: true,
+  },
+  'gl-player.change-answer': {
+    label: 'Change answer button on a question step in the player',
+  },
+  'gl-player.question-continue': {
+    label: 'Continue button after answering a question step in the player',
+  },
+  'gl-player.reveal-answer': {
+    label: 'Show answer button on a question step in the player',
+  },
+  'gl-player.popover-close': {
+    label: 'Close button on a text popover in the player',
+  },
+  'gl-player.banner-close': { label: 'Close button on a banner in the player' },
+  'gl-player.audio-play': {
+    label: 'Play or pause button on an audio step in the player',
+  },
   'gl-results.back': { label: 'Back button in the results header' },
   'gl-results.export': { label: 'Export button in the results header' },
   'gl-results.class-picker': { label: 'Class picker select in results' },
@@ -19650,6 +19975,99 @@ export const TOUR_ANCHORS = {
     label: 'Embed code box in the flashcard Share dialog',
     perWidgetType: true,
     panel: true,
+  },
+  'student.video-activity.period-option': {
+    label: 'Class option on the student Video Activity class picker',
+  },
+  'student.video-activity.period-continue': {
+    label: 'Continue button on the student Video Activity class picker',
+    persists: true,
+  },
+  'student.video-activity.period-back': {
+    label: 'Go Back button on the student Video Activity class picker',
+  },
+  'student.video-activity.pin': {
+    label: 'PIN box on the student Video Activity join page',
+  },
+  'student.video-activity.join': {
+    label: 'Join button on the student Video Activity join page',
+    persists: true,
+  },
+  'student.video-activity.answer-option': {
+    label: 'Answer choice on a student Video Activity question',
+  },
+  'student.video-activity.answer-check': {
+    label: 'Answer checkbox on a student Video Activity choose-all question',
+  },
+  'student.video-activity.answer-blank': {
+    label: 'Fill in the blank box on a student Video Activity question',
+  },
+  'student.video-activity.answer-text': {
+    label: 'Written answer box on a student Video Activity question',
+  },
+  'student.video-activity.submit-answer': {
+    label: 'Submit Answer button on a student Video Activity question',
+    persists: true,
+  },
+  'student.video-activity.live-submit': {
+    label: 'Submit button on a live student Video Activity question',
+    persists: true,
+  },
+  'student.video-activity.note-continue': {
+    label: 'Continue button on a student Video Activity note stop',
+  },
+  'student.video-activity.resume': {
+    label:
+      'Resume Activity button after a teacher unlocks a student Video Activity',
+  },
+  'student.video-activity.tab-warning-return': {
+    label:
+      'Return to Activity button on the student Video Activity tab warning',
+  },
+  'student.video-activity.finish': {
+    label: 'Finish activity button when a student Video Activity submit failed',
+    persists: true,
+  },
+  'student.video-activity.finish-retry': {
+    label: 'Try again button on the student Video Activity finished page',
+    persists: true,
+  },
+  'student.video-activity.back-link': {
+    label: 'Back to my assignments link in the student Video Activity',
+  },
+  'student.video-activity.error-retry': {
+    label: 'Try again button on the student Video Activity error page',
+  },
+  'student.video-activity.video-retry': {
+    label: 'Try again button when the student Video Activity video fails',
+  },
+
+  'student.guided-learning.period-option': {
+    label: 'Class option on the student Guided Learning class picker',
+  },
+  'student.guided-learning.change-class': {
+    label: 'Change class button on the student Guided Learning start page',
+  },
+  'student.guided-learning.pin': {
+    label: 'PIN box on the student Guided Learning start page',
+  },
+  'student.guided-learning.start': {
+    label: 'Start button on the student Guided Learning start page',
+    persists: true,
+  },
+  'student.guided-learning.done': {
+    label: 'Done button in the student Guided Learning player',
+    persists: true,
+  },
+  'student.guided-learning.finished-submit': {
+    label: 'Submit button on the student Guided Learning finished card',
+    persists: true,
+  },
+  'student.guided-learning.finished-back': {
+    label: 'Back button on the student Guided Learning finished card',
+  },
+  'student.guided-learning.replay': {
+    label: 'Replay button on the student Guided Learning end page',
   },
 } as const satisfies Record<string, TourAnchorDef>;
 

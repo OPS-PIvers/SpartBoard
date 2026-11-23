@@ -26,6 +26,11 @@ import {
   type AssignStepId,
 } from './assignSteps';
 import { ClassChecklist } from './ClassChecklist';
+import {
+  ALREADY_ASSIGNED_REASON,
+  useAssignOpenCheck,
+  type AssignOpenProps,
+} from './assignOpenCheck';
 import { useAssignAudience, withAudienceSwitch } from './assignAudience';
 import { StudentPickMenu } from './StudentPickMenu';
 import {
@@ -88,6 +93,8 @@ export interface VideoAssignStepperProps {
   /** Prefill for the rule steps. */
   initialRules: VideoAssignRules;
   onSubmit: (result: VideoAssignStepperResult) => Promise<void>;
+  openAssignments?: AssignOpenProps['openAssignments'];
+  onAddToOpen?: AssignOpenProps['onAddToOpen'];
 }
 
 export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
@@ -103,6 +110,8 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
   error,
   initialRules,
   onSubmit,
+  openAssignments,
+  onAddToOpen,
 }) => {
   const { pageProtectionsOn } = useQuizRuleGates();
   const { t } = useTranslation();
@@ -178,6 +187,12 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
       : []
   );
   const variant = live ? 'live' : 'when';
+  const openCheck = useAssignOpenCheck(
+    live || staff || !onAddToOpen ? null : openAssignments,
+    visibleRosters,
+    classes,
+    'student'
+  );
 
   const bodies: Record<AssignStepId, () => AssignStepDef | null> = {
     modifications: () => null,
@@ -192,6 +207,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
             value={classes}
             onChange={setClasses}
             singleSelect={live}
+            open={openCheck.checklist}
           />
           {!live && (
             <>
@@ -326,17 +342,27 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
       steps={steps}
       submitLabel={live ? 'Start live' : 'Assign'}
       submitIcon={live ? Play : undefined}
-      onSubmit={submit}
-      disabled={plcMissing || backwards}
+      joining={openCheck.joining}
+      onSubmit={() =>
+        openCheck.joinTarget && onAddToOpen
+          ? onAddToOpen(openCheck.joinTarget.id, openCheck.classIds)
+          : submit()
+      }
+      disabled={
+        openCheck.pickedOpen ||
+        (!openCheck.joining && (plcMissing || backwards))
+      }
       disabledReason={
-        plcMissing
-          ? 'Pick a PLC to share with'
-          : backwards
-            ? t(
-                'assignAvailability.closesBeforeOpens',
-                'Closes before it opens.'
-              )
-            : undefined
+        openCheck.pickedOpen
+          ? ALREADY_ASSIGNED_REASON
+          : plcMissing
+            ? 'Pick a PLC to share with'
+            : backwards
+              ? t(
+                  'assignAvailability.closesBeforeOpens',
+                  'Closes before it opens.'
+                )
+              : undefined
       }
       overlayView={
         modsOpen && !live ? (

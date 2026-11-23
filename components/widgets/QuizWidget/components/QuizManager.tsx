@@ -148,6 +148,10 @@ import { earliestDueAt } from '@/utils/perClassDueDates';
 import { AssignmentClassNames } from '@/components/common/library/AssignmentClassNames';
 import { applyWhen } from '@/utils/assignAvailability';
 import { QuizAssignStepper } from './QuizAssignStepper';
+import {
+  quizOpenInputs,
+  withoutLiveClasses,
+} from '@/utils/openAssignmentClasses';
 import type { PrintedGroupPick } from '@/components/common/library/assignStepper/modificationGroups';
 import {
   DEFAULT_WRITTEN_ANSWERS,
@@ -534,6 +538,11 @@ interface QuizManagerProps {
   onPreviewBank?: (source: BankSource) => void;
   assignments?: QuizAssignment[];
   assignmentsLoading?: boolean;
+  /** Adds classes to an open assignment, from Assign's "Add to the X assignment". */
+  onAddClassesToAssignment?: (
+    assignmentId: string,
+    rosterIds: string[]
+  ) => Promise<boolean>;
   onArchiveCopyUrl?: (assignment: QuizAssignment) => void;
   onArchiveMonitor?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Opens the frozen copy students have; absent without the quiz-student-view flag. */
@@ -897,6 +906,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onPreviewBank,
   assignments = [],
   assignmentsLoading = false,
+  onAddClassesToAssignment,
   onArchiveCopyUrl,
   onArchiveMonitor,
   onArchiveStudentView,
@@ -937,6 +947,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 }) => {
   const isReview = variant === 'review';
   const { canAccessFeature } = useAuth();
+  const openCheckOn = canAccessFeature('assign-open-check');
   // ASSIGNED_TAB.md D12/D19: Library and Assigned, Quiz only, behind the preview flag.
   const assignedOn =
     !isReview && !!classLifecycle && canAccessFeature('assigned-tab');
@@ -1131,14 +1142,27 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       assignWhenState.reseed(quizWhenSeed());
       // eslint-disable-next-line react-hooks/refs -- reset with the adjust-state-while-rendering block
       loadedAssignQuizDataForRef.current = null;
+      const defaults = buildDefaultAssignOptions(
+        config,
+        assignTarget.id,
+        rosters,
+        defaultTeacherName,
+        resolveDefaultPlcSelection(assignTarget, config, plcs, syncedGroups)
+      );
+      // A remembered class that already has this quiz open would make a second copy.
       setAssignOptions(
-        buildDefaultAssignOptions(
-          config,
-          assignTarget.id,
-          rosters,
-          defaultTeacherName,
-          resolveDefaultPlcSelection(assignTarget, config, plcs, syncedGroups)
-        )
+        openCheckOn
+          ? {
+              ...defaults,
+              picker: {
+                ...defaults.picker,
+                rosterIds: withoutLiveClasses(
+                  defaults.picker.rosterIds,
+                  quizOpenInputs(assignments, assignTarget.id, rosters)
+                ),
+              },
+            }
+          : defaults
       );
     }
   }
@@ -3408,6 +3432,19 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onClose={resetAssign}
           onSubmit={handleStepperAssign}
           error={assignError}
+          {...(openCheckOn && onAddClassesToAssignment
+            ? {
+                openAssignments: quizOpenInputs(
+                  assignments,
+                  assignTarget.id,
+                  rosters
+                ),
+                onAddToOpen: async (id: string, rosterIds: string[]) => {
+                  if (await onAddClassesToAssignment(id, rosterIds))
+                    resetAssign();
+                },
+              }
+            : {})}
         />
       )}
 

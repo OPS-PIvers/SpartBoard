@@ -65,6 +65,7 @@ import {
   Settings2,
   Users,
   UserCheck,
+  CopyX,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1794,6 +1795,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: GraduationCap,
     description:
       'Students get a Help button with live tours. Admins record them in View as student.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'assign-open-check': {
+    label: 'Assign: no duplicate classes',
+    icon: CopyX,
+    description:
+      'Assign locks classes that already have the item open. New classes can join that assignment.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

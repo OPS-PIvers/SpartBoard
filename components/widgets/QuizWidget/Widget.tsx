@@ -28,6 +28,8 @@ import {
   previousRosterIdsFor,
   uncheckedRosterClassIds,
 } from '@/utils/assignmentClassEdit';
+import { dueLockAt } from '@/utils/periodAccess';
+import { addToOpenAssignment } from '@/utils/openAssignmentClasses';
 import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { isGameSession } from '@/utils/reviewResults';
 import { useReviewLaunch } from './useReviewLaunch';
@@ -315,6 +317,10 @@ import {
 } from '@/hooks/useSetAssignmentTargets';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
+import {
+  expandMixedTargeting,
+  savedStudentsByClass,
+} from '@/utils/assignTargets';
 import {
   buildAssignCreateOptions,
   buildAssignedWidgetConfig,
@@ -3038,6 +3044,24 @@ const TeacherQuizWidget: React.FC<{
     );
   }
 
+  // Assign's "Add to the X assignment": the picked classes join an open copy instead of a new one.
+  const addClassesToAssignment = (
+    assignmentId: string,
+    addRosterIds: string[]
+  ): Promise<boolean> => {
+    const target = assignments.find((a) => a.id === assignmentId);
+    return addToOpenAssignment({
+      assignments,
+      assignmentId,
+      rosters,
+      addRosterIds,
+      dueLockAt: target ? dueLockAt(target) : null,
+      save: (a, edit) =>
+        setAssignmentRosters(a.id, edit, edit.periodAccessRows, [], []),
+      toast: addToast,
+    });
+  };
+
   // The live session's Tab warnings value wins, since the old monitor switch wrote only the session.
   const withLiveTabWarnings = (a: QuizAssignment): QuizAssignment =>
     liveSession?.id === a.id && liveSession.tabWarningsEnabled !== undefined
@@ -3157,24 +3181,46 @@ const TeacherQuizWidget: React.FC<{
             );
           }
           // Modifications save the way the Assignments hub edits them: the assignment and each student's copy.
-          if (extra?.overridesByKey && user?.uid) {
+          if ((extra?.overridesByKey || extra?.classes) && user?.uid) {
             const saved = assignments.find((a) => a.id === target.id) ?? target;
             const row = quizAssignmentRow(
               saved,
               new Map(rosters.map((r) => [r.id, r.name]))
             );
             const classIds = rosterIds ?? previousRosterIdsFor(saved, rosters);
+            const next = {
+              ...assignmentRowToTargetingValue(row),
+              ...(extra.overridesByKey
+                ? { overridesByKey: extra.overridesByKey }
+                : {}),
+            };
+            const previousClassIds = saved.studentTargetClassIds ?? [];
+            // Narrowed classes save their picks; the class-wide path would re-target the whole class.
+            const mixedClasses =
+              saved.targetMode !== 'students' &&
+              (extra.classes ??
+                (previousClassIds.length > 0
+                  ? {
+                      classIds,
+                      studentsByClass: savedStudentsByClass(saved, rosters),
+                    }
+                  : undefined));
             const result = await saveTargetingEdit(
               row,
               user.uid,
-              {
-                ...assignmentRowToTargetingValue(row),
-                overridesByKey: extra.overridesByKey,
-              },
+              next,
               {
                 rosters: rosters.filter((r) => classIds.includes(r.id)),
                 selectedRosterIds: classIds,
-              }
+              },
+              mixedClasses
+                ? {
+                    previousClassIds,
+                    current: expandMixedTargeting(next, mixedClasses, rosters, {
+                      useRosterDefaults: false,
+                    }),
+                  }
+                : undefined
             );
             if (result.skipped.length > 0)
               addToast(
@@ -3467,6 +3513,7 @@ const TeacherQuizWidget: React.FC<{
         periodAccess={assignPeriodCtx}
         defaultTeacherName={user?.displayName ?? undefined}
         assignmentMode={quizAssignmentMode}
+        onAddClassesToAssignment={addClassesToAssignment}
         quizzes={quizzes}
         folderDeleteActions={{
           isBlocked: (id) =>

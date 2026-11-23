@@ -366,12 +366,4 @@ export const SURFACES: TourSurfaceMap = {
       'gradebook.student.preview-exit': 'gradebook.student.preview',
     },
   },
-  'guidedLearning.student-app': {
-    label:
-      'Student assignments and Gradebook tab (student app, /my-assignments)',
-    kind: 'page',
-    url: '/my-assignments',
-    needs: ['student-data'],
-    files: ['components/student/'],
-  },
 };
