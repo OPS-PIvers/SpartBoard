@@ -348,21 +348,13 @@ function startHostOf(set: GuidedLearningSet): string | undefined {
   return host ? host.replace(/^www\./, '') : undefined;
 }
 
-/** The tour's own summary, its starting site and today's date, for the article around the steps. */
-export function articleExtrasOf(
-  set: GuidedLearningSet,
-  now: Date = new Date()
-): ArticleExtras {
+/** The tour's own summary and its starting site, for the article around the steps. */
+export function articleExtrasOf(set: GuidedLearningSet): ArticleExtras {
   const intro = set.description?.trim();
   const startHost = startHostOf(set);
   return {
     ...(intro ? { intro } : {}),
     ...(startHost ? { startHost } : {}),
-    updated: now.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }),
   };
 }
 
@@ -375,7 +367,15 @@ export async function webTourStepsHtml(
 ): Promise<{ html: string; missing: number }> {
   const { steps, pictures, missing } = await webTourExportParts(setId, set);
   return {
-    html: buildStepsHtml(title, steps, pictures, labels, articleExtrasOf(set)),
+    // A help desk shows its own modified date, so only the file carries one.
+    html: buildStepsHtml(title, steps, pictures, labels, {
+      ...articleExtrasOf(set),
+      updated: new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
+    }),
     missing,
   };
 }
