@@ -1,6 +1,7 @@
 import React from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { MAX_ZOOM, MIN_ZOOM } from './useStimulusZoom';
+import { tourAttr } from '@/config/tourAnchors';
 
 const mm = (px: number, cqmin: number) => `min(${px}px, ${cqmin}cqmin)`;
 
@@ -41,7 +42,7 @@ export const StimulusZoomBar: React.FC<{
         {children}
       </div>
       <button
-        // no-tour-anchor: student quiz screen; tours walk teachers
+        {...tourAttr('student.quiz.source-zoom-out')}
         type="button"
         aria-label="Zoom out"
         disabled={zoom <= MIN_ZOOM + 0.001}
@@ -55,7 +56,7 @@ export const StimulusZoomBar: React.FC<{
         />
       </button>
       <button
-        // no-tour-anchor: student quiz screen; tours walk teachers
+        {...tourAttr('student.quiz.source-zoom-reset')}
         type="button"
         aria-label="Reset zoom"
         title="Reset zoom"
@@ -66,7 +67,7 @@ export const StimulusZoomBar: React.FC<{
         {Math.round(zoom * 100)}%
       </button>
       <button
-        // no-tour-anchor: student quiz screen; tours walk teachers
+        {...tourAttr('student.quiz.source-zoom-in')}
         type="button"
         aria-label="Zoom in"
         disabled={zoom >= MAX_ZOOM - 0.001}

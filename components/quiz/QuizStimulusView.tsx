@@ -63,6 +63,7 @@ import {
   loadYouTubeApi,
   type YTPlayer,
 } from '@/utils/youtube';
+import { tourAttr } from '@/config/tourAnchors';
 
 /** Read-aloud controls for an image/pdf stimulus with reviewed text (plan §6.2). */
 export interface StimulusReadAloud {
@@ -138,7 +139,7 @@ const StimulusErrorCard: React.FC<{
       This attachment didn&apos;t load. You can keep answering.
     </span>
     <button
-      // no-tour-anchor: student quiz screen; tours walk teachers
+      {...tourAttr('student.quiz.source-retry')}
       type="button"
       onClick={onRetry}
       className={`inline-flex items-center rounded-lg font-bold transition-colors ${
@@ -614,7 +615,7 @@ const WordBankStimulus: React.FC<StimulusRendererProps> = ({
             {group.map((choice) =>
               fill ? (
                 <button
-                  // no-tour-anchor: student quiz screen; tours walk teachers
+                  {...tourAttr('student.quiz.word-bank-word')}
                   key={choice}
                   type="button"
                   onClick={() => fill(choice)}
@@ -1147,7 +1148,7 @@ export const CollapsibleStimuli: React.FC<{
   return (
     <div>
       <button
-        // no-tour-anchor: student quiz screen; tours walk teachers
+        {...tourAttr('student.quiz.sources-toggle')}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`inline-flex items-center font-bold rounded-lg transition-colors ${

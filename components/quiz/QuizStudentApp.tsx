@@ -384,6 +384,7 @@ import {
   playCountdownTick,
   playStreakSound,
 } from '@/utils/quizAudio';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 // How long a turn-in waits for recordings still uploading before it goes ahead.
 const TURN_IN_UPLOAD_WAIT_MS = 8000;
@@ -1401,6 +1402,7 @@ const QuizJoinFlow: React.FC<{
             <div className="space-y-2 mb-6">
               {periodStep.map((period) => (
                 <button
+                  {...tourAttr('student.quiz.period')}
                   key={period}
                   onClick={() => dispatchFlow({ type: 'periodPicked', period })}
                   className={`w-full px-4 py-4 rounded-xl text-lg font-bold transition-all ${
@@ -1415,6 +1417,7 @@ const QuizJoinFlow: React.FC<{
             </div>
 
             <button
+              {...tourAttr('student.quiz.period-confirm')}
               onClick={() => {
                 // joinQuizSession re-throws after populating `error` state for
                 // the UI. Catch here so the rejection isn't an unhandled
@@ -1438,6 +1441,7 @@ const QuizJoinFlow: React.FC<{
             </button>
 
             <button
+              {...tourAttr('student.quiz.period-back')}
               onClick={() => {
                 dispatchFlow({ type: 'periodBack' });
               }}
@@ -1520,6 +1524,7 @@ const QuizJoinFlow: React.FC<{
             </p>
 
             <button
+              {...tourAttr('student.quiz.sign-in-google')}
               onClick={() =>
                 window.location.assign(
                   `/student/login?next=${encodeURIComponent(nextTarget)}`
@@ -1532,6 +1537,7 @@ const QuizJoinFlow: React.FC<{
             </button>
 
             <button
+              {...tourAttr('student.quiz.use-pin')}
               onClick={() => dispatchFlow({ type: 'usePin' })}
               className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
             >
@@ -1579,6 +1585,7 @@ const QuizJoinFlow: React.FC<{
             className="space-y-4"
           >
             <input
+              {...tourAttr('student.quiz.join-code')}
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
@@ -1588,6 +1595,7 @@ const QuizJoinFlow: React.FC<{
               required
             />
             <input
+              {...tourAttr('student.quiz.join-pin')}
               type="text"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
@@ -1597,6 +1605,7 @@ const QuizJoinFlow: React.FC<{
               required
             />
             <button
+              {...tourAttr('student.quiz.join')}
               type="submit"
               disabled={loading || !code.trim() || !pin.trim()}
               className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
@@ -4183,6 +4192,7 @@ export const ActiveQuiz: React.FC<{
   const raiseHandButton =
     session.handRaiseEnabled === true && session.mode !== 'view-only' ? (
       <button
+        {...tourAttr('student.quiz.raise-hand')}
         onClick={() => void handleToggleHand()}
         disabled={handBusy}
         aria-pressed={handRaised}
@@ -4417,6 +4427,7 @@ export const ActiveQuiz: React.FC<{
               </>
             )}
             <button
+              {...tourAttr('student.quiz.resume')}
               onClick={() => setShowResumeModal(false)}
               className="px-8 py-4 bg-white text-emerald-900 font-bold rounded-xl active:scale-95 transition-transform"
             >
@@ -4469,6 +4480,7 @@ export const ActiveQuiz: React.FC<{
               {t('quizStudent.closed.submitFailed')}
             </span>
             <button
+              {...tourAttr('student.quiz.retry-submit')}
               type="button"
               onClick={() =>
                 void (timeUpFailureActive
@@ -4524,6 +4536,7 @@ export const ActiveQuiz: React.FC<{
                 t('quizStudent.tabWarning.autoSubmit')}
             </p>
             <button
+              {...tourAttr('student.quiz.tab-warning-dismiss')}
               onClick={() => {
                 setShowCheatWarning(false);
                 tabTracker.resume();
@@ -4724,6 +4737,7 @@ export const ActiveQuiz: React.FC<{
                   canGoBack &&
                   !isAttemptSubmitted(myResponse) && (
                     <button
+                      {...tourAttr('student.quiz.previous')}
                       type="button"
                       onClick={handleBack}
                       aria-label={t('quizStudent.nav.previous')}
@@ -4912,6 +4926,7 @@ export const ActiveQuiz: React.FC<{
                   !quizDone &&
                   (currentIndex < effectiveTotalQuestions - 1 ? (
                     <button
+                      {...tourAttr('student.quiz.next')}
                       type="button"
                       onClick={handleNext}
                       className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
@@ -4920,6 +4935,7 @@ export const ActiveQuiz: React.FC<{
                     </button>
                   ) : (
                     <button
+                      {...tourAttr('student.quiz.submit')}
                       type="button"
                       onClick={() => void handleSubmitAndAdvance('', true)}
                       disabled={submitting}
@@ -5029,6 +5045,7 @@ export const ActiveQuiz: React.FC<{
                             <div className="mr-auto">{raiseHandButton}</div>
                           )}
                           <button
+                            {...tourAttr('student.quiz.next')}
                             type="button"
                             onClick={
                               currentIndex >= effectiveTotalQuestions - 1
@@ -5225,6 +5242,11 @@ export const ActiveQuiz: React.FC<{
                               key={opt}
                               type="button"
                               {...multiProps}
+                              {...tourFieldAttr(
+                                'student.quiz.choice',
+                                'quiz-student',
+                                `row-${options.indexOf(opt) + 1}`
+                              )}
                               onClick={pick}
                               disabled={isLocked || submitting}
                               className={cls}
@@ -5245,6 +5267,11 @@ export const ActiveQuiz: React.FC<{
                             <button
                               type="button"
                               {...multiProps}
+                              {...tourFieldAttr(
+                                'student.quiz.choice',
+                                'quiz-student',
+                                `row-${options.indexOf(opt) + 1}`
+                              )}
                               onClick={pick}
                               disabled={isLocked || submitting}
                               className={`${cls} flex-1`}
@@ -5291,6 +5318,7 @@ export const ActiveQuiz: React.FC<{
                             // questions the timer actually ran out on, not back-nav
                             // revisits (which keep the editable NEXT button below).
                             <button
+                              {...tourAttr('student.quiz.next')}
                               onClick={handleNext}
                               className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                             >
@@ -5305,6 +5333,7 @@ export const ActiveQuiz: React.FC<{
                                 <SaveErrorBanner message={saveError} />
                               )}
                               <button
+                                {...tourAttr('student.quiz.submit-answer')}
                                 onClick={() =>
                                   submittableAnswer &&
                                   void handleSubmitAndAdvance(submittableAnswer)
@@ -5334,6 +5363,7 @@ export const ActiveQuiz: React.FC<{
                           )
                         ) : !submitted ? (
                           <button
+                            {...tourAttr('student.quiz.submit-answer')}
                             onClick={() =>
                               submittableAnswer &&
                               void handleSubmit(submittableAnswer)
@@ -5458,6 +5488,7 @@ export const ActiveQuiz: React.FC<{
                           {...{ [FIB_ROW_ATTR]: '' }}
                         >
                           <input
+                            {...tourAttr('student.quiz.short-answer')}
                             type="text"
                             value={liveAnswer ?? ''}
                             onChange={(e) => setCacheForCurrent(e.target.value)}
@@ -5500,6 +5531,7 @@ export const ActiveQuiz: React.FC<{
                         ) : submitted &&
                           autoSubmitTriggeredFor === currentQuestion.id ? (
                           <button
+                            {...tourAttr('student.quiz.next')}
                             onClick={handleNext}
                             className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                           >
@@ -5514,6 +5546,7 @@ export const ActiveQuiz: React.FC<{
                               <SaveErrorBanner message={saveError} />
                             )}
                             <button
+                              {...tourAttr('student.quiz.submit-answer')}
                               onClick={() =>
                                 cleanBlankAnswer(submittableAnswer ?? '') &&
                                 void handleSubmitAndAdvance(
@@ -5548,6 +5581,7 @@ export const ActiveQuiz: React.FC<{
                         )
                       ) : !submitted ? (
                         <button
+                          {...tourAttr('student.quiz.submit-answer')}
                           onClick={() =>
                             cleanBlankAnswer(submittableAnswer ?? '') &&
                             void handleSubmit(
@@ -5780,6 +5814,7 @@ export const ActiveQuiz: React.FC<{
                       mid-quiz NEXT advances without writing so the draft
                       (already autosaved) stays editable on return. */}
                               <button
+                                {...tourAttr('student.quiz.submit-answer')}
                                 onClick={() =>
                                   void handleSubmitAndAdvance(
                                     submittableAnswer ?? '',
@@ -5842,6 +5877,7 @@ export const ActiveQuiz: React.FC<{
                           // saved answer loads and seeds the cache.
                           <>
                             <button
+                              {...tourAttr('student.quiz.submit-answer')}
                               onClick={() =>
                                 void handleSubmit(submittableAnswer ?? '')
                               }
@@ -6058,6 +6094,7 @@ const StructuredQuestionInput: React.FC<{
             <SaveErrorBanner message={saveError} />
           )}
           <button
+            {...tourAttr('student.quiz.submit-answer')}
             onClick={handleSubmitStructured}
             disabled={!canSubmit || submitting}
             className={`w-full py-4 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all ${
@@ -6095,6 +6132,7 @@ const StructuredQuestionInput: React.FC<{
             // Timeout-auto-submit fallback for self-paced: timer expired
             // without an answer; give the student a way to advance.
             <button
+              {...tourAttr('student.quiz.next')}
               onClick={onNext}
               className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
             >
@@ -6174,6 +6212,7 @@ const ReturnToAssignmentsButton: React.FC<{
   const { t } = useTranslation();
   return (
     <button
+      {...tourAttr('student.quiz.back-to-list')}
       type="button"
       onClick={() => {
         window.location.assign('/my-assignments');
@@ -6193,8 +6232,8 @@ const ReturnToAssignmentsButton: React.FC<{
 const ReloadButton: React.FC<{ dark?: boolean }> = ({ dark = false }) => {
   const { t } = useTranslation();
   return (
-    // no-tour-anchor: student error screen; live tours walk teachers.
     <button
+      {...tourAttr('student.quiz.reload')}
       type="button"
       onClick={() => window.location.reload()}
       className={`inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-bold rounded-full transition-colors ${
@@ -6996,8 +7035,12 @@ export const PublishedScoreReview: React.FC<{
               {attemptOptions.map((opt, i) => {
                 const on = opt.n === (picked?.n ?? null);
                 return (
-                  // no-tour-anchor: student results screen; live tours walk teachers.
                   <button
+                    {...tourFieldAttr(
+                      'student.quiz.results-attempt',
+                      'quiz-student',
+                      `row-${i + 1}`
+                    )}
                     key={opt.n ?? 'current'}
                     type="button"
                     aria-pressed={on}
@@ -7418,6 +7461,7 @@ export const CollapsibleRubric: React.FC<{
   return (
     <div className={`rounded-xl border ${cardCls}`}>
       <button
+        {...tourAttr('student.quiz.rubric-toggle')}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`flex w-full items-center gap-1.5 px-3 py-2 text-xs font-bold transition-colors ${

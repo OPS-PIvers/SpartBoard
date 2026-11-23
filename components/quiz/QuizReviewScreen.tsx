@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { MathText } from '@/components/common/MathText';
 import { reviewCounts, type ReviewRow } from '@/utils/quizReviewStep';
 import { clearAllReviewStates } from '@/utils/quizReviewMarksStore';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const focusCls =
   'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary';
@@ -24,7 +25,7 @@ export const MarkForReviewButton: React.FC<{
   const { t } = useTranslation();
   return (
     <button
-      // no-tour-anchor: student quiz screen; tours walk teachers
+      {...tourAttr('student.quiz.mark-review')}
       type="button"
       onClick={onToggle}
       aria-pressed={marked}
@@ -130,7 +131,7 @@ export const QuizReviewScreen: React.FC<{
       <div className="mx-auto w-full max-w-2xl px-4 sm:px-6 py-6 flex flex-col gap-5 flex-1">
         <div className="flex items-center gap-2">
           <button
-            // no-tour-anchor: student quiz screen; tours walk teachers
+            {...tourAttr('student.quiz.review-back')}
             type="button"
             onClick={onBack}
             aria-label={t('quizReview.backToLast', 'Back to the last question')}
@@ -168,7 +169,11 @@ export const QuizReviewScreen: React.FC<{
             return (
               <li key={row.id}>
                 <button
-                  // no-tour-anchor: student quiz screen; tours walk teachers
+                  {...tourFieldAttr(
+                    'student.quiz.review-question',
+                    'quiz-student',
+                    `row-${row.index + 1}`
+                  )}
                   type="button"
                   onClick={() => onJump(row.index)}
                   disabled={locked}
@@ -219,7 +224,7 @@ export const QuizReviewScreen: React.FC<{
             </p>
           )}
           <button
-            // no-tour-anchor: student quiz screen; tours walk teachers
+            {...tourAttr('student.quiz.review-submit')}
             type="button"
             onClick={onSubmit}
             disabled={submitting}

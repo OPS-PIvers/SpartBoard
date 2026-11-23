@@ -39,6 +39,7 @@ import {
 } from './structuredLayout';
 import { READ_ALOUD_HIGHLIGHT_CLASS } from './readAloud/readAloudHighlight';
 import type { ReadAloudItemControls } from './readAloud/useQuizReadAloud';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface OrderingResponseInputProps {
   question: QuizPublicQuestion;
@@ -234,7 +235,7 @@ const Slot: React.FC<{
         </button>
       ) : (
         <button
-          // no-tour-anchor: student quiz screen; tours walk teachers
+          {...tourAttr('student.quiz.ordering-empty-slot')}
           type="button"
           onClick={(e) => {
             e.preventDefault();
@@ -266,7 +267,7 @@ const Slot: React.FC<{
       {filledLabel ? speaker : null}
       <div className="flex flex-col">
         <button
-          // no-tour-anchor: student quiz screen; tours walk teachers
+          {...tourAttr('student.quiz.ordering-move-up')}
           type="button"
           onClick={() => onMove('up')}
           disabled={(disabled ?? false) || upDisabled || !filledLabel}
@@ -278,7 +279,7 @@ const Slot: React.FC<{
           ▲
         </button>
         <button
-          // no-tour-anchor: student quiz screen; tours walk teachers
+          {...tourAttr('student.quiz.ordering-move-down')}
           type="button"
           onClick={() => onMove('down')}
           disabled={(disabled ?? false) || downDisabled || !filledLabel}
@@ -587,7 +588,7 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
               {t('quizStudent.wordBank')}
             </span>
             <button
-              // no-tour-anchor: student quiz screen; tours walk teachers
+              {...tourAttr('student.quiz.ordering-reset')}
               type="button"
               onClick={undo ? undoReset : reset}
               disabled={disabled}

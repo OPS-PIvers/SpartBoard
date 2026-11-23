@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Octagon } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface QuizStopScreenProps {
   /** The part the student waits to start. */
@@ -47,8 +48,8 @@ export const QuizStopScreen: React.FC<QuizStopScreenProps> = ({
           : t('quizParts.stop', 'Stop.')}
       </h1>
       {ready ? (
-        // no-tour-anchor: student screen, tours walk teachers
         <button
+          {...tourAttr('student.quiz.part-start')}
           type="button"
           onClick={() => void start()}
           disabled={starting}

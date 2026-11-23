@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ZoomIn, ZoomOut } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const MIN_ZOOM = 1;
 export const MAX_ZOOM = 3;
@@ -256,7 +257,7 @@ export const WhiteboardZoomFrame = forwardRef<
         >
           <button
             type="button"
-            // no-tour-anchor: student quiz canvas, outside teacher tours
+            {...tourAttr('student.quiz.whiteboard-zoom-out')}
             aria-label={t('quizWhiteboard.canvas.zoomOut')}
             title={t('quizWhiteboard.canvas.zoomOut')}
             disabled={!zoomed}
@@ -267,7 +268,7 @@ export const WhiteboardZoomFrame = forwardRef<
           </button>
           <button
             type="button"
-            // no-tour-anchor: student quiz canvas, outside teacher tours
+            {...tourAttr('student.quiz.whiteboard-zoom-reset')}
             aria-label={t('quizWhiteboard.canvas.zoomReset')}
             title={t('quizWhiteboard.canvas.zoomReset')}
             disabled={!zoomed}
@@ -278,7 +279,7 @@ export const WhiteboardZoomFrame = forwardRef<
           </button>
           <button
             type="button"
-            // no-tour-anchor: student quiz canvas, outside teacher tours
+            {...tourAttr('student.quiz.whiteboard-zoom-in')}
             aria-label={t('quizWhiteboard.canvas.zoomIn')}
             title={t('quizWhiteboard.canvas.zoomIn')}
             disabled={zoom >= MAX_ZOOM - 0.001}

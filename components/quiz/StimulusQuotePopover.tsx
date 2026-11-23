@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Quote } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cleanQuoteText } from '@/utils/quizQuotes';
+import { tourAttr } from '@/config/tourAnchors';
 
 const QUOTABLE_SELECTOR = '[data-stimulus-quotable="true"]';
 const POPOVER_GAP_PX = 8;
@@ -82,7 +83,7 @@ export const StimulusQuotePopover: React.FC<{
 
   return createPortal(
     <button
-      // no-tour-anchor: student quiz screen; tours walk teachers
+      {...tourAttr('student.quiz.quote-selection')}
       type="button"
       data-testid="stimulus-quote-button"
       style={{ top, left }}

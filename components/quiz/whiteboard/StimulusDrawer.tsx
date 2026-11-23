@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { BookOpen, X } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
+import { tourAttr } from '@/config/tourAnchors';
 
 /** Toggle for the stimulus drawer; sits in the question header (D9). */
 export const StimulusDrawerButton: React.FC<{
@@ -10,8 +11,8 @@ export const StimulusDrawerButton: React.FC<{
 }> = ({ open, onToggle }) => {
   const { t } = useTranslation();
   return (
-    // no-tour-anchor: student quiz screen; tours walk teachers
     <button
+      {...tourAttr('student.quiz.whiteboard-materials')}
       type="button"
       onClick={onToggle}
       aria-expanded={open}
@@ -51,8 +52,8 @@ export const StimulusDrawer: React.FC<{
       }}
     >
       <div className="flex items-center justify-end px-3 pt-3">
-        {/* no-tour-anchor: student quiz screen; tours walk teachers */}
         <button
+          {...tourAttr('student.quiz.whiteboard-materials-hide')}
           type="button"
           onClick={onClose}
           aria-label={t('quizWhiteboard.drawer.hide', 'Hide materials')}

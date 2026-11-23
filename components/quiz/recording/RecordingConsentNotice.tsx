@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Mic, PenLine, ShieldCheck, X } from 'lucide-react';
 import { RecordingNoticeDrawingContext } from './recordingNoticeDrawing';
+import { tourAttr } from '@/config/tourAnchors';
 
 /**
  * Minn. Stat. § 13.04 subd. 2 Tennessen warning, shown once per assignment
@@ -123,7 +124,8 @@ export const RecordingConsentNotice: React.FC<{
         </dl>
       )}
 
-      <button /* no-tour-anchor: student recording consent */
+      <button
+        {...tourAttr('student.quiz.recording-notice-ok')}
         type="button"
         onClick={onAcknowledge}
         disabled={busy}
@@ -151,7 +153,8 @@ export const RecordingNoticeReminder = React.forwardRef<
 >(({ onOpen, disabled = false, light = true }, ref) => {
   const { t } = useTranslation();
   return (
-    <button /* no-tour-anchor: student recording consent */
+    <button
+      {...tourAttr('student.quiz.recording-notice-open')}
       ref={ref}
       type="button"
       onClick={onOpen}

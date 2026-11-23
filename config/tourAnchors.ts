@@ -19308,6 +19308,385 @@ export const TOUR_ANCHORS = {
     label: 'Add Student button on the empty roster editor Accommodations tab',
     panel: true,
   },
+  // Quiz student app (/quiz): join, questions, answer tools, review, recordings and results.
+  'student.quiz.quote-selection': {
+    label: 'Quote button over selected passage text',
+  },
+  'student.quiz.ordering-empty-slot': {
+    label: 'Empty slot in an ordering answer',
+  },
+  'student.quiz.ordering-move-up': {
+    label: 'Move up arrow on an ordering item',
+  },
+  'student.quiz.ordering-move-down': {
+    label: 'Move down arrow on an ordering item',
+  },
+  'student.quiz.ordering-reset': {
+    label: 'Reset or Undo in an ordering word bank',
+  },
+  'student.quiz.whiteboard-materials': {
+    label: 'Materials button beside a drawing answer',
+  },
+  'student.quiz.whiteboard-materials-hide': {
+    label: 'Hide materials in the drawing answer drawer',
+    panel: true,
+  },
+  'student.quiz.whiteboard-tool': {
+    label: 'A drawing tool on the drawing answer toolbar, keyed by tool',
+    perField: true,
+    keyPattern: 'quiz-student#(pen|eraser|text|line|arrow|rect|ellipse)',
+    keyHint: 'quiz-student#pen for the pen',
+  },
+  'student.quiz.whiteboard-eraser-mode': {
+    label: 'An eraser mode on the drawing answer toolbar, keyed by mode',
+    perField: true,
+    keyPattern: 'quiz-student#(stroke|object|lasso)',
+    keyHint: 'quiz-student#stroke for the stroke eraser',
+    panel: true,
+  },
+  'student.quiz.whiteboard-color': {
+    label: 'A color on the drawing answer toolbar, keyed by color',
+    perField: true,
+    keyPattern: 'quiz-student#(black|blue|red|green|orange|yellow)',
+    keyHint: 'quiz-student#black for black',
+  },
+  'student.quiz.whiteboard-size': {
+    label: 'A pen size on the drawing answer toolbar, keyed by size',
+    perField: true,
+    keyPattern: 'quiz-student#(thin|medium|thick)',
+    keyHint: 'quiz-student#medium for the medium pen',
+    panel: true,
+  },
+  'student.quiz.whiteboard-undo': {
+    label: 'Undo on the drawing answer toolbar',
+  },
+  'student.quiz.whiteboard-redo': {
+    label: 'Redo on the drawing answer toolbar',
+  },
+  'student.quiz.whiteboard-zoom-out': {
+    label: 'Zoom out on a drawing answer',
+  },
+  'student.quiz.whiteboard-zoom-reset': {
+    label: 'Reset zoom on a drawing answer',
+  },
+  'student.quiz.whiteboard-zoom-in': {
+    label: 'Zoom in on a drawing answer',
+  },
+  'student.quiz.ordering-drag': {
+    label: 'Drag handle on an ordering item',
+  },
+  'student.quiz.picture-enlarge': {
+    label: 'Enlarge picture button on an answer picture',
+  },
+  'student.quiz.supports': {
+    label: 'Supports button on a question',
+  },
+  'student.quiz.supports-close': {
+    label: 'Close in the Supports panel',
+    panel: true,
+  },
+  'student.quiz.supports-tab': {
+    label: 'A tab in the Supports panel, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    panel: true,
+    rows: true,
+  },
+  'student.quiz.supports-resize': {
+    label: 'Resize bar between the question and the Supports panel',
+    panel: true,
+  },
+  'student.quiz.mark-review': {
+    label: 'Mark for review button on a question',
+  },
+  'student.quiz.review-back': {
+    label: 'Back arrow on the review screen',
+  },
+  'student.quiz.review-question': {
+    label: 'A question row on the review screen, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    rows: true,
+  },
+  'student.quiz.review-submit': {
+    label: 'Submit on the review screen',
+    persists: true,
+  },
+  'student.quiz.source-zoom-out': {
+    label: 'Zoom out on a source',
+  },
+  'student.quiz.source-zoom-reset': {
+    label: 'Reset zoom on a source',
+  },
+  'student.quiz.source-zoom-in': {
+    label: 'Zoom in on a source',
+  },
+  'student.quiz.game-raise-hand': {
+    label: 'Raise hand in a quiz game',
+    persists: true,
+  },
+  'student.quiz.game-choice': {
+    label: 'An answer choice in a quiz game, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    rows: true,
+    persists: true,
+  },
+  'student.quiz.game-answer': {
+    label: 'Answer box in a quiz game',
+  },
+  'student.quiz.game-submit': {
+    label: 'Submit in a quiz game',
+    persists: true,
+  },
+  'student.quiz.game-next': {
+    label: 'Next in a quiz game',
+  },
+  'student.quiz.game-pick-question': {
+    label: 'A question to pick in a quiz game round, one per question',
+    perField: true,
+    keyHint: 'one per question; quiz-student#row-1 for the first',
+    rows: true,
+  },
+  'student.quiz.game-continue': {
+    label: 'Continue after picking questions in a quiz game',
+    persists: true,
+  },
+  'student.quiz.reload': {
+    label: 'Try again button on a quiz error screen',
+  },
+  'student.quiz.results-attempt': {
+    label: 'An attempt tab on the results screen, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    rows: true,
+  },
+  'student.quiz.results-tab-warning-dismiss': {
+    label: 'Dismiss on the leaving-the-tab warning',
+    panel: true,
+  },
+  'student.quiz.recording-notice-ok': {
+    label: 'Acknowledge button on the recording notice',
+    persists: true,
+  },
+  'student.quiz.recording-notice-open': {
+    label: 'Open the recording notice again',
+  },
+  'student.quiz.playback-comment': {
+    label: 'A teacher comment on a recording, which jumps to its time',
+  },
+  'student.quiz.playback-retry': {
+    label: 'Try again when a recording does not load',
+  },
+  'student.quiz.playback-load': {
+    label: 'Play button that loads a recorded answer',
+  },
+  'student.quiz.recording-retry-upload': {
+    label: 'Try the upload again on a recorded answer',
+    persists: true,
+  },
+  'student.quiz.recording-start': {
+    label: 'Start recording',
+  },
+  'student.quiz.recording-stop': {
+    label: 'Stop recording',
+  },
+  'student.quiz.recording-submit': {
+    label: 'Submit a recorded answer',
+    persists: true,
+  },
+  'student.quiz.recording-redo': {
+    label: 'Redo a recorded answer',
+    destructive: true,
+  },
+  'student.quiz.whiteboard-page-retry': {
+    label: 'Try again when the starting page does not load',
+  },
+  'student.quiz.microphone-allow': {
+    label: 'Allow microphone button',
+  },
+  'student.quiz.read-aloud': {
+    label: 'Read question button on the read-aloud bar',
+  },
+  'student.quiz.read-aloud-speed': {
+    label: 'Speed button on the read-aloud bar',
+  },
+  'student.quiz.read-aloud-auto': {
+    label: 'Auto-read switch on the read-aloud bar',
+  },
+  'student.quiz.read-aloud-part': {
+    label: 'Read aloud button beside a choice or passage',
+  },
+  'student.quiz.blank': {
+    label: 'A blank in a fill-in-the-blank answer, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    rows: true,
+  },
+  'student.quiz.source-retry': {
+    label: 'Try again when an attachment does not load',
+  },
+  'student.quiz.word-bank-word': {
+    label: 'A word in a passage word bank',
+  },
+  'student.quiz.sources-toggle': {
+    label: 'Show or hide the sources for a question',
+  },
+  'student.quiz.source-tab': {
+    label: 'A source tab beside the questions, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    rows: true,
+  },
+  'student.quiz.equation-cancel': {
+    label: 'Cancel in the equation editor',
+    panel: true,
+  },
+  'student.quiz.equation-insert': {
+    label: 'Insert in the equation editor',
+    panel: true,
+  },
+  'student.quiz.written-resize': {
+    label: 'Resize handle under a written answer',
+  },
+  'student.quiz.blank-choice': {
+    label: 'A drop-down blank in a fill-in-the-blank answer, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    rows: true,
+  },
+  'student.quiz.word-bank-chip': {
+    label: 'A word chip in a word bank',
+  },
+  'student.quiz.blank-slot': {
+    label: 'An empty blank to drop a word into',
+  },
+  'student.quiz.word-bank-reset': {
+    label: 'Reset or Undo in a fill-in-the-blank word bank',
+  },
+  'student.quiz.part-start': {
+    label: 'Start button on a quiz part stop screen',
+    persists: true,
+  },
+  'student.quiz.part-intro-close': {
+    label: 'Close the part introduction',
+    panel: true,
+  },
+  'student.quiz.part-progress': {
+    label:
+      'Answered count above a question in a quiz part, which opens the part details',
+  },
+  'student.quiz.part-clear': {
+    label: 'Clear my answer on a question in a quiz part',
+    destructive: true,
+  },
+  'student.quiz.cross-out': {
+    label: 'Cross out button beside an answer choice',
+  },
+  'student.quiz.matching-slot': {
+    label: 'A match slot in a matching answer',
+  },
+  'student.quiz.matching-reset': {
+    label: 'Reset or Undo in a matching word bank',
+  },
+  'student.quiz.question-audio': {
+    label: 'Play the question audio',
+  },
+  'student.quiz.sources-resize': {
+    label: 'Resize bar between the sources and the question',
+  },
+  'student.quiz.period': {
+    label: 'A class period button when joining a quiz',
+  },
+  'student.quiz.period-confirm': {
+    label: 'Continue after picking a class period',
+    persists: true,
+  },
+  'student.quiz.period-back': {
+    label: 'Go back on the class period step',
+  },
+  'student.quiz.sign-in-google': {
+    label: 'Sign in with Google when joining a quiz',
+  },
+  'student.quiz.use-pin': {
+    label: 'Use a PIN instead when joining a quiz',
+  },
+  'student.quiz.join-code': {
+    label: 'Code box when joining a quiz',
+  },
+  'student.quiz.join-pin': {
+    label: 'PIN box when joining a quiz',
+  },
+  'student.quiz.join': {
+    label: 'Join button when joining a quiz',
+    persists: true,
+  },
+  'student.quiz.raise-hand': {
+    label: 'Raise hand button during a quiz',
+    persists: true,
+  },
+  'student.quiz.resume': {
+    label: 'Resume button after a quiz is unlocked',
+  },
+  'student.quiz.retry-submit': {
+    label: 'Try again when turning in after time is up fails',
+    persists: true,
+  },
+  'student.quiz.tab-warning-dismiss': {
+    label: 'Dismiss on the leaving-the-tab warning during a quiz',
+  },
+  'student.quiz.previous': {
+    label: 'Previous question arrow',
+  },
+  'student.quiz.next': {
+    label: 'Next question button',
+  },
+  'student.quiz.submit': {
+    label: 'Submit or Review button on the last question',
+    persists: true,
+  },
+  'student.quiz.submit-answer': {
+    label: 'Submit answer button under a question',
+    persists: true,
+  },
+  'student.quiz.short-answer': {
+    label: 'Answer box for a short answer question',
+  },
+  'student.quiz.back-to-list': {
+    label: 'Back to assignments button',
+  },
+  'student.quiz.rubric-toggle': {
+    label: 'Show or hide the rubric on a results screen',
+  },
+  'student.quiz.choice': {
+    label: 'An answer choice on a multiple choice question, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    rows: true,
+  },
+  'student.quiz.language-english': {
+    label: 'English button on the language switch',
+  },
+  'student.quiz.language-native': {
+    label: "The student's own language on the language switch",
+  },
+  'student.quiz.written-format': {
+    label: 'A formatting button on a written answer, keyed by button',
+    perField: true,
+    keyPattern: 'quiz-student#(bold|italic|underline|bullets|numbers|equation)',
+    keyHint: 'quiz-student#bold for Bold',
+  },
+  'student.quiz.written-answer': {
+    label: 'Response box for a written answer',
+  },
   // Quiz library kebab items that open dialogs.
   'quiz-library.assign-paper': {
     label: 'Assign on paper button in the quiz assign dialog',

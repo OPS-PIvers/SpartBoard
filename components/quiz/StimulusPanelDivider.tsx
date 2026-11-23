@@ -7,6 +7,7 @@ import {
   PANEL_PCT_MIN,
   panelPctForKey,
 } from '@/utils/quizStimulusPanel';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const StimulusPanelDivider: React.FC<{
   pct: number;
@@ -24,7 +25,7 @@ export const StimulusPanelDivider: React.FC<{
 
   return (
     <div
-      // no-tour-anchor: student quiz screen; tours walk teachers
+      {...tourAttr('student.quiz.sources-resize')}
       role="separator"
       aria-orientation="vertical"
       aria-label={t('quizStimulusTabs.resize', 'Resize the sources panel')}

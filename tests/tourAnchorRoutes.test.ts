@@ -44,6 +44,10 @@ const AREA_ROOTS: Record<Area, readonly string[]> = {
     'components/share/',
     'components/help/',
     'components/tours/',
+    'components/quiz/QuizAssignmentImportSetupModal.tsx',
+    'components/quiz/paper/',
+    'components/quiz/targets/',
+    'components/quiz/whiteboard/WhiteboardReplayView.tsx',
   ],
   admin: ['components/admin/'],
   plc: ['components/plc/'],
@@ -61,6 +65,7 @@ const AREA_ROOTS: Record<Area, readonly string[]> = {
     'components/gradebook/',
   ],
   widgets: ['components/widgets/'],
+  studentQuiz: ['components/quiz/'],
   studentWall: [
     'components/activityWall/',
     'components/activityWall/render/SubmissionCard.tsx',
