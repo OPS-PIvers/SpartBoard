@@ -173,6 +173,8 @@ export interface PaperPrintVersion {
   questionTexts?: readonly PaperSheetQuestionText[];
   rowLabels?: readonly (string | undefined)[];
   writtenTexts?: Readonly<Record<string, string>>;
+  /** This version's fill in the blank answers, printed on its answer key. */
+  blankAnswers?: Readonly<Record<string, readonly string[]>>;
   prompts?: Readonly<Record<string, PaperPromptPage>>;
   stimulusBlocks?: Readonly<Record<string, SheetStimulusBlock>>;
   resourcePages?: readonly SheetResourcePage[];
@@ -1104,6 +1106,7 @@ function sheetPageList(
           : {}),
         ...(version.rowLabels ? { rowLabels: version.rowLabels } : {}),
         ...(version.writtenTexts ? { writtenTexts: version.writtenTexts } : {}),
+        ...(version.blankAnswers ? { blankAnswers: version.blankAnswers } : {}),
         ...(version.prompts ? { prompts: version.prompts } : {}),
         ...(version.stimulusBlocks
           ? { stimulusBlocks: version.stimulusBlocks }

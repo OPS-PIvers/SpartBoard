@@ -6782,6 +6782,12 @@ export interface PaperPrintedGroupRecord {
   supports?: QuizSupport[];
   /** The group's language, so a reprint prints the same translation. */
   language?: string;
+  /** One student's copy printed from the monitor, rather than a group's stack. */
+  single?: true;
+  /** Option text left off per question id: a student copy's own hidden answer choices. */
+  hiddenChoices?: Record<string, string[]>;
+  /** The questions a student copy printed, when the student was given only some. */
+  questionIds?: string[];
 }
 
 /** A printed group planned at assign, kept so a version closed before printing can still print. */
@@ -6804,6 +6810,8 @@ export interface PaperBatch {
   spareSeats: number[];
   /** Seat carrying the bubbled ANSWER KEY sheet, when one was printed (plan Q16). */
   keySheetSeat?: number;
+  /** Every key seat, one per version, when a versioned stack printed more than one key; the first is `keySheetSeat`. */
+  keySheetSeats?: number[];
   /**
    * Option text per question id in the lettered order the test paper printed
    * (A first). Authored quizzes only; import maps a bubbled letter through it
@@ -6827,7 +6835,7 @@ export interface PaperBatch {
   pageMaps?: PaperPageMap[];
   /** Present iff `seatVersions` is; version 0 is what `pageMaps` carries. */
   versions?: PaperBatchVersion[];
-  /** Seat -> index into `versions`; the key sheet is absent and reads as version 0. */
+  /** Seat -> index into `versions`, keys included; a seat that is absent reads as version 0. */
   seatVersions?: Record<number, number>;
   /** Printed for a modification group of a device assignment: the rules its version applied, so a reprint matches. */
   printedGroup?: PaperPrintedGroupRecord;
@@ -11867,6 +11875,7 @@ export type GlobalFeature =
   | 'paper-multi-page-answers'
   /** A live preview of one student's printed packet in the paper print dialogs. */
   | 'paper-print-preview'
+  | 'paper-student-copy'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
   | 'paper-written-hybrid'
   | 'paper-reword-sync'

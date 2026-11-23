@@ -34,7 +34,7 @@ import { effectiveChooseCount, sessionSectionsFor } from './quizSections';
 import { fibBlankCount } from './quizFibBlanks';
 
 /** Small deterministic PRNG so an option set always shuffles the same way. */
-function seededRandom(seed: string): () => number {
+export function seededRandom(seed: string): () => number {
   let h = 0x811c9dc5;
   for (let i = 0; i < seed.length; i += 1) {
     h ^= seed.charCodeAt(i);
@@ -336,8 +336,17 @@ export interface PaperBatchInput {
   pageMaps?: PaperPageMap[];
   /** Balanced bank-slot versions, dealt in seat order within each class and across the spares (V24). */
   versions?: PaperBatchVersion[];
+  /** Deal versions one per sheet across the whole stack (random forms) instead of restarting in each class. */
+  dealBySheet?: boolean;
   createdAt: number;
 }
+
+/** True when the seat printed an answer key; a versioned stack may print one per version. */
+export const isPaperKeySeat = (
+  batch: Pick<PaperBatch, 'keySheetSeat' | 'keySheetSeats'>,
+  seat: number
+): boolean =>
+  batch.keySheetSeat === seat || !!batch.keySheetSeats?.includes(seat);
 
 export interface PaperBatchPlan {
   batch: PaperBatch;
@@ -382,8 +391,12 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     return { versionIndex: seatVersions[seat] };
   };
 
+  let sheetTurn = 0;
+  const turnFor = (local: number): number =>
+    input.dealBySheet ? sheetTurn++ : local;
   for (const { roster, students } of input.selections) {
-    students.forEach((student, turn) => {
+    students.forEach((student, local) => {
+      const turn = turnFor(local);
       const seat = takeSeat();
       seats[seat] = { rosterId: roster.id, studentId: student.id };
       sheets.push({
@@ -406,21 +419,31 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
       displayName: 'Name ______________________',
       className: '',
       isKeySheet: false,
-      ...dealt(seat, i),
+      ...dealt(seat, turnFor(i)),
     });
   }
 
-  let keySheetSeat: number | undefined;
+  // A stack in versions gets one key per version a sheet printed, each headed with its label.
+  const keySheetSeats: number[] = [];
   if (input.includeKeySheet) {
-    keySheetSeat = takeSeat();
-    sheets.push({
-      seat: keySheetSeat,
-      student: null,
-      displayName: 'ANSWER KEY',
-      className: '',
-      isKeySheet: true,
-    });
+    const used = [...new Set(Object.values(seatVersions))].sort(
+      (a, b) => a - b
+    );
+    for (const k of versionCount > 0 && used.length > 0 ? used : [0]) {
+      const seat = takeSeat();
+      keySheetSeats.push(seat);
+      if (versionCount > 0) seatVersions[seat] = k;
+      sheets.push({
+        seat,
+        student: null,
+        displayName: 'ANSWER KEY',
+        className: '',
+        isKeySheet: true,
+        ...(versionCount > 0 ? { versionIndex: k } : {}),
+      });
+    }
   }
+  const keySheetSeat = keySheetSeats[0];
 
   const choiceOrder: Record<string, string[]> = {};
   for (const q of input.questions ?? []) {
@@ -439,6 +462,7 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     seats,
     spareSeats,
     ...(keySheetSeat !== undefined ? { keySheetSeat } : {}),
+    ...(keySheetSeats.length > 1 ? { keySheetSeats } : {}),
     ...(Object.keys(choiceOrder).length > 0 ? { choiceOrder } : {}),
     pagesPerSheet: input.pageMaps
       ? input.pageMaps.length

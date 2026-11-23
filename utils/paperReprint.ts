@@ -57,12 +57,18 @@ export function reprintSheets(
   );
 }
 
+/** A student copy of a question subset: one version, nothing swapped, so it reprints like any stack. */
+const isStudentSubsetCopy = (batch: PaperBatch): boolean =>
+  !!batch.printedGroup?.single &&
+  batch.versions?.length === 1 &&
+  Object.keys(batch.versions[0].swaps).length === 0;
+
 /** A stack prints again only from the quiz it printed from: same rows, same lettered choices. */
 export function reprintBlocker(
   batch: PaperBatch,
   analysis: Pick<PaperQuizAnalysis, 'rows'>
 ): ReprintBlocker {
-  if (batch.versions?.length) return 'versions';
+  if (batch.versions?.length && !isStudentSubsetCopy(batch)) return 'versions';
   if (analysis.rows.length !== batch.questionCount) return 'changed';
   const order = batch.choiceOrder;
   if (order && analysis.rows.some((r) => !order[r.questionId]))

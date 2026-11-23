@@ -353,6 +353,17 @@ describe('handleImportPaperResponses', () => {
     ).rejects.toMatchObject({ code: 'invalid-argument', message: /Roster/ });
   });
 
+  it("rejects any version's answer key", async () => {
+    const docs = baseDocs();
+    docs[`users/${UID}/paper_batches/${BATCH}`] = {
+      ...docs[`users/${UID}/paper_batches/${BATCH}`],
+      keySheetSeats: [4, 5],
+    };
+    await expect(call(docs, [sheet(5)])).rejects.toMatchObject({
+      message: /answer key/,
+    });
+  });
+
   it('rejects a student seat sent under a different roster', async () => {
     await expect(
       call(baseDocs(), [sheet(1, { rosterId: 'r2' })])

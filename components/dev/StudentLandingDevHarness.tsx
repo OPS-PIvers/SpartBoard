@@ -15,5 +15,6 @@ export const StudentLandingDevHarness: React.FC = () => (
     initialClassId={readParam('class')}
     initialTab={(readParam('tab') as LandingTab | null) ?? 'assignments'}
     classTopFor={readParam('agenda') === '1' ? fixtureClassTop : undefined}
+    outsideClassesDemo={readParam('outside') === '1'}
   />
 );

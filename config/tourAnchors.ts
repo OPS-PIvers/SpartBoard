@@ -5463,6 +5463,11 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-monitor.student-print-copy': {
+    label: 'Print paper copy item in the Quiz monitor student menu',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-monitor.student-remove': {
     label: 'Remove student item in the Quiz monitor student menu',
     perWidgetType: true,

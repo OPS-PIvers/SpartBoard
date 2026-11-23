@@ -94,6 +94,8 @@ import {
 } from '@/utils/paperScanRaster';
 import { CHOICE_LETTERS, paperGridOf } from '@/utils/paperSheetLayout';
 import { paperBatchTag } from '@/utils/paperSheetMarker';
+import { isPaperKeySeat } from '@/utils/paperSheetPlan';
+import { STUDENT_COPY_LABEL } from '@/utils/paperPrintedVersions';
 import {
   blankWrittenCrop,
   cropWrittenBox,
@@ -693,7 +695,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             }
           }
           // Blank boxes are cropped too: they are archived as the record of an empty answer (D22).
-          if (byMap && read.marker.seat !== batch.keySheetSeat) {
+          if (byMap && !isPaperKeySeat(batch, read.marker.seat)) {
             for (const box of read.written) {
               if (multiPage.has(box.questionId)) {
                 const k = writtenCropKey(read.marker.seat, box.questionId);
@@ -727,7 +729,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             keep &&
             marker.batchTag === tag &&
             !marker.isKeySheet &&
-            marker.seat !== batch.keySheetSeat
+            !isPaperKeySeat(batch, marker.seat)
           ) {
             // Straightening runs now, while the page is live; its encode finishes in the background.
             if (encoding.length >= KEEP_ENCODES_IN_FLIGHT) {
@@ -1189,7 +1191,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                   {batches.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.printedGroup
-                        ? `Group ${b.printedGroup.number} · `
+                        ? `${b.printedGroup.single ? STUDENT_COPY_LABEL : `Group ${b.printedGroup.number}`} · `
                         : ''}
                       {formatDate(b.createdAt)} ·{' '}
                       {Object.keys(b.seats).length + b.spareSeats.length} sheets

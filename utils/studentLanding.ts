@@ -81,13 +81,14 @@ export function landingRowState(
     if (deadline !== undefined && nowMs > deadline) return 'missing';
     return turnIn === 'in-progress' ? 'missing' : null;
   }
-  if (a.live) return 'live';
+  if (a.live && !a.outsideClasses) return 'live';
   if (getWindowState(a, nowMs) === 'upcoming') return 'upcoming';
   // A paused or not-yet-open quiz can't be done now, so it is never Missing.
   if (
     check &&
     !onPaper &&
     !a.held &&
+    !a.outsideClasses &&
     isMissingStillOpen(a, check.turnIn, nowMs)
   ) {
     return 'missing-open';
@@ -109,7 +110,8 @@ export function workAvailability(
   uid: string | null
 ): 'live' | 'open' | 'locked' {
   const a = row.assignment;
-  if (row.state === 'upcoming' || a.held !== undefined) return 'locked';
+  if (row.state === 'upcoming' || a.held !== undefined || a.outsideClasses)
+    return 'locked';
   const gate = a.periodGate;
   if (!gate) return 'open';
   if (!studentCanEnter(gate, gate.periodKeys, uid, nowMs)) return 'locked';

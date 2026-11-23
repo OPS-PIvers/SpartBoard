@@ -12,6 +12,7 @@ import {
 import { mcItemsOf } from './paperPageMap';
 import { paperBatchTag } from './paperSheetMarker';
 import { seatQuestionId } from './paperSheetVersions';
+import { isPaperKeySeat } from './paperSheetPlan';
 import type {
   PageRead,
   PageReadResult,
@@ -82,7 +83,7 @@ export interface AssembleResult {
 }
 
 const seatKind = (batch: PaperBatch, seat: number): SheetKind | null => {
-  if (batch.keySheetSeat === seat) return 'key';
+  if (isPaperKeySeat(batch, seat)) return 'key';
   if (batch.seats[seat]) return 'student';
   if (batch.spareSeats.includes(seat)) return 'spare';
   return null;
@@ -235,7 +236,10 @@ export function assemblePaperScan(
 
   return {
     sheets: sheets.filter((s) => s.kind !== 'key'),
-    keySheet: sheets.find((s) => s.kind === 'key') ?? null,
+    keySheet:
+      sheets.find((s) => s.seat === batch.keySheetSeat) ??
+      sheets.find((s) => s.kind === 'key') ??
+      null,
     unreadablePages,
     foreignPages,
     unknownPages,

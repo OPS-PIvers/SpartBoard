@@ -134,6 +134,19 @@ describe('assemblePaperScan', () => {
     });
   });
 
+  it('keeps every per-version key out of the students and reads the first as the key', () => {
+    const versioned: PaperBatch = { ...batch, keySheetSeats: [4, 5] };
+    const result = assemblePaperScan(versioned, [
+      page(0, 5, 1, [row(0, 1)], { isKeySheet: true }),
+      page(1, 5, 2, [], { isKeySheet: true }),
+      page(2, 4, 1, [row(0, 2)]),
+      page(3, 4, 2, []),
+    ]);
+    expect(result.unknownPages).toEqual([]);
+    expect(result.sheets).toEqual([]);
+    expect(result.keySheet?.seat).toBe(4);
+  });
+
   it('lets a rescanned page replace the earlier read, flagging disagreement (Q23)', () => {
     const agree = assemblePaperScan(batch, [
       page(0, 1, 1, [row(0, 1), row(1, null, 'unclear')]),
