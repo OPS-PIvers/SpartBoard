@@ -1,6 +1,7 @@
 import React, {
   Suspense,
   lazy,
+  useContext,
   useEffect,
   useId,
   useRef,
@@ -38,6 +39,8 @@ import {
   webTourStepsHtml,
 } from './stepsHtmlExport';
 import { useCanFreshservice } from './freshservice';
+import { useTourAuthor } from './useTourAuthor';
+import { AuthContext } from '@/context/AuthContextValue';
 import {
   stepStatusRows,
   tourStatus,
@@ -431,9 +434,14 @@ const WebTourRow: React.FC<{
     : watched;
   const live =
     published.tour && isWebTourSet(published.tour.set) ? published.tour : null;
+  const access = useTourAuthor();
+  const myUid = useContext(AuthContext)?.user?.uid ?? null;
+  // An author deletes only a tour they made; the rule says the same.
+  const canDelete = access.admin || (!!myUid && set.authorUid === myUid);
   const publicLink = usePublicLinkControls({
     setId: set.id,
     menuCopies: true,
+    author: access.author,
     published: published.loaded ? (live?.set ?? null) : undefined,
   });
   const watchedCounts = useTourCounts(set.id, !!live && !seed);
@@ -605,16 +613,18 @@ const WebTourRow: React.FC<{
           copyLink={copyLink}
           onNotice={onNotice}
         />
-        <button
-          type="button"
-          onClick={() => void remove()}
-          aria-label={`Delete ${title}`}
-          title="Delete"
-          className={`${rowBtnBase} text-slate-500 hover:bg-red-50 hover:text-red-700`}
-          {...tourFieldAttr('web-tours.delete', 'web-tours', set.id)}
-        >
-          <Trash2 className="h-4 w-4" aria-hidden="true" />
-        </button>
+        {canDelete && (
+          <button
+            type="button"
+            onClick={() => void remove()}
+            aria-label={`Delete ${title}`}
+            title="Delete"
+            className={`${rowBtnBase} text-slate-500 hover:bg-red-50 hover:text-red-700`}
+            {...tourFieldAttr('web-tours.delete', 'web-tours', set.id)}
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
       </div>
     </li>
   );

@@ -9,10 +9,20 @@ const auth = vi.hoisted(() => ({
   globalPermissionsLoaded: true,
   isAdmin: null as boolean | null,
   flag: true,
+  listed: false,
+  authorReady: true,
 }));
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ ...auth, canAccessFeature: () => auth.flag }),
+}));
+vi.mock('./useTourAuthor', () => ({
+  useTourAuthor: () => ({
+    ready: auth.authorReady,
+    admin: auth.isAdmin === true,
+    author: auth.isAdmin === true || auth.listed,
+    passes: () => auth.flag,
+  }),
 }));
 vi.mock('@/components/auth/SignInPage', () => ({
   SignInPage: () => <p>Sign in</p>,
@@ -34,6 +44,8 @@ describe('WebToursGate', () => {
       globalPermissionsLoaded: true,
       isAdmin: true,
       flag: true,
+      listed: false,
+      authorReady: true,
     });
   });
 
@@ -52,7 +64,33 @@ describe('WebToursGate', () => {
   it('turns away a teacher', () => {
     auth.isAdmin = false;
     render(<WebToursGate />);
-    expect(screen.getByText('Web tours are for admins.')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Web tours are for tour authors. Ask an admin to add you.'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('waits while the author list answers', () => {
+    auth.isAdmin = false;
+    auth.authorReady = false;
+    render(<WebToursGate />);
+    expect(screen.getByLabelText('Loading')).toBeInTheDocument();
+  });
+
+  it('shows the page to a tour author', async () => {
+    auth.isAdmin = false;
+    auth.listed = true;
+    render(<WebToursGate />);
+    expect(await screen.findByText('Web tours page')).toBeInTheDocument();
+  });
+
+  it('tells a tour author when Web tours are off', () => {
+    auth.isAdmin = false;
+    auth.listed = true;
+    auth.flag = false;
+    render(<WebToursGate />);
+    expect(screen.getByText('Web tours are turned off.')).toBeInTheDocument();
   });
 
   it('tells an admin when Web tours are off', () => {

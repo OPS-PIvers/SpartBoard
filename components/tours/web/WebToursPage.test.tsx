@@ -6,6 +6,15 @@ import { WebToursPage } from './WebToursPage';
 
 type Published = { set: unknown; publishedAt: number };
 
+const who = vi.hoisted(() => ({ admin: true }));
+vi.mock('./useTourAuthor', () => ({
+  useTourAuthor: () => ({
+    ready: true,
+    admin: who.admin,
+    author: true,
+    passes: () => true,
+  }),
+}));
 const h = vi.hoisted(() => ({
   onDrafts: null as ((sets: GuidedLearningSet[]) => void) | null,
   onDraftsError: null as (() => void) | null,
@@ -188,6 +197,20 @@ describe('WebToursPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete Tour A' }));
     expect(await screen.findByText('Web tour deleted.')).toBeInTheDocument();
     expect(h.remove).toHaveBeenCalledWith('a');
+  });
+
+  it('hides Delete from an author on a tour someone else made', () => {
+    who.admin = false;
+    try {
+      render(<WebToursPage />);
+      showDrafts([tour('a', 'Tour A', { authorUid: 'someone-else' })]);
+      expect(screen.getByRole('button', { name: 'Edit Tour A' })).toBeVisible();
+      expect(
+        screen.queryByRole('button', { name: 'Delete Tour A' })
+      ).toBeNull();
+    } finally {
+      who.admin = true;
+    }
   });
 
   it('opens the editor from Edit and from Check tour', async () => {
