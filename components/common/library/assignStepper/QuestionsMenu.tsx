@@ -13,10 +13,12 @@ const CountInput: React.FC<{
 }> = ({ value, total, onChange }) => {
   const id = useId();
   const [draft, setDraft] = useState<string | null>(null);
-  const commit = (raw: string) => {
+  const commit = () => {
+    if (draft === null) return;
     setDraft(null);
-    const n = Math.round(Number(raw));
-    if (Number.isFinite(n) && n >= 1) onChange(Math.min(total, n));
+    const n = Math.min(total, Math.round(Number(draft)));
+    // Leaving the box unchanged keeps a hand-picked set.
+    if (Number.isFinite(n) && n >= 1 && n !== value) onChange(n);
   };
   return (
     <span className="flex items-center gap-2 text-sm text-slate-700">
@@ -27,9 +29,9 @@ const CountInput: React.FC<{
         max={total}
         value={draft ?? String(value)}
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={(e) => commit(e.target.value)}
+        onBlur={commit}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') commit(e.currentTarget.value);
+          if (e.key === 'Enter') commit();
         }}
         aria-label="Number of questions"
         {...tourAttr('assign-mods.questions-count')}

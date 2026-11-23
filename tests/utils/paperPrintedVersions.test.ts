@@ -4,6 +4,7 @@ import {
   printedGroupForPrint,
   printedGroupQuiz,
   printedGroupRecord,
+  printedGroupResolved,
   printedReprintGroups,
   printedSupports,
   recordPick,
@@ -57,6 +58,16 @@ describe('printedGroupQuiz', () => {
     const q = quiz([mc('q1'), mc('q2'), mc('q3')]);
     const printed = printedGroupQuiz(q, group({ questionIds: ['q3', 'q1'] }));
     expect(printed.questions.map((x) => x.id)).toEqual(['q1', 'q3']);
+  });
+
+  it('ignores the group questions on a bank draw, as devices do', () => {
+    const q = quiz([mc('q1'), mc('q2')]);
+    const resolved = printedGroupResolved(
+      { questions: [mc('drawn-1'), mc('q2')], stimuli: [] } as never,
+      q,
+      group({ questionIds: ['q2'] })
+    );
+    expect(resolved.questions.map((x) => x.id)).toEqual(['drawn-1', 'q2']);
   });
 
   it('keeps the group questions on the saved record, so a reprint matches', () => {

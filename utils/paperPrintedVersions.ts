@@ -95,9 +95,10 @@ export function printedGroupResolved(
 ): ResolvedQuizAssignment {
   return {
     ...resolved,
+    // A bank draw replaces a question subset, as on devices.
     questions: printedGroupQuiz(
       { ...quiz, questions: resolved.questions, stimuli: resolved.stimuli },
-      group,
+      { ...group, questionIds: undefined },
       hiddenChoices ? { hiddenChoices } : undefined
     ).questions,
   };

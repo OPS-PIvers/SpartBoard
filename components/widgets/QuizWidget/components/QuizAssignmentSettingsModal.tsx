@@ -541,7 +541,9 @@ export const QuizAssignmentSettingsModal: React.FC<
                 quizContext: {
                   questions: toOverrideEditorQuestions(quizData),
                   rubrics: [],
-                  fewerQuestions: !quizData.bankSlots?.length,
+                  fewerQuestions:
+                    !quizData.bankSlots?.length &&
+                    !quizData.questions.some((q) => q.paperOwnTest),
                   ...(translationOn
                     ? {
                         translation: {

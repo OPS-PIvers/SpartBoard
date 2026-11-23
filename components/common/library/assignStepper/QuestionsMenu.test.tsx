@@ -59,6 +59,16 @@ describe('QuestionsMenu', () => {
     expect(latest).toEqual(['q1', 'q3', 'q4', 'q5', 'q6']);
   });
 
+  it('keeps a hand-picked set when the count box is left unchanged', () => {
+    render(<Host start={['q2', 'q5']} />);
+    open();
+    const count = screen.getByLabelText('Number of questions');
+    fireEvent.focus(count);
+    fireEvent.blur(count);
+    done();
+    expect(latest).toEqual(['q2', 'q5']);
+  });
+
   it('Select all clears the rule', () => {
     render(<Host start={['q1', 'q2']} />);
     open();

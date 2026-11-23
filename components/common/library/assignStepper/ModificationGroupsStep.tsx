@@ -377,6 +377,10 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
     quizContext.fewerQuestions === true &&
     quizContext.questions.length > 1 &&
     auth?.canAccessFeature?.('modification-fewer-questions') === true;
+  // A subset saved before (per student, or from a class preset) stays visible so it can be cleared.
+  const questionsRowFor = (g: ModificationGroup) =>
+    fewerQuestionsOn ||
+    (quizContext.questions.length > 0 && !!g.questionIds?.length);
   const { languages } = useQuizTranslationSettings(translationOn);
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -545,7 +549,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                 </p>
               )}
             </div>
-            {fewerQuestionsOn && (
+            {questionsRowFor(group) && (
               <ModificationRow label="Questions">
                 <QuestionsMenu
                   questions={quizContext.questions}
