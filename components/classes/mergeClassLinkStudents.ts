@@ -9,13 +9,20 @@ export interface MergeClassLinkResult {
   matchedCount: number;
   /** Subset of matchedCount matched via stable classLinkSourcedId. */
   alreadySourcedCount: number;
+  /** ClassLink-linked students dropped because ClassLink no longer lists them. */
+  removedCount: number;
+  /** Removal was asked for but refused (empty or mostly-missing ClassLink class). */
+  removalSkipped: boolean;
 }
+
+/** Mirrors `MASS_REMOVAL_THRESHOLD` in functions/src/classlinkRosterReconcile.ts. */
+const MASS_REMOVAL_THRESHOLD = 0.5;
 
 const normalizeNameKey = (first: string, last: string): string =>
   `${first.trim()}|${last.trim()}`.toLowerCase();
 
 /**
- * Additive-only merge of ClassLink students into an existing local roster.
+ * Merge of ClassLink students into an existing local roster.
  *
  * Dedup algorithm (two-tier, stable):
  *   1. Primary — match by `classLinkSourcedId`. Handles upstream renames.
@@ -27,10 +34,12 @@ const normalizeNameKey = (first: string, last: string): string =>
  *
  * Preserves local `id` and `pin` for all matched students. Never removes
  * local-only students (teacher aides / kids not in SIS stay untouched).
+ * With `removeDeparted`, drops linked students ClassLink no longer lists.
  */
 export function mergeClassLinkStudents(
   existing: Student[],
-  classLinkStudents: ClassLinkStudent[]
+  classLinkStudents: ClassLinkStudent[],
+  { removeDeparted = false }: { removeDeparted?: boolean } = {}
 ): MergeClassLinkResult {
   const result: Student[] = existing.map((s) => ({ ...s }));
 
@@ -113,10 +122,28 @@ export function mergeClassLinkStudents(
     addedCount += 1;
   }
 
+  const upstreamIds = new Set(classLinkStudents.map((c) => c.sourcedId));
+  const linkedCount = existing.filter((s) => s.classLinkSourcedId).length;
+  const departing = removeDeparted
+    ? result.filter(
+        (s) => s.classLinkSourcedId && !upstreamIds.has(s.classLinkSourcedId)
+      )
+    : [];
+  // An empty or mostly-missing class is more likely a ClassLink hiccup than a real change.
+  const removalSkipped =
+    departing.length > 0 &&
+    (classLinkStudents.length === 0 ||
+      departing.length / linkedCount > MASS_REMOVAL_THRESHOLD);
+  const departingIds = new Set(
+    removalSkipped ? [] : departing.map((s) => s.id)
+  );
+
   return {
-    students: result,
+    students: result.filter((s) => !departingIds.has(s.id)),
     addedCount,
     matchedCount,
     alreadySourcedCount,
+    removedCount: departingIds.size,
+    removalSkipped,
   };
 }

@@ -255,4 +255,61 @@ describe('mergeClassLinkStudents', () => {
     expect(result.students[1].classLinkSourcedId).toBeUndefined();
     expect(result.students[1].pin).toBe('77');
   });
+
+  describe('removeDeparted', () => {
+    const linked = (n: string) =>
+      makeLocal({
+        firstName: n,
+        lastName: 'Kid',
+        classLinkSourcedId: `cl-${n}`,
+      });
+    const up = (n: string) =>
+      makeCL({ sourcedId: `cl-${n}`, givenName: n, familyName: 'Kid' });
+
+    it('drops a linked student ClassLink no longer lists, keeps hand-added ones', () => {
+      const existing = [
+        linked('a'),
+        linked('b'),
+        linked('moved'),
+        makeLocal({ firstName: 'Teacher', lastName: 'Aide', pin: '99' }),
+      ];
+      const result = mergeClassLinkStudents(existing, [up('a'), up('b')], {
+        removeDeparted: true,
+      });
+      expect(result.removedCount).toBe(1);
+      expect(result.removalSkipped).toBe(false);
+      expect(result.students.map((s) => s.firstName)).toEqual([
+        'a',
+        'b',
+        'Teacher',
+      ]);
+    });
+
+    it('stays additive without the option', () => {
+      const result = mergeClassLinkStudents(
+        [linked('a'), linked('moved')],
+        [up('a')]
+      );
+      expect(result.removedCount).toBe(0);
+      expect(result.students).toHaveLength(2);
+    });
+
+    it('refuses to remove when over half the linked students are missing', () => {
+      const existing = [linked('a'), linked('b'), linked('c')];
+      const result = mergeClassLinkStudents(existing, [up('a')], {
+        removeDeparted: true,
+      });
+      expect(result.removalSkipped).toBe(true);
+      expect(result.removedCount).toBe(0);
+      expect(result.students).toHaveLength(3);
+    });
+
+    it('refuses to remove on an empty ClassLink class', () => {
+      const result = mergeClassLinkStudents([linked('a')], [], {
+        removeDeparted: true,
+      });
+      expect(result.removalSkipped).toBe(true);
+      expect(result.students).toHaveLength(1);
+    });
+  });
 });
