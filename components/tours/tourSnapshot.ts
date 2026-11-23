@@ -9,6 +9,8 @@ export interface PublishedTour {
   set: GuidedLearningSet;
   publishedAt: number;
   publishedBy: string | null;
+  /** Set only on a students tour, the one marker the student read rule checks. */
+  audience?: 'students';
 }
 
 // Must match NOT_PUBLISHED in functions/src/glTours.ts.
@@ -82,6 +84,7 @@ export function parsePublishedTour(
     }),
     publishedAt,
     publishedBy: typeof d.publishedBy === 'string' ? d.publishedBy : null,
+    ...(d.audience === 'students' && { audience: 'students' as const }),
   };
 }
 

@@ -1199,7 +1199,9 @@ service cloud.firestore {
     // A web tour (surface 'web') is district staff only; a missing doc stays readable (_meta, unpublished ids).
     // A list can't rule out web snapshots, so only district staff list.
     match /building_guided_learning_tours/{setId} {
-      allow get: if staffSignedIn() && (noDoc() || existing().get('surface', 'spartboard') == 'spartboard' || isDistrictStaff() || isAdmin());
+      // A student reads only a snapshot published from a students Help item.
+      allow get: if (staffSignedIn() && (noDoc() || existing().get('surface', 'spartboard') == 'spartboard' || isDistrictStaff() || isAdmin()))
+        || (isStudentRoleUser() && existing().get('audience', '') == 'students' && existing().get('surface', 'spartboard') == 'spartboard');
       allow list: if staffSignedIn() && (isDistrictStaff() || isAdmin());
       // A tour author publishes web tours only (WEB_TOUR_AUTHORS.md B3); removing a snapshot stays with admins and the server.
       allow create: if isAdmin() || (isTourAuthor() && incoming().surface == 'web');
@@ -5364,7 +5366,7 @@ service cloud.firestore {
     // admin only); an org-scoped item is written by that org's admins, or by a
     // real super admin for any org, and read by its members (also any super
     // admin). Teachers may only bump openCount, by exactly one.
-    // audience 'subs' marks a /subs portal tour; the client filters on it, reads stay as they are.
+    // audience 'subs' marks a /subs portal tour; 'students' items are also readable by students (helpStudentReaderOk).
     match /help_resources/{itemId} {
       // isSuperAdmin() is also a fallback on the org-scoped branch (not just
       // the global one): without it, a real super admin could read any org's
@@ -5382,7 +5384,7 @@ service cloud.firestore {
                'visible', 'orgId', 'widgetTypes', 'url', 'embedType', 'setId', 'openCount',
                'createdBy', 'createdByEmail', 'createdAt', 'updatedAt', 'audience'])
           && d.kind in ['embed', 'guided-learning']
-          && d.get('audience', 'teachers') in ['teachers', 'subs']
+          && d.get('audience', 'teachers') in ['teachers', 'subs', 'students']
           && d.title is string && d.title.size() > 0 && d.title.size() <= 200
           && d.description is string && d.description.size() <= 1000
           && d.categoryId is string && d.order is int && d.visible is bool
@@ -5404,7 +5406,14 @@ service cloud.firestore {
           && tok().get('email', '') != ''
           && (existing().orgId == null || isOrgMember(existing().orgId) || isSuperAdmin());
       }
-      allow read: if helpReaderOk();
+      // A student reads only Published students items in their own org.
+      function helpStudentReaderOk() {
+        return isStudentRoleUser()
+          && existing().get('audience', '') == 'students'
+          && existing().visible == true
+          && (existing().orgId == null || existing().orgId == tok().get('orgId', ''));
+      }
+      allow read: if helpReaderOk() || helpStudentReaderOk();
       // isAdmin() alone misses a member super admin with no /admins/{email} doc; match the read gate.
       allow create: if (isAdmin() || isSuperAdmin()) && helpShapeOk(incoming())
         && helpScopeOk(incoming())

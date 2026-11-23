@@ -154,6 +154,7 @@ export const HelpItemList: React.FC<HelpItemListProps> = ({
               {KIND_LABEL[info.kind]} ·{' '}
               {info.published ? 'Published' : 'Hidden'}
               {helpAudienceOf(item) === 'subs' && ' · Substitutes'}
+              {helpAudienceOf(item) === 'students' && ' · Students'}
             </span>
           </span>
           {info.attention && (

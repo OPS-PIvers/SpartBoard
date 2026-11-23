@@ -12004,6 +12004,7 @@ export type GlobalFeature =
   | 'widget-notes-in-whats-new'
   /** Live tours on the /subs portal: the help button subs see and the Substitutes audience. */
   | 'subs-live-tours'
+  | 'student-live-tours'
   | 'assign-open-check';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */

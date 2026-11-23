@@ -1790,6 +1790,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'student-live-tours': {
+    label: 'Live tours for students',
+    icon: GraduationCap,
+    description:
+      'Students get a Help button with live tours. Admins record them in View as student.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'assign-open-check': {
     label: 'Assign: no duplicate classes',
     icon: CopyX,

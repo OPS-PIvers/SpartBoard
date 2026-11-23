@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { tourAttr } from '@/config/tourAnchors';
 import {
   collection,
@@ -35,12 +35,14 @@ import {
   subsEditTourUrl,
   subsRecordTourUrl,
 } from '@/components/subs/tours/subsTourLinks';
+import { clearStudentTourMarker } from '@/components/tours/publishedTours';
 import { isLiveTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import type { GuidedLearningSet } from '@/types';
 import {
   DEFAULT_HELP_CATEGORIES,
   HELP_PUBLISH_REFUSAL_TEXT,
   helpAudienceOf,
+  type HelpAudience,
   isUnfiled,
   type HelpCategory,
   type HelpPublishRefusal,
@@ -96,6 +98,14 @@ export const HelpCenterManager: React.FC = () => {
   const { showConfirm } = useDialog();
   const isSuperAdmin = isSuperAdminActor(user?.email, roleId, orgId);
   const subsTours = canAccessFeature('subs-live-tours');
+  const studentTours = canAccessFeature('student-live-tours');
+  const audiences = useMemo(
+    (): HelpAudience[] => [
+      ...(subsTours ? (['subs'] as const) : []),
+      ...(studentTours ? (['students'] as const) : []),
+    ],
+    [subsTours, studentTours]
+  );
   const {
     items,
     categories,
@@ -261,7 +271,23 @@ export const HelpCenterManager: React.FC = () => {
       // An Unfiled item can't be Published, so filing it away hides it.
       if (next.categoryId === '' && item.visible) next.visible = false;
     }
+    // Publish writes the audience into the tour snapshot, so a change needs a new Publish.
+    const was = helpAudienceOf(item);
+    if (
+      item.visible &&
+      next.audience !== undefined &&
+      next.audience !== was &&
+      (next.audience === 'students' || was === 'students')
+    )
+      next.visible = false;
     await updateItem(item.id, next);
+    if (
+      was === 'students' &&
+      next.audience !== undefined &&
+      next.audience !== 'students' &&
+      item.setId
+    )
+      await clearStudentTourMarker(item.setId);
   };
 
   // orgId is fixed once written, so a scope change recreates the item and drops the old one.
@@ -387,6 +413,8 @@ export const HelpCenterManager: React.FC = () => {
     });
     if (!confirmed) return;
     await deleteDoc(doc(db, HELP_RESOURCES_COLLECTION, item.id));
+    if (helpAudienceOf(item) === 'students' && item.setId)
+      await clearStudentTourMarker(item.setId);
     select(null);
   };
 
@@ -659,7 +687,7 @@ export const HelpCenterManager: React.FC = () => {
                 scopeLabel={scopeLabel(selected)}
                 scopeOptions={scopeOptions}
                 onBack={() => setPhoneDetail(false)}
-                showAudience={subsTours}
+                audiences={audiences}
                 onPatch={(patch) => handlePatch(selected, patch)}
                 onScopeChange={(next) => handleScopeChange(selected, next)}
                 onEdit={() => void handleEdit(selected)}

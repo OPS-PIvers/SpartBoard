@@ -93,6 +93,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-random-numbers',
   'widget-notes-in-whats-new',
   'subs-live-tours',
+  'student-live-tours',
   'assign-open-check',
 ];
 
