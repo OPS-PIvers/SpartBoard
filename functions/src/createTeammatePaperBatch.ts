@@ -28,6 +28,7 @@ import {
   analyzePaperQuiz,
   isPaperBoxSize,
   isPaperBoxStyle,
+  MAX_PAGE,
   planPaperBatch,
   planPaperPages,
   type PaperBatchDoc,
