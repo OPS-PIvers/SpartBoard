@@ -1757,6 +1757,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'picked-student-names': {
+    label: 'Picked student names',
+    icon: Users,
+    description:
+      'Assignment rows list the students an assignment went to. Names show under each class.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'writing-peer-review': {
     label: 'Writing peer review',
     icon: Users,

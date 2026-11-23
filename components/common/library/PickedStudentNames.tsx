@@ -24,8 +24,8 @@ export const PickedStudentGroups: React.FC<{ picked: PickedStudents }> = ({
   picked,
 }) => (
   <div className="flex flex-col gap-2.5">
-    {pickedGroups(picked).map((g) => (
-      <div key={g.label}>
+    {pickedGroups(picked).map((g, gi) => (
+      <div key={`${gi}-${g.label}`}>
         <div className="font-bold text-brand-blue-dark [overflow-wrap:anywhere]">
           {g.label}
         </div>

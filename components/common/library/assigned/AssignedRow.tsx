@@ -25,6 +25,7 @@ import {
   type PickedStudents,
 } from '@/utils/assignedStudents';
 import { PickedNames } from '../PickedStudentNames';
+import { useShowPickedStudents } from '@/hooks/useShowPickedStudents';
 import type { PeriodAccess } from '@/types';
 
 export interface AssignedRowProps {
@@ -185,9 +186,10 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   onSelect,
   selectAnchor,
   hideCounts = false,
-  picked,
+  picked: pickedIn,
   periodAccess,
 }) => {
+  const picked = useShowPickedStudents() ? pickedIn : null;
   const [expanded, setExpanded] = useState(false);
   const namesBy = picked ? namesByClassKey(picked, periodAccess) : {};
   const unplaced = picked ? unplacedGroups(picked, periodAccess) : [];
@@ -480,8 +482,8 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                   'min(7px, 1.6cqmin) 0 min(7px, 1.6cqmin) min(14px, 3.2cqmin)',
               }}
             >
-              {unplaced.map((g) => (
-                <div key={g.label}>
+              {unplaced.map((g, gi) => (
+                <div key={`${gi}-${g.label}`}>
                   <div
                     className="font-semibold text-brand-blue-dark [overflow-wrap:anywhere]"
                     style={{ fontSize: 'min(13px, 3.8cqmin)' }}

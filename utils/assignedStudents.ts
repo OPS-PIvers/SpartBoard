@@ -113,7 +113,7 @@ export function namesByClassKey(
   const entries = Object.entries(periodAccess ?? {});
   if (entries.length === 0) {
     const all = picked.classes.flatMap((c) => c.names);
-    return { '': [...new Set(all)].sort(byLastName.compare) };
+    return { '': all.sort(byLastName.compare) };
   }
   const out: Record<string, string[]> = {};
   for (const [key, row] of entries) {

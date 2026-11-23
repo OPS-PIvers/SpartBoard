@@ -10,6 +10,11 @@ import {
 import { AssignedRow } from './AssignedRow';
 import { mainActionLabel } from './assignedWording';
 
+const flag = vi.hoisted(() => ({ on: true }));
+vi.mock('@/hooks/useShowPickedStudents', () => ({
+  useShowPickedStudents: () => flag.on,
+}));
+
 const NOW = Date.UTC(2026, 10, 18, 16, 0);
 const ready = (label: string): PeriodAccess => ({
   state: 'closed',
@@ -119,5 +124,15 @@ describe('AssignedRow', () => {
     expect(screen.getByText('Not in these classes')).toBeTruthy();
     expect(screen.getByText('Evans, Eli')).toBeTruthy();
     expect(screen.getByText('1 student not on your class lists')).toBeTruthy();
+  });
+
+  it('hides picked names while the preview flag is off', () => {
+    flag.on = false;
+    const status = derive({ status: 'paused' });
+    renderRow(status, vi.fn(), {
+      picked: { count: 2, classes: [], elsewhere: [], unnamed: 2 },
+    });
+    expect(screen.queryByText('2 students')).toBeNull();
+    flag.on = true;
   });
 });

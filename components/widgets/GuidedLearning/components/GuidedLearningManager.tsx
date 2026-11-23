@@ -1348,7 +1348,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         {isViewOnly && <ViewCountSubtitle sessionId={a.sessionId} />}
         {picked && (
           <AssignmentClassNames
-            names={picked.classes.map((c) => c.label)}
+            names={(a.rosterIds ?? []).map(
+              (id) => rosters.find((r) => r.id === id)?.name
+            )}
             picked={picked}
           />
         )}

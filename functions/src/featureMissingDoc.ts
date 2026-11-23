@@ -88,6 +88,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'embed-mini-app',
   'course-agenda',
   'assigned-tab',
+  'picked-student-names',
   'writing-peer-review',
   'quiz-question-audio',
   'quiz-random-numbers',

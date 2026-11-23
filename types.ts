@@ -11995,6 +11995,8 @@ export type GlobalFeature =
   | 'video-import-ai'
   /** Library and Assigned tabs with a status per class (docs/plans/ASSIGNED_TAB.md D19). */
   | 'assigned-tab'
+  /** Assignment rows name the students a picked-only run went to. */
+  | 'picked-student-names'
   /** Writing peer review: teachers pair students to read, comment on or suggest edits to each other's writing. */
   | 'writing-peer-review'
   /** The sidebar Assignments hub; on for everyone until an admin narrows it. */

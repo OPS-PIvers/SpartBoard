@@ -7,6 +7,7 @@ import {
   type PickedStudents,
 } from '@/utils/assignedStudents';
 import { PickedStudentGroups } from './PickedStudentNames';
+import { useShowPickedStudents } from '@/hooks/useShowPickedStudents';
 
 interface AssignmentClassNamesProps {
   names: readonly (string | null | undefined)[];
@@ -17,13 +18,16 @@ interface AssignmentClassNamesProps {
 /** "N classes" in an assignment row; tap it to list every class in full. */
 export const AssignmentClassNames: React.FC<AssignmentClassNamesProps> = ({
   names,
-  picked,
+  picked: pickedIn,
 }) => {
+  const picked = useShowPickedStudents() ? pickedIn : null;
   const list = uniqueClassNames(names);
-  if (list.length === 0) return null;
-  const label = picked
-    ? `${classCountLabel(list.length)} · ${studentCountLabel(picked.count)}`
-    : classCountLabel(list.length);
+  if (list.length === 0 && !picked) return null;
+  const label = !picked
+    ? classCountLabel(list.length)
+    : list.length > 0
+      ? `${classCountLabel(list.length)} · ${studentCountLabel(picked.count)}`
+      : studentCountLabel(picked.count);
   if (picked)
     return (
       <BadgePopover
