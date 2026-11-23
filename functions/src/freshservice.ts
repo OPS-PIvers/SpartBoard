@@ -30,6 +30,7 @@ const MAX_TAG_CHARS = 32;
 const MAX_KEYWORD_CHARS = 64;
 /** Stops a runaway listing; 500 categories or folders is far past any real site. */
 const MAX_LIST_PAGES = 5;
+const FOLDER_LISTS_AT_ONCE = 5;
 const SET_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 
 export interface FreshserviceSite {
@@ -343,14 +344,15 @@ export async function loadCatalog(
     '/solutions/categories',
     'categories'
   );
-  // Folder lists load side by side, so a site with many categories still opens quickly.
-  const categories: FreshserviceCategory[] = await Promise.all(
-    cats
-      .flatMap((cat) => {
-        const id = idOf(cat.id);
-        return id ? [{ id, name: str(cat.name) }] : [];
-      })
-      .map(async ({ id, name }) => {
+  const named = cats.flatMap((cat) => {
+    const id = idOf(cat.id);
+    return id ? [{ id, name: str(cat.name) }] : [];
+  });
+  const categories: FreshserviceCategory[] = [];
+  // A few at a time: quick for a normal site, and never a burst at FreshService's rate limit.
+  for (let at = 0; at < named.length; at += FOLDER_LISTS_AT_ONCE) {
+    const batch = await Promise.all(
+      named.slice(at, at + FOLDER_LISTS_AT_ONCE).map(async ({ id, name }) => {
         const folders = await listAll(
           deps,
           config,
@@ -373,7 +375,9 @@ export async function loadCatalog(
           }),
         };
       })
-  );
+    );
+    categories.push(...batch);
+  }
   return {
     ready: true,
     categories,
