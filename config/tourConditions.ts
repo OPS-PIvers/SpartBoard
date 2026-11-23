@@ -54,6 +54,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'project-submit',
   'question-editor-fields',
   'quick-sign-in',
+  'quiz-assign-waits-for-save',
   'quiz-dok',
   'quiz-explanations',
   'quiz-import-equations',

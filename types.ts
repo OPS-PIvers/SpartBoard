@@ -11891,8 +11891,6 @@ export type GlobalFeature =
   | 'quiz-live-view-screenshot'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
-  /** Quiz assign stays open with a spinner until the save finishes, and shows a failed save inline. */
-  | 'quiz-assign-waits-for-save'
   /** Each quiz assignment keeps a copy of the questions it was given, so later edits never change its scores. */
   | 'quiz-frozen-assignments'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */

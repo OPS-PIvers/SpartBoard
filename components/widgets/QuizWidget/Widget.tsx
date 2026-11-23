@@ -3689,11 +3689,9 @@ const TeacherQuizWidget: React.FC<{
           dueAtByRosterId?: Record<string, number>,
           stepper?: QuizStepperAssign
         ) => {
-          // Flag on, a failure rejects so the stepper stays open and shows it inline.
-          const waitsForSave = canAccessFeature('quiz-assign-waits-for-save');
-          const fail = (message: string): void => {
-            if (waitsForSave) throw new Error(message);
-            addToast(message, 'error');
+          // A failure rejects so the stepper stays open and shows it inline.
+          const fail = (message: string): never => {
+            throw new Error(message);
           };
           // F1 fix — reuse the content QuizManager already fetched for the
           // B2 override editor (when the teacher expanded individual
@@ -3701,10 +3699,7 @@ const TeacherQuizWidget: React.FC<{
           // assigns never populate `preloadedQuizData`, so they still fetch
           // exactly once, here.
           const data = preloadedQuizData ?? (await loadQuiz(meta));
-          if (!data) {
-            if (waitsForSave) throw new Error('Could not load the quiz.');
-            return;
-          }
+          if (!data) throw new Error('Could not load the quiz.');
           // Autosave persists unfinished work, so assign can no longer assume
           // a saved quiz is a finished one.
           const blocker = quizAssignBlocker(data);
@@ -3739,11 +3734,7 @@ const TeacherQuizWidget: React.FC<{
               resolved = resolveQuizAssignment(data, contents);
             } catch (err) {
               if (err instanceof BankSlotResolutionError) {
-                if (waitsForSave)
-                  throw new Error(err.problems.map((p) => p.message).join(' '));
-                for (const problem of err.problems) {
-                  addToast(problem.message, 'error');
-                }
+                fail(err.problems.map((p) => p.message).join(' '));
               } else {
                 logError('QuizWidget.assignment.resolveBanks', err, {
                   quizId: meta.id,

@@ -35,7 +35,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-live-view-nudge-note',
   'quiz-live-view-screenshot',
   'quiz-score-on-submit',
-  'quiz-assign-waits-for-save',
   'quiz-frozen-assignments',
   'gradebook',
   'student-gradebook',

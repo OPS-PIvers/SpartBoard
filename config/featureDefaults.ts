@@ -1023,21 +1023,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
   },
 
-  // Quiz assign waits for the save, so a failed save keeps the teacher's choices. Admin-only until Paul has used it.
-  'quiz-assign-waits-for-save': {
-    label: 'Quiz assign waits for the save',
-    icon: Send,
-    description:
-      'Assign stays open until the assignment is saved. If the save fails, the error shows in the dialog and the choices are kept.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    modalLabel: 'Assign waits for the save',
-    group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Assignments grade against the questions students were given. Admin-only until Paul has used it.
   'quiz-frozen-assignments': {
     label: 'Quiz assignments keep their questions',
