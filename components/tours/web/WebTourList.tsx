@@ -536,6 +536,7 @@ const WebTourRow: React.FC<{
           hint: problems.map(stepName).join('\n'),
           tone: 'bg-red-50 text-red-800 ring-1 ring-inset ring-red-300 hover:bg-red-100',
           go: () => onEdit(set, problems[0]?.stepId),
+          anchor: tourFieldAttr('web-tours.status', 'web-tours', set.id),
         }
       : publish === 'published'
         ? {
@@ -546,6 +547,7 @@ const WebTourRow: React.FC<{
             hint: 'Published with no changes since. Opens the editor to check it again.',
             tone: 'bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-300 hover:bg-emerald-100',
             go: () => onCheck(set),
+            anchor: tourFieldAttr('web-tours.check', 'web-tours', set.id),
           }
         : status === 'passed'
           ? {
@@ -559,6 +561,7 @@ const WebTourRow: React.FC<{
                   : 'Every step passed the check. Open the editor to publish.',
               tone: 'bg-brand-blue-lighter text-brand-blue-dark ring-1 ring-inset ring-brand-blue-primary/30 hover:ring-brand-blue-primary/60',
               go: () => onCheck(set),
+              anchor: tourFieldAttr('web-tours.check', 'web-tours', set.id),
             }
           : {
               state: 'check',
@@ -574,6 +577,7 @@ const WebTourRow: React.FC<{
                   : 'Opens the editor to play the tour on its website and check every step',
               tone: amber,
               go: () => onCheck(set),
+              anchor: tourFieldAttr('web-tours.check', 'web-tours', set.id),
             };
   const CheckIcon = check.icon;
   const checkControl = (
@@ -585,11 +589,7 @@ const WebTourRow: React.FC<{
       data-changed={publish === 'changed' || undefined}
       data-check={check.state}
       className={`inline-flex min-h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-xs font-semibold touch-target-expand ${focusRing} ${check.tone}`}
-      {...tourFieldAttr(
-        status === 'issues' ? 'web-tours.status' : 'web-tours.check',
-        'web-tours',
-        set.id
-      )}
+      {...check.anchor}
     >
       <CheckIcon className="h-3.5 w-3.5" aria-hidden="true" />
       {check.label}
