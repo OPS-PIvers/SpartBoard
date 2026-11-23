@@ -2973,8 +2973,7 @@
       "id": "quiz-stimulus-picker-2026-11-20c",
       "widget": "quiz",
       "date": "2026-11-20",
-      "text": "Attach stimuli in a dialog. Pick one from the list and see a preview beside it.",
-      "feature": "quiz-stimulus-picker"
+      "text": "Attach stimuli in a dialog. Pick one from the list and see a preview beside it."
     },
     {
       "id": "video-activity-score-only-2026-11-20c",

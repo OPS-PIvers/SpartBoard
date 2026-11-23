@@ -70,6 +70,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'quiz-reopen-submission',
   'quiz-results-tools',
   'quiz-review-step',
+  'quiz-stimulus-picker',
   'quiz-stimulus-preview',
   'quiz-stimulus-tabs',
   'quiz-submit-for-student',

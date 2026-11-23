@@ -831,15 +831,9 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-stimuli.attach-calculator': ['quiz.editor'],
     'quiz-stimuli.attach-passage': ['quiz.editor.stimulus-picker'],
     'quiz-stimuli.attach-word-bank': ['quiz.editor.stimulus-picker'],
-    'quiz-stimuli.attach-preview': [
-      'quiz.editor',
-      'quiz.editor.stimulus-picker',
-    ],
+    'quiz-stimuli.attach-preview': ['quiz.editor.stimulus-picker'],
     'quiz-stimuli.attach-question': ['quiz.editor'],
-    'quiz-stimuli.attach-stimulus': [
-      'quiz.editor',
-      'quiz.editor.stimulus-picker',
-    ],
+    'quiz-stimuli.attach-stimulus': ['quiz.editor.stimulus-picker'],
     'quiz-stimuli.picker-add': ['quiz.editor.stimulus-picker'],
     'quiz-stimuli.paper-placement': ['quiz.editor.stimulus-picker'],
     'quiz-stimuli.picker-text': ['quiz.editor.stimulus-picker'],

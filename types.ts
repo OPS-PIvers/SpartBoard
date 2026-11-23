@@ -11850,8 +11850,6 @@ export type GlobalFeature =
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
   | 'quiz-word-bank'
-  /** Quiz editor attaches stimuli in a list-and-preview dialog instead of an inline checklist. */
-  | 'quiz-stimulus-picker'
   /** A question's modified version can show different stimuli. */
   | 'quiz-modified-stimuli'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */

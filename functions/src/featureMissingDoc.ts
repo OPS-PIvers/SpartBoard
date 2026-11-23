@@ -57,7 +57,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-blank-types',
   'quiz-calculator-stimulus',
   'quiz-word-bank',
-  'quiz-stimulus-picker',
   'quiz-modified-stimuli',
   'lunch-count-redesign',
   'weather-details',

@@ -1000,7 +1000,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             slotId={selectedSlot.id}
             calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
             wordBankAvailable={canAccessFeature('quiz-word-bank')}
-            pickerModal={canAccessFeature('quiz-stimulus-picker')}
             paperPlacement={canAccessFeature('paper-answer-sheets')}
           />
         }
@@ -1036,7 +1035,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       wordBankAvailable={canAccessFeature('quiz-word-bank')}
       pasteScopeRef={paneRef}
       metaList
-      pickerModal={canAccessFeature('quiz-stimulus-picker')}
       paperPlacement={canAccessFeature('paper-answer-sheets')}
     />
   );
