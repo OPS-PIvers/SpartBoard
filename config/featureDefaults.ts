@@ -210,8 +210,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
   'substitute-sharing': {
     label: 'Substitute sharing',
     icon: UserCheck,
-    description:
-      'Teachers can share boards with a sub. Subs can open the Substitute Portal.',
+    description: 'Teachers can share boards with a sub.',
     stage: 'permanent',
     afterLaunch: 'keep',
     category: 'sharing',
