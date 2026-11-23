@@ -10,6 +10,7 @@ import {
   buildStepsArticle,
   webTourExportParts,
 } from './stepsHtmlExport';
+import { useTourAuthor } from './useTourAuthor';
 
 export const FRESHSERVICE_FEATURE = 'freshservice-sync';
 
@@ -68,8 +69,14 @@ const call = <T>(data: Request) =>
     timeout: 130_000,
   })(data).then((r) => r.data);
 
-/** The FreshService flag for this admin; false outside an auth provider. */
+/** May this person send tours to FreshService: an admin with the flag, or a tour author while it is on. */
 export function useCanFreshservice(): boolean {
+  const access = useTourAuthor();
+  return access.author && access.passes(FRESHSERVICE_FEATURE);
+}
+
+/** The saved site and folder stay with admins (WEB_TOUR_AUTHORS.md B5); false outside an auth provider. */
+export function useCanFreshserviceSettings(): boolean {
   const auth = useContext(AuthContext);
   return !!auth?.isAdmin && auth.canAccessFeature(FRESHSERVICE_FEATURE);
 }

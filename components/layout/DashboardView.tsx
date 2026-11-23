@@ -2023,7 +2023,8 @@ export const DashboardView: React.FC = () => {
       <TourOfferWatcher />
       {isAdmin && <TourRecordingHost />}
       {isAdmin && <TourEditorHost />}
-      {isAdmin && canAccessFeature('web-tours') && webTourLink && (
+      {/* A tour author follows the same link; the Web tours page decides who gets in. */}
+      {webTourLink && (isAdmin !== true || canAccessFeature('web-tours')) && (
         <LazyChunkErrorBoundary>
           <React.Suspense fallback={null}>
             <WebTourEditorHost />

@@ -1,6 +1,7 @@
 import React, {
   Suspense,
   lazy,
+  useContext,
   useEffect,
   useId,
   useRef,
@@ -38,6 +39,8 @@ import {
   webTourStepsHtml,
 } from './stepsHtmlExport';
 import { useCanFreshservice } from './freshservice';
+import { useTourAuthor } from './useTourAuthor';
+import { AuthContext } from '@/context/AuthContextValue';
 import {
   stepStatusRows,
   tourStatus,
@@ -431,9 +434,14 @@ const WebTourRow: React.FC<{
     : watched;
   const live =
     published.tour && isWebTourSet(published.tour.set) ? published.tour : null;
+  const access = useTourAuthor();
+  const myUid = useContext(AuthContext)?.user?.uid ?? null;
+  // An author deletes only a tour they made; the rule says the same.
+  const canDelete = access.admin || (!!myUid && set.authorUid === myUid);
   const publicLink = usePublicLinkControls({
     setId: set.id,
     menuCopies: true,
+    author: access.author,
     published: published.loaded ? (live?.set ?? null) : undefined,
   });
   const watchedCounts = useTourCounts(set.id, !!live && !seed);
@@ -605,16 +613,18 @@ const WebTourRow: React.FC<{
           copyLink={copyLink}
           onNotice={onNotice}
         />
-        <button
-          type="button"
-          onClick={() => void remove()}
-          aria-label={`Delete ${title}`}
-          title="Delete"
-          className={`${rowBtnBase} text-slate-500 hover:bg-red-50 hover:text-red-700`}
-          {...tourFieldAttr('web-tours.delete', 'web-tours', set.id)}
-        >
-          <Trash2 className="h-4 w-4" aria-hidden="true" />
-        </button>
+        {canDelete && (
+          <button
+            type="button"
+            onClick={() => void remove()}
+            aria-label={`Delete ${title}`}
+            title="Delete"
+            className={`${rowBtnBase} text-slate-500 hover:bg-red-50 hover:text-red-700`}
+            {...tourFieldAttr('web-tours.delete', 'web-tours', set.id)}
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
       </div>
     </li>
   );
@@ -623,11 +633,17 @@ const WebTourRow: React.FC<{
 const byNewest = (a: GuidedLearningSet, b: GuidedLearningSet) =>
   (b.updatedAt ?? 0) - (a.updatedAt ?? 0) || a.title.localeCompare(b.title);
 
-/** The building's web tour drafts, newest first, with their publish and check state. */
+const byName = (a: GuidedLearningSet, b: GuidedLearningSet) =>
+  a.title.localeCompare(b.title) || byNewest(a, b);
+
+export type TourSort = 'newest' | 'name';
+
+/** The building's web tour drafts, newest first unless sorted by name, with their publish and check state. */
 export const WebTourList: React.FC<{
   tours: readonly GuidedLearningSet[];
   /** Ids to hide; rows stay mounted so their facts keep reporting. */
   hiddenIds?: ReadonlySet<string>;
+  sort?: TourSort;
   onEdit: (set: GuidedLearningSet, stepId?: string) => void;
   onCheck: (set: GuidedLearningSet) => void;
   onRename: (set: GuidedLearningSet, title: string) => Promise<boolean>;
@@ -636,6 +652,7 @@ export const WebTourList: React.FC<{
 }> = ({
   tours,
   hiddenIds,
+  sort = 'newest',
   onEdit,
   onCheck,
   onRename,
@@ -664,7 +681,7 @@ export const WebTourList: React.FC<{
         <span>Check</span>
         <span />
       </li>
-      {[...tours].sort(byNewest).map((set) => (
+      {[...tours].sort(sort === 'name' ? byName : byNewest).map((set) => (
         <WebTourRow
           key={set.id}
           set={set}
