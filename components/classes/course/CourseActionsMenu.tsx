@@ -58,7 +58,25 @@ export const CourseActionsMenu: React.FC<CourseActionsMenuProps> = ({
                 defaultValue_other: 'Added {{count}} students.',
               })}`
             : '';
-        addToast(`${synced}${added}`, 'success');
+        const removed =
+          plan.removed > 0
+            ? ` ${t('course.sync.removed', {
+                count: plan.removed,
+                defaultValue: 'Removed {{count}} student.',
+                defaultValue_other: 'Removed {{count}} students.',
+              })}`
+            : '';
+        addToast(`${synced}${added}${removed}`, 'success');
+      }
+      if (plan.removalSkipped.length > 0) {
+        addToast(
+          t('toasts.classLink.removalSkipped', {
+            name: plan.removalSkipped.join(', '),
+            defaultValue:
+              'Over half of {{name}} is missing from ClassLink, so no one was removed.',
+          }),
+          'warning'
+        );
       }
       if (plan.unlinked.length > 0) {
         addToast(
