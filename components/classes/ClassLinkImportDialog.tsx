@@ -316,10 +316,8 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
         target.students,
         studentsByClass[cls.sourcedId] ?? [],
         {
-          // Merging a different ClassLink class in stays additive.
-          removeDeparted:
-            !target.classlinkClassId ||
-            target.classlinkClassId === cls.sourcedId,
+          // Only a roster already linked to this class removes; any other merge stays additive.
+          removeDeparted: target.classlinkClassId === cls.sourcedId,
         }
       );
       // Backfill ClassLink provenance on the roster doc itself — rosters
