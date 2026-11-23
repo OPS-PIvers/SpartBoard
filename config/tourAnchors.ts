@@ -19718,7 +19718,8 @@ export const TOUR_ANCHORS = {
     label: 'Continue button on a student Video Activity note stop',
   },
   'student.video-activity.resume': {
-    label: 'Resume Activity button after a student Video Activity tab return',
+    label:
+      'Resume Activity button after a teacher unlocks a student Video Activity',
   },
   'student.video-activity.tab-warning-return': {
     label:

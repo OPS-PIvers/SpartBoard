@@ -84674,7 +84674,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "student.video-activity.resume",
-    "label": "Resume Activity button after a student Video Activity tab return",
+    "label": "Resume Activity button after a teacher unlocks a student Video Activity",
     "scope": "board",
     "routes": [
       {
