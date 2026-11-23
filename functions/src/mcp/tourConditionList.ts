@@ -171,6 +171,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'web-tours',
   'webcam-ai',
   'whiteboard-pro',
+  'widget-notes-in-whats-new',
   'writing-peer-review',
 ];
 

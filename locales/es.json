@@ -4904,7 +4904,10 @@
   "widgetWhatsNew": {
     "label": "Novedades",
     "dismiss": "Descartar",
-    "gotIt": "Entendido"
+    "gotIt": "Entendido",
+    "listTitle": "Novedades de widgets",
+    "more": "{{count}} más",
+    "showLess": "Mostrar menos"
   },
   "rubricGuide": {
     "examples": "Respuestas de ejemplo",

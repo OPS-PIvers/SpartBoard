@@ -12012,7 +12012,9 @@ export type GlobalFeature =
   | 'quiz-question-audio'
   | 'quiz-random-numbers'
   /** Print results with Settings and Students tabs and a Course > class > student picker. */
-  | 'results-print-v2';
+  | 'results-print-v2'
+  /** Widget update notes listed in the sidebar What's New instead of a button under each widget. */
+  | 'widget-notes-in-whats-new';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {
