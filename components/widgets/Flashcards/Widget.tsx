@@ -1126,7 +1126,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                   assignmentId: string,
                   addRosterIds: string[]
                 ) => {
-                  await addToOpenAssignment({
+                  const added = await addToOpenAssignment({
                     assignments,
                     assignmentId,
                     rosters,
@@ -1135,7 +1135,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                       updateAssignmentSettings(a.id, { classEdit }),
                     toast: addToast,
                   });
-                  setAssigningSet(null);
+                  if (added) setAssigningSet(null);
                 },
               }
             : {})}

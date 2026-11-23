@@ -296,7 +296,7 @@ export interface VideoActivityManagerProps {
   onAddClassesToAssignment?: (
     assignmentId: string,
     rosterIds: string[]
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   /** Opens Settings (When and the rule steps) for a self-paced assignment. */
   onArchiveEditSettings?: (assignment: VideoActivityAssignment) => void;
 
@@ -1707,8 +1707,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
             ? {
                 openAssignments: openInputs(assignTarget.id),
                 onAddToOpen: async (id: string, rosterIds: string[]) => {
-                  await onAddClassesToAssignment(id, rosterIds);
-                  closeAssign();
+                  if (await onAddClassesToAssignment(id, rosterIds))
+                    closeAssign();
                 },
               }
             : {})}

@@ -176,7 +176,7 @@ describe('addToOpenAssignment', () => {
     expect(toast).toHaveBeenCalledWith('Added to the assignment.', 'success');
   });
 
-  it('toasts and rethrows a failed save', async () => {
+  it('toasts a failed save and reports it', async () => {
     const toast = vi.fn();
     await expect(
       addToOpenAssignment({
@@ -187,7 +187,7 @@ describe('addToOpenAssignment', () => {
         save: () => Promise.reject(new Error('nope')),
         toast,
       })
-    ).rejects.toThrow('nope');
+    ).resolves.toBe(false);
     expect(toast).toHaveBeenCalledWith("Couldn't add the classes.", 'error');
   });
 });

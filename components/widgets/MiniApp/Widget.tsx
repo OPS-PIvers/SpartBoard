@@ -1516,7 +1516,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 assignmentId: string,
                 addRosterIds: string[]
               ) => {
-                await addToOpenAssignment({
+                const added = await addToOpenAssignment({
                   assignments,
                   assignmentId,
                   rosters,
@@ -1528,7 +1528,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                       assignmentId,
                     }),
                 });
-                closeAssign();
+                if (added) closeAssign();
               },
             }
           : {})}

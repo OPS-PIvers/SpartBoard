@@ -542,7 +542,7 @@ interface QuizManagerProps {
   onAddClassesToAssignment?: (
     assignmentId: string,
     rosterIds: string[]
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   onArchiveCopyUrl?: (assignment: QuizAssignment) => void;
   onArchiveMonitor?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Opens the frozen copy students have; absent without the quiz-student-view flag. */
@@ -3440,8 +3440,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   rosters
                 ),
                 onAddToOpen: async (id: string, rosterIds: string[]) => {
-                  await onAddClassesToAssignment(id, rosterIds);
-                  resetAssign();
+                  if (await onAddClassesToAssignment(id, rosterIds))
+                    resetAssign();
                 },
               }
             : {})}

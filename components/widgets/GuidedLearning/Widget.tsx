@@ -2108,7 +2108,7 @@ const TeacherGuidedLearningWidget: React.FC<{
                   assignmentId: string,
                   addRosterIds: string[]
                 ) => {
-                  await addToOpenAssignment({
+                  const added = await addToOpenAssignment({
                     assignments,
                     assignmentId,
                     rosters,
@@ -2120,7 +2120,7 @@ const TeacherGuidedLearningWidget: React.FC<{
                         assignmentId,
                       }),
                   });
-                  setAssignTarget(null);
+                  if (added) setAssignTarget(null);
                 },
               }
             : {})}

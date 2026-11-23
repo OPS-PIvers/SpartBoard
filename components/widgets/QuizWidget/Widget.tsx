@@ -3048,7 +3048,7 @@ const TeacherQuizWidget: React.FC<{
   const addClassesToAssignment = (
     assignmentId: string,
     addRosterIds: string[]
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     const target = assignments.find((a) => a.id === assignmentId);
     return addToOpenAssignment({
       assignments,

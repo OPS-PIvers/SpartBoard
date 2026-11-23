@@ -173,7 +173,7 @@ export function openInputsFor<A extends ClassTargetedAssignment>(
     }));
 }
 
-/** Saves Assign's "Add to the X assignment" through the kind's own Edit classes write. */
+/** Saves Assign's "Add to the X assignment" through the kind's own Edit classes write; false when it failed (already toasted). */
 export async function addToOpenAssignment<
   A extends ClassTargetedAssignment & { accessMode?: AccessMode },
 >({
@@ -194,7 +194,7 @@ export async function addToOpenAssignment<
   save: (assignment: A, edit: AssignmentClassEdit) => Promise<void>;
   toast: (message: string, tone: 'success' | 'error') => void;
   onError?: (err: unknown) => void;
-}): Promise<void> {
+}): Promise<boolean> {
   const target = assignments.find((a) => a.id === assignmentId);
   try {
     if (!target) throw new Error('That assignment is gone.');
@@ -205,9 +205,10 @@ export async function addToOpenAssignment<
   } catch (err) {
     onError?.(err);
     toast(ADD_FAILED, 'error');
-    throw err;
+    return false;
   }
   toast(ADDED, 'success');
+  return true;
 }
 
 const ADDED = 'Added to the assignment.';
