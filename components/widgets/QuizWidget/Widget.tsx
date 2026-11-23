@@ -1953,7 +1953,6 @@ const TeacherQuizWidget: React.FC<{
         : [];
     if (meta && live.length === 1) {
       const a = live[0];
-
       void loadAnswerKeyQuiz(meta, a).then((data) => {
         if (!data) return;
         updateWidget(
