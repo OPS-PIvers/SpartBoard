@@ -55,4 +55,28 @@ describe('planCourseClassLinkSync', () => {
     expect(plan.unlinked).toEqual(['Period 1']);
     expect(plan.notFound).toEqual(['Period 2']);
   });
+
+  it('removes a linked student who left the section', () => {
+    const plan = planCourseClassLinkSync(
+      [
+        {
+          id: 'a',
+          name: 'Period 9',
+          classlinkClassId: 'c9',
+          students: [
+            { ...student('s1', 'Ann', 'Lee'), classLinkSourcedId: 'x1' },
+            { ...student('s2', 'Bo', 'Ng'), classLinkSourcedId: 'x2' },
+            { ...student('s3', 'Cy', 'Ott'), classLinkSourcedId: 'x3' },
+          ],
+        },
+      ],
+      {
+        classes: [],
+        studentsByClass: { c9: [cl('x1', 'Ann', 'Lee'), cl('x2', 'Bo', 'Ng')] },
+      }
+    );
+    expect(plan.removed).toBe(1);
+    expect(plan.updates[0].students.map((s) => s.id)).toEqual(['s1', 's2']);
+    expect(plan.removalSkipped).toEqual([]);
+  });
 });

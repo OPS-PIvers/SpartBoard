@@ -143,7 +143,7 @@
       "classLinkImportTitle": "Importer depuis ClassLink",
       "classLinkMergeTitle": "Synchroniser « {{name}} » avec ClassLink",
       "classLinkImportSubtitle": "Choisis une classe à importer comme nouvelle liste.",
-      "classLinkMergeSubtitle": "Choisis la classe ClassLink dont les élèves doivent être ajoutés. Les élèves existants sont conservés.",
+      "classLinkMergeSubtitle": "Choisis la classe ClassLink à synchroniser. Les élèves qui l'ont quittée sont retirés. Ceux que tu as ajoutés restent.",
       "classLinkConnecting": "Connexion à ClassLink…",
       "classLinkNoClasses": "Aucune classe trouvée dans ClassLink.",
       "classLinkImport": "Importer",
@@ -1325,6 +1325,9 @@
       "allAlreadyPresent": "Les {{count}} élèves sont déjà dans {{name}}",
       "addedStudents_one": "{{count}} élève ajouté à {{name}}",
       "addedStudents_other": "{{count}} élèves ajoutés à {{name}}",
+      "removedStudents_one": "{{count}} élève retiré, absent de ClassLink",
+      "removedStudents_other": "{{count}} élèves retirés, absents de ClassLink",
+      "removalSkipped": "Plus de la moitié de {{name}} est absente de ClassLink, donc personne n'a été retiré.",
       "syncFailed": "Échec de la synchronisation de {{name}}"
     }
   },
