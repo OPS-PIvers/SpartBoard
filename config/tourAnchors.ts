@@ -1846,6 +1846,44 @@ export const TOUR_ANCHORS = {
     label: 'Done button that closes the modification group Students menu',
     panel: true,
   },
+  'assign-mods.questions': {
+    label:
+      'Questions button that opens the question picker for a modification group',
+    panel: true,
+  },
+  'assign-mods.questions-count': {
+    label: 'Number of questions box in the modification group Questions dialog',
+    panel: true,
+  },
+  'assign-mods.questions-random': {
+    label: 'Pick at random button in the modification group Questions dialog',
+    panel: true,
+  },
+  'assign-mods.questions-search': {
+    label: 'Search box in the modification group Questions dialog',
+    panel: true,
+  },
+  'assign-mods.question': {
+    label: 'Question checkbox in the modification group Questions dialog',
+    perField: true,
+    panel: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for question 1',
+    rows: true,
+    rowList: 'assign-mods-questions',
+  },
+  'assign-mods.questions-all': {
+    label: 'Select all button in the modification group Questions dialog',
+    panel: true,
+  },
+  'assign-mods.questions-done': {
+    label: 'Done button that saves the modification group Questions dialog',
+    panel: true,
+  },
+  'assign-mods.questions-cancel': {
+    label: 'Cancel button in the modification group Questions dialog',
+    panel: true,
+  },
   'assign-mods.class-group': {
     label: 'Class group button in the modification group Students menu',
     perField: true,

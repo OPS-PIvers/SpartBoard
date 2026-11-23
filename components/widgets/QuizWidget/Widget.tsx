@@ -1249,7 +1249,10 @@ const TeacherQuizWidget: React.FC<{
       groups: picks.map((given, i) => {
         // A bank draw replaces a question subset on devices too (QuizStudentApp drawIds).
         const { questionIds: _subset, ...withoutSubset } = given;
-        const pick = resolved ? withoutSubset : given;
+        const { questionIds: _groupSubset, ...groupWithout } = given.group;
+        const pick = resolved
+          ? { ...withoutSubset, group: groupWithout }
+          : given;
         return {
           pick,
           quiz: printedGroupQuiz(quiz, pick.group, pick),

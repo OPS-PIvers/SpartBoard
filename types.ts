@@ -6803,7 +6803,7 @@ export interface PaperPrintedGroupRecord {
   single?: true;
   /** Option text left off per question id: a student copy's own hidden answer choices. */
   hiddenChoices?: Record<string, string[]>;
-  /** The questions a student copy printed, when the student was given only some. */
+  /** The questions a student copy or group printed, when given only some. */
   questionIds?: string[];
 }
 
@@ -12033,7 +12033,8 @@ export type GlobalFeature =
   /** Live tours on the /subs portal: the help button subs see and the Substitutes audience. */
   | 'subs-live-tours'
   | 'student-live-tours'
-  | 'assign-open-check';
+  | 'assign-open-check'
+  | 'modification-fewer-questions';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {

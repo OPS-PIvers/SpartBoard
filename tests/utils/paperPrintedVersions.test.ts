@@ -4,6 +4,7 @@ import {
   printedGroupForPrint,
   printedGroupQuiz,
   printedGroupRecord,
+  printedGroupResolved,
   printedReprintGroups,
   printedSupports,
   recordPick,
@@ -51,6 +52,47 @@ describe('printedGroupQuiz', () => {
   it('leaves the quiz alone with no changes', () => {
     const q = quiz([mc('q1', { modifiedText: 'Easier q1' })]);
     expect(printedGroupQuiz(q, group({})).questions).toEqual(q.questions);
+  });
+
+  it('prints only the questions the group answers, in quiz order', () => {
+    const q = quiz([mc('q1'), mc('q2'), mc('q3')]);
+    const printed = printedGroupQuiz(q, group({ questionIds: ['q3', 'q1'] }));
+    expect(printed.questions.map((x) => x.id)).toEqual(['q1', 'q3']);
+  });
+
+  it('ignores the group questions on a bank draw, as devices do', () => {
+    const q = quiz([mc('q1'), mc('q2')]);
+    const resolved = printedGroupResolved(
+      { questions: [mc('drawn-1'), mc('q2')], stimuli: [] } as never,
+      q,
+      group({ questionIds: ['q2'] })
+    );
+    expect(resolved.questions.map((x) => x.id)).toEqual(['drawn-1', 'q2']);
+  });
+
+  it('keeps the group questions on the saved record, so a reprint matches', () => {
+    const record = printedGroupRecord({
+      group: group({ printed: true, questionIds: ['q2'] }),
+      number: 1,
+      students: [],
+    });
+    expect(record.questionIds).toEqual(['q2']);
+    const q = quiz([mc('q1'), mc('q2')]);
+    const [reprint] = printedReprintGroups(q, [
+      {
+        id: 'b',
+        quizId: 'quiz-1',
+        rosterIds: [],
+        questionCount: 1,
+        choiceCount: 4,
+        seats: {},
+        spareSeats: [],
+        pagesPerSheet: 1,
+        createdAt: 0,
+        printedGroup: record,
+      },
+    ]);
+    expect(reprint.quiz.questions.map((x) => x.id)).toEqual(['q2']);
   });
 
   it('drops the same wrong answers the device hides and keeps the right one', () => {

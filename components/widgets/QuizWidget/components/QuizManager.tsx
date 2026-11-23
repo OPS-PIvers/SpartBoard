@@ -2330,6 +2330,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const assignQuizContext = {
     questions: toOverrideEditorQuestions(assignQuizData),
     rubrics: assignRubrics,
+    // Bank draws and a teacher's own printed test (fixed numbering) can't take a subset.
+    fewerQuestions:
+      !assignQuizData?.bankSlots?.length &&
+      !assignQuizData?.questions.some((q) => q.paperOwnTest),
     ...(translationAllowed
       ? {
           translation: {

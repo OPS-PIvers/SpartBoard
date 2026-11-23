@@ -381,6 +381,23 @@ function seatVersion(batch: BatchDoc, seat: number): SeatVersion | null {
   };
 }
 
+/** The student's assigned question subset (a modification), limited to this session's questions. */
+export function overrideSubset(
+  assignment: Record<string, unknown>,
+  studentUid: string,
+  sessionQuestionIds: ReadonlySet<string>
+): string[] | null {
+  const overrides = assignment.overridesByStudentUid;
+  if (!isRecord(overrides)) return null;
+  const own = overrides[studentUid];
+  if (!isRecord(own) || !Array.isArray(own.questionIds)) return null;
+  const ids = own.questionIds.filter(
+    (id: unknown): id is string =>
+      typeof id === 'string' && sessionQuestionIds.has(id)
+  );
+  return ids.length > 0 ? ids : null;
+}
+
 /** The batch's map index as one seat's sheet printed it. */
 function seatMapIndex(
   index: BatchMapIndex,
@@ -705,7 +722,8 @@ export async function handleImportPaperResponses(
         scanId: input.scanId ?? null,
         allowedPages,
         servedQuestionIds:
-          versionBySeat.get(r.sheet.seat)?.servedQuestionIds ?? null,
+          versionBySeat.get(r.sheet.seat)?.servedQuestionIds ??
+          overrideSubset(assignment, r.studentUid, questionIds),
         hybrid,
         transcribe,
         keptPages: keptPages

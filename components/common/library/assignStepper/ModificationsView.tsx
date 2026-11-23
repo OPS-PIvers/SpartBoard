@@ -38,6 +38,8 @@ export interface ModificationsQuizContext {
   rubrics: Rubric[];
   /** Drives the translation coverage advisory; absent = no advisory. */
   translation?: AssignTranslationContext;
+  /** Groups can cut questions; off when bank draws make the served questions unknown at assign. */
+  fewerQuestions?: boolean;
 }
 
 export interface ModificationsListProps extends ModificationsScope {

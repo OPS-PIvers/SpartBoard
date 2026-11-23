@@ -33,6 +33,7 @@ import type { ModificationsQuizContext } from './ModificationsView';
 import type { ModificationClassGroup } from './ModificationsView.helpers';
 import { usePickMenu } from './usePickMenu';
 import { SupportsEditor } from './SupportsEditor';
+import { QuestionsMenu } from './QuestionsMenu';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import {
   groupRuleLabels,
@@ -372,6 +373,14 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
   const speechToTextOn =
     auth?.canAccessFeature?.(SPEECH_TO_TEXT_FEATURE) === true;
   const translationOn = auth?.canAccessFeature?.('quiz-translation') === true;
+  const fewerQuestionsOn =
+    quizContext.fewerQuestions === true &&
+    quizContext.questions.length > 1 &&
+    auth?.canAccessFeature?.('modification-fewer-questions') === true;
+  // A subset saved before (per student, or from a class preset) stays visible so it can be cleared.
+  const questionsRowFor = (g: ModificationGroup) =>
+    fewerQuestionsOn ||
+    (quizContext.questions.length > 0 && !!g.questionIds?.length);
   const { languages } = useQuizTranslationSettings(translationOn);
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -540,6 +549,15 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                 </p>
               )}
             </div>
+            {questionsRowFor(group) && (
+              <ModificationRow label="Questions">
+                <QuestionsMenu
+                  questions={quizContext.questions}
+                  picked={group.questionIds}
+                  onChange={(questionIds) => set(group.id, { questionIds })}
+                />
+              </ModificationRow>
+            )}
             {answerChoicesUseful && (
               <ModificationRow label="Answer choices">
                 <SegmentedControl<AnswerChoicesRule>

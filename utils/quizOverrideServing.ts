@@ -163,3 +163,16 @@ export function applyTimeMultiplier(
     return Math.round(seconds * multiplier);
   return seconds;
 }
+
+/** "40 of 60 questions" for a student served a teacher-cut subset; null for the full quiz or a bank-drawn version. */
+export function reducedQuestionsLabel(
+  servedQuestionIds: readonly string[] | undefined,
+  questions: readonly { id: string }[],
+  hasBankSlots: boolean
+): string | null {
+  if (hasBankSlots || !servedQuestionIds?.length) return null;
+  const all = new Set(questions.map((q) => q.id));
+  const served = new Set(servedQuestionIds.filter((id) => all.has(id)));
+  if (served.size === 0 || served.size >= all.size) return null;
+  return `${served.size} of ${all.size} questions`;
+}

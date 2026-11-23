@@ -25,11 +25,15 @@ const INCORRECT_ID = /-incorrect-(\d+)$/;
 /** The quiz as this group's students see it: fewer answer choices, modified wording and stimuli. */
 export function printedGroupQuiz(
   quiz: QuizData,
-  group: Pick<ModificationGroup, 'answerChoices' | 'modifiedQuestions'>,
+  group: Pick<
+    ModificationGroup,
+    'answerChoices' | 'modifiedQuestions' | 'questionIds'
+  >,
   copy?: StudentCopyRules
 ): QuizData {
   const hiddenChoices = copy?.hiddenChoices;
-  const only = copy?.questionIds ? new Set(copy.questionIds) : null;
+  const onlyIds = copy?.questionIds ?? group.questionIds;
+  const only = onlyIds?.length ? new Set(onlyIds) : null;
   const hidden =
     hiddenOptionIdsForRule(
       toOverrideEditorQuestions(quiz),
@@ -84,14 +88,18 @@ export type StudentCopyRules = Pick<
 export function printedGroupResolved(
   resolved: ResolvedQuizAssignment,
   quiz: QuizData,
-  group: Pick<ModificationGroup, 'answerChoices' | 'modifiedQuestions'>,
+  group: Pick<
+    ModificationGroup,
+    'answerChoices' | 'modifiedQuestions' | 'questionIds'
+  >,
   hiddenChoices?: StudentCopyRules['hiddenChoices']
 ): ResolvedQuizAssignment {
   return {
     ...resolved,
+    // A bank draw replaces a question subset, as on devices.
     questions: printedGroupQuiz(
       { ...quiz, questions: resolved.questions, stimuli: resolved.stimuli },
-      group,
+      { ...group, questionIds: undefined },
       hiddenChoices ? { hiddenChoices } : undefined
     ).questions,
   };
@@ -165,6 +173,7 @@ export function printedGroupRecord(
   pick: PrintedGroupPick
 ): PaperPrintedGroupRecord {
   const { answerChoices, modifiedQuestions, supports, language } = pick.group;
+  const questionIds = pick.questionIds ?? pick.group.questionIds;
   return {
     number: pick.number,
     answerChoices,
@@ -175,7 +184,7 @@ export function printedGroupRecord(
     ...(pick.hiddenChoices && Object.keys(pick.hiddenChoices).length
       ? { hiddenChoices: pick.hiddenChoices }
       : {}),
-    ...(pick.questionIds ? { questionIds: pick.questionIds } : {}),
+    ...(questionIds?.length ? { questionIds: [...questionIds] } : {}),
   };
 }
 

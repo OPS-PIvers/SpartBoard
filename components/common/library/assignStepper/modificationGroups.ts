@@ -30,6 +30,8 @@ export interface ModificationGroup {
   language?: string;
   supports?: QuizSupport[];
   modifiedQuestions?: boolean;
+  /** Quiz question ids these students answer; absent = every question. */
+  questionIds?: string[];
   /** Prints this group's version on paper at assign; scans join the same results. */
   printed?: boolean;
   /** Class focus rules the step has no row for, kept from the class's standing settings. */
@@ -86,6 +88,9 @@ export function groupFromStanding(
       ? { supports: standing.supports.slice(0, MAX_SUPPORTS) }
       : {}),
     ...(standing.modifiedQuestions ? { modifiedQuestions: true } : {}),
+    ...(standing.questionIds?.length
+      ? { questionIds: [...standing.questionIds] }
+      : {}),
     ...(Object.keys(carried).length > 0 ? { carried } : {}),
   };
 }
@@ -132,6 +137,7 @@ export const isBlankGroup = (g: ModificationGroup): boolean =>
   !g.language &&
   !g.supports?.length &&
   !g.modifiedQuestions &&
+  !g.questionIds?.length &&
   !g.printed &&
   !g.carried;
 
@@ -185,6 +191,21 @@ const hashIndex = (seed: string, size: number): number => {
     h = (h * 31 + seed.charCodeAt(i)) | 0;
   return Math.abs(h) % size;
 };
+
+/** `count` question ids drawn at random, kept in quiz order. */
+export function randomQuestionPick(
+  questions: readonly { id: string }[],
+  count: number,
+  random: () => number = Math.random
+): string[] {
+  const ids = questions.map((q) => q.id);
+  for (let i = ids.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  const keep = new Set(ids.slice(0, Math.max(1, count)));
+  return questions.filter((q) => keep.has(q.id)).map((q) => q.id);
+}
 
 /** Structured option ids to hide for an answer-choices rule; never the correct option. */
 export function hiddenOptionIdsForRule(
@@ -290,6 +311,7 @@ export function overrideForGroup(
     next.supports = merged.slice(0, MAX_SUPPORTS);
   }
   if (group.modifiedQuestions) next.modifiedQuestions = true;
+  if (group.questionIds?.length) next.questionIds = [...group.questionIds];
   if (group.printed) next.onPaper = true;
   if (group.carried) Object.assign(next, group.carried);
   return next;
@@ -372,6 +394,8 @@ export function groupRuleLabels(
   if (group.answerChoices === 'drop-one') parts.push('1 wrong answer removed');
   if (group.answerChoices === 'two') parts.push('2 answer choices');
   if (group.modifiedQuestions) parts.push('modified questions');
+  const fewer = group.questionIds?.length ?? 0;
+  if (fewer > 0) parts.push(fewer === 1 ? '1 question' : `${fewer} questions`);
   if (group.readAloud) parts.push('read aloud');
   if (group.speechToText) parts.push('speech to text');
   if (group.language)
@@ -409,7 +433,6 @@ export function formatModificationGroupsValue(
 
 // Per-student fields the groups never set, so an edit keeps them.
 const KEPT_ON_EDIT = [
-  'questionIds',
   'rubricOverrideByQuestion',
   'spellingHelp',
   'openAt',
