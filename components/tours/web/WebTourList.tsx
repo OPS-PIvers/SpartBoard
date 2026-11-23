@@ -623,11 +623,17 @@ const WebTourRow: React.FC<{
 const byNewest = (a: GuidedLearningSet, b: GuidedLearningSet) =>
   (b.updatedAt ?? 0) - (a.updatedAt ?? 0) || a.title.localeCompare(b.title);
 
-/** The building's web tour drafts, newest first, with their publish and check state. */
+const byName = (a: GuidedLearningSet, b: GuidedLearningSet) =>
+  a.title.localeCompare(b.title) || byNewest(a, b);
+
+export type TourSort = 'newest' | 'name';
+
+/** The building's web tour drafts, newest first unless sorted by name, with their publish and check state. */
 export const WebTourList: React.FC<{
   tours: readonly GuidedLearningSet[];
   /** Ids to hide; rows stay mounted so their facts keep reporting. */
   hiddenIds?: ReadonlySet<string>;
+  sort?: TourSort;
   onEdit: (set: GuidedLearningSet, stepId?: string) => void;
   onCheck: (set: GuidedLearningSet) => void;
   onRename: (set: GuidedLearningSet, title: string) => Promise<boolean>;
@@ -636,6 +642,7 @@ export const WebTourList: React.FC<{
 }> = ({
   tours,
   hiddenIds,
+  sort = 'newest',
   onEdit,
   onCheck,
   onRename,
@@ -664,7 +671,7 @@ export const WebTourList: React.FC<{
         <span>Check</span>
         <span />
       </li>
-      {[...tours].sort(byNewest).map((set) => (
+      {[...tours].sort(sort === 'name' ? byName : byNewest).map((set) => (
         <WebTourRow
           key={set.id}
           set={set}
