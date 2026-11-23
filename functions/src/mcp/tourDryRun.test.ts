@@ -486,6 +486,23 @@ describe('wildcard row refs', () => {
     expect(warned.some((m) => m.includes('position in a list'))).toBe(false);
   });
 
+  it('opens the group page from New group as well as Edit', () => {
+    const report = dryRunTour(
+      [
+        step('board.whole'),
+        step('sidebar.open-menu', 'click'),
+        step('sidebar.classes', 'click'),
+        step('classes.edit-roster:classes#row-*', 'click'),
+        step('roster-editor.tab:roster-editor#groups', 'click'),
+        step('roster-groups.new', 'click'),
+        step('roster-groups.name', 'click'),
+        step('roster-groups.done', 'click'),
+      ],
+      board
+    );
+    expect(messages(report.errors).join('\n')).not.toContain('only shows once');
+  });
+
   it('lets a row-* click open what a route row-N entry opens', () => {
     const report = dryRunTour(
       [

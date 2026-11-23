@@ -20,6 +20,18 @@ export interface TourAnchorRoute {
 
 const MAX_DEPTH = 12;
 
+/** The anchor that reveals `id` on a surface, then any other anchors that also reveal it. */
+export function innerReveal(
+  def: TourSurfaceDef | undefined,
+  id: string
+): { reveal?: string; also: string[] } {
+  const v = def?.inner?.[id];
+  if (v === undefined) return { also: [] };
+  if (typeof v === 'string') return { reveal: v, also: [] };
+  const [reveal, ...also] = v;
+  return { reveal, also };
+}
+
 type AnchorSurfaces = Readonly<Record<string, readonly string[]>>;
 
 /** The surface an opener anchor is clicked on: the explicit parent, or the opener's only surface. */
@@ -57,8 +69,10 @@ export function surfacePath(
     id = openerSurface(def, anchorSurfaces);
     if (!id) return null;
     // An opener hidden behind a tab or menu on its own surface needs that click first.
-    const reveal =
-      TOUR_SURFACES[id]?.inner?.[parseTourAnchorRef(def.opensWith).id];
+    const { reveal } = innerReveal(
+      TOUR_SURFACES[id],
+      parseTourAnchorRef(def.opensWith).id
+    );
     if (reveal) path.unshift(reveal);
   }
   return { path, needs: [...needs] };
@@ -85,7 +99,7 @@ export function tourAnchorRoutes(ref: string): TourAnchorRoute[] {
     const def = TOUR_SURFACES[surface];
     const reach = def ? surfacePath(surface) : null;
     if (!def || !reach) return [];
-    const inner = def.inner?.[id];
+    const inner = innerReveal(def, id).reveal;
     return [
       {
         surface,

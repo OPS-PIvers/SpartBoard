@@ -45,8 +45,8 @@ export interface TourSurfaceDef {
   widgetType?: string;
   /** A page reached by URL rather than a click. */
   url?: string;
-  /** Anchors on this surface hidden behind a tab or section, mapped to the anchor ref that reveals them. */
-  inner?: Readonly<Record<string, string>>;
+  /** Anchors on this surface hidden behind a tab or section, mapped to the anchor ref (or refs) that reveal them. */
+  inner?: Readonly<Record<string, string | readonly [string, ...string[]]>>;
 }
 
 export type TourSurfaceMap = Readonly<Record<string, TourSurfaceDef>>;

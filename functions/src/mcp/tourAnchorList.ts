@@ -25258,6 +25258,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25281,6 +25284,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25305,6 +25311,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25328,6 +25337,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25351,6 +25363,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25374,6 +25389,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25397,6 +25415,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25420,6 +25441,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25535,6 +25559,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25558,6 +25585,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25581,6 +25611,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25604,6 +25637,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25627,6 +25663,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25650,6 +25689,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25673,6 +25715,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25696,6 +25741,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25719,6 +25767,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25742,6 +25793,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25765,6 +25819,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25788,6 +25845,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25811,6 +25871,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25834,6 +25897,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25857,6 +25923,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25880,6 +25949,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25903,6 +25975,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25926,6 +26001,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25949,6 +26027,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25972,6 +26053,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25995,6 +26079,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
