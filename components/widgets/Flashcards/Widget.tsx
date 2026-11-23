@@ -66,6 +66,11 @@ import {
 } from './FlashcardAssignStepper';
 import { useFlashcardPlcSharing } from './useFlashcardPlcSharing';
 import { FlashcardAssignmentSettingsModal } from './FlashcardAssignmentSettingsModal';
+import {
+  addToOpenAssignment,
+  openInputsFor,
+  withoutLiveClasses,
+} from '@/utils/openAssignmentClasses';
 import type { FlashcardAssignmentSettingsPatch } from '@/hooks/useFlashcardAssignments';
 import {
   rosterHasSsoClass,
@@ -206,6 +211,14 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     [uid, inShare, endAssignment, reopenAssignment, setAssignmentTargets]
   );
   const assignedOn = !!classLifecycle && canAccessFeature('assigned-tab');
+  const openCheckOn = canAccessFeature('assign-open-check');
+  const openInputs = (setId: string) =>
+    openInputsFor(
+      assignments,
+      rosters,
+      (a) => a.setId === setId,
+      (a) => a.status !== 'ended'
+    );
   const plcSharing = useFlashcardPlcSharing({
     enabled: !inShare,
     addToast,
@@ -1092,11 +1105,38 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
           isOpen
           set={assigningSet}
           rosters={rosters}
-          initialRosterIds={config.lastRosterIdsBySetId?.[assigningSet.id]}
+          initialRosterIds={
+            openCheckOn
+              ? withoutLiveClasses(
+                  config.lastRosterIdsBySetId?.[assigningSet.id] ?? [],
+                  openInputs(assigningSet.id)
+                )
+              : config.lastRosterIdsBySetId?.[assigningSet.id]
+          }
           onClose={() => setAssigningSet(null)}
           onAssign={performAssign}
           periodAccess={assignPeriodCtx}
           plcs={plcSharing.enabled ? plcSharing.editablePlcs : []}
+          {...(openCheckOn
+            ? {
+                openAssignments: openInputs(assigningSet.id),
+                onAddToOpen: async (
+                  assignmentId: string,
+                  addRosterIds: string[]
+                ) => {
+                  await addToOpenAssignment({
+                    assignments,
+                    assignmentId,
+                    rosters,
+                    addRosterIds,
+                    save: (a, classEdit) =>
+                      updateAssignmentSettings(a.id, { classEdit }),
+                    toast: addToast,
+                  });
+                  setAssigningSet(null);
+                },
+              }
+            : {})}
         />
       )}
     </>

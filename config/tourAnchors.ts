@@ -1376,6 +1376,14 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'assign-classes',
   },
+  'assign-classes.add-to-open': {
+    label: 'Add to the open assignment choice in the Assign dialog',
+    panel: true,
+  },
+  'assign-classes.assign-separately': {
+    label: 'Make a separate assignment choice in the Assign dialog',
+    panel: true,
+  },
   'assign-classes.select-all': {
     label: 'Select all button in the Assign dialog class list',
     panel: true,

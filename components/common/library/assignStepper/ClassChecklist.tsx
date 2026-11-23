@@ -19,6 +19,8 @@ import {
   type AssignClassesValue,
 } from './assignClassesValue';
 import { ClassChecklistCoursesContext } from './classChecklistCourses';
+import { AssignOpenNotice } from './AssignOpenNotice';
+import type { AssignOpenElsewhere } from './assignOpenCheck';
 import {
   tourAttr,
   tourFieldAttr,
@@ -36,6 +38,8 @@ export interface ClassChecklistProps {
   anchor?: TourAnchorAttrs;
   /** Live-tour anchor for one class's checkbox, keyed by class id. */
   rowAnchor?: (classId: string, rowIndex: number) => TourAnchorAttrs;
+  /** Classes this item is already open for: locked, with a notice under the list. */
+  open?: AssignOpenElsewhere;
 }
 
 /** The teacher's Courses, or none when the course-agenda flag is off or there's no signed-in teacher. */
@@ -73,7 +77,9 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
   disabled = false,
   anchor,
   rowAnchor,
+  open,
 }) => {
+  const isLocked = (id: string) => !!open?.ids.has(id);
   const groupName = useId();
   const courses = useChecklistCourses();
   const groups = useMemo(
@@ -112,7 +118,7 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
   };
 
   const toggleCourse = (members: ClassRoster[]) => {
-    const available = members.filter((r) => !r.loadError);
+    const available = members.filter((r) => !r.loadError && !isLocked(r.id));
     const all = available.every((r) => value.classIds.includes(r.id));
     const ids = new Set(value.classIds);
     for (const r of available) {
@@ -126,7 +132,7 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
     onChange(
       withClassIds(
         value,
-        rosters.filter((r) => !r.loadError).map((r) => r.id)
+        rosters.filter((r) => !r.loadError && !isLocked(r.id)).map((r) => r.id)
       )
     );
 
@@ -134,7 +140,8 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
     const inCourse = courseId !== null;
     const rowIndex = indexOf.get(r.id) ?? 0;
     const unavailable = Boolean(r.loadError);
-    const off = unavailable || disabled;
+    const locked = isLocked(r.id);
+    const off = unavailable || locked || disabled;
     return (
       <label
         key={r.id}
@@ -142,7 +149,7 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
         className={`flex items-center gap-2.5 py-2 pr-3 text-sm ${
           inCourse ? 'pl-9' : 'pl-3'
         } ${
-          unavailable
+          unavailable || locked
             ? 'cursor-not-allowed text-slate-400'
             : disabled
               ? 'cursor-not-allowed text-slate-800'
@@ -152,7 +159,7 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
         <input
           type={singleSelect ? 'radio' : 'checkbox'}
           name={singleSelect ? groupName : undefined}
-          checked={value.classIds.includes(r.id)}
+          checked={!locked && value.classIds.includes(r.id)}
           disabled={off}
           onChange={() => {
             if (courseId !== null)
@@ -168,19 +175,23 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
           className="h-4 w-4 shrink-0 rounded-sm accent-brand-blue-primary"
         />
         <span className="min-w-0 flex-1 wrap-anywhere">{r.name}</span>
-        <span className="shrink-0 text-xs text-slate-400">
+        <span
+          className={`shrink-0 text-xs ${locked && !unavailable ? 'font-bold text-amber-700' : 'text-slate-400'}`}
+        >
           {unavailable
             ? 'Unavailable'
-            : inCourse
-              ? studentCountLabel(r.studentCount)
-              : r.studentCount}
+            : locked
+              ? 'Assigned'
+              : inCourse
+                ? studentCountLabel(r.studentCount)
+                : r.studentCount}
         </span>
       </label>
     );
   };
 
   const renderCourse = (course: Course, members: ClassRoster[]) => {
-    const available = members.filter((r) => !r.loadError);
+    const available = members.filter((r) => !r.loadError && !isLocked(r.id));
     const picked = available.filter((r) => value.classIds.includes(r.id));
     const all = available.length > 0 && picked.length === available.length;
     const some = picked.length > 0 && !all;
@@ -247,7 +258,7 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
     );
   };
 
-  return (
+  const list = (
     <div
       role={singleSelect ? 'radiogroup' : 'group'}
       aria-label="Classes"
@@ -290,6 +301,16 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
           </button>
         </div>
       )}
+    </div>
+  );
+  if (!open || open.ids.size === 0) return list;
+  return (
+    <div className="space-y-3">
+      {list}
+      <AssignOpenNotice
+        open={open}
+        pickedNew={value.classIds.some((id) => !open.ids.has(id))}
+      />
     </div>
   );
 };

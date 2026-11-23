@@ -24,6 +24,11 @@ import {
   type AssignStepId,
 } from '@/components/common/library/assignStepper/assignSteps';
 import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
+import {
+  ALREADY_ASSIGNED_REASON,
+  useAssignOpenCheck,
+  type AssignOpenProps,
+} from '@/components/common/library/assignStepper/assignOpenCheck';
 import { StudentPickMenu } from '@/components/common/library/assignStepper/StudentPickMenu';
 import {
   formatClassesValue,
@@ -126,6 +131,8 @@ export interface QuizAssignStepperProps {
   error?: string | null;
   /** Quiz settings on a launched assignment: same steps, opened on what was saved. */
   edit?: QuizAssignStepperEdit;
+  openAssignments?: AssignOpenProps['openAssignments'];
+  onAddToOpen?: AssignOpenProps['onAddToOpen'];
 }
 
 export interface QuizAssignStepperEdit {
@@ -202,6 +209,8 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   onSubmit,
   error,
   edit,
+  openAssignments,
+  onAddToOpen,
 }) => {
   const { t } = useTranslation();
   const gates = useQuizRuleGates();
@@ -329,6 +338,13 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     setSeeded(shown);
   };
 
+  const openCheck = useAssignOpenCheck(
+    edit || staff || !onAddToOpen ? null : openAssignments,
+    usable,
+    classes
+  );
+  const pickedOpen = openCheck.pickedOpen;
+
   const bodies: Record<string, Omit<AssignStepDef, 'id' | 'title'>> = {
     classes: {
       value: formatClassesValue(classes, rosters),
@@ -338,6 +354,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             rosters={rosters}
             value={classes}
             onChange={changeClasses}
+            open={openCheck.checklist}
           />
           {!edit && (
             <StudentPickMenu
@@ -549,37 +566,47 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             }
           : undefined
       }
+      joining={openCheck.joining}
       onSubmit={() =>
-        onSubmit({
-          printedGroups,
-          ...(groupsOn && !staff
-            ? {
-                overridesByKey: edit
-                  ? editedOverrides(
-                      edit.savedOverrides,
-                      groupOverrides(openedWith.groups, openedWith.seeded),
-                      groupOverrides(groups, seeded)
-                    )
-                  : groupOverrides(groups, seeded),
-              }
-            : {}),
-        })
+        openCheck.joinTarget && onAddToOpen
+          ? onAddToOpen(openCheck.joinTarget.id, openCheck.classIds)
+          : onSubmit({
+              printedGroups,
+              ...(groupsOn && !staff
+                ? {
+                    overridesByKey: edit
+                      ? editedOverrides(
+                          edit.savedOverrides,
+                          groupOverrides(openedWith.groups, openedWith.seeded),
+                          groupOverrides(groups, seeded)
+                        )
+                      : groupOverrides(groups, seeded),
+                  }
+                : {}),
+            })
       }
       inline={edit?.inline}
       disabled={
-        needsPlc || backwards || sharingCount > 0 || edit?.disabled === true
+        pickedOpen ||
+        (!openCheck.joining &&
+          (needsPlc ||
+            backwards ||
+            sharingCount > 0 ||
+            edit?.disabled === true))
       }
       disabledReason={
-        needsPlc
-          ? PICK_A_PLC
-          : sharingCount > 0
-            ? 'Still sharing a Drive file.'
-            : backwards
-              ? t(
-                  'assignAvailability.closesBeforeOpens',
-                  'Closes before it opens.'
-                )
-              : undefined
+        pickedOpen
+          ? ALREADY_ASSIGNED_REASON
+          : needsPlc
+            ? PICK_A_PLC
+            : sharingCount > 0
+              ? 'Still sharing a Drive file.'
+              : backwards
+                ? t(
+                    'assignAvailability.closesBeforeOpens',
+                    'Closes before it opens.'
+                  )
+                : undefined
       }
     />
   );

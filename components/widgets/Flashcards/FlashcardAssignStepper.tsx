@@ -14,6 +14,11 @@ import {
   type AssignStepId,
 } from '@/components/common/library/assignStepper/assignSteps';
 import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
+import {
+  ALREADY_ASSIGNED_REASON,
+  useAssignOpenCheck,
+  type AssignOpenProps,
+} from '@/components/common/library/assignStepper/assignOpenCheck';
 import { StudentPickMenu } from '@/components/common/library/assignStepper/StudentPickMenu';
 import {
   formatClassesValue,
@@ -130,6 +135,8 @@ export interface FlashcardAssignStepperProps {
   periodAccess?: AssignPeriodAccessContext;
   /** PLCs the teacher can share results with on a Check's Sharing step. */
   plcs?: readonly Plc[];
+  openAssignments?: AssignOpenProps['openAssignments'];
+  onAddToOpen?: AssignOpenProps['onAddToOpen'];
 }
 
 /** What a Check submits beyond the input: the PLC to share results with, if any. */
@@ -168,6 +175,8 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
   onAssign,
   periodAccess,
   plcs = [],
+  openAssignments,
+  onAddToOpen,
 }) => {
   const { t } = useTranslation();
   const auth = useContext(AuthContext);
@@ -324,6 +333,11 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     : cardCount;
   const audienceState = useAssignAudience();
   const staff = audienceState.audience === 'staff';
+  const openCheck = useAssignOpenCheck(
+    staff || !onAddToOpen ? null : openAssignments,
+    rosters.filter((r) => !r.loadError),
+    classes
+  );
   const pickedRosters = useMemo(
     () =>
       staff
@@ -375,6 +389,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
             rosters={rosters}
             value={classes}
             onChange={setClasses}
+            open={openCheck.checklist}
             anchor={tourTypeAttr(
               'flashcards.stepper-class-picker',
               'flashcards'
@@ -660,9 +675,21 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
       }
       steps={steps}
       submitLabel="Assign"
-      onSubmit={handleSubmit}
-      disabled={disabledReason !== undefined || needsPlc}
-      disabledReason={disabledReason ?? (needsPlc ? PICK_A_PLC : undefined)}
+      joining={openCheck.joining}
+      onSubmit={() =>
+        openCheck.joinTarget && onAddToOpen
+          ? onAddToOpen(openCheck.joinTarget.id, openCheck.classIds)
+          : handleSubmit()
+      }
+      disabled={
+        openCheck.pickedOpen ||
+        (!openCheck.joining && (disabledReason !== undefined || needsPlc))
+      }
+      disabledReason={
+        openCheck.pickedOpen
+          ? ALREADY_ASSIGNED_REASON
+          : (disabledReason ?? (needsPlc ? PICK_A_PLC : undefined))
+      }
       // Flashcards opens maximized; z-dialog sits above a maximized widget.
       zIndex="z-dialog"
       overlayView={

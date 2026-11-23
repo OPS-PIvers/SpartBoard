@@ -106,6 +106,11 @@ import {
   sharedVisibility,
 } from '@/components/common/library/assigned/bulkPublish';
 import { SaveAsWidgetModal } from './components/SaveAsWidgetModal';
+import {
+  addToOpenAssignment,
+  openInputsFor,
+  withoutLiveClasses,
+} from '@/utils/openAssignmentClasses';
 import { useMiniAppSync } from './hooks/useMiniAppSync';
 import { useDialog } from '@/context/useDialog';
 import { useSavedWidgets } from '@/context/useSavedWidgets';
@@ -547,6 +552,14 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     [uid, endAssignment, reactivateAssignment, setTargets]
   );
   const assignedTabOn = canAccessFeature('assigned-tab');
+  const openCheckOn = canAccessFeature('assign-open-check');
+  const openInputs = (appId: string) =>
+    openInputsFor(
+      assignments,
+      rosters,
+      (a) => a.appId === appId,
+      (a) => a.status !== 'inactive'
+    );
   const [editingClasses, setEditingClasses] =
     useState<MiniAppAssignment | null>(null);
   const [monitoring, setMonitoring] = useState<{
@@ -597,7 +610,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         rosters
       );
     }
-    setAssignPickerValue({ rosterIds: lastRosterIds });
+    setAssignPickerValue({
+      rosterIds: openCheckOn
+        ? withoutLiveClasses(lastRosterIds, openInputs(app.id))
+        : lastRosterIds,
+    });
   };
 
   const handleOpenAssignments = (app: MiniAppItem) => {
@@ -1491,6 +1508,29 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         onSubmit={handleConfirmAssign}
         onClose={closeAssign}
         resultsDefault={resultsOn ? DEFAULT_MINI_APP_RESULTS : undefined}
+        {...(openCheckOn
+          ? {
+              openAssignments: openInputs(assigningApp.id),
+              onAddToOpen: async (
+                assignmentId: string,
+                addRosterIds: string[]
+              ) => {
+                await addToOpenAssignment({
+                  assignments,
+                  assignmentId,
+                  rosters,
+                  addRosterIds,
+                  save: (a, edit) => setAssignmentClasses(a.id, edit),
+                  toast: addToast,
+                  onError: (err) =>
+                    logError('MiniAppWidget.addClasses', err, {
+                      assignmentId,
+                    }),
+                });
+                closeAssign();
+              },
+            }
+          : {})}
       />
     ) : (
       <MiniAppAssignModal

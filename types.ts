@@ -12003,7 +12003,8 @@ export type GlobalFeature =
   /** Widget update notes listed in the sidebar What's New instead of a button under each widget. */
   | 'widget-notes-in-whats-new'
   /** Live tours on the /subs portal: the help button subs see and the Substitutes audience. */
-  | 'subs-live-tours';
+  | 'subs-live-tours'
+  | 'assign-open-check';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {

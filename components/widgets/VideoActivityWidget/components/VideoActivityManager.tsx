@@ -13,6 +13,10 @@
 
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { EDIT_CLASSES_LABEL } from '@/components/common/library/AssignmentClassesModal';
+import {
+  openInputsFor,
+  withoutLiveClasses,
+} from '@/utils/openAssignmentClasses';
 import { canEditAssignmentClasses } from '@/utils/assignmentClassEdit';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
@@ -288,6 +292,11 @@ export interface VideoActivityManagerProps {
   ) => void | Promise<void>;
   /** Opens the Edit classes dialog for an in-progress assignment. */
   onArchiveEditClasses?: (assignment: VideoActivityAssignment) => void;
+  /** Adds classes to an open assignment, from Assign's "Add to the X assignment". */
+  onAddClassesToAssignment?: (
+    assignmentId: string,
+    rosterIds: string[]
+  ) => Promise<void>;
   /** Opens Settings (When and the rule steps) for a self-paced assignment. */
   onArchiveEditSettings?: (assignment: VideoActivityAssignment) => void;
 
@@ -550,6 +559,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchivePublishScores,
   onArchiveUnpublishScores,
   onArchiveEditClasses,
+  onAddClassesToAssignment,
   onArchiveEditSettings,
   rosters,
   periodAccess,
@@ -568,6 +578,15 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const confirmDelete = useLibraryDeleteConfirm();
   const { canAccessFeature } = useAuth();
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
+  const openCheckOn = canAccessFeature('assign-open-check');
+  const openInputs = (activityId: string) =>
+    openInputsFor(
+      assignments,
+      rosters,
+      (a) => a.activityId === activityId,
+      (a) => a.status !== 'inactive',
+      (a) => a.sessionMode !== 'teacher'
+    );
   const canAssignLive = canAccessFeature('video-activity-live');
   const lastPacing = useLastVideoAssignPacing(userId, canAssignLive);
   const lastRules = useLastVideoAssignSettings(userId, true);
@@ -646,7 +665,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       rememberedRosters = mapLegacyClassIdsToRosterIds(legacyClassIds, rosters);
     }
     setPickerValue({
-      rosterIds: activePending ? activePending.rosterIds : rememberedRosters,
+      rosterIds: activePending
+        ? activePending.rosterIds
+        : openCheckOn
+          ? withoutLiveClasses(rememberedRosters, openInputs(assignTarget.id))
+          : rememberedRosters,
     });
   } else if (!assignTarget && prevAssignTargetId !== null) {
     setPrevAssignTargetId(null);
@@ -1673,6 +1696,15 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
             boardPlayerSettings
           )}
           onSubmit={handleStepperSubmit}
+          {...(openCheckOn && onAddClassesToAssignment && !activePending
+            ? {
+                openAssignments: openInputs(assignTarget.id),
+                onAddToOpen: async (id: string, rosterIds: string[]) => {
+                  await onAddClassesToAssignment(id, rosterIds);
+                  closeAssign();
+                },
+              }
+            : {})}
         />
       )}
 
