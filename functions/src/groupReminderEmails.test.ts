@@ -226,3 +226,32 @@ describe('alertOwnerUid', () => {
     expect(alertOwnerUid('x/users/u1/group_email_alerts/a')).toBeNull();
   });
 });
+
+describe('dueEmailAlerts across midnight', () => {
+  const late = alertDoc({
+    days: [1],
+    alerts: [{ time: '00:05', leadMinutes: 30 }],
+  });
+
+  it('is due the evening before when the lead reaches back past midnight', () => {
+    // Sunday 2026-09-27 23:36 in Chicago (CDT) is 00:05 Monday minus 30 minutes plus 1.
+    expect(dueEmailAlerts(late, new Date('2026-09-28T04:36:00Z'))).toEqual([
+      { dateKey: '2026-09-28', time: '00:05' },
+    ]);
+  });
+
+  it('is not due on the alert day itself once the window has passed', () => {
+    expect(dueEmailAlerts(late, new Date('2026-09-28T05:10:00Z'))).toEqual([]);
+  });
+
+  it('keeps a late-running tick after midnight for a late-evening alert', () => {
+    const evening = alertDoc({
+      days: [1],
+      alerts: [{ time: '23:55', leadMinutes: 0 }],
+    });
+    // Tuesday 00:03 Chicago: a tick that ran late still sends Monday's 23:55 alert.
+    expect(dueEmailAlerts(evening, new Date('2026-09-29T05:03:00Z'))).toEqual([
+      { dateKey: '2026-09-28', time: '23:55' },
+    ]);
+  });
+});
