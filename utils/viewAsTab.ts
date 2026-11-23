@@ -34,6 +34,8 @@ export interface ViewAsTabState {
   session: ViewAsHandoff | null;
   /** Set once a student preview tab has signed in as the student. */
   student: StudentPreviewHandoff | null;
+  /** The page a student preview shows: the activity it opened on, or the student's My Assignments. */
+  studentPage: 'activity' | 'my-assignments';
   unlocked: boolean;
   ended: boolean;
   /** Bumped on the first blocked write so the banner can show its one notice. */
@@ -45,6 +47,7 @@ export interface ViewAsTabState {
 let state: ViewAsTabState = {
   session: null,
   student: null,
+  studentPage: 'activity',
   unlocked: false,
   ended: false,
   blockedNotice: 0,

@@ -9,7 +9,9 @@ import { StudentHelpMenu } from './StudentHelpMenu';
 /** A floating Help button on student pages; shown only when a Published student tour can run. */
 export const StudentHelpButton: React.FC<{
   items: readonly HelpResourceItem[];
-}> = ({ items }) => {
+  /** Admins in View as student get Record a tour. */
+  onRecord?: () => void;
+}> = ({ items, onRecord }) => {
   const menuId = useId();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,7 +38,7 @@ export const StudentHelpButton: React.FC<{
     };
   }, [open]);
 
-  if (tours.length === 0) return null;
+  if (tours.length === 0 && !onRecord) return null;
 
   const play = (item: HelpResourceItem) => {
     setOpen(false);
@@ -60,7 +62,20 @@ export const StudentHelpButton: React.FC<{
         <CircleHelp className="w-4 h-4" aria-hidden="true" />
         Help
       </button>
-      {open && <StudentHelpMenu id={menuId} tours={tours} onPlay={play} />}
+      {open && (
+        <StudentHelpMenu
+          id={menuId}
+          tours={tours}
+          onPlay={play}
+          onRecord={
+            onRecord &&
+            (() => {
+              setOpen(false);
+              onRecord();
+            })
+          }
+        />
+      )}
     </div>
   );
 };

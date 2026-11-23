@@ -40,10 +40,10 @@ export const TourEditorHost: React.FC = () => {
   // The open session's tour and where it started, for the round trip on Done (H13).
   const session = useRef<{ setId: string; origin?: TourOrigin } | null>(null);
 
-  // /subs has no Help Center to open, so its toast names where to publish instead.
+  // /subs has no Help Center to open, so its toast names where to publish instead; student tours say the same.
   const finish = (origin: TourOrigin | undefined, setId: string) =>
     endTourSession(origin, setId, (itemId) =>
-      origin === 'subs'
+      origin === 'subs' || origin === 'students'
         ? addToast(
             t('tours.savedToHelpCenterSubs', {
               defaultValue:

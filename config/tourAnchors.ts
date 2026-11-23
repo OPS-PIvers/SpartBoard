@@ -9917,6 +9917,10 @@ export const TOUR_ANCHORS = {
     label: 'Record a Live tour for subs in the Help Center New menu',
     panel: true,
   },
+  'admin.help-center.new-record-students-tour': {
+    label: 'Record a Live tour for students in the Help Center New menu',
+    panel: true,
+  },
   'admin.help-center.new-move': {
     label: 'Move from library in the Help Center New menu',
     panel: true,
@@ -20013,6 +20017,11 @@ export const TOUR_ANCHORS = {
     keyHint: 'student-help#row-1 for the first tour',
     panel: true,
     rows: true,
+  },
+  'student.help-record': {
+    label: 'Record a tour in the student Help menu (admins in View as student)',
+    panel: true,
+    creates: true,
   },
   'subs.help': { label: 'Help button on every substitute portal screen' },
   'subs.help-tour': {

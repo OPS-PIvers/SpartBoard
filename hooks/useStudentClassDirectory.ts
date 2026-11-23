@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
+import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import { auth, functions, isAuthBypass } from '@/config/firebase';
 import type { RosterBellPeriod } from '@/types';
 
@@ -143,7 +144,12 @@ export function useStudentClassDirectory({
         directoryCache.set(cacheKey, list);
         setFetched({ key: cacheKey, status: 'ready', classes: list });
         const { customToken, classIds: nextClassIds } = res.data ?? {};
-        if (customToken && pseudonymUid && Array.isArray(nextClassIds)) {
+        if (
+          customToken &&
+          pseudonymUid &&
+          Array.isArray(nextClassIds) &&
+          !studentPreviewBlocksWrite()
+        ) {
           // Prime the post-refresh key so the new claim doesn't refetch.
           directoryCache.set(
             cacheKeyOf(pseudonymUid, nextClassIds.slice().sort().join('|')),

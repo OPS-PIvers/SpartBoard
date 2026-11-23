@@ -40949,6 +40949,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.help-center.new-record-students-tour",
+    "label": "Record a Live tour for students in the Help Center New menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.help-center.new-move",
     "label": "Move from library in the Help Center New menu",
     "scope": "board",
@@ -85670,6 +85689,21 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "key_pattern": "student-help#row-[1-9]\\d*",
     "key_hint": "student-help#row-1 for the first tour",
     "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student.help-menu",
+        "kind": "menu",
+        "path": [
+          "student.help"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.help-record",
+    "label": "Record a tour in the student Help menu (admins in View as student)",
+    "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "student.help-menu",

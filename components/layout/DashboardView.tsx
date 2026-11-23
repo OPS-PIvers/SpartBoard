@@ -45,6 +45,7 @@ import { tourAttr } from '@/config/tourAnchors';
 import { HelpCenterModal } from '@/components/help/HelpCenterModal';
 import { LiveTourRunner } from '@/components/tours/LiveTourRunner';
 import { TourStageTransition } from '@/components/tours/TourStageTransition';
+import { isViewAsTab } from '@/utils/viewAsTab';
 import { TourRecordingHost } from '@/components/widgets/GuidedLearning/components/recorder/TourRecordingHost';
 import { TourEditorHost } from '@/components/tours/editor/TourEditorHost';
 import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
@@ -2021,7 +2022,13 @@ export const DashboardView: React.FC = () => {
       <LiveTourRunner />
       <TourStageTransition />
       <TourOfferWatcher />
-      {isAdmin && <TourRecordingHost />}
+      {isAdmin && (
+        <TourRecordingHost
+          acceptStudentRecordings={
+            !isViewAsTab && canAccessFeature('student-live-tours')
+          }
+        />
+      )}
       {isAdmin && <TourEditorHost />}
       {/* A tour author follows the same link; the Web tours page decides who gets in. */}
       {webTourLink && (isAdmin !== true || canAccessFeature('web-tours')) && (

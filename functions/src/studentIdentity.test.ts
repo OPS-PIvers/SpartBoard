@@ -1565,6 +1565,47 @@ describe('getStudentClassDirectoryV1 — co-teachers, order and re-check', () =>
     expect(res.classes.map((c) => c.classId)).toEqual(['A']);
   });
 
+  it('never re-mints for a View as student preview, which would drop its read-only claim', async () => {
+    h.docStore.set('users/t/rosters/a', { classlinkClassId: 'A', name: 'Art' });
+    h.docStore.set('users/t/rosters/b', {
+      classlinkClassId: 'B',
+      name: 'Biology',
+    });
+    h.docStore.set('student_sections/stu', {
+      orgId: 'org-orono',
+      sectionIds: ['A', 'B'],
+    });
+    h.docStore.set('view_as_sessions/sid-1', {
+      by: 'boss@school.org',
+      targetUid: 't',
+      expiresAt: Date.now() + 60_000,
+    });
+    h.docStore.set('admin_settings/view_as', { enabled: true });
+    h.docStore.set('organizations/orono/members/boss@school.org', {
+      roleId: 'super_admin',
+    });
+    const auth = studentAuth(['A']);
+    const res = await callDirectory({
+      auth: {
+        ...auth,
+        token: {
+          ...auth.token,
+          viewAs: {
+            by: 'boss@school.org',
+            sid: 'sid-1',
+            ro: true,
+            adminTarget: false,
+            exp: Date.now() + 60_000,
+            student: true,
+          },
+        },
+      },
+    });
+    expect(res.customToken).toBeUndefined();
+    expect(h.lastCustomToken).toBeNull();
+    expect(res.classes.map((c) => c.classId)).toEqual(['A']);
+  });
+
   it('re-mints the claim when a stored section gains a roster', async () => {
     h.docStore.set('users/t/rosters/a', { classlinkClassId: 'A', name: 'Art' });
     h.docStore.set('users/t/rosters/b', {

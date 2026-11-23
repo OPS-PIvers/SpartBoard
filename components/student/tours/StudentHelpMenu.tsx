@@ -1,12 +1,14 @@
 import React from 'react';
-import { Footprints } from 'lucide-react';
-import { tourFieldAttr } from '@/config/tourAnchors';
+import { Circle, Footprints } from 'lucide-react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import type { HelpResourceItem } from '@/types/helpCenter';
 
 interface StudentHelpMenuProps {
   id: string;
   tours: readonly HelpResourceItem[];
   onPlay: (item: HelpResourceItem) => void;
+  /** Admins in View as student: record a tour of this page. */
+  onRecord?: () => void;
 }
 
 const ROW_CLASS =
@@ -17,6 +19,7 @@ export const StudentHelpMenu: React.FC<StudentHelpMenuProps> = ({
   id,
   tours,
   onPlay,
+  onRecord,
 }) => (
   <div
     id={id}
@@ -40,5 +43,20 @@ export const StudentHelpMenu: React.FC<StudentHelpMenuProps> = ({
         <span className="min-w-0 flex-1 leading-snug">{item.title}</span>
       </button>
     ))}
+    {onRecord && (
+      <button
+        type="button"
+        role="menuitem"
+        onClick={onRecord}
+        className={`${ROW_CLASS} ${tours.length > 0 ? 'mt-1 border-t border-slate-100' : ''}`}
+        {...tourAttr('student.help-record')}
+      >
+        <Circle
+          className="w-4 h-4 shrink-0 fill-brand-red-primary text-brand-red-primary"
+          aria-hidden="true"
+        />
+        <span className="min-w-0 flex-1">Record a tour</span>
+      </button>
+    )}
   </div>
 );
