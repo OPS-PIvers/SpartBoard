@@ -1,3 +1,4 @@
+import { tourAttr } from '@/config/tourAnchors';
 import React, { useRef, useState, useEffect } from 'react';
 import { Play, Pause, Volume2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -133,8 +134,8 @@ export const AudioInteraction: React.FC<Props> = ({
               </p>
             )}
           </div>
-          {/* no-tour-anchor: student player overlay, not on the teacher board during a tour */}
           <button
+            {...tourAttr('gl-player.audio-play')}
             onClick={togglePlay}
             className={`rounded-full bg-brand-blue-primary hover:bg-brand-blue-dark flex items-center justify-center shrink-0 transition-all active:scale-90 ${focusRing}`}
             style={{ width: 'min(36px, 9cqmin)', height: 'min(36px, 9cqmin)' }}
