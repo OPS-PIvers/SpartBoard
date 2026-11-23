@@ -14,6 +14,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
+  deleteDoc,
   doc,
   getDoc,
   setDoc,
@@ -607,6 +608,36 @@ describe('content/questions', () => {
       })
     );
     await assertSucceeds(getDoc(doc(asAnon(), contentPath)));
+  });
+
+  it('locks out the old device once a paper row release removes its seat', async () => {
+    await seedResponse(S, ANON_KEY, {
+      studentUid: ANON_UID,
+      classId: LOCAL_KEY,
+      pin: '1234',
+      paperWrittenBatchId: 'batch-1',
+    });
+    await seedSeat(S, ANON_UID, ANON_KEY);
+    await assertSucceeds(getDoc(doc(asAnon(), contentPath)));
+    await testEnv.withSecurityRulesDisabled((ctx) =>
+      updateDoc(
+        doc(ctx.firestore(), `quiz_sessions/${S}/responses/${ANON_KEY}`),
+        {
+          studentUid: ANON_KEY,
+        }
+      )
+    );
+    // The reset alone leaves the read open, which is why the release deletes the seat.
+    await assertSucceeds(getDoc(doc(asAnon(), contentPath)));
+    await testEnv.withSecurityRulesDisabled((ctx) =>
+      deleteDoc(doc(ctx.firestore(), `quiz_sessions/${S}/seats/${ANON_UID}`))
+    );
+    await assertFails(getDoc(doc(asAnon(), contentPath)));
+    await assertFails(
+      setDoc(doc(asAnon(), `quiz_sessions/${S}/seats/${ANON_UID}`), {
+        responseKey: ANON_KEY,
+      })
+    );
   });
 
   it('refuses a seat pointing at another student response', async () => {
