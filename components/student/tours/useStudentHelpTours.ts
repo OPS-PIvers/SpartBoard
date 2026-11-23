@@ -21,7 +21,7 @@ const studentScope = (orgId: string | null): QueryConstraint[] => [
   where('visible', '==', true),
 ];
 
-const toTours = (docs: { id: string; data: () => unknown }[]) =>
+const toTours = (docs: { id: string; data: () => Record<string, unknown> }[]) =>
   docs.flatMap((d) => {
     const item = normalizeHelpResourceItem(d.id, d.data());
     return item?.kind === 'guided-learning' && item.setId ? [item] : [];
