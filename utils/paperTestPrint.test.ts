@@ -152,6 +152,8 @@ describe('a translated test paper', () => {
       expect(html).toContain('<h2>Recurso A</h2>');
       expect(html).toContain('Escribe tu respuesta en tu hoja de respuestas.');
       expect(html).not.toContain('Resource A');
+      expect(html).toContain('Nombre <span></span>');
+      expect(html).toContain('Clase <span></span>');
     }
   });
 });
