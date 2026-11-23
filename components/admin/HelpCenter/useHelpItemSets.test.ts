@@ -51,4 +51,17 @@ describe('useHelpItemSets', () => {
     });
     expect(loadBuildingSet).toHaveBeenCalledTimes(1);
   });
+
+  it('stops retrying a read that keeps failing', async () => {
+    loadBuildingSet.mockRejectedValue(new Error('permission-denied'));
+    loadWebTourDraft.mockRejectedValue(new Error('permission-denied'));
+
+    renderHook(() => useHelpItemSets(['a'], []));
+    for (let i = 0; i < 10; i++) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(6000);
+      });
+    }
+    expect(loadBuildingSet).toHaveBeenCalledTimes(4);
+  });
 });

@@ -7,6 +7,7 @@ import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { loadWebTourDraft } from '@/components/tours/webTours';
 
 const RETRY_MS = 5000;
+const MAX_RETRIES = 3;
 
 // Throws when a read failed and no set was found, so a blip isn't mistaken for a missing set.
 const loadItemSet = async (
@@ -45,7 +46,8 @@ export function useHelpItemSets(
   } | null>(null);
   // Sets already read, by `id@version`, so one edited set doesn't refetch the rest.
   const cacheRef = useRef(new Map<string, GuidedLearningSet | null>());
-  const [attempt, setAttempt] = useState(0);
+  const [retry, setRetry] = useState({ key: '', n: 0 });
+  const attempt = retry.key === key ? retry.n : 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -72,8 +74,8 @@ export function useHelpItemSets(
         key,
         sets: new Map(parts.map((part, i) => [part.split('@')[0], sets[i]])),
       });
-      if (anyFailed)
-        timer = setTimeout(() => setAttempt((n) => n + 1), RETRY_MS);
+      if (anyFailed && attempt < MAX_RETRIES)
+        timer = setTimeout(() => setRetry({ key, n: attempt + 1 }), RETRY_MS);
     });
     return () => {
       cancelled = true;
