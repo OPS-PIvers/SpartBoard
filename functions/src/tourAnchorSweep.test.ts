@@ -11,7 +11,8 @@ const h = vi.hoisted(
     pages: Record<string, number[]>;
     wheres: unknown[][];
     deleted: string[];
-  } => ({ pages: {}, wheres: [], deleted: [] })
+    updated: Array<[string, unknown]>;
+  } => ({ pages: {}, wheres: [], deleted: [], updated: [] })
 );
 
 vi.mock('./firebaseAdmin', () => ({
@@ -19,6 +20,7 @@ vi.mock('./firebaseAdmin', () => ({
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {
     Timestamp: { fromMillis: (ms: number) => ({ ms }) },
+    FieldValue: { delete: () => 'DELETE' },
   }),
 }));
 
@@ -50,6 +52,7 @@ const fakeDb = () =>
     }),
     batch: () => ({
       delete: (ref: string) => h.deleted.push(ref),
+      update: (ref: string, data: unknown) => h.updated.push([ref, data]),
       commit: () => Promise.resolve(),
     }),
   }) as never;
@@ -62,6 +65,7 @@ beforeEach(() => {
   };
   h.wheres = [];
   h.deleted = [];
+  h.updated = [];
 });
 
 describe('runTourAnchorSweep', () => {
@@ -77,5 +81,8 @@ describe('runTourAnchorSweep', () => {
     expect(result).toEqual({ rebound: 2, batches: 401, requested: 2 });
     expect(h.deleted).toHaveLength(405);
     expect(h.deleted).not.toContain('tour_anchor_queue.requestedAt/0');
+    expect(h.updated).toEqual([
+      ['tour_anchor_queue.requestedAt/0', { requestedAt: 'DELETE' }],
+    ]);
   });
 });

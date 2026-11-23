@@ -88,7 +88,8 @@ const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
 
 /** What Claude sees for a queue item: ready once this build knows the anchor the routine tagged. */
 export function requestStatus(data: QueueData) {
-  const ref = readyAnchorRef(data);
+  // Ignore the status gate: a rebound item's anchor is still the right ref.
+  const ref = readyAnchorRef({ ...data, status: 'pr-open' });
   const anchorId = str(data.anchorId);
   const known = !!anchorId && KNOWN_ANCHORS.has(anchorId.split(/[:#]/)[0]);
   const status =
@@ -225,7 +226,7 @@ export function registerAnchorRequestTools(
     {
       title: 'List live tour anchor requests',
       description:
-        'Admins only. Lists the controls Claude asked to have tagged with request_tour_anchors, newest first, with their status: open (waiting for the routine), pr_open (a pull request tags it, not deployed yet), ready (use anchor_ready in tour.anchor; needs_widget_type means add ":<type>" yourself) or needs_human (reason says why the routine could not place it). Steps saved with anchor "" show their own anchor_ready in get_live_tour instead.',
+        'Admins only. Lists the controls Claude asked to have tagged with request_tour_anchors in the last 90 days, newest first, with their status: open (waiting for the routine), pr_open (a pull request tags it, not deployed yet), ready (use anchor_ready in tour.anchor; needs_widget_type means add ":<type>" yourself) or needs_human (reason says why the routine could not place it). Steps saved with anchor "" show their own anchor_ready in get_live_tour instead.',
       inputSchema: {
         status: z
           .enum(['open', 'pr_open', 'ready', 'needs_human'])
@@ -239,7 +240,7 @@ export function registerAnchorRequestTools(
         await assertAccess(ctx, 'building');
         const snap = await ctx.db
           .collection(TOUR_ANCHOR_QUEUE)
-          .where('requested', '==', true)
+          .orderBy('requestedAt', 'desc')
           .limit(LIST_CAP)
           .get();
         const millis = (d: QueueData) => d.requestedAt?.toMillis?.() ?? 0;

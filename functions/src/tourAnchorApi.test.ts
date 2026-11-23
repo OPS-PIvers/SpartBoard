@@ -230,6 +230,36 @@ describe('selectOpenItems', () => {
     expect(items.map((i) => i.fingerprint)).toEqual(['asked']);
   });
 
+  it('retries a stale stepless request only while its anchor is not deployed', () => {
+    const old = { toMillis: () => 0 };
+    const items = selectOpenItems(
+      [
+        {
+          id: 'shipped',
+          data: {
+            status: 'pr-open',
+            requested: true,
+            occurrences: [],
+            anchorId: 'dock.open-tools',
+            updatedAt: old,
+          },
+        },
+        {
+          id: 'abandoned',
+          data: {
+            status: 'pr-open',
+            requested: true,
+            occurrences: [],
+            anchorId: 'not.shipped-yet',
+            updatedAt: old,
+          },
+        },
+      ],
+      STALE_PR_MS + 1
+    );
+    expect(items.map((i) => i.fingerprint)).toEqual(['abandoned']);
+  });
+
   it('drops reboundAt and returns ISO timestamps', () => {
     const [item] = selectOpenItems(
       [

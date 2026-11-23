@@ -59,6 +59,16 @@ const db = {
           }),
       }),
     }),
+    orderBy: () => ({
+      limit: () => ({
+        get: () =>
+          Promise.resolve({
+            docs: [...h.docs]
+              .filter(([p, d]) => p.startsWith(name) && d.requested === true)
+              .map(([p, d]) => ({ id: p.split('/').pop(), data: () => d })),
+          }),
+      }),
+    }),
   }),
   batch: () => {
     const ops: typeof h.writes = [];
@@ -176,6 +186,13 @@ describe('requestStatus', () => {
         needs_widget_type: true,
       }
     );
+    expect(
+      requestStatus({
+        status: 'rebound',
+        anchorId: 'dock.item',
+        widgetType: 'quiz',
+      })
+    ).toEqual({ status: 'ready', anchor_ready: 'dock.item:quiz' });
     expect(
       requestStatus({ status: 'needs-human', reason: 'in student work' })
     ).toEqual({ status: 'needs_human', reason: 'in student work' });

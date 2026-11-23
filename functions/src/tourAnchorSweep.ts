@@ -55,19 +55,27 @@ export async function runTourAnchorSweep(
   };
 }
 
-/** Old request_tour_anchors items no saved step ever used; a step's item stays for its rebind. */
+/** Old request_tour_anchors items no saved step ever used; one a step uses drops out of the window for its rebind. */
 async function deleteStepless(db: admin.firestore.Firestore, query: Query) {
   const snap = await query.limit(STEPLESS_CAP).get();
-  const stepless = snap.docs.filter((d) => {
+  const used = (d: admin.firestore.QueryDocumentSnapshot) => {
     const o: unknown = d.get('occurrences');
-    return !Array.isArray(o) || o.length === 0;
-  });
-  for (let i = 0; i < stepless.length; i += PAGE) {
+    return Array.isArray(o) && o.length > 0;
+  };
+  const del = admin.firestore.FieldValue.delete();
+  let deleted = 0;
+  for (let i = 0; i < snap.docs.length; i += PAGE) {
     const batch = db.batch();
-    stepless.slice(i, i + PAGE).forEach((d) => batch.delete(d.ref));
+    for (const d of snap.docs.slice(i, i + PAGE)) {
+      if (used(d)) batch.update(d.ref, { requestedAt: del });
+      else {
+        batch.delete(d.ref);
+        deleted++;
+      }
+    }
     await batch.commit();
   }
-  return stepless.length;
+  return deleted;
 }
 
 export const tourAnchorSweep = onSchedule(
