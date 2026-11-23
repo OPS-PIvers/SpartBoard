@@ -1,3 +1,4 @@
+import type React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -40,7 +41,11 @@ const derive = (over: Partial<QuizAssignment>) =>
     NOW
   );
 
-const renderRow = (status: ReturnType<typeof derive>, onResults = vi.fn()) =>
+const renderRow = (
+  status: ReturnType<typeof derive>,
+  onResults = vi.fn(),
+  extra: Partial<React.ComponentProps<typeof AssignedRow>> = {}
+) =>
   render(
     <AssignedRow
       title="Cells quiz"
@@ -53,6 +58,7 @@ const renderRow = (status: ReturnType<typeof derive>, onResults = vi.fn()) =>
       menuActions={[]}
       tourIndex={0}
       tourWidgetType="quiz"
+      {...extra}
     />
   );
 
@@ -79,5 +85,39 @@ describe('AssignedRow', () => {
       screen.getByRole('button', { name: 'Details for Cells quiz' })
     );
     expect(screen.getAllByRole('button', { name: 'Results' })).toHaveLength(1);
+  });
+
+  it('names picked students under their class, then any outside it', async () => {
+    const periodAccess = {
+      P1: { ...ready('Period 1'), rosterId: 'r1' },
+      P2: { ...ready('Period 2'), rosterId: 'r2' },
+    };
+    const status = derive({ status: 'paused', periodAccess });
+    renderRow(status, vi.fn(), {
+      periodAccess,
+      picked: {
+        count: 4,
+        classes: [
+          {
+            rosterId: 'r1',
+            label: 'Period 1',
+            names: ['Adams, Ava', 'Diaz, Ben'],
+          },
+          { rosterId: 'r9', label: 'Period 9', names: ['Kim, Ivy'] },
+        ],
+        elsewhere: ['Evans, Eli'],
+        unnamed: 1,
+      },
+    });
+    expect(screen.getByText('4 students')).toBeTruthy();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Details for Cells quiz' })
+    );
+    expect(screen.getByText('Adams, Ava · Diaz, Ben')).toBeTruthy();
+    expect(screen.getByText('Period 9')).toBeTruthy();
+    expect(screen.getByText('Kim, Ivy')).toBeTruthy();
+    expect(screen.getByText('Not in these classes')).toBeTruthy();
+    expect(screen.getByText('Evans, Eli')).toBeTruthy();
+    expect(screen.getByText('1 student not on your class lists')).toBeTruthy();
   });
 });

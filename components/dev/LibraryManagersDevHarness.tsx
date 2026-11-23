@@ -7,7 +7,6 @@ import {
   type DashboardContextValue,
 } from '@/context/DashboardContextValue';
 import { ToastContainer } from '@/components/common/ToastContainer';
-import { PickedLayoutContext } from '@/components/common/library/pickedLayoutContext';
 import type { Toast } from '@/types';
 import { DialogProvider } from '@/context/DialogContext';
 import { DialogContainer } from '@/components/common/DialogContainer';
@@ -404,6 +403,7 @@ const PERIOD_ACCESS: AssignPeriodAccessContext = {
   onTagRoster: noop,
 };
 
+// ?picked=1 puts runs sent to picked students on the In progress tab.
 const PICKED_ON =
   new URLSearchParams(window.location.search).get('picked') === '1';
 
@@ -1198,10 +1198,6 @@ const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
 };
 
 const SIZE = new URLSearchParams(window.location.search);
-// ?students=a|b|c picks the picked-students layout; ?picked=1 puts picked runs on In progress.
-const LAYOUT = (['a', 'b', 'c'] as const).find(
-  (l) => l === SIZE.get('students')
-);
 
 const readView = (): HarnessView => {
   const requested = new URLSearchParams(window.location.search).get('view');
@@ -1271,9 +1267,7 @@ export const LibraryManagersDevHarness: React.FC = () => {
                 containerType: 'size',
               }}
             >
-              <PickedLayoutContext.Provider value={LAYOUT ?? 'a'}>
-                <View key={view} />
-              </PickedLayoutContext.Provider>
+              <View key={view} />
             </div>
           </div>
           <DialogContainer />

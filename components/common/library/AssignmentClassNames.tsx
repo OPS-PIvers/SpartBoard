@@ -6,11 +6,7 @@ import {
   studentCountLabel,
   type PickedStudents,
 } from '@/utils/assignedStudents';
-import {
-  PickedStudentGroups,
-  PickedStudentsButton,
-} from './PickedStudentNames';
-import { usePickedLayout } from './pickedLayoutContext';
+import { PickedStudentGroups } from './PickedStudentNames';
 
 interface AssignmentClassNamesProps {
   names: readonly (string | null | undefined)[];
@@ -23,16 +19,8 @@ export const AssignmentClassNames: React.FC<AssignmentClassNamesProps> = ({
   names,
   picked,
 }) => {
-  const layout = usePickedLayout();
   const list = uniqueClassNames(names);
   if (list.length === 0) return null;
-  if (picked && layout === 'c')
-    return (
-      <>
-        <AssignmentClassNames names={names} />
-        <PickedStudentsButton picked={picked} />
-      </>
-    );
   const label = picked
     ? `${classCountLabel(list.length)} · ${studentCountLabel(picked.count)}`
     : classCountLabel(list.length);
@@ -43,7 +31,7 @@ export const AssignmentClassNames: React.FC<AssignmentClassNamesProps> = ({
         dialogLabel="Students"
         triggerClassName="touch-target-expand"
         panelZIndex={Z_INDEX.popover}
-        panel={<PickedStudentGroups picked={picked} rows={layout === 'b'} />}
+        panel={<PickedStudentGroups picked={picked} />}
       >
         <span
           data-testid="assignment-class-names"

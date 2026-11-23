@@ -135,3 +135,19 @@ export function pickedClassSizes(
     if (key) out[key] = names.length;
   return out;
 }
+
+/** Groups no Assigned-tab class row shows: run classes without a row, then picks outside the run. */
+export function unplacedGroups(
+  picked: PickedStudents,
+  periodAccess: Record<string, { rosterId?: string }> | undefined
+): { label: string; names: string[] }[] {
+  const entries = Object.entries(periodAccess ?? {});
+  const shown = new Set(entries.map(([key, row]) => row.rosterId ?? key));
+  const classes =
+    entries.length === 0
+      ? []
+      : picked.classes.filter((c) => !shown.has(c.rosterId));
+  return picked.elsewhere.length > 0
+    ? [...classes, { label: ELSEWHERE_LABEL, names: picked.elsewhere }]
+    : classes;
+}

@@ -18,14 +18,13 @@ import { AssignedCheckbox } from './AssignedBulk';
 import { useAssignedRowSelect } from './assignedBulkContext';
 import { AssignedFocusClassContext } from './assignedFilterContext';
 import {
-  ELSEWHERE_LABEL,
   namesByClassKey,
   studentCountLabel,
   unnamedLabel,
+  unplacedGroups,
   type PickedStudents,
 } from '@/utils/assignedStudents';
-import { PickedNames, PickedStudentsButton } from '../PickedStudentNames';
-import { usePickedLayout } from '../pickedLayoutContext';
+import { PickedNames } from '../PickedStudentNames';
 import type { PeriodAccess } from '@/types';
 
 export interface AssignedRowProps {
@@ -190,9 +189,8 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   periodAccess,
 }) => {
   const [expanded, setExpanded] = useState(false);
-  const layout = usePickedLayout();
   const namesBy = picked ? namesByClassKey(picked, periodAccess) : {};
-  const nameRows = layout === 'b';
+  const unplaced = picked ? unplacedGroups(picked, periodAccess) : [];
   const select = useAssignedRowSelect();
   const focusLabel = useContext(AssignedFocusClassContext);
   const rowKey = `row-${tourIndex + 1}`;
@@ -301,12 +299,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
               style={{ ...GREY_TEXT, columnGap: 'min(8px, 2cqmin)' }}
             >
               {grey && <span className="min-w-0">{grey}</span>}
-              {picked &&
-                (layout === 'c' ? (
-                  <PickedStudentsButton picked={picked} />
-                ) : (
-                  <span>{studentCountLabel(picked.count)}</span>
-                ))}
+              {picked && <span>{studentCountLabel(picked.count)}</span>}
               {meta}
             </div>
           </div>
@@ -467,10 +460,9 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                     </button>
                   ))}
                 </div>
-                {layout !== 'c' && (namesBy[c.key]?.length ?? 0) > 0 && (
+                {(namesBy[c.key]?.length ?? 0) > 0 && (
                   <PickedNames
                     names={namesBy[c.key]}
-                    rows={nameRows}
                     className="col-span-full"
                     style={{ ...GREY_TEXT, paddingLeft: 'min(14px, 3.2cqmin)' }}
                   />
@@ -478,35 +470,32 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
               </div>
             );
           })}
-          {picked &&
-            layout !== 'c' &&
-            (picked.elsewhere.length > 0 || picked.unnamed > 0) && (
-              <div
-                className="border-b border-slate-200/70"
-                style={{
-                  ...GREY_TEXT,
-                  padding:
-                    'min(7px, 1.6cqmin) 0 min(7px, 1.6cqmin) min(14px, 3.2cqmin)',
-                }}
-              >
-                {picked.elsewhere.length > 0 && (
-                  <>
-                    <div
-                      className="font-semibold text-brand-blue-dark"
-                      style={{ fontSize: 'min(13px, 3.8cqmin)' }}
-                    >
-                      {ELSEWHERE_LABEL}
-                    </div>
-                    <PickedNames names={picked.elsewhere} rows={nameRows} />
-                  </>
-                )}
-                {picked.unnamed > 0 && (
-                  <p className="text-slate-500">
-                    {unnamedLabel(picked.unnamed)}
-                  </p>
-                )}
-              </div>
-            )}
+          {picked && (unplaced.length > 0 || picked.unnamed > 0) && (
+            <div
+              className="flex flex-col border-b border-slate-200/70"
+              style={{
+                ...GREY_TEXT,
+                gap: 'min(6px, 1.4cqmin)',
+                padding:
+                  'min(7px, 1.6cqmin) 0 min(7px, 1.6cqmin) min(14px, 3.2cqmin)',
+              }}
+            >
+              {unplaced.map((g) => (
+                <div key={g.label}>
+                  <div
+                    className="font-semibold text-brand-blue-dark [overflow-wrap:anywhere]"
+                    style={{ fontSize: 'min(13px, 3.8cqmin)' }}
+                  >
+                    {g.label}
+                  </div>
+                  <PickedNames names={g.names} />
+                </div>
+              ))}
+              {picked.unnamed > 0 && (
+                <p className="text-slate-500">{unnamedLabel(picked.unnamed)}</p>
+              )}
+            </div>
+          )}
           <div
             className={PANEL_GRID}
             style={{
