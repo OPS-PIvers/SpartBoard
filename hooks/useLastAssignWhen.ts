@@ -10,8 +10,6 @@ import type { AssignActivity } from '@/components/common/library/assignStepper/a
 import { getLocalIsoDate } from '@/utils/localDate';
 import { manualDueAt, type ManualDue } from '@/utils/assignAvailability';
 
-export const ASSIGN_DUE_DATE_FEATURE = 'assign-due-date';
-
 /** Profile field holding the teacher's last When step choices for one activity. */
 export const lastAssignWhenField = (activity: AssignActivity): string =>
   `lastAssignWhen_${activity}`;
@@ -144,11 +142,9 @@ export interface AssignWhenState {
   reseed: (seed: AssignWhenValue) => void;
   /** Saves the choices for next time; call on Assign. */
   remember: (value: AssignWhenValue) => void;
-  /** The due date row shows. */
-  dueDate: boolean;
 }
 
-/** The assign stepper's When value; with the due date flag on, it starts from the teacher's last choices for this activity. */
+/** The assign stepper's When value; it starts from the teacher's last choices for this activity. */
 export function useAssignWhen(
   activity: AssignActivity,
   seed: () => AssignWhenValue,
@@ -156,11 +152,10 @@ export function useAssignWhen(
   { manualDue = false }: { manualDue?: boolean } = {}
 ): AssignWhenState {
   const auth = useContext(AuthContext);
-  const dueDate = !!auth?.canAccessFeature(ASSIGN_DUE_DATE_FEATURE);
   const last = useLastAssignSettings(
     WHEN_SPECS[activity],
     auth?.user?.uid,
-    dueDate
+    true
   );
   const [state, setState] = useState<{
     seed: AssignWhenValue;
@@ -169,17 +164,14 @@ export function useAssignWhen(
   // Until the teacher edits it, a last-used value that loads late still applies.
   const when =
     state.edited ??
-    (dueDate
-      ? withRememberedWhen(state.seed, last.lastUsed, new Date(), manualDue)
-      : state.seed);
+    withRememberedWhen(state.seed, last.lastUsed, new Date(), manualDue);
   return {
     when,
     setWhen: (next) => setState((s) => ({ ...s, edited: next })),
     reseed: (next) => setState({ seed: next, edited: null }),
     remember: (value) => {
       // Before the read lands, saving would overwrite choices the teacher never saw.
-      if (dueDate && last.loaded) last.save(lastWhenFrom(value, last.lastUsed));
+      if (last.loaded) last.save(lastWhenFrom(value, last.lastUsed));
     },
-    dueDate,
   };
 }

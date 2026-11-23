@@ -38,7 +38,6 @@ export const TOUR_CONDITION_DONE_FACTS: readonly string[] = [
 export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'ai-file-context',
   'anonymous-join',
-  'assign-due-date',
   'assigned-tab',
   'assignment-modes',
   'assignments-hub',
@@ -178,6 +177,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
 
 export const TOUR_CONDITION_RETIRED_FEATURES: readonly string[] = [
   'app-pickers',
+  'assign-due-date',
   'assignment-class-list',
   'board-context-menu',
   'checklist-small-card',

@@ -1815,17 +1815,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'assign-due-date': {
-    label: 'Assign: due date for Manual',
-    icon: CalendarClock,
-    description:
-      "Manual assignments are due when ended or at a set date and time, which closes them. Assign remembers each teacher's When choices.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'video-import-ai': {
     label: 'Video import: AI questions',
     icon: Sparkles,

@@ -12002,8 +12002,6 @@ export type GlobalFeature =
   | 'import-straight-to-board'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
   | 'video-import-ai'
-  /** Manual assignments get a due date, and Assign remembers the When step. */
-  | 'assign-due-date'
   /** Library and Assigned tabs with a status per class (docs/plans/ASSIGNED_TAB.md D19). */
   | 'assigned-tab'
   /** Writing peer review: teachers pair students to read, comment on or suggest edits to each other's writing. */

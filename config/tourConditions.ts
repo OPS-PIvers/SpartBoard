@@ -30,6 +30,7 @@ const FEATURE_PREFIX = 'feature:';
 /** Retired flags are on for everyone; saved tours may still name them. Add each id you retire. */
 export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'app-pickers',
+  'assign-due-date',
   'assignment-class-list',
   'board-context-menu',
   'checklist-small-card',

@@ -50,7 +50,7 @@ const Preview: React.FC = () => {
     classIds: ROSTERS.slice(0, classCount).map((r) => r.id),
     studentsByClass: {},
   });
-  const { when, setWhen, dueDate } = useAssignWhen(
+  const { when, setWhen } = useAssignWhen(
     'quiz',
     () => {
       const seed = defaultWhenValue({
@@ -68,7 +68,7 @@ const Preview: React.FC = () => {
   const [behavior, setBehavior] = useState(() => getQuizAssignPrefill(null));
   const due = params().get('due');
   const [seeded, setSeeded] = useState(false);
-  if (!seeded && dueDate && due === 'date' && when.availability.manualDue) {
+  if (!seeded && due === 'date' && when.availability.manualDue) {
     setSeeded(true);
     setWhen({
       ...when,

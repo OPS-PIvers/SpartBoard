@@ -95,7 +95,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'import-straight-to-board',
   'video-import-ai',
   'embed-mini-app',
-  'assign-due-date',
   'course-agenda',
   'assigned-tab',
   'writing-peer-review',
