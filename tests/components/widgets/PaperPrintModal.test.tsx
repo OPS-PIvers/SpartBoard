@@ -199,7 +199,13 @@ describe('PaperPrintModal', () => {
     afterEach(() => {
       globalThis.ResizeObserver = resizeObserver;
     });
-    const frame = () => screen.getByTitle<HTMLIFrameElement>('Print preview');
+    const pages = () => screen.getAllByTitle<HTMLIFrameElement>(/^Page \d+$/);
+    // Every preview page, as one string.
+    const frame = () => ({
+      srcdoc: pages()
+        .map((p) => p.srcdoc)
+        .join(''),
+    });
 
     it("draws the first student's packet without saving anything", () => {
       const { onSaveBatch, print } = setup();
@@ -225,15 +231,14 @@ describe('PaperPrintModal', () => {
       const job = print.mock.calls[0][0];
       const first = buildPaperSheetsHtml({ ...job, sheets: [job.sheets[0]] });
       expect(preview).toContain('Which is a cell?');
-      expect(preview.match(/class="sheet"/g)?.length).toBe(
-        first.match(/class="sheet"/g)?.length
-      );
+      expect(pages()).toHaveLength(first.match(/class="sheet"/g)?.length ?? 0);
+      for (const p of pages()) expect(p.getAttribute('sandbox')).toBe('');
     });
 
     it('stays off without the flag', () => {
       features.clear();
       setup();
-      expect(screen.queryByTitle('Print preview')).toBeNull();
+      expect(screen.queryByRole('list', { name: 'Printed pages' })).toBeNull();
     });
   });
 

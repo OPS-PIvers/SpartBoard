@@ -132,7 +132,8 @@ import {
 } from '@/utils/paperWritten';
 import { splitBlanks } from '@/utils/quizFibBlanks';
 import {
-  buildPaperSheetsPreviewDocument,
+  buildPaperSheetsPreviewPages,
+  type PaperPreviewPage,
   printPaperSheets,
   type PaperPrintJob,
   type PaperPromptPage,
@@ -1321,7 +1322,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
 
   // The first student's packet (or a spare), planned like the print but never saved.
   const previewFirst = selectionsForPrint[0];
-  const previewDoc = ((): string | null => {
+  const previewPages = ((): PaperPreviewPage[] | null => {
     if (!previewOn || questionCount + writtenCount === 0) return null;
     if (pagePlan && !pagePlan.ok) return null;
     if (stimuliLoading || sheetImages.loading) return null;
@@ -1356,7 +1357,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         ...(versionPlan ? { versions: versionPlan.records } : {}),
         createdAt: 0,
       });
-      return buildPaperSheetsPreviewDocument(
+      return buildPaperSheetsPreviewPages(
         jobFor(
           batch,
           sheets,
@@ -2320,7 +2321,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         </p>
       </div>
       <PaperPrintPreview
-        doc={previewDoc}
+        pages={previewPages}
         emptyText={previewEmptyText}
         className="mt-1 flex-1"
       />

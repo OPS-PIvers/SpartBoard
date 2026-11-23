@@ -1082,6 +1082,16 @@ function sheetPagesHtml(
   pageCount: number,
   fill?: SheetFill
 ): string {
+  return sheetPageList(sheet, printJob, pageCount, fill).join('');
+}
+
+/** Each printed page of one sheet, in order. */
+function sheetPageList(
+  sheet: PaperSheetPlan,
+  printJob: PaperPrintJob,
+  pageCount: number,
+  fill?: SheetFill
+): string[] {
   const version =
     sheet.versionIndex !== undefined
       ? printJob.versions?.[sheet.versionIndex]
@@ -1165,7 +1175,7 @@ function sheetPagesHtml(
     for (const r of job.resourcePages ?? [])
       pages.push(stimulusPageHtml(job, sheet, r));
   }
-  return pages.join('');
+  return pages;
 }
 
 /** A stimulus page in a student's packet; its marker tells an import to skip it. */
@@ -1437,17 +1447,28 @@ export function buildPaperSheetsHtml(job: PaperPrintJob): string {
   return job.sheets.map((s) => sheetPagesHtml(s, job, pageCount)).join('');
 }
 
-/** Page gap and shadow for the on-screen preview of a packet. */
-export const PREVIEW_GAP_MM = 6;
+/** A preview page's kind: a fixed-size sheet, or a test paper copy that runs as long as it needs. */
+export interface PaperPreviewPage {
+  kind: 'sheet' | 'test';
+  /** A whole document for one sandboxed frame. */
+  doc: string;
+}
 
-/** One student's packet as a page-by-page document, for the print dialog's preview. */
-export function buildPaperSheetsPreviewDocument(job: PaperPrintJob): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><style>${STYLES}${job.testPaperStyles ?? ''}
-  html, body { background: transparent; }
-  body { padding: ${PREVIEW_GAP_MM}mm; }
-  .sheet, .tp { background: #fff; box-shadow: 0 0.4mm 1.2mm rgba(15, 23, 42, 0.25); margin: 0 auto ${PREVIEW_GAP_MM}mm; }
-  .tp { width: ${PAGE_WIDTH_MM}mm; min-height: ${PAGE_HEIGHT_MM}mm; }
-  .tp > table.page-margins { min-height: ${PAGE_HEIGHT_MM}mm; height: ${PAGE_HEIGHT_MM}mm; }
-  .tp > table.page-margins > tbody > tr > td { vertical-align: top; }
-</style></head><body>${buildPaperSheetsHtml(job)}</body></html>`;
+/** Each page of the job's first sheet, for the print dialog's preview. */
+export function buildPaperSheetsPreviewPages(
+  job: PaperPrintJob
+): PaperPreviewPage[] {
+  const sheet = job.sheets[0];
+  if (!sheet) return [];
+  const pageCount = job.pageMaps
+    ? job.pageMaps.length
+    : pageCountForQuestions(job.questionCount, job.columnsPerPage);
+  const styles = `${STYLES}${job.testPaperStyles ?? ''}
+  .tp { width: ${PAGE_WIDTH_MM}mm; }
+  .tp > table.page-margins { min-height: ${PAGE_HEIGHT_MM}mm; }
+  .tp > table.page-margins > tbody > tr > td { vertical-align: top; }`;
+  return sheetPageList(sheet, job, pageCount).map((html) => ({
+    kind: html.startsWith('<div class="tp">') ? 'test' : 'sheet',
+    doc: `<!doctype html><html><head><meta charset="utf-8"><style>${styles}</style></head><body>${html}</body></html>`,
+  }));
 }
