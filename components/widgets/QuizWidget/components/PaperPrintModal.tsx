@@ -1315,37 +1315,47 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     if (!previewOn || questionCount + writtenCount === 0) return null;
     if (pagePlan && !pagePlan.ok) return null;
     if (stimuliLoading || sheetImages.loading) return null;
-    const { batch, sheets } = planPaperBatch({
-      batchId: 'preview',
-      quizId: quiz.id,
-      selections: previewFirst
-        ? [
-            {
-              roster: previewFirst.roster,
-              students: [previewFirst.students[0]],
-            },
-          ]
-        : [],
-      questionCount,
-      choiceCount,
-      spareCount: previewFirst ? 0 : 1,
-      includeKeySheet: false,
-      ...(isStub
-        ? {}
-        : {
-            questions: versionPlan
-              ? versionSheetQuestions(versionPlan)
-              : sheetQuestions,
-          }),
-      ...(columnsPerPage === 1 ? { columnsPerPage: 1 as const } : {}),
-      ...(questionTextLayout ? { sheetLayout: 'questions' as const } : {}),
-      ...(pagePlan?.ok ? { pageMaps: pagePlan.pageMaps } : {}),
-      ...(versionPlan ? { versions: versionPlan.records } : {}),
-      createdAt: 0,
-    });
-    return buildPaperSheetsPreviewDocument(
-      jobFor(batch, sheets, isStub ? stubTitle : quiz.title)
-    );
+    if (!previewFirst && spareCount === 0) return null;
+    // A preview that cannot be drawn shows nothing rather than closing the dialog.
+    try {
+      const { batch, sheets } = planPaperBatch({
+        batchId: 'preview',
+        quizId: quiz.id,
+        selections: previewFirst
+          ? [
+              {
+                roster: previewFirst.roster,
+                students: [previewFirst.students[0]],
+              },
+            ]
+          : [],
+        questionCount,
+        choiceCount,
+        spareCount: previewFirst ? 0 : 1,
+        includeKeySheet: false,
+        ...(isStub
+          ? {}
+          : {
+              questions: versionPlan
+                ? versionSheetQuestions(versionPlan)
+                : sheetQuestions,
+            }),
+        ...(columnsPerPage === 1 ? { columnsPerPage: 1 as const } : {}),
+        ...(questionTextLayout ? { sheetLayout: 'questions' as const } : {}),
+        ...(pagePlan?.ok ? { pageMaps: pagePlan.pageMaps } : {}),
+        ...(versionPlan ? { versions: versionPlan.records } : {}),
+        createdAt: 0,
+      });
+      return buildPaperSheetsPreviewDocument(
+        jobFor(
+          batch,
+          sheets,
+          isStub ? stubTitle.trim() || 'Paper test' : quiz.title
+        )
+      );
+    } catch {
+      return null;
+    }
   })();
 
   const handlePrint = async () => {
@@ -2279,7 +2289,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     ? tooManyPagesMessage(pagesPerSheet)
     : stimuliLoading || sheetImages.loading
       ? 'Loading the pages.'
-      : 'Add a question to see the pages.';
+      : sheetCount === 0
+        ? 'Pick at least one student or spare sheet.'
+        : 'Add a question to see the pages.';
   const previewPane = (
     <>
       <div className="flex items-baseline justify-between gap-3 px-5 pt-4">
@@ -2288,7 +2300,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         </p>
         <p className="min-w-0 truncate text-xs text-slate-500">
           {previewFirst
-            ? `${previewFirst.students[0].lastName}, ${previewFirst.students[0].firstName}`
+            ? [
+                previewFirst.students[0].lastName,
+                previewFirst.students[0].firstName,
+              ]
+                .filter(Boolean)
+                .join(', ')
             : 'Spare sheet'}
         </p>
       </div>
