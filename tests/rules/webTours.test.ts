@@ -475,6 +475,8 @@ describe('tour authors', () => {
         off,
       })
     );
+    // Nor do they take over a SpartBoard tour's record by relabelling it a web tour.
+    await assertFails(setDoc(doc(db, `${LINKS}/s1`), link(AUTHOR_EMAIL)));
     await assertSucceeds(
       setDoc(doc(asAdmin().firestore(), `${LINKS}/s1`), {
         ...link(ADMIN_EMAIL),
