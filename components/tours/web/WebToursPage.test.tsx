@@ -15,6 +15,8 @@ const h = vi.hoisted(() => ({
   published: new Map<string, Published>(),
   publicUrl: null as string | null,
   save: vi.fn<(set: GuidedLearningSet) => Promise<void>>(),
+  remove: vi.fn<(id: string) => Promise<void>>(),
+  confirm: vi.fn<() => Promise<boolean>>(),
   requestOn: vi.fn<(after?: (url: string) => void) => void>(),
 }));
 
@@ -30,6 +32,10 @@ vi.mock('@/components/tours/webTours', () => ({
   createWebTourDraft: () => h.create(),
   loadWebTourDraft: (id: string) => h.load(id),
   saveWebTourDraft: (set: GuidedLearningSet) => h.save(set),
+  deleteWebTourDraft: (id: string) => h.remove(id),
+}));
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({ showConfirm: () => h.confirm() }),
 }));
 vi.mock('@/components/tours/tourRuns', () => ({
   loadTourRuns: () => Promise.resolve([]),
@@ -113,6 +119,8 @@ describe('WebToursPage', () => {
     h.published = new Map();
     h.publicUrl = null;
     h.save.mockReset();
+    h.remove.mockReset().mockResolvedValue(undefined);
+    h.confirm.mockReset().mockResolvedValue(true);
     h.requestOn.mockReset();
     window.history.replaceState(null, '', '/web-tours');
   });
@@ -166,6 +174,19 @@ describe('WebToursPage', () => {
     expect(await screen.findByTestId('editor')).toHaveTextContent('new1');
     fireEvent.click(screen.getByText('close editor'));
     expect(screen.queryByTestId('editor')).toBeNull();
+  });
+
+  it('shows the author and deletes a tour only after a yes', async () => {
+    render(<WebToursPage />);
+    showDrafts([tour('a', 'Tour A', { authorName: 'Pat Lee' })]);
+    expect(screen.getByTestId('web-tour-row')).toHaveTextContent('by Pat Lee');
+    h.confirm.mockResolvedValueOnce(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Tour A' }));
+    await act(() => Promise.resolve());
+    expect(h.remove).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Tour A' }));
+    expect(await screen.findByText('Web tour deleted.')).toBeInTheDocument();
+    expect(h.remove).toHaveBeenCalledWith('a');
   });
 
   it('opens the editor from Edit and from Check tour', async () => {

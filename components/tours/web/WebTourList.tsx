@@ -7,9 +7,12 @@ import {
   Play,
   Radar,
   Share2,
+  Trash2,
   Wrench,
 } from 'lucide-react';
 import type { GuidedLearningSet } from '@/types';
+import { useDialog } from '@/context/useDialog';
+import { deleteWebTourDraft } from '@/components/tours/webTours';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { chromeMuted, focusRing } from '@/components/common/lightChrome';
 import { usePublishedTour } from '@/components/tours/publishedTours';
@@ -478,10 +481,27 @@ const WebTourRow: React.FC<{
       </button>
     ) : null;
 
+  const { showConfirm } = useDialog();
+  const remove = async () => {
+    const ok = await showConfirm(
+      'This deletes the web tour, its pictures and its published copy. A FreshService article made from it stays in FreshService.',
+      { title: `Delete ${title}`, variant: 'danger', confirmLabel: 'Delete' }
+    );
+    if (!ok) return;
+    try {
+      await deleteWebTourDraft(set.id);
+      onNotice({ tone: 'success', text: 'Web tour deleted.' });
+    } catch (err) {
+      logError('WebTourList delete', err, { setId: set.id });
+      onNotice({ tone: 'error', text: "The tour couldn't be deleted." });
+    }
+  };
+
   const meta = (
     <p className={`mt-0.5 text-xs ${chromeMuted}`}>
       {stepCount} step{stepCount === 1 ? '' : 's'}
       {site ? ` · ${site}` : ''}
+      {set.authorName ? ` · by ${set.authorName}` : ''}
       {counts && (
         <span
           data-testid="web-tour-counts"
@@ -580,6 +600,16 @@ const WebTourRow: React.FC<{
           copyLink={copyLink}
           onNotice={onNotice}
         />
+        <button
+          type="button"
+          onClick={() => void remove()}
+          aria-label={`Delete ${title}`}
+          title="Delete"
+          className={`${rowBtnBase} text-slate-500 hover:bg-red-50 hover:text-red-700`}
+          {...tourFieldAttr('web-tours.delete', 'web-tours', set.id)}
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+        </button>
       </div>
     </li>
   );

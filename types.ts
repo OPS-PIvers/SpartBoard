@@ -9560,6 +9560,8 @@ export interface GuidedLearningSet {
   /** Building set owned by the Help Center: edited in Admin Settings, hidden from the library. */
   helpCenter?: boolean;
   authorUid?: string;
+  /** The author's display name, kept beside `authorUid` so a list can show it without a lookup. */
+  authorName?: string;
   /**
    * Hotspot pulse animation for the player. Default `'consistent'` (matches
    * pre-feature behavior — a continuous breathing pulse). `'reminder'` does
