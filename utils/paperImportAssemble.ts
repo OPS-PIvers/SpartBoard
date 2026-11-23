@@ -31,6 +31,8 @@ export interface SheetAnswer {
   /** 0-based question index across the whole test. */
   question: number;
   choice: number | null;
+  /** A choose all row: every choice marked. */
+  marked?: number[];
   doubt?: RowDoubt;
   fills: number[];
   crop: RowRead['crop'];
@@ -88,6 +90,11 @@ const seatKind = (batch: PaperBatch, seat: number): SheetKind | null => {
   if (batch.spareSeats.includes(seat)) return 'spare';
   return null;
 };
+
+/** No mark and no doubt on the row. */
+export const isBlankAnswer = (
+  a: Pick<SheetAnswer, 'choice' | 'marked' | 'doubt'>
+): boolean => a.choice === null && !a.marked?.length && !a.doubt;
 
 /** Row index across the whole sheet: the map's on v2 pages, else page arithmetic. */
 export function sheetRowOf(
@@ -168,6 +175,7 @@ export function assemblePaperScan(
     const answers: SheetAnswer[] = read.rows.map((row) => ({
       question: sheetRowOf(read, row, grid),
       choice: row.choice,
+      ...(row.marked ? { marked: row.marked } : {}),
       ...(row.doubt ? { doubt: row.doubt } : {}),
       fills: row.fills,
       crop: row.crop,
@@ -214,8 +222,7 @@ export function assemblePaperScan(
       pagesSeen.flatMap((p) => entry.written.get(p) ?? [])
     );
     const isBlank =
-      answers.every((a) => a.choice === null && !a.doubt) &&
-      written.every((w) => w.state === 'blank');
+      answers.every(isBlankAnswer) && written.every((w) => w.state === 'blank');
     const flags: SheetFlag[] = [];
     if (missingPages.length > 0) flags.push('missing-page');
     if (answers.some((a) => a.doubt)) flags.push('doubtful-rows');
@@ -327,7 +334,7 @@ export function skipSheetPage(
       skippedRows,
       missingPages,
       isBlank:
-        answers.every((a) => a.choice === null && !a.doubt) &&
+        answers.every(isBlankAnswer) &&
         (written ?? []).every((w) => w.state === 'blank'),
       flags,
     };

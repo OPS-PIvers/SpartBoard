@@ -98,3 +98,26 @@ export function paperPrintWords(language?: string): PaperPrintWords {
 }
 
 export const ENGLISH_PRINT_WORDS = paperPrintWords();
+
+/** Titles over a grouped question's rows on a sheet without question text. */
+export const PAPER_GROUP_TITLES = {
+  all: 'Select all',
+  match: 'Match',
+  order: 'Order',
+} as const;
+
+/** The line under a grouped question's text: on the test paper and on a question-text sheet. */
+export function paperGroupInstruction(
+  group: 'all' | 'match' | 'order',
+  opts: { across: boolean; unusedLetters: boolean; firstRow?: string }
+): string {
+  if (group === 'all') return 'Select all that apply.';
+  if (group === 'match') {
+    return opts.unusedLetters
+      ? 'Bubble one letter for each term. Some letters are not used.'
+      : 'Bubble one letter for each term.';
+  }
+  return opts.across
+    ? 'Bubble where each step goes. 1 is first.'
+    : `Bubble the first step on row ${opts.firstRow ?? '1'}. Bubble the next step on each row after it.`;
+}

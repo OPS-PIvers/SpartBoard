@@ -505,7 +505,66 @@ const GROUP_SEATS: Record<number, PaperBatch['seats']> = {
   },
 };
 
+// Matching, ordering and choose all beside multiple choice, for the grouped bubble rows.
+const GROUPS_QUIZ: QuizData = {
+  id: 'groups-quiz',
+  title: 'Cells unit test',
+  createdAt: 0,
+  updatedAt: 0,
+  questions: [
+    {
+      id: 'g1',
+      timeLimit: 0,
+      text: 'Which organelle makes proteins?',
+      type: 'MC',
+      correctAnswer: 'Ribosome',
+      incorrectAnswers: ['Vacuole', 'Nucleus', 'Cell wall'],
+    },
+    {
+      id: 'g2',
+      timeLimit: 0,
+      text: 'Which of these are found in plant cells?',
+      type: 'MA',
+      correctAnswer: 'Cell wall|Chloroplast|Vacuole',
+      incorrectAnswers: ['Centriole', 'Cilia'],
+    },
+    {
+      id: 'g3',
+      timeLimit: 0,
+      text: 'Match each organelle to its job.',
+      type: 'Matching',
+      correctAnswer:
+        'Mitochondria:Releases energy|Nucleus:Holds the DNA|Ribosome:Makes proteins|Cell membrane:Controls what enters the cell',
+      incorrectAnswers: [],
+      matchingDistractors: ['Stores water', 'Makes food from light'],
+    },
+    {
+      id: 'g4',
+      timeLimit: 0,
+      text: 'Put the steps of mitosis in order.',
+      type: 'Ordering',
+      correctAnswer: 'Prophase|Metaphase|Anaphase|Telophase',
+      incorrectAnswers: [],
+    },
+  ],
+};
+
 const VIEWS = {
+  // Needs the paper-print-preview flag (admins have it).
+  groups: () => (
+    <PaperPrintModal
+      quiz={GROUPS_QUIZ}
+      rosters={ROSTERS}
+      assign={{
+        plcs: [],
+        initialSharing: { plcMode: false, plcId: '' },
+        onCreateAssignment: () => Promise.resolve(),
+      }}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
   library: () => <Manager tab="library" assignments={IN_PROGRESS} />,
   assign: () => <PaperAssign />,
   'assign-written': () => (

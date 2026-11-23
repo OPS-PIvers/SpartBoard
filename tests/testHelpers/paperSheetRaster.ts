@@ -10,6 +10,7 @@ import {
   mcItemsOf,
   writtenBoxBandsMm,
   writtenItemsOf,
+  itemBubbleRectMm,
 } from '@/utils/paperPageMap';
 import {
   BUBBLE_DIAMETER_MM,
@@ -20,7 +21,6 @@ import {
   REGISTRATION_MARK_CENTERS_MM,
   REGISTRATION_MARK_SIZE_MM,
   STIMULUS_RECT_MM,
-  bubbleRectAtOriginMm,
   bubbleRectMm,
   markerCellRectMm,
   questionChoiceTextRectMm,
@@ -203,10 +203,11 @@ export function paintSyntheticSheet(opts: SyntheticSheetOptions): RasterPage {
     : rowsOnPage(opts.marker.page, opts.questionCount, columns);
   const bubbleAt = (row: number, choice: number): RectMm =>
     mapRows
-      ? bubbleRectAtOriginMm(mapRows[row].originMm, choice, columns)
+      ? itemBubbleRectMm(mapRows[row], choice, columns)
       : bubbleRectMm(row, choice, columns);
   for (let row = 0; row < rows; row += 1) {
-    for (let c = 0; c < opts.choiceCount; c += 1) {
+    const printed = mapRows?.[row].choices ?? opts.choiceCount;
+    for (let c = 0; c < printed; c += 1) {
       const rect = bubbleAt(row, c);
       fillDisc(rect, radius, 1, radius - 0.3);
       if (opts.printedLetters) {

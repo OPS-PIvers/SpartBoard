@@ -10,6 +10,7 @@
 import type {
   ClassRoster,
   PaperBatch,
+  PaperRowGroup,
   QuizData,
   QuizQuestion,
   Student,
@@ -17,7 +18,12 @@ import type {
 import type { AssembledSheet } from './paperImportAssemble';
 import { mcItemsOf } from './paperPageMap';
 import { CHOICE_LETTERS } from './paperSheetLayout';
-import { analyzePaperQuiz, isPlaceholderLetterChoices } from './paperSheetPlan';
+import {
+  analyzePaperQuiz,
+  isPlaceholderLetterChoices,
+  matchingPairs,
+} from './paperSheetPlan';
+import { encodeMultiAnswer } from './quizMultiAnswer';
 import { pageMapsForSeat } from './paperSheetVersions';
 import { paperCropStoragePath } from './paperWritten';
 import {
@@ -210,6 +216,94 @@ export function sheetRowQuestionIds(
   return analyzePaperQuiz(quiz).rows.map((r) => r.questionId);
 }
 
+/** What each sheet row is: its question and, for a grouped question, which of its rows. */
+export interface SheetRowInfo {
+  questionId: string;
+  group?: PaperRowGroup;
+  part?: number;
+  across?: true;
+}
+
+/** Every sheet row in order; a grouped question takes several. */
+export function sheetRowInfos(
+  quiz: QuizData,
+  batch?: Pick<PaperBatch, 'layoutVersion' | 'pageMaps'>
+): SheetRowInfo[] {
+  if (batch?.layoutVersion === 2 && batch.pageMaps) {
+    const rows: SheetRowInfo[] = [];
+    for (const map of batch.pageMaps) {
+      for (const item of mcItemsOf(map)) {
+        rows[item.sheetRow] = {
+          questionId: item.questionId,
+          ...(item.group ? { group: item.group } : {}),
+          ...(item.part !== undefined ? { part: item.part } : {}),
+          ...(item.across ? { across: true as const } : {}),
+        };
+      }
+    }
+    return rows;
+  }
+  return analyzePaperQuiz(quiz).rows.map((r) => ({ questionId: r.questionId }));
+}
+
+/** One read row of a grouped question. */
+export interface GroupRowRead {
+  part: number;
+  choice: number | null;
+  marked?: readonly number[];
+}
+
+/**
+ * The answer a grouped question's bubbles spell, in the form its online
+ * grading reads; empty when nothing was bubbled.
+ */
+export function groupAnswerText(
+  question: Pick<QuizQuestion, 'type' | 'correctAnswer' | 'incorrectAnswers'>,
+  options: readonly string[],
+  group: PaperRowGroup,
+  rows: readonly GroupRowRead[],
+  across: boolean
+): string {
+  const byPart = [...rows].sort((a, b) => a.part - b.part);
+  if (group === 'all') {
+    const picked = (byPart[0]?.marked ?? []).flatMap((c) =>
+      options[c] !== undefined ? [options[c]] : []
+    );
+    return encodeMultiAnswer(picked, options);
+  }
+  if (group === 'match') {
+    const lefts = matchingPairs(question.correctAnswer).map(([left]) => left);
+    return byPart
+      .flatMap((r) =>
+        r.choice !== null &&
+        lefts[r.part] !== undefined &&
+        options[r.choice] !== undefined
+          ? [`${lefts[r.part]}:${options[r.choice]}`]
+          : []
+      )
+      .join('|');
+  }
+  // Ordering across a question-text sheet: each row is an item and its bubble is the item's place.
+  if (across) {
+    return byPart
+      .flatMap((r) =>
+        r.choice !== null && options[r.part] !== undefined
+          ? [{ item: options[r.part], at: r.choice, part: r.part }]
+          : []
+      )
+      .sort((a, b) => a.at - b.at || a.part - b.part)
+      .map((x) => x.item)
+      .join('|');
+  }
+  return byPart
+    .flatMap((r) =>
+      r.choice !== null && options[r.choice] !== undefined
+        ? [options[r.choice]]
+        : []
+    )
+    .join('|');
+}
+
 export interface StudentLookup {
   roster: ClassRoster;
   student: Student;
@@ -248,15 +342,15 @@ export interface BuildImportResult {
  * reader doubted the row and the teacher left it (plan Q20/Q22).
  */
 export function buildImportPayload(input: BuildImportInput): BuildImportResult {
-  const batchRowIds = sheetRowQuestionIds(input.quiz, input.batch);
+  const batchRows = sheetRowInfos(input.quiz, input.batch);
   const questionById = new Map(input.quiz.questions.map((q) => [q.id, q]));
-  const rowIdsFor = (seat: number): string[] =>
+  const rowInfosFor = (seat: number): SheetRowInfo[] =>
     input.batch.versions
-      ? sheetRowQuestionIds(input.quiz, {
+      ? sheetRowInfos(input.quiz, {
           layoutVersion: input.batch.layoutVersion,
           pageMaps: pageMapsForSeat(input.batch, seat),
         })
-      : batchRowIds;
+      : batchRows;
   const payload: ImportPaperSheetPayload[] = [];
   const skipped: SkippedSheet[] = [];
 
@@ -278,8 +372,49 @@ export function buildImportPayload(input: BuildImportInput): BuildImportResult {
     }
     const byQuestion = new Map(sheet.answers.map((a) => [a.question, a]));
     const leftOut = new Set(sheet.skippedRows);
-    const answers: ImportPaperAnswerPayload[] = rowIdsFor(sheet.seat).flatMap(
-      (questionId, i): ImportPaperAnswerPayload[] => {
+    const infos = rowInfosFor(sheet.seat);
+    const done = new Set<string>();
+    const answers: ImportPaperAnswerPayload[] = infos.flatMap(
+      (info, i): ImportPaperAnswerPayload[] => {
+        const questionId = info.questionId;
+        if (info.group) {
+          if (done.has(questionId)) return [];
+          done.add(questionId);
+          const rows = infos.flatMap((r, k) =>
+            r.questionId === questionId ? [{ row: k, info: r }] : []
+          );
+          // A skipped page leaves the whole question out, so earlier answers stay.
+          if (rows.some((r) => leftOut.has(r.row))) return [];
+          const reads = rows.map((r) => {
+            const read = byQuestion.get(r.row);
+            return {
+              part: r.info.part ?? 0,
+              choice: read?.doubt ? null : (read?.choice ?? null),
+              ...(read?.marked && !read.doubt ? { marked: read.marked } : {}),
+              doubt: !!read?.doubt,
+            };
+          });
+          const question = questionById.get(questionId);
+          const text = question
+            ? groupAnswerText(
+                question,
+                printedOptionsFor(input.batch, question, questionId),
+                info.group,
+                reads,
+                !!info.across
+              )
+            : '';
+          if (text) return [{ questionId, answer: text }];
+          return [
+            {
+              questionId,
+              answer: '',
+              unresponded: reads.some((r) => r.doubt)
+                ? 'paper-unclear'
+                : 'passed',
+            },
+          ];
+        }
         if (leftOut.has(i)) return [];
         const read = byQuestion.get(i);
         if (read && read.choice !== null) {

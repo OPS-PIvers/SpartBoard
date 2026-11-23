@@ -36,6 +36,7 @@ const compactSheet = (sheet: AssembledSheet): PaperPendingSheet => ({
   answers: sheet.answers.map((a) => ({
     question: a.question,
     choice: a.choice,
+    ...(a.marked?.length ? { marked: a.marked } : {}),
     ...(a.doubt ? { doubt: a.doubt } : {}),
   })),
   pagesSeen: sheet.pagesSeen,
@@ -52,6 +53,7 @@ const expandSheet = (sheet: PaperPendingSheet): AssembledSheet => ({
   answers: sheet.answers.map((a): SheetAnswer => ({
     question: a.question,
     choice: a.choice,
+    ...(a.marked?.length ? { marked: a.marked } : {}),
     ...(a.doubt ? { doubt: a.doubt } : {}),
     fills: [],
     crop: NO_CROP,

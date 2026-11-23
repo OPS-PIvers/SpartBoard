@@ -24,6 +24,8 @@ import {
 } from './quizBalancedDeal';
 import {
   analyzePaperQuiz,
+  matchingPairs,
+  paperGroupOrder,
   seededRandom,
   type AnalyzePaperQuizOptions,
   type PaperQuizAnalysis,
@@ -31,7 +33,11 @@ import {
 import { splitBlanks } from './quizFibBlanks';
 import { promptHeaderRows } from './paperPageMap';
 import { isPaperBoxSize, paperBoxRoom } from './paperWritten';
-import type { PaperPrintVersion, PaperPromptPage } from './paperSheetPrint';
+import type {
+  PaperGroupText,
+  PaperPrintVersion,
+  PaperPromptPage,
+} from './paperSheetPrint';
 
 /** Most distinct versions one stack prints; past it the slots stay off paper. */
 export const MAX_PAPER_VERSIONS = 26;
@@ -136,7 +142,9 @@ export function promptAnalysis(
 const entryShape = (e: PaperQuizAnalysis['entries'][number]): string =>
   e.kind === 'written'
     ? `written:${e.blanks ?? 0}:${e.style ?? 'lines'}`
-    : e.kind;
+    : e.group
+      ? `mc:${e.group}:${e.parts ?? 1}:${e.choices ?? 0}`
+      : e.kind;
 
 const sameShape = (a: PaperQuizAnalysis, b: PaperQuizAnalysis): boolean =>
   a.entries.length === b.entries.length &&
@@ -495,6 +503,41 @@ export function promptPagesFor(
   return out;
 }
 
+/** Question id per sheet row for multiple choice rows; null for each row a grouped question takes. */
+export function sheetRowSlots(
+  analysis: Pick<PaperQuizAnalysis, 'entries'>
+): (string | null)[] {
+  return analysis.entries.flatMap((e) =>
+    e.kind !== 'mc'
+      ? []
+      : e.group
+        ? Array.from<null>({ length: e.parts ?? 1 }).fill(null)
+        : [e.questionId]
+  );
+}
+
+/** Text around each grouped question's rows, keyed by `at` (the page maps' id) for each of `analysis`'s groups. */
+export function groupTextsFor(
+  analysis: Pick<PaperQuizAnalysis, 'groups'>,
+  questionsById: ReadonlyMap<string, QuizQuestion>,
+  choiceOrder: Readonly<Record<string, readonly string[]>>,
+  at: (questionId: string, index: number) => string = (id) => id
+): Record<string, PaperGroupText> {
+  const out: Record<string, PaperGroupText> = {};
+  analysis.groups.forEach((g, i) => {
+    const q = questionsById.get(g.questionId);
+    if (!q) return;
+    out[at(g.questionId, i)] = {
+      text: promptLabelOf(q),
+      options: [...(choiceOrder[q.id] ?? paperGroupOrder(q))],
+      ...(g.group === 'match'
+        ? { terms: matchingPairs(q.correctAnswer).map(([left]) => left) }
+        : {}),
+    };
+  });
+  return out;
+}
+
 /** What each version prints, keyed by the template's ids so one set of page maps serves all of them. */
 export function printVersionsFor(
   plan: PaperVersionPlan,
@@ -520,26 +563,43 @@ export function printVersionsFor(
         };
     });
     const rows = v.analysis.rows;
+    const rowById = new Map(rows.map((r) => [r.questionId, r]));
+    const slots = sheetRowSlots(v.analysis);
+    const templateGroups = plan.template.groups;
     return {
       label: v.label,
       writtenTexts,
+      groupTexts: groupTextsFor(
+        v.analysis,
+        plan.questionsById,
+        choiceOrder,
+        (_, i) => templateGroups[i]?.questionId ?? ''
+      ),
       prompts,
       // Always set, so a version's key never falls back to the first version's answers.
       blankAnswers,
       ...(questionText
         ? {
-            questionTexts: rows.map((r) => ({
-              text: promptLabelOf(plan.questionsById.get(r.questionId)),
-              choices: choiceOrder[r.questionId] ?? [],
-              ...choicePictureFields(
-                plan.questionsById.get(r.questionId),
-                choiceOrder[r.questionId] ?? []
-              ),
-            })),
+            questionTexts: slots.map((id) =>
+              id
+                ? {
+                    text: promptLabelOf(plan.questionsById.get(id)),
+                    choices: choiceOrder[id] ?? [],
+                    ...choicePictureFields(
+                      plan.questionsById.get(id),
+                      choiceOrder[id] ?? []
+                    ),
+                  }
+                : { text: '', choices: [] }
+            ),
           }
         : {}),
       ...(rows.some((r) => r.sourceLabel)
-        ? { rowLabels: rows.map((r) => r.sourceLabel) }
+        ? {
+            rowLabels: slots.map((id) =>
+              id ? rowById.get(id)?.sourceLabel : undefined
+            ),
+          }
         : {}),
     };
   });
@@ -550,7 +610,7 @@ export function versionSheetQuestions(plan: PaperVersionPlan): QuizQuestion[] {
   const seen = new Set<string>();
   const out: QuizQuestion[] = [];
   for (const v of plan.versions) {
-    for (const r of v.analysis.rows) {
+    for (const r of [...v.analysis.rows, ...v.analysis.groups]) {
       const q = plan.questionsById.get(r.questionId);
       if (q && !seen.has(q.id)) {
         seen.add(q.id);

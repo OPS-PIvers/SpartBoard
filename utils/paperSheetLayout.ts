@@ -187,8 +187,25 @@ export const BUBBLE_DIAMETER_MM = 5;
 export const MIN_CHOICE_COUNT = 2;
 export const MAX_CHOICE_COUNT = 5;
 
+/** Most bubbles one matching, ordering or choose all row prints. */
+export const MAX_ROW_CHOICES = 10;
+
 /** Choice letters, indexed by choice number. */
-export const CHOICE_LETTERS: readonly string[] = ['A', 'B', 'C', 'D', 'E'];
+export const CHOICE_LETTERS: readonly string[] = [
+  'A',
+  'B',
+  'C',
+  'D',
+  'E',
+  'F',
+  'G',
+  'H',
+  'I',
+  'J',
+];
+
+/** Question-text sheets: width of the term printed before a row of bubbles that runs across. */
+export const ACROSS_TERM_W_MM = 50;
 
 /** Grey the choice letter prints at; the reader's Otsu cut drops it before sampling. */
 export const BUBBLE_LETTER_GREY = 0xd0;
@@ -248,10 +265,19 @@ export function mcRowOriginMm(
 export function bubbleRectAtOriginMm(
   origin: PointMm,
   choiceIndex: number,
-  columns: PaperGrid
+  columns: PaperGrid,
+  across = false
 ): RectMm {
-  if (choiceIndex < 0 || choiceIndex >= MAX_CHOICE_COUNT) {
+  if (choiceIndex < 0 || choiceIndex >= MAX_ROW_CHOICES) {
     throw new RangeError(`choice ${choiceIndex} out of range`);
+  }
+  if (columns === 'questions' && across) {
+    return {
+      x: origin.x + ACROSS_TERM_W_MM + choiceIndex * BUBBLE_PITCH_MM,
+      y: origin.y,
+      w: BUBBLE_DIAMETER_MM,
+      h: BUBBLE_DIAMETER_MM,
+    };
   }
   if (columns === 'questions') {
     return {
@@ -276,12 +302,22 @@ export function bubbleRectAtOriginMm(
 export function rowRectAtOriginMm(
   origin: PointMm,
   choiceCount: number,
-  columns: PaperGrid
+  columns: PaperGrid,
+  across = false
 ): RectMm {
   const choices = Math.min(
     Math.max(choiceCount, MIN_CHOICE_COUNT),
-    MAX_CHOICE_COUNT
+    MAX_ROW_CHOICES
   );
+  if (columns === 'questions' && across) {
+    const last = bubbleRectAtOriginMm(origin, choices - 1, columns, true);
+    return {
+      x: origin.x,
+      y: origin.y,
+      w: last.x + last.w - origin.x,
+      h: BUBBLE_DIAMETER_MM,
+    };
+  }
   if (columns === 'questions') {
     // The choices block, text included, so review shows what each bubble meant.
     const first = bubbleRectAtOriginMm(origin, 0, columns);

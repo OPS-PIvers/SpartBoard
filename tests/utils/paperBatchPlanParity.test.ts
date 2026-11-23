@@ -414,7 +414,7 @@ describe('client/server page map parity (layoutVersion 2)', () => {
     ]);
   });
 
-  it('refuses the same written questions inside an "answer any" section', () => {
+  it('prints the same written questions inside an "answer any" section', () => {
     const questions = [QUESTIONS[0], free('f1'), free('f2'), free('f3')];
     const extra: Partial<QuizData> = {
       sections: [
@@ -438,13 +438,8 @@ describe('client/server page map parity (layoutVersion 2)', () => {
       sections: extra.sections,
       order: extra.order,
     });
-    expect(client.writtenRefusals.map((r) => r.label)).toEqual([
-      '2. Question f1',
-      '3. Question f2',
-    ]);
-    expect(server.writtenRefusals).toEqual(
-      client.writtenRefusals.map((r) => r.label)
-    );
+    expect(client.writtenRefusals).toEqual([]);
+    expect(server.writtenRefusals).toEqual([]);
     expect(server.entries).toEqual(client.entries);
   });
 
