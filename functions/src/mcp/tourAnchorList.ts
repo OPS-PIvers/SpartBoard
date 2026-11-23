@@ -58576,6 +58576,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tour-editor.start-page",
+    "label": "Start page field on the web tour editor Settings tab",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "path": [
+          "web-tours.new",
+          "web-tour-editor.tab-settings"
+        ],
+        "reveal": "web-tour-editor.tab-settings",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tour-editor.play",
     "label": "Play button in the web tour editor header",
     "scope": "board",
