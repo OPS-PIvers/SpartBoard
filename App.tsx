@@ -26,8 +26,10 @@ import {
 import { StudentIdleTimeoutGuard } from './components/student/StudentIdleTimeoutGuard';
 import {
   getStudentPreview,
+  getViewAsTabState,
   isStudentPreviewTab,
   isViewAsTab,
+  subscribeViewAsTab,
 } from './utils/viewAsTab';
 import { ViewAsGate } from './context/ViewAsContext';
 import { ViewAsBanner } from './components/viewAs/ViewAsBanner';
@@ -988,6 +990,18 @@ const AppContent: React.FC = () => {
 
 /** The student app a View as student tab previews; the gate renders it only after sign-in. */
 const StudentPreviewApp: React.FC = () => {
+  const page = useSyncExternalStore(
+    subscribeViewAsTab,
+    () => getViewAsTabState().studentPage
+  );
+  if (page === 'my-assignments')
+    return (
+      <StudentAuthProvider>
+        <RequireStudentAuth>
+          <MyAssignmentsPage />
+        </RequireStudentAuth>
+      </StudentAuthProvider>
+    );
   switch (getStudentPreview()?.kind) {
     case 'quiz':
       return <QuizStudentApp />;

@@ -697,7 +697,7 @@ export const getStudentClassDirectoryV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    await assertViewAsAllowed(request, { read: true });
+    const viewAs = await assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
@@ -847,7 +847,8 @@ export const getStudentClassDirectoryV1 = onCall(
     let listedIds = tokenClassIds.filter(resolves);
     let customToken: string | undefined;
     // A ClassLink outage must not narrow the claim, so the re-mint waits for a clean answer.
-    if (storedSectionIds && !uncertain) {
+    // A View as student preview never gets a fresh token: it would drop the read-only claim.
+    if (storedSectionIds && !uncertain && !viewAs) {
       const nextClaim = [
         ...listedIds,
         ...storedSectionIds.filter(
