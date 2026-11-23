@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, Mic, MicOff, RotateCcw } from 'lucide-react';
 import { RecordingConsentNotice } from './RecordingConsentNotice';
 import { withMicPermissionPrompt } from '@/utils/permissionPrompt';
+import { tourAttr } from '@/config/tourAnchors';
 
 type MicStep = 'checking' | 'ask' | 'asking' | 'blocked' | 'no-mic';
 
@@ -208,7 +209,7 @@ export const MicrophoneGate: React.FC<{
             </div>
           </div>
           <button
-            // no-tour-anchor: student quiz app, outside teacher tours
+            {...tourAttr('student.quiz.microphone-allow')}
             type="button"
             onClick={() => void ask()}
             disabled={step === 'asking'}

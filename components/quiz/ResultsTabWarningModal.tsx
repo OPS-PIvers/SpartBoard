@@ -1,5 +1,6 @@
 import React from 'react';
 import { Z_INDEX } from '@/config/zIndex';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface ResultsTabWarningModalProps {
   /** Visible only when the student just returned from a tab switch. */
@@ -50,7 +51,7 @@ export const ResultsTabWarningModal: React.FC<ResultsTabWarningModalProps> = ({
             : ' — next time you leave, you will be locked out.'}
         </p>
         <button
-          // no-tour-anchor: student quiz screen; tours walk teachers
+          {...tourAttr('student.quiz.results-tab-warning-dismiss')}
           type="button"
           autoFocus
           onClick={onDismiss}

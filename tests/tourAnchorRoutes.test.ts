@@ -44,6 +44,10 @@ const AREA_ROOTS: Record<Area, readonly string[]> = {
     'components/share/',
     'components/help/',
     'components/tours/',
+    'components/quiz/QuizAssignmentImportSetupModal.tsx',
+    'components/quiz/paper/',
+    'components/quiz/targets/',
+    'components/quiz/whiteboard/WhiteboardReplayView.tsx',
   ],
   admin: ['components/admin/'],
   plc: ['components/plc/'],
@@ -62,6 +66,7 @@ const AREA_ROOTS: Record<Area, readonly string[]> = {
     'components/student/',
   ],
   widgets: ['components/widgets/'],
+  studentQuiz: ['components/quiz/'],
 };
 
 const longest = <T>(path: string, entries: [string, T][]): T | undefined => {

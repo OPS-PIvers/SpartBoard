@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, Play, RotateCcw, Square } from 'lucide-react';
 import type { QuestionAudio } from '@/types';
 import { questionAudioUrl } from '@/utils/questionAudio';
+import { tourAttr } from '@/config/tourAnchors';
 
 type Status = 'idle' | 'loading' | 'playing' | 'failed';
 
@@ -94,7 +95,8 @@ export const QuestionAudioButton: React.FC<{
 
   return (
     <>
-      <button /* no-tour-anchor: student question audio control */
+      <button
+        {...tourAttr('student.quiz.question-audio')}
         type="button"
         aria-pressed={status === 'playing'}
         aria-busy={status === 'loading'}

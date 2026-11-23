@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ZoomIn } from 'lucide-react';
 import { ImageLightbox } from '@/components/common/ImageLightbox';
 import { plainMathText } from '@/utils/promptMath';
+import { tourAttr } from '@/config/tourAnchors';
 
 /** Tile: picture across the top of a word-bank chip. Row: beside an answer row. Compact: smaller row for placed items and terms. */
 export type AnswerImageLayout = 'tile' | 'row' | 'compact';
@@ -75,7 +76,7 @@ export const AnswerImageZoomButton: React.FC<{
   return (
     <>
       <button
-        // no-tour-anchor: student quiz screen; tours walk teachers
+        {...tourAttr('student.quiz.picture-enlarge')}
         type="button"
         onClick={(e) => {
           e.preventDefault();
@@ -111,7 +112,7 @@ export const ZoomableAnswerImage: React.FC<{
   return (
     <>
       <button
-        // no-tour-anchor: student quiz screen; tours walk teachers
+        {...tourAttr('student.quiz.picture-enlarge')}
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`Enlarge picture: ${label}`}

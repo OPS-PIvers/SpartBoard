@@ -30,6 +30,7 @@ import {
 import { TakeReviewPlayer } from './TakeReviewPlayer';
 import { WhiteboardPlaybackCard } from './WhiteboardPlaybackCard';
 import { RubricStrandPills } from '@/components/widgets/QuizWidget/components/RubricStrandChips';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface ResponsePlaybackCardProps {
   sessionId: string;
@@ -225,7 +226,8 @@ const AudioPlaybackCard: React.FC<
             <ul className="mt-2 flex flex-col gap-1.5">
               {timelineComments.map((a) => (
                 <li key={a.id}>
-                  <button /* no-tour-anchor: student recap playback in the student app */
+                  <button
+                    {...tourAttr('student.quiz.playback-comment')}
                     type="button"
                     onClick={() =>
                       setSeek((prev) => ({
@@ -271,7 +273,8 @@ const AudioPlaybackCard: React.FC<
             t('quizMediaResponse.playback.error'),
             'warning'
           )}
-          <button /* no-tour-anchor: student recap playback in the student app */
+          <button
+            {...tourAttr('student.quiz.playback-retry')}
             type="button"
             onClick={load}
             className={`mt-2 inline-flex items-center gap-2 rounded-2xl border px-3 py-1.5 text-xs font-bold transition focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary ${retryCls}`}
@@ -283,7 +286,8 @@ const AudioPlaybackCard: React.FC<
     }
 
     return (
-      <button /* no-tour-anchor: student recap playback in the student app */
+      <button
+        {...tourAttr('student.quiz.playback-load')}
         type="button"
         onClick={load}
         disabled={state.phase === 'loading'}

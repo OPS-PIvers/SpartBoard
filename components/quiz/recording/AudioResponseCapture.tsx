@@ -41,6 +41,7 @@ import { TakeReviewPlayer } from './TakeReviewPlayer';
 import { formatClock } from './formatClock';
 import { registerActiveTake } from './activeTake';
 import { useRedoCount } from './useRedoCount';
+import { tourAttr } from '@/config/tourAnchors';
 
 export type CommitState = 'idle' | 'committing' | 'retrying' | 'archive-failed';
 
@@ -589,7 +590,8 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
                 : t('quizMediaResponse.capture.notSubmittedPending')}
             </p>
             {archiveFailed && onRetryUpload && (
-              <button /* no-tour-anchor: student recording screen */
+              <button
+                {...tourAttr('student.quiz.recording-retry-upload')}
                 ref={retryBtnRef}
                 type="button"
                 onClick={() => void handleRetryUpload()}
@@ -608,7 +610,8 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
 
         <div className="mt-5 flex flex-wrap gap-3">
           {phase === 'armed' && !takeBudgetReached && (
-            <button /* no-tour-anchor: student recording screen */
+            <button
+              {...tourAttr('student.quiz.recording-start')}
               type="button"
               onClick={() => void recorder.start()}
               className={`${primaryBtn} bg-brand-red-primary text-white outline-brand-red-primary hover:bg-brand-red-dark`}
@@ -625,7 +628,8 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
           )}
 
           {phase === 'recording' && (
-            <button /* no-tour-anchor: student recording screen */
+            <button
+              {...tourAttr('student.quiz.recording-stop')}
               type="button"
               onClick={recorder.stop}
               className={`${primaryBtn} ${
@@ -643,7 +647,8 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
 
           {phase === 'reviewing' && (
             <>
-              <button /* no-tour-anchor: student recording screen */
+              <button
+                {...tourAttr('student.quiz.recording-submit')}
                 type="button"
                 onClick={() => void handleCommit()}
                 disabled={commitState === 'committing'}
@@ -658,7 +663,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               </button>
               {canRedoInReview && (
                 <button
-                  // no-tour-anchor: student quiz app, outside teacher tours
+                  {...tourAttr('student.quiz.recording-redo')}
                   type="button"
                   onClick={handleRedo}
                   disabled={commitState === 'committing'}

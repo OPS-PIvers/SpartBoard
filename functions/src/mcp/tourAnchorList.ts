@@ -81661,6 +81661,1372 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "student.quiz.quote-selection",
+    "label": "Quote button over selected passage text",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.ordering-empty-slot",
+    "label": "Empty slot in an ordering answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.ordering-move-up",
+    "label": "Move up arrow on an ordering item",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.ordering-move-down",
+    "label": "Move down arrow on an ordering item",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.ordering-reset",
+    "label": "Reset or Undo in an ordering word bank",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-materials",
+    "label": "Materials button beside a drawing answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-materials-hide",
+    "label": "Hide materials in the drawing answer drawer",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-tool",
+    "label": "A drawing tool on the drawing answer toolbar, keyed by tool",
+    "scope": "field",
+    "key_pattern": "quiz-student#(pen|eraser|text|line|arrow|rect|ellipse)",
+    "key_hint": "quiz-student#pen for the pen",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-eraser-mode",
+    "label": "An eraser mode on the drawing answer toolbar, keyed by mode",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "quiz-student#(stroke|object|lasso)",
+    "key_hint": "quiz-student#stroke for the stroke eraser",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-color",
+    "label": "A color on the drawing answer toolbar, keyed by color",
+    "scope": "field",
+    "key_pattern": "quiz-student#(black|blue|red|green|orange|yellow)",
+    "key_hint": "quiz-student#black for black",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-size",
+    "label": "A pen size on the drawing answer toolbar, keyed by size",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "quiz-student#(thin|medium|thick)",
+    "key_hint": "quiz-student#medium for the medium pen",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-undo",
+    "label": "Undo on the drawing answer toolbar",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-redo",
+    "label": "Redo on the drawing answer toolbar",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-zoom-out",
+    "label": "Zoom out on a drawing answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-zoom-reset",
+    "label": "Reset zoom on a drawing answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-zoom-in",
+    "label": "Zoom in on a drawing answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.ordering-drag",
+    "label": "Drag handle on an ordering item",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.picture-enlarge",
+    "label": "Enlarge picture button on an answer picture",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.supports",
+    "label": "Supports button on a question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.supports-close",
+    "label": "Close in the Supports panel",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.supports-tab",
+    "label": "A tab in the Supports panel, keyed row-N",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.supports-resize",
+    "label": "Resize bar between the question and the Supports panel",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.mark-review",
+    "label": "Mark for review button on a question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.review-back",
+    "label": "Back arrow on the review screen",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.review-question",
+    "label": "A question row on the review screen, keyed row-N",
+    "scope": "field",
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.review-submit",
+    "label": "Submit on the review screen",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.source-zoom-out",
+    "label": "Zoom out on a source",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.source-zoom-reset",
+    "label": "Reset zoom on a source",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.source-zoom-in",
+    "label": "Zoom in on a source",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.game-raise-hand",
+    "label": "Raise hand in a quiz game",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.game-choice",
+    "label": "An answer choice in a quiz game, keyed row-N",
+    "scope": "field",
+    "persists": true,
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.game-answer",
+    "label": "Answer box in a quiz game",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.game-submit",
+    "label": "Submit in a quiz game",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.game-next",
+    "label": "Next in a quiz game",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.game-pick-question",
+    "label": "A question to pick in a quiz game round, one per question",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.game-continue",
+    "label": "Continue after picking questions in a quiz game",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.reload",
+    "label": "Try again button on a quiz error screen",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.results-attempt",
+    "label": "An attempt tab on the results screen, keyed row-N",
+    "scope": "field",
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.results-tab-warning-dismiss",
+    "label": "Dismiss on the leaving-the-tab warning",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.recording-notice-ok",
+    "label": "Acknowledge button on the recording notice",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.recording-notice-open",
+    "label": "Open the recording notice again",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.playback-comment",
+    "label": "A teacher comment on a recording, which jumps to its time",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.playback-retry",
+    "label": "Try again when a recording does not load",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.playback-load",
+    "label": "Play button that loads a recorded answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.recording-retry-upload",
+    "label": "Try the upload again on a recorded answer",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.recording-start",
+    "label": "Start recording",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.recording-stop",
+    "label": "Stop recording",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.recording-submit",
+    "label": "Submit a recorded answer",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.recording-redo",
+    "label": "Redo a recorded answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-page-retry",
+    "label": "Try again when the starting page does not load",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.microphone-allow",
+    "label": "Allow microphone button",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.recording-play",
+    "label": "Play or pause a recording before submitting",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.read-aloud",
+    "label": "Read question button on the read-aloud bar",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.read-aloud-speed",
+    "label": "Speed button on the read-aloud bar",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.read-aloud-auto",
+    "label": "Auto-read switch on the read-aloud bar",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.read-aloud-part",
+    "label": "Read aloud button beside a choice or passage",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.blank",
+    "label": "A blank in a fill-in-the-blank answer, keyed row-N",
+    "scope": "field",
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.source-retry",
+    "label": "Try again when an attachment does not load",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.word-bank-word",
+    "label": "A word in a passage word bank",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.sources-toggle",
+    "label": "Show or hide the sources for a question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.source-tab",
+    "label": "A source tab beside the questions, keyed row-N",
+    "scope": "field",
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.equation-cancel",
+    "label": "Cancel in the equation editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.equation-insert",
+    "label": "Insert in the equation editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.written-resize",
+    "label": "Resize handle under a written answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.blank-choice",
+    "label": "A drop-down blank in a fill-in-the-blank answer, keyed row-N",
+    "scope": "field",
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.word-bank-chip",
+    "label": "A word chip in a word bank",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.blank-slot",
+    "label": "An empty blank to drop a word into",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.word-bank-reset",
+    "label": "Reset or Undo in a fill-in-the-blank word bank",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.part-start",
+    "label": "Start button on a quiz part stop screen",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.part-intro-close",
+    "label": "Close the part introduction",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.part-progress",
+    "label": "Answered count above a question in a quiz part, which opens the part details",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.part-clear",
+    "label": "Clear my answer on a question in a quiz part",
+    "scope": "board",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.cross-out",
+    "label": "Cross out button beside an answer choice",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.matching-slot",
+    "label": "A match slot in a matching answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.matching-reset",
+    "label": "Reset or Undo in a matching word bank",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.question-audio",
+    "label": "Play the question audio",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.sources-resize",
+    "label": "Resize bar between the sources and the question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.period",
+    "label": "A class period button when joining a quiz",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.period-confirm",
+    "label": "Continue after picking a class period",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.period-back",
+    "label": "Go back on the class period step",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.sign-in-google",
+    "label": "Sign in with Google when joining a quiz",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.use-pin",
+    "label": "Use a PIN instead when joining a quiz",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.join-code",
+    "label": "Code box when joining a quiz",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.join-pin",
+    "label": "PIN box when joining a quiz",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.join",
+    "label": "Join button when joining a quiz",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.raise-hand",
+    "label": "Raise hand button during a quiz",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.resume",
+    "label": "Resume button after a quiz is unlocked",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.retry-submit",
+    "label": "Try again when turning in after time is up fails",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.tab-warning-dismiss",
+    "label": "Dismiss on the leaving-the-tab warning during a quiz",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.previous",
+    "label": "Previous question arrow",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.next",
+    "label": "Next question button",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.submit",
+    "label": "Submit or Review button on the last question",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.submit-answer",
+    "label": "Submit answer button under a question",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.short-answer",
+    "label": "Answer box for a short answer question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.back-to-list",
+    "label": "Back to assignments button",
+    "scope": "board"
+  },
+  {
+    "id": "student.quiz.rubric-toggle",
+    "label": "Show or hide the rubric on a results screen",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.choice",
+    "label": "An answer choice on a multiple choice question, keyed row-N",
+    "scope": "field",
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.language-english",
+    "label": "English button on the language switch",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.language-native",
+    "label": "The student's own language on the language switch",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.written-format",
+    "label": "A formatting button on a written answer, keyed by button",
+    "scope": "field",
+    "key_pattern": "quiz-student#(bold|italic|underline|bullets|numbers|equation)",
+    "key_hint": "quiz-student#bold for Bold",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.written-answer",
+    "label": "Response box for a written answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-library.assign-paper",
     "label": "Assign on paper button in the quiz assign dialog",
     "scope": "widget type",

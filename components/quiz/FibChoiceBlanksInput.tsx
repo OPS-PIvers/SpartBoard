@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import type { QuizPublicQuestion } from '@/types';
 import { joinBlanks, splitBlanks } from '@/utils/quizFibBlanks';
 import { placementsFromValue } from '@/utils/quizBlankTypes';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const BANK_ID = '__word-bank__';
 
@@ -74,7 +75,11 @@ const DropdownBlanks: React.FC<Props> = ({
           <label key={i} className="flex items-center gap-3">
             {many && <Badge n={i + 1} light={light} />}
             <select
-              // no-tour-anchor: student quiz screen; tours walk teachers
+              {...tourFieldAttr(
+                'student.quiz.blank-choice',
+                'quiz-student',
+                `row-${i + 1}`
+              )}
               aria-label={
                 many
                   ? t('quizBlanks.blankN', 'Blank {{n}}', { n: i + 1 })
@@ -115,7 +120,7 @@ const WordChip: React.FC<{
   });
   return (
     <button
-      // no-tour-anchor: student quiz screen; tours walk teachers
+      {...tourAttr('student.quiz.word-bank-chip')}
       type="button"
       ref={setNodeRef}
       data-chip={id}
@@ -166,7 +171,7 @@ const Slot: React.FC<{
     <div ref={setNodeRef} className="flex-1 flex">
       {children ?? (
         <button
-          // no-tour-anchor: student quiz screen; tours walk teachers
+          {...tourAttr('student.quiz.blank-slot')}
           type="button"
           onClick={() => {
             if (!disabled) onTap();
@@ -388,7 +393,7 @@ const DragBlanks: React.FC<Props> = ({
               {t('quizBlanks.wordBank', 'Word Bank')}
             </span>
             <button
-              // no-tour-anchor: student quiz screen; tours walk teachers
+              {...tourAttr('student.quiz.word-bank-reset')}
               type="button"
               onClick={undo !== null ? undoReset : resetAll}
               disabled={disabled || (undo === null && placedSet.size === 0)}

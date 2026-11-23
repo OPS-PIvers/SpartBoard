@@ -11,6 +11,7 @@ import {
   clampSupportsPct,
   supportsPctForKey,
 } from '@/utils/quizSupportsPanel';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export const SupportsButton: React.FC<{
   light: boolean;
@@ -20,7 +21,7 @@ export const SupportsButton: React.FC<{
   const { t } = useTranslation();
   return (
     <button
-      // no-tour-anchor: student quiz screen; tours walk teachers
+      {...tourAttr('student.quiz.supports')}
       type="button"
       onClick={onToggle}
       aria-expanded={open}
@@ -124,7 +125,7 @@ export const SupportsPanel: React.FC<{
             : t('quizSupports.title', 'Supports')}
         </h2>
         <button
-          // no-tour-anchor: student quiz screen; tours walk teachers
+          {...tourAttr('student.quiz.supports-close')}
           type="button"
           onClick={onClose}
           aria-label={t('quizSupports.close', 'Close')}
@@ -145,7 +146,11 @@ export const SupportsPanel: React.FC<{
         >
           {supports.map((s, i) => (
             <button
-              // no-tour-anchor: student quiz screen; tours walk teachers
+              {...tourFieldAttr(
+                'student.quiz.supports-tab',
+                'quiz-student',
+                `row-${i + 1}`
+              )}
               key={`${s.kind}-${i}`}
               ref={(el) => {
                 tabRefs.current[i] = el;
@@ -202,7 +207,7 @@ export const SupportsDivider: React.FC<{
   };
   return (
     <div
-      // no-tour-anchor: student quiz screen; tours walk teachers
+      {...tourAttr('student.quiz.supports-resize')}
       role="separator"
       aria-orientation="horizontal"
       aria-label={t('quizSupports.resize', 'Resize supports')}
