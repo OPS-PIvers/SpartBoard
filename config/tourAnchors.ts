@@ -984,6 +984,7 @@ export const TOUR_ANCHORS = {
   },
   'student.assignments.sign-out': {
     label: 'Sign out button on My Assignments',
+    persists: true,
   },
   'student.assignments.tab': {
     label: 'Assignments, Resources and Completed tabs for a class',

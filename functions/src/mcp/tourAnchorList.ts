@@ -4218,6 +4218,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "student.assignments.sign-out",
     "label": "Sign out button on My Assignments",
     "scope": "board",
+    "persists": true,
     "routes": [
       {
         "surface": "student-assignments.page",

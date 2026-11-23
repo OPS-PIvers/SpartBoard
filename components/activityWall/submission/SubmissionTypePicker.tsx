@@ -2,6 +2,7 @@ import React from 'react';
 import { FileText, Film, Image, Link2, Paperclip } from 'lucide-react';
 import type { ActivityWallSubmissionType } from '@/types';
 import { tourFieldAttr } from '@/config/tourAnchors';
+import { useStudentWallTour } from './studentWallTour';
 
 const TYPE_META: Record<
   Exclude<ActivityWallSubmissionType, 'word'>,
@@ -25,6 +26,7 @@ export const SubmissionTypePicker: React.FC<SubmissionTypePickerProps> = ({
   value,
   onChange,
 }) => {
+  const tour = useStudentWallTour();
   if (available.length < 2) return null;
 
   return (
@@ -38,10 +40,12 @@ export const SubmissionTypePicker: React.FC<SubmissionTypePickerProps> = ({
             type="button"
             aria-pressed={selected}
             onClick={() => onChange(type)}
-            {...tourFieldAttr(
-              'student.activity-wall.post-type',
-              'student-wall',
-              type
+            {...tour(
+              tourFieldAttr(
+                'student.activity-wall.post-type',
+                'student-wall',
+                type
+              )
             )}
             className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
               selected

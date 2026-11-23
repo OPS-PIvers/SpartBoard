@@ -8,6 +8,7 @@ import {
   type WallDatePrecision,
 } from '@/components/activityWall/render/timelineDates';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { useStudentWallTour } from './studentWallTour';
 
 const selectClass =
   'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
@@ -42,6 +43,7 @@ const DateRows: React.FC<{
   error?: string;
   onChange: (patch: Partial<WallDateFields>) => void;
 }> = ({ idPrefix, fields: date, error, onChange: setDate }) => {
+  const tour = useStudentWallTour();
   const isEnd = idPrefix !== 'aw';
   const dateKey = isEnd ? 'end' : 'start';
   const errorId = `${idPrefix}-date-error`;
@@ -61,10 +63,12 @@ const DateRows: React.FC<{
           </label>
           <input
             id={`${idPrefix}-year`}
-            {...tourFieldAttr(
-              'student.activity-wall.date-year',
-              'student-wall',
-              dateKey
+            {...tour(
+              tourFieldAttr(
+                'student.activity-wall.date-year',
+                'student-wall',
+                dateKey
+              )
             )}
             className={selectClass}
             value={date.year}
@@ -82,10 +86,12 @@ const DateRows: React.FC<{
           </label>
           <select
             id={`${idPrefix}-era`}
-            {...tourFieldAttr(
-              'student.activity-wall.date-era',
-              'student-wall',
-              dateKey
+            {...tour(
+              tourFieldAttr(
+                'student.activity-wall.date-era',
+                'student-wall',
+                dateKey
+              )
             )}
             className={selectClass}
             value={date.era}
@@ -112,10 +118,12 @@ const DateRows: React.FC<{
             </label>
             <select
               id={`${idPrefix}-precision`}
-              {...tourFieldAttr(
-                'student.activity-wall.date-accuracy',
-                'student-wall',
-                dateKey
+              {...tour(
+                tourFieldAttr(
+                  'student.activity-wall.date-accuracy',
+                  'student-wall',
+                  dateKey
+                )
               )}
               className={selectClass}
               value={date.precision}
@@ -145,10 +153,12 @@ const DateRows: React.FC<{
           </label>
           <select
             id={`${idPrefix}-month`}
-            {...tourFieldAttr(
-              'student.activity-wall.date-month',
-              'student-wall',
-              dateKey
+            {...tour(
+              tourFieldAttr(
+                'student.activity-wall.date-month',
+                'student-wall',
+                dateKey
+              )
             )}
             className={selectClass}
             value={date.month}
@@ -174,10 +184,12 @@ const DateRows: React.FC<{
           </label>
           <select
             id={`${idPrefix}-day`}
-            {...tourFieldAttr(
-              'student.activity-wall.date-day',
-              'student-wall',
-              dateKey
+            {...tour(
+              tourFieldAttr(
+                'student.activity-wall.date-day',
+                'student-wall',
+                dateKey
+              )
             )}
             className={selectClass}
             value={date.day}
@@ -217,6 +229,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
   dateError,
   endDateError,
 }) => {
+  const tour = useStudentWallTour();
   if (session.layout === 'columns') {
     const sections = options(session.sections);
     if (sections.length === 0) return null;
@@ -227,7 +240,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
         </label>
         <select
           id="aw-section"
-          {...tourAttr('student.activity-wall.column')}
+          {...tour(tourAttr('student.activity-wall.column'))}
           className={selectClass}
           value={value.sectionId}
           onChange={(event) => onChange({ sectionId: event.target.value })}
@@ -254,7 +267,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
           </label>
           <select
             id="aw-row"
-            {...tourAttr('student.activity-wall.table-row')}
+            {...tour(tourAttr('student.activity-wall.table-row'))}
             className={selectClass}
             value={value.rowId}
             onChange={(event) => onChange({ rowId: event.target.value })}
@@ -272,7 +285,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
           </label>
           <select
             id="aw-col"
-            {...tourAttr('student.activity-wall.table-column')}
+            {...tour(tourAttr('student.activity-wall.table-column'))}
             className={selectClass}
             value={value.colId}
             onChange={(event) => onChange({ colId: event.target.value })}
@@ -301,7 +314,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
             </label>
             <select
               id="aw-group"
-              {...tourAttr('student.activity-wall.group')}
+              {...tour(tourAttr('student.activity-wall.group'))}
               className={selectClass}
               value={inGroup ? value.sectionId : ''}
               onChange={(event) => onChange({ sectionId: event.target.value })}
@@ -345,7 +358,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
             />
             <button
               type="button"
-              {...tourAttr('student.activity-wall.remove-end-date')}
+              {...tour(tourAttr('student.activity-wall.remove-end-date'))}
               className="mt-1 text-sm font-semibold text-slate-600 underline-offset-2 hover:underline"
               onClick={() => onChange({ endDate: null })}
             >
@@ -356,7 +369,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
           date.precision === 'exact' && (
             <button
               type="button"
-              {...tourAttr('student.activity-wall.add-end-date')}
+              {...tour(tourAttr('student.activity-wall.add-end-date'))}
               className="text-sm font-semibold text-brand-blue-primary underline-offset-2 hover:underline"
               onClick={() =>
                 onChange({
@@ -380,7 +393,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
         </label>
         <input
           id="aw-label"
-          {...tourAttr('student.activity-wall.when-label')}
+          {...tour(tourAttr('student.activity-wall.when-label'))}
           className={selectClass}
           value={value.label}
           maxLength={60}

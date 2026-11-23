@@ -27,6 +27,7 @@ import { makeEngagementFooter, useWallEngagement } from './engagement';
 import { labelForWall } from './engagement/participantLabel';
 import { WallCard, WallShell } from './submission/WallShell';
 import { ComposerSheet } from './submission/ComposerSheet';
+import { StudentWallTourContext } from './submission/studentWallTour';
 import {
   PostSubmitError,
   capExhausted,
@@ -386,74 +387,76 @@ export const ActivityWallStudentApp: React.FC = () => {
   };
 
   return (
-    <WallShell
-      appearance={wall.appearance}
-      title={wall.title}
-      prompt={wall.prompt}
-      open={open}
-      imageSize={imageSize}
-      onImageSizeChange={setImageSize}
-    >
-      <div className="flex h-full flex-col">
-        {!wallVisible && (
-          <div
-            role="status"
-            className="flex shrink-0 items-center justify-center gap-2 bg-slate-900/70 px-4 py-2 text-center text-sm font-medium text-slate-100"
-          >
-            <EyeOff className="h-4 w-4 shrink-0" aria-hidden="true" />
-            Your teacher will reveal the wall when everyone has posted.
+    <StudentWallTourContext.Provider value={true}>
+      <WallShell
+        appearance={wall.appearance}
+        title={wall.title}
+        prompt={wall.prompt}
+        open={open}
+        imageSize={imageSize}
+        onImageSizeChange={setImageSize}
+      >
+        <div className="flex h-full flex-col">
+          {!wallVisible && (
+            <div
+              role="status"
+              className="flex shrink-0 items-center justify-center gap-2 bg-slate-900/70 px-4 py-2 text-center text-sm font-medium text-slate-100"
+            >
+              <EyeOff className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Your teacher will reveal the wall when everyone has posted.
+            </div>
+          )}
+          {notice && (
+            <div
+              role="status"
+              className="shrink-0 bg-emerald-600 px-4 py-2 text-center text-sm font-semibold text-white"
+            >
+              {notice}
+            </div>
+          )}
+          <div className="relative min-h-0 flex-1">
+            <LayoutRouter
+              session={wall}
+              submissions={posts}
+              mode="student"
+              appearance={wall.appearance}
+              showNames={wall.showNames ?? false}
+              imageSize={imageSize}
+              viewerUid={uid}
+              onAddAt={canAdd ? openCreate : undefined}
+              onEdit={canEdit ? onEdit : undefined}
+              onDelete={canDelete ? (id) => void onDelete(id) : undefined}
+              renderFooter={renderFooter}
+            />
           </div>
-        )}
-        {notice && (
-          <div
-            role="status"
-            className="shrink-0 bg-emerald-600 px-4 py-2 text-center text-sm font-semibold text-white"
-          >
-            {notice}
-          </div>
-        )}
-        <div className="relative min-h-0 flex-1">
-          <LayoutRouter
-            session={wall}
-            submissions={posts}
-            mode="student"
-            appearance={wall.appearance}
-            showNames={wall.showNames ?? false}
-            imageSize={imageSize}
-            viewerUid={uid}
-            onAddAt={canAdd ? openCreate : undefined}
-            onEdit={canEdit ? onEdit : undefined}
-            onDelete={canDelete ? (id) => void onDelete(id) : undefined}
-            renderFooter={renderFooter}
-          />
         </div>
-      </div>
 
-      {canAdd && (
-        <button
-          type="button"
-          onClick={() => openCreate()}
-          {...tourAttr('student.activity-wall.add-post')}
-          className="absolute bottom-5 right-5 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-base font-bold text-white shadow-lg transition hover:bg-emerald-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/80"
-        >
-          <Plus className="h-5 w-5" aria-hidden="true" />
-          {isWordCloud ? 'Add word' : 'Add post'}
-        </button>
-      )}
+        {canAdd && (
+          <button
+            type="button"
+            onClick={() => openCreate()}
+            {...tourAttr('student.activity-wall.add-post')}
+            className="absolute bottom-5 right-5 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-base font-bold text-white shadow-lg transition hover:bg-emerald-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/80"
+          >
+            <Plus className="h-5 w-5" aria-hidden="true" />
+            {isWordCloud ? 'Add word' : 'Add post'}
+          </button>
+        )}
 
-      {sheet && (
-        <ComposerSheet
-          key={sheet.kind === 'edit' ? sheet.post.id : 'create'}
-          session={wall}
-          placement={sheet.kind === 'create' ? sheet.placement : undefined}
-          editing={sheet.kind === 'edit' ? sheet.post : undefined}
-          onSubmit={(draft, placement) => void onSubmit(draft, placement)}
-          onClose={closeSheet}
-          busy={busy}
-          progress={progress}
-          error={sheetError}
-        />
-      )}
-    </WallShell>
+        {sheet && (
+          <ComposerSheet
+            key={sheet.kind === 'edit' ? sheet.post.id : 'create'}
+            session={wall}
+            placement={sheet.kind === 'create' ? sheet.placement : undefined}
+            editing={sheet.kind === 'edit' ? sheet.post : undefined}
+            onSubmit={(draft, placement) => void onSubmit(draft, placement)}
+            onClose={closeSheet}
+            busy={busy}
+            progress={progress}
+            error={sheetError}
+          />
+        )}
+      </WallShell>
+    </StudentWallTourContext.Provider>
   );
 };

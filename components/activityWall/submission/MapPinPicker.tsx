@@ -9,6 +9,7 @@ import {
 import { divIcon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { tourAttr } from '@/config/tourAnchors';
+import { useStudentWallTour } from './studentWallTour';
 
 export interface MapPin {
   lat: number;
@@ -57,6 +58,7 @@ const PinDropper: React.FC<{ onPick: (pin: MapPin) => void }> = ({
 const CoordinateEntry: React.FC<{ onPick: (pin: MapPin) => void }> = ({
   onPick,
 }) => {
+  const tour = useStudentWallTour();
   const [open, setOpen] = useState(false);
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
@@ -75,7 +77,7 @@ const CoordinateEntry: React.FC<{ onPick: (pin: MapPin) => void }> = ({
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
-        {...tourAttr('student.activity-wall.pin-coordinates')}
+        {...tour(tourAttr('student.activity-wall.pin-coordinates'))}
         className="text-sm font-semibold text-brand-blue-primary hover:underline"
       >
         Enter coordinates
@@ -91,7 +93,7 @@ const CoordinateEntry: React.FC<{ onPick: (pin: MapPin) => void }> = ({
             </label>
             <input
               id="aw-pin-lat"
-              {...tourAttr('student.activity-wall.pin-latitude')}
+              {...tour(tourAttr('student.activity-wall.pin-latitude'))}
               className={inputClass}
               type="number"
               step="any"
@@ -110,7 +112,7 @@ const CoordinateEntry: React.FC<{ onPick: (pin: MapPin) => void }> = ({
             </label>
             <input
               id="aw-pin-lng"
-              {...tourAttr('student.activity-wall.pin-longitude')}
+              {...tour(tourAttr('student.activity-wall.pin-longitude'))}
               className={inputClass}
               type="number"
               step="any"
@@ -124,7 +126,7 @@ const CoordinateEntry: React.FC<{ onPick: (pin: MapPin) => void }> = ({
             type="button"
             disabled={!valid}
             onClick={() => onPick({ lat: latValue, lng: lngValue })}
-            {...tourAttr('student.activity-wall.pin-set')}
+            {...tour(tourAttr('student.activity-wall.pin-set'))}
             className="col-span-2 rounded-xl border border-slate-300 py-2 text-sm font-semibold text-slate-700 transition disabled:opacity-60"
           >
             Set pin

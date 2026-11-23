@@ -165,10 +165,13 @@ describe('tour anchor registry', () => {
       'quiz-library.archive-publish-scores',
     ]);
     // Destination options and step headers only move through the Assign dialog.
-    // Student My Assignments controls only open or show work.
+    // "assignments" in the student page namespace is not an assign action; the rest of the id still counts.
     const opensOnly = (id: string) =>
       OPENS_ONLY.has(id) ||
-      id.startsWith('student.assignments.') ||
+      (id.startsWith('student.assignments.') &&
+        !/assign|share|publish|delete/.test(
+          id.slice('student.assignments.'.length)
+        )) ||
       /^(assign-(destination|step)\.|plc-(assign|share)\.|admin-plc\.recovery-reassign)/.test(
         id
       ) ||
