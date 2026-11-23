@@ -121,7 +121,11 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
       return;
     }
     try {
-      const item = await createHiddenHelpItem(set, author);
+      const item = await createHiddenHelpItem(
+        set,
+        author,
+        origin === 'subs' ? { audience: 'subs' } : {}
+      );
       filed.current = item.id;
       noteFiledHelpItem(set.id, item.id);
     } catch (err) {

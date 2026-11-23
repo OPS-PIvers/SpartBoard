@@ -76,7 +76,7 @@ export const SubsAuthGate: React.FC<Props> = ({ children }) => {
           <p className="mt-3 text-sm text-slate-600">
             Sign in with your @orono.k12.mn.us account.
           </p>
-          <button /* no-tour-anchor: substitute portal, never on the board */
+          <button /* no-tour-anchor: before sign-in, where no tour can run */
             type="button"
             onClick={() => void signInWithGoogle()}
             className="mt-8 inline-flex items-center gap-2 rounded-lg bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 px-5 py-2.5 text-sm font-bold transition-colors shadow-xs cursor-pointer"
@@ -104,7 +104,7 @@ export const SubsAuthGate: React.FC<Props> = ({ children }) => {
             <span className="font-mono text-slate-800">@orono.k12.mn.us</span>{' '}
             accounts. Signing you out — try again with your district account.
           </p>
-          <button /* no-tour-anchor: substitute portal, never on the board */
+          <button /* no-tour-anchor: before sign-in, where no tour can run */
             type="button"
             onClick={() => void signOut()}
             className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
@@ -142,7 +142,7 @@ export const SubsAuthGate: React.FC<Props> = ({ children }) => {
           <p className="mt-2 text-sm text-slate-600">
             Your district turned off the Substitute Portal.
           </p>
-          <button /* no-tour-anchor: substitute portal, never on the board */
+          <button /* no-tour-anchor: before sign-in, where no tour can run */
             type="button"
             onClick={() => void signOut()}
             className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer"

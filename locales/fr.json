@@ -4626,7 +4626,8 @@
       "needsText": "Texte manquant"
     },
     "savedToHelpCenter": "Enregistré dans le Centre d'aide comme Masqué.",
-    "openInHelpCenter": "Ouvrir dans le Centre d'aide"
+    "openInHelpCenter": "Ouvrir dans le Centre d'aide",
+    "savedToHelpCenterSubs": "Enregistré dans le Centre d'aide comme Masqué. Publiez-le depuis les Paramètres d'administration."
   },
   "glPlayer": {
     "modeChip": {
@@ -5131,5 +5132,10 @@
     "retry": "Réessayer",
     "label": "Question audio",
     "playCount": "Écouter l'audio ({{used}}/{{total}})"
+  },
+  "subsTours": {
+    "help": "Aide",
+    "menuLabel": "Aide",
+    "record": "Enregistrer une visite"
   }
 }

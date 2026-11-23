@@ -44,15 +44,15 @@ export const useTourRunning = (): boolean =>
 export const TOUR_RECORD_EVENT = 'spart:record-tour';
 
 /** Where a recording or edit started: a Help Center start reopens Admin Settings when it ends (H13). */
-export type TourOrigin = 'help-center' | 'widget';
+export type TourOrigin = 'help-center' | 'widget' | 'subs';
 
 export interface TourRecordRequest {
   origin: TourOrigin;
 }
 
-// Also used as a bare onClick handler, so anything but 'help-center' counts as a widget start.
+// Also used as a bare onClick handler, so anything unknown counts as a widget start.
 const originOf = (value: unknown): TourOrigin =>
-  value === 'help-center' ? 'help-center' : 'widget';
+  value === 'help-center' || value === 'subs' ? value : 'widget';
 
 /** Asks the recording host to start a new tour recording; admin surfaces close themselves on it. */
 export function requestRecordTour(origin?: TourOrigin): void {

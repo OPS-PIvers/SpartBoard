@@ -202,6 +202,46 @@ export const SURFACES: TourSurfaceMap = {
     parent: 'board.assignments-hub',
     needs: ['class'],
   },
+  // The substitute portal; subs see its tours from Help, admins record them there.
+  'board.subs-portal': {
+    label: 'Substitute portal building picker and teacher list (URL /subs)',
+    kind: 'page',
+    url: '/subs',
+    files: [
+      'components/subs/BuildingPickerScreen.tsx',
+      'components/subs/TeacherDirectoryScreen.tsx',
+      'components/subs/SubDirectoryCard.tsx',
+      'components/subs/tours/SubsHelpButton.tsx',
+    ],
+  },
+  'board.subs-help': {
+    label: 'Help menu in the substitute portal',
+    kind: 'menu',
+    files: ['components/subs/tours/SubsHelpMenu.tsx'],
+    opensWith: 'subs.help',
+  },
+  'board.subs-board': {
+    label: "A teacher's board open in the substitute portal",
+    kind: 'page',
+    url: '/subs/s/{shareId}',
+    files: [
+      'components/subs/SubBoardScreen.tsx',
+      'components/subs/SubCollectionBoardScreen.tsx',
+      'components/subs/SubShareUpdateBanner.tsx',
+      'components/subs/SubRosterPrompt.tsx',
+      'components/subs/SubProfileToolbar.tsx',
+      'components/subs/SubBoardNav.tsx',
+    ],
+    inner: {
+      'subs.board-menu-reset': 'subs.board-menu',
+      'subs.board-menu-directory': 'subs.board-menu',
+      'subs.board-menu-building': 'subs.board-menu',
+      'subs.board-menu-sign-out': 'subs.board-menu',
+      'subs.nav-board': 'subs.nav-menu',
+      'subs.load-classes-confirm': 'subs.load-classes',
+      'subs.load-classes-later': 'subs.load-classes',
+    },
+  },
   // Rendered inside each kind's sub share widget on the substitute's board.
   'board.sub-launch': {
     label: 'Substitute start-as-teacher panel',

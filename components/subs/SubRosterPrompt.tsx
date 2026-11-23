@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertCircle, Loader2, Users } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { tourAttr } from '@/config/tourAnchors';
 import type { SubRosterStatus } from '@/hooks/useSubstituteRosters';
 
 type PromptStatus = Extract<SubRosterStatus, 'locked' | 'partial' | 'error'>;
@@ -65,9 +66,10 @@ export const SubRosterPrompt: React.FC<SubRosterPromptProps> = ({
   const Icon = warn ? AlertCircle : Users;
   return (
     <>
-      <button /* no-tour-anchor: substitute portal, never on the board */
+      <button
         type="button"
         onClick={onLoad}
+        {...tourAttr('subs.load-classes')}
         className={`flex items-center gap-2 rounded-full backdrop-blur-xl border px-3 py-1.5 text-xs font-bold shadow-md transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
           warn
             ? 'bg-amber-50/95 hover:bg-amber-100 border-amber-300 text-amber-800'
@@ -87,19 +89,21 @@ export const SubRosterPrompt: React.FC<SubRosterPromptProps> = ({
         <p className="text-sm text-slate-600">{copy.body}</p>
         <p className="mt-2 text-xs text-slate-500">Shared by {teacherName}.</p>
         <div className="mt-5 flex justify-end gap-2">
-          <button /* no-tour-anchor: substitute portal, never on the board */
+          <button
             type="button"
             onClick={() => setDismissed(status)}
+            {...tourAttr('subs.load-classes-later')}
             className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-sm cursor-pointer"
           >
             Not now
           </button>
-          <button /* no-tour-anchor: substitute portal, never on the board */
+          <button
             type="button"
             onClick={() => {
               setDismissed(status);
               onLoad();
             }}
+            {...tourAttr('subs.load-classes-confirm')}
             className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded-sm hover:bg-brand-blue-dark cursor-pointer"
           >
             {copy.action}

@@ -25,7 +25,7 @@
  * building selection.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { SubsAuthGate } from './SubsAuthGate';
 import { BuildingPickerScreen } from './BuildingPickerScreen';
 import { TeacherDirectoryScreen } from './TeacherDirectoryScreen';
@@ -34,6 +34,9 @@ import { SubCollectionBoardScreen } from './SubCollectionBoardScreen';
 import { SubShareLinkScreen } from './SubShareLinkScreen';
 import { parseSubsDeepLink } from './subsDeepLink';
 import { useAuth } from '@/context/useAuth';
+import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
+
+const SubsTourLayer = lazy(() => import('./tours/SubsTourLayer'));
 
 type SubsView =
   | { kind: 'building-picker' }
@@ -71,8 +74,22 @@ function clearDeepLinkFromUrl(): void {
 export const SubsApp: React.FC = () => (
   <SubsAuthGate>
     <SubsContent />
+    <SubsTours />
   </SubsAuthGate>
 );
+
+/** Live tours over the portal; the runner's code loads only once the flag is on. */
+const SubsTours: React.FC = () => {
+  const { canAccessFeature } = useAuth();
+  if (!canAccessFeature('subs-live-tours')) return null;
+  return (
+    <LazyChunkErrorBoundary fallback={() => null}>
+      <Suspense fallback={null}>
+        <SubsTourLayer />
+      </Suspense>
+    </LazyChunkErrorBoundary>
+  );
+};
 
 const SubsContent: React.FC = () => {
   const { user } = useAuth();

@@ -7,9 +7,12 @@ import {
   teacherInitials,
 } from './subsView';
 import type { DirectoryEntry } from './subDirectory';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface SubDirectoryCardProps {
   entry: DirectoryEntry;
+  /** Its place in the list, from 1, for tour anchors. */
+  row: number;
   buildingName: string;
   onPickBoard: (shareId: string) => void;
   onPickCollectionBoard: (shareId: string, boardId: string) => void;
@@ -20,6 +23,7 @@ const CARD_CLASS =
 
 export const SubDirectoryCard: FC<SubDirectoryCardProps> = ({
   entry,
+  row,
   buildingName,
   onPickBoard,
   onPickCollectionBoard,
@@ -70,11 +74,16 @@ export const SubDirectoryCard: FC<SubDirectoryCardProps> = ({
           </div>
         </div>
         <div className="mt-3 flex flex-col gap-1.5">
-          {entry.boards.map((board) => (
-            <button /* no-tour-anchor: substitute portal, never on the board */
+          {entry.boards.map((board, i) => (
+            <button
               key={board.id}
               type="button"
               onClick={() => onPickCollectionBoard(entry.shareId, board.id)}
+              {...tourFieldAttr(
+                'subs.collection-board',
+                'subs-directory',
+                `row-${row}-board-${i + 1}`
+              )}
               title={t('subCollections.openBoard', {
                 defaultValue: 'Open this board',
               })}
@@ -112,9 +121,10 @@ export const SubDirectoryCard: FC<SubDirectoryCardProps> = ({
   const widgetCount = entry.kind === 'board' ? entry.widgetCount : undefined;
 
   return (
-    <button /* no-tour-anchor: substitute portal, never on the board */
+    <button
       type="button"
       onClick={open}
+      {...tourFieldAttr('subs.board', 'subs-directory', `row-${row}`)}
       className={`group ${CARD_CLASS} hover:border-brand-blue-primary/40 hover:shadow-md transition-all focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 cursor-pointer`}
     >
       {header}

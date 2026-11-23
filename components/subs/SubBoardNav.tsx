@@ -19,6 +19,7 @@ import {
   MENU_PANEL_CLASS,
 } from '@/components/layout/boardNavMenu';
 import type { SubShareNav } from './subShareNav';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface SubBoardNavProps {
   nav: SubShareNav;
@@ -118,18 +119,29 @@ export const SubBoardNav: React.FC<SubBoardNavProps> = ({
           aria-label={selectLabel}
           className={MENU_PANEL_CLASS}
         >
-          {nav.sections.map((section) => (
+          {nav.sections.map((section, sectionIndex) => (
             <div key={section.id || 'ungrouped'}>
               {section.name && (
                 <div className={MENU_HEADER_CLASS}>{section.name}</div>
               )}
-              {section.boards.map((board) => {
+              {section.boards.map((board, boardIndex) => {
                 const current = board.id === currentBoardId;
+                const row =
+                  nav.sections
+                    .slice(0, sectionIndex)
+                    .reduce((n, s) => n + s.boards.length, 0) +
+                  boardIndex +
+                  1;
                 return (
-                  <button /* no-tour-anchor: substitute portal, never on the board */
+                  <button
                     key={board.id}
                     type="button"
                     role="menuitem"
+                    {...tourFieldAttr(
+                      'subs.nav-board',
+                      'subs-nav',
+                      `row-${row}`
+                    )}
                     aria-current={current ? 'true' : undefined}
                     onClick={() => {
                       setMenuOpen(false);
@@ -163,10 +175,11 @@ export const SubBoardNav: React.FC<SubBoardNavProps> = ({
       )}
 
       <div className="flex items-center gap-1">
-        <button /* no-tour-anchor: substitute portal, never on the board */
+        <button
           type="button"
           className={FAB_BASE}
           disabled={!prevId}
+          {...tourAttr('subs.nav-previous')}
           onClick={() => prevId && onPickBoard(prevId)}
           aria-label={t('subShare.nav.previous', {
             defaultValue: 'Previous board',
@@ -175,8 +188,9 @@ export const SubBoardNav: React.FC<SubBoardNavProps> = ({
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <button /* no-tour-anchor: substitute portal, never on the board */
+        <button
           ref={triggerRef}
+          {...tourAttr('subs.nav-menu')}
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
           aria-haspopup="menu"
@@ -188,10 +202,11 @@ export const SubBoardNav: React.FC<SubBoardNavProps> = ({
         >
           <LayoutGrid className="w-4 h-4" />
         </button>
-        <button /* no-tour-anchor: substitute portal, never on the board */
+        <button
           type="button"
           className={FAB_BASE}
           disabled={!nextId}
+          {...tourAttr('subs.nav-next')}
           onClick={() => nextId && onPickBoard(nextId)}
           aria-label={t('subShare.nav.next', { defaultValue: 'Next board' })}
           title={t('subShare.nav.next', { defaultValue: 'Next board' })}

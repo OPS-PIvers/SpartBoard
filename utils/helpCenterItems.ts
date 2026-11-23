@@ -17,6 +17,7 @@ import type {
 import {
   UNFILED_CATEGORY_ID,
   isUnfiled,
+  type HelpAudience,
   type HelpPublishRefusal,
   type HelpResourceItem,
 } from '@/types/helpCenter';
@@ -68,7 +69,12 @@ export function buildHiddenHelpItem(
   set: ItemSource,
   author: HelpAuthor,
   id: string,
-  opts: { order?: number; widgetTypes?: WidgetType[]; now?: number } = {}
+  opts: {
+    order?: number;
+    widgetTypes?: WidgetType[];
+    now?: number;
+    audience?: HelpAudience;
+  } = {}
 ): HelpResourceItem {
   const now = opts.now ?? Date.now();
   return {
@@ -89,6 +95,7 @@ export function buildHiddenHelpItem(
     createdByEmail: author.email ?? '',
     createdAt: now,
     updatedAt: now,
+    ...(opts.audience === 'subs' && { audience: 'subs' as const }),
   };
 }
 
@@ -96,7 +103,11 @@ export function buildHiddenHelpItem(
 export async function createHiddenHelpItem(
   set: ItemSource,
   author: HelpAuthor,
-  opts: { order?: number; widgetTypes?: WidgetType[] } = {}
+  opts: {
+    order?: number;
+    widgetTypes?: WidgetType[];
+    audience?: HelpAudience;
+  } = {}
 ): Promise<HelpResourceItem> {
   const ref = doc(collection(db, HELP_ITEMS_COLLECTION));
   const item = buildHiddenHelpItem(set, author, ref.id, opts);

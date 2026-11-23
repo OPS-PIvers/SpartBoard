@@ -13,7 +13,9 @@ import { useAuth } from '@/context/useAuth';
 import { AuthContext } from '@/context/AuthContextValue';
 import type { WidgetType } from '@/types';
 import {
+  helpAudienceOf,
   isUnfiled,
+  type HelpAudience,
   type HelpCategory,
   type HelpResourceItem,
 } from '@/types/helpCenter';
@@ -33,6 +35,8 @@ interface UseHelpResourcesOptions {
   includeHidden: boolean;
   // Super admins read the whole collection instead of the global + own-org queries.
   allOrgs?: boolean;
+  /** Whose published items to keep when hidden ones are left out; teachers by default. */
+  audience?: HelpAudience;
 }
 
 export interface UseHelpResourcesResult {
@@ -42,9 +46,18 @@ export interface UseHelpResourcesResult {
   error: string | null;
 }
 
-/** What teachers may see: Published, filed, and not a retired embed (H8, H16). */
+/** What an audience may see: Published, filed, theirs, and not a retired embed (H8, H16). */
+export const isFacingHelpItem = (
+  item: HelpResourceItem,
+  audience: HelpAudience
+): boolean =>
+  item.visible !== false &&
+  !isUnfiled(item) &&
+  item.kind !== 'embed' &&
+  helpAudienceOf(item) === audience;
+
 export const isTeacherFacingHelpItem = (item: HelpResourceItem): boolean =>
-  item.visible !== false && !isUnfiled(item) && item.kind !== 'embed';
+  isFacingHelpItem(item, 'teachers');
 
 const mergeById = (
   globalItems: HelpResourceItem[],
@@ -59,6 +72,7 @@ const mergeById = (
 export const useHelpResources = ({
   includeHidden,
   allOrgs = false,
+  audience = 'teachers',
 }: UseHelpResourcesOptions): UseHelpResourcesResult => {
   const { orgId } = useAuth();
   const [categories, setCategories] = useState<HelpCategory[]>([]);
@@ -184,8 +198,8 @@ export const useHelpResources = ({
   const merged = allOrgs ? allItems : mergeById(globalItems, effectiveOrgItems);
   const visible = includeHidden
     ? merged
-    : merged.filter(isTeacherFacingHelpItem);
-  if (isTestRunProject() && !allOrgs) {
+    : merged.filter((item) => isFacingHelpItem(item, audience));
+  if (isTestRunProject() && !allOrgs && audience === 'teachers') {
     const sampleCategories = sampleHelpCategories();
     return {
       items: sortHelpItems(sampleHelpItems(), sampleCategories),

@@ -3,6 +3,8 @@ import { GraduationCap, LogOut, School } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { SubsHelpButton } from './tours/SubsHelpButton';
 
 interface BuildingPickerScreenProps {
   onPick: (buildingId: string) => void;
@@ -37,15 +39,17 @@ export const BuildingPickerScreen: React.FC<BuildingPickerScreenProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-500">
+          <SubsHelpButton variant="header" />
           <span>
             Signed in as{' '}
             <span className="text-slate-800 font-medium">
               {user?.email ?? 'unknown'}
             </span>
           </span>
-          <button /* no-tour-anchor: substitute portal, never on the board */
+          <button
             type="button"
             onClick={() => void signOut()}
+            {...tourAttr('subs.sign-out')}
             className="inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-2.5 py-1 transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
@@ -61,11 +65,16 @@ export const BuildingPickerScreen: React.FC<BuildingPickerScreenProps> = ({
           </h1>
 
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {buildings.map((b) => (
-              <button /* no-tour-anchor: substitute portal, never on the board */
+            {buildings.map((b, i) => (
+              <button
                 key={b.id}
                 type="button"
                 onClick={() => onPick(b.id)}
+                {...tourFieldAttr(
+                  'subs.building',
+                  'subs-building',
+                  `row-${i + 1}`
+                )}
                 className="group relative text-left rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-brand-blue-primary/40 shadow-xs hover:shadow-md transition-all p-5 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 cursor-pointer"
               >
                 <div className="w-12 h-12 rounded-xl bg-brand-blue-primary flex items-center justify-center">

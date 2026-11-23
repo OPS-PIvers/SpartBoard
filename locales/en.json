@@ -5845,7 +5845,8 @@
       "needsText": "Needs text"
     },
     "savedToHelpCenter": "Saved to the Help Center as Hidden.",
-    "openInHelpCenter": "Open in Help Center"
+    "openInHelpCenter": "Open in Help Center",
+    "savedToHelpCenterSubs": "Saved to the Help Center as Hidden. Publish it from Admin Settings."
   },
   "glPlayer": {
     "modeChip": {
@@ -6575,5 +6576,10 @@
     "retry": "Try again",
     "label": "Audio question",
     "playCount": "Play audio ({{used}}/{{total}})"
+  },
+  "subsTours": {
+    "help": "Help",
+    "menuLabel": "Help",
+    "record": "Record a tour"
   }
 }

@@ -139,7 +139,7 @@ const expectEditorOpened = async (title: string, drafted: number) => {
 
 const renderSession = (
   onEnd = vi.fn(),
-  origin: 'widget' | 'help-center' = 'widget'
+  origin: 'widget' | 'help-center' | 'subs' = 'widget'
 ) => {
   render(
     <DashboardContext.Provider value={dashboard}>
@@ -450,11 +450,24 @@ describe('RecordingSession', () => {
           email: 'admin@school.org',
           orgId: 'org-1',
           isSuperAdmin: false,
-        }
+        },
+        {}
       );
       expect(h.editRequests[0]).toEqual({ setId: saved.id, origin: 'widget' });
       expect(takeFiledHelpItem(saved.id)).toBe(`item-${saved.id}`);
       expect(h.toast).not.toHaveBeenCalled();
+    });
+
+    it('files a /subs recording for substitutes and carries the origin to the editor', async () => {
+      renderSession(vi.fn(), 'subs');
+      const saved = await finishAndUpload();
+      expect(h.createItem).toHaveBeenCalledWith(
+        expect.objectContaining({ id: saved.id }),
+        expect.objectContaining({ uid: 'admin-1' }),
+        { audience: 'subs' }
+      );
+      expect(h.editRequests[0]).toEqual({ setId: saved.id, origin: 'subs' });
+      takeFiledHelpItem(saved.id);
     });
 
     it('carries a Help Center start to the editor so Done goes back there', async () => {

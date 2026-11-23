@@ -362,6 +362,57 @@ describe('HelpCenterManager', () => {
     });
   });
 
+  it('opens a substitute tour in the /subs editor in a new tab', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    glState.tourSetIds = new Set(['t1']);
+    glState.sets.set('t1', pictureSet('t1'));
+    helpState.items = [
+      makeItem({ id: 'a', title: 'Tour', setId: 't1', audience: 'subs' }),
+    ];
+    writeHelpCenterSelection('a');
+    render(<HelpCenterManager />);
+    expect(await screen.findByTestId('tour-health')).toHaveTextContent('t1');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(open).toHaveBeenCalledWith(
+      '/subs?edit-tour=t1',
+      '_blank',
+      'noopener'
+    );
+    expect(tourMocks.requestEditTour).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
+
+  it('switches a Live tour to substitutes from Who sees it', async () => {
+    glState.tourSetIds = new Set(['t1']);
+    glState.sets.set('t1', pictureSet('t1'));
+    helpState.items = [makeItem({ id: 'a', title: 'Tour', setId: 't1' })];
+    writeHelpCenterSelection('a');
+    render(<HelpCenterManager />);
+    fireEvent.change(await screen.findByLabelText('Who sees it'), {
+      target: { value: 'subs' },
+    });
+    await waitFor(() => expect(firestoreMocks.updateDoc).toHaveBeenCalled());
+    expect(firestoreMocks.updateDoc.mock.calls[0]).toEqual([
+      expect.objectContaining({ id: 'a' }),
+      expect.objectContaining({ audience: 'subs' }),
+    ]);
+  });
+
+  it('records a substitute tour on /subs in a new tab', () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    render(<HelpCenterManager />);
+    fireEvent.click(screen.getByRole('button', { name: 'New' }));
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: 'Record a Live tour for subs' })
+    );
+    expect(open).toHaveBeenCalledWith(
+      '/subs?record-tour=1',
+      '_blank',
+      'noopener'
+    );
+    open.mockRestore();
+  });
+
   it('copies a Picture guide to the library', async () => {
     const item = makeItem({ id: 'a', title: 'Alpha' });
     helpState.items = [item];
@@ -448,6 +499,7 @@ describe('HelpCenterManager', () => {
     const items = screen.getAllByRole('menuitem').map((m) => m.textContent);
     expect(items).toEqual([
       'Record a Live tour',
+      'Record a Live tour for subs',
       'Move from library',
       'New Picture guide',
     ]);
