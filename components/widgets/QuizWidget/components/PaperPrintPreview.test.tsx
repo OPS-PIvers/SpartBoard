@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { PaperPrintPreview } from './PaperPrintPreview';
 import type { PaperPreviewPage } from '@/utils/paperSheetPrint';
@@ -7,9 +7,7 @@ import type { PaperPreviewPage } from '@/utils/paperSheetPrint';
 const page = (doc: string): PaperPreviewPage => ({ kind: 'test', doc });
 
 describe('PaperPrintPreview', () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  it('keeps the other pages while a new picture loads', async () => {
+  beforeEach(() => {
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -22,6 +20,10 @@ describe('PaperPrintPreview', () => {
         }
       }
     );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('keeps the other pages while a new picture loads', async () => {
     const fetchMock = vi.fn(() => new Promise<Response>(() => undefined));
     vi.stubGlobal('fetch', fetchMock);
     const first = page('<p>one</p>');
@@ -39,5 +41,24 @@ describe('PaperPrintPreview', () => {
     expect(frames).toHaveLength(2);
     expect(frames[0].getAttribute('srcdoc')).toBe('<p>one</p>');
     expect(frames[1].getAttribute('srcdoc')).toBe('<img src="">');
+  });
+
+  it('keeps the same frames while the pages are null and loading', () => {
+    const pages = [page('<p>one</p>'), page('<p>two</p>')];
+    const { rerender } = render(
+      <PaperPrintPreview pages={pages} emptyText="none" />
+    );
+    const frame = screen.getAllByTitle(/^Page /)[0];
+    rerender(<PaperPrintPreview pages={null} loading emptyText="none" />);
+    expect(screen.getAllByTitle(/^Page /)[0]).toBe(frame);
+    rerender(
+      <PaperPrintPreview
+        pages={[pages[0], page('<p>three</p>')]}
+        emptyText="none"
+      />
+    );
+    const after = screen.getAllByTitle(/^Page /)[0];
+    expect(after).toBe(frame);
+    expect(after.getAttribute('srcdoc')).toBe('<p>one</p>');
   });
 });

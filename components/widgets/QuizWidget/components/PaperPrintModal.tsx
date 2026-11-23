@@ -1380,6 +1380,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     previewFirst,
     spareCount,
     quiz,
+    quizStimuli,
+    testStimulusFiles.files,
     choiceCount,
     isStub,
     versionPlan,
@@ -2355,6 +2357,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       </div>
       <PaperPrintPreview
         pages={previewPages}
+        loading={stimuliLoading || sheetImages.loading}
         emptyText={previewEmptyText}
         className="mt-1 flex-1"
       />
