@@ -52,6 +52,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'paper-fill-in-blank',
   'project-submit',
   'question-editor-fields',
+  'quick-sign-in',
   'quiz-dok',
   'quiz-explanations',
   'quiz-import-equations',

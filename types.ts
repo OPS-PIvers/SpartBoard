@@ -11889,8 +11889,6 @@ export type GlobalFeature =
   | 'quiz-live-view-nudge-note'
   /** Live view's Screenshot button. */
   | 'quiz-live-view-screenshot'
-  /** Sign-in picks an account instead of forcing Google's consent page; idle sign-out after 30 days instead of 7. */
-  | 'quick-sign-in'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   /** Quiz assign stays open with a spinner until the save finishes, and shows a failed save inline. */
