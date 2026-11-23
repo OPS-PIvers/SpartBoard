@@ -79,7 +79,10 @@ const mondayOf = (dateKey: string) => {
   return n - ((((n - 4) % 7) + 7) % 7);
 };
 
-/** Alerts whose show time (time minus lead) passed within the send window. */
+const dateKeyOf = (dayNum: number) =>
+  new Date(dayNum * DAY_MS).toISOString().slice(0, 10);
+
+/** Alerts whose show time (time minus lead) passed within the send window; a lead can reach back across midnight. */
 export function dueEmailAlerts(doc: EmailAlertDoc, now: Date): DueEmailAlert[] {
   let local;
   try {
@@ -87,23 +90,31 @@ export function dueEmailAlerts(doc: EmailAlertDoc, now: Date): DueEmailAlert[] {
   } catch {
     return [];
   }
-  if (!doc.days.includes(local.weekday)) return [];
-  if (!DATE_RE.test(doc.startDate) || local.dateKey < doc.startDate) return [];
-  if (
-    doc.repeat === 'biweekly' &&
-    ((mondayOf(local.dateKey) - mondayOf(doc.startDate)) / 7) % 2 !== 0
-  )
-    return [];
-  return doc.alerts.flatMap((a) => {
-    const match = TIME_RE.exec(a.time);
-    if (!match) return [];
-    const showAt =
-      Number(match[1]) * 60 + Number(match[2]) - (a.leadMinutes || 0);
-    const late = local.minutes - showAt;
-    return late >= 0 && late < SEND_WINDOW_MIN
-      ? [{ dateKey: local.dateKey, time: a.time }]
-      : [];
-  });
+  if (!DATE_RE.test(doc.startDate)) return [];
+  const today = dayNumber(local.dateKey);
+  const out: DueEmailAlert[] = [];
+  // Yesterday and tomorrow too, as the client does: the alert's day can differ from the day its show time falls on.
+  for (const offset of [-1, 0, 1]) {
+    const dateKey = dateKeyOf(today + offset);
+    const weekday = ((((today + offset - 4) % 7) + 7) % 7) + 1;
+    if (!doc.days.includes(weekday) || dateKey < doc.startDate) continue;
+    if (
+      doc.repeat === 'biweekly' &&
+      ((mondayOf(dateKey) - mondayOf(doc.startDate)) / 7) % 2 !== 0
+    )
+      continue;
+    const minutes = local.minutes - offset * 1440;
+    for (const a of doc.alerts) {
+      const match = TIME_RE.exec(a.time);
+      if (!match) continue;
+      const showAt =
+        Number(match[1]) * 60 + Number(match[2]) - (a.leadMinutes || 0);
+      const late = minutes - showAt;
+      if (late >= 0 && late < SEND_WINDOW_MIN)
+        out.push({ dateKey, time: a.time });
+    }
+  }
+  return out;
 }
 
 export function formatTime12(time: string): string {
