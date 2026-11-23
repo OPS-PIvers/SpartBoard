@@ -59,7 +59,7 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
     await reads('2 classes');
     await expect(
       panel.getByRole('button', { name: 'Choose class' })
-    ).toBeVisible();
+    ).toHaveCount(0);
     expect(await rowMenuItems(page, library)).toEqual([
       'Settings',
       'Assign to Google Classroom',
