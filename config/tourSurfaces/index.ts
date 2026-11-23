@@ -6,6 +6,8 @@ import { SURFACES as QUIZ } from './quiz';
 import { SURFACES as LIBRARY } from './library';
 import { SURFACES as GUIDED_LEARNING } from './guidedLearning';
 import { SURFACES as WIDGETS } from './widgets';
+import { SURFACES as STUDENT_WALL } from './studentWall';
+import { SURFACES as STUDENT_ASSIGNMENTS } from './studentAssignments';
 import { SURFACES as STUDENT_VIDEO } from './studentVideo';
 import { SURFACES as STUDENT_GUIDED_LEARNING } from './studentGuidedLearning';
 
@@ -20,6 +22,8 @@ export const TOUR_SURFACE_AREAS = {
   library: LIBRARY,
   guidedLearning: GUIDED_LEARNING,
   widgets: WIDGETS,
+  studentWall: STUDENT_WALL,
+  studentAssignments: STUDENT_ASSIGNMENTS,
   studentVideo: STUDENT_VIDEO,
   studentGuidedLearning: STUDENT_GUIDED_LEARNING,
 } as const;

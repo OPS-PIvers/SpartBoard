@@ -13,7 +13,7 @@ import {
   getWindowState,
 } from '@/utils/assignmentWindow';
 import { formatDueLabel } from '@/utils/studentTurnIn';
-import { tourFieldAttr } from '@/config/tourAnchors';
+import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import {
   effectivePeriodState,
   nextScheduledOpen,
@@ -117,7 +117,8 @@ const OpenLabel: React.FC = () => (
 const LockedRow: React.FC<{
   message: string;
   children: React.ReactNode;
-}> = ({ message, children }) => {
+  tour?: TourAnchorAttrs;
+}> = ({ message, children, tour }) => {
   const { showAlert } = useDialog();
   return (
     <button
@@ -125,6 +126,7 @@ const LockedRow: React.FC<{
       onClick={() =>
         void showAlert(message, { title: 'Not open', variant: 'info' })
       }
+      {...tour}
       className={`${ROW_CLASS} opacity-60`}
     >
       {children}
@@ -140,8 +142,13 @@ const OpenRow: React.FC<{
   available?: boolean;
   /** Live mark beside the Open button. */
   live?: boolean;
-}> = ({ href, children, available = true, live = false }) => (
-  <a href={href} className={`${ROW_CLASS} ${available ? '' : 'opacity-60'}`}>
+  tour?: TourAnchorAttrs;
+}> = ({ href, children, available = true, live = false, tour }) => (
+  <a
+    href={href}
+    {...tour}
+    className={`${ROW_CLASS} ${available ? '' : 'opacity-60'}`}
+  >
     {children}
     {live && <LiveMark />}
     {available ? <OpenLabel /> : <LockMark />}
@@ -250,6 +257,11 @@ export const WorkRow: React.FC<WorkRowProps> = ({
       ? periodLockLine(gate, nowMs)
       : null;
   const live = workAvailability(row, nowMs, pseudonymUid) === 'live';
+  const tour = tourFieldAttr(
+    'student.assignments.work-row',
+    'student-assignments',
+    a.compositeId
+  );
   const body = (
     <>
       <KindIcon kind={a.kind} />
@@ -286,11 +298,15 @@ export const WorkRow: React.FC<WorkRowProps> = ({
       a.openAt !== undefined
         ? `${formatOpensLabel(a.openAt)}. Not available yet.`
         : 'Not available yet.';
-    return <LockedRow message={message}>{body}</LockedRow>;
+    return (
+      <LockedRow message={message} tour={tour}>
+        {body}
+      </LockedRow>
+    );
   }
   // A class not started yet still opens, to the waiting screen where the teacher sees the student.
   return (
-    <OpenRow href={a.openHref} available={!locked} live={live}>
+    <OpenRow href={a.openHref} available={!locked} live={live} tour={tour}>
       {body}
     </OpenRow>
   );
@@ -304,6 +320,11 @@ export const ResourceRow: React.FC<{
 }> = ({ row, nowMs, cls }) => {
   const a = row.assignment;
   const upcoming = getWindowState(a, nowMs) === 'upcoming';
+  const tour = tourFieldAttr(
+    'student.assignments.resource-row',
+    'student-assignments',
+    a.compositeId
+  );
   const meta =
     upcoming && a.openAt !== undefined
       ? formatOpensLabel(a.openAt)
@@ -335,14 +356,23 @@ export const ResourceRow: React.FC<{
     <div className="flex items-center">
       <div className="min-w-0 flex-1">
         {upcoming ? (
-          <LockedRow message={`${meta}. Not available yet.`}>{body}</LockedRow>
+          <LockedRow message={`${meta}. Not available yet.`} tour={tour}>
+            {body}
+          </LockedRow>
         ) : (
-          <OpenRow href={a.openHref}>{body}</OpenRow>
+          <OpenRow href={a.openHref} tour={tour}>
+            {body}
+          </OpenRow>
         )}
       </div>
       {gallery && (
         <a
           href={gallery}
+          {...tourFieldAttr(
+            'student.assignments.gallery',
+            'student-assignments',
+            a.compositeId
+          )}
           target="_blank"
           rel="noopener noreferrer"
           className="shrink-0 rounded-sm px-2 py-1 text-xs font-semibold text-brand-blue-primary hover:underline focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
@@ -621,6 +651,11 @@ export const LiveBanner: React.FC<{
       <a
         key={a.compositeId}
         href={a.openHref}
+        {...tourFieldAttr(
+          'student.assignments.live-join',
+          'student-assignments',
+          a.compositeId
+        )}
         className="flex w-full items-center gap-3 rounded-2xl bg-brand-blue-primary px-4 py-3 text-left text-white shadow-xs transition hover:bg-brand-blue-dark focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2"
       >
         <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-white">

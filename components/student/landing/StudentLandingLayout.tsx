@@ -20,6 +20,7 @@ import { LandingClassView } from './LandingClassView';
 import { landingTabs, panelId } from './tabs';
 import { LandingOverview } from './LandingOverview';
 import type { LandingClass, LandingTab } from './types';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface StudentLandingLayoutProps {
   classes: LandingClass[];
@@ -56,6 +57,7 @@ const SignOutButton: React.FC<{
   <button
     type="button"
     onClick={onClick}
+    {...tourAttr('student.assignments.sign-out')}
     className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition focus:outline-hidden focus-visible:ring-2 ${
       tone === 'dark'
         ? 'border-white/25 text-white hover:bg-white/10 focus-visible:ring-white'
@@ -162,6 +164,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
           ref={sheetTriggerRef}
           type="button"
           onClick={() => setSheetOpen(true)}
+          {...tourAttr('student.assignments.class-menu')}
           aria-haspopup="dialog"
           aria-expanded={sheetOpen}
           className="inline-flex min-h-[44px] min-w-0 items-center gap-1.5 rounded-xl px-2 py-1.5 text-left transition hover:bg-white/10 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white"
@@ -245,6 +248,11 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
                 key={t.id}
                 type="button"
                 onClick={() => changeTab(t.id)}
+                {...tourFieldAttr(
+                  'student.assignments.tab',
+                  'student-assignments',
+                  t.id
+                )}
                 aria-current={active ? 'page' : undefined}
                 aria-controls={panelId(selected.classId)}
                 className={`flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-0.5 px-1 transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary ${

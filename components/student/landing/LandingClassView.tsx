@@ -19,6 +19,7 @@ import {
 } from './LandingRows';
 import type { LandingClass, LandingTab } from './types';
 import { landingTabs, panelId, tabId } from './tabs';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface LandingClassViewProps {
   cls: LandingClass;
@@ -103,6 +104,7 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
           <button
             type="button"
             onClick={() => onTabChange('resources')}
+            {...tourAttr('student.assignments.see-resources')}
             className="mt-2 rounded-sm text-sm font-semibold text-brand-blue-primary hover:underline focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           >
             See {p.resources.length}{' '}
@@ -202,6 +204,11 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
               aria-selected={tab === t.id}
               aria-controls={panelId(cls.classId)}
               onClick={() => onTabChange(t.id)}
+              {...tourFieldAttr(
+                'student.assignments.tab',
+                'student-assignments',
+                t.id
+              )}
               className={`flex min-w-0 flex-col items-center rounded-lg px-1 py-1.5 transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
                 tab === t.id
                   ? 'bg-white text-slate-900 shadow-xs'
