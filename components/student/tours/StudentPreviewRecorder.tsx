@@ -81,7 +81,7 @@ export const StudentPreviewRecorder: React.FC = () => {
               >
                 {phase === 'sent'
                   ? 'Finish in your SpartBoard tab. Review the pictures and save there.'
-                  : 'Your SpartBoard tab is closed. Open View as from it and record again.'}
+                  : "This recording couldn't be saved. Keep your SpartBoard tab open and record again."}
               </p>
               <button
                 type="button"

@@ -111,7 +111,7 @@ describe('StudentPreviewRecorder', () => {
       });
       expect(
         screen.getByText(
-          'Your SpartBoard tab is closed. Open View as from it and record again.'
+          "This recording couldn't be saved. Keep your SpartBoard tab open and record again."
         )
       ).toBeTruthy();
     } finally {
