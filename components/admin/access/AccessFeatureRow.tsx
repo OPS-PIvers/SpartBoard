@@ -606,7 +606,8 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
   return (
     <div
       data-testid={`access-row-${featureId}`}
-      className="bg-white @container"
+      className="bg-white"
+      style={{ containerType: 'inline-size' }}
     >
       <AccessRowHeader
         featureId={featureId}

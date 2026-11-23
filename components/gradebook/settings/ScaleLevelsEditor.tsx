@@ -214,7 +214,10 @@ export const ScaleLevelsEditor: React.FC<{
   if (layout === 'ruler') {
     const order = levels.map((_, i) => n - 1 - i);
     return (
-      <div className="flex flex-col gap-3 @container">
+      <div
+        className="flex flex-col gap-3"
+        style={{ containerType: 'inline-size' }}
+      >
         <div
           className="grid grid-cols-1 gap-x-5 gap-y-2 @xl:[grid-template-columns:var(--scale-cols)]"
           style={
