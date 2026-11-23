@@ -214,10 +214,14 @@ export const ScaleLevelsEditor: React.FC<{
   if (layout === 'ruler') {
     const order = levels.map((_, i) => n - 1 - i);
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 @container">
         <div
-          className="grid gap-x-5 gap-y-2"
-          style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}
+          className="grid grid-cols-1 gap-x-5 gap-y-2 @xl:[grid-template-columns:var(--scale-cols)]"
+          style={
+            {
+              '--scale-cols': `repeat(${n}, minmax(0, 1fr))`,
+            } as React.CSSProperties
+          }
         >
           {order.map((i) => (
             <div key={i} className="flex min-w-0 flex-col gap-2">
