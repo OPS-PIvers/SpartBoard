@@ -126,6 +126,7 @@ export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
   const { t } = useTranslation();
   const printSchedule = useGroupSchedulePrint();
   const [printError, setPrintError] = useState<string | null>(null);
+  const labels = useColumnLabels();
   const scheduled =
     !!reminders?.steps.schedule &&
     groups.some((g) => !!g.reminder?.enabled && g.reminder.days.length > 0);
@@ -188,7 +189,7 @@ export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col border border-slate-200 rounded-xl bg-white overflow-hidden">
-      <div className="flex-1 min-h-0 flex flex-col overflow-y-auto scroll-inset pb-4">
+      <div className="flex-1 min-h-0 flex flex-col overflow-y-auto pb-4">
         {groups.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 text-center px-6 py-10 gap-3">
             <p className="font-bold text-slate-700">
@@ -208,9 +209,16 @@ export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
           </div>
         ) : (
           <>
-            <p className="px-4 py-3 bg-slate-50 border-b border-slate-200 rounded-t-xl text-sm text-slate-600">
-              {intro}
-            </p>
+            <div
+              className="hidden md:grid sticky top-0 z-10 gap-x-4 px-4 py-2 bg-slate-100 border-b border-slate-200 rounded-t-xl text-sm font-bold text-slate-700"
+              style={{ gridTemplateColumns: tableGrid(reminders) }}
+            >
+              <span>{labels.group}</span>
+              <span>{labels.accommodations}</span>
+              {reminders?.steps.schedule && <span>{labels.schedule}</span>}
+              {showsWidgets(reminders) && <span>{labels.widgets}</span>}
+              <span aria-hidden="true" className="w-[5.6rem]" />
+            </div>
             <ul
               className="divide-y divide-slate-200"
               {...tourAttr('roster-groups.list')}
@@ -302,114 +310,136 @@ const GroupRow: React.FC<{
     t,
     { answerChoicesAsRule: true }
   );
+  const countLabel = t('sidebar.classes.groupMemberCount', {
+    count: members.length,
+    defaultValue: '{{count}} student',
+    defaultValue_other: '{{count}} students',
+  });
+  const accText =
+    accommodations.length > 0
+      ? accommodations.join(', ')
+      : t('sidebar.classes.accommodationsNone', { defaultValue: 'None' });
+  const widgetsText =
+    group.inGroupMaker === false
+      ? t('sidebar.classes.widgetsHidden', { defaultValue: 'Hidden' })
+      : t('sidebar.classes.widgetsShown', { defaultValue: 'Shown' });
+  const symbolTile = reminders?.steps.symbol && (
+    <span
+      aria-hidden="true"
+      className="flex shrink-0 w-9 h-9 rounded-lg items-center justify-center"
+      style={{ background: groupTint(group.symbol) }}
+    >
+      <GroupSymbol symbol={group.symbol} className="w-5 h-5" />
+    </span>
+  );
+  const actions = (
+    <div className="flex gap-2">
+      <button
+        onClick={onEdit}
+        {...tourFieldAttr('roster-groups.edit', 'roster-groups', rowKey)}
+        className={`${ROW_BUTTON} hover:border-brand-blue-primary hover:text-brand-blue-primary`}
+      >
+        <Pencil size={14} aria-hidden="true" />
+        {t('common.edit', { defaultValue: 'Edit' })}
+      </button>
+      <button
+        onClick={onDelete}
+        {...tourFieldAttr('roster-groups.remove', 'roster-groups', rowKey)}
+        aria-label={t('common.delete', { defaultValue: 'Delete' })}
+        title={t('common.delete', { defaultValue: 'Delete' })}
+        className={`${ROW_BUTTON} px-2.5 hover:border-red-300 hover:text-red-600`}
+      >
+        <Trash2 size={14} aria-hidden="true" />
+      </button>
+    </div>
+  );
+  const muted = (on: boolean) => (on ? 'text-slate-800' : 'text-slate-500');
+  const labels = useColumnLabels();
+  const hasAcc = accommodations.length > 0;
+  const hasSchedule = !!r?.enabled && r.days.length > 0;
+
+  // Below md the columns stack under the name, so each value carries its own label.
+  const cell = (label: string, value: string, on: boolean) => (
+    <span className="order-3 col-span-2 md:col-span-1 flex gap-2 min-w-0">
+      <span className="md:hidden w-32 shrink-0 text-slate-500">{label}</span>
+      <span className={`min-w-0 break-words ${muted(on)}`}>{value}</span>
+    </span>
+  );
   return (
     <li
       {...tourFieldAttr('roster-groups.row', 'roster-groups', rowKey)}
-      className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3 px-4 py-3"
+      className="grid grid-cols-[minmax(0,1fr)_auto] md:[grid-template-columns:var(--group-cols)] items-center gap-x-4 gap-y-1 px-4 py-3 text-sm"
+      style={{ '--group-cols': tableGrid(reminders) } as React.CSSProperties}
     >
-      {reminders?.steps.symbol && (
-        <span
-          aria-hidden="true"
-          className="hidden sm:flex shrink-0 w-10 h-10 rounded-lg items-center justify-center"
-          style={{ background: groupTint(group.symbol) }}
-        >
-          <GroupSymbol symbol={group.symbol} className="w-6 h-6" />
-        </span>
-      )}
       {/* no-tour-anchor: the row's Edit button is the anchored control */}
       <button
         onClick={onEdit}
-        className="flex-1 min-w-0 flex flex-col gap-0.5 text-left text-sm"
+        className="order-1 flex items-center gap-3 min-w-0 text-left"
       >
-        <span className="flex flex-wrap items-baseline gap-x-2">
+        {symbolTile}
+        <span className="flex flex-col min-w-0">
           <GroupName name={group.name} />
-          <span className="text-slate-500">
-            {t('sidebar.classes.groupMemberCount', {
-              count: members.length,
-              defaultValue: '{{count}} student',
-              defaultValue_other: '{{count}} students',
-            })}
+          <span
+            className="text-slate-500"
+            title={members.map(lastFirst).join('; ') || undefined}
+          >
+            {countLabel}
           </span>
         </span>
-        <span className="text-slate-500">
-          {members.length > 0
-            ? members.map(lastFirst).join('; ')
-            : t('sidebar.classes.noGroupMembers', {
-                defaultValue: 'No students yet.',
-              })}
-        </span>
-        {showsWidgets(reminders) && (
-          <span className="text-slate-500">
-            <span className="font-semibold text-slate-700">
-              {t('sidebar.classes.widgetsLabel', { defaultValue: 'Widgets:' })}
-            </span>{' '}
-            {group.inGroupMaker === false
-              ? t('sidebar.classes.widgetsHidden', { defaultValue: 'Hidden' })
-              : t('sidebar.classes.widgetsShown', { defaultValue: 'Shown' })}
-          </span>
-        )}
-        <span className="text-slate-500">
-          <span className="font-semibold text-slate-700">
-            {t('sidebar.classes.accommodationsLabel', {
-              defaultValue: 'Accommodations:',
-            })}
-          </span>{' '}
-          {accommodations.length > 0
-            ? accommodations.join(', ')
-            : t('sidebar.classes.accommodationsNone', {
-                defaultValue: 'None',
-              })}
-        </span>
-        {reminders?.steps.schedule && (
-          <span className="text-slate-500">
-            <span className="font-semibold text-slate-700">
-              {t('sidebar.classes.scheduleLabel', {
-                defaultValue: 'Schedule:',
-              })}
-            </span>{' '}
-            {schedule}
-          </span>
-        )}
       </button>
-      <div className="flex gap-2">
-        <button
-          onClick={onEdit}
-          {...tourFieldAttr('roster-groups.edit', 'roster-groups', rowKey)}
-          className={`${ROW_BUTTON} hover:border-brand-blue-primary hover:text-brand-blue-primary`}
-        >
-          <Pencil size={14} aria-hidden="true" />
-          {t('common.edit', { defaultValue: 'Edit' })}
-        </button>
-        <button
-          onClick={onDelete}
-          {...tourFieldAttr('roster-groups.remove', 'roster-groups', rowKey)}
-          className={`${ROW_BUTTON} hover:border-red-300 hover:text-red-600`}
-        >
-          <Trash2 size={14} aria-hidden="true" />
-          {t('common.delete', { defaultValue: 'Delete' })}
-        </button>
-      </div>
+      <div className="order-2 md:order-last justify-self-end">{actions}</div>
+      {cell(labels.accommodations, accText, hasAcc)}
+      {reminders?.steps.schedule &&
+        cell(labels.schedule, schedule, hasSchedule)}
+      {showsWidgets(reminders) &&
+        cell(labels.widgets, widgetsText, group.inGroupMaker !== false)}
     </li>
   );
 };
 
-/** A titled band over a block of the group page, so each part reads apart from the next. */
+const useColumnLabels = () => {
+  const { t } = useTranslation();
+  return {
+    group: t('sidebar.classes.groupColumn', { defaultValue: 'Group' }),
+    accommodations: t('sidebar.classes.accommodationsHeading', {
+      defaultValue: 'Accommodations',
+    }),
+    schedule: t('groupReminders.stepSchedule', { defaultValue: 'Schedule' }),
+    widgets: t('sidebar.classes.widgetsHeading', { defaultValue: 'Widgets' }),
+  };
+};
+
+/** Column widths shared by the table header and each group row. */
+const tableGrid = (reminders?: GroupRemindersOptions) =>
+  [
+    'minmax(0,1.3fr)',
+    'minmax(0,1.4fr)',
+    reminders?.steps.schedule ? 'minmax(0,1.2fr)' : '',
+    showsWidgets(reminders) ? '5.5rem' : '',
+    'auto',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+/** One titled block of the group page. */
 const Section: React.FC<{
   title: string;
   detail?: string;
   first?: boolean;
   children: React.ReactNode;
-}> = ({ title, detail, first, children }) => (
-  <section>
-    <div
-      className={`flex flex-wrap items-baseline gap-x-2 px-4 py-2 bg-slate-100 border-b border-slate-200 ${first ? '' : 'border-t'}`}
+}> = ({ title, detail, first, children }) => {
+  return (
+    <section
+      className={`px-4 pt-5 pb-4 ${first ? '' : 'border-t border-slate-200'}`}
     >
-      <h4 className="text-sm font-bold text-slate-800">{title}</h4>
-      {detail && <span className="text-sm text-slate-500">{detail}</span>}
-    </div>
-    <div className="px-4 py-3">{children}</div>
-  </section>
-);
+      <div className="flex items-baseline gap-2 mb-3">
+        <h4 className="text-base font-bold text-slate-900">{title}</h4>
+        {detail && <span className="text-sm text-slate-500">{detail}</span>}
+      </div>
+      {children}
+    </section>
+  );
+};
 
 const GroupPage: React.FC<
   RosterGroupsPanelProps & {
@@ -477,7 +507,7 @@ const GroupPage: React.FC<
           {t('sidebar.classes.allGroups', { defaultValue: 'All groups' })}
         </button>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto scroll-inset pb-6">
+      <div className="flex-1 min-h-0 overflow-y-auto pb-6">
         <Section
           title={t('sidebar.classes.groupNameLabel', {
             defaultValue: 'Group name',
@@ -554,13 +584,6 @@ const GroupPage: React.FC<
           title={t('sidebar.classes.accommodationsHeading', {
             defaultValue: 'Accommodations',
           })}
-          detail={
-            memberIds.length > 0
-              ? t('sidebar.classes.groupAccommodationsHelp', {
-                  defaultValue: 'These apply to every student in this group.',
-                })
-              : undefined
-          }
         >
           {memberIds.length > 0 ? (
             <StandingAccommodationRules
