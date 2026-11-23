@@ -23,6 +23,7 @@ import {
   type PublicLinkRecord,
   type PublicTour,
 } from './tourPublicLinkModel';
+import { isListedTourAuthor } from './tourAuthors';
 
 const CONTROL_IDS = new Set(['_meta', '_lock']);
 
@@ -227,8 +228,13 @@ export function defaultPublicLinkDeps(
       const snap = await db.collection(GL_TOURS_COLLECTION).doc(setId).get();
       return snap.exists ? ((snap.get('set') as unknown) ?? null) : null;
     },
+    // A link stays live while its confirmer is an admin or a tour author (WEB_TOUR_AUTHORS.md P2).
     async isAdmin(email) {
-      return !!email && (await db.collection('admins').doc(email).get()).exists;
+      return (
+        !!email &&
+        ((await db.collection('admins').doc(email).get()).exists ||
+          (await isListedTourAuthor(db, email)))
+      );
     },
     countView: (setId) => countPublicView(db, setId),
     async latchOff(setId, reason) {
