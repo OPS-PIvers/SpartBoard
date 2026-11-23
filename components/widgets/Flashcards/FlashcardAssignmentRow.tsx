@@ -77,10 +77,7 @@ export const FlashcardAssignmentRow: React.FC<FlashcardAssignmentRowProps> = ({
     },
     rosters
   );
-  const runPeriod = usePeriodRunner(
-    a.periodAccess,
-    'FlashcardAssignmentRow.periodAccess'
-  );
+  const runPeriod = usePeriodRunner('FlashcardAssignmentRow.periodAccess');
   const paused = perPeriod && flashcardAssignmentPaused(a);
   const isCheck = a.kind === 'check';
   const published = !!a.scoreVisibility && a.scoreVisibility !== 'none';
@@ -133,9 +130,8 @@ export const FlashcardAssignmentRow: React.FC<FlashcardAssignmentRowProps> = ({
           icon: Rocket,
           onClick: () =>
             void runPeriod(async () => {
-              const untimed = await periods.startAll();
+              await periods.startAll();
               onMonitor(a);
-              return untimed;
             }),
         }
       : { label: 'Monitor', icon: Monitor, onClick: () => onMonitor(a) };

@@ -82,10 +82,6 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
       .getByRole('button', { name: 'Open', exact: true })
       .first()
       .click();
-    await expectToast(
-      page,
-      'Period 1 stays open until you pause it. Tag the class with its bell period in My Classes so it closes at the bell.'
-    );
     await reads('Open · Period 1 0 turned in · 1 class to go');
     await reads('Period 1 Open 0 turned in');
     await reads('Period 2 Ready');

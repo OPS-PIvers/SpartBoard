@@ -406,17 +406,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     logError('QuizLiveMonitor.periodAccess', err);
     addToast('Could not update the period. Try again.', 'error');
   };
-  const startPeriods = async (start: () => Promise<string[]>) => {
+  const startPeriods = async (start: () => Promise<void>) => {
     try {
-      const untimed = await start();
-      const labels = untimed
-        .map((key) => session.periodAccess?.[key]?.label)
-        .filter(Boolean);
-      if (labels.length > 0)
-        addToast(
-          `${labels.join(', ')} stays open until you pause it. Tag the class with its bell period in My Classes so it closes at the bell.`,
-          'info'
-        );
+      await start();
     } catch (err) {
       periodFailed(err);
     }

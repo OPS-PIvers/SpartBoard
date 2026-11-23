@@ -198,10 +198,7 @@ export const WritingMonitor: React.FC<{
     },
     rosters
   );
-  const runPeriod = usePeriodRunner(
-    record?.periodAccess,
-    'WritingMonitor.periodAccess'
-  );
+  const runPeriod = usePeriodRunner('WritingMonitor.periodAccess');
   const periodBar: WritingPeriodBar | null =
     perPeriod && record?.periodAccess && session?.status !== 'ended'
       ? {

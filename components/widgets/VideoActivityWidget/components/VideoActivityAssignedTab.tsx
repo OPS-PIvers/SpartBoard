@@ -440,10 +440,7 @@ const VideoActivityLeftOpenHost: React.FC<{
 }> = ({ row, cls, index, rosters, lifecycle, onLeaveOpen }) => {
   const a = row.assignment;
   const actions = useAssignmentClassActions(a, COLLECTIONS, lifecycle, rosters);
-  const run = usePeriodRunner(
-    a.periodAccess,
-    'VideoActivityAssignedTab.leftOpen'
-  );
+  const run = usePeriodRunner('VideoActivityAssignedTab.leftOpen');
   const [busy, setBusy] = useState(false);
   const single = row.status.singleLine;
   return (
@@ -535,7 +532,7 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
   const { user } = useAuth();
   const { addToast } = useDashboard();
   const actions = useAssignmentClassActions(a, COLLECTIONS, lifecycle, rosters);
-  const run = usePeriodRunner(a.periodAccess, 'VideoActivityAssignedTab.class');
+  const run = usePeriodRunner('VideoActivityAssignedTab.class');
   const [busy, setBusy] = useState(false);
   // A live run's own limits read as themselves, not as a failed write.
   const guarded = async (fn: () => Promise<unknown>) => {

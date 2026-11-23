@@ -385,7 +385,7 @@ const QuizLeftOpenHost: React.FC<{
 }> = ({ row, cls, index, rosters, lifecycle, onLeaveOpen }) => {
   const a = row.assignment;
   const actions = useQuizClassActions(a, lifecycle, rosters);
-  const run = usePeriodRunner(a.periodAccess, 'QuizAssignedTab.leftOpen');
+  const run = usePeriodRunner('QuizAssignedTab.leftOpen');
   const [busy, setBusy] = useState(false);
   const single = row.status.singleLine;
   return (
@@ -474,7 +474,7 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
   const { user } = useAuth();
   const { addToast } = useDashboard();
   const actions = useQuizClassActions(a, lifecycle, rosters);
-  const run = usePeriodRunner(a.periodAccess, 'QuizAssignedTab.class');
+  const run = usePeriodRunner('QuizAssignedTab.class');
   const [busy, setBusy] = useState(false);
   const exec = async (fn: () => Promise<unknown>) => {
     setBusy(true);

@@ -645,7 +645,7 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
     if (closeOnly) return classActions.reopenClass(null).then(() => undefined);
     if (uid && actions) return undoMoveToDone(prev, uid, actions);
   };
-  const exec = usePeriodRunner(run.periodAccess, 'HubAssignedList.class');
+  const exec = usePeriodRunner('HubAssignedList.class');
   const [busy, setBusy] = useState(false);
   const runBusy = async (fn: () => Promise<unknown>) => {
     setBusy(true);

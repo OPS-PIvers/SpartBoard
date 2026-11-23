@@ -90,10 +90,7 @@ export const MiniAppSubmissionsMonitor: React.FC<{
   const [selected, setSelected] = useState('');
   const [openBucket, setOpenBucket] = useState<BucketKey | null>('done');
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const runPeriod = usePeriodRunner(
-    session.periodAccess,
-    'MiniAppSubmissionsMonitor.periodAccess'
-  );
+  const runPeriod = usePeriodRunner('MiniAppSubmissionsMonitor.periodAccess');
 
   const periodAccess =
     periodActions && session.periodAccess ? session.periodAccess : null;

@@ -66,10 +66,7 @@ export const WritingAssignmentRow: React.FC<{
     },
     rosters
   );
-  const runPeriod = usePeriodRunner(
-    r.periodAccess,
-    'WritingAssignmentRow.periodAccess'
-  );
+  const runPeriod = usePeriodRunner('WritingAssignmentRow.periodAccess');
   const paused =
     perPeriod &&
     Object.values(r.periodAccess ?? {}).every((p) => p.state !== 'open');

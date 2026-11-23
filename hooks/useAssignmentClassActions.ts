@@ -75,12 +75,12 @@ export interface AssignmentLifecycle {
 
 /** Per-class actions for the Assigned tab; a null key is the whole single-line assignment (D15). */
 export interface AssignmentClassActions {
-  /** Opens a Ready, Scheduled or Paused class; resolves to assessment classes left with no end bell. */
-  openClass: (key: string | null) => Promise<string[]>;
+  /** Opens a Ready, Scheduled or Paused class. */
+  openClass: (key: string | null) => Promise<void>;
   pauseClass: (key: string | null) => Promise<void>;
   closeClass: (key: string | null) => Promise<void>;
   /** D9: lets a closed class back in at once. */
-  reopenClass: (key: string | null) => Promise<string[]>;
+  reopenClass: (key: string | null) => Promise<void>;
   /** D10 "Close for all classes". */
   closeAll: () => Promise<void>;
   /** D5/D10: closes every class and marks the row Done whatever its grading. */
@@ -269,22 +269,20 @@ export function useAssignmentClassActions(
   }, [id, fresh, owned, onWindowCleared]);
 
   const open = useCallback(
-    async (key: string | null, isReopen: boolean): Promise<string[]> => {
-      if (!id) return [];
+    async (key: string | null, isReopen: boolean): Promise<void> => {
+      if (!id) return;
       owned();
       const k = classKey(key);
       if (k == null) {
         await clearSingleGate();
         await ensureActive(null);
         await mark({ openedAt: Date.now() });
-        return [];
+        return;
       }
-      const untimed = isReopen
-        ? await periods.reopenPeriod(k)
-        : await periods.startPeriod(k);
+      if (isReopen) await periods.reopenPeriod(k);
+      else await periods.startPeriod(k);
       await ensureActive(k);
       if (onClassOpened) await onClassOpened(id, k);
-      return untimed;
     },
     [
       id,

@@ -280,15 +280,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
   );
   const runPeriod = async (fn: () => Promise<unknown>) => {
     try {
-      const untimed = await fn();
-      const labels = (Array.isArray(untimed) ? (untimed as string[]) : [])
-        .map((key) => periodSession?.periodAccess?.[key]?.label)
-        .filter(Boolean);
-      if (labels.length > 0)
-        addToast(
-          `${labels.join(', ')} stays open until you pause it. Tag the class with its bell period in My Classes so it closes at the bell.`,
-          'info'
-        );
+      await fn();
     } catch (err) {
       logError('GuidedLearningResults.periodAccess', err);
       addToast('Could not update the period. Try again.', 'error');
