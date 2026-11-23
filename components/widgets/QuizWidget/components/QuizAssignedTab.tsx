@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { useShowPickedStudents } from '@/hooks/useShowPickedStudents';
 import { useDashboard } from '@/context/useDashboard';
 import type {
   ClassRoster,
@@ -217,6 +218,7 @@ export function useQuizAssignedRows(
   rosters: ClassRoster[]
 ): { rows: QuizAssignedRowModel[]; now: number } {
   const { featurePermissions } = useAuth();
+  const showPicked = useShowPickedStudents();
   const now = useNow();
   const liveIds = useMemo(
     () => assignments.filter(wantsLiveData).map((a) => a.id),
@@ -271,7 +273,7 @@ export function useQuizAssignedRows(
           if (n != null) classSizes[''] = n;
         }
         const picked = pickedStudents(a, rosters);
-        const sizes = picked
+        const sizes = picked && showPicked
           ? pickedClassSizes(picked, a.periodAccess)
           : classSizes;
         const status = deriveAssignedStatus(
@@ -301,6 +303,7 @@ export function useQuizAssignedRows(
       questionsByQuizId,
       rosters,
       featurePermissions,
+      showPicked,
       now,
     ]
   );

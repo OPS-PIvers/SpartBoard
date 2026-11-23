@@ -161,6 +161,23 @@ describe('analyzePaperQuiz written list', () => {
     );
   });
 
+  it('does not treat a matching-only quiz as a stub when groups print', () => {
+    const only = quiz({
+      questions: [
+        mc({
+          id: 'match',
+          type: 'Matching',
+          text: 'Pairs',
+          correctAnswer: 'A:One|B:Two|C:Three',
+          incorrectAnswers: [],
+        }),
+      ],
+    });
+    expect(
+      isPaperStubAnalysis(analyzePaperQuiz(only, { groups: true }))
+    ).toBe(false);
+  });
+
   it('stamps layoutVersion 2 and the page count when a batch carries page maps', () => {
     const analysis = analyzePaperQuiz(mixed, { written: true });
     const planned = planPaperPages({
