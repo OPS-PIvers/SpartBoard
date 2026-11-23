@@ -39,6 +39,8 @@ export interface MonitorRosterTargets {
   targetMode?: 'class' | 'students';
   targetStudents?: StudentTargetRef[];
   excludedTargets?: StudentTargetRef[];
+  /** Session classes only the picked students in `targetStudents` receive. */
+  studentTargetClassIds?: string[];
   /** Stacks printed for modification groups. */
   paperCopyBatchIds?: string[];
 }
@@ -119,9 +121,15 @@ export function buildNotJoined(params: {
   const skip = new Set(
     (targets?.excludedTargets ?? []).map(studentTargetRefKey)
   );
-  const targeted = studentsMode
-    ? new Set((targets?.targetStudents ?? []).map(studentTargetRefKey))
-    : null;
+  const targetKeys = new Set(
+    (targets?.targetStudents ?? []).map(studentTargetRefKey)
+  );
+  const targeted = studentsMode ? targetKeys : null;
+  const narrowedClassIds = new Set(targets?.studentTargetClassIds ?? []);
+  const isNarrowed = (roster: ClassRoster): boolean =>
+    [roster.classlinkClassId, roster.testClassId].some(
+      (id) => !!id?.trim() && narrowedClassIds.has(id.trim())
+    );
 
   const candidates: Candidate[] = [];
   const seen = new Set<string>();
@@ -140,10 +148,12 @@ export function buildNotJoined(params: {
     const absentIds = new Set(
       today && roster.absent?.date === today ? roster.absent.studentIds : []
     );
+    // A class narrowed to picked students lists only them.
+    const only = targeted ?? (isNarrowed(roster) ? targetKeys : null);
     for (const student of roster.students) {
       const ref = resolveStudentTargetRef(student, roster);
       const refKey = ref ? studentTargetRefKey(ref) : null;
-      if (targeted && (!refKey || !targeted.has(refKey))) continue;
+      if (only && (!refKey || !only.has(refKey))) continue;
       if (refKey && skip.has(refKey)) continue;
       const rowKey = `${roster.id}:${student.id}`;
       const dedupe = refKey ?? rowKey;
