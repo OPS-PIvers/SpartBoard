@@ -254,14 +254,6 @@ export function attachPaperTestStimuli(
   return { questions, resources, inlineIds };
 }
 
-/** "Use Resource A." or "Use Resources A and B." */
-export function resourceLine(letters: readonly string[]): string {
-  if (letters.length === 0) return '';
-  if (letters.length === 1) return `Use Resource ${letters[0]}.`;
-  const head = letters.slice(0, -1).join(', ');
-  return `Use Resources ${head} and ${letters[letters.length - 1]}.`;
-}
-
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null;
 

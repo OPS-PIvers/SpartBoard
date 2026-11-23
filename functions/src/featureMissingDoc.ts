@@ -16,6 +16,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'live-tour-editing-v2',
   'paper-handwritten-responses',
   'paper-multi-page-answers',
+  'paper-print-preview',
   'paper-written-hybrid',
   'paper-reword-sync',
   'paper-kept-pages',
@@ -101,6 +102,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-question-audio',
   'quiz-random-numbers',
   'results-print-v2',
+  'widget-notes-in-whats-new',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

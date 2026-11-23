@@ -18,11 +18,11 @@ import { isPlaceholderLetterChoices } from './paperSheetPlan';
 import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
 import type { ChoicePicture } from './quizAnswerImages';
 import {
-  resourceLine,
   type PaperTestPage,
   type PaperTestResource,
   type PaperTestStimulus,
 } from './paperTestStimuli';
+import { paperPrintWords, type PaperPrintWords } from './paperPrintWords';
 
 export interface PaperTestQuestion {
   /** Number printed on the answer sheet: the row, or the quiz position on a sheet with written boxes (D11). */
@@ -55,6 +55,8 @@ export interface PaperTestJob {
   resources?: readonly PaperTestResource[];
   /** A printed group's supports, on a page after the questions. */
   supports?: readonly { title: string; body: string }[];
+  /** The copy's language, for the words printed around stimuli; absent = English. */
+  language?: string;
 }
 
 const STYLES = `
@@ -151,13 +153,14 @@ function stimulusItemHtml(item: PaperTestStimulus): string {
 }
 
 function resourcesHtml(
-  resources: readonly PaperTestResource[] | undefined
+  resources: readonly PaperTestResource[] | undefined,
+  words: PaperPrintWords
 ): string {
   if (!resources?.length) return '';
   return `<div class="resources">${resources
     .map(
       (r) =>
-        `<section class="resource"><h2>Resource ${escapeHtml(r.letter)}</h2>${stimulusItemHtml(r.item)}</section>`
+        `<section class="resource"><h2>${escapeHtml(words.resource(r.letter))}</h2>${stimulusItemHtml(r.item)}</section>`
     )
     .join('')}</div>`;
 }
@@ -177,10 +180,10 @@ function isTall(stimuli: readonly PaperTestStimulus[] | undefined): boolean {
   );
 }
 
-function questionHtml(q: PaperTestQuestion): string {
+function questionHtml(q: PaperTestQuestion, words: PaperPrintWords): string {
   // A stub's options are just the bubble letters, which say nothing to a student.
   const choices = q.written
-    ? '<p class="written">Write your answer on your response sheet.</p>'
+    ? `<p class="written">${escapeHtml(words.writeOnSheet)}</p>`
     : isPlaceholderLetterChoices(q.choices)
       ? ''
       : `<ol class="c">${q.choices
@@ -198,7 +201,7 @@ function questionHtml(q: PaperTestQuestion): string {
     ? `<div class="q-stim">${q.stimuli.map(stimulusItemHtml).join('')}</div>`
     : '';
   const uses = q.resources?.length
-    ? `<p class="use-res">${escapeHtml(resourceLine(q.resources))}</p>`
+    ? `<p class="use-res">${escapeHtml(words.useResources(q.resources))}</p>`
     : '';
   const tall = isTall(q.stimuli) ? ' class="tall"' : '';
   return `${section}<li${tall}><span class="num">${escapeHtml(String(q.row))}.</span><div><div class="text">${promptPrintHtml(q.text)}</div>${stimuli}${uses}${choices}</div></li>`;
@@ -207,13 +210,14 @@ function questionHtml(q: PaperTestQuestion): string {
 function testHtml(
   quizTitle: string,
   questions: readonly PaperTestQuestion[],
+  words: PaperPrintWords,
   label?: string
 ): string {
   return `<h1>${escapeHtml(quizTitle)}</h1>${
     label ? `<p class="version-label">${escapeHtml(label)}</p>` : ''
   }
-<div class="meta"><div>Name <span></span></div><div>Class <span></span></div></div>
-<ol class="q">${questions.map(questionHtml).join('')}</ol>`;
+<div class="meta"><div>${escapeHtml(words.name)} <span></span></div><div>${escapeHtml(words.className)} <span></span></div></div>
+<ol class="q">${questions.map((q) => questionHtml(q, words)).join('')}</ol>`;
 }
 
 function supportsHtml(supports: PaperTestJob['supports']): string {
@@ -228,17 +232,18 @@ function supportsHtml(supports: PaperTestJob['supports']): string {
 
 /** The document `printPaperTest` would write. Exported for tests. */
 export function buildPaperTestHtml(job: PaperTestJob): string {
+  const words = paperPrintWords(job.language);
   if (job.versions?.length) {
     return job.versions
       .map(
         (v) =>
-          `<section class="version">${testHtml(job.quizTitle, v.questions, v.label)}${resourcesHtml(v.resources)}</section>`
+          `<section class="version">${testHtml(job.quizTitle, v.questions, words, v.label)}${resourcesHtml(v.resources, words)}</section>`
       )
       .join('');
   }
   return (
-    testHtml(job.quizTitle, job.questions) +
-    resourcesHtml(job.resources) +
+    testHtml(job.quizTitle, job.questions, words) +
+    resourcesHtml(job.resources, words) +
     supportsHtml(job.supports)
   );
 }
@@ -277,13 +282,14 @@ export const PAPER_TEST_PACKET_STYLES = `${scopedStyles(STYLES)}${scopedStyles(
 
 /** One test paper copy per version (or one for the whole quiz), to print at the front of each student's packet. */
 export function paperTestPacketCopies(job: PaperTestJob): string[] {
+  const words = paperPrintWords(job.language);
   const copy = (body: string): string =>
     `<div class="tp">${withDrawnMargins(body, testFooter())}</div>`;
   if (job.versions?.length)
     return job.versions.map((v) =>
       copy(
-        testHtml(job.quizTitle, v.questions, v.label) +
-          resourcesHtml(v.resources)
+        testHtml(job.quizTitle, v.questions, words, v.label) +
+          resourcesHtml(v.resources, words)
       )
     );
   return [copy(buildPaperTestHtml(job))];

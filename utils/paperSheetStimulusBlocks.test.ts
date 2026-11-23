@@ -7,6 +7,7 @@ import {
   planSheetStimuli,
   type BlockMeasure,
 } from './paperSheetStimulusBlocks';
+import { paperPrintWords } from './paperPrintWords';
 
 const NO_FILES = { images: {}, pages: {} };
 // One millimetre per ten characters of text, ignoring markup.
@@ -20,7 +21,11 @@ const stim = (over: Partial<QuizStimulus> & { id: string }): QuizStimulus => ({
 });
 const tallText = 'word '.repeat(MAX_INLINE_STIMULUS_MM * 5);
 
-const planFor = (stimuli: QuizStimulus[], ids: Record<string, string[]>) =>
+const planFor = (
+  stimuli: QuizStimulus[],
+  ids: Record<string, string[]>,
+  language?: string
+) =>
   planSheetStimuli(
     Object.keys(ids).map((questionId, i) => ({ questionId, row: i + 1 })),
     new Map(
@@ -28,7 +33,8 @@ const planFor = (stimuli: QuizStimulus[], ids: Record<string, string[]>) =>
     ),
     stimuli,
     NO_FILES,
-    measure
+    measure,
+    paperPrintWords(language)
   );
 
 describe('planSheetStimuli', () => {
@@ -74,6 +80,43 @@ describe('planSheetStimuli', () => {
       expect(measure(p.html, RESOURCE_BODY_MM.w)).toBeLessThanOrEqual(
         RESOURCE_BODY_MM.h
       );
+  });
+
+  it("prints the resource words in a translated copy's language", () => {
+    const plan = planFor(
+      [
+        stim({ id: 'r', text: 'Article', paperPlacement: 'resource' }),
+        stim({ id: 't', text: tallText, paperPlacement: 'question' }),
+      ],
+      { q1: ['r'], q2: ['t'] },
+      'es'
+    );
+    expect(plan.resourcePages[0].title).toBe('Recurso A');
+    expect(plan.blocks.get('q1')?.html).toContain('Usa el recurso A.');
+    const pages = plan.pagesBefore.get('q2') ?? [];
+    expect(pages[0].title).toBe('Pregunta 2');
+    expect(pages[1].title).toBe('Pregunta 2 (continuación)');
+  });
+});
+
+describe('paginateStimuli', () => {
+  it('finishes when a blank-line-only paragraph lands on a page break', () => {
+    let calls = 0;
+    // "AAAA" fills a page with no room for another line; "BBBB" fills one alone.
+    const tight: BlockMeasure = (html) => {
+      calls += 1;
+      if (calls > 1000) throw new Error('paginateStimuli did not finish');
+      return /AAAA\n\n\n/.test(html) || /\nBBBB/.test(html) ? 1000 : 0;
+    };
+    const pages = paginateStimuli(
+      [{ title: 'Resource A', item: { kind: 'text', text: 'AAAA\n\n\nBBBB' } }],
+      tight
+    );
+    expect(pages.map((p) => p.title)).toEqual([
+      'Resource A',
+      'Resource A (continued)',
+    ]);
+    expect(pages[1].html).toContain('BBBB');
   });
 });
 

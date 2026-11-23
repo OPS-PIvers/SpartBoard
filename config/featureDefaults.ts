@@ -749,6 +749,22 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Live page preview beside the paper print options.
+  'paper-print-preview': {
+    label: 'Paper print preview',
+    icon: Eye,
+    description:
+      'See each printed page while you set up paper response sheets.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Print preview',
+    group: 'questions',
+    requires: 'paper-answer-sheets',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Handwritten answer boxes on paper sheets; AND-ed with the paper-answer-sheets gate.
   'paper-handwritten-responses': {
     label: 'Handwritten answers on paper sheets',
@@ -1873,6 +1889,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Users,
     description:
       "Teachers pair students to read, comment on or suggest edits to each other's writing.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'widget-notes-in-whats-new': {
+    label: "Widget updates in What's New",
+    icon: Sparkles,
+    description:
+      "Widget update notes are listed in What's New instead of under each widget.",
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

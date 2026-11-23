@@ -108,6 +108,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'paper-kept-pages',
   'paper-multi-page-answers',
   'paper-pages-student-view',
+  'paper-print-preview',
   'paper-printed-versions',
   'paper-reword-sync',
   'paper-written-hybrid',
@@ -171,6 +172,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'web-tours',
   'webcam-ai',
   'whiteboard-pro',
+  'widget-notes-in-whats-new',
   'writing-peer-review',
 ];
 

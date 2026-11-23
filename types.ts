@@ -11862,6 +11862,8 @@ export type GlobalFeature =
   | 'paper-handwritten-responses'
   /** Written answers that run over two to four whole pages. */
   | 'paper-multi-page-answers'
+  /** A live preview of one student's printed packet in the paper print dialogs. */
+  | 'paper-print-preview'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
   | 'paper-written-hybrid'
   | 'paper-reword-sync'
@@ -12012,7 +12014,9 @@ export type GlobalFeature =
   | 'quiz-question-audio'
   | 'quiz-random-numbers'
   /** Print results with Settings and Students tabs and a Course > class > student picker. */
-  | 'results-print-v2';
+  | 'results-print-v2'
+  /** Widget update notes listed in the sidebar What's New instead of a button under each widget. */
+  | 'widget-notes-in-whats-new';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {

@@ -203,6 +203,8 @@ export const printedStackOrder = (
 /** A group's language for the printed test paper: display text only, so the answer sheet and its import stay in English. */
 export interface PrintedTranslation {
   title?: string;
+  /** Language code, for the fixed words printed around stimuli. */
+  language?: string;
   questions: Record<
     string,
     { text?: string; choices?: Record<string, string> }
