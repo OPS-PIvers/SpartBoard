@@ -1,5 +1,12 @@
 import { useCallback, useSyncExternalStore } from 'react';
-import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
+import {
+  deleteField,
+  doc,
+  getDoc,
+  onSnapshot,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 import { db, isConfigured } from '@/config/firebase';
 import type { GuidedLearningSet, WidgetType } from '@/types';
 import type { HelpAudience } from '@/types/helpCenter';
@@ -37,6 +44,13 @@ export async function publishTour(
   };
   assertGuidedLearningDocFits(`${GL_TOURS_COLLECTION}/${set.id}`, data);
   await setDoc(tourRef(set.id), data);
+}
+
+/** Takes a tour away from students: drops the marker their read rule checks, if a snapshot exists. */
+export async function clearStudentTourMarker(setId: string): Promise<void> {
+  const snap = await getDoc(tourRef(setId));
+  if (snap.exists() && snap.data().audience === 'students')
+    await updateDoc(tourRef(setId), { audience: deleteField() });
 }
 
 /** The published snapshot itself, or null when the set was never published. */

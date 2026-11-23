@@ -19,6 +19,16 @@ vi.mock('firebase/firestore', () => ({
     h.docs.set(ref.id, data);
     return Promise.resolve();
   },
+  updateDoc: (ref: { id: string }, patch: Record<string, unknown>) => {
+    const next = { ...(h.docs.get(ref.id) as Record<string, unknown>) };
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === 'DELETE') delete next[k];
+      else next[k] = v;
+    }
+    h.docs.set(ref.id, next);
+    return Promise.resolve();
+  },
+  deleteField: () => 'DELETE',
   onSnapshot: vi.fn(),
 }));
 vi.mock('@/hooks/useGuidedLearning', () => ({
@@ -32,6 +42,7 @@ import {
   isTourRunnable,
   loadPublishedTour,
   loadRunnableTour,
+  clearStudentTourMarker,
   publishTour,
   watchTours,
 } from './publishedTours';
@@ -100,6 +111,13 @@ describe('publishTour audience', () => {
     expect(parsePublishedTour('set-1', h.docs.get('set-1'))?.audience).toBe(
       'students'
     );
+  });
+
+  it('takes the students marker off and keeps the tour', async () => {
+    await publishTour(tourSet('Students'), 'admin-uid', 'students');
+    await clearStudentTourMarker('set-1');
+    expect(h.docs.get('set-1')).not.toHaveProperty('audience');
+    expect(h.docs.get('set-1')).toHaveProperty('set');
   });
 
   it('leaves teacher and substitute tours unmarked', async () => {

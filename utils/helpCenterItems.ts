@@ -27,7 +27,10 @@ import {
   saveBuildingSetDoc,
   setHelpCenterFlag,
 } from '@/hooks/useGuidedLearning';
-import { publishTour } from '@/components/tours/publishedTours';
+import {
+  clearStudentTourMarker,
+  publishTour,
+} from '@/components/tours/publishedTours';
 import { tourStepsOf } from '@/components/tours/tourSession';
 import { anchorProblem } from '@/components/tours/tourHealth';
 import { tourStepStatus } from '@/components/tours/editor/stepStatus';
@@ -307,14 +310,17 @@ export async function publishHelpItem(
   return { ok: true };
 }
 
-/** Hides the item from teachers; its published tour snapshot stays for other launch points. */
+/** Hides the item from teachers; its published tour snapshot stays for other launch points, but no longer for students. */
 export async function hideHelpItem(
-  item: Pick<HelpResourceItem, 'id'>
+  item: Pick<HelpResourceItem, 'id'> &
+    Partial<Pick<HelpResourceItem, 'audience' | 'setId'>>
 ): Promise<void> {
   await updateDoc(doc(db, HELP_ITEMS_COLLECTION, item.id), {
     visible: false,
     updatedAt: Date.now(),
   });
+  if (item.audience === 'students' && item.setId)
+    await clearStudentTourMarker(item.setId);
 }
 
 /** Makes a personal copy of a Picture guide and leaves the Help Center item in place (H7). */

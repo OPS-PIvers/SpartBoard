@@ -14,6 +14,7 @@ const gl = vi.hoisted(() => ({
   saveBuildingSetDoc: vi.fn(),
   setHelpCenterFlag: vi.fn(),
   publishTour: vi.fn(),
+  clearMarker: vi.fn(),
   openIds: [] as string[],
 }));
 
@@ -43,6 +44,7 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
 }));
 vi.mock('@/components/tours/publishedTours', () => ({
   publishTour: gl.publishTour,
+  clearStudentTourMarker: gl.clearMarker,
 }));
 vi.mock('@/utils/guidedLearningFileRelease', () => ({
   openAssignmentIdsForSet: () => Promise.resolve(gl.openIds),
@@ -405,6 +407,12 @@ describe('publishHelpItem / hideHelpItem', () => {
       expect.objectContaining({ path: 'help_resources/item-1' }),
       { visible: false, updatedAt: anyNumber }
     );
+    expect(gl.clearMarker).not.toHaveBeenCalled();
+  });
+
+  it('takes a hidden students tour away from students', async () => {
+    await hideHelpItem({ id: 'item-1', audience: 'students', setId: 's1' });
+    expect(gl.clearMarker).toHaveBeenCalledWith('s1');
   });
 });
 

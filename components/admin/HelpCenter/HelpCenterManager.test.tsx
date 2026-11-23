@@ -156,6 +156,10 @@ vi.mock('@/utils/helpCenterItems', () => ({
   isPendingHelpCenterMove: () => false,
 }));
 
+const clearMarker = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+vi.mock('@/components/tours/publishedTours', () => ({
+  clearStudentTourMarker: clearMarker,
+}));
 vi.mock('@/components/tours/tourState', () => ({
   requestRecordTour: tourMocks.requestRecordTour,
 }));
@@ -414,6 +418,20 @@ describe('HelpCenterManager', () => {
       expect.objectContaining({ id: 'a' }),
       expect.objectContaining({ audience: 'students', visible: false })
     );
+  });
+
+  it('takes the students marker off a tour moved back to teachers', async () => {
+    glState.tourSetIds = new Set(['t1']);
+    glState.sets.set('t1', pictureSet('t1'));
+    helpState.items = [
+      makeItem({ id: 'a', title: 'Tour', setId: 't1', audience: 'students' }),
+    ];
+    writeHelpCenterSelection('a');
+    render(<HelpCenterManager />);
+    fireEvent.change(await screen.findByLabelText('Who sees it'), {
+      target: { value: 'teachers' },
+    });
+    await waitFor(() => expect(clearMarker).toHaveBeenCalledWith('t1'));
   });
 
   it('records a substitute tour on /subs in a new tab', () => {

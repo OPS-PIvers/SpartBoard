@@ -35,6 +35,7 @@ import {
   subsEditTourUrl,
   subsRecordTourUrl,
 } from '@/components/subs/tours/subsTourLinks';
+import { clearStudentTourMarker } from '@/components/tours/publishedTours';
 import { isLiveTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import type { GuidedLearningSet } from '@/types';
 import {
@@ -280,6 +281,13 @@ export const HelpCenterManager: React.FC = () => {
     )
       next.visible = false;
     await updateItem(item.id, next);
+    if (
+      was === 'students' &&
+      next.audience !== undefined &&
+      next.audience !== 'students' &&
+      item.setId
+    )
+      await clearStudentTourMarker(item.setId);
   };
 
   // orgId is fixed once written, so a scope change recreates the item and drops the old one.
@@ -405,6 +413,8 @@ export const HelpCenterManager: React.FC = () => {
     });
     if (!confirmed) return;
     await deleteDoc(doc(db, HELP_RESOURCES_COLLECTION, item.id));
+    if (helpAudienceOf(item) === 'students' && item.setId)
+      await clearStudentTourMarker(item.setId);
     select(null);
   };
 
