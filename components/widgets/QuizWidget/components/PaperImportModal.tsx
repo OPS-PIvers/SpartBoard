@@ -71,6 +71,7 @@ import {
   findStudent,
   keySheetChoices,
   paperImportRequestFields,
+  sheetRowInfos,
   sheetRowQuestionIds,
   type ImportPaperCollision,
   type ImportPaperResponsesResult,
@@ -370,6 +371,14 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       letters: CHOICE_LETTERS.slice(0, batch?.choiceCount ?? 2),
       multi: false,
     };
+  // The key sheet grades plain multiple-choice rows only; grouped questions carry their own answers.
+  const keyRows = useMemo(
+    () =>
+      sheetRowInfos(quiz, batch ?? undefined).flatMap((info, row) =>
+        info.group ? [] : [{ id: info.questionId, row }]
+      ),
+    [quiz, batch]
+  );
   const isV2 = batch?.layoutVersion === 2;
   const canKeep = canKeepPages && !!uid && !!onUploadCrop;
   // Written answers on paper: the stack holds only written boxes and merges onto device responses.
@@ -941,7 +950,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   const keyMissing = needsKey && !keySheet;
   const keyIncomplete =
     !!keySheet &&
-    rowIds.some((id) => key[id] === null || key[id] === undefined);
+    keyRows.some(({ id }) => key[id] === null || key[id] === undefined);
   const canImport =
     step === 'review' &&
     !!assembled &&
@@ -1426,12 +1435,14 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           Check every row, because this key grades the whole stack.
         </p>
         <ol className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
-          {rowIds.map((id, i) => (
+          {keyRows.map(({ id, row }) => (
             <li key={id} className="flex items-center gap-2 text-sm">
-              <span className="w-6 text-right text-slate-500">{i + 1}.</span>
+              <span className="w-6 text-right text-slate-500">
+                {metaOf(row).label}.
+              </span>
               <select
                 {...tourFieldAttr('quiz-import.paper-key-select', 'quiz', id)}
-                aria-label={`Key for question ${i + 1}`}
+                aria-label={`Key for question ${metaOf(row).label}`}
                 value={key[id] ?? ''}
                 onChange={(e) => {
                   const v = e.target.value;

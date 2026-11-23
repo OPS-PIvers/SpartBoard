@@ -492,7 +492,7 @@ function groupRowHtml(
       parts.push(
         `<div class="grp-title" style="left:${mm(first.x)};top:${mm(o.y - ROW_PITCH_MM + 0.4)}">${escapeHtml(PAPER_GROUP_TITLES[group])}</div>`
       );
-      for (let c = 0; c < choices; c += 1) {
+      for (let c = 0; c < Math.min(choices, item.wrap ?? choices); c += 1) {
         const r = itemBubbleRectMm(item, c, grid);
         parts.push(
           `<div class="legend" style="left:${mm(r.x)};top:${mm(o.y - 4.2)};width:${mm(r.w)}">${CHOICE_LETTERS[c]}</div>`

@@ -122,7 +122,7 @@ export type PaperExclusionReason =
   | 'question-type'
   | 'bank-slot'
   | 'recording'
-  | 'choose-section'
+  | 'too-few-choices'
   | 'too-many-choices';
 
 /** A question the teacher authored that cannot be answered on paper (plan Q5). */
@@ -343,7 +343,10 @@ export function analyzePaperQuiz(
     if (options.groups && GROUP_OF[question.type]) {
       const shape = paperGroupShape(question);
       if (!shape) {
-        exclusions.push({ reason: 'question-type', label: describe(question) });
+        exclusions.push({
+          reason: 'too-few-choices',
+          label: describe(question),
+        });
         return;
       }
       if (shape.choices > MAX_ROW_CHOICES) {

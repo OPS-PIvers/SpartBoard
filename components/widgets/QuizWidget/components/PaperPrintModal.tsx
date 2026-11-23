@@ -212,12 +212,14 @@ async function imagePixelSize(
 }
 
 /** Why a question stays off the sheet, one line per kind. */
+const EXCLUSION_FIX =
+  'Return to the question editor or print without this question.';
 const EXCLUSION_REASONS: Record<PaperExclusionReason, string> = {
-  recording: "Recordings can't print.",
-  'too-many-choices': "Questions with more than 10 answers can't print yet.",
-  'question-type': "Written questions can't print on this sheet.",
-  'bank-slot': "Question bank pulls can't print on this sheet.",
-  'choose-section': "Written questions can't be in a choose section on paper.",
+  recording: `Cannot print recordings. ${EXCLUSION_FIX}`,
+  'too-many-choices': `Cannot print questions with more than 10 answers. ${EXCLUSION_FIX}`,
+  'too-few-choices': `Cannot print questions with fewer than 2 answers. ${EXCLUSION_FIX}`,
+  'question-type': `Cannot print written questions. ${EXCLUSION_FIX}`,
+  'bank-slot': `Cannot print question bank pulls. ${EXCLUSION_FIX}`,
 };
 
 /** What Assign on paper records once the stack is saved. */

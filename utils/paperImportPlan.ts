@@ -394,6 +394,10 @@ export function buildImportPayload(input: BuildImportInput): BuildImportResult {
               doubt: !!read?.doubt,
             };
           });
+          // One unread row makes the whole answer unclear, as a doubtful single row does.
+          if (reads.some((r) => r.doubt)) {
+            return [{ questionId, answer: '', unresponded: 'paper-unclear' }];
+          }
           const question = questionById.get(questionId);
           const text = question
             ? groupAnswerText(
@@ -405,15 +409,7 @@ export function buildImportPayload(input: BuildImportInput): BuildImportResult {
               )
             : '';
           if (text) return [{ questionId, answer: text }];
-          return [
-            {
-              questionId,
-              answer: '',
-              unresponded: reads.some((r) => r.doubt)
-                ? 'paper-unclear'
-                : 'passed',
-            },
-          ];
+          return [{ questionId, answer: '', unresponded: 'passed' }];
         }
         if (leftOut.has(i)) return [];
         const read = byQuestion.get(i);
@@ -473,11 +469,11 @@ export function keySheetChoices(
   quiz: QuizData,
   batch?: Pick<PaperBatch, 'layoutVersion' | 'pageMaps'>
 ): Record<string, number | null> {
-  const rowIds = sheetRowQuestionIds(quiz, batch);
+  const rows = sheetRowInfos(quiz, batch);
   const byQuestion = new Map(keySheet.answers.map((a) => [a.question, a]));
   const out: Record<string, number | null> = {};
-  rowIds.forEach((id, i) => {
-    out[id] = byQuestion.get(i)?.choice ?? null;
+  rows.forEach((info, i) => {
+    if (!info.group) out[info.questionId] = byQuestion.get(i)?.choice ?? null;
   });
   return out;
 }
@@ -495,7 +491,7 @@ export function applyKeyToQuiz(
 ): QuizData {
   const questions = quiz.questions.map((q) => {
     const choice = key[q.id];
-    if (choice === null || choice === undefined) return q;
+    if (choice === null || choice === undefined || q.type !== 'MC') return q;
     let options = printedOptionsFor(batch, q, q.id);
     const current = rowsFromQuestion(q).map((r) => r.text);
     // Printed text the quiz no longer has: keep its current wording by position, or leave the question alone.

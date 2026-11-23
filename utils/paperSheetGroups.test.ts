@@ -13,10 +13,26 @@ import {
   paperGroupShape,
   planPaperBatch,
 } from './paperSheetPlan';
-import { mcItemsOf, planPaperPages } from './paperPageMap';
+import {
+  itemBubbleRectMm,
+  mcItemsOf,
+  planPaperPages,
+  type PaperSheetEntry,
+} from './paperPageMap';
+import {
+  cornerWindowsMm,
+  PAGE_WIDTH_MM,
+  STIMULUS_RECT_MM,
+  type RectMm,
+} from './paperSheetLayout';
 import { classifyMultiRow, readPaperPage } from './paperSheetReader';
 import { assemblePaperScan } from './paperImportAssemble';
-import { buildImportPayload, groupAnswerText } from './paperImportPlan';
+import {
+  applyKeyToQuiz,
+  buildImportPayload,
+  groupAnswerText,
+  keySheetChoices,
+} from './paperImportPlan';
 import { paperBatchTag } from './paperSheetMarker';
 import { buildPaperSheetsHtml } from './paperSheetPrint';
 import { buildPaperTestHtml } from './paperTestPrint';
@@ -377,5 +393,190 @@ describe('grouped questions on paper', () => {
     expect(html).toContain(
       'Bubble the first step on row 4.1. Bubble the next step on each row after it.'
     );
+  });
+
+  const overlaps = (a: RectMm, b: RectMm): boolean =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const wideMa = (id: string): QuizQuestion =>
+    q({
+      id,
+      type: 'MA',
+      correctAnswer: 'A1|A2',
+      incorrectAnswers: Array.from({ length: 8 }, (_, i) => `W${i}`),
+    });
+  const mcRun = (n: number): PaperSheetEntry[] =>
+    Array.from({ length: n }, (_, i) => ({
+      kind: 'mc' as const,
+      questionId: `m${i}`,
+      label: String(i + 1),
+    }));
+
+  it('keeps wide rows out of the corner windows', () => {
+    for (let n = 40; n <= 50; n += 1) {
+      const pages = planPaperPages({
+        entries: [
+          ...mcRun(n),
+          {
+            kind: 'mc',
+            questionId: 'wide',
+            label: 'W',
+            group: 'match',
+            parts: 3,
+            choices: 10,
+          },
+        ],
+        grid: 2,
+        stems: false,
+        choiceCount: 4,
+      });
+      if (!pages.ok) throw new Error('plan refused');
+      for (const map of pages.pageMaps) {
+        for (const item of mcItemsOf(map).filter((i) => i.group)) {
+          for (let c = 0; c < 10; c += 1) {
+            const r = itemBubbleRectMm(item, c, 2);
+            expect(cornerWindowsMm().some((w) => overlaps(r, w))).toBe(false);
+            expect(r.x + r.w).toBeLessThan(PAGE_WIDTH_MM);
+          }
+        }
+      }
+    }
+  });
+
+  it('wraps wide rows clear of the stimulus on one-column sheets', () => {
+    const quiz = { ...QUIZ, questions: [MC, wideMa('wide')] };
+    const a = analyzePaperQuiz(quiz, { groups: true });
+    const pages = planPaperPages({
+      entries: a.entries,
+      grid: 1,
+      stems: false,
+      choiceCount: a.sheetChoiceCount,
+    });
+    if (!pages.ok) throw new Error('plan refused');
+    const items = pages.pageMaps.flatMap(mcItemsOf);
+    const wide = items.find((i) => i.questionId === 'wide');
+    if (!wide) throw new Error('row missing');
+    expect(wide.wrap).toBe(6);
+    for (let c = 0; c < 10; c += 1) {
+      const r = itemBubbleRectMm(wide, c, 1);
+      expect(r.x + r.w).toBeLessThan(STIMULUS_RECT_MM.x);
+    }
+    const batch = planPaperBatch({
+      batchId: 'b1',
+      quizId: quiz.id,
+      selections: [{ roster: ROSTER, students: ROSTER.students }],
+      questionCount: a.rows.length + a.groups.length,
+      choiceCount: a.sheetChoiceCount,
+      spareCount: 0,
+      includeKeySheet: false,
+      questions: quiz.questions,
+      pageMaps: pages.pageMaps,
+      createdAt: 0,
+    }).batch;
+    const opts = batch.choiceOrder?.wide ?? [];
+    // Two bubbles on the wrapped second line, whatever the right answers' letters are.
+    const picks = [...new Set([opts.indexOf('A1'), opts.indexOf('A2'), 7, 9])];
+    const maps = batch.pageMaps as PaperPageMap[];
+    const reads = maps.map((map) =>
+      readPaperPage(
+        paintSyntheticSheet({
+          marker: {
+            batchTag: paperBatchTag(batch.id),
+            seat: 1,
+            page: map.page,
+            isKeySheet: false,
+            readByMap: true,
+          },
+          questionCount: 0,
+          choiceCount: batch.choiceCount,
+          pageMap: map,
+          marks: mcItemsOf(map)
+            .sort((x, y) => x.sheetRow - y.sheetRow)
+            .flatMap((item, row) =>
+              item.questionId === 'wide'
+                ? picks.map((choice) => ({ row, choice }))
+                : [{ row, choice: 0 }]
+            ),
+        }),
+        {
+          questionCount: 0,
+          choiceCount: batch.choiceCount,
+          columnsPerPage: 1,
+          pageMaps: maps,
+        }
+      )
+    );
+    const assembled = assemblePaperScan(
+      batch,
+      reads.map((read, scanIndex) => ({ scanIndex, read }))
+    );
+    const { payload } = buildImportPayload({
+      batch,
+      quiz,
+      rosters: [ROSTER],
+      sheets: assembled.sheets,
+      spareAssignments: {},
+    });
+    const got = payload[0].answers.find((x) => x.questionId === 'wide');
+    expect(got?.answer.split('|').sort()).toEqual(
+      picks.map((c) => opts[c]).sort()
+    );
+  });
+
+  it('leaves grouped questions out of the answer key', () => {
+    const batch = stack(2);
+    const sheet = {
+      seat: 0,
+      kind: 'key' as const,
+      answers: [
+        { question: 0, choice: 1, fills: [], crop: null, scanIndex: 0 },
+        {
+          question: 1,
+          choice: null,
+          marked: [0, 1],
+          fills: [],
+          crop: null,
+          scanIndex: 0,
+        },
+      ],
+    } as unknown as Parameters<typeof keySheetChoices>[0];
+    expect(keySheetChoices(sheet, QUIZ, batch)).toEqual({ mc: 1 });
+    const keyed = applyKeyToQuiz(QUIZ, batch, { mc: 0, ma: 0 }, 1);
+    expect(keyed.questions.find((x) => x.id === 'ma')).toEqual(MA);
+  });
+
+  it('marks a grouped question unclear when any of its rows is', () => {
+    const batch = stack(2);
+    const items = (batch.pageMaps ?? []).flatMap(mcItemsOf);
+    const answers = items.map((item) => ({
+      question: item.sheetRow,
+      choice: 0,
+      ...(item.questionId === 'match' && item.part === 1
+        ? { choice: null, doubt: 'unclear' as const }
+        : {}),
+      fills: [],
+      crop: null,
+      scanIndex: 0,
+    }));
+    const { payload } = buildImportPayload({
+      batch,
+      quiz: QUIZ,
+      rosters: [ROSTER],
+      sheets: [
+        {
+          seat: 1,
+          kind: 'student',
+          student: { rosterId: 'r1', studentId: 's1' },
+          answers,
+          skippedRows: [],
+          isBlank: false,
+        },
+      ] as unknown as Parameters<typeof buildImportPayload>[0]['sheets'],
+      spareAssignments: {},
+    });
+    expect(payload[0].answers.find((x) => x.questionId === 'match')).toEqual({
+      questionId: 'match',
+      answer: '',
+      unresponded: 'paper-unclear',
+    });
   });
 });

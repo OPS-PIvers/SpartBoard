@@ -6746,6 +6746,8 @@ export type PaperPageItem =
       part?: number;
       /** Question-text sheets: bubbles run left to right after the row's term, not down the page. */
       across?: true;
+      /** One-column sheets: bubbles per line; later bubbles wrap onto the next 8 mm line. */
+      wrap?: number;
       /** First row of a question-text block: top of its stem, printed above the rows. */
       headTopMm?: number;
       /** With `headTopMm`: height of the stem's lines; the instruction prints under them. */

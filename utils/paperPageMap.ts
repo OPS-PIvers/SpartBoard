@@ -63,6 +63,8 @@ import {
   WRITTEN_ONE_COLUMN_X_MM,
   bubbleRectAtOriginMm,
   rowRectAtOriginMm,
+  cornerWindowsMm,
+  ONE_COLUMN_ROW_CHOICES,
   type RectMm,
 } from './paperSheetLayout';
 import { MAX_SHEET_PAGE } from './paperSheetMarker';
@@ -132,6 +134,9 @@ function groupFields(
     ...(entry.choices ? { choices: entry.choices } : {}),
   };
 }
+
+const rectsOverlap = (a: RectMm, b: RectMm): boolean =>
+  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
 /** Height of a grouped question's head on a question-text sheet: stem, instruction, list and legend. */
 export function groupHeadMm(
@@ -372,26 +377,83 @@ export function planPaperPages(
       }
       row = top;
     };
+    const wrapOf = (
+      entry: Extract<PaperSheetEntry, { kind: 'mc' }>
+    ): number | undefined =>
+      grid === 1 && (entry.choices ?? 0) > ONE_COLUMN_ROW_CHOICES
+        ? ONE_COLUMN_ROW_CHOICES
+        : undefined;
+    // Grid rows one answer row takes, wrapped lines included.
+    const linesOf = (
+      entry: Extract<PaperSheetEntry, { kind: 'mc' }>
+    ): number => {
+      const wrap = wrapOf(entry);
+      return wrap ? Math.ceil((entry.choices ?? 0) / wrap) : 1;
+    };
+    // The row's bubbles, and its title row above when it has one, stay out of the corner windows.
+    const clearAt = (
+      entry: Extract<PaperSheetEntry, { kind: 'mc' }>,
+      at: number,
+      title: boolean
+    ): boolean => {
+      const r = rowRectAtOriginMm(
+        { x: COLUMN_X_MM[column], y: GRID_TOP_MM + at * ROW_PITCH_MM },
+        entry.choices ?? 2,
+        grid,
+        false,
+        wrapOf(entry)
+      );
+      const rect = title
+        ? { ...r, y: r.y - ROW_PITCH_MM, h: r.h + ROW_PITCH_MM }
+        : r;
+      return !cornerWindowsMm().some((c) => rectsOverlap(rect, c));
+    };
+    const fitsAt = (
+      entry: Extract<PaperSheetEntry, { kind: 'mc' }>,
+      at: number
+    ): boolean => {
+      const parts = entry.parts ?? 1;
+      const lines = linesOf(entry);
+      if (at + 1 + parts * lines > capacity) return false;
+      for (let part = 0; part < parts; part += 1) {
+        if (!clearAt(entry, at + 1 + part * lines, part === 0)) return false;
+      }
+      return true;
+    };
     for (const entry of run) {
-      const rows = entry.group ? 1 + (entry.parts ?? 1) : 1;
-      if (row + rows > capacity && row > top) nextColumn();
-      const x = COLUMN_X_MM[column];
       if (!entry.group) {
+        if (row + 1 > capacity && row > top) nextColumn();
         current().push(
-          mcItem(entry, { x, y: GRID_TOP_MM + row * ROW_PITCH_MM })
+          mcItem(entry, {
+            x: COLUMN_X_MM[column],
+            y: GRID_TOP_MM + row * ROW_PITCH_MM,
+          })
         );
         row += 1;
-      } else {
-        // The title and letters print in the row above the first answer row.
-        row += 1;
-        for (let part = 0; part < (entry.parts ?? 1); part += 1) {
-          if (row >= capacity) nextColumn();
-          current().push({
-            ...mcItem(entry, { x, y: GRID_TOP_MM + row * ROW_PITCH_MM }),
-            ...groupFields(entry, part),
-          });
-          row += 1;
+        deepest = Math.max(deepest, row);
+        continue;
+      }
+      if (!fitsAt(entry, row) && row > top) nextColumn();
+      if (!fitsAt(entry, row) && row > top) nextColumn();
+      const lines = linesOf(entry);
+      const wrap = wrapOf(entry);
+      // The title and letters print in the row above the first answer row.
+      row += 1;
+      for (let part = 0; part < (entry.parts ?? 1); part += 1) {
+        // Only a question taller than a whole column splits; each row still keeps clear of the corners.
+        if (row + lines > capacity || !clearAt(entry, row, part === 0)) {
+          nextColumn();
+          if (part === 0) row += 1;
         }
+        current().push({
+          ...mcItem(entry, {
+            x: COLUMN_X_MM[column],
+            y: GRID_TOP_MM + row * ROW_PITCH_MM,
+          }),
+          ...groupFields(entry, part),
+          ...(wrap ? { wrap } : {}),
+        });
+        row += lines;
       }
       deepest = Math.max(deepest, row);
     }
@@ -682,14 +744,15 @@ export const itemChoiceCount = (
 
 /** Where bubble `choice` of an answer row sits, for print and reader alike. */
 export const itemBubbleRectMm = (
-  item: Pick<McItem, 'originMm' | 'across'>,
+  item: Pick<McItem, 'originMm' | 'across' | 'wrap'>,
   choice: number,
   grid: PaperGrid
-): RectMm => bubbleRectAtOriginMm(item.originMm, choice, grid, !!item.across);
+): RectMm =>
+  bubbleRectAtOriginMm(item.originMm, choice, grid, !!item.across, item.wrap);
 
 /** The whole answer row, for the review crop. */
 export const itemRowRectMm = (
-  item: Pick<McItem, 'originMm' | 'across' | 'choices'>,
+  item: Pick<McItem, 'originMm' | 'across' | 'choices' | 'wrap'>,
   sheetChoices: number,
   grid: PaperGrid
 ): RectMm =>
@@ -697,7 +760,8 @@ export const itemRowRectMm = (
     item.originMm,
     itemChoiceCount(item, sheetChoices),
     grid,
-    !!item.across
+    !!item.across,
+    item.wrap
   );
 
 export function mcItemsOf(map: PaperPageMap): McItem[] {
