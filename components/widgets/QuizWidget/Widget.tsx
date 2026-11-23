@@ -80,6 +80,7 @@ import {
 import {
   assignmentFrozenFileId,
   paperFrozenFileId,
+  loadPaperQuizWithFallback,
   loadAssignmentAnswerKeyQuiz,
   unfrozenAssignmentCount,
   withCurrentAnswerKeys,
@@ -1515,9 +1516,11 @@ const TeacherQuizWidget: React.FC<{
     assignment: QuizAssignment,
     meta: QuizMetadata
   ): Promise<QuizData | null> =>
-    paperFrozenFileId(assignment)
-      ? loadAnswerKeyQuiz(meta, assignment)
-      : loadQuiz(meta);
+    loadPaperQuizWithFallback(
+      paperFrozenFileId(assignment),
+      () => loadAnswerKeyQuiz(meta, assignment),
+      () => loadQuiz(meta)
+    );
 
   // Publish reads the key without the loading pane, which would unmount the open Publish dialog.
   const loadAnswerKeyQuizQuietly = useCallback(

@@ -261,6 +261,16 @@ export function paperFrozenFileId(
     : assignment?.frozenDriveFileId;
 }
 
+/** Loads the frozen copy for a paper import or reprint, falling back to the library quiz when it can't load. */
+export async function loadPaperQuizWithFallback(
+  frozenDriveFileId: string | undefined,
+  loadFrozen: () => Promise<QuizData | null>,
+  loadLive: () => Promise<QuizData | null>
+): Promise<QuizData | null> {
+  if (!frozenDriveFileId) return loadLive();
+  return (await loadFrozen()) ?? loadLive();
+}
+
 /** Assignments of this quiz that still grade against the live quiz, so an edit re-scores them. */
 export function unfrozenAssignmentCount(
   quizId: string,

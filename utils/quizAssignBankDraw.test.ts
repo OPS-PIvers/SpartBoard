@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import type { QuizData, QuizQuestion } from '@/types';
 import type { BankContent } from '@/utils/questionBanks';
 import {
+  loadPaperQuizWithFallback,
   paperFrozenFileId,
   applyCurrentAnswerKeys,
   keyFixOptionsFor,
@@ -396,5 +397,38 @@ describe('paper import and reprint source', () => {
     ).toBeUndefined();
     expect(paperFrozenFileId({})).toBeUndefined();
     expect(paperFrozenFileId(undefined)).toBeUndefined();
+  });
+});
+
+describe('loadPaperQuizWithFallback', () => {
+  const q = { id: 'live' } as unknown as QuizData;
+  const f = { id: 'frozen' } as unknown as QuizData;
+
+  it('uses the frozen copy when it loads', async () => {
+    const live = vi.fn(() => Promise.resolve(q));
+    expect(
+      await loadPaperQuizWithFallback('x', () => Promise.resolve(f), live)
+    ).toBe(f);
+    expect(live).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the library quiz when the frozen copy will not load', async () => {
+    expect(
+      await loadPaperQuizWithFallback(
+        'x',
+        () => Promise.resolve(null),
+        () => Promise.resolve(q)
+      )
+    ).toBe(q);
+  });
+
+  it('goes straight to the library quiz when nothing is frozen', async () => {
+    const frozen = vi.fn(() => Promise.resolve(f));
+    expect(
+      await loadPaperQuizWithFallback(undefined, frozen, () =>
+        Promise.resolve(q)
+      )
+    ).toBe(q);
+    expect(frozen).not.toHaveBeenCalled();
   });
 });
