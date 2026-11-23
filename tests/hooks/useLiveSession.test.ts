@@ -320,6 +320,49 @@ describe('useLiveSession — startSession join-code collision avoidance', () => 
   });
 });
 
+describe('useLiveSession — startSession code claimed between probe and commit', () => {
+  let batch: ReturnType<typeof mockBatch>;
+  const denied = Object.assign(new Error('denied'), {
+    code: 'permission-denied',
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    asMock(firestore.onSnapshot).mockImplementation(() => vi.fn());
+    mockDocPaths();
+    asMock(firestore.collection).mockReturnValue({});
+    asMock(firestore.getDocs).mockResolvedValue({ docs: [] });
+    asMock(firestore.getDoc).mockResolvedValue({ exists: () => false });
+    batch = mockBatch();
+  });
+
+  it('mints a fresh code and retries when the batch is refused', async () => {
+    batch.commit.mockRejectedValueOnce(denied);
+    const { result } = renderHook(() =>
+      useLiveSession('teacher-uid-1', 'teacher')
+    );
+    let session: { code: string } | undefined;
+    await act(async () => {
+      session = await result.current.startSession('widget-1', 'clock');
+    });
+    expect(batch.commit).toHaveBeenCalledTimes(2);
+    expect(session?.code).toBeTruthy();
+  });
+
+  it('gives up after 3 refused batches', async () => {
+    batch.commit.mockRejectedValue(denied);
+    const { result } = renderHook(() =>
+      useLiveSession('teacher-uid-1', 'teacher')
+    );
+    await act(async () => {
+      await expect(
+        result.current.startSession('widget-1', 'clock')
+      ).rejects.toThrow('denied');
+    });
+    expect(batch.commit).toHaveBeenCalledTimes(3);
+  });
+});
+
 describe('useLiveSession — teacher student-list reference stability', () => {
   type SnapshotCallback = (snapshot: {
     docs: { id: string; data: () => Record<string, unknown> }[];
