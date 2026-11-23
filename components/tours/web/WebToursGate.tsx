@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { WebTourEditorRosters } from './WebTourEditorRosters';
+import { useTourAuthor } from './useTourAuthor';
 
 const SignInPage = lazy(() =>
   import('@/components/auth/SignInPage').then((m) => ({
@@ -21,10 +22,10 @@ const Spinner: React.FC = () => (
   </main>
 );
 
-/** Admin-only gate for the standalone `/web-tours` page (HELP_CENTER_HOME.md H9). */
+/** Gate for the standalone `/web-tours` page (HELP_CENTER_HOME.md H9): admins and tour authors (WEB_TOUR_AUTHORS.md E3). */
 export const WebToursGate: React.FC = () => {
-  const { user, loading, globalPermissionsLoaded, isAdmin, canAccessFeature } =
-    useAuth();
+  const { user, loading, globalPermissionsLoaded, isAdmin } = useAuth();
+  const access = useTourAuthor();
   if (loading) return <Spinner />;
   if (!user)
     return (
@@ -32,12 +33,15 @@ export const WebToursGate: React.FC = () => {
         <SignInPage />
       </Suspense>
     );
-  if (!globalPermissionsLoaded || isAdmin === null) return <Spinner />;
-  if (!isAdmin || !canAccessFeature('web-tours'))
+  if (!globalPermissionsLoaded || isAdmin === null || !access.ready)
+    return <Spinner />;
+  if (!access.author || !access.passes('web-tours'))
     return (
       <main className="flex h-screen h-dvh items-center justify-center bg-white px-4">
         <p role="status" className="text-sm font-semibold text-slate-700">
-          {isAdmin ? 'Web tours are turned off.' : 'Web tours are for admins.'}
+          {access.author
+            ? 'Web tours are turned off.'
+            : 'Web tours are for tour authors. Ask an admin to add you.'}
         </p>
       </main>
     );

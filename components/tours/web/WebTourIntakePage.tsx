@@ -21,6 +21,7 @@ import {
   intakeDraftFor,
   intakeDrafts,
 } from './intakeSave';
+import { useTourAuthor } from './useTourAuthor';
 
 const SignInPage = lazy(() =>
   import('@/components/auth/SignInPage').then((m) => ({
@@ -58,15 +59,15 @@ type Phase = 'loading' | 'signin' | 'denied' | 'ready';
 
 /** The `/web-tour-intake` page the extension opens to save steps recorded with no editor open (U17). */
 export const WebTourIntakePage: React.FC = () => {
-  const { user, loading, globalPermissionsLoaded, isAdmin, canAccessFeature } =
-    useAuth();
+  const { user, loading, globalPermissionsLoaded, isAdmin } = useAuth();
+  const access = useTourAuthor();
   const phase: Phase = loading
     ? 'loading'
     : !user
       ? 'signin'
-      : !globalPermissionsLoaded || isAdmin === null
+      : !globalPermissionsLoaded || isAdmin === null || !access.ready
         ? 'loading'
-        : isAdmin && canAccessFeature('web-tours')
+        : access.author && access.passes('web-tours')
           ? 'ready'
           : 'denied';
   return <Intake phase={phase} />;
