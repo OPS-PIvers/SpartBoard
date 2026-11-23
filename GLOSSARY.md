@@ -120,6 +120,10 @@ _Avoid_: writing task, essay, Google assignment (that is a Drive file copied per
 What SpartBoard keeps about how a piece was written: every edit, so it can be played back, and a summary of time spent, Writing sessions, pastes, text added without typing and time away from the tab. It states facts and never judges the student.
 _Avoid_: keystroke log, input signals, integrity report, surveillance
 
+**AI writing check**:
+One turned-in piece of a student's writing sent to an outside AI-writing detector by one of a named few people, with a typed reason. Its check result is one datapoint beside the Writing record, never proof, and no teacher or student sees it.
+_Avoid_: AI detection, flag, integrity report, plagiarism check, scan
+
 **Writing session**:
 One stretch of writing on a piece with no gap longer than 15 minutes. A Writing record counts them.
 _Avoid_: sitting, session (alone; that is a student activity)
