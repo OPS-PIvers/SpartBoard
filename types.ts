@@ -11800,6 +11800,7 @@ export type GlobalFeature =
   | 'gemini-functions'
   | 'dashboard-sharing'
   | 'dashboard-import'
+  | 'substitute-sharing'
   | 'magic-layout'
   | 'smart-paste'
   | 'smart-poll'

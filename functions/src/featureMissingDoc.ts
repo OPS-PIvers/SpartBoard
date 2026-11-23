@@ -102,6 +102,7 @@ export const PUBLIC_MISSING_DOC_FEATURES: Readonly<
   'gemini-functions': null,
   'dashboard-sharing': null,
   'dashboard-import': null,
+  'substitute-sharing': null,
   'district-library': null,
   'magic-layout': null,
   'smart-paste': null,
