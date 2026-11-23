@@ -10,6 +10,7 @@ A Writing assignment is written in SpartBoard's own editor, where every edit is 
 - Students are told their writing is recorded unless the teacher switches the notice off for an assignment. Whether a student can play back their own writing is the teacher's choice, off to start (changed 2026-11-16; it was always on).
 - The notice is a teaching choice, not a compliance need: Google Docs keeps revision history without announcing it, and the district's acceptable-use terms already cover school accounts. Settled 2026-11-16; don't reopen it without a new policy reason.
 - The record is reported by the student's browser, so it is evidence for a conversation, not proof. SpartBoard states facts and never labels work as suspicious.
+- One exception to "we buy no plagiarism checker", added 2026-11-23: a named few can run an AI writing check on one turned-in piece ([ADR 0012](0012-a-named-few-can-run-an-ai-writing-check.md)). Nothing a teacher or student sees changes.
 - The edit log is deleted each 1 August ([ADR 0010](0010-edit-logs-are-deleted-each-school-year.md)).
 - Paste is blocked unless the teacher allows it for an assignment.
 - Revisit extension capture in Docs only if Google publishes a supported edit-history API.
