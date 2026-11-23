@@ -72,11 +72,11 @@ Settled with Paul on 2026-11-23. It builds on [CHROME_EXTENSION.md](CHROME_EXTEN
 - **R2. Old tabs.** Every rule change widens access, and the callables keep their request shapes, so an open tab on the previous release keeps working.
 - **R3. Rules size.** Slice 1 adds one helper and about eight call sites. Run `pnpm run check:rules-size` and test with `node scripts/releaseFirestoreRules.mjs spartboard-dev`. If the PR goes over the 1,500-byte budget, move the runs and stats reads (S1) behind the existing counts path rather than adding the label.
 
-## For Paul to confirm
+## Confirmed by Paul
 
-These are my calls, not yours; say so if any is wrong.
+Five calls the agent made while drafting; Paul confirmed all five on 2026-11-23.
 
-- **L3:** authors delete only their own tours. You chose a shared library for editing; deleting someone else's tour seemed a step further.
+- **L3:** authors delete only their own tours. The shared library covers editing; deleting someone else's tour is a step further.
 - **B5:** authors can create FreshService categories and folders, since that is part of the send form.
 - **A6 and P2:** removing an author switches off the public links they turned on.
 - **L2:** "published to FreshService" is read as "has an article in FreshService", with Draft or Published shown as of the last send.
