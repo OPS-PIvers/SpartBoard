@@ -4,13 +4,13 @@ import type { QuizQuestion, QuizStimulus } from '@/types';
 import {
   attachPaperTestStimuli,
   paperTestStimulus,
-  resourceLine,
   type PaperTestPage,
   type PaperTestResource,
   type PaperTestStimulus,
   type PaperTestStimulusFiles,
   type PrintedQuestionRef,
 } from './paperTestStimuli';
+import { ENGLISH_PRINT_WORDS, type PaperPrintWords } from './paperPrintWords';
 
 /** A stimulus block as the sheet prints it: fixed width, measured height. */
 export interface SheetStimulusBlock {
@@ -193,12 +193,13 @@ export const BLOCK_WIDTH_MM = 144;
 export function sheetStimulusBlock(
   items: readonly PaperTestStimulus[],
   resources: readonly string[],
-  measure: BlockMeasure
+  measure: BlockMeasure,
+  words: PaperPrintWords = ENGLISH_PRINT_WORDS
 ): SheetStimulusBlock {
   const html =
     items.map((item) => sheetStimulusItemHtml(item, BLOCK_WIDTH_MM)).join('') +
     (resources.length
-      ? `<p class="sb-use">${escapeHtml(resourceLine(resources))}</p>`
+      ? `<p class="sb-use">${escapeHtml(words.useResources(resources))}</p>`
       : '');
   return { html, heightMm: Math.ceil(measure(html, BLOCK_WIDTH_MM)) + 1 };
 }
@@ -222,7 +223,8 @@ export function planSheetStimuli(
   questionsById: ReadonlyMap<string, Pick<QuizQuestion, 'id' | 'stimulusIds'>>,
   stimuli: readonly QuizStimulus[],
   files: PaperTestStimulusFiles,
-  measure: BlockMeasure
+  measure: BlockMeasure,
+  words: PaperPrintWords = ENGLISH_PRINT_WORDS
 ): SheetStimuliPlan {
   const first = attachPaperTestStimuli(printed, questionsById, stimuli, files);
   const byId = new Map(stimuli.map((s) => [s.id, s]));
@@ -268,10 +270,10 @@ export function planSheetStimuli(
       const items = (first.inlineIds.get(p.questionId) ?? []).flatMap((id) => {
         const s = ownPage.has(id) ? byId.get(id) : undefined;
         const item = s ? paperTestStimulus(s, files) : null;
-        return item ? [{ title: `Question ${p.row}`, item }] : [];
+        return item ? [{ title: words.question(p.row), item }] : [];
       });
       if (items.length)
-        pagesBefore.set(p.questionId, paginateStimuli(items, measure));
+        pagesBefore.set(p.questionId, paginateStimuli(items, measure, words));
     }
   }
   const blocks = new Map<string, SheetStimulusBlock>();
@@ -279,12 +281,12 @@ export function planSheetStimuli(
     if (!q.stimuli?.length && !q.resources?.length) continue;
     blocks.set(
       qid,
-      sheetStimulusBlock(q.stimuli ?? [], q.resources ?? [], measure)
+      sheetStimulusBlock(q.stimuli ?? [], q.resources ?? [], measure, words)
     );
   }
   return {
     blocks,
-    resourcePages: paginateResources(placed.resources, measure),
+    resourcePages: paginateResources(placed.resources, measure, words),
     pagesBefore,
   };
 }
@@ -300,18 +302,21 @@ const paragraphsOf = (text: string): string[] =>
  */
 export function paginateResources(
   resources: readonly PaperTestResource[],
-  measure: BlockMeasure
+  measure: BlockMeasure,
+  words: PaperPrintWords = ENGLISH_PRINT_WORDS
 ): SheetResourcePage[] {
   return paginateStimuli(
-    resources.map((r) => ({ title: `Resource ${r.letter}`, item: r.item })),
-    measure
+    resources.map((r) => ({ title: words.resource(r.letter), item: r.item })),
+    measure,
+    words
   );
 }
 
 /** Lays titled stimuli onto pages, as `paginateResources` does. */
 export function paginateStimuli(
   entries: readonly { title: string; item: PaperTestStimulus }[],
-  measure: BlockMeasure
+  measure: BlockMeasure,
+  words: PaperPrintWords = ENGLISH_PRINT_WORDS
 ): SheetResourcePage[] {
   const { w, h } = RESOURCE_BODY_MM;
   const pages: SheetResourcePage[] = [];
@@ -327,7 +332,7 @@ export function paginateStimuli(
           ...(i === 0 && item.title ? { title: item.title } : {}),
         };
         pages.push({
-          title: i === 0 ? title : `${title} (continued)`,
+          title: i === 0 ? title : words.continued(title),
           html: sheetStimulusItemHtml(one, w, h - 8),
         });
       });
@@ -350,7 +355,7 @@ export function paginateStimuli(
         ...(first && item.title ? { title: item.title } : {}),
       };
       pages.push({
-        title: first ? title : `${title} (continued)`,
+        title: first ? title : words.continued(title),
         html: sheetStimulusItemHtml(part, w, h, !first),
       });
       first = false;
