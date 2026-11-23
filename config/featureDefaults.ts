@@ -1758,7 +1758,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
   },
   'picked-student-names': {
-    label: 'Picked student names',
+    label: 'Assigned students',
     icon: Users,
     description:
       'Assignment rows list the students an assignment went to. Names show under each class.',
