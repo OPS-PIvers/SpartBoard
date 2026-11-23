@@ -10,6 +10,16 @@ import {
 } from '@/types/helpCenter';
 
 describe('normalizeHelpResourceItem', () => {
+  it('keeps the subs and students audiences and drops any other', () => {
+    const of = (audience: unknown) =>
+      normalizeHelpResourceItem('a', { kind: 'embed', title: 'x', audience })
+        ?.audience;
+    expect(of('students')).toBe('students');
+    expect(of('subs')).toBe('subs');
+    expect(of('teachers')).toBeUndefined();
+    expect(of('parents')).toBeUndefined();
+  });
+
   it('returns null when kind is missing', () => {
     expect(normalizeHelpResourceItem('a', { title: 'x' })).toBeNull();
   });
