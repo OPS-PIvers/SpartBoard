@@ -367,6 +367,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'assign-classes.option': ['library.assign-stepper'],
     'assign-classes.course': ['library.assign-stepper'],
     'assign-classes.course-expand': ['library.assign-stepper'],
+    'assign-classes.add-to-open': ['library.assign-stepper'],
+    'assign-classes.assign-separately': ['library.assign-stepper'],
     'assign-classes.select-all': ['library.assign-stepper'],
     'assign-classes.clear': ['library.assign-stepper'],
     'assign-students.trigger': ['library.assign-stepper'],

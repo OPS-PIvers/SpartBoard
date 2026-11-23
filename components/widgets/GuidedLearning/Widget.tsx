@@ -80,6 +80,11 @@ import {
   sharedVisibility,
 } from '@/components/common/library/assigned/bulkPublish';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
+import {
+  addToOpenAssignment,
+  openInputsFor,
+  withoutLiveClasses,
+} from '@/utils/openAssignmentClasses';
 import { logError } from '@/utils/logError';
 import {
   makeEmptyPickerValue,
@@ -352,6 +357,14 @@ const TeacherGuidedLearningWidget: React.FC<{
     unpublishAssignmentScores,
     setAssignmentClasses,
   } = useGuidedLearningAssignments(user?.uid, canAccessFeature('assigned-tab'));
+  const openCheckOn = canAccessFeature('assign-open-check');
+  const openInputs = (target: AssignDialogTarget) =>
+    openInputsFor(
+      assignments,
+      rosters,
+      (a) => a.setId === target.originSetId || a.setId === target.set.id,
+      (a) => a.status !== 'archived'
+    );
   const { setAssignmentTargets: setTargets } = useSetAssignmentTargets();
   const uid = user?.uid;
   // ASSIGNED_TAB.md D21: the whole-run writes the Assigned tab's class actions drive.
@@ -458,7 +471,11 @@ const TeacherGuidedLearningWidget: React.FC<{
           rosters
         );
       }
-      setPickerValue({ rosterIds: rememberedRosters });
+      setPickerValue({
+        rosterIds: openCheckOn
+          ? withoutLiveClasses(rememberedRosters, openInputs(assignTarget))
+          : rememberedRosters,
+      });
     }
   }
 
@@ -2084,6 +2101,29 @@ const TeacherGuidedLearningWidget: React.FC<{
           periodAccess={assignPeriodCtx}
           onClose={() => setAssignTarget(null)}
           onAssign={handleStepperAssign}
+          {...(openCheckOn
+            ? {
+                openAssignments: openInputs(assignTarget),
+                onAddToOpen: async (
+                  assignmentId: string,
+                  addRosterIds: string[]
+                ) => {
+                  const added = await addToOpenAssignment({
+                    assignments,
+                    assignmentId,
+                    rosters,
+                    addRosterIds,
+                    save: (a, edit) => setAssignmentClasses(a.id, edit),
+                    toast: addToast,
+                    onError: (err) =>
+                      logError('GuidedLearningWidget.addClasses', err, {
+                        assignmentId,
+                      }),
+                  });
+                  if (added) setAssignTarget(null);
+                },
+              }
+            : {})}
         />
       )}
 

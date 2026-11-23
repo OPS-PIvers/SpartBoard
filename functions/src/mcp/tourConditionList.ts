@@ -38,6 +38,7 @@ export const TOUR_CONDITION_DONE_FACTS: readonly string[] = [
 export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'ai-file-context',
   'anonymous-join',
+  'assign-open-check',
   'assigned-tab',
   'assignment-modes',
   'assignments-hub',
