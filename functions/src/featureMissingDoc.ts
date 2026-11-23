@@ -92,7 +92,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'writing-peer-review',
   'quiz-question-audio',
   'quiz-random-numbers',
-  'results-print-v2',
   'widget-notes-in-whats-new',
 ];
 

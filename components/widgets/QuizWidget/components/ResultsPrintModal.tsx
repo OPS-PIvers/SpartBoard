@@ -268,13 +268,11 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
 }) => {
   const { canAccessFeature, googleAccessToken, refreshGoogleToken } = useAuth();
   const imageMarkup = canAccessFeature('paper-image-markup');
-  const v2 = canAccessFeature('results-print-v2');
   const keptPagesOn = canAccessFeature('paper-kept-pages') && !!sessionId;
   const [everyAttempt, setEveryAttempt] = useState(false);
   const hasEarlier = !!earlierAttempts && earlierAttempts.size > 0;
-  // The account copy rides the preview; without it the choice stays on this browser as before.
   const [choice, update] = useResultsPrintChoice(
-    v2 ? teacherUid : null,
+    teacherUid,
     reportChoice ? 'full-report' : undefined,
     (saved: SavedResultsPrintChoice): SavedResultsPrintChoice => {
       // Without the report choice, a saved missed-only scope would have no visible control.
@@ -296,7 +294,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     }
   );
   const ownCourses = useCourses(
-    v2 && !givenCourses && canAccessFeature('course-agenda')
+    !givenCourses && canAccessFeature('course-agenda')
   ).courses;
   const courses = givenCourses ?? ownCourses;
   const chosenOptions: QuizResultsPrintOptions = sheetsAvailable
@@ -746,7 +744,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     students: rows.map((s) => withPaper(s.student)),
     ...(hasPaperWritten ? { writtenMode: printMode } : {}),
     ...(imageMarkup ? { imageMarkup } : {}),
-    ...(v2 ? { compactMarks: true } : {}),
+    compactMarks: true,
   });
 
   // The board may be projected, so the preview wears the on-screen name (D10).
@@ -1108,306 +1106,6 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   const [tab, setTab] = useState<'settings' | 'students'>('settings');
   const columnHeight = 'md:h-[min(44rem,calc(100dvh-16rem))]';
   const scrollCol = 'min-h-0 overflow-y-auto pb-4 pr-1 scroll-inset';
-  // The layout before results-print-v2, for teachers without the preview.
-  const allTicked =
-    students.length > 0 && students.every((s) => selected.has(s.student.key));
-  const toggleStudent = (key: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  const legacyPresetChips = (
-    <div
-      className="mt-2 flex flex-wrap gap-1.5"
-      role="radiogroup"
-      aria-label="Preset"
-    >
-      {presets.map((p) => (
-        <button
-          key={p.id}
-          type="button"
-          role="radio"
-          aria-checked={choice.preset === p.id}
-          onClick={() => pickPreset(p.id)}
-          {...tourFieldAttr('quiz-print.results-preset', 'quiz', p.id)}
-          className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-            choice.preset === p.id
-              ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-dark'
-              : 'border-slate-200 bg-white text-slate-600 hover:border-brand-blue-light'
-          }`}
-        >
-          {p.label}
-        </button>
-      ))}
-    </div>
-  );
-
-  const legacyToggleControls = (
-    <div className="space-y-2">
-      {TOGGLES.filter((t) => !hiddenOptions.includes(t.key)).map((t) => (
-        <div key={t.key} className="flex items-center justify-between gap-3">
-          <span className="text-sm text-slate-700">{t.label}</span>
-          <Toggle
-            checked={options[t.key]}
-            onChange={(v) => setOption(t.key, v)}
-            anchor={tourFieldAttr(
-              'quiz-print.results-option-toggle',
-              'quiz',
-              t.key
-            )}
-            label={t.label}
-            size="sm"
-          />
-        </div>
-      ))}
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm text-slate-700">Show the key</span>
-        <div
-          className="flex overflow-hidden rounded-lg border border-slate-200"
-          role="radiogroup"
-          aria-label="Show the key"
-        >
-          {KEY_MODES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              role="radio"
-              aria-checked={options.keyMode === m.id}
-              onClick={() => setOption('keyMode', m.id)}
-              {...tourFieldAttr('quiz-print.results-key-mode', 'quiz', m.id)}
-              className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
-                options.keyMode === m.id
-                  ? 'bg-brand-blue-primary text-white'
-                  : 'bg-white text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      {sheetsAvailable && (
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-slate-700">Layout</span>
-          <div
-            className="flex overflow-hidden rounded-lg border border-slate-200"
-            role="radiogroup"
-            aria-label="Layout"
-          >
-            {LAYOUTS.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                role="radio"
-                aria-checked={options.layout === m.id}
-                onClick={() => setOption('layout', m.id)}
-                {...tourFieldAttr('quiz-print.results-layout', 'quiz', m.id)}
-                className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
-                  options.layout === m.id
-                    ? 'bg-brand-blue-primary text-white'
-                    : 'bg-white text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-      {sheetsAvailable && scanStatus && (
-        <p className="text-xs text-slate-600" role="status">
-          {scanStatus}
-        </p>
-      )}
-    </div>
-  );
-
-  const legacyBody = (
-    <div className="grid gap-4 px-5 pb-5 pt-4 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
-      <div className="space-y-4">
-        {reportChoice ? (
-          <>
-            <fieldset>
-              <legend className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Report
-              </legend>
-              <div
-                className="mt-2 grid grid-cols-2 gap-2"
-                role="radiogroup"
-                aria-label="Report"
-              >
-                {REPORT_CHOICES.map((c) => {
-                  const on = choice.preset === c.id;
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={on}
-                      onClick={() => pickPreset(c.id)}
-                      {...tourFieldAttr(
-                        'quiz-print.results-report-choice',
-                        'quiz',
-                        c.id
-                      )}
-                      className={`rounded-lg border p-2.5 text-left transition-colors focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${
-                        on
-                          ? 'border-brand-blue-primary bg-brand-blue-lighter/60'
-                          : 'border-slate-200 bg-white hover:border-brand-blue-light'
-                      }`}
-                    >
-                      <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-                        <span
-                          aria-hidden
-                          className={`h-3 w-3 shrink-0 rounded-full border ${
-                            on
-                              ? 'border-brand-blue-primary bg-brand-blue-primary'
-                              : 'border-slate-400'
-                          }`}
-                        />
-                        {c.label}
-                      </span>
-                      <span className="mt-1 block text-xs text-slate-600">
-                        {c.detail}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-            <details className="group">
-              <summary
-                {...tourTypeAttr('quiz-print.results-more-options', 'quiz')}
-                className="cursor-pointer text-xs font-semibold text-brand-blue-primary hover:underline"
-              >
-                More print options
-              </summary>
-              <div className="mt-2 space-y-4">
-                {legacyPresetChips}
-                {legacyToggleControls}
-              </div>
-            </details>
-          </>
-        ) : (
-          <>
-            <fieldset>
-              <legend className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                What to print
-              </legend>
-              {legacyPresetChips}
-            </fieldset>
-            {legacyToggleControls}
-          </>
-        )}
-
-        {writtenControl}
-
-        {warnings}
-
-        {hasEarlier && (
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-slate-700">Every attempt</span>
-            <Toggle
-              checked={everyAttempt}
-              onChange={setEveryAttempt}
-              anchor={tourTypeAttr('quiz-print.results-every-attempt', 'quiz')}
-              label="Every attempt"
-              size="sm"
-            />
-          </div>
-        )}
-        <div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Students
-            </span>
-            <button
-              type="button"
-              {...tourTypeAttr('quiz-print.results-select-all', 'quiz')}
-              onClick={() =>
-                setSelected(
-                  allTicked
-                    ? new Set()
-                    : new Set(students.map((s) => s.student.key))
-                )
-              }
-              className="text-xs font-semibold text-brand-blue-primary hover:underline"
-            >
-              {allTicked ? 'Select none' : 'Select all'}
-            </button>
-          </div>
-          <ul className="mt-2 max-h-56 space-y-0.5 overflow-y-auto rounded-lg border border-slate-200 p-2">
-            {students.map(({ student, response }, rowIndex) => {
-              const shown = resolveShownName(response);
-              return (
-                <li key={student.key}>
-                  <label className="flex cursor-pointer items-center gap-2 rounded-sm px-1 py-0.5 text-sm text-slate-700 hover:bg-slate-50">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(student.key)}
-                      onChange={() => toggleStudent(student.key)}
-                      {...tourFieldAttr(
-                        'quiz-print.results-student-select',
-                        'quiz',
-                        `row-${rowIndex + 1}`
-                      )}
-                      className="accent-brand-blue-primary"
-                    />
-                    <span
-                      className={
-                        student.period
-                          ? 'max-w-[60%] shrink-0 truncate'
-                          : 'min-w-0 flex-1 truncate'
-                      }
-                      title={shown}
-                    >
-                      {shown}
-                    </span>
-                    {student.period && (
-                      <span
-                        className="min-w-0 flex-1 truncate text-right text-xs text-slate-500"
-                        title={student.period}
-                      >
-                        {student.period}
-                      </span>
-                    )}
-                    {student.status !== 'completed' && (
-                      <span className="shrink-0 text-xs text-slate-500">
-                        {student.status === 'joined'
-                          ? 'Not started'
-                          : 'In progress'}
-                      </span>
-                    )}
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </div>
-
-      <div className="flex min-h-96 flex-col">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-          Preview
-        </span>
-        {previewDoc ? (
-          <iframe
-            title="Print preview"
-            srcDoc={previewDoc}
-            sandbox=""
-            className="mt-2 w-full flex-1 rounded-lg border border-slate-200 bg-white"
-          />
-        ) : (
-          <p className="mt-2 text-sm text-slate-500">
-            Pick a student to see their copy.
-          </p>
-        )}
-      </div>
-    </div>
-  );
-
   const body = (
     <div
       className={`grid gap-5 px-5 pt-4 md:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] ${columnHeight}`}
@@ -1522,7 +1220,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
         </div>
       }
     >
-      {v2 ? body : legacyBody}
+      {body}
     </Modal>
   );
 };

@@ -14809,31 +14809,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-print.results-more-options",
-    "label": "More print options disclosure in the Quiz widget",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.results.print",
-        "kind": "modal",
-        "path": [
-          "library-shell.tab:quiz#archive",
-          "library-shell.archive-primary-action:quiz#row-1",
-          "quiz-results.print:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "quiz-print.results-option-toggle",
     "label": "Option toggles from TOGGLES map in the Quiz widget",
     "scope": "field",

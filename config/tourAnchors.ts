@@ -3710,11 +3710,6 @@ export const TOUR_ANCHORS = {
     panel: true,
     persists: true,
   },
-  'quiz-print.results-more-options': {
-    label: 'More print options disclosure in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-print.results-option-toggle': {
     label: 'Option toggles from TOGGLES map in the Quiz widget',
     perField: true,

@@ -1744,17 +1744,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'results-print-v2': {
-    label: 'Print results redesign',
-    icon: Printer,
-    description:
-      'Settings and Students tabs. Students are picked by Course and class.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'assigned-tab': {
     label: 'Assigned tab',
     icon: ClipboardList,
