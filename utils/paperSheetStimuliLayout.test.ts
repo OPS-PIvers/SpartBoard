@@ -12,7 +12,7 @@ const mc = (id: string, label: string): PaperSheetEntry => ({
 const wr = (
   id: string,
   label: string,
-  size: 'S' | 'full'
+  size: 'S' | 'L' | 'full'
 ): PaperSheetEntry => ({ kind: 'written', questionId: id, label, size });
 const plan = (
   blocks: Record<string, number>,
@@ -68,5 +68,37 @@ describe('layoutSheetStimuli', () => {
     );
     expect(layout.stimulusMm).toEqual({ slot: 18 });
     expect(layout.sets[1].rows.get('y')?.heightMm).toBe(18);
+  });
+
+  it('moves a block to the prompt header when the box and block cannot share a page', () => {
+    const layout = layoutSheetStimuli(
+      [
+        {
+          entries: [wr('a', '1', 'L'), wr('b', '2', 'L')],
+          mapIds: ['a', 'b'],
+          plan: plan({ a: 20, b: 110 }),
+        },
+      ],
+      new Set()
+    );
+    expect(layout.sets[0].written.a?.heightMm).toBe(20);
+    expect(layout.sets[0].prompts.b?.heightMm).toBe(110);
+    expect([...layout.promptIds]).toEqual(['b']);
+  });
+
+  it('places a version block by the box the template plans for that slot', () => {
+    const layout = layoutSheetStimuli(
+      [
+        {
+          entries: [wr('x', '1', 'S')],
+          mapIds: ['slot'],
+          slots: [wr('slot', '1', 'full')],
+          plan: plan({ x: 20 }),
+        },
+      ],
+      new Set()
+    );
+    expect(layout.sets[0].prompts.slot?.heightMm).toBe(20);
+    expect(layout.sets[0].written.slot).toBeUndefined();
   });
 });

@@ -675,7 +675,7 @@ export async function handleCreateTeammatePaperBatch(
     if (!pages.ok)
       throw new HttpsError(
         'failed-precondition',
-        `This test needs ${pages.pageCount} pages per student; the most a sheet can carry is 63.`
+        `This test needs ${pages.pageCount} pages per student; the most a sheet can carry is ${MAX_PAGE}.`
       );
     pageMaps = pages.pageMaps;
   }

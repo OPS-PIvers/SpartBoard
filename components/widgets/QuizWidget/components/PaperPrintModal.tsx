@@ -118,7 +118,7 @@ import {
   type PlanPaperPagesResult,
 } from '@/utils/paperPageMap';
 import { browserStemMeasure, stemLinesById } from '@/utils/paperStemLines';
-import { MAX_PAGE } from '@/utils/paperSheetMarker';
+import { MAX_SHEET_PAGE } from '@/utils/paperSheetMarker';
 import {
   PAPER_HANDWRITTEN_FEATURE,
   PAPER_MAX_BOX_PAGES,
@@ -321,7 +321,7 @@ function applyStubWritten(
 }
 
 const tooManyPagesMessage = (pageCount: number): string =>
-  `This sheet needs ${pageCount} pages. The most one sheet can print is ${MAX_PAGE}.`;
+  `This sheet needs ${pageCount} pages. The most one sheet can print is ${MAX_SHEET_PAGE}.`;
 
 const studentSort = (a: Student, b: Student): number =>
   `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`);
@@ -560,10 +560,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     if (!questionTextLayout || testStimulusFiles.loading) return null;
     const setOf = (
       entries: readonly PaperSheetEntry[],
-      mapIds: readonly string[]
+      slots: readonly PaperSheetEntry[]
     ): SheetStimuliSet => ({
       entries,
-      mapIds,
+      mapIds: slots.map((e) => e.questionId),
+      slots,
       plan: planSheetStimuli(
         entries.map((e) => ({ questionId: e.questionId, row: e.label })),
         questionsById,
@@ -573,17 +574,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       ),
     });
     if (versionPlan) {
-      const template = versionPlan.template.entries.map((e) => e.questionId);
+      const template = versionPlan.template.entries;
       return versionPlan.versions.map((v) =>
         setOf(v.analysis.entries, template)
       );
     }
-    return [
-      setOf(
-        analysis.entries,
-        analysis.entries.map((e) => e.questionId)
-      ),
-    ];
+    return [setOf(analysis.entries, analysis.entries)];
   }, [
     questionTextLayout,
     testStimulusFiles.loading,
