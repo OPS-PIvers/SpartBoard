@@ -47,8 +47,11 @@ export function usePublicLinkControls({
   setId,
   published,
   menuCopies = false,
+  author = false,
 }: {
   setId: string;
+  /** A web tour author who isn't an admin gets the switch too (WEB_TOUR_AUTHORS.md P3). */
+  author?: boolean;
   /** The editor's own Copy link item copies the public link, so the footer doesn't repeat it. */
   menuCopies?: boolean;
   /** The published copy; undefined while it loads, null when the tour isn't published. */
@@ -58,7 +61,7 @@ export function usePublicLinkControls({
   // Read without throwing: a screen without auth simply has no switch.
   const auth = useContext(AuthContext);
   const seed = publicLinkDevSeed();
-  const admin = seed ? seed.admin !== false : auth?.isAdmin === true;
+  const admin = seed ? seed.admin !== false : auth?.isAdmin === true || author;
   const enabled = auth !== undefined;
   const [watched, setWatched] = useState<{
     setId: string;

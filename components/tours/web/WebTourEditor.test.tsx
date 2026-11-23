@@ -69,6 +69,7 @@ vi.mock(
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'admin-1' },
+    isAdmin: true,
     canAccessFeature: () => auth.connector,
   }),
 }));
