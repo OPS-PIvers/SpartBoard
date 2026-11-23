@@ -58457,6 +58457,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tours.authors",
+    "label": "Authors button on the Web tours page (admins only)",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tours.freshservice-settings",
     "label": "FreshService settings button on the Web tours page",
     "scope": "board",
