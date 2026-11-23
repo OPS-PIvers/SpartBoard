@@ -314,7 +314,11 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
       }
       const result = mergeClassLinkStudents(
         target.students,
-        studentsByClass[cls.sourcedId] ?? []
+        studentsByClass[cls.sourcedId] ?? [],
+        {
+          // Only a roster already linked to this class removes; any other merge stays additive.
+          removeDeparted: target.classlinkClassId === cls.sourcedId,
+        }
       );
       // Backfill ClassLink provenance on the roster doc itself — rosters
       // imported before the metadata fields existed (or merged with a new
@@ -359,6 +363,27 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
           'success'
         );
       }
+      if (result.removedCount > 0) {
+        addToast(
+          t('toasts.classLink.removedStudents', {
+            count: result.removedCount,
+            defaultValue: 'Removed {{count}} student no longer in ClassLink',
+            defaultValue_other:
+              'Removed {{count}} students no longer in ClassLink',
+          }),
+          'success'
+        );
+      }
+      if (result.removalSkipped) {
+        addToast(
+          t('toasts.classLink.removalSkipped', {
+            name: target.name,
+            defaultValue:
+              'Over half of {{name}} is missing from ClassLink, so no one was removed.',
+          }),
+          'warning'
+        );
+      }
       onClose();
     } catch (err) {
       console.error(err);
@@ -390,7 +415,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
         })
       : t('sidebar.classes.classLinkMergeSubtitle', {
           defaultValue:
-            'Pick the ClassLink class whose students should be pulled in. Existing students are preserved.',
+            'Pick the ClassLink class to sync with. Students who left it are removed. Students you added yourself stay.',
         });
 
   return (

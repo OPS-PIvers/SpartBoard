@@ -116,6 +116,31 @@ describe('useAssignmentDetailActions', () => {
     ).toBeNull();
   });
 
+  it('a changed pick on a narrowed class adds, removes and re-sends the narrowed classes', async () => {
+    const row = makeRow({ targetMode: 'class' });
+    const { result } = renderHook(() => useAssignmentDetailActions());
+    const current: AssignTargetingValue = {
+      targetMode: 'class',
+      targetStudents: [{ kind: 'classlink', sourcedId: 'SID-2' }],
+      targetGroupIds: [],
+      overridesByKey: {},
+    };
+
+    await result.current.saveEdit(row, 'teacher-1', current, undefined, {
+      previousClassIds: ['class-1'],
+      current: { targeting: current, studentTargetClassIds: ['class-1'] },
+    });
+
+    const call = mockSetAssignmentTargets.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    expect(call.targetMode).toBe('class');
+    expect(call.add).toEqual([{ kind: 'classlink', sourcedId: 'SID-2' }]);
+    expect(call.remove).toEqual([{ kind: 'classlink', sourcedId: 'SID-1' }]);
+    expect(call.studentTargetClassIds).toEqual(['class-1']);
+  });
+
   it('skipping a student preserves their stored override instead of deleting it', async () => {
     const row = makeRow();
     const { result } = renderHook(() => useAssignmentDetailActions());
