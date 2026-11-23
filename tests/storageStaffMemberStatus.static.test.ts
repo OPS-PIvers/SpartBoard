@@ -2,13 +2,14 @@
 // The emulator cannot resolve storage's firestore.get() member lookup, so the status gate is pinned by source.
 
 import { readFileSync } from 'fs';
+import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { describe, expect, it } from 'vitest';
 
 const DENIED_STATUSES = ['inactive', 'removed', 'foo'];
 
 const rules = readFileSync(
-  fileURLToPath(new URL('../../storage.rules', import.meta.url)),
+  resolve(dirname(fileURLToPath(import.meta.url)), '../storage.rules'),
   'utf8'
 );
 
