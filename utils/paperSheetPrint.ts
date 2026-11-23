@@ -540,7 +540,7 @@ function groupRowHtml(
           );
         });
       }
-      for (let c = 0; c < choices; c += 1) {
+      for (let c = 0; c < Math.min(choices, item.wrap ?? choices); c += 1) {
         const r = itemBubbleRectMm(item, c, grid);
         parts.push(
           `<div class="legend" style="left:${mm(r.x)};top:${mm(rowsTop - GROUP_LEGEND_MM + 0.8)};width:${mm(r.w)}">${labelOf(c)}</div>`

@@ -65,6 +65,8 @@ import {
   rowRectAtOriginMm,
   cornerWindowsMm,
   ONE_COLUMN_ROW_CHOICES,
+  ROW_LINE_CHOICES,
+  ACROSS_LINE_MM,
   type RectMm,
 } from './paperSheetLayout';
 import { MAX_SHEET_PAGE } from './paperSheetMarker';
@@ -121,7 +123,7 @@ export const GROUP_LIST_LINE_MM = 5;
 /** Question-text sheets: the letters or numbers over a block of rows that run across. */
 export const GROUP_LEGEND_MM = 5;
 /** Question-text sheets: pitch of rows that run across. */
-export const GROUP_ROW_MM = 6.5;
+export const GROUP_ROW_MM = ACROSS_LINE_MM;
 
 /** The fields a grouped question's answer row carries. */
 function groupFields(
@@ -382,7 +384,9 @@ export function planPaperPages(
     ): number | undefined =>
       grid === 1 && (entry.choices ?? 0) > ONE_COLUMN_ROW_CHOICES
         ? ONE_COLUMN_ROW_CHOICES
-        : undefined;
+        : (entry.choices ?? 0) > ROW_LINE_CHOICES
+          ? ROW_LINE_CHOICES
+          : undefined;
     // Grid rows one answer row takes, wrapped lines included.
     const linesOf = (
       entry: Extract<PaperSheetEntry, { kind: 'mc' }>
@@ -605,11 +609,16 @@ function planQuestionTextPages(
       const room = stimMm ? stimMm + 2 * STIMULUS_GAP_MM : 0;
       const stemMm = lines * QUESTION_STEM_LINE_MM;
       const parts = entry.parts ?? 1;
+      // An across row with more than 10 bubbles wraps onto a second line.
+      const wrap =
+        (entry.choices ?? 0) > ROW_LINE_CHOICES ? ROW_LINE_CHOICES : undefined;
+      const partMm =
+        (wrap ? Math.ceil((entry.choices ?? 0) / wrap) : 1) * GROUP_ROW_MM;
       const body =
         entry.group === 'all'
           ? ((entry.choices ?? 2) - 1) * QUESTION_CHOICE_LINE_MM +
             BUBBLE_DIAMETER_MM
-          : (parts - 1) * GROUP_ROW_MM + BUBBLE_DIAMETER_MM;
+          : parts * partMm - GROUP_ROW_MM + BUBBLE_DIAMETER_MM;
       const top = place(head + room + body);
       const rowsTop = top + head + room;
       if (entry.group === 'all') {
@@ -632,9 +641,10 @@ function planQuestionTextPages(
           questionId: entry.questionId,
           sheetRow: sheetRow++,
           label: entry.label,
-          originMm: { x: QUESTION_STEM_X_MM, y: rowsTop + part * GROUP_ROW_MM },
+          originMm: { x: QUESTION_STEM_X_MM, y: rowsTop + part * partMm },
           ...groupFields(entry, part),
           across: true,
+          ...(wrap ? { wrap } : {}),
           ...(part === 0 ? { headTopMm: top, stemMm } : {}),
         });
       }

@@ -98,28 +98,78 @@ const ROSTER: ClassRoster = {
 
 const analysis = analyzePaperQuiz(QUIZ, { groups: true });
 
-function stack(grid: PaperGrid) {
+function stack(grid: PaperGrid, quiz: QuizData = QUIZ) {
+  const a = quiz === QUIZ ? analysis : analyzePaperQuiz(quiz, { groups: true });
   const pages = planPaperPages({
-    entries: analysis.entries,
+    entries: a.entries,
     grid,
     stems: true,
-    choiceCount: analysis.sheetChoiceCount,
-    stemLines: { mc: 1, ma: 1, match: 1, order: 1 },
+    choiceCount: a.sheetChoiceCount,
+    stemLines: Object.fromEntries(quiz.questions.map((x) => [x.id, 1])),
   });
   if (!pages.ok) throw new Error('plan refused');
   return planPaperBatch({
     batchId: 'b1',
-    quizId: QUIZ.id,
+    quizId: quiz.id,
     selections: [{ roster: ROSTER, students: ROSTER.students }],
-    questionCount: analysis.rows.length + analysis.groups.length,
-    choiceCount: analysis.sheetChoiceCount,
+    questionCount: a.rows.length + a.groups.length,
+    choiceCount: a.sheetChoiceCount,
     spareCount: 0,
     includeKeySheet: false,
-    questions: [MC, MA, MATCH, ORDER],
+    questions: quiz.questions,
     ...(grid === 'questions' ? { sheetLayout: 'questions' as const } : {}),
     pageMaps: pages.pageMaps,
     createdAt: 0,
   }).batch;
+}
+
+/** Paint the bubbles `pick` chooses on every page, read them back and import. */
+function scanAndImport(
+  batch: ReturnType<typeof stack>,
+  grid: PaperGrid,
+  quiz: QuizData,
+  pick: (questionId: string, part: number | undefined) => number[]
+) {
+  const maps = batch.pageMaps as PaperPageMap[];
+  const pages = maps.map((map) => {
+    const items = mcItemsOf(map).sort((a, b) => a.sheetRow - b.sheetRow);
+    const marks = items.flatMap((item, row) =>
+      pick(item.questionId, item.part).map((choice) => ({ row, choice }))
+    );
+    return readPaperPage(
+      paintSyntheticSheet({
+        marker: {
+          batchTag: paperBatchTag(batch.id),
+          seat: 1,
+          page: map.page,
+          isKeySheet: false,
+          readByMap: true,
+        },
+        questionCount: 0,
+        choiceCount: batch.choiceCount,
+        pageMap: map,
+        marks,
+      }),
+      {
+        questionCount: 0,
+        choiceCount: batch.choiceCount,
+        columnsPerPage: grid,
+        pageMaps: maps,
+      }
+    );
+  });
+  const assembled = assemblePaperScan(
+    batch,
+    pages.map((read, scanIndex) => ({ scanIndex, read }))
+  );
+  const { payload } = buildImportPayload({
+    batch,
+    quiz,
+    rosters: [ROSTER],
+    sheets: assembled.sheets,
+    spareAssignments: {},
+  });
+  return payload;
 }
 
 describe('grouped questions on paper', () => {
@@ -136,11 +186,11 @@ describe('grouped questions on paper', () => {
     expect(analyzePaperQuiz(QUIZ).groups).toEqual([]);
   });
 
-  it('leaves out a question with more than 10 answers', () => {
+  it('leaves out a question with more than 20 answers', () => {
     const big = q({
       id: 'big',
       type: 'Ordering',
-      correctAnswer: Array.from({ length: 11 }, (_, i) => `Step ${i}`).join(
+      correctAnswer: Array.from({ length: 21 }, (_, i) => `Step ${i}`).join(
         '|'
       ),
       incorrectAnswers: [],
@@ -149,6 +199,50 @@ describe('grouped questions on paper', () => {
     expect(a.groups).toEqual([]);
     expect(a.exclusions.map((e) => e.reason)).toEqual(['too-many-choices']);
   });
+
+  it.each([2, 1, 'questions'] as const)(
+    'wraps more than 10 answers onto a second line and reads them back (%s)',
+    (grid) => {
+      const steps = Array.from({ length: 14 }, (_, i) => `Step ${i + 1}`);
+      const long = q({
+        id: 'long',
+        type: 'Ordering',
+        correctAnswer: steps.join('|'),
+        incorrectAnswers: [],
+      });
+      const quiz = { ...QUIZ, questions: [MC, long] };
+      const batch = stack(grid, quiz);
+      const items = (batch.pageMaps ?? []).flatMap(mcItemsOf);
+      const rows = items.filter((i) => i.questionId === 'long');
+      expect(rows).toHaveLength(14);
+      expect(rows[0].wrap).toBe(grid === 1 ? 6 : 10);
+      // Every bubble of every row has its own spot on the page.
+      const spots = new Set<string>();
+      let bubbles = 0;
+      for (const map of batch.pageMaps ?? [])
+        for (const item of mcItemsOf(map)) {
+          const n = item.choices ?? batch.choiceCount;
+          for (let c = 0; c < n; c += 1) {
+            const r = itemBubbleRectMm(item, c, grid);
+            spots.add(`${map.page}:${r.x}:${r.y}`);
+            bubbles += 1;
+            expect(r.x + r.w).toBeLessThan(
+              grid === 1 ? STIMULUS_RECT_MM.x : PAGE_WIDTH_MM - 10
+            );
+          }
+        }
+      expect(spots.size).toBe(bubbles);
+      const opts = batch.choiceOrder?.long ?? [];
+      const payload = scanAndImport(batch, grid, quiz, (id, part) => {
+        if (id === 'mc') return [0];
+        return grid === 'questions'
+          ? [steps.indexOf(opts[part ?? 0])]
+          : [opts.indexOf(steps[part ?? 0])];
+      });
+      const got = payload[0].answers.find((x) => x.questionId === 'long');
+      expect(got?.answer).toBe(long.correctAnswer);
+    }
+  );
 
   it('letters every print alike and never prints ordering already in order', () => {
     expect(paperGroupOrder(ORDER)).toEqual(paperGroupOrder({ ...ORDER }));
@@ -268,7 +362,6 @@ describe('grouped questions on paper', () => {
     (grid) => {
       const batch = stack(grid);
       const order = batch.choiceOrder ?? {};
-      const maps = batch.pageMaps as PaperPageMap[];
       const correct = ORDER.correctAnswer.split('|');
       const pick = (questionId: string, part: number | undefined): number[] => {
         const opts = order[questionId];
@@ -283,44 +376,7 @@ describe('grouped questions on paper', () => {
           ? [correct.indexOf(opts[part ?? 0])]
           : [opts.indexOf(correct[part ?? 0])];
       };
-      const pages = maps.map((map) => {
-        const items = mcItemsOf(map).sort((a, b) => a.sheetRow - b.sheetRow);
-        const marks = items.flatMap((item, row) =>
-          pick(item.questionId, item.part).map((choice) => ({ row, choice }))
-        );
-        return readPaperPage(
-          paintSyntheticSheet({
-            marker: {
-              batchTag: paperBatchTag(batch.id),
-              seat: 1,
-              page: map.page,
-              isKeySheet: false,
-              readByMap: true,
-            },
-            questionCount: 0,
-            choiceCount: batch.choiceCount,
-            pageMap: map,
-            marks,
-          }),
-          {
-            questionCount: 0,
-            choiceCount: batch.choiceCount,
-            columnsPerPage: grid,
-            pageMaps: maps,
-          }
-        );
-      });
-      const assembled = assemblePaperScan(
-        batch,
-        pages.map((read, scanIndex) => ({ scanIndex, read }))
-      );
-      const { payload } = buildImportPayload({
-        batch,
-        quiz: QUIZ,
-        rosters: [ROSTER],
-        sheets: assembled.sheets,
-        spareAssignments: {},
-      });
+      const payload = scanAndImport(batch, grid, QUIZ, pick);
       const answers = Object.fromEntries(
         payload[0].answers.map((a) => [a.questionId, a.answer])
       );

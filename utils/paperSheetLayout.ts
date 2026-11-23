@@ -187,8 +187,14 @@ export const BUBBLE_DIAMETER_MM = 5;
 export const MIN_CHOICE_COUNT = 2;
 export const MAX_CHOICE_COUNT = 5;
 
-/** Most bubbles one matching, ordering or choose all row prints. */
-export const MAX_ROW_CHOICES = 10;
+/** Most bubbles one matching, ordering or choose all row prints, over two lines. */
+export const MAX_ROW_CHOICES = 20;
+
+/** Bubbles on one line of a two-column or across row; more wrap onto a second line. */
+export const ROW_LINE_CHOICES = 10;
+
+/** Question-text sheets: pitch of the lines of an across row. */
+export const ACROSS_LINE_MM = 6.5;
 
 /** Choice letters, indexed by choice number. */
 export const CHOICE_LETTERS: readonly string[] = [
@@ -202,6 +208,16 @@ export const CHOICE_LETTERS: readonly string[] = [
   'H',
   'I',
   'J',
+  'K',
+  'L',
+  'M',
+  'N',
+  'O',
+  'P',
+  'Q',
+  'R',
+  'S',
+  'T',
 ];
 
 /** One-column (stimulus) sheets: bubbles per line before a wide row wraps, clear of the stimulus. */
@@ -276,9 +292,11 @@ export function bubbleRectAtOriginMm(
     throw new RangeError(`choice ${choiceIndex} out of range`);
   }
   if (columns === 'questions' && across) {
+    const line = wrap ? Math.floor(choiceIndex / wrap) : 0;
+    const at = wrap ? choiceIndex % wrap : choiceIndex;
     return {
-      x: origin.x + ACROSS_TERM_W_MM + choiceIndex * BUBBLE_PITCH_MM,
-      y: origin.y,
+      x: origin.x + ACROSS_TERM_W_MM + at * BUBBLE_PITCH_MM,
+      y: origin.y + line * ACROSS_LINE_MM,
       w: BUBBLE_DIAMETER_MM,
       h: BUBBLE_DIAMETER_MM,
     };
@@ -317,12 +335,14 @@ export function rowRectAtOriginMm(
     MAX_ROW_CHOICES
   );
   if (columns === 'questions' && across) {
-    const last = bubbleRectAtOriginMm(origin, choices - 1, columns, true);
+    const perLine = wrap ? Math.min(wrap, choices) : choices;
+    const lastOnLine = bubbleRectAtOriginMm(origin, perLine - 1, columns, true);
+    const last = bubbleRectAtOriginMm(origin, choices - 1, columns, true, wrap);
     return {
       x: origin.x,
       y: origin.y,
-      w: last.x + last.w - origin.x,
-      h: BUBBLE_DIAMETER_MM,
+      w: lastOnLine.x + lastOnLine.w - origin.x,
+      h: last.y + last.h - origin.y,
     };
   }
   if (columns === 'questions') {
