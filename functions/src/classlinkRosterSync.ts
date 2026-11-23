@@ -51,12 +51,13 @@ import {
   type CommitRosterPinIndexEntry,
 } from './studentIdentity';
 import { safeErr } from './safeLog';
+import { recordClassMembers } from './classlinkClassMembers';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const API_TIMEOUT_MS = 20000;
 
-/** Admin kill switch. Absent doc == disabled: this never runs by default. */
+/** Admin kill switch on the Previews tab. Absent doc == on; only a literal `enabled: false` stops it. */
 export const SYNC_SETTINGS_PATH = 'admin_settings/classlink_sync';
 
 /** Resume cursor lives on the same server-only doc as the kill switch. */
@@ -102,6 +103,12 @@ export interface ClassLinkSyncDeps {
   fetchClassStudents: (
     classId: string
   ) => Promise<{ students: ClassLinkStudent[]; complete: boolean }>;
+  /** Remembers who ClassLink listed in the class, so results keep names after a student leaves. */
+  recordClassMembers?: (
+    teacherUid: string,
+    classId: string,
+    sourcedIds: string[]
+  ) => Promise<void>;
   readRosterFile: (
     accessToken: string,
     fileId: string
@@ -205,10 +212,9 @@ export async function readSyncSettings(
   const snap = await db.doc(SYNC_SETTINGS_PATH).get();
   const data = snap.data();
   return {
-    enabled: data?.enabled === true,
-    // Any value other than an explicit `false` keeps writes off, so a
-    // malformed settings doc fails safe.
-    dryRun: data?.dryRun !== false,
+    enabled: data?.enabled !== false,
+    // Dry run only on request; the >50% removal block guards a bad upstream.
+    dryRun: data?.dryRun === true,
   };
 }
 
@@ -422,6 +428,20 @@ async function syncOneRoster(
       `[classlinkRosterSync] ${rosterSnap.ref.path}: upstream list may be truncated; skipping`
     );
     return true;
+  }
+
+  if (!settings.dryRun && deps.recordClassMembers) {
+    const ids = upstream.students
+      .map((u) => u.sourcedId)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0);
+    try {
+      await deps.recordClassMembers(uid, classId, ids);
+    } catch (err) {
+      console.warn(
+        `[classlinkRosterSync] ${rosterSnap.ref.path}: class members not recorded:`,
+        safeErr(err)
+      );
+    }
   }
 
   const { content, driveVersion } = await deps.readRosterFile(
@@ -735,6 +755,9 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
       }
     },
 
+    recordClassMembers: (teacherUid, classId, sourcedIds) =>
+      recordClassMembers(db, teacherUid, classId, sourcedIds, Date.now()),
+
     now: () => Date.now(),
   };
 }
@@ -762,7 +785,7 @@ export const classlinkRosterSync = onSchedule(
     const db = admin.firestore();
     const settings = await readSyncSettings(db);
     if (!settings.enabled) {
-      console.log('[classlinkRosterSync] disabled; set enabled=true to run.');
+      console.log('[classlinkRosterSync] turned off on the Previews tab.');
       return;
     }
 

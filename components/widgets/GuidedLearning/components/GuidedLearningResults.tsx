@@ -307,7 +307,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
     sessionId,
     showStudentProgress
   );
-  const { byStudentUid } = useAssignmentPseudonymsMulti(
+  const { byStudentUid, formerStudentUids } = useAssignmentPseudonymsMulti(
     sessionId,
     sessionClassIds,
     orgId
@@ -511,7 +511,8 @@ export const GuidedLearningResults: React.FC<Props> = ({
     // The class roster; per-student assignments only target some of it.
     if (!individualTargeting) {
       for (const uid of byStudentUid.keys()) {
-        if (seen.has(uid) || !inPickedClass(uid)) continue;
+        if (seen.has(uid) || formerStudentUids?.has(uid) || !inPickedClass(uid))
+          continue;
         monitorRows.push({
           key: uid,
           name: nameFor(uid),

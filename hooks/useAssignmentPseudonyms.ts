@@ -55,6 +55,8 @@ export interface AssignmentPseudonymMaps {
    * roster student / override for that response-keying scheme.
    */
   targetRefKeyByAssignmentPseudonym: Map<string, string>;
+  /** Students who have left the class: named in the maps above, but not part of today's class list. */
+  formerStudentUids?: ReadonlySet<string>;
 }
 
 /** The maps plus fetch state; hold name-dependent output while `loading`. */
@@ -76,6 +78,16 @@ interface CallableResponse {
       givenName?: string;
       familyName?: string;
       targetRefKey?: string;
+    }
+  >;
+  /** Students who left the class; names only, never class members. */
+  formerPseudonyms?: Record<
+    string,
+    {
+      studentUid?: string;
+      assignmentPseudonym?: string;
+      givenName?: string;
+      familyName?: string;
     }
   >;
 }
@@ -174,11 +186,28 @@ function fetchPseudonymMaps(
           v.targetRefKey
         );
     }
+    const formerStudentUids = new Set<string>();
+    for (const v of Object.values(res.data?.formerPseudonyms ?? {})) {
+      const name: StudentName = {
+        givenName: v.givenName ?? '',
+        familyName: v.familyName ?? '',
+      };
+      if (v.studentUid && !byStudentUid.has(v.studentUid)) {
+        byStudentUid.set(v.studentUid, name);
+        formerStudentUids.add(v.studentUid);
+      }
+      if (
+        v.assignmentPseudonym &&
+        !byAssignmentPseudonym.has(v.assignmentPseudonym)
+      )
+        byAssignmentPseudonym.set(v.assignmentPseudonym, name);
+    }
     return {
       byStudentUid,
       byAssignmentPseudonym,
       targetRefKeyByStudentUid,
       targetRefKeyByAssignmentPseudonym,
+      formerStudentUids,
     };
   });
 
@@ -299,10 +328,21 @@ export function useAssignmentPseudonymsMulti(
         const byAssignmentPseudonym = new Map<string, StudentName>();
         const targetRefKeyByStudentUid = new Map<string, string>();
         const targetRefKeyByAssignmentPseudonym = new Map<string, string>();
+        const formerStudentUids = new Set<string>();
         let error: Error | null = null;
         results.forEach((res, i) => {
           if (res.status === 'fulfilled') {
-            for (const [k, v] of res.value.byStudentUid) byStudentUid.set(k, v);
+            const former = res.value.formerStudentUids;
+            for (const [k, v] of res.value.byStudentUid) {
+              // A student enrolled in any of the classes is a current member.
+              if (former?.has(k)) {
+                if (!byStudentUid.has(k)) formerStudentUids.add(k);
+                byStudentUid.set(k, byStudentUid.get(k) ?? v);
+              } else {
+                formerStudentUids.delete(k);
+                byStudentUid.set(k, v);
+              }
+            }
             for (const [k, v] of res.value.byAssignmentPseudonym)
               byAssignmentPseudonym.set(k, v);
             for (const [k, v] of res.value.targetRefKeyByStudentUid)
@@ -324,6 +364,7 @@ export function useAssignmentPseudonymsMulti(
             byAssignmentPseudonym,
             targetRefKeyByStudentUid,
             targetRefKeyByAssignmentPseudonym,
+            formerStudentUids,
           },
           error,
         });
