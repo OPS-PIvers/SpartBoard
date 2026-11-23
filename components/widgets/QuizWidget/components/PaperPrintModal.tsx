@@ -289,6 +289,8 @@ export interface PaperPrintGroup {
   supports?: readonly PrintedSupport[];
   /** The group's language on the test paper; the answer sheet stays in English. */
   translation?: PrintedTranslation;
+  /** Prints by page map, so a scan reads the rows of a student's own question subset. */
+  servedQuestionIds?: readonly string[];
 }
 
 /** What the print dialog records on an authored quiz. */
@@ -766,7 +768,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       writtenCount === 0 &&
       !questionTextLayout &&
       !versionPlan &&
-      analysis.groups.length === 0
+      analysis.groups.length === 0 &&
+      !group?.servedQuestionIds
     )
       return null;
     return planPages(
@@ -778,6 +781,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     writtenCount,
     questionTextLayout,
     versionPlan,
+    group?.servedQuestionIds,
     planPages,
     isStub,
     stubQuestionCount,

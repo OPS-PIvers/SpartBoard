@@ -88,6 +88,7 @@ import { StatusBuckets, BucketKey } from './StatusBuckets';
 import { OpenPartControl } from './OpenPartControl';
 import { openQuizPart } from './openPart';
 import { RosterList } from './RosterList';
+import { buildPrintSeats, type PrintSeat } from './printSeats';
 import { MonitorHeader } from './MonitorHeader';
 import { CLASS_STATUS_WORD } from './classStatusWords';
 import { PeriodAccessStrip } from './PeriodAccessStrip';
@@ -152,6 +153,8 @@ export interface QuizLiveMonitorProps {
   onUnlockResultsForStudent?: (responseKey: string) => Promise<void>;
   /** Clear a student's raised hand by response-doc key. */
   onClearHand?: (responseKey: string) => Promise<void>;
+  /** Prints one student's paper copy; offered on rows that match a roster student. */
+  onPrintPaperCopy?: (seat: PrintSeat) => void;
   onRevealAnswer?: (questionId: string, correctAnswer: string) => Promise<void>;
   onHideAnswer?: (questionId: string) => Promise<void>;
   /** Navigate back to the manager view without ending the quiz. */
@@ -259,6 +262,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     onReleasePaperRow,
     onUnlockResultsForStudent,
     onClearHand,
+    onPrintPaperCopy,
     onRevealAnswer,
     onHideAnswer,
     onBack,
@@ -336,6 +340,30 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     responsesLoaded,
     paperSeats,
     responsesLoaded
+  );
+  const printSeats = useMemo(
+    () =>
+      onPrintPaperCopy
+        ? buildPrintSeats({
+            session,
+            rosters,
+            joined: data.students,
+            notJoined: data.allNotJoined,
+            targetRefKeyByStudentUid: data.targetRefKeyByStudentUid,
+          })
+        : null,
+    [
+      onPrintPaperCopy,
+      session,
+      rosters,
+      data.students,
+      data.allNotJoined,
+      data.targetRefKeyByStudentUid,
+    ]
+  );
+  const printCopyKeys = useMemo(
+    () => (printSeats ? new Set(printSeats.keys()) : undefined),
+    [printSeats]
   );
   const reopenOptions = useMemo(
     () => buildReopenOptions(data.allNames, data.allNotJoined, session),
@@ -1468,6 +1496,15 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 targetRefKeyByStudentUid={data.targetRefKeyByStudentUid}
                 boardViewChip={!!assignmentSettings}
                 onLiveView={canLiveView ? setLiveViewKey : undefined}
+                onPrintCopy={
+                  onPrintPaperCopy && printSeats && !outward.locked
+                    ? (key) => {
+                        const seat = printSeats.get(key);
+                        if (seat) onPrintPaperCopy(seat);
+                      }
+                    : undefined
+                }
+                printCopyKeys={printCopyKeys}
               />
             )}
           </div>

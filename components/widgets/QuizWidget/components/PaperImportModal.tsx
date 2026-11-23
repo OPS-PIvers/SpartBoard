@@ -97,6 +97,7 @@ import { CHOICE_LETTERS, paperGridOf } from '@/utils/paperSheetLayout';
 import { mcItemsOf } from '@/utils/paperPageMap';
 import { paperBatchTag } from '@/utils/paperSheetMarker';
 import { isPaperKeySeat } from '@/utils/paperSheetPlan';
+import { STUDENT_COPY_LABEL } from '@/utils/paperPrintedVersions';
 import {
   blankWrittenCrop,
   cropWrittenBox,
@@ -1272,7 +1273,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                   {batches.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.printedGroup
-                        ? `Group ${b.printedGroup.number} · `
+                        ? `${b.printedGroup.single ? STUDENT_COPY_LABEL : `Group ${b.printedGroup.number}`} · `
                         : ''}
                       {formatDate(b.createdAt)} ·{' '}
                       {Object.keys(b.seats).length + b.spareSeats.length} sheets

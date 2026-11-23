@@ -323,6 +323,12 @@ export interface PrintedGroupPick {
   /** 1-based position among the step's groups, for "Group 2". */
   number: number;
   students: { rosterId: string; studentId: string }[];
+  /** One student's copy from the monitor; labeled as a student copy, never "Group N". */
+  single?: true;
+  /** Option text left off per question id, for a student copy's own hidden choices. */
+  hiddenChoices?: Record<string, string[]>;
+  /** The questions a student copy prints, when the student was given only some. */
+  questionIds?: string[];
 }
 
 /** Printed groups with at least one student the assignment reaches. */

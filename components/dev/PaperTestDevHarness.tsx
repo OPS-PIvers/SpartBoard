@@ -16,9 +16,13 @@ import {
 import { PaperImportModal } from '@/components/widgets/QuizWidget/components/PaperImportModal';
 import { PaperPrintModal } from '@/components/widgets/QuizWidget/components/PaperPrintModal';
 import {
+  printedGroupForPrint,
   printedGroupQuiz,
   printedGroupResolved,
+  studentCopyPick,
 } from '@/utils/paperPrintedVersions';
+import { RosterList } from '@/components/widgets/QuizWidget/components/monitor/RosterList';
+import type { MonitorStudent } from '@/components/widgets/QuizWidget/components/monitor/useMonitorData';
 import { resolveQuizAssignment } from '@/utils/questionBanks';
 import { PaperReprintModal } from '@/components/widgets/QuizWidget/components/PaperReprintModal';
 import { PaperGroupReprintModal } from '@/components/widgets/QuizWidget/components/PaperGroupReprintModal';
@@ -29,6 +33,8 @@ import type {
   QuizConfig,
   QuizData,
   QuizMetadata,
+  QuizResponse,
+  QuizSession,
   QuizStimulus,
 } from '@/types';
 
@@ -811,8 +817,90 @@ const VIEWS = {
       onError={noop}
     />
   ),
+  'student-copy-menu': () => <StudentCopyMenu />,
+  'student-copy': () => {
+    const pick = studentCopyPick(
+      { rosterId: 'r1', studentId: 'r1-s1' },
+      {
+        hiddenOptionIdsByQuestion: { q1: ['Vacuole'], q2: ['Cell wall'] },
+        questionIds: ASSIGN_QUIZ.questions.slice(0, 12).map((q) => q.id),
+        supports: [{ kind: 'text', title: 'Word bank', text: 'nucleus' }],
+      }
+    );
+    const group = printedGroupForPrint(pick);
+    return (
+      <PaperPrintModal
+        quiz={printedGroupQuiz(ASSIGN_QUIZ, pick.group, pick)}
+        group={{
+          ...group,
+          label: 'Garcia, Jordan',
+          ...(pick.questionIds ? { servedQuestionIds: pick.questionIds } : {}),
+        }}
+        rosters={ROSTERS}
+        onSaveBatch={() => Promise.resolve()}
+        onClose={noop}
+        onError={noop}
+      />
+    );
+  },
 } as const;
 type View = keyof typeof VIEWS;
+
+const monitorRow = (
+  key: string,
+  name: string,
+  status: QuizResponse['status']
+): MonitorStudent => ({
+  response: {
+    studentUid: key,
+    _responseKey: key,
+    answers: [],
+    status,
+    tabSwitchWarnings: 0,
+  } as unknown as QuizResponse,
+  key,
+  name,
+  bandScore: null,
+  displayScore: null,
+  awaitingGrade: false,
+  band: null,
+  tabWarnings: 0,
+  hand: null,
+  idle: null,
+  duplicate: false,
+  onQuestion: 3,
+});
+
+// The live monitor's In progress roster, with the row menu's Print paper copy.
+const StudentCopyMenu: React.FC = () => {
+  const rows = ['Jordan Larson', 'Avery Nguyen', 'Priya Patel'].map((n, i) =>
+    monitorRow(`uid-${i}`, n, 'in-progress')
+  );
+  return (
+    <div className="h-full overflow-y-auto p-3">
+      <RosterList
+        bucket="inProgress"
+        students={rows}
+        session={
+          {
+            id: 'qa-0',
+            quizId: 'quiz-0',
+            teacherUid: 'mock-user-id',
+            classIds: [],
+            attemptLimit: 1,
+          } as unknown as QuizSession
+        }
+        config={{} as QuizConfig}
+        isGamified={false}
+        onUpdateConfig={noop}
+        onSubmitForStudent={noop}
+        onRemove={noop}
+        onPrintCopy={noop}
+        printCopyKeys={new Set(rows.map((r) => r.key))}
+      />
+    </div>
+  );
+};
 
 const readView = (): View => {
   const q = new URLSearchParams(window.location.search).get('view');

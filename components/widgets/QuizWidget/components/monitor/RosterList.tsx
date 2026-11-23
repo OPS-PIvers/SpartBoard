@@ -95,6 +95,9 @@ interface RosterListProps {
   boardViewChip?: boolean;
   /** Opens Live view on an in-progress student; absent when this teacher can't use it. */
   onLiveView?: (key: string) => void;
+  /** Prints a paper copy for one student; offered only on rows in `printCopyKeys`. */
+  onPrintCopy?: (key: string) => void;
+  printCopyKeys?: ReadonlySet<string>;
 }
 
 /** Time left on a student's overall quiz time limit; ticks on its own so the list doesn't. */
@@ -119,6 +122,8 @@ const TimeLeft: React.FC<{ deadline: number }> = ({ deadline }) => {
   );
 };
 
+const PRINT_COPY_LABEL = 'Print paper copy';
+
 const RowMenu: React.FC<{
   student: MonitorStudent;
   session: QuizSession;
@@ -131,6 +136,7 @@ const RowMenu: React.FC<{
   onUnlockResults?: (key: string) => void;
   onLetIn?: (studentUid: string) => void;
   onOpenPart?: (key: string, part: number) => void;
+  onPrintCopy?: (key: string) => void;
   overridesBySourcedId?: Record<string, StudentOverride> | null;
   targetRefKeyByStudentUid?: Map<string, string> | null;
   /** 1-based position in the roster, for the tour anchor. */
@@ -148,6 +154,7 @@ const RowMenu: React.FC<{
   onUnlockResults,
   onLetIn,
   onOpenPart,
+  onPrintCopy,
   overridesBySourcedId,
   targetRefKeyByStudentUid,
 }) => {
@@ -224,6 +231,13 @@ const RowMenu: React.FC<{
       tour: tourTypeAttr('quiz-monitor.student-unlock-results', 'quiz'),
       onClick: () => onUnlockResults(student.key),
     });
+  if (onPrintCopy)
+    items.push({
+      label: PRINT_COPY_LABEL,
+      closes: true,
+      tour: tourTypeAttr('quiz-monitor.student-print-copy', 'quiz'),
+      onClick: () => onPrintCopy(student.key),
+    });
   if (onRemove)
     items.push({
       label: 'Remove student',
@@ -269,6 +283,8 @@ export const RosterList: React.FC<RosterListProps> = ({
   targetRefKeyByStudentUid = null,
   boardViewChip = false,
   onLiveView,
+  onPrintCopy,
+  printCopyKeys,
 }) => {
   const now = useServerNow(onLetIn ? 30_000 : null);
   const showToolbar = bucket !== 'notStarted';
@@ -632,6 +648,11 @@ export const RosterList: React.FC<RosterListProps> = ({
               now={now}
               onLetIn={onLetIn}
               onOpenPart={onOpenPart}
+              onPrintCopy={
+                onPrintCopy && printCopyKeys?.has(s.key)
+                  ? onPrintCopy
+                  : undefined
+              }
               onRemove={onRemove}
               onUnlockAttempt={onUnlockAttempt}
               onReopen={onReopen}
@@ -661,6 +682,13 @@ export const RosterList: React.FC<RosterListProps> = ({
             onClick: () => onLetIn(uid),
           });
         }
+        if (onPrintCopy && printCopyKeys?.has(s.key))
+          items.push({
+            label: PRINT_COPY_LABEL,
+            closes: true,
+            tour: tourTypeAttr('quiz-monitor.student-print-copy', 'quiz'),
+            onClick: () => onPrintCopy(s.key),
+          });
         const canMark = !!onSetAbsent && !!s.rosterId && !!s.studentId;
         return (
           <RosterRow key={s.key} name={s.name} muted>
