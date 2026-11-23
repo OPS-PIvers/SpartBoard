@@ -5185,3 +5185,12 @@ rather than "no data") is also still open.
   - Ready: #6531, #6530, #6529, #6527 (#6527 still had unit shards running at review time).
   - Ready with minor notes: #6528 (each field's clamp is written in both `normalize` and `onCommit`; cosmetic).
 - Notes: Nothing was changed, so I didn't run lint, type-check or tests locally. CI `summary` was green on #6528–#6531.
+
+## 2026-11-23
+- PRs reviewed: #6586 docs: nightly debugger run 132 log; #6585 fix(functions): group reminder emails honor leads that cross midnight; #6584 fix(help-center): retry a set whose read failed instead of caching it as missing; #6583 fix(boards): recover a collection parent cycle at a cycle member, not a branch; #6582 fix(calculator): backspace on a negative single digit leaves a bare minus; #6577 docs: unifier run 155 log (aligned); #6534 chore(deps): safe updates 2026-11-22 (hono 4.13.20, lint-staged 17.6.2)
+- Comments processed: 2 total, 0 fixed, 2 explained. Both were Claude bot LGTM summaries on #6585 and #6584, with no inline threads. #6584's note about uncapped 5 s retries was answered in that PR's review as a non-blocking product choice.
+- Fixes pushed: #6586 + nightly/debugger-log-2026-11-23. Moved the three new Backlog rows below the table separator and added the Found/Status cells; they had been breaking the table (ddf1a549). This was found during the Phase 2 review, not from a comment.
+- Reviews posted: 7
+  - Ready: #6586 (after the fix), #6585, #6583, #6582, #6577, #6534.
+  - Ready with minor notes: #6584 (a persistent read failure retries every 5 s with no backoff or cap).
+- Notes: CI `summary` was green on all seven at review time. The only change was a docs table fix, so I ran `prettier --check` instead of type-check, lint or tests.
