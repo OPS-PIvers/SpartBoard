@@ -429,10 +429,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   );
   // One random draw per sheet; the seed keeps each sheet's draw steady while the teacher picks.
   const [drawSeed] = useState(() => crypto.randomUUID());
-  const formCount = Math.max(
-    1,
-    selectionsForPrint.reduce((n, s) => n + s.students.length, 0) + spareCount
-  );
+  // Fixed once a stack is assigned, so a retried print matches the saved draws.
+  const [lockedFormCount, setLockedFormCount] = useState<number | null>(null);
+  const formCount =
+    lockedFormCount ??
+    Math.max(
+      1,
+      selectionsForPrint.reduce((n, s) => n + s.students.length, 0) + spareCount
+    );
   const versionPlan = useMemo(() => {
     if (!resolvedForPrint?.sessionSlots.length) return null;
     try {
@@ -961,10 +965,19 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     (n, s) => n + s.students.length,
     0
   );
-  // A stack in versions prints one key per version.
-  const keySheetCount = includeKeySheet
-    ? Math.max(1, versionPlan?.versions.length ?? 0)
-    : 0;
+  // A stack in versions prints one key per version a sheet carries.
+  const versionsDealt = !versionPlan
+    ? 1
+    : Math.min(
+        versionPlan.versions.length,
+        versionPlan.dealBySheet
+          ? studentSheetCount + spareCount
+          : Math.max(
+              spareCount,
+              ...selectionsForPrint.map((x) => x.students.length)
+            )
+      );
+  const keySheetCount = includeKeySheet ? Math.max(1, versionsDealt) : 0;
   const sheetCount = studentSheetCount + spareCount + keySheetCount;
   const pagesPerSheet = pagePlan
     ? pagePlan.ok
@@ -1191,13 +1204,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     // Each version gets its own copy of the test, headed with its label (V24).
     return versionPlan
       ? {
-          quizTitle: quiz.title,
+          quizTitle: group?.translation?.title ?? quiz.title,
           ...(printLanguage ? { language: printLanguage } : {}),
           questions: [],
           versions: versionPlan.versions.map((v) => ({
             label: v.label,
             ...questionsOf(v.analysis),
           })),
+          ...(group?.supports?.length ? { supports: group.supports } : {}),
         }
       : {
           quizTitle: group?.translation?.title ?? quiz.title,
@@ -1377,7 +1391,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         ...(columnsPerPage === 1 ? { columnsPerPage: 1 as const } : {}),
         ...(questionTextLayout ? { sheetLayout: 'questions' as const } : {}),
         ...(pagePlan?.ok ? { pageMaps: pagePlan.pageMaps } : {}),
-        ...(versionPlan ? { versions: versionPlan.records } : {}),
+        ...(versionPlan
+          ? {
+              versions: versionPlan.records,
+              ...(versionPlan.dealBySheet ? { dealBySheet: true } : {}),
+            }
+          : {}),
         createdAt: 0,
       });
       return buildPaperSheetsPreviewPages(
@@ -1506,7 +1525,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         ...(columnsPerPage === 1 ? { columnsPerPage: 1 as const } : {}),
         ...(questionTextLayout ? { sheetLayout: 'questions' as const } : {}),
         ...(pageMaps ? { pageMaps } : {}),
-        ...(versionPlan ? { versions: versionPlan.records } : {}),
+        ...(versionPlan
+          ? {
+              versions: versionPlan.records,
+              ...(versionPlan.dealBySheet ? { dealBySheet: true } : {}),
+            }
+          : {}),
         createdAt: now,
       });
       const picks = JSON.stringify([
@@ -1555,9 +1579,13 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           periodNames: printed.map((r) => r.name),
           sharing: sharingStepShown ? sharingValue : null,
           ...(savedQuiz ? { quiz: savedQuiz } : {}),
-          ...(resolvedForPrint ? { resolved: resolvedForPrint } : {}),
+          // Only a stack that printed each sheet's draw freezes the pools it drew from.
+          ...(resolvedForPrint && versionPlan
+            ? { resolved: resolvedForPrint }
+            : {}),
         });
         committedRef.current = { batch, sheets, assigned: true, picks };
+        setLockedFormCount(formCount);
       }
       print({
         ...jobFor(batch, sheets, printedQuiz.title),
@@ -2508,9 +2536,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 : `${sheetCount} sheet${sheetCount === 1 ? '' : 's'} · ${
                     printedPages
                   } page${printedPages === 1 ? '' : 's'}${
-                    versionPlan && versionPlan.versions.length > 1
-                      ? ` · ${versionPlan.versions.length} versions`
-                      : ''
+                    versionsDealt > 1 ? ` · ${versionsDealt} versions` : ''
                   }`}
           </p>
           <div className="flex gap-2">

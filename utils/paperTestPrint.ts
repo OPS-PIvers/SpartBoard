@@ -53,7 +53,7 @@ export interface PaperTestJob {
   }[];
   /** Stimuli shared by several questions, printed after the questions. */
   resources?: readonly PaperTestResource[];
-  /** A printed group's supports, on a page after the questions. */
+  /** A printed group's supports, on a page after the questions (after each version's copy). */
   supports?: readonly { title: string; body: string }[];
   /** The copy's language, for the words printed around stimuli; absent = English. */
   language?: string;
@@ -237,7 +237,7 @@ export function buildPaperTestHtml(job: PaperTestJob): string {
     return job.versions
       .map(
         (v) =>
-          `<section class="version">${testHtml(job.quizTitle, v.questions, words, v.label)}${resourcesHtml(v.resources, words)}</section>`
+          `<section class="version">${testHtml(job.quizTitle, v.questions, words, v.label)}${resourcesHtml(v.resources, words)}${supportsHtml(job.supports)}</section>`
       )
       .join('');
   }
@@ -289,7 +289,8 @@ export function paperTestPacketCopies(job: PaperTestJob): string[] {
     return job.versions.map((v) =>
       copy(
         testHtml(job.quizTitle, v.questions, words, v.label) +
-          resourcesHtml(v.resources, words)
+          resourcesHtml(v.resources, words) +
+          supportsHtml(job.supports)
       )
     );
   return [copy(buildPaperTestHtml(job))];

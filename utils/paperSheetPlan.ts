@@ -336,6 +336,8 @@ export interface PaperBatchInput {
   pageMaps?: PaperPageMap[];
   /** Balanced bank-slot versions, dealt in seat order within each class and across the spares (V24). */
   versions?: PaperBatchVersion[];
+  /** Deal versions one per sheet across the whole stack (random forms) instead of restarting in each class. */
+  dealBySheet?: boolean;
   createdAt: number;
 }
 
@@ -389,8 +391,12 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     return { versionIndex: seatVersions[seat] };
   };
 
+  let sheetTurn = 0;
+  const turnFor = (local: number): number =>
+    input.dealBySheet ? sheetTurn++ : local;
   for (const { roster, students } of input.selections) {
-    students.forEach((student, turn) => {
+    students.forEach((student, local) => {
+      const turn = turnFor(local);
       const seat = takeSeat();
       seats[seat] = { rosterId: roster.id, studentId: student.id };
       sheets.push({
@@ -413,14 +419,17 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
       displayName: 'Name ______________________',
       className: '',
       isKeySheet: false,
-      ...dealt(seat, i),
+      ...dealt(seat, turnFor(i)),
     });
   }
 
-  // A stack in versions gets one key per version, each headed with its label.
+  // A stack in versions gets one key per version a sheet printed, each headed with its label.
   const keySheetSeats: number[] = [];
   if (input.includeKeySheet) {
-    for (let k = 0; k < Math.max(1, versionCount); k += 1) {
+    const used = [...new Set(Object.values(seatVersions))].sort(
+      (a, b) => a - b
+    );
+    for (const k of versionCount > 0 && used.length > 0 ? used : [0]) {
       const seat = takeSeat();
       keySheetSeats.push(seat);
       if (versionCount > 0) seatVersions[seat] = k;

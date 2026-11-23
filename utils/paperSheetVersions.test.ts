@@ -17,7 +17,12 @@ import {
   seatQuestionId,
   versionSheetQuestions,
 } from './paperSheetVersions';
+import { joinBlanks } from './quizFibBlanks';
 import { buildPaperSheetsHtml } from './paperSheetPrint';
+
+type PaperVersionPlanLike = NonNullable<
+  ReturnType<typeof planPaperVersions>
+>['versions'][number];
 import { buildImportPayload } from './paperImportPlan';
 import type { AssembledSheet } from './paperImportAssemble';
 import { buildPaperTestHtml } from './paperTestPrint';
@@ -256,6 +261,82 @@ describe('planPaperVersions', () => {
     );
     const served = plan.records.map((v) => v.servedQuestionIds[1]);
     expect(answers).toEqual(served.map((id) => [id === 'f1' ? 'one' : 'two']));
+  });
+
+  it('deals random forms one per sheet across classes and keys only the forms that printed', () => {
+    const pool: BankContent = {
+      ...bank,
+      questions: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6'].map((id) => mc(id, id)),
+    };
+    const random: QuizData = {
+      ...quiz,
+      bankSlots: [{ ...slot, dealing: 'random', count: 2 }],
+    };
+    const r = resolveQuizAssignment(random, new Map([['bank-1', pool]]));
+    const plan = planPaperVersions(random, r, {}, { count: 5, seed: 's' });
+    if (!plan) throw new Error('no plan');
+    expect(plan.dealBySheet).toBe(true);
+    const r1 = roster('1', 2);
+    const r2 = roster('2', 2);
+    const { batch, sheets } = planPaperBatch({
+      batchId: 'b',
+      quizId: random.id,
+      selections: [
+        { roster: r1, students: r1.students },
+        { roster: r2, students: r2.students },
+      ],
+      questionCount: plan.template.rows.length,
+      choiceCount: 4,
+      spareCount: 0,
+      includeKeySheet: true,
+      versions: plan.records,
+      dealBySheet: true,
+      createdAt: 1,
+    });
+    expect(sheets.map((x) => x.versionIndex)).toEqual([0, 1, 2, 3, 0, 1, 2, 3]);
+    expect(batch.keySheetSeats).toEqual([5, 6, 7, 8]);
+  });
+
+  it('never puts a different kind of written box in the same place across forms', () => {
+    const fib = (id: string, answer: string): QuizQuestion => ({
+      ...mc(id),
+      type: 'FIB',
+      text: `${id} is ___`,
+      correctAnswer: answer,
+      incorrectAnswers: [],
+    });
+    const pool: BankContent = {
+      ...bank,
+      questions: [
+        fib('a1', 'one'),
+        fib('a2', joinBlanks(['x', 'y'])),
+        fib('a3', 'two'),
+        frq('f1', 'Explain one.'),
+        frq('f2', 'Explain two.'),
+      ],
+    };
+    const random: QuizData = {
+      ...quiz,
+      bankSlots: [{ ...slot, dealing: 'random', count: 2 }],
+    };
+    const r = resolveQuizAssignment(random, new Map([['bank-1', pool]]));
+    for (const seed of ['a', 'b', 'c', 'd', 'e']) {
+      const plan = planPaperVersions(
+        random,
+        r,
+        { written: true, fib: true },
+        { count: 6, seed }
+      );
+      expect(plan).not.toBeNull();
+      const shape = (v: PaperVersionPlanLike) =>
+        v.analysis.entries
+          .map((e) =>
+            e.kind === 'written' ? `${e.blanks ?? 0}${e.style ?? ''}` : e.kind
+          )
+          .join(',');
+      const first = plan && shape(plan.versions[0]);
+      for (const v of plan?.versions ?? []) expect(shape(v)).toBe(first);
+    }
   });
 
   it('counts versions to the rotation period of every slot', () => {
