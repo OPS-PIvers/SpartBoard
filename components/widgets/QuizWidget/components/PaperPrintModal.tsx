@@ -1322,7 +1322,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
 
   // The first student's packet (or a spare), planned like the print but never saved.
   const previewFirst = selectionsForPrint[0];
-  const previewPages = ((): PaperPreviewPage[] | null => {
+  const previewStubTitle = isStub ? stubTitle : '';
+  const previewPages = useMemo((): PaperPreviewPage[] | null => {
     if (!previewOn || questionCount + writtenCount === 0) return null;
     if (pagePlan && !pagePlan.ok) return null;
     if (stimuliLoading || sheetImages.loading) return null;
@@ -1367,7 +1368,39 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     } catch {
       return null;
     }
-  })();
+    // jobFor is rebuilt every render, so its inputs are listed instead.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    previewOn,
+    questionCount,
+    writtenCount,
+    pagePlan,
+    stimuliLoading,
+    sheetImages,
+    previewFirst,
+    spareCount,
+    quiz,
+    choiceCount,
+    isStub,
+    versionPlan,
+    sheetQuestions,
+    columnsPerPage,
+    questionTextLayout,
+    previewStubTitle,
+    analysis,
+    stimuliLayout,
+    stimuliSets,
+    imageStimuli,
+    boxImages,
+    group,
+    promptIds,
+    promptPages,
+    sheetPromptIds,
+    questionsById,
+    printLanguage,
+    blockMeasure,
+    sheetStimuli,
+  ]);
 
   const handlePrint = async () => {
     // A stimulus that cannot be fetched would print as an empty box the

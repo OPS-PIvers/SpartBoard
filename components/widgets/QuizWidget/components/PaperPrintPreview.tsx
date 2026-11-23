@@ -1,15 +1,14 @@
 // Live preview of one student's printed packet, drawn from the same job the print uses.
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PAGE_HEIGHT_MM, PAGE_WIDTH_MM } from '@/utils/paperSheetLayout';
 import type { PaperPreviewPage } from '@/utils/paperSheetPrint';
+import { blobUrlsOf, inlineBlobUrls } from '@/utils/paperPreviewInline';
 
 const PX_PER_MM = 96 / 25.4;
 const PAGE_W_PX = PAGE_WIDTH_MM * PX_PER_MM;
 const PAGE_H_PX = PAGE_HEIGHT_MM * PX_PER_MM;
 /** Room around each page in the pane. */
 const GAP_PX = 16;
-const BLOB_URL = /blob:[^"'()\s]+/g;
-
 /** The box's size, kept current as the dialog resizes. */
 function useBoxSize(): [
   React.RefObject<HTMLDivElement | null>,
@@ -46,8 +45,8 @@ const toDataUrl = async (url: string): Promise<string> => {
 };
 
 /**
- * The pages' object URLs as data URLs. A sandboxed frame has no origin, so it
- * cannot read the dialog's object URLs; a URL that fails to read draws as empty.
+ * The pages with object URLs as data URLs (a sandboxed frame cannot read the dialog's).
+ * Pages show at once; a picture draws empty until read, so no frame reloads for another's.
  */
 function useInlinedPages(
   pages: readonly PaperPreviewPage[] | null
@@ -55,21 +54,27 @@ function useInlinedPages(
   const [inlined, setInlined] = useState<ReadonlyMap<string, string>>(
     () => new Map()
   );
-  const wanted = [
-    ...new Set((pages ?? []).flatMap((p) => p.doc.match(BLOB_URL) ?? [])),
-  ];
-  const missing = wanted.filter((u) => !inlined.has(u));
-  const missingKey = missing.join(' ');
+  const wantedKey = [
+    ...new Set((pages ?? []).flatMap((p) => blobUrlsOf(p.doc))),
+  ].join(' ');
+  const missingKey = wantedKey
+    .split(' ')
+    .filter((u) => u && !inlined.has(u))
+    .join(' ');
   useEffect(() => {
-    if (!missingKey) return;
+    const wanted = new Set(wantedKey.split(' ').filter(Boolean));
+    const urls = missingKey.split(' ').filter(Boolean);
     let live = true;
-    const urls = missingKey.split(' ');
+    if (urls.length === 0) return;
     void Promise.all(urls.map((u) => toDataUrl(u).catch(() => ''))).then(
       (data) => {
         if (!live) return;
         setInlined((prev) => {
-          const next = new Map(prev);
-          urls.forEach((u, i) => next.set(u, data[i]));
+          // Entries the pages no longer use are dropped as new ones land.
+          const next = new Map([...prev].filter(([u]) => wanted.has(u)));
+          urls.forEach((u, i) => {
+            if (wanted.has(u)) next.set(u, data[i]);
+          });
           return next;
         });
       }
@@ -77,12 +82,14 @@ function useInlinedPages(
     return () => {
       live = false;
     };
-  }, [missingKey]);
-  if (!pages || missing.length > 0) return null;
-  return pages.map((p) => ({
-    ...p,
-    doc: p.doc.replace(BLOB_URL, (u) => inlined.get(u) ?? ''),
-  }));
+  }, [wantedKey, missingKey]);
+  return useMemo(
+    () =>
+      pages
+        ? pages.map((p) => ({ ...p, doc: inlineBlobUrls(p.doc, inlined) }))
+        : null,
+    [pages, inlined]
+  );
 }
 
 export interface PaperPrintPreviewProps {
@@ -108,7 +115,6 @@ export const PaperPrintPreview: React.FC<PaperPrintPreviewProps> = ({
           (box.height - 2 * GAP_PX) / PAGE_H_PX
         )
       : 0;
-  const waiting = !!pages?.length && !shown;
 
   return (
     <div ref={boxRef} className={`min-h-0 overflow-y-auto pb-4 ${className}`}>
@@ -137,9 +143,7 @@ export const PaperPrintPreview: React.FC<PaperPrintPreviewProps> = ({
           ))}
         </ol>
       ) : (
-        <p className="p-4 text-sm text-slate-500">
-          {waiting ? 'Loading the pages.' : emptyText}
-        </p>
+        <p className="p-4 text-sm text-slate-500">{emptyText}</p>
       )}
     </div>
   );
