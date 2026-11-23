@@ -1,5 +1,5 @@
 // Firestore security-rules regression for `/building_guided_learning_tours/{setId}` (P7-3):
-// staff read published tours, only admins publish, students and signed-out users read nothing.
+// staff read published tours, only admins publish, students read only tours published for them, signed-out users read nothing.
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -111,6 +111,50 @@ describe('building_guided_learning_tours reads', () => {
     await assertFails(getDoc(doc(asAnonStudent(), `${TOURS}/s1`)));
     await assertFails(getDoc(doc(asStudentRole(), `${TOURS}/s1`)));
     await assertFails(getDocs(collection(asStudentRole(), TOURS)));
+  });
+
+  it('lets a student read only a SpartBoard tour published for students', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, `${TOURS}/stu`), {
+        ...snapshot,
+        audience: 'students',
+      });
+      await setDoc(doc(db, `${TOURS}/stu-web`), {
+        ...snapshot,
+        audience: 'students',
+        surface: 'web',
+      });
+    });
+    await assertSucceeds(getDoc(doc(asStudentRole(), `${TOURS}/stu`)));
+    await assertFails(getDoc(doc(asStudentRole(), `${TOURS}/stu-web`)));
+    await assertFails(getDoc(doc(asStudentRole(), `${TOURS}/_meta`)));
+    await assertFails(getDoc(doc(asStudentRole(), `${TOURS}/missing`)));
+    await assertFails(getDoc(doc(asAnonStudent(), `${TOURS}/stu`)));
+    await assertFails(getDocs(collection(asStudentRole(), TOURS)));
+  });
+
+  it('denies a student every write, even to a students tour', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `${TOURS}/stu`), {
+        ...snapshot,
+        audience: 'students',
+      });
+    });
+    await assertFails(
+      setDoc(doc(asStudentRole(), `${TOURS}/stu`), {
+        ...snapshot,
+        audience: 'students',
+        publishedAt: 2,
+      })
+    );
+    await assertFails(
+      setDoc(doc(asStudentRole(), `${TOURS}/stu-new`), {
+        ...snapshot,
+        audience: 'students',
+      })
+    );
+    await assertFails(deleteDoc(doc(asStudentRole(), `${TOURS}/stu`)));
   });
 
   it('denies signed-out reads', async () => {

@@ -362,11 +362,24 @@ describe('publishHelpItem / hideHelpItem', () => {
     gl.loadBuildingSet.mockResolvedValue(saved);
     const result = await publishHelpItem(item({ categoryId: 'admin' }), 'u1');
     expect(result).toEqual({ ok: true });
-    expect(gl.publishTour).toHaveBeenCalledWith(saved, 'u1');
+    expect(gl.publishTour).toHaveBeenCalledWith(saved, 'u1', 'teachers');
     expect(fs.updateDoc).toHaveBeenCalledWith(
       expect.objectContaining({ path: 'help_resources/item-1' }),
       { visible: true, updatedAt: anyNumber }
     );
+  });
+
+  it('publishes a students tour with the students marker', async () => {
+    const saved = set({
+      mode: 'tour',
+      steps: [step('sidebar.admin-settings')],
+    });
+    gl.loadBuildingSet.mockResolvedValue(saved);
+    await publishHelpItem(
+      item({ categoryId: 'admin', audience: 'students' }),
+      'u1'
+    );
+    expect(gl.publishTour).toHaveBeenCalledWith(saved, 'u1', 'students');
   });
 
   it('refuses without writing anything', async () => {

@@ -26,6 +26,7 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
 }));
 
 import { onSnapshot } from 'firebase/firestore';
+import { parsePublishedTour } from './tourSnapshot';
 import {
   __resetPublishedToursForTests,
   isTourRunnable,
@@ -89,6 +90,21 @@ describe('publishTour', () => {
     expect(written.set).not.toHaveProperty('imagePaths');
     expect(written.set).not.toHaveProperty('authorUid');
     expect(written.set).not.toHaveProperty('updatedAt');
+  });
+});
+
+describe('publishTour audience', () => {
+  it('marks a students tour, the marker the student read rule checks', async () => {
+    await publishTour(tourSet('Students'), 'admin-uid', 'students');
+    expect(h.docs.get('set-1')).toMatchObject({ audience: 'students' });
+    expect(parsePublishedTour('set-1', h.docs.get('set-1'))?.audience).toBe(
+      'students'
+    );
+  });
+
+  it('leaves teacher and substitute tours unmarked', async () => {
+    await publishTour(tourSet('Subs'), 'admin-uid', 'subs');
+    expect(h.docs.get('set-1')).not.toHaveProperty('audience');
   });
 });
 

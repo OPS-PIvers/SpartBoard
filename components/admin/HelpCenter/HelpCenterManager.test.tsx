@@ -398,6 +398,24 @@ describe('HelpCenterManager', () => {
     ]);
   });
 
+  it('hides a Published tour moved to students, so its next Publish marks it for students', async () => {
+    glState.tourSetIds = new Set(['t1']);
+    glState.sets.set('t1', pictureSet('t1'));
+    helpState.items = [
+      makeItem({ id: 'a', title: 'Tour', setId: 't1', visible: true }),
+    ];
+    writeHelpCenterSelection('a');
+    render(<HelpCenterManager />);
+    fireEvent.change(await screen.findByLabelText('Who sees it'), {
+      target: { value: 'students' },
+    });
+    await waitFor(() => expect(firestoreMocks.updateDoc).toHaveBeenCalled());
+    expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'a' }),
+      expect.objectContaining({ audience: 'students', visible: false })
+    );
+  });
+
   it('records a substitute tour on /subs in a new tab', () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
     render(<HelpCenterManager />);

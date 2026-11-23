@@ -2,6 +2,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db, isConfigured } from '@/config/firebase';
 import type { GuidedLearningSet, WidgetType } from '@/types';
+import type { HelpAudience } from '@/types/helpCenter';
 import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { assertGuidedLearningDocFits } from '@/utils/firestoreDocSize';
 import { logError } from '@/utils/logError';
@@ -24,12 +25,15 @@ const tourRef = (id: string) => doc(db, GL_TOURS_COLLECTION, id);
 /** Writes the set's tour content as the snapshot every launch point runs. */
 export async function publishTour(
   set: GuidedLearningSet,
-  uid: string
+  uid: string,
+  audience: HelpAudience = 'teachers'
 ): Promise<void> {
   const data = {
     set: buildTourContent(set),
     publishedAt: Date.now(),
     publishedBy: uid,
+    // Students may read only a snapshot marked for them (firestore.rules).
+    ...(audience === 'students' && { audience }),
   };
   assertGuidedLearningDocFits(`${GL_TOURS_COLLECTION}/${set.id}`, data);
   await setDoc(tourRef(set.id), data);

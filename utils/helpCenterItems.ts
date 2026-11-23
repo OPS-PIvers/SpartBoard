@@ -16,6 +16,7 @@ import type {
 } from '@/types';
 import {
   UNFILED_CATEGORY_ID,
+  helpAudienceOf,
   isUnfiled,
   type HelpAudience,
   type HelpPublishRefusal,
@@ -95,7 +96,8 @@ export function buildHiddenHelpItem(
     createdByEmail: author.email ?? '',
     createdAt: now,
     updatedAt: now,
-    ...(opts.audience === 'subs' && { audience: 'subs' as const }),
+    ...(opts.audience &&
+      opts.audience !== 'teachers' && { audience: opts.audience }),
   };
 }
 
@@ -296,7 +298,8 @@ export async function publishHelpItem(
       : null;
   const reason = publishRefusalOf(item, set);
   if (reason) return { ok: false, reason };
-  if (set && isLiveTourSet(set)) await publishTour(set, uid);
+  if (set && isLiveTourSet(set))
+    await publishTour(set, uid, helpAudienceOf(item));
   await updateDoc(doc(db, HELP_ITEMS_COLLECTION, item.id), {
     visible: true,
     updatedAt: Date.now(),
