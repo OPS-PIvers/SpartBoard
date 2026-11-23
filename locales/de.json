@@ -62,6 +62,8 @@
       "drive": "Drive",
       "openMenu": "Menü öffnen",
       "closeMenu": "Menü schließen",
+      "lastUpdated": "Zuletzt aktualisiert: {{date}}",
+      "buildId": "Version {{version}} (build {{build}})",
       "back": "Zurück",
       "adminSettings": "Admin-Einstellungen",
       "adminSettingsLoading": "Admin-Einstellungen werden geladen",

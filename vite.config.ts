@@ -13,6 +13,7 @@ import { selfHostedAssetsPlugin } from './scripts/selfHostedAssetsPlugin.ts';
 // that was required to establish the "current" version at runtime.
 let __APP_VERSION__ = 'dev';
 let __APP_BUILD_ID__ = 'dev';
+let __APP_BUILD_DATE__ = 'dev';
 try {
   const raw = fs.readFileSync(
     path.resolve(__dirname, 'public/version.json'),
@@ -22,6 +23,7 @@ try {
   __APP_VERSION__ = parsed.version;
   // Older version.json files predate buildId; fall back so the compare still works.
   __APP_BUILD_ID__ = parsed.buildId ?? parsed.version;
+  __APP_BUILD_DATE__ = parsed.buildDate ?? 'dev';
 } catch {
   // version.json hasn't been generated yet (fresh checkout) – fall back to 'dev'
 }
@@ -132,6 +134,7 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(__APP_VERSION__),
     __APP_BUILD_ID__: JSON.stringify(__APP_BUILD_ID__),
+    __APP_BUILD_DATE__: JSON.stringify(__APP_BUILD_DATE__),
   },
   resolve: {
     alias: {
