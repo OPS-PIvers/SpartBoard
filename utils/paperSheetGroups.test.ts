@@ -739,4 +739,32 @@ describe('grouped questions on paper', () => {
       if (grid === 'questions') expect(html).toContain(MATCH.text);
     }
   );
+
+  it.each([10, 11, 13, 20])(
+    'keeps a %i pair matching question on the page with question text',
+    (pairs) => {
+      const big = q({
+        id: 'big',
+        type: 'Matching',
+        correctAnswer: Array.from(
+          { length: pairs },
+          (_, i) => `Term ${i}:Answer ${i}`
+        ).join('|'),
+        incorrectAnswers: [],
+      });
+      const quiz = { ...QUIZ, questions: [MC, big, ORDER] };
+      const batch = stack('questions', quiz);
+      for (const map of batch.pageMaps ?? []) {
+        for (const item of mcItemsOf(map)) {
+          const n = item.choices ?? batch.choiceCount;
+          const r = itemBubbleRectMm(item, n - 1, 'questions');
+          expect(r.y + r.h).toBeLessThanOrEqual(263);
+        }
+      }
+      const rows = (batch.pageMaps ?? [])
+        .flatMap(mcItemsOf)
+        .filter((i) => i.questionId === 'big');
+      expect(rows).toHaveLength(pairs);
+    }
+  );
 });

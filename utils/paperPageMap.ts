@@ -614,11 +614,13 @@ function planQuestionTextPages(
         (entry.choices ?? 0) > ROW_LINE_CHOICES ? ROW_LINE_CHOICES : undefined;
       const partMm =
         (wrap ? Math.ceil((entry.choices ?? 0) / wrap) : 1) * GROUP_ROW_MM;
+      // One answer row's height; rows after the first may run onto the next page.
+      const partBody = partMm - GROUP_ROW_MM + BUBBLE_DIAMETER_MM;
       const body =
         entry.group === 'all'
           ? ((entry.choices ?? 2) - 1) * QUESTION_CHOICE_LINE_MM +
             BUBBLE_DIAMETER_MM
-          : parts * partMm - GROUP_ROW_MM + BUBBLE_DIAMETER_MM;
+          : partBody;
       const top = place(head + room + body);
       const rowsTop = top + head + room;
       if (entry.group === 'all') {
@@ -635,19 +637,28 @@ function planQuestionTextPages(
         });
         continue;
       }
+      let rowY = rowsTop;
       for (let part = 0; part < parts; part += 1) {
+        if (part > 0) {
+          rowY += partMm;
+          if (rowY + partBody > QUESTION_GRID_BOTTOM_MM) {
+            newPage();
+            rowY = QUESTION_GRID_TOP_MM;
+          }
+        }
         current().push({
           kind: 'mc',
           questionId: entry.questionId,
           sheetRow: sheetRow++,
           label: entry.label,
-          originMm: { x: QUESTION_STEM_X_MM, y: rowsTop + part * partMm },
+          originMm: { x: QUESTION_STEM_X_MM, y: rowY },
           ...groupFields(entry, part),
           across: true,
           ...(wrap ? { wrap } : {}),
           ...(part === 0 ? { headTopMm: top, stemMm } : {}),
         });
       }
+      y = rowY + partBody + QUESTION_ROW_GAP_MM;
       continue;
     }
     if (entry.kind === 'mc') {

@@ -225,6 +225,11 @@ function rowsOnPage(input: ScanSheetPageInput): {
 function rowMissed(fill: SheetFill, i: number): boolean {
   const mark = fill.marks[i];
   if (mark) return mark !== 'correct';
+  const keys = fill.keySets?.[i];
+  if (keys) {
+    const got = fill.filledSets?.[i] ?? [];
+    return got.length !== keys.length || keys.some((k) => !got.includes(k));
+  }
   const key = fill.key[i];
   return key !== null && key !== undefined && fill.filled[i] !== key;
 }

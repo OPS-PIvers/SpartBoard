@@ -459,6 +459,8 @@ function sheetChoiceHtml(
 }
 
 const MARK_GLYPH = { correct: '✓', incorrect: '✗', unclear: '?' } as const;
+/** Rough width of a 10 pt margin mark. */
+const MARK_W_MM = 4;
 
 type McPageItem = Extract<PaperPageItem, { kind: 'mc' }>;
 
@@ -491,10 +493,17 @@ function groupRowHtml(
       Math.min(choices, item.wrap ?? choices) - 1,
       grid
     );
+    const after = r.x + BUBBLE_PITCH_MM;
+    // A wide row in the left column would put the mark on the next column or the stimulus, so it moves left of the number.
+    const limit = grid === 1 ? STIMULUS_RECT_MM.x : COLUMN_X_MM[1];
     const left =
       grid === 'questions' && !item.across
         ? COLUMN_X_MM[0] - BUBBLE_PITCH_MM
-        : r.x + BUBBLE_PITCH_MM;
+        : grid !== 'questions' &&
+            item.originMm.x < COLUMN_X_MM[1] &&
+            after + MARK_W_MM > limit
+          ? item.originMm.x - MARK_W_MM - 1
+          : after;
     const top = grid === 'questions' && !item.across ? item.originMm.y : r.y;
     parts.push(
       `<div class="rowmark" style="left:${mm(left)};top:${mm(top)}">${MARK_GLYPH[mark]}</div>`
