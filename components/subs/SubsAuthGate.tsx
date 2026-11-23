@@ -140,8 +140,7 @@ export const SubsAuthGate: React.FC<Props> = ({ children }) => {
             The Substitute Portal is off
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Your district turned off the Substitute Portal. Ask the school
-            office for help.
+            Your district turned off the Substitute Portal.
           </p>
           <button /* no-tour-anchor: substitute portal, never on the board */
             type="button"
