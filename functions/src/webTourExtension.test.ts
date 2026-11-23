@@ -248,6 +248,32 @@ describe('loadTour', () => {
     download: vi.fn(() => Promise.resolve(data)),
   });
 
+  it('sends the start page and step pages beside the steps, and only openable ones', async () => {
+    const a = step('a', 'https://docs.google.com/videos/d/*/edit');
+    const b = step('b', 'https://docs.google.com/videos/d/*/edit');
+    const c = step('c', 'https://docs.google.com/videos/d/*/edit');
+    const snap = snapshot([
+      { ...a, web: { ...a.web, openUrl: 'https://vids.new' } },
+      { ...b, web: { ...b.web, openUrl: 'https://docs.google.com/*' } },
+      { ...c, web: { ...c.web, openUrl: 'http://vids.new' } },
+    ]);
+    const tour = await loadTour(
+      'set1',
+      { ...snap, set: { ...snap.set, webStartUrl: 'https://vids.new' } },
+      storeOf(3)
+    );
+    expect(tour.startPage).toBe('https://vids.new/');
+    expect(tour.openUrls).toEqual({ a: 'https://vids.new/' });
+    expect(JSON.stringify(tour.steps)).not.toMatch(/openUrl/);
+    const plain = await loadTour(
+      'set1',
+      snapshot([step('a', 'https://app.example.com/')]),
+      storeOf(3)
+    );
+    expect(plain.startPage).toBeUndefined();
+    expect(plain.openUrls).toBeUndefined();
+  });
+
   it('drops private notes and questions and returns pictures by step', async () => {
     const tour = await loadTour(
       'set1',

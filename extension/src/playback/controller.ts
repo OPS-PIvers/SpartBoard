@@ -1,6 +1,7 @@
 import type { AheadStep, FrameCommand, FrameReport } from './frameScript';
 import {
   type FoundMatch,
+  goUrlOf,
   isMessage,
   patternHost,
   type PlaybackStep,
@@ -11,7 +12,6 @@ import {
   type PlaybackEvent,
   type PlaybackState,
 } from './progress';
-import { switchUrlFor } from '@/components/tours/web/tourSequence';
 import {
   parseWebTourLocator,
   type WebTourPictureBytes,
@@ -432,7 +432,14 @@ export function createPlaybackController(host: PlaybackHost) {
   async function armedPage(rec: TabRecord, url: string) {
     const arm = rec.arm;
     if (!arm) return;
-    if (hostOf(url) !== arm.host) {
+    const { steps } = rec.state.tour;
+    const first = steps[targetedFrom(steps, rec.state.index)];
+    // A start page on another host (vids.new) redirects to the step's own site, which counts as the site too.
+    const site = hostOf(url);
+    if (
+      site !== arm.host &&
+      (!first || site !== patternHost(first.urlPattern))
+    ) {
       rec.arm = { ...arm, leftHost: true, goStart: false };
     } else if (arm.leftHost && !arm.navigated) {
       rec.arm = { ...arm, leftHost: false, navigated: true, goStart: false };
@@ -638,7 +645,7 @@ export function createPlaybackController(host: PlaybackHost) {
     if (statusOf(rec) !== 'switch') return;
     const step = rec.state.tour.steps[rec.state.index];
     const site = patternHost(step.urlPattern);
-    const url = switchUrlFor(step.urlPattern);
+    const url = goUrlOf(step);
     if (!url) return;
     const known = rec.siteTabs?.[site];
     if (known !== undefined && known !== rec.tabId) {
@@ -1106,11 +1113,14 @@ export function createPlaybackController(host: PlaybackHost) {
     // The record is saved before the page loads, so its first commit always finds it.
     const tabId = inTab ?? (await host.openTab('about:blank'));
     // A start on a later site's step waits on that site instead of the tour's start (X8).
-    const first =
-      parsed.tour.steps[targetedFrom(parsed.tour.steps, parsed.stepIndex)];
+    const firstIndex = targetedFrom(parsed.tour.steps, parsed.stepIndex);
+    const first = parsed.tour.steps[firstIndex];
+    // The tour's own first step opens the start url as given, which may be a start page on another host.
     const later =
-      first && patternHost(first.urlPattern) !== hostOf(parsed.tour.startUrl)
-        ? switchUrlFor(first.urlPattern)
+      first &&
+      firstIndex !== targetedFrom(parsed.tour.steps, 0) &&
+      patternHost(first.urlPattern) !== hostOf(parsed.tour.startUrl)
+        ? goUrlOf(first)
         : null;
     const armUrl = later ?? parsed.tour.startUrl;
     return serial(tabId, async () => {
