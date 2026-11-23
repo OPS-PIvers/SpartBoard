@@ -58365,6 +58365,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tours.delete",
+    "label": "Delete button for a web tour on the Web tours page",
+    "scope": "field",
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tours.play",
     "label": "Play button for a published web tour on the Web tours page",
     "scope": "field",
