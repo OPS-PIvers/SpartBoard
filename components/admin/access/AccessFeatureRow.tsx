@@ -125,7 +125,9 @@ export const AccessLevelPicker: React.FC<{
   onChange: (level: AccessLevel) => void;
   label: string;
   anchorKey?: string;
-}> = ({ value, onChange, label, anchorKey }) => (
+  /** Show words and taller buttons inside a narrow row container (the stacked phone row). */
+  narrowLabels?: boolean;
+}> = ({ value, onChange, label, anchorKey, narrowLabels = false }) => (
   <div
     {...(anchorKey
       ? tourFieldAttr('admin.access.level', 'admin', anchorKey)
@@ -146,14 +148,18 @@ export const AccessLevelPicker: React.FC<{
         aria-checked={value === level}
         tabIndex={value === level ? 0 : -1}
         onClick={() => onChange(level)}
-        className={`px-2 py-1 @max-2xl:py-2 @max-2xl:px-2.5 rounded-md border text-xs font-medium flex items-center gap-1 transition-colors ${
+        className={`px-2 py-1 ${narrowLabels ? '@max-2xl:py-2 @max-2xl:px-2.5' : ''} rounded-md border text-xs font-medium flex items-center gap-1 transition-colors ${
           value === level
             ? LEVEL_ACTIVE[level]
             : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
         }`}
       >
         <Icon className="w-3.5 h-3.5" aria-hidden />
-        <span className="hidden sm:inline @max-2xl:inline">{text}</span>
+        <span
+          className={`hidden sm:inline ${narrowLabels ? '@max-2xl:inline' : ''}`}
+        >
+          {text}
+        </span>
       </button>
     ))}
   </div>
@@ -630,6 +636,7 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
             onChange={(accessLevel) => onUpdate({ accessLevel })}
             label={def.label}
             anchorKey={featureId}
+            narrowLabels
           />
         }
         save={
