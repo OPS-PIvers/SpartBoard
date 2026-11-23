@@ -188,8 +188,8 @@ export const CalculatorTool: React.FC = () => {
   const pressBackspace = useCallback(() => {
     setCalc((prev) => {
       if (prev.hasError || prev.waitingForOperand) return prev;
-      const newDisplay =
-        prev.display.length > 1 ? prev.display.slice(0, -1) : '0';
+      const cut = prev.display.slice(0, -1);
+      const newDisplay = cut === '' || cut === '-' || cut === '-0' ? '0' : cut;
       const expression =
         prev.expression.slice(0, -prev.display.length) + newDisplay;
       return { ...prev, display: newDisplay, expression };
