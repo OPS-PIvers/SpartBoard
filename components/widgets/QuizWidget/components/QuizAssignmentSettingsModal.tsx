@@ -58,7 +58,10 @@ import {
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
 import { useTranslation } from 'react-i18next';
-import { savedStudentsByClass } from '@/utils/assignTargets';
+import {
+  savedStudentsByClass,
+  type AssignClassesValue,
+} from '@/utils/assignTargets';
 import { withClassIds } from '@/components/common/library/assignStepper/assignClassesValue';
 import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
@@ -78,7 +81,11 @@ interface QuizAssignmentSettingsModalProps {
   /** `overridesByKey` is set when the Modifications step changed someone's rules. */
   onSave: (
     patch: QuizAssignmentSettingsPatch,
-    extra?: { overridesByKey?: Record<string, StudentOverride> }
+    extra?: {
+      overridesByKey?: Record<string, StudentOverride>;
+      /** Set when the students picked within a class changed. */
+      classes?: AssignClassesValue;
+    }
   ) => Promise<void> | void;
   /** The assigned questions and the languages the session serves, for the Modifications step. */
   loadEditContext?: () => Promise<SettingsEditContext>;
@@ -274,6 +281,18 @@ export const QuizAssignmentSettingsModal: React.FC<
     return out;
   };
 
+  // Null until the teacher changes a class's picked students.
+  const [pickEdits, setPickEdits] = useState<
+    AssignClassesValue['studentsByClass'] | null
+  >(null);
+  const savedPicks = savedStudentsByClass(assignment, rosters);
+  const classesValue = withClassIds(
+    {
+      classIds: options.picker.rosterIds,
+      studentsByClass: pickEdits ?? savedPicks,
+    },
+    options.picker.rosterIds
+  );
   const [initialClassIds] = useState(() =>
     options.picker.rosterIds.slice().sort()
   );
@@ -359,9 +378,23 @@ export const QuizAssignmentSettingsModal: React.FC<
               editContext.quizData.questions
             )
           : overridesByKey;
+      const pickKeys = (by: AssignClassesValue['studentsByClass']) =>
+        JSON.stringify(
+          classesValue.classIds.map((id) =>
+            (by[id] ?? []).map(studentTargetRefKey).sort()
+          )
+        );
+      const picksChanged =
+        pickEdits !== null &&
+        pickKeys(classesValue.studentsByClass) !== pickKeys(savedPicks);
       await onSave(
         patch,
-        changed ? { overridesByKey: withChoices } : undefined
+        changed || picksChanged
+          ? {
+              ...(changed ? { overridesByKey: withChoices } : {}),
+              ...(picksChanged ? { classes: classesValue } : {}),
+            }
+          : undefined
       );
       const picked = behavior.finalScore;
       // Until the saved choice has loaded, any explicit pick is written.
@@ -487,19 +520,14 @@ export const QuizAssignmentSettingsModal: React.FC<
       <QuizAssignStepper
         title={assignment.quizTitle}
         rosters={rosters}
-        classes={withClassIds(
-          {
-            classIds: options.picker.rosterIds,
-            studentsByClass: savedStudentsByClass(assignment, rosters),
-          },
-          options.picker.rosterIds
-        )}
-        onClassesChange={(next) =>
+        classes={classesValue}
+        onClassesChange={(next) => {
+          setPickEdits(next.studentsByClass);
           setOptions((prev) => ({
             ...prev,
             picker: { ...prev.picker, rosterIds: next.classIds },
-          }))
-        }
+          }));
+        }}
         when={{ mode: 'scheduled', availability }}
         onWhenChange={(next) => setAvailability(next.availability)}
         behavior={shownBehavior}
