@@ -17,6 +17,7 @@ import {
   type RawAnswer,
   type SessionInput,
 } from './plcAssessmentMath';
+import { calcValuesFor, withCalcValues } from './quizCalculated';
 
 const publicQuestions = [
   {
@@ -1352,5 +1353,85 @@ describe('stripMarkupTags and capAnswer on hostile input', () => {
       MAX_ANSWER_CHARS
     );
     expect(capAnswer('short')).toBe('short');
+  });
+});
+
+describe('random-number grading across aligned sessions', () => {
+  const calc = {
+    seed: 'group-seed',
+    variables: [{ name: 'a', min: 1, max: 1000, decimals: 0 }],
+    formula: 'a * 2',
+    tolerance: { kind: 'relative' as const, percent: 0 },
+    modifiedAnswer: '7',
+  };
+  const groupQuestions = [
+    {
+      id: 'g1',
+      type: 'FIB',
+      text: 'Double __',
+      points: 1,
+      choices: [],
+      correctAnswer: null,
+      allowPartialCredit: false,
+      rubricCriterionIds: [],
+      targets: [],
+      calc,
+    } as GroupQuestion,
+  ];
+  const served = {
+    id: 'p1',
+    type: 'FIB',
+    text: 'Double __',
+    calcSeed: 'session-seed',
+  };
+  const key = 'resp-1';
+  const own = withCalcValues(
+    { id: 'p1', type: 'FIB', calc: { ...calc, seed: 'session-seed' } },
+    key
+  );
+  const answerFor = (seed: string) =>
+    String(
+      ((calcValuesFor({ id: 'p1', calc: { ...calc, seed } }, key) ?? {}).a ??
+        0) * 2
+    );
+  const score = (
+    studentAnswer: string,
+    extra: Partial<SessionInput> = {},
+    r: Partial<CompletedResponse> = {}
+  ) =>
+    computeAssessmentAggregate({
+      assessmentId: 'a',
+      title: 't',
+      kind: 'quiz',
+      groupQuestions,
+      sessions: [
+        {
+          ...session(
+            's',
+            't',
+            [
+              response([answer('p1', studentAnswer)], {
+                studentUid: 'u1',
+                responseKey: key,
+                ...r,
+              }),
+            ],
+            [served]
+          ),
+          ...extra,
+        },
+      ],
+    }).perQuestion[0];
+
+  it('draws a positionally aligned student numbers from the served question seed', () => {
+    expect(own.calcValues).toBeDefined();
+    expect(score(answerFor('session-seed')).correct).toBe(1);
+    expect(score(answerFor('group-seed')).correct).toBe(0);
+  });
+
+  it('grades a modified student on the typed answer only with the modified flag', () => {
+    const mod = { overridesByStudentUid: { u1: { modifiedQuestions: true } } };
+    expect(score('7', mod).correct).toBe(1);
+    expect(score('7').correct).toBe(0);
   });
 });

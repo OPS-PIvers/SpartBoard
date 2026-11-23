@@ -13,29 +13,26 @@ import {
   type CalcVariable,
 } from '@/utils/quizCalculated';
 
-/** Per-student overrides from the assignment doc; only "modified questions" matters here. */
+/** Per-student overrides from the assignment doc; only "modified questions" matters here, read by uid as the server grades it. */
 export interface ModifiedSource {
   overridesByStudentUid?: Record<
     string,
     { modifiedQuestions?: boolean }
   > | null;
-  overridesBySourcedId?: Record<string, { modifiedQuestions?: boolean }> | null;
   /** Only a student-paced session shows the modified prompt. */
   sessionMode?: string;
 }
 
 /** True when the teacher gave this student the modified version of each question. */
 export function isModifiedStudent(
-  response: Pick<QuizResponse, 'studentUid'> & { sourcedId?: string },
+  response: Pick<QuizResponse, 'studentUid'>,
   source: ModifiedSource | null | undefined
 ): boolean {
   if (source?.sessionMode !== 'student') return false;
-  if (source.overridesByStudentUid?.[response.studentUid]?.modifiedQuestions)
-    return true;
-  return response.sourcedId
-    ? source.overridesBySourcedId?.[response.sourcedId]?.modifiedQuestions ===
-        true
-    : false;
+  return (
+    source.overridesByStudentUid?.[response.studentUid]?.modifiedQuestions ===
+    true
+  );
 }
 
 export function questionForResponse<
