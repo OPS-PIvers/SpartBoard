@@ -36,7 +36,6 @@ import { AuthContext } from '@/context/AuthContextValue';
 import { webTourSite } from './tourLinks';
 import { webToursDevSeed } from './webToursDevSeed';
 import { useCanFreshservice } from './freshservice';
-import { AuthContext } from '@/context/AuthContextValue';
 
 const TourAuthorsDialog = lazy(() =>
   import('./TourAuthorsDialog').then((m) => ({
