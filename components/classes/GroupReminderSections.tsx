@@ -63,11 +63,12 @@ const ReminderPreview: React.FC<{ group: RosterGroup }> = ({ group }) => {
   );
 };
 
-/** Icon and color for the group. */
+/** Icon and color for the group; the reminder preview sits here only when there is no Schedule section. */
 export const GroupSymbolSection: React.FC<{
   group: RosterGroup;
+  withPreview: boolean;
   onPatch: (change: Partial<RosterGroup>) => void;
-}> = ({ group, onPatch }) => (
+}> = ({ group, withPreview, onPatch }) => (
   <SymbolStep
     symbol={group.symbol ?? defaultGroupSymbol()}
     onSymbol={(patch) =>
@@ -75,7 +76,7 @@ export const GroupSymbolSection: React.FC<{
         symbol: { ...(group.symbol ?? defaultGroupSymbol()), ...patch },
       })
     }
-    preview={<ReminderPreview group={group} />}
+    preview={withPreview ? <ReminderPreview group={group} /> : undefined}
   />
 );
 
@@ -91,6 +92,8 @@ export const GroupReminderSection: React.FC<{
     onChange={(patch) =>
       onPatch({
         reminder: { ...(group.reminder ?? defaultGroupReminder()), ...patch },
+        // The board card draws a missing symbol as a blank tile, so store the star the preview shows.
+        ...(group.symbol ? {} : { symbol: defaultGroupSymbol() }),
       })
     }
     preview={<ReminderPreview group={group} />}

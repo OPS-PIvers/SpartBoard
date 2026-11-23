@@ -224,7 +224,7 @@ describe('Group reminders on the group page', () => {
     const [group] = onSave.mock.calls[0][2] as RosterGroup[];
     expect(group.name).toBe('Reading');
     expect(group.reminder).toBeUndefined();
-    expect(group.symbol).toBeUndefined();
+    expect(group.symbol).toBeDefined();
     expect(group.inGroupMaker).toBeUndefined();
   });
 

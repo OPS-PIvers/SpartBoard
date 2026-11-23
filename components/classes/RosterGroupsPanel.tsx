@@ -146,7 +146,7 @@ export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
       studentIds: [],
       // Hidden from board widgets until the teacher turns it on, so a support group's name stays private.
       ...(showsWidgets(reminders) ? { inGroupMaker: false } : {}),
-      ...(reminders?.steps.symbol ? { symbol: defaultGroupSymbol() } : {}),
+      ...(reminders ? { symbol: defaultGroupSymbol() } : {}),
     };
     onChange([...groups, group]);
     setOpenId(group.id);
@@ -582,7 +582,11 @@ const GroupPage: React.FC<
           <Section
             title={t('groupReminders.stepSymbol', { defaultValue: 'Symbol' })}
           >
-            <GroupSymbolSection group={group} onPatch={onPatch} />
+            <GroupSymbolSection
+              group={group}
+              withPreview={!reminders.steps.schedule}
+              onPatch={onPatch}
+            />
           </Section>
         )}
         {reminders?.steps.schedule && (
