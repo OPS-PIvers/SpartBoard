@@ -136,6 +136,13 @@ describe('bell helpers', () => {
         now
       )
     ).toBeNull();
+    expect(
+      startCloseAt(
+        { accessMode: 'assignment', dueLocks: true, dueAt: now + 3 },
+        period({ closeAt: now + 5 }),
+        now
+      )
+    ).toBe(now + 3);
   });
 
   it('caps a period close at the session close', () => {

@@ -57,11 +57,11 @@ type PeriodSession = PeriodAccessSessionFields & {
   dueAt?: number | null;
 };
 
-/** Where a period's close is held: only a Manual due (`dueLocks`); a Scheduled close never caps Extend. */
+/** Where a period's close is held: only a Manual due (`dueLocks`); a Scheduled close never caps Start or Extend. */
 const lockAt = (session: PeriodSession | null): number | null =>
   session ? dueLockAt(session) : null;
 
-/** An Extend's close, held to the due while it is ahead. */
+/** A close held to the Manual due while it is ahead. */
 export function capAtDue(
   closeAt: number | null,
   dueAt: number | null,
@@ -116,13 +116,14 @@ export function startCloseAt(
   access: PeriodAccess,
   nowMs: number
 ): number | null {
-  if (session.accessMode === 'assessment') {
-    const due = dueLockAt(session);
+  const due = dueLockAt(session);
+  if (session.accessMode === 'assessment')
     return due != null && due > nowMs ? due : null;
-  }
-  return access.closeAt != null && access.closeAt > nowMs
-    ? access.closeAt
-    : null;
+  return capAtDue(
+    access.closeAt != null && access.closeAt > nowMs ? access.closeAt : null,
+    due,
+    nowMs
+  );
 }
 
 /** D24's Close patch: closedAt marks it apart from Ready, pausedAt keeps a just-flushed draft. */
