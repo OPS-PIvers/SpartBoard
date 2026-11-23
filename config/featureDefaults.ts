@@ -749,6 +749,22 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Live page preview beside the paper print options.
+  'paper-print-preview': {
+    label: 'Paper print preview',
+    icon: Eye,
+    description:
+      'See each printed page while you set up paper response sheets.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Print preview',
+    group: 'questions',
+    requires: 'paper-answer-sheets',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Handwritten answer boxes on paper sheets; AND-ed with the paper-answer-sheets gate.
   'paper-handwritten-responses': {
     label: 'Handwritten answers on paper sheets',

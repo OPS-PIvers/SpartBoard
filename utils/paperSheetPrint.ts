@@ -1436,3 +1436,18 @@ export function buildPaperSheetsHtml(job: PaperPrintJob): string {
     : pageCountForQuestions(job.questionCount, job.columnsPerPage);
   return job.sheets.map((s) => sheetPagesHtml(s, job, pageCount)).join('');
 }
+
+/** Page gap and shadow for the on-screen preview of a packet. */
+export const PREVIEW_GAP_MM = 6;
+
+/** One student's packet as a page-by-page document, for the print dialog's preview. */
+export function buildPaperSheetsPreviewDocument(job: PaperPrintJob): string {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${STYLES}${job.testPaperStyles ?? ''}
+  html, body { background: transparent; }
+  body { padding: ${PREVIEW_GAP_MM}mm; }
+  .sheet, .tp { background: #fff; box-shadow: 0 0.4mm 1.2mm rgba(15, 23, 42, 0.25); margin: 0 auto ${PREVIEW_GAP_MM}mm; }
+  .tp { width: ${PAGE_WIDTH_MM}mm; min-height: ${PAGE_HEIGHT_MM}mm; }
+  .tp > table.page-margins { min-height: ${PAGE_HEIGHT_MM}mm; height: ${PAGE_HEIGHT_MM}mm; }
+  .tp > table.page-margins > tbody > tr > td { vertical-align: top; }
+</style></head><body>${buildPaperSheetsHtml(job)}</body></html>`;
+}

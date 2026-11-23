@@ -96,6 +96,7 @@ import {
 import { stimulusLoadErrorMessage } from '@/utils/paperSheetStimulusImages';
 import { shareSheetImagesPrompt } from '@/utils/paperSheetStimulusSharing';
 import { PaperSheetStimuliSection } from './PaperSheetStimuliSection';
+import { PaperPrintPreview } from './PaperPrintPreview';
 import {
   BoxImageSelect,
   BoxSizeSelect,
@@ -120,6 +121,7 @@ import {
   PAPER_HANDWRITTEN_FEATURE,
   PAPER_MAX_BOX_PAGES,
   PAPER_MULTI_PAGE_FEATURE,
+  PAPER_PRINT_PREVIEW_FEATURE,
   letteredBlanks,
   changedPaperBoxSetup,
   paperBoxImageChoices,
@@ -130,7 +132,9 @@ import {
 } from '@/utils/paperWritten';
 import { splitBlanks } from '@/utils/quizFibBlanks';
 import {
+  buildPaperSheetsPreviewDocument,
   printPaperSheets,
+  type PaperPrintJob,
   type PaperPromptPage,
 } from '@/utils/paperSheetPrint';
 import {
@@ -348,6 +352,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const { canAccessFeature } = useAuth();
   // The caller already checked the paper sheets rollout and gate; this adds the written-box flag.
   const writtenOn = canAccessFeature(PAPER_HANDWRITTEN_FEATURE);
+  const previewOn = canAccessFeature(PAPER_PRINT_PREVIEW_FEATURE);
   const maxPages = canAccessFeature(PAPER_MULTI_PAGE_FEATURE)
     ? PAPER_MAX_BOX_PAGES
     : 1;
@@ -1169,6 +1174,180 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         };
   };
 
+  /** What prints for a planned stack; the preview draws the same job. */
+  const jobFor = (
+    batch: PaperBatch,
+    sheets: ReturnType<typeof planPaperBatch>['sheets'],
+    quizTitle: string
+  ): PaperPrintJob => {
+    // With no question text, each student's packet opens with the test paper, lettered to match their sheet.
+    const testCopies =
+      !isStub && !stimuliLayout
+        ? paperTestPacketCopies(testPaperJobFor(batch))
+        : null;
+    return {
+      batchId: batch.id,
+      quizTitle,
+      ...(testCopies
+        ? {
+            testPaper: testCopies[0],
+            testPaperStyles: PAPER_TEST_PACKET_STYLES,
+          }
+        : {}),
+      questionCount: batch.questionCount,
+      choiceCount: batch.choiceCount,
+      ...(batch.columnsPerPage || batch.sheetLayout
+        ? { columnsPerPage: paperGridOf(batch) }
+        : {}),
+      ...(batch.sheetLayout === 'questions'
+        ? {
+            questionTexts: sheetQuestions.map((q) => {
+              const english = batch.choiceOrder?.[q.id] ?? [];
+              const tr = group?.translation?.questions[q.id];
+              const stimulus = stimuliLayout?.sets[0]?.rows.get(q.id);
+              return {
+                text: plainPromptText(
+                  tr?.text?.trim() ? tr.text : promptLabel(q)
+                ),
+                choices: english.map((c) => tr?.choices?.[c] ?? c),
+                ...choicePictureFields(q, english),
+                ...(stimulus ? { stimulus } : {}),
+              };
+            }),
+          }
+        : {}),
+      ...(!isStub && analysis.rows.some((r) => r.sourceLabel)
+        ? { rowLabels: analysis.rows.map((r) => r.sourceLabel) }
+        : {}),
+      ...(batch.pageMaps
+        ? {
+            pageMaps: batch.pageMaps,
+            ...(isStub
+              ? {}
+              : {
+                  writtenTexts: writtenTextsOf(analysis),
+                  blankAnswers: blankAnswersOf(analysis),
+                }),
+            ...(boxImages.size > 0
+              ? {
+                  writtenImages: Object.fromEntries(
+                    [...boxImages].flatMap(([id, image]) => {
+                      const src = sheetImages.src[image.id];
+                      return src ? [[id, src]] : [];
+                    })
+                  ),
+                }
+              : {}),
+            ...(stimuliLayout
+              ? {
+                  ...(sheetPromptIds.size > 0
+                    ? {
+                        prompts: sheetPromptsFor(
+                          0,
+                          (id) => questionsById.get(id)?.text
+                        ),
+                      }
+                    : {}),
+                  stimulusBlocks: stimuliLayout.sets[0]?.written ?? {},
+                  pagesBefore: stimuliLayout.sets[0]?.pagesBefore ?? {},
+                  resourcePages: stimuliSets?.[0]?.plan.resourcePages ?? [],
+                }
+              : promptIds.size > 0
+                ? { prompts: promptPages }
+                : {}),
+          }
+        : {}),
+      ...(versionPlan
+        ? {
+            versions: printVersionsFor(
+              versionPlan,
+              batch.choiceOrder ?? {},
+              batch.sheetLayout === 'questions'
+            ).map((v, k) => {
+              const forSet = stimuliLayout?.sets[k];
+              const set = stimuliSets?.[k];
+              if (!forSet || !set)
+                return testCopies?.[k] ? { ...v, testPaper: testCopies[k] } : v;
+              // Each version prints its own questions' stimuli in the template's places.
+              const actual = new Map(
+                set.mapIds.map((id, i) => [id, set.entries[i]?.questionId])
+              );
+              const rows = versionPlan.versions[k].analysis.rows;
+              return {
+                ...v,
+                ...(v.questionTexts
+                  ? {
+                      questionTexts: v.questionTexts.map((qt, r) => {
+                        const stimulus = forSet.rows.get(
+                          rows[r]?.questionId ?? ''
+                        );
+                        return stimulus ? { ...qt, stimulus } : qt;
+                      }),
+                    }
+                  : {}),
+                prompts: sheetPromptsFor(k, (id) => {
+                  const qid = actual.get(id);
+                  return qid ? questionsById.get(qid)?.text : undefined;
+                }),
+                stimulusBlocks: forSet.written,
+                pagesBefore: forSet.pagesBefore,
+                resourcePages: set.plan.resourcePages,
+              };
+            }),
+          }
+        : {}),
+      ...(imageStimuli.length > sheetStimuli.length
+        ? { stimulusImageSrc: sheetImages.src }
+        : {}),
+      ...(sheetStimuli.length > 0
+        ? {
+            sheetStimuli,
+            stimulusImageSrc: sheetImages.src,
+          }
+        : {}),
+      sheets,
+    };
+  };
+
+  // The first student's packet (or a spare), planned like the print but never saved.
+  const previewFirst = selectionsForPrint[0];
+  const previewDoc = ((): string | null => {
+    if (!previewOn || questionCount + writtenCount === 0) return null;
+    if (pagePlan && !pagePlan.ok) return null;
+    if (stimuliLoading || sheetImages.loading) return null;
+    const { batch, sheets } = planPaperBatch({
+      batchId: 'preview',
+      quizId: quiz.id,
+      selections: previewFirst
+        ? [
+            {
+              roster: previewFirst.roster,
+              students: [previewFirst.students[0]],
+            },
+          ]
+        : [],
+      questionCount,
+      choiceCount,
+      spareCount: previewFirst ? 0 : 1,
+      includeKeySheet: false,
+      ...(isStub
+        ? {}
+        : {
+            questions: versionPlan
+              ? versionSheetQuestions(versionPlan)
+              : sheetQuestions,
+          }),
+      ...(columnsPerPage === 1 ? { columnsPerPage: 1 as const } : {}),
+      ...(questionTextLayout ? { sheetLayout: 'questions' as const } : {}),
+      ...(pagePlan?.ok ? { pageMaps: pagePlan.pageMaps } : {}),
+      ...(versionPlan ? { versions: versionPlan.records } : {}),
+      createdAt: 0,
+    });
+    return buildPaperSheetsPreviewDocument(
+      jobFor(batch, sheets, isStub ? stubTitle : quiz.title)
+    );
+  })();
+
   const handlePrint = async () => {
     // A stimulus that cannot be fetched would print as an empty box the
     // teacher only discovers at the copier, so it blocks the print instead.
@@ -1299,141 +1478,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         });
         committedRef.current = { batch, sheets, assigned: true, picks };
       }
-      // With no question text, each student's packet opens with the test paper, lettered to match their sheet.
-      const testCopies =
-        !isStub && !stimuliLayout
-          ? paperTestPacketCopies(testPaperJobFor(batch))
-          : null;
       print({
-        batchId: batch.id,
-        quizTitle: printedQuiz.title,
-        ...(testCopies
-          ? {
-              testPaper: testCopies[0],
-              testPaperStyles: PAPER_TEST_PACKET_STYLES,
-            }
+        ...jobFor(batch, sheets, printedQuiz.title),
+        // Closing unmounts this modal, which revokes the object URLs the print window is reading from.
+        ...(!isStub || sheetStimuli.length > 0
+          ? { onImagesReady: onClose }
           : {}),
-        questionCount: batch.questionCount,
-        choiceCount: batch.choiceCount,
-        ...(batch.columnsPerPage || batch.sheetLayout
-          ? { columnsPerPage: paperGridOf(batch) }
-          : {}),
-        ...(batch.sheetLayout === 'questions'
-          ? {
-              questionTexts: sheetQuestions.map((q) => {
-                const english = batch.choiceOrder?.[q.id] ?? [];
-                const tr = group?.translation?.questions[q.id];
-                const stimulus = stimuliLayout?.sets[0]?.rows.get(q.id);
-                return {
-                  text: plainPromptText(
-                    tr?.text?.trim() ? tr.text : promptLabel(q)
-                  ),
-                  choices: english.map((c) => tr?.choices?.[c] ?? c),
-                  ...choicePictureFields(q, english),
-                  ...(stimulus ? { stimulus } : {}),
-                };
-              }),
-            }
-          : {}),
-        ...(!isStub && analysis.rows.some((r) => r.sourceLabel)
-          ? { rowLabels: analysis.rows.map((r) => r.sourceLabel) }
-          : {}),
-        ...(batch.pageMaps
-          ? {
-              pageMaps: batch.pageMaps,
-              ...(isStub
-                ? {}
-                : {
-                    writtenTexts: writtenTextsOf(analysis),
-                    blankAnswers: blankAnswersOf(analysis),
-                  }),
-              ...(boxImages.size > 0
-                ? {
-                    writtenImages: Object.fromEntries(
-                      [...boxImages].flatMap(([id, image]) => {
-                        const src = sheetImages.src[image.id];
-                        return src ? [[id, src]] : [];
-                      })
-                    ),
-                  }
-                : {}),
-              ...(stimuliLayout
-                ? {
-                    ...(sheetPromptIds.size > 0
-                      ? {
-                          prompts: sheetPromptsFor(
-                            0,
-                            (id) => questionsById.get(id)?.text
-                          ),
-                        }
-                      : {}),
-                    stimulusBlocks: stimuliLayout.sets[0]?.written ?? {},
-                    pagesBefore: stimuliLayout.sets[0]?.pagesBefore ?? {},
-                    resourcePages: stimuliSets?.[0]?.plan.resourcePages ?? [],
-                  }
-                : promptIds.size > 0
-                  ? { prompts: promptPages }
-                  : {}),
-            }
-          : {}),
-        ...(versionPlan
-          ? {
-              versions: printVersionsFor(
-                versionPlan,
-                batch.choiceOrder ?? {},
-                batch.sheetLayout === 'questions'
-              ).map((v, k) => {
-                const forSet = stimuliLayout?.sets[k];
-                const set = stimuliSets?.[k];
-                if (!forSet || !set)
-                  return testCopies?.[k]
-                    ? { ...v, testPaper: testCopies[k] }
-                    : v;
-                // Each version prints its own questions' stimuli in the template's places.
-                const actual = new Map(
-                  set.mapIds.map((id, i) => [id, set.entries[i]?.questionId])
-                );
-                const rows = versionPlan.versions[k].analysis.rows;
-                return {
-                  ...v,
-                  ...(v.questionTexts
-                    ? {
-                        questionTexts: v.questionTexts.map((qt, r) => {
-                          const stimulus = forSet.rows.get(
-                            rows[r]?.questionId ?? ''
-                          );
-                          return stimulus ? { ...qt, stimulus } : qt;
-                        }),
-                      }
-                    : {}),
-                  prompts: sheetPromptsFor(k, (id) => {
-                    const qid = actual.get(id);
-                    return qid ? questionsById.get(qid)?.text : undefined;
-                  }),
-                  stimulusBlocks: forSet.written,
-                  pagesBefore: forSet.pagesBefore,
-                  resourcePages: set.plan.resourcePages,
-                };
-              }),
-            }
-          : {}),
-        ...(imageStimuli.length > sheetStimuli.length
-          ? { stimulusImageSrc: sheetImages.src }
-          : {}),
-        ...(sheetStimuli.length > 0
-          ? {
-              sheetStimuli,
-              stimulusImageSrc: sheetImages.src,
-              // Closing unmounts this modal, which revokes the object URLs the
-              // print window is reading from; wait until it has them.
-              onImagesReady: () => {
-                if (isStub) onClose();
-              },
-            }
-          : {}),
-        // The packet is the whole test; close once the window has the pictures it borrows.
-        ...(!isStub ? { onImagesReady: onClose } : {}),
-        sheets,
       });
       if (isStub && sheetStimuli.length === 0) onClose();
     } catch (err) {
@@ -2225,6 +2275,31 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     </div>
   );
 
+  const previewEmptyText = tooManyPages
+    ? tooManyPagesMessage(pagesPerSheet)
+    : stimuliLoading || sheetImages.loading
+      ? 'Loading the pages.'
+      : 'Add a question to see the pages.';
+  const previewPane = (
+    <>
+      <div className="flex items-baseline justify-between gap-3 px-5 pt-4">
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          Preview
+        </p>
+        <p className="min-w-0 truncate text-xs text-slate-500">
+          {previewFirst
+            ? `${previewFirst.students[0].lastName}, ${previewFirst.students[0].firstName}`
+            : 'Spare sheet'}
+        </p>
+      </div>
+      <PaperPrintPreview
+        doc={previewDoc}
+        emptyText={previewEmptyText}
+        className="mt-1 flex-1"
+      />
+    </>
+  );
+
   if (assign) {
     const steps: AssignStepDef[] = [
       {
@@ -2280,6 +2355,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         steps={steps}
         submitLabel="Assign and print"
         submitIcon={Printer}
+        {...(previewOn ? { aside: previewPane } : {})}
         onSubmit={handlePrintClick}
         submitting={printing}
         disabled={!canPrint || needsPlc}
@@ -2293,7 +2369,13 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       isOpen
       onClose={onClose}
       ariaLabel="Print response sheets"
-      maxWidth="max-w-2xl"
+      maxWidth={previewOn ? 'max-w-6xl' : 'max-w-2xl'}
+      {...(previewOn
+        ? {
+            className:
+              'h-[min(90dvh,52rem)] bg-white rounded-2xl shadow-2xl overflow-hidden',
+          }
+        : {})}
       contentClassName=""
       customHeader={
         <div className="flex items-start justify-between gap-3 px-5 py-3.5 bg-emerald-700 text-white rounded-t-2xl">
@@ -2365,7 +2447,18 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         </div>
       }
     >
-      {setupBody}
+      {previewOn ? (
+        <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
+          <div className="min-h-0 flex-1 overflow-y-auto md:w-2xl md:flex-none">
+            {setupBody}
+          </div>
+          <div className="flex h-[40%] min-h-0 flex-col border-t border-slate-200 bg-slate-100 md:h-auto md:flex-1 md:border-l md:border-t-0">
+            {previewPane}
+          </div>
+        </div>
+      ) : (
+        setupBody
+      )}
     </Modal>
   );
 };

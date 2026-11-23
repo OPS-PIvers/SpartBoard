@@ -16,6 +16,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'live-tour-editing-v2',
   'paper-handwritten-responses',
   'paper-multi-page-answers',
+  'paper-print-preview',
   'paper-written-hybrid',
   'paper-reword-sync',
   'paper-kept-pages',
