@@ -356,6 +356,14 @@ const readBellPeriod = (
     : undefined;
 };
 
+const readSectionIds = (raw: unknown[]): string[] =>
+  raw
+    .filter((c): c is string => typeof c === 'string' && c.length > 0)
+    .slice(0, STUDENT_SECTIONS_MAX);
+
+const sameIdList = (a: readonly string[], b: readonly string[]): boolean =>
+  a.length === b.length && a.every((id, i) => id === b[i]);
+
 const sameIdSet = (a: readonly string[], b: readonly string[]): boolean => {
   if (a.length !== b.length) return false;
   const set = new Set(a);
@@ -722,9 +730,7 @@ export const getStudentClassDirectoryV1 = onCall(
         .catch(() => null);
       const data = sectionsSnap?.exists ? sectionsSnap.data() : undefined;
       if (data && data.orgId === orgId && Array.isArray(data.sectionIds)) {
-        storedSectionIds = (data.sectionIds as unknown[])
-          .filter((c): c is string => typeof c === 'string' && c.length > 0)
-          .slice(0, STUDENT_SECTIONS_MAX);
+        storedSectionIds = readSectionIds(data.sectionIds);
       }
     }
     const candidateIds = [
@@ -870,9 +876,20 @@ export const getStudentClassDirectoryV1 = onCall(
         }
         // The next sign-in keeps an unconfirmed section only if the last claim had it.
         if (customToken) {
+          const sectionsRef = db.doc(`${STUDENT_SECTIONS_COLLECTION}/${uid}`);
+          const readIds = storedSectionIds;
           await db
-            .doc(`${STUDENT_SECTIONS_COLLECTION}/${uid}`)
-            .set({ classIds: nextClaim }, { merge: true })
+            .runTransaction(async (tx) => {
+              const cur = (await tx.get(sectionsRef)).data();
+              // A sign-in that rewrote the record since this call read it wins.
+              if (
+                cur?.orgId !== orgId ||
+                !Array.isArray(cur.sectionIds) ||
+                !sameIdList(readSectionIds(cur.sectionIds), readIds)
+              )
+                return;
+              tx.set(sectionsRef, { classIds: nextClaim }, { merge: true });
+            })
             .catch((err: unknown) => {
               console.error(
                 '[getStudentClassDirectoryV1] student_sections write failed:',

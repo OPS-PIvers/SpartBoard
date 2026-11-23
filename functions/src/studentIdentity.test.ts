@@ -56,6 +56,7 @@ const h = vi.hoisted(() => ({
   >(),
   lastCustomToken: null as null | { uid: string; claims: unknown },
   failCustomToken: false,
+  onMint: null as null | (() => void),
   authDown: false,
   getUsersCalls: [] as string[][],
   batchOps: [] as Array<{ type: 'set' | 'delete'; path: string; data?: any }>,
@@ -320,8 +321,20 @@ vi.mock('./firebaseAdmin', () => {
     runTransaction: async (fn: (tx: any) => Promise<unknown>) =>
       fn({
         get: (ref: { get: () => Promise<unknown> }) => ref.get(),
-        set: (ref: { _path: string }, d: unknown) => {
-          h.docStore.set(ref._path, d);
+        set: (
+          ref: { _path: string },
+          d: unknown,
+          opts?: { merge?: boolean }
+        ) => {
+          h.docStore.set(
+            ref._path,
+            opts?.merge
+              ? applyMerge(
+                  h.docStore.get(ref._path) as Doc | undefined,
+                  d as Doc
+                )
+              : d
+          );
         },
       }),
     collection: (path: string) => makeCollRef(path),
@@ -369,6 +382,7 @@ vi.mock('./firebaseAdmin', () => {
     auth: () => ({
       createCustomToken: async (uid: string, claims: unknown) => {
         h.lastCustomToken = { uid, claims };
+        h.onMint?.();
         if (h.failCustomToken) throw new Error('token-fail');
         return 'ct:' + uid;
       },
@@ -482,6 +496,7 @@ beforeEach(() => {
   h.batchOps.length = 0;
   h.lastCustomToken = null;
   h.failCustomToken = false;
+  h.onMint = null;
   h.authDown = false;
   h.getUsersCalls = [];
   h.secretValues = {
@@ -1599,13 +1614,32 @@ describe('getStudentClassDirectoryV1 — co-teachers, order and re-check', () =>
       orgId: 'org-orono',
       sectionIds: ['A', 'B', 'C'],
       classIds: ['A'],
+      updatedAt: 1234,
     });
     const res = await callDirectory({ auth: studentAuth(['A']) });
     expect(res.classIds).toEqual(['A', 'C']);
-    expect(h.docStore.get('student_sections/stu')).toMatchObject({
+    expect(h.docStore.get('student_sections/stu')).toEqual({
+      orgId: 'org-orono',
       sectionIds: ['A', 'B', 'C'],
       classIds: ['A', 'C'],
+      updatedAt: 1234,
     });
+  });
+
+  it('skips the claim write-back when a sign-in rewrote the record mid-call', async () => {
+    h.docStore.set('users/t/rosters/a', { classlinkClassId: 'A', name: 'Art' });
+    h.docStore.set('users/t/rosters/b', { classlinkClassId: 'B', name: 'Bio' });
+    h.docStore.set('student_sections/stu', {
+      orgId: 'org-orono',
+      sectionIds: ['A', 'B'],
+      classIds: ['A'],
+    });
+    const newer = { orgId: 'org-other', sectionIds: ['Z'], classIds: ['Z'] };
+    // A sign-in in another org lands while the token is minted.
+    h.onMint = () => h.docStore.set('student_sections/stu', newer);
+    const res = await callDirectory({ auth: studentAuth(['A']) });
+    expect(res.classIds).toEqual(['A', 'B']);
+    expect(h.docStore.get('student_sections/stu')).toEqual(newer);
   });
 
   it('re-mints a narrower claim when a claimed section lost its roster', async () => {
