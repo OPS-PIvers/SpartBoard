@@ -15,7 +15,7 @@ import { needsCrossSite, type WebTourSequenceStep } from './tourSequence';
 import type { WebTourPortEvent } from './extensionClient';
 import { buildStartTour } from './handoff';
 
-export { isHandoffPattern, pageUrlOf, startUrlOf } from './handoff';
+export { isHandoffPattern, pageUrlOf, startUrlAt, startUrlOf } from './handoff';
 
 export type HubStep = WebTourStep;
 
@@ -114,7 +114,8 @@ export function buildHandoff(
   steps: readonly WebTourSequenceStep[],
   pictures: ReadonlyMap<string, LoadedPicture>,
   scored = false,
-  withConditions = false
+  withConditions = false,
+  withOpenUrls = false
 ): WebTourStartTour {
   const encoded = new Map<string, WebTourPictureBytes>();
   pictures.forEach((pic, id) => {
@@ -133,7 +134,8 @@ export function buildHandoff(
     steps,
     encoded,
     scored,
-    withConditions
+    withConditions,
+    withOpenUrls
   );
 }
 

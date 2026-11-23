@@ -271,6 +271,7 @@ export async function duplicateWebTourDraft(
     title: `${set.title} (Copy)`,
     helpCenter: set.helpCenter,
     ...(set.webGoal ? { webGoal: set.webGoal } : {}),
+    ...(set.webStartUrl ? { webStartUrl: set.webStartUrl } : {}),
   };
   const uploaded: string[] = [];
   try {

@@ -13626,6 +13626,9 @@ export const TOUR_ANCHORS = {
   'web-tours.search': { label: 'Search box on the Web tours page' },
   'web-tours.filter': { label: 'Show filter on the Web tours page' },
   'web-tour-editor.title': { label: 'Title field in the web tour editor' },
+  'web-tour-editor.start-page': {
+    label: 'Start page field on the web tour editor Settings tab',
+  },
   'web-tour-editor.play': {
     label: 'Play button in the web tour editor header',
   },

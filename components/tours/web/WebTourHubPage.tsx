@@ -40,6 +40,7 @@ import {
 } from './extensionClient';
 import {
   CONDITIONS_PROTOCOL,
+  OPEN_URL_PROTOCOL,
   SCORED_MATCH_PROTOCOL,
 } from './extensionProtocol';
 import {
@@ -47,8 +48,8 @@ import {
   hubGateOf,
   loadPictures,
   eventFitsTour,
-  pageUrlOf,
   reducePlay,
+  startUrlAt,
   startUrlOf,
   type HubPlay,
   type LoadedPicture,
@@ -80,6 +81,8 @@ interface HubTour {
   /** Targeted and Message steps in order, as the extension plays them (X9). */
   steps: WebTourSequenceStep[];
   startUrl: string;
+  /** The admin's start page, when set. */
+  startPage?: string;
 }
 
 type TourLoad =
@@ -145,9 +148,15 @@ async function loadHubTour(setId: string): Promise<HubTour | null> {
   const set = published?.set;
   if (!published || !set || !isWebTourSet(set)) return null;
   const steps = webTourSequenceOf(set);
-  const startUrl = startUrlOf(steps);
+  const startUrl = startUrlOf(steps, set.webStartUrl);
   if (steps.length === 0 || !startUrl) return null;
-  return { title: set.title, version: published.publishedAt, steps, startUrl };
+  return {
+    title: set.title,
+    version: published.publishedAt,
+    steps,
+    startUrl,
+    ...(set.webStartUrl ? { startPage: set.webStartUrl } : {}),
+  };
 }
 
 const Loader: React.FC = () => (
@@ -507,7 +516,8 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
   const start = async (stepIndex: number, fresh: boolean) => {
     if (!tour || play.kind === 'starting') return;
     const previous = play;
-    const url = pageUrlOf(tour.steps, stepIndex) ?? tour.startUrl;
+    const url =
+      startUrlAt(tour.steps, stepIndex, tour.startPage) ?? tour.startUrl;
     setPlay({ kind: 'starting' });
     setStartFailed(false);
     if (fresh && log.current) {
@@ -525,7 +535,8 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
       tour.steps,
       pictures ?? new Map(),
       extensionProtocol >= SCORED_MATCH_PROTOCOL,
-      extensionProtocol >= CONDITIONS_PROTOCOL
+      extensionProtocol >= CONDITIONS_PROTOCOL,
+      extensionProtocol >= OPEN_URL_PROTOCOL
     );
     const result = await startWebTour(handoff, url, stepIndex);
     if (!result.ok) {

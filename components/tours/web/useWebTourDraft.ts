@@ -170,7 +170,7 @@ export function useWebTourDraft(
     if (deleted.current || saved.updatedAt === seen.current) return;
     seen.current = saved.updatedAt;
     const words = (s: GuidedLearningSet) =>
-      JSON.stringify([s.title, s.webGoal ?? '', s.steps]);
+      JSON.stringify([s.title, s.webGoal ?? '', s.webStartUrl ?? '', s.steps]);
     if (words(saved) === words(latest.current)) return;
     pushHistory(latest.current);
     latest.current = saved;
