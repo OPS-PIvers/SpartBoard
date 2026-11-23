@@ -382,9 +382,10 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
         const extras: AssignedExtras = {
           responses: counted?.responses ?? null,
           needsGrading: counted?.needsGrading ?? null,
-          classSizes: picked && showPicked
-            ? pickedClassSizes(picked, run.periodAccess)
-            : classSizes,
+          classSizes:
+            picked && showPicked
+              ? pickedClassSizes(picked, run.periodAccess)
+              : classSizes,
           bellFor: (access) =>
             todaysBell(access, rosters, featurePermissions, now),
         };

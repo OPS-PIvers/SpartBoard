@@ -348,9 +348,10 @@ export const VideoActivityAssignedTab: React.FC<
           if (n != null) classSizes[''] = n;
         }
         const picked = pickedStudents(a, rosters);
-        const sizes = picked && showPicked
-          ? pickedClassSizes(picked, a.periodAccess)
-          : classSizes;
+        const sizes =
+          picked && showPicked
+            ? pickedClassSizes(picked, a.periodAccess)
+            : classSizes;
         const status = deriveAssignedStatus(
           videoActivityAssignedInput(a, {
             responses: responses?.map(videoActivityAssignedResponse) ?? null,

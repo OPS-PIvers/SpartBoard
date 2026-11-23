@@ -173,9 +173,9 @@ describe('analyzePaperQuiz written list', () => {
         }),
       ],
     });
-    expect(
-      isPaperStubAnalysis(analyzePaperQuiz(only, { groups: true }))
-    ).toBe(false);
+    expect(isPaperStubAnalysis(analyzePaperQuiz(only, { groups: true }))).toBe(
+      false
+    );
   });
 
   it('stamps layoutVersion 2 and the page count when a batch carries page maps', () => {

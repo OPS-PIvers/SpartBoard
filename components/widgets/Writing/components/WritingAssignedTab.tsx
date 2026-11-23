@@ -288,9 +288,10 @@ export const WritingAssignedTab: React.FC<WritingAssignedTabProps> = ({
           {
             responses: isLive ? responses : [],
             needsGrading: isLive ? needsGrading : 0,
-            classSizes: picked && showPicked
-              ? pickedClassSizes(picked, r.periodAccess)
-              : classSizes,
+            classSizes:
+              picked && showPicked
+                ? pickedClassSizes(picked, r.periodAccess)
+                : classSizes,
             bellFor: (access) => bellFor({ rosterId: access.rosterId }),
           }
         );
@@ -300,7 +301,15 @@ export const WritingAssignedTab: React.FC<WritingAssignedTabProps> = ({
         );
         return { id: r.id, status, record: r, needsGrading, bells, picked };
       }),
-    [records, countsById, gradingById, rosters, featurePermissions, showPicked, now]
+    [
+      records,
+      countsById,
+      gradingById,
+      rosters,
+      featurePermissions,
+      showPicked,
+      now,
+    ]
   );
 
   // D17: only a just-assigned row that nothing has opened yet sits on top.

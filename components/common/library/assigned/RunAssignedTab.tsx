@@ -255,9 +255,10 @@ export function RunAssignedTab<A extends RunAssignment>(
       if (n != null) classSizes[''] = n;
     }
     const picked = pickedStudents(a, rosters);
-    const sizes = picked && showPicked
-      ? pickedClassSizes(picked, a.periodAccess)
-      : classSizes;
+    const sizes =
+      picked && showPicked
+        ? pickedClassSizes(picked, a.periodAccess)
+        : classSizes;
     const status = deriveAssignedStatus(
       // Neither kind has teacher-graded work.
       toInput(a, {
