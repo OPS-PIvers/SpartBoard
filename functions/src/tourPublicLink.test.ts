@@ -122,6 +122,7 @@ import {
   clientKey,
   guardPublicLink,
   handlePublicRequest,
+  resolvePublicTour,
   startSetIdFor,
   workingLinkTokenFor,
   rateLimited,
@@ -398,6 +399,15 @@ describe('handlePublicRequest refusals', () => {
     const out = await handlePublicRequest({ t: TOKEN }, d);
     expect(out.status).toBe(200);
     expect(d.latchOff).not.toHaveBeenCalled();
+  });
+});
+
+describe('the confirmer check', () => {
+  it('is asked with the kind of tour, so an author counts for web tours only', async () => {
+    const set = webSet();
+    const isAdmin = vi.fn(async () => true);
+    await resolvePublicTour(TOKEN, deps(set, record(set), { isAdmin }));
+    expect(isAdmin).toHaveBeenCalledWith(record(set).confirmedBy, 'web');
   });
 });
 
