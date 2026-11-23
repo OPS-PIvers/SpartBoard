@@ -96,6 +96,8 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   } = config;
 
   const textScale = resolveTextPresetMultiplier(textSizePreset, 1);
+  // Small cards cap long item names at three lines so several rows stay in view.
+  const compact = widget.w < 240 || widget.h < 240;
 
   const [now, setNow] = useState(new Date());
 
@@ -293,50 +295,56 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
         >
           {/* Header with Day Number */}
           <div
-            className="flex items-center justify-between border-b border-slate-100 shrink-0"
+            className="flex flex-wrap items-center justify-between border-b border-slate-100 shrink-0"
             style={{
-              gap: 'min(8px, 2cqmin)',
-              marginBottom: 'min(8px, 1cqmin)',
-              paddingBottom: 'min(8px, 2cqmin)',
+              columnGap: 'clamp(4px, 2cqmin, 8px)',
+              rowGap: 'clamp(1px, 0.5cqmin, 2px)',
+              marginBottom: 'clamp(4px, 1cqmin, 8px)',
+              paddingBottom: 'clamp(3px, 2cqmin, 8px)',
             }}
           >
             <div
-              className="flex items-center min-w-0 flex-1"
-              style={{ gap: 'min(8px, 2cqmin)' }}
+              className="flex items-center min-w-0 flex-auto"
+              style={{ gap: 'clamp(4px, 2cqmin, 8px)' }}
             >
               <Calendar
                 className="text-teal-600 shrink-0"
                 style={{
-                  width: 'min(24px, 6cqmin)',
-                  height: 'min(24px, 6cqmin)',
+                  width: 'clamp(14px, 6cqmin, 24px)',
+                  height: 'clamp(14px, 6cqmin, 24px)',
                 }}
               />
-              <span
-                className="font-black min-w-0 wrap-anywhere"
-                style={{
-                  fontSize: `min(${Math.round(18 * textScale)}px, ${(4.5 * textScale).toFixed(2)}cqmin)`,
-                  color: fontColor,
-                }}
+              <div
+                className="flex items-baseline min-w-0 flex-1"
+                style={{ gap: 'clamp(3px, 2cqmin, 8px)' }}
               >
-                {currentDayLabel}
+                <span
+                  className="font-black min-w-0 wrap-anywhere line-clamp-2"
+                  style={{
+                    fontSize: `clamp(12px, ${(4.5 * textScale).toFixed(2)}cqmin, ${Math.round(18 * textScale)}px)`,
+                    color: fontColor,
+                  }}
+                >
+                  {currentDayLabel}
+                </span>
                 {specialistClass && (
                   <span
-                    className="font-bold"
+                    className="font-bold min-w-0 truncate"
                     style={{
-                      marginLeft: 'min(8px, 2cqmin)',
-                      fontSize: `min(${Math.round(14 * textScale)}px, ${(3.5 * textScale).toFixed(2)}cqmin)`,
+                      flex: '1 1 0%',
+                      fontSize: `clamp(10px, ${(3.5 * textScale).toFixed(2)}cqmin, ${Math.round(14 * textScale)}px)`,
                       color: fontColor,
                     }}
                   >
                     ({specialistClass})
                   </span>
                 )}
-              </span>
+              </div>
             </div>
             <div
               className="font-bold shrink-0 whitespace-nowrap"
               style={{
-                fontSize: `min(${Math.round(12 * textScale)}px, ${(3 * textScale).toFixed(2)}cqmin)`,
+                fontSize: `clamp(10px, ${(3 * textScale).toFixed(2)}cqmin, ${Math.round(12 * textScale)}px)`,
                 color: fontColor,
               }}
             >
@@ -350,7 +358,10 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
 
           <div
             className="flex-1 overflow-y-auto no-scrollbar flex flex-col min-h-0"
-            style={{ gap: 'min(10px, 2cqmin)' }}
+            style={{
+              gap: 'clamp(4px, 2cqmin, 10px)',
+              paddingBottom: 'max(12px, 3cqmin)',
+            }}
           >
             {currentItems.map((item, i) => {
               const isActive = i === activeIndex;
@@ -374,20 +385,22 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                   }`}
                   style={{
                     backgroundColor: bgColor,
-                    padding: 'min(12px, 3cqmin)',
-                    gap: 'min(12px, 2.5cqmin)',
-                    ...(isActive ? { borderWidth: 'min(6px, 1.5cqmin)' } : {}),
+                    padding: 'clamp(4px, 3cqmin, 12px)',
+                    gap: 'clamp(4px, 2.5cqmin, 12px)',
+                    ...(isActive
+                      ? { borderWidth: 'clamp(2px, 1.5cqmin, 6px)' }
+                      : {}),
                   }}
                 >
                   {isActive && (
                     <div
                       className="absolute top-0 right-0 bg-teal-600 text-white font-black uppercase tracking-widest rounded-bl-xl z-20"
                       style={{
-                        fontSize: `min(${Math.round(10 * textScale)}px, ${(2.5 * textScale).toFixed(2)}cqmin)`,
-                        paddingLeft: 'min(8px, 2cqmin)',
-                        paddingRight: 'min(8px, 2cqmin)',
-                        paddingTop: 'min(4px, 1cqmin)',
-                        paddingBottom: 'min(4px, 1cqmin)',
+                        fontSize: `clamp(8px, ${(2.5 * textScale).toFixed(2)}cqmin, ${Math.round(10 * textScale)}px)`,
+                        paddingLeft: 'clamp(4px, 2cqmin, 8px)',
+                        paddingRight: 'clamp(4px, 2cqmin, 8px)',
+                        paddingTop: 'clamp(1px, 1cqmin, 4px)',
+                        paddingBottom: 'clamp(1px, 1cqmin, 4px)',
                       }}
                     >
                       Now
@@ -398,16 +411,16 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                       <CheckCircle2
                         className="text-green-500"
                         style={{
-                          width: 'min(28px, 7cqmin)',
-                          height: 'min(28px, 7cqmin)',
+                          width: 'clamp(14px, 7cqmin, 28px)',
+                          height: 'clamp(14px, 7cqmin, 28px)',
                         }}
                       />
                     ) : (
                       <Circle
                         className="text-teal-300"
                         style={{
-                          width: 'min(28px, 7cqmin)',
-                          height: 'min(28px, 7cqmin)',
+                          width: 'clamp(14px, 7cqmin, 28px)',
+                          height: 'clamp(14px, 7cqmin, 28px)',
                         }}
                       />
                     )}
@@ -416,7 +429,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                     <span
                       className={`font-black leading-none ${isPast ? 'text-slate-400' : ''}`}
                       style={{
-                        fontSize: `min(${Math.round(14 * textScale)}px, ${(3.5 * textScale).toFixed(2)}cqmin)`,
+                        fontSize: `clamp(10px, ${(3.5 * textScale).toFixed(2)}cqmin, ${Math.round(14 * textScale)}px)`,
                         color: isPast ? undefined : fontColor,
                       }}
                     >
@@ -426,9 +439,9 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                         : ''}
                     </span>
                     <span
-                      className={`font-black leading-tight w-full wrap-anywhere ${isPast ? 'text-slate-400 line-through' : 'text-slate-700'}`}
+                      className={`font-black leading-tight w-full wrap-anywhere ${compact ? 'line-clamp-3' : ''} ${isPast ? 'text-slate-400 line-through' : 'text-slate-700'}`}
                       style={{
-                        fontSize: `min(${Math.round(20 * textScale)}px, ${(5 * textScale).toFixed(2)}cqmin)`,
+                        fontSize: `clamp(14px, ${(5 * textScale).toFixed(2)}cqmin, ${Math.round(20 * textScale)}px)`,
                       }}
                     >
                       {item.task}
@@ -440,11 +453,11 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                       onClick={() => handleStartTimer(item)}
                       className="shrink-0 text-teal-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors ml-auto"
                       style={{
-                        padding: 'min(4px, 1cqmin)',
+                        padding: 'clamp(3px, 1cqmin, 4px)',
                         // Active rows render the absolutely-positioned "NOW" badge
                         // in the top-right; shift the timer button left so it clears.
                         marginRight: isActive
-                          ? 'min(48px, 11cqmin)'
+                          ? 'clamp(30px, 11cqmin, 48px)'
                           : undefined,
                       }}
                       title={`Start timer until ${formatTime(item.endTime, format24)}`}
@@ -453,8 +466,8 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                       <Timer
                         className="shrink-0"
                         style={{
-                          width: 'min(28px, 7cqmin)',
-                          height: 'min(28px, 7cqmin)',
+                          width: 'clamp(18px, 7cqmin, 28px)',
+                          height: 'clamp(18px, 7cqmin, 28px)',
                         }}
                       />
                     </button>
@@ -464,16 +477,22 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
             })}
 
             {currentItems.length === 0 && (
-              <ScaledEmptyState
-                icon={Clock}
-                title="Empty Schedule"
-                subtitle={
-                  isSchoolDay
-                    ? `No items added for ${currentDayLabel}.`
-                    : 'Non-school day. Only recurring items would show here.'
-                }
-                className="opacity-40"
-              />
+              <div className="m-auto w-full">
+                <ScaledEmptyState
+                  icon={Clock}
+                  title="Empty Schedule"
+                  subtitle={
+                    isSchoolDay
+                      ? `No items added for ${currentDayLabel}.`
+                      : 'Non-school day. Only recurring items would show here.'
+                  }
+                  iconClassName="text-slate-400"
+                  titleClassName="text-slate-500"
+                  subtitleClassName="text-slate-500"
+                  titleSize="clamp(12px, 4cqmin, 14px)"
+                  subtitleSize="clamp(10px, 3cqmin, 12px)"
+                />
+              </div>
             )}
           </div>
         </div>

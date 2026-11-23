@@ -1,37 +1,37 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "specialist-schedule",
-  "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-18T15:06:29.399Z",
+  "rubricVersion": "1.2.0",
+  "gradedAt": "2026-11-23T05:36:49.047Z",
   "stale": false,
   "criteria": {
     "I5": {
       "score": null,
       "source": "script",
       "note": "N/A by rule",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "S1": {
-      "score": 1,
+      "score": 2,
       "source": "judge",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/envelope-min__empty.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/envelope-min__typical.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/envelope-min__stress.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/envelope-min__empty.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/envelope-min__stress.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "At 150×100 the header, rows, check and timer icons all shrink together to near-illegible text (2.29 px minimum, 8.8 px tap targets), the stress fixture becomes an unreadable smear, and nothing collapses to keep the primary item dominant.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
-      "stale": true
+      "note": "At 150×100 the two-line header takes about a third of the card, the time range wraps, only one row fits and the empty-state sentence is cut off, so secondary content crowds the schedule rows.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
+      "stale": false
     },
     "S2": {
       "score": 2,
@@ -42,15 +42,15 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/large-1400x900__typical.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/large-1400x900__stress.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/large-1400x900__typical.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/large-1400x900__stress.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "At 1400×900 the rows stretch to full width with a huge gap between the label and the timer icon, while text barely grows (1.34×) and more than half the card below the five rows stays empty.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "note": "At 1400×900 the rows stretch full width with a huge gap between the name and the timer icon, text grows only 1.34× and the bottom half of the card is empty.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "S3": {
@@ -62,16 +62,16 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/widest-aspect__typical.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/widest-aspect__stress.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/tallest-aspect__typical.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/tallest-aspect__stress.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/widest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/widest-aspect__stress.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/tallest-aspect__stress.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
-      "stale": true
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
+      "stale": false
     },
     "S4": {
       "score": 2,
@@ -81,12 +81,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "S5": {
@@ -97,35 +97,35 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__empty.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__stress.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__empty.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__stress.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "S6": {
-      "score": 2,
+      "score": 4,
       "source": "script",
       "candidates": {
-        "script": 2
+        "script": 4
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/envelope-min__typical.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/widest-aspect__typical.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/envelope-min__stress.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__stress.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/large-1400x900__stress.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/maximized-1920x1080__stress.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/envelope-min__empty.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/widest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/envelope-min__stress.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__stress.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/large-1400x900__stress.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "S7": {
@@ -137,14 +137,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/envelope-min__typical.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "The 150×100 floor is the global minimum and a time-and-name list genuinely needs about that much room, so the envelope fits the content.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "note": "The minimum is the global 150×100 floor and still shows the day and one readable class row, which matches what the content needs.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "S8": {
@@ -156,15 +156,15 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/maximized-1920x1080__empty.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/maximized-1920x1080__typical.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/maximized-1920x1080__stress.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/maximized-1920x1080__stress.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "Maximized shows the same full-width rows at small type across the top of a mostly empty screen, which reads as an enlarged card rather than a presenting layout.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "note": "Maximized fills the screen width with the same rows at about 28 px type and leaves most of the screen empty for a typical day, so it reads as an enlarged card.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "I1": {
@@ -175,12 +175,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "I2": {
@@ -191,12 +191,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "I3": {
@@ -208,12 +208,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "I4": {
@@ -224,12 +224,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "I6": {
@@ -241,13 +241,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "Done rows show strikethrough and a green check, but the timer buttons show no visible pressed or active state.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "note": "The row circles and timer icons show only their resting outline in the capture, with no evident pressed or active state on the raw controls.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "I7": {
@@ -258,16 +258,16 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/envelope-min__typical__selected.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical__selected.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/large-1400x900__typical__selected.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/widest-aspect__typical__selected.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/tallest-aspect__typical__selected.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical__selected.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/tallest-aspect__typical__selected.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "V1": {
@@ -279,14 +279,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "Clean rounded glass styling, but every row is boxed in a bordered pill and the faded gray-on-gray struck-through labels are hard to read.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
-      "stale": true
+      "note": "Clean type and a single teal accent, but every row is its own shadowed white card boxed inside the gray card, which is one ban-list hit.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
+      "stale": false
     },
     "V2": {
       "score": 3,
@@ -297,14 +297,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__stress.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__stress.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "The face passes the 3-second test (a day's specialist schedule with times) and its controls, colors and font sizes are modest.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "note": "The face reads at a glance as today's specials list with times and names, and the counts (39 words, 4 font sizes, 3 colors) are modest.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "V3": {
@@ -316,14 +316,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "The day-type title leads, and below it each row steps down cleanly from item name to time to icons, though with every item past nothing stands out as current.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
-      "stale": true
+      "note": "Class names are the heaviest element, with times, the header and date stepping down and the thin teal icons staying subordinate.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
+      "stale": false
     },
     "V4": {
       "score": 2,
@@ -334,13 +334,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "Only ScaledEmptyState is shared; the rows, check button and timer button are one-off styling with a raw control and one-off colors.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "note": "Only ScaledEmptyState is shared, while the face rows use a raw control and three one-off colors.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "V5": {
@@ -351,12 +351,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "V6": {
@@ -368,14 +368,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "Short, plain labels (Non-School Day, the specials names, times) and lucide icons throughout, though the stopwatch icon's meaning is not obvious without a label.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
-      "stale": true
+      "note": "Labels are short and plain (\"Non-School Day\", time ranges, class names) with a single lucide icon style and no copy guard violations.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
+      "stale": false
     },
     "C1": {
       "score": 3,
@@ -386,13 +386,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "Day type, block letter, specials and times all vary by configuration, which covers the plausible choices; the drawer itself was not visible to confirm the details.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "note": "The drawer lets a teacher set rotation-day items, daily and weekly recurring items with quick-add Lunch, Recess and Dismissal, plus a Style tab, covering the choices on the face.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "C2": {
@@ -414,21 +414,21 @@
       "stale": false
     },
     "C3": {
-      "score": 1,
+      "score": 2,
       "source": "judge",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__empty.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__empty.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "A fresh drop shows only a header and a near-invisible \"Empty Schedule\" mark, so the widget does nothing until a schedule is set up.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "note": "The default drop shows a tidy header and date, but the body is an empty gray card with nothing useful until items are added.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "C4": {
@@ -439,12 +439,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical__settings.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical__settings.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "C5": {
@@ -456,13 +456,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__empty.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__empty.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "An empty state exists, but its icon and text are so faint they almost disappear, and no next action is legible at default size.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "note": "The empty state has an icon, a title and one sentence, but gives no next action or button to add items.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "C6": {
@@ -473,31 +473,31 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical__settings.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical__settings.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "R1": {
-      "score": 2,
+      "score": 3,
       "source": "judge",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__empty.png",
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__empty.png",
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "Empty and populated views are designed, but the empty view is nearly invisible and the loading, error and offline states show nothing distinct in the screenshots.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "note": "The empty and non-school-day states render a designed ScaledEmptyState view under the normal header, not a blank card.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "R3": {
@@ -508,12 +508,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "R4": {
@@ -525,31 +525,31 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "The face shows only specials names and times, with no student data on screen.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "note": "The face shows only class times, specialist names and the class label, with no protected student data.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "E1": {
-      "score": 2,
+      "score": 3,
       "source": "judge",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "note": "The timer link on each row is a useful connection, but high-value candidates are missing (the main Schedule widget, a Clock showing the current block, a Countdown to the next special). Proposals: add a Schedule sync and a next-special countdown; remove nothing.",
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "note": "Each row carries a visible timer launch icon and the header reflects the school calendar day, so the useful connections are present and discoverable.",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     },
     "E3": {
@@ -561,12 +561,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-specialist-schedule-2026-10-18-after/screenshots/specialist-schedule/default__typical.png"
+          "scripts/widget-grader/out/loop-specialist-schedule-2026-11-23/screenshots/specialist-schedule/default__typical.png"
         ],
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:06:29.399Z",
+      "rubricVersion": "1.2.0",
+      "gradedAt": "2026-11-23T05:36:49.047Z",
       "stale": false
     }
   },
@@ -574,30 +574,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "gradedAt": "2026-10-18T15:06:29.399Z"
+      "gradedAt": "2026-11-23T05:36:49.047Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "gradedAt": "2026-10-18T15:06:29.399Z"
+      "gradedAt": "2026-11-23T05:36:49.047Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "gradedAt": "2026-10-18T15:06:29.399Z"
+      "gradedAt": "2026-11-23T05:36:49.047Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "loop-specialist-schedule-2026-10-18-after"
+        "runId": "loop-specialist-schedule-2026-11-23"
       },
-      "gradedAt": "2026-10-18T15:06:29.399Z"
+      "gradedAt": "2026-11-23T05:36:49.047Z"
     }
   }
 }
