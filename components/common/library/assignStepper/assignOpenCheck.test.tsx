@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
-import type { ClassRoster } from '@/types';
+import type { ClassRoster, PeriodAccess } from '@/types';
 import { ClassChecklist } from './ClassChecklist';
 import { AssignStepper } from './AssignStepper';
 import { useAssignOpenCheck } from './assignOpenCheck';
@@ -31,6 +31,7 @@ const OPEN: OpenAssignmentInput[] = [
 const Harness = ({
   initial = [] as string[],
   students = {} as AssignClassesValue['studentsByClass'],
+  open = OPEN,
   onAdd = vi.fn<(id: string, ids: string[]) => void>(),
   onSubmit = vi.fn<() => void>(),
 }) => {
@@ -38,7 +39,7 @@ const Harness = ({
     classIds: initial,
     studentsByClass: students,
   });
-  const check = useAssignOpenCheck(OPEN, ROSTERS, classes);
+  const check = useAssignOpenCheck(open, ROSTERS, classes);
   return (
     <AssignStepper
       isOpen
@@ -116,6 +117,18 @@ describe('Assign open-class check', () => {
     expect(screen.getByRole('button', { name: /^Assign$/ })).toBeDisabled();
   });
 
+  it('offers no join when a pick is already on the open copy', () => {
+    const closedP1: OpenAssignmentInput = {
+      ...OPEN[0],
+      rosterIds: ['r1', 'r2'],
+      periodAccess: {
+        k1: { state: 'closed', closedAt: 1, rosterId: 'r1' } as PeriodAccess,
+      },
+    };
+    render(<Harness initial={['r1', 'r3']} open={[closedP1]} />);
+    expect(screen.queryByRole('radio')).toBeNull();
+  });
+
   it('offers no join when students are picked', () => {
     render(
       <Harness
@@ -125,5 +138,14 @@ describe('Assign open-class check', () => {
     );
     expect(screen.queryByRole('radio')).toBeNull();
     expect(screen.getByRole('button', { name: /^Assign$/ })).toBeEnabled();
+  });
+
+  it('lets an open class picked by a prefill be unchecked', () => {
+    render(<Harness initial={['r2']} />);
+    const row = screen.getByRole('checkbox', { name: /Period 2/ });
+    expect(row).toBeChecked();
+    fireEvent.click(row);
+    expect(row).not.toBeChecked();
+    expect(row).toBeDisabled();
   });
 });

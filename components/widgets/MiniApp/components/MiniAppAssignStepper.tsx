@@ -118,7 +118,8 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
   const openCheck = useAssignOpenCheck(
     staff || !onAddToOpen ? null : openAssignments,
     rosters.filter((r) => !r.loadError),
-    classes
+    classes,
+    kind
   );
 
   const pickedRosters = staff

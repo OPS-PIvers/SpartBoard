@@ -558,7 +558,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       assignments,
       rosters,
       (a) => a.appId === appId,
-      (a) => a.status !== 'inactive'
+      (a) => a.status !== 'inactive',
+      { kindOf: (a) => (a.submissionsEnabled ? 'work' : 'resource') }
     );
   const [editingClasses, setEditingClasses] =
     useState<MiniAppAssignment | null>(null);
@@ -612,7 +613,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     }
     setAssignPickerValue({
       rosterIds: openCheckOn
-        ? withoutLiveClasses(lastRosterIds, openInputs(app.id))
+        ? withoutLiveClasses(lastRosterIds, openInputs(app.id), defaultWorkKind)
         : lastRosterIds,
     });
   };

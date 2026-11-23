@@ -585,7 +585,10 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       rosters,
       (a) => a.activityId === activityId,
       (a) => a.status !== 'inactive',
-      (a) => a.sessionMode !== 'teacher'
+      {
+        canAddClasses: (a) => a.sessionMode !== 'teacher',
+        kindOf: (a) => (a.sessionMode === 'teacher' ? 'teacher' : 'student'),
+      }
     );
   const canAssignLive = canAccessFeature('video-activity-live');
   const lastPacing = useLastVideoAssignPacing(userId, canAssignLive);
@@ -668,7 +671,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       rosterIds: activePending
         ? activePending.rosterIds
         : openCheckOn
-          ? withoutLiveClasses(rememberedRosters, openInputs(assignTarget.id))
+          ? withoutLiveClasses(
+              rememberedRosters,
+              openInputs(assignTarget.id),
+              'student'
+            )
           : rememberedRosters,
     });
   } else if (!assignTarget && prevAssignTargetId !== null) {

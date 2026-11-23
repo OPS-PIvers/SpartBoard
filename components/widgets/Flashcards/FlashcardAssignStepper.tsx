@@ -336,7 +336,8 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
   const openCheck = useAssignOpenCheck(
     staff || !onAddToOpen ? null : openAssignments,
     rosters.filter((r) => !r.loadError),
-    classes
+    classes,
+    kind === 'work' ? 'check' : 'study'
   );
   const pickedRosters = useMemo(
     () =>

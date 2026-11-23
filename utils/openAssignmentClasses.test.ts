@@ -87,6 +87,23 @@ describe('findOpenAssignmentClasses', () => {
   });
 });
 
+describe('kind and close time', () => {
+  it('ignores a copy of another kind and one whose close time passed', () => {
+    const open = findOpenAssignmentClasses(
+      [
+        input({ id: 'study', kind: 'study', rosterIds: ['r1'] }),
+        input({ id: 'past', closeAt: NOW - 1, rosterIds: ['r2'] }),
+        input({ id: 'check', kind: 'check', rosterIds: ['r3'] }),
+      ],
+      ROSTERS,
+      NOW,
+      'check'
+    );
+    expect([...open.ids]).toEqual(['r3']);
+    expect(open.joinTarget?.id).toBe('check');
+  });
+});
+
 describe('openInputsFor', () => {
   it('skips staff and view-only copies and individually targeted ones cannot take classes', () => {
     const rows = openInputsFor(

@@ -25,7 +25,14 @@ export interface OpenAssignmentInput {
   periodAccess?: Record<string, PeriodAccess>;
   /** Whether Assign may add classes to it (Edit classes works on it). */
   canAddClasses: boolean;
+  /** Its work kind or pacing; only the same kind counts when Assign names one. */
+  kind?: string;
+  /** Whole-assignment close time, read when a class has no row of its own. */
+  closeAt?: number | null;
 }
+
+const sameKind = (a: OpenAssignmentInput, kind: string | undefined) =>
+  kind === undefined || a.kind === undefined || a.kind === kind;
 
 export interface OpenAssignmentClasses {
   /** Roster ids the item is open for. */
@@ -59,7 +66,8 @@ function openRosterIds(
     .filter((r) => targeted.has(r.id))
     .filter((r) => {
       const row = rowFor(a.periodAccess, r);
-      return !row || !isClassClosed(row, nowMs);
+      if (row) return !isClassClosed(row, nowMs);
+      return a.closeAt == null || a.closeAt > nowMs;
     })
     .map((r) => r.id);
 }
@@ -67,13 +75,15 @@ function openRosterIds(
 export function findOpenAssignmentClasses(
   assignments: readonly OpenAssignmentInput[],
   rosters: readonly ClassRoster[],
-  nowMs: number
+  nowMs: number,
+  kind?: string
 ): OpenAssignmentClasses {
   const ids = new Set<string>();
   let joinTarget: OpenAssignmentClasses['joinTarget'] = null;
   let joinAt = -Infinity;
   const nameOf = new Map(rosters.map((r) => [r.id, r.name]));
   for (const a of assignments) {
+    if (!sameKind(a, kind)) continue;
     const open = openRosterIds(a, rosters, nowMs);
     for (const id of open) ids.add(id);
     if (open.length > 0 && a.canAddClasses && a.createdAt > joinAt) {
@@ -95,10 +105,13 @@ export function findOpenAssignmentClasses(
 /** A remembered class prefill without the classes a live assignment of the item targets. */
 export const withoutLiveClasses = (
   classIds: readonly string[],
-  assignments: readonly OpenAssignmentInput[] | null | undefined
+  assignments: readonly OpenAssignmentInput[] | null | undefined,
+  kind?: string
 ): string[] => {
   const live = new Set(
-    (assignments ?? []).filter((a) => a.live).flatMap((a) => a.rosterIds ?? [])
+    (assignments ?? [])
+      .filter((a) => a.live && sameKind(a, kind))
+      .flatMap((a) => a.rosterIds ?? [])
   );
   return classIds.filter((id) => !live.has(id));
 };
@@ -124,6 +137,7 @@ interface ClassTargetedAssignment {
   periodNames?: string[];
   periodName?: string;
   periodAccess?: Record<string, PeriodAccess>;
+  closeAt?: number | null;
   audience?: string;
   mode?: string;
   targetMode?: 'class' | 'students';
@@ -137,7 +151,10 @@ export function openInputsFor<A extends ClassTargetedAssignment>(
   rosters: readonly ClassRoster[],
   isItem: (a: A) => boolean,
   isLive: (a: A) => boolean,
-  canAddClasses: (a: A) => boolean = () => true
+  opts: {
+    canAddClasses?: (a: A) => boolean;
+    kindOf?: (a: A) => string | undefined;
+  } = {}
 ): OpenAssignmentInput[] {
   return assignments
     .filter(
@@ -149,7 +166,10 @@ export function openInputsFor<A extends ClassTargetedAssignment>(
       createdAt: a.createdAt,
       rosterIds: previousRosterIdsFor(a, rosters),
       periodAccess: a.periodAccess,
-      canAddClasses: canEditAssignmentClasses(a) && canAddClasses(a),
+      closeAt: a.closeAt ?? null,
+      canAddClasses:
+        canEditAssignmentClasses(a) && (opts.canAddClasses?.(a) ?? true),
+      ...(opts.kindOf ? { kind: opts.kindOf(a) } : {}),
     }));
 }
 

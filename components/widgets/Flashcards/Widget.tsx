@@ -217,7 +217,8 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       assignments,
       rosters,
       (a) => a.setId === setId,
-      (a) => a.status !== 'ended'
+      (a) => a.status !== 'ended',
+      { kindOf: (a) => a.kind }
     );
   const plcSharing = useFlashcardPlcSharing({
     enabled: !inShare,
@@ -1109,7 +1110,8 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
             openCheckOn
               ? withoutLiveClasses(
                   config.lastRosterIdsBySetId?.[assigningSet.id] ?? [],
-                  openInputs(assigningSet.id)
+                  openInputs(assigningSet.id),
+                  'study'
                 )
               : config.lastRosterIdsBySetId?.[assigningSet.id]
           }

@@ -79,7 +79,10 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
   rowAnchor,
   open,
 }) => {
-  const isLocked = (id: string) => !!open?.ids.has(id);
+  // A pick that is already open stays clickable, so it can be unchecked.
+  const isLocked = (id: string) =>
+    !!open?.ids.has(id) && !value.classIds.includes(id);
+  const isOpen = (id: string) => !!open?.ids.has(id);
   const groupName = useId();
   const courses = useChecklistCourses();
   const groups = useMemo(
@@ -176,11 +179,11 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
         />
         <span className="min-w-0 flex-1 wrap-anywhere">{r.name}</span>
         <span
-          className={`shrink-0 text-xs ${locked && !unavailable ? 'font-bold text-amber-700' : 'text-slate-400'}`}
+          className={`shrink-0 text-xs ${isOpen(r.id) && !unavailable ? 'font-bold text-amber-700' : 'text-slate-400'}`}
         >
           {unavailable
             ? 'Unavailable'
-            : locked
+            : isOpen(r.id)
               ? 'Assigned'
               : inCourse
                 ? studentCountLabel(r.studentCount)

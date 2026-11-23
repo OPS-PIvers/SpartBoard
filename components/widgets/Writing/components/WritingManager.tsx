@@ -756,7 +756,7 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
                   rosters,
                   (r) => r.itemId === assigning.id,
                   (r) => r.status !== 'ended',
-                  () => false
+                  { canAddClasses: () => false }
                 )
               : null
           }

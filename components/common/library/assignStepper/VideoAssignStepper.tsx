@@ -190,7 +190,8 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
   const openCheck = useAssignOpenCheck(
     live || staff || !onAddToOpen ? null : openAssignments,
     visibleRosters,
-    classes
+    classes,
+    'student'
   );
 
   const bodies: Record<AssignStepId, () => AssignStepDef | null> = {

@@ -59,7 +59,9 @@ export function useAssignOpenCheck(
   picked: {
     classIds: readonly string[];
     studentsByClass?: Record<string, readonly unknown[] | undefined>;
-  }
+  },
+  /** The work kind or pacing being assigned; copies of another kind don't count. */
+  kind?: string
 ): AssignOpenCheck {
   const pickedClassIds = picked.classIds;
   // Picked students go to a new assignment; joining adds whole classes only.
@@ -70,7 +72,7 @@ export function useAssignOpenCheck(
   // The dialog mounts per Assign, so the time it opened is the check's time.
   const [openedAt] = useState(() => Date.now());
   const open = assignments
-    ? findOpenAssignmentClasses(assignments, rosters, openedAt)
+    ? findOpenAssignmentClasses(assignments, rosters, openedAt, kind)
     : null;
   const classIds = open
     ? pickedClassIds.filter((id) => !open.ids.has(id))
@@ -84,7 +86,13 @@ export function useAssignOpenCheck(
       classIds,
       pickedOpen,
     };
-  const target = wholeClasses ? open.joinTarget : null;
+  // A pick the open copy already targets (closed there) would change nothing by joining.
+  const target =
+    wholeClasses &&
+    open.joinTarget &&
+    !classIds.some((id) => open.joinTarget?.rosterIds.includes(id))
+      ? open.joinTarget
+      : null;
   const joining = !!target && classIds.length > 0 && choice === 'join';
   return {
     checklist: {
