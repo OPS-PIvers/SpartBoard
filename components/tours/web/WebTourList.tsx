@@ -423,8 +423,6 @@ const ShareMenu: React.FC<{
   );
 };
 
-const statusBtn = `inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${focusRing}`;
-
 const WebTourRow: React.FC<{
   set: GuidedLearningSet;
   onEdit: (set: GuidedLearningSet, stepId?: string) => void;
@@ -540,26 +538,60 @@ const WebTourRow: React.FC<{
     ) : (
       freshBadge
     );
-  const statusControl =
-    status === 'passed' ? (
-      <span title="Check passed" className="inline-flex">
-        <Badge tone="success">
-          <Check className="h-3.5 w-3.5 lg:my-0.5" aria-hidden="true" />
-          <span className="ml-1 lg:sr-only">Check passed</span>
-        </Badge>
-      </span>
-    ) : status === 'issues' ? (
-      <button
-        type="button"
-        onClick={() => onEdit(set, problems[0]?.stepId)}
-        title={problems.map(stepName).join('\n')}
-        className={`${statusBtn} bg-amber-100 text-amber-900 hover:bg-amber-200`}
-        {...tourFieldAttr('web-tours.status', 'web-tours', set.id)}
-      >
-        <Wrench className="h-3.5 w-3.5" aria-hidden="true" />
-        Fix issues
-      </button>
-    ) : null;
+  // One button is the check's status and the way to act on it: fix, check, or check again.
+  const check =
+    status === 'issues'
+      ? {
+          label: 'Fix issues',
+          icon: Wrench,
+          name: `Fix issues in ${title}`,
+          hint: problems.map(stepName).join('\n'),
+          tone: 'bg-red-50 text-red-800 ring-1 ring-inset ring-red-300 hover:bg-red-100',
+          go: () => onEdit(set, problems[0]?.stepId),
+        }
+      : status === 'passed' && publish !== 'changed'
+        ? {
+            label: 'Verified',
+            icon: Check,
+            name: `${title} is verified. Check it again`,
+            hint: 'Every step passed the last check. Opens the editor to check again.',
+            tone: 'bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-300 hover:bg-emerald-100',
+            go: () => onCheck(set),
+          }
+        : {
+            label: 'Check tour',
+            icon: Radar,
+            name:
+              publish === 'changed'
+                ? `Check ${title}, changed since publish`
+                : `Check ${title}`,
+            hint:
+              publish === 'changed'
+                ? 'You changed this tour after publishing. Check it, then publish again.'
+                : 'Opens the editor to play the tour on its website and check every step',
+            tone: 'bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-300 hover:bg-amber-100',
+            go: () => onCheck(set),
+          };
+  const CheckIcon = check.icon;
+  const checkControl = (
+    <button
+      type="button"
+      onClick={check.go}
+      aria-label={check.name}
+      title={check.hint}
+      data-changed={publish === 'changed' || undefined}
+      data-check={status}
+      className={`inline-flex min-h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-xs font-semibold touch-target-expand ${focusRing} ${check.tone}`}
+      {...tourFieldAttr(
+        status === 'issues' ? 'web-tours.status' : 'web-tours.check',
+        'web-tours',
+        set.id
+      )}
+    >
+      <CheckIcon className="h-3.5 w-3.5" aria-hidden="true" />
+      {check.label}
+    </button>
+  );
 
   const { showConfirm } = useDialog();
   const remove = async () => {
@@ -635,7 +667,7 @@ const WebTourRow: React.FC<{
       <div className="flex flex-wrap items-center gap-1.5 pl-8 lg:contents">
         <div>{publishMark}</div>
         <div>{publicMark}</div>
-        <div>{statusControl}</div>
+        <div>{checkControl}</div>
         {articles && <div data-testid="web-tour-fresh">{freshMark}</div>}
       </div>
       <div className="flex flex-wrap items-center gap-0.5 pl-8 lg:flex-nowrap lg:justify-end lg:pl-0">
@@ -649,30 +681,6 @@ const WebTourRow: React.FC<{
         >
           <Pencil className="h-4 w-4" aria-hidden="true" />
           <span className={rowLabel}>Edit</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => onCheck(set)}
-          aria-label={
-            publish === 'changed'
-              ? `Check ${title}, changed since publish`
-              : `Check ${title}`
-          }
-          title={
-            publish === 'changed'
-              ? 'You changed this tour after publishing. Check it, then publish again.'
-              : 'Opens the editor to play the tour on its website and check every step'
-          }
-          data-changed={publish === 'changed' || undefined}
-          className={
-            publish === 'changed'
-              ? `${rowBtnBase} bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-300 hover:bg-amber-100`
-              : rowBtn
-          }
-          {...tourFieldAttr('web-tours.check', 'web-tours', set.id)}
-        >
-          <Radar className="h-4 w-4" aria-hidden="true" />
-          <span className={rowLabel}>Check tour</span>
         </button>
         <button
           type="button"
