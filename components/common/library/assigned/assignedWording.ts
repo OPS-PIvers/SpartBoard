@@ -27,7 +27,7 @@ const turnedIn = (submitted: number, total: number | null) =>
 /** The row's status word: where its classes stand, never grading or publishing. */
 export interface AccessBadge {
   label: string;
-  tone: 'success' | 'warn' | 'info' | 'neutral';
+  tone: 'success' | 'warn' | 'info' | 'scheduled' | 'neutral';
   dot?: boolean;
 }
 
@@ -35,7 +35,7 @@ const BADGE_TONE: Record<ClassStatus, AccessBadge['tone']> = {
   open: 'success',
   paused: 'warn',
   ready: 'info',
-  scheduled: 'info',
+  scheduled: 'scheduled',
   closed: 'neutral',
 };
 
@@ -69,7 +69,8 @@ export function accessBadge(s: AssignedStatus): AccessBadge {
   if (paused.length > 0)
     return { label: named('Paused', paused, s.singleLine), tone: 'warn' };
   if (by('ready').length > 0) return { label: 'Ready', tone: 'info' };
-  if (by('scheduled').length > 0) return { label: 'Scheduled', tone: 'info' };
+  if (by('scheduled').length > 0)
+    return { label: 'Scheduled', tone: 'scheduled' };
   return { label: 'Closed', tone: 'neutral' };
 }
 
