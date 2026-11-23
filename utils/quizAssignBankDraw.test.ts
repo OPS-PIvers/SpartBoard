@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import type { QuizData, QuizQuestion } from '@/types';
 import type { BankContent } from '@/utils/questionBanks';
 import {
+  paperFrozenFileId,
   applyCurrentAnswerKeys,
   keyFixOptionsFor,
   assignmentFrozenFileId,
@@ -352,5 +353,48 @@ describe('frozen plain-quiz assignments', () => {
         { quizId: 'quiz-2' },
       ] as Parameters<typeof unfrozenAssignmentCount>[1])
     ).toBe(1);
+  });
+});
+
+describe('paper import and reprint source', () => {
+  const quiz = (id: string, text: string): QuizData =>
+    ({
+      id,
+      title: 'Q',
+      questions: [{ id: 'q1', type: 'MC', text }],
+      createdAt: 0,
+      updatedAt: 0,
+    }) as unknown as QuizData;
+  const store: Record<string, QuizData> = {
+    live: quiz('qz', 'edited later'),
+    frozen: quiz('qz', 'as printed'),
+  };
+  const deps = {
+    loadQuizData: vi.fn((id: string) => Promise.resolve(store[id])),
+    loadBankContentsForQuiz: vi.fn(() => Promise.resolve(new Map())),
+  };
+
+  it('reads the frozen copy for a frozen paper card', async () => {
+    const id = paperFrozenFileId({ frozenDriveFileId: 'frozen' });
+    expect(id).toBe('frozen');
+    const data = await loadAssignmentAnswerKeyQuiz('live', id, deps);
+    expect(data.questions[0].text).toBe('as printed');
+  });
+
+  it('reads the frozen copy for a frozen Written on paper assignment', () => {
+    expect(paperFrozenFileId({ frozenDriveFileId: 'frozenWritten' })).toBe(
+      'frozenWritten'
+    );
+  });
+
+  it('keeps the library quiz for bank-draw hybrids and unfrozen cards', () => {
+    expect(
+      paperFrozenFileId({
+        resolvedDriveFileId: 'r',
+        frozenDriveFileId: 'f',
+      })
+    ).toBeUndefined();
+    expect(paperFrozenFileId({})).toBeUndefined();
+    expect(paperFrozenFileId(undefined)).toBeUndefined();
   });
 });

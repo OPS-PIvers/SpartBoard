@@ -249,6 +249,18 @@ export function assignmentFrozenFileId(
   return assignment?.resolvedDriveFileId ?? assignment?.frozenDriveFileId;
 }
 
+/** The frozen copy a paper import or reprint reads; bank-draw hybrids keep the library quiz. */
+export function paperFrozenFileId(
+  assignment:
+    | Pick<QuizAssignmentSettings, 'resolvedDriveFileId' | 'frozenDriveFileId'>
+    | null
+    | undefined
+): string | undefined {
+  return assignment?.resolvedDriveFileId
+    ? undefined
+    : assignment?.frozenDriveFileId;
+}
+
 /** Assignments of this quiz that still grade against the live quiz, so an edit re-scores them. */
 export function unfrozenAssignmentCount(
   quizId: string,
