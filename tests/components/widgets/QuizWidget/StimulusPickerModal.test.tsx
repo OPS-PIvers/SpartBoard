@@ -79,8 +79,8 @@ describe('stimulus picker dialog', () => {
     expect(
       within(dialog).getByRole('heading', { name: 'mitosis, meiosis' })
     ).toBeInTheDocument();
-    expect(within(dialog).getByText('Passage 1')).toBeInTheDocument();
-    expect(within(dialog).getByText('Passage 2')).toBeInTheDocument();
+    expect(within(dialog).getByText('Text 1')).toBeInTheDocument();
+    expect(within(dialog).getByText('Text 2')).toBeInTheDocument();
     expect(
       within(dialog).getByText('Volcanoes form where plates meet.')
     ).toBeInTheDocument();
@@ -99,7 +99,7 @@ describe('stimulus picker dialog', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
     const dialog = screen.getByRole('dialog');
     await userEvent.click(
-      within(dialog).getByRole('button', { name: 'Add Passage 1' })
+      within(dialog).getByRole('button', { name: 'Add Text 1' })
     );
     expect(state.toggleStimulusOnQuestion).toHaveBeenLastCalledWith('e1', 'q1');
     await userEvent.click(
@@ -124,7 +124,7 @@ describe('stimulus picker dialog', () => {
       />
     );
     await userEvent.click(screen.getByRole('button', { name: 'Stimuli' }));
-    await userEvent.click(screen.getByText('Passage 2'));
+    await userEvent.click(screen.getByText('Text 2'));
     const box = screen.getByRole('textbox', { name: 'Text' });
     await userEvent.type(box, 'A');
     expect(state.updateStimulus).toHaveBeenLastCalledWith('e2', { text: 'A' });

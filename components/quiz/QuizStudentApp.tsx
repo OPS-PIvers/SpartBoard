@@ -5675,7 +5675,7 @@ export const ActiveQuiz: React.FC<{
                           >
                             {t(
                               'quizPaperWritten.writeOnSheet',
-                              'Write your answer on your paper answer sheet.'
+                              'Write your answer on your paper response sheet.'
                             )}
                           </p>
                         </div>

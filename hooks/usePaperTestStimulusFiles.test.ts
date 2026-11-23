@@ -15,10 +15,16 @@ vi.mock('@/utils/paperSheetStimulusImages', () => ({
     items.length ? new Promise(() => undefined) : Promise.resolve({ src: {} }),
 }));
 vi.mock('@/utils/paperSheetPdfPage', () => ({
+  PDF_RENDER_DPI: 150,
   openPdfPages: () =>
     Promise.resolve({
       pageCount: 2,
-      render: () => Promise.resolve({ blob: new Blob(['png']) }),
+      renderTrimmed: () =>
+        Promise.resolve({
+          blob: new Blob(['png']),
+          widthPx: 1000,
+          heightPx: 500,
+        }),
       close: () => undefined,
     }),
 }));
@@ -48,7 +54,11 @@ describe('usePaperTestStimulusFiles', () => {
       await vi.advanceTimersByTimeAsync(2_000);
     });
     expect(result.current.loading).toBe(false);
-    expect(result.current.files).toEqual({ images: {}, pages: {} });
+    expect(result.current.files).toEqual({
+      images: {},
+      imageSizes: {},
+      pages: {},
+    });
   });
 });
 
@@ -89,7 +99,10 @@ describe('usePaperTestStimulusFiles with a pasted Google Doc', () => {
     await vi.waitFor(() => expect(result.current.loading).toBe(false));
     expect(exportAsPdf).toHaveBeenCalledWith(docId);
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(result.current.files.pages.doc).toEqual(['blob:page', 'blob:page']);
+    expect(result.current.files.pages.doc?.map((pg) => pg.src)).toEqual([
+      'blob:page',
+      'blob:page',
+    ]);
   });
 
   it('falls back to the public export when the teacher has no access', async () => {

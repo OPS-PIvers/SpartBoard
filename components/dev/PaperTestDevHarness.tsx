@@ -25,6 +25,7 @@ import type {
   QuizConfig,
   QuizData,
   QuizMetadata,
+  QuizStimulus,
 } from '@/types';
 
 const NOW = Date.UTC(2026, 10, 4, 15);
@@ -310,6 +311,35 @@ const STIMULI_QUIZ: QuizData = {
   })),
 };
 
+// Paul's report: one full-page essay question using a text stimulus.
+const ESSAY_TEXT_QUIZ: QuizData = {
+  ...QUIZ,
+  title: 'Sample quiz with stimuli',
+  stimuli: [
+    {
+      id: 'st-frames',
+      type: 'text',
+      url: '',
+      label: 'Passage',
+      tabLabel: 'Sentence Frames',
+      text: "Claim Frames\nThe claim is the first sentence in your body paragraph. As you write, consider using one of the three options below:\n\nOption 1: Through the interweaving of [specific plot events], [character developments], and [literary devices], [author] crafts a compelling exploration of [theme].\n\nOption 2: The theme of [theme] emerges most powerfully through [author's] strategic use of [specific literary elements].",
+      readAloudSource: 'text',
+    },
+  ],
+  questions: [
+    {
+      id: 'e1',
+      timeLimit: 0,
+      text: 'Use one of the provided sentence frames to write your response.',
+      type: 'free-response',
+      correctAnswer: '',
+      incorrectAnswers: [],
+      stimulusIds: ['st-frames'],
+      paperBoxSize: 'full',
+    },
+  ],
+};
+
 // ?drive=0 shows the no-Drive hint; ?uploads=fail makes every upload fail.
 const PaperImport: React.FC = () => {
   const { canAccessFeature } = useAuth();
@@ -460,6 +490,45 @@ const VIEWS = {
       onError={noop}
     />
   ),
+  'essay-text': () => {
+    const params = new URLSearchParams(window.location.search);
+    const placement = params.get('place');
+    // ?stim=pdf swaps the text for a PDF the screenshot script serves.
+    const asPdf = params.get('stim') === 'pdf';
+    // ?long=1 repeats the text so it overflows a shared page.
+    const long = params.get('long') === '1';
+    return (
+      <PaperPrintModal
+        quiz={{
+          ...ESSAY_TEXT_QUIZ,
+          stimuli: ESSAY_TEXT_QUIZ.stimuli?.map((s) => {
+            const st: QuizStimulus = asPdf
+              ? {
+                  id: s.id,
+                  type: 'pdf',
+                  url: 'https://example.test/frames.pdf',
+                  label: 'Claim Frames.pdf',
+                }
+              : long
+                ? { ...s, text: Array(6).fill(s.text).join('\n\n') }
+                : s;
+            return placement === 'question' || placement === 'resource'
+              ? { ...st, paperPlacement: placement }
+              : st;
+          }),
+        }}
+        rosters={ROSTERS}
+        assign={{
+          plcs: [],
+          initialSharing: { plcMode: false, plcId: '' },
+          onCreateAssignment: () => Promise.resolve(),
+        }}
+        onSaveBatch={() => Promise.resolve()}
+        onClose={noop}
+        onError={noop}
+      />
+    );
+  },
   'printed-stimuli': () => (
     <PaperPrintModal
       quiz={printedGroupQuiz(STIMULI_QUIZ, {

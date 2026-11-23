@@ -45,6 +45,7 @@ describe('paperTestStimulus', () => {
     });
   });
 
+  const pg = (src: string) => ({ src, widthMm: 150, heightMm: 90 });
   it('prints fetched pictures and pages, and a link for what paper cannot show', () => {
     const img = stim({ id: 'i', type: 'image', driveFileId: 'f1' });
     expect(
@@ -52,8 +53,11 @@ describe('paperTestStimulus', () => {
     ).toEqual({ kind: 'image', src: 'blob:x' });
     const pdf = stim({ id: 'd', type: 'pdf', driveFileId: 'f2' });
     expect(
-      paperTestStimulus(pdf, { images: {}, pages: { d: ['blob:1', 'blob:2'] } })
-    ).toEqual({ kind: 'pages', srcs: ['blob:1', 'blob:2'] });
+      paperTestStimulus(pdf, {
+        images: {},
+        pages: { d: [pg('blob:1'), pg('blob:2')] },
+      })
+    ).toEqual({ kind: 'pages', pages: [pg('blob:1'), pg('blob:2')] });
     // A PDF that would not load still points students at it.
     expect(paperTestStimulus(pdf, NO_FILES)).toEqual({
       kind: 'link',

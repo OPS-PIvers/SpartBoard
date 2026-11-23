@@ -1234,7 +1234,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'assign-step.sheets': {
-    label: 'Answer sheets step header in the Assign on paper dialog',
+    label: 'Response sheets step header in the Assign on paper dialog',
     panel: true,
   },
   'assign-step.written': {
@@ -3688,12 +3688,6 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
-  'quiz-print.print-test-paper': {
-    label: 'Print test paper in the Quiz widget',
-    perWidgetType: true,
-    persists: true,
-    panel: true,
-  },
   'quiz-print.results-cancel': {
     label: 'Print results Cancel in the Quiz widget',
     perWidgetType: true,
@@ -3909,11 +3903,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'quiz-print.sheets-done': {
-    label: 'Printed batch Done in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-print.spare-count': {
     label: 'Spare sheets count input in the Quiz widget',
     perWidgetType: true,
@@ -3997,7 +3986,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-stimuli.add-passage': {
-    label: 'Add a passage in the Quiz widget',
+    label: 'Add text in the Quiz widget',
     perWidgetType: true,
     panel: true,
   },
@@ -4098,7 +4087,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-stimuli.passage-text': {
-    label: 'Passage textarea in the Quiz widget',
+    label: 'Text box in the Quiz widget',
     perField: true,
     panel: true,
   },
@@ -7774,11 +7763,7 @@ export const TOUR_ANCHORS = {
     label: 'Close button in the teammate print dialog',
     panel: true,
   },
-  'plc-print.test-print': {
-    label: 'Test print button in the teammate print dialog',
-    persists: true,
-    panel: true,
-  },
+
   'plc-print.back': {
     label: 'Back button in the teammate print dialog',
     panel: true,
@@ -19233,7 +19218,7 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.reprint-written-sheets': {
     label:
-      'Print written answer sheets item in a quiz assignment menu, for written answers on paper',
+      'Print written response sheets item in a quiz assignment menu, for written answers on paper',
     perWidgetType: true,
     panel: true,
   },

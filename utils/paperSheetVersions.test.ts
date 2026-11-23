@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ClassRoster, PaperBatch, QuizData, QuizQuestion } from '@/types';
 import { resolveQuizAssignment, type BankContent } from './questionBanks';
 import { analyzePaperQuiz, planPaperBatch } from './paperSheetPlan';
-import { planPaperPages } from './paperPageMap';
+import { ownPageLines, planPaperPages } from './paperPageMap';
 import {
   needsPromptPage,
   pageMapsForSeat,
@@ -215,7 +215,7 @@ describe('prompt pages', () => {
     expect(box.kind).toBe('written');
     if (box.kind !== 'written') return;
     // A Full box takes every row the prompt leaves on its page.
-    expect(box.lines).toBe(26 - promptRows.vA);
+    expect(box.lines).toBe(ownPageLines(promptRows.vA));
     expect(box.headerMm.h).toBe(promptRows.vA * 8 - 3);
   });
 });

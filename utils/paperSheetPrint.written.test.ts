@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PaperBoxStyle, PaperPageMap } from '@/types';
 import {
+  ownPageLines,
   planPaperPages,
   writtenItemsOf,
   type PaperSheetEntry,
@@ -159,16 +160,16 @@ describe('buildPaperSheetsHtml with page maps', () => {
     };
     expect(inside('blank').rules).toHaveLength(0);
     const graph = inside('graph');
-    // 140 x 24 mm: 27 vertical and 4 horizontal lines 5 mm apart.
+    // 146 x 24 mm: 29 vertical and 4 horizontal lines 5 mm apart.
     const vertical = (r: RectMm) => r.h > r.w;
-    expect(graph.rules.filter((d) => vertical(d.rect))).toHaveLength(27);
+    expect(graph.rules.filter((d) => vertical(d.rect))).toHaveLength(29);
     expect(graph.rules.filter((d) => !vertical(d.rect))).toHaveLength(4);
     const coord = inside('coordinate');
     const heavy = coord.rules.filter((d) => Math.min(d.rect.w, d.rect.h) > 0.4);
     expect(heavy).toHaveLength(2);
     const [yAxis] = heavy.filter((d) => vertical(d.rect));
     expect(yAxis.rect.x + yAxis.rect.w / 2).toBeCloseTo(
-      coord.item.boxMm.x + 70,
+      coord.item.boxMm.x + 75,
       2
     );
   });
@@ -268,7 +269,7 @@ describe('buildPaperSheetsHtml with page maps', () => {
     expect(printed[1]).toContain('class="pr-text"');
     expect(printed[1]).toContain('Read the passage');
     expect(printed[1]).toContain('blob:map');
-    expect(printed[1].match(/class="wr-rule"/g)).toHaveLength(26 - 9);
+    expect(printed[1].match(/class="wr-rule"/g)).toHaveLength(ownPageLines(9));
   });
 
   it('reprints a prompt-above-box stem in full when no prompt is passed', () => {
@@ -410,5 +411,55 @@ describe('fill in the blank on paper', () => {
     expect(
       [...page.matchAll(/class="wr-blank-key"[^>]*>([^<]*)</g)].map((m) => m[1])
     ).toEqual(['mitochondria', '&lt;ATP&gt;']);
+  });
+});
+
+describe('stimulus pages in a student packet', () => {
+  const resource = (title: string) => ({
+    title,
+    html: `<div class="sb-text">${title} body</div>`,
+  });
+  const withPages = (over: Partial<PaperPrintJob> = {}) =>
+    pages(
+      buildPaperSheetsHtml(
+        job(mapsFor([mc(1), wr(2, 'full'), mc(3)], 'questions'), {
+          pagesBefore: { q2: [resource('Question 2')] },
+          resourcePages: [resource('Resource A')],
+          ...over,
+        })
+      )
+    );
+
+  it('prints a question page set before its question and resources after the sheet', () => {
+    const printed = withPages();
+    expect(printed).toHaveLength(5);
+    expect(printed[1]).toContain('class="res-title"');
+    expect(printed[1]).toContain('Question 2 body');
+    expect(printed[2]).toContain('class="wr-rule"');
+    expect(printed[4]).toContain('Resource A body');
+    // A stimulus page carries its own marker, so an import can tell it apart.
+    expect(readMarker(printed[1])).not.toEqual(readMarker(printed[2]));
+    expect(readMarker(printed[1])).toEqual(readMarker(printed[4]));
+  });
+
+  it('leaves stimulus pages off the answer key', () => {
+    const printed = withPages({ sheets: [sheet({ isKeySheet: true })] });
+    expect(printed).toHaveLength(3);
+    expect(printed.join('')).not.toContain('res-title');
+  });
+});
+
+describe('test paper in a student packet', () => {
+  it('opens each student packet with the test paper, and leaves it off the key', () => {
+    const html = buildPaperSheetsHtml(
+      job(mapsFor([mc(1), mc(2)]), {
+        testPaper: '<div class="tp">TEST</div>',
+        sheets: [sheet(), sheet({ seat: 4 }), sheet({ isKeySheet: true })],
+      })
+    );
+    const parts = html.split(/(?=<div class="(?:tp|sheet)">)/);
+    expect(
+      parts.map((p) => (p.startsWith('<div class="tp">') ? 'T' : 'S'))
+    ).toEqual(['T', 'S', 'T', 'S', 'S']);
   });
 });

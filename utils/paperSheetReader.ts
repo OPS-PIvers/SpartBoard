@@ -27,7 +27,11 @@ import {
   type PointMm,
   type RectMm,
 } from './paperSheetLayout';
-import { decodePaperMarker, type PaperMarkerPayload } from './paperSheetMarker';
+import {
+  decodePaperMarker,
+  RESOURCE_PAGE,
+  type PaperMarkerPayload,
+} from './paperSheetMarker';
 import { PAPER_KEPT_PAGE_DPI } from './paperWritten';
 
 /** RGBA pixels, the shape of a canvas `ImageData`. */
@@ -489,8 +493,8 @@ export interface PageRead {
 }
 
 export interface PageReadFailure {
-  /** `needs-map`: the marker says the page was laid out by a page map the reader was not given (D15). */
-  status: 'no-registration' | 'no-marker' | 'needs-map';
+  /** `needs-map`: the marker says the page was laid out by a page map the reader was not given (D15). `resource-page`: a printed resource, nothing to read. */
+  status: 'no-registration' | 'no-marker' | 'needs-map' | 'resource-page';
 }
 
 export type PageReadResult = PageRead | PageReadFailure;
@@ -759,6 +763,7 @@ export function readPaperPage(
     rotated = true;
   }
   if (!marker) return { status: 'no-marker' };
+  if (marker.page === RESOURCE_PAGE) return { status: 'resource-page' };
   const map = rotated ? turned : upright;
   const mmToPx = rotated ? turnedAffine(fit.transform) : fit.transform;
 

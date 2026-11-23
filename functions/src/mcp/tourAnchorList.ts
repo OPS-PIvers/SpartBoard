@@ -5081,7 +5081,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "assign-step.sheets",
-    "label": "Answer sheets step header in the Assign on paper dialog",
+    "label": "Response sheets step header in the Assign on paper dialog",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -14713,30 +14713,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-print.print-test-paper",
-    "label": "Print test paper in the Quiz widget",
-    "scope": "widget type",
-    "panel": true,
-    "persists": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "quiz-print.results-cancel",
     "label": "Print results Cancel in the Quiz widget",
     "scope": "widget type",
@@ -15618,29 +15594,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-print.sheets-done",
-    "label": "Printed batch Done in the Quiz widget",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "quiz-print.spare-count",
     "label": "Spare sheets count input in the Quiz widget",
     "scope": "widget type",
@@ -15988,7 +15941,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-stimuli.add-passage",
-    "label": "Add a passage in the Quiz widget",
+    "label": "Add text in the Quiz widget",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -16459,7 +16412,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-stimuli.passage-text",
-    "label": "Passage textarea in the Quiz widget",
+    "label": "Text box in the Quiz widget",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -31057,31 +31010,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the teammate print dialog",
     "scope": "board",
     "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assessments.teammate-print",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc:plcs",
-          "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu:plc",
-          "plc-assessments.menu-item:plc#print-teammate"
-        ],
-        "needs": [
-          "plc",
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-print.test-print",
-    "label": "Test print button in the teammate print dialog",
-    "scope": "board",
-    "panel": true,
-    "persists": true,
     "routes": [
       {
         "surface": "plc.assessments.teammate-print",
@@ -82508,7 +82436,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-library.reprint-written-sheets",
-    "label": "Print written answer sheets item in a quiz assignment menu, for written answers on paper",
+    "label": "Print written response sheets item in a quiz assignment menu, for written answers on paper",
     "scope": "widget type",
     "panel": true,
     "keys": [
