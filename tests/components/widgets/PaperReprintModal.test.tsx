@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ canAccessFeature: () => false }),
@@ -58,13 +58,13 @@ const BATCH: PaperBatch = {
   createdAt: 0,
 };
 
-const setup = (quiz = QUIZ) => {
+const setup = (quiz = QUIZ, batch = BATCH) => {
   const print = vi.fn<(job: PaperPrintJob) => void>();
   const onClose = vi.fn();
   render(
     <PaperReprintModal
       quiz={quiz}
-      batch={BATCH}
+      batch={batch}
       rosters={[ROSTER]}
       onClose={onClose}
       onError={vi.fn()}
@@ -108,6 +108,32 @@ describe('PaperReprintModal', () => {
     expect(onClose).not.toHaveBeenCalled();
     print.mock.calls[0][0].onImagesReady?.();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('reprints a question-text sheet with its stimuli', async () => {
+    const { print } = setup(
+      {
+        ...QUIZ,
+        questions: [{ ...mc('q1'), stimulusIds: ['x'] }, mc('q2')],
+        stimuli: [
+          {
+            id: 'x',
+            type: 'text',
+            url: '',
+            label: '',
+            text: 'The cell is small.',
+          },
+        ],
+      },
+      { ...BATCH, sheetLayout: 'questions' }
+    );
+    fireEvent.click(screen.getByLabelText('Baker, Jo'));
+    const button = screen.getByRole('button', { name: /^Print$/ });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+    const texts = print.mock.calls[0][0].questionTexts ?? [];
+    expect(texts[0]?.stimulus?.html).toContain('The cell is small.');
+    expect(texts[1]?.stimulus).toBeUndefined();
   });
 
   it('refuses when the quiz changed since the sheets printed', () => {

@@ -5,12 +5,12 @@ import {
   isFetchedStimulus,
   paperTestStimulus,
   resourceLetter,
-  resourceLine,
   stimulusDocFileId,
   teammateQuizStimuli,
   teammateTestPaper,
 } from './paperTestStimuli';
 import { buildPaperTestHtml } from './paperTestPrint';
+import { ENGLISH_PRINT_WORDS } from './paperPrintWords';
 
 const NO_FILES = { images: {}, pages: {} };
 const stim = (over: Partial<QuizStimulus> & { id: string }): QuizStimulus => ({
@@ -210,9 +210,13 @@ describe('attachPaperTestStimuli', () => {
 
 describe('resource lines and letters', () => {
   it('names the resources a question uses', () => {
-    expect(resourceLine(['A'])).toBe('Use Resource A.');
-    expect(resourceLine(['A', 'B'])).toBe('Use Resources A and B.');
-    expect(resourceLine(['A', 'B', 'C'])).toBe('Use Resources A, B and C.');
+    expect(ENGLISH_PRINT_WORDS.useResources(['A'])).toBe('Use Resource A.');
+    expect(ENGLISH_PRINT_WORDS.useResources(['A', 'B'])).toBe(
+      'Use Resources A and B.'
+    );
+    expect(ENGLISH_PRINT_WORDS.useResources(['A', 'B', 'C'])).toBe(
+      'Use Resources A, B and C.'
+    );
     expect(resourceLetter(0)).toBe('A');
     expect(resourceLetter(25)).toBe('Z');
     expect(resourceLetter(26)).toBe('AA');

@@ -131,6 +131,31 @@ describe('written questions on the test paper (D18)', () => {
   });
 });
 
+describe('a translated test paper', () => {
+  it("prints the resource and written lines in the copy's language", () => {
+    const job = {
+      quizTitle: 'Prueba',
+      language: 'es',
+      questions: [
+        { row: '1', text: 'Lee.', choices: ['a', 'b'], resources: ['A'] },
+        { row: '2', text: 'Explica.', choices: [], written: true },
+      ],
+      resources: [
+        { letter: 'A', item: { kind: 'text' as const, text: 'Texto' } },
+      ],
+    };
+    for (const html of [
+      buildPaperTestHtml(job),
+      ...paperTestPacketCopies(job),
+    ]) {
+      expect(html).toContain('Usa el recurso A.');
+      expect(html).toContain('<h2>Recurso A</h2>');
+      expect(html).toContain('Escribe tu respuesta en tu hoja de respuestas.');
+      expect(html).not.toContain('Resource A');
+    }
+  });
+});
+
 describe('test paper copies inside the response sheet document', () => {
   it('prints one scoped copy per version', () => {
     const q = { row: 1, text: 'Pick one', choices: ['Red', 'Blue'] };
