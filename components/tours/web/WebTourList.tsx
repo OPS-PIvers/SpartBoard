@@ -8,6 +8,8 @@ import React, {
   useState,
 } from 'react';
 import {
+  Link2,
+  Check,
   ChevronDown,
   Globe,
   Loader2,
@@ -55,7 +57,7 @@ import {
   type TourStatus,
 } from './webTourStatus';
 
-const rowBtnBase = `inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold disabled:opacity-50 ${focusRing}`;
+const rowBtnBase = `inline-flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-sm font-semibold disabled:opacity-50 ${focusRing}`;
 const rowBtn = `${rowBtnBase} text-brand-blue-primary hover:bg-brand-blue-lighter`;
 
 type Tone = 'neutral' | 'success' | 'warn' | 'info';
@@ -79,10 +81,15 @@ const Badge: React.FC<{ tone: Tone; children: React.ReactNode }> = ({
 
 export type PublishState = 'draft' | 'changed' | 'published';
 
-const GRID_COLS =
-  'sm:grid sm:grid-cols-[minmax(0,1fr)_7rem_6rem_7.5rem_23.5rem] sm:gap-x-4';
-const GRID_COLS_FRESH =
-  'sm:grid sm:grid-cols-[minmax(0,1fr)_7rem_6rem_7.5rem_7rem_23.5rem] sm:gap-x-4';
+// The list is one grid and each row a subgrid, so columns size to their content and still line up.
+// Website and Author get their own columns from xl up; below that they sit under the title.
+const LIST_GRID =
+  'lg:grid lg:gap-x-5 lg:grid-cols-[minmax(12rem,1fr)_repeat(4,auto)] 2xl:grid-cols-[minmax(12rem,1fr)_repeat(6,auto)]';
+const LIST_GRID_FRESH =
+  'lg:grid lg:gap-x-5 lg:grid-cols-[minmax(12rem,1fr)_repeat(5,auto)] 2xl:grid-cols-[minmax(12rem,1fr)_repeat(7,auto)]';
+const ROW_GRID = 'lg:col-span-full lg:grid lg:grid-cols-subgrid';
+// Row buttons are icons alone between lg and xl, where the title needs the room.
+const rowLabel = 'lg:hidden xl:inline';
 
 /** What the page's search and filter read about each row. */
 export interface RowFacts {
@@ -313,6 +320,7 @@ const ShareMenu: React.FC<{
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         aria-label={`Share ${title}`}
+        title="Share"
         className={rowBtn}
         {...tourFieldAttr('web-tours.copy-link', 'web-tours', set.id)}
       >
@@ -321,7 +329,7 @@ const ShareMenu: React.FC<{
         ) : (
           <Share2 className="h-4 w-4" aria-hidden="true" />
         )}
-        Share
+        <span className={rowLabel}>Share</span>
         <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
       {open && (
@@ -329,7 +337,7 @@ const ShareMenu: React.FC<{
           id={menuId}
           role="group"
           aria-label={`Share ${title}`}
-          className="absolute left-0 top-full z-20 mt-1 w-64 rounded-xl sm:left-auto sm:right-0 border border-slate-200 bg-white p-1 shadow-lg"
+          className="absolute left-0 top-full z-20 mt-1 w-64 rounded-xl border lg:left-auto lg:right-0 border-slate-200 bg-white p-1 shadow-lg"
         >
           <button
             type="button"
@@ -491,7 +499,14 @@ const WebTourRow: React.FC<{
       {publish === 'draft' ? 'Draft' : 'Published'}
     </Badge>
   );
-  const publicMark = publicOn ? <Badge tone="info">Public</Badge> : null;
+  const publicMark = publicOn ? (
+    <span title="Public link on" className="inline-flex">
+      <Badge tone="info">
+        <Link2 className="h-3.5 w-3.5 lg:my-0.5" aria-hidden="true" />
+        <span className="ml-1 lg:sr-only">Public link on</span>
+      </Badge>
+    </span>
+  ) : null;
   const freshBadge = fresh !== 'none' && (
     <Badge
       tone={
@@ -527,7 +542,12 @@ const WebTourRow: React.FC<{
     );
   const statusControl =
     status === 'passed' ? (
-      <Badge tone="success">Check passed</Badge>
+      <span title="Check passed" className="inline-flex">
+        <Badge tone="success">
+          <Check className="h-3.5 w-3.5 lg:my-0.5" aria-hidden="true" />
+          <span className="ml-1 lg:sr-only">Check passed</span>
+        </Badge>
+      </span>
     ) : status === 'issues' ? (
       <button
         type="button"
@@ -560,8 +580,10 @@ const WebTourRow: React.FC<{
   const meta = (
     <p className={`mt-0.5 text-xs ${chromeMuted}`}>
       {stepCount} step{stepCount === 1 ? '' : 's'}
-      {site ? ` · ${site}` : ''}
-      {set.authorName ? ` · by ${set.authorName}` : ''}
+      {site && <span className="2xl:hidden">{` · ${site}`}</span>}
+      {set.authorName && (
+        <span className="2xl:hidden">{` · by ${set.authorName}`}</span>
+      )}
       {counts && (
         <span
           data-testid="web-tour-counts"
@@ -586,7 +608,7 @@ const WebTourRow: React.FC<{
     <li
       data-testid="web-tour-row"
       hidden={hidden}
-      className={`flex flex-col gap-3 border-b border-slate-200 px-4 py-3 last:border-b-0 sm:items-center ${articles ? GRID_COLS_FRESH : GRID_COLS}`}
+      className={`flex flex-col gap-2 border-b border-slate-200 px-4 py-2 last:border-b-0 lg:items-center ${ROW_GRID}`}
     >
       <div className="flex min-w-0 flex-1 items-start gap-3">
         <Globe
@@ -598,22 +620,35 @@ const WebTourRow: React.FC<{
           {meta}
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-1.5 pl-8 sm:contents">
+      <div
+        className={`hidden max-w-56 truncate text-sm 2xl:block ${chromeMuted}`}
+        title={site ?? undefined}
+      >
+        {site}
+      </div>
+      <div
+        className={`hidden max-w-44 truncate text-sm 2xl:block ${chromeMuted}`}
+        title={set.authorName}
+      >
+        {set.authorName}
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5 pl-8 lg:contents">
         <div>{publishMark}</div>
         <div>{publicMark}</div>
         <div>{statusControl}</div>
         {articles && <div data-testid="web-tour-fresh">{freshMark}</div>}
       </div>
-      <div className="flex flex-wrap items-center gap-1 pl-8 sm:justify-end sm:pl-0">
+      <div className="flex flex-wrap items-center gap-0.5 pl-8 lg:flex-nowrap lg:justify-end lg:pl-0">
         <button
           type="button"
           onClick={() => onEdit(set)}
           aria-label={`Edit ${title}`}
+          title="Edit"
           className={rowBtn}
           {...tourFieldAttr('web-tours.edit', 'web-tours', set.id)}
         >
           <Pencil className="h-4 w-4" aria-hidden="true" />
-          Edit
+          <span className={rowLabel}>Edit</span>
         </button>
         <button
           type="button"
@@ -637,7 +672,7 @@ const WebTourRow: React.FC<{
           {...tourFieldAttr('web-tours.check', 'web-tours', set.id)}
         >
           <Radar className="h-4 w-4" aria-hidden="true" />
-          Check tour
+          <span className={rowLabel}>Check tour</span>
         </button>
         <button
           type="button"
@@ -646,12 +681,12 @@ const WebTourRow: React.FC<{
           }
           disabled={!live}
           aria-label={`Play ${title}`}
-          title={live ? undefined : 'Publish the tour to play it'}
+          title={live ? 'Play' : 'Publish the tour to play it'}
           className={rowBtn}
           {...tourFieldAttr('web-tours.play', 'web-tours', set.id)}
         >
           <Play className="h-4 w-4" aria-hidden="true" />
-          Play
+          <span className={rowLabel}>Play</span>
         </button>
         <ShareMenu
           set={set}
@@ -721,12 +756,16 @@ export const WebTourList: React.FC<{
       </div>
     );
   return (
-    <ul className="rounded-xl border border-slate-200 bg-white">
+    <ul
+      className={`rounded-xl border border-slate-200 bg-white ${articles ? LIST_GRID_FRESH : LIST_GRID}`}
+    >
       <li
         aria-hidden="true"
-        className={`hidden border-b border-slate-200 px-4 py-2 text-xs font-semibold text-slate-500 ${articles ? GRID_COLS_FRESH : GRID_COLS}`}
+        className={`hidden border-b border-slate-200 px-4 py-2 text-xs font-semibold text-slate-500 ${ROW_GRID}`}
       >
         <span className="pl-8">Tour</span>
+        <span className="hidden 2xl:block">Website</span>
+        <span className="hidden 2xl:block">Author</span>
         <span>Status</span>
         <span>Public link</span>
         <span>Check</span>
