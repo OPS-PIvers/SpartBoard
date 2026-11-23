@@ -223,7 +223,7 @@ export interface QuizStepperAssign {
     boxSizes: Record<string, PaperBoxSize>;
     boxStyles: Record<string, PaperBoxStylePick>;
   };
-  /** Modification groups that print their version at assign . */
+  /** Modification groups that print their version at assign. */
   printedGroups?: PrintedGroupPick[];
 }
 

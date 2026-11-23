@@ -39,7 +39,7 @@ export interface MonitorRosterTargets {
   targetMode?: 'class' | 'students';
   targetStudents?: StudentTargetRef[];
   excludedTargets?: StudentTargetRef[];
-  /** Stacks printed for modification groups . */
+  /** Stacks printed for modification groups. */
   paperCopyBatchIds?: string[];
 }
 

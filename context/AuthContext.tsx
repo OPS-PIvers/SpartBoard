@@ -30,6 +30,7 @@ import { httpsCallable } from 'firebase/functions';
 import {
   auth,
   googleProvider,
+  driveConsentProvider,
   db,
   functions,
   isAuthBypass,
@@ -969,7 +970,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (silent) return null;
 
         try {
-          const result = await signInWithPopup(auth, googleProvider);
+          const result = await signInWithPopup(auth, driveConsentProvider);
           const credential = GoogleAuthProvider.credentialFromResult(result);
           if (credential) {
             const token = credential.accessToken ?? null;

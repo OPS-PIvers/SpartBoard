@@ -114,7 +114,7 @@ export interface QuizAssignStepperProps {
   written?: React.ComponentProps<typeof WrittenAnswersStep>;
   /** Leaves the stepper for the paper print flow; omit when paper sheets are off. */
   onAssignOnPaper?: () => void;
-  /** A modification group can print its version . */
+  /** A modification group can print its version. */
   printedVersionsAvailable?: boolean;
   onClose: () => void;
   onSubmit: (extra: {
