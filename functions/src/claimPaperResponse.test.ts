@@ -384,6 +384,25 @@ describe('handleReleasePaperResponse', () => {
     expect(store.has('quiz_sessions/other/seats/anon-1')).toBe(true);
   });
 
+  it("drops the old device's Let in now pass and keeps everyone else's", async () => {
+    session({ studentAccess: { 'anon-1': NOW + 60_000, 'anon-2': NOW + 1 } });
+    await release();
+    expect(store.get(`quiz_sessions/${SESSION}`)?.studentAccess).toEqual({
+      'anon-2': NOW + 1,
+    });
+    expect(store.get(`quiz_sessions/${SESSION}`)?.teacherUid).toBe(TEACHER);
+  });
+
+  it('leaves passes alone when the row is already at its PIN key', async () => {
+    row();
+    session({ studentAccess: { [KEY]: NOW + 1, 'anon-1': NOW + 1 } });
+    await release();
+    expect(store.get(`quiz_sessions/${SESSION}`)?.studentAccess).toEqual({
+      [KEY]: NOW + 1,
+      'anon-1': NOW + 1,
+    });
+  });
+
   it('clears a stale seat on a row already at its PIN key', async () => {
     row();
     store.set(`quiz_sessions/${SESSION}/seats/anon-1`, { responseKey: KEY });

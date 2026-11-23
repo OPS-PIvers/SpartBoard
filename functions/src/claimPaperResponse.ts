@@ -293,9 +293,10 @@ export async function handleReleasePaperResponse(
     .collection('seats')
     .where('responseKey', '==', responseKey);
   return db.runTransaction(async (tx) => {
-    const [snap, seats] = await Promise.all([
+    const [snap, seats, liveSession] = await Promise.all([
       tx.get(responseRef),
       tx.get(seatsQuery),
+      tx.get(sessionRef),
     ]);
     if (!snap.exists) return { released: false, reason: 'not-found' } as const;
     const row = snap.data() ?? {};
@@ -307,6 +308,20 @@ export async function handleReleasePaperResponse(
     // Already at its PIN key: a retry after a lost reply lands here.
     if (row.studentUid !== responseKey) {
       tx.update(responseRef, { studentUid: responseKey });
+      // A "Let in now" pass is keyed by uid and would also keep the old device past the period gate.
+      const live: Record<string, unknown> = liveSession.data() ?? {};
+      const access = live.studentAccess;
+      const oldUid: unknown = row.studentUid;
+      if (
+        typeof oldUid === 'string' &&
+        access !== null &&
+        typeof access === 'object' &&
+        oldUid in access
+      ) {
+        const rest = { ...(access as Record<string, unknown>) };
+        delete rest[oldUid];
+        tx.update(sessionRef, { studentAccess: rest });
+      }
     }
     return { released: true } as const;
   });

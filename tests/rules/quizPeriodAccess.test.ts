@@ -14,6 +14,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
+  deleteDoc,
   doc,
   getDoc,
   setDoc,
@@ -618,16 +619,19 @@ describe('content/questions', () => {
     });
     await seedSeat(S, ANON_UID, ANON_KEY);
     await assertSucceeds(getDoc(doc(asAnon(), contentPath)));
-    // What releasePaperResponseV1 writes.
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      const db = ctx.firestore();
-      const batch = writeBatch(db);
-      batch.update(doc(db, `quiz_sessions/${S}/responses/${ANON_KEY}`), {
-        studentUid: ANON_KEY,
-      });
-      batch.delete(doc(db, `quiz_sessions/${S}/seats/${ANON_UID}`));
-      await batch.commit();
-    });
+    await testEnv.withSecurityRulesDisabled((ctx) =>
+      updateDoc(
+        doc(ctx.firestore(), `quiz_sessions/${S}/responses/${ANON_KEY}`),
+        {
+          studentUid: ANON_KEY,
+        }
+      )
+    );
+    // The reset alone leaves the read open, which is why the release deletes the seat.
+    await assertSucceeds(getDoc(doc(asAnon(), contentPath)));
+    await testEnv.withSecurityRulesDisabled((ctx) =>
+      deleteDoc(doc(ctx.firestore(), `quiz_sessions/${S}/seats/${ANON_UID}`))
+    );
     await assertFails(getDoc(doc(asAnon(), contentPath)));
     await assertFails(
       setDoc(doc(asAnon(), `quiz_sessions/${S}/seats/${ANON_UID}`), {
