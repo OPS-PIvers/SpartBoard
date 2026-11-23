@@ -98,6 +98,15 @@ export function layoutSheetStimuli(
     });
     return { rows, written, prompts, pagesBefore };
   });
+  // A box one version prompts is a prompt page in every version, so its block moves to the header there too.
+  for (const forSet of out) {
+    for (const [mapId, block] of Object.entries(forSet.written)) {
+      if (!prompted.has(mapId)) continue;
+      forSet.prompts[mapId] = block;
+      delete forSet.written[mapId];
+      delete stimulusMm[mapId];
+    }
+  }
   return { sets: out, stimulusMm, promptIds: prompted };
 }
 
