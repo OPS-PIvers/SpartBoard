@@ -95,7 +95,8 @@ import {
 import { PublishCheck } from './webEditorParts';
 import { usePublicLinkControls } from '@/components/tours/publicLink/usePublicLinkControls';
 import { PictureCache } from './webPictures';
-import { FRESHSERVICE_FEATURE, sendTourToFreshservice } from './freshservice';
+import { sendTourToFreshservice, useCanFreshservice } from './freshservice';
+import { useTourAuthor } from './useTourAuthor';
 import { useStepsLabels } from '@/components/tours/steps/useStepsLabels';
 import {
   CHECK_LABEL,
@@ -181,7 +182,10 @@ const WebTourEditorBody: React.FC<{
   initialStepId?: string;
 }> = ({ initial, onClose, onOpen, initialStepId }) => {
   const { user, isAdmin, canAccessFeature } = useAuth();
-  const canFresh = !!isAdmin && canAccessFeature(FRESHSERVICE_FEATURE);
+  const canFresh = useCanFreshservice();
+  const access = useTourAuthor();
+  // An author deletes only a tour they made; the rule says the same.
+  const canDelete = !!isAdmin || (!!user && initial.authorUid === user.uid);
   const stepsLabels = useStepsLabels();
   const uid = user?.uid ?? '';
   const canCopyForClaude =
@@ -221,6 +225,7 @@ const WebTourEditorBody: React.FC<{
   const publicLink = usePublicLinkControls({
     setId: initial.id,
     menuCopies: true,
+    author: access.author,
     published:
       webTourEditorDevSeed()?.publishedSet ??
       (published.loaded ? (live?.set ?? null) : undefined),
@@ -716,14 +721,18 @@ const WebTourEditorBody: React.FC<{
       onSelect: () => void duplicate(),
       anchor: tourAttr('web-tour-editor.duplicate'),
     },
-    {
-      id: 'delete',
-      label: 'Delete web tour',
-      icon: Trash2,
-      danger: true,
-      onSelect: () => void remove(),
-      anchor: tourAttr('web-tour-editor.delete'),
-    },
+    ...(canDelete
+      ? [
+          {
+            id: 'delete' as const,
+            label: 'Delete web tour',
+            icon: Trash2,
+            danger: true,
+            onSelect: () => void remove(),
+            anchor: tourAttr('web-tour-editor.delete'),
+          },
+        ]
+      : []),
   ];
 
   const adapter: TourShellAdapter = {

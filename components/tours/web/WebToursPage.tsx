@@ -35,7 +35,7 @@ import {
 import { AuthContext } from '@/context/AuthContextValue';
 import { webTourSite } from './tourLinks';
 import { webToursDevSeed } from './webToursDevSeed';
-import { useCanFreshservice } from './freshservice';
+import { useCanFreshserviceSettings } from './freshservice';
 
 const TourAuthorsDialog = lazy(() =>
   import('./TourAuthorsDialog').then((m) => ({
@@ -135,7 +135,7 @@ export const WebToursPage: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [listFailed, setListFailed] = useState(false);
-  const canFresh = useCanFreshservice();
+  const canFresh = useCanFreshserviceSettings();
   const [freshOpen, setFreshOpen] = useState(false);
   const auth = useContext(AuthContext);
   const adminEmail = auth?.isAdmin ? (auth.user?.email ?? null) : null;
