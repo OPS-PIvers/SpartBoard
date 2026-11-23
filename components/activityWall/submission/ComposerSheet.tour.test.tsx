@@ -12,7 +12,13 @@ const sheet = (
   <ComposerSheet
     session={makeSession({
       layout: 'wall',
-      allowedTypes: { text: true, photo: true, link: true },
+      allowedTypes: {
+        text: true,
+        photo: true,
+        link: true,
+        file: false,
+        video: false,
+      },
     })}
     onSubmit={vi.fn()}
     onClose={vi.fn()}

@@ -1,3 +1,4 @@
+import { tourAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -43,8 +44,8 @@ export const BannerInteraction: React.FC<{
         }}
       >
         {onClose && (
-          // no-tour-anchor: student player overlay, not on the teacher board during a tour
           <button
+            {...tourAttr('gl-player.banner-close')}
             onClick={onClose}
             className="pointer-events-auto absolute text-white/80 hover:text-white transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/80 rounded-sm"
             style={{
