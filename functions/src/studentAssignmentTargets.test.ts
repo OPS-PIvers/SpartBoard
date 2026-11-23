@@ -49,8 +49,10 @@ import {
   computeStudentUid,
 } from './classlinkShared';
 import {
+  ASSIGNMENT_COLLECTION_BY_KIND,
   MAX_TARGET_REFS,
   MAX_TAUGHT_CLASSES,
+  SESSION_COLLECTION_BY_KIND,
   computeSessionCloseAt,
   handleSetAssignmentTargets,
   isTestClassAuthority,
@@ -2109,6 +2111,34 @@ describe('handleSetAssignmentTargets — mixed class and student targets', () =>
     ]);
     expect(pointerFor(SOURCED_A)).toBeUndefined();
     expect(pointerFor(SOURCED_C).classId).toBe(CLASS_B);
+  });
+
+  it('keeps Flashcards and Schoology runs on any teacher class, which admit pointer holders', async () => {
+    for (const [kind, classIds] of [
+      ['flashcards', [CLASS_B]],
+      ['quiz', ['schoology:ctx-1']],
+    ] as const) {
+      state.docs.set(`${SESSION_COLLECTION_BY_KIND[kind]}/${ASSIGNMENT_ID}`, {
+        teacherUid: TEACHER_UID,
+        status: 'active',
+        classIds,
+        classId: classIds[0],
+      });
+      state.docs.set(
+        `users/${TEACHER_UID}/${ASSIGNMENT_COLLECTION_BY_KIND[kind]}/${ASSIGNMENT_ID}`,
+        { id: ASSIGNMENT_ID }
+      );
+      const result = await runMixed(
+        baseInput({
+          kind,
+          sessionId: ASSIGNMENT_ID,
+          targetMode: 'class',
+          add: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+        })
+      );
+      expect({ kind, skipped: result.skipped }).toEqual({ kind, skipped: [] });
+      state.docs.delete(pointerPath(computeStudentUid(SOURCED_A, HMAC)));
+    }
   });
 
   it('writes the narrowing before any pointer lands', async () => {

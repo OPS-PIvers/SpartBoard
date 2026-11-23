@@ -28,6 +28,20 @@ describe('buildAssignmentSummary outsideClasses', () => {
     ).toBeUndefined();
   });
 
+  it('leaves Flashcards and Writing alone, which admit pointer holders', () => {
+    for (const kind of ['flashcards', 'writing'] as const) {
+      const a = buildAssignmentSummary(
+        kind,
+        'active',
+        KIND_CONFIG[kind],
+        's1',
+        { title: 'Words', status: 'active', classIds: ['english-10'] },
+        new Set(['english-9'])
+      );
+      expect(a.outsideClasses).toBeUndefined();
+    }
+  });
+
   it('leaves a run with no classes alone', () => {
     expect(build({}, ['english-9']).outsideClasses).toBeUndefined();
   });

@@ -457,6 +457,15 @@ const isNumberRecord = (v: unknown): v is Record<string, number> =>
   v !== null &&
   Object.values(v).every((n) => typeof n === 'number');
 
+/** Kinds whose rules refuse a student outside the run's classes; Flashcards and Writing admit pointer holders. */
+const CLASS_GATED_KINDS: ReadonlySet<SessionKind> = new Set([
+  'quiz',
+  'video-activity',
+  'guided-learning',
+  'mini-app',
+  'projects',
+]);
+
 export function buildAssignmentSummary(
   kind: SessionKind,
   channel: AssignmentChannel,
@@ -542,7 +551,11 @@ export function buildAssignmentSummary(
     live: isLiveSession(kind, channel, record) ? true : undefined,
     held: heldState(kind, channel, record),
     outsideClasses:
-      candidates.length > 0 && intersected.length === 0 ? true : undefined,
+      CLASS_GATED_KINDS.has(kind) &&
+      candidates.length > 0 &&
+      intersected.length === 0
+        ? true
+        : undefined,
     periodGate: hasPeriodAccess(record)
       ? {
           accessMode: (record as PeriodAccessSessionFields).accessMode,
