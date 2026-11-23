@@ -3090,6 +3090,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'web-tours.share-tour-url': ['board.web-tours-page'],
     'web-tours.share-steps-url': ['board.web-tours-page'],
     'web-tours.share-freshservice': ['board.web-tours-page'],
+    'web-tours.authors': ['board.web-tours-page'],
     'web-tours.freshservice-settings': ['board.web-tours-page'],
     'web-tours.share-html-file': ['board.web-tours-page'],
     'web-tours.title': ['board.web-tours-page'],

@@ -1,4 +1,4 @@
-// Rules for web tours (docs/plans/CHROME_EXTENSION.md T6): admin-only drafts at building_web_tours,
+// Rules for web tours (docs/plans/CHROME_EXTENSION.md T6, WEB_TOUR_AUTHORS.md): drafts at building_web_tours for admins and tour authors,
 // web snapshots in building_guided_learning_tours for district staff only, and staff-only pictures.
 //
 // Requires the Firestore and Storage emulators. Invoke via `pnpm run test:rules`.
@@ -39,7 +39,10 @@ import {
 
 const PROJECT_ID = 'spartboard-web-tours-rules-test';
 const ADMIN_EMAIL = 'admin@orono.k12.mn.us';
+const AUTHOR_EMAIL = 'author@orono.k12.mn.us';
 const DRAFTS = 'building_web_tours';
+const AUTHORS = 'tour_authors';
+const LINKS = 'admin_settings/tour_public_links/tours';
 const TOURS = 'building_guided_learning_tours';
 
 const FIRESTORE_RULES = fileURLToPath(
@@ -69,6 +72,8 @@ const asAdmin = () =>
   testEnv.authenticatedContext('admin-uid', google(ADMIN_EMAIL));
 const asStaff = () =>
   testEnv.authenticatedContext('staff-uid', google('teacher@orono.k12.mn.us'));
+const asAuthor = () =>
+  testEnv.authenticatedContext('author-uid', google(AUTHOR_EMAIL));
 const asOutsideTeacher = () =>
   testEnv.authenticatedContext('outside-uid', google('teacher@example.com'));
 const asUnverifiedStaff = () =>
@@ -181,7 +186,8 @@ beforeEach(async () => {
     const db = ctx.firestore();
     await setDoc(doc(db, `admins/${ADMIN_EMAIL}`), { addedAt: 1 });
     await setDoc(doc(db, 'admins/outside-admin@example.com'), { addedAt: 1 });
-    await seedDistrictStaff(db, ['teacher@orono.k12.mn.us']);
+    await seedDistrictStaff(db, ['teacher@orono.k12.mn.us', AUTHOR_EMAIL]);
+    await setDoc(doc(db, `${AUTHORS}/${AUTHOR_EMAIL}`), { addedAt: 1 });
     await setDoc(doc(db, `${DRAFTS}/w1`), draft);
     await setDoc(doc(db, `${TOURS}/w1`), webSnapshot);
     await setDoc(doc(db, `${TOURS}/s1`), boardSnapshot);
@@ -306,6 +312,157 @@ describe('web tour snapshots', () => {
   });
 });
 
+describe('tour authors', () => {
+  const mine = { ...draft, id: 'a1', authorUid: 'author-uid' };
+
+  it('lets an admin manage the list and a person read only their own entry', async () => {
+    const admin = asAdmin().firestore();
+    await assertSucceeds(getDocs(collection(admin, AUTHORS)));
+    await assertSucceeds(
+      setDoc(doc(admin, `${AUTHORS}/new@orono.k12.mn.us`), { addedAt: 2 })
+    );
+    await assertSucceeds(deleteDoc(doc(admin, `${AUTHORS}/${AUTHOR_EMAIL}`)));
+    const staff = asStaff().firestore();
+    await assertSucceeds(
+      getDoc(doc(staff, `${AUTHORS}/teacher@orono.k12.mn.us`))
+    );
+    await assertFails(getDoc(doc(staff, `${AUTHORS}/new@orono.k12.mn.us`)));
+    await assertFails(getDocs(collection(staff, AUTHORS)));
+    await assertFails(
+      setDoc(doc(staff, `${AUTHORS}/teacher@orono.k12.mn.us`), { addedAt: 3 })
+    );
+  });
+
+  it('lets an author read, create, edit and delete their own drafts', async () => {
+    const db = asAuthor().firestore();
+    await assertSucceeds(getDoc(doc(db, `${DRAFTS}/w1`)));
+    await assertSucceeds(getDocs(collection(db, DRAFTS)));
+    await assertSucceeds(setDoc(doc(db, `${DRAFTS}/a1`), mine));
+    await assertSucceeds(
+      setDoc(doc(db, `${DRAFTS}/a1`), { ...mine, title: 'Renamed' })
+    );
+    await assertSucceeds(
+      setDoc(doc(db, `${DRAFTS}/w1`), { ...draft, title: 'Shared edit' })
+    );
+    await assertSucceeds(deleteDoc(doc(db, `${DRAFTS}/a1`)));
+  });
+
+  it('keeps the author field honest and tours made by others undeletable', async () => {
+    const db = asAuthor().firestore();
+    await assertFails(setDoc(doc(db, `${DRAFTS}/a2`), draft));
+    await assertFails(
+      setDoc(doc(db, `${DRAFTS}/a2`), { ...draft, authorUid: 'admin-uid' })
+    );
+    await assertFails(
+      setDoc(doc(db, `${DRAFTS}/w1`), { ...draft, authorUid: 'author-uid' })
+    );
+    await assertFails(deleteDoc(doc(db, `${DRAFTS}/w1`)));
+    await assertSucceeds(deleteDoc(doc(asAdmin().firestore(), `${DRAFTS}/w1`)));
+  });
+
+  it('gives nothing to a listed account that is not active district staff', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      for (const email of [
+        STUDENT_GOOGLE_EMAIL,
+        INACTIVE_STAFF_EMAIL,
+        'teacher@example.com',
+      ])
+        await setDoc(doc(db, `${AUTHORS}/${email}`), { addedAt: 1 });
+    });
+    for (const ctx of [
+      asStudentGoogle(),
+      asInactiveStaff(),
+      asOutsideTeacher(),
+    ]) {
+      const db = ctx.firestore();
+      await assertFails(getDoc(doc(db, `${DRAFTS}/w1`)));
+      await assertFails(setDoc(doc(db, `${DRAFTS}/a3`), mine));
+      await assertFails(setDoc(doc(db, `${TOURS}/w3`), webSnapshot));
+    }
+  });
+
+  it('never counts a view-as tab as the author', async () => {
+    const viewing = testEnv.authenticatedContext('author-uid', {
+      ...google(AUTHOR_EMAIL),
+      viewAs: { sid: 's1', exp: Date.now() + 60_000, ro: false },
+    });
+    await assertFails(getDoc(doc(viewing.firestore(), `${DRAFTS}/w1`)));
+    await assertFails(setDoc(doc(viewing.firestore(), `${DRAFTS}/a4`), mine));
+  });
+
+  it('lets an author publish and republish web tours only', async () => {
+    const db = asAuthor().firestore();
+    await assertSucceeds(setDoc(doc(db, `${TOURS}/w3`), webSnapshot));
+    await assertSucceeds(
+      setDoc(doc(db, `${TOURS}/w1`), { ...webSnapshot, publishedAt: 2 })
+    );
+    await assertFails(setDoc(doc(db, `${TOURS}/s2`), boardSnapshot));
+    await assertFails(
+      setDoc(doc(db, `${TOURS}/s1`), { ...boardSnapshot, publishedAt: 2 })
+    );
+    await assertFails(
+      setDoc(doc(db, `${TOURS}/s1`), { ...boardSnapshot, surface: 'web' })
+    );
+    await assertFails(deleteDoc(doc(db, `${TOURS}/w1`)));
+  });
+
+  it('lets an author read runs and counts of a web tour, not of a SpartBoard tour', async () => {
+    const db = asAuthor().firestore();
+    await assertSucceeds(getDocs(collection(db, `${TOURS}/w1/runs`)));
+    await assertSucceeds(getDoc(doc(db, `${TOURS}/w1/stats/counts`)));
+    await assertFails(getDocs(collection(db, `${TOURS}/s1/runs`)));
+    await assertFails(getDoc(doc(db, `${TOURS}/s1/stats/counts`)));
+    await assertFails(
+      getDocs(collection(asStaff().firestore(), `${TOURS}/w1/runs`))
+    );
+  });
+
+  it('lets an author turn a public link on as themselves and off for anyone', async () => {
+    const link = (confirmedBy: string) => ({
+      token: 't',
+      kind: 'web',
+      confirmedBy,
+      confirmedAt: 1,
+    });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `${LINKS}/w1`), link(ADMIN_EMAIL));
+    });
+    const db = asAuthor().firestore();
+    await assertSucceeds(getDoc(doc(db, `${LINKS}/w1`)));
+    await assertSucceeds(setDoc(doc(db, `${LINKS}/a1`), link(AUTHOR_EMAIL)));
+    await assertFails(setDoc(doc(db, `${LINKS}/a2`), link(ADMIN_EMAIL)));
+    await assertSucceeds(
+      setDoc(doc(db, `${LINKS}/w1`), {
+        ...link(ADMIN_EMAIL),
+        off: { reason: 'admin', at: 2 },
+      })
+    );
+    await assertFails(
+      setDoc(doc(db, `${LINKS}/w1`), link('someone@orono.k12.mn.us'))
+    );
+    await assertFails(deleteDoc(doc(db, `${LINKS}/w1`)));
+    const staff = asStaff().firestore();
+    await assertFails(getDoc(doc(staff, `${LINKS}/w1`)));
+    await assertFails(
+      setDoc(doc(staff, `${LINKS}/s9`), link('teacher@orono.k12.mn.us'))
+    );
+  });
+
+  // The emulator cannot resolve storage's firestore.exists(), so the author test is pinned by source.
+  it('pins the storage author test to the same list and staff check', () => {
+    const rules = readFileSync(STORAGE_RULES, 'utf8');
+    const body =
+      /function isTourAuthor\(\) \{([\s\S]*?)\n {4}\}/.exec(rules)?.[1] ?? '';
+    expect(body).toContain('isAdmin() ||');
+    expect(body).toContain("request.auth.token.get('viewAs', null) == null");
+    expect(body).toContain('isDistrictStaff()');
+    expect(body).toContain(
+      'firestore.exists(/databases/(default)/documents/tour_authors/$(request.auth.token.email.lower()))'
+    );
+  });
+});
+
 describe('web_tour_pictures storage', () => {
   // The emulator cannot resolve storage's firestore.get() member lookup either, so the staff allow is pinned by source.
   it('lets only staff with an active, non-student member doc get a picture', () => {
@@ -353,8 +510,8 @@ describe('web_tour_pictures storage', () => {
     expect(body).toContain(
       'allow get: if (isDistrictStaff() && viewAsReadOk()) || isAdmin();'
     );
-    expect(body).toContain('allow list, delete: if isAdmin();');
-    expect(body).toContain('allow create: if isAdmin() &&');
+    expect(body).toContain('allow list, delete: if isTourAuthor();');
+    expect(body).toContain('allow create: if isTourAuthor() &&');
     expect(body).not.toContain('update');
     expect(body).toContain('request.resource.size <= 5 * 1024 * 1024');
     expect(body).toContain("contentType.matches('image/(png|jpeg|webp)')");
