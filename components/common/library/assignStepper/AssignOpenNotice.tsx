@@ -34,7 +34,7 @@ export const AssignOpenNotice: React.FC<{
               [
                 'join',
                 joinLabel(join.targetNames),
-                'Uses its settings.',
+                'The settings for the existing assignment will be applied.',
                 tourAttr('assign-classes.add-to-open'),
               ],
               [
