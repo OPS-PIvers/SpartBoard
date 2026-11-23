@@ -1309,6 +1309,8 @@ const TeacherQuizWidget: React.FC<{
     const name = student
       ? [student.lastName, student.firstName].filter(Boolean).join(', ')
       : seat.name;
+    if (resolved && override?.questionIds?.length)
+      addToast('Paper copies of bank quizzes print every question.', 'info');
     await queuePrintedGroups(
       assignment.id,
       data,
@@ -1953,7 +1955,6 @@ const TeacherQuizWidget: React.FC<{
         : [];
     if (meta && live.length === 1) {
       const a = live[0];
-
       void loadAnswerKeyQuiz(meta, a).then((data) => {
         if (!data) return;
         updateWidget(
@@ -3398,7 +3399,7 @@ const TeacherQuizWidget: React.FC<{
     user?.uid &&
     printedQueue.groups[0] && (
       <PaperPrintModal
-        key={`${printedQueue.assignmentId}-${printedQueue.groups[0].pick.number}`}
+        key={`${printedQueue.assignmentId}-${printedQueue.groups[0].pick.number}-${printedQueue.groups[0].pick.single ? printedQueue.groups[0].pick.students[0]?.studentId : ''}`}
         quiz={printedQueue.groups[0].quiz}
         group={printedQueueGroup(printedQueue.groups[0])}
         {...(printedQueue.groups[0].resolved

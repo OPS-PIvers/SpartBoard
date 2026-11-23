@@ -60,15 +60,13 @@ export function buildPrintSeats(params: {
       const candidates = period
         ? owned.filter((ro) => ro.name.trim() === period)
         : owned;
-      for (const roster of candidates) {
-        const student = roster.students.find(
-          (s) => !!s.pin && pinKey(s.pin) === pin
-        );
-        if (student) {
-          hit = { roster, student };
-          break;
-        }
-      }
+      const hits = candidates.flatMap((roster) =>
+        roster.students
+          .filter((s) => !!s.pin && pinKey(s.pin) === pin)
+          .map((student) => ({ roster, student }))
+      );
+      // PINs repeat across classes, so only one match is trusted.
+      if (hits.length === 1) hit = hits[0];
     }
     if (!hit) continue;
     out.set(row.key, {

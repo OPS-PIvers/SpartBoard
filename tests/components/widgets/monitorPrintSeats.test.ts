@@ -85,4 +85,15 @@ describe('buildPrintSeats', () => {
     expect(seats.has('uid-z')).toBe(false);
     expect(seats.get('r2:c')).toMatchObject({ rosterId: 'r2', studentId: 'c' });
   });
+
+  it('leaves a PIN join with no class alone when two classes share the PIN', () => {
+    const seats = buildPrintSeats({
+      session: { rosterIds: ['r1', 'r2'] },
+      rosters: [p1, p2],
+      joined: [joined('pin-x', { studentUid: 'anon', pin: '42' })],
+      notJoined: [],
+      targetRefKeyByStudentUid: new Map(),
+    });
+    expect(seats.has('pin-x')).toBe(false);
+  });
 });
