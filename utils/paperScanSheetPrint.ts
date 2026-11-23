@@ -21,7 +21,12 @@ import {
   type PointMm,
   type RectMm,
 } from './paperSheetLayout';
-import { mcItemsOf, writtenItemsOf } from './paperPageMap';
+import {
+  itemBubbleRectMm,
+  mcItemsOf,
+  writtenItemsOf,
+  type McItem,
+} from './paperPageMap';
 import {
   FULL_PAGE_VIEWPORT_MM,
   PAPER_STAMP_GLYPHS,
@@ -184,6 +189,8 @@ function cutToLines(
 interface Row {
   sheetRow: number;
   origin: PointMm;
+  /** The page map row, when the page has one; grouped rows place bubbles from it. */
+  item?: McItem;
 }
 
 function rowsOnPage(input: ScanSheetPageInput): {
@@ -197,6 +204,7 @@ function rowsOnPage(input: ScanSheetPageInput): {
       rows: mcItemsOf(geometry.pageMap).map((item) => ({
         sheetRow: item.sheetRow,
         origin: item.originMm,
+        item,
       })),
     };
   }
@@ -223,7 +231,7 @@ function rowMissed(fill: SheetFill, i: number): boolean {
 
 /** Where the margin mark centres for a row: left of its number cell. */
 function markCentre(row: Row, grid: PaperGrid): PointMm {
-  if (grid === 'questions') {
+  if (grid === 'questions' && !row.item?.across) {
     return {
       x: row.origin.x - MARK_GAP_MM,
       y: row.origin.y + QUESTION_CHOICE_TOP_MM + BUBBLE_DIAMETER_MM / 2,
@@ -353,9 +361,14 @@ export function buildScanSheetPageHtml(
         )
       );
     }
-    const key = fill.key[i];
-    if (key !== null && key !== undefined && key < choiceCount) {
-      svg.push(keyRingSvg(bubbleRectAtOriginMm(row.origin, key, grid), grid));
+    const rowChoices = row.item?.choices ?? choiceCount;
+    const keys = fill.keySets?.[i] ?? [fill.key[i]];
+    for (const key of keys) {
+      if (key === null || key === undefined || key >= rowChoices) continue;
+      const bubble = row.item
+        ? itemBubbleRectMm(row.item, key, grid)
+        : bubbleRectAtOriginMm(row.origin, key, grid);
+      svg.push(keyRingSvg(bubble, row.item?.across ? 2 : grid));
     }
   }
 

@@ -224,6 +224,9 @@ export interface SheetFill {
   key: readonly (number | null)[];
   /** Margin mark per sheet row. */
   marks: readonly ('correct' | 'incorrect' | 'unclear' | null)[];
+  /** Choose all rows: every bubble filled, and every key bubble ringed, by sheet row. */
+  filledSets?: Readonly<Record<number, readonly number[]>>;
+  keySets?: Readonly<Record<number, readonly number[]>>;
   /** Printed in the header box when set. */
   score?: string;
   /** Written boxes by question id; a box without an entry prints its rule lines (D42). */
@@ -473,13 +476,30 @@ function groupRowHtml(
   const parts: string[] = [];
   const bubble = (c: number, label: string): string => {
     const r = itemBubbleRectMm(item, c, grid);
-    const cls = fill
-      ? `bub${fill.filled[item.sheetRow] === c ? ' filled' : ''}${
-          fill.key[item.sheetRow] === c ? ' key' : ''
-        }`
-      : 'bub';
+    const row = item.sheetRow;
+    const filled =
+      fill?.filled[row] === c || !!fill?.filledSets?.[row]?.includes(c);
+    const key = fill?.key[row] === c || !!fill?.keySets?.[row]?.includes(c);
+    const cls = `bub${filled ? ' filled' : ''}${key ? ' key' : ''}`;
     return `<div class="${cls}" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(r.w)};height:${mm(r.h)}">${escapeHtml(label)}</div>`;
   };
+  // Reprints mark each row right of its first line, or beside the number on a question-text sheet.
+  const mark = fill?.marks[item.sheetRow];
+  if (mark) {
+    const r = itemBubbleRectMm(
+      item,
+      Math.min(choices, item.wrap ?? choices) - 1,
+      grid
+    );
+    const left =
+      grid === 'questions' && !item.across
+        ? COLUMN_X_MM[0] - BUBBLE_PITCH_MM
+        : r.x + BUBBLE_PITCH_MM;
+    const top = grid === 'questions' && !item.across ? item.originMm.y : r.y;
+    parts.push(
+      `<div class="rowmark" style="left:${mm(left)};top:${mm(top)}">${MARK_GLYPH[mark]}</div>`
+    );
+  }
   // Ordering across a question-text sheet bubbles each item's place, so its bubbles are numbered.
   const labelOf = (c: number): string =>
     item.across && group === 'order' ? String(c + 1) : CHOICE_LETTERS[c];

@@ -23,7 +23,8 @@ import {
   isPlaceholderLetterChoices,
   matchingPairs,
 } from './paperSheetPlan';
-import { encodeMultiAnswer } from './quizMultiAnswer';
+import { encodeMultiAnswer, parseMultiAnswer } from './quizMultiAnswer';
+import { normalizeAnswer } from '@/hooks/useQuizSession';
 import { pageMapsForSeat } from './paperSheetVersions';
 import { paperCropStoragePath } from './paperWritten';
 import {
@@ -302,6 +303,49 @@ export function groupAnswerText(
         : []
     )
     .join('|');
+}
+
+/** The bubbles an answer fills on one row of a grouped question: one index, a set for choose all, or null. */
+export function groupRowBubbles(
+  question: Pick<QuizQuestion, 'correctAnswer'>,
+  options: readonly string[],
+  group: PaperRowGroup,
+  part: number,
+  across: boolean,
+  answer: string
+): number | number[] | null {
+  const at = (text: string | undefined): number | null => {
+    if (text === undefined) return null;
+    const i = options.indexOf(text);
+    if (i >= 0) return i;
+    const wanted = normalizeAnswer(text);
+    const j = options.findIndex((o) => normalizeAnswer(o) === wanted);
+    return j >= 0 ? j : null;
+  };
+  if (!answer.trim()) return null;
+  if (group === 'all') {
+    return parseMultiAnswer(answer).flatMap((t) => {
+      const i = at(t);
+      return i === null ? [] : [i];
+    });
+  }
+  if (group === 'match') {
+    const left = matchingPairs(question.correctAnswer)[part]?.[0];
+    if (left === undefined) return null;
+    const pair = matchingPairs(answer).find(
+      ([l]) => normalizeAnswer(l) === normalizeAnswer(left)
+    );
+    return at(pair?.[1]);
+  }
+  const steps = answer.split('|');
+  if (!across) return at(steps[part]);
+  // Across rows: row `part` is the printed item and its bubble is the item's place.
+  const item = options[part];
+  if (item === undefined) return null;
+  const place = steps.findIndex(
+    (s) => normalizeAnswer(s) === normalizeAnswer(item)
+  );
+  return place >= 0 ? place : null;
 }
 
 export interface StudentLookup {

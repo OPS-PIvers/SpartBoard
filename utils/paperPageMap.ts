@@ -157,7 +157,7 @@ export type PlanPaperPagesResult =
   | { ok: false; reason: 'too-many-pages'; pageCount: number };
 
 type WrittenItem = Extract<PaperPageItem, { kind: 'written' }>;
-type McItem = Extract<PaperPageItem, { kind: 'mc' }>;
+export type McItem = Extract<PaperPageItem, { kind: 'mc' }>;
 
 /** Lowest y a one-column box may reach: the top of the bottom-left corner window. */
 const ONE_COLUMN_BOX_BOTTOM_MM = PAGE_HEIGHT_MM - CORNER_WINDOW_H_MM;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type {
+  QuizResponse,
   ClassRoster,
   PaperGrid,
   PaperPageMap,
@@ -34,7 +35,8 @@ import {
   keySheetChoices,
 } from './paperImportPlan';
 import { paperBatchTag } from './paperSheetMarker';
-import { buildPaperSheetsHtml } from './paperSheetPrint';
+import { buildPaperSheetsHtml, buildFilledSheetHtml } from './paperSheetPrint';
+import { planSheetReprint, sheetFillFor } from './paperSheetReprint';
 import { buildPaperTestHtml } from './paperTestPrint';
 import { groupTextsFor } from './paperSheetVersions';
 import { READER_THRESHOLDS } from './paperSheetReader';
@@ -664,4 +666,77 @@ describe('grouped questions on paper', () => {
     expect(html).toContain('Selecciona todas las respuestas correctas.');
     expect(html).not.toContain('Select all that apply.');
   });
+
+  it.each([2, 'questions'] as const)(
+    'redraws grouped answers, marks and key on a reprint (%s)',
+    (grid) => {
+      const batch = stack(grid);
+      const maOpts = batch.choiceOrder?.ma ?? [];
+      const response = {
+        paperBatchId: batch.id,
+        paperSeat: 1,
+        answers: [
+          { questionId: 'mc', answer: 'Ribosome' },
+          // Choose all: one right, one wrong.
+          { questionId: 'ma', answer: 'Cell wall|Cilia' },
+          { questionId: 'match', answer: MATCH.correctAnswer },
+          {
+            questionId: 'order',
+            answer: 'Metaphase|Prophase|Anaphase|Telophase',
+          },
+        ].map((a) => ({ ...a, answeredAt: 1 })),
+      } as unknown as QuizResponse;
+      const reprint = planSheetReprint(response, batch, QUIZ);
+      if (!reprint) throw new Error('no reprint');
+      expect(reprint.filledSets?.[1]?.map((c) => maOpts[c]).sort()).toEqual([
+        'Cell wall',
+        'Cilia',
+      ]);
+      expect(reprint.correctSets?.[1]?.map((c) => maOpts[c]).sort()).toEqual([
+        'Cell wall',
+        'Chloroplast',
+      ]);
+      const fill = sheetFillFor(reprint, {
+        markAnswers: true,
+        keyMode: 'missed',
+      });
+      // mc right, ma wrong, match all right, order: first two swapped.
+      expect(fill.marks).toEqual([
+        'correct',
+        'incorrect',
+        'correct',
+        'correct',
+        'correct',
+        'incorrect',
+        'incorrect',
+        'correct',
+        'correct',
+      ]);
+      expect(fill.keySets?.[1]).toEqual(reprint.correctSets?.[1]);
+      const html = buildFilledSheetHtml(
+        {
+          seat: 1,
+          student: null,
+          displayName: 'Berg, Priya',
+          className: 'Period 1',
+          isKeySheet: false,
+        },
+        {
+          batchId: batch.id,
+          quizTitle: QUIZ.title,
+          questionCount: reprint.questionCount,
+          choiceCount: reprint.choiceCount,
+          columnsPerPage: reprint.columnsPerPage,
+          ...(reprint.pageMaps ? { pageMaps: reprint.pageMaps } : {}),
+          ...(reprint.groupTexts ? { groupTexts: reprint.groupTexts } : {}),
+        },
+        reprint.pageCount,
+        fill
+      );
+      // 1 mc + 2 choose all + 3 matching + 4 ordering bubbles filled.
+      expect(html.match(/class="bub filled/g)?.length).toBe(10);
+      expect(html.match(/class="rowmark"/g)?.length).toBe(9);
+      if (grid === 'questions') expect(html).toContain(MATCH.text);
+    }
+  );
 });
