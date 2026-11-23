@@ -1,6 +1,7 @@
 import React from 'react';
 import { Paperclip, X } from 'lucide-react';
 import { ACCEPT_BY_TYPE } from './uploadLimits';
+import { tourAttr } from '@/config/tourAnchors';
 
 const inputClass =
   'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
@@ -21,6 +22,7 @@ export const WordField: React.FC<WordFieldProps> = ({ value, onChange }) => (
     </label>
     <input
       id="aw-word"
+      {...tourAttr('student.activity-wall.word')}
       className={inputClass}
       value={value}
       maxLength={WORD_MAX_LENGTH}
@@ -56,6 +58,7 @@ export const TextField: React.FC<TextFieldProps> = ({
       </label>
       <input
         id="aw-title"
+        {...tourAttr('student.activity-wall.title')}
         className={inputClass}
         value={title}
         maxLength={120}
@@ -69,6 +72,7 @@ export const TextField: React.FC<TextFieldProps> = ({
         </label>
         <textarea
           id="aw-body"
+          {...tourAttr('student.activity-wall.body')}
           rows={4}
           className={inputClass}
           value={body}
@@ -104,6 +108,7 @@ export const LinkField: React.FC<LinkFieldProps> = ({
       </label>
       <input
         id="aw-url"
+        {...tourAttr('student.activity-wall.link-url')}
         type="url"
         inputMode="url"
         className={inputClass}
@@ -118,6 +123,7 @@ export const LinkField: React.FC<LinkFieldProps> = ({
       </label>
       <input
         id="aw-link-title"
+        {...tourAttr('student.activity-wall.link-title')}
         className={inputClass}
         value={title}
         maxLength={120}
@@ -147,7 +153,10 @@ export const FileField: React.FC<FileFieldProps> = ({
   onSelect,
 }) => (
   <div className="space-y-2">
-    <label className="block cursor-pointer">
+    <label
+      className="block cursor-pointer"
+      {...tourAttr('student.activity-wall.file-pick')}
+    >
       <div
         className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-6 transition-colors ${
           file
@@ -182,6 +191,7 @@ export const FileField: React.FC<FileFieldProps> = ({
       <button
         type="button"
         onClick={() => onSelect(null)}
+        {...tourAttr('student.activity-wall.file-remove')}
         className="flex items-center gap-1 text-xs font-semibold text-slate-600 transition-colors hover:text-red-600"
       >
         <X className="h-3 w-3" aria-hidden="true" />

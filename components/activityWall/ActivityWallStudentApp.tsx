@@ -35,6 +35,7 @@ import {
   updatePost,
   type PostDraft,
 } from './submission/submitPost';
+import { tourAttr } from '@/config/tourAnchors';
 
 const IMAGE_SIZE_STORAGE_KEY = 'activity_wall_student_image_size';
 const identityStorageKey = (sessionId: string) =>
@@ -119,6 +120,7 @@ const IdentityScreen: React.FC<{
             </label>
             <input
               id="aw-identity-name"
+              {...tourAttr('student.activity-wall.identity-name')}
               className={inputClass}
               value={name}
               maxLength={60}
@@ -137,6 +139,7 @@ const IdentityScreen: React.FC<{
             </label>
             <input
               id="aw-identity-pin"
+              {...tourAttr('student.activity-wall.identity-pin')}
               className={inputClass}
               value={pin}
               maxLength={20}
@@ -149,6 +152,7 @@ const IdentityScreen: React.FC<{
         <button
           type="submit"
           disabled={!valid}
+          {...tourAttr('student.activity-wall.identity-continue')}
           className="w-full rounded-xl bg-brand-blue-primary py-2 font-bold text-white transition hover:bg-brand-blue-light focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 disabled:opacity-60"
         >
           Continue
@@ -429,6 +433,7 @@ export const ActivityWallStudentApp: React.FC = () => {
         <button
           type="button"
           onClick={() => openCreate()}
+          {...tourAttr('student.activity-wall.add-post')}
           className="absolute bottom-5 right-5 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-base font-bold text-white shadow-lg transition hover:bg-emerald-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/80"
         >
           <Plus className="h-5 w-5" aria-hidden="true" />

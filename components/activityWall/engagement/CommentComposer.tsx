@@ -3,6 +3,7 @@ import { Loader2, Send } from 'lucide-react';
 import type { ActivityWallIdentificationMode } from '@/types';
 import { buildParticipantLabel } from './participantLabel';
 import type { PostCommentInput } from './useWallEngagement';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 export interface CommentComposerProps {
   identificationMode: ActivityWallIdentificationMode;
@@ -71,13 +72,59 @@ export const CommentComposer: React.FC<CommentComposerProps> = ({
     }
   };
 
+  const tour = parentCommentId
+    ? {
+        name: tourFieldAttr(
+          'student.activity-wall.reply-name',
+          'student-wall',
+          parentCommentId
+        ),
+        pin: tourFieldAttr(
+          'student.activity-wall.reply-pin',
+          'student-wall',
+          parentCommentId
+        ),
+        text: tourFieldAttr(
+          'student.activity-wall.reply-text',
+          'student-wall',
+          parentCommentId
+        ),
+        send: tourFieldAttr(
+          'student.activity-wall.reply-send',
+          'student-wall',
+          parentCommentId
+        ),
+      }
+    : {
+        name: tourFieldAttr(
+          'student.activity-wall.comment-name',
+          'student-wall',
+          submissionId
+        ),
+        pin: tourFieldAttr(
+          'student.activity-wall.comment-pin',
+          'student-wall',
+          submissionId
+        ),
+        text: tourFieldAttr(
+          'student.activity-wall.comment-text',
+          'student-wall',
+          submissionId
+        ),
+        send: tourFieldAttr(
+          'student.activity-wall.comment-send',
+          'student-wall',
+          submissionId
+        ),
+      };
+
   return (
     <form onSubmit={onSubmit} className="space-y-2">
       {(requiresName || requiresPin) && (
         <div className="grid grid-cols-2 gap-2">
           {requiresName && (
             <input
-              // no-tour-anchor: student comment form, which runs on the student wall page, not the board
+              {...tour.name}
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name"
@@ -87,7 +134,7 @@ export const CommentComposer: React.FC<CommentComposerProps> = ({
           )}
           {requiresPin && (
             <input
-              // no-tour-anchor: student comment form, which runs on the student wall page, not the board
+              {...tour.pin}
               value={pin}
               onChange={(e) => setPin(e.target.value)}
               placeholder="PIN"
@@ -99,7 +146,7 @@ export const CommentComposer: React.FC<CommentComposerProps> = ({
       )}
       <div className="flex items-end gap-2">
         <textarea
-          // no-tour-anchor: student comment form, which runs on the student wall page, not the board
+          {...tour.text}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={2}
@@ -109,8 +156,8 @@ export const CommentComposer: React.FC<CommentComposerProps> = ({
           className="flex-1 resize-none rounded-md border border-white/20 bg-white/10 px-2 py-1 text-sm text-white placeholder:text-slate-300 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
         />
         <button
-          // no-tour-anchor: student comment form, which runs on the student wall page, not the board
           type="submit"
+          {...tour.send}
           disabled={submitting || !content.trim()}
           className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white/15 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-white/25 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-50"
         >

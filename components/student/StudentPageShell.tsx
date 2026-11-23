@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowLeft, GraduationCap, LogOut } from 'lucide-react';
 import { APP_NAME } from '@/config/constants';
 import { StudentBrandBackdrop } from './StudentBrandBackdrop';
+import { tourAttr } from '@/config/tourAnchors';
 
 /**
  * The chrome every GIS-authenticated student page wears: brand header, page
@@ -36,6 +37,7 @@ export const StudentPageShell: React.FC<PageShellProps> = ({
         <button
           type="button"
           onClick={onDone}
+          {...tourAttr('student.assignments.done')}
           aria-label={
             doneAction === 'back'
               ? 'Done, back to my assignments'
