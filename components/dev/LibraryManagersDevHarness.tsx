@@ -542,7 +542,7 @@ const QuizView: React.FC<{
                 })
               )
             : []),
-          ...QUIZ_ASSIGNMENTS.map((a, i) =>
+          ...QUIZ_ASSIGNMENTS.map((a, i): QuizAssignment =>
             i === 1
               ? {
                   ...a,
