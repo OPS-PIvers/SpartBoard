@@ -172,6 +172,22 @@ describe('runFreshservice', () => {
     expect(gone.saved.articleId).toBe(8);
   });
 
+  it('records the address and FreshService status on every send', async () => {
+    const { d, saved } = deps({
+      article: () => Promise.resolve({ articleId: 7, folderId: '77' }),
+    });
+    vi.mocked(d.fetch).mockResolvedValueOnce(
+      reply(200, { article: { id: 7, status: 2 } })
+    );
+    await runFreshservice(send, 'u', token, d);
+    expect(saved.record).toEqual({
+      articleId: 7,
+      folderId: '77',
+      status: 2,
+      url: 'https://orono.freshservice.com/a/solutions/articles/7',
+    });
+  });
+
   it('refuses an unpublished tour and reports a bad key', async () => {
     const unpublished = deps({ publishedTitle: () => Promise.resolve(null) });
     await expect(
@@ -199,7 +215,12 @@ describe('runFreshservice', () => {
       keywords: ['embed'],
       status: 1,
     });
-    expect(saved.record).toEqual({ articleId: 7, ...options });
+    expect(saved.record).toEqual({
+      articleId: 7,
+      ...options,
+      status: 1,
+      url: 'https://orono.freshservice.com/a/solutions/articles/7',
+    });
 
     const again = deps({
       article: () => Promise.resolve({ articleId: 7, ...options }),

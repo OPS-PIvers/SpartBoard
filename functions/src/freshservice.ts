@@ -66,6 +66,10 @@ export interface ArticleRecord {
   folderId?: string;
   tags?: string[];
   keywords?: string[];
+  /** FreshService's own status as of the last send: 1 draft, 2 published. */
+  status?: 1 | 2;
+  /** Where an agent opens the article. */
+  url?: string;
 }
 
 export interface FreshserviceFolder {
@@ -271,6 +275,12 @@ const articleIdOf = (json: unknown): number | null => {
     : null;
 };
 
+/** The article's FreshService status in a send's answer; anything but published reads as a draft. */
+const articleStatusOf = (json: unknown): 1 | 2 =>
+  (json as { article?: { status?: unknown } } | null)?.article?.status === 2
+    ? 2
+    : 1;
+
 const idOf = (v: unknown): string | null =>
   typeof v === 'number' && Number.isSafeInteger(v) && v > 0 ? String(v) : null;
 
@@ -475,17 +485,19 @@ export async function sendArticle(
     console.error('[freshserviceV1] send returned no article', { setId });
     throw new HttpsError('unavailable', 'FreshService sent no article back.');
   }
-  if (id !== existing || options)
-    await deps.saveArticle(
-      setId,
-      {
-        articleId: id,
-        ...(chosen ? { folderId } : {}),
-        ...(tags ? { tags } : {}),
-        ...(keywords ? { keywords } : {}),
-      },
-      by
-    );
+  // Saved on every send, so the Web tours list knows when the article last matched the tour.
+  await deps.saveArticle(
+    setId,
+    {
+      articleId: id,
+      ...(chosen ? { folderId } : {}),
+      ...(tags ? { tags } : {}),
+      ...(keywords ? { keywords } : {}),
+      status: articleStatusOf(result.json),
+      url: `https://${config.domain}/a/solutions/articles/${id}`,
+    },
+    by
+  );
   return { sent: true, articleId: id };
 }
 

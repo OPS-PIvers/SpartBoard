@@ -418,6 +418,30 @@ describe('tour authors', () => {
     );
   });
 
+  it('lets an author read FreshService article records and nobody write them', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'freshservice_articles/w1'), {
+        articleId: 7,
+      });
+    });
+    const db = asAuthor().firestore();
+    await assertSucceeds(getDocs(collection(db, 'freshservice_articles')));
+    await assertSucceeds(
+      getDocs(collection(asAdmin().firestore(), 'freshservice_articles'))
+    );
+    await assertFails(
+      setDoc(doc(db, 'freshservice_articles/w1'), { articleId: 8 })
+    );
+    await assertFails(
+      setDoc(doc(asAdmin().firestore(), 'freshservice_articles/w1'), {
+        articleId: 8,
+      })
+    );
+    await assertFails(
+      getDocs(collection(asStaff().firestore(), 'freshservice_articles'))
+    );
+  });
+
   it('lets an author turn a public link on as themselves and off for anyone', async () => {
     const link = (confirmedBy: string) => ({
       token: 't',

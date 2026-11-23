@@ -40,6 +40,12 @@ import {
 } from './stepsHtmlExport';
 import { useCanFreshservice } from './freshservice';
 import { useTourAuthor } from './useTourAuthor';
+import {
+  FRESH_LABEL,
+  freshStateOf,
+  type FreshArticle,
+  type FreshState,
+} from './freshserviceArticles';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
   stepStatusRows,
@@ -75,12 +81,15 @@ export type PublishState = 'draft' | 'changed' | 'published';
 
 const GRID_COLS =
   'sm:grid sm:grid-cols-[minmax(0,1fr)_7rem_6rem_7.5rem_23.5rem] sm:gap-x-4';
+const GRID_COLS_FRESH =
+  'sm:grid sm:grid-cols-[minmax(0,1fr)_7rem_6rem_7.5rem_7rem_23.5rem] sm:gap-x-4';
 
 /** What the page's search and filter read about each row. */
 export interface RowFacts {
   publish: PublishState | null;
   status: TourStatus;
   publicOn: boolean;
+  fresh: FreshState;
 }
 
 export type Notice = { text: string; tone: 'success' | 'error' };
@@ -417,6 +426,8 @@ const WebTourRow: React.FC<{
   onNotice: (n: Notice) => void;
   onFacts: (setId: string, facts: RowFacts) => void;
   hidden: boolean;
+  /** Undefined hides the FreshService column. */
+  articles?: Record<string, FreshArticle>;
 }> = ({
   set,
   onEdit,
@@ -426,6 +437,7 @@ const WebTourRow: React.FC<{
   onNotice,
   onFacts,
   hidden,
+  articles,
 }) => {
   const seed = webToursDevSeed();
   const watched = usePublishedTour(set.id);
@@ -463,10 +475,12 @@ const WebTourRow: React.FC<{
         ? 'changed'
         : 'published';
   const publicOn = publicLink.status.kind === 'on';
+  const article = articles?.[set.id];
+  const fresh = freshStateOf(article, live?.publishedAt ?? null);
   const report = React.useEffectEvent(() =>
-    onFacts(set.id, { publish, status, publicOn })
+    onFacts(set.id, { publish, status, publicOn, fresh })
   );
-  useEffect(() => report(), [publish, status, publicOn]);
+  useEffect(() => report(), [publish, status, publicOn, fresh]);
 
   const title = set.title.trim() || 'Untitled web tour';
   const site = webTourSite(set);
@@ -478,6 +492,39 @@ const WebTourRow: React.FC<{
     </Badge>
   );
   const publicMark = publicOn ? <Badge tone="info">Public</Badge> : null;
+  const freshBadge = fresh !== 'none' && (
+    <Badge
+      tone={
+        fresh === 'stale'
+          ? 'warn'
+          : fresh === 'published'
+            ? 'success'
+            : 'neutral'
+      }
+    >
+      {FRESH_LABEL[fresh]}
+    </Badge>
+  );
+  const freshMark =
+    freshBadge && article?.url ? (
+      // no-tour-anchor: opens the article in FreshService, outside SpartBoard
+      <a
+        href={article.url}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={`${FRESH_LABEL[fresh]} in FreshService: open the article for ${set.title.trim() || 'Untitled web tour'}`}
+        title={
+          fresh === 'stale'
+            ? 'The tour was published after the last send. Open the article in FreshService.'
+            : 'Open the article in FreshService'
+        }
+        className={`inline-flex rounded-full ${focusRing}`}
+      >
+        {freshBadge}
+      </a>
+    ) : (
+      freshBadge
+    );
   const statusControl =
     status === 'passed' ? (
       <Badge tone="success">Check passed</Badge>
@@ -539,7 +586,7 @@ const WebTourRow: React.FC<{
     <li
       data-testid="web-tour-row"
       hidden={hidden}
-      className={`flex flex-col gap-3 border-b border-slate-200 px-4 py-3 last:border-b-0 sm:items-center ${GRID_COLS}`}
+      className={`flex flex-col gap-3 border-b border-slate-200 px-4 py-3 last:border-b-0 sm:items-center ${articles ? GRID_COLS_FRESH : GRID_COLS}`}
     >
       <div className="flex min-w-0 flex-1 items-start gap-3">
         <Globe
@@ -555,6 +602,7 @@ const WebTourRow: React.FC<{
         <div>{publishMark}</div>
         <div>{publicMark}</div>
         <div>{statusControl}</div>
+        {articles && <div data-testid="web-tour-fresh">{freshMark}</div>}
       </div>
       <div className="flex flex-wrap items-center gap-1 pl-8 sm:justify-end sm:pl-0">
         <button
@@ -649,10 +697,13 @@ export const WebTourList: React.FC<{
   onRename: (set: GuidedLearningSet, title: string) => Promise<boolean>;
   onNotice: (n: Notice) => void;
   onFacts?: (setId: string, facts: RowFacts) => void;
+  /** Each tour's FreshService article record; leave out to hide the column. */
+  articles?: Record<string, FreshArticle>;
 }> = ({
   tours,
   hiddenIds,
   sort = 'newest',
+  articles,
   onEdit,
   onCheck,
   onRename,
@@ -673,12 +724,13 @@ export const WebTourList: React.FC<{
     <ul className="rounded-xl border border-slate-200 bg-white">
       <li
         aria-hidden="true"
-        className={`hidden border-b border-slate-200 px-4 py-2 text-xs font-semibold text-slate-500 ${GRID_COLS}`}
+        className={`hidden border-b border-slate-200 px-4 py-2 text-xs font-semibold text-slate-500 ${articles ? GRID_COLS_FRESH : GRID_COLS}`}
       >
         <span className="pl-8">Tour</span>
         <span>Status</span>
         <span>Public link</span>
         <span>Check</span>
+        {articles && <span>FreshService</span>}
         <span />
       </li>
       {[...tours].sort(sort === 'name' ? byName : byNewest).map((set) => (
@@ -692,6 +744,7 @@ export const WebTourList: React.FC<{
           copyLink={copyLink}
           onNotice={onNotice}
           onFacts={onFacts}
+          articles={articles}
         />
       ))}
     </ul>

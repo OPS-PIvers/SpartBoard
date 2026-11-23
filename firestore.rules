@@ -1170,6 +1170,11 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // FreshService article records (WEB_TOUR_AUTHORS.md L2): the function writes them, the Web tours list reads them.
+    match /freshservice_articles/{setId} {
+      allow read: if isTourAuthor();
+    }
+
     // Web tour drafts (CHROME_EXTENSION.md T6): admins and tour authors, never anonymous or student sessions.
     // An author's new draft carries their own uid, no author edit changes it, and an author deletes only their own (L1, L3).
     match /building_web_tours/{setId} {
