@@ -6779,6 +6779,8 @@ export interface PaperPrintedGroupRecord {
   number: number;
   answerChoices: 'all' | 'drop-one' | 'two';
   modifiedQuestions?: boolean;
+  /** The questions the group answers; absent = every question. */
+  questionIds?: string[];
   supports?: QuizSupport[];
   /** The group's language, so a reprint prints the same translation. */
   language?: string;
@@ -12007,7 +12009,8 @@ export type GlobalFeature =
   /** Live tours on the /subs portal: the help button subs see and the Substitutes audience. */
   | 'subs-live-tours'
   | 'student-live-tours'
-  | 'assign-open-check';
+  | 'assign-open-check'
+  | 'modification-fewer-questions';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {

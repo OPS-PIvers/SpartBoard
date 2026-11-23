@@ -23,14 +23,21 @@ const INCORRECT_ID = /-incorrect-(\d+)$/;
 /** The quiz as this group's students see it: fewer answer choices, modified wording and stimuli. */
 export function printedGroupQuiz(
   quiz: QuizData,
-  group: Pick<ModificationGroup, 'answerChoices' | 'modifiedQuestions'>
+  group: Pick<
+    ModificationGroup,
+    'answerChoices' | 'modifiedQuestions' | 'questionIds'
+  >
 ): QuizData {
   const hidden =
     hiddenOptionIdsForRule(
       toOverrideEditorQuestions(quiz),
       group.answerChoices
     ) ?? {};
-  const questions = quiz.questions.map((q): QuizQuestion => {
+  const kept = group.questionIds?.length ? new Set(group.questionIds) : null;
+  const served = kept
+    ? quiz.questions.filter((q) => kept.has(q.id))
+    : quiz.questions;
+  const questions = served.map((q): QuizQuestion => {
     let next = q;
     const modified = q.modifiedText?.trim();
     if (group.modifiedQuestions && modified) next = { ...next, text: modified };
@@ -60,7 +67,10 @@ export function printedGroupQuiz(
 export function printedGroupResolved(
   resolved: ResolvedQuizAssignment,
   quiz: QuizData,
-  group: Pick<ModificationGroup, 'answerChoices' | 'modifiedQuestions'>
+  group: Pick<
+    ModificationGroup,
+    'answerChoices' | 'modifiedQuestions' | 'questionIds'
+  >
 ): ResolvedQuizAssignment {
   return {
     ...resolved,
@@ -128,11 +138,13 @@ export function printedGroupForPrint(
 export function printedGroupRecord(
   pick: PrintedGroupPick
 ): PaperPrintedGroupRecord {
-  const { answerChoices, modifiedQuestions, supports, language } = pick.group;
+  const { answerChoices, modifiedQuestions, supports, language, questionIds } =
+    pick.group;
   return {
     number: pick.number,
     answerChoices,
     ...(modifiedQuestions ? { modifiedQuestions: true } : {}),
+    ...(questionIds?.length ? { questionIds: [...questionIds] } : {}),
     ...(supports?.length ? { supports } : {}),
     ...(language ? { language } : {}),
   };
@@ -159,8 +171,14 @@ export function recordPick(
   record: PaperPrintedGroupRecord,
   students: PrintedGroupPick['students'] = []
 ): PrintedGroupPick {
-  const { number, answerChoices, modifiedQuestions, supports, language } =
-    record;
+  const {
+    number,
+    answerChoices,
+    modifiedQuestions,
+    supports,
+    language,
+    questionIds,
+  } = record;
   return {
     number,
     students,
@@ -173,6 +191,7 @@ export function recordPick(
       speechToText: false,
       printed: true,
       ...(modifiedQuestions ? { modifiedQuestions } : {}),
+      ...(questionIds?.length ? { questionIds } : {}),
       ...(supports?.length ? { supports } : {}),
       ...(language ? { language } : {}),
     },

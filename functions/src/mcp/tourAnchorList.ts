@@ -7476,6 +7476,138 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-mods.questions",
+    "label": "Questions button that opens the question picker for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-count",
+    "label": "Number of questions box in the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-random",
+    "label": "Pick at random button in the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-search",
+    "label": "Search box in the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.question",
+    "label": "Question checkbox in the modification group Questions dialog",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for question 1",
+    "row_wildcard": true,
+    "row_list": "assign-mods-questions",
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-all",
+    "label": "Select all button in the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-done",
+    "label": "Done button that saves the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-cancel",
+    "label": "Cancel button in the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
     "id": "assign-mods.class-group",
     "label": "Class group button in the modification group Students menu",
     "scope": "field",

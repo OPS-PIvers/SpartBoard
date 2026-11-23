@@ -50,6 +50,37 @@ describe('printedGroupQuiz', () => {
     expect(printedGroupQuiz(q, group({})).questions).toEqual(q.questions);
   });
 
+  it('prints only the questions the group answers, in quiz order', () => {
+    const q = quiz([mc('q1'), mc('q2'), mc('q3')]);
+    const printed = printedGroupQuiz(q, group({ questionIds: ['q3', 'q1'] }));
+    expect(printed.questions.map((x) => x.id)).toEqual(['q1', 'q3']);
+  });
+
+  it('keeps the group questions on the saved record, so a reprint matches', () => {
+    const record = printedGroupRecord({
+      group: group({ printed: true, questionIds: ['q2'] }),
+      number: 1,
+      students: [],
+    });
+    expect(record.questionIds).toEqual(['q2']);
+    const q = quiz([mc('q1'), mc('q2')]);
+    const [reprint] = printedReprintGroups(q, [
+      {
+        id: 'b',
+        quizId: 'quiz-1',
+        rosterIds: [],
+        questionCount: 1,
+        choiceCount: 4,
+        seats: {},
+        spareSeats: [],
+        pagesPerSheet: 1,
+        createdAt: 0,
+        printedGroup: record,
+      },
+    ]);
+    expect(reprint.quiz.questions.map((x) => x.id)).toEqual(['q2']);
+  });
+
   it('drops the same wrong answers the device hides and keeps the right one', () => {
     const q = quiz([mc('q1', { optionOrder: [0, 1, 2, 3] })]);
     const hidden = hiddenOptionIdsForRule(toOverrideEditorQuestions(q), 'two');

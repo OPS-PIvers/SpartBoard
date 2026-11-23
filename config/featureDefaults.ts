@@ -1812,6 +1812,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'modification-fewer-questions': {
+    label: 'Modifications: fewer questions',
+    icon: ListChecks,
+    description:
+      'A quiz modification group can answer fewer questions. Scores count only those questions.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'assignments-hub': {
     label: 'Assignments hub',
     icon: ClipboardList,

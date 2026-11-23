@@ -2330,6 +2330,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const assignQuizContext = {
     questions: toOverrideEditorQuestions(assignQuizData),
     rubrics: assignRubrics,
+    fewerQuestions: !assignQuizData?.bankSlots?.length,
     ...(translationAllowed
       ? {
           translation: {
