@@ -35,7 +35,8 @@ import {
 import { AuthContext } from '@/context/AuthContextValue';
 import { webTourSite } from './tourLinks';
 import { webToursDevSeed } from './webToursDevSeed';
-import { useCanFreshserviceSettings } from './freshservice';
+import { useCanFreshservice, useCanFreshserviceSettings } from './freshservice';
+import { useFreshserviceArticles } from './freshserviceArticles';
 
 const TourAuthorsDialog = lazy(() =>
   import('./TourAuthorsDialog').then((m) => ({
@@ -59,6 +60,22 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'public', label: 'Public link on' },
 ];
 
+type FreshFilter = '' | 'sent' | 'unsent' | 'stale';
+const FRESH_FILTERS: { value: FreshFilter; label: string }[] = [
+  { value: '', label: 'FreshService: any' },
+  { value: 'sent', label: 'Sent to FreshService' },
+  { value: 'unsent', label: 'Not sent' },
+  { value: 'stale', label: 'Needs update' },
+];
+
+const matchesFresh = (want: FreshFilter, facts: RowFacts | undefined) => {
+  if (!want) return true;
+  if (!facts) return false;
+  if (want === 'sent') return facts.fresh !== 'none';
+  if (want === 'unsent') return facts.fresh === 'none';
+  return facts.fresh === 'stale';
+};
+
 const ME = 'me';
 const VIEW_KEY = 'spartboard.webTours.view';
 
@@ -67,6 +84,7 @@ interface ListView {
   filter: Filter;
   site: string;
   author: string;
+  fresh: FreshFilter;
   sort: TourSort;
 }
 
@@ -74,6 +92,7 @@ const DEFAULT_VIEW: ListView = {
   filter: 'all',
   site: '',
   author: '',
+  fresh: '',
   sort: 'newest',
 };
 
@@ -88,6 +107,9 @@ function readView(): ListView {
         : 'all',
       site: typeof v.site === 'string' ? v.site : '',
       author: typeof v.author === 'string' ? v.author : '',
+      fresh: FRESH_FILTERS.some((f) => f.value === v.fresh)
+        ? (v.fresh as FreshFilter)
+        : '',
       sort: v.sort === 'name' ? 'name' : 'newest',
     };
   } catch {
@@ -136,6 +158,9 @@ export const WebToursPage: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [listFailed, setListFailed] = useState(false);
   const canFresh = useCanFreshserviceSettings();
+  const articles = useFreshserviceArticles(useCanFreshservice());
+  // The FreshService filter only applies while its column is showing.
+  const fresh: FreshFilter = articles ? view.fresh : '';
   const [freshOpen, setFreshOpen] = useState(false);
   const auth = useContext(AuthContext);
   const adminEmail = auth?.isAdmin ? (auth.user?.email ?? null) : null;
@@ -196,7 +221,8 @@ export const WebToursPage: React.FC = () => {
       return was &&
         was.publish === next.publish &&
         was.status === next.status &&
-        was.publicOn === next.publicOn
+        was.publicOn === next.publicOn &&
+        was.fresh === next.fresh
         ? cur
         : { ...cur, [setId]: next };
     });
@@ -237,7 +263,8 @@ export const WebToursPage: React.FC = () => {
               .includes(q)) ||
           (site && webTourSite(t) !== site) ||
           (author && t.authorUid !== (author === ME ? myUid : author)) ||
-          !matchesFilter(filter, facts[t.id])
+          !matchesFilter(filter, facts[t.id]) ||
+          !matchesFresh(fresh, facts[t.id])
       )
       .map((t) => t.id)
   );
@@ -441,6 +468,25 @@ export const WebToursPage: React.FC = () => {
                     ))}
                   </select>
                 </label>
+                {articles && (
+                  <label className="sm:w-48">
+                    <span className="sr-only">FreshService</span>
+                    <select
+                      value={fresh}
+                      onChange={(e) =>
+                        changeView({ fresh: e.target.value as FreshFilter })
+                      }
+                      className={`min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 ${focusRing}`}
+                      {...tourAttr('web-tours.filter-fresh')}
+                    >
+                      {FRESH_FILTERS.map((f) => (
+                        <option key={f.value} value={f.value}>
+                          {f.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <label className="sm:w-40">
                   <span className="sr-only">Sort</span>
                   <select
@@ -466,6 +512,7 @@ export const WebToursPage: React.FC = () => {
               onRename={rename}
               onNotice={showNotice}
               onFacts={reportFacts}
+              articles={articles ?? undefined}
             />
             {tours.length > 0 && shown === 0 && (
               <p className={`py-6 text-center text-sm text-slate-600`}>

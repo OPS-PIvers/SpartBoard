@@ -58623,6 +58623,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tours.filter-fresh",
+    "label": "FreshService filter on the Web tours page",
+    "scope": "board"
+  },
+  {
     "id": "web-tours.sort",
     "label": "Sort choice on the Web tours page",
     "scope": "board",
