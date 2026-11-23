@@ -1,4 +1,5 @@
 // A note stop over the paused video: text only, then Continue (docs/plans/IMPORT.md D32).
+import { tourAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { StickyNote } from 'lucide-react';
 import type { VideoActivityNote } from '@/types';
@@ -21,8 +22,8 @@ export const NoteOverlay: React.FC<{
       {note.text}
     </p>
     <StopPicture fileId={note.imageDriveFileId} className="max-h-72" />
-    {/* no-tour-anchor: student-facing note stop, not a teacher control */}
     <button
+      {...tourAttr('student.video-activity.note-continue')}
       type="button"
       autoFocus
       onClick={onContinue}

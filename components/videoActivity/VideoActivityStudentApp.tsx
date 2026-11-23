@@ -12,6 +12,7 @@
  *    `useAssignmentPseudonyms` for display.
  */
 
+import { tourAttr } from '@/config/tourAnchors';
 import React, {
   useId,
   useMemo,
@@ -926,6 +927,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
             <div className="space-y-2 mb-6">
               {periodStep.map((period) => (
                 <button
+                  {...tourAttr('student.video-activity.period-option')}
                   key={period}
                   onClick={() => setSelectedPeriod(period)}
                   className={`w-full px-4 py-4 rounded-xl text-lg font-bold transition-all ${
@@ -940,6 +942,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
             </div>
 
             <button
+              {...tourAttr('student.video-activity.period-continue')}
               onClick={() => void handlePeriodConfirm()}
               disabled={joinStatus === 'loading' || !selectedPeriod}
               className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors shadow-xs shadow-brand-blue-primary/20"
@@ -954,6 +957,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
             </button>
 
             <button
+              {...tourAttr('student.video-activity.period-back')}
               onClick={() => {
                 setPeriodStep(null);
                 setSelectedPeriod(null);
@@ -1034,6 +1038,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                     Your PIN
                   </label>
                   <input
+                    {...tourAttr('student.video-activity.pin')}
                     id={pinInputId}
                     type="text"
                     value={pin}
@@ -1054,6 +1059,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 )}
 
                 <button
+                  {...tourAttr('student.video-activity.join')}
                   type="submit"
                   disabled={
                     joinStatus === 'loading' || lookingUp || !pin.trim()
@@ -1233,8 +1239,8 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                       >
                         Couldn&rsquo;t submit. Check your connection.
                       </p>
-                      {/* no-tour-anchor: student finished screen; live tours walk teachers. */}
                       <button
+                        {...tourAttr('student.video-activity.finish-retry')}
                         type="button"
                         onClick={() => {
                           setLiveCompleteStuck(false);
@@ -1261,8 +1267,8 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                   )}
 
                   {isStudentRole && !finishSaving && !liveNeedsComplete && (
-                    // no-tour-anchor: student finished screen; live tours walk teachers.
                     <a
+                      {...tourAttr('student.video-activity.back-link')}
                       href="/my-assignments"
                       className="inline-flex min-h-[44px] w-full items-center justify-center rounded-2xl bg-brand-blue-primary py-3 font-bold text-white hover:bg-brand-blue-dark"
                     >
@@ -1336,6 +1342,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
             submits automatically.
           </p>
           <button
+            {...tourAttr('student.video-activity.resume')}
             onClick={() => setShowResumeModal(false)}
             className="px-8 py-4 bg-white text-emerald-900 font-bold rounded-xl active:scale-95 transition-transform"
           >
@@ -1377,6 +1384,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
             )}
           </p>
           <button
+            {...tourAttr('student.video-activity.tab-warning-return')}
             onClick={() => {
               setShowCheatWarning(false);
               tabTracker.resume();
@@ -1474,6 +1482,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                     Couldn&rsquo;t submit. Check your connection.
                   </p>
                   <button
+                    {...tourAttr('student.video-activity.finish')}
                     onClick={() => void handleVideoEnd()}
                     className="px-8 py-4 bg-white text-slate-900 font-bold rounded-xl active:scale-95 transition-transform"
                   >
@@ -1547,8 +1556,8 @@ const ErrorScreen: React.FC<{
   <div className="min-h-screen bg-linear-to-b from-white to-slate-100 flex flex-col items-center justify-center gap-3 p-6">
     <AlertCircle className="w-8 h-8 text-red-500" />
     <p className="text-slate-700 text-sm text-center">{message}</p>
-    {/* no-tour-anchor: student error screen; live tours walk teachers. */}
     <button
+      {...tourAttr('student.video-activity.error-retry')}
       type="button"
       onClick={() => window.location.reload()}
       className="min-h-[44px] rounded-full bg-brand-blue-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-blue-dark"
@@ -1556,8 +1565,8 @@ const ErrorScreen: React.FC<{
       Try again
     </button>
     {backToAssignments && (
-      // no-tour-anchor: student error screen; live tours walk teachers.
       <a
+        {...tourAttr('student.video-activity.back-link')}
         href="/my-assignments"
         className="inline-flex min-h-[44px] items-center px-5 text-sm font-bold text-brand-blue-primary"
       >

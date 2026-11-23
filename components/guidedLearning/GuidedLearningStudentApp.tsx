@@ -10,6 +10,7 @@
  *  5. Submit responses and show completion screen
  */
 
+import { tourAttr } from '@/config/tourAnchors';
 import React, { useState, useEffect, useReducer, useRef } from 'react';
 import { signInAnonymously } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
@@ -661,6 +662,7 @@ const StudentExperience: React.FC<{
             </p>
           )}
           <button
+            {...tourAttr('student.guided-learning.done')}
             onClick={() => void handleDone()}
             disabled={submitting}
             className="px-4 py-2 bg-emerald-600/95 hover:bg-emerald-500 disabled:opacity-70 text-white text-sm rounded-xl transition-colors font-medium shadow-xl border border-emerald-400/30 backdrop-blur-xs"
@@ -710,6 +712,7 @@ const FinishedCard: React.FC<{
         </p>
         <div className="mt-5 flex flex-col gap-2">
           <button
+            {...tourAttr('student.guided-learning.finished-submit')}
             ref={submitRef}
             type="button"
             onClick={onSubmit}
@@ -724,6 +727,7 @@ const FinishedCard: React.FC<{
             )}
           </button>
           <button
+            {...tourAttr('student.guided-learning.finished-back')}
             type="button"
             onClick={onBack}
             className="rounded-xl px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/90"
