@@ -9,7 +9,8 @@ export const cycleMemberOf = (
   let c = start;
   while (!seen.has(c.id)) {
     seen.add(c.id);
-    const up = c.parentCollectionId != null ? byId.get(c.parentCollectionId) : undefined;
+    const up =
+      c.parentCollectionId != null ? byId.get(c.parentCollectionId) : undefined;
     if (!up) break;
     c = up;
   }
