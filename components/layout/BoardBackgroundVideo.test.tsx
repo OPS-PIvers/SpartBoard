@@ -32,12 +32,14 @@ describe('BoardBackgroundVideo', () => {
   let handler: StateHandler | undefined;
   const seekTo = vi.fn();
   const playVideo = vi.fn();
+  let ready: (() => void) | undefined;
   const Player = vi.fn(function (
     this: unknown,
     _el: HTMLElement,
-    opts: { events?: { onStateChange?: StateHandler } }
+    opts: { events?: { onStateChange?: StateHandler; onReady?: () => void } }
   ) {
     handler = opts.events?.onStateChange;
+    ready = opts.events?.onReady;
     return { seekTo, playVideo };
   });
 
@@ -51,6 +53,46 @@ describe('BoardBackgroundVideo', () => {
 
   afterEach(() => {
     delete (window as unknown as { YT?: unknown }).YT;
+    vi.useRealTimers();
+  });
+
+  it('keeps the seek loop once the player connects', () => {
+    vi.useFakeTimers();
+    const onFallback = vi.fn();
+    const ref = React.createRef<HTMLIFrameElement>();
+    const { container } = render(
+      <BoardBackgroundVideo
+        videoId="abcdefghijk"
+        ref={ref}
+        onFallback={onFallback}
+      />
+    );
+    act(() => ready?.());
+    act(() => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(onFallback).not.toHaveBeenCalled();
+    expect(container.querySelector('iframe')?.src).not.toContain('playlist=');
+  });
+
+  it('falls back to the plain YouTube loop when the player never connects', () => {
+    vi.useFakeTimers();
+    const onFallback = vi.fn();
+    const ref = React.createRef<HTMLIFrameElement>();
+    const { container } = render(
+      <BoardBackgroundVideo
+        videoId="abcdefghijk"
+        ref={ref}
+        onFallback={onFallback}
+      />
+    );
+    act(() => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(onFallback).toHaveBeenCalledTimes(1);
+    const iframe = container.querySelector('iframe');
+    expect(iframe?.src).toContain('playlist=abcdefghijk');
+    expect(ref.current).toBe(iframe);
   });
 
   it('loops by seeking to the start when the video ends', () => {

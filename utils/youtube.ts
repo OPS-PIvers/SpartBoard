@@ -16,12 +16,19 @@ const ytPendingCallbacks: (() => void)[] = [];
 
 const ytErrorCallbacks: (() => void)[] = [];
 
+let ytLoadFailed = false;
+
 export const loadYouTubeApi = (
   callback: () => void,
   onError?: () => void
 ): void => {
   if (window.YT?.Player) {
     callback();
+    return;
+  }
+  // The failed script tag stays in <head>, so later callers would otherwise wait forever.
+  if (ytLoadFailed) {
+    onError?.();
     return;
   }
   ytPendingCallbacks.push(callback);
@@ -35,7 +42,10 @@ export const loadYouTubeApi = (
     };
     const tag = document.createElement('script');
     tag.src = 'https://www.youtube.com/iframe_api';
-    tag.onerror = () => ytErrorCallbacks.splice(0).forEach((cb) => cb());
+    tag.onerror = () => {
+      ytLoadFailed = true;
+      ytErrorCallbacks.splice(0).forEach((cb) => cb());
+    };
     document.head.appendChild(tag);
   }
 };

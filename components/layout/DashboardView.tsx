@@ -1748,7 +1748,11 @@ export const DashboardView: React.FC = () => {
       >
         {/* Ambient YouTube Video Layer */}
         {youTubeVideoId && (
-          <BoardBackgroundVideo videoId={youTubeVideoId} ref={ytIframeRef} />
+          <BoardBackgroundVideo
+            videoId={youTubeVideoId}
+            ref={ytIframeRef}
+            onFallback={() => setIsBgMuted(true)}
+          />
         )}
       </div>
 
