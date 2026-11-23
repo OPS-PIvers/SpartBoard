@@ -461,3 +461,70 @@ describe('client/server page map parity (layoutVersion 2)', () => {
     }
   });
 });
+
+describe('client/server parity for matching, ordering and choose all', () => {
+  const grouped: QuizQuestion[] = [
+    question('g1', 'Cell wall|Chloroplast', ['Centriole', 'Cilia'], 'MA'),
+    {
+      ...question('g2', 'Dog:Bark|Cat:Meow|Cow:Moo', [], 'Matching'),
+      matchingDistractors: ['Quack', 'Neigh'],
+    },
+    question(
+      'g3',
+      Array.from({ length: 14 }, (_, i) => `Step ${i + 1}`).join('|'),
+      [],
+      'Ordering'
+    ),
+    question(
+      'g4',
+      'A1|A2',
+      Array.from({ length: 9 }, (_, i) => `W${i}`),
+      'MA'
+    ),
+    question('g5', 'Only', [], 'Ordering'),
+    question(
+      'g6',
+      Array.from({ length: 21 }, (_, i) => `S${i}`).join('|'),
+      [],
+      'Ordering'
+    ),
+  ];
+
+  it('picks the same grouped questions, letters them alike and lays them out alike', () => {
+    for (let lead = 0; lead <= 48; lead += 6) {
+      const questions = [
+        ...Array.from({ length: lead }, (_, i) =>
+          question(`m${i}`, 'Yes', ['No', 'Maybe'])
+        ),
+        ...grouped,
+      ];
+      const client = clientAnalyze(
+        {
+          id: 'quiz',
+          title: 'Quiz',
+          questions,
+          createdAt: 0,
+          updatedAt: 0,
+        },
+        { groups: true }
+      );
+      const server = serverAnalyze(questions, { groups: true });
+      expect(server.entries).toEqual(client.entries);
+      expect(server.groups).toEqual(client.groups);
+      for (const grid of [1, 2] as const) {
+        const input = { entries: client.entries, grid, stems: true };
+        expect(serverPages(input), `${lead} / ${grid}`).toEqual(
+          clientPages(input)
+        );
+      }
+      const plan = {
+        ...clientInput,
+        questions,
+        questionCount: questions.length,
+      };
+      expect(serverPlan({ ...serverInput, ...plan }).batch.choiceOrder).toEqual(
+        clientPlan(plan).batch.choiceOrder
+      );
+    }
+  });
+});

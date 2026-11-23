@@ -2,6 +2,9 @@
 
 export type PaperGrid = 1 | 2 | 'questions';
 
+/** Mirrors `PaperRowGroup` in `types.ts`. */
+export type PaperRowGroup = 'all' | 'match' | 'order';
+
 export interface PaperPointMm {
   x: number;
   y: number;
@@ -21,6 +24,14 @@ export type PaperPageItem =
       sheetRow: number;
       label: string;
       originMm: PaperPointMm;
+      /** Mirrors the grouped-row fields in `types.ts`. */
+      choices?: number;
+      group?: PaperRowGroup;
+      part?: number;
+      across?: true;
+      wrap?: number;
+      headTopMm?: number;
+      stemMm?: number;
     }
   | {
       kind: 'written';

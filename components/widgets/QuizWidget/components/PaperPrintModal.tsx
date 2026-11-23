@@ -216,7 +216,7 @@ const EXCLUSION_FIX =
   'Return to the question editor or print without this question.';
 const EXCLUSION_REASONS: Record<PaperExclusionReason, string> = {
   recording: `Cannot print recordings. ${EXCLUSION_FIX}`,
-  'too-many-choices': `Cannot print questions with more than 10 answers. ${EXCLUSION_FIX}`,
+  'too-many-choices': `Cannot print questions with more than 20 answers. ${EXCLUSION_FIX}`,
   'too-few-choices': `Cannot print questions with fewer than 2 answers. ${EXCLUSION_FIX}`,
   'question-type': `Cannot print written questions. ${EXCLUSION_FIX}`,
   'bank-slot': `Cannot print question bank pulls. ${EXCLUSION_FIX}`,

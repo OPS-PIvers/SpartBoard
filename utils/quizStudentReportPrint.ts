@@ -862,6 +862,7 @@ function sheetReprintHtml(
       ...(reprint.pageMaps
         ? { pageMaps: reprint.pageMaps, writtenTexts: reprint.writtenTexts }
         : {}),
+      ...(reprint.groupTexts ? { groupTexts: reprint.groupTexts } : {}),
     },
     reprint.pageCount,
     fill

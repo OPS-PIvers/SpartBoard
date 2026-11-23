@@ -552,6 +552,24 @@ const GROUPS_QUIZ: QuizData = {
       correctAnswer: 'Prophase|Metaphase|Anaphase|Telophase',
       incorrectAnswers: [],
     },
+    {
+      id: 'g5',
+      timeLimit: 0,
+      text: 'Match each country to its capital.',
+      type: 'Matching',
+      correctAnswer:
+        'France:Paris|Kenya:Nairobi|Peru:Lima|Japan:Tokyo|Egypt:Cairo|Chile:Santiago',
+      incorrectAnswers: [],
+      matchingDistractors: [
+        'Madrid',
+        'Lagos',
+        'Quito',
+        'Seoul',
+        'Accra',
+        'Oslo',
+        'Hanoi',
+      ],
+    },
   ],
 };
 

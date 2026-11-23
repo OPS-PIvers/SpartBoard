@@ -224,6 +224,9 @@ export interface SheetFill {
   key: readonly (number | null)[];
   /** Margin mark per sheet row. */
   marks: readonly ('correct' | 'incorrect' | 'unclear' | null)[];
+  /** Choose all rows: every bubble filled, and every key bubble ringed, by sheet row. */
+  filledSets?: Readonly<Record<number, readonly number[]>>;
+  keySets?: Readonly<Record<number, readonly number[]>>;
   /** Printed in the header box when set. */
   score?: string;
   /** Written boxes by question id; a box without an entry prints its rule lines (D42). */
@@ -456,6 +459,8 @@ function sheetChoiceHtml(
 }
 
 const MARK_GLYPH = { correct: '✓', incorrect: '✗', unclear: '?' } as const;
+/** Rough width of a 10 pt margin mark. */
+const MARK_W_MM = 4;
 
 type McPageItem = Extract<PaperPageItem, { kind: 'mc' }>;
 
@@ -473,13 +478,37 @@ function groupRowHtml(
   const parts: string[] = [];
   const bubble = (c: number, label: string): string => {
     const r = itemBubbleRectMm(item, c, grid);
-    const cls = fill
-      ? `bub${fill.filled[item.sheetRow] === c ? ' filled' : ''}${
-          fill.key[item.sheetRow] === c ? ' key' : ''
-        }`
-      : 'bub';
+    const row = item.sheetRow;
+    const filled =
+      fill?.filled[row] === c || !!fill?.filledSets?.[row]?.includes(c);
+    const key = fill?.key[row] === c || !!fill?.keySets?.[row]?.includes(c);
+    const cls = `bub${filled ? ' filled' : ''}${key ? ' key' : ''}`;
     return `<div class="${cls}" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(r.w)};height:${mm(r.h)}">${escapeHtml(label)}</div>`;
   };
+  // Reprints mark each row right of its first line, or beside the number on a question-text sheet.
+  const mark = fill?.marks[item.sheetRow];
+  if (mark) {
+    const r = itemBubbleRectMm(
+      item,
+      Math.min(choices, item.wrap ?? choices) - 1,
+      grid
+    );
+    const after = r.x + BUBBLE_PITCH_MM;
+    // A wide row in the left column would put the mark on the next column or the stimulus, so it moves left of the number.
+    const limit = grid === 1 ? STIMULUS_RECT_MM.x : COLUMN_X_MM[1];
+    const left =
+      grid === 'questions' && !item.across
+        ? COLUMN_X_MM[0] - BUBBLE_PITCH_MM
+        : grid !== 'questions' &&
+            item.originMm.x < COLUMN_X_MM[1] &&
+            after + MARK_W_MM > limit
+          ? item.originMm.x - MARK_W_MM - 1
+          : after;
+    const top = grid === 'questions' && !item.across ? item.originMm.y : r.y;
+    parts.push(
+      `<div class="rowmark" style="left:${mm(left)};top:${mm(top)}">${MARK_GLYPH[mark]}</div>`
+    );
+  }
   // Ordering across a question-text sheet bubbles each item's place, so its bubbles are numbered.
   const labelOf = (c: number): string =>
     item.across && group === 'order' ? String(c + 1) : CHOICE_LETTERS[c];
@@ -540,7 +569,7 @@ function groupRowHtml(
           );
         });
       }
-      for (let c = 0; c < choices; c += 1) {
+      for (let c = 0; c < Math.min(choices, item.wrap ?? choices); c += 1) {
         const r = itemBubbleRectMm(item, c, grid);
         parts.push(
           `<div class="legend" style="left:${mm(r.x)};top:${mm(rowsTop - GROUP_LEGEND_MM + 0.8)};width:${mm(r.w)}">${labelOf(c)}</div>`

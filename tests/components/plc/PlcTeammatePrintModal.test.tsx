@@ -391,6 +391,7 @@ describe('PlcTeammatePrintModal — printing', () => {
       selections: [{ rosterId: 'r1', studentIds: ['s2'] }],
       spareCount: 2,
       written: false,
+      groups: true,
     });
     const sent = createBatch.mock.calls[0][0] as Record<string, unknown>;
     expect(sent).not.toHaveProperty('seats');
