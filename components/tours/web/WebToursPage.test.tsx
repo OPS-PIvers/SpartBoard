@@ -161,7 +161,7 @@ describe('WebToursPage', () => {
     expect(rows[0]).toHaveTextContent('1 step · example.com');
     expect(rows[0]).toHaveTextContent('12 views · 1 finished');
     expect(rows[0]).not.toHaveTextContent('link view');
-    expect(rows[1]).toHaveTextContent('Draft');
+    expect(rows[1]).toHaveTextContent('Check tour');
     expect(rows[1]).not.toHaveTextContent('views');
     expect(
       screen.getByRole('button', { name: 'Play Older tour' })
