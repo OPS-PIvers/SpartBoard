@@ -1471,11 +1471,10 @@ const TeacherQuizWidget: React.FC<{
     [loadBankContentsForQuiz, addToast]
   );
 
-  const freezeAssignments = canAccessFeature('quiz-frozen-assignments');
   // A copy of the questions as assigned, so editing the quiz later can't re-score the assignment.
   const freezeForAssign = useCallback(
     async (data: QuizData): Promise<string | undefined> => {
-      if (!freezeAssignments || quizHasBankSlots(data)) return undefined;
+      if (quizHasBankSlots(data)) return undefined;
       try {
         return await saveDriveSnapshot(data);
       } catch (err) {
@@ -1484,7 +1483,7 @@ const TeacherQuizWidget: React.FC<{
         return undefined;
       }
     },
-    [freezeAssignments, saveDriveSnapshot]
+    [saveDriveSnapshot]
   );
 
   // Frozen assignments grade against their Drive copy, under today's answer keys.
@@ -4782,9 +4781,7 @@ const TeacherQuizWidget: React.FC<{
           (a) => a.quizId === editingMeta?.id && a.hasPaperResponses
         )}
         rescoredAssignmentCount={
-          freezeAssignments && editingMeta
-            ? unfrozenAssignmentCount(editingMeta.id, assignments)
-            : 0
+          editingMeta ? unfrozenAssignmentCount(editingMeta.id, assignments) : 0
         }
         bankApi={bankApi}
         // A synced quiz publishes a new version to its PLC on every save, so

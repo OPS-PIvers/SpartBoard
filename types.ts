@@ -11889,8 +11889,6 @@ export type GlobalFeature =
   | 'quiz-live-view-screenshot'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
-  /** Each quiz assignment keeps a copy of the questions it was given, so later edits never change its scores. */
-  | 'quiz-frozen-assignments'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */

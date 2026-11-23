@@ -64,7 +64,6 @@ import {
   Shapes,
   Settings2,
   Users,
-  History,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1010,21 +1009,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
   },
 
-  // Assignments grade against the questions students were given. Admin-only until Paul has used it.
-  'quiz-frozen-assignments': {
-    label: 'Quiz assignments keep their questions',
-    icon: History,
-    description:
-      'Editing a quiz after assigning it no longer changes earlier scores. Answer key fixes still apply when the question and its choices are unchanged.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    modalLabel: 'Assignments keep their questions',
-    group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Gradebook route and its data layer (docs/plans/GRADEBOOK.md D5).
   gradebook: {
     label: 'Gradebook',

@@ -57,6 +57,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'quiz-assign-waits-for-save',
   'quiz-dok',
   'quiz-explanations',
+  'quiz-frozen-assignments',
   'quiz-import-equations',
   'quiz-import-google-doc-pdf',
   'quiz-import-pdf-answer-marks',
