@@ -12,8 +12,9 @@ import {
 import type { ClassRoster, SubstituteShareRoster } from '@/types';
 
 // `locked`: drive.file can't read another user's file until the sub opens it in the Picker.
+// `partial`: some of the share's files loaded; the rest still need picking.
 export type SubRosterStatus =
-  'none' | 'checking' | 'locked' | 'loading' | 'ready' | 'error';
+  'none' | 'checking' | 'locked' | 'loading' | 'partial' | 'ready' | 'error';
 
 export interface SubstituteRosterState {
   rosters: ClassRoster[];
@@ -34,41 +35,25 @@ const GRANT_RETRY_DELAY_MS = 1200;
 const EMPTY_SHARED: SubstituteShareRoster[] = [];
 const EMPTY_ROSTERS: ClassRoster[] = [];
 
-async function downloadSharedRosters(
+async function downloadRoster(
   drive: GoogleDriveService,
-  shared: SubstituteShareRoster[]
-): Promise<ClassRoster[]> {
-  const results = await Promise.allSettled(
-    shared.map(async (meta): Promise<ClassRoster> => {
-      const blob = await drive.downloadFile(meta.driveFileId);
-      const content = parseRosterFileBody(JSON.parse(await blob.text()));
-      const students = assignPins(content.students, {
-        randomForLinked: false,
-      });
-      return {
-        id: meta.id,
-        name: meta.name,
-        driveFileId: meta.driveFileId,
-        studentCount: students.length,
-        createdAt: 0,
-        students,
-        groups: content.groups,
-        defaultOverridesByStudentId: content.defaultOverridesByStudentId,
-      };
-    })
-  );
-  // drive.file only covers files the sub picked, so keep whichever ones loaded.
-  const loaded = results.flatMap((r) =>
-    r.status === 'fulfilled' ? [r.value] : []
-  );
-  if (loaded.length === 0) {
-    const failure = results.find((r) => r.status === 'rejected');
-    throw failure?.reason ?? new Error('No shared rosters could be loaded');
-  }
-  return loaded;
+  meta: SubstituteShareRoster
+): Promise<ClassRoster> {
+  const blob = await drive.downloadFile(meta.driveFileId);
+  const content = parseRosterFileBody(JSON.parse(await blob.text()));
+  const students = assignPins(content.students, { randomForLinked: false });
+  return {
+    id: meta.id,
+    name: meta.name,
+    driveFileId: meta.driveFileId,
+    studentCount: students.length,
+    createdAt: 0,
+    students,
+    groups: content.groups,
+    defaultOverridesByStudentId: content.defaultOverridesByStudentId,
+  };
 }
 
-/** The names file, or null when the share has none. */
 async function downloadNames(
   drive: GoogleDriveService,
   namesFileId: string
@@ -80,53 +65,60 @@ async function downloadNames(
 interface ShareFiles {
   rosters: ClassRoster[];
   names: SubShareNamesFile | null;
+  /** Files the share expects that could not be read. */
+  missing: number;
 }
 
-/**
- * Everything the share expects. Used for the silent first try, so one
- * unreadable file means the sub has not unlocked this share yet.
- */
+/** Whatever is readable right now; throws only when nothing is. */
 async function downloadShareFiles(
   drive: GoogleDriveService,
   shared: SubstituteShareRoster[],
   namesFileId: string | undefined
 ): Promise<ShareFiles> {
-  const [rosters, names] = await Promise.all([
-    shared.length > 0
-      ? downloadSharedRosters(drive, shared)
-      : Promise.resolve(EMPTY_ROSTERS),
-    namesFileId ? downloadNames(drive, namesFileId) : Promise.resolve(null),
+  const [rosterResults, namesResult] = await Promise.all([
+    Promise.allSettled(shared.map((meta) => downloadRoster(drive, meta))),
+    namesFileId
+      ? downloadNames(drive, namesFileId).then(
+          (value) => ({ ok: true as const, value }),
+          (reason: unknown) => ({ ok: false as const, reason })
+        )
+      : Promise.resolve(null),
   ]);
-  return { rosters, names };
+  const rosters = rosterResults.flatMap((r) =>
+    r.status === 'fulfilled' ? [r.value] : []
+  );
+  const names = namesResult?.ok ? namesResult.value : null;
+  const missing =
+    shared.length - rosters.length + (namesResult && !namesResult.ok ? 1 : 0);
+  if (rosters.length === 0 && !names) {
+    const failure = rosterResults.find((r) => r.status === 'rejected');
+    throw (
+      failure?.reason ??
+      (namesResult && !namesResult.ok ? namesResult.reason : null) ??
+      new Error('No shared files could be loaded')
+    );
+  }
+  return { rosters, names, missing };
 }
 
-/**
- * After the Picker, whatever came back is what the sub gets: the grant can
- * land a beat after it closes, so retry once, and then a names file the
- * teacher's sweep has already trashed must not keep the class lists locked.
- */
+/** The grant can land a beat after the Picker closes, so an incomplete read is tried once more. */
 async function downloadAfterPick(
   drive: GoogleDriveService,
   shared: SubstituteShareRoster[],
   namesFileId: string | undefined
 ): Promise<ShareFiles> {
   try {
-    return await downloadShareFiles(drive, shared, namesFileId);
+    const first = await downloadShareFiles(drive, shared, namesFileId);
+    if (first.missing === 0) return first;
   } catch {
-    await new Promise((resolve) => setTimeout(resolve, GRANT_RETRY_DELAY_MS));
+    // Retried below.
   }
-  const [rosterResult, namesResult] = await Promise.allSettled([
-    shared.length > 0
-      ? downloadSharedRosters(drive, shared)
-      : Promise.resolve(EMPTY_ROSTERS),
-    namesFileId ? downloadNames(drive, namesFileId) : Promise.resolve(null),
-  ]);
-  if (rosterResult.status === 'rejected') throw rosterResult.reason;
-  return {
-    rosters: rosterResult.value,
-    names: namesResult.status === 'fulfilled' ? namesResult.value : null,
-  };
+  await new Promise((resolve) => setTimeout(resolve, GRANT_RETRY_DELAY_MS));
+  return downloadShareFiles(drive, shared, namesFileId);
 }
+
+const statusOf = (files: ShareFiles): 'ready' | 'partial' =>
+  files.missing === 0 ? 'ready' : 'partial';
 
 /**
  * Loads a substitute share's roster files and its names file from the sub's
@@ -162,7 +154,12 @@ export function useSubstituteRosters(
         setResult((prev) =>
           prev?.key === key && prev.status === 'ready'
             ? prev
-            : { key, status: 'ready', ...files }
+            : {
+                key,
+                status: statusOf(files),
+                rosters: files.rosters,
+                names: files.names,
+              }
         );
       },
       () => {
@@ -196,7 +193,10 @@ export function useSubstituteRosters(
       const picked = await openPicker({
         token,
         fileIds: pickerFileIds,
-        title: 'Select the class list to load',
+        title:
+          pickerFileIds.length > 1
+            ? 'Tick every file in the list, then Select'
+            : 'Select the class list to load',
       });
       if (!picked) {
         // Dismissed, or the Picker closed without handing a file back.
@@ -207,15 +207,21 @@ export function useSubstituteRosters(
         );
         return;
       }
-      setResult({
+      // A second pass keeps what the first one loaded on screen.
+      setResult((prev) => ({
         key,
         status: 'loading',
-        rosters: EMPTY_ROSTERS,
-        names: null,
-      });
+        rosters: prev?.key === key ? prev.rosters : EMPTY_ROSTERS,
+        names: prev?.key === key ? prev.names : null,
+      }));
       const drive = new GoogleDriveService(token, refreshGoogleToken);
       const files = await downloadAfterPick(drive, shared, namesFileId);
-      setResult({ key, status: 'ready', ...files });
+      setResult({
+        key,
+        status: statusOf(files),
+        rosters: files.rosters,
+        names: files.names,
+      });
     } catch (err) {
       logError('useSubstituteRosters.loadRosters', err, {
         rosterCount: shared.length,
@@ -237,9 +243,9 @@ export function useSubstituteRosters(
     : (current?.status ?? (googleAccessToken ? 'checking' : 'locked'));
 
   return {
-    rosters: current?.status === 'ready' ? current.rosters : EMPTY_ROSTERS,
+    rosters: current?.rosters ?? EMPTY_ROSTERS,
     status,
     loadRosters,
-    names: current?.status === 'ready' ? current.names : null,
+    names: current?.names ?? null,
   };
 }

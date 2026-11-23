@@ -108,3 +108,20 @@ export function grantedRosters(
   );
   return granted.length > 0 ? granted : undefined;
 }
+
+/** Share-time warnings: collected for the dialog that asked for them, otherwise toasted. */
+export function subShareWarner(
+  onWarnings: ((messages: string[]) => void) | undefined,
+  toast: (message: string, type: 'warning' | 'error') => void
+) {
+  const messages: string[] = [];
+  const warn = (message: string, type: 'warning' | 'error') => {
+    if (onWarnings) messages.push(message);
+    else toast(message, type);
+  };
+  return Object.assign(warn, {
+    flush: () => {
+      if (onWarnings && messages.length > 0) onWarnings(messages);
+    },
+  });
+}

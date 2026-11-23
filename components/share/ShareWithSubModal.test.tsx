@@ -642,6 +642,23 @@ describe('ShareWithSubModal — what could not be collected', () => {
     expect(screen.getByText('Drawing on Period 3')).toBeTruthy();
   });
 
+  it('keeps a Drive problem on the link screen instead of a passing toast', async () => {
+    shareSubstituteCollection.mockImplementation((input: unknown) => {
+      (input as { onWarnings?: (m: string[]) => void }).onWarnings?.([
+        'Share created, but roster access could not be granted to: sub@orono.k12.mn.us.',
+      ]);
+      return Promise.resolve('share-1');
+    });
+
+    openModal();
+    await share();
+
+    expect(
+      screen.getByText('Your sub will not see student names yet')
+    ).toBeTruthy();
+    expect(screen.getByText(/roster access could not be granted/)).toBeTruthy();
+  });
+
   it('says nothing when everything came along', async () => {
     shareSubstituteCollection.mockImplementation((input: unknown) => {
       (
