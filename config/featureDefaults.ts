@@ -655,7 +655,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: ListPlus,
     description:
       'Teachers add a word bank. Students tap a choice to fill a blank.',
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
     category: 'students',
     defaultAccessLevel: 'admin',
