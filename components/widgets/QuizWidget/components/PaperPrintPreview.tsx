@@ -1,15 +1,14 @@
 // Live preview of one student's printed packet, drawn from the same job the print uses.
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PAGE_HEIGHT_MM, PAGE_WIDTH_MM } from '@/utils/paperSheetLayout';
 import type { PaperPreviewPage } from '@/utils/paperSheetPrint';
+import { blobUrlsOf, inlineBlobUrls } from '@/utils/paperPreviewInline';
 
 const PX_PER_MM = 96 / 25.4;
 const PAGE_W_PX = PAGE_WIDTH_MM * PX_PER_MM;
 const PAGE_H_PX = PAGE_HEIGHT_MM * PX_PER_MM;
 /** Room around each page in the pane. */
 const GAP_PX = 16;
-const BLOB_URL = /blob:[^"'()\s]+/g;
-
 /** The box's size, kept current as the dialog resizes. */
 function useBoxSize(): [
   React.RefObject<HTMLDivElement | null>,
@@ -45,31 +44,36 @@ const toDataUrl = async (url: string): Promise<string> => {
   });
 };
 
-/**
- * The pages' object URLs as data URLs. A sandboxed frame has no origin, so it
- * cannot read the dialog's object URLs; a URL that fails to read draws as empty.
- */
+/** Pages with object URLs inlined as data URLs; a picture draws empty until read. */
 function useInlinedPages(
   pages: readonly PaperPreviewPage[] | null
 ): PaperPreviewPage[] | null {
   const [inlined, setInlined] = useState<ReadonlyMap<string, string>>(
     () => new Map()
   );
-  const wanted = [
-    ...new Set((pages ?? []).flatMap((p) => p.doc.match(BLOB_URL) ?? [])),
-  ];
-  const missing = wanted.filter((u) => !inlined.has(u));
-  const missingKey = missing.join(' ');
+  const wantedKey = [
+    ...new Set((pages ?? []).flatMap((p) => blobUrlsOf(p.doc))),
+  ].join(' ');
+  const missingKey = wantedKey
+    .split(' ')
+    .filter((u) => u && !inlined.has(u))
+    .join(' ');
   useEffect(() => {
-    if (!missingKey) return;
+    const wanted = new Set(wantedKey.split(' ').filter(Boolean));
+    const urls = missingKey.split(' ').filter(Boolean);
     let live = true;
-    const urls = missingKey.split(' ');
-    void Promise.all(urls.map((u) => toDataUrl(u).catch(() => ''))).then(
+    if (urls.length === 0) return;
+    // A failed read is not cached, so a changed page set retries it.
+    void Promise.all(urls.map((u) => toDataUrl(u).catch(() => null))).then(
       (data) => {
         if (!live) return;
         setInlined((prev) => {
-          const next = new Map(prev);
-          urls.forEach((u, i) => next.set(u, data[i]));
+          // Entries the pages no longer use are dropped as new ones land.
+          const next = new Map([...prev].filter(([u]) => wanted.has(u)));
+          urls.forEach((u, i) => {
+            const d = data[i];
+            if (d !== null && wanted.has(u)) next.set(u, d);
+          });
           return next;
         });
       }
@@ -77,17 +81,21 @@ function useInlinedPages(
     return () => {
       live = false;
     };
-  }, [missingKey]);
-  if (!pages || missing.length > 0) return null;
-  return pages.map((p) => ({
-    ...p,
-    doc: p.doc.replace(BLOB_URL, (u) => inlined.get(u) ?? ''),
-  }));
+  }, [wantedKey, missingKey]);
+  return useMemo(
+    () =>
+      pages
+        ? pages.map((p) => ({ ...p, doc: inlineBlobUrls(p.doc, inlined) }))
+        : null,
+    [pages, inlined]
+  );
 }
 
 export interface PaperPrintPreviewProps {
   /** One student's pages, or null while the packet cannot be drawn. */
   pages: readonly PaperPreviewPage[] | null;
+  /** While true, the last pages stay up under a small notice. */
+  loading?: boolean;
   /** Shown in place of the pages when there are none. */
   emptyText: string;
   className?: string;
@@ -95,11 +103,15 @@ export interface PaperPrintPreviewProps {
 
 export const PaperPrintPreview: React.FC<PaperPrintPreviewProps> = ({
   pages,
+  loading = false,
   emptyText,
   className = '',
 }) => {
   const [boxRef, box] = useBoxSize();
-  const shown = useInlinedPages(pages);
+  const [last, setLast] = useState(pages);
+  if (pages && pages !== last) setLast(pages);
+  const held = pages ?? (loading ? last : null);
+  const shown = useInlinedPages(held);
   // A whole page shows at once; the rest scroll below it.
   const scale =
     box.width > 0 && box.height > 0
@@ -108,38 +120,45 @@ export const PaperPrintPreview: React.FC<PaperPrintPreviewProps> = ({
           (box.height - 2 * GAP_PX) / PAGE_H_PX
         )
       : 0;
-  const waiting = !!pages?.length && !shown;
 
   return (
     <div ref={boxRef} className={`min-h-0 overflow-y-auto pb-4 ${className}`}>
       {shown?.length && scale > 0 ? (
-        <ol aria-label="Printed pages" className="space-y-4 pt-4">
-          {shown.map((page, i) => (
-            // Pages keep their place, so an unchanged page never reloads.
-            <li
-              key={i}
-              className="relative mx-auto overflow-hidden bg-white shadow-sm ring-1 ring-slate-200"
-              style={{ width: PAGE_W_PX * scale, height: PAGE_H_PX * scale }}
+        <>
+          {loading && !pages ? (
+            <p
+              role="status"
+              className="sticky top-0 z-10 mx-auto w-fit rounded-full bg-white/90 px-3 py-1 text-xs text-slate-600 shadow-sm"
             >
-              <iframe
-                title={`Page ${i + 1}`}
-                srcDoc={page.doc}
-                sandbox=""
-                tabIndex={page.kind === 'test' ? 0 : -1}
-                className="absolute left-0 top-0 origin-top-left border-0"
-                style={{
-                  width: PAGE_W_PX,
-                  height: PAGE_H_PX,
-                  transform: `scale(${scale})`,
-                }}
-              />
-            </li>
-          ))}
-        </ol>
+              Loading the pages.
+            </p>
+          ) : null}
+          <ol aria-label="Printed pages" className="space-y-4 pt-4">
+            {shown.map((page, i) => (
+              // Pages keep their place, so an unchanged page never reloads.
+              <li
+                key={i}
+                className="relative mx-auto overflow-hidden bg-white shadow-sm ring-1 ring-slate-200"
+                style={{ width: PAGE_W_PX * scale, height: PAGE_H_PX * scale }}
+              >
+                <iframe
+                  title={`Page ${i + 1}`}
+                  srcDoc={page.doc}
+                  sandbox=""
+                  tabIndex={page.kind === 'test' ? 0 : -1}
+                  className="absolute left-0 top-0 origin-top-left border-0"
+                  style={{
+                    width: PAGE_W_PX,
+                    height: PAGE_H_PX,
+                    transform: `scale(${scale})`,
+                  }}
+                />
+              </li>
+            ))}
+          </ol>
+        </>
       ) : (
-        <p className="p-4 text-sm text-slate-500">
-          {waiting ? 'Loading the pages.' : emptyText}
-        </p>
+        <p className="p-4 text-sm text-slate-500">{emptyText}</p>
       )}
     </div>
   );
