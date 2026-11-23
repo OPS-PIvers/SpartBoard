@@ -7,6 +7,7 @@ import type {
   QuizData,
   QuizQuestion,
   QuizSupport,
+  StudentOverride,
 } from '@/types';
 import { toOverrideEditorQuestions } from '@/components/common/library/toOverrideEditorQuestions';
 import { multiAnswerOptions } from '@/utils/quizMultiAnswer';
@@ -23,8 +24,11 @@ const INCORRECT_ID = /-incorrect-(\d+)$/;
 /** The quiz as this group's students see it: fewer answer choices, modified wording and stimuli. */
 export function printedGroupQuiz(
   quiz: QuizData,
-  group: Pick<ModificationGroup, 'answerChoices' | 'modifiedQuestions'>
+  group: Pick<ModificationGroup, 'answerChoices' | 'modifiedQuestions'>,
+  copy?: StudentCopyRules
 ): QuizData {
+  const hiddenChoices = copy?.hiddenChoices;
+  const only = copy?.questionIds ? new Set(copy.questionIds) : null;
   const hidden =
     hiddenOptionIdsForRule(
       toOverrideEditorQuestions(quiz),
@@ -51,22 +55,43 @@ export function printedGroupQuiz(
         incorrectAnswers: next.incorrectAnswers.filter((_, i) => !drop.has(i)),
       };
     }
+    const hiddenText = q.paperOwnTest ? undefined : hiddenChoices?.[q.id];
+    if (hiddenText?.length) {
+      const drop = new Set(hiddenText);
+      // One wrong answer always stays, as on the student's device.
+      const kept = next.incorrectAnswers.filter((a) => !drop.has(a));
+      if (kept.length > 0 && kept.length < next.incorrectAnswers.length) {
+        const { optionOrder: _order, ...rest } = next;
+        next = { ...rest, incorrectAnswers: kept };
+      }
+    }
     return next;
   });
-  return { ...quiz, questions };
+  return {
+    ...quiz,
+    questions: only ? questions.filter((q) => only.has(q.id)) : questions,
+  };
 }
+
+/** A student copy's own rules beyond its group's: hidden option text and a question subset. */
+export type StudentCopyRules = Pick<
+  PaperPrintedGroupRecord,
+  'hiddenChoices' | 'questionIds'
+>;
 
 /** The assignment's bank pools as this group's students see them. */
 export function printedGroupResolved(
   resolved: ResolvedQuizAssignment,
   quiz: QuizData,
-  group: Pick<ModificationGroup, 'answerChoices' | 'modifiedQuestions'>
+  group: Pick<ModificationGroup, 'answerChoices' | 'modifiedQuestions'>,
+  hiddenChoices?: StudentCopyRules['hiddenChoices']
 ): ResolvedQuizAssignment {
   return {
     ...resolved,
     questions: printedGroupQuiz(
       { ...quiz, questions: resolved.questions, stimuli: resolved.stimuli },
-      group
+      group,
+      hiddenChoices ? { hiddenChoices } : undefined
     ).questions,
   };
 }
@@ -94,14 +119,19 @@ export function printedSupports(
 export function printedGroupLabel(
   number: number,
   language: string | undefined,
-  translated: boolean
+  translated: boolean,
+  single?: boolean
 ): string {
+  const base = single ? STUDENT_COPY_LABEL : `Group ${number}`;
   const name = QUIZ_TRANSLATION_LANGUAGES.find(
     (l) => l.code === language
   )?.label;
-  if (!name) return `Group ${number}`;
-  return `Group ${number} · ${translated ? name : 'English'}`;
+  if (!name) return base;
+  return `${base} · ${translated ? name : 'English'}`;
 }
+
+/** What a stack printed for one student from the monitor is called. */
+export const STUDENT_COPY_LABEL = 'Student copy';
 
 /** What the print dialog needs for one printed group. */
 export function printedGroupForPrint(
@@ -117,7 +147,12 @@ export function printedGroupForPrint(
   for (const s of pick.students)
     (students[s.rosterId] ??= []).push(s.studentId);
   return {
-    label: printedGroupLabel(pick.number, pick.group.language, !!translation),
+    label: printedGroupLabel(
+      pick.number,
+      pick.group.language,
+      !!translation,
+      pick.single
+    ),
     students,
     supports: printedSupports(pick.group.supports),
     ...(translation ? { translation } : {}),
@@ -135,6 +170,39 @@ export function printedGroupRecord(
     ...(modifiedQuestions ? { modifiedQuestions: true } : {}),
     ...(supports?.length ? { supports } : {}),
     ...(language ? { language } : {}),
+    ...(pick.single ? { single: true as const } : {}),
+    ...(pick.hiddenChoices && Object.keys(pick.hiddenChoices).length
+      ? { hiddenChoices: pick.hiddenChoices }
+      : {}),
+    ...(pick.questionIds ? { questionIds: pick.questionIds } : {}),
+  };
+}
+
+/** One student's paper copy from the monitor, carrying their own modifications. */
+export function studentCopyPick(
+  student: { rosterId: string; studentId: string },
+  override: StudentOverride | undefined
+): PrintedGroupPick {
+  const hidden = override?.hiddenOptionIdsByQuestion;
+  const questionIds = override?.questionIds;
+  return {
+    number: 0,
+    single: true,
+    students: [student],
+    ...(hidden && Object.keys(hidden).length ? { hiddenChoices: hidden } : {}),
+    ...(questionIds?.length ? { questionIds } : {}),
+    group: {
+      id: 'student-copy',
+      studentKeys: [],
+      answerChoices: 'all',
+      time: 'standard',
+      readAloud: false,
+      speechToText: false,
+      printed: true,
+      ...(override?.modifiedQuestions ? { modifiedQuestions: true } : {}),
+      ...(override?.supports?.length ? { supports: override.supports } : {}),
+      ...(override?.language ? { language: override.language } : {}),
+    },
   };
 }
 
@@ -148,7 +216,11 @@ export function unprintedCopyPicks(
   plans: readonly PaperCopyGroupPlan[] | undefined,
   batches: readonly Pick<PaperBatch, 'printedGroup'>[]
 ): PrintedGroupPick[] {
-  const printed = new Set(batches.map((b) => b.printedGroup?.number));
+  const printed = new Set(
+    batches.flatMap((b) =>
+      b.printedGroup && !b.printedGroup.single ? [b.printedGroup.number] : []
+    )
+  );
   return (plans ?? [])
     .filter((p) => !printed.has(p.number))
     .map((p) => recordPick(p, p.students));
@@ -159,11 +231,22 @@ export function recordPick(
   record: PaperPrintedGroupRecord,
   students: PrintedGroupPick['students'] = []
 ): PrintedGroupPick {
-  const { number, answerChoices, modifiedQuestions, supports, language } =
-    record;
+  const {
+    number,
+    answerChoices,
+    modifiedQuestions,
+    supports,
+    language,
+    single,
+    hiddenChoices,
+    questionIds,
+  } = record;
   return {
     number,
     students,
+    ...(single ? { single } : {}),
+    ...(hiddenChoices ? { hiddenChoices } : {}),
+    ...(questionIds ? { questionIds } : {}),
     group: {
       id: `printed-${number}`,
       studentKeys: [],
@@ -197,9 +280,10 @@ export function printedReprintGroups(
       label: printedGroupLabel(
         record?.number ?? i + 1,
         record?.language,
-        !!translation
+        !!translation,
+        record?.single
       ),
-      quiz: printedGroupQuiz(quiz, record ?? { answerChoices: 'all' }),
+      quiz: printedGroupQuiz(quiz, record ?? { answerChoices: 'all' }, record),
       batch,
       ...(translation ? { translation } : {}),
     };
