@@ -138,6 +138,14 @@ export const ASSIGNMENT_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   writing: 'writing_assignment_records',
 };
 
+/** Kinds whose rules refuse a student outside the run's classes; Flashcards and Writing also admit pointer holders. */
+const CLASS_GATED_KINDS: ReadonlySet<AssignmentKind> = new Set([
+  'quiz',
+  'video-activity',
+  'guided-learning',
+  'mini-app',
+]);
+
 /** Top-level session collection per kind (1:1 with the assignment doc). */
 export const SESSION_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   quiz: 'quiz_sessions',
@@ -871,10 +879,17 @@ export async function handleSetAssignmentTargets(
     ctx,
     hmacSecret
   );
+  // Where the rules gate on the run's classes, a picked student outside all of them could never open it, so they are skipped.
+  const gateClassIds =
+    CLASS_GATED_KINDS.has(input.kind) &&
+    ![...sessionClassIds].some((id) => id.startsWith('schoology:'))
+      ? sessionClassIds
+      : undefined;
   const addResolved = resolveTargets(
     input.add.filter((ref) => !excludedKeys.has(refKey(ref))),
     ctx,
-    hmacSecret
+    hmacSecret,
+    gateClassIds
   );
 
   const itemsPath = (uid: string) =>
