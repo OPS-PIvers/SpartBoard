@@ -447,7 +447,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Mic,
     description:
       'An accommodation that lets a student dictate written answers in Quiz and Writing.',
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
     category: 'students',
     defaultAccessLevel: 'admin',
@@ -1724,7 +1724,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Mic,
     description: 'Teachers record their voice for a quiz question.',
     group: 'questions',
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
     widget: 'quiz',
     defaultAccessLevel: 'admin',
