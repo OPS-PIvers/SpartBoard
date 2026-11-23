@@ -14713,30 +14713,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-print.print-test-paper",
-    "label": "Print test paper in the Quiz widget",
-    "scope": "widget type",
-    "panel": true,
-    "persists": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "quiz-print.results-cancel",
     "label": "Print results Cancel in the Quiz widget",
     "scope": "widget type",
@@ -15597,29 +15573,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-print.sheet-stimulus-template-field",
     "label": "Template field checkbox-or-number input in the Quiz widget",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-print.sheets-done",
-    "label": "Printed batch Done in the Quiz widget",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -31057,31 +31010,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the teammate print dialog",
     "scope": "board",
     "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assessments.teammate-print",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc:plcs",
-          "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu:plc",
-          "plc-assessments.menu-item:plc#print-teammate"
-        ],
-        "needs": [
-          "plc",
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-print.test-print",
-    "label": "Test print button in the teammate print dialog",
-    "scope": "board",
-    "panel": true,
-    "persists": true,
     "routes": [
       {
         "surface": "plc.assessments.teammate-print",

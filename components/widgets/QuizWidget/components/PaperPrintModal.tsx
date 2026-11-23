@@ -19,11 +19,8 @@ import React, {
 } from 'react';
 import {
   AlertTriangle,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
-  FileText,
-  Loader2,
   Printer,
   Share2,
   X,
@@ -158,7 +155,11 @@ import {
   versionStemLines,
 } from '@/utils/paperSheetVersions';
 import { resolveQuizAssignment, type BankContent } from '@/utils/questionBanks';
-import { printPaperTest } from '@/utils/paperTestPrint';
+import {
+  PAPER_TEST_PACKET_STYLES,
+  paperTestPacketCopies,
+  type PaperTestJob,
+} from '@/utils/paperTestPrint';
 import { attachPaperTestStimuli } from '@/utils/paperTestStimuli';
 import { usePaperTestStimulusFiles } from '@/hooks/usePaperTestStimulusFiles';
 import type {
@@ -253,7 +254,6 @@ interface PaperPrintModalProps {
   banks?: ReadonlyMap<string, BankContent>;
   /** Test seam mirroring `printPaperSheets`. */
   print?: typeof printPaperSheets;
-  printTest?: typeof printPaperTest;
 }
 
 /** The students a printed group's stack is for, by roster id. */
@@ -342,7 +342,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   onError,
   banks,
   print = printPaperSheets,
-  printTest = printPaperTest,
 }) => {
   const { driveService } = useGoogleDrive();
   const { openPicker } = useGooglePicker();
@@ -441,7 +440,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const [includeQuestionText, setIncludeQuestionText] = useState(false);
   const [printing, setPrinting] = useState(false);
   /** Set once an authored quiz's sheets printed; the test paper comes next. */
-  const [printedBatch, setPrintedBatch] = useState<PaperBatch | null>(null);
 
   const questionsById = useMemo(
     () =>
@@ -945,6 +943,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const printedPages =
     sheetCount * pagesPerSheet +
     (sheetCount - (includeKeySheet ? 1 : 0)) * stimulusPagesPerSheet;
+  const stimuliLoading =
+    !isStub &&
+    (testStimulusFiles.loading || (questionTextLayout && !stimuliLayout));
   const canPrint =
     sheetCount > 0 &&
     questionCount + writtenCount > 0 &&
@@ -953,8 +954,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     !printing &&
     !stimulusBusy &&
     !sheetImages.loading &&
-    // A question-text sheet prints the stimuli, so it waits until they have loaded.
-    !(questionTextLayout && !stimuliLayout) &&
+    // The packet prints the stimuli, so it waits until they have loaded.
+    !stimuliLoading &&
     // A click that beat the Drive lookup would skip the sharing ask entirely.
     !sharing.checking;
 
@@ -1080,6 +1081,93 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     !!assign && isSharingStepAvailable(assign.plcs, 'work');
   const needsPlc =
     !!assign && sharingStepShown && sharingNeedsPlc(sharingValue, assign.plcs);
+
+  /** The test paper for a batch, lettered in the order its sheets will be decoded. */
+  const testPaperJobFor = (batch: PaperBatch): PaperTestJob => {
+    const sections = sessionSectionsFor(quiz);
+    // A sheet with written boxes numbers by quiz position and prints them in place (D11, D18).
+    const byMap = !!batch.pageMaps;
+    const questionsOf = (a: PaperQuizAnalysis) => {
+      const printed = byMap
+        ? a.entries.map((e) => ({
+            questionId: e.questionId,
+            row: e.label,
+            written: e.kind === 'written',
+          }))
+        : a.rows.map((r) => ({
+            questionId: r.questionId,
+            row: r.row,
+            written: false,
+          }));
+      // Paper prints only these, so the choose line counts only them.
+      const printedIds = printed.map((r) => r.questionId);
+      const headed = new Set<string>();
+      const placed = attachPaperTestStimuli(
+        printed,
+        questionsById,
+        quizStimuli,
+        testStimulusFiles.files
+      );
+      const questions = printed.flatMap((r) => {
+        const q = questionsById.get(r.questionId);
+        if (!q) return [];
+        const choices = r.written
+          ? []
+          : (batch.choiceOrder?.[q.id] ?? [
+              q.correctAnswer,
+              ...(q.incorrectAnswers ?? []),
+            ]);
+        // The first printed question of a section carries its heading (E15).
+        const section = sectionOfQuestion(sections, q.id);
+        const heading =
+          section && !headed.has(section.id)
+            ? {
+                title: section.title,
+                ...(section.directions
+                  ? { directions: section.directions }
+                  : {}),
+                ...(chooseLineFor(section, printedIds)
+                  ? {
+                      chooseLine:
+                        chooseLineFor(section, printedIds) ?? undefined,
+                    }
+                  : {}),
+              }
+            : undefined;
+        if (section) headed.add(section.id);
+        const tr = group?.translation?.questions[q.id];
+        return [
+          {
+            row: r.row,
+            text: tr?.text ?? q.text,
+            choices: tr?.choices
+              ? choices.map((c) => tr.choices?.[c] ?? c)
+              : choices,
+            ...choicePictureFields(q, choices),
+            ...(r.written ? { written: true } : {}),
+            ...(heading ? { section: heading } : {}),
+            ...placed.questions.get(q.id),
+          },
+        ];
+      });
+      return { questions, resources: placed.resources };
+    };
+    // Each version gets its own copy of the test, headed with its label (V24).
+    return versionPlan
+      ? {
+          quizTitle: quiz.title,
+          questions: [],
+          versions: versionPlan.versions.map((v) => ({
+            label: v.label,
+            ...questionsOf(v.analysis),
+          })),
+        }
+      : {
+          quizTitle: group?.translation?.title ?? quiz.title,
+          ...questionsOf(analysis),
+          ...(group?.supports?.length ? { supports: group.supports } : {}),
+        };
+  };
 
   const handlePrint = async () => {
     // A stimulus that cannot be fetched would print as an empty box the
@@ -1211,9 +1299,20 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         });
         committedRef.current = { batch, sheets, assigned: true, picks };
       }
+      // With no question text, each student's packet opens with the test paper, lettered to match their sheet.
+      const testCopies =
+        !isStub && !stimuliLayout
+          ? paperTestPacketCopies(testPaperJobFor(batch))
+          : null;
       print({
         batchId: batch.id,
         quizTitle: printedQuiz.title,
+        ...(testCopies
+          ? {
+              testPaper: testCopies[0],
+              testPaperStyles: PAPER_TEST_PACKET_STYLES,
+            }
+          : {}),
         questionCount: batch.questionCount,
         choiceCount: batch.choiceCount,
         ...(batch.columnsPerPage || batch.sheetLayout
@@ -1286,7 +1385,10 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               ).map((v, k) => {
                 const forSet = stimuliLayout?.sets[k];
                 const set = stimuliSets?.[k];
-                if (!forSet || !set) return v;
+                if (!forSet || !set)
+                  return testCopies?.[k]
+                    ? { ...v, testPaper: testCopies[k] }
+                    : v;
                 // Each version prints its own questions' stimuli in the template's places.
                 const actual = new Map(
                   set.mapIds.map((id, i) => [id, set.entries[i]?.questionId])
@@ -1329,14 +1431,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               },
             }
           : {}),
-        // The sheets are the whole test; close once the window has the stimulus pictures it borrows.
-        ...(stimuliLayout ? { onImagesReady: onClose } : {}),
+        // The packet is the whole test; close once the window has the pictures it borrows.
+        ...(!isStub ? { onImagesReady: onClose } : {}),
         sheets,
       });
-      // An authored quiz needs its test paper printed from the same batch, so
-      // the letters on the paper match the order the import will decode.
       if (isStub && sheetStimuli.length === 0) onClose();
-      else if (!isStub && !stimuliLayout) setPrintedBatch(batch);
     } catch (err) {
       onError(
         err instanceof Error ? err.message : 'Could not print response sheets.'
@@ -1403,101 +1502,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     } finally {
       setStimulusBusy(false);
       closePdfPick();
-    }
-  };
-
-  const handlePrintTest = () => {
-    if (!printedBatch) return;
-    try {
-      const sections = sessionSectionsFor(quiz);
-      // A sheet with written boxes numbers by quiz position and prints them in place (D11, D18).
-      const byMap = !!printedBatch.pageMaps;
-      const questionsOf = (a: PaperQuizAnalysis) => {
-        const printed = byMap
-          ? a.entries.map((e) => ({
-              questionId: e.questionId,
-              row: e.label,
-              written: e.kind === 'written',
-            }))
-          : a.rows.map((r) => ({
-              questionId: r.questionId,
-              row: r.row,
-              written: false,
-            }));
-        // Paper prints only these, so the choose line counts only them.
-        const printedIds = printed.map((r) => r.questionId);
-        const headed = new Set<string>();
-        const placed = attachPaperTestStimuli(
-          printed,
-          questionsById,
-          quizStimuli,
-          testStimulusFiles.files
-        );
-        const questions = printed.flatMap((r) => {
-          const q = questionsById.get(r.questionId);
-          if (!q) return [];
-          const choices = r.written
-            ? []
-            : (printedBatch.choiceOrder?.[q.id] ?? [
-                q.correctAnswer,
-                ...(q.incorrectAnswers ?? []),
-              ]);
-          // The first printed question of a section carries its heading (E15).
-          const section = sectionOfQuestion(sections, q.id);
-          const heading =
-            section && !headed.has(section.id)
-              ? {
-                  title: section.title,
-                  ...(section.directions
-                    ? { directions: section.directions }
-                    : {}),
-                  ...(chooseLineFor(section, printedIds)
-                    ? {
-                        chooseLine:
-                          chooseLineFor(section, printedIds) ?? undefined,
-                      }
-                    : {}),
-                }
-              : undefined;
-          if (section) headed.add(section.id);
-          const tr = group?.translation?.questions[q.id];
-          return [
-            {
-              row: r.row,
-              text: tr?.text ?? q.text,
-              choices: tr?.choices
-                ? choices.map((c) => tr.choices?.[c] ?? c)
-                : choices,
-              ...choicePictureFields(q, choices),
-              ...(r.written ? { written: true } : {}),
-              ...(heading ? { section: heading } : {}),
-              ...placed.questions.get(q.id),
-            },
-          ];
-        });
-        return { questions, resources: placed.resources };
-      };
-      // Each version gets its own copy of the test, headed with its label (V24).
-      printTest(
-        versionPlan
-          ? {
-              quizTitle: quiz.title,
-              questions: [],
-              versions: versionPlan.versions.map((v) => ({
-                label: v.label,
-                ...questionsOf(v.analysis),
-              })),
-            }
-          : {
-              quizTitle: group?.translation?.title ?? quiz.title,
-              ...questionsOf(analysis),
-              ...(group?.supports?.length ? { supports: group.supports } : {}),
-            }
-      );
-    } catch (err) {
-      onError(
-        err instanceof Error ? err.message : 'Could not print the test paper.'
-      );
     }
   };
 
@@ -1623,59 +1627,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     );
   }
 
-  if (printedBatch) {
-    return (
-      <Modal
-        isOpen
-        onClose={onClose}
-        ariaLabel="Response sheets printed"
-        maxWidth="max-w-md"
-        footer={
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              {...tourTypeAttr('quiz-print.sheets-done', 'quiz')}
-              className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
-            >
-              Done
-            </button>
-            <button
-              type="button"
-              onClick={handlePrintTest}
-              disabled={testStimulusFiles.loading}
-              {...tourTypeAttr('quiz-print.print-test-paper', 'quiz')}
-              className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-60"
-            >
-              {testStimulusFiles.loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : (
-                <FileText className="h-4 w-4" />
-              )}
-              Print test paper
-            </button>
-          </div>
-        }
-      >
-        <div className="space-y-3 px-5 pb-2 pt-5">
-          <div className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-            <div>
-              <h2 className="text-base font-bold text-slate-900">
-                Response sheets sent to print
-              </h2>
-              <p className="mt-1 text-sm text-slate-600">
-                {printedBatch.sheetLayout === 'questions'
-                  ? 'If a question was too long to fit beside its bubbles, print the test paper too.'
-                  : 'Now print the test paper and hand out that copy, because its choices are lettered to match these sheets.'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </Modal>
-    );
-  }
-
   const groupStudentNames = group
     ? selectionsForPrint.flatMap(({ students }) =>
         students.map((st) =>
@@ -1688,7 +1639,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     ? tooManyPagesMessage(pagesPerSheet)
     : sheetCount === 0
       ? 'Pick at least one student or spare sheet.'
-      : questionTextLayout && !stimuliLayout
+      : stimuliLoading
         ? 'Loading stimuli.'
         : null;
 

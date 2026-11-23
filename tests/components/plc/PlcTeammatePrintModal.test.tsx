@@ -130,7 +130,6 @@ function makeContext(
 }
 
 const print = vi.fn<(job: PaperPrintJob) => void>();
-const printTest = vi.fn();
 
 const open = (
   context: TeammatePrintContext | null = makeContext(),
@@ -145,7 +144,6 @@ const open = (
       teammates={teammates}
       onClose={vi.fn()}
       print={print}
-      printTest={printTest}
       {...(ownerName ? { ownerName } : {})}
     />
   );
@@ -192,7 +190,6 @@ beforeEach(() => {
   requested.mockClear();
   features.clear();
   print.mockReset();
-  printTest.mockReset();
   createBatch.mockReset();
   createBatch.mockResolvedValue(PRINTED);
   withdrawBatch.mockReset();
@@ -407,6 +404,8 @@ describe('PlcTeammatePrintModal — printing', () => {
         quizTitle: 'Unit 3 CFA',
         questionCount: 3,
         choiceCount: 4,
+        testPaper: expect.stringContaining('class="tp"'),
+        testPaperStyles: expect.stringContaining('.tp '),
         sheets: PRINTED.sheets,
         printedForTeacherName: 'Bob Teacher',
       })
@@ -455,16 +454,14 @@ describe('PlcTeammatePrintModal — printing', () => {
     });
   });
 
-  it('offers the matching test paper once the sheets are out', async () => {
+  it('opens each packet with the matching test paper', async () => {
     await printBobsPeriod1();
-    fireEvent.click(
-      await screen.findByRole('button', { name: /Print test paper/ })
-    );
-    expect(printTest).toHaveBeenCalledWith({
-      quizTitle: 'Unit 3 CFA',
-      questions: PRINTED.testPaper,
-      resources: [],
-    });
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    const paper = print.mock.calls[0][0].testPaper ?? '';
+    expect(paper).toContain('Unit 3 CFA');
+    expect(
+      screen.queryByRole('button', { name: /Print test paper/ })
+    ).toBeNull();
   });
 
   it('prints the owner’s question stimuli on the test paper', async () => {
@@ -494,25 +491,12 @@ describe('PlcTeammatePrintModal — printing', () => {
     pick('Bob Teacher');
     fireEvent.click(screen.getByRole('checkbox', { name: 'Period 1' }));
     fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
-    fireEvent.click(
-      await screen.findByRole('button', { name: /Print test paper/ })
-    );
-    expect(printTest).toHaveBeenCalledWith({
-      quizTitle: 'Unit 3 CFA',
-      questions: [
-        {
-          row: 1,
-          text: 'Q1',
-          choices: ['a', 'b'],
-          stimuli: [{ kind: 'text', text: 'A short note' }],
-          resources: ['A'],
-        },
-        { row: 2, text: 'Q2', choices: ['a', 'b'], resources: ['A'] },
-      ],
-      resources: [
-        { letter: 'A', item: { kind: 'text', text: 'A shared story' } },
-      ],
-    });
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    const paper = print.mock.calls[0][0].testPaper ?? '';
+    // The shared story prints once as Resource A; the note prints with question 1.
+    expect(paper.match(/A shared story/g)).toHaveLength(1);
+    expect(paper).toContain('A short note');
+    expect(paper.match(/Use Resource A\./g)).toHaveLength(2);
   });
 
   it('says so when it had to add the quiz to their library', async () => {

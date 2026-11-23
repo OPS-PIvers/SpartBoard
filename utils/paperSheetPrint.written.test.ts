@@ -448,3 +448,18 @@ describe('stimulus pages in a student packet', () => {
     expect(printed.join('')).not.toContain('res-title');
   });
 });
+
+describe('test paper in a student packet', () => {
+  it('opens each student packet with the test paper, and leaves it off the key', () => {
+    const html = buildPaperSheetsHtml(
+      job(mapsFor([mc(1), mc(2)]), {
+        testPaper: '<div class="tp">TEST</div>',
+        sheets: [sheet(), sheet({ seat: 4 }), sheet({ isKeySheet: true })],
+      })
+    );
+    const parts = html.split(/(?=<div class="(?:tp|sheet)">)/);
+    expect(
+      parts.map((p) => (p.startsWith('<div class="tp">') ? 'T' : 'S'))
+    ).toEqual(['T', 'S', 'T', 'S', 'S']);
+  });
+});

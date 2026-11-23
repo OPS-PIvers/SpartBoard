@@ -8,7 +8,9 @@ import { plainMathText, promptPrintHtml } from './promptMath';
 
 import {
   escapeHtml,
+  marginStyles,
   printHtmlDocument,
+  withDrawnMargins,
   type OpenWindow,
 } from './printHtmlDocument';
 import { CHOICE_LETTERS } from './paperSheetLayout';
@@ -87,7 +89,7 @@ const STYLES = `
   ol.q > li.tall { break-inside: auto; }
   .resources { break-before: page; }
   .resource { margin: 0 0 6mm; }
-  .resource h2 { font-size: 13pt; margin: 0 0 2mm; break-after: avoid; }
+  .resource h2 { font-size: 18pt; text-align: center; padding-bottom: 1.5mm; border-bottom: 0.4mm solid #000; margin: 0 0 3mm; break-after: avoid; }
   .use-res { margin: 1.5mm 0 0; font-weight: bold; }
   .stim-item { margin: 0 0 3mm; }
   .stim-item h3 { font-size: 11pt; margin: 0 0 1mm; break-after: avoid; }
@@ -241,6 +243,52 @@ export function buildPaperTestHtml(job: PaperTestJob): string {
   );
 }
 
+/** Test paper styles scoped under `.tp`, so a copy can sit beside the response sheets in one document. */
+function scopedStyles(css: string): string {
+  return css
+    .split('\n')
+    .map((line) => {
+      if (line.trim().startsWith('@')) return '';
+      const m = /^(\s*)([^{]+)\{(.*)$/.exec(line);
+      if (!m) return line;
+      const sel = m[2].trim();
+      if (sel === '*') return `${m[1]}.tp, .tp * {${m[3]}`;
+      if (sel === 'body') return `${m[1]}.tp {${m[3]}`;
+      const scoped = sel
+        .split(',')
+        .map((x) => `.tp ${x.trim()}`)
+        .join(', ');
+      return `${m[1]}${scoped} {${m[3]}`;
+    })
+    .join('\n');
+}
+
+const TEST_MARGINS = { vertical: 18, horizontal: 20 };
+const testFooter = (): string =>
+  `<div class="brand">${spartronLogoSvg(4.2)}<span class="brand-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div>`;
+
+/** Styles for test paper copies printed inside the response sheet document. */
+export const PAPER_TEST_PACKET_STYLES = `${scopedStyles(STYLES)}${scopedStyles(
+  marginStyles(TEST_MARGINS)
+)}
+  .tp { break-after: page; }
+  .tp .num { position: static; font-size: inherit; text-align: left; line-height: inherit; }
+`;
+
+/** One test paper copy per version (or one for the whole quiz), to print at the front of each student's packet. */
+export function paperTestPacketCopies(job: PaperTestJob): string[] {
+  const copy = (body: string): string =>
+    `<div class="tp">${withDrawnMargins(body, testFooter())}</div>`;
+  if (job.versions?.length)
+    return job.versions.map((v) =>
+      copy(
+        testHtml(job.quizTitle, v.questions, v.label) +
+          resourcesHtml(v.resources)
+      )
+    );
+  return [copy(buildPaperTestHtml(job))];
+}
+
 export function printPaperTest(
   job: PaperTestJob,
   openWindow?: OpenWindow
@@ -258,9 +306,9 @@ export function printPaperTest(
       body,
       // Stimulus pictures and pages are large; an undecoded one prints as a blank box.
       awaitImages: body.includes('<img'),
-      marginMm: { vertical: 18, horizontal: 20 },
+      marginMm: TEST_MARGINS,
       // Same mark, size and place as the bubble sheet's footer.
-      footer: `<div class="brand">${spartronLogoSvg(4.2)}<span class="brand-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div>`,
+      footer: testFooter(),
     },
     openWindow
   );

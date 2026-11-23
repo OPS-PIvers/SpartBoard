@@ -153,6 +153,10 @@ export interface PaperPrintJob {
   resourcePages?: readonly SheetResourcePage[];
   /** By page map id: stimulus pages printed just before that question's page. */
   pagesBefore?: Readonly<Record<string, readonly SheetResourcePage[]>>;
+  /** A test paper copy printed at the front of each student's packet. */
+  testPaper?: string;
+  /** Styles the test paper copies need. */
+  testPaperStyles?: string;
 }
 
 /** A written question's full prompt and its figures, printed on the page before its box. */
@@ -173,6 +177,7 @@ export interface PaperPrintVersion {
   stimulusBlocks?: Readonly<Record<string, SheetStimulusBlock>>;
   resourcePages?: readonly SheetResourcePage[];
   pagesBefore?: Readonly<Record<string, readonly SheetResourcePage[]>>;
+  testPaper?: string;
 }
 
 /** What a question-text row prints beside its bubbles. */
@@ -1097,6 +1102,7 @@ function sheetPagesHtml(
           ? { resourcePages: version.resourcePages }
           : {}),
         ...(version.pagesBefore ? { pagesBefore: version.pagesBefore } : {}),
+        ...(version.testPaper ? { testPaper: version.testPaper } : {}),
       }
     : printJob;
   const versionLabel = version?.label;
@@ -1108,6 +1114,7 @@ function sheetPagesHtml(
   const pages: string[] = [];
   // Stimulus pages only go out with a student's own unmarked sheet.
   const packet = !fill && !sheet.isKeySheet;
+  if (packet && job.testPaper) pages.push(job.testPaper);
   for (let page = 1; page <= pageCount; page += 1) {
     const map = job.pageMaps?.[page - 1];
     if (packet && map) {
@@ -1380,14 +1387,17 @@ export function printPaperSheets(
   printHtmlDocument(
     {
       title: `${job.quizTitle} — response sheets`,
-      styles: STYLES,
+      styles: STYLES + (job.testPaperStyles ?? ''),
       body: buildPaperSheetsHtml(job),
       // A remote image that has not decoded yet prints as an empty box.
       awaitImages:
         !!job.sheetStimuli?.length ||
         hasPromptImages(job) ||
         Object.keys(job.writtenImages ?? {}).length > 0 ||
-        hasBlockImages(job),
+        hasBlockImages(job) ||
+        [job, ...(job.versions ?? [])].some((s) =>
+          s.testPaper?.includes('<img')
+        ),
       ...(job.onImagesReady ? { onImagesReady: job.onImagesReady } : {}),
     },
     openWindow

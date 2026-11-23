@@ -3688,12 +3688,6 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
-  'quiz-print.print-test-paper': {
-    label: 'Print test paper in the Quiz widget',
-    perWidgetType: true,
-    persists: true,
-    panel: true,
-  },
   'quiz-print.results-cancel': {
     label: 'Print results Cancel in the Quiz widget',
     perWidgetType: true,
@@ -3906,11 +3900,6 @@ export const TOUR_ANCHORS = {
   },
   'quiz-print.sheet-stimulus-template-field': {
     label: 'Template field checkbox-or-number input in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-print.sheets-done': {
-    label: 'Printed batch Done in the Quiz widget',
     perWidgetType: true,
     panel: true,
   },
@@ -7774,11 +7763,7 @@ export const TOUR_ANCHORS = {
     label: 'Close button in the teammate print dialog',
     panel: true,
   },
-  'plc-print.test-print': {
-    label: 'Test print button in the teammate print dialog',
-    persists: true,
-    panel: true,
-  },
+
   'plc-print.back': {
     label: 'Back button in the teammate print dialog',
     panel: true,

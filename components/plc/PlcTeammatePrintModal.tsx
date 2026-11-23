@@ -15,7 +15,6 @@ import {
   ChevronDown,
   ChevronRight,
   CloudOff,
-  FileText,
   Info,
   Loader2,
   Printer,
@@ -31,7 +30,11 @@ import {
 import { useAuth } from '@/context/useAuth';
 import type { PaperPageMap, Plc, PlcMember } from '@/types';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
-import { printPaperTest, type PaperTestQuestion } from '@/utils/paperTestPrint';
+import {
+  PAPER_TEST_PACKET_STYLES,
+  paperTestPacketCopies,
+  type PaperTestQuestion,
+} from '@/utils/paperTestPrint';
 import { PAPER_HANDWRITTEN_FEATURE } from '@/utils/paperWritten';
 import { logError } from '@/utils/logError';
 import {
@@ -56,9 +59,8 @@ interface PlcTeammatePrintModalProps {
   /** Who shared the quiz — the person to ask about an unshared image (D6). */
   ownerName?: string;
   onClose: () => void;
-  /** Test seams mirroring the self-print path. */
+  /** Test seam mirroring the self-print path. */
   print?: typeof printPaperSheets;
-  printTest?: typeof printPaperTest;
 }
 
 const bannerClass =
@@ -93,7 +95,6 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
   ownerName,
   onClose,
   print = printPaperSheets,
-  printTest = printPaperTest,
 }) => {
   const { t } = useTranslation();
   const { canAccessFeature } = useAuth();
@@ -163,7 +164,8 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
     totalSheetCount > 0 &&
     !printing &&
     // A click that beat the image loads would drop every one of them silently.
-    !sheetImages.loading;
+    !sheetImages.loading &&
+    !testStimulusFiles.loading;
 
   const backToPicker = () => {
     setTargetUid(null);
@@ -258,6 +260,16 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
               stimulusImageSrc: sheetImages.src,
             }
           : {}),
+        // Each packet opens with the test paper, lettered to match its sheet.
+        testPaper: paperTestPacketCopies({
+          quizTitle: result.quizTitle,
+          ...teammateTestPaper(
+            result.testPaper,
+            quizStimuli,
+            testStimulusFiles.files
+          ),
+        })[0],
+        testPaperStyles: PAPER_TEST_PACKET_STYLES,
         sheets: result.sheets,
         printedForTeacherName: result.printedForTeacherName,
       });
@@ -267,28 +279,6 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
           ? err.message
           : t('plcDashboard.teammatePrint.printFailed', {
               defaultValue: 'Could not print those response sheets.',
-            })
-      );
-    }
-  };
-
-  const handlePrintTest = () => {
-    if (!printed) return;
-    try {
-      printTest({
-        quizTitle: printed.quizTitle,
-        ...teammateTestPaper(
-          printed.testPaper,
-          quizStimuli,
-          testStimulusFiles.files
-        ),
-      });
-    } catch (err) {
-      setPrintError(
-        err instanceof Error
-          ? err.message
-          : t('plcDashboard.teammatePrint.testFailed', {
-              defaultValue: 'Could not print the test paper.',
             })
       );
     }
@@ -691,8 +681,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
                   name: printed.printedForTeacherName,
                 })
               : t('plcDashboard.teammatePrint.sentBody', {
-                  defaultValue:
-                    'Now print the test paper to match these sheets.',
+                  defaultValue: 'Each packet starts with the test paper.',
                   name: printed.printedForTeacherName,
                 })}
           </p>
@@ -765,27 +754,6 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
         >
           {t('plcDashboard.teammatePrint.done', { defaultValue: 'Done' })}
         </button>
-        {!withdrawn && (
-          <button
-            {...tourAttr('plc-print.test-print')}
-            type="button"
-            onClick={handlePrintTest}
-            disabled={testStimulusFiles.loading}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-2 text-xs font-bold text-white disabled:opacity-60"
-          >
-            {testStimulusFiles.loading ? (
-              <Loader2
-                className="h-3.5 w-3.5 animate-spin"
-                aria-hidden="true"
-              />
-            ) : (
-              <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-            )}
-            {t('plcDashboard.teammatePrint.printTest', {
-              defaultValue: 'Print test paper',
-            })}
-          </button>
-        )}
       </div>
     </div>
   ) : null;
