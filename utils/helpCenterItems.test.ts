@@ -14,6 +14,7 @@ const gl = vi.hoisted(() => ({
   saveBuildingSetDoc: vi.fn(),
   setHelpCenterFlag: vi.fn(),
   publishTour: vi.fn(),
+  clearMarker: vi.fn(),
   openIds: [] as string[],
 }));
 
@@ -43,6 +44,7 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
 }));
 vi.mock('@/components/tours/publishedTours', () => ({
   publishTour: gl.publishTour,
+  clearStudentTourMarker: gl.clearMarker,
 }));
 vi.mock('@/utils/guidedLearningFileRelease', () => ({
   openAssignmentIdsForSet: () => Promise.resolve(gl.openIds),
@@ -362,11 +364,24 @@ describe('publishHelpItem / hideHelpItem', () => {
     gl.loadBuildingSet.mockResolvedValue(saved);
     const result = await publishHelpItem(item({ categoryId: 'admin' }), 'u1');
     expect(result).toEqual({ ok: true });
-    expect(gl.publishTour).toHaveBeenCalledWith(saved, 'u1');
+    expect(gl.publishTour).toHaveBeenCalledWith(saved, 'u1', 'teachers');
     expect(fs.updateDoc).toHaveBeenCalledWith(
       expect.objectContaining({ path: 'help_resources/item-1' }),
       { visible: true, updatedAt: anyNumber }
     );
+  });
+
+  it('publishes a students tour with the students marker', async () => {
+    const saved = set({
+      mode: 'tour',
+      steps: [step('sidebar.admin-settings')],
+    });
+    gl.loadBuildingSet.mockResolvedValue(saved);
+    await publishHelpItem(
+      item({ categoryId: 'admin', audience: 'students' }),
+      'u1'
+    );
+    expect(gl.publishTour).toHaveBeenCalledWith(saved, 'u1', 'students');
   });
 
   it('refuses without writing anything', async () => {
@@ -392,6 +407,12 @@ describe('publishHelpItem / hideHelpItem', () => {
       expect.objectContaining({ path: 'help_resources/item-1' }),
       { visible: false, updatedAt: anyNumber }
     );
+    expect(gl.clearMarker).not.toHaveBeenCalled();
+  });
+
+  it('takes a hidden students tour away from students', async () => {
+    await hideHelpItem({ id: 'item-1', audience: 'students', setId: 's1' });
+    expect(gl.clearMarker).toHaveBeenCalledWith('s1');
   });
 });
 

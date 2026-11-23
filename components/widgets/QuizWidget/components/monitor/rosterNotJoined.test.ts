@@ -136,6 +136,26 @@ describe('buildNotJoined', () => {
     expect(out.map((s) => s.name)).toEqual(['Ben Lee']);
   });
 
+  it('lists only the picked students of a class narrowed to them', () => {
+    const whole = roster(
+      'r2',
+      [student('s9', 'Dee', { classLinkSourcedId: 'D' })],
+      { classlinkClassId: 'class-2' }
+    );
+    const out = buildNotJoined({
+      ...base,
+      session: { rosterIds: ['r1', 'r2'], classIds: ['class-1', 'class-2'] },
+      rosters: [cl, whole],
+      responses: [],
+      targets: {
+        targetMode: 'class',
+        targetStudents: [{ kind: 'classlink', sourcedId: 'B' }],
+        studentTargetClassIds: ['class-1'],
+      },
+    });
+    expect(out.map((s) => s.name)).toEqual(['Ben Lee', 'Dee Lee']);
+  });
+
   it('shows nobody until the assignment targeting is known', () => {
     expect(buildNotJoined({ ...base, targets: null, responses: [] })).toEqual(
       []
