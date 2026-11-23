@@ -37,6 +37,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'choose-n-pick-counted',
   'claude-connector-apps',
   'district-library-folders',
+  'drive-only-uploads',
   'embed-block-new-tabs',
   'flashcard-answer-rows',
   'flashcard-card-images',

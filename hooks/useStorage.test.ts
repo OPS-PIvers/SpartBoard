@@ -2,9 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 vi.mock('@/config/firebase', () => ({ storage: {}, db: {}, auth: {} }));
-vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature: () => false }),
-}));
 vi.mock('./useGoogleDrive', () => ({
   useGoogleDrive: () => ({ driveService: null, userDomain: '' }),
 }));
@@ -33,8 +30,8 @@ describe('useStorage uploading flag', () => {
     let p1!: Promise<string>;
     let p2!: Promise<string>;
     act(() => {
-      p1 = result.current.uploadSticker('u', file);
-      p2 = result.current.uploadSticker('u', file);
+      p1 = result.current.uploadAdminSticker(file);
+      p2 = result.current.uploadAdminSticker(file);
     });
     await act(async () => {
       resolvers[0]();
