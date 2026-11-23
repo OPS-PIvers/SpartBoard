@@ -85681,6 +85681,21 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "student.help-record",
+    "label": "Record a tour in the student Help menu (admins in View as student)",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student.help-menu",
+        "kind": "menu",
+        "path": [
+          "student.help"
+        ]
+      }
+    ]
+  },
+  {
     "id": "subs.help",
     "label": "Help button on every substitute portal screen",
     "scope": "board",

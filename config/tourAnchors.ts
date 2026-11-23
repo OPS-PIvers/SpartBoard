@@ -20014,6 +20014,11 @@ export const TOUR_ANCHORS = {
     panel: true,
     rows: true,
   },
+  'student.help-record': {
+    label: 'Record a tour in the student Help menu (admins in View as student)',
+    panel: true,
+    creates: true,
+  },
   'subs.help': { label: 'Help button on every substitute portal screen' },
   'subs.help-tour': {
     label: 'A live tour in the substitute portal Help menu, keyed row-N',

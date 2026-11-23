@@ -56,12 +56,15 @@ interface RecordingSessionProps {
   onEnd: () => void;
   /** Where the recording started; a Help Center start goes back there when it ends (H13). */
   origin?: TourOrigin;
+  /** A recording made in a View as student tab; review and save start here. */
+  handoff?: TourRecording;
 }
 
 /** Start, record, review, upload and open in the board editor: one real-board tour recording. */
 export const RecordingSession: React.FC<RecordingSessionProps> = ({
   onEnd,
   origin = 'widget',
+  handoff,
 }) => {
   const { t } = useTranslation();
   const { user, canAccessFeature, roleId, orgId } = useAuth();
@@ -72,7 +75,11 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
   const dashboard = useContext(DashboardContext);
   const { uploadGuidedLearningImage } = useStorage();
   const { saveBuildingSet } = useGuidedLearning(undefined);
-  const [phase, setPhase] = useState<Phase>({ kind: 'intro' });
+  const [phase, setPhase] = useState<Phase>(() =>
+    handoff
+      ? { kind: 'review', recording: handoff, widgets: [], startBoard: [] }
+      : { kind: 'intro' }
+  );
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -135,7 +142,11 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
       const item = await createHiddenHelpItem(
         set,
         author,
-        origin === 'subs' ? { audience: 'subs' } : {}
+        origin === 'subs'
+          ? { audience: 'subs' }
+          : origin === 'students'
+            ? { audience: 'students' }
+            : {}
       );
       filed.current = item.id;
       noteFiledHelpItem(set.id, item.id);

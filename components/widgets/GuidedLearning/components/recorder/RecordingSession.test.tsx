@@ -487,6 +487,38 @@ describe('RecordingSession', () => {
       takeFiledHelpItem(saved.id);
     });
 
+    it('opens a View as student recording at review and files it for students', async () => {
+      render(
+        <DashboardContext.Provider value={dashboard}>
+          <RecordingSession
+            onEnd={vi.fn()}
+            origin="students"
+            handoff={h.recording as TourRecording}
+          />
+        </DashboardContext.Provider>
+      );
+      expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Next frame' }));
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole('button', { name: 'Upload and open' })
+        );
+        await Promise.resolve();
+      });
+      await waitFor(() => expect(h.edits).toHaveLength(1));
+      const saved = h.save.mock.calls[0][0] as GuidedLearningSet;
+      expect(h.createItem).toHaveBeenCalledWith(
+        expect.objectContaining({ id: saved.id }),
+        expect.objectContaining({ uid: 'admin-1' }),
+        { audience: 'students' }
+      );
+      expect(h.editRequests[0]).toEqual({
+        setId: saved.id,
+        origin: 'students',
+      });
+      takeFiledHelpItem(saved.id);
+    });
+
     it('carries a Help Center start to the editor so Done goes back there', async () => {
       renderSession(vi.fn(), 'help-center');
       const saved = await finishAndUpload();

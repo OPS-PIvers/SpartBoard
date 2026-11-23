@@ -57,6 +57,12 @@ const ShortLinkRedirect = lazy(() =>
     default: module.ShortLinkRedirect,
   }))
 );
+// View as student only: records a tour for the admin's own tab to save.
+const StudentPreviewRecorder = lazy(() =>
+  import('./components/student/tours/StudentPreviewRecorder').then((m) => ({
+    default: m.StudentPreviewRecorder,
+  }))
+);
 const StudentApp = lazy(() =>
   import('./components/student/StudentApp').then((module) => ({
     default: module.StudentApp,
@@ -1004,6 +1010,9 @@ const App: React.FC = () => {
         <DialogProvider>
           <Suspense fallback={<FullPageLoader />}>
             <StudentPreviewApp />
+          </Suspense>
+          <Suspense fallback={null}>
+            <StudentPreviewRecorder />
           </Suspense>
           <DialogContainer />
         </DialogProvider>

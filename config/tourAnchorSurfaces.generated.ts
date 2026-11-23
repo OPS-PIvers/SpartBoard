@@ -4654,6 +4654,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'sub-launch.end-cancel': ['board.sub-launch'],
     'student.help': ['student.help'],
     'student.help-tour': ['student.help-menu'],
+    'student.help-record': ['student.help-menu'],
     'subs.help': ['board.subs-portal'],
     'subs.help-tour': ['board.subs-help'],
     'subs.help-record': ['board.subs-help'],
