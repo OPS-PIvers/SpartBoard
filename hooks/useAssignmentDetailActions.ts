@@ -60,6 +60,10 @@ import {
   type AssignTargetingValue,
   type ClassTargetingContext,
 } from '@/utils/studentTargetRef';
+import {
+  buildMixedTargetsPayload,
+  type MixedTargeting,
+} from '@/utils/assignTargets';
 import type {
   AssignmentKind,
   UnifiedAssignmentRow,
@@ -102,7 +106,8 @@ export interface UseAssignmentDetailActionsResult {
     row: UnifiedAssignmentRow,
     userId: string,
     next: AssignTargetingValue,
-    classContext?: ClassTargetingContext
+    classContext?: ClassTargetingContext,
+    mixed?: MixedTargetingEdit
   ) => Promise<SaveAssignmentEditResult>;
   /** Convenience: sets `closeAt` to now, leaving targeting/overrides untouched. */
   closeNow: (
@@ -150,6 +155,13 @@ export function dueLockRowCaps(
   return Object.keys(caps).length > 0 ? caps : null;
 }
 
+/** An edit that changes which students a narrowed class reaches. */
+export interface MixedTargetingEdit {
+  /** Session classes narrowed before this edit. */
+  previousClassIds: string[];
+  current: MixedTargeting;
+}
+
 export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
   const { setAssignmentTargets } = useSetAssignmentTargets();
 
@@ -158,16 +170,29 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
       row: UnifiedAssignmentRow,
       userId: string,
       next: AssignTargetingValue,
-      classContext?: ClassTargetingContext
+      classContext?: ClassTargetingContext,
+      mixed?: MixedTargetingEdit
     ): Promise<SaveAssignmentEditResult> => {
       const previous = assignmentRowToTargetingValue(row);
       // Expand once so the assignment doc stores the same snapshot the CF fans
       // out. Roster defaults are NOT re-applied: the stored snapshot is frozen,
       // so a standing accommodation added later never lands retroactively.
-      const effective = classContext
-        ? expandClassTargeting(next, classContext, { useRosterDefaults: false })
-        : next;
-      const payload = buildSetAssignmentTargetsPayload(previous, effective);
+      const effective = mixed
+        ? mixed.current.targeting
+        : classContext
+          ? expandClassTargeting(next, classContext, {
+              useRosterDefaults: false,
+            })
+          : next;
+      const payload = mixed
+        ? buildMixedTargetsPayload(
+            {
+              targeting: previous,
+              studentTargetClassIds: mixed.previousClassIds,
+            },
+            mixed.current
+          )
+        : buildSetAssignmentTargetsPayload(previous, effective);
 
       // A window edit must still reach the pointer docs this assignment
       // already fanned out, or "Close now" never reaches accommodated students.
@@ -190,6 +215,9 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
           overridesBySourcedId: payload.overridesBySourcedId,
           ...(payload.excludedTargets
             ? { excludedTargets: payload.excludedTargets }
+            : {}),
+          ...(payload.studentTargetClassIds
+            ? { studentTargetClassIds: payload.studentTargetClassIds }
             : {}),
           window: payload.window,
         });
