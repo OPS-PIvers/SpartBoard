@@ -18,7 +18,7 @@ export const PeriodAccessControls: React.FC<PeriodAccessControlsProps> = ({
   actions,
   logTag,
 }) => {
-  const run = usePeriodRunner(periodAccess, logTag);
+  const run = usePeriodRunner(logTag);
   return (
     <div
       className="flex flex-wrap items-center"

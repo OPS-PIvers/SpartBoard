@@ -133,9 +133,8 @@ export const FlashcardAssignmentRow: React.FC<FlashcardAssignmentRowProps> = ({
           icon: Rocket,
           onClick: () =>
             void runPeriod(async () => {
-              const untimed = await periods.startAll();
+              await periods.startAll();
               onMonitor(a);
-              return untimed;
             }),
         }
       : { label: 'Monitor', icon: Monitor, onClick: () => onMonitor(a) };

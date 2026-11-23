@@ -134,19 +134,19 @@ export function useWritingClassActions(
   );
 
   const open = useCallback(
-    async (key: string | null, isReopen: boolean): Promise<string[]> => {
+    async (key: string | null, isReopen: boolean): Promise<void> => {
       owned();
       const k = classKey(key);
       if (k == null) {
         // A single line's own clock must not hold students out once the teacher opens it.
         const a = await fresh();
-        if (!a) return [];
+        if (!a) return;
         const now = Date.now();
         const window: { openAt?: null; closeAt?: null } = {};
         if (a.openAt != null && a.openAt > now) window.openAt = null;
         if (a.closeAt != null && a.closeAt <= now) window.closeAt = null;
         const cleared = Object.keys(window).length > 0;
-        if (!cleared && a.status !== 'ended') return [];
+        if (!cleared && a.status !== 'ended') return;
         await send({
           ...(cleared ? { window } : {}),
           ...(a.status === 'ended' ? { reopen: true } : {}),
@@ -168,13 +168,11 @@ export function useWritingClassActions(
             console.error('Pointer window sync failed', err);
           }
         }
-        return [];
+        return;
       }
-      const untimed = isReopen
-        ? await periods.reopenPeriod(k)
-        : await periods.startPeriod(k);
+      if (isReopen) await periods.reopenPeriod(k);
+      else await periods.startPeriod(k);
       await ensureActive(k);
-      return untimed;
     },
     [owned, classKey, fresh, send, setAssignmentTargets, periods, ensureActive]
   );

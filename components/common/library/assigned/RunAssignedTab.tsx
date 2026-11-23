@@ -379,7 +379,7 @@ function RunLeftOpenHost<A extends RunAssignment>({
     lifecycle ?? NO_LIFECYCLE,
     rosters
   );
-  const run = usePeriodRunner(a.periodAccess, 'RunAssignedTab.leftOpen');
+  const run = usePeriodRunner('RunAssignedTab.leftOpen');
   const [busy, setBusy] = useState(false);
   const single = row.status.singleLine;
   return (
@@ -429,7 +429,7 @@ function RunAssignedRowHost<A extends RunAssignment>({
   const { addToast } = useDashboard();
   const lifecycle = lifecycleProp ?? NO_LIFECYCLE;
   const actions = useAssignmentClassActions(a, collections, lifecycle, rosters);
-  const run = usePeriodRunner(a.periodAccess, 'RunAssignedTab.class');
+  const run = usePeriodRunner('RunAssignedTab.class');
   const [busy, setBusy] = useState(false);
   const exec = async (fn: () => Promise<unknown>) => {
     setBusy(true);

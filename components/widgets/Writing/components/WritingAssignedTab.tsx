@@ -349,7 +349,7 @@ const WritingLeftOpenHost: React.FC<{
 }> = ({ row, cls, index, rosters, onLeaveOpen }) => {
   const r = row.record;
   const actions = useWritingClassActions(r, rosters);
-  const run = usePeriodRunner(r.periodAccess, 'WritingAssignedTab.leftOpen');
+  const run = usePeriodRunner('WritingAssignedTab.leftOpen');
   const [busy, setBusy] = useState(false);
   const single = row.status.singleLine;
   return (
@@ -389,7 +389,7 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
   const { record: r, status, needsGrading, bells } = row;
   const { addToast } = useDashboard();
   const actions = useWritingClassActions(r, rosters);
-  const run = usePeriodRunner(r.periodAccess, 'WritingAssignedTab.class');
+  const run = usePeriodRunner('WritingAssignedTab.class');
   const [busy, setBusy] = useState(false);
   const exec = async (fn: () => Promise<unknown>) => {
     setBusy(true);
