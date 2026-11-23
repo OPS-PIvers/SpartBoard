@@ -27685,7 +27685,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.assigned-reopen",
-    "label": "Reopen…, in an Assigned row menu",
+    "label": "Reopen, in an Assigned row menu",
     "scope": "board",
     "panel": true,
     "persists": true,
