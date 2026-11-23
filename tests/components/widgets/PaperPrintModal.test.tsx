@@ -734,7 +734,7 @@ describe('PaperPrintModal', () => {
       const order: string[] = [];
       const onSavePrintSetup = vi.fn(() => {
         order.push('quiz');
-        return Promise.resolve();
+        return Promise.resolve(undefined);
       });
       const onSaveBatch = vi.fn(() => {
         order.push('batch');
