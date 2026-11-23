@@ -194,6 +194,13 @@ service cloud.firestore {
     function notAnon() {
       return request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
+    // A web tour author (WEB_TOUR_AUTHORS.md A1-A3): an admin, or district staff an admin added to /tour_authors.
+    // A view-as tab never counts: it would let an admin write as the author they are viewing.
+    function isTourAuthor() {
+      return isAdmin() ||
+             (tok().get('viewAs', null) == null && isDistrictStaff() &&
+              exists(/databases/$(database)/documents/tour_authors/$(tok().email.lower())));
+    }
     // Signed in, not anonymous, not a studentRole token.
     function staffSignedIn() { return signedIn() && notAnon() && !isStudentRoleUser(); }
     function liveStaffSignedIn() { return signedIn() && notAnon() && !isStudentRoleUser() && notDeactivated(); }
@@ -1157,9 +1164,29 @@ service cloud.firestore {
       allow read: if staffSignedIn() && (isDistrictStaff() || isAdmin());
     }
 
-    // Web tour drafts (CHROME_EXTENSION.md T6): admins only, never anonymous or student sessions.
-    match /building_web_tours/{setId} {
+    // The web tour author list (WEB_TOUR_AUTHORS.md A1): admins manage it; a person reads only their own doc.
+    match /tour_authors/{email} {
+      allow get: if signedIn() && emailVerified() && tok().get('email', '').lower() == email;
       allow read, write: if isAdmin();
+    }
+
+    // Web tour drafts (CHROME_EXTENSION.md T6): admins and tour authors, never anonymous or student sessions.
+    // An author's new draft carries their own uid, no author edit changes it, and an author deletes only their own (L1, L3).
+    match /building_web_tours/{setId} {
+      allow read: if isTourAuthor();
+      allow create: if isAdmin() || (isTourAuthor() && myAuthorUid());
+      allow update: if isAdmin() || (isTourAuthor() && incoming().get('authorUid', '') == existing().get('authorUid', ''));
+      allow delete: if isAdmin() || (isTourAuthor() && existing().authorUid == authUid());
+    }
+
+    // A tour's public link record (WEB_TOUR_AUTHORS.md P1): an author reads it, turns it on under their own
+    // email, and may change one someone else confirmed only without touching confirmedBy (turning it off).
+    // On a create the second test reads a missing doc and fails closed.
+    match /admin_settings/tour_public_links/tours/{setId} {
+      allow read: if isTourAuthor();
+      allow create, update: if isTourAuthor() &&
+        (incoming().get('confirmedBy', '') == tok().email.lower() ||
+         incoming().get('confirmedBy', '') == existing().get('confirmedBy', ''));
     }
 
     // Published live tours (P7-3): staff read, admins publish; students never run tours.
@@ -1168,9 +1195,17 @@ service cloud.firestore {
     match /building_guided_learning_tours/{setId} {
       allow get: if staffSignedIn() && (noDoc() || existing().get('surface', 'spartboard') == 'spartboard' || isDistrictStaff() || isAdmin());
       allow list: if staffSignedIn() && (isDistrictStaff() || isAdmin());
-      allow create, delete: if isAdmin();
+      // A tour author publishes web tours only (WEB_TOUR_AUTHORS.md B3); removing a snapshot stays with admins and the server.
+      allow create: if isAdmin() || (isTourAuthor() && incoming().surface == 'web');
+      allow delete: if isAdmin();
       // The read gate rests on surface, so a republish never changes it.
-      allow update: if isAdmin() && incoming().get('surface', 'spartboard') == existing().get('surface', 'spartboard');
+      allow update: if (isAdmin() || (isTourAuthor() && existing().surface == 'web')) &&
+        incoming().get('surface', 'spartboard') == existing().get('surface', 'spartboard');
+      // An author reads the runs and counts of web tours only.
+      function authorOfWebTour() {
+        return isTourAuthor() &&
+          get(/databases/$(database)/documents/building_guided_learning_tours/$(setId)).data.surface == 'web';
+      }
       // Each teacher's latest run of the tour (P7-6): write-only, admins read. Web tour runs add surface and weak (T10),
       // suggested fixes by step (C14), and `admin` on an admin's own run, whose fixes show after one run.
       match /runs/{uid} {
@@ -1181,14 +1216,14 @@ service cloud.firestore {
             d.misses is list && d.misses.size() <= 50 &&
             d.get('surface', 'web') == 'web' && d.get('weak', []) is list && d.get('weak', []).size() <= 50 &&
             d.get('fixes', {}) is map && d.get('fixes', {}).size() <= 50 &&
-            (!('admin' in d) || (d.admin == true && isAdmin()));
+            (!('admin' in d) || (d.admin == true && isTourAuthor()));
         }
-        allow read: if isAdmin();
+        allow read: if isAdmin() || authorOfWebTour();
         allow create, update: if staffSignedIn() && uid == authUid() && validRun(incoming());
       }
       // Play, finish and public link view counts, written only by the tourCounts functions.
       match /stats/{doc} {
-        allow read: if isAdmin();
+        allow read: if isAdmin() || authorOfWebTour();
       }
     }
 

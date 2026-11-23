@@ -13613,6 +13613,9 @@ export const TOUR_ANCHORS = {
     perField: true,
     persists: true,
   },
+  'web-tours.authors': {
+    label: 'Authors button on the Web tours page (admins only)',
+  },
   'web-tours.freshservice-settings': {
     label: 'FreshService settings button on the Web tours page',
   },

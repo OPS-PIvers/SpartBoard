@@ -56,6 +56,12 @@ service firebase.storage {
              request.auth.token.get('studentRole', false) != true &&
              districtStaffMember(firestore.get(/databases/(default)/documents/organizations/orono/members/$(request.auth.token.email.lower())));
     }
+    // As firestore.rules isTourAuthor(): an admin, or district staff on the /tour_authors list, never a view-as tab.
+    function isTourAuthor() {
+      return isAdmin() ||
+             (request.auth != null && request.auth.token.get('viewAs', null) == null && isDistrictStaff() &&
+              firestore.exists(/databases/(default)/documents/tour_authors/$(request.auth.token.email.lower())));
+    }
     // As firestore.rules notDeactivated(): false only for an operator-org member whose status revokes access.
     function notDeactivated() {
       return liveToken() && (request.auth.token.get('email', '') == '' ||
@@ -551,12 +557,12 @@ service firebase.storage {
         (pjIsRunTeacher() || isSiteAdmin() || (pjIsGroupMember() && pjRunAccepting() && pjGroupOpen()));
     }
 
-    // Web tour step pictures (CHROME_EXTENSION.md T6): district staff and admins get through the SDK, admins list and write.
+    // Web tour step pictures (CHROME_EXTENSION.md T6): district staff and admins get through the SDK; admins and tour authors list and write.
     match /web_tour_pictures/{setId}/{fileName} {
       allow get: if (isDistrictStaff() && viewAsReadOk()) || isAdmin();
-      allow list, delete: if isAdmin();
+      allow list, delete: if isTourAuthor();
       // Create only: a live tour's picture is never replaced in place, so changes go through publish.
-      allow create: if isAdmin() &&
+      allow create: if isTourAuthor() &&
         request.resource.size <= 5 * 1024 * 1024 &&
         request.resource.contentType is string &&
         request.resource.contentType.matches('image/(png|jpeg|webp)');

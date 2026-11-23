@@ -13,6 +13,7 @@ import {
   Plus,
   Search,
   Settings,
+  Users,
 } from 'lucide-react';
 import type { GuidedLearningSet } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
@@ -35,7 +36,13 @@ import { AuthContext } from '@/context/AuthContextValue';
 import { webTourSite } from './tourLinks';
 import { webToursDevSeed } from './webToursDevSeed';
 import { useCanFreshservice } from './freshservice';
+import { AuthContext } from '@/context/AuthContextValue';
 
+const TourAuthorsDialog = lazy(() =>
+  import('./TourAuthorsDialog').then((m) => ({
+    default: m.TourAuthorsDialog,
+  }))
+);
 const FreshserviceSettings = lazy(() =>
   import('./FreshserviceSettings').then((m) => ({
     default: m.FreshserviceSettings,
@@ -131,6 +138,9 @@ export const WebToursPage: React.FC = () => {
   const [listFailed, setListFailed] = useState(false);
   const canFresh = useCanFreshservice();
   const [freshOpen, setFreshOpen] = useState(false);
+  const auth = useContext(AuthContext);
+  const adminEmail = auth?.isAdmin ? (auth.user?.email ?? null) : null;
+  const [authorsOpen, setAuthorsOpen] = useState(false);
   // Read once, so an effect run twice still knows which tour to open.
   const [linkedId] = useState(() =>
     new URL(window.location.href).searchParams.get(EDIT_WEB_TOUR_PARAM)
@@ -282,6 +292,17 @@ export const WebToursPage: React.FC = () => {
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <h1 className="shrink-0 text-lg font-bold">Web tours</h1>
           <div className="flex items-center gap-2">
+            {adminEmail && (
+              <button
+                type="button"
+                onClick={() => setAuthorsOpen(true)}
+                className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white ring-1 ring-inset ring-white/40 hover:bg-white/10 ${focusRing}`}
+                {...tourAttr('web-tours.authors')}
+              >
+                <Users className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only sm:not-sr-only">Authors</span>
+              </button>
+            )}
             {canFresh && (
               <button
                 type="button"
@@ -310,6 +331,14 @@ export const WebToursPage: React.FC = () => {
           </div>
         </div>
       </header>
+      {authorsOpen && adminEmail && (
+        <Suspense fallback={null}>
+          <TourAuthorsDialog
+            adminEmail={adminEmail}
+            onClose={() => setAuthorsOpen(false)}
+          />
+        </Suspense>
+      )}
       {freshOpen && (
         <Suspense fallback={null}>
           <FreshserviceSettings
