@@ -3,7 +3,10 @@ import type { TourSurfaceMap } from './types';
 const MENU = 'sidebar.open-menu';
 const DOCK = 'dock.open-tools';
 const BOARDS_MENU = 'board-nav.select-board';
-const GROUP_PAGE = 'roster-groups.edit:roster-groups';
+const GROUP_PAGE = [
+  'roster-groups.edit:roster-groups',
+  'roster-groups.new',
+] as const;
 
 export const SURFACES: TourSurfaceMap = {
   // Import's review step for an AI-made board; opened from Import once a target is picked.
@@ -609,14 +612,14 @@ export const SURFACES: TourSurfaceMap = {
       'roster-groups.split-name': 'roster-groups.split',
       'roster-groups.split-cancel': 'roster-groups.split',
       'roster-groups.split-create': 'roster-groups.split',
-      'roster-groups.back': 'roster-groups.edit:roster-groups',
-      'roster-groups.name': 'roster-groups.edit:roster-groups',
-      'roster-groups.delete': 'roster-groups.edit:roster-groups',
-      'roster-groups.search': 'roster-groups.edit:roster-groups',
-      'roster-groups.select-all': 'roster-groups.edit:roster-groups',
-      'roster-groups.clear': 'roster-groups.edit:roster-groups',
-      'roster-groups.done': 'roster-groups.edit:roster-groups',
-      'roster-groups.show-in-widgets': 'roster-groups.edit:roster-groups',
+      'roster-groups.back': GROUP_PAGE,
+      'roster-groups.name': GROUP_PAGE,
+      'roster-groups.delete': GROUP_PAGE,
+      'roster-groups.search': GROUP_PAGE,
+      'roster-groups.select-all': GROUP_PAGE,
+      'roster-groups.clear': GROUP_PAGE,
+      'roster-groups.done': GROUP_PAGE,
+      'roster-groups.show-in-widgets': GROUP_PAGE,
       'group-wizard.preview': GROUP_PAGE,
       'group-wizard.icon-search': GROUP_PAGE,
       'group-wizard.icon': GROUP_PAGE,

@@ -216,7 +216,7 @@ describe('tour surfaces', () => {
           for (const ref of [
             def.opensWith,
             ...(def.alsoOpensWith ?? []),
-            ...Object.values(def.inner ?? {}),
+            ...Object.values(def.inner ?? {}).flat(),
           ]) {
             const shape = ref && refShapeProblem(ref);
             if (shape) fail(shape);
@@ -244,7 +244,7 @@ describe('tour surfaces', () => {
           ) {
             fail(def.kind === 'page' ? 'page without url' : 'no opensWith');
           }
-          for (const [anchor, opener] of Object.entries(def.inner ?? {})) {
+          for (const [anchor, openers] of Object.entries(def.inner ?? {})) {
             // Or it opens a child surface from here, rendered by a shared component.
             const opensChild = Object.values(TOUR_SURFACES).some(
               (child) =>
@@ -254,8 +254,9 @@ describe('tour surfaces', () => {
             );
             if (!(LIVE[anchor] ?? []).includes(id) && !opensChild)
               fail(`inner ${anchor} does not render here`);
-            if (!isRegisteredRef(opener))
-              fail(`inner opener ${opener} is not a registered anchor`);
+            for (const opener of [openers].flat())
+              if (!isRegisteredRef(opener))
+                fail(`inner opener ${opener} is not a registered anchor`);
           }
         }
         expect(problems, problems.join('\n')).toEqual([]);
