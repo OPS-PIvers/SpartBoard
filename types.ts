@@ -11897,8 +11897,6 @@ export type GlobalFeature =
   | 'quiz-frozen-assignments'
   /** Rubric grading redesign: one-tap level buttons, expandable criteria, level order switch, full-rubric table. */
   | 'rubric-grading-v2'
-  /** Quiz assign: a modification group can get a printed version, scanned back into the same results. */
-  | 'paper-printed-versions'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */

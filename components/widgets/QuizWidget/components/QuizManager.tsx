@@ -223,7 +223,7 @@ export interface QuizStepperAssign {
     boxSizes: Record<string, PaperBoxSize>;
     boxStyles: Record<string, PaperBoxStylePick>;
   };
-  /** Modification groups that print their version at assign (`paper-printed-versions`). */
+  /** Modification groups that print their version at assign . */
   printedGroups?: PrintedGroupPick[];
 }
 
@@ -355,7 +355,7 @@ interface QuizManagerProps {
   hasLooseStack?: (quizId: string) => boolean;
   /** Assign can put written questions on paper (`paper-written-hybrid` and the paper gates). */
   writtenOnPaperAvailable?: boolean;
-  /** A modification group can print its version at assign (`paper-printed-versions` and the paper gates). */
+  /** A modification group can print its version at assign (with the paper gates). */
   printedVersionsAvailable?: boolean;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;

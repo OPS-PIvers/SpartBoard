@@ -1,4 +1,4 @@
-// A modification group's printed version of a device quiz (`paper-printed-versions`).
+// A modification group's printed version of a device quiz.
 import type {
   PaperBatch,
   PaperCopyGroupPlan,
@@ -16,8 +16,6 @@ import {
   type ModificationGroup,
   type PrintedGroupPick,
 } from '@/components/common/library/assignStepper/modificationGroups';
-
-export const PAPER_PRINTED_VERSIONS_FEATURE = 'paper-printed-versions';
 
 const INCORRECT_ID = /-incorrect-(\d+)$/;
 

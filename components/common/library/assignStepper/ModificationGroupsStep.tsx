@@ -63,7 +63,7 @@ export interface ModificationGroupsStepProps {
   overridesByKey: Parameters<typeof effectiveClassOverride>[1];
   /** True while a support's Drive file is still being shared. */
   onSharingChange?: (sharing: boolean) => void;
-  /** Shows the Printed version row (`paper-printed-versions`). */
+  /** Shows the Printed version row . */
   printedAvailable?: boolean;
   /** Drive files of class presets: shared with the class, so never deleted here. */
   keepFileIds?: ReadonlySet<string>;

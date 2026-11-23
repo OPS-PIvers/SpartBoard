@@ -438,7 +438,7 @@ export interface QuizContext {
   overrideQuestionIds: (studentUid: string) => string[];
   /** The teacher gave this student the modified version of each question. */
   modifiedStudent?: (studentUid: string) => boolean;
-  /** Stacks printed for modification groups (`paper-printed-versions`). */
+  /** Stacks printed for modification groups . */
   paperCopyBatchIds?: ReadonlySet<string>;
 }
 

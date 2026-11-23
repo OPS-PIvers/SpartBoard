@@ -317,7 +317,7 @@ interface QuizResultsProps {
   onBack: () => void;
   tabWarningsEnabled?: boolean;
   session?: import('@/types').QuizSession | null;
-  /** Printed group stacks (`paper-printed-versions`); a response scanned from one shows a Paper badge. */
+  /** Printed group stacks; a response scanned from one shows a Paper badge. */
   paperCopyBatchIds?: readonly string[];
   /**
    * Delete a single student response by its deterministic Firestore doc key

@@ -271,7 +271,6 @@ import {
   planHybridWrittenBatch,
 } from '@/utils/paperWrittenHybrid';
 import {
-  PAPER_PRINTED_VERSIONS_FEATURE,
   printedGroupForPrint,
   printedGroupQuiz,
   printedGroupRecord,
@@ -1067,8 +1066,7 @@ const TeacherQuizWidget: React.FC<{
     canAccessFeature(PAPER_HANDWRITTEN_FEATURE) &&
     canAccessFeature(PAPER_WRITTEN_HYBRID_FEATURE);
   // A modification group's printed version, scanned back into the device assignment.
-  const printedVersionsOn =
-    !!paperUid && canAccessFeature(PAPER_PRINTED_VERSIONS_FEATURE);
+  const printedVersionsOn = !!paperUid;
   const [paperGroupReprint, setPaperGroupReprint] = useState<
     PaperReprintGroup[] | null
   >(null);

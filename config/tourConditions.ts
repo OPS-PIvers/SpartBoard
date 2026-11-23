@@ -50,6 +50,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'lunch-count-resend',
   'modification-groups',
   'paper-fill-in-blank',
+  'paper-printed-versions',
   'project-submit',
   'question-editor-fields',
   'quick-sign-in',
