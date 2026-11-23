@@ -42,6 +42,8 @@ import {
   QUESTION_STEM_H_MM,
   QUESTION_STEM_W_MM,
   QUESTION_STEM_X_MM,
+  ACROSS_TERM_W_MM,
+  ROW_PITCH_MM,
   bubbleRectAtOriginMm,
   bubbleRectMm,
   markerCellRectMm,
@@ -54,9 +56,13 @@ import {
   type RectMm,
 } from './paperSheetLayout';
 import {
+  GROUP_INSTRUCTION_MM,
+  GROUP_LEGEND_MM,
+  GROUP_LIST_LINE_MM,
   WRITTEN_OUTLINE_MM,
   WRITTEN_RULE_LINE_MM,
   isStimulusFreePage,
+  itemBubbleRectMm,
   mcItemsOf,
   writtenBoxBandsMm,
   writtenItemsOf,
@@ -88,6 +94,7 @@ import {
   type OpenWindow,
 } from './printHtmlDocument';
 import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
+import { paperPrintWords, type PaperPrintWords } from './paperPrintWords';
 import {
   cropViewportMm,
   markupCommentRows,
@@ -139,6 +146,10 @@ export interface PaperPrintJob {
   pageMaps?: readonly PaperPageMap[];
   /** Stem per written question id, printed in its header when the header has room. */
   writtenTexts?: Readonly<Record<string, string>>;
+  /** Matching, ordering and choose all text by page map id. */
+  groupTexts?: Readonly<Record<string, PaperGroupText>>;
+  /** The copy's language, for the fixed words around grouped questions; absent = English. */
+  language?: string;
   /** Image `src` per written question id, printed lightly inside a custom image box. */
   writtenImages?: Readonly<Record<string, string>>;
   /** Fill in the blank: each blank's answer by question id, printed on the answer key's lines. */
@@ -159,6 +170,17 @@ export interface PaperPrintJob {
   testPaperStyles?: string;
 }
 
+/** What a matching, ordering or choose all question prints around its rows. */
+export interface PaperGroupText {
+  text: string;
+  /** Lettered options for choose all and matching, or ordering's items, in printed order. */
+  options: readonly string[];
+  /** Matching: each term, in row order. */
+  terms?: readonly string[];
+  /** Question-text sheets: the question's own stimuli, under its instruction. */
+  stimulus?: SheetStimulusBlock;
+}
+
 /** A written question's full prompt and its figures, printed on the page before its box. */
 export interface PaperPromptPage {
   text: string;
@@ -173,6 +195,7 @@ export interface PaperPrintVersion {
   questionTexts?: readonly PaperSheetQuestionText[];
   rowLabels?: readonly (string | undefined)[];
   writtenTexts?: Readonly<Record<string, string>>;
+  groupTexts?: Readonly<Record<string, PaperGroupText>>;
   /** This version's fill in the blank answers, printed on its answer key. */
   blankAnswers?: Readonly<Record<string, readonly string[]>>;
   prompts?: Readonly<Record<string, PaperPromptPage>>;
@@ -433,6 +456,120 @@ function sheetChoiceHtml(
 }
 
 const MARK_GLYPH = { correct: '✓', incorrect: '✗', unclear: '?' } as const;
+
+type McPageItem = Extract<PaperPageItem, { kind: 'mc' }>;
+
+/** One answer row of a matching, ordering or choose all question, with its title or text when it is the first. */
+function groupRowHtml(
+  item: McPageItem,
+  grid: PaperGrid,
+  fill: SheetFill | undefined,
+  text: PaperGroupText | undefined,
+  words: PaperPrintWords
+): string {
+  const group = item.group ?? 'all';
+  const choices = item.choices ?? 2;
+  const part = item.part ?? 0;
+  const parts: string[] = [];
+  const bubble = (c: number, label: string): string => {
+    const r = itemBubbleRectMm(item, c, grid);
+    const cls = fill
+      ? `bub${fill.filled[item.sheetRow] === c ? ' filled' : ''}${
+          fill.key[item.sheetRow] === c ? ' key' : ''
+        }`
+      : 'bub';
+    return `<div class="${cls}" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(r.w)};height:${mm(r.h)}">${escapeHtml(label)}</div>`;
+  };
+  // Ordering across a question-text sheet bubbles each item's place, so its bubbles are numbered.
+  const labelOf = (c: number): string =>
+    item.across && group === 'order' ? String(c + 1) : CHOICE_LETTERS[c];
+
+  if (grid !== 'questions') {
+    const o = item.originMm;
+    const number = group === 'all' ? item.label : `${item.label}.${part + 1}`;
+    parts.push(
+      `<div class="num" style="left:${mm(o.x)};top:${mm(o.y)};width:${mm(NUMBER_WIDTH_MM - 2)}">${escapeHtml(number)}</div>`
+    );
+    if (part === 0) {
+      const first = itemBubbleRectMm(item, 0, grid);
+      parts.push(
+        `<div class="grp-title" style="left:${mm(first.x)};top:${mm(o.y - ROW_PITCH_MM + 0.4)}">${escapeHtml(words.groupTitle(group))}</div>`
+      );
+      for (let c = 0; c < Math.min(choices, item.wrap ?? choices); c += 1) {
+        const r = itemBubbleRectMm(item, c, grid);
+        parts.push(
+          `<div class="legend" style="left:${mm(r.x)};top:${mm(o.y - 4.2)};width:${mm(r.w)}">${CHOICE_LETTERS[c]}</div>`
+        );
+      }
+    }
+    for (let c = 0; c < choices; c += 1)
+      parts.push(bubble(c, CHOICE_LETTERS[c]));
+    return parts.join('');
+  }
+
+  if (item.headTopMm !== undefined) {
+    const top = item.headTopMm;
+    const stemMm = item.stemMm ?? QUESTION_STEM_H_MM;
+    parts.push(
+      `<div class="num qnum" style="left:${mm(COLUMN_X_MM[0])};top:${mm(top)};width:${mm(NUMBER_WIDTH_MM - 2)}">${escapeHtml(item.label)}</div>`,
+      `<div class="qt-stem" style="left:${mm(QUESTION_STEM_X_MM)};top:${mm(top)};width:${mm(QUESTION_STEM_W_MM)}">${escapeHtml(plainPromptText(text?.text ?? ''))}</div>`,
+      `<div class="grp-inst" style="left:${mm(QUESTION_STEM_X_MM)};top:${mm(top + stemMm)};width:${mm(QUESTION_STEM_W_MM)}">${escapeHtml(
+        words.groupInstruction(group, {
+          across: !!item.across,
+          unusedLetters: (text?.terms?.length ?? choices) < choices,
+        })
+      )}</div>`
+    );
+    if (text?.stimulus) {
+      parts.push(
+        blockHtml(
+          text.stimulus,
+          QUESTION_STEM_X_MM,
+          top + stemMm + GROUP_INSTRUCTION_MM + 1.5
+        )
+      );
+    }
+    if (item.across) {
+      const rowsTop = item.originMm.y;
+      if (group === 'match') {
+        const listTop =
+          rowsTop - GROUP_LEGEND_MM - choices * GROUP_LIST_LINE_MM;
+        (text?.options ?? []).slice(0, choices).forEach((o, c) => {
+          parts.push(
+            `<div class="qt-choice" style="left:${mm(QUESTION_STEM_X_MM)};top:${mm(listTop + c * GROUP_LIST_LINE_MM)};width:${mm(QUESTION_STEM_W_MM)};height:${mm(GROUP_LIST_LINE_MM)}">${escapeHtml(`${CHOICE_LETTERS[c]}.  ${plainMathText(o)}`)}</div>`
+          );
+        });
+      }
+      for (let c = 0; c < choices; c += 1) {
+        const r = itemBubbleRectMm(item, c, grid);
+        parts.push(
+          `<div class="legend" style="left:${mm(r.x)};top:${mm(rowsTop - GROUP_LEGEND_MM + 0.8)};width:${mm(r.w)}">${labelOf(c)}</div>`
+        );
+      }
+    }
+  }
+
+  if (item.across) {
+    const o = item.originMm;
+    const term = group === 'match' ? text?.terms?.[part] : text?.options[part];
+    parts.push(
+      `<div class="qt-choice" style="left:${mm(o.x)};top:${mm(o.y)};width:${mm(ACROSS_TERM_W_MM - 2)};height:${mm(BUBBLE_DIAMETER_MM)}">${escapeHtml(plainMathText(term ?? ''))}</div>`
+    );
+    for (let c = 0; c < choices; c += 1) parts.push(bubble(c, labelOf(c)));
+    return parts.join('');
+  }
+
+  // Choose all on a question-text sheet: one bubble per option, down the page.
+  for (let c = 0; c < choices; c += 1) {
+    const b = itemBubbleRectMm(item, c, grid);
+    parts.push(bubble(c, CHOICE_LETTERS[c]));
+    const x = b.x + b.w + QUESTION_CHOICE_TEXT_GAP_MM;
+    parts.push(
+      `<div class="qt-choice" style="left:${mm(x)};top:${mm(b.y)};width:${mm(QUESTION_STEM_X_MM + QUESTION_STEM_W_MM - x)};height:${mm(b.h)}">${escapeHtml(plainMathText(text?.options[c] ?? ''))}</div>`
+    );
+  }
+  return parts.join('');
+}
 
 /** One MC row: number, optional question text, bubbles and its reprint mark. */
 function mcRowHtml(
@@ -1033,7 +1170,17 @@ function mapPageBodyHtml(
   const parts = [mapLegendsHtml(map, choiceCount)];
   const slices = fill ? cropSlices(job.pageMaps) : undefined;
   for (const item of map.items) {
-    if (item.kind === 'mc') {
+    if (item.kind === 'mc' && item.group) {
+      parts.push(
+        groupRowHtml(
+          item,
+          map.grid,
+          fill,
+          job.groupTexts?.[item.questionId],
+          paperPrintWords(job.language)
+        )
+      );
+    } else if (item.kind === 'mc') {
       parts.push(
         mcRowHtml(
           item.originMm,
@@ -1106,6 +1253,7 @@ function sheetPageList(
           : {}),
         ...(version.rowLabels ? { rowLabels: version.rowLabels } : {}),
         ...(version.writtenTexts ? { writtenTexts: version.writtenTexts } : {}),
+        ...(version.groupTexts ? { groupTexts: version.groupTexts } : {}),
         ...(version.blankAnswers ? { blankAnswers: version.blankAnswers } : {}),
         ...(version.prompts ? { prompts: version.prompts } : {}),
         ...(version.stimulusBlocks
@@ -1324,6 +1472,8 @@ const SHEET_STYLES = `
   .num.qnum { font-size: 9pt; font-weight: 700; line-height: 3.6mm; }
   .num.wr-num { line-height: 3.6mm; }
   .legend { font-size: 7pt; text-align: center; color: #444; }
+  .grp-title { position: absolute; font-size: 7pt; color: #444; white-space: nowrap; }
+  .grp-inst { position: absolute; font-size: 9pt; font-style: italic; line-height: 4mm; color: #222; }
   .bub {
     border: 0.35mm solid #000;
     border-radius: 50%;

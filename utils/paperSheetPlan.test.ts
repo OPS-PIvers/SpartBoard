@@ -119,7 +119,7 @@ describe('analyzePaperQuiz written list', () => {
     expect(result.exclusions.map((e) => e.reason)).toEqual(['recording']);
   });
 
-  it('refuses written questions inside a choose-N section', () => {
+  it('prints written questions inside a choose-N section', () => {
     const result = analyzePaperQuiz(
       quiz({
         questions: [mc({ id: 'a' }), fr({ id: 'w' }), fr({ id: 'v' })],
@@ -133,11 +133,8 @@ describe('analyzePaperQuiz written list', () => {
       }),
       { written: true }
     );
-    expect(result.written).toEqual([]);
-    expect(result.writtenRefusals.map((e) => [e.reason, e.label])).toEqual([
-      ['choose-section', '2. Explain why.'],
-      ['choose-section', '3. Explain why.'],
-    ]);
+    expect(result.written.map((w) => w.questionId)).toEqual(['w', 'v']);
+    expect(result.writtenRefusals).toEqual([]);
   });
 
   it('keeps written questions in a section students answer in full', () => {

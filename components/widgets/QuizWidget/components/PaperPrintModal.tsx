@@ -105,9 +105,11 @@ import {
 } from './PaperWrittenBoxControls';
 import {
   analyzePaperQuiz,
+  matchingPairs,
   buildPaperStubQuiz,
   isPaperStubAnalysis,
   planPaperBatch,
+  type PaperExclusionReason,
   type PaperQuizAnalysis,
 } from '@/utils/paperSheetPlan';
 import {
@@ -135,6 +137,7 @@ import {
   buildPaperSheetsPreviewPages,
   type PaperPreviewPage,
   printPaperSheets,
+  type PaperGroupText,
   type PaperPrintJob,
   type PaperPromptPage,
 } from '@/utils/paperSheetPrint';
@@ -157,6 +160,8 @@ import {
   promptPagesFor,
   promptRowsFor,
   promptQuestionIds,
+  groupTextsFor,
+  sheetRowSlots,
   versionSheetQuestions,
   versionStemLines,
 } from '@/utils/paperSheetVersions';
@@ -205,6 +210,17 @@ async function imagePixelSize(
     URL.revokeObjectURL(url);
   }
 }
+
+/** Why a question stays off the sheet, one line per kind. */
+const EXCLUSION_FIX =
+  'Return to the question editor or print without this question.';
+const EXCLUSION_REASONS: Record<PaperExclusionReason, string> = {
+  recording: `Cannot print recordings. ${EXCLUSION_FIX}`,
+  'too-many-choices': `Cannot print questions with more than 10 answers. ${EXCLUSION_FIX}`,
+  'too-few-choices': `Cannot print questions with fewer than 2 answers. ${EXCLUSION_FIX}`,
+  'question-type': `Cannot print written questions. ${EXCLUSION_FIX}`,
+  'bank-slot': `Cannot print question bank pulls. ${EXCLUSION_FIX}`,
+};
 
 /** What Assign on paper records once the stack is saved. */
 export interface PaperAssignPicks {
@@ -445,7 +461,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       return planPaperVersions(
         quiz,
         resolvedForPrint,
-        { written: writtenOn, fib: true },
+        { written: writtenOn, fib: true, groups: true },
         { count: formCount, seed: drawSeed }
       );
     } catch {
@@ -456,7 +472,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     if (versionPlan) return versionPlan.template;
     return promptAnalysis(
       quiz,
-      analyzePaperQuiz(quiz, { written: writtenOn, fib: true })
+      analyzePaperQuiz(quiz, { written: writtenOn, fib: true, groups: true })
     );
   }, [versionPlan, quiz, writtenOn]);
   const isStub = isPaperStubAnalysis(analysis);
@@ -540,6 +556,21 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       }),
     [analysis.rows, questionsById]
   );
+  // Matching, ordering and choose all record their lettered order on the batch too.
+  const groupQuestions = useMemo(
+    () =>
+      analysis.groups.flatMap((g) => {
+        const q = questionsById.get(g.questionId);
+        return q ? [q] : [];
+      }),
+    [analysis.groups, questionsById]
+  );
+  const lettered = useMemo(
+    () => [...sheetQuestions, ...groupQuestions],
+    [sheetQuestions, groupQuestions]
+  );
+  /** Each sheet row's multiple choice question, or null on a grouped question's rows. */
+  const rowSlots = useMemo(() => sheetRowSlots(analysis), [analysis]);
 
   // Numbers past the current count stay remembered but do not print.
   const stubWrittenInRange = useMemo(() => {
@@ -565,7 +596,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const writtenCount = isStub ? stubWrittenCount : analysis.written.length;
   const questionCount = isStub
     ? stubQuestionCount - stubWrittenCount
-    : analysis.rows.length;
+    : analysis.rows.length + analysis.groups.length;
   // A quiz with no bubble questions has no choices to count.
   const showChoiceCount = isStub || questionCount > 0;
   const blankAnswersOf = (a: typeof analysis): Record<string, string[]> =>
@@ -676,6 +707,28 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         return [[id, { text, stimuli: [], ...(block ? { block } : {}) }]];
       })
     );
+  /** A printed group's translation, and on a question-text sheet each question's stimuli. */
+  const groupTextsWithWords = (
+    texts: Record<string, PaperGroupText>
+  ): Record<string, PaperGroupText> =>
+    Object.fromEntries(
+      Object.entries(texts).map(([id, t]) => {
+        const tr = group?.translation?.questions[id];
+        const stimulus = stimuliLayout?.sets[0]?.rows.get(id);
+        return [
+          id,
+          {
+            ...t,
+            ...(tr?.text?.trim() ? { text: tr.text } : {}),
+            options: t.options.map((o) => tr?.choices?.[o] ?? o),
+            ...(t.terms
+              ? { terms: t.terms.map((term) => tr?.terms?.[term] ?? term) }
+              : {}),
+            ...(stimulus ? { stimulus } : {}),
+          },
+        ];
+      })
+    );
   /** Stem per written question, for the header above its box. */
   const writtenTextsOf = (a: typeof analysis): Record<string, string> =>
     Object.fromEntries(
@@ -693,8 +746,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     const measure = browserStemMeasure();
     return versionPlan
       ? versionStemLines(versionPlan, (qs) => stemLinesById(qs, measure) ?? {})
-      : stemLinesById(sheetQuestions, measure);
-  }, [questionTextLayout, sheetQuestions, versionPlan]);
+      : stemLinesById(lettered, measure);
+  }, [questionTextLayout, lettered, versionPlan]);
   const planPages = useCallback(
     (entries: readonly PaperSheetEntry[]): PlanPaperPagesResult =>
       planPaperPages({
@@ -718,6 +771,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       writtenCount === 0 &&
       !questionTextLayout &&
       !versionPlan &&
+      analysis.groups.length === 0 &&
       !group?.servedQuestionIds
     )
       return null;
@@ -736,6 +790,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     stubQuestionCount,
     stubWrittenInRange,
     analysis.entries,
+    analysis.groups.length,
   ]);
   const tooManyPages = pagePlan?.ok === false;
   /** Custom image box images by question id, for every written box that prints one. */
@@ -1151,11 +1206,13 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             questionId: e.questionId,
             row: e.label,
             written: e.kind === 'written',
+            group: e.kind === 'mc' ? e.group : undefined,
           }))
         : a.rows.map((r) => ({
             questionId: r.questionId,
             row: r.row,
             written: false,
+            group: undefined,
           }));
       // Paper prints only these, so the choose line counts only them.
       const printedIds = printed.map((r) => r.questionId);
@@ -1201,7 +1258,18 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             choices: tr?.choices
               ? choices.map((c) => tr.choices?.[c] ?? c)
               : choices,
-            ...choicePictureFields(q, choices),
+            ...(r.group
+              ? {
+                  group: r.group,
+                  ...(r.group === 'match'
+                    ? {
+                        terms: matchingPairs(q.correctAnswer).map(
+                          ([left]) => tr?.terms?.[left] ?? left
+                        ),
+                      }
+                    : {}),
+                }
+              : choicePictureFields(q, choices)),
             ...(r.written ? { written: true } : {}),
             ...(heading ? { section: heading } : {}),
             ...placed.questions.get(q.id),
@@ -1244,6 +1312,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     return {
       batchId: batch.id,
       quizTitle,
+      ...(printLanguage ? { language: printLanguage } : {}),
       ...(testCopies
         ? {
             testPaper: testCopies[0],
@@ -1257,7 +1326,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         : {}),
       ...(batch.sheetLayout === 'questions'
         ? {
-            questionTexts: sheetQuestions.map((q) => {
+            questionTexts: rowSlots.map((id) => {
+              const q = id ? questionsById.get(id) : undefined;
+              if (!q) return { text: '', choices: [] };
               const english = batch.choiceOrder?.[q.id] ?? [];
               const tr = group?.translation?.questions[q.id];
               const stimulus = stimuliLayout?.sets[0]?.rows.get(q.id);
@@ -1273,7 +1344,20 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           }
         : {}),
       ...(!isStub && analysis.rows.some((r) => r.sourceLabel)
-        ? { rowLabels: analysis.rows.map((r) => r.sourceLabel) }
+        ? {
+            rowLabels: rowSlots.map((id) =>
+              id
+                ? analysis.rows.find((r) => r.questionId === id)?.sourceLabel
+                : undefined
+            ),
+          }
+        : {}),
+      ...(analysis.groups.length > 0 && !versionPlan
+        ? {
+            groupTexts: groupTextsWithWords(
+              groupTextsFor(analysis, questionsById, batch.choiceOrder ?? {})
+            ),
+          }
         : {}),
       ...(batch.pageMaps
         ? {
@@ -1328,17 +1412,27 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               const actual = new Map(
                 set.mapIds.map((id, i) => [id, set.entries[i]?.questionId])
               );
-              const rows = versionPlan.versions[k].analysis.rows;
+              const slots = sheetRowSlots(versionPlan.versions[k].analysis);
               return {
                 ...v,
                 ...(v.questionTexts
                   ? {
                       questionTexts: v.questionTexts.map((qt, r) => {
-                        const stimulus = forSet.rows.get(
-                          rows[r]?.questionId ?? ''
-                        );
+                        const stimulus = forSet.rows.get(slots[r] ?? '');
                         return stimulus ? { ...qt, stimulus } : qt;
                       }),
+                    }
+                  : {}),
+                ...(v.groupTexts
+                  ? {
+                      groupTexts: Object.fromEntries(
+                        Object.entries(v.groupTexts).map(([at, t]) => {
+                          const stimulus = forSet.rows.get(
+                            actual.get(at) ?? ''
+                          );
+                          return [at, stimulus ? { ...t, stimulus } : t];
+                        })
+                      ),
                     }
                   : {}),
                 prompts: sheetPromptsFor(k, (id) => {
@@ -1395,7 +1489,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           : {
               questions: versionPlan
                 ? versionSheetQuestions(versionPlan)
-                : sheetQuestions,
+                : lettered,
             }),
         ...(columnsPerPage === 1 ? { columnsPerPage: 1 as const } : {}),
         ...(questionTextLayout ? { sheetLayout: 'questions' as const } : {}),
@@ -1526,7 +1620,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           : {
               questions: versionPlan
                 ? versionSheetQuestions(versionPlan)
-                : sheetQuestions,
+                : lettered,
             }),
         ...(Object.keys(readChoiceOrder).length > 0
           ? { choiceOrder: readChoiceOrder }
@@ -1811,6 +1905,10 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         ? 'Loading stimuli.'
         : null;
 
+  const exclusionReasons = [
+    ...new Set(analysis.exclusions.map((ex) => EXCLUSION_REASONS[ex.reason])),
+  ];
+
   const setupBody = (
     <div className={assign ? 'space-y-4' : 'space-y-4 px-5 pb-5 pt-4'}>
       {analysis.exclusions.length > 0 && (
@@ -1823,10 +1921,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 {analysis.exclusions.length === 1 ? '' : 's'} will not be on the
                 sheet
               </p>
-              <p className="mt-1 text-xs text-amber-800">
-                Only multiple-choice and true/false questions can be bubbled.
-                {writtenOn && ' Fill in the blank prints as a write-in line.'}
-              </p>
+              {exclusionReasons.map((line) => (
+                <p key={line} className="mt-1 text-xs text-amber-800">
+                  {line}
+                </p>
+              ))}
               <ul className="mt-2 space-y-0.5 text-xs text-amber-800">
                 {analysis.exclusions.slice(0, 5).map((ex, i) => (
                   <li key={i} className="truncate">

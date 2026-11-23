@@ -809,8 +809,8 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
     expect(result.batch.layoutVersion).toBe(2);
   });
 
-  it('refuses a written question inside an "answer any" section', async () => {
-    const { run, writes } = create(
+  it('prints a written question inside an "answer any" section', async () => {
+    const { run } = create(
       writtenState({
         sections: [{ id: 'sec', title: 'Pick one', chooseCount: 1 }],
         order: [
@@ -823,10 +823,12 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
       writtenDeps(),
       WRITTEN_INPUT
     );
-    await expect(run()).rejects.toMatchObject({
-      code: 'failed-precondition',
-    });
-    expect(writes.sets).toEqual([]);
+    const result = await run();
+    expect(
+      result.batch.pageMaps
+        ?.flatMap((m) => m.items)
+        .some((i) => i.kind === 'written' && i.questionId === 'q-essay')
+    ).toBe(true);
   });
 
   it('uses the one-column grid when the quiz prints sheet stimuli', async () => {

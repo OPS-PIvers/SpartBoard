@@ -1465,7 +1465,7 @@ describe('PaperPrintModal with handwritten answers', () => {
     expect(screen.getByText(/1 question will not be on/)).toBeInTheDocument();
   });
 
-  it('refuses to print a written question inside a choose section', () => {
+  it('prints written questions inside a choose section', () => {
     setup({
       quiz: quiz({
         questions: [mc('q1'), fr('w1'), fr('w2')],
@@ -1480,9 +1480,9 @@ describe('PaperPrintModal with handwritten answers', () => {
     });
     selectWholeClass();
     expect(
-      screen.getByText(/Written questions can.t be in a choose section/)
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Print$/ })).toBeDisabled();
+      screen.queryByText(/Written questions can.t be in a choose section/)
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled();
   });
 
   it('prints written questions in place on the test paper, numbered like the sheet', async () => {

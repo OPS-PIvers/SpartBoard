@@ -221,3 +221,47 @@ describe('reprinting a translated group', () => {
     );
   });
 });
+
+describe('printedTranslation for matching and ordering', () => {
+  it('maps terms, answers and distractors, and ordering steps', () => {
+    const quiz: QuizData = {
+      ...QUIZ,
+      questions: [
+        mc('m', {
+          type: 'Matching',
+          correctAnswer: 'Dog:Bark|Cat:Meow',
+          incorrectAnswers: [],
+          matchingDistractors: ['Moo'],
+        }),
+        mc('o', {
+          type: 'Ordering',
+          correctAnswer: 'One|Two|Three',
+          incorrectAnswers: [],
+        }),
+      ],
+    };
+    const tr = printedTranslation(
+      quiz,
+      {
+        m: {
+          text: 'Relaciona',
+          matchingLeft: ['Perro', 'Gato'],
+          matchingRight: ['Ladra', 'Maúlla'],
+          matchingDistractors: ['Muge'],
+        },
+        o: { text: 'Ordena', orderingItems: ['Uno', 'Dos', 'Tres'] },
+      },
+      {}
+    );
+    expect(tr?.questions.m).toEqual({
+      text: 'Relaciona',
+      choices: { Bark: 'Ladra', Meow: 'Maúlla', Moo: 'Muge' },
+      terms: { Dog: 'Perro', Cat: 'Gato' },
+    });
+    expect(tr?.questions.o?.choices).toEqual({
+      One: 'Uno',
+      Two: 'Dos',
+      Three: 'Tres',
+    });
+  });
+});

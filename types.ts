@@ -6738,6 +6738,20 @@ export type PaperPageItem =
       /** Printed question number (position in the quiz). */
       label: string;
       originMm: PaperPointMm;
+      /** Bubbles this row prints, up to 10; absent = the sheet's `choiceCount`. */
+      choices?: number;
+      /** Matching, ordering and choose all: which answer row of the question this is. */
+      group?: PaperRowGroup;
+      /** 0-based row within the question; absent = the question's only row. */
+      part?: number;
+      /** Question-text sheets: bubbles run left to right after the row's term, not down the page. */
+      across?: true;
+      /** One-column sheets: bubbles per line; later bubbles wrap onto the next 8 mm line. */
+      wrap?: number;
+      /** First row of a question-text block: top of its stem, printed above the rows. */
+      headTopMm?: number;
+      /** With `headTopMm`: height of the stem's lines; the instruction prints under them. */
+      stemMm?: number;
     }
   | {
       kind: 'written';
@@ -6753,6 +6767,9 @@ export type PaperPageItem =
       /** A later page of a multi-page answer; its crop joins the first page's. */
       continued?: true;
     };
+
+/** How a matching, ordering or choose all question reads its bubbles: `all` fills several in one row, `match` one row per term, `order` one row per position (or per item, bubbling its position, when `across`). */
+export type PaperRowGroup = 'all' | 'match' | 'order';
 
 /** Positions of everything on one physical page; `page` is 1-based and absolute. */
 export interface PaperPageMap {
@@ -6873,6 +6890,8 @@ export interface PaperBatchPendingQuizCopy {
 export interface PaperPendingAnswer {
   question: number;
   choice: number | null;
+  /** A choose all row: every choice marked. */
+  marked?: number[];
   doubt?: 'multiple' | 'unclear';
 }
 

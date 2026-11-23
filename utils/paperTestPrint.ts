@@ -23,6 +23,7 @@ import {
   type PaperTestStimulus,
 } from './paperTestStimuli';
 import { paperPrintWords, type PaperPrintWords } from './paperPrintWords';
+import type { PaperRowGroup } from '@/types';
 
 export interface PaperTestQuestion {
   /** Number printed on the answer sheet: the row, or the quiz position on a sheet with written boxes (D11). */
@@ -34,6 +35,10 @@ export interface PaperTestQuestion {
   choicePictures?: readonly (ChoicePicture | null)[];
   /** Answered in a written box on the answer sheet, not bubbled (D18). */
   written?: boolean;
+  /** Matching, ordering or choose all: `choices` are its lettered options or items. */
+  group?: PaperRowGroup;
+  /** Matching: the terms, numbered 3.1, 3.2 to match the sheet's rows. */
+  terms?: readonly string[];
   /** A section heading printed above this question, the first of its section (E15). */
   section?: { title: string; directions?: string; chooseLine?: string };
   /** Stimuli printed in the question, between its text and its choices. */
@@ -80,6 +85,9 @@ const STYLES = `
   ol.c > li { display: grid; grid-template-columns: 8mm 1fr; margin-top: 0.8mm; }
   .cpic { display: block; max-height: 30mm; max-width: 60mm; object-fit: contain; margin: 0.5mm 0; }
   .written { margin: 1.5mm 0 0; font-size: 10pt; font-style: italic; }
+  .group-line { margin: 1mm 0 0; font-size: 10pt; font-style: italic; }
+  .match { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 6mm; }
+  ol.c.terms > li { grid-template-columns: 10mm 1fr; }
   .version { break-before: page; }
   .version:first-child { break-before: auto; }
   .version-label { font-size: 12pt; font-weight: bold; margin: -2mm 0 4mm; }
@@ -180,18 +188,53 @@ function isTall(stimuli: readonly PaperTestStimulus[] | undefined): boolean {
   );
 }
 
+const letteredHtml = (choices: readonly string[]): string =>
+  `<ol class="c">${choices
+    .map(
+      (c, i) =>
+        `<li><span class="letter">${CHOICE_LETTERS[i]}.</span><span class="text">${escapeHtml(plainMathText(c))}</span></li>`
+    )
+    .join('')}</ol>`;
+
+/** Instruction and lettered lists for matching, ordering and choose all. */
+function groupHtml(
+  q: PaperTestQuestion,
+  group: PaperRowGroup,
+  words: PaperPrintWords
+): string {
+  const row = String(q.row);
+  const terms = q.terms ?? [];
+  const inst = `<p class="group-line">${escapeHtml(
+    words.groupInstruction(group, {
+      across: false,
+      unusedLetters: terms.length < q.choices.length,
+      firstRow: `${row}.1`,
+    })
+  )}</p>`;
+  if (group !== 'match') return `${inst}${letteredHtml(q.choices)}`;
+  const termList = `<ol class="c terms">${terms
+    .map(
+      (t, i) =>
+        `<li><span class="letter">${escapeHtml(`${row}.${i + 1}`)}</span><span class="text">${escapeHtml(plainMathText(t))}</span></li>`
+    )
+    .join('')}</ol>`;
+  return `${inst}<div class="match">${termList}${letteredHtml(q.choices)}</div>`;
+}
+
 function questionHtml(q: PaperTestQuestion, words: PaperPrintWords): string {
   // A stub's options are just the bubble letters, which say nothing to a student.
-  const choices = q.written
-    ? `<p class="written">${escapeHtml(words.writeOnSheet)}</p>`
-    : isPlaceholderLetterChoices(q.choices)
-      ? ''
-      : `<ol class="c">${q.choices
-          .map(
-            (c, i) =>
-              `<li><span class="letter">${CHOICE_LETTERS[i]}.</span><span class="text">${choiceHtml(c, q.choicePictures?.[i])}</span></li>`
-          )
-          .join('')}</ol>`;
+  const choices = q.group
+    ? groupHtml(q, q.group, words)
+    : q.written
+      ? `<p class="written">${escapeHtml(words.writeOnSheet)}</p>`
+      : isPlaceholderLetterChoices(q.choices)
+        ? ''
+        : `<ol class="c">${q.choices
+            .map(
+              (c, i) =>
+                `<li><span class="letter">${CHOICE_LETTERS[i]}.</span><span class="text">${choiceHtml(c, q.choicePictures?.[i])}</span></li>`
+            )
+            .join('')}</ol>`;
   const section = q.section
     ? `<li class="section"><h2>${escapeHtml(q.section.title)}</h2>${
         q.section.directions ? `<p>${escapeHtml(q.section.directions)}</p>` : ''

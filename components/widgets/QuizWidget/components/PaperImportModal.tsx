@@ -71,6 +71,7 @@ import {
   findStudent,
   keySheetChoices,
   paperImportRequestFields,
+  sheetRowInfos,
   sheetRowQuestionIds,
   type ImportPaperCollision,
   type ImportPaperResponsesResult,
@@ -93,6 +94,7 @@ import {
   type RasterizedPage,
 } from '@/utils/paperScanRaster';
 import { CHOICE_LETTERS, paperGridOf } from '@/utils/paperSheetLayout';
+import { mcItemsOf } from '@/utils/paperPageMap';
 import { paperBatchTag } from '@/utils/paperSheetMarker';
 import { isPaperKeySeat } from '@/utils/paperSheetPlan';
 import { STUDENT_COPY_LABEL } from '@/utils/paperPrintedVersions';
@@ -334,6 +336,48 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   );
   const rowIds = useMemo(
     () => sheetRowQuestionIds(quiz, batch ?? undefined),
+    [quiz, batch]
+  );
+  // A matching or ordering question takes several rows, so lists by question name it once.
+  const questionIds = useMemo(() => [...new Set(rowIds)], [rowIds]);
+  /** What each sheet row printed: its number, bubbles and how they read. */
+  const rowMeta = useMemo(() => {
+    const out = new Map<
+      number,
+      { label: string; letters: string[]; multi: boolean }
+    >();
+    const sheetChoices = batch?.choiceCount ?? 2;
+    for (const map of batch?.pageMaps ?? []) {
+      for (const item of mcItemsOf(map)) {
+        const count = item.choices ?? sheetChoices;
+        out.set(item.sheetRow, {
+          label:
+            item.group && item.group !== 'all'
+              ? `${item.label}.${(item.part ?? 0) + 1}`
+              : item.label,
+          letters: Array.from({ length: count }, (_, c) =>
+            item.across && item.group === 'order'
+              ? String(c + 1)
+              : CHOICE_LETTERS[c]
+          ),
+          multi: item.group === 'all',
+        });
+      }
+    }
+    return out;
+  }, [batch]);
+  const metaOf = (row: number) =>
+    rowMeta.get(row) ?? {
+      label: String(row + 1),
+      letters: CHOICE_LETTERS.slice(0, batch?.choiceCount ?? 2),
+      multi: false,
+    };
+  // The key sheet grades plain multiple-choice rows only; grouped questions carry their own answers.
+  const keyRows = useMemo(
+    () =>
+      sheetRowInfos(quiz, batch ?? undefined).flatMap((info, row) =>
+        info.group ? [] : [{ id: info.questionId, row }]
+      ),
     [quiz, batch]
   );
   const isV2 = batch?.layoutVersion === 2;
@@ -837,6 +881,44 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     }
   };
 
+  /** A choose all row: toggle one letter; `done` settles the row. */
+  const setMarked = (
+    seat: number,
+    question: number,
+    toggle: number | null,
+    done = false
+  ) => {
+    setAssembled((prev) => {
+      if (!prev) return prev;
+      const patch = (s: AssembledSheet): AssembledSheet =>
+        s.seat !== seat
+          ? s
+          : {
+              ...s,
+              answers: s.answers.map((a) => {
+                if (a.question !== question) return a;
+                const was = a.marked ?? [];
+                const marked =
+                  toggle === null
+                    ? was
+                    : was.includes(toggle)
+                      ? was.filter((c) => c !== toggle)
+                      : [...was, toggle].sort((x, y) => x - y);
+                return {
+                  question: a.question,
+                  choice: null,
+                  marked,
+                  ...(a.doubt && !done ? { doubt: a.doubt } : {}),
+                  fills: a.fills,
+                  crop: a.crop,
+                  scanIndex: a.scanIndex,
+                };
+              }),
+            };
+      return { ...prev, sheets: prev.sheets.map(patch) };
+    });
+  };
+
   const setAnswer = (seat: number, question: number, choice: number | null) => {
     setAssembled((prev) => {
       if (!prev) return prev;
@@ -869,7 +951,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   const keyMissing = needsKey && !keySheet;
   const keyIncomplete =
     !!keySheet &&
-    rowIds.some((id) => key[id] === null || key[id] === undefined);
+    keyRows.some(({ id }) => key[id] === null || key[id] === undefined);
   const canImport =
     step === 'review' &&
     !!assembled &&
@@ -978,7 +1060,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
 
   const applyTags = (tags: QuestionTargetTag[], mode: 'add' | 'replace') => {
     if (!picker) return;
-    const ids = 'all' in picker ? rowIds : [picker.questionId];
+    const ids = 'all' in picker ? questionIds : [picker.questionId];
     setTargets((prev) => {
       const next = { ...prev };
       for (const id of ids) {
@@ -1354,12 +1436,14 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           Check every row, because this key grades the whole stack.
         </p>
         <ol className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
-          {rowIds.map((id, i) => (
+          {keyRows.map(({ id, row }) => (
             <li key={id} className="flex items-center gap-2 text-sm">
-              <span className="w-6 text-right text-slate-500">{i + 1}.</span>
+              <span className="w-6 text-right text-slate-500">
+                {metaOf(row).label}.
+              </span>
               <select
                 {...tourFieldAttr('quiz-import.paper-key-select', 'quiz', id)}
-                aria-label={`Key for question ${i + 1}`}
+                aria-label={`Key for question ${metaOf(row).label}`}
                 value={key[id] ?? ''}
                 onChange={(e) => {
                   const v = e.target.value;
@@ -1410,7 +1494,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         </button>
       </div>
       <ol className="mt-2 space-y-1">
-        {rowIds.map((id, i) => (
+        {questionIds.map((id, i) => (
           <li key={id} className="flex items-center gap-2 text-sm">
             <span className="w-6 shrink-0 text-right text-slate-500">
               {i + 1}.
@@ -1447,11 +1531,16 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     // More than N bubbled in a choose-N section: the first N in order count (E15).
     const overAnswered = overAnsweredSections(
       quizSections,
-      new Set(
-        sheet.answers.flatMap((a) =>
-          a.choice !== null && rowIds[a.question] ? [rowIds[a.question]] : []
-        )
-      )
+      new Set([
+        ...sheet.answers.flatMap((a) =>
+          (a.choice !== null || a.marked?.length) && rowIds[a.question]
+            ? [rowIds[a.question]]
+            : []
+        ),
+        ...(sheet.written ?? []).flatMap((w) =>
+          w.state === 'ink' ? [w.questionId] : []
+        ),
+      ])
     );
     const needsAttention =
       doubtful.length > 0 ||
@@ -1526,18 +1615,19 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           <ul className="mt-2 space-y-2">
             {doubtful.map((a) => {
               const crop = crops.get(cropKey(sheet.seat, a.question));
+              const meta = metaOf(a.question);
               return (
                 <li
                   key={a.question}
                   className="flex flex-wrap items-center gap-3 rounded-lg bg-slate-50 p-2"
                 >
                   <span className="w-8 text-sm font-semibold text-slate-700">
-                    {a.question + 1}.
+                    {meta.label}.
                   </span>
                   {crop && (
                     <img
                       src={crop}
-                      alt={`Question ${a.question + 1} as scanned`}
+                      alt={`Question ${meta.label} as scanned`}
                       className="h-10 rounded-sm border border-slate-200 bg-white"
                     />
                   )}
@@ -1546,9 +1636,10 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                       ? 'More than one bubble'
                       : 'Unclear mark'}
                   </span>
-                  <span className="flex gap-1">
-                    {CHOICE_LETTERS.slice(0, batch.choiceCount).map(
-                      (letter, c) => (
+                  <span className="flex flex-wrap gap-1">
+                    {meta.letters.map((letter, c) => {
+                      const on = meta.multi && !!a.marked?.includes(c);
+                      return (
                         <button
                           key={letter}
                           type="button"
@@ -1557,27 +1648,54 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                             'quiz',
                             `${sheet.seat}-${a.question}-${letter}`
                           )}
-                          aria-label={`Question ${a.question + 1}: ${letter}`}
-                          onClick={() => setAnswer(sheet.seat, a.question, c)}
-                          className="h-7 w-7 rounded-full border border-slate-300 text-xs font-bold text-slate-700 hover:bg-brand-blue-lighter/40"
+                          aria-label={`Question ${meta.label}: ${letter}`}
+                          {...(meta.multi ? { 'aria-pressed': on } : {})}
+                          onClick={() =>
+                            meta.multi
+                              ? setMarked(sheet.seat, a.question, c)
+                              : setAnswer(sheet.seat, a.question, c)
+                          }
+                          className={`h-7 w-7 rounded-full border text-xs font-bold ${
+                            on
+                              ? 'border-slate-900 bg-slate-900 text-white'
+                              : 'border-slate-300 text-slate-700 hover:bg-brand-blue-lighter/40'
+                          }`}
                         >
                           {letter}
                         </button>
-                      )
+                      );
+                    })}
+                    {meta.multi ? (
+                      <button
+                        type="button"
+                        {...tourFieldAttr(
+                          'quiz-import.paper-answer-blank',
+                          'quiz',
+                          `${sheet.seat}-${a.question}`
+                        )}
+                        aria-label={`Question ${meta.label}: done`}
+                        onClick={() =>
+                          setMarked(sheet.seat, a.question, null, true)
+                        }
+                        className="h-7 rounded-full border border-slate-300 px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                      >
+                        {a.marked?.length ? 'Done' : 'Blank'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        {...tourFieldAttr(
+                          'quiz-import.paper-answer-blank',
+                          'quiz',
+                          `${sheet.seat}-${a.question}`
+                        )}
+                        aria-label={`Question ${meta.label}: blank`}
+                        onClick={() => setAnswer(sheet.seat, a.question, null)}
+                        className="h-7 rounded-full border border-slate-300 px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                      >
+                        Blank
+                      </button>
                     )}
-                    <button
-                      type="button"
-                      {...tourFieldAttr(
-                        'quiz-import.paper-answer-blank',
-                        'quiz',
-                        `${sheet.seat}-${a.question}`
-                      )}
-                      aria-label={`Question ${a.question + 1}: blank`}
-                      onClick={() => setAnswer(sheet.seat, a.question, null)}
-                      className="h-7 rounded-full border border-slate-300 px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                    >
-                      Blank
-                    </button>
                   </span>
                 </li>
               );
@@ -1811,7 +1929,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           </label>
         )}
         {renderKey()}
-        {rowIds.length > 0 && renderTargets()}
+        {questionIds.length > 0 && renderTargets()}
         {importSheets.map(renderSheet)}
         {renderWritten()}
         {renderKeptPages()}
@@ -2026,7 +2144,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           title={
             'all' in picker
               ? 'Tag every question'
-              : `Question ${rowIds.indexOf(picker.questionId) + 1} targets`
+              : `Question ${questionIds.indexOf(picker.questionId) + 1} targets`
           }
         />
       )}

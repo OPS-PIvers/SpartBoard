@@ -5,6 +5,7 @@ import {
   HEADER_RECT_MM,
   MARKER_CELL_COUNT,
   MAX_CHOICE_COUNT,
+  MAX_ROW_CHOICES,
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
   QUESTIONS_PER_PAGE,
@@ -113,7 +114,7 @@ describe('paperSheetLayout', () => {
 
   it('clamps a row crop to the printable choice range', () => {
     expect(questionRowRectMm(0, 99)).toEqual(
-      questionRowRectMm(0, MAX_CHOICE_COUNT)
+      questionRowRectMm(0, MAX_ROW_CHOICES)
     );
     expect(questionRowRectMm(0, 0)).toEqual(questionRowRectMm(0, 2));
   });

@@ -338,55 +338,6 @@ export function defaultPaperBoxSize(maxWords?: number): PaperBoxSize {
   return 'full';
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-/** Question ids in a choose-N section; mirrors `sessionSectionsFor` + `effectiveChooseCount` with no bank slots. */
-function chooseSectionQuestionIds(
-  questions: readonly PaperQuestion[],
-  sections: unknown,
-  order: unknown
-): Set<string> {
-  const out = new Set<string>();
-  if (!Array.isArray(sections) || !Array.isArray(order)) return out;
-  const counts = new Map<string, number | undefined>();
-  for (const raw of sections) {
-    if (!isObject(raw) || typeof raw.id !== 'string') continue;
-    const count = raw.chooseCount;
-    counts.set(
-      raw.id,
-      typeof count === 'number' && Number.isInteger(count) && count > 0
-        ? count
-        : undefined
-    );
-  }
-  if (counts.size === 0) return out;
-  const questionIds = new Set(questions.map((q) => q.id));
-  const claimed = new Set<string>();
-  const runs: { count: number | undefined; ids: string[] }[] = [];
-  let current: { count: number | undefined; ids: string[] } | null = null;
-  for (const entry of order) {
-    if (!isObject(entry) || typeof entry.id !== 'string') continue;
-    if (entry.kind === 'section') {
-      current = counts.has(entry.id)
-        ? { count: counts.get(entry.id), ids: [] }
-        : null;
-      if (current) runs.push(current);
-    } else if (entry.kind === 'question') {
-      if (!current || claimed.has(entry.id) || !questionIds.has(entry.id))
-        continue;
-      claimed.add(entry.id);
-      current.ids.push(entry.id);
-    }
-  }
-  for (const run of runs) {
-    if (run.count !== undefined && run.count < run.ids.length) {
-      run.ids.forEach((id) => out.add(id));
-    }
-  }
-  return out;
-}
-
 /**
  * The rows a sheet can carry, and with `written` the handwritten boxes.
  * Non-MC questions and bank slots are dropped, exactly as the client analysis
@@ -401,19 +352,10 @@ export function analyzePaperQuiz(
   const written: PaperWrittenPlan[] = [];
   const writtenRefusals: string[] = [];
   const entries: PaperSheetEntry[] = [];
-  const chooseIds = options.written
-    ? chooseSectionQuestionIds(questions, options.sections, options.order)
-    : new Set<string>();
   questions.forEach((question, index) => {
     const label = String(index + 1);
     if (options.written && question.type === 'free-response') {
       if (question.recording) return;
-      if (chooseIds.has(question.id)) {
-        writtenRefusals.push(
-          `${label}. ${question.text || 'Untitled question'}`
-        );
-        return;
-      }
       const size = isPaperBoxSize(question.paperBoxSize)
         ? question.paperBoxSize
         : defaultPaperBoxSize(question.maxWords);
@@ -429,12 +371,6 @@ export function analyzePaperQuiz(
       return;
     }
     if (options.written && options.fib && question.type === 'FIB') {
-      if (chooseIds.has(question.id)) {
-        writtenRefusals.push(
-          `${label}. ${question.text || 'Untitled question'}`
-        );
-        return;
-      }
       // Mirrors `fibBlankCount`: blanks are joined by U+001F.
       const blanks = (question.correctAnswer ?? '').split('\u001F').length;
       written.push({ questionId: question.id, label, size: blanks });

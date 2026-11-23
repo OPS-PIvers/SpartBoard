@@ -5,6 +5,7 @@
  */
 
 import type {
+  PaperRowGroup,
   PaperBoxSize,
   PaperBoxStyle,
   PaperGrid,
@@ -60,13 +61,25 @@ import {
   WRITTEN_LINE_PITCH_MM,
   WRITTEN_ONE_COLUMN_W_MM,
   WRITTEN_ONE_COLUMN_X_MM,
+  bubbleRectAtOriginMm,
+  rowRectAtOriginMm,
+  cornerWindowsMm,
+  ONE_COLUMN_ROW_CHOICES,
   type RectMm,
 } from './paperSheetLayout';
 import { MAX_SHEET_PAGE } from './paperSheetMarker';
 
 /** One thing the sheet prints, in test order. */
 export type PaperSheetEntry =
-  | { kind: 'mc'; questionId: string; label: string }
+  | {
+      kind: 'mc';
+      questionId: string;
+      label: string;
+      /** Matching, ordering and choose all: the question prints `parts` rows of `choices` bubbles. */
+      group?: PaperRowGroup;
+      parts?: number;
+      choices?: number;
+    }
   | {
       kind: 'written';
       questionId: string;
@@ -100,6 +113,42 @@ const stimulusRoom = (mmTall: number | undefined): number =>
 const STIMULUS_GAP_MM = 1.5;
 /** The gap a plain row leaves between its stem box and its first choice. */
 const STEM_TO_CHOICES_MM = QUESTION_CHOICE_TOP_MM - QUESTION_STEM_H_MM;
+
+/** Question-text sheets: the instruction line under a grouped question's stem. */
+export const GROUP_INSTRUCTION_MM = 5;
+/** Question-text sheets: each lettered answer a matching question lists above its rows. */
+export const GROUP_LIST_LINE_MM = 5;
+/** Question-text sheets: the letters or numbers over a block of rows that run across. */
+export const GROUP_LEGEND_MM = 5;
+/** Question-text sheets: pitch of rows that run across. */
+export const GROUP_ROW_MM = 6.5;
+
+/** The fields a grouped question's answer row carries. */
+function groupFields(
+  entry: Extract<PaperSheetEntry, { kind: 'mc' }>,
+  part: number
+): Pick<McItem, 'group' | 'part' | 'choices'> {
+  return {
+    ...(entry.group ? { group: entry.group } : {}),
+    ...(entry.group && entry.group !== 'all' ? { part } : {}),
+    ...(entry.choices ? { choices: entry.choices } : {}),
+  };
+}
+
+const rectsOverlap = (a: RectMm, b: RectMm): boolean =>
+  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+/** Height of a grouped question's head on a question-text sheet: stem, instruction, list and legend. */
+export function groupHeadMm(
+  entry: Pick<Extract<PaperSheetEntry, { kind: 'mc' }>, 'group' | 'choices'>,
+  stemLines: number
+): number {
+  const stem = stemLines * QUESTION_STEM_LINE_MM + GROUP_INSTRUCTION_MM;
+  if (entry.group === 'all') return stem + 1;
+  const list =
+    entry.group === 'match' ? (entry.choices ?? 0) * GROUP_LIST_LINE_MM : 0;
+  return stem + list + GROUP_LEGEND_MM;
+}
 
 export type PlanPaperPagesResult =
   | { ok: true; pageMaps: PaperPageMap[] }
@@ -308,6 +357,110 @@ export function planPaperPages(
     }
   };
 
+  // A run with matching, ordering or choose all fills each column top to bottom; a question's title row and its rows stay in one column.
+  const flowGroupedRun = (
+    run: readonly Extract<PaperSheetEntry, { kind: 'mc' }>[],
+    boxFollows: boolean
+  ): void => {
+    ensureRoom(1);
+    let top = cursor;
+    let column = 0;
+    let row = top;
+    let deepest = top;
+    const nextColumn = (): void => {
+      column += 1;
+      if (column >= grid) {
+        newPage();
+        column = 0;
+        top = 0;
+        deepest = 0;
+      }
+      row = top;
+    };
+    const wrapOf = (
+      entry: Extract<PaperSheetEntry, { kind: 'mc' }>
+    ): number | undefined =>
+      grid === 1 && (entry.choices ?? 0) > ONE_COLUMN_ROW_CHOICES
+        ? ONE_COLUMN_ROW_CHOICES
+        : undefined;
+    // Grid rows one answer row takes, wrapped lines included.
+    const linesOf = (
+      entry: Extract<PaperSheetEntry, { kind: 'mc' }>
+    ): number => {
+      const wrap = wrapOf(entry);
+      return wrap ? Math.ceil((entry.choices ?? 0) / wrap) : 1;
+    };
+    // The row's bubbles, and its title row above when it has one, stay out of the corner windows.
+    const clearAt = (
+      entry: Extract<PaperSheetEntry, { kind: 'mc' }>,
+      at: number,
+      title: boolean
+    ): boolean => {
+      const r = rowRectAtOriginMm(
+        { x: COLUMN_X_MM[column], y: GRID_TOP_MM + at * ROW_PITCH_MM },
+        entry.choices ?? 2,
+        grid,
+        false,
+        wrapOf(entry)
+      );
+      const rect = title
+        ? { ...r, y: r.y - ROW_PITCH_MM, h: r.h + ROW_PITCH_MM }
+        : r;
+      return !cornerWindowsMm().some((c) => rectsOverlap(rect, c));
+    };
+    const fitsAt = (
+      entry: Extract<PaperSheetEntry, { kind: 'mc' }>,
+      at: number
+    ): boolean => {
+      const parts = entry.parts ?? 1;
+      const lines = linesOf(entry);
+      if (at + 1 + parts * lines > capacity) return false;
+      for (let part = 0; part < parts; part += 1) {
+        if (!clearAt(entry, at + 1 + part * lines, part === 0)) return false;
+      }
+      return true;
+    };
+    for (const entry of run) {
+      if (!entry.group) {
+        if (row + 1 > capacity && row > top) nextColumn();
+        current().push(
+          mcItem(entry, {
+            x: COLUMN_X_MM[column],
+            y: GRID_TOP_MM + row * ROW_PITCH_MM,
+          })
+        );
+        row += 1;
+        deepest = Math.max(deepest, row);
+        continue;
+      }
+      if (!fitsAt(entry, row) && row > top) nextColumn();
+      if (!fitsAt(entry, row) && row > top) nextColumn();
+      const lines = linesOf(entry);
+      const wrap = wrapOf(entry);
+      // The title and letters print in the row above the first answer row.
+      row += 1;
+      for (let part = 0; part < (entry.parts ?? 1); part += 1) {
+        // Only a question taller than a whole column splits; each row still keeps clear of the corners.
+        if (row + lines > capacity || !clearAt(entry, row, part === 0)) {
+          nextColumn();
+          if (part === 0) row += 1;
+        }
+        current().push({
+          ...mcItem(entry, {
+            x: COLUMN_X_MM[column],
+            y: GRID_TOP_MM + row * ROW_PITCH_MM,
+          }),
+          ...groupFields(entry, part),
+          ...(wrap ? { wrap } : {}),
+        });
+        row += lines;
+      }
+      deepest = Math.max(deepest, row);
+    }
+    cursor = column === 0 ? row : deepest;
+    if (boxFollows) cursor = Math.min(cursor + 1, capacity);
+  };
+
   let i = 0;
   while (i < entries.length) {
     const entry = entries[i];
@@ -363,6 +516,10 @@ export function planPaperPages(
     i = end;
 
     const columns = grid;
+    if (run.some((e) => e.group)) {
+      flowGroupedRun(run, boxFollows);
+      continue;
+    }
     let at = 0;
     while (at < run.length) {
       ensureRoom(1);
@@ -432,6 +589,57 @@ function planQuestionTextPages(
     BUBBLE_DIAMETER_MM;
 
   for (const entry of entries) {
+    if (entry.kind === 'mc' && entry.group) {
+      const lines = Math.min(
+        Math.max(
+          Math.ceil(
+            input.stemLines?.[entry.questionId] ?? QUESTION_STEM_MAX_LINES
+          ),
+          1
+        ),
+        QUESTION_STEM_MAX_LINES
+      );
+      const head = groupHeadMm(entry, lines);
+      const stimMm = input.stimulusMm?.[entry.questionId];
+      // A stimulus prints under the instruction, above the answers.
+      const room = stimMm ? stimMm + 2 * STIMULUS_GAP_MM : 0;
+      const stemMm = lines * QUESTION_STEM_LINE_MM;
+      const parts = entry.parts ?? 1;
+      const body =
+        entry.group === 'all'
+          ? ((entry.choices ?? 2) - 1) * QUESTION_CHOICE_LINE_MM +
+            BUBBLE_DIAMETER_MM
+          : (parts - 1) * GROUP_ROW_MM + BUBBLE_DIAMETER_MM;
+      const top = place(head + room + body);
+      const rowsTop = top + head + room;
+      if (entry.group === 'all') {
+        current().push({
+          kind: 'mc',
+          questionId: entry.questionId,
+          sheetRow: sheetRow++,
+          label: entry.label,
+          // Choices hang `QUESTION_CHOICE_TOP_MM` below the origin, as on a multiple choice row.
+          originMm: { x: COLUMN_X_MM[0], y: rowsTop - QUESTION_CHOICE_TOP_MM },
+          ...groupFields(entry, 0),
+          headTopMm: top,
+          stemMm,
+        });
+        continue;
+      }
+      for (let part = 0; part < parts; part += 1) {
+        current().push({
+          kind: 'mc',
+          questionId: entry.questionId,
+          sheetRow: sheetRow++,
+          label: entry.label,
+          originMm: { x: QUESTION_STEM_X_MM, y: rowsTop + part * GROUP_ROW_MM },
+          ...groupFields(entry, part),
+          across: true,
+          ...(part === 0 ? { headTopMm: top, stemMm } : {}),
+        });
+      }
+      continue;
+    }
     if (entry.kind === 'mc') {
       const lines = Math.min(
         Math.max(
@@ -527,6 +735,34 @@ export function isStimulusFreePage(map: PaperPageMap): boolean {
     map.items[0].boxMm.x + map.items[0].boxMm.w > STIMULUS_RECT_MM.x
   );
 }
+
+/** Bubbles an answer row prints: its own count, else the sheet's. */
+export const itemChoiceCount = (
+  item: Pick<McItem, 'choices'>,
+  sheetChoices: number
+): number => item.choices ?? sheetChoices;
+
+/** Where bubble `choice` of an answer row sits, for print and reader alike. */
+export const itemBubbleRectMm = (
+  item: Pick<McItem, 'originMm' | 'across' | 'wrap'>,
+  choice: number,
+  grid: PaperGrid
+): RectMm =>
+  bubbleRectAtOriginMm(item.originMm, choice, grid, !!item.across, item.wrap);
+
+/** The whole answer row, for the review crop. */
+export const itemRowRectMm = (
+  item: Pick<McItem, 'originMm' | 'across' | 'choices' | 'wrap'>,
+  sheetChoices: number,
+  grid: PaperGrid
+): RectMm =>
+  rowRectAtOriginMm(
+    item.originMm,
+    itemChoiceCount(item, sheetChoices),
+    grid,
+    !!item.across,
+    item.wrap
+  );
 
 export function mcItemsOf(map: PaperPageMap): McItem[] {
   return map.items.filter((item): item is McItem => item.kind === 'mc');
