@@ -15,6 +15,20 @@ export function getErrorCode(err: unknown): string | undefined {
   return typeof code === 'string' ? code : undefined;
 }
 
+export const NOT_IN_CLASS_MESSAGE =
+  'This quiz is for a different class. Ask your teacher to add you.';
+
+/** The rules' list class gate: a run with classes needs one the student's claim names. */
+export function sharesClass(
+  sessionClassIds: unknown,
+  claimClassIds: unknown
+): boolean {
+  if (!Array.isArray(sessionClassIds) || sessionClassIds.length === 0)
+    return true;
+  if (!Array.isArray(claimClassIds)) return false;
+  return sessionClassIds.some((id) => claimClassIds.includes(id));
+}
+
 // Phase-A diagnostic helper: when a Firestore op inside joinQuizSession
 // rejects, emit a structured breadcrumb naming the op + the join's auth/PIN
 // state, then re-throw. The outer catch in joinQuizSession only sees

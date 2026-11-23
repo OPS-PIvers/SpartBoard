@@ -416,6 +416,43 @@ describe('resolveTargets', () => {
     expect(resolved).toHaveLength(1);
   });
 
+  it('files a picked student under the run class they are in, not their first class', () => {
+    const { resolved, skipped } = resolveTargets(
+      [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      {
+        ...ctx(),
+        classIdsByRefKey: new Map([
+          [`classlink:${SOURCED_A}`, [CLASS_A, 'class-later']],
+        ]),
+      },
+      HMAC,
+      new Set(['class-later'])
+    );
+    expect(skipped).toHaveLength(0);
+    expect(resolved[0].classId).toBe('class-later');
+  });
+
+  it('skips a picked student who is in none of the run classes', () => {
+    const { resolved, skipped } = resolveTargets(
+      [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      ctx(),
+      HMAC,
+      new Set(['class-other'])
+    );
+    expect(resolved).toHaveLength(0);
+    expect(skipped[0].reason).toBe('not-in-assigned-class');
+  });
+
+  it('keeps any teacher class when the run names no class', () => {
+    const { resolved } = resolveTargets(
+      [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      ctx(),
+      HMAC,
+      new Set()
+    );
+    expect(resolved[0].classId).toBe(CLASS_A);
+  });
+
   it('reports duplicates instead of writing twice', () => {
     const { resolved, skipped } = resolveTargets(
       [
@@ -2046,6 +2083,34 @@ describe('handleSetAssignmentTargets — mixed class and student targets', () =>
     ]);
   });
 
+  it('skips a picked student whose class the run does not target, with no pointer', async () => {
+    state.docs.set(sessionPath, {
+      teacherUid: TEACHER_UID,
+      status: 'active',
+      classIds: [CLASS_B],
+      classId: CLASS_B,
+    });
+    const result = await runMixed(
+      baseInput({
+        targetMode: 'class',
+        add: [
+          { kind: 'classlink', sourcedId: SOURCED_A },
+          { kind: 'classlink', sourcedId: SOURCED_C },
+        ],
+        studentTargetClassIds: [CLASS_B],
+      })
+    );
+    expect(result.written).toBe(1);
+    expect(result.skipped).toEqual([
+      {
+        ref: { kind: 'classlink', sourcedId: SOURCED_A },
+        reason: 'not-in-assigned-class',
+      },
+    ]);
+    expect(pointerFor(SOURCED_A)).toBeUndefined();
+    expect(pointerFor(SOURCED_C).classId).toBe(CLASS_B);
+  });
+
   it('writes the narrowing before any pointer lands', async () => {
     await runMixed(
       baseInput({
@@ -2873,6 +2938,32 @@ describe('loadClassLinkMembership', () => {
         )
       ).size
     ).toBe(0);
+  });
+
+  it('records every taught class a student is in, keeping the first as the default', async () => {
+    axiosGet.mockImplementation((url: string) => {
+      if (url.endsWith('/users'))
+        return Promise.resolve({
+          data: { users: [{ sourcedId: 'T1', role: 'teacher' }] },
+        });
+      if (url.endsWith('/classes'))
+        return Promise.resolve({
+          data: { classes: [{ sourcedId: CLASS_A }, { sourcedId: 'class-b' }] },
+        });
+      return Promise.resolve({ data: { users: [{ sourcedId: SOURCED_A }] } });
+    });
+    const all = new Map<string, string[]>();
+    const out = await loadClassLinkMembership(
+      'teacher@orono.k12.mn.us',
+      [CLASS_A, 'class-b'],
+      'id',
+      'secret',
+      'https://tenant.example',
+      undefined,
+      all
+    );
+    expect(out.get(SOURCED_A)).toBe(CLASS_A);
+    expect(all.get(`classlink:${SOURCED_A}`)).toEqual([CLASS_A, 'class-b']);
   });
 
   it('pages through a class bigger than one page of students', async () => {

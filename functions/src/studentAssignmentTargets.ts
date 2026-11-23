@@ -871,10 +871,12 @@ export async function handleSetAssignmentTargets(
     ctx,
     hmacSecret
   );
+  // A picked student outside every class on the run could never open it, so they are skipped.
   const addResolved = resolveTargets(
     input.add.filter((ref) => !excludedKeys.has(refKey(ref))),
     ctx,
-    hmacSecret
+    hmacSecret,
+    sessionClassIds
   );
 
   const itemsPath = (uid: string) =>
