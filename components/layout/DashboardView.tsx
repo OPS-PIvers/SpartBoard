@@ -92,6 +92,7 @@ import {
 } from '@/types';
 import type { LiveSession, WidgetType } from '@/types';
 import { extractYouTubeId } from '@/utils/youtube';
+import { BoardBackgroundVideo } from './BoardBackgroundVideo';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import {
   IMPORT_DROP_FEATURE,
@@ -1747,15 +1748,7 @@ export const DashboardView: React.FC = () => {
       >
         {/* Ambient YouTube Video Layer */}
         {youTubeVideoId && (
-          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-black">
-            <iframe
-              ref={ytIframeRef}
-              src={`https://www.youtube.com/embed/${youTubeVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youTubeVideoId}&disablekb=1&modestbranding=1&enablejsapi=1`}
-              className="absolute top-1/2 left-1/2 w-screen h-[56.25vw] min-h-screen min-w-[177.78vh] -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-80"
-              allow="autoplay; encrypted-media"
-              title="Ambient background video"
-            />
-          </div>
+          <BoardBackgroundVideo videoId={youTubeVideoId} ref={ytIframeRef} />
         )}
       </div>
 

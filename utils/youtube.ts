@@ -76,6 +76,31 @@ export const extractYouTubeId = (url: string): string | null => {
   return m ? m[1] : null;
 };
 
+/** Embed URL for an ambient board background (muted, no controls). */
+export const buildBackgroundVideoSrc = (
+  videoId: string,
+  origin: string,
+  playlistLoop: boolean
+): string => {
+  const params = new URLSearchParams({
+    autoplay: '1',
+    mute: '1',
+    controls: '0',
+    disablekb: '1',
+    playsinline: '1',
+    rel: '0',
+    modestbranding: '1',
+    enablejsapi: '1',
+    origin,
+  });
+  // YouTube's playlist loop reloads the video, which restarts quality at 720p or lower.
+  if (playlistLoop) {
+    params.set('loop', '1');
+    params.set('playlist', videoId);
+  }
+  return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
+};
+
 /** Returns the Spotify embed URL, or null if the URL is not a valid https Spotify URL. */
 export const buildSpotifyEmbedUrl = (url: string): string | null => {
   try {
@@ -132,9 +157,9 @@ declare global {
       Player: new (
         elementId: string | HTMLElement,
         options: {
-          height: string;
-          width: string;
-          videoId: string;
+          height?: string;
+          width?: string;
+          videoId?: string;
           playerVars?: Record<string, string | number | boolean>;
           events?: {
             onStateChange?: (event: { data: number }) => void;
