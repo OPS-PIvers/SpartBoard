@@ -181,7 +181,8 @@ async function quizSessionSummary(
           assignment.lenientFibLocales
         ),
         overridesByStudentUid: recompute.parseServedLanguages(
-          assignment.overridesByStudentUid
+          assignment.overridesByStudentUid,
+          s.sessionMode === 'student'
         ),
         sections: parseChooseSections(s.sections),
         paperWrittenQuestionIds: recompute.parsePaperWrittenQuestionIds(

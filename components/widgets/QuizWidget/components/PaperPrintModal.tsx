@@ -213,6 +213,8 @@ export interface PaperAssignPicks {
   periodNames: string[];
   /** Null when the teacher is in no PLC, so there was no Sharing step. */
   sharing: SharingStepValue | null;
+  /** The quiz as this print just saved it, so the assignment freezes what is on the paper. */
+  quiz?: QuizData;
 }
 
 export interface PaperAssignOptions {
@@ -241,7 +243,7 @@ interface PaperPrintModalProps {
    * Called just before the print, so what is on the paper is what the quiz
    * records (D18). Absent on the "Paper test" door, where the stub carries them.
    */
-  onSavePrintSetup?: (setup: PaperPrintSetup) => Promise<void>;
+  onSavePrintSetup?: (setup: PaperPrintSetup) => Promise<QuizData | undefined>;
   /**
    * Reads a test document with the import wizard's readers, so a new paper
    * test carries its real questions from the start instead of placeholders.
@@ -1322,7 +1324,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
 
   // The first student's packet (or a spare), planned like the print but never saved.
   const previewFirst = selectionsForPrint[0];
-  const previewPages = ((): PaperPreviewPage[] | null => {
+  const previewStubTitle = isStub ? stubTitle : '';
+  const previewPages = useMemo((): PaperPreviewPage[] | null => {
     if (!previewOn || questionCount + writtenCount === 0) return null;
     if (pagePlan && !pagePlan.ok) return null;
     if (stimuliLoading || sheetImages.loading) return null;
@@ -1367,7 +1370,41 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     } catch {
       return null;
     }
-  })();
+    // jobFor is rebuilt every render, so its inputs are listed instead.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    previewOn,
+    questionCount,
+    writtenCount,
+    pagePlan,
+    stimuliLoading,
+    sheetImages,
+    previewFirst,
+    spareCount,
+    quiz,
+    quizStimuli,
+    testStimulusFiles.files,
+    choiceCount,
+    isStub,
+    versionPlan,
+    sheetQuestions,
+    columnsPerPage,
+    questionTextLayout,
+    previewStubTitle,
+    analysis,
+    stimuliLayout,
+    stimuliSets,
+    imageStimuli,
+    boxImages,
+    group,
+    promptIds,
+    promptPages,
+    sheetPromptIds,
+    questionsById,
+    printLanguage,
+    blockMeasure,
+    sheetStimuli,
+  ]);
 
   const handlePrint = async () => {
     // A stimulus that cannot be fetched would print as an empty box the
@@ -1470,6 +1507,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         saved && (saved.assigned || saved.picks === picks) ? saved : null;
       const { batch, sheets } = committed ?? planned;
       // A retry after the stack was saved reuses it rather than orphaning it.
+      let savedQuiz: QuizData | undefined;
       if (!committed) {
         if (onCreateQuiz) await onCreateQuiz(printedQuiz);
         // The stub carries them already; an authored quiz records them here, so
@@ -1480,7 +1518,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           onSavePrintSetup &&
           (sheetStimuliChanged || boxSizesChanged || boxStylesChanged)
         )
-          await onSavePrintSetup({
+          savedQuiz = await onSavePrintSetup({
             stimuli: sheetStimuli,
             boxSizes: changedBoxSizes,
             boxStyles: changedBoxStyles,
@@ -1496,6 +1534,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           rosterIds: printed.map((r) => r.id),
           periodNames: printed.map((r) => r.name),
           sharing: sharingStepShown ? sharingValue : null,
+          ...(savedQuiz ? { quiz: savedQuiz } : {}),
         });
         committedRef.current = { batch, sheets, assigned: true, picks };
       }
@@ -2322,6 +2361,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       </div>
       <PaperPrintPreview
         pages={previewPages}
+        loading={stimuliLoading || sheetImages.loading}
         emptyText={previewEmptyText}
         className="mt-1 flex-1"
       />

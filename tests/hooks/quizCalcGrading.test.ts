@@ -190,6 +190,21 @@ describe('random-number questions in the app', () => {
       );
     });
 
+    it('reads the modified flag by uid only, as the server grades it', () => {
+      const bySourcedId = {
+        overridesBySourcedId: { 'classlink:s1': { modifiedQuestions: true } },
+        sessionMode: 'student',
+      };
+      const withSourced = { ...r, sourcedId: 's1', studentUid: 'other' };
+      expect(
+        questionForResponse(
+          modQ,
+          withSourced as unknown as QuizResponse,
+          bySourcedId
+        ).calcValues
+      ).toEqual(calcValuesFor(q, key));
+    });
+
     it('keeps random numbers when the student never saw the modified prompt', () => {
       const teacherPaced = { ...overrides, sessionMode: 'teacher' };
       expect(questionForResponse(modQ, r, teacherPaced).calcValues).toEqual(

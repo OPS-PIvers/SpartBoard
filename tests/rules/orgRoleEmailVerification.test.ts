@@ -6,8 +6,7 @@
 // project's Auth (email/password sign-in is also supported). Before this fix
 // none of these checked email_verified, so anyone who registered an
 // unverified account using a REAL org member's address inherited that
-// member's org-scoped access (up to and including super-admin org
-// create/delete) without ever proving ownership of the address. Mirrors
+// member's org-scoped access (up to and including the super-admin tier) without ever proving ownership of the address. Mirrors
 // adminEmailVerification.test.ts's proof for the sibling isAdmin() fix
 // (PR #2915).
 //
@@ -131,10 +130,9 @@ beforeEach(async () => {
       status: 'active',
       buildingIds: ['high'],
     });
-    await setDoc(doc(db, `organizations/${ORG_ID}/buildings/high`), {
-      id: 'high',
-      orgId: ORG_ID,
-      name: 'Orono High',
+    await setDoc(doc(db, `organizations/${NEW_ORG_ID}`), orgFields(NEW_ORG_ID));
+    await setDoc(doc(db, `organizations/${ORG_ID}/analytics/latest`), {
+      users: 4,
     });
     // The real site admin's /admins doc, independent of who claims that email.
     await setDoc(doc(db, `admins/${SITE_ADMIN_EMAIL}`), { addedAt: 1 });
@@ -142,91 +140,56 @@ beforeEach(async () => {
 });
 
 describe('isSuperAdmin() (member-roleId source) requires a verified email claim', () => {
-  it('denies an unverified caller self-reporting the real super admin email (org create)', async () => {
-    await assertFails(
-      setDoc(
-        doc(
-          asUnverified('impostor-uid', SUPER_EMAIL),
-          `organizations/${NEW_ORG_ID}`
-        ),
-        orgFields(NEW_ORG_ID)
-      )
-    );
+  const otherOrg = (db: ReturnType<typeof asVerified>) =>
+    getDoc(doc(db, `organizations/${NEW_ORG_ID}`));
+
+  it('denies an unverified caller self-reporting the real super admin email (another org read)', async () => {
+    await assertFails(otherOrg(asUnverified('impostor-uid', SUPER_EMAIL)));
   });
 
   it('denies a caller with no email_verified claim at all (defaults unverified)', async () => {
     await assertFails(
-      setDoc(
-        doc(
-          asOmittedVerification('impostor-uid-2', SUPER_EMAIL),
-          `organizations/${NEW_ORG_ID}`
-        ),
-        orgFields(NEW_ORG_ID)
-      )
+      otherOrg(asOmittedVerification('impostor-uid-2', SUPER_EMAIL))
     );
   });
 
   it('allows the real super admin once their token carries email_verified: true', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(
-          asVerified('real-super-uid', SUPER_EMAIL),
-          `organizations/${NEW_ORG_ID}`
-        ),
-        orgFields(NEW_ORG_ID)
-      )
-    );
+    await assertSucceeds(otherOrg(asVerified('real-super-uid', SUPER_EMAIL)));
   });
 });
 
 describe('isDomainAdmin() requires a verified email claim', () => {
-  it('denies an unverified caller self-reporting the real domain admin email (building create)', async () => {
+  const testClass = (db: ReturnType<typeof asVerified>) =>
+    setDoc(doc(db, `organizations/${ORG_ID}/testClasses/mock-1`), {
+      name: 'Mock',
+    });
+
+  it('denies an unverified caller self-reporting the real domain admin email (testClasses write)', async () => {
     await assertFails(
-      setDoc(
-        doc(
-          asUnverified('impostor-uid', DOMAIN_ADMIN_EMAIL),
-          `organizations/${ORG_ID}/buildings/middle`
-        ),
-        { id: 'middle', orgId: ORG_ID, name: 'Orono Middle', users: 0 }
-      )
+      testClass(asUnverified('impostor-uid', DOMAIN_ADMIN_EMAIL))
     );
   });
 
   it('allows the real domain admin once their token carries email_verified: true', async () => {
     await assertSucceeds(
-      setDoc(
-        doc(
-          asVerified('real-domain-admin-uid', DOMAIN_ADMIN_EMAIL),
-          `organizations/${ORG_ID}/buildings/middle`
-        ),
-        { id: 'middle', orgId: ORG_ID, name: 'Orono Middle', users: 0 }
-      )
+      testClass(asVerified('real-domain-admin-uid', DOMAIN_ADMIN_EMAIL))
     );
   });
 });
 
 describe('isBuildingAdmin() requires a verified email claim', () => {
-  it('denies an unverified caller self-reporting the real building admin email (building update)', async () => {
+  const analytics = (db: ReturnType<typeof asVerified>) =>
+    getDoc(doc(db, `organizations/${ORG_ID}/analytics/latest`));
+
+  it('denies an unverified caller self-reporting the real building admin email (analytics read)', async () => {
     await assertFails(
-      updateDoc(
-        doc(
-          asUnverified('impostor-uid', BUILDING_ADMIN_EMAIL),
-          `organizations/${ORG_ID}/buildings/high`
-        ),
-        { name: 'Hijacked High' }
-      )
+      analytics(asUnverified('impostor-uid', BUILDING_ADMIN_EMAIL))
     );
   });
 
   it('allows the real building admin once their token carries email_verified: true', async () => {
     await assertSucceeds(
-      updateDoc(
-        doc(
-          asVerified('real-building-admin-uid', BUILDING_ADMIN_EMAIL),
-          `organizations/${ORG_ID}/buildings/high`
-        ),
-        { name: 'Renamed High' }
-      )
+      analytics(asVerified('real-building-admin-uid', BUILDING_ADMIN_EMAIL))
     );
   });
 });

@@ -734,7 +734,7 @@ describe('PaperPrintModal', () => {
       const order: string[] = [];
       const onSavePrintSetup = vi.fn(() => {
         order.push('quiz');
-        return Promise.resolve();
+        return Promise.resolve(undefined);
       });
       const onSaveBatch = vi.fn(() => {
         order.push('batch');
@@ -1667,6 +1667,41 @@ describe('PaperPrintModal on the Assign on paper stepper', () => {
       periodNames: ['Period 1'],
       sharing: null,
     });
+  });
+
+  it('makes the paper assignment from the quiz this print just saved', async () => {
+    features.add('paper-handwritten-responses');
+    const fr = (
+      id: string,
+      over: Partial<QuizQuestion> = {}
+    ): QuizQuestion => ({
+      id,
+      timeLimit: 0,
+      text: `Explain ${id}`,
+      type: 'free-response',
+      correctAnswer: '',
+      incorrectAnswers: [],
+      ...over,
+    });
+    const saved = quiz({ questions: [fr('w1', { paperBoxSize: 'S' })] });
+    const onSavePrintSetup = vi.fn().mockResolvedValue(saved);
+    const { onCreateAssignment, print } = assignSetup(
+      {},
+      { quiz: quiz({ questions: [fr('w1')] }), onSavePrintSetup }
+    );
+    pickPeriod1();
+    fireEvent.click(screen.getByText('Response sheets'));
+    fireEvent.change(screen.getByLabelText('Question 1 box size'), {
+      target: { value: 'custom' },
+    });
+    fireEvent.change(screen.getByLabelText('Question 1 box size, lines'), {
+      target: { value: '15' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Assign and print/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    expect(onCreateAssignment).toHaveBeenCalledWith(
+      expect.objectContaining({ quiz: saved })
+    );
   });
 
   it('never prints when the paper assignment could not be made', async () => {

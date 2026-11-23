@@ -5,18 +5,11 @@
 // which wraps this file in `firebase emulators:exec --only firestore`.
 //
 // Covers:
-//   Phase 1 reads — org members can read sub-collections; outsiders blocked
-//   (except own member-doc probe); legacy /admins/{email} still works.
-//   Phase 3 writes — scoped writes enabled per role:
-//     * super admin: org create/delete; any field on any org
-//     * domain admin: update identity fields on own org (NOT aiEnabled/plan);
-//       full CRUD on buildings/domains/roles (custom only)/members
-//     * building admin: read-only everywhere, with two exceptions —
-//       (a) update buildings they manage, and
-//       (b) update `status` (only) on members whose buildingIds intersect
-//           the actor's buildingIds
-//     * system roles (`system: true`) are immutable from clients
-//     * invitations collection stays fully locked (Phase 4 wires it).
+//   Reads: org members can read sub-collections; outsiders blocked (except own
+//   member-doc probe); legacy /admins/{email} still works.
+//   Writes: orgAdminV1 owns every org, building, domain, role, member and
+//   tombstone write, so every client tier is denied except a member's own
+//   lastActive stamp; invitations stay fully locked; testClasses stay admin-only.
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -330,181 +323,160 @@ describe('organizations — reads (Phase 1)', () => {
   });
 });
 
-describe('organizations — super admin writes (Phase 3)', () => {
-  it('super admin can create an org', async () => {
-    await assertSucceeds(
-      setDoc(doc(asSuper(), 'organizations/new-org'), {
-        id: 'new-org',
-        name: 'New',
-        plan: 'basic',
-        aiEnabled: false,
-      })
-    );
-  });
+describe('organizations — client writes are denied (orgAdminV1 owns them)', () => {
+  const actors = () =>
+    [
+      ['super admin', asSuper()],
+      ['domain admin', asDomainAdmin()],
+      ['building admin', asBuildingAdmin()],
+      ['teacher', asTeacher()],
+      ['outsider', asOutsider()],
+    ] as const;
 
-  it('super admin can create an org only with a well-formed Claude sign-in issuer', async () => {
-    await assertSucceeds(
-      setDoc(doc(asSuper(), 'organizations/issuer-ok'), {
-        id: 'issuer-ok',
-        name: 'Issuer OK',
-        claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
-      })
-    );
-    for (const [i, bad] of [
-      { enabled: true, issuer: 'http://x.example' },
-      { enabled: 'yes', issuer: 'https://x.example' },
-      { enabled: true, issuer: 'https://x.example', extra: 1 },
-      'https://x.example',
-      null,
-    ].entries()) {
+  it('nobody creates, updates or deletes an org doc', async () => {
+    for (const [, db] of actors()) {
       await assertFails(
-        setDoc(doc(asSuper(), `organizations/issuer-bad-${i}`), {
-          id: `issuer-bad-${i}`,
-          name: 'Bad',
-          claudeManagedAuth: bad,
+        setDoc(doc(db, 'organizations/new-org'), { id: 'new-org', name: 'N' })
+      );
+      await assertFails(
+        updateDoc(doc(db, `organizations/${ORG_ID}`), { name: 'Nope' })
+      );
+      await assertFails(
+        updateDoc(doc(db, `organizations/${ORG_ID}`), {
+          claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
         })
       );
+      await assertFails(deleteDoc(doc(db, `organizations/${OTHER_ORG_ID}`)));
     }
   });
 
-  it('domain admin cannot create an org carrying a Claude sign-in issuer', async () => {
-    await assertFails(
-      setDoc(doc(asDomainAdmin(), 'organizations/nope-issuer'), {
-        name: 'Nope',
-        claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
-      })
-    );
-  });
-
-  it('super admin can delete an org', async () => {
-    await assertSucceeds(
-      deleteDoc(doc(asSuper(), `organizations/${OTHER_ORG_ID}`))
-    );
-  });
-
-  it('super admin can flip aiEnabled / plan', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asSuper(), `organizations/${ORG_ID}`), {
-        aiEnabled: false,
-        plan: 'expanded',
-      })
-    );
-  });
-
-  it('domain admin cannot create an org', async () => {
-    await assertFails(
-      setDoc(doc(asDomainAdmin(), 'organizations/nope'), { name: 'Nope' })
-    );
-  });
-
-  it('domain admin cannot delete their own org', async () => {
-    await assertFails(
-      deleteDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}`))
-    );
-  });
-});
-
-describe('organizations — domain admin writes on own org', () => {
-  it('can update identity fields (name, shortName, seedColor, supportUrl)', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}`), {
-        name: 'Orono Public Schools',
-        shortName: 'Orono',
-        seedColor: 'bg-emerald-600',
-        supportUrl: 'https://orono.k12.mn.us/support',
-      })
-    );
-  });
-
-  it('cannot flip aiEnabled', async () => {
-    await assertFails(
-      updateDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}`), {
-        aiEnabled: false,
-      })
-    );
-  });
-
-  it('cannot change plan', async () => {
-    await assertFails(
-      updateDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}`), {
-        plan: 'basic',
-      })
-    );
-  });
-
-  it('cannot change status (archive is super-admin-only)', async () => {
-    await assertFails(
-      updateDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}`), {
-        status: 'archived',
-      })
-    );
-  });
-
-  it('cannot overwrite derived counts (users, buildings)', async () => {
-    await assertFails(
-      updateDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}`), {
-        users: 9999,
-      })
-    );
-    await assertFails(
-      updateDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}`), {
-        buildings: 9999,
-      })
-    );
-  });
-
-  it('cannot edit another org', async () => {
-    await assertFails(
-      updateDoc(doc(asDomainAdmin(), `organizations/${OTHER_ORG_ID}`), {
-        name: 'Hijacked',
-      })
-    );
-  });
-
-  it('cannot set the Claude sign-in issuer', async () => {
-    await assertFails(
-      updateDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}`), {
-        claudeManagedAuth: {
-          enabled: true,
-          issuer: 'https://identity.anthropic.com/issuers/abc123',
-        },
-      })
-    );
-  });
-
-  it('a building admin cannot set the Claude sign-in issuer', async () => {
-    await assertFails(
-      updateDoc(doc(asBuildingAdmin(), `organizations/${ORG_ID}`), {
-        claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
-      })
-    );
-  });
-});
-
-describe('organizations — Claude sign-in issuer (super admin only)', () => {
-  it('a super admin can set the issuer only in its pinned shape', async () => {
-    const ref = () => doc(asSuper(), `organizations/${ORG_ID}`);
-    await assertSucceeds(
-      updateDoc(ref(), {
-        claudeManagedAuth: {
-          enabled: true,
-          issuer: 'https://identity.anthropic.com/issuers/abc123',
-        },
-      })
-    );
-    for (const bad of [
-      { enabled: true, issuer: 'http://identity.anthropic.com/issuers/a' },
-      { enabled: true, issuer: 'https://x.example/?a=1' },
-      { enabled: 'yes', issuer: 'https://x.example' },
-      { enabled: true, issuer: 'https://x.example', extra: 1 },
-      'https://x.example',
-    ]) {
-      await assertFails(updateDoc(ref(), { claudeManagedAuth: bad }));
+  it('nobody writes buildings, domains or roles', async () => {
+    for (const [, db] of actors()) {
+      const base = `organizations/${ORG_ID}`;
+      await assertFails(
+        setDoc(doc(db, `${base}/buildings/new`), {
+          id: 'new',
+          orgId: ORG_ID,
+          name: 'New',
+          users: 0,
+        })
+      );
+      await assertFails(
+        updateDoc(doc(db, `${base}/buildings/high`), { name: 'Renamed' })
+      );
+      await assertFails(deleteDoc(doc(db, `${base}/buildings/high`)));
+      await assertFails(
+        setDoc(doc(db, `${base}/domains/new`), {
+          id: 'new',
+          orgId: ORG_ID,
+          domain: '@new.example.org',
+          status: 'pending',
+          users: 0,
+        })
+      );
+      await assertFails(
+        updateDoc(doc(db, `${base}/domains/primary`), { role: 'teacher' })
+      );
+      await assertFails(deleteDoc(doc(db, `${base}/domains/primary`)));
+      await assertFails(
+        setDoc(doc(db, `${base}/roles/new-role`), {
+          id: 'new-role',
+          name: 'New',
+          system: false,
+          perms: {},
+        })
+      );
+      await assertFails(
+        updateDoc(doc(db, `${base}/roles/custom-coach`), { name: 'Coach' })
+      );
+      await assertFails(
+        updateDoc(doc(db, `${base}/roles/domain_admin`), { perms: { x: 1 } })
+      );
+      await assertFails(deleteDoc(doc(db, `${base}/roles/custom-coach`)));
     }
-    await assertSucceeds(updateDoc(ref(), { name: 'Orono Schools' }));
   });
 
-  it('an org member can read the saved issuer and a non-member cannot', async () => {
+  it("nobody creates, deletes or edits another member's doc", async () => {
+    const members = `organizations/${ORG_ID}/members`;
+    for (const [, db] of actors()) {
+      await assertFails(
+        setDoc(doc(db, `${members}/new.teacher@orono.k12.mn.us`), {
+          email: 'new.teacher@orono.k12.mn.us',
+          orgId: ORG_ID,
+          roleId: 'teacher',
+          status: 'invited',
+          buildingIds: ['high'],
+        })
+      );
+      await assertFails(
+        updateDoc(doc(db, `${members}/${OUT_OF_SCOPE_MEMBER_EMAIL}`), {
+          status: 'inactive',
+        })
+      );
+      await assertFails(
+        updateDoc(doc(db, `${members}/${OUT_OF_SCOPE_MEMBER_EMAIL}`), {
+          lastActive: 'now',
+        })
+      );
+      await assertFails(
+        deleteDoc(doc(db, `${members}/${OUT_OF_SCOPE_MEMBER_EMAIL}`))
+      );
+    }
+    await assertFails(
+      updateDoc(doc(asBuildingAdmin(), `${members}/${TEACHER_EMAIL}`), {
+        status: 'inactive',
+      })
+    );
+  });
+
+  it('a member may stamp only lastActive on their own doc', async () => {
+    const own = (db: ReturnType<typeof asTeacher>, email: string) =>
+      doc(db, `organizations/${ORG_ID}/members/${email}`);
+    await assertSucceeds(
+      setDoc(
+        own(asTeacher(), TEACHER_EMAIL),
+        { lastActive: 'now' },
+        {
+          merge: true,
+        }
+      )
+    );
+    await assertSucceeds(
+      updateDoc(own(asDomainAdmin(), DOMAIN_ADMIN_EMAIL), { lastActive: 'now' })
+    );
+    await assertFails(
+      updateDoc(own(asTeacher(), TEACHER_EMAIL), { roleId: 'domain_admin' })
+    );
+    await assertFails(
+      updateDoc(own(asDomainAdmin(), DOMAIN_ADMIN_EMAIL), { name: 'Paul' })
+    );
+    await assertFails(
+      updateDoc(own(asSuper(), SUPER_EMAIL), { status: 'inactive' })
+    );
+    await assertFails(deleteDoc(own(asTeacher(), TEACHER_EMAIL)));
+    await assertFails(
+      updateDoc(
+        doc(
+          testEnv
+            .authenticatedContext('teacher-uid', { email: TEACHER_EMAIL })
+            .firestore(),
+          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
+        ),
+        { lastActive: 'now' }
+      )
+    );
+  });
+
+  it('nobody reads or writes a removed-member tombstone', async () => {
+    const path = `organizations/${ORG_ID}/removedMembers/gone@orono.k12.mn.us`;
+    for (const [, db] of actors()) {
+      await assertFails(setDoc(doc(db, path), { removedAt: 'now' }));
+      await assertFails(deleteDoc(doc(db, path)));
+      await assertFails(getDoc(doc(db, path)));
+    }
+  });
+
+  it('an org member can read the saved Claude sign-in issuer and a non-member cannot', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await updateDoc(doc(ctx.firestore(), `organizations/${ORG_ID}`), {
         claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
@@ -518,1126 +490,6 @@ describe('organizations — Claude sign-in issuer (super admin only)', () => {
       issuer: 'https://x.example',
     });
     await assertFails(getDoc(doc(asOutsider(), `organizations/${ORG_ID}`)));
-  });
-});
-
-describe('organizations — building admin writes on org doc (denied)', () => {
-  it('building admin cannot update org identity fields', async () => {
-    await assertFails(
-      updateDoc(doc(asBuildingAdmin(), `organizations/${ORG_ID}`), {
-        name: 'Nope',
-      })
-    );
-  });
-
-  it('teacher cannot update org doc', async () => {
-    await assertFails(
-      updateDoc(doc(asTeacher(), `organizations/${ORG_ID}`), { name: 'Nope' })
-    );
-  });
-});
-
-describe('organizations/buildings — writes', () => {
-  it('domain admin can create, update, delete any building', async () => {
-    await assertSucceeds(
-      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/buildings/new`), {
-        id: 'new',
-        orgId: ORG_ID,
-        name: 'New School',
-        users: 0,
-      })
-    );
-    await assertSucceeds(
-      updateDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/buildings/middle`),
-        { name: 'Orono Middle School' }
-      )
-    );
-    await assertSucceeds(
-      deleteDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/buildings/elementary`)
-      )
-    );
-  });
-
-  it('domain admin cannot create a building whose orgId != path orgId', async () => {
-    await assertFails(
-      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/buildings/sneaky`), {
-        id: 'sneaky',
-        orgId: OTHER_ORG_ID, // spoofed parent
-        name: 'Sneaky',
-        users: 0,
-      })
-    );
-  });
-
-  it('domain admin cannot create a building whose id != path buildingId', async () => {
-    await assertFails(
-      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/buildings/real`), {
-        id: 'fake',
-        orgId: ORG_ID,
-        name: 'Mismatch',
-        users: 0,
-      })
-    );
-  });
-
-  it('domain admin cannot create a building with users != 0', async () => {
-    await assertFails(
-      setDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/buildings/inflate`),
-        {
-          id: 'inflate',
-          orgId: ORG_ID,
-          name: 'Inflated',
-          users: 9999, // derived count — server-managed
-        }
-      )
-    );
-  });
-
-  it('domain admin cannot create a building with unknown keys', async () => {
-    await assertFails(
-      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/buildings/extra`), {
-        id: 'extra',
-        orgId: ORG_ID,
-        name: 'Extra',
-        users: 0,
-        secretField: 'nope', // not in the whitelist
-      })
-    );
-  });
-
-  it('domain admin cannot mutate derived `users` on a building', async () => {
-    await assertFails(
-      updateDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/buildings/high`),
-        { users: 9999 }
-      )
-    );
-  });
-
-  it('building admin can update a building in their scope', async () => {
-    await assertSucceeds(
-      updateDoc(
-        doc(asBuildingAdmin(), `organizations/${ORG_ID}/buildings/high`),
-        { address: '123 Spartan Way' }
-      )
-    );
-  });
-
-  it('building admin cannot rewrite a building identity field', async () => {
-    await assertFails(
-      updateDoc(
-        doc(asBuildingAdmin(), `organizations/${ORG_ID}/buildings/high`),
-        { orgId: OTHER_ORG_ID }
-      )
-    );
-    await assertFails(
-      updateDoc(
-        doc(asBuildingAdmin(), `organizations/${ORG_ID}/buildings/high`),
-        { id: 'renamed' }
-      )
-    );
-  });
-
-  it('domain admin cannot rewrite a building identity field', async () => {
-    await assertFails(
-      updateDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/buildings/high`),
-        { orgId: OTHER_ORG_ID }
-      )
-    );
-  });
-
-  it('building admin cannot update a building outside their scope', async () => {
-    await assertFails(
-      updateDoc(
-        doc(asBuildingAdmin(), `organizations/${ORG_ID}/buildings/middle`),
-        { address: 'nope' }
-      )
-    );
-  });
-
-  it('building admin cannot create or delete buildings', async () => {
-    await assertFails(
-      setDoc(doc(asBuildingAdmin(), `organizations/${ORG_ID}/buildings/new`), {
-        id: 'new',
-        orgId: ORG_ID,
-        name: 'X',
-        users: 0,
-      })
-    );
-    await assertFails(
-      deleteDoc(
-        doc(asBuildingAdmin(), `organizations/${ORG_ID}/buildings/high`)
-      )
-    );
-  });
-
-  it('teacher cannot update a building', async () => {
-    await assertFails(
-      updateDoc(doc(asTeacher(), `organizations/${ORG_ID}/buildings/high`), {
-        name: 'nope',
-      })
-    );
-  });
-});
-
-// PT-175: manages() compares raw building ids; prod has no long-form ids left, so formats no longer bridge.
-describe('organizations/buildings — building-admin ID matching', () => {
-  const CANON_MEMBER_EMAIL = 'canon.admin@orono.k12.mn.us';
-  const LEGACY_MEMBER_EMAIL = 'legacy.admin@orono.k12.mn.us';
-  const NONMEMBER_ADMIN_EMAIL = 'nonmember.admin@orono.k12.mn.us';
-
-  const asCanonAdmin = () =>
-    testEnv
-      .authenticatedContext('canon-uid', {
-        email: CANON_MEMBER_EMAIL,
-        email_verified: true,
-      })
-      .firestore();
-  const asLegacyAdmin = () =>
-    testEnv
-      .authenticatedContext('legacy-uid', {
-        email: LEGACY_MEMBER_EMAIL,
-        email_verified: true,
-      })
-      .firestore();
-  const asNonMemberAdmin = () =>
-    testEnv
-      .authenticatedContext('nonmember-uid', {
-        email: NONMEMBER_ADMIN_EMAIL,
-        email_verified: true,
-      })
-      .firestore();
-
-  beforeEach(async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      const db = ctx.firestore();
-      // Canonical-format member managing 'high'.
-      await setDoc(
-        doc(db, `organizations/${ORG_ID}/members/${CANON_MEMBER_EMAIL}`),
-        {
-          email: CANON_MEMBER_EMAIL,
-          orgId: ORG_ID,
-          roleId: 'building_admin',
-          status: 'active',
-          buildingIds: ['high'],
-        }
-      );
-      // Legacy-format member managing 'orono-high-school'.
-      await setDoc(
-        doc(db, `organizations/${ORG_ID}/members/${LEGACY_MEMBER_EMAIL}`),
-        {
-          email: LEGACY_MEMBER_EMAIL,
-          orgId: ORG_ID,
-          roleId: 'building_admin',
-          status: 'active',
-          buildingIds: ['orono-high-school'],
-        }
-      );
-      // Building admin who manages a DIFFERENT building (middle), so neither
-      // ID format of 'high' is in scope.
-      await setDoc(
-        doc(db, `organizations/${ORG_ID}/members/${NONMEMBER_ADMIN_EMAIL}`),
-        {
-          email: NONMEMBER_ADMIN_EMAIL,
-          orgId: ORG_ID,
-          roleId: 'building_admin',
-          status: 'active',
-          buildingIds: ['middle'],
-        }
-      );
-      // A building doc stored in the LEGACY ID format.
-      await setDoc(
-        doc(db, `organizations/${ORG_ID}/buildings/orono-high-school`),
-        {
-          id: 'orono-high-school',
-          orgId: ORG_ID,
-          name: 'Orono High (legacy id)',
-        }
-      );
-    });
-  });
-
-  // PT-175: prod has no long-form building ids, so the rules no longer bridge the two formats.
-  it('canonical-member cannot edit a legacy-id building (no alias bridging)', async () => {
-    await assertFails(
-      updateDoc(
-        doc(
-          asCanonAdmin(),
-          `organizations/${ORG_ID}/buildings/orono-high-school`
-        ),
-        { address: '1 Canon St' }
-      )
-    );
-  });
-
-  it('legacy-member cannot edit a canonical-id building (no alias bridging)', async () => {
-    await assertFails(
-      updateDoc(
-        doc(asLegacyAdmin(), `organizations/${ORG_ID}/buildings/high`),
-        { address: '2 Legacy Ave' }
-      )
-    );
-  });
-
-  it('canonical-member can edit the canonical-id building (same-format sanity)', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asCanonAdmin(), `organizations/${ORG_ID}/buildings/high`), {
-        address: '3 Same St',
-      })
-    );
-  });
-
-  it('non-managing building admin is denied on both ID formats', async () => {
-    await assertFails(
-      updateDoc(
-        doc(asNonMemberAdmin(), `organizations/${ORG_ID}/buildings/high`),
-        { address: 'nope' }
-      )
-    );
-    await assertFails(
-      updateDoc(
-        doc(
-          asNonMemberAdmin(),
-          `organizations/${ORG_ID}/buildings/orono-high-school`
-        ),
-        { address: 'nope' }
-      )
-    );
-  });
-});
-
-describe('organizations/domains — writes', () => {
-  const pendingDomain = (id: string, domain: string) => ({
-    id,
-    orgId: ORG_ID,
-    domain,
-    authMethod: 'google',
-    status: 'pending',
-    role: 'staff',
-    users: 0,
-    addedAt: '2026-01-01',
-  });
-
-  it('domain admin can create, update, delete domains', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/students`),
-        pendingDomain('students', '@hs.orono.k12.mn.us')
-      )
-    );
-    await assertSucceeds(
-      updateDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/primary`),
-        { authMethod: 'google' }
-      )
-    );
-    await assertSucceeds(
-      deleteDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/primary`))
-    );
-  });
-
-  it('domain admin cannot create a domain whose orgId != path orgId', async () => {
-    await assertFails(
-      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/sneaky`), {
-        ...pendingDomain('sneaky', '@x.com'),
-        orgId: OTHER_ORG_ID,
-      })
-    );
-  });
-
-  it('domain admin cannot create a domain whose id != path domainId', async () => {
-    await assertFails(
-      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/real`), {
-        ...pendingDomain('fake', '@x.com'),
-      })
-    );
-  });
-
-  it('domain admin cannot seed status:verified on create (server-managed)', async () => {
-    await assertFails(
-      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/spoof`), {
-        ...pendingDomain('spoof', '@spoof.com'),
-        status: 'verified',
-      })
-    );
-  });
-
-  it('domain admin cannot seed a nonzero users count on create', async () => {
-    await assertFails(
-      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/inflate`), {
-        ...pendingDomain('inflate', '@inflate.com'),
-        users: 9999,
-      })
-    );
-  });
-
-  it('domain admin cannot attach arbitrary fields on create (hasOnly)', async () => {
-    await assertFails(
-      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/extra`), {
-        ...pendingDomain('extra', '@extra.com'),
-        secretNote: 'stash',
-      })
-    );
-  });
-
-  it('domain admin cannot flip status (server-managed) via update', async () => {
-    await assertFails(
-      updateDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/primary`),
-        { status: 'verified' }
-      )
-    );
-  });
-
-  it('domain admin cannot overwrite derived users count or addedAt', async () => {
-    await assertFails(
-      updateDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/primary`),
-        { users: 9999 }
-      )
-    );
-    await assertFails(
-      updateDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/primary`),
-        { addedAt: '2020-01-01' }
-      )
-    );
-  });
-
-  it('domain admin cannot rewrite a domain identity field', async () => {
-    await assertFails(
-      updateDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/primary`),
-        { orgId: OTHER_ORG_ID }
-      )
-    );
-  });
-
-  it('domain admin cannot rename a verified domain, but can still edit its other fields', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(
-        doc(ctx.firestore(), `organizations/${ORG_ID}/domains/verified`),
-        {
-          ...pendingDomain('verified', '@verified.orono.k12.mn.us'),
-          status: 'verified',
-        }
-      );
-    });
-    await assertFails(
-      updateDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/verified`),
-        { domain: '@other-district.org' }
-      )
-    );
-    await assertSucceeds(
-      updateDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/verified`),
-        { authMethod: 'saml' }
-      )
-    );
-    await assertSucceeds(
-      updateDoc(doc(asSuper(), `organizations/${ORG_ID}/domains/verified`), {
-        domain: '@renamed.orono.k12.mn.us',
-      })
-    );
-  });
-
-  it('building admin cannot write domains', async () => {
-    await assertFails(
-      setDoc(doc(asBuildingAdmin(), `organizations/${ORG_ID}/domains/new`), {
-        ...pendingDomain('new', '@x.com'),
-      })
-    );
-    await assertFails(
-      updateDoc(
-        doc(asBuildingAdmin(), `organizations/${ORG_ID}/domains/primary`),
-        { authMethod: 'saml' }
-      )
-    );
-    await assertFails(
-      deleteDoc(
-        doc(asBuildingAdmin(), `organizations/${ORG_ID}/domains/primary`)
-      )
-    );
-  });
-
-  // resolveOrgIdForDomain (functions/src/classlinkShared.ts) resolves a
-  // signed-in user's org via an EXACT-match query against a value it builds
-  // itself as '@' + <lowercased email/hd domain> — it never normalizes the
-  // STORED `domain` field. A domain doc written with mismatched case or
-  // stray whitespace would previously pass this rule (only hasOnly + identity
-  // fields were pinned) and look "added" in the admin UI, but every sign-in
-  // from that domain would then silently fail org resolution forever with no
-  // error surfaced anywhere.
-  it('domain admin cannot create a domain value with uppercase letters', async () => {
-    await assertFails(
-      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/bad-case`), {
-        ...pendingDomain('bad-case', '@Orono.K12.MN.US'),
-      })
-    );
-  });
-
-  it('domain admin cannot create a domain value with embedded whitespace', async () => {
-    await assertFails(
-      setDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/bad-space`),
-        { ...pendingDomain('bad-space', '@orono.k12.mn.us ') }
-      )
-    );
-  });
-
-  it('domain admin cannot create a domain value missing the leading @', async () => {
-    await assertFails(
-      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/bad-at`), {
-        ...pendingDomain('bad-at', 'orono.k12.mn.us'),
-      })
-    );
-  });
-
-  it('domain admin cannot update a domain value to an unnormalized form', async () => {
-    await assertFails(
-      updateDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/primary`),
-        { domain: '@Orono.K12.MN.US' }
-      )
-    );
-  });
-
-  it('super admin cannot update a domain value to an unnormalized form', async () => {
-    await assertFails(
-      updateDoc(doc(asSuper(), `organizations/${ORG_ID}/domains/primary`), {
-        domain: '@Orono.K12.MN.US',
-      })
-    );
-  });
-
-  it('super admin can update a domain value to a normalized form', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asSuper(), `organizations/${ORG_ID}/domains/primary`), {
-        domain: '@renamed.orono.k12.mn.us',
-      })
-    );
-  });
-});
-
-describe('organizations/roles — writes (system role protection)', () => {
-  it('domain admin can create a custom role (system:false)', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/roles/custom-specialist`),
-        {
-          id: 'custom-specialist',
-          name: 'Specialist',
-          system: false,
-          perms: {},
-        }
-      )
-    );
-  });
-
-  it('domain admin cannot create a role with system:true', async () => {
-    await assertFails(
-      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/roles/hacked`), {
-        id: 'hacked',
-        name: 'Hacked',
-        system: true,
-        perms: {},
-      })
-    );
-  });
-
-  it('domain admin cannot create a role whose id != path roleId', async () => {
-    await assertFails(
-      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/roles/real`), {
-        id: 'fake',
-        name: 'Mismatch',
-        system: false,
-        perms: {},
-      })
-    );
-  });
-
-  it('domain admin can update a custom role', async () => {
-    await assertSucceeds(
-      updateDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/roles/custom-coach`),
-        { name: 'Instructional Coach (renamed)' }
-      )
-    );
-  });
-
-  it('domain admin cannot update a system role', async () => {
-    await assertFails(
-      updateDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/roles/domain_admin`),
-        { name: 'Renamed' }
-      )
-    );
-  });
-
-  it('domain admin cannot flip system:true to false', async () => {
-    // Starting from system:true; request tries to change to false.
-    await assertFails(
-      updateDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/roles/teacher`), {
-        system: false,
-      })
-    );
-  });
-
-  it('domain admin cannot flip system:false to true on a custom role', async () => {
-    await assertFails(
-      updateDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/roles/custom-coach`),
-        { system: true }
-      )
-    );
-  });
-
-  it('domain admin cannot delete a system role', async () => {
-    await assertFails(
-      deleteDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/roles/domain_admin`)
-      )
-    );
-  });
-
-  it('domain admin can delete a custom role', async () => {
-    await assertSucceeds(
-      deleteDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/roles/custom-coach`)
-      )
-    );
-  });
-
-  it('domain admin cannot create a role with unknown keys', async () => {
-    await assertFails(
-      setDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/roles/custom-extra`),
-        {
-          id: 'custom-extra',
-          name: 'Extra',
-          system: false,
-          perms: {},
-          secretField: 'nope', // not in the whitelist
-        }
-      )
-    );
-  });
-
-  it('domain admin cannot create a role missing required fields', async () => {
-    await assertFails(
-      setDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/roles/custom-thin`),
-        {
-          id: 'custom-thin',
-          name: 'Thin',
-          system: false,
-          // perms omitted — required by hasAll
-        }
-      )
-    );
-  });
-
-  it('domain admin cannot update a custom role with unknown keys', async () => {
-    await assertFails(
-      updateDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/roles/custom-coach`),
-        { secretField: 'nope' }
-      )
-    );
-  });
-
-  it('building admin cannot create or update roles', async () => {
-    await assertFails(
-      setDoc(doc(asBuildingAdmin(), `organizations/${ORG_ID}/roles/custom-x`), {
-        id: 'custom-x',
-        name: 'X',
-        system: false,
-        perms: {},
-      })
-    );
-    await assertFails(
-      updateDoc(
-        doc(asBuildingAdmin(), `organizations/${ORG_ID}/roles/custom-coach`),
-        { name: 'hack' }
-      )
-    );
-  });
-
-  it('super admin can update perms on a system role', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asSuper(), `organizations/${ORG_ID}/roles/domain_admin`), {
-        perms: { viewBoards: 'full' },
-      })
-    );
-  });
-
-  it('super admin cannot change non-perms fields on a system role', async () => {
-    await assertFails(
-      updateDoc(doc(asSuper(), `organizations/${ORG_ID}/roles/teacher`), {
-        name: 'Renamed system role',
-      })
-    );
-  });
-
-  it('super admin cannot flip system:true to false', async () => {
-    await assertFails(
-      updateDoc(doc(asSuper(), `organizations/${ORG_ID}/roles/teacher`), {
-        system: false,
-      })
-    );
-  });
-
-  it('super admin can still update name/perms on a custom role', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asSuper(), `organizations/${ORG_ID}/roles/custom-coach`), {
-        name: 'Coach (super renamed)',
-        perms: { viewBoards: 'building' },
-      })
-    );
-  });
-});
-
-describe('organizations/removedMembers — tombstones', () => {
-  const path = `organizations/${ORG_ID}/removedMembers/gone@orono.k12.mn.us`;
-
-  it('domain admin can write and delete a tombstone', async () => {
-    await assertSucceeds(
-      setDoc(doc(asDomainAdmin(), path), { removedAt: 'now' })
-    );
-    await assertSucceeds(deleteDoc(doc(asDomainAdmin(), path)));
-  });
-
-  it('teachers and outsiders cannot write or read one', async () => {
-    await assertFails(setDoc(doc(asTeacher(), path), { removedAt: 'now' }));
-    await assertFails(setDoc(doc(asOutsider(), path), { removedAt: 'now' }));
-    await assertFails(getDoc(doc(asDomainAdmin(), path)));
-    await assertFails(getDoc(doc(asTeacher(), path)));
-  });
-});
-
-describe('organizations/members — writes', () => {
-  const validMember = (email: string) => ({
-    email,
-    orgId: ORG_ID,
-    roleId: 'teacher',
-    status: 'invited',
-    buildingIds: ['high'],
-  });
-
-  it('domain admin can create a new member', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/new.teacher@orono.k12.mn.us`
-        ),
-        validMember('new.teacher@orono.k12.mn.us')
-      )
-    );
-  });
-
-  it('domain admin cannot create a member whose email != doc id', async () => {
-    await assertFails(
-      setDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/expected@orono.k12.mn.us`
-        ),
-        validMember('someoneelse@orono.k12.mn.us')
-      )
-    );
-  });
-
-  it('domain admin cannot create a member whose orgId != path orgId', async () => {
-    await assertFails(
-      setDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/xorg@orono.k12.mn.us`
-        ),
-        { ...validMember('xorg@orono.k12.mn.us'), orgId: OTHER_ORG_ID }
-      )
-    );
-  });
-
-  it('domain admin cannot create a member missing required fields', async () => {
-    await assertFails(
-      setDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/missing@orono.k12.mn.us`
-        ),
-        {
-          email: 'missing@orono.k12.mn.us',
-          orgId: ORG_ID,
-          // roleId, status, buildingIds all missing
-        }
-      )
-    );
-  });
-
-  it('domain admin cannot create a member with arbitrary extra fields', async () => {
-    await assertFails(
-      setDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/extra@orono.k12.mn.us`
-        ),
-        { ...validMember('extra@orono.k12.mn.us'), isSuperAdmin: true }
-      )
-    );
-  });
-
-  it('domain admin cannot create a member with a mixed-case doc id', async () => {
-    // isOrgMember() always looks up members/{token.email.lower()}, so a
-    // mixed-case id would be orphaned and never found.
-    await assertFails(
-      setDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/Mixed.Case@orono.k12.mn.us`
-        ),
-        validMember('mixed.case@orono.k12.mn.us')
-      )
-    );
-  });
-
-  it('domain admin cannot create a member with a mixed-case email field', async () => {
-    await assertFails(
-      setDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/mixed.case@orono.k12.mn.us`
-        ),
-        validMember('Mixed.Case@orono.k12.mn.us')
-      )
-    );
-  });
-
-  it('domain admin can update roleId and buildingIds', async () => {
-    await assertSucceeds(
-      updateDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
-        ),
-        { roleId: 'building_admin', buildingIds: ['high', 'middle'] }
-      )
-    );
-  });
-
-  it('domain admin CANNOT escalate a member to super_admin (anti-escalation guard)', async () => {
-    // roleId == 'super_admin' is a live isSuperAdmin() grant via
-    // isMemberSuperAdmin(). The member-update whitelist permits writing
-    // `roleId`, so without the value guard a domain admin could mint a super
-    // admin — including onto their own doc. This must be denied.
-    await assertFails(
-      updateDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
-        ),
-        { roleId: 'super_admin' }
-      )
-    );
-  });
-
-  it('domain admin CANNOT self-escalate to super_admin on their own member doc', async () => {
-    await assertFails(
-      updateDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/${DOMAIN_ADMIN_EMAIL}`
-        ),
-        { roleId: 'super_admin' }
-      )
-    );
-  });
-
-  it('domain admin CANNOT create a new member with roleId super_admin', async () => {
-    await assertFails(
-      setDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/minted@orono.k12.mn.us`
-        ),
-        { ...validMember('minted@orono.k12.mn.us'), roleId: 'super_admin' }
-      )
-    );
-  });
-
-  it('super admin CAN create a new member with roleId super_admin', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(
-          asSuper(),
-          `organizations/${ORG_ID}/members/minted@orono.k12.mn.us`
-        ),
-        { ...validMember('minted@orono.k12.mn.us'), roleId: 'super_admin' }
-      )
-    );
-  });
-
-  describe('existing super_admin member', () => {
-    const BOSS = 'boss@orono.k12.mn.us';
-    const bossPath = `organizations/${ORG_ID}/members/${BOSS}`;
-
-    beforeEach(async () => {
-      await testEnv.withSecurityRulesDisabled(async (ctx) => {
-        await setDoc(doc(ctx.firestore(), bossPath), {
-          ...validMember(BOSS),
-          roleId: 'super_admin',
-          status: 'active',
-        });
-      });
-    });
-
-    it('domain admin CANNOT demote a super_admin member', async () => {
-      await assertFails(
-        updateDoc(doc(asDomainAdmin(), bossPath), { roleId: 'teacher' })
-      );
-    });
-
-    it('domain admin CANNOT deactivate a super_admin member', async () => {
-      await assertFails(
-        updateDoc(doc(asDomainAdmin(), bossPath), { status: 'inactive' })
-      );
-    });
-
-    it('building admin CANNOT deactivate a super_admin member in their building', async () => {
-      await assertFails(
-        updateDoc(doc(asBuildingAdmin(), bossPath), { status: 'inactive' })
-      );
-    });
-
-    it('domain admin CANNOT delete a super_admin member', async () => {
-      await assertFails(deleteDoc(doc(asDomainAdmin(), bossPath)));
-    });
-
-    it("domain admin CAN still edit a super_admin member's buildings", async () => {
-      await assertSucceeds(
-        updateDoc(doc(asDomainAdmin(), bossPath), { buildingIds: ['middle'] })
-      );
-    });
-
-    it('super admin CAN demote and delete a super_admin member', async () => {
-      await assertSucceeds(
-        updateDoc(doc(asSuper(), bossPath), { roleId: 'teacher' })
-      );
-      await assertSucceeds(deleteDoc(doc(asSuper(), bossPath)));
-    });
-
-    it('domain admin CAN still delete a teacher member', async () => {
-      await assertSucceeds(
-        deleteDoc(
-          doc(
-            asDomainAdmin(),
-            `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
-          )
-        )
-      );
-    });
-  });
-
-  it('super admin CAN grant super_admin (only super admins may mint super admins)', async () => {
-    await assertSucceeds(
-      updateDoc(
-        doc(asSuper(), `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`),
-        { roleId: 'super_admin' }
-      )
-    );
-  });
-
-  it('domain admin cannot spoof member identity (email, orgId, uid)', async () => {
-    await assertFails(
-      updateDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
-        ),
-        { email: 'other@example.com' }
-      )
-    );
-    await assertFails(
-      updateDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
-        ),
-        { orgId: OTHER_ORG_ID }
-      )
-    );
-    await assertFails(
-      updateDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
-        ),
-        { uid: 'impostor-uid' }
-      )
-    );
-  });
-
-  it('domain admin cannot add arbitrary fields to a member doc', async () => {
-    await assertFails(
-      updateDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
-        ),
-        { isSuperAdmin: true }
-      )
-    );
-  });
-
-  it('domain admin can delete a member', async () => {
-    await assertSucceeds(
-      deleteDoc(
-        doc(asDomainAdmin(), `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`)
-      )
-    );
-  });
-
-  it('building admin can update status for a member in their scope', async () => {
-    // TEACHER_EMAIL has buildingIds: ['high'] which intersects bldg admin's ['high'].
-    await assertSucceeds(
-      updateDoc(
-        doc(
-          asBuildingAdmin(),
-          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
-        ),
-        { status: 'inactive' }
-      )
-    );
-  });
-
-  // PT-175: the building-admin member status overlap compares raw ids (no long-form aliases on prod).
-  it('building admin cannot update status for a member stored only under a legacy building-id alias', async () => {
-    const ALIAS_MEMBER_EMAIL = 'alias.member@orono.k12.mn.us';
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(
-        doc(
-          ctx.firestore(),
-          `organizations/${ORG_ID}/members/${ALIAS_MEMBER_EMAIL}`
-        ),
-        {
-          email: ALIAS_MEMBER_EMAIL,
-          orgId: ORG_ID,
-          roleId: 'teacher',
-          status: 'active',
-          // Legacy alias of 'high'; the building admin manages canonical 'high'.
-          buildingIds: ['orono-high-school'],
-        }
-      );
-    });
-    await assertFails(
-      updateDoc(
-        doc(
-          asBuildingAdmin(),
-          `organizations/${ORG_ID}/members/${ALIAS_MEMBER_EMAIL}`
-        ),
-        { status: 'inactive' }
-      )
-    );
-  });
-
-  it('building admin is still denied on a member in an unrelated building', async () => {
-    const UNRELATED_MEMBER_EMAIL = 'unrelated.member@orono.k12.mn.us';
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(
-        doc(
-          ctx.firestore(),
-          `organizations/${ORG_ID}/members/${UNRELATED_MEMBER_EMAIL}`
-        ),
-        {
-          email: UNRELATED_MEMBER_EMAIL,
-          orgId: ORG_ID,
-          roleId: 'teacher',
-          status: 'active',
-          // No alias bridges to 'high'; building admin must stay denied.
-          buildingIds: ['schumann', 'orono-middle-school'],
-        }
-      );
-    });
-    await assertFails(
-      updateDoc(
-        doc(
-          asBuildingAdmin(),
-          `organizations/${ORG_ID}/members/${UNRELATED_MEMBER_EMAIL}`
-        ),
-        { status: 'inactive' }
-      )
-    );
-  });
-
-  it('building admin cannot change roleId even within scope', async () => {
-    await assertFails(
-      updateDoc(
-        doc(
-          asBuildingAdmin(),
-          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
-        ),
-        { roleId: 'domain_admin' }
-      )
-    );
-  });
-
-  it('building admin cannot change buildingIds even within scope', async () => {
-    await assertFails(
-      updateDoc(
-        doc(
-          asBuildingAdmin(),
-          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
-        ),
-        { buildingIds: ['high', 'elementary'] }
-      )
-    );
-  });
-
-  it('building admin cannot update members outside their scope', async () => {
-    await assertFails(
-      updateDoc(
-        doc(
-          asBuildingAdmin(),
-          `organizations/${ORG_ID}/members/${OUT_OF_SCOPE_MEMBER_EMAIL}`
-        ),
-        { status: 'inactive' }
-      )
-    );
-  });
-
-  it('building admin cannot create or delete members', async () => {
-    await assertFails(
-      setDoc(
-        doc(
-          asBuildingAdmin(),
-          `organizations/${ORG_ID}/members/new@orono.k12.mn.us`
-        ),
-        validMember('new@orono.k12.mn.us')
-      )
-    );
-    await assertFails(
-      deleteDoc(
-        doc(
-          asBuildingAdmin(),
-          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
-        )
-      )
-    );
-  });
-
-  it('teacher cannot update any member', async () => {
-    await assertFails(
-      updateDoc(
-        doc(asTeacher(), `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`),
-        { status: 'inactive' }
-      )
-    );
   });
 });
 
@@ -1712,9 +564,8 @@ describe('organizations/invitations — fully locked from every client role (Pha
 describe('organizations/members — email case normalization (F15)', () => {
   // Every membership read keys off `request.auth.token.email.lower()`, which is
   // always lowercase. If a member doc were stored with a mixed-case email/id it
-  // would be orphaned and the matching member would get permission-denied. The
-  // create rule rejects mixed-case writes at the source; these tests pin that
-  // behavior down end-to-end.
+  // would be orphaned and the matching member would get permission-denied.
+  // orgAdminV1 lowercases on write; this pins the read side.
   const validMember = (email: string) => ({
     email,
     orgId: ORG_ID,
@@ -1756,47 +607,6 @@ describe('organizations/members — email case normalization (F15)', () => {
       )
     );
   });
-
-  it('domain admin can create a member whose email + doc id are both lowercase', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/lower.case@orono.k12.mn.us`
-        ),
-        validMember('lower.case@orono.k12.mn.us')
-      )
-    );
-  });
-
-  it('domain admin cannot create a member with a mixed-case email field (rejected, not normalized)', async () => {
-    // Doc id is lowercase but the payload email field carries mixed-case —
-    // `request.resource.data.email == request.resource.data.email.lower()`
-    // rejects it.
-    await assertFails(
-      setDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/case.member@orono.k12.mn.us`
-        ),
-        validMember('Case.Member@orono.k12.mn.us')
-      )
-    );
-  });
-
-  it('domain admin cannot create a member with a mixed-case doc id even if the email field is lowercase', async () => {
-    // `request.resource.data.email == emailLower` ties the lowercase payload
-    // email to the doc id, so a mixed-case id cannot match.
-    await assertFails(
-      setDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/members/Mixed.Id@orono.k12.mn.us`
-        ),
-        validMember('mixed.id@orono.k12.mn.us')
-      )
-    );
-  });
 });
 
 describe('organizations/members — uid write restricted to Cloud Functions (Phase 4)', () => {
@@ -1804,14 +614,8 @@ describe('organizations/members — uid write restricted to Cloud Functions (Pha
   // MUST go through the `claimOrganizationInvite` callable — the Admin SDK
   // bypasses rules and can legally write `uid`. A client-writable path would
   // let any writer reassign a member's uid, hijacking the linked account.
-  // The member-update whitelist at firestore.rules:228 intentionally excludes
-  // `uid`; these tests codify that decision across every non-super-admin
-  // actor that can reach the member collection.
 
   it('teacher cannot write uid on their own member doc', async () => {
-    // Teachers have no direct write access to member docs at all. This is
-    // the attack vector: a malicious invitee tries to set `uid` to their
-    // own auth uid to bypass the claim flow.
     await assertFails(
       updateDoc(
         doc(asTeacher(), `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`),
@@ -1831,9 +635,6 @@ describe('organizations/members — uid write restricted to Cloud Functions (Pha
       )
     );
   });
-
-  // Domain admin's uid-write rejection is already covered in "domain admin
-  // cannot spoof member identity (email, orgId, uid)" above — not duplicated.
 });
 
 describe('no regression on legacy /admins/{email}', () => {

@@ -38,6 +38,8 @@ function randomSessionCode(): string {
   return Array.from(bytes, (b) => CODE_ALPHABET[b % 36]).join('');
 }
 
+const START_CODE_ATTEMPTS = 3;
+
 async function allocateSessionCode(): Promise<string> {
   for (let attempt = 0; attempt < 5; attempt++) {
     const candidate = randomSessionCode();
@@ -438,27 +440,37 @@ export const useLiveSession = (
         collection(db, SESSIONS_COLLECTION, userId, STUDENTS_COLLECTION)
       );
 
-      const newSession: LiveSession = {
-        id: userId,
-        isActive: true,
-        activeWidgetId: widgetId,
-        activeWidgetType: widgetType,
-        activeWidgetConfig: config,
-        background: background,
-        code: await allocateSessionCode(),
-        frozen: false,
-        createdAt: Date.now(),
-      };
-      const batch = writeBatch(db);
-      batch.set(doc(db, CODES_COLLECTION, newSession.code), {
-        teacherUid: userId,
-        createdAt: newSession.createdAt,
-      });
-      batch.set(sessionRef, newSession);
-      await batch.commit().catch((err) => {
-        console.error('Failed to start session:', err);
-        throw err;
-      });
+      let newSession: LiveSession | null = null;
+      for (let attempt = 0; !newSession; attempt++) {
+        const candidate: LiveSession = {
+          id: userId,
+          isActive: true,
+          activeWidgetId: widgetId,
+          activeWidgetType: widgetType,
+          activeWidgetConfig: config,
+          background: background,
+          code: await allocateSessionCode(),
+          frozen: false,
+          createdAt: Date.now(),
+        };
+        const batch = writeBatch(db);
+        batch.set(doc(db, CODES_COLLECTION, candidate.code), {
+          teacherUid: userId,
+          createdAt: candidate.createdAt,
+        });
+        batch.set(sessionRef, candidate);
+        try {
+          await batch.commit();
+          newSession = candidate;
+        } catch (err) {
+          // A code claimed since the probe is refused; mint another.
+          if (isPermissionDenied(err) && attempt < START_CODE_ATTEMPTS - 1) {
+            continue;
+          }
+          console.error('Failed to start session:', err);
+          throw err;
+        }
+      }
       await Promise.all(
         studentsSnapshot.docs.map((d) => deleteDoc(d.ref))
       ).catch((err) => {
