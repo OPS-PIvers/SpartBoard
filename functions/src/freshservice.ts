@@ -343,32 +343,37 @@ export async function loadCatalog(
     '/solutions/categories',
     'categories'
   );
-  const categories: FreshserviceCategory[] = [];
-  for (const cat of cats) {
-    const id = idOf(cat.id);
-    if (!id) continue;
-    const folders = await listAll(
-      deps,
-      config,
-      `/solutions/folders?category_id=${id}`,
-      'folders'
-    );
-    categories.push({
-      id,
-      name: str(cat.name),
-      folders: folders.flatMap((f) => {
-        const folderId = idOf(f.id);
-        if (!folderId) return [];
-        return [
-          {
-            id: folderId,
-            name: str(f.name),
-            visibility: typeof f.visibility === 'number' ? f.visibility : 0,
-          },
-        ];
-      }),
-    });
-  }
+  // Folder lists load side by side, so a site with many categories still opens quickly.
+  const categories: FreshserviceCategory[] = await Promise.all(
+    cats
+      .flatMap((cat) => {
+        const id = idOf(cat.id);
+        return id ? [{ id, name: str(cat.name) }] : [];
+      })
+      .map(async ({ id, name }) => {
+        const folders = await listAll(
+          deps,
+          config,
+          `/solutions/folders?category_id=${id}`,
+          'folders'
+        );
+        return {
+          id,
+          name,
+          folders: folders.flatMap((f) => {
+            const folderId = idOf(f.id);
+            if (!folderId) return [];
+            return [
+              {
+                id: folderId,
+                name: str(f.name),
+                visibility: typeof f.visibility === 'number' ? f.visibility : 0,
+              },
+            ];
+          }),
+        };
+      })
+  );
   return {
     ready: true,
     categories,
