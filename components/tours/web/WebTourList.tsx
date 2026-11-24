@@ -84,10 +84,11 @@ export type PublishState = 'draft' | 'changed' | 'published';
 // The list is one grid and each row a subgrid, so columns size to their content and still line up.
 // Website and Author get their own columns from xl up; below that they sit under the title.
 const LIST_GRID =
-  'lg:grid lg:gap-x-5 lg:grid-cols-[minmax(12rem,1fr)_repeat(2,auto)] 2xl:grid-cols-[minmax(12rem,1fr)_repeat(4,auto)]';
+  'lg:grid lg:gap-x-6 lg:grid-cols-[minmax(12rem,1fr)_repeat(2,auto)] 2xl:grid-cols-[minmax(12rem,1fr)_repeat(4,auto)]';
 const LIST_GRID_FRESH =
-  'lg:grid lg:gap-x-5 lg:grid-cols-[minmax(12rem,1fr)_repeat(3,auto)] 2xl:grid-cols-[minmax(12rem,1fr)_repeat(5,auto)]';
-const ROW_GRID = 'lg:col-span-full lg:grid lg:grid-cols-subgrid';
+  'lg:grid lg:gap-x-6 lg:grid-cols-[minmax(12rem,1fr)_repeat(3,auto)] 2xl:grid-cols-[minmax(12rem,1fr)_repeat(5,auto)]';
+const ROW_GRID =
+  'lg:col-span-full lg:grid lg:grid-cols-subgrid lg:gap-x-[normal]';
 
 /** What the page's search and filter read about each row. */
 export interface RowFacts {
@@ -663,7 +664,7 @@ const WebTourRow: React.FC<{
         {site}
       </div>
       <div
-        className={`hidden max-w-44 truncate text-sm 2xl:block ${chromeMuted}`}
+        className={`hidden max-w-56 truncate text-sm 2xl:block ${chromeMuted}`}
         title={set.authorName}
       >
         {set.authorName}
