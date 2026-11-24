@@ -27,6 +27,7 @@ afterEach(() => {
   document.body.innerHTML = '';
   vi.useRealTimers();
   globalThis.__sbWebTourFrame = undefined;
+  globalThis.__sbOwnShadowRoots = undefined;
 });
 
 const seek = {
@@ -176,7 +177,6 @@ describe('frame seeker', () => {
     const button = closed.querySelector('button')!;
     expect(globalThis.__sbWebTourFrame?.target?.el).toBe(button);
     host.remove();
-    globalThis.__sbOwnShadowRoots = undefined;
   });
 
   it('moves straight on to the next step when the learner acts, and keeps it when the worker confirms', async () => {

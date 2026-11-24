@@ -15,6 +15,7 @@ Element.prototype.getBoundingClientRect = function (this: Element) {
 
 afterEach(() => {
   document.body.innerHTML = '';
+  globalThis.__sbOwnShadowRoots = undefined;
 });
 afterAll(() => {
   Element.prototype.getBoundingClientRect = orig;
@@ -136,7 +137,6 @@ describe('locate', () => {
     ).toBe(own.button);
     own.host.remove();
     page.host.remove();
-    globalThis.__sbOwnShadowRoots = undefined;
   });
 
   it('finds text targets inside open shadow roots', () => {
