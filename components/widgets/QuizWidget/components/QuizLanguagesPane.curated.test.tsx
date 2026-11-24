@@ -1,7 +1,6 @@
 // The Languages tab offers only the admin-curated languages, and its served
 // counter is stated over the translatable subset (plan §5).
 
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { QuizData, QuizMetadata } from '@/types';

@@ -1,6 +1,5 @@
 // Regression: FolderItem's dock popover had no Escape handler, so it leaked to DashboardView's global handler and minimized an unrelated widget.
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { DndContext } from '@dnd-kit/core';

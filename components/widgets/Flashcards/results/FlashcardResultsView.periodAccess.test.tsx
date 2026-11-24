@@ -1,7 +1,6 @@
 // Per-period Flashcards: the results view carries one chip per period, Start/Pause all,
 // and Let in now for a student whose period is shut.
 import '@testing-library/jest-dom';
-import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {

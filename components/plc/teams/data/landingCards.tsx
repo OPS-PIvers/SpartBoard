@@ -1,6 +1,6 @@
 // Landing cards this slice owns, per the B1 card contract; each reads live data.
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   DistributionView,
   MasteryView,

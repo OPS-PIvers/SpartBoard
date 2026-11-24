@@ -1,6 +1,5 @@
 // PR4: a FIB question is reviewable in the Languages pane, answer key included.
 
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

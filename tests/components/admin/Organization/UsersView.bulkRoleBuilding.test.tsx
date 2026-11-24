@@ -10,7 +10,6 @@
  *   selection.
  * - Both actions are hidden for building_admin (canManageUsers === false).
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { UsersView } from '@/components/admin/Organization/views/UsersView';

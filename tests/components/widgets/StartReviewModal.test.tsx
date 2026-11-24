@@ -1,6 +1,5 @@
 // Review's Start dialog (docs/plans/shipped/QUIZ_REVIEW_SPLIT.md D14-D21).
 
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@/i18n';

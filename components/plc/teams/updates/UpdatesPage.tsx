@@ -1,6 +1,5 @@
 // Updates rail page (T27); the registry maps page id `updates` here.
 
-import React from 'react';
 import { UpdatesView } from './UpdatesView';
 import { useTeamUpdatesData } from './useTeamUpdatesData';
 import type { TeamPageProps } from '@/components/plc/teams/types';

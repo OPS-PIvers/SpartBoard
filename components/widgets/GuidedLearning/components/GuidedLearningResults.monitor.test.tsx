@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/require-await -- mocked getDoc matches the Promise contract. */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { GuidedLearningSet } from '@/types';

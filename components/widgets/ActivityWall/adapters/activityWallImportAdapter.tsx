@@ -1,4 +1,3 @@
-import React from 'react';
 import type { ImportAdapter } from '@/components/common/library';
 import type { ActivityWallLibraryEntry, ActivityWallSection } from '@/types';
 import { buildDefaultWall } from '@/utils/activityWallNormalize';

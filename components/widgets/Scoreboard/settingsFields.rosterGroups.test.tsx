@@ -7,7 +7,6 @@
  * name by default, and that a re-sync moves membership without touching a
  * score a team has already earned.
  */
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { ScoreboardSettings } from './settingsFields';

@@ -6,7 +6,6 @@
  * and `utils/tabWarningThreshold.test.ts` respectively; this file pins down
  * the end-to-end wiring inside `QuizStudentApp`.
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

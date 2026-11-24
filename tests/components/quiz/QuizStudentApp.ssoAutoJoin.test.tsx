@@ -18,7 +18,7 @@
  *    than leaving the student sitting on the "Joining quiz…" loader.
  *  - Anonymous joiners see the PIN form (no auto-join).
  */
-import React, { StrictMode } from 'react';
+import { StrictMode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

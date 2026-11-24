@@ -5,7 +5,6 @@
 // (wrong options array or wrong config field wired to one group) that no
 // existing test would notice, since each group is otherwise hand-wired.
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   render,

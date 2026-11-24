@@ -8,7 +8,6 @@
  * ordinary join. SSO `studentRole` joiners are the only ones that should
  * ever read the pointer doc.
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

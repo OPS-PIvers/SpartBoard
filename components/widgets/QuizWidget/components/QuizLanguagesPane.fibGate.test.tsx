@@ -1,6 +1,5 @@
 // PR4 round-2: a FIB row missing its translated answer key can't be marked reviewed.
 
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

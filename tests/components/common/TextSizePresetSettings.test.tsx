@@ -12,7 +12,6 @@
  * give each option a roving `tabIndex` (selected = 0, others = -1).
  */
 
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';

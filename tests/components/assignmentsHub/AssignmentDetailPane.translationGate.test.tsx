@@ -1,7 +1,6 @@
 // The §10 post-publish language advisory belongs to the quiz-translation flag:
 // a read-aloud-only teacher must never see a nag they cannot act on.
 
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AssignmentDetailPane } from '@/components/assignmentsHub/AssignmentDetailPane';

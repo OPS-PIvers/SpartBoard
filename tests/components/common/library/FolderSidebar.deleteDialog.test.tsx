@@ -1,5 +1,4 @@
 // Folder-view delete dialog and folder colours (LIBRARY_FOLDERS D11, D17-D20).
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';

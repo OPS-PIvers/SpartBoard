@@ -2,7 +2,6 @@
 // actually renders below the 900px breakpoint (§3 item 10), and focus returning
 // to the real opener the host resolves from the DOM (§3 item 11).
 
-import React from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { act, cleanup, screen } from '@testing-library/react';
 import { SettingsDrawerHost } from '@/components/settings/SettingsDrawerHost';

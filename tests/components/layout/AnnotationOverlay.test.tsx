@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { render, fireEvent, waitFor, screen } from '@testing-library/react';
-import React from 'react';
 import { AnnotationOverlay } from '@/components/layout/AnnotationOverlay';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';

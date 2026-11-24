@@ -1,5 +1,4 @@
 // Review self-paced game board (docs/plans/shipped/QUIZ_REVIEW_SPLIT.md D26).
-import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { QuizLeaderboardEntry, QuizSession } from '@/types';

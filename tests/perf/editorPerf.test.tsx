@@ -34,7 +34,7 @@
  *     so the Guided Learning canvas computes a real image footprint in jsdom.
  */
 
-import React, { Profiler } from 'react';
+import { Profiler } from 'react';
 import type { ProfilerOnRenderCallback } from 'react';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';

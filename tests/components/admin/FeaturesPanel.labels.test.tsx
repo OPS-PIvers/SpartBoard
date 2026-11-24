@@ -1,6 +1,5 @@
 // Pins each feature's Enabled and Daily limit toggles to an accessible name.
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 

@@ -4,7 +4,6 @@
  * by the idle-finalize sweep, and later by the client's prep-expiry branches)
  * occupies a slot but must not be counted as answered.
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

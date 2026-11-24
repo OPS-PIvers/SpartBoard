@@ -1,6 +1,5 @@
 // Pins the building-gated content block: displayMode must be computed inside
 // the control (hideUrlField-aware), never left keyed on the raw stored mode.
-import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { WidgetData } from '@/types';

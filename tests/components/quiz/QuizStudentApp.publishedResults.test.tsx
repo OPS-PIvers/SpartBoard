@@ -13,7 +13,6 @@
  * Discriminators: PublishedScoreReview renders <h1>Your Results</h1>;
  * QuizSubmittedWaitScreen renders <h1>Quiz Submitted!</h1>.
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

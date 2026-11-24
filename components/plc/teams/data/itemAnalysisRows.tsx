@@ -1,7 +1,6 @@
 // Item-analysis bar rows like the mock kit's, but question and answer text wrap instead of truncating.
 
 import { plainPromptText } from '@/utils/promptMath';
-import React from 'react';
 import type { TFunction } from 'i18next';
 import { RotateCcw } from 'lucide-react';
 import type { ItemAnalysisQuestion } from '@/utils/plcDataOverview';

@@ -1,6 +1,5 @@
 // Pins each tool's Enabled toggle to an accessible name.
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 

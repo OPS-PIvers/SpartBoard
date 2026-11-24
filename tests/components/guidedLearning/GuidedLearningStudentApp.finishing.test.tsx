@@ -1,5 +1,4 @@
 // P8-3: reaching the end shows a Submit card; submitting early or with unanswered questions asks first.
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   act,

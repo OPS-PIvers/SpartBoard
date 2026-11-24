@@ -1,5 +1,4 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import React from 'react';
 import { render, screen, cleanup } from '@testing-library/react';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import type { LibraryFolder } from '@/types';

@@ -1,6 +1,5 @@
 // Regression: Escape in the filter dropdown was closing the whole Assignments Hub instead (focus-fragility bug class).
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { AssignmentFilterSelect } from '@/components/assignmentsHub/AssignmentFilterSelect';

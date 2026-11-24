@@ -1,6 +1,5 @@
 // Row models for the item-analysis bars: correct, the most common wrong answer, the rest.
 
-import React from 'react';
 import { RotateCcw } from 'lucide-react';
 import type { ItemAnalysisQuestion } from '@/utils/plcDataOverview';
 import type { BarRow } from './BarRows';

@@ -6,7 +6,6 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SubmissionCard } from './SubmissionCard';
 import { makeSubmission } from './fixtures';

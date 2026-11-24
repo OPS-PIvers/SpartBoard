@@ -4,7 +4,6 @@
 // What matters here is that the browser sends SELECTIONS and prints the seat
 // map it is handed back (D16): it never plans a batch of its own.
 
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
