@@ -496,7 +496,7 @@ export function ImportWizard<TData>({
         if (session !== sessionRef.current) return;
         setCopyState('idle');
         setParseError(
-          'Template created, but your browser blocked copying the link. Use "Create template" to open it instead.'
+          `Your browser blocked copying the link. Copy it from here: ${url}`
         );
         return;
       }

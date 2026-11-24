@@ -770,7 +770,9 @@ describe('ImportWizard', () => {
       screen.getByRole('button', { name: /template .* format help/i })
     );
     fireEvent.click(screen.getByRole('button', { name: /copy template url/i }));
-    expect(await screen.findByText(/blocked copying the link/i)).toBeTruthy();
+    expect(
+      await screen.findByText(/blocked copying the link.*https:\/\/x\.test\/t/i)
+    ).toBeTruthy();
     expect(screen.queryByText(/Document is not focused/)).toBeNull();
   });
 
