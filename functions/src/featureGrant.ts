@@ -1,8 +1,5 @@
 import type * as admin from './firebaseAdmin';
-import {
-  canonicalBuildingIdServer,
-  canonicalizeBuildingIdsServer,
-} from './buildingIds';
+import { canonicalizeBuildingIdsServer } from './buildingIds';
 import { normalizeEmailDomain, resolveOrgIdForDomain } from './classlinkShared';
 import { missingDocAccess } from './featureMissingDoc';
 import { isExcludedFrom } from './permissionExclusion';
@@ -193,16 +190,5 @@ export async function isWidgetGranted(
     ))
   )
     return false;
-  const config: unknown = data.config;
-  const dockDefaults: unknown =
-    typeof config === 'object' && config !== null
-      ? (config as Record<string, unknown>).dockDefaults
-      : null;
-  if (typeof dockDefaults !== 'object' || dockDefaults === null) return true;
-  const selected = await loadTeacherBuildings(db, teacherUid);
-  if (selected.length === 0) return true;
-  const canonical = new Map<string, unknown>();
-  for (const [id, on] of Object.entries(dockDefaults))
-    canonical.set(canonicalBuildingIdServer(id), on);
-  return !selected.every((b) => canonical.get(b) === false);
+  return true;
 }

@@ -1,9 +1,6 @@
 // Builds a new widget's config the way the app's addWidget does, and checks the teacher may add it (AI_BOARDS D14, D15).
 import type * as admin from '../firebaseAdmin';
-import {
-  canonicalBuildingIdServer,
-  canonicalizeBuildingIdsServer,
-} from '../buildingIds';
+import { canonicalizeBuildingIdsServer } from '../buildingIds';
 import { isExcludedFrom } from '../permissionExclusion';
 import { WIDGET_CONFIG_RUNTIME } from './widgetConfigRuntime.gen';
 import { WIDGET_TYPE_LIST } from './widgetTypeList';
@@ -141,18 +138,6 @@ export async function canUseWidget(
     !archive.meetsMinTierServer(await tier(), perm.minTier)
   )
     return noAccess;
-  const config = isObject(perm.config) ? perm.config : {};
-  const dockDefaults = isObject(config.dockDefaults)
-    ? config.dockDefaults
-    : null;
-  if (dockDefaults && ctx.selectedBuildings.length > 0) {
-    // Same as canonicalizeBuildingKeyedRecord: the later of a legacy and canonical key wins.
-    const canonical = Object.create(null) as Doc;
-    for (const [id, on] of Object.entries(dockDefaults))
-      canonical[canonicalBuildingIdServer(id)] = on;
-    if (ctx.selectedBuildings.every((b) => canonical[b] === false))
-      return noAccess;
-  }
   return { ok: true };
 }
 

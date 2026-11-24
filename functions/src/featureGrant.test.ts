@@ -25,15 +25,17 @@ describe('isWidgetGranted with no permission doc', () => {
 });
 
 describe('isWidgetGranted with a permission doc', () => {
-  it('honours disabled, beta and building switches', async () => {
+  it('ignores dock defaults that are off for every teacher building', async () => {
     store.set('feature_permissions/writing', {
       enabled: true,
       accessLevel: 'public',
       config: { dockDefaults: { b1: false } },
     });
-    await expect(granted('writing')).resolves.toBe(true);
     store.set('users/t1/userProfile/profile', { selectedBuildings: ['b1'] });
-    await expect(granted('writing')).resolves.toBe(false);
+    await expect(granted('writing')).resolves.toBe(true);
+  });
+
+  it('honours disabled and beta switches', async () => {
     store.set('feature_permissions/writing', {
       enabled: true,
       accessLevel: 'beta',

@@ -185,134 +185,74 @@ beforeEach(() => {
   ctxHolder.current = null;
 });
 
-describe('AuthContext — canAccessWidget per-building dockDefaults gate', () => {
-  // The documented contract (AuthContext.tsx canAccessWidget comment):
-  //   - missing dockDefaults → no opinion, allow
-  //   - user has no selected buildings → no opinion, allow
-  //   - building entry missing or true → allow
-  //   - only deny when *every* selected building is explicitly `false`
+describe('AuthContext — canAccessWidget ignores dock defaults', () => {
+  // Dock defaults only seed a new dock; the library shows any enabled widget.
   const basePermission: FeaturePermission = {
-    widgetType: 'time-tool',
+    widgetType: 'clock',
     accessLevel: 'public',
     betaUsers: [],
     enabled: true,
   };
 
   function withDockDefaults(
-    dockDefaults: Record<string, boolean>
+    dockDefaults: Record<string, boolean>,
+    overrides: Partial<FeaturePermission> = {}
   ): FeaturePermission {
-    return {
-      ...basePermission,
-      config: { dockDefaults },
-    };
+    return { ...basePermission, ...overrides, config: { dockDefaults } };
   }
 
-  it('denies when every selected building is explicitly false (all-off)', async () => {
+  it('allows a widget whose dock default is off for every selected building', async () => {
     await mountAs({
       email: 'teacher@example.com',
       isAdmin: false,
-      selectedBuildings: ['middle', 'high'],
-      perms: [withDockDefaults({ middle: false, high: false })],
+      selectedBuildings: ['schumann', 'intermediate'],
+      perms: [withDockDefaults({ schumann: false, intermediate: false })],
     });
-    expect(getCtx().canAccessWidget('time-tool')).toBe(false);
+    expect(getCtx().canAccessWidget('clock')).toBe(true);
   });
 
-  it('allows when buildings are mixed (some true, some false)', async () => {
-    await mountAs({
-      email: 'teacher@example.com',
-      isAdmin: false,
-      selectedBuildings: ['middle', 'high'],
-      perms: [withDockDefaults({ middle: true, high: false })],
-    });
-    expect(getCtx().canAccessWidget('time-tool')).toBe(true);
-  });
-
-  it('allows when a selected building is missing from dockDefaults (partial config defaults to enabled)', async () => {
-    // The gate must NOT treat a missing entry as "off": a building the admin
-    // has not configured keeps public-by-default access. Here `high` is off
-    // but `middle` is unconfigured, so access is granted via `middle`.
-    await mountAs({
-      email: 'teacher@example.com',
-      isAdmin: false,
-      selectedBuildings: ['middle', 'high'],
-      perms: [withDockDefaults({ high: false })],
-    });
-    expect(getCtx().canAccessWidget('time-tool')).toBe(true);
-  });
-
-  it('allows when every selected building is missing from dockDefaults', async () => {
-    await mountAs({
-      email: 'teacher@example.com',
-      isAdmin: false,
-      selectedBuildings: ['middle', 'high'],
-      perms: [withDockDefaults({ schumann: false })],
-    });
-    expect(getCtx().canAccessWidget('time-tool')).toBe(true);
-  });
-
-  it('allows when every selected building is explicitly true (all-enabled)', async () => {
-    await mountAs({
-      email: 'teacher@example.com',
-      isAdmin: false,
-      selectedBuildings: ['middle', 'high'],
-      perms: [withDockDefaults({ middle: true, high: true })],
-    });
-    expect(getCtx().canAccessWidget('time-tool')).toBe(true);
-  });
-
-  it('allows when dockDefaults is absent entirely (no opinion)', async () => {
-    await mountAs({
-      email: 'teacher@example.com',
-      isAdmin: false,
-      selectedBuildings: ['middle', 'high'],
-      perms: [basePermission],
-    });
-    expect(getCtx().canAccessWidget('time-tool')).toBe(true);
-  });
-
-  it('allows when the user has no selected buildings (no opinion)', async () => {
-    await mountAs({
-      email: 'teacher@example.com',
-      isAdmin: false,
-      selectedBuildings: [],
-      perms: [withDockDefaults({ middle: false, high: false })],
-    });
-    expect(getCtx().canAccessWidget('time-tool')).toBe(true);
-  });
-
-  it('canonicalizes legacy dockDefaults keys against canonical selections', async () => {
-    // Legacy admin write keyed by `orono-high-school` must match the
-    // canonical `high` selection so the all-off gate still fires.
+  it('allows legacy building keys that are off', async () => {
     await mountAs({
       email: 'teacher@example.com',
       isAdmin: false,
       selectedBuildings: ['high'],
       perms: [withDockDefaults({ 'orono-high-school': false })],
     });
-    expect(getCtx().canAccessWidget('time-tool')).toBe(false);
+    expect(getCtx().canAccessWidget('clock')).toBe(true);
   });
 
-  it('admin bypass wins over an all-off dockDefaults gate', async () => {
-    await mountAs({
-      email: 'admin@example.com',
-      isAdmin: true,
-      selectedBuildings: ['middle', 'high'],
-      perms: [withDockDefaults({ middle: false, high: false })],
-    });
-    expect(getCtx().canAccessWidget('time-tool')).toBe(true);
-  });
-
-  it('honors customBuildings override for the in-flight selection', async () => {
-    // AuthContext has no selected buildings, but the wizard passes an
-    // in-flight selection that is fully off → deny.
+  it('still denies a disabled widget even when its dock default is on', async () => {
     await mountAs({
       email: 'teacher@example.com',
       isAdmin: false,
-      selectedBuildings: [],
-      perms: [withDockDefaults({ middle: false, high: false })],
+      selectedBuildings: ['high'],
+      perms: [withDockDefaults({ high: true }, { enabled: false })],
     });
-    expect(getCtx().canAccessWidget('time-tool', ['middle', 'high'])).toBe(
-      false
-    );
+    expect(getCtx().canAccessWidget('clock')).toBe(false);
+  });
+
+  it('still denies an admin-only widget to a teacher even when its dock default is on', async () => {
+    await mountAs({
+      email: 'teacher@example.com',
+      isAdmin: false,
+      selectedBuildings: ['high'],
+      perms: [withDockDefaults({ high: true }, { accessLevel: 'admin' })],
+    });
+    expect(getCtx().canAccessWidget('clock')).toBe(false);
+  });
+
+  it('still denies a beta widget to a teacher not on the list', async () => {
+    await mountAs({
+      email: 'teacher@example.com',
+      isAdmin: false,
+      selectedBuildings: ['high'],
+      perms: [
+        withDockDefaults(
+          { high: true },
+          { accessLevel: 'beta', betaUsers: ['other@example.com'] }
+        ),
+      ],
+    });
+    expect(getCtx().canAccessWidget('clock')).toBe(false);
   });
 });

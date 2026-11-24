@@ -352,23 +352,12 @@ describe('canUseWidget', () => {
     ).toBe(false);
   });
 
-  it('refuses a widget switched off for every one of the teacher buildings', async () => {
+  it('allows a widget whose dock default is off for every teacher building', async () => {
     const perms = [
       perm({ config: { dockDefaults: { 'orono-middle-school': false } } }),
     ];
     expect(
       (await canUseWidget(ctx({ featurePermissions: perms }), 'poll')).ok
-    ).toBe(false);
-    expect(
-      (
-        await canUseWidget(
-          ctx({
-            featurePermissions: perms,
-            selectedBuildings: ['middle', 'high'],
-          }),
-          'poll'
-        )
-      ).ok
     ).toBe(true);
   });
 
