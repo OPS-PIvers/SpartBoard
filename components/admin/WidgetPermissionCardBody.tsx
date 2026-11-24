@@ -6,6 +6,12 @@ import { ChevronDown, Save, Settings } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { BetaUsersPanel } from '@/components/admin/BetaUsersPanel';
 import { MinTierSelect } from '@/components/admin/MinTierSelect';
+import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingIds,
+} from '@/config/buildings';
 import {
   AccessLevelPicker,
   Chip,
@@ -57,6 +63,12 @@ export const WidgetPermissionCardBody: React.FC<
   subFeatureCount = 0,
 }) => {
   const [expanded, setExpanded] = useState(false);
+  const buildings = useAdminBuildings();
+  const restrictedTo = canonicalizeBuildingIds(permission.buildings ?? []);
+  const buildingChip = buildings
+    .filter((b) => restrictedTo.includes(canonicalBuildingId(b.id)))
+    .map((b) => b.name)
+    .join(', ');
   const name = permission.displayName?.trim()
     ? permission.displayName
     : tool.label;
@@ -83,6 +95,7 @@ export const WidgetPermissionCardBody: React.FC<
             <span className="flex items-center gap-1.5 flex-wrap">
               <span className="font-bold text-slate-800 text-sm">{name}</span>
               <Chip>{gradeChip}</Chip>
+              {buildingChip && <Chip>{buildingChip}</Chip>}
               {permission.minTier && (
                 <Chip>{TIER_CHIP[permission.minTier]}</Chip>
               )}
@@ -223,6 +236,11 @@ export const WidgetPermissionCardBody: React.FC<
               </button>
             </div>
           </div>
+          <PermissionBuildingMultiSelect
+            label="Restrict to buildings"
+            selectedIds={permission.buildings ?? []}
+            onChange={(next) => updatePermission({ buildings: next })}
+          />
           <MinTierSelect
             value={permission.minTier}
             onChange={(minTier) => updatePermission({ minTier })}

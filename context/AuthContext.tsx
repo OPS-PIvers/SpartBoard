@@ -3434,11 +3434,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // imposes no restriction, so pre-tier docs behave exactly as before.
       if (!meetsMinTier(userTier, permission.minTier)) return false;
 
-      // Dock defaults only seed a new dock; they never hide a widget from the library.
+      // Dock defaults only seed a new dock; `buildings` is the per-building switch.
+      if (permission.buildings && permission.buildings.length > 0) {
+        const allowed = new Set(canonicalizeBuildingIds(permission.buildings));
+        if (!selectedBuildings.some((b) => allowed.has(b))) return false;
+      }
 
       return true;
     },
-    [user, featurePermissions, isAdmin, isBetaUser, userTier]
+    [user, featurePermissions, isAdmin, isBetaUser, selectedBuildings, userTier]
   );
 
   /**

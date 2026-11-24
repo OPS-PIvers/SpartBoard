@@ -138,6 +138,10 @@ export async function canUseWidget(
     !archive.meetsMinTierServer(await tier(), perm.minTier)
   )
     return noAccess;
+  if (Array.isArray(perm.buildings) && perm.buildings.length > 0) {
+    const allowed = new Set(canonicalizeBuildingIdsServer(perm.buildings));
+    if (!ctx.selectedBuildings.some((b) => allowed.has(b))) return noAccess;
+  }
   return { ok: true };
 }
 

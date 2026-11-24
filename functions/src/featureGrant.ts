@@ -183,7 +183,7 @@ export async function isWidgetGranted(
   }
   return permissionAudienceAllows(
     db,
-    { minTier: data.minTier },
+    { minTier: data.minTier, buildings: data.buildings },
     email,
     teacherUid
   );

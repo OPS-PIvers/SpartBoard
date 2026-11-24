@@ -185,7 +185,7 @@ beforeEach(() => {
   ctxHolder.current = null;
 });
 
-describe('AuthContext — canAccessWidget ignores dock defaults', () => {
+describe('AuthContext — canAccessWidget buildings and dock defaults', () => {
   // Dock defaults only seed a new dock; the library shows any enabled widget.
   const basePermission: FeaturePermission = {
     widgetType: 'clock',
@@ -254,5 +254,45 @@ describe('AuthContext — canAccessWidget ignores dock defaults', () => {
       ],
     });
     expect(getCtx().canAccessWidget('clock')).toBe(false);
+  });
+
+  it('hides a widget restricted to buildings the teacher is not in', async () => {
+    await mountAs({
+      email: 'teacher@example.com',
+      isAdmin: false,
+      selectedBuildings: ['schumann'],
+      perms: [{ ...basePermission, buildings: ['high', 'middle'] }],
+    });
+    expect(getCtx().canAccessWidget('clock')).toBe(false);
+  });
+
+  it('shows a restricted widget when one of the teacher buildings matches', async () => {
+    await mountAs({
+      email: 'teacher@example.com',
+      isAdmin: false,
+      selectedBuildings: ['schumann', 'middle'],
+      perms: [{ ...basePermission, buildings: ['orono-middle-school'] }],
+    });
+    expect(getCtx().canAccessWidget('clock')).toBe(true);
+  });
+
+  it('treats an empty building list as every building', async () => {
+    await mountAs({
+      email: 'teacher@example.com',
+      isAdmin: false,
+      selectedBuildings: ['schumann'],
+      perms: [{ ...basePermission, buildings: [] }],
+    });
+    expect(getCtx().canAccessWidget('clock')).toBe(true);
+  });
+
+  it('lets an admin through a building restriction', async () => {
+    await mountAs({
+      email: 'admin@example.com',
+      isAdmin: true,
+      selectedBuildings: ['schumann'],
+      perms: [{ ...basePermission, buildings: ['high'] }],
+    });
+    expect(getCtx().canAccessWidget('clock')).toBe(true);
   });
 });

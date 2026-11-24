@@ -361,6 +361,32 @@ describe('canUseWidget', () => {
     ).toBe(true);
   });
 
+  it('limits a widget to its buildings', async () => {
+    const perms = [perm({ buildings: ['orono-high-school'] })];
+    expect(
+      (await canUseWidget(ctx({ featurePermissions: perms }), 'poll')).ok
+    ).toBe(false);
+    expect(
+      (
+        await canUseWidget(
+          ctx({
+            featurePermissions: perms,
+            selectedBuildings: ['middle', 'high'],
+          }),
+          'poll'
+        )
+      ).ok
+    ).toBe(true);
+    expect(
+      (
+        await canUseWidget(
+          ctx({ featurePermissions: perms, isAdmin: true }),
+          'poll'
+        )
+      ).ok
+    ).toBe(true);
+  });
+
   it('needs the routine-guide feature for the Routine Guide widget', async () => {
     archive.featureGranted = false;
     expect(

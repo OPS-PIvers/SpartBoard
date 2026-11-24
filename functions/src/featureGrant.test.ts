@@ -35,6 +35,27 @@ describe('isWidgetGranted with a permission doc', () => {
     await expect(granted('writing')).resolves.toBe(true);
   });
 
+  it('limits a widget to its buildings', async () => {
+    store.set('feature_permissions/writing', {
+      enabled: true,
+      accessLevel: 'public',
+      buildings: ['orono-high-school'],
+    });
+    store.set('users/t1/userProfile/profile', {
+      selectedBuildings: ['schumann'],
+    });
+    await expect(granted('writing')).resolves.toBe(false);
+    store.set('users/t1/userProfile/profile', {
+      selectedBuildings: ['schumann', 'high'],
+    });
+    await expect(granted('writing')).resolves.toBe(true);
+    store.set('admins/t@orono.k12.mn.us', {});
+    store.set('users/t1/userProfile/profile', {
+      selectedBuildings: ['schumann'],
+    });
+    await expect(granted('writing')).resolves.toBe(true);
+  });
+
   it('honours disabled and beta switches', async () => {
     store.set('feature_permissions/writing', {
       enabled: true,
