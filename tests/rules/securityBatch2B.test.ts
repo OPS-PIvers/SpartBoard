@@ -282,8 +282,8 @@ describe('collection links and board self-join need a staff account', () => {
         updatedBy: STUDENT_UID,
       })
     );
-    // Leaving is still allowed.
-    await assertSucceeds(
+    // Leaving goes through shareMembershipV1 too.
+    await assertFails(
       updateDoc(doc(asStudentGoogle(), 'linked_collections/link'), {
         [`participants.${STUDENT_UID}`]: deleteField(),
       })
@@ -315,28 +315,31 @@ describe('collection links and board self-join need a staff account', () => {
         payload: {},
       })
     );
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(db, 'shared_boards/board'), {
         [`participants.${STUDENT_UID}`]: deleteField(),
       })
     );
   });
 
-  it('a staff teacher reads and joins the link and the board, then edits', async () => {
+  it('a staff teacher reads the link and the board, joins through the server, then edits', async () => {
     const db = asSub();
     await assertSucceeds(getDoc(doc(db, 'linked_collections/link')));
-    await assertSucceeds(
-      updateDoc(doc(db, 'linked_collections/link'), {
-        [`participants.${SUB_UID}`]: {
-          role: 'collaborator',
-          name: 'Sub',
-          joinedAt: 2000,
-        },
-      })
+    await assertFails(
+      updateDoc(doc(db, 'linked_collections/link'), join(SUB_UID))
     );
-    await assertSucceeds(
-      updateDoc(doc(db, 'shared_boards/board'), join(SUB_UID))
-    );
+    await assertFails(updateDoc(doc(db, 'shared_boards/board'), join(SUB_UID)));
+    // shareMembershipV1 joins with the Admin SDK.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(
+        doc(ctx.firestore(), 'linked_collections/link'),
+        join(SUB_UID)
+      );
+      await updateDoc(
+        doc(ctx.firestore(), 'shared_boards/board'),
+        join(SUB_UID)
+      );
+    });
     await assertSucceeds(
       updateDoc(doc(db, 'linked_collections/link'), {
         name: 'Unit 3 review',
