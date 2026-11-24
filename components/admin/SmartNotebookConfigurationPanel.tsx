@@ -11,6 +11,10 @@ import {
 } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { tourFieldAttr } from '@/config/tourAnchors';
+import { DraftNumberField } from './DraftNumberField';
+
+const clampStorageMb = (n: number) => Math.min(500, Math.max(0, n));
+
 interface Props {
   config: SmartNotebookGlobalConfig;
   onChange: (newConfig: SmartNotebookGlobalConfig) => void;
@@ -103,32 +107,19 @@ export const SmartNotebookConfigurationPanel: React.FC<Props> = ({
                   <p className="text-xs text-slate-500">0 = no limit.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <input
+                  <DraftNumberField
                     {...tourFieldAttr(
                       'admin.widget-config.field',
                       'smartNotebook',
                       'storageLimitMb'
                     )}
-                    type="number"
                     min="0"
                     max="500"
                     value={activeBuildingConfig.storageLimitMb ?? 50}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      if (raw.trim() === '') {
-                        handleUpdate({ storageLimitMb: undefined });
-                        return;
-                      }
-                      const parsed = Number(raw);
-                      if (Number.isNaN(parsed)) {
-                        handleUpdate({ storageLimitMb: undefined });
-                        return;
-                      }
-                      const clamped = Math.min(500, Math.max(0, parsed));
-                      handleUpdate({
-                        storageLimitMb: clamped,
-                      });
-                    }}
+                    normalize={clampStorageMb}
+                    onCommit={(n) =>
+                      handleUpdate({ storageLimitMb: clampStorageMb(n) })
+                    }
                     className="w-20 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-center font-medium focus:outline-hidden focus:ring-2 focus:ring-green-500"
                   />
                   <span className="text-xs font-medium text-slate-500">MB</span>

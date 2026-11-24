@@ -1,3 +1,4 @@
+import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SmartNotebookConfigurationPanel } from './SmartNotebookConfigurationPanel';
@@ -71,5 +72,31 @@ describe('SmartNotebookConfigurationPanel', () => {
     const updated = mockOnChange.mock.calls[0][0] as SmartNotebookGlobalConfig;
     expect(updated.buildingDefaults?.schumann?.storageLimitMb).toBe(100);
     expect(updated.buildingDefaults?.['schumann-elementary']).toBeUndefined();
+  });
+
+  it('keeps the storage limit field empty while typing instead of snapping back to 50', () => {
+    mockUseAdminBuildings.mockReturnValue([
+      {
+        id: 'schumann',
+        name: 'Schumann',
+        gradeLevels: ['k-2'],
+        gradeLabel: 'K-2',
+      },
+    ]);
+    const Harness = () => {
+      const [cfg, setCfg] = React.useState<SmartNotebookGlobalConfig>({
+        buildingDefaults: {
+          schumann: { buildingId: 'schumann', storageLimitMb: 50 },
+        },
+      });
+      return <SmartNotebookConfigurationPanel config={cfg} onChange={setCfg} />;
+    };
+    render(<Harness />);
+    const input = screen.getByDisplayValue<HTMLInputElement>('50');
+    fireEvent.change(input, { target: { value: '' } });
+    expect(input.value).toBe('');
+    fireEvent.change(input, { target: { value: '3' } });
+    fireEvent.change(input, { target: { value: '30' } });
+    expect(input.value).toBe('30');
   });
 });
