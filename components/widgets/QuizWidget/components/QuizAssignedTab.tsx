@@ -416,14 +416,17 @@ const QuizLeftOpenHost: React.FC<{
   const a = row.assignment;
   const { user } = useAuth();
   const { addToast } = useDashboard();
-  const [held, setHeld] = useState<PassHold | null>(null);
-  const onHeld = useCallback((hold: PassHold) => setHeld(hold), []);
+  const [held, setHeld] = useState<{ hold: PassHold; at: number } | null>(null);
+  const onHeld = useCallback(
+    (hold: PassHold) => setHeld({ hold, at: Date.now() }),
+    []
+  );
   const actions = useQuizClassActions(a, lifecycle, rosters, onHeld);
   const run = usePeriodRunner('QuizAssignedTab.leftOpen');
   const [busy, setBusy] = useState(false);
   const single = row.status.singleLine;
-  const liveHold = a.passHold ?? held;
-  const heldList = held ? heldStudents(liveHold, Date.now()) : [];
+  const liveHold = a.passHold ?? held?.hold ?? null;
+  const heldList = held ? heldStudents(liveHold, held.at) : [];
   return (
     <>
       {held && heldList.length > 0 && (
