@@ -10,7 +10,7 @@ import { auth, db } from '@/config/firebase';
 import { runAuditedWrite } from '@/utils/viewAsTab';
 import type { ViewAsAuditAction, ViewAsClaim } from '@/types/viewAs';
 import type { PendingChange } from '@/utils/viewAsBoards';
-import { PII_WIDGET_FIELDS } from '@/utils/dashboardPII';
+import { widgetPiiKeys } from '@/utils/dashboardPII';
 
 type FieldMap = Record<string, unknown>;
 
@@ -103,7 +103,14 @@ export async function approveViewAsChange(
         const currentConfig = current.config as FieldMap | undefined;
         if (next.config && currentConfig) {
           const kept: FieldMap = { ...(next.config as FieldMap) };
-          for (const f of [...PII_WIDGET_FIELDS, 'assignments']) {
+          const type = typeof current.type === 'string' ? current.type : '';
+          const afterConfig = (change.after.config ?? {}) as FieldMap;
+          const piiKeys = new Set<string>([
+            ...widgetPiiKeys(type, currentConfig),
+            ...widgetPiiKeys(type, { ...currentConfig, ...afterConfig }),
+            'assignments',
+          ]);
+          for (const f of piiKeys) {
             if (currentConfig[f] !== undefined && kept[f] === undefined) {
               kept[f] = currentConfig[f];
             }
