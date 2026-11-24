@@ -39,17 +39,7 @@ export interface AuthContextType {
   /** True once the global_permissions snapshot has delivered at least once */
   globalPermissionsLoaded: boolean;
   updateAppSettings: (updates: Partial<AppSettings>) => Promise<void>;
-  /**
-   * `customBuildings` overrides the AuthContext `selectedBuildings` for
-   * the per-building gate. Used by callers that hold a building
-   * selection outside AuthContext state — e.g. the new-user wizard,
-   * where picks live in local component state until `handleFinish`
-   * persists them. Omit everywhere else.
-   */
-  canAccessWidget: (
-    widgetType: WidgetType,
-    customBuildings?: string[]
-  ) => boolean;
+  canAccessWidget: (widgetType: WidgetType) => boolean;
   canAccessFeature: (featureId: GlobalFeature) => boolean;
   /**
    * Distribution tier derived from email domain + org membership

@@ -12240,6 +12240,8 @@ export interface FeaturePermission {
   excludedUsers?: string[];
   /** When false, disables the widget for everyone including admins */
   enabled: boolean;
+  /** Buildings that get the widget; empty or absent means every building. Admins bypass it. */
+  buildings?: string[];
   /** Optional override for grade levels. If set, this takes precedence over the static configuration. */
   gradeLevels?: GradeLevel[];
   /** Optional override for the widget's display name. */
