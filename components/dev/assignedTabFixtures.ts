@@ -227,6 +227,21 @@ export const ASSIGNED_FIXTURES: QuizAssignment[] = [
       [KEYS[1]]: row(1, { state: 'open', openedAt: now - 10 * MIN }),
     },
   }),
+  // Every class closed while two students are scheduled for later.
+  base('mitosis', 'Mitosis Unit Test', {
+    createdAt: now - 4 * MIN,
+    periodAccess: rows(() => ({ closedAt: now - 30 * MIN })),
+    passHold: {
+      until: now + DAY + 70 * MIN,
+      students: {
+        'uid-held-1': {
+          from: now + DAY + 10 * MIN,
+          until: now + DAY + 70 * MIN,
+        },
+        'uid-held-2': { from: now + 3 * 60 * MIN, until: now + 4 * 60 * MIN },
+      },
+    },
+  }),
   base('osmosis', 'Osmosis Lab Quiz', {
     status: 'inactive',
     createdAt: now - 6 * DAY,
@@ -414,3 +429,9 @@ export const VA_ASSIGNED_QUESTIONS: Record<string, VideoActivityQuestion[]> =
       ],
     ])
   );
+
+/** Names for the held students above, standing in for the name lookup. */
+export const HELD_NAMES = new Map([
+  ['uid-held-1', { givenName: FIRST[2], familyName: LAST[3] }],
+  ['uid-held-2', { givenName: FIRST[5], familyName: LAST[0] }],
+]);

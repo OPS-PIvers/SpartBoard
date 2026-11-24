@@ -18,6 +18,7 @@ import { useAuth } from '@/context/useAuth';
 import type {
   ClassRoster,
   FeaturePermission,
+  HeldPass,
   PeriodAccess,
   PeriodAccessSessionFields,
 } from '@/types';
@@ -27,6 +28,7 @@ import {
 } from '@/utils/bellSchedule';
 import { BELL_CLOSE_CUSHION_MS } from '@/utils/periodPlan';
 import { dueLockAt } from '@/utils/periodAccess';
+import { nextHold } from '@/utils/heldStudentTime';
 
 /** Stale in-progress responses get a fresh `lastWriteAt` on start, inside the idle finalizer's 90-minute window. */
 const IDLE_REFRESH_CUTOFF_MS = 80 * 60 * 1000;
@@ -295,6 +297,20 @@ export function usePeriodAccess(
     [periodAccess, write, session]
   );
 
+  // A run kept live for passes tracks each pass the teacher adds or changes afterwards.
+  const refreshHold = useCallback(
+    async (uid: string, pass: HeldPass | null) => {
+      const hold = session?.passHold;
+      if (!refs || !hold) return;
+      const next = nextHold(hold, uid, pass, Date.now());
+      const batch = writeBatch(db);
+      batch.update(refs.session, { passHold: next });
+      if (refs.assignment) batch.update(refs.assignment, { passHold: next });
+      await batch.commit();
+    },
+    [refs, session?.passHold]
+  );
+
   const letIn = useCallback(
     async (uid: string) => {
       if (!refs || !periodAccess) return;
@@ -314,8 +330,9 @@ export function usePeriodAccess(
           new FieldPath('studentAccessFrom', uid),
           deleteField()
         );
+      await refreshHold(uid, { from: null, until });
     },
-    [refs, periodAccess, rosters, featurePermissions, commit]
+    [refs, periodAccess, rosters, featurePermissions, commit, refreshHold]
   );
 
   /** "Set a time": one student's pass from `from` to `until`; null removes it. */
@@ -330,8 +347,9 @@ export function usePeriodAccess(
         new FieldPath('studentAccessFrom', uid),
         time ? time.from : deleteField()
       );
+      await refreshHold(uid, time);
     },
-    [refs, periodAccess, commit]
+    [refs, periodAccess, commit, refreshHold]
   );
 
   const keys = useMemo(() => Object.keys(periodAccess ?? {}), [periodAccess]);

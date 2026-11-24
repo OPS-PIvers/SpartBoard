@@ -74,6 +74,8 @@ export interface AssignedRowProps {
   picked?: PickedStudents | null;
   /** The run's classes, to place each picked student. */
   periodAccess?: Record<string, Pick<PeriodAccess, 'rosterId'>>;
+  /** Students scheduled for later on a closed run, always shown under the row. */
+  held?: React.ReactNode;
 }
 
 type MainKind = AssignedStatus['action']['kind'];
@@ -188,6 +190,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   hideCounts = false,
   picked: pickedIn,
   periodAccess,
+  held,
 }) => {
   const picked = useShowPickedStudents() ? pickedIn : null;
   const [expanded, setExpanded] = useState(false);
@@ -383,6 +386,20 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
           </div>
         </div>
       </div>
+
+      {held && (
+        <div
+          style={{
+            marginTop: 'min(6px, 1.4cqmin)',
+            paddingLeft: select ? 'calc(var(--asg-ic) + var(--asg-gap))' : 0,
+            paddingRight:
+              'calc(var(--asg-btn) + 2 * var(--asg-ic) + 2 * var(--asg-gap))',
+          }}
+          className="[@container(max-width:600px)]:!pr-0"
+        >
+          {held}
+        </div>
+      )}
 
       {open && (
         <div

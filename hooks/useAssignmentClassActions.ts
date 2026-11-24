@@ -9,10 +9,10 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
-import type { ClassRoster, PeriodAccessSessionFields } from '@/types';
+import type { ClassRoster, PassHold, PeriodAccessSessionFields } from '@/types';
 import { closedRow, usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { isClassClosed, runStatus } from '@/utils/assignedStatus';
-import { effectivePeriodState } from '@/utils/periodAccess';
+import { effectivePeriodState, pendingPasses } from '@/utils/periodAccess';
 
 /** The assignment doc fields the class actions read, common to every kind whose teacher writes its session. */
 export interface AssignmentRun extends PeriodAccessSessionFields {
@@ -71,6 +71,10 @@ export interface AssignmentLifecycle {
   reopenClearsMarks?: boolean;
   /** Reads the stored doc as ended; defaults to `runStatus(status) === 'inactive'`. */
   isEnded?: (doc: AssignmentRun) => boolean;
+  /** Closing every class leaves the run live while Let in or Schedule passes have time left; a server sweep ends it. */
+  keepLiveForPasses?: boolean;
+  /** Told which passes kept the run live after a Close; the key is the class closed, null for every class. */
+  onHeld?: (hold: PassHold, classKey: string | null) => void;
 }
 
 /** Per-class actions for the Assigned tab; a null key is the whole single-line assignment (D15). */
@@ -131,6 +135,8 @@ export function useAssignmentClassActions(
     onWindowCleared,
     onClassOpened,
     isEnded,
+    keepLiveForPasses,
+    onHeld,
   } = lifecycle;
   const ended = useCallback(
     (a: AssignmentRun) =>
@@ -252,6 +258,35 @@ export function useAssignmentClassActions(
     if (a && !ended(a)) await end(id);
   }, [id, fresh, ended, end]);
 
+  // Marks a fully closed run as waiting on passes on the session and assignment, for the sweep and the Assigned row.
+  const writeHold = useCallback(
+    async (hold: PassHold) => {
+      const { session, assignment: assignmentRef } = owned();
+      const batch = writeBatch(db);
+      batch.update(session, { passHold: hold });
+      batch.update(assignmentRef, { passHold: hold });
+      await batch.commit();
+    },
+    [owned]
+  );
+
+  // Every class is closed: end the run, unless students still hold passes.
+  const endOrHold = useCallback(async (): Promise<PassHold | null> => {
+    if (keepLiveForPasses && id) {
+      const a = await fresh();
+      if (a && !ended(a)) {
+        const snap = await getDoc(owned().session);
+        const hold = pendingPasses(snap.data(), Date.now());
+        if (hold) {
+          await writeHold(hold);
+          return hold;
+        }
+      }
+    }
+    await endIfLive();
+    return null;
+  }, [keepLiveForPasses, id, fresh, ended, owned, writeHold, endIfLive]);
+
   // A single line's own clock must not hold students out once the teacher opens it.
   const clearSingleGate = useCallback(async () => {
     const a = await fresh();
@@ -300,29 +335,44 @@ export function useAssignmentClassActions(
   const closeOne = useCallback(
     async (
       key: string
-    ): Promise<{ last: boolean; closedAt: number } | null> => {
+    ): Promise<{
+      last: boolean;
+      closedAt: number;
+      held: PassHold | null;
+    } | null> => {
       const { session, assignment: assignmentRef } = owned();
       return runTransaction(db, async (tx) => {
         const a = (await tx.get(assignmentRef)).data() as
           AssignmentRun | undefined;
+        const s = keepLiveForPasses
+          ? ((await tx.get(session)).data() as
+              PeriodAccessSessionFields | undefined)
+          : undefined;
         const rows = a?.periodAccess ?? {};
         if (!rows[key]) return null;
         const now = Date.now();
-        const [first, firstValue, ...rest] = Object.entries(
-          closedRow(now)
-        ).flatMap(([f, v]) => [new FieldPath('periodAccess', key, f), v]);
-        for (const ref of [session, assignmentRef])
-          tx.update(ref, first as FieldPath, firstValue, ...rest);
         const othersClosed = Object.entries(rows).every(
           ([k, row]) => k === key || isClassClosed(row, now)
         );
+        const last = othersClosed && !!a && !ended(a);
+        const hold = last ? pendingPasses(s, now) : null;
+        const [first, firstValue, ...rest] = [
+          ...Object.entries(closedRow(now)).flatMap(([f, v]) => [
+            new FieldPath('periodAccess', key, f),
+            v,
+          ]),
+          ...(hold ? [new FieldPath('passHold'), hold] : []),
+        ];
+        for (const ref of [session, assignmentRef])
+          tx.update(ref, first as FieldPath, firstValue, ...rest);
         return {
-          last: othersClosed && !!a && !ended(a),
+          last: last && !hold,
           closedAt: now,
+          held: hold,
         };
       });
     },
-    [owned, ended]
+    [owned, ended, keepLiveForPasses]
   );
 
   const closeClass = useCallback(
@@ -343,6 +393,7 @@ export function useAssignmentClassActions(
       }
       // Close means that class is finished: turn its open attempts in once their write grace runs out.
       scheduleTurnIn(k, closed.closedAt);
+      if (closed.held) onHeld?.(closed.held, k);
     },
     [
       id,
@@ -354,26 +405,43 @@ export function useAssignmentClassActions(
       end,
       endTurnsIn,
       scheduleTurnIn,
+      onHeld,
     ]
   );
 
-  // When End leaves work open, a bulk close turns in each closed class itself, as one-at-a-time Close does.
-  const turnInClosed = useCallback(async () => {
-    if (endTurnsIn || !turnInClass) return;
-    const a = await fresh();
-    for (const [k, row] of Object.entries(a?.periodAccess ?? {}))
-      if (row.state === 'closed' && row.closedAt != null)
-        scheduleTurnIn(k, row.closedAt);
-  }, [endTurnsIn, turnInClass, fresh, scheduleTurnIn]);
+  // When End leaves work open, or the run stays live for passes, a bulk close turns in each closed class itself.
+  const turnInClosed = useCallback(
+    async (held = false) => {
+      if ((endTurnsIn && !held) || !turnInClass) return;
+      const a = await fresh();
+      for (const [k, row] of Object.entries(a?.periodAccess ?? {}))
+        if (row.state === 'closed' && row.closedAt != null)
+          scheduleTurnIn(k, row.closedAt);
+    },
+    [endTurnsIn, turnInClass, fresh, scheduleTurnIn]
+  );
 
   const closeAll = useCallback(async () => {
     if (!id) return;
     owned();
     if (perClass) await periods.closeAllPeriods();
     else await mark({ closedAt: Date.now() });
-    await endIfLive();
-    if (perClass) await turnInClosed();
-  }, [id, owned, perClass, periods, mark, endIfLive, turnInClosed]);
+    let held: PassHold | null = null;
+    if (perClass) held = await endOrHold();
+    else await endIfLive();
+    if (perClass) await turnInClosed(held != null);
+    if (held) onHeld?.(held, null);
+  }, [
+    id,
+    owned,
+    perClass,
+    periods,
+    mark,
+    endOrHold,
+    endIfLive,
+    turnInClosed,
+    onHeld,
+  ]);
 
   const moveToDone = useCallback(async () => {
     if (!id) return;
