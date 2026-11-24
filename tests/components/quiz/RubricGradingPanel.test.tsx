@@ -107,6 +107,27 @@ describe('RubricGradingPanel', () => {
     });
   });
 
+  it('renders the settings menu outside the panel, kept on screen', () => {
+    renderPanel();
+    const gear = screen.getByRole('button', { name: 'Rubric settings' });
+    gear.getBoundingClientRect = () =>
+      ({ top: 100, bottom: 132, left: 10, right: 38 }) as DOMRect;
+    fireEvent.click(gear);
+    const menu = screen.getByRole('group', { name: 'Rubric settings' });
+    expect(menu.parentElement).toBe(document.body);
+    expect(gear.closest('div')?.contains(menu)).toBe(false);
+    expect(parseFloat(menu.style.left)).toBeGreaterThanOrEqual(8);
+    fireEvent.pointerDown(
+      screen.getByRole('switch', { name: 'Auto-advance to next category' })
+    );
+    expect(menu).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(
+      screen.queryByRole('group', { name: 'Rubric settings' })
+    ).not.toBeInTheDocument();
+    expect(gear).toHaveFocus();
+  });
+
   it('saves the jump switch and disables Auto-open while it is off', () => {
     const updateAccountPreferences = vi.fn().mockResolvedValue(undefined);
     renderPanel({ updateAccountPreferences });
