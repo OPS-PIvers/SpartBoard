@@ -422,6 +422,28 @@ describe('loadPaperQuizWithFallback', () => {
     ).toBe(q);
   });
 
+  it('falls back to the library quiz when the frozen read throws', async () => {
+    const live = vi.fn(() => Promise.resolve(q));
+    expect(
+      await loadPaperQuizWithFallback(
+        'x',
+        () => Promise.reject(new Error('frozen gone')),
+        live
+      )
+    ).toBe(q);
+    expect(live).toHaveBeenCalledTimes(1);
+  });
+
+  it('surfaces the library failure when both reads fail', async () => {
+    await expect(
+      loadPaperQuizWithFallback(
+        'x',
+        () => Promise.reject(new Error('frozen gone')),
+        () => Promise.reject(new Error('live gone'))
+      )
+    ).rejects.toThrow('live gone');
+  });
+
   it('goes straight to the library quiz when nothing is frozen', async () => {
     const frozen = vi.fn(() => Promise.resolve(f));
     expect(
