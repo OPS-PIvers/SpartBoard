@@ -453,7 +453,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     logError('QuizLiveMonitor.openPart', err);
     addToast('Could not open the part. Try again.', 'error');
   };
-  // "Set a time": one student's own window while their class stays as it is.
+  // "Schedule": one student's own window while their class stays as it is.
   const canSetTime =
     perPeriod &&
     session.status !== 'ended' &&

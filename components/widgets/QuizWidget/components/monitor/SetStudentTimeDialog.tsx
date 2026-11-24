@@ -119,7 +119,7 @@ export const SetStudentTimeDialog: React.FC<SetStudentTimeDialogProps> = ({
       accent={LIBRARY_HEADER_ACCENTS.quiz}
       isOpen
       onClose={busy ? () => undefined : onClose}
-      title={`Set a time for ${studentName}`}
+      title={`Schedule ${studentName}`}
       zIndex="z-modal-deep"
       maxWidth="max-w-md"
       contentClassName="px-6 pb-4"
@@ -133,7 +133,7 @@ export const SetStudentTimeDialog: React.FC<SetStudentTimeDialogProps> = ({
               {...tourAttr('quiz-student-time.remove')}
               className={`${button} text-brand-red-primary hover:bg-red-50`}
             >
-              Remove time
+              Remove schedule
             </button>
           )}
           <button

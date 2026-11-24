@@ -220,7 +220,7 @@ const RowMenu: React.FC<{
   if (onSetTime && r.studentUid && r.status !== 'completed') {
     const uid = r.studentUid;
     items.push({
-      label: studentSetTime(session, uid) ? 'Change time' : 'Set a time',
+      label: 'Schedule',
       closes: true,
       tour: tourTypeAttr('quiz-monitor.student-set-time', 'quiz'),
       onClick: () => onSetTime(uid, student.name),
@@ -728,7 +728,7 @@ export const RosterList: React.FC<RosterListProps> = ({
         if (onSetTime && s.studentUid) {
           const uid = s.studentUid;
           items.push({
-            label: setTime ? 'Change time' : 'Set a time',
+            label: 'Schedule',
             closes: true,
             tour: tourTypeAttr('quiz-monitor.student-set-time', 'quiz'),
             onClick: () => onSetTime(uid, s.name),

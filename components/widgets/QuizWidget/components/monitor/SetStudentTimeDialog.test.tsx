@@ -19,8 +19,8 @@ describe('SetStudentTimeDialog', () => {
         onSave={onSave}
       />
     );
-    expect(screen.getByText('Set a time for Lopez, Ana')).toBeTruthy();
-    expect(screen.queryByText('Remove time')).toBeNull();
+    expect(screen.getByText('Schedule Lopez, Ana')).toBeTruthy();
+    expect(screen.queryByText('Remove schedule')).toBeNull();
     fireEvent.click(screen.getByText('Save'));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(onSave).toHaveBeenCalledWith({
@@ -63,7 +63,7 @@ describe('SetStudentTimeDialog', () => {
         onSave={onSave}
       />
     );
-    fireEvent.click(screen.getByText('Remove time'));
+    fireEvent.click(screen.getByText('Remove schedule'));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(null));
   });
 

@@ -22025,7 +22025,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-monitor.student-set-time",
-    "label": "Set a time item in the Quiz monitor student menu",
+    "label": "Schedule item in the Quiz monitor student menu",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -85156,7 +85156,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-student-time.opens-date",
-    "label": "Opens date in the set a time for one student dialog",
+    "label": "Opens date in the schedule one student dialog",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -85177,7 +85177,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-student-time.opens-time",
-    "label": "Opens time in the set a time for one student dialog",
+    "label": "Opens time in the schedule one student dialog",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -85198,7 +85198,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-student-time.closes-date",
-    "label": "Closes date in the set a time for one student dialog",
+    "label": "Closes date in the schedule one student dialog",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -85219,7 +85219,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-student-time.closes-time",
-    "label": "Closes time in the set a time for one student dialog",
+    "label": "Closes time in the schedule one student dialog",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -85240,7 +85240,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-student-time.remove",
-    "label": "Remove time button in the set a time for one student dialog",
+    "label": "Remove schedule button in the schedule one student dialog",
     "scope": "board",
     "panel": true,
     "destructive": true,
@@ -85263,7 +85263,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-student-time.cancel",
-    "label": "Cancel button in the set a time for one student dialog",
+    "label": "Cancel button in the schedule one student dialog",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -85284,7 +85284,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-student-time.save",
-    "label": "Save button in the set a time for one student dialog",
+    "label": "Save button in the schedule one student dialog",
     "scope": "board",
     "panel": true,
     "persists": true,
