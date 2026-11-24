@@ -70,14 +70,21 @@ export interface VerifiedSubShare {
   expiresAt: number;
 }
 
-/** A live substitute share that names this caller, and its teacher. */
+/** A live substitute share that names this caller, and its teacher, while the org switch is on. */
 export async function verifySubShare(
   db: admin.firestore.Firestore,
   shareId: string,
   email: string,
   now: number
 ): Promise<VerifiedSubShare> {
-  const shareSnap = await db.doc(`shared_collections/${shareId}`).get();
+  const [switchSnap, shareSnap] = await Promise.all([
+    db.doc('global_permissions/substitute-sharing').get(),
+    db.doc(`shared_collections/${shareId}`).get(),
+  ]);
+  // The admin kill switch; a missing doc means on, as on the client.
+  if (switchSnap.exists && switchSnap.data()?.enabled !== true) {
+    denied('Sharing with a substitute is turned off.');
+  }
   const share = shareSnap.data();
   if (!shareSnap.exists || !share) denied('That share no longer exists.');
   if (share.intendedMode !== 'substitute') {

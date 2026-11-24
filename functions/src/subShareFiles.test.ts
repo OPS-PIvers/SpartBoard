@@ -49,15 +49,22 @@ const shareDoc = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-const dbWith = (share: Record<string, unknown> | null) =>
+const dbWith = (
+  share: Record<string, unknown> | null,
+  subSwitch: Record<string, unknown> | null = null
+) =>
   ({
-    doc: () => ({
-      get: () =>
-        Promise.resolve({
-          exists: share !== null,
-          data: () => share ?? undefined,
-        }),
-    }),
+    doc: (path: string) => {
+      const data =
+        path === 'global_permissions/substitute-sharing' ? subSwitch : share;
+      return {
+        get: () =>
+          Promise.resolve({
+            exists: data !== null,
+            data: () => data ?? undefined,
+          }),
+      };
+    },
   }) as unknown as admin.firestore.Firestore;
 
 const deps = (over: Partial<SubShareFilesDeps> = {}): SubShareFilesDeps => ({
@@ -68,14 +75,22 @@ const deps = (over: Partial<SubShareFilesDeps> = {}): SubShareFilesDeps => ({
     Promise.resolve(
       fileId === NAMES_FILE ? { version: 1, boards: {} } : [{ id: 's1' }]
     ),
+  cache: new Map(),
   ...over,
 });
 
 const load = (
   share: Record<string, unknown> | null,
   d = deps(),
-  who: SubShareCaller | null = caller()
-) => handleLoadSubShareFiles(dbWith(share), who, { shareId: 'share-1' }, d);
+  who: SubShareCaller | null = caller(),
+  subSwitch: Record<string, unknown> | null = null
+) =>
+  handleLoadSubShareFiles(
+    dbWith(share, subSwitch),
+    who,
+    { shareId: 'share-1' },
+    d
+  );
 
 describe('handleLoadSubShareFiles', () => {
   it("returns the class lists and names read with the teacher's token", async () => {
@@ -100,6 +115,51 @@ describe('handleLoadSubShareFiles', () => {
       )
     ).rejects.toThrow('does not name you');
     expect(getHostToken).not.toHaveBeenCalled();
+  });
+
+  it('refuses every sub while the substitute-sharing switch is off', async () => {
+    const getHostToken = vi.fn(() => Promise.resolve('host-token'));
+    await expect(
+      load(shareDoc(), deps({ getHostToken }), caller(), { enabled: false })
+    ).rejects.toThrow('turned off');
+    expect(getHostToken).not.toHaveBeenCalled();
+    await expect(
+      load(shareDoc(), deps(), caller(), { enabled: true })
+    ).resolves.toMatchObject({ status: 'ok', missing: 0 });
+  });
+
+  it('serves a repeat read from the brief cache, and re-reads once it lapses', async () => {
+    let now = NOW;
+    const download = vi.fn(deps().download);
+    const d = deps({ download, now: () => now });
+    const share = shareDoc({ expiresAt: NOW + 3_600_000 });
+    await load(share, d);
+    await load(share, d);
+    expect(download).toHaveBeenCalledTimes(2);
+    now += 60_000;
+    await load(share, d);
+    expect(download).toHaveBeenCalledTimes(4);
+  });
+
+  it('still checks access before serving a cached read', async () => {
+    const d = deps();
+    await load(shareDoc(), d);
+    await expect(
+      load(shareDoc({ subEmails: ['other@orono.k12.mn.us'] }), d)
+    ).rejects.toThrow('does not name you');
+    await expect(
+      load(shareDoc(), d, caller(), { enabled: false })
+    ).rejects.toThrow('turned off');
+  });
+
+  it('does not cache a read with a missing file', async () => {
+    const download = vi.fn((_t: string, fileId: string) =>
+      Promise.resolve(fileId === NAMES_FILE ? null : [{ id: 's1' }])
+    );
+    const d = deps({ download });
+    await load(shareDoc(), d);
+    await load(shareDoc(), d);
+    expect(download).toHaveBeenCalledTimes(4);
   });
 
   it('refuses an expired share', async () => {

@@ -25,6 +25,14 @@ const MAX_ROSTERS = 50;
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const DRIVE_TIMEOUT_MS = 10_000;
 const DRIVE_FILE_ID = /^[A-Za-z0-9_-]{10,128}$/;
+const CACHE_TTL_MS = 60_000;
+const MAX_CACHED = 100;
+
+type LoadedFiles = Extract<SubShareFilesResult, { status: 'ok' }>;
+export type SubShareFilesCache = Map<
+  string,
+  { at: number; result: LoadedFiles }
+>;
 
 export interface SubShareFilesDeps {
   now: () => number;
@@ -33,6 +41,8 @@ export interface SubShareFilesDeps {
   getHostToken: (hostUid: string) => Promise<string | null>;
   /** The file's parsed JSON, or null when it cannot be read. */
   download: (token: string, fileId: string) => Promise<unknown>;
+  /** Complete reads kept briefly, so reopening a share doesn't re-download every file. */
+  cache: SubShareFilesCache;
 }
 
 export type SubShareFilesResult =
@@ -83,6 +93,14 @@ export async function handleLoadSubShareFiles(
     return { status: 'ok', rosters: [], names: null, missing: 0 };
   }
 
+  const cacheKey = [
+    shareId,
+    namesFileId ?? '',
+    ...rosters.map((r) => `${r.id}:${r.driveFileId}`),
+  ].join('|');
+  const cached = deps.cache.get(cacheKey);
+  if (cached && deps.now() - cached.at < CACHE_TTL_MS) return cached.result;
+
   const token = await deps.getHostToken(hostUid);
   if (!token) return { status: 'needs-host' };
 
@@ -95,11 +113,28 @@ export async function handleLoadSubShareFiles(
   );
   const missing =
     rosters.length - loaded.length + (namesFileId && names == null ? 1 : 0);
-  return { status: 'ok', rosters: loaded, names: names ?? null, missing };
+  const result: LoadedFiles = {
+    status: 'ok',
+    rosters: loaded,
+    names: names ?? null,
+    missing,
+  };
+  if (missing === 0) {
+    deps.cache.delete(cacheKey);
+    const oldest = deps.cache.keys().next();
+    if (deps.cache.size >= MAX_CACHED && !oldest.done) {
+      deps.cache.delete(oldest.value);
+    }
+    deps.cache.set(cacheKey, { at: deps.now(), result });
+  }
+  return result;
 }
+
+const liveCache: SubShareFilesCache = new Map();
 
 const liveDeps = (db: admin.firestore.Firestore): SubShareFilesDeps => ({
   now: () => Date.now(),
+  cache: liveCache,
   isStaff: async (email) => {
     const { isDistrictStaffEmail } = await import('./districtStaff');
     return isDistrictStaffEmail(db, email);
