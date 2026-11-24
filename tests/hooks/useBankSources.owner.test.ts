@@ -8,6 +8,7 @@ import {
   loadSyncedBankContent,
   pinPlcBankSlots,
 } from '@/hooks/useBankSources';
+import { mergeBankSources } from '@/utils/questionBankRecords';
 import { withCurrentAnswerKeys } from '@/utils/quizAssignBankDraw';
 import {
   BankSlotResolutionError,
@@ -242,5 +243,43 @@ describe('shared bank slot owner binding', () => {
     await expect(loadSyncedBankContent('g1')).resolves.toMatchObject({
       id: 'g1',
     });
+  });
+});
+
+describe('PLC bank picker owner binding', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('carries the header sharer on a plc source and refuses a doc owned by someone else', async () => {
+    const [src] = mergeBankSources(
+      [],
+      [
+        {
+          plcId: 'p1',
+          plcName: 'PLC',
+          entry: {
+            id: 'e1',
+            title: 'Shared',
+            questionCount: 1,
+            syncGroupId: 'g1',
+            targetIds: [],
+            sharedBy: 'sharer',
+            sharedByEmail: 's@x.org',
+            sharedByName: 'S',
+            sharedAt: 1,
+            updatedAt: 1,
+          },
+        },
+      ],
+      'me'
+    );
+    expect(src.syncOwnerUid).toBe('sharer');
+    (getDoc as Mock).mockResolvedValue(syncedDoc('attacker'));
+    await expect(
+      loadSyncedBankContent(src.syncGroupId as string, src.syncOwnerUid)
+    ).rejects.toThrow('no longer available');
+    (getDoc as Mock).mockResolvedValue(syncedDoc('sharer'));
+    await expect(
+      loadSyncedBankContent(src.syncGroupId as string, src.syncOwnerUid)
+    ).resolves.toBeTruthy();
   });
 });
