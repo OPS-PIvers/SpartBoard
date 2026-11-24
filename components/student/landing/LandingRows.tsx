@@ -217,7 +217,10 @@ function periodLockLine(
   uid: string | null
 ): string {
   const own = studentSetTime(gate, uid);
-  if (own && own.from > nowMs) return formatOpensLabel(own.from);
+  if (own && own.from > nowMs)
+    return formatOpensLabel(
+      nextScheduledOpen(gate, gate.periodKeys, nowMs, uid) ?? own.from
+    );
   const paused = gate.periodKeys.some((k) => {
     const access = gate.periodAccess?.[k];
     return !!access && effectivePeriodState(access, nowMs) === 'paused';
