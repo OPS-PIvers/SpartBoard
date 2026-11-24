@@ -28,7 +28,7 @@ describe('revertViewAsChangeV1 PII scrub parity', () => {
   it.each(configs)(
     'drops the same config keys as the app for %s',
     (type, config) => {
-      const dropped = new Set(widgetPiiKeys(type, config));
+      const dropped = new Set<string>(widgetPiiKeys(type, config));
       const expected = Object.fromEntries(
         Object.entries(config).filter(([k]) => !dropped.has(k))
       );
