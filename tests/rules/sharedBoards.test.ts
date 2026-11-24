@@ -426,9 +426,9 @@ describe('shared_boards — viewer (read-only)', () => {
   });
 });
 
-describe('shared_boards — self-join', () => {
-  it('stranger can append themselves to participants (Synced join)', async () => {
-    await assertSucceeds(
+describe('shared_boards — client self-join is denied (shareMembershipV1 joins)', () => {
+  it('stranger CANNOT append themselves to participants (Synced join)', async () => {
+    await assertFails(
       updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
         [`participants.${STRANGER_UID}`]: {
           role: 'collaborator',
@@ -438,8 +438,8 @@ describe('shared_boards — self-join', () => {
     );
   });
 
-  it('stranger can append themselves as viewer (View-Only join)', async () => {
-    await assertSucceeds(
+  it('stranger CANNOT append themselves as viewer (View-Only join)', async () => {
+    await assertFails(
       updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
         [`participants.${STRANGER_UID}`]: {
           role: 'viewer',
@@ -449,7 +449,7 @@ describe('shared_boards — self-join', () => {
     );
   });
 
-  it('a View-Only link CANNOT be joined as collaborator', async () => {
+  it('a View-Only link CANNOT be joined as collaborator or viewer', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await updateDoc(doc(ctx.firestore(), `shared_boards/${SHARE_ID}`), {
         intendedMode: 'view-only',
@@ -463,7 +463,7 @@ describe('shared_boards — self-join', () => {
         },
       })
     );
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
         [`participants.${STRANGER_UID}`]: { role: 'viewer', joinedAt: 2000 },
       })
@@ -487,8 +487,6 @@ describe('shared_boards — self-join', () => {
   });
 
   it('stranger CANNOT add ANOTHER user during self-join', async () => {
-    // The diff().affectedKeys().hasOnly([uid]) clause prevents a caller
-    // from sneaking unrelated participants into the same write.
     await assertFails(
       updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
         [`participants.${STRANGER_UID}`]: {
@@ -504,8 +502,6 @@ describe('shared_boards — self-join', () => {
   });
 
   it('stranger CANNOT change other fields during self-join', async () => {
-    // The diff().affectedKeys().hasOnly(['participants']) clause keeps
-    // the join write to a single field — no smuggling content edits.
     await assertFails(
       updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
         [`participants.${STRANGER_UID}`]: {
@@ -518,17 +514,17 @@ describe('shared_boards — self-join', () => {
   });
 });
 
-describe('shared_boards — self-leave', () => {
-  it('collaborator can remove their own participants entry', async () => {
-    await assertSucceeds(
+describe('shared_boards — client self-leave is denied (shareMembershipV1 leaves)', () => {
+  it('collaborator CANNOT remove their own participants entry', async () => {
+    await assertFails(
       updateDoc(doc(asCollab(), `shared_boards/${SHARE_ID}`), {
         [`participants.${COLLAB_UID}`]: deleteField(),
       })
     );
   });
 
-  it('viewer can remove their own participants entry', async () => {
-    await assertSucceeds(
+  it('viewer CANNOT remove their own participants entry', async () => {
+    await assertFails(
       updateDoc(doc(asViewer(), `shared_boards/${SHARE_ID}`), {
         [`participants.${VIEWER_UID}`]: deleteField(),
       })

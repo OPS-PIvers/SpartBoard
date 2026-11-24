@@ -344,6 +344,11 @@ service cloud.firestore {
     function studentLetIn(s) {
       return s.get('studentAccess', {}).get(authUid(), 0) > request.time.toMillis();
     }
+    // Quiz "Schedule for later" also sets when the pass starts, with the window grace.
+    function quizLetIn(s) {
+      return studentLetIn(s) &&
+             s.get('studentAccessFrom', {}).get(authUid(), 0) <= request.time.toMillis() + 120000;
+    }
     // A join on a per-period session names a period the session targets, backed
     // by the caller's class claim when signed in; assessment mode refuses the
     // anonymous PIN key, whose self-picked period no rule can check. Joining a
@@ -1434,29 +1439,7 @@ service cloud.firestore {
         incoming().get('createdNonce', null) == existing().get('createdNonce', null) &&
         incoming().get('linkedCollectionId', null) == existing().get('linkedCollectionId', null);
 
-      // Self-join: any signed-in teacher (not anonymous, not a student) may add ONLY their own uid to participants
-      // (Synced/View-Only importers). Not allowed on substitute shares — subs
-      // view via /subs without importing, so a self-join would be a phantom.
-      allow update: if signedIn() && isDistrictStaff() &&
-        existing().get('intendedMode', null) != 'substitute' &&
-        // A View-Only link only ever makes a viewer; a Copy link makes no member.
-        existing().get('intendedMode', null) != 'copy' &&
-        (existing().get('intendedMode', null) != 'view-only'
-          || incoming().participants[authUid()].get('role', '') == 'viewer') &&
-        !(authUid() in existing().get('participants', {})) &&
-        authUid() in incoming().get('participants', {}) &&
-        incoming().participants.diff(existing().get('participants', {}))
-          .affectedKeys().hasOnly([authUid()]) &&
-        changedOnly(['participants']);
-
-      // Self-leave: any participant may remove ONLY their own uid from
-      // participants. No-op for substitute shares (they never accept participants).
-      allow update: if signedIn() &&
-        authUid() in existing().get('participants', {}) &&
-        !(authUid() in incoming().get('participants', {})) &&
-        existing().participants.diff(incoming().get('participants', {}))
-          .affectedKeys().hasOnly([authUid()]) &&
-        changedOnly(['participants']);
+      // Joining and leaving go through shareMembershipV1 (Admin SDK); no client participant writes.
 
       // The host of the shared collection a board belongs to may end it (Stop sharing),
       // including boards a current collaborator added (docs/plans/shipped/COLLECTION_SHARING.md
@@ -1737,25 +1720,7 @@ service cloud.firestore {
         && changedOnly(['name', 'color', 'icon', 'boards', 'sections', 'deletedSections', 'updatedAt', 'updatedBy'])
         && incoming().updatedBy == authUid() && lcShape();
 
-      // Self-join, only with the role the mode grants (a View-Only link never makes an editor).
-      allow update: if lcTeacher() && lcLive()
-        && !(authUid() in existing().participants)
-        && !(authUid() in existing().get('removed', {}))
-        && changedOnly(['participants'])
-        && incoming().participants.diff(existing().participants).affectedKeys().hasOnly([authUid()])
-        && incoming().participants[authUid()].keys().hasOnly(['role', 'name', 'joinedAt'])
-        && incoming().participants[authUid()].role
-          == (existing().mode == 'synced' ? 'collaborator' : 'viewer')
-        && incoming().participants[authUid()].get('name', '') is string
-        && incoming().participants[authUid()].get('name', '').size() <= 100
-        && incoming().participants[authUid()].joinedAt is number
-        && lcShape();
-
-      // Self-leave.
-      allow update: if signedIn() && authUid() in existing().participants
-        && !(authUid() in incoming().participants)
-        && changedOnly(['participants'])
-        && existing().participants.diff(incoming().participants).affectedKeys().hasOnly([authUid()]);
+      // Joining and leaving go through shareMembershipV1 (Admin SDK).
 
       allow delete: if signedIn() && (existing().hostUid == authUid() || isAdmin());
     }
@@ -4353,8 +4318,8 @@ service cloud.firestore {
 
     // D22 per-column grading setup.
     match /gradebook_columns/{sessionId} {
-      // A column not set up yet reads as missing instead of erroring the owner's listener.
-      allow read: if resource == null ? signedIn() : gbOwned();
+      // A column not set up yet reads as missing to staff only, so students can't probe session ids.
+      allow read: if resource == null ? liveStaffSignedIn() : gbOwned();
       allow delete: if liveStaffSignedIn() && gbOwned();
       allow create: if gbCreateOk(incoming()) && gbColumnOk(incoming()) &&
         incoming().sessionId == sessionId;
@@ -4786,7 +4751,8 @@ service cloud.firestore {
             (s.status != 'paused' &&
              // studentUid is authUid() here and cheaper: a PIN token's authUid() costs more expressions.
              (periodOpen(s, existing().get('classId', null)) ||
-              s.get('studentAccess', {}).get(existing().studentUid, 0) > request.time.toMillis()))) &&
+              (s.get('studentAccess', {}).get(existing().studentUid, 0) > request.time.toMillis() &&
+               s.get('studentAccessFrom', {}).get(existing().studentUid, 0) <= request.time.toMillis() + 120000)))) &&
            unchanged('studentUid') &&
            // SSO studentRole responses omit `pin` entirely, so direct dot-access on
            // `resource.data.pin` would throw a Null-value error and deny the write. Use
@@ -5042,7 +5008,7 @@ service cloud.firestore {
       match /content/{docId} {
         allow read: if signedIn() && (
           liveUid(sessionTeacherUid()) || isAdmin() ||
-          isSubMonitor(sessionData()) || studentLetIn(sessionData()) ||
+          isSubMonitor(sessionData()) || quizLetIn(sessionData()) ||
           sessionData().status == 'ended' ||
           periodOpen(sessionData(), seatedClassId('quiz_sessions', sessionId))
         );

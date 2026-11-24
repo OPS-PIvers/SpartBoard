@@ -114,7 +114,12 @@ import {
   todaysBell,
   usePeriodAccess,
 } from '@/hooks/usePeriodAccess';
-import { dueLockAt, hasPeriodAccess } from '@/utils/periodAccess';
+import {
+  dueLockAt,
+  hasPeriodAccess,
+  studentSetTime,
+} from '@/utils/periodAccess';
+import { SetStudentTimeDialog } from './SetStudentTimeDialog';
 import { QuestionResults, QuestionDetail } from './QuestionResults';
 import { JoinCodeScreen } from './JoinCodeScreen';
 import {
@@ -395,6 +400,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     session.status === 'active' &&
     !outward.locked;
   const [liveViewKey, setLiveViewKey] = useState<string | null>(null);
+  const [timeFor, setTimeFor] = useState<{ uid: string; name: string } | null>(
+    null
+  );
   // Pause or a lost gate closes the panel so it can't re-open and re-stamp on resume.
   if (!canLiveView && liveViewKey !== null) setLiveViewKey(null);
 
@@ -445,6 +453,11 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     logError('QuizLiveMonitor.openPart', err);
     addToast('Could not open the part. Try again.', 'error');
   };
+  // "Schedule": one student's own window while their class stays as it is.
+  const canSetTime =
+    perPeriod &&
+    session.status !== 'ended' &&
+    authContext?.canAccessFeature?.('student-set-time') === true;
   const runPeriod = async (fn: () => Promise<void>) => {
     try {
       await fn();
@@ -1219,6 +1232,23 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           onConfirm={handleReopenPicked}
         />
       )}
+      {timeFor && (
+        <SetStudentTimeDialog
+          studentName={timeFor.name}
+          current={studentSetTime(session, timeFor.uid)}
+          dueAt={session.dueAt}
+          onClose={() => setTimeFor(null)}
+          onSave={async (time) => {
+            try {
+              await periodActions.setStudentTime(timeFor.uid, time);
+            } catch (err) {
+              logError('QuizLiveMonitor.setStudentTime', err);
+              addToast('Could not save the time. Try again.', 'error');
+              throw err;
+            }
+          }}
+        />
+      )}
       {canLiveView && liveViewKey && (
         <Suspense fallback={null}>
           <LiveViewPanel
@@ -1480,6 +1510,11 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 onLetIn={
                   perPeriod && session.status !== 'ended'
                     ? (uid) => void runPeriod(() => periodActions.letIn(uid))
+                    : undefined
+                }
+                onSetTime={
+                  canSetTime
+                    ? (uid, name) => setTimeFor({ uid, name })
                     : undefined
                 }
                 onOpenPart={

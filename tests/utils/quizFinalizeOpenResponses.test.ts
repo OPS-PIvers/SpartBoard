@@ -203,15 +203,20 @@ describe('finalizeClassQuizResponses', () => {
     expect(store.updates[0][1]).toMatchObject({ status: 'completed' });
   });
 
-  it('leaves students let in, reopened for, or unlocked to keep working', async () => {
+  it('leaves students let in, scheduled for later, reopened for, or unlocked to keep working', async () => {
     store.docs[S] = session(
       { state: 'closed', closedAt: CLOSED_AT },
       {
-        studentAccess: { pass: NOW + 1, expired: NOW - 1 },
+        studentAccess: {
+          pass: NOW + 1,
+          expired: NOW - 1,
+          later: NOW + 2000,
+        },
+        studentAccessFrom: { later: NOW + 1000 },
         reopenedFor: ['picked'],
       }
     );
-    for (const id of ['pass', 'expired', 'picked', 'plain'])
+    for (const id of ['pass', 'expired', 'picked', 'plain', 'later'])
       open(id, { classId: 'p1' });
     open('unlocked', { classId: 'p1', unlocked: true });
     await finalizeClassQuizResponses('s1', 'p1', CLOSED_AT, NOW);

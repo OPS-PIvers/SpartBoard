@@ -6,6 +6,7 @@ import {
   pickPeriodKey,
   studentCanEnter,
   studentPeriodKeys,
+  studentSetTime,
   summarizePeriods,
 } from './periodAccess';
 
@@ -85,6 +86,25 @@ describe('studentCanEnter', () => {
         NOW
       )
     ).toBe(false);
+  });
+
+  it('waits for the start of a time set for the student', () => {
+    const timed = {
+      ...session,
+      studentAccess: { u: NOW + 60_000 },
+      studentAccessFrom: { u: NOW + 1 },
+    };
+    expect(studentCanEnter(timed, ['B'], 'u', NOW)).toBe(false);
+    expect(studentCanEnter(timed, ['B'], 'u', NOW + 1)).toBe(true);
+    expect(studentCanEnter(timed, ['B'], 'u', NOW + 60_000)).toBe(false);
+    expect(studentSetTime(timed, 'u')).toEqual({
+      from: NOW + 1,
+      until: NOW + 60_000,
+    });
+    expect(studentSetTime(timed, 'other')).toBeNull();
+    expect(nextScheduledOpen(timed, ['B'], NOW, 'u')).toBe(NOW + 1);
+    expect(nextScheduledOpen(timed, ['B'], NOW)).toBeNull();
+    expect(nextScheduledOpen(timed, ['B'], NOW + 1, 'u')).toBeNull();
   });
 });
 

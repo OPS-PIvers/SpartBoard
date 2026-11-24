@@ -31,6 +31,40 @@ interface PeriodWindow {
   closeAt?: unknown;
 }
 
+/** A Let in pass that is running now; a time set for later ("Set a time") starts at `studentAccessFrom`. */
+export function passActive(
+  session: Record<string, unknown>,
+  uid: string,
+  nowMs: number
+): boolean {
+  const until = (
+    session.studentAccess as Record<string, unknown> | undefined
+  )?.[uid];
+  if (typeof until !== 'number' || until <= nowMs) return false;
+  const from = (
+    session.studentAccessFrom as Record<string, unknown> | undefined
+  )?.[uid];
+  return typeof from !== 'number' || from <= nowMs;
+}
+
+/** The start of a time set for this student, while its window runs or it began within `withinMs`. */
+export function setTimeStart(
+  session: Record<string, unknown>,
+  uid: string,
+  nowMs: number,
+  withinMs: number
+): number | null {
+  const until = (
+    session.studentAccess as Record<string, unknown> | undefined
+  )?.[uid];
+  const from = (
+    session.studentAccessFrom as Record<string, unknown> | undefined
+  )?.[uid];
+  if (typeof from !== 'number' || typeof until !== 'number') return null;
+  if (until <= nowMs || until <= from) return null;
+  return nowMs < Math.max(from + withinMs, until) ? from : null;
+}
+
 /** True when a per-period session has this response's period closed or paused, so the attempt is frozen, not idle. */
 export function isPeriodFrozen(
   session: Record<string, unknown>,
@@ -41,10 +75,7 @@ export function isPeriodFrozen(
   if (!pa || typeof pa !== 'object') return false;
   const uid =
     typeof response.studentUid === 'string' ? response.studentUid : '';
-  const letIn = (
-    session.studentAccess as Record<string, unknown> | undefined
-  )?.[uid];
-  if (typeof letIn === 'number' && letIn > nowMs) return false;
+  if (passActive(session, uid, nowMs)) return false;
   const p = typeof response.classId === 'string' ? pa[response.classId] : null;
   if (!p || p.state !== 'open') return true;
   if (typeof p.openAt === 'number' && nowMs < p.openAt - PERIOD_WINDOW_GRACE_MS)

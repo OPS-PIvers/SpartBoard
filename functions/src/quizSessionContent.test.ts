@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type * as admin from './firebaseAdmin';
 import {
   isPeriodFrozen,
+  setTimeStart,
   PERIOD_WINDOW_GRACE_MS,
   withQuizSessionContent,
 } from './quizSessionContent';
@@ -82,5 +83,23 @@ describe('isPeriodFrozen', () => {
     expect(
       isPeriodFrozen(withPass, { classId: 'B', studentUid: 'u' }, NOW)
     ).toBe(false);
+  });
+
+  it('keeps a student frozen until the start of a time set for them', () => {
+    const timed = {
+      ...session,
+      studentAccess: { u: NOW + 60_000 },
+      studentAccessFrom: { u: NOW + 1 },
+    };
+    const r = { classId: 'B', studentUid: 'u' };
+    expect(isPeriodFrozen(timed, r, NOW)).toBe(true);
+    expect(isPeriodFrozen(timed, r, NOW + 1)).toBe(false);
+    expect(setTimeStart(timed, 'u', NOW, 10)).toBe(NOW + 1);
+    expect(setTimeStart(timed, 'u', NOW + 11, 10)).toBe(NOW + 1);
+    expect(setTimeStart(timed, 'u', NOW + 60_000, 10)).toBeNull();
+    expect(setTimeStart(timed, 'other', NOW, 10)).toBeNull();
+    expect(setTimeStart({ studentAccess: { u: NOW + 5 } }, 'u', NOW, 10)).toBe(
+      null
+    );
   });
 });

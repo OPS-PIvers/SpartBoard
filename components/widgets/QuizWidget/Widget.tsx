@@ -1556,10 +1556,11 @@ const TeacherQuizWidget: React.FC<{
   const loadQuiz = useCallback(
     async (
       meta: QuizMetadata,
-      refine?: (data: QuizData) => Promise<QuizData>
+      refine?: (data: QuizData) => Promise<QuizData>,
+      quiet = false
     ): Promise<QuizData | null> => {
       setLoadingQuizData(true);
-      setDataError(null);
+      if (!quiet) setDataError(null);
       try {
         const loaded = await loadQuizData(meta.driveFileId);
         const data = refine ? await refine(loaded) : loaded;
@@ -1567,6 +1568,7 @@ const TeacherQuizWidget: React.FC<{
         setLoadedQuizFileId(meta.driveFileId);
         return data;
       } catch (err) {
+        if (quiet) throw err;
         const msg = err instanceof Error ? err.message : 'Failed to load quiz';
         setDataError(msg);
         addToast(msg, 'error');
@@ -1632,17 +1634,23 @@ const TeacherQuizWidget: React.FC<{
       meta: QuizMetadata,
       assignment:
         | Pick<QuizAssignment, 'resolvedDriveFileId' | 'frozenDriveFileId'>
-        | undefined
+        | undefined,
+      quiet = false
     ): Promise<QuizData | null> => {
       const frozenId = assignmentFrozenFileId(assignment);
-      if (!frozenId || frozenId === meta.driveFileId) return loadQuiz(meta);
-      return loadQuiz({ ...meta, driveFileId: frozenId }, (frozen) =>
-        withCurrentAnswerKeys(
-          frozen,
-          meta.driveFileId,
-          { loadQuizData, loadBankContentsForQuiz },
-          keyFixOptionsFor(assignment)
-        )
+      if (!frozenId || frozenId === meta.driveFileId) {
+        return loadQuiz(meta, undefined, quiet);
+      }
+      return loadQuiz(
+        { ...meta, driveFileId: frozenId },
+        (frozen) =>
+          withCurrentAnswerKeys(
+            frozen,
+            meta.driveFileId,
+            { loadQuizData, loadBankContentsForQuiz },
+            keyFixOptionsFor(assignment)
+          ),
+        quiet
       );
     },
     [loadQuiz, loadQuizData, loadBankContentsForQuiz]
@@ -1655,7 +1663,7 @@ const TeacherQuizWidget: React.FC<{
   ): Promise<QuizData | null> =>
     loadPaperQuizWithFallback(
       paperFrozenFileId(assignment),
-      () => loadAnswerKeyQuiz(meta, assignment),
+      () => loadAnswerKeyQuiz(meta, assignment, true),
       () => loadQuiz(meta)
     );
 

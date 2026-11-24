@@ -10,7 +10,7 @@ import {
   readMiniAppEditHtml,
 } from './miniAppEditPrompt';
 import { parseGeminiJson } from './parseGeminiJson';
-import { adminPassesMissingDoc } from './featureMissingDoc';
+import { missingDocAccess } from './featureMissingDoc';
 import { isExcludedFrom } from './permissionExclusion';
 import {
   buildStepTextParts,
@@ -390,37 +390,72 @@ export function specificFeatureIdFor(
   }
 }
 
-/** A default-off feature (e.g. `blooms-ai`) stays closed to non-admins until an admin saves its doc. */
-export const missingDocDeniesNonAdmin = (featureId: string): boolean =>
-  adminPassesMissingDoc(featureId);
-
-function assertPermissionAllows(
-  perm: GlobalPermission,
+/** Beta for a verified caller from any source the client accepts (list, beta teachers, super admins). */
+async function isVerifiedBetaTeacher(
+  db: admin.firestore.Firestore,
   token: { email?: string; email_verified?: boolean },
-  messages: { disabled: string; adminOnly: string; notBeta: string }
-): void {
+  betaUsers: string[]
+): Promise<boolean> {
+  if (isVerifiedBetaMember(token, betaUsers)) return true;
+  if (token.email_verified !== true || !token.email) return false;
+  const { isBetaTeacher } = await import('./featureGrant');
+  return isBetaTeacher(db, betaUsers, token.email.toLowerCase());
+}
+
+/** A saved doc's gate for a non-admin, as the client's `resolvePermissionAccess` decides it. */
+async function assertPermissionAllows(
+  db: admin.firestore.Firestore,
+  perm: Pick<
+    GlobalPermission,
+    'enabled' | 'accessLevel' | 'betaUsers' | 'excludedUsers'
+  > & { minTier?: unknown; buildings?: unknown },
+  token: { email?: string; email_verified?: boolean },
+  uid: string,
+  messages: {
+    disabled: string;
+    adminOnly: string;
+    notBeta: string;
+    noAccess: string;
+  }
+): Promise<void> {
   if (!perm.enabled)
     throw new HttpsError('permission-denied', messages.disabled);
   if (isExcludedFrom(perm, token.email))
-    throw new HttpsError(
-      'permission-denied',
-      'You do not have access to this feature.'
-    );
-  if (perm.accessLevel === 'admin') {
+    throw new HttpsError('permission-denied', messages.noAccess);
+  if (perm.accessLevel === 'beta') {
+    if (!(await isVerifiedBetaTeacher(db, token, perm.betaUsers ?? [])))
+      throw new HttpsError('permission-denied', messages.notBeta);
+  } else if (perm.accessLevel !== 'public') {
     throw new HttpsError('permission-denied', messages.adminOnly);
   }
-  if (
-    perm.accessLevel === 'beta' &&
-    !isVerifiedBetaMember(token, perm.betaUsers ?? [])
-  ) {
-    throw new HttpsError('permission-denied', messages.notBeta);
-  }
+  await assertAudienceAllows(db, perm, token, uid, messages.noAccess);
+}
+
+/** A missing doc's default for a non-admin, from the client's `FEATURE_DEFAULTS` (tier floor included). */
+async function assertMissingDocAllows(
+  db: admin.firestore.Firestore,
+  featureId: string,
+  token: { email?: string; email_verified?: boolean },
+  uid: string,
+  message: string
+): Promise<void> {
+  const access = missingDocAccess(featureId);
+  if (access.audience !== 'everyone')
+    throw new HttpsError('permission-denied', message);
+  if (access.minTier === null) return;
+  await assertAudienceAllows(
+    db,
+    { minTier: access.minTier },
+    token,
+    uid,
+    message
+  );
 }
 
 /** Applies a saved doc's `minTier` and `buildings`, as the client's `resolvePermissionAccess` does. */
 async function assertAudienceAllows(
   db: admin.firestore.Firestore,
-  perm: GlobalPermission,
+  perm: { minTier?: unknown; buildings?: unknown },
   token: { email?: string; email_verified?: boolean },
   uid: string,
   message: string
@@ -470,14 +505,16 @@ async function enforceAiFeatureAccess(
     ? (geminiDoc.data() as GlobalPermission)
     : undefined;
   if (geminiPerm) {
-    assertPermissionAllows(geminiPerm, token, {
+    await assertPermissionAllows(db, geminiPerm, token, uid, {
       disabled: 'Gemini functions are currently disabled by an administrator.',
       adminOnly: 'Gemini functions are currently restricted to administrators.',
       notBeta: 'You do not have access to Gemini beta functions.',
+      noAccess: 'You do not have access to Gemini functions.',
     });
-    await assertAudienceAllows(
+  } else {
+    await assertMissingDocAllows(
       db,
-      geminiPerm,
+      'gemini-functions',
       token,
       uid,
       'You do not have access to Gemini functions.'
@@ -488,22 +525,24 @@ async function enforceAiFeatureAccess(
     : undefined;
   // featureGranted: the caller already checked the flag with its full rules (beta teachers, tier, buildings).
   if (specPerm && !featureGranted) {
-    assertPermissionAllows(specPerm, token, {
+    await assertPermissionAllows(db, specPerm, token, uid, {
       disabled: `${featureId} is currently disabled by an administrator.`,
       adminOnly: `${featureId} is currently restricted to administrators.`,
       notBeta: `You do not have access to the ${featureId} beta feature.`,
+      noAccess: `You do not have access to ${featureId}.`,
     });
-    await assertAudienceAllows(
-      db,
-      specPerm,
-      token,
-      uid,
-      `You do not have access to ${featureId}.`
-    );
   } else if (!specPerm && !missingDocAllowed) {
     throw new HttpsError(
       'permission-denied',
       'Admin access required to use AI generation.'
+    );
+  } else if (!specPerm && !featureGranted) {
+    await assertMissingDocAllows(
+      db,
+      featureId,
+      token,
+      uid,
+      `You do not have access to ${featureId}.`
     );
   }
 
@@ -771,39 +810,19 @@ export const generateWithAI = onCall(
             ? (globalPermDoc.data() as GlobalPermission)
             : null;
 
-          if (globalPerm && !globalPerm.enabled) {
-            throw new HttpsError(
-              'permission-denied',
-              'Gemini functions are currently disabled by an administrator.'
-            );
-          }
-
           if (globalPerm) {
-            const { accessLevel, betaUsers = [] } = globalPerm;
-            if (isExcludedFrom(globalPerm, email)) {
-              throw new HttpsError(
-                'permission-denied',
-                'You do not have access to Gemini functions.'
-              );
-            }
-            if (accessLevel === 'admin') {
-              throw new HttpsError(
-                'permission-denied',
-                'Gemini functions are currently restricted to administrators.'
-              );
-            }
-            if (
-              accessLevel === 'beta' &&
-              !isVerifiedBetaMember(callerToken, betaUsers)
-            ) {
-              throw new HttpsError(
-                'permission-denied',
-                'You do not have access to Gemini beta functions.'
-              );
-            }
-            await assertAudienceAllows(
+            await assertPermissionAllows(db, globalPerm, callerToken, uid, {
+              disabled:
+                'Gemini functions are currently disabled by an administrator.',
+              adminOnly:
+                'Gemini functions are currently restricted to administrators.',
+              notBeta: 'You do not have access to Gemini beta functions.',
+              noAccess: 'You do not have access to Gemini functions.',
+            });
+          } else {
+            await assertMissingDocAllows(
               db,
-              globalPerm,
+              'gemini-functions',
               callerToken,
               uid,
               'You do not have access to Gemini functions.'
@@ -831,45 +850,12 @@ export const generateWithAI = onCall(
             if (specPermDoc.exists) {
               const specPerm = specPermDoc.data() as GlobalPermission;
 
-              if (!specPerm.enabled) {
-                throw new HttpsError(
-                  'permission-denied',
-                  `${specificFeatureId} is currently disabled by an administrator.`
-                );
-              }
-
-              const {
-                accessLevel: specAccessLevel,
-                betaUsers: specBetaUsers = [],
-              } = specPerm;
-              if (isExcludedFrom(specPerm, email)) {
-                throw new HttpsError(
-                  'permission-denied',
-                  `You do not have access to ${specificFeatureId}.`
-                );
-              }
-              if (specAccessLevel === 'admin') {
-                throw new HttpsError(
-                  'permission-denied',
-                  `${specificFeatureId} is currently restricted to administrators.`
-                );
-              }
-              if (
-                specAccessLevel === 'beta' &&
-                !isVerifiedBetaMember(callerToken, specBetaUsers)
-              ) {
-                throw new HttpsError(
-                  'permission-denied',
-                  `You do not have access to the ${specificFeatureId} beta feature.`
-                );
-              }
-              await assertAudienceAllows(
-                db,
-                specPerm,
-                callerToken,
-                uid,
-                `You do not have access to ${specificFeatureId}.`
-              );
+              await assertPermissionAllows(db, specPerm, callerToken, uid, {
+                disabled: `${specificFeatureId} is currently disabled by an administrator.`,
+                adminOnly: `${specificFeatureId} is currently restricted to administrators.`,
+                notBeta: `You do not have access to the ${specificFeatureId} beta feature.`,
+                noAccess: `You do not have access to ${specificFeatureId}.`,
+              });
 
               const specLimitEnabled =
                 specPerm.config?.dailyLimitEnabled !== false;
@@ -889,9 +875,12 @@ export const generateWithAI = onCall(
                   `Daily limit for ${specificFeatureId} reached (${specificLimit} per day). Please try again tomorrow.`
                 );
               }
-            } else if (missingDocDeniesNonAdmin(specificFeatureId)) {
-              throw new HttpsError(
-                'permission-denied',
+            } else {
+              await assertMissingDocAllows(
+                db,
+                specificFeatureId,
+                callerToken,
+                uid,
                 `${specificFeatureId} is currently restricted to administrators.`
               );
             }
@@ -2095,7 +2084,7 @@ interface AudioTranscriptionPermConfig {
 
 interface AudioTranscriptionPerm {
   enabled: boolean;
-  accessLevel: 'admin' | 'beta' | 'all';
+  accessLevel: 'admin' | 'beta' | 'public';
   betaUsers?: string[];
   minTier?: unknown;
   buildings?: unknown;
@@ -2183,50 +2172,28 @@ export const transcribeVideoWithGemini = onCall(
 
     if (!isAdmin) {
       if (geminiDoc.exists) {
-        const geminiPerm = geminiDoc.data() as GlobalPermission;
-        assertPermissionAllows(geminiPerm, request.auth.token, {
-          disabled:
-            'Gemini functions are currently disabled by an administrator.',
-          adminOnly:
-            'Gemini functions are currently restricted to administrators.',
-          notBeta: 'You do not have access to Gemini beta functions.',
-        });
-        await assertAudienceAllows(
+        await assertPermissionAllows(
           db,
-          geminiPerm,
+          geminiDoc.data() as GlobalPermission,
           request.auth.token,
           uid,
-          'You do not have access to Gemini functions.'
+          {
+            disabled:
+              'Gemini functions are currently disabled by an administrator.',
+            adminOnly:
+              'Gemini functions are currently restricted to administrators.',
+            notBeta: 'You do not have access to Gemini beta functions.',
+            noAccess: 'You do not have access to Gemini functions.',
+          }
         );
       }
-      if (isExcludedFrom(perm, request.auth.token.email)) {
-        throw new HttpsError(
-          'permission-denied',
-          'You do not have access to Gemini audio transcription.'
-        );
-      }
-      if (perm.accessLevel === 'admin') {
-        throw new HttpsError(
-          'permission-denied',
-          'Gemini audio transcription is restricted to administrators.'
-        );
-      }
-      if (
-        perm.accessLevel === 'beta' &&
-        !isVerifiedBetaMember(request.auth.token, perm.betaUsers ?? [])
-      ) {
-        throw new HttpsError(
-          'permission-denied',
-          'You do not have access to Gemini audio transcription.'
-        );
-      }
-      await assertAudienceAllows(
-        db,
-        perm,
-        request.auth.token,
-        uid,
-        'You do not have access to Gemini audio transcription.'
-      );
+      await assertPermissionAllows(db, perm, request.auth.token, uid, {
+        disabled: 'Gemini audio transcription is currently disabled.',
+        adminOnly:
+          'Gemini audio transcription is restricted to administrators.',
+        notBeta: 'You do not have access to Gemini audio transcription.',
+        noAccess: 'You do not have access to Gemini audio transcription.',
+      });
     }
 
     if (!isAdmin) {

@@ -1850,6 +1850,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'student-set-time': {
+    label: 'Quiz: schedule one student',
+    icon: CalendarClock,
+    description:
+      'The quiz monitor can schedule a quiz for one student. Their class can stay paused.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'assignments-hub': {
     label: 'Assignments hub',
     icon: ClipboardList,

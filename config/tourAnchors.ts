@@ -5463,6 +5463,11 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-monitor.student-set-time': {
+    label: 'Schedule for later item in the Quiz monitor student menu',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-monitor.student-mark-absent': {
     label:
       'Absent button on a student who has not joined, in the Quiz monitor roster',
@@ -19870,6 +19875,37 @@ export const TOUR_ANCHORS = {
   'quiz-reopen-students.select-group': {
     label: 'Select all button for a group in the reopen students dialog',
     panel: true,
+  },
+  'quiz-student-time.opens-date': {
+    label: 'Opens date in the schedule one student dialog',
+    panel: true,
+  },
+  'quiz-student-time.opens-time': {
+    label: 'Opens time in the schedule one student dialog',
+    panel: true,
+  },
+  'quiz-student-time.closes-date': {
+    label: 'Closes date in the schedule one student dialog',
+    panel: true,
+  },
+  'quiz-student-time.closes-time': {
+    label: 'Closes time in the schedule one student dialog',
+    panel: true,
+  },
+  'quiz-student-time.remove': {
+    label: 'Remove schedule button in the schedule one student dialog',
+    panel: true,
+    persists: true,
+    destructive: true,
+  },
+  'quiz-student-time.cancel': {
+    label: 'Cancel button in the schedule one student dialog',
+    panel: true,
+  },
+  'quiz-student-time.save': {
+    label: 'Save button in the schedule one student dialog',
+    panel: true,
+    persists: true,
   },
   'quiz-reopen-students.cancel': {
     label: 'Cancel button in the reopen students dialog',

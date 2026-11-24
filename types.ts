@@ -5657,6 +5657,8 @@ export interface PeriodAccessSessionFields {
   periodAccess?: Record<string, PeriodAccess>;
   /** "Let in now": auth uid → epoch ms the pass lasts until. */
   studentAccess?: Record<string, number>;
+  /** "Set a time": auth uid → epoch ms the pass starts; absent means it starts at once. */
+  studentAccessFrom?: Record<string, number>;
   /** Epoch ms of the last whole-session pause; see `PeriodAccess.pausedAt`. */
   pausedAt?: number;
   /** Manual due date: true locks every period at `dueAt`; false allows late work past it. */
@@ -12036,7 +12038,9 @@ export type GlobalFeature =
   | 'subs-live-tours'
   | 'student-live-tours'
   | 'assign-open-check'
-  | 'modification-fewer-questions';
+  | 'modification-fewer-questions'
+  /** Quiz monitor "Set a time": one student's own window past a paused class. */
+  | 'student-set-time';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {

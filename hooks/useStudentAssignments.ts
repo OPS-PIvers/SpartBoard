@@ -561,6 +561,8 @@ export function buildAssignmentSummary(
           accessMode: (record as PeriodAccessSessionFields).accessMode,
           periodAccess: (record as PeriodAccessSessionFields).periodAccess,
           studentAccess: (record as PeriodAccessSessionFields).studentAccess,
+          studentAccessFrom: (record as PeriodAccessSessionFields)
+            .studentAccessFrom,
           periodKeys: studentPeriodKeys(record, [...studentClassIds]),
         }
       : undefined,

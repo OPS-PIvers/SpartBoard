@@ -417,6 +417,11 @@ const SessionView: React.FC<{
                 'cl-3': period('Period 3', 'open'),
                 'cl-5': period('Period 5', 'closed'),
               },
+              // A test center time set for one student, two days out.
+              studentAccessFrom: { 'pin-Period 3-1005': NOW + 2 * 86_400_000 },
+              studentAccess: {
+                'pin-Period 3-1005': NOW + 2 * 86_400_000 + 3_600_000,
+              },
               ...(pastDue
                 ? {
                     accessMode: 'assessment' as const,

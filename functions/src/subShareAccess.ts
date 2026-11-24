@@ -70,14 +70,33 @@ export interface VerifiedSubShare {
   expiresAt: number;
 }
 
-/** A live substitute share that names this caller, and its teacher. */
+/** The sub passes `substitute-sharing` the way the client's /subs gate checks it. */
+async function subSharingGranted(
+  db: admin.firestore.Firestore,
+  sub: { email: string; uid: string }
+): Promise<boolean> {
+  const { isGlobalFeatureGranted } = await import('./featureGrant');
+  return isGlobalFeatureGranted(
+    db,
+    'substitute-sharing',
+    sub.email,
+    sub.uid
+  ).catch(() => false);
+}
+
+/** A live substitute share that names this caller, and its teacher, while substitute sharing is open to them. */
 export async function verifySubShare(
   db: admin.firestore.Firestore,
   shareId: string,
-  email: string,
+  sub: { email: string; uid: string },
   now: number
 ): Promise<VerifiedSubShare> {
-  const shareSnap = await db.doc(`shared_collections/${shareId}`).get();
+  const { email } = sub;
+  const [granted, shareSnap] = await Promise.all([
+    subSharingGranted(db, sub),
+    db.doc(`shared_collections/${shareId}`).get(),
+  ]);
+  if (!granted) denied('Sharing with a substitute is turned off.');
   const share = shareSnap.data();
   if (!shareSnap.exists || !share) denied('That share no longer exists.');
   if (share.intendedMode !== 'substitute') {

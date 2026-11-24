@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react';
 import type { AssignmentSummary } from '@/hooks/useStudentAssignments';
 import type { LandingRow } from '@/utils/studentLanding';
 import { WorkRow } from './LandingRows';
+import { formatOpensLabel } from '@/utils/assignmentWindow';
 
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showAlert: vi.fn() }),
@@ -81,6 +82,32 @@ describe('WorkRow', () => {
     expect(screen.getByText('Paused')).toBeInTheDocument();
     expect(screen.queryByText('Open')).toBeNull();
     expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('names the earlier class open over a later own time', () => {
+    const classOpen = NOW + 86_400_000;
+    const ownFrom = NOW + 5 * 86_400_000;
+    const assignment: AssignmentSummary = {
+      ...base,
+      periodGate: {
+        accessMode: 'assessment',
+        periodAccess: {
+          c1: {
+            state: 'open',
+            openAt: classOpen,
+            closeAt: null,
+            bellPeriodId: null,
+            verified: true,
+            label: 'P1',
+          },
+        },
+        periodKeys: ['c1'],
+        studentAccess: { s1: ownFrom + 3_600_000 },
+        studentAccessFrom: { s1: ownFrom },
+      },
+    };
+    renderRow({ assignment, state: 'open' });
+    expect(screen.getByText(formatOpensLabel(classOpen))).toBeInTheDocument();
   });
 
   it('says Not open yet for a quiz assigned but not started', () => {

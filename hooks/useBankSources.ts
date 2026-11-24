@@ -268,7 +268,7 @@ export function useBankSources(
     async (source: BankSource): Promise<BankContent> => {
       if (source.kind === 'plc') {
         if (!source.syncGroupId) throw new Error('Shared bank has no group id');
-        return loadSyncedBankContent(source.syncGroupId);
+        return loadSyncedBankContent(source.syncGroupId, source.syncOwnerUid);
       }
       if (source.kind === 'district') {
         if (!source.syncGroupId)
