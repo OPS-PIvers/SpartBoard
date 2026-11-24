@@ -68,7 +68,7 @@ export const retireIssueUrl = (
     "- Add a What's New entry in a new `changelog.d/<name>.json` file if teachers gain or lose something they never got a note for (docs/DEV_WORKFLOW.md).",
     ...ROLLOUT_SWITCHES.filter((sw) => sw.feature === featureId).map(
       (sw) =>
-        `- It also has the district switch "${sw.title}" (\`admin_settings/${sw.docId}\`), now ${districtOn ? 'on' : 'off'}. Remove its \`ROLLOUT_SWITCHES\` entry and every read of it the same way, and its id from the \`firestore.rules\` read list.`
+        `- It also has the district switch "${sw.title}" (\`admin_settings/${sw.docId}\`)${districtOn == null ? '' : `, now ${districtOn ? 'on' : 'off'}`}. Remove its \`ROLLOUT_SWITCHES\` entry and every read of it the same way, and its id from the \`firestore.rules\` read list.`
     ),
     '- Leave the `global_permissions` doc alone; nothing reads it once the gate is gone.',
     '- Add the id to `RETIRED_TOUR_FEATURES` in `config/tourConditions.ts`, then rerun `tests/mcpTourConditionList.test.ts` with `UPDATE_TOUR_ANCHOR_LIST=1`.',
