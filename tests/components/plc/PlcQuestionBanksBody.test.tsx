@@ -79,10 +79,11 @@ vi.mock('@/hooks/useLearningTargets', () => ({
   usePlcLearningTargets: () => ({ list: targetList, loading: false }),
 }));
 
-const loadSyncedBankContent = vi.fn<(id: string) => Promise<unknown>>();
+const loadSyncedBankContent =
+  vi.fn<(id: string, owner?: string) => Promise<unknown>>();
 vi.mock('@/hooks/useBankSources', () => ({
-  loadSyncedBankContent: (id: string): Promise<unknown> =>
-    loadSyncedBankContent(id),
+  loadSyncedBankContent: (id: string, owner?: string): Promise<unknown> =>
+    loadSyncedBankContent(id, owner),
 }));
 
 vi.mock('@/components/plc/PlcSharePickerModal', () => ({
@@ -159,7 +160,7 @@ describe('PlcQuestionBanksBody', () => {
     fireEvent.click(screen.getByRole('button', { name: /copy to my banks/i }));
     await waitFor(() => expect(saveBank).toHaveBeenCalledTimes(1));
     const saved = saveBank.mock.calls[0][0] as { id: string; title: string };
-    expect(loadSyncedBankContent).toHaveBeenCalledWith('grp-1');
+    expect(loadSyncedBankContent).toHaveBeenCalledWith('grp-1', 'teacher-2');
     expect(saved.id).not.toBe('grp-1');
     expect(saved.title).toBe('Poetry bank');
     expect(addToast).toHaveBeenCalledWith(

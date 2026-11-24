@@ -3293,6 +3293,7 @@ service cloud.firestore {
           && incoming().questionCount >= 0
           && isStr('syncGroupId')
           && incoming().syncGroupId.size() > 0
+          && dbGet('synced_question_banks', incoming().syncGroupId).data.ownerUid == authUid()
           && isList('targetIds')
           && isStr('sharedByEmail')
           && isStr('sharedByName')
