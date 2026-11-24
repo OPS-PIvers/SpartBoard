@@ -45433,12 +45433,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "admin.previews",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#previews"
-        ],
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
         "needs": [
           "admin"
         ]
@@ -45629,12 +45626,41 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "admin.previews",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#previews"
-        ],
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.previews.wrap-up",
+    "label": "Finish menu button on a Previews row (opens Graduate and Retire)",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.previews.retire",
+    "label": "Retire button on a Previews row (opens a GitHub issue)",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
         "needs": [
           "admin"
         ]
