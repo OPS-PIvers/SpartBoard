@@ -1,6 +1,6 @@
 // Older Mini App submissions laid out like the Quiz monitor.
 import React, { useState } from 'react';
-import { ArrowLeft, ChevronRight, Inbox, Loader2 } from 'lucide-react';
+import { ChevronRight, Inbox, Loader2 } from 'lucide-react';
 import type { MiniAppSession } from '@/types';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useDashboard } from '@/context/useDashboard';
@@ -14,6 +14,8 @@ import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import { periodKeyForRoster } from '@/utils/periodPlan';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { SubmissionDetails } from './SubmissionDetails';
+import { MonitorHeader } from '@/components/widgets/QuizWidget/components/monitor/MonitorHeader';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import {
   ClassPicker,
   PeriodBar,
@@ -164,11 +166,6 @@ export const MiniAppSubmissionsMonitor: React.FC<{
     done: done.length,
   };
 
-  const statusPill =
-    session.status === 'ended'
-      ? { label: 'Ended', cls: 'bg-white/20 text-white' }
-      : { label: 'Live', cls: 'bg-white text-brand-blue-primary' };
-
   const classRow =
     classes.length < 2 && !periodAccess ? null : periodAccess &&
       periodActions ? (
@@ -207,40 +204,13 @@ export const MiniAppSubmissionsMonitor: React.FC<{
 
   return (
     <div className="absolute inset-0 z-overlay flex flex-col font-sans bg-white text-brand-gray-dark">
-      <div
-        className="flex items-center bg-brand-blue-primary text-white shrink-0"
-        style={{
-          gap: 'min(8px, 2cqmin)',
-          padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
-        }}
-      >
-        <button
-          onClick={onClose}
-          aria-label="Back"
-          {...tourTypeAttr('mini-app.submissions-close', 'miniApp')}
-          className="touch-target-expand rounded-md hover:bg-white/15 transition-colors"
-          style={{ padding: 'min(4px, 1cqmin)' }}
-        >
-          <ArrowLeft
-            style={{ width: 'min(16px, 5cqmin)', height: 'min(16px, 5cqmin)' }}
-          />
-        </button>
-        <p
-          className="font-sans font-semibold truncate flex-1"
-          style={{ fontSize: 'min(14px, 5cqmin)' }}
-        >
-          {assignmentName}
-        </p>
-        <span
-          className={`shrink-0 rounded-full font-sans font-semibold uppercase tracking-wider ${statusPill.cls}`}
-          style={{
-            fontSize: 'min(10px, 3.5cqmin)',
-            padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
-          }}
-        >
-          {statusPill.label}
-        </span>
-      </div>
+      <MonitorHeader
+        title={assignmentName}
+        status={session.status === 'ended' ? 'ended' : 'live'}
+        accent={LIBRARY_HEADER_ACCENTS.miniApp}
+        onBack={onClose}
+        backAnchor={tourTypeAttr('mini-app.submissions-close', 'miniApp')}
+      />
 
       <div
         className="flex-1 overflow-y-auto custom-scrollbar"
