@@ -384,6 +384,29 @@ export type StepListEntry =
 const URL_PATTERN_RE =
   /^(https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+(?::\d{1,5})?)((?:\/[^\s?#]*)?)(\?[^\s#]*)?(#\/\S*)?$/i;
 
+// Mirrors wildcardSegment in components/tours/web/studentData.ts: a segment the recorder would turn into * must be written as *.
+const OPAQUE_SEGMENT = /^[A-Za-z0-9_-]{16,}$/;
+const UUID_SEGMENT =
+  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+function wouldWildcard(segment: string): boolean {
+  if (!segment || segment === '*') return false;
+  let decoded = segment;
+  try {
+    decoded = decodeURIComponent(segment);
+  } catch {
+    // Keep the raw segment.
+  }
+  if (UUID_SEGMENT.test(decoded) || decoded.includes('@')) return true;
+  if (
+    OPAQUE_SEGMENT.test(decoded) &&
+    (/\d/.test(decoded) || /[a-z]/.test(decoded) === /[A-Z]/.test(decoded))
+  )
+    return true;
+  return /\d{2,}/.test(segment);
+}
+const idSegment = (path: string): string | undefined =>
+  path.split('/').find(wouldWildcard);
+
 /** The page a written step plays on, origin lowercased; refuses anything the extension's matcher can't use or that holds student data. */
 export function writtenUrlPattern(at: string, raw: string): string {
   const pattern = raw.trim();
@@ -397,8 +420,26 @@ export function writtenUrlPattern(at: string, raw: string): string {
     throw new ToolError(
       `${at} url_pattern holds what looks like an id or student data (${hits.join(', ')}). Put * in place of each id.`
     );
+  if (/:443$/.test(m[1]))
+    throw new ToolError(
+      `${at} url_pattern must not include the :443 port; leave it off.`
+    );
+  const bad = idSegment(m[2]) ?? idSegment((m[4] ?? '').slice(1).split('?')[0]);
+  if (bad)
+    throw new ToolError(
+      `${at} url_pattern segment "${bad}" is an id or number the recorder would turn into *. Put * there.`
+    );
+  for (const pair of (m[3] ?? '').slice(1).split('&'))
+    if (pair && pair.split('=').slice(1).join('=') !== '*')
+      throw new ToolError(
+        `${at} url_pattern query values must be *, as in ?tab=*. Put * there.`
+      );
   return m[1].toLowerCase() + pattern.slice(m[1].length);
 }
+
+// Mirrors UNSTABLE and the 80-character cap in extension/src/playback/clues.ts: the recorder drops these, so playback never matches them.
+const UNSTABLE = /\d{2,}|[0-9a-f]{6,}|^css-|^sc-|^jsx-/i;
+const MAX_STABLE_TOKEN = 80;
 
 const CLUE_KEYS = ['name', 'text', 'heading'] as const;
 const ATTR_TEXT_KEYS = ['testId', 'ariaLabel', 'name'] as const;
@@ -437,12 +478,19 @@ export function writtenLocator(
   for (const key of ATTR_TEXT_KEYS) {
     const v = (raw.attrs?.[key] ?? '').trim();
     if (!v) continue;
+    if (
+      (key === 'testId' || key === 'name') &&
+      (v.length > MAX_STABLE_TOKEN || UNSTABLE.test(v))
+    )
+      throw new ToolError(
+        `${at} locator.attrs.${key} "${v}" looks like a per-record or generated value (long digit or hex run, css-/sc-/jsx- prefix, or over ${MAX_STABLE_TOKEN} characters), so playback can never match it. Use a stable attribute, name or text instead.`
+      );
     checkText(`${at} locator.attrs.${key}`, v, warnings);
     attrs[key] = v;
   }
   const href = (raw.attrs?.href ?? '').trim();
   if (href) {
-    if (!/^(?:\/|https:\/\/)[^\s?#]*$/.test(href))
+    if (!/^(?:\/(?!\/)|https:\/\/)[^\s?#]*$/.test(href))
       throw new ToolError(
         `${at} locator.attrs.href must be a link path like /course/*/materials, or a full https address on another site, with no query.`
       );
@@ -451,12 +499,17 @@ export function writtenLocator(
       throw new ToolError(
         `${at} locator.attrs.href holds what looks like an id (${hits.join(', ')}). Put * in place of each id.`
       );
+    const bad = idSegment(href.replace(/^https:\/\/[^/]*/, ''));
+    if (bad)
+      throw new ToolError(
+        `${at} locator.attrs.href segment "${bad}" is an id or number the recorder would turn into *. Put * there.`
+      );
     attrs.href = href;
   }
   if (Object.keys(attrs).length) out.attrs = attrs;
-  if (!out.name && !out.text && !out.css && !out.attrs)
+  if (!(out.role && out.name) && !out.text && !out.css && !out.attrs)
     throw new ToolError(
-      `${at} locator needs a clue that names the control: name, text, css or attrs. A role or heading alone can't find it.`
+      `${at} locator needs a clue that names the control: role together with name, or text, css or attrs. A name needs its role, and a role or heading alone can't find it.`
     );
   return out;
 }
@@ -747,7 +800,7 @@ export function registerWebTourTools(
     {
       title: 'List web tours',
       description:
-        'Admins only. Lists the web tour drafts admins recorded with the SpartBoard Chrome extension, newest first. Web tours play on other websites, so the live tour tools do not open them; use get_web_tour. publish_state is "draft" (never published), "published" or "changed" (saved since the last publish).',
+        'Admins only. Lists the web tour drafts admins recorded with the SpartBoard Chrome extension or that Claude added written steps to, newest first. Web tours play on other websites, so the live tour tools do not open them; use get_web_tour. publish_state is "draft" (never published), "published" or "changed" (saved since the last publish).',
       inputSchema: {
         search: z
           .string()
@@ -832,7 +885,7 @@ export function registerWebTourTools(
     {
       title: "View a web tour step's picture",
       description:
-        'Admins only. Returns the screenshot the Chrome extension took when the step was recorded (has_picture true), so its title and tip can describe what the teacher sees.',
+        'Admins only. Returns the screenshot the Chrome extension took when the step was recorded (has_picture true; written and Message steps have none), so its title and tip can describe what the teacher sees.',
       inputSchema: {
         set_id: z.string().min(1).max(100),
         step_id: z.string().min(1).max(100),
@@ -852,7 +905,9 @@ export function registerWebTourTools(
         const step = set.steps[index];
         const path = step.web?.picture?.path;
         if (typeof path !== 'string')
-          throw new ToolError('That step has no recorded picture.');
+          throw new ToolError(
+            'That step has no picture (written and Message steps have none).'
+          );
         if (!isWebTourPicturePath(set_id, path))
           throw new ToolError(
             "That picture is stored outside the tour's folder, so Claude cannot read it."
@@ -887,7 +942,7 @@ export function registerWebTourTools(
     'update_web_tour_text',
     {
       title: "Rewrite a web tour's titles and tips",
-      description: `Admins only. Changes only the tour title and the named steps' titles and tips, by step id; every other step and field stays as recorded (addresses, controls, actions, pictures, order and the picture check). "" clears a title or tip. Text that looks like student data (an email, id number or uuid) is refused, as publishing would refuse it. Tips are at most ${MAX_WEB_TIP} characters and titles ${MAX_WEB_STEP_TITLE}. Saves the draft only: teachers keep the published tour until an admin opens it in SpartBoard (Guided Learning library, Live tours) and publishes. If the tour is open in the SpartBoard editor, the admin reloads it there first, or its next save puts the old words back.`,
+      description: `Admins only. Changes only the tour title and the named steps' titles and tips, by step id; every other step and field stays as saved, recorded or written (addresses, controls, actions, pictures, order and the picture check). "" clears a title or tip. Text that looks like student data (an email, id number or uuid) is refused, as publishing would refuse it. Tips are at most ${MAX_WEB_TIP} characters and titles ${MAX_WEB_STEP_TITLE}. Saves the draft only: teachers keep the published tour until an admin opens it in SpartBoard (Guided Learning library, Live tours) and publishes. If the tour is open in the SpartBoard editor, the admin reloads it there first, or its next save puts the old words back.`,
       inputSchema: {
         set_id: z.string().min(1).max(100),
         title: z.string().trim().min(1).max(MAX_WEB_TOUR_TITLE).optional(),
@@ -943,7 +998,7 @@ export function registerWebTourTools(
     'update_web_tour_steps',
     {
       title: "Add, move or remove a web tour's steps",
-      description: `Admins only. Sets the draft's whole step list in its new order. Name each step to keep by id (with an optional new title or tip); add a Message step with new_message: true, a tip and an optional title; add a step that points at a control with new_step: true, its page (url_pattern), action and written locator; any step left out is removed, recorded steps included. A Message step shows a centered tip with no picture and plays on whatever page the teacher is on: use it for an opening, a closing, or before the tour moves to another site, and only when the admin asks for one. A written step plays like a recorded one but has no picture, and nobody has checked its clues against the real page: write them from what the page really shows, prefer a stable attribute or SpartBoard's data-tour selector over words that change, and tell the admin to run Check tour in SpartBoard, since publishing needs every step found. A control inside a closed shadow root (the SpartBoard extension's own Send to SpartBoard buttons among them) can't be found by any clue yet; use a Message step there. To change where a step points, remove it and add a written one. A tour needs at least one step that points at a control to publish. Saves the draft only and keeps the whole old list, targets and pictures included, as a revision restore_revision puts back exactly. Text that looks like student data is refused. If the tour is open in the SpartBoard editor, the admin reloads it there first, or its next save puts the old steps back.`,
+      description: `Admins only. Sets the draft's whole step list in its new order. Name each step to keep by id (with an optional new title or tip); add a Message step with new_message: true, a tip and an optional title; add a step that points at a control with new_step: true, its page (url_pattern), action and written locator; any step left out is removed, recorded steps included. A Message step shows a centered tip with no picture and plays on whatever page the teacher is on: use it for an opening, a closing, or before the tour moves to another site, and only when the admin asks for one. A written step plays like a recorded one but has no picture, and nobody has checked its clues against the real page: write them from what the page really shows, prefer a stable attribute or SpartBoard's data-tour selector over words that change, and tell the admin to run Check tour in SpartBoard, since publishing needs every step found. A control inside a closed shadow root (the SpartBoard extension's own Send to SpartBoard buttons among them) can't be found by any clue yet; use a Message step there. A written step can't set the page to open, so when it starts a new site the admin sets that in the editor. To change where a step points, remove it and add a written one. A tour needs at least one step that points at a control to publish. Saves the draft only and keeps the whole old list, targets and pictures included, as a revision restore_revision puts back exactly. Text that looks like student data is refused. If the tour is open in the SpartBoard editor, the admin reloads it there first, or its next save puts the old steps back.`,
       inputSchema: {
         set_id: z.string().min(1).max(100),
         steps: z
@@ -998,7 +1053,7 @@ export function registerWebTourTools(
                     })
                     .strict()
                     .describe(
-                      "The clues playback finds the control by, as get_web_tour shows them: role (ARIA role), name (accessible name: aria-label, label or the control's own text), text (its visible text), heading (the nearest heading or group label above it), css (one CSS selector) and attrs (testId for data-testid/data-test/data-qa, ariaLabel, name for a field's name attribute, href for a link path with ids as *). Give at least one of name, text, css or attrs."
+                      "The clues playback finds the control by, as get_web_tour shows them (except css, which it leaves out): role (ARIA role), name (accessible name: aria-label, label or the control's own text), text (its visible text), heading (the nearest heading or group label above it), css (one CSS selector) and attrs (testId for data-testid/data-test/data-qa, ariaLabel, name for a field's name attribute, href for a link path with ids as *). Give role together with name, or at least one of text, css or attrs."
                     ),
                 })
                 .strict(),

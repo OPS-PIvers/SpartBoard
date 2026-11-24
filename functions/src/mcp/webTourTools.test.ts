@@ -671,7 +671,7 @@ describe('web tour connector tools', () => {
     ]);
     expect(
       await call('get_web_tour_step_picture', { set_id: 't1', step_id: 'b' })
-    ).toMatchObject({ error: matching(/no recorded picture/) });
+    ).toMatchObject({ error: matching(/has no picture/) });
     expect(
       await call('get_web_tour_step_picture', { set_id: 't1', step_id: 'c' })
     ).toMatchObject({ error: matching(/outside/) });
@@ -732,7 +732,7 @@ describe('web tour connector tools', () => {
     );
     expect(
       await call('get_web_tour_step_picture', { set_id: 't1', step_id: 'z' })
-    ).toMatchObject({ error: matching(/no recorded picture/) });
+    ).toMatchObject({ error: matching(/has no picture/) });
     const listed = JSON.stringify(await call('get_web_tour', { set_id: 't1' }));
     expect(listed).not.toContain('full.jpg');
     expect(listed).not.toContain('markup');
@@ -1017,6 +1017,21 @@ describe('web tour connector tools', () => {
       expect(() => writtenUrlPattern('Step 1', bad)).toThrow(
         'url_pattern must'
       );
+    for (const bad of [
+      'https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
+      'https://lms.example.com/course/2024/x',
+      'https://lms.example.com/a#/s/2024',
+    ])
+      expect(() => writtenUrlPattern('Step 1', bad)).toThrow('Put * there');
+    expect(() =>
+      writtenUrlPattern('Step 1', 'https://lms.example.com/a?tab=grades')
+    ).toThrow('query values must be *');
+    expect(() =>
+      writtenUrlPattern('Step 1', 'https://lms.example.com:443/a')
+    ).toThrow(':443');
+    expect(
+      writtenUrlPattern('Step 1', 'https://lms.example.com:8443/a/*')
+    ).toBe('https://lms.example.com:8443/a/*');
     expect(() =>
       writtenUrlPattern(
         'Step 2',
@@ -1054,6 +1069,35 @@ describe('web tour connector tools', () => {
     expect(() =>
       writtenLocator(at, { attrs: { href: '/student/1234567' } }, warnings)
     ).toThrow('looks like an id');
+    expect(() => writtenLocator(at, { name: 'Go' }, warnings)).toThrow(
+      'role together with name'
+    );
+    expect(
+      writtenLocator(at, { role: 'button', name: 'Go' }, warnings)
+    ).toEqual({
+      role: 'button',
+      name: 'Go',
+    });
+    for (const attrs of [
+      { testId: 'row-123456' },
+      { name: 'field_ab12cd34' },
+      { testId: 'css-1x2y3z' },
+      { testId: 'x'.repeat(81) },
+    ])
+      expect(() => writtenLocator(at, { attrs }, warnings)).toThrow(
+        'can never match'
+      );
+    expect(
+      writtenLocator(at, { attrs: { testId: 'save-btn' } }, warnings).attrs
+    ).toEqual({ testId: 'save-btn' });
+    for (const href of [
+      '//evil.com/x',
+      '/course/2024/x',
+      'https://a.com/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
+    ])
+      expect(() => writtenLocator(at, { attrs: { href } }, warnings)).toThrow(
+        /link path|Put \* there/
+      );
     expect(() =>
       writtenLocator(at, { name: 'Message kid@school.org' }, warnings)
     ).toThrow(/Step 3 locator.name looks like it holds student data/);
