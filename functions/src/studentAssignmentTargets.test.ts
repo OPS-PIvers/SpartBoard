@@ -60,6 +60,7 @@ import {
   MAX_TAUGHT_CLASSES,
   SESSION_COLLECTION_BY_KIND,
   computeSessionCloseAt,
+  studentPassEdits,
   handleSetAssignmentTargets,
   isTestClassAuthority,
   loadClassLinkMembership,
@@ -71,6 +72,7 @@ import {
   uidForRef,
   type SetAssignmentTargetsInput,
   type TargetAuthorizationContext,
+  type StudentOverride,
 } from './studentAssignmentTargets';
 import { setAssignmentTargetsV1 } from './setAssignmentTargets';
 import * as admin from './firebaseAdmin';
@@ -3359,5 +3361,46 @@ describe('loadClassLinkMembership', () => {
       'https://tenant.example/ims/oneroster/v1p1/users/T1/classes',
       expect.anything()
     );
+  });
+});
+
+describe('studentPassEdits', () => {
+  const DEL = 'DELETE';
+  it('turns a window shift into a pass and clears a removed one', () => {
+    const prior = new Map<string, StudentOverride | null>([
+      ['gone', { openAt: 10, closeAt: 20 }],
+      ['same', { openAt: 10, closeAt: 20 }],
+    ]);
+    expect(
+      studentPassEdits(
+        [
+          ['new', { openAt: 100, closeAt: 200 }],
+          ['closeOnly', { closeAt: 300 }],
+          ['gone', { timeMultiplier: 2 }],
+          ['same', { openAt: 10, closeAt: 20, readAloud: true }],
+        ],
+        prior,
+        null,
+        DEL
+      )
+    ).toEqual({
+      studentAccess: { new: 200, closeOnly: 300, gone: DEL },
+      studentAccessFrom: { new: 100, closeOnly: DEL, gone: DEL },
+    });
+  });
+
+  it('ends an open-only shift at the assignment close, else a day later', () => {
+    const none = new Map<string, StudentOverride | null>();
+    expect(studentPassEdits([['a', { openAt: 100 }]], none, 500, DEL)).toEqual({
+      studentAccess: { a: 500 },
+      studentAccessFrom: { a: 100 },
+    });
+    expect(
+      studentPassEdits([['a', { openAt: 100 }]], none, null, DEL)?.studentAccess
+        .a
+    ).toBe(100 + 24 * 60 * 60 * 1000);
+    expect(
+      studentPassEdits([['a', { readAloud: true }]], none, null, DEL)
+    ).toBe(null);
   });
 });

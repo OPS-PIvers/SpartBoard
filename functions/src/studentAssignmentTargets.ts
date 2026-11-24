@@ -669,6 +669,43 @@ export function computeSessionCloseAt(
   return max;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * On a class-gated session a per-student window shift is that student's own pass past their class
+ * ("Set a time"): `studentAccess` ends it and `studentAccessFrom` starts it. Returns the session
+ * fields to merge, or null when no shift changed.
+ */
+export function studentPassEdits(
+  changes: Iterable<[string, StudentOverride | null]>,
+  prior: ReadonlyMap<string, StudentOverride | null>,
+  assignmentCloseAt: number | null,
+  remove: unknown
+): {
+  studentAccess: Record<string, unknown>;
+  studentAccessFrom: Record<string, unknown>;
+} | null {
+  const access: Record<string, unknown> = {};
+  const from: Record<string, unknown> = {};
+  for (const [uid, value] of changes) {
+    const openAt = value?.openAt;
+    const closeAt = value?.closeAt;
+    const before = prior.get(uid);
+    if (openAt === before?.openAt && closeAt === before?.closeAt) continue;
+    if (openAt === undefined && closeAt === undefined) {
+      access[uid] = remove;
+      from[uid] = remove;
+      continue;
+    }
+    const start = openAt ?? Date.now();
+    access[uid] = closeAt ?? assignmentCloseAt ?? start + DAY_MS;
+    from[uid] = openAt ?? remove;
+  }
+  return Object.keys(access).length > 0
+    ? { studentAccess: access, studentAccessFrom: from }
+    : null;
+}
+
 /** One pointer write (`payload`) or delete, applied only against what the transaction re-reads. */
 interface PointerOp {
   uid: string;
@@ -1137,6 +1174,24 @@ export async function handleSetAssignmentTargets(
       desiredSessionCloseAt === null
         ? admin.firestore.FieldValue.delete()
         : desiredSessionCloseAt;
+  }
+  // Quiz class gates ignore the session window, so a shift becomes the student's own pass.
+  const sessionPeriodAccess: unknown = sessionSnap.get('periodAccess');
+  if (
+    input.kind === 'quiz' &&
+    typeof sessionPeriodAccess === 'object' &&
+    sessionPeriodAccess !== null
+  ) {
+    const passes = studentPassEdits(
+      [...overrideChangesByUid].map(([uid, value]) => [
+        uid,
+        inactiveUids.has(uid) ? null : value,
+      ]),
+      priorOverrideByUid,
+      assignmentCloseAt,
+      admin.firestore.FieldValue.delete()
+    );
+    if (passes) Object.assign(sessionUpdate, passes);
   }
   if (Object.keys(sessionUpdate).length > 0) {
     await sessionRef.set(sessionUpdate, { merge: true });

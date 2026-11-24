@@ -596,6 +596,42 @@ describe('content/questions', () => {
     await assertSucceeds(getDoc(doc(asStudent(), contentPath)));
   });
 
+  it('hides it from a student with a set time until that time starts', async () => {
+    await seedSeat(S, STUDENT_UID, STUDENT_UID);
+    await withPeriod(
+      { state: 'paused' },
+      {
+        studentAccess: { [STUDENT_UID]: FUTURE + 1 },
+        studentAccessFrom: { [STUDENT_UID]: FUTURE },
+      }
+    );
+    await assertFails(getDoc(doc(asStudent(), contentPath)));
+    await withPeriod(
+      { state: 'paused' },
+      {
+        studentAccess: { [STUDENT_UID]: FUTURE },
+        studentAccessFrom: { [STUDENT_UID]: PAST },
+      }
+    );
+    await assertSucceeds(getDoc(doc(asStudent(), contentPath)));
+  });
+
+  it('lets only the teacher set a time on the session', async () => {
+    const time = {
+      studentAccess: { [STUDENT_UID]: FUTURE + 1 },
+      studentAccessFrom: { [STUDENT_UID]: FUTURE },
+    };
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), `quiz_sessions/${S}`), time)
+    );
+    await assertSucceeds(getDoc(doc(asStudent(), `quiz_sessions/${S}`)));
+    await assertFails(
+      updateDoc(doc(asStudent(), `quiz_sessions/${S}`), {
+        studentAccessFrom: { [STUDENT_UID]: PAST },
+      })
+    );
+  });
+
   it('lets an anonymous joiner read it through their PIN-key seat', async () => {
     await seedResponse(S, ANON_KEY, {
       studentUid: ANON_UID,
