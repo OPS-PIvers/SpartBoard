@@ -23,7 +23,6 @@ const NOT_ON_ASSIGNED = new Set([
   'pause-resume',
   'archive',
   'unarchive',
-  'unpublish-scores',
   'published-results',
   'paper',
 ]);
@@ -69,7 +68,7 @@ export interface AssignedMenuOptions {
   busy?: boolean;
 }
 
-/** The Assigned row's ⋯ menu: whole-assignment actions that fit the row's state (R6 to R9). */
+/** The Assigned row's actions that fit its state (R6 to R9); items with `chip` go in the row's chips, not its ⋯ menu. */
 export function assignedMenu(o: AssignedMenuOptions): LibraryMenuAction[] {
   const { status, viewOnly } = o;
   const allClosed = status.classes.every((c) => c.status === 'closed');
@@ -83,6 +82,7 @@ export function assignedMenu(o: AssignedMenuOptions): LibraryMenuAction[] {
     if (WHILE_LIVE.has(m.id)) return !allClosed;
     if (PAPER.has(m.id)) return !finished;
     if (m.id === 'publish-scores') return allClosed;
+    if (m.id === 'unpublish-scores') return allClosed && o.published;
     if (m.id === 'share-plc-results') return o.hasResponses !== false;
     return true;
   };
@@ -92,8 +92,12 @@ export function assignedMenu(o: AssignedMenuOptions): LibraryMenuAction[] {
           ...m,
           label: o.published ? 'Publish settings' : 'Publish scores',
           submenu: undefined,
+          chip: 'publish' as const,
+          selected: o.published,
         }
-      : m
+      : m.id === 'unpublish-scores'
+        ? { ...m, chip: 'publish' as const }
+        : m
   );
 
   const lifecycle: LibraryMenuAction[] = [];
@@ -102,6 +106,7 @@ export function assignedMenu(o: AssignedMenuOptions): LibraryMenuAction[] {
       id: 'assigned-close-all',
       label: 'Close for all classes',
       icon: PowerOff,
+      chip: 'status',
       anchor: tourTypeAttr(
         'library-shell.assigned-close-all',
         o.tourWidgetType
@@ -113,6 +118,7 @@ export function assignedMenu(o: AssignedMenuOptions): LibraryMenuAction[] {
       id: 'assigned-reopen',
       label: 'Reopen',
       icon: RotateCcw,
+      chip: 'status',
       anchor:
         o.reopenAnchor ??
         tourTypeAttr('library-shell.assigned-reopen', o.tourWidgetType),

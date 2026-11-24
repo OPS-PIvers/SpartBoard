@@ -87,7 +87,10 @@ function legacyMenu(a: QuizAssignment, pickStudents: () => void) {
       )
     );
     if (a.scoreVisibility)
-      out.push(item('unpublish-scores', 'Unpublish scores'));
+      out.push({
+        ...item('unpublish-scores', 'Unpublish scores'),
+        onClick: unpublish,
+      });
     out.push({
       ...item('reopen', 'Reopen'),
       submenu: [
@@ -105,6 +108,7 @@ function legacyMenu(a: QuizAssignment, pickStudents: () => void) {
 }
 
 const pickStudents = vi.fn();
+const unpublish = vi.fn();
 function renderTab(
   assignments: QuizAssignment[],
   responses: Record<string, QuizResponse[]> = {}
@@ -138,6 +142,17 @@ const menuItems = (): string[] => {
   return screen.getAllByRole('menuitem').map((m) => m.textContent ?? '');
 };
 
+const chipItems = (chip: RegExp): string[] => {
+  fireEvent.click(screen.getByRole('button', { name: chip }));
+  const items = screen
+    .getAllByRole('menuitemradio')
+    .map((m) => m.textContent ?? '');
+  fireEvent.keyDown(document, { key: 'Escape' });
+  return items;
+};
+const openStatus = () =>
+  fireEvent.click(screen.getByRole('button', { name: /^Status of/ }));
+
 const done = { status: 'completed' } as QuizResponse;
 
 beforeEach(() => vi.clearAllMocks());
@@ -150,10 +165,10 @@ describe('Quiz Assigned row menu', () => {
     expect(menuItems()).toEqual([
       'Student view',
       'Settings',
-      'Close for all classes',
       'Move to Finished',
       'Delete',
     ]);
+    expect(chipItems(/^Status of/)).toEqual(['Ready', 'Closed']);
   });
 
   it('hides Share results with PLC until there is a response', () => {
@@ -162,7 +177,7 @@ describe('Quiz Assigned row menu', () => {
     expect(menuItems()).not.toContain('Share results with PLC');
   });
 
-  it('a class open: Monitor stays on the row, menu keeps whole-assignment items', () => {
+  it('a class open: Monitor stays on the row, status moves to the chip', () => {
     const a = quiz({
       periodAccess: {
         p1: pa('P1', { state: 'open' }),
@@ -175,14 +190,13 @@ describe('Quiz Assigned row menu', () => {
       'Student view',
       'Settings',
       'Share results with PLC',
-      'Close for all classes',
-      'Reopen',
       'Move to Finished',
       'Delete',
     ]);
+    expect(chipItems(/^Status of/)).toEqual(['Open', 'Paused', 'Closed']);
   });
 
-  it('all closed and Active: no settings, one Publish scores item and Reopen', () => {
+  it('all closed and Active: no settings; Publish and Reopen live in the chips', () => {
     const a = quiz({
       status: 'inactive',
       periodAccess: {
@@ -193,15 +207,15 @@ describe('Quiz Assigned row menu', () => {
     renderTab([a], { a1: [done] });
     expect(menuItems()).toEqual([
       'Import written answers',
-      'Publish scores',
       'Share results with PLC',
-      'Reopen',
       'Move to Finished',
       'Delete',
     ]);
+    expect(chipItems(/^Status of/)).toEqual(['Reopen', 'Closed']);
+    expect(chipItems(/^Scores for/)).toEqual(['Not published', 'Published']);
   });
 
-  it('Finished with scores published: Publish settings and no paper import', () => {
+  it('Finished with scores published: the scores chip offers Publish settings and Not published', () => {
     renderTab([
       quiz({
         status: 'inactive',
@@ -210,12 +224,20 @@ describe('Quiz Assigned row menu', () => {
       }),
     ]);
     fireEvent.click(screen.getByRole('button', { name: /^Finished/ }));
-    expect(menuItems()).toEqual([
-      'Publish settings',
-      'Share results with PLC',
-      'Reopen',
-      'Delete',
-    ]);
+    expect(menuItems()).toEqual(['Share results with PLC', 'Delete']);
+    fireEvent.click(screen.getByRole('button', { name: /^Scores for/ }));
+    expect(
+      screen.getByRole('menuitem', { name: 'Publish settings' })
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole('menuitemradio', { name: 'Published' })
+        .getAttribute('aria-checked')
+    ).toBe('true');
+    fireEvent.click(
+      screen.getByRole('menuitemradio', { name: 'Not published' })
+    );
+    expect(unpublish).toHaveBeenCalled();
   });
 
   it('a running paper quiz keeps Close in the menu, since its panel has no class controls', () => {
@@ -237,8 +259,8 @@ describe('Quiz Assigned row menu', () => {
       },
     });
     renderTab([a], { a1: [done] });
-    menuItems();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Reopen' }));
+    openStatus();
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Reopen' }));
     const dialog = screen.getByRole('dialog');
     fireEvent.change(within(dialog).getByRole('combobox', { name: 'Class' }), {
       target: { value: 'p2' },
@@ -256,8 +278,8 @@ describe('Quiz Assigned row menu', () => {
       periodAccess: { p1: pa('P1', { closedAt: NOW - 1000 }) },
     });
     renderTab([a], { a1: [done] });
-    menuItems();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Reopen' }));
+    openStatus();
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Reopen' }));
     const dialog = screen.getByRole('dialog');
     fireEvent.click(
       within(dialog).getByRole('radio', { name: 'Only chosen students' })
