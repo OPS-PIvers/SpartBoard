@@ -431,9 +431,9 @@ describe('collaborator updates', () => {
   });
 });
 
-describe('self-join and self-leave', () => {
-  it('a teacher can join a Synced link as collaborator', async () => {
-    await assertSucceeds(
+describe('client self-join and self-leave are denied (shareMembershipV1 does both)', () => {
+  it('a teacher cannot join a Synced link as collaborator', async () => {
+    await assertFails(
       updateDoc(ref(asStranger(), SYNCED_ID), {
         [`participants.${STRANGER_UID}`]: {
           role: 'collaborator',
@@ -444,8 +444,8 @@ describe('self-join and self-leave', () => {
     );
   });
 
-  it('a teacher can join a View-Only link as viewer', async () => {
-    await assertSucceeds(
+  it('a teacher cannot join a View-Only link as viewer', async () => {
+    await assertFails(
       updateDoc(ref(asStranger(), VIEW_ID), {
         [`participants.${STRANGER_UID}`]: { role: 'viewer', joinedAt: 2000 },
       })
@@ -569,16 +569,16 @@ describe('self-join and self-leave', () => {
     );
   });
 
-  it('a member can leave', async () => {
-    await assertSucceeds(
+  it('a member cannot leave', async () => {
+    await assertFails(
       updateDoc(ref(asCollab(), SYNCED_ID), {
         [`participants.${COLLAB_UID}`]: deleteField(),
       })
     );
   });
 
-  it('a member can leave an ended link', async () => {
-    await assertSucceeds(
+  it('a member cannot leave an ended link', async () => {
+    await assertFails(
       updateDoc(ref(asCollab(), ENDED_ID), {
         [`participants.${COLLAB_UID}`]: deleteField(),
       })
@@ -732,21 +732,24 @@ describe('import flow', () => {
     });
   });
 
-  it('a teacher reads the link and its board, joins both, then edits the board', async () => {
+  it('a teacher reads the link and its board, cannot join directly, then edits the board once joined', async () => {
     const db = asStranger();
     await assertSucceeds(getDoc(ref(db, SYNCED_ID)));
     await assertSucceeds(getDoc(boardRef(db, SYNC_BOARD)));
-    await assertSucceeds(
+    await assertFails(
       updateDoc(ref(db, SYNCED_ID), joinAs(STRANGER_UID, 'collaborator'))
     );
-    await assertSucceeds(
-      updateDoc(boardRef(db, SYNC_BOARD), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'collaborator',
-          joinedAt: 2000,
-        },
-      })
-    );
+    const boardJoin = {
+      [`participants.${STRANGER_UID}`]: {
+        role: 'collaborator',
+        joinedAt: 2000,
+      },
+    };
+    await assertFails(updateDoc(boardRef(db, SYNC_BOARD), boardJoin));
+    // shareMembershipV1 joins with the Admin SDK.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(boardRef(ctx.firestore(), SYNC_BOARD), boardJoin);
+    });
     await assertSucceeds(
       updateDoc(boardRef(db, SYNC_BOARD), {
         name: 'Day 1 (edited)',
@@ -756,16 +759,18 @@ describe('import flow', () => {
     );
   });
 
-  it('a View-Only recipient joins as viewer and cannot edit the board', async () => {
+  it('a View-Only recipient cannot join directly and, once joined, cannot edit the board', async () => {
     const db = asStranger();
-    await assertSucceeds(
+    await assertFails(
       updateDoc(ref(db, VIEW_ID), joinAs(STRANGER_UID, 'viewer'))
     );
-    await assertSucceeds(
-      updateDoc(boardRef(db, VIEW_BOARD), {
-        [`participants.${STRANGER_UID}`]: { role: 'viewer', joinedAt: 2000 },
-      })
-    );
+    const boardJoin = {
+      [`participants.${STRANGER_UID}`]: { role: 'viewer', joinedAt: 2000 },
+    };
+    await assertFails(updateDoc(boardRef(db, VIEW_BOARD), boardJoin));
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(boardRef(ctx.firestore(), VIEW_BOARD), boardJoin);
+    });
     await assertFails(
       updateDoc(boardRef(db, VIEW_BOARD), {
         name: 'Changed',
@@ -845,14 +850,14 @@ describe('membership sync', () => {
     }
   });
 
-  it('the host joins a board a collaborator added, as collaborator', async () => {
+  it('the host cannot join a board a collaborator added directly', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         shareRef(ctx.firestore(), ADDED),
         newShare(COLLAB_UID, 'synced', SYNCED_ID)
       );
     });
-    await assertSucceeds(
+    await assertFails(
       updateDoc(shareRef(asHost(), ADDED), {
         [`participants.${HOST_UID}`]: { role: 'collaborator', joinedAt: 3000 },
       })
@@ -892,14 +897,14 @@ describe('membership sync', () => {
     await assertSucceeds(deleteDoc(shareRef(asCollab(), ADDED)));
   });
 
-  it('a member who took a board out leaves its share', async () => {
+  it('a member who took a board out cannot leave its share directly', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(shareRef(ctx.firestore(), ADDED), {
         ...newShare(HOST_UID, 'synced', SYNCED_ID),
         participants: { [COLLAB_UID]: { role: 'collaborator', joinedAt: 1 } },
       });
     });
-    await assertSucceeds(
+    await assertFails(
       updateDoc(shareRef(asCollab(), ADDED), {
         [`participants.${COLLAB_UID}`]: deleteField(),
       })
@@ -916,7 +921,7 @@ describe('membership sync', () => {
     );
   });
 
-  it('a viewer joins a board the host added to a View-Only collection, only as viewer', async () => {
+  it('a viewer reads a board the host added to a View-Only collection but cannot join it directly', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         shareRef(ctx.firestore(), ADDED),
@@ -930,7 +935,7 @@ describe('membership sync', () => {
         [`participants.${VIEWER_UID}`]: { role: 'collaborator', joinedAt: 1 },
       })
     );
-    await assertSucceeds(
+    await assertFails(
       updateDoc(shareRef(db, ADDED), {
         [`participants.${VIEWER_UID}`]: { role: 'viewer', joinedAt: 1 },
       })
@@ -1061,18 +1066,16 @@ describe('stop sharing and leave', () => {
     await assertFails(deleteDoc(shareRef(asCollab(), HOST_BOARD)));
   });
 
-  it('a Synced member leaves the link and the boards they joined, and keeps reading them', async () => {
+  it('a Synced member cannot leave directly, and once removed keeps reading the link and boards', async () => {
     const db = asCollab();
-    await assertSucceeds(
-      updateDoc(ref(db, SYNCED_ID), {
-        [`participants.${COLLAB_UID}`]: deleteField(),
-      })
-    );
-    await assertSucceeds(
-      updateDoc(shareRef(db, HOST_BOARD), {
-        [`participants.${COLLAB_UID}`]: deleteField(),
-      })
-    );
+    const leave = { [`participants.${COLLAB_UID}`]: deleteField() };
+    await assertFails(updateDoc(ref(db, SYNCED_ID), leave));
+    await assertFails(updateDoc(shareRef(db, HOST_BOARD), leave));
+    // shareMembershipV1 removes the member with the Admin SDK.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(ref(ctx.firestore(), SYNCED_ID), leave);
+      await updateDoc(shareRef(ctx.firestore(), HOST_BOARD), leave);
+    });
     await assertSucceeds(getDoc(ref(db, SYNCED_ID)));
     await assertSucceeds(getDoc(shareRef(db, HOST_BOARD)));
     // The board they added stays shared for the others, but they can no longer edit the list.
@@ -1085,8 +1088,8 @@ describe('stop sharing and leave', () => {
     );
   });
 
-  it('a View-Only member leaves the link', async () => {
-    await assertSucceeds(
+  it('a View-Only member cannot leave the link directly', async () => {
+    await assertFails(
       updateDoc(ref(asViewer(), VIEW_ID), {
         [`participants.${VIEWER_UID}`]: deleteField(),
       })

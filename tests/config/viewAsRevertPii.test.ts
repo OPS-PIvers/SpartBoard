@@ -1,17 +1,55 @@
-import { readFileSync } from 'fs';
 import { describe, expect, it } from 'vitest';
-import { PII_WIDGET_FIELDS } from '@/utils/dashboardPII';
+import type { WidgetData } from '@/types';
+import { scrubWidgetsPII, widgetPiiKeys } from '@/utils/dashboardPII';
+import { stripPii } from '@/functions/src/viewAsRevert';
 
-// revertViewAsChangeV1 strips these from a restored widget config; its copy must not drift.
-describe('revertViewAsChangeV1 PII field list', () => {
-  it('matches utils/dashboardPII.ts', () => {
-    const source = readFileSync('functions/src/viewAsRevert.ts', 'utf8');
-    const block = /PII_WIDGET_FIELDS: readonly string\[\] = \[([^\]]*)\]/.exec(
-      source
-    );
-    const serverList = [...(block?.[1] ?? '').matchAll(/'([^']+)'/g)].map(
-      (m) => m[1]
-    );
-    expect(serverList).toEqual([...PII_WIDGET_FIELDS]);
+const configs: [string, Record<string, unknown>][] = [
+  [
+    'random',
+    { firstNames: 'Ada', lastNames: 'L', roster: ['Ada'], fontSize: 2 },
+  ],
+  ['random', { rosterMode: 'custom', assignments: { Ada: 'A' }, title: 'x' }],
+  ['stations', { rosterMode: 'class', assignments: { Ada: 'A' }, title: 'x' }],
+  ['stations', { rosterMode: 'class', assignments: { 'id-1': 'A' } }],
+  ['seating-chart', { savedPlans: [{ id: 'p', assignments: { Ada: 'f' } }] }],
+  ['scoreboard', { teams: [{ id: 'pin-01', name: 'Ada' }], history: [], t: 1 }],
+  [
+    'scoreboard',
+    {
+      teams: [{ id: 'team-a', name: 'Team A' }],
+      history: [{ id: 'h', at: 1, changes: [{ teamId: 'uid-9' }] }],
+    },
+  ],
+  ['poll', { hiddenResponses: ['q:1', 'q#abc'], title: 'x' }],
+];
+
+// revertViewAsChangeV1 restores widget configs through stripPii; it must drop what the app keeps out of Firestore.
+describe('revertViewAsChangeV1 PII scrub parity', () => {
+  it.each(configs)(
+    'drops the same config keys as the app for %s',
+    (type, config) => {
+      const dropped = new Set<string>(widgetPiiKeys(type, config));
+      const expected = Object.fromEntries(
+        Object.entries(config).filter(([k]) => !dropped.has(k))
+      );
+      if (dropped.has('teams')) expected.teams = [];
+      expect(stripPii('config', config, type)).toEqual(expected);
+    }
+  );
+
+  it('leaves no key the app scrubs from a Firestore widget', () => {
+    for (const [type, config] of configs) {
+      const [scrubbed] = scrubWidgetsPII([
+        { id: 'w', type, config } as unknown as WidgetData,
+      ]);
+      const server = stripPii('config', config, type) as Record<
+        string,
+        unknown
+      >;
+      for (const key of Object.keys(config)) {
+        if (!(key in (scrubbed.config as object)))
+          expect(server).not.toHaveProperty(key);
+      }
+    }
   });
 });

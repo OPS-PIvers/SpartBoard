@@ -418,7 +418,9 @@ const NotesDocsInner: React.FC<
   ];
 
   const targets = targetList?.targets ?? [];
-  const aiNotesEnabled = canAccessFeature('plc-meeting-ai-notes');
+  const aiNotesEnabled =
+    canAccessFeature('gemini-functions') &&
+    canAccessFeature('plc-meeting-ai-notes');
 
   let article: React.ReactNode;
   if (loading) {

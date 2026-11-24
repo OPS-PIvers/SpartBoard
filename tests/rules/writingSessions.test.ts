@@ -732,6 +732,25 @@ describe('frozen copies', () => {
     await assertFails(getDoc(doc(asStudent(CLASSMATE), draft)));
   });
 
+  it('the student lists their returned copies with one query', async () => {
+    await seed(draft, { number: 1, html: 'x', turnedInAt: 1, returnedAt: 2 });
+    await seed(`${RESP}/drafts/2`, { number: 2, html: 'y', turnedInAt: 3 });
+    const returned = query(
+      collection(asStudent(STUDENT), `${RESP}/drafts`),
+      where('returnedAt', '>', 0)
+    );
+    const snap = await assertSucceeds(getDocs(returned));
+    expect(snap.docs.map((d) => d.id)).toEqual(['1']);
+    await assertFails(
+      getDocs(
+        query(
+          collection(asStudent(CLASSMATE), `${RESP}/drafts`),
+          where('returnedAt', '>', 0)
+        )
+      )
+    );
+  });
+
   it('before Return a student reads no grade: it sits on the copy, and the response has none', async () => {
     // As saveWritingFeedbackV1 leaves them: score on the copy, nothing on the response.
     await seed(draft, {

@@ -137,7 +137,10 @@ export function useGoals(plc: Plc) {
     ...goalsState,
     routines,
     practicesFor,
-    coach: canAccessFeature('plc-goal-coach') ? coach : undefined,
+    coach:
+      canAccessFeature('gemini-functions') && canAccessFeature('plc-goal-coach')
+        ? coach
+        : undefined,
   };
 }
 

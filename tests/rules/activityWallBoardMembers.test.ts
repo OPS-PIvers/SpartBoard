@@ -256,11 +256,12 @@ describe('board members read the owner wall', () => {
 
   it('access ends when the member leaves the share', async () => {
     await seed({ [HOST_SESSION]: session(HOST_UID, [ENTRY]) });
-    await assertSucceeds(
-      updateDoc(doc(asTeacher(VIEWER_UID), `shared_boards/${SHARE_ID}`), {
+    // shareMembershipV1 removes the member with the Admin SDK.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `shared_boards/${SHARE_ID}`), {
         [`participants.${VIEWER_UID}`]: deleteField(),
-      })
-    );
+      });
+    });
     await assertFails(approvedQuery(asTeacher(VIEWER_UID), HOST_SESSION));
   });
 
@@ -683,11 +684,12 @@ describe('view-only members cannot write the owner wall', () => {
 
   it('a former collaborator loses moderation when they leave', async () => {
     await seed({ [HOST_SESSION]: session(HOST_UID, [ENTRY]) });
-    await assertSucceeds(
-      updateDoc(doc(asTeacher(COLLAB_UID), `shared_boards/${SHARE_ID}`), {
+    // shareMembershipV1 removes the member with the Admin SDK.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `shared_boards/${SHARE_ID}`), {
         [`participants.${COLLAB_UID}`]: deleteField(),
-      })
-    );
+      });
+    });
     await assertFails(
       updateDoc(
         submissionRef(asTeacher(COLLAB_UID), HOST_SESSION, 'pending-1'),
@@ -754,15 +756,15 @@ describe('the board access list stays private', () => {
   });
 });
 
-describe('only teachers can self-join a board share', () => {
+describe('no client can self-join a board share', () => {
   const join = (db: ReturnType<typeof asTeacher>, uid: string) =>
     updateDoc(doc(db, `shared_boards/${SHARE_ID}`), {
       [`participants.${uid}`]: participant('collaborator'),
     });
 
-  it('a teacher can join, a student or guest cannot', async () => {
+  it('a teacher, student or guest cannot join directly', async () => {
     await seed({});
-    await assertSucceeds(join(asTeacher('new-teacher'), 'new-teacher'));
+    await assertFails(join(asTeacher('new-teacher'), 'new-teacher'));
     await assertFails(join(asStudentRole('class-student'), 'class-student'));
     await assertFails(join(asAnonymous('guest-uid'), 'guest-uid'));
   });

@@ -462,10 +462,12 @@ describe('gradebook_columns', () => {
       getDoc(doc(teacherDb(), `gradebook_columns/${SESSION}`))
     );
     expect(snap.exists()).toBe(false);
+    await assertFails(getDoc(doc(studentDb(), `gradebook_columns/${SESSION}`)));
     await assertSucceeds(
       setDoc(doc(teacherDb(), `gradebook_columns/${SESSION}`), column())
     );
     await assertFails(getDoc(doc(otherDb(), `gradebook_columns/${SESSION}`)));
+    await assertFails(getDoc(doc(studentDb(), `gradebook_columns/${SESSION}`)));
   });
 
   it("refuses another teacher's session, bad values and outside reads", async () => {

@@ -26,12 +26,17 @@ import {
 
 const store = new Map<string, any>();
 const db = fakeFirestore(store);
-const teacher = { uid: 't1', staff: true };
+const teacher = { uid: 't1', staff: true, email: 't@school.org' };
 const ITEM = 'users/t1/writing_assignments/w1';
 const rubric = { id: 'r1', title: 'R', criteria: [] };
 
 beforeEach(() => {
   store.clear();
+  store.set('feature_permissions/writing', {
+    widgetType: 'writing',
+    enabled: true,
+    accessLevel: 'public',
+  });
   store.set(ITEM, {
     id: 'w1',
     title: 'Narrative',
@@ -103,6 +108,35 @@ describe('assignWritingV1', () => {
     });
     await expect(assign({}, null)).rejects.toMatchObject({
       code: 'unauthenticated',
+    });
+  });
+
+  it('refuses a teacher the Writing widget is not granted to, as the client gate does', async () => {
+    store.set('feature_permissions/writing', {
+      enabled: true,
+      accessLevel: 'beta',
+      betaUsers: ['other@school.org'],
+    });
+    await expect(assign({})).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    store.delete('feature_permissions/writing');
+    await expect(assign({})).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    expect(store.has('writing_assignment_sessions/S1')).toBe(false);
+    store.set('admins/t@school.org', {});
+    await expect(assign({})).resolves.toEqual({ sessionId: 'S1' });
+  });
+
+  it('refuses everyone, admins too, while the widget is disabled', async () => {
+    store.set('admins/t@school.org', {});
+    store.set('feature_permissions/writing', {
+      enabled: false,
+      accessLevel: 'public',
+    });
+    await expect(assign({})).rejects.toMatchObject({
+      code: 'permission-denied',
     });
   });
 
