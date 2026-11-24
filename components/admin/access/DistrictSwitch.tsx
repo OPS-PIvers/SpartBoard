@@ -61,13 +61,13 @@ export const PairedDistrictSwitch: React.FC<{ featureId: GlobalFeature }> = ({
   return sw ? <DistrictSwitch sw={sw} state={state} /> : null;
 };
 
-/** Main button and item names; Paul picks the wording. */
+/** Menu wording Paul approved. */
 const WRAP_UP_LABELS = {
-  menu: 'Retire',
+  menu: 'Finish',
   graduate: 'Graduate',
-  graduateHint: 'Keep it as a switch with its settings.',
-  retire: 'Remove',
-  retireHint: 'Ask Claude to delete the switch and keep it as it is now.',
+  graduateHint: 'Move to Features or widget settings.',
+  retire: 'Retire',
+  retireHint: 'Remove the switch.',
 };
 
 const ITEM =

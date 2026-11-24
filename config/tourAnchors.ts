@@ -10771,7 +10771,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'admin.previews.wrap-up': {
-    label: 'Retire menu button on a Previews row (opens Graduate and Remove)',
+    label: 'Finish menu button on a Previews row (opens Graduate and Retire)',
     perField: true,
     panel: true,
   },
