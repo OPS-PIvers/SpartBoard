@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { ChevronDown, ChevronUp, Clock, Pause, Play } from 'lucide-react';
+import { ChevronDown, ChevronUp, Clock, Eye, Pause, Play } from 'lucide-react';
 import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import type { AssignedClass, AssignedStatus } from '@/utils/assignedStatus';
 import { OverflowMenu } from '../LibraryOverflowMenu';
@@ -15,6 +15,8 @@ import {
   type ClassActionKind,
 } from './assignedWording';
 import { AssignedCheckbox } from './AssignedBulk';
+import { AssignedChip } from './AssignedChip';
+import { publishChipOptions, statusChipOptions } from './assignedChips';
 import { useAssignedRowSelect } from './assignedBulkContext';
 import { AssignedFocusClassContext } from './assignedFilterContext';
 import {
@@ -107,6 +109,11 @@ const WORD: Record<AccessBadge['tone'], string> = {
   info: 'text-brand-blue-primary',
   scheduled: 'text-slate-600',
   neutral: 'text-slate-500',
+};
+// A closed chip reads slate-600 so it still looks tappable.
+const CHIP_WORD: Record<AccessBadge['tone'], string> = {
+  ...WORD,
+  neutral: 'text-slate-600',
 };
 const TONE_ICON: Partial<Record<AccessBadge['tone'], typeof Clock>> = {
   warn: Pause,
@@ -252,6 +259,33 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
     '--asg-py': 'min(10px, 2.2cqmin)',
   } as React.CSSProperties;
   const open = expanded && !select;
+  const chipInputs = {
+    status,
+    menuActions,
+    onClassAction,
+    classControls,
+    canPause,
+    rowKey,
+    tourWidgetType,
+  };
+  const statusOptions = focus || select ? [] : statusChipOptions(chipInputs);
+  const showStatusChip = statusOptions.some((x) => !x.selected);
+  // Items stay in the ⋯ menu wherever their chip isn't shown, e.g. under a class filter.
+  const kebab = menuActions.filter(
+    (m) =>
+      !(m.chip === 'status' && showStatusChip) &&
+      !(m.chip === 'publish' && !select)
+  );
+  const publishChip = select
+    ? null
+    : publishChipOptions(menuActions, rowKey, tourWidgetType);
+  // The publish chip says it, so the grey text doesn't repeat it.
+  const greyText = publishChip
+    ? grey
+        ?.split(' · ')
+        .filter((part) => part !== 'Scores published')
+        .join(' · ')
+    : grey;
 
   return (
     <div
@@ -298,12 +332,61 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
             {title}
           </div>
           <div className={STATUS_CELLS} style={{ gap: 'min(8px, 2cqmin)' }}>
-            <StatusWord badge={badge} />
+            {showStatusChip ? (
+              <div className="flex min-w-0" onClick={stop}>
+                <AssignedChip
+                  label={badge.label}
+                  textClass={CHIP_WORD[badge.tone]}
+                  icon={TONE_ICON[badge.tone] ?? null}
+                  dot={badge.dot}
+                  options={statusOptions}
+                  ariaLabel={`Status of ${title}`}
+                  anchor={tourFieldAttr(
+                    'library-shell.assigned-status',
+                    tourWidgetType,
+                    rowKey
+                  )}
+                  disabled={busy}
+                />
+              </div>
+            ) : (
+              <StatusWord badge={badge} />
+            )}
             <div
               className="flex min-w-0 flex-wrap items-center text-slate-500 tabular-nums"
-              style={{ ...GREY_TEXT, columnGap: 'min(8px, 2cqmin)' }}
+              style={{
+                ...GREY_TEXT,
+                columnGap: 'min(8px, 2cqmin)',
+                rowGap: 'min(4px, 1cqmin)',
+              }}
             >
-              {grey && <span className="min-w-0">{grey}</span>}
+              {publishChip && (
+                <div className="flex min-w-0" onClick={stop}>
+                  <AssignedChip
+                    label={
+                      publishChip.published
+                        ? 'Scores published'
+                        : 'Not published'
+                    }
+                    textClass={
+                      publishChip.published
+                        ? 'text-brand-blue-primary'
+                        : 'text-slate-600'
+                    }
+                    icon={publishChip.published ? Eye : null}
+                    options={publishChip.options}
+                    footer={publishChip.footer}
+                    ariaLabel={`Scores for ${title}`}
+                    anchor={tourFieldAttr(
+                      'library-shell.assigned-publish',
+                      tourWidgetType,
+                      rowKey
+                    )}
+                    disabled={busy}
+                  />
+                </div>
+              )}
+              {greyText && <span className="min-w-0">{greyText}</span>}
               {picked && <span>{studentCountLabel(picked.count)}</span>}
               {meta}
             </div>
@@ -375,9 +458,9 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
             className={`flex justify-center [@container(max-width:600px)]:col-start-4 [@container(max-width:600px)]:row-start-1`}
             onClick={stop}
           >
-            {!select && menuActions.length > 0 && (
+            {!select && kebab.length > 0 && (
               <OverflowMenu
-                actions={menuActions}
+                actions={kebab}
                 rowKey={rowKey}
                 widgetType={tourWidgetType}
                 archive
