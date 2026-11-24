@@ -249,7 +249,6 @@ const WritingPiecePage: React.FC<{
               sessionId={session.id}
               studentUid={studentUid}
               grading={session.grading}
-              draftSeq={response?.draftSeq}
               returnedAt={response?.returnedAt}
             />
           ),

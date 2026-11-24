@@ -729,19 +729,25 @@ export async function handleSaveCourse(
   }
 }
 
-/** Removes every copy a teacher's Courses put outside users/{uid}; account deletion runs it before deleting the folder. */
+/** Removes each Course with its copies outside users/{uid}; account deletion runs it before deleting the folder. */
 export async function deleteAllCourseCopies(
   db: Firestore,
   uid: string
 ): Promise<void> {
-  const courses = await readAllCourses(db, uid);
-  const paths = new Set<string>();
-  for (const c of courses)
-    for (const p of copiesOf(uid, c, 0).keys()) paths.add(p);
-  const list = [...paths];
-  for (let i = 0; i < list.length; i += 400) {
-    const batch = db.batch();
-    for (const p of list.slice(i, i + 400)) batch.delete(db.doc(p));
-    await batch.commit();
+  // Saves write a Course and its copies together, so deleting them together leaves no copy behind a racing save.
+  for (let pass = 0; pass < 5; pass++) {
+    const snap = await db
+      .collection(`users/${uid}/${COURSES_SUBCOLLECTION}`)
+      .limit(COURSE_MAX_PER_TEACHER + 1)
+      .get();
+    if (snap.empty) return;
+    for (const d of snap.docs)
+      await db.runTransaction(async (tx) => {
+        const fresh = await tx.get(d.ref);
+        if (!fresh.exists) return;
+        const c = readCourse(d.id, fresh.data());
+        if (c) for (const p of copiesOf(uid, c, 0).keys()) tx.delete(db.doc(p));
+        tx.delete(d.ref);
+      });
   }
 }

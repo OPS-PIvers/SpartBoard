@@ -538,6 +538,33 @@ describe('saveCourseV1 merges, partial saves and deleted classes', () => {
     expect(paths('family_pages/')).toEqual([]);
   });
 
+  it('deletes each Course with its copies, including one saved while the delete runs', async () => {
+    await save({ ...base, rosterIds: ['p2'], familyLinkOn: true });
+    const real = db.collection.bind(db);
+    let raced = false;
+    vi.spyOn(db, 'collection').mockImplementation(((path: string) => {
+      const ref = real(path);
+      if (path !== `users/${UID}/courses` || raced) return ref;
+      return {
+        ...ref,
+        limit: (n: number) => ({
+          get: async () => {
+            const snap = await ref.limit(n).get();
+            raced = true;
+            await save({ ...base, name: 'Late', rosterIds: ['p5'] });
+            return snap;
+          },
+        }),
+      };
+    }) as typeof db.collection);
+    await deleteAllCourseCopies(db, UID);
+    expect(raced).toBe(true);
+    expect(paths(`users/${UID}/courses/`)).toEqual([]);
+    expect(paths('class_pages/')).toEqual([]);
+    expect(paths('course_page_links/')).toEqual([]);
+    expect(paths('family_pages/')).toEqual([]);
+  });
+
   it('asks ClassLink again on unlink, so a class no longer taught gets no copy', async () => {
     await save({ ...base, rosterIds: ['p2', 'p5'] });
     taught = new Set(['cl-p2']);
