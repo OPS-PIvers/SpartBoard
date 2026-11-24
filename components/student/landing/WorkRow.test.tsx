@@ -93,7 +93,7 @@ describe('WorkRow', () => {
         accessMode: 'assessment',
         periodAccess: {
           c1: {
-            state: 'scheduled',
+            state: 'closed',
             openAt: classOpen,
             closeAt: null,
             bellPeriodId: null,
