@@ -6,6 +6,10 @@ import React, {
   useState,
 } from 'react';
 import {
+  studentPreviewBlocksWrite,
+  updateViewAsTabState,
+} from '@/utils/viewAsTab';
+import {
   onIdTokenChanged,
   signOut as firebaseSignOut,
   type User,
@@ -213,6 +217,10 @@ function redirectToLoginIfProtected(
   }
   const query = params.toString();
   const target = query ? `${STUDENT_LOGIN_PATH}?${query}` : STUDENT_LOGIN_PATH;
+  if (studentPreviewBlocksWrite()) {
+    updateViewAsTabState({ ended: true });
+    return;
+  }
   window.location.assign(target);
 }
 
@@ -314,6 +322,12 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // --- Imperative sign-out (exposed on context) -----------------------------
   const signOut = useCallback(async () => {
+    // A View as student preview ends in place; the login page would load outside it.
+    if (studentPreviewBlocksWrite()) {
+      updateViewAsTabState({ ended: true });
+      await firebaseSignOut(auth).catch(() => undefined);
+      return;
+    }
     // Always clear the first-name cache before tearing down the session so
     // the next student on a shared device doesn't inherit the previous
     // student's greeting.

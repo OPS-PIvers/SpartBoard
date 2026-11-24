@@ -7476,6 +7476,138 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-mods.questions",
+    "label": "Questions button that opens the question picker for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-count",
+    "label": "Number of questions box in the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-random",
+    "label": "Pick at random button in the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-search",
+    "label": "Search box in the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.question",
+    "label": "Question checkbox in the modification group Questions dialog",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for question 1",
+    "row_wildcard": true,
+    "row_list": "assign-mods-questions",
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-all",
+    "label": "Select all button in the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-done",
+    "label": "Done button that saves the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-cancel",
+    "label": "Cancel button in the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
     "id": "assign-mods.class-group",
     "label": "Class group button in the modification group Students menu",
     "scope": "field",
@@ -22028,6 +22160,32 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.roster-row-actions:quiz"
+        ],
+        "reveal": "quiz-monitor.roster-row-actions:quiz",
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-monitor.student-print-copy",
+    "label": "Print paper copy item in the Quiz monitor student menu",
+    "scope": "widget type",
+    "panel": true,
     "keys": [
       "quiz"
     ],
@@ -40932,6 +41090,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "admin.help-center.new-record-subs-tour",
     "label": "Record a Live tour for subs in the Help Center New menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.new-record-students-tour",
+    "label": "Record a Live tour for students in the Help Center New menu",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -85670,6 +85847,21 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "key_pattern": "student-help#row-[1-9]\\d*",
     "key_hint": "student-help#row-1 for the first tour",
     "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student.help-menu",
+        "kind": "menu",
+        "path": [
+          "student.help"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.help-record",
+    "label": "Record a tour in the student Help menu (admins in View as student)",
+    "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "student.help-menu",

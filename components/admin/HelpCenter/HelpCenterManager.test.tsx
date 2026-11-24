@@ -102,8 +102,12 @@ vi.mock('@/context/useAuth', () => ({
   }),
 }));
 
+const showAlert = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 vi.mock('@/context/useDialog', () => ({
-  useDialog: () => ({ showConfirm: vi.fn(() => Promise.resolve(true)) }),
+  useDialog: () => ({
+    showAlert,
+    showConfirm: vi.fn(() => Promise.resolve(true)),
+  }),
 }));
 
 vi.mock('@/hooks/useHelpResources', () => ({
@@ -449,6 +453,18 @@ describe('HelpCenterManager', () => {
     open.mockRestore();
   });
 
+  it('says where to record a student tour', () => {
+    render(<HelpCenterManager />);
+    fireEvent.click(screen.getByRole('button', { name: 'New' }));
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: 'Record a Live tour for students' })
+    );
+    expect(showAlert).toHaveBeenCalledWith(
+      "Open View as for a teacher. Select View as student on a student's row. Then select Help > Record a tour.",
+      { title: 'Record a Live tour for students' }
+    );
+  });
+
   it('copies a Picture guide to the library', async () => {
     const item = makeItem({ id: 'a', title: 'Alpha' });
     helpState.items = [item];
@@ -529,13 +545,14 @@ describe('HelpCenterManager', () => {
     );
   });
 
-  it('offers the three New actions and records from Admin Settings', () => {
+  it('offers the New actions and records from Admin Settings', () => {
     render(<HelpCenterManager />);
     fireEvent.click(screen.getByRole('button', { name: 'New' }));
     const items = screen.getAllByRole('menuitem').map((m) => m.textContent);
     expect(items).toEqual([
       'Record a Live tour',
       'Record a Live tour for subs',
+      'Record a Live tour for students',
       'Move from library',
       'New Picture guide',
     ]);

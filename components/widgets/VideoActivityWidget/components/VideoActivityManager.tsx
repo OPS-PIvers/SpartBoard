@@ -64,6 +64,7 @@ import {
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
 import { AssignmentClassNames } from '@/components/common/library/AssignmentClassNames';
+import { pickedStudents } from '@/utils/assignedStudents';
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
@@ -413,6 +414,7 @@ interface VideoActivityArchiveRowProps {
     assignment: VideoActivityAssignment
   ) => void | Promise<void>;
   onArchiveResults?: (assignment: VideoActivityAssignment) => void;
+  rosters: readonly ClassRoster[];
   tourIndex?: number;
 }
 
@@ -428,6 +430,7 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
   onArchiveCopyUrl,
   onArchiveMonitor,
   onArchiveResults,
+  rosters,
   tourIndex,
 }) => {
   const assignmentIsViewOnly = assignment.mode === 'view-only';
@@ -494,6 +497,7 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
               assignment.periodNames ??
               (assignment.periodName ? [assignment.periodName] : [])
             }
+            picked={pickedStudents(assignment, rosters)}
           />
         </>
       }
@@ -1251,6 +1255,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
             onArchiveCopyUrl={onArchiveCopyUrl}
             onArchiveMonitor={onArchiveMonitor}
             onArchiveResults={onArchiveResults}
+            rosters={rosters}
             tourIndex={index}
           />
         ))}

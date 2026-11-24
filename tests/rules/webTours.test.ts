@@ -519,7 +519,14 @@ describe('tour authors', () => {
     const rules = readFileSync(STORAGE_RULES, 'utf8');
     const body =
       /function isTourAuthor\(\) \{([\s\S]*?)\n {4}\}/.exec(rules)?.[1] ?? '';
-    expect(body).toContain('isAdmin() ||');
+    expect(body).toContain('isAdmin();');
+    // Storage rules allow two Firestore reads: the list check runs before the member lookup, and admin last.
+    expect(body.indexOf('tour_authors')).toBeLessThan(
+      body.indexOf('isDistrictStaff()')
+    );
+    expect(body.indexOf('isDistrictStaff()')).toBeLessThan(
+      body.indexOf('isAdmin()')
+    );
     expect(body).toContain("request.auth.token.get('viewAs', null) == null");
     expect(body).toContain('isDistrictStaff()');
     expect(body).toContain(

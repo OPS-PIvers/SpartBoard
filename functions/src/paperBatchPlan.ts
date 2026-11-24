@@ -14,6 +14,7 @@ import type {
   PaperGrid,
   PaperPageItem,
   PaperPageMap,
+  PaperRowGroup,
 } from './paperWrittenTypes';
 
 /** Mirrors `PaperColumns` in `types.ts`. */
@@ -48,6 +49,8 @@ export interface PaperQuestion {
   maxWords?: number;
   paperBoxSize?: PaperBoxSize;
   paperBoxStyle?: PaperBoxStyle;
+  /** Mirrors `QuizQuestion.matchingDistractors`: extra lettered answers. */
+  matchingDistractors?: string[];
   /** Mirrors `QuizQuestion.paperBoxImage`; only its presence matters here. */
   paperBoxImage?: {
     id?: string;
@@ -137,7 +140,15 @@ export interface PaperWrittenPlan {
 
 /** One thing the sheet prints, in test order. Mirrors `PaperSheetEntry`. */
 export type PaperSheetEntry =
-  | { kind: 'mc'; questionId: string; label: string }
+  | {
+      kind: 'mc';
+      questionId: string;
+      label: string;
+      /** Matching, ordering or choose all: its rows and bubbles. */
+      group?: PaperRowGroup;
+      parts?: number;
+      choices?: number;
+    }
   | {
       kind: 'written';
       questionId: string;
@@ -156,6 +167,17 @@ export interface PaperQuizAnalysis {
   /** Labels of written questions inside a choose-N section; printing is refused while any remain. */
   writtenRefusals: string[];
   entries: PaperSheetEntry[];
+  /** Matching, ordering and choose all questions that print; only with `groups`. */
+  groups: PaperGroupPlan[];
+}
+
+/** Mirrors `PaperGroupPlan` in `utils/paperSheetPlan.ts`. */
+export interface PaperGroupPlan {
+  questionId: string;
+  label: string;
+  group: PaperRowGroup;
+  parts: number;
+  choices: number;
 }
 
 export interface AnalyzePaperQuizOptions {
@@ -166,6 +188,69 @@ export interface AnalyzePaperQuizOptions {
   /** The quiz's raw `sections` and `order`, read tolerantly for choose-N sections. */
   sections?: unknown;
   order?: unknown;
+  /** Print matching, ordering and choose all as bubble rows; the caller's client must draw them. */
+  groups?: boolean;
+}
+
+/** Mirrors `MAX_ROW_CHOICES` in `utils/paperSheetLayout.ts`. */
+const MAX_ROW_CHOICES = 20;
+
+const GROUP_OF: Readonly<Record<string, PaperRowGroup>> = {
+  MA: 'all',
+  Matching: 'match',
+  Ordering: 'order',
+};
+
+/** Mirrors `matchingPairs` in `utils/paperSheetPlan.ts`. */
+export function matchingPairs(correctAnswer: string): [string, string][] {
+  return (correctAnswer ?? '')
+    .split('|')
+    .filter((p) => p.trim().length > 0)
+    .map((p) => {
+      const sep = p.indexOf(':');
+      return sep < 0 ? [p, ''] : [p.slice(0, sep), p.slice(sep + 1)];
+    });
+}
+
+/** Mirrors `paperGroupOptions` in `utils/paperSheetPlan.ts`. */
+function paperGroupOptions(question: PaperQuestion): string[] {
+  const unique = (list: string[]) => [
+    ...new Set(list.filter((t) => t.trim().length > 0)),
+  ];
+  if (question.type === 'MA') {
+    // Mirrors `multiAnswerOptions`: right options, then the wrong ones.
+    return unique([
+      ...(question.correctAnswer ?? '')
+        .split('|')
+        .filter((t) => t.trim().length > 0),
+      ...(question.incorrectAnswers ?? []).filter(
+        (t) => t && t.trim().length > 0
+      ),
+    ]);
+  }
+  if (question.type === 'Ordering') {
+    return unique((question.correctAnswer ?? '').split('|'));
+  }
+  return unique([
+    ...matchingPairs(question.correctAnswer).map(([, right]) => right),
+    ...(question.matchingDistractors ?? []),
+  ]);
+}
+
+/** Mirrors `paperGroupShape` in `utils/paperSheetPlan.ts`. */
+function paperGroupShape(
+  question: PaperQuestion
+): { group: PaperRowGroup; parts: number; choices: number } | null {
+  const group = GROUP_OF[question.type];
+  if (!group) return null;
+  const options = paperGroupOptions(question);
+  if (options.length < 2) return null;
+  if (group === 'all') return { group, parts: 1, choices: options.length };
+  if (group === 'order') {
+    return { group, parts: options.length, choices: options.length };
+  }
+  const terms = matchingPairs(question.correctAnswer).length;
+  return terms > 0 ? { group, parts: terms, choices: options.length } : null;
 }
 
 const questionsPerPage = (
@@ -261,6 +346,32 @@ export function paperChoiceOrder(
   return choices;
 }
 
+/** Mirrors `paperGroupOrder` in `utils/paperSheetPlan.ts`; ordering never prints already in order. */
+export function paperGroupOrder(question: PaperQuestion): string[] {
+  const options = paperGroupOptions(question);
+  const sorted = [...options].sort();
+  const rand = seededRandom(`${question.type}\u0001${sorted.join('\u0001')}`);
+  const shuffle = (): string[] => {
+    const out = [...sorted];
+    for (let i = out.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(rand() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  };
+  let order = shuffle();
+  if (question.type === 'Ordering') {
+    for (
+      let tries = 0;
+      tries < 8 && order.join('|') === options.join('|');
+      tries += 1
+    )
+      order = shuffle();
+    if (order.join('|') === options.join('|')) order = [...options].reverse();
+  }
+  return order;
+}
+
 const questionChoiceCount = (question: PaperQuestion): number =>
   clampChoices(1 + (question.incorrectAnswers?.length ?? 0));
 
@@ -338,55 +449,6 @@ export function defaultPaperBoxSize(maxWords?: number): PaperBoxSize {
   return 'full';
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-/** Question ids in a choose-N section; mirrors `sessionSectionsFor` + `effectiveChooseCount` with no bank slots. */
-function chooseSectionQuestionIds(
-  questions: readonly PaperQuestion[],
-  sections: unknown,
-  order: unknown
-): Set<string> {
-  const out = new Set<string>();
-  if (!Array.isArray(sections) || !Array.isArray(order)) return out;
-  const counts = new Map<string, number | undefined>();
-  for (const raw of sections) {
-    if (!isObject(raw) || typeof raw.id !== 'string') continue;
-    const count = raw.chooseCount;
-    counts.set(
-      raw.id,
-      typeof count === 'number' && Number.isInteger(count) && count > 0
-        ? count
-        : undefined
-    );
-  }
-  if (counts.size === 0) return out;
-  const questionIds = new Set(questions.map((q) => q.id));
-  const claimed = new Set<string>();
-  const runs: { count: number | undefined; ids: string[] }[] = [];
-  let current: { count: number | undefined; ids: string[] } | null = null;
-  for (const entry of order) {
-    if (!isObject(entry) || typeof entry.id !== 'string') continue;
-    if (entry.kind === 'section') {
-      current = counts.has(entry.id)
-        ? { count: counts.get(entry.id), ids: [] }
-        : null;
-      if (current) runs.push(current);
-    } else if (entry.kind === 'question') {
-      if (!current || claimed.has(entry.id) || !questionIds.has(entry.id))
-        continue;
-      claimed.add(entry.id);
-      current.ids.push(entry.id);
-    }
-  }
-  for (const run of runs) {
-    if (run.count !== undefined && run.count < run.ids.length) {
-      run.ids.forEach((id) => out.add(id));
-    }
-  }
-  return out;
-}
-
 /**
  * The rows a sheet can carry, and with `written` the handwritten boxes.
  * Non-MC questions and bank slots are dropped, exactly as the client analysis
@@ -401,19 +463,11 @@ export function analyzePaperQuiz(
   const written: PaperWrittenPlan[] = [];
   const writtenRefusals: string[] = [];
   const entries: PaperSheetEntry[] = [];
-  const chooseIds = options.written
-    ? chooseSectionQuestionIds(questions, options.sections, options.order)
-    : new Set<string>();
+  const groups: PaperGroupPlan[] = [];
   questions.forEach((question, index) => {
     const label = String(index + 1);
     if (options.written && question.type === 'free-response') {
       if (question.recording) return;
-      if (chooseIds.has(question.id)) {
-        writtenRefusals.push(
-          `${label}. ${question.text || 'Untitled question'}`
-        );
-        return;
-      }
       const size = isPaperBoxSize(question.paperBoxSize)
         ? question.paperBoxSize
         : defaultPaperBoxSize(question.maxWords);
@@ -429,12 +483,6 @@ export function analyzePaperQuiz(
       return;
     }
     if (options.written && options.fib && question.type === 'FIB') {
-      if (chooseIds.has(question.id)) {
-        writtenRefusals.push(
-          `${label}. ${question.text || 'Untitled question'}`
-        );
-        return;
-      }
       // Mirrors `fibBlankCount`: blanks are joined by U+001F.
       const blanks = (question.correctAnswer ?? '').split('\u001F').length;
       written.push({ questionId: question.id, label, size: blanks });
@@ -445,6 +493,13 @@ export function analyzePaperQuiz(
         size: blanks,
         blanks,
       });
+      return;
+    }
+    if (options.groups && GROUP_OF[question.type]) {
+      const shape = paperGroupShape(question);
+      if (!shape || shape.choices > MAX_ROW_CHOICES) return;
+      groups.push({ questionId: question.id, label, ...shape });
+      entries.push({ kind: 'mc', questionId: question.id, label, ...shape });
       return;
     }
     if (question.type !== 'MC') return;
@@ -467,6 +522,7 @@ export function analyzePaperQuiz(
     written,
     writtenRefusals,
     entries,
+    groups,
   };
 }
 
@@ -476,7 +532,13 @@ export function analyzePaperQuiz(
 
 /** Mirrors `utils/paperSheetLayout.ts`; the parity test fails if any drifts. */
 const PAGE_HEIGHT_MM = 279.4;
+const PAGE_WIDTH_MM = 215.9;
 const CORNER_WINDOW_H_MM = PAGE_HEIGHT_MM * 0.16;
+const CORNER_WINDOW_W_MM = PAGE_WIDTH_MM * 0.16;
+const NUMBER_WIDTH_MM = 12;
+const BUBBLE_PITCH_MM = 8;
+const ONE_COLUMN_ROW_CHOICES = 6;
+const ROW_LINE_CHOICES = 10;
 const GRID_TOP_MM = 58;
 const ROW_PITCH_MM = 8;
 const COLUMN_X_MM: readonly number[] = [24, 116];
@@ -754,6 +816,111 @@ export function planPaperPages(
     }
   };
 
+  // Mirrors `flowGroupedRun` in `utils/paperPageMap.ts`.
+  const flowGroupedRun = (
+    run: readonly McEntry[],
+    boxFollows: boolean
+  ): void => {
+    ensureRoom(1);
+    let top = cursor;
+    let column = 0;
+    let row = top;
+    let deepest = top;
+    const nextColumn = (): void => {
+      column += 1;
+      if (column >= grid) {
+        newPage();
+        column = 0;
+        top = 0;
+        deepest = 0;
+      }
+      row = top;
+    };
+    const wrapOf = (entry: McEntry): number | undefined =>
+      grid === 1 && (entry.choices ?? 0) > ONE_COLUMN_ROW_CHOICES
+        ? ONE_COLUMN_ROW_CHOICES
+        : (entry.choices ?? 0) > ROW_LINE_CHOICES
+          ? ROW_LINE_CHOICES
+          : undefined;
+    const linesOf = (entry: McEntry): number => {
+      const wrap = wrapOf(entry);
+      return wrap ? Math.ceil((entry.choices ?? 0) / wrap) : 1;
+    };
+    const clearAt = (entry: McEntry, at: number, title: boolean): boolean => {
+      const choices = Math.min(
+        Math.max(entry.choices ?? 2, 2),
+        MAX_ROW_CHOICES
+      );
+      const wrap = wrapOf(entry);
+      const perLine = wrap ? Math.min(wrap, choices) : choices;
+      const lines = Math.ceil(choices / perLine);
+      const x = COLUMN_X_MM[column];
+      const y = GRID_TOP_MM + at * ROW_PITCH_MM - (title ? ROW_PITCH_MM : 0);
+      const w =
+        NUMBER_WIDTH_MM + (perLine - 1) * BUBBLE_PITCH_MM + BUBBLE_DIAMETER_MM;
+      const h =
+        (lines - 1) * ROW_PITCH_MM +
+        BUBBLE_DIAMETER_MM +
+        (title ? ROW_PITCH_MM : 0);
+      const cw = CORNER_WINDOW_W_MM;
+      const ch = CORNER_WINDOW_H_MM;
+      return ![
+        { x: 0, y: 0 },
+        { x: PAGE_WIDTH_MM - cw, y: 0 },
+        { x: 0, y: PAGE_HEIGHT_MM - ch },
+        { x: PAGE_WIDTH_MM - cw, y: PAGE_HEIGHT_MM - ch },
+      ].some((c) => x < c.x + cw && c.x < x + w && y < c.y + ch && c.y < y + h);
+    };
+    const fitsAt = (entry: McEntry, at: number): boolean => {
+      const parts = entry.parts ?? 1;
+      const lines = linesOf(entry);
+      if (at + 1 + parts * lines > capacity) return false;
+      for (let part = 0; part < parts; part += 1) {
+        if (!clearAt(entry, at + 1 + part * lines, part === 0)) return false;
+      }
+      return true;
+    };
+    for (const entry of run) {
+      if (!entry.group) {
+        if (row + 1 > capacity && row > top) nextColumn();
+        current().push(
+          mcItem(entry, {
+            x: COLUMN_X_MM[column],
+            y: GRID_TOP_MM + row * ROW_PITCH_MM,
+          })
+        );
+        row += 1;
+        deepest = Math.max(deepest, row);
+        continue;
+      }
+      if (!fitsAt(entry, row) && row > top) nextColumn();
+      if (!fitsAt(entry, row) && row > top) nextColumn();
+      const lines = linesOf(entry);
+      const wrap = wrapOf(entry);
+      row += 1;
+      for (let part = 0; part < (entry.parts ?? 1); part += 1) {
+        if (row + lines > capacity || !clearAt(entry, row, part === 0)) {
+          nextColumn();
+          if (part === 0) row += 1;
+        }
+        current().push({
+          ...mcItem(entry, {
+            x: COLUMN_X_MM[column],
+            y: GRID_TOP_MM + row * ROW_PITCH_MM,
+          }),
+          group: entry.group,
+          ...(entry.group !== 'all' ? { part } : {}),
+          ...(entry.choices ? { choices: entry.choices } : {}),
+          ...(wrap ? { wrap } : {}),
+        });
+        row += lines;
+      }
+      deepest = Math.max(deepest, row);
+    }
+    cursor = column === 0 ? row : deepest;
+    if (boxFollows) cursor = Math.min(cursor + 1, capacity);
+  };
+
   let i = 0;
   while (i < entries.length) {
     const entry = entries[i];
@@ -797,6 +964,10 @@ export function planPaperPages(
     i = end;
 
     const columns = grid;
+    if (run.some((e) => e.group)) {
+      flowGroupedRun(run, boxFollows);
+      continue;
+    }
     let at = 0;
     while (at < run.length) {
       ensureRoom(1);
@@ -894,7 +1065,9 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
 
   const choiceOrder: Record<string, string[]> = {};
   for (const q of input.questions ?? []) {
-    choiceOrder[q.id] = paperChoiceOrder(q);
+    choiceOrder[q.id] = paperGroupShape(q)
+      ? paperGroupOrder(q)
+      : paperChoiceOrder(q);
   }
 
   const batch: PaperBatchDoc = {

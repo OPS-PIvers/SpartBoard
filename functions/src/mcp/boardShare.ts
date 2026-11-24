@@ -2,6 +2,7 @@
 import type * as admin from '../firebaseAdmin';
 import { ToolError, type ToolContext } from './activity';
 import { boardWidgets } from './boardStore';
+import { piiKeys } from '../widgetPii';
 
 type Doc = Record<string, unknown>;
 type Snapshot = admin.firestore.DocumentSnapshot;
@@ -14,75 +15,7 @@ const str = (value: unknown): string =>
 const num = (value: unknown): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : 0;
 
-/** Mirrors PII_WIDGET_FIELDS in utils/dashboardPII.ts; tests/mcpBoardSharePII.test.ts keeps them equal. */
-export const PII_WIDGET_FIELDS = [
-  'firstNames',
-  'lastNames',
-  'completedNames',
-  'remainingStudents',
-  'lastResult',
-  'lockedNames',
-  'unassignedNames',
-  'doneNames',
-  'jigsawHomeGroups',
-  'jigsawExpertGroups',
-  'recentGroupings',
-  'names',
-  'roster',
-  'customRoster',
-  'lastSubmittedDetails',
-] as const;
-
-// Same name-key rules as widgetPiiKeys in utils/dashboardPII.ts.
-const ROSTER_ID =
-  /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|(?=[\w-]*\d)[\w-]{16,})$/i;
-const NAME_KEYED_TYPES = new Set(['stations', 'lunchCount', 'seating-chart']);
-const QUIZ_TEAM_ID = /^(?:pin|uid)-/;
-
-const hasNameKeys = (map: unknown): boolean =>
-  isObject(map) && Object.keys(map).some((key) => !ROSTER_ID.test(key));
-
-const piiKeys = (type: string, config: Doc): string[] => {
-  const keys: string[] = [...PII_WIDGET_FIELDS];
-  const custom = config.rosterMode === 'custom';
-  if (
-    config.assignments !== undefined &&
-    (custom || (NAME_KEYED_TYPES.has(type) && hasNameKeys(config.assignments)))
-  )
-    keys.push('assignments');
-  if (
-    type === 'seating-chart' &&
-    Array.isArray(config.savedPlans) &&
-    config.savedPlans.some(
-      (plan: unknown) =>
-        isObject(plan) && (custom || hasNameKeys(plan.assignments))
-    )
-  )
-    keys.push('savedPlans');
-  if (type === 'scoreboard') {
-    if (
-      Array.isArray(config.teams) &&
-      config.teams.some(
-        (team: unknown) => isObject(team) && QUIZ_TEAM_ID.test(str(team.id))
-      )
-    )
-      keys.push('teams', 'history');
-    else if (
-      Array.isArray(config.history) &&
-      config.history.some(
-        (entry: unknown) =>
-          isObject(entry) &&
-          Array.isArray(entry.changes) &&
-          entry.changes.some(
-            (change: unknown) =>
-              isObject(change) && QUIZ_TEAM_ID.test(str(change.teamId))
-          )
-      )
-    )
-      keys.push('history');
-  }
-  return keys;
-};
+export { PII_WIDGET_FIELDS, piiKeys } from '../widgetPii';
 
 const isLegacyHiddenWordKey = (key: unknown): boolean =>
   typeof key === 'string' && key.includes('#') && !key.includes(':');

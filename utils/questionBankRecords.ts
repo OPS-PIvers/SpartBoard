@@ -221,6 +221,7 @@ export function mergeBankSources(
       kind: 'plc',
       bankId: entry.syncGroupId,
       syncGroupId: entry.syncGroupId,
+      syncOwnerUid: entry.sharedBy,
       title: entry.title,
       questionCount: entry.questionCount,
       targetIds: entry.targetIds ?? [],

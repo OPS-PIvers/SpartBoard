@@ -751,6 +751,22 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Print paper copy in the live Quiz monitor's student row menu.
+  'paper-student-copy': {
+    label: 'Print for one student',
+    icon: Printer,
+    description:
+      'Print a paper copy of a live quiz for one student from the monitor.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Print for one student',
+    group: 'questions',
+    requires: 'paper-answer-sheets',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Handwritten answer boxes on paper sheets; AND-ed with the paper-answer-sheets gate.
   'paper-handwritten-responses': {
     label: 'Handwritten answers on paper sheets',
@@ -1757,6 +1773,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'picked-student-names': {
+    label: 'Assigned students',
+    icon: Users,
+    description:
+      'Assignment rows list the students an assignment went to. Names show under each class.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'writing-peer-review': {
     label: 'Writing peer review',
     icon: Users,
@@ -1806,6 +1833,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: CopyX,
     description:
       'Assign locks classes that already have the item open. New classes can join that assignment.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'modification-fewer-questions': {
+    label: 'Modifications: fewer questions',
+    icon: ListChecks,
+    description:
+      'A quiz modification group can answer fewer questions. Scores count only those questions.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

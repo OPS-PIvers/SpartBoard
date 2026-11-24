@@ -995,6 +995,47 @@ describe('assertQuizTranslationFeature', () => {
     };
     await expect(run(docs, 'teacher@x.org', 'uid-1')).resolves.toBeUndefined();
   });
+
+  it('buildings: a saved legacy building id still matches the canonical one', async () => {
+    const docs = {
+      'global_permissions/quiz-translation': {
+        enabled: true,
+        accessLevel: 'public',
+        buildings: ['orono-high-school'],
+      },
+      'users/uid-1/userProfile/profile': { selectedBuildings: ['high'] },
+    };
+    await expect(run(docs, 'teacher@x.org', 'uid-1')).resolves.toBeUndefined();
+  });
+
+  it('beta: a beta teacher from user roles passes, like the client', async () => {
+    const docs = {
+      'global_permissions/quiz-translation': {
+        enabled: true,
+        accessLevel: 'beta',
+        betaUsers: [],
+      },
+      'admin_settings/user_roles': { betaTeachers: ['Role@x.org'] },
+    };
+    await expect(run(docs, 'role@x.org')).resolves.toBeUndefined();
+    await expect(run(docs, 'other@x.org')).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
+
+  it('an unknown access level is denied, like the client', async () => {
+    await expect(
+      run(
+        {
+          'global_permissions/quiz-translation': {
+            enabled: true,
+            accessLevel: 'all',
+          },
+        },
+        'teacher@x.org'
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
 });
 
 describe('translateQuizV1 / translateResponseV1 — caller identity verification', () => {

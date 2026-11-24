@@ -10,6 +10,7 @@
 import type {
   ClassRoster,
   PaperBatch,
+  PaperRowGroup,
   QuizData,
   QuizQuestion,
   Student,
@@ -17,7 +18,13 @@ import type {
 import type { AssembledSheet } from './paperImportAssemble';
 import { mcItemsOf } from './paperPageMap';
 import { CHOICE_LETTERS } from './paperSheetLayout';
-import { analyzePaperQuiz, isPlaceholderLetterChoices } from './paperSheetPlan';
+import {
+  analyzePaperQuiz,
+  isPlaceholderLetterChoices,
+  matchingPairs,
+} from './paperSheetPlan';
+import { encodeMultiAnswer, parseMultiAnswer } from './quizMultiAnswer';
+import { normalizeAnswer } from '@/hooks/useQuizSession';
 import { pageMapsForSeat } from './paperSheetVersions';
 import { paperCropStoragePath } from './paperWritten';
 import {
@@ -210,6 +217,137 @@ export function sheetRowQuestionIds(
   return analyzePaperQuiz(quiz).rows.map((r) => r.questionId);
 }
 
+/** What each sheet row is: its question and, for a grouped question, which of its rows. */
+export interface SheetRowInfo {
+  questionId: string;
+  group?: PaperRowGroup;
+  part?: number;
+  across?: true;
+}
+
+/** Every sheet row in order; a grouped question takes several. */
+export function sheetRowInfos(
+  quiz: QuizData,
+  batch?: Pick<PaperBatch, 'layoutVersion' | 'pageMaps'>
+): SheetRowInfo[] {
+  if (batch?.layoutVersion === 2 && batch.pageMaps) {
+    const rows: SheetRowInfo[] = [];
+    for (const map of batch.pageMaps) {
+      for (const item of mcItemsOf(map)) {
+        rows[item.sheetRow] = {
+          questionId: item.questionId,
+          ...(item.group ? { group: item.group } : {}),
+          ...(item.part !== undefined ? { part: item.part } : {}),
+          ...(item.across ? { across: true as const } : {}),
+        };
+      }
+    }
+    return rows;
+  }
+  return analyzePaperQuiz(quiz).rows.map((r) => ({ questionId: r.questionId }));
+}
+
+/** One read row of a grouped question. */
+export interface GroupRowRead {
+  part: number;
+  choice: number | null;
+  marked?: readonly number[];
+}
+
+/**
+ * The answer a grouped question's bubbles spell, in the form its online
+ * grading reads; empty when nothing was bubbled.
+ */
+export function groupAnswerText(
+  question: Pick<QuizQuestion, 'type' | 'correctAnswer' | 'incorrectAnswers'>,
+  options: readonly string[],
+  group: PaperRowGroup,
+  rows: readonly GroupRowRead[],
+  across: boolean
+): string {
+  const byPart = [...rows].sort((a, b) => a.part - b.part);
+  if (group === 'all') {
+    const picked = (byPart[0]?.marked ?? []).flatMap((c) =>
+      options[c] !== undefined ? [options[c]] : []
+    );
+    return encodeMultiAnswer(picked, options);
+  }
+  if (group === 'match') {
+    const lefts = matchingPairs(question.correctAnswer).map(([left]) => left);
+    return byPart
+      .flatMap((r) =>
+        r.choice !== null &&
+        lefts[r.part] !== undefined &&
+        options[r.choice] !== undefined
+          ? [`${lefts[r.part]}:${options[r.choice]}`]
+          : []
+      )
+      .join('|');
+  }
+  // Ordering across a question-text sheet: each row is an item and its bubble is the item's place.
+  if (across) {
+    return byPart
+      .flatMap((r) =>
+        r.choice !== null && options[r.part] !== undefined
+          ? [{ item: options[r.part], at: r.choice, part: r.part }]
+          : []
+      )
+      .sort((a, b) => a.at - b.at || a.part - b.part)
+      .map((x) => x.item)
+      .join('|');
+  }
+  return byPart
+    .flatMap((r) =>
+      r.choice !== null && options[r.choice] !== undefined
+        ? [options[r.choice]]
+        : []
+    )
+    .join('|');
+}
+
+/** The bubbles an answer fills on one row of a grouped question: one index, a set for choose all, or null. */
+export function groupRowBubbles(
+  question: Pick<QuizQuestion, 'correctAnswer'>,
+  options: readonly string[],
+  group: PaperRowGroup,
+  part: number,
+  across: boolean,
+  answer: string
+): number | number[] | null {
+  const at = (text: string | undefined): number | null => {
+    if (text === undefined) return null;
+    const i = options.indexOf(text);
+    if (i >= 0) return i;
+    const wanted = normalizeAnswer(text);
+    const j = options.findIndex((o) => normalizeAnswer(o) === wanted);
+    return j >= 0 ? j : null;
+  };
+  if (!answer.trim()) return null;
+  if (group === 'all') {
+    return parseMultiAnswer(answer).flatMap((t) => {
+      const i = at(t);
+      return i === null ? [] : [i];
+    });
+  }
+  if (group === 'match') {
+    const left = matchingPairs(question.correctAnswer)[part]?.[0];
+    if (left === undefined) return null;
+    const pair = matchingPairs(answer).find(
+      ([l]) => normalizeAnswer(l) === normalizeAnswer(left)
+    );
+    return at(pair?.[1]);
+  }
+  const steps = answer.split('|');
+  if (!across) return at(steps[part]);
+  // Across rows: row `part` is the printed item and its bubble is the item's place.
+  const item = options[part];
+  if (item === undefined) return null;
+  const place = steps.findIndex(
+    (s) => normalizeAnswer(s) === normalizeAnswer(item)
+  );
+  return place >= 0 ? place : null;
+}
+
 export interface StudentLookup {
   roster: ClassRoster;
   student: Student;
@@ -248,15 +386,15 @@ export interface BuildImportResult {
  * reader doubted the row and the teacher left it (plan Q20/Q22).
  */
 export function buildImportPayload(input: BuildImportInput): BuildImportResult {
-  const batchRowIds = sheetRowQuestionIds(input.quiz, input.batch);
+  const batchRows = sheetRowInfos(input.quiz, input.batch);
   const questionById = new Map(input.quiz.questions.map((q) => [q.id, q]));
-  const rowIdsFor = (seat: number): string[] =>
+  const rowInfosFor = (seat: number): SheetRowInfo[] =>
     input.batch.versions
-      ? sheetRowQuestionIds(input.quiz, {
+      ? sheetRowInfos(input.quiz, {
           layoutVersion: input.batch.layoutVersion,
           pageMaps: pageMapsForSeat(input.batch, seat),
         })
-      : batchRowIds;
+      : batchRows;
   const payload: ImportPaperSheetPayload[] = [];
   const skipped: SkippedSheet[] = [];
 
@@ -278,8 +416,45 @@ export function buildImportPayload(input: BuildImportInput): BuildImportResult {
     }
     const byQuestion = new Map(sheet.answers.map((a) => [a.question, a]));
     const leftOut = new Set(sheet.skippedRows);
-    const answers: ImportPaperAnswerPayload[] = rowIdsFor(sheet.seat).flatMap(
-      (questionId, i): ImportPaperAnswerPayload[] => {
+    const infos = rowInfosFor(sheet.seat);
+    const done = new Set<string>();
+    const answers: ImportPaperAnswerPayload[] = infos.flatMap(
+      (info, i): ImportPaperAnswerPayload[] => {
+        const questionId = info.questionId;
+        if (info.group) {
+          if (done.has(questionId)) return [];
+          done.add(questionId);
+          const rows = infos.flatMap((r, k) =>
+            r.questionId === questionId ? [{ row: k, info: r }] : []
+          );
+          // A skipped page leaves the whole question out, so earlier answers stay.
+          if (rows.some((r) => leftOut.has(r.row))) return [];
+          const reads = rows.map((r) => {
+            const read = byQuestion.get(r.row);
+            return {
+              part: r.info.part ?? 0,
+              choice: read?.doubt ? null : (read?.choice ?? null),
+              ...(read?.marked && !read.doubt ? { marked: read.marked } : {}),
+              doubt: !!read?.doubt,
+            };
+          });
+          // One unread row makes the whole answer unclear, as a doubtful single row does.
+          if (reads.some((r) => r.doubt)) {
+            return [{ questionId, answer: '', unresponded: 'paper-unclear' }];
+          }
+          const question = questionById.get(questionId);
+          const text = question
+            ? groupAnswerText(
+                question,
+                printedOptionsFor(input.batch, question, questionId),
+                info.group,
+                reads,
+                !!info.across
+              )
+            : '';
+          if (text) return [{ questionId, answer: text }];
+          return [{ questionId, answer: '', unresponded: 'passed' }];
+        }
         if (leftOut.has(i)) return [];
         const read = byQuestion.get(i);
         if (read && read.choice !== null) {
@@ -338,11 +513,11 @@ export function keySheetChoices(
   quiz: QuizData,
   batch?: Pick<PaperBatch, 'layoutVersion' | 'pageMaps'>
 ): Record<string, number | null> {
-  const rowIds = sheetRowQuestionIds(quiz, batch);
+  const rows = sheetRowInfos(quiz, batch);
   const byQuestion = new Map(keySheet.answers.map((a) => [a.question, a]));
   const out: Record<string, number | null> = {};
-  rowIds.forEach((id, i) => {
-    out[id] = byQuestion.get(i)?.choice ?? null;
+  rows.forEach((info, i) => {
+    if (!info.group) out[info.questionId] = byQuestion.get(i)?.choice ?? null;
   });
   return out;
 }
@@ -360,7 +535,7 @@ export function applyKeyToQuiz(
 ): QuizData {
   const questions = quiz.questions.map((q) => {
     const choice = key[q.id];
-    if (choice === null || choice === undefined) return q;
+    if (choice === null || choice === undefined || q.type !== 'MC') return q;
     let options = printedOptionsFor(batch, q, q.id);
     const current = rowsFromQuestion(q).map((r) => r.text);
     // Printed text the quiz no longer has: keep its current wording by position, or leave the question alone.

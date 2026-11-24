@@ -17,6 +17,16 @@ import {
 import { AssignedCheckbox } from './AssignedBulk';
 import { useAssignedRowSelect } from './assignedBulkContext';
 import { AssignedFocusClassContext } from './assignedFilterContext';
+import {
+  namesByClassKey,
+  studentCountLabel,
+  unnamedLabel,
+  unplacedGroups,
+  type PickedStudents,
+} from '@/utils/assignedStudents';
+import { PickedNames } from '../PickedStudentNames';
+import { useShowPickedStudents } from '@/hooks/useShowPickedStudents';
+import type { PeriodAccess } from '@/types';
 
 export interface AssignedRowProps {
   title: string;
@@ -60,6 +70,10 @@ export interface AssignedRowProps {
   selectAnchor?: TourAnchorAttrs;
   /** Drops turned-in counts the caller can't place in a class. */
   hideCounts?: boolean;
+  /** A run that went to picked students names them under each class. */
+  picked?: PickedStudents | null;
+  /** The run's classes, to place each picked student. */
+  periodAccess?: Record<string, Pick<PeriodAccess, 'rosterId'>>;
 }
 
 type MainKind = AssignedStatus['action']['kind'];
@@ -172,8 +186,13 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   onSelect,
   selectAnchor,
   hideCounts = false,
+  picked: pickedIn,
+  periodAccess,
 }) => {
+  const picked = useShowPickedStudents() ? pickedIn : null;
   const [expanded, setExpanded] = useState(false);
+  const namesBy = picked ? namesByClassKey(picked, periodAccess) : {};
+  const unplaced = picked ? unplacedGroups(picked, periodAccess) : [];
   const select = useAssignedRowSelect();
   const focusLabel = useContext(AssignedFocusClassContext);
   const rowKey = `row-${tourIndex + 1}`;
@@ -282,6 +301,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
               style={{ ...GREY_TEXT, columnGap: 'min(8px, 2cqmin)' }}
             >
               {grey && <span className="min-w-0">{grey}</span>}
+              {picked && <span>{studentCountLabel(picked.count)}</span>}
               {meta}
             </div>
           </div>
@@ -400,7 +420,8 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                     paddingLeft: 'min(14px, 3.2cqmin)',
                   }}
                 >
-                  {c.label || 'All students'}
+                  {c.label ||
+                    (picked ? studentCountLabel(picked.count) : 'All students')}
                 </div>
                 <div
                   className={STATUS_CELLS}
@@ -441,9 +462,42 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                     </button>
                   ))}
                 </div>
+                {(namesBy[c.key]?.length ?? 0) > 0 && (
+                  <PickedNames
+                    names={namesBy[c.key]}
+                    className="col-span-full"
+                    style={{ ...GREY_TEXT, paddingLeft: 'min(14px, 3.2cqmin)' }}
+                  />
+                )}
               </div>
             );
           })}
+          {picked && (unplaced.length > 0 || picked.unnamed > 0) && (
+            <div
+              className="flex flex-col border-b border-slate-200/70"
+              style={{
+                ...GREY_TEXT,
+                gap: 'min(6px, 1.4cqmin)',
+                padding:
+                  'min(7px, 1.6cqmin) 0 min(7px, 1.6cqmin) min(14px, 3.2cqmin)',
+              }}
+            >
+              {unplaced.map((g, gi) => (
+                <div key={`${gi}-${g.label}`}>
+                  <div
+                    className="font-semibold text-brand-blue-dark [overflow-wrap:anywhere]"
+                    style={{ fontSize: 'min(13px, 3.8cqmin)' }}
+                  >
+                    {g.label}
+                  </div>
+                  <PickedNames names={g.names} />
+                </div>
+              ))}
+              {picked.unnamed > 0 && (
+                <p className="text-slate-500">{unnamedLabel(picked.unnamed)}</p>
+              )}
+            </div>
+          )}
           <div
             className={PANEL_GRID}
             style={{

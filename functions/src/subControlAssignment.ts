@@ -200,7 +200,12 @@ export async function handleControlSubAssignment(
     db,
     'Controlling an activity from a share is turned off.'
   );
-  const { hostUid } = await verifySubShare(db, shareId, email, deps.now());
+  const { hostUid } = await verifySubShare(
+    db,
+    shareId,
+    { email, uid: sub.uid },
+    deps.now()
+  );
 
   const sessionRef = db.doc(`${SESSIONS[kind]}/${sessionId}`);
   const snap = await sessionRef.get();

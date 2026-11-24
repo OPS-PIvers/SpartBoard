@@ -197,7 +197,13 @@ export async function saveWebTourDraft(set: GuidedLearningSet): Promise<void> {
 
 /** Saves a blank web tour draft so the editor can open on it. */
 export async function createWebTourDraft(): Promise<GuidedLearningSet> {
-  const set = newWebTour();
+  // Stamped up front so the editor that made it knows its author (Delete) and an offline first save still carries it.
+  const me = auth.currentUser;
+  const name = me?.displayName ?? me?.email;
+  const set: GuidedLearningSet = {
+    ...newWebTour(),
+    ...(me ? { authorUid: me.uid, ...(name ? { authorName: name } : {}) } : {}),
+  };
   await saveWebTourDraft(set);
   return set;
 }

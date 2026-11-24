@@ -16,6 +16,7 @@ import type {
   AssembleResult,
   SheetAnswer,
 } from './paperImportAssemble';
+import { isPaperKeySeat } from './paperSheetPlan';
 
 export interface ReviewState {
   assembled: AssembleResult;
@@ -35,6 +36,7 @@ const compactSheet = (sheet: AssembledSheet): PaperPendingSheet => ({
   answers: sheet.answers.map((a) => ({
     question: a.question,
     choice: a.choice,
+    ...(a.marked?.length ? { marked: a.marked } : {}),
     ...(a.doubt ? { doubt: a.doubt } : {}),
   })),
   pagesSeen: sheet.pagesSeen,
@@ -51,6 +53,7 @@ const expandSheet = (sheet: PaperPendingSheet): AssembledSheet => ({
   answers: sheet.answers.map((a): SheetAnswer => ({
     question: a.question,
     choice: a.choice,
+    ...(a.marked?.length ? { marked: a.marked } : {}),
     ...(a.doubt ? { doubt: a.doubt } : {}),
     fills: [],
     crop: NO_CROP,
@@ -148,6 +151,6 @@ export function pendingReviewMatches(
       s.answers.every((a) => a.question < batch.questionCount) &&
       (batch.seats[s.seat] !== undefined ||
         batch.spareSeats.includes(s.seat) ||
-        batch.keySheetSeat === s.seat)
+        isPaperKeySeat(batch, s.seat))
   );
 }

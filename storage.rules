@@ -56,11 +56,13 @@ service firebase.storage {
              request.auth.token.get('studentRole', false) != true &&
              districtStaffMember(firestore.get(/databases/(default)/documents/organizations/orono/members/$(request.auth.token.email.lower())));
     }
-    // As firestore.rules isTourAuthor(): an admin, or district staff on the /tour_authors list, never a view-as tab.
+    // As firestore.rules isTourAuthor(); list check first so no path makes more than two Firestore reads.
     function isTourAuthor() {
-      return isAdmin() ||
-             (request.auth != null && request.auth.token.get('viewAs', null) == null && isDistrictStaff() &&
-              firestore.exists(/databases/(default)/documents/tour_authors/$(request.auth.token.email.lower())));
+      return (request.auth != null && request.auth.token.get('viewAs', null) == null &&
+              request.auth.token.get('email', '') != '' &&
+              firestore.exists(/databases/(default)/documents/tour_authors/$(request.auth.token.email.lower())) &&
+              isDistrictStaff()) ||
+             isAdmin();
     }
     // As firestore.rules notDeactivated(): false only for an operator-org member whose status revokes access.
     function notDeactivated() {

@@ -21,7 +21,7 @@ export interface GlobalPermConfig {
 
 export interface GlobalPermission {
   enabled: boolean;
-  accessLevel: 'admin' | 'beta' | 'all';
+  accessLevel: 'admin' | 'beta' | 'public';
   betaUsers?: string[];
   excludedUsers?: string[];
   minTier?: unknown;

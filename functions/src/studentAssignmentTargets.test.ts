@@ -12,6 +12,12 @@ vi.mock('./firebaseAdmin', () => ({
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {
     FieldValue: { delete: () => ({ __delete: true }) },
+    FieldPath: class {
+      segments: string[];
+      constructor(...segments: string[]) {
+        this.segments = segments;
+      }
+    },
   }),
 }));
 
@@ -49,8 +55,10 @@ import {
   computeStudentUid,
 } from './classlinkShared';
 import {
+  ASSIGNMENT_COLLECTION_BY_KIND,
   MAX_TARGET_REFS,
   MAX_TAUGHT_CLASSES,
+  SESSION_COLLECTION_BY_KIND,
   computeSessionCloseAt,
   handleSetAssignmentTargets,
   isTestClassAuthority,
@@ -217,7 +225,10 @@ function makeDb(state: StubState) {
         set: (
           ref: { __path: string },
           data: Record<string, unknown>,
-          options?: { merge?: boolean; mergeFields?: string[] }
+          options?: {
+            merge?: boolean;
+            mergeFields?: (string | { segments: string[] })[];
+          }
         ) => void;
         delete: (ref: { __path: string }) => void;
       }) => Promise<unknown>
@@ -227,13 +238,21 @@ function makeDb(state: StubState) {
         set: (ref, data, options) => {
           state.writes.push({ path: ref.__path, op: 'set', data });
           if (options?.mergeFields) {
-            const flat: Record<string, unknown> = {};
-            for (const f of options.mergeFields) flat[f] = data[f];
             const next = { ...(state.docs.get(ref.__path) ?? {}) };
-            for (const [k, v] of Object.entries(flat)) {
-              if ((v as { __delete?: boolean })?.__delete === true)
-                delete next[k];
-              else next[k] = v;
+            for (const f of options.mergeFields) {
+              const segs = typeof f === 'string' ? [f] : f.segments;
+              let src: unknown = data;
+              for (const seg of segs)
+                src = (src as Record<string, unknown>)[seg];
+              let dst = next;
+              for (const seg of segs.slice(0, -1)) {
+                dst[seg] = { ...(dst[seg] ?? {}) };
+                dst = dst[seg] as Record<string, unknown>;
+              }
+              const last = segs[segs.length - 1];
+              if ((src as { __delete?: boolean })?.__delete === true)
+                delete dst[last];
+              else dst[last] = src;
             }
             state.docs.set(ref.__path, next);
           } else applyMerge(state, ref.__path, data);
@@ -414,6 +433,43 @@ describe('resolveTargets', () => {
       HMAC
     );
     expect(resolved).toHaveLength(1);
+  });
+
+  it('files a picked student under the run class they are in, not their first class', () => {
+    const { resolved, skipped } = resolveTargets(
+      [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      {
+        ...ctx(),
+        classIdsByRefKey: new Map([
+          [`classlink:${SOURCED_A}`, [CLASS_A, 'class-later']],
+        ]),
+      },
+      HMAC,
+      new Set(['class-later'])
+    );
+    expect(skipped).toHaveLength(0);
+    expect(resolved[0].classId).toBe('class-later');
+  });
+
+  it('skips a picked student who is in none of the run classes', () => {
+    const { resolved, skipped } = resolveTargets(
+      [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      ctx(),
+      HMAC,
+      new Set(['class-other'])
+    );
+    expect(resolved).toHaveLength(0);
+    expect(skipped[0].reason).toBe('not-in-assigned-class');
+  });
+
+  it('keeps any teacher class when the run names no class', () => {
+    const { resolved } = resolveTargets(
+      [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      ctx(),
+      HMAC,
+      new Set()
+    );
+    expect(resolved[0].classId).toBe(CLASS_A);
   });
 
   it('reports duplicates instead of writing twice', () => {
@@ -815,6 +871,32 @@ describe('handleSetAssignmentTargets', () => {
     expect(state.docs.get(assignmentPath())).toMatchObject({
       overridesByStudentUid: { [uid]: { timeMultiplier: 2 } },
     });
+  });
+
+  it('replaces the mirrored override whole, dropping removed nested keys', async () => {
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: {
+            readAloud: true,
+            questionIds: ['q1'],
+            timeMultiplier: 2,
+          },
+        },
+      })
+    );
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { timeMultiplier: 1.5 },
+        },
+      })
+    );
+    const uid = computeStudentUid(SOURCED_A, HMAC);
+    const stored = state.docs.get(assignmentPath()) as {
+      overridesByStudentUid: Record<string, unknown>;
+    };
+    expect(stored.overridesByStudentUid[uid]).toEqual({ timeMultiplier: 1.5 });
   });
 
   it('clears the mirrored entry on an explicit null for that key', async () => {
@@ -1915,6 +1997,33 @@ describe('handleSetAssignmentTargets — excludedTargets', () => {
     ).toBe('es');
   });
 
+  it('keeps served languages of other students across calls', async () => {
+    await run(
+      baseInput({
+        add: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { language: 'es' },
+        },
+      })
+    );
+    await run(
+      baseInput({
+        add: [{ kind: 'classlink', sourcedId: SOURCED_B }],
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_B}`]: { language: 'fr' },
+        },
+      })
+    );
+    const assignment = state.docs.get(assignmentPath()) as Record<
+      string,
+      unknown
+    >;
+    expect(assignment.servedLanguageByStudentUid).toEqual({
+      [computeStudentUid(SOURCED_A, HMAC)]: 'es',
+      [computeStudentUid(SOURCED_B, HMAC)]: 'fr',
+    });
+  });
+
   it('leaves the assignment doc untouched when the field is absent', async () => {
     const result = await run(baseInput());
     expect(result.written).toBe(1);
@@ -2044,6 +2153,62 @@ describe('handleSetAssignmentTargets — mixed class and student targets', () =>
     expect(assignment().targetStudents).toEqual([
       { kind: 'classlink', sourcedId: SOURCED_C },
     ]);
+  });
+
+  it('skips a picked student whose class the run does not target, with no pointer', async () => {
+    state.docs.set(sessionPath, {
+      teacherUid: TEACHER_UID,
+      status: 'active',
+      classIds: [CLASS_B],
+      classId: CLASS_B,
+    });
+    const result = await runMixed(
+      baseInput({
+        targetMode: 'class',
+        add: [
+          { kind: 'classlink', sourcedId: SOURCED_A },
+          { kind: 'classlink', sourcedId: SOURCED_C },
+        ],
+        studentTargetClassIds: [CLASS_B],
+      })
+    );
+    expect(result.written).toBe(1);
+    expect(result.skipped).toEqual([
+      {
+        ref: { kind: 'classlink', sourcedId: SOURCED_A },
+        reason: 'not-in-assigned-class',
+      },
+    ]);
+    expect(pointerFor(SOURCED_A)).toBeUndefined();
+    expect(pointerFor(SOURCED_C).classId).toBe(CLASS_B);
+  });
+
+  it('keeps Flashcards and Schoology runs on any teacher class, which admit pointer holders', async () => {
+    for (const [kind, classIds] of [
+      ['flashcards', [CLASS_B]],
+      ['quiz', ['schoology:ctx-1']],
+    ] as const) {
+      state.docs.set(`${SESSION_COLLECTION_BY_KIND[kind]}/${ASSIGNMENT_ID}`, {
+        teacherUid: TEACHER_UID,
+        status: 'active',
+        classIds,
+        classId: classIds[0],
+      });
+      state.docs.set(
+        `users/${TEACHER_UID}/${ASSIGNMENT_COLLECTION_BY_KIND[kind]}/${ASSIGNMENT_ID}`,
+        { id: ASSIGNMENT_ID }
+      );
+      const result = await runMixed(
+        baseInput({
+          kind,
+          sessionId: ASSIGNMENT_ID,
+          targetMode: 'class',
+          add: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+        })
+      );
+      expect({ kind, skipped: result.skipped }).toEqual({ kind, skipped: [] });
+      state.docs.delete(pointerPath(computeStudentUid(SOURCED_A, HMAC)));
+    }
   });
 
   it('writes the narrowing before any pointer lands', async () => {
@@ -2873,6 +3038,32 @@ describe('loadClassLinkMembership', () => {
         )
       ).size
     ).toBe(0);
+  });
+
+  it('records every taught class a student is in, keeping the first as the default', async () => {
+    axiosGet.mockImplementation((url: string) => {
+      if (url.endsWith('/users'))
+        return Promise.resolve({
+          data: { users: [{ sourcedId: 'T1', role: 'teacher' }] },
+        });
+      if (url.endsWith('/classes'))
+        return Promise.resolve({
+          data: { classes: [{ sourcedId: CLASS_A }, { sourcedId: 'class-b' }] },
+        });
+      return Promise.resolve({ data: { users: [{ sourcedId: SOURCED_A }] } });
+    });
+    const all = new Map<string, string[]>();
+    const out = await loadClassLinkMembership(
+      'teacher@orono.k12.mn.us',
+      [CLASS_A, 'class-b'],
+      'id',
+      'secret',
+      'https://tenant.example',
+      undefined,
+      all
+    );
+    expect(out.get(SOURCED_A)).toBe(CLASS_A);
+    expect(all.get(`classlink:${SOURCED_A}`)).toEqual([CLASS_A, 'class-b']);
   });
 
   it('pages through a class bigger than one page of students', async () => {

@@ -469,6 +469,7 @@ export const SURFACES: TourSurfaceMap = {
         'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-unlock-results':
         'quiz-monitor.roster-row-actions:quiz',
+      'quiz-monitor.student-print-copy': 'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-remove': 'quiz-monitor.roster-row-actions:quiz',
     },
   },

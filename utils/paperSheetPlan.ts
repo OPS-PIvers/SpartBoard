@@ -16,6 +16,7 @@ import type {
   PaperPageMap,
   PaperSeatAssignment,
   QuizData,
+  PaperRowGroup,
   QuizQuestion,
   Student,
 } from '@/types';
@@ -23,6 +24,7 @@ import {
   CHOICE_LETTERS,
   DEFAULT_COLUMNS_PER_PAGE,
   MAX_CHOICE_COUNT,
+  MAX_ROW_CHOICES,
   MIN_CHOICE_COUNT,
   pageCountForQuestions,
 } from './paperSheetLayout';
@@ -30,11 +32,11 @@ import { MAX_SEAT } from './paperSheetMarker';
 import type { PaperSheetEntry } from './paperPageMap';
 import { paperBoxSizeOf, paperBoxStyleOf } from './paperWritten';
 import { rowsFromQuestion } from './quizChoiceRows';
-import { effectiveChooseCount, sessionSectionsFor } from './quizSections';
+import { multiAnswerOptions } from './quizMultiAnswer';
 import { fibBlankCount } from './quizFibBlanks';
 
 /** Small deterministic PRNG so an option set always shuffles the same way. */
-function seededRandom(seed: string): () => number {
+export function seededRandom(seed: string): () => number {
   let h = 0x811c9dc5;
   for (let i = 0; i < seed.length; i += 1) {
     h ^= seed.charCodeAt(i);
@@ -117,7 +119,11 @@ export interface PaperQuestionPlan {
 }
 
 export type PaperExclusionReason =
-  'question-type' | 'bank-slot' | 'recording' | 'choose-section';
+  | 'question-type'
+  | 'bank-slot'
+  | 'recording'
+  | 'too-few-choices'
+  | 'too-many-choices';
 
 /** A question the teacher authored that cannot be answered on paper (plan Q5). */
 export interface PaperExclusion {
@@ -134,10 +140,27 @@ export interface PaperQuizAnalysis {
   shortRows: number[];
   /** Free-response questions printed as handwritten boxes; empty unless `written` is on. */
   written: PaperWrittenPlan[];
-  /** Written questions inside a choose-N section; printing is refused while any remain (D3). */
+  /** Kept for older callers; written questions in choose-N sections now print, so it stays empty. */
   writtenRefusals: PaperExclusion[];
   /** MC rows and written boxes in test order, numbered by quiz position (D11). */
   entries: PaperSheetEntry[];
+  /** Matching, ordering and choose all questions, each printing its own bubble rows; empty unless `groups` is on. */
+  groups: PaperGroupPlan[];
+}
+
+/** A matching, ordering or choose all question on the sheet. */
+export interface PaperGroupPlan extends PaperGroupShape {
+  questionId: string;
+  label: string;
+}
+
+/** The rows a grouped question prints and the bubbles each row has. */
+export interface PaperGroupShape {
+  group: PaperRowGroup;
+  /** Bubble rows: one for choose all, one per term or position otherwise. */
+  parts: number;
+  /** Bubbles in each row. */
+  choices: number;
 }
 
 export interface PaperWrittenPlan {
@@ -152,13 +175,105 @@ export interface AnalyzePaperQuizOptions {
   written?: boolean;
   /** With `written`: fill in the blank prints a write-in line per blank. */
   fib?: boolean;
+  /** Matching, ordering and choose all print as bubble rows; the sheet then needs page maps. */
+  groups?: boolean;
+}
+
+const GROUP_OF: Partial<Record<QuizQuestion['type'], PaperRowGroup>> = {
+  MA: 'all',
+  Matching: 'match',
+  Ordering: 'order',
+};
+
+/** Matching pairs in authored order, each split at its first colon. */
+export function matchingPairs(correctAnswer: string): [string, string][] {
+  return (correctAnswer ?? '')
+    .split('|')
+    .filter((p) => p.trim().length > 0)
+    .map((p) => {
+      const sep = p.indexOf(':');
+      return sep < 0 ? [p, ''] : [p.slice(0, sep), p.slice(sep + 1)];
+    });
+}
+
+/** Rows and bubbles a matching, ordering or choose all question prints; null when it has nothing to bubble. */
+export function paperGroupShape(
+  question: Pick<QuizQuestion, 'type' | 'correctAnswer' | 'incorrectAnswers'> &
+    Partial<Pick<QuizQuestion, 'matchingDistractors'>>
+): PaperGroupShape | null {
+  const group = GROUP_OF[question.type];
+  if (!group) return null;
+  const options = paperGroupOptions(question);
+  if (options.length < 2) return null;
+  if (group === 'all') return { group, parts: 1, choices: options.length };
+  if (group === 'order') {
+    return { group, parts: options.length, choices: options.length };
+  }
+  const terms = matchingPairs(question.correctAnswer).length;
+  return terms > 0 ? { group, parts: terms, choices: options.length } : null;
+}
+
+/** The options a grouped question letters, in authored order: choose all's options, matching's answers and extras, ordering's items. */
+function paperGroupOptions(
+  question: Pick<QuizQuestion, 'type' | 'correctAnswer' | 'incorrectAnswers'> &
+    Partial<Pick<QuizQuestion, 'matchingDistractors'>>
+): string[] {
+  const unique = (list: string[]) => [
+    ...new Set(list.filter((t) => t.trim().length > 0)),
+  ];
+  if (question.type === 'MA') return unique(multiAnswerOptions(question));
+  if (question.type === 'Ordering') {
+    return unique((question.correctAnswer ?? '').split('|'));
+  }
+  return unique([
+    ...matchingPairs(question.correctAnswer).map(([, right]) => right),
+    ...(question.matchingDistractors ?? []),
+  ]);
+}
+
+/**
+ * The lettered order a grouped question prints in: seeded by its options, so
+ * every print letters it alike. An ordering question never prints already in order.
+ */
+export function paperGroupOrder(
+  question: Pick<QuizQuestion, 'type' | 'correctAnswer' | 'incorrectAnswers'> &
+    Partial<Pick<QuizQuestion, 'matchingDistractors'>>
+): string[] {
+  const options = paperGroupOptions(question);
+  const sorted = [...options].sort();
+  const rand = seededRandom(`${question.type}\u0001${sorted.join('\u0001')}`);
+  const shuffle = (): string[] => {
+    const out = [...sorted];
+    for (let i = out.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(rand() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  };
+  let order = shuffle();
+  if (question.type === 'Ordering') {
+    for (
+      let tries = 0;
+      tries < 8 && order.join('|') === options.join('|');
+      tries += 1
+    )
+      order = shuffle();
+    // Two items can only print in one other order.
+    if (order.join('|') === options.join('|')) order = [...options].reverse();
+  }
+  return order;
 }
 
 /** Nothing to print from the quiz itself, so the teacher builds a stub. */
 export function isPaperStubAnalysis(
-  analysis: Pick<PaperQuizAnalysis, 'rows' | 'written'>
+  analysis: Pick<PaperQuizAnalysis, 'rows' | 'written'> &
+    Partial<Pick<PaperQuizAnalysis, 'groups'>>
 ): boolean {
-  return analysis.rows.length === 0 && analysis.written.length === 0;
+  return (
+    analysis.rows.length === 0 &&
+    analysis.written.length === 0 &&
+    !analysis.groups?.length
+  );
 }
 
 const clampChoices = (n: number): number =>
@@ -192,14 +307,8 @@ export function analyzePaperQuiz(
   const written: PaperWrittenPlan[] = [];
   const writtenRefusals: PaperExclusion[] = [];
   const entries: PaperSheetEntry[] = [];
+  const groups: PaperGroupPlan[] = [];
   const questions = quiz.questions ?? [];
-  const chooseSectionIds = new Set(
-    options.written
-      ? sessionSectionsFor({ ...quiz, questions })
-          .filter((s) => effectiveChooseCount(s) !== undefined)
-          .flatMap((s) => s.questionIds)
-      : []
-  );
   const describe = (question: QuizQuestion): string =>
     `${TYPE_LABELS[question.type] ?? question.type}: ${
       plainPromptText(promptLabel(question)) || 'Untitled question'
@@ -210,13 +319,6 @@ export function analyzePaperQuiz(
     if (options.written && question.type === 'free-response') {
       if (question.recording) {
         exclusions.push({ reason: 'recording', label: describe(question) });
-        return;
-      }
-      if (chooseSectionIds.has(question.id)) {
-        writtenRefusals.push({
-          reason: 'choose-section',
-          label: `${label}. ${question.text || 'Untitled question'}`,
-        });
         return;
       }
       const size = paperBoxSizeOf(question);
@@ -232,13 +334,6 @@ export function analyzePaperQuiz(
       return;
     }
     if (options.written && options.fib && question.type === 'FIB') {
-      if (chooseSectionIds.has(question.id)) {
-        writtenRefusals.push({
-          reason: 'choose-section',
-          label: `${label}. ${question.text || 'Untitled question'}`,
-        });
-        return;
-      }
       const blanks = fibBlankCount(question);
       written.push({ questionId: question.id, label, size: blanks });
       entries.push({
@@ -248,6 +343,26 @@ export function analyzePaperQuiz(
         size: blanks,
         blanks,
       });
+      return;
+    }
+    if (options.groups && GROUP_OF[question.type]) {
+      const shape = paperGroupShape(question);
+      if (!shape) {
+        exclusions.push({
+          reason: 'too-few-choices',
+          label: describe(question),
+        });
+        return;
+      }
+      if (shape.choices > MAX_ROW_CHOICES) {
+        exclusions.push({
+          reason: 'too-many-choices',
+          label: describe(question),
+        });
+        return;
+      }
+      groups.push({ questionId: question.id, label, ...shape });
+      entries.push({ kind: 'mc', questionId: question.id, label, ...shape });
       return;
     }
     if (question.type !== 'MC') {
@@ -288,6 +403,7 @@ export function analyzePaperQuiz(
     written,
     writtenRefusals,
     entries,
+    groups,
   };
 }
 
@@ -336,8 +452,17 @@ export interface PaperBatchInput {
   pageMaps?: PaperPageMap[];
   /** Balanced bank-slot versions, dealt in seat order within each class and across the spares (V24). */
   versions?: PaperBatchVersion[];
+  /** Deal versions one per sheet across the whole stack (random forms) instead of restarting in each class. */
+  dealBySheet?: boolean;
   createdAt: number;
 }
+
+/** True when the seat printed an answer key; a versioned stack may print one per version. */
+export const isPaperKeySeat = (
+  batch: Pick<PaperBatch, 'keySheetSeat' | 'keySheetSeats'>,
+  seat: number
+): boolean =>
+  batch.keySheetSeat === seat || !!batch.keySheetSeats?.includes(seat);
 
 export interface PaperBatchPlan {
   batch: PaperBatch;
@@ -382,8 +507,12 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     return { versionIndex: seatVersions[seat] };
   };
 
+  let sheetTurn = 0;
+  const turnFor = (local: number): number =>
+    input.dealBySheet ? sheetTurn++ : local;
   for (const { roster, students } of input.selections) {
-    students.forEach((student, turn) => {
+    students.forEach((student, local) => {
+      const turn = turnFor(local);
       const seat = takeSeat();
       seats[seat] = { rosterId: roster.id, studentId: student.id };
       sheets.push({
@@ -406,25 +535,37 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
       displayName: 'Name ______________________',
       className: '',
       isKeySheet: false,
-      ...dealt(seat, i),
+      ...dealt(seat, turnFor(i)),
     });
   }
 
-  let keySheetSeat: number | undefined;
+  // A stack in versions gets one key per version a sheet printed, each headed with its label.
+  const keySheetSeats: number[] = [];
   if (input.includeKeySheet) {
-    keySheetSeat = takeSeat();
-    sheets.push({
-      seat: keySheetSeat,
-      student: null,
-      displayName: 'ANSWER KEY',
-      className: '',
-      isKeySheet: true,
-    });
+    const used = [...new Set(Object.values(seatVersions))].sort(
+      (a, b) => a - b
+    );
+    for (const k of versionCount > 0 && used.length > 0 ? used : [0]) {
+      const seat = takeSeat();
+      keySheetSeats.push(seat);
+      if (versionCount > 0) seatVersions[seat] = k;
+      sheets.push({
+        seat,
+        student: null,
+        displayName: 'ANSWER KEY',
+        className: '',
+        isKeySheet: true,
+        ...(versionCount > 0 ? { versionIndex: k } : {}),
+      });
+    }
   }
+  const keySheetSeat = keySheetSeats[0];
 
   const choiceOrder: Record<string, string[]> = {};
   for (const q of input.questions ?? []) {
-    choiceOrder[q.id] = paperChoiceOrder(q);
+    choiceOrder[q.id] = paperGroupShape(q)
+      ? paperGroupOrder(q)
+      : paperChoiceOrder(q);
   }
   for (const [id, options] of Object.entries(input.choiceOrder ?? {})) {
     choiceOrder[id] = [...options];
@@ -439,6 +580,7 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     seats,
     spareSeats,
     ...(keySheetSeat !== undefined ? { keySheetSeat } : {}),
+    ...(keySheetSeats.length > 1 ? { keySheetSeats } : {}),
     ...(Object.keys(choiceOrder).length > 0 ? { choiceOrder } : {}),
     pagesPerSheet: input.pageMaps
       ? input.pageMaps.length

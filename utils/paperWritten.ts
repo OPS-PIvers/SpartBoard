@@ -52,6 +52,8 @@ export const DEFAULT_WRITTEN_RETURN_MODE: WrittenReturnMode = 'handwriting';
 /** Lets a written answer run past one page. */
 export const PAPER_MULTI_PAGE_FEATURE = 'paper-multi-page-answers';
 export const PAPER_PRINT_PREVIEW_FEATURE = 'paper-print-preview';
+/** Prints one student's paper copy from the live monitor's row menu. */
+export const PAPER_STUDENT_COPY_FEATURE = 'paper-student-copy';
 /** Most whole pages one written answer can take. */
 export const PAPER_MAX_BOX_PAGES = 4;
 

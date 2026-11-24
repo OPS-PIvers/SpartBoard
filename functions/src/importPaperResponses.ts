@@ -345,6 +345,8 @@ interface BatchDoc {
   seats?: Record<string, { rosterId?: unknown; studentId?: unknown }>;
   spareSeats?: unknown;
   keySheetSeat?: unknown;
+  /** Every key seat when a versioned stack printed one key per version. */
+  keySheetSeats?: unknown;
   layoutVersion?: unknown;
   pageMaps?: unknown;
   /** Balanced versions dealt at print time (QUIZ_IMPORT_VERSIONS.md V24). */
@@ -377,6 +379,23 @@ function seatVersion(batch: BatchDoc, seat: number): SeatVersion | null {
     ),
     swaps,
   };
+}
+
+/** The student's assigned question subset (a modification), limited to this session's questions. */
+export function overrideSubset(
+  assignment: Record<string, unknown>,
+  studentUid: string,
+  sessionQuestionIds: ReadonlySet<string>
+): string[] | null {
+  const overrides = assignment.overridesByStudentUid;
+  if (!isRecord(overrides)) return null;
+  const own = overrides[studentUid];
+  if (!isRecord(own) || !Array.isArray(own.questionIds)) return null;
+  const ids = own.questionIds.filter(
+    (id: unknown): id is string =>
+      typeof id === 'string' && sessionQuestionIds.has(id)
+  );
+  return ids.length > 0 ? ids : null;
 }
 
 /** The batch's map index as one seat's sheet printed it. */
@@ -525,7 +544,11 @@ export async function handleImportPaperResponses(
 
   const versionBySeat = new Map<number, SeatVersion>();
   for (const sheet of input.sheets) {
-    if (batch.keySheetSeat === sheet.seat)
+    if (
+      batch.keySheetSeat === sheet.seat ||
+      (Array.isArray(batch.keySheetSeats) &&
+        batch.keySheetSeats.includes(sheet.seat))
+    )
       invalid(`Seat ${sheet.seat} is the answer key, not a student.`);
     const version = seatVersion(batch, sheet.seat);
     if (version) {
@@ -699,7 +722,8 @@ export async function handleImportPaperResponses(
         scanId: input.scanId ?? null,
         allowedPages,
         servedQuestionIds:
-          versionBySeat.get(r.sheet.seat)?.servedQuestionIds ?? null,
+          versionBySeat.get(r.sheet.seat)?.servedQuestionIds ??
+          overrideSubset(assignment, r.studentUid, questionIds),
         hybrid,
         transcribe,
         keptPages: keptPages

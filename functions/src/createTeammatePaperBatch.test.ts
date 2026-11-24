@@ -809,8 +809,65 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
     expect(result.batch.layoutVersion).toBe(2);
   });
 
-  it('refuses a written question inside an "answer any" section', async () => {
-    const { run, writes } = create(
+  it('prints matching, ordering and choose all when the client asks', async () => {
+    const groupedQuiz = {
+      questions: [
+        QUESTIONS[0],
+        {
+          id: 'q-match',
+          type: 'Matching',
+          text: 'Match them',
+          correctAnswer: 'Dog:Bark|Cat:Meow',
+          matchingDistractors: ['Moo'],
+        },
+        {
+          id: 'q-order',
+          type: 'Ordering',
+          text: 'Order them',
+          correctAnswer: 'One|Two|Three',
+        },
+      ],
+    };
+    const { run } = create(writtenState(groupedQuiz), writtenDeps(), {
+      ...INPUT,
+      groups: true,
+    });
+    const result = await run();
+    expect(result.batch.layoutVersion).toBe(2);
+    expect(result.batch.questionCount).toBe(3);
+    const items = result.batch.pageMaps?.[0].items ?? [];
+    expect(
+      items.map((i) =>
+        i.kind === 'mc' ? [i.questionId, i.group ?? null, i.part ?? null] : []
+      )
+    ).toEqual([
+      [QUESTIONS[0].id, null, null],
+      ['q-match', 'match', 0],
+      ['q-match', 'match', 1],
+      ['q-order', 'order', 0],
+      ['q-order', 'order', 1],
+      ['q-order', 'order', 2],
+    ]);
+    expect(result.batch.choiceOrder?.['q-order']).not.toEqual([
+      'One',
+      'Two',
+      'Three',
+    ]);
+    expect(result.testPaper[1]).toMatchObject({
+      group: 'match',
+      terms: ['Dog', 'Cat'],
+    });
+    // Without the opt-in an older client keeps today's sheet.
+    const plain = await create(
+      writtenState(groupedQuiz),
+      writtenDeps(),
+      INPUT
+    ).run();
+    expect(plain.batch.questionCount).toBe(1);
+  });
+
+  it('prints a written question inside an "answer any" section', async () => {
+    const { run } = create(
       writtenState({
         sections: [{ id: 'sec', title: 'Pick one', chooseCount: 1 }],
         order: [
@@ -823,10 +880,12 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
       writtenDeps(),
       WRITTEN_INPUT
     );
-    await expect(run()).rejects.toMatchObject({
-      code: 'failed-precondition',
-    });
-    expect(writes.sets).toEqual([]);
+    const result = await run();
+    expect(
+      result.batch.pageMaps
+        ?.flatMap((m) => m.items)
+        .some((i) => i.kind === 'written' && i.questionId === 'q-essay')
+    ).toBe(true);
   });
 
   it('uses the one-column grid when the quiz prints sheet stimuli', async () => {

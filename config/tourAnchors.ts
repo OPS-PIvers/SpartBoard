@@ -1846,6 +1846,44 @@ export const TOUR_ANCHORS = {
     label: 'Done button that closes the modification group Students menu',
     panel: true,
   },
+  'assign-mods.questions': {
+    label:
+      'Questions button that opens the question picker for a modification group',
+    panel: true,
+  },
+  'assign-mods.questions-count': {
+    label: 'Number of questions box in the modification group Questions dialog',
+    panel: true,
+  },
+  'assign-mods.questions-random': {
+    label: 'Pick at random button in the modification group Questions dialog',
+    panel: true,
+  },
+  'assign-mods.questions-search': {
+    label: 'Search box in the modification group Questions dialog',
+    panel: true,
+  },
+  'assign-mods.question': {
+    label: 'Question checkbox in the modification group Questions dialog',
+    perField: true,
+    panel: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for question 1',
+    rows: true,
+    rowList: 'assign-mods-questions',
+  },
+  'assign-mods.questions-all': {
+    label: 'Select all button in the modification group Questions dialog',
+    panel: true,
+  },
+  'assign-mods.questions-done': {
+    label: 'Done button that saves the modification group Questions dialog',
+    panel: true,
+  },
+  'assign-mods.questions-cancel': {
+    label: 'Cancel button in the modification group Questions dialog',
+    panel: true,
+  },
   'assign-mods.class-group': {
     label: 'Class group button in the modification group Students menu',
     perField: true,
@@ -5461,6 +5499,11 @@ export const TOUR_ANCHORS = {
     label: 'Unlock results item in the Quiz monitor student menu',
     perWidgetType: true,
     persists: true,
+    panel: true,
+  },
+  'quiz-monitor.student-print-copy': {
+    label: 'Print paper copy item in the Quiz monitor student menu',
+    perWidgetType: true,
     panel: true,
   },
   'quiz-monitor.student-remove': {
@@ -9915,6 +9958,10 @@ export const TOUR_ANCHORS = {
   },
   'admin.help-center.new-record-subs-tour': {
     label: 'Record a Live tour for subs in the Help Center New menu',
+    panel: true,
+  },
+  'admin.help-center.new-record-students-tour': {
+    label: 'Record a Live tour for students in the Help Center New menu',
     panel: true,
   },
   'admin.help-center.new-move': {
@@ -20013,6 +20060,11 @@ export const TOUR_ANCHORS = {
     keyHint: 'student-help#row-1 for the first tour',
     panel: true,
     rows: true,
+  },
+  'student.help-record': {
+    label: 'Record a tour in the student Help menu (admins in View as student)',
+    panel: true,
+    creates: true,
   },
   'subs.help': { label: 'Help button on every substitute portal screen' },
   'subs.help-tour': {

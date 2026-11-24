@@ -16,12 +16,19 @@ const ytPendingCallbacks: (() => void)[] = [];
 
 const ytErrorCallbacks: (() => void)[] = [];
 
+let ytLoadFailed = false;
+
 export const loadYouTubeApi = (
   callback: () => void,
   onError?: () => void
 ): void => {
   if (window.YT?.Player) {
     callback();
+    return;
+  }
+  // The failed script tag stays in <head>, so later callers would otherwise wait forever.
+  if (ytLoadFailed) {
+    onError?.();
     return;
   }
   ytPendingCallbacks.push(callback);
@@ -35,7 +42,10 @@ export const loadYouTubeApi = (
     };
     const tag = document.createElement('script');
     tag.src = 'https://www.youtube.com/iframe_api';
-    tag.onerror = () => ytErrorCallbacks.splice(0).forEach((cb) => cb());
+    tag.onerror = () => {
+      ytLoadFailed = true;
+      ytErrorCallbacks.splice(0).forEach((cb) => cb());
+    };
     document.head.appendChild(tag);
   }
 };
@@ -74,6 +84,31 @@ export const extractYouTubeId = (url: string): string | null => {
     /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|v\/|shorts\/|live\/|watch\?v=|watch\?.+&v=))([A-Za-z0-9_-]{11})/
   );
   return m ? m[1] : null;
+};
+
+/** Embed URL for an ambient board background (muted, no controls). */
+export const buildBackgroundVideoSrc = (
+  videoId: string,
+  origin: string,
+  playlistLoop: boolean
+): string => {
+  const params = new URLSearchParams({
+    autoplay: '1',
+    mute: '1',
+    controls: '0',
+    disablekb: '1',
+    playsinline: '1',
+    rel: '0',
+    modestbranding: '1',
+    enablejsapi: '1',
+    origin,
+  });
+  // YouTube's playlist loop reloads the video, which restarts quality at 720p or lower.
+  if (playlistLoop) {
+    params.set('loop', '1');
+    params.set('playlist', videoId);
+  }
+  return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
 };
 
 /** Returns the Spotify embed URL, or null if the URL is not a valid https Spotify URL. */
@@ -132,9 +167,9 @@ declare global {
       Player: new (
         elementId: string | HTMLElement,
         options: {
-          height: string;
-          width: string;
-          videoId: string;
+          height?: string;
+          width?: string;
+          videoId?: string;
           playerVars?: Record<string, string | number | boolean>;
           events?: {
             onStateChange?: (event: { data: number }) => void;
