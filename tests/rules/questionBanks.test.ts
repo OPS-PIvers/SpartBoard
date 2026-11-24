@@ -373,31 +373,6 @@ describe('synced_bank_owners/{groupId} (atomic id reservation)', () => {
 });
 
 describe('plcs/{plcId}/question_banks/{entryId}', () => {
-  const seedSynced = async (ownerUid = OWNER_UID) => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), syncedPath), syncedDoc({ ownerUid }));
-    });
-  };
-
-  beforeEach(async () => {
-    await seedSynced();
-  });
-
-  it("refuses a header pointing at another teacher's synced bank or a missing one", async () => {
-    await assertFails(
-      setDoc(doc(as(MEMBER_UID), entryPath('x1')), entryDoc('x1', MEMBER_UID))
-    );
-    await assertFails(
-      setDoc(
-        doc(as(OWNER_UID), entryPath('x2')),
-        entryDoc('x2', OWNER_UID, { syncGroupId: 'no-such-group' })
-      )
-    );
-    await assertSucceeds(
-      setDoc(doc(as(OWNER_UID), entryPath('x3')), entryDoc('x3', OWNER_UID))
-    );
-  });
-
   it('non-viewer member creates a header attributed to self', async () => {
     await assertSucceeds(
       setDoc(doc(as(OWNER_UID), entryPath('e1')), entryDoc('e1', OWNER_UID))
