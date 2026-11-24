@@ -152,6 +152,7 @@ export const WrapUpMenu: React.FC<{
               aria-disabled="true"
               title="Save first"
               data-testid={`retire-${anchorKey}`}
+              {...tourFieldAttr('admin.previews.retire', 'admin', anchorKey)}
               className={`${ITEM} opacity-50 cursor-not-allowed hover:bg-white`}
             >
               <Archive
