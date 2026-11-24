@@ -111,14 +111,20 @@ export async function isGlobalFeatureGranted(
   if (data.enabled !== true) return false;
   if (isExcludedFrom(data, email)) return false;
   if (await isAdmin()) return true;
-  if (data.accessLevel === 'beta') {
-    if (!email) return false;
-    const betaUsers = Array.isArray(data.betaUsers) ? data.betaUsers : [];
-    if (!(await isBetaTeacher(db, betaUsers, email))) return false;
-  } else if (data.accessLevel !== 'public') {
-    return false;
-  }
+  if (!(await accessLevelAllows(db, data, email))) return false;
   return permissionAudienceAllows(db, data, email, teacherUid);
+}
+
+/** A saved doc's `accessLevel` for a non-admin, as the client's `resolvePermissionAccess` reads it. */
+export async function accessLevelAllows(
+  db: Firestore,
+  perm: { accessLevel?: unknown; betaUsers?: unknown },
+  teacherEmail: string
+): Promise<boolean> {
+  if (perm.accessLevel === 'public') return true;
+  if (perm.accessLevel !== 'beta' || !teacherEmail) return false;
+  const betaUsers = Array.isArray(perm.betaUsers) ? perm.betaUsers : [];
+  return isBetaTeacher(db, betaUsers, teacherEmail.toLowerCase());
 }
 
 /** A permission doc's `minTier` and `buildings` limits, applied as the client's `resolvePermissionAccess` does. */
