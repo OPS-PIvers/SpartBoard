@@ -341,9 +341,12 @@ service cloud.firestore {
               afterOpen(pa[classId]) && beforeClose(pa[classId]));
     }
     // "Let in now": one student's pass past their period's state, until a time.
-    // "Schedule for later" also writes when it starts (studentAccessFrom), with the window grace.
     function studentLetIn(s) {
-      return s.get('studentAccess', {}).get(authUid(), 0) > request.time.toMillis() &&
+      return s.get('studentAccess', {}).get(authUid(), 0) > request.time.toMillis();
+    }
+    // Quiz "Schedule for later" also sets when the pass starts, with the window grace.
+    function quizLetIn(s) {
+      return studentLetIn(s) &&
              s.get('studentAccessFrom', {}).get(authUid(), 0) <= request.time.toMillis() + 120000;
     }
     // A join on a per-period session names a period the session targets, backed
@@ -5005,7 +5008,7 @@ service cloud.firestore {
       match /content/{docId} {
         allow read: if signedIn() && (
           liveUid(sessionTeacherUid()) || isAdmin() ||
-          isSubMonitor(sessionData()) || studentLetIn(sessionData()) ||
+          isSubMonitor(sessionData()) || quizLetIn(sessionData()) ||
           sessionData().status == 'ended' ||
           periodOpen(sessionData(), seatedClassId('quiz_sessions', sessionId))
         );
