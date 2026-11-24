@@ -112,7 +112,6 @@ import {
   type ClassStatus,
 } from '@/utils/assignedStatus';
 import { HeldStudentsDialog } from '@/components/common/library/assigned/HeldStudents';
-import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import { joinCodesAllowedForBuildings } from './monitorUtils';
 import {
   EXTEND_MS,
