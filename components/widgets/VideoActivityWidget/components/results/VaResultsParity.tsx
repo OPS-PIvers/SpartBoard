@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowLeft, ChevronRight, Loader2 } from 'lucide-react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { SCORE_DISTRIBUTION_BANDS } from '@/utils/scoreColor';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 const headerIcon = {
   width: 'min(16px, 5cqmin)',
@@ -14,7 +15,7 @@ const footerIcon = {
 const sectionLabel =
   'font-sans font-semibold text-brand-blue-primary uppercase tracking-wider';
 
-/** Blue results header in the Quiz results layout. */
+/** Video Activity's red results header in the Quiz results layout. */
 export const ParityHeader: React.FC<{
   title: string;
   status: string;
@@ -25,6 +26,7 @@ export const ParityHeader: React.FC<{
   <div
     className="flex items-center bg-brand-blue-primary text-white shrink-0"
     style={{
+      backgroundColor: LIBRARY_HEADER_ACCENTS['video-activity'],
       gap: 'min(8px, 2cqmin)',
       padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
     }}
@@ -47,7 +49,7 @@ export const ParityHeader: React.FC<{
     </p>
     {actions}
     <span
-      className="shrink-0 rounded-full font-sans font-semibold uppercase tracking-wider bg-white/20 text-white"
+      className="shrink-0 rounded-full font-sans font-semibold uppercase tracking-wider bg-black/20 text-white"
       style={{
         fontSize: 'min(10px, 3.5cqmin)',
         padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',

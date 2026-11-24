@@ -91,6 +91,7 @@ import { openQuizPart } from './openPart';
 import { RosterList } from './RosterList';
 import { buildPrintSeats, type PrintSeat } from './printSeats';
 import { MonitorHeader } from './MonitorHeader';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import { CLASS_STATUS_WORD } from './classStatusWords';
 import { PeriodAccessStrip } from './PeriodAccessStrip';
 import {
@@ -1328,6 +1329,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             : undefined
         }
         backAnchor={tourAttr('quiz-monitor.back', widgetId, tourType)}
+        accent={LIBRARY_HEADER_ACCENTS[tourType]}
         // A connected Review carries the corner tab; keep the status pill clear of it.
         paddingRight={liveScoreboardLink ? 40 : undefined}
       />

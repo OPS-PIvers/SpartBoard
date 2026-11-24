@@ -1,0 +1,1 @@
+claude/project-thread-hfyd3z (Rubric settings menu no longer clipped in the grader)

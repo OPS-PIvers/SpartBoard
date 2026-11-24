@@ -1,5 +1,7 @@
 import React, { useState, type ReactNode } from 'react';
-import { ArrowLeft, BarChart3, Download, Loader2 } from 'lucide-react';
+import { BarChart3, Download, Loader2 } from 'lucide-react';
+import { MonitorHeader } from '@/components/widgets/QuizWidget/components/monitor/MonitorHeader';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import type { GuidedLearningPublicStep } from '@/types';
 import {
   StatusBuckets,
@@ -21,13 +23,6 @@ export interface GlQuestionStat {
 }
 
 export type GlMonitorStatus = 'live' | 'paused' | 'waiting' | 'ended';
-
-const STATUS_PILL: Record<GlMonitorStatus, { label: string; cls: string }> = {
-  live: { label: 'Live', cls: 'bg-white text-brand-blue-primary' },
-  paused: { label: 'Paused', cls: 'bg-white/20 text-white' },
-  waiting: { label: 'Not started', cls: 'bg-white/20 text-white' },
-  ended: { label: 'Ended', cls: 'bg-white/20 text-white' },
-};
 
 interface Props<R extends GlMonitorRow> {
   title: string;
@@ -77,8 +72,6 @@ export const GuidedLearningMonitor = <R extends GlMonitorRow>({
   const [screen, setScreen] = useState<'home' | 'questions'>('home');
   const [openBucket, setOpenBucket] = useState<BucketKey | null>(null);
   const onHome = screen === 'home';
-  const pill = STATUS_PILL[status];
-
   const counts = { notStarted: 0, inProgress: 0, done: 0 };
   for (const r of rows) counts[r.bucket]++;
   const bucketRows = openBucket
@@ -91,40 +84,16 @@ export const GuidedLearningMonitor = <R extends GlMonitorRow>({
 
   return (
     <div className="h-full w-full flex flex-col bg-white text-brand-gray-dark">
-      <div
-        className="flex items-center bg-brand-blue-primary text-white shrink-0"
-        style={{
-          gap: 'min(8px, 2cqmin)',
-          padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
-        }}
-      >
-        <button
-          onClick={() => (onHome ? onBack() : setScreen('home'))}
-          aria-label="Back"
-          {...tourAttr('gl-results.back')}
-          className="rounded-md hover:bg-white/15 transition-colors"
-          style={{ padding: 'min(4px, 1cqmin)' }}
-        >
-          <ArrowLeft
-            style={{ width: 'min(16px, 5cqmin)', height: 'min(16px, 5cqmin)' }}
-          />
-        </button>
-        <p
-          className="font-sans font-semibold truncate flex-1"
-          style={{ fontSize: 'min(14px, 5cqmin)' }}
-        >
-          {onHome ? title : 'Question results'}
-        </p>
-        <span
-          className={`shrink-0 rounded-full font-sans font-semibold uppercase tracking-wider ${pill.cls}`}
-          style={{
-            fontSize: 'min(10px, 3.5cqmin)',
-            padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
-          }}
-        >
-          {pill.label}
-        </span>
-      </div>
+      <MonitorHeader
+        title={onHome ? title : 'Question results'}
+        status={
+          status === 'live' ? 'live' : status === 'ended' ? 'ended' : 'paused'
+        }
+        label={status === 'waiting' ? 'Not started' : undefined}
+        accent={LIBRARY_HEADER_ACCENTS['guided-learning']}
+        onBack={() => (onHome ? onBack() : setScreen('home'))}
+        backAnchor={tourAttr('gl-results.back')}
+      />
       {banner}
 
       {loading ? (
