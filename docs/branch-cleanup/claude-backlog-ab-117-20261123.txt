@@ -1,1 +1,1 @@
-claude/backlog-ab-117-20261123 (AB-117: PLC bank header create requires synced doc owner, import pins owner)
+claude/backlog-ab-117-20261123 (AB-117: PLC bank import pins the synced bank owner client-side)
