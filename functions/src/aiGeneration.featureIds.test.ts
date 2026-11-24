@@ -6,7 +6,11 @@ vi.mock('./firebaseAdmin', () => ({
   firestore: Object.assign(vi.fn(), { FieldValue: {} }),
 }));
 
-import { missingDocDeniesNonAdmin, specificFeatureIdFor } from './aiGeneration';
+import { specificFeatureIdFor } from './aiGeneration';
+import { missingDocAccess } from './featureMissingDoc';
+
+const missingDocDeniesNonAdmin = (id: string): boolean =>
+  missingDocAccess(id).audience !== 'everyone';
 
 describe('specificFeatureIdFor', () => {
   it('charges each widget its own switch for shared types', () => {
@@ -38,7 +42,7 @@ describe('specificFeatureIdFor', () => {
   });
 });
 
-describe('missingDocDeniesNonAdmin', () => {
+describe('missing-doc default for teachers', () => {
   it('keeps Bloom’s AI closed to teachers until an admin saves its switch', () => {
     expect(
       missingDocDeniesNonAdmin(specificFeatureIdFor('blooms-ai', undefined)!)
@@ -48,6 +52,10 @@ describe('missingDocDeniesNonAdmin', () => {
   it('keeps Flashcards AI closed to teachers until an admin saves its switch', () => {
     expect(specificFeatureIdFor('flashcards', undefined)).toBe('flashcards-ai');
     expect(missingDocDeniesNonAdmin('flashcards-ai')).toBe(true);
+  });
+
+  it('keeps the no-source mini-app id closed like the client', () => {
+    expect(missingDocDeniesNonAdmin('embed-mini-app')).toBe(true);
   });
 
   it('leaves features that default open alone', () => {

@@ -22,6 +22,7 @@ import {
   getDocs,
   serverTimestamp,
   setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import { getBytes, ref, uploadBytes } from 'firebase/storage';
 import { seedDistrictStaff } from './districtStaffSeed';
@@ -276,16 +277,23 @@ describe('top-level collections keyed on the caller uid', () => {
       { participants: { [TEACHER_UID]: true } },
       { merge: true }
     );
+  const rename = (ctx: ReturnType<typeof asViewAs>) =>
+    updateDoc(doc(ctx.firestore(), 'shared_boards/share-mine'), {
+      name: 'Renamed',
+    });
 
-  it('read-only cannot self-join a shared board or delete its own share', async () => {
+  it('read-only cannot self-join, rename or delete its own share', async () => {
     await assertFails(join(asViewAs()));
+    await assertFails(rename(asViewAs()));
     await assertFails(
       deleteDoc(doc(asViewAs().firestore(), 'shared_boards/share-mine'))
     );
   });
 
-  it('the real teacher and an unlocked tab can', async () => {
-    await assertSucceeds(join(asTeacher()));
+  it('the real teacher and an unlocked tab can write their own share', async () => {
+    // Joining goes through shareMembershipV1, never a client write.
+    await assertFails(join(asTeacher()));
+    await assertSucceeds(rename(asTeacher()));
     await assertSucceeds(
       deleteDoc(
         doc(asViewAs({ ro: false }).firestore(), 'shared_boards/share-mine')

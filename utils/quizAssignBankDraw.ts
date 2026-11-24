@@ -268,7 +268,15 @@ export async function loadPaperQuizWithFallback(
   loadLive: () => Promise<QuizData | null>
 ): Promise<QuizData | null> {
   if (!frozenDriveFileId) return loadLive();
-  return (await loadFrozen()) ?? loadLive();
+  try {
+    const frozen = await loadFrozen();
+    if (frozen) return frozen;
+  } catch (err) {
+    logError('quizAssignBankDraw.loadPaperQuizWithFallback', err, {
+      frozenDriveFileId,
+    });
+  }
+  return loadLive();
 }
 
 /** Assignments of this quiz that still grade against the live quiz, so an edit re-scores them. */

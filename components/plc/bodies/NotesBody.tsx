@@ -836,7 +836,9 @@ const NotesBodyInner: React.FC<
   const noteRecordings = selectedNote
     ? plcRecordingsForNote(recordings, selectedNote.id)
     : [];
-  const aiNotesEnabled = canAccessFeature('plc-meeting-ai-notes');
+  const aiNotesEnabled =
+    canAccessFeature('gemini-functions') &&
+    canAccessFeature('plc-meeting-ai-notes');
   const notesWithDraft = canEdit
     ? new Set(recordings.filter(plcRecordingDraftPending).map((r) => r.noteId))
     : new Set<string>();

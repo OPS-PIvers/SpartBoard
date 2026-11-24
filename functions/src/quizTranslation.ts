@@ -14,16 +14,11 @@ import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import { Type, Schema, ThinkingLevel } from '@google/genai';
-import {
-  ALLOWED_ORIGINS,
-  normalizeEmailDomain,
-  resolveOrgIdForDomain,
-} from './classlinkShared';
+import { ALLOWED_ORIGINS } from './classlinkShared';
 import { parseGeminiJson } from './parseGeminiJson';
 import { LANGUAGE_TAG_RE } from './languageTag';
-import { adminPassesMissingDoc } from './featureMissingDoc';
+import { isGlobalFeatureGranted } from './featureGrant';
 import { isExcludedFrom } from './permissionExclusion';
-import { canonicalizeBuildingIdsServer } from './buildingIds';
 import {
   hashQuestionForTranslation,
   type HashableQuestion,
@@ -372,123 +367,23 @@ export async function billBackTranslationTokens(
 
 // ── Feature flag (server mirror of the client's canAccessFeature) ───────────
 
-async function isSpartBoardAdmin(
-  db: Firestore,
-  email: string | undefined
-): Promise<boolean> {
-  if (!email) return false;
-  const doc = await db.collection('admins').doc(email.toLowerCase()).get();
-  return doc.exists;
-}
-
-/** Mirrors `INTERNAL_TIER_DOMAINS` in `utils/userTier.ts`. */
-const INTERNAL_TIER_DOMAINS: readonly string[] = ['orono.k12.mn.us'];
-
-/** Mirrors the `free < org < internal` ordering in `utils/userTier.ts`. */
-const TIER_RANK: Readonly<Record<string, number>> = {
-  free: 0,
-  org: 1,
-  internal: 2,
-};
-
-/** Server twin of `meetsMinTier` — an unset floor imposes no restriction. */
-function meetsMinTierServer(tier: string, minTier: unknown): boolean {
-  if (typeof minTier !== 'string' || !minTier) return true;
-  return (TIER_RANK[tier] ?? 0) >= (TIER_RANK[minTier] ?? 0);
-}
-
-/** The teacher's `selectedBuildings`, canonicalized the way AuthContext does. */
-async function loadTeacherBuildings(
-  db: Firestore,
-  teacherUid: string
-): Promise<string[]> {
-  if (!teacherUid) return [];
-  const snap = await db
-    .doc(`users/${teacherUid}/userProfile/profile`)
-    .get()
-    .catch(() => null);
-  const raw: unknown = snap?.data()?.selectedBuildings;
-  return Array.isArray(raw) ? canonicalizeBuildingIdsServer(raw) : [];
-}
-
-/** Server twin of `deriveUserTier` — internal domain, else org member, else free. */
-async function deriveTeacherTier(
-  db: Firestore,
-  teacherEmail: string
-): Promise<string> {
-  const domain = teacherEmail.split('@')[1] ?? '';
-  if (domain && INTERNAL_TIER_DOMAINS.includes(domain)) return 'internal';
-  const domainWithAt = normalizeEmailDomain(teacherEmail);
-  if (!domainWithAt) return 'free';
-  const orgId = await resolveOrgIdForDomain(db, domainWithAt).catch(() => null);
-  if (!orgId) return 'free';
-  const member = await db
-    .doc(`organizations/${orgId}/members/${teacherEmail}`)
-    .get()
-    .catch(() => null);
-  return member?.exists ? 'org' : 'free';
-}
-
 /** Server twin of `canAccessFeature('quiz-translation')`: an absent doc passes admins only. */
 export async function assertQuizTranslationFeature(
   db: Firestore,
   email: string | undefined,
   uid: string
 ): Promise<void> {
-  const deny = (): never => {
+  const granted = await isGlobalFeatureGranted(
+    db,
+    'quiz-translation',
+    email ?? null,
+    uid
+  ).catch(() => false);
+  if (!granted)
     throw new HttpsError(
       'permission-denied',
       'Quiz translation is not available for your account.'
     );
-  };
-  let raw: Record<string, unknown> | undefined;
-  try {
-    const snap = await db
-      .collection('global_permissions')
-      .doc('quiz-translation')
-      .get();
-    raw = snap.exists ? snap.data() : undefined;
-  } catch {
-    raw = undefined;
-  }
-  if (raw === undefined) {
-    const callerIsAdmin = await isSpartBoardAdmin(db, email).catch(() => false);
-    if (adminPassesMissingDoc('quiz-translation') && callerIsAdmin) return;
-    deny();
-  }
-  // `deny()` always throws, so `raw` is defined below; assert to avoid TS
-  // narrowing limits on a `let` reassigned inside try/catch.
-  const data = raw as Record<string, unknown>;
-  if (data.enabled !== true) deny();
-  if (isExcludedFrom(data, email)) deny();
-  const isAdmin = await isSpartBoardAdmin(db, email);
-  const accessLevel =
-    typeof data.accessLevel === 'string' ? data.accessLevel : '';
-  if (!isAdmin) {
-    if (accessLevel === 'beta') {
-      const betaUsers = Array.isArray(data.betaUsers)
-        ? (data.betaUsers as unknown[]).filter(
-            (e): e is string => typeof e === 'string'
-          )
-        : [];
-      const lower = (email ?? '').toLowerCase();
-      if (!lower || !betaUsers.some((e) => e.toLowerCase() === lower)) deny();
-    } else if (accessLevel !== 'public') {
-      deny();
-    }
-    // Tier gate: an unset `minTier` imposes no restriction.
-    if (data.minTier !== undefined && data.minTier !== null) {
-      const tier = email ? await deriveTeacherTier(db, email) : 'free';
-      if (!meetsMinTierServer(tier, data.minTier)) deny();
-    }
-    // Building gate: only applies when the record explicitly restricts it.
-    const buildings = Array.isArray(data.buildings) ? data.buildings : [];
-    if (buildings.length > 0) {
-      const allowed = new Set(buildings);
-      const selected = await loadTeacherBuildings(db, uid);
-      if (!selected.some((b) => allowed.has(b))) deny();
-    }
-  }
 }
 
 /** The `gemini-functions` kill switch, and its exclude list, stop translation too. */

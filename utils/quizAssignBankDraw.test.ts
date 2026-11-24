@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { logError } from '@/utils/logError';
 import type { QuizData, QuizQuestion } from '@/types';
 import type { BankContent } from '@/utils/questionBanks';
 import {
@@ -400,6 +401,8 @@ describe('paper import and reprint source', () => {
   });
 });
 
+vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
+
 describe('loadPaperQuizWithFallback', () => {
   const q = { id: 'live' } as unknown as QuizData;
   const f = { id: 'frozen' } as unknown as QuizData;
@@ -420,6 +423,33 @@ describe('loadPaperQuizWithFallback', () => {
         () => Promise.resolve(q)
       )
     ).toBe(q);
+  });
+
+  it('falls back to the library quiz when the frozen read throws', async () => {
+    const live = vi.fn(() => Promise.resolve(q));
+    expect(
+      await loadPaperQuizWithFallback(
+        'x',
+        () => Promise.reject(new Error('frozen gone')),
+        live
+      )
+    ).toBe(q);
+    expect(live).toHaveBeenCalledTimes(1);
+    expect(logError).toHaveBeenCalledWith(
+      'quizAssignBankDraw.loadPaperQuizWithFallback',
+      expect.objectContaining({ message: 'frozen gone' }),
+      { frozenDriveFileId: 'x' }
+    );
+  });
+
+  it('surfaces the library failure when both reads fail', async () => {
+    await expect(
+      loadPaperQuizWithFallback(
+        'x',
+        () => Promise.reject(new Error('frozen gone')),
+        () => Promise.reject(new Error('live gone'))
+      )
+    ).rejects.toThrow('live gone');
   });
 
   it('goes straight to the library quiz when nothing is frozen', async () => {

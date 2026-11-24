@@ -99,14 +99,8 @@ export const WritingReturnedFeedback: React.FC<{
   sessionId: string;
   studentUid: string | null;
   grading: WritingGrading;
-  draftSeq: number | undefined;
   returnedAt: number | undefined;
-}> = ({ sessionId, studentUid, grading, draftSeq, returnedAt }) => {
-  const drafts = useWritingReturnedDrafts(
-    sessionId,
-    studentUid,
-    draftSeq ?? 0,
-    returnedAt
-  );
+}> = ({ sessionId, studentUid, grading, returnedAt }) => {
+  const drafts = useWritingReturnedDrafts(sessionId, studentUid, returnedAt);
   return <WritingReturnedFeedbackView drafts={drafts} grading={grading} />;
 };
