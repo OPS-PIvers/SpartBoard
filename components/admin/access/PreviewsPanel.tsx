@@ -94,7 +94,10 @@ export const PreviewRow: React.FC<{
               anchorKey={featureId}
               testId={`retire-${featureId}`}
               href={retireIssueUrl(featureId, savedPermission, districtOn)}
-              disabled={unsaved || (!!sw && district.enabled === null)}
+              disabled={
+                unsaved ||
+                (!!sw && (district.enabled === null || district.failed))
+              }
             />
           )}
         </>
@@ -174,6 +177,7 @@ export const PreviewsPanel: React.FC = () => {
           tab="previews"
           fallback="Nothing in preview."
           graduated={editor.graduated}
+          graduatedSwitches={switches.keys}
         />
       ) : (
         <>

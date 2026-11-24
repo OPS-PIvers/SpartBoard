@@ -16,9 +16,12 @@ import {
   matchesSearch,
   ROLLOUT_ONLY_SWITCHES,
   rolloutSearchFields,
+  switchForFeature,
 } from './accessSearch';
 import { rolloutSwitchKey } from '@/config/rolloutSwitches';
-import { PairedDistrictSwitch, RolloutOnlyRow } from './DistrictSwitch';
+import { DistrictSwitch, RetireLink, RolloutOnlyRow } from './DistrictSwitch';
+import { retireIssueUrl, retireSwitchIssueUrl } from './retireIssue';
+import { useRolloutSwitch } from './useRolloutSwitch';
 import { useGraduatedSwitches } from './useGraduatedSwitches';
 import { useAccessSearch } from './accessSearchContext';
 import { useGlobalPermissionsEditor } from './useGlobalPermissionsEditor';
@@ -33,6 +36,36 @@ const SECTION_LABELS: Record<SectionKey, string> = {
 // A graduated preview with no category still needs a section.
 const sectionOf = (id: GlobalFeature): SectionKey =>
   FEATURE_DEFAULTS[id].category ?? 'other';
+
+// A graduated preview keeps its district switch and can still be retired.
+const GraduatedRowActions: React.FC<{
+  featureId: GlobalFeature;
+  editor: ReturnType<typeof useGlobalPermissionsEditor>;
+}> = ({ featureId, editor }) => {
+  const sw = switchForFeature(featureId);
+  const district = useRolloutSwitch(sw);
+  if (FEATURE_DEFAULTS[featureId].stage === 'permanent') {
+    return sw ? <DistrictSwitch sw={sw} state={district} /> : null;
+  }
+  return (
+    <>
+      {sw && <DistrictSwitch sw={sw} state={district} />}
+      <RetireLink
+        anchorKey={featureId}
+        testId={`retire-${featureId}`}
+        href={retireIssueUrl(
+          featureId,
+          editor.getSavedPermission(featureId),
+          sw ? district.enabled : undefined
+        )}
+        disabled={
+          editor.unsavedChanges.has(featureId) ||
+          (!!sw && (district.enabled === null || district.failed))
+        }
+      />
+    </>
+  );
+};
 
 /** Permanent app-wide capabilities, grouped by category (plan D10). */
 export const FeaturesPanel: React.FC = () => {
@@ -77,6 +110,7 @@ export const FeaturesPanel: React.FC = () => {
           tab="features"
           fallback="No features."
           graduated={editor.graduated}
+          graduatedSwitches={switches.keys}
         />
       )}
       {sections.map(({ key, ids }) => (
@@ -96,7 +130,7 @@ export const FeaturesPanel: React.FC = () => {
                 onUpdate={(updates) => editor.updatePermission(id, updates)}
                 onSave={() => void editor.savePermission(id)}
                 showMessage={editor.showMessage}
-                lead={<PairedDistrictSwitch featureId={id} />}
+                lead={<GraduatedRowActions featureId={id} editor={editor} />}
               >
                 {id === 'universal-import' && (
                   <ImportOffersSection editor={editor} />
@@ -113,7 +147,17 @@ export const FeaturesPanel: React.FC = () => {
           </h3>
           <div className="divide-y divide-slate-200 border-y border-slate-200">
             {districtSwitches.map((sw) => (
-              <RolloutOnlyRow key={rolloutSwitchKey(sw)} sw={sw} />
+              <RolloutOnlyRow
+                key={rolloutSwitchKey(sw)}
+                sw={sw}
+                actions={(enabled) => (
+                  <RetireLink
+                    anchorKey={rolloutSwitchKey(sw)}
+                    testId={`retire-${rolloutSwitchKey(sw)}`}
+                    href={retireSwitchIssueUrl(sw, enabled)}
+                  />
+                )}
+              />
             ))}
           </div>
         </section>

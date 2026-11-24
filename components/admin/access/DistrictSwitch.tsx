@@ -146,7 +146,10 @@ export const RolloutOnlyRow: React.FC<{
         </span>
       </span>
       <span className="ml-auto flex shrink-0 items-center gap-2">
-        {actions && state.enabled !== null && actions(state.enabled)}
+        {actions &&
+          state.enabled !== null &&
+          !state.failed &&
+          actions(state.enabled)}
         <DistrictSwitch sw={sw} state={state} />
       </span>
     </div>

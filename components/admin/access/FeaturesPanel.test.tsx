@@ -42,6 +42,8 @@ const existingPermission = {
   config: {},
 };
 
+let extraPermissions: Record<string, unknown>[] = [];
+
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   doc: vi.fn(),
@@ -58,6 +60,7 @@ vi.mock('firebase/firestore', () => ({
     Promise.resolve({
       forEach: (cb: (doc: { data: () => unknown }) => void) => {
         cb({ data: () => existingPermission });
+        extraPermissions.forEach((p) => cb({ data: () => p }));
       },
     })
   ),
@@ -88,6 +91,27 @@ vi.mock('@/context/useDashboard', () => ({
 describe('FeaturesPanel', () => {
   afterEach(() => {
     cleanup();
+    extraPermissions = [];
+  });
+
+  it('lists a graduated preview under Other with a Retire link', async () => {
+    extraPermissions = [
+      {
+        featureId: 'plc-docs-toolbar',
+        accessLevel: 'public',
+        betaUsers: [],
+        enabled: true,
+        buildings: ['schumann'],
+        graduated: true,
+      },
+    ];
+    render(<FeaturesPanel />);
+    const link = await screen.findByTestId('retire-plc-docs-toolbar');
+    expect(screen.getByText('Other')).toBeInTheDocument();
+    const body =
+      new URL(link.getAttribute('href') ?? '').searchParams.get('body') ?? '';
+    expect(body).toContain('Schumann Elementary');
+    expect(screen.queryByTestId('retire-live-session')).toBeNull();
   });
 
   // A pre-existing legacy mixed-case entry must not produce a duplicate on re-add.

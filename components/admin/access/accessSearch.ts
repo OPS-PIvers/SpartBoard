@@ -3,7 +3,11 @@ import {
   ALL_GLOBAL_FEATURES,
   FEATURE_DEFAULTS,
 } from '@/config/featureDefaults';
-import { ROLLOUT_SWITCHES, type RolloutSwitch } from '@/config/rolloutSwitches';
+import {
+  ROLLOUT_SWITCHES,
+  rolloutSwitchKey,
+  type RolloutSwitch,
+} from '@/config/rolloutSwitches';
 import { FOCUS_HOURS_SEARCH_FIELDS } from '@/config/focusSessions';
 import type { GlobalFeature } from '@/types';
 
@@ -134,17 +138,25 @@ export const matchesSearch = (
   return words.every((w) => haystack.includes(w));
 };
 
+const NO_SWITCHES: ReadonlySet<string> = new Set();
+
 const rowsFor = (
-  graduated: GraduatedSet
+  graduated: GraduatedSet,
+  graduatedSwitches: ReadonlySet<string>
 ): Record<AccessTabId, readonly (readonly (string | undefined)[])[]> => ({
   widgets: TOOLS.map((t) => widgetSearchFields(t, undefined, graduated)),
   features: [
     ASSIGNMENT_MODES_SEARCH_FIELDS,
     ...featuresTabFeatures(graduated).map(featureSearchFields),
+    ...ROLLOUT_ONLY_SWITCHES.filter((sw) =>
+      graduatedSwitches.has(rolloutSwitchKey(sw))
+    ).map(rolloutSearchFields),
   ],
   previews: [
     ...previewFeatures(graduated).map(featureSearchFields),
-    ...ROLLOUT_ONLY_SWITCHES.map(rolloutSearchFields),
+    ...ROLLOUT_ONLY_SWITCHES.filter(
+      (sw) => !graduatedSwitches.has(rolloutSwitchKey(sw))
+    ).map(rolloutSearchFields),
     FOCUS_HOURS_SEARCH_FIELDS,
   ],
 });
@@ -152,9 +164,10 @@ const rowsFor = (
 /** Matching row count per Access tab, from static metadata so no tab has to mount. */
 export const countAccessMatches = (
   query: string,
-  graduated: GraduatedSet = NONE
+  graduated: GraduatedSet = NONE,
+  graduatedSwitches: ReadonlySet<string> = NO_SWITCHES
 ): Record<AccessTabId, number> => {
-  const rows = rowsFor(graduated);
+  const rows = rowsFor(graduated, graduatedSwitches);
   return {
     widgets: rows.widgets.filter((f) => matchesSearch(query, f)).length,
     features: rows.features.filter((f) => matchesSearch(query, f)).length,

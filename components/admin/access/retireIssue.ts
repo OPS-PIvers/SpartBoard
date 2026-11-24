@@ -1,7 +1,11 @@
 import type { GlobalFeature, GlobalFeaturePermission } from '@/types';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 import { BUILDINGS_BY_ID } from '@/config/buildings';
-import { rolloutSwitchKey, type RolloutSwitch } from '@/config/rolloutSwitches';
+import {
+  ROLLOUT_SWITCHES,
+  rolloutSwitchKey,
+  type RolloutSwitch,
+} from '@/config/rolloutSwitches';
 import { isReadyToGraduate, previewStatus } from './previewStatus';
 
 export const RETIRE_LABEL = 'retire-flag';
@@ -62,6 +66,10 @@ export const retireIssueUrl = (
     ...reach,
     `- Remove \`${featureId}\` from \`GlobalFeature\` in \`types.ts\`, \`FEATURE_DEFAULTS\` in \`config/featureDefaults.ts\`, and \`functions/src/featureMissingDoc.ts\`.`,
     "- Add a What's New entry in a new `changelog.d/<name>.json` file if teachers gain or lose something they never got a note for (docs/DEV_WORKFLOW.md).",
+    ...ROLLOUT_SWITCHES.filter((sw) => sw.feature === featureId).map(
+      (sw) =>
+        `- It also has the district switch "${sw.title}" (\`admin_settings/${sw.docId}\`), now ${districtOn ? 'on' : 'off'}. Remove its \`ROLLOUT_SWITCHES\` entry and every read of it the same way, and its id from the \`firestore.rules\` read list.`
+    ),
     '- Leave the `global_permissions` doc alone; nothing reads it once the gate is gone.',
     '- Add the id to `RETIRED_TOUR_FEATURES` in `config/tourConditions.ts`, then rerun `tests/mcpTourConditionList.test.ts` with `UPDATE_TOUR_ANCHOR_LIST=1`.',
     '- If the old path had its own Firestore collection or `admin_settings` doc, delete its rules in `firestore.rules` and flip its rules tests to `assertFails` (`tests/rulesDeadPaths.test.ts` fails until you do).',
