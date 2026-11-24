@@ -221,7 +221,7 @@ describe('mergeBankSources', () => {
     expect(out[1].driveFileId).toBe('drive-b');
   });
 
-  it('pins own synced banks to the owner and never pins from a header', () => {
+  it('pins own synced banks to the owner and shared rows to the header sharer', () => {
     const own = [
       meta({ id: 'a', sync: { groupId: 'group-a', plcIds: ['p1'] } }),
       meta({ id: 'b', driveFileId: 'drive-b' }),
@@ -239,7 +239,7 @@ describe('mergeBankSources', () => {
     );
     expect(out[0].syncOwnerUid).toBe('me');
     expect('syncOwnerUid' in out[1]).toBe(false);
-    expect(out[2].syncOwnerUid).toBeUndefined();
+    expect(out[2].syncOwnerUid).toBe('uid-b');
   });
 
   it('dedupes the owner’s own shared bank, deleted rows and repeated groups', () => {

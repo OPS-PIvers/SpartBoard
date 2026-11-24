@@ -169,6 +169,24 @@ describe('PlcQuestionBanksBody', () => {
     );
   });
 
+  it('refuses the copy and toasts an error when the synced bank has another owner', async () => {
+    entries = [entry({})];
+    saveBank.mockClear();
+    addToast.mockClear();
+    loadSyncedBankContent.mockRejectedValue(
+      new Error('This shared bank is no longer available.')
+    );
+    render(<PlcQuestionBanksBody plc={plc} />);
+    fireEvent.click(screen.getByRole('button', { name: /copy to my banks/i }));
+    await waitFor(() =>
+      expect(addToast).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to copy'),
+        'error'
+      )
+    );
+    expect(saveBank).not.toHaveBeenCalled();
+  });
+
   it('shows Stop sharing only to the owner and unshares through the bank hook', async () => {
     entries = [entry({ sharedBy: 'teacher-1' })];
     banks = [
