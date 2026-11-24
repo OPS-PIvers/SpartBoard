@@ -31,6 +31,9 @@ export const CalculatorTool: React.FC = () => {
     setCalc((prev) => {
       if (prev.hasError)
         return { ...initState(), display: digit, expression: digit };
+      if (prev.waitingForOperand && prev.operator === null) {
+        return { ...initState(), display: digit, expression: digit };
+      }
       if (prev.waitingForOperand) {
         return {
           ...prev,
@@ -59,6 +62,9 @@ export const CalculatorTool: React.FC = () => {
   const pressDecimal = useCallback(() => {
     setCalc((prev) => {
       if (prev.hasError) return initState();
+      if (prev.waitingForOperand && prev.operator === null) {
+        return { ...initState(), display: '0.', expression: '0.' };
+      }
       if (prev.waitingForOperand) {
         return {
           ...prev,
