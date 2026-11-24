@@ -2119,12 +2119,20 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         auth.currentUser
           ? (session?.studentAccess?.[auth.currentUser.uid] ?? null)
           : null,
+        auth.currentUser
+          ? (session?.studentAccessFrom?.[auth.currentUser.uid] ?? null)
+          : null,
       ])
     : '';
   useEffect(() => {
     if (!inContent || !session) return;
     const now = getServerNow();
-    const nextOpen = nextScheduledOpen(session, periodKeys, now);
+    const nextOpen = nextScheduledOpen(
+      session,
+      periodKeys,
+      now,
+      auth.currentUser?.uid
+    );
     if (nextOpen == null) return;
     const id = setTimeout(
       () => setContentRetry((n) => n + 1),

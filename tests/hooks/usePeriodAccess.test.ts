@@ -24,6 +24,7 @@ import {
 import { BELL_CLOSE_CUSHION_MS } from '@/utils/periodPlan';
 
 vi.mock('firebase/firestore', () => ({
+  deleteField: vi.fn(() => '__delete__'),
   collection: vi.fn((_db: unknown, ...segs: string[]) => segs.join('/')),
   doc: vi.fn((_db: unknown, ...segs: string[]) => segs.join('/')),
   FieldPath: class {

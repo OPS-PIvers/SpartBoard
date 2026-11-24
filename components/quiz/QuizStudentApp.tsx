@@ -1690,7 +1690,12 @@ const QuizJoinFlow: React.FC<{
         ) : (
           <QuizPeriodLockedScreen
             session={session}
-            opensAt={nextScheduledOpen(session, periodKeys, periodNow)}
+            opensAt={nextScheduledOpen(
+              session,
+              periodKeys,
+              periodNow,
+              authedUid
+            )}
             pin={pin}
           />
         );

@@ -18,6 +18,7 @@ import {
   effectivePeriodState,
   nextScheduledOpen,
   studentCanEnter,
+  studentSetTime,
 } from '@/utils/periodAccess';
 import {
   workAvailability,
@@ -212,8 +213,11 @@ function dueLine(row: LandingRow, nowMs: number): React.ReactNode {
 /** D22: a locked class reads Paused, its scheduled open, or Not open yet. */
 function periodLockLine(
   gate: NonNullable<AssignmentSummary['periodGate']>,
-  nowMs: number
+  nowMs: number,
+  uid: string | null
 ): string {
+  const own = studentSetTime(gate, uid);
+  if (own && own.from > nowMs) return formatOpensLabel(own.from);
   const paused = gate.periodKeys.some((k) => {
     const access = gate.periodAccess?.[k];
     return !!access && effectivePeriodState(access, nowMs) === 'paused';
@@ -249,7 +253,7 @@ export const WorkRow: React.FC<WorkRowProps> = ({
         ? 'Paused'
         : 'Not open yet'
       : periodLocked
-        ? periodLockLine(gate, nowMs)
+        ? periodLockLine(gate, nowMs, pseudonymUid)
         : null;
   const live = workAvailability(row, nowMs, pseudonymUid) === 'live';
   const tour = tourFieldAttr(

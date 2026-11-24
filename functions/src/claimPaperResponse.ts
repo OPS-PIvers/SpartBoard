@@ -320,7 +320,17 @@ export async function handleReleasePaperResponse(
       ) {
         const rest = { ...(access as Record<string, unknown>) };
         delete rest[oldUid];
-        tx.update(sessionRef, { studentAccess: rest });
+        const from = live.studentAccessFrom;
+        if (from !== null && typeof from === 'object' && oldUid in from) {
+          const restFrom = { ...(from as Record<string, unknown>) };
+          delete restFrom[oldUid];
+          tx.update(sessionRef, {
+            studentAccess: rest,
+            studentAccessFrom: restFrom,
+          });
+        } else {
+          tx.update(sessionRef, { studentAccess: rest });
+        }
       }
     }
     return { released: true } as const;

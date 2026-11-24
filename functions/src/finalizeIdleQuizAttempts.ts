@@ -50,6 +50,8 @@ import { logger } from 'firebase-functions';
 import * as admin from './firebaseAdmin';
 import {
   isPeriodFrozen,
+  passActive,
+  setTimeStart,
   PERIOD_WINDOW_GRACE_MS,
   withQuizSessionContent,
 } from './quizSessionContent';
@@ -145,6 +147,7 @@ interface QuizSessionDoc {
   dueLocks?: boolean;
   periodAccess?: unknown;
   studentAccess?: unknown;
+  studentAccessFrom?: unknown;
   reopenedFor?: unknown;
 }
 
@@ -196,6 +199,7 @@ function overFlags(data: QuizSessionDoc, now: number): OverFlags {
     periodGate: {
       periodAccess: data.periodAccess,
       studentAccess: data.studentAccess,
+      studentAccessFrom: data.studentAccessFrom,
       reopenedFor: data.reopenedFor,
     },
   };
@@ -208,6 +212,11 @@ function attemptOver(
   now: number
 ): boolean {
   if (session.runOver) return true;
+  // A time set for this student keeps the attempt for them, past a closed class or the due.
+  if (
+    setTimeStart(session.periodGate, uidOf(d), now, IDLE_THRESHOLD_MS) != null
+  )
+    return false;
   if (classClosedOver(session.periodGate, d, now)) return true;
   if (!session.pastClose || d.unlocked === true) return false;
   if (!session.dueLocks) return true;
@@ -216,6 +225,11 @@ function attemptOver(
     !pausedBeforeLateClose(session.periodGate, d, now)
   );
 }
+
+const uidOf = (d: unknown): string => {
+  const uid = (d as Record<string, unknown>).studentUid;
+  return typeof uid === 'string' ? uid : '';
+};
 
 /** ASSIGNED_TAB D6: a class the teacher closed is finished once the write grace passes, unless this student was let back in. */
 function classClosedOver(
@@ -226,10 +240,7 @@ function classClosedOver(
   const r = d as Record<string, unknown>;
   if (r.unlocked === true) return false;
   const uid = typeof r.studentUid === 'string' ? r.studentUid : '';
-  const pass = (gate.studentAccess as Record<string, unknown> | undefined)?.[
-    uid
-  ];
-  if (typeof pass === 'number' && pass > now) return false;
+  if (passActive(gate, uid, now)) return false;
   if (Array.isArray(gate.reopenedFor) && gate.reopenedFor.includes(uid))
     return false;
   const rows = gate.periodAccess as
@@ -563,9 +574,16 @@ export async function runFinalizeIdleQuizAttempts(
     // A student held at a Stop waits for the next part, possibly for days.
     // None can resume once the run has ended or its close has passed, so they are turned in then.
     const snapData = docSnap.data() ?? {};
+    // A scheduled student is not idle while their window runs, or the idle threshold after it starts.
     const heldOrFrozen =
       waitsForStudent(snapData) ||
-      isPeriodFrozen(meta.periodGate, snapData, finalizedAt);
+      isPeriodFrozen(meta.periodGate, snapData, finalizedAt) ||
+      setTimeStart(
+        meta.periodGate,
+        uidOf(snapData),
+        finalizedAt,
+        IDLE_THRESHOLD_MS
+      ) != null;
     const sessionPaused = meta.status === 'paused';
     if (
       (sessionPaused || heldOrFrozen) &&

@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import {
   collection,
+  deleteField,
   doc,
   FieldPath,
   getDocs,
@@ -308,10 +309,29 @@ export function usePeriodAccess(
         await updateDoc(
           refs.session,
           new FieldPath('studentAccess', uid),
-          until
+          until,
+          // A Let in now replaces any time set for later.
+          new FieldPath('studentAccessFrom', uid),
+          deleteField()
         );
     },
     [refs, periodAccess, rosters, featurePermissions, commit]
+  );
+
+  /** "Set a time": one student's pass from `from` to `until`; null removes it. */
+  const setStudentTime = useCallback(
+    async (uid: string, time: { from: number; until: number } | null) => {
+      if (!refs || !periodAccess || commit)
+        throw new Error('Cannot schedule here');
+      await updateDoc(
+        refs.session,
+        new FieldPath('studentAccess', uid),
+        time ? time.until : deleteField(),
+        new FieldPath('studentAccessFrom', uid),
+        time ? time.from : deleteField()
+      );
+    },
+    [refs, periodAccess, commit]
   );
 
   const keys = useMemo(() => Object.keys(periodAccess ?? {}), [periodAccess]);
@@ -335,6 +355,7 @@ export function usePeriodAccess(
         )
       ),
     letIn,
+    setStudentTime,
   };
 }
 

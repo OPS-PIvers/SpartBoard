@@ -30,7 +30,22 @@ export function isLetIn(
 ): boolean {
   if (!uid) return false;
   const until = session?.studentAccess?.[uid];
-  return typeof until === 'number' && until > nowMs;
+  if (typeof until !== 'number' || until <= nowMs) return false;
+  const from = session?.studentAccessFrom?.[uid];
+  return typeof from !== 'number' || from <= nowMs;
+}
+
+/** A time the teacher set for one student ("Set a time"), or null for none or a plain Let in. */
+export function studentSetTime(
+  session: PeriodAccessSessionFields | null | undefined,
+  uid: string | null | undefined
+): { from: number; until: number } | null {
+  if (!uid) return null;
+  const from = session?.studentAccessFrom?.[uid];
+  const until = session?.studentAccess?.[uid];
+  return typeof from === 'number' && typeof until === 'number' && until > from
+    ? { from, until }
+    : null;
 }
 
 /** The session's period keys this student belongs to (claim classes, or the picked period's label). */
@@ -79,10 +94,14 @@ export function pickPeriodKey(
 export function nextScheduledOpen(
   session: PeriodAccessSessionFields,
   periodKeys: readonly string[],
-  nowMs: number
+  nowMs: number,
+  /** Also counts a time the teacher set for this student. */
+  uid?: string | null
 ): number | null {
   const pa = session.periodAccess ?? {};
-  let next: number | null = null;
+  const own = studentSetTime(session, uid);
+  let next: number | null =
+    own && own.from > nowMs && own.until > own.from ? own.from : null;
   for (const k of periodKeys) {
     const access = pa[k];
     if (!access || effectivePeriodState(access, nowMs) !== 'scheduled')

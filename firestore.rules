@@ -344,6 +344,11 @@ service cloud.firestore {
     function studentLetIn(s) {
       return s.get('studentAccess', {}).get(authUid(), 0) > request.time.toMillis();
     }
+    // Quiz "Schedule for later" also sets when the pass starts, with the window grace.
+    function quizLetIn(s) {
+      return studentLetIn(s) &&
+             s.get('studentAccessFrom', {}).get(authUid(), 0) <= request.time.toMillis() + 120000;
+    }
     // A join on a per-period session names a period the session targets, backed
     // by the caller's class claim when signed in; assessment mode refuses the
     // anonymous PIN key, whose self-picked period no rule can check. Joining a
@@ -4746,7 +4751,8 @@ service cloud.firestore {
             (s.status != 'paused' &&
              // studentUid is authUid() here and cheaper: a PIN token's authUid() costs more expressions.
              (periodOpen(s, existing().get('classId', null)) ||
-              s.get('studentAccess', {}).get(existing().studentUid, 0) > request.time.toMillis()))) &&
+              (s.get('studentAccess', {}).get(existing().studentUid, 0) > request.time.toMillis() &&
+               s.get('studentAccessFrom', {}).get(existing().studentUid, 0) <= request.time.toMillis() + 120000)))) &&
            unchanged('studentUid') &&
            // SSO studentRole responses omit `pin` entirely, so direct dot-access on
            // `resource.data.pin` would throw a Null-value error and deny the write. Use
@@ -5002,7 +5008,7 @@ service cloud.firestore {
       match /content/{docId} {
         allow read: if signedIn() && (
           liveUid(sessionTeacherUid()) || isAdmin() ||
-          isSubMonitor(sessionData()) || studentLetIn(sessionData()) ||
+          isSubMonitor(sessionData()) || quizLetIn(sessionData()) ||
           sessionData().status == 'ended' ||
           periodOpen(sessionData(), seatedClassId('quiz_sessions', sessionId))
         );
