@@ -888,7 +888,7 @@ describe('handleSetAssignmentTargets', () => {
     await run(
       baseInput({
         overridesBySourcedId: {
-          [`classlink:${SOURCED_A}`]: { timeMultiplier: 3 },
+          [`classlink:${SOURCED_A}`]: { timeMultiplier: 1.5 },
         },
       })
     );
@@ -896,7 +896,7 @@ describe('handleSetAssignmentTargets', () => {
     const stored = state.docs.get(assignmentPath()) as {
       overridesByStudentUid: Record<string, unknown>;
     };
-    expect(stored.overridesByStudentUid[uid]).toEqual({ timeMultiplier: 3 });
+    expect(stored.overridesByStudentUid[uid]).toEqual({ timeMultiplier: 1.5 });
   });
 
   it('clears the mirrored entry on an explicit null for that key', async () => {
