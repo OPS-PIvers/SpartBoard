@@ -120,6 +120,10 @@ export const AssignedChip: React.FC<AssignedChipProps> = ({
   }, [open]);
 
   const onMenuKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Tab') {
+      setOpen(false);
+      return;
+    }
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     e.preventDefault();
     const rows = Array.from(
@@ -133,6 +137,7 @@ export const AssignedChip: React.FC<AssignedChipProps> = ({
 
   const pick = (o: AssignedChipOption) => {
     setOpen(false);
+    btn.current?.focus();
     o.onSelect?.();
   };
 
@@ -226,6 +231,7 @@ export const AssignedChip: React.FC<AssignedChipProps> = ({
       </button>
       {open &&
         pos &&
+        !disabled &&
         createPortal(
           <div
             ref={menu}

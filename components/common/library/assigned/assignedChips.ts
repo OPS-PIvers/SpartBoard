@@ -61,6 +61,10 @@ export function statusChipOptions(o: ChipInputs): AssignedChipOption[] {
     scheduled: 'Scheduled',
     closed: 'Closed',
   };
+  // Resuming classes one call at a time races a whole-run pause, so only one is offered.
+  const pausedCount = status.singleLine
+    ? 1
+    : status.classes.filter((c) => c.status === 'paused').length;
   const opts: AssignedChipOption[] = [];
   if (state === 'ready' || state === 'scheduled')
     opts.push({ id: state, label: word[state], selected: true });
@@ -82,7 +86,7 @@ export function statusChipOptions(o: ChipInputs): AssignedChipOption[] {
       selected: state === 'open',
       onSelect: !o.classControls
         ? undefined
-        : state === 'paused'
+        : state === 'paused' && pausedCount === 1
           ? each('resume', 'paused')
           : state !== 'open' && status.singleLine
             ? () => onClassAction('open', null)
@@ -109,7 +113,10 @@ export function statusChipOptions(o: ChipInputs): AssignedChipOption[] {
     iconClass: 'text-slate-500',
     selected: state === 'closed',
     onSelect: state === 'closed' ? undefined : close,
-    anchor: state === 'closed' ? anchor('closed') : closeAll?.anchor,
+    anchor:
+      state === 'closed'
+        ? anchor('closed')
+        : (closeAll?.anchor ?? anchor('closed')),
   });
   return opts.filter((x) => !!x.selected || !!x.onSelect);
 }
@@ -150,7 +157,9 @@ export function publishChipOptions(
         onSelect: published
           ? (unpublish?.onClick ?? publish.onClick)
           : undefined,
-        anchor: published ? unpublish?.anchor : anchor('not-published'),
+        anchor:
+          (published ? unpublish?.anchor : undefined) ??
+          anchor('not-published'),
       },
       {
         id: 'published',
@@ -158,7 +167,7 @@ export function publishChipOptions(
         icon: Eye,
         selected: published,
         onSelect: published ? undefined : publish.onClick,
-        anchor: published ? anchor('published') : publish.anchor,
+        anchor: (published ? undefined : publish.anchor) ?? anchor('published'),
       },
     ],
     footer: published
@@ -167,7 +176,7 @@ export function publishChipOptions(
           label: 'Publish settings',
           icon: Settings2,
           onSelect: publish.onClick,
-          anchor: publish.anchor,
+          anchor: publish.anchor ?? anchor('settings'),
         }
       : undefined,
   };

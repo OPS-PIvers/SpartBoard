@@ -162,7 +162,7 @@ describe('RunAssignedTab', () => {
     ]);
   });
 
-  it('a row with several classes moves Closed to the status chip, and Reopen once all are closed', () => {
+  it('a row with several classes moves Closed to the status chip and keeps Reopen for a partly closed row', () => {
     renderTab([
       ma({
         periodAccess: {
@@ -175,6 +175,7 @@ describe('RunAssignedTab', () => {
       'Copy student link',
       'Open app',
       'Edit classes',
+      'Reopen',
       'Move to Finished',
       'Delete',
     ]);
@@ -199,7 +200,7 @@ describe('RunAssignedTab', () => {
     expect(publishItems()).toEqual(['Not published', 'Published']);
   });
 
-  it('an open row with a closed class keeps Reopen out of its menus', async () => {
+  it('an open row with a closed class keeps Reopen in the ⋯ menu', async () => {
     renderTab([
       ma({
         periodAccess: {
@@ -209,12 +210,11 @@ describe('RunAssignedTab', () => {
         },
       }),
     ]);
-    statusItems();
-    await userEvent.click(screen.getByRole('menuitemradio', { name: 'Open' }));
-    expect(actions.openClass).not.toHaveBeenCalled();
-    fireEvent.click(document.body);
-    await userEvent.click(screen.getByRole('button', { name: /more/i }));
-    expect(screen.queryByRole('menuitem', { name: 'Reopen' })).toBeNull();
+    expect(statusItems()).toEqual(['Open', 'Closed']);
+    closeChip();
+    menuItems();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Reopen' }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
   });
 
   it('Reopen from the status chip asks which class and reopens it for everyone', async () => {

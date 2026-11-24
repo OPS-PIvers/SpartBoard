@@ -259,7 +259,6 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
     '--asg-py': 'min(10px, 2.2cqmin)',
   } as React.CSSProperties;
   const open = expanded && !select;
-  const kebab = menuActions.filter((m) => !m.chip);
   const chipInputs = {
     status,
     menuActions,
@@ -271,6 +270,12 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   };
   const statusOptions = focus || select ? [] : statusChipOptions(chipInputs);
   const showStatusChip = statusOptions.some((x) => !x.selected);
+  // Items stay in the ⋯ menu wherever their chip isn't shown, e.g. under a class filter.
+  const kebab = menuActions.filter(
+    (m) =>
+      !(m.chip === 'status' && showStatusChip) &&
+      !(m.chip === 'publish' && !select)
+  );
   const publishChip = select
     ? null
     : publishChipOptions(menuActions, rowKey, tourWidgetType);

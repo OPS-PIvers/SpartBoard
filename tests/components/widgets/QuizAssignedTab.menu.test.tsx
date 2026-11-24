@@ -190,6 +190,7 @@ describe('Quiz Assigned row menu', () => {
       'Student view',
       'Settings',
       'Share results with PLC',
+      'Reopen',
       'Move to Finished',
       'Delete',
     ]);

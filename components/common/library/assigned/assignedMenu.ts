@@ -118,7 +118,8 @@ export function assignedMenu(o: AssignedMenuOptions): LibraryMenuAction[] {
       id: 'assigned-reopen',
       label: 'Reopen',
       icon: RotateCcw,
-      chip: 'status',
+      // Reopen for a row that is only partly closed stays in the ⋯ menu.
+      ...(allClosed ? { chip: 'status' as const } : {}),
       anchor:
         o.reopenAnchor ??
         tourTypeAttr('library-shell.assigned-reopen', o.tourWidgetType),
