@@ -5194,3 +5194,12 @@ rather than "no data") is also still open.
   - Ready: #6586 (after the fix), #6585, #6583, #6582, #6577, #6534.
   - Ready with minor notes: #6584 (a persistent read failure retries every 5 s with no backoff or cap).
 - Notes: CI `summary` was green on all seven at review time. The only change was a docs table fix, so I ran `prettier --check` instead of type-check, lint or tests.
+
+## 2026-11-24
+- PRs reviewed: #6664 docs(debugger): nightly run 133 log; #6663 fix(quiz): treat U+2212 minus as '-' in fill-in-blank number matching; #6662 fix(admin): Smart Notebook storage limit field no longer snaps back when cleared; #6661 fix(plc): parseDateKey rejects dates that do not exist on the calendar; #6660 fix(import): friendly message when template URL clipboard copy is blocked; #6659 fix(calculator): digit or decimal after equals starts a fresh expression
+- Comments processed: 4 total, 0 fixed, 0 replied to. All four were Claude bot "no issues" summaries (on #6659, #6660, #6662 and #6663) with no inline threads and nothing to act on, so I didn't post replies.
+- Fixes pushed: none.
+- Reviews posted: 6
+  - Ready: #6659, #6661, #6662, #6663, #6664 (merge after #6659–#6663).
+  - Ready with minor notes: #6660 (the fallback message sends teachers to "Create template", which makes a second template).
+- Notes: CI `summary` was green on all six and none had merge conflicts. Nothing was changed, so I didn't run lint, type-check or tests locally.
