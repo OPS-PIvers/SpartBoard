@@ -1,5 +1,6 @@
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { accessibleName, locate, roleOf } from './locate';
+import { shareOwnRoot } from '../ownRoots';
 
 const rects = new WeakMap<Element, DOMRect>();
 const place = (el: Element | null, x: number, y: number, w = 40, h = 20) => {
@@ -112,6 +113,30 @@ describe('locate', () => {
     expect(locate(document, { role: 'button', name: 'Submit' })?.el.id).toBe(
       'in'
     );
+  });
+
+  it("finds the extension's own buttons inside its closed shadow roots, and no other closed root", () => {
+    html(`<div id="page"></div>`);
+    const mount = (registered: boolean) => {
+      const host = document.createElement('div');
+      const closed = host.attachShadow({ mode: 'closed' });
+      if (registered) shareOwnRoot(closed);
+      closed.innerHTML = `<button aria-label="Send to SpartBoard">Send to SpartBoard</button>`;
+      place(closed.querySelector('button'), 5, 5);
+      document.documentElement.append(host);
+      return { host, button: closed.querySelector('button') };
+    };
+    const page = mount(false);
+    expect(
+      locate(document, { role: 'button', name: 'Send to SpartBoard' })
+    ).toBeNull();
+    const own = mount(true);
+    expect(
+      locate(document, { role: 'button', name: 'Send to SpartBoard' })?.el
+    ).toBe(own.button);
+    own.host.remove();
+    page.host.remove();
+    globalThis.__sbOwnShadowRoots = undefined;
   });
 
   it('finds text targets inside open shadow roots', () => {

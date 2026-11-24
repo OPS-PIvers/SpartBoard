@@ -4,6 +4,7 @@ import {
   isFrameCommand,
   type FrameReport,
 } from './frameScript';
+import { shareOwnRoot } from '../ownRoots';
 
 // eslint-disable-next-line @typescript-eslint/unbound-method -- restored onto the prototype after the suite
 const orig = Element.prototype.getBoundingClientRect;
@@ -159,6 +160,23 @@ describe('frame seeker', () => {
     shadow.innerHTML = '<button>Load more</button>';
     await vi.advanceTimersByTimeAsync(FRAME);
     expect(reports[0]).toMatchObject({ type: 'wt:found', token: 't1' });
+  });
+
+  it("finds the extension's own button when its closed root mounts after the search began", async () => {
+    vi.useFakeTimers();
+    const reports: FrameReport[] = [];
+    const run = installFrameSeeker(document, (r) => reports.push(r));
+    run({ ...seek, clues: { role: 'button', name: 'Send to SpartBoard' } });
+    const host = document.createElement('div');
+    const closed = shareOwnRoot(host.attachShadow({ mode: 'closed' }));
+    closed.innerHTML = '<button>Send to SpartBoard</button>';
+    document.documentElement.append(host);
+    await vi.advanceTimersByTimeAsync(FRAME);
+    expect(reports[0]).toMatchObject({ type: 'wt:found', token: 't1' });
+    const button = closed.querySelector('button')!;
+    expect(globalThis.__sbWebTourFrame?.target?.el).toBe(button);
+    host.remove();
+    globalThis.__sbOwnShadowRoots = undefined;
   });
 
   it('moves straight on to the next step when the learner acts, and keeps it when the worker confirms', async () => {
