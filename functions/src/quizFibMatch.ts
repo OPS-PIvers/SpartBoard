@@ -85,9 +85,9 @@ export function relaxFibAnswer(value: string, locale: string): string {
 
 const NUMBER = /[-−+]?\d+(?:[.,/]\d+)?/gu;
 
-// "31,4" and "31.4" are the same number; neither ever costs a typo.
+// "31,4" and "31.4" (and U+2212 minus vs "-") are the same number; neither ever costs a typo.
 const canonicalNumbers = (value: string): string =>
-  value.replace(NUMBER, (n) => n.replace(',', '.'));
+  value.replace(NUMBER, (n) => n.replace(',', '.').replace('−', '-'));
 
 /** One wrong letter from 4 letters up; two would let near neighbours like mitosis and meiosis through. */
 const typoAllowance = (length: number): number => (length <= 3 ? 0 : 1);
