@@ -22025,7 +22025,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-monitor.student-set-time",
-    "label": "Schedule item in the Quiz monitor student menu",
+    "label": "Schedule for later item in the Quiz monitor student menu",
     "scope": "widget type",
     "panel": true,
     "keys": [

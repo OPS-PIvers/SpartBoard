@@ -5464,7 +5464,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-monitor.student-set-time': {
-    label: 'Schedule item in the Quiz monitor student menu',
+    label: 'Schedule for later item in the Quiz monitor student menu',
     perWidgetType: true,
     panel: true,
   },
