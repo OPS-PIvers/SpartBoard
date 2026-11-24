@@ -95,3 +95,16 @@ export const rowMenuItems = async (
   await expect(page.getByRole('menuitem').first()).toBeVisible();
   return page.getByRole('menuitem').allInnerTexts();
 };
+
+/** Opens an Assigned row's status or scores chip and lists its choices. */
+export const rowChipItems = async (
+  page: Page,
+  library: Locator,
+  chip: 'Status' | 'Scores'
+): Promise<string[]> => {
+  await library
+    .getByRole('button', { name: new RegExp(`^${chip} (of|for) `) })
+    .click();
+  await expect(page.getByRole('menuitemradio').first()).toBeVisible();
+  return page.getByRole('menuitemradio').allInnerTexts();
+};
