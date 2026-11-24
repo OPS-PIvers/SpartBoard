@@ -12,6 +12,12 @@ vi.mock('./firebaseAdmin', () => ({
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {
     FieldValue: { delete: () => ({ __delete: true }) },
+    FieldPath: class {
+      segments: string[];
+      constructor(...segments: string[]) {
+        this.segments = segments;
+      }
+    },
   }),
 }));
 
@@ -219,7 +225,10 @@ function makeDb(state: StubState) {
         set: (
           ref: { __path: string },
           data: Record<string, unknown>,
-          options?: { merge?: boolean; mergeFields?: string[] }
+          options?: {
+            merge?: boolean;
+            mergeFields?: (string | { segments: string[] })[];
+          }
         ) => void;
         delete: (ref: { __path: string }) => void;
       }) => Promise<unknown>
@@ -229,13 +238,21 @@ function makeDb(state: StubState) {
         set: (ref, data, options) => {
           state.writes.push({ path: ref.__path, op: 'set', data });
           if (options?.mergeFields) {
-            const flat: Record<string, unknown> = {};
-            for (const f of options.mergeFields) flat[f] = data[f];
             const next = { ...(state.docs.get(ref.__path) ?? {}) };
-            for (const [k, v] of Object.entries(flat)) {
-              if ((v as { __delete?: boolean })?.__delete === true)
-                delete next[k];
-              else next[k] = v;
+            for (const f of options.mergeFields) {
+              const segs = typeof f === 'string' ? [f] : f.segments;
+              let src: unknown = data;
+              for (const seg of segs)
+                src = (src as Record<string, unknown>)[seg];
+              let dst = next;
+              for (const seg of segs.slice(0, -1)) {
+                dst[seg] = { ...((dst[seg]) ?? {}) };
+                dst = dst[seg] as Record<string, unknown>;
+              }
+              const last = segs[segs.length - 1];
+              if ((src as { __delete?: boolean })?.__delete === true)
+                delete dst[last];
+              else dst[last] = src;
             }
             state.docs.set(ref.__path, next);
           } else applyMerge(state, ref.__path, data);
@@ -854,6 +871,32 @@ describe('handleSetAssignmentTargets', () => {
     expect(state.docs.get(assignmentPath())).toMatchObject({
       overridesByStudentUid: { [uid]: { timeMultiplier: 2 } },
     });
+  });
+
+  it('replaces the mirrored override whole, dropping removed nested keys', async () => {
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: {
+            readAloud: true,
+            questionIds: ['q1'],
+            timeMultiplier: 2,
+          },
+        },
+      })
+    );
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { timeMultiplier: 3 },
+        },
+      })
+    );
+    const uid = computeStudentUid(SOURCED_A, HMAC);
+    const stored = state.docs.get(assignmentPath()) as {
+      overridesByStudentUid: Record<string, unknown>;
+    };
+    expect(stored.overridesByStudentUid[uid]).toEqual({ timeMultiplier: 3 });
   });
 
   it('clears the mirrored entry on an explicit null for that key', async () => {
