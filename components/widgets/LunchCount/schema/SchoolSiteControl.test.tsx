@@ -1,5 +1,4 @@
 // Pins that a site change resets lastSyncDate too, or useNutrislice never re-fetches the new site.
-import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, fireEvent, screen } from '@testing-library/react';
 import type { WidgetData } from '@/types';

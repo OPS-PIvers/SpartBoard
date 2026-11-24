@@ -7,7 +7,6 @@
  * stripped attribution), and unshare gating on the non-viewer role.
  */
 
-import React from 'react';
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { I18nextProvider, initReactI18next } from 'react-i18next';

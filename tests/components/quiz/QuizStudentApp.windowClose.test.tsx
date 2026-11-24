@@ -5,7 +5,6 @@
  * Comparisons use the server-offset clock (`utils/serverTime.getServerNow`),
  * mocked here so the test controls "now" directly.
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

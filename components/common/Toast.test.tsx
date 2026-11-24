@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Toast } from './Toast';
 import { describe, it, expect, vi } from 'vitest';

@@ -1,6 +1,5 @@
 // The submitted screen honors Quiz's three levels and per-student settings.
 import '@testing-library/jest-dom';
-import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type {

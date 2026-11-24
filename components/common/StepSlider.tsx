@@ -1,5 +1,3 @@
-import React from 'react';
-
 export interface StepSliderStep<V extends string> {
   value: V;
   label: string;

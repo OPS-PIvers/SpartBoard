@@ -4,7 +4,6 @@
 // announced leaf folders as "collapsed" even though there is no chevron and
 // no way to expand them. Fix: only set aria-expanded when the folder has
 // children; leaves omit the attribute entirely.
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen } from '@testing-library/react';
 import type { LibraryFolder } from '@/types';

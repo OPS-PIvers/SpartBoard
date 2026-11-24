@@ -4,7 +4,6 @@
  * per-call `locale` stamping (D18), the D34 localStorage guard and the D25
  * read-aloud suppression. Harness mirrors QuizStudentApp.override.test.tsx.
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

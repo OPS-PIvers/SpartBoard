@@ -4,7 +4,6 @@
  * no per-teacher breakdown, and the alignment note.
  */
 
-import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 

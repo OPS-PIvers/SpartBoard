@@ -13,7 +13,6 @@
  * already used by every other admin email/domain input in this app (see
  * BetaUsersPanel, GlobalPermissionsManager, BackgroundManager).
  */
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DomainsView } from '@/components/admin/Organization/views/DomainsView';

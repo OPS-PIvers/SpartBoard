@@ -18,7 +18,6 @@
  * The dead-code branch was removed from the selected-state condition.
  */
 
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { TypographySettings } from '@/components/common/TypographySettings';

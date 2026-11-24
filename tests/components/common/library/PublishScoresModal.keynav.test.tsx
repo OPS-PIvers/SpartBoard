@@ -1,5 +1,4 @@
 // Regression test: the score-visibility radiogroup must support roving-tabindex arrow-key nav.
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';

@@ -9,7 +9,6 @@
  * `useQuizSessionStudent` mock drives the active-question render, and an
  * SSO user auto-joins so the answer field mounts.
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

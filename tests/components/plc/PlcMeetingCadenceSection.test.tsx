@@ -1,6 +1,5 @@
 // PLC Settings meeting schedule: leads and co-leads edit it, members only read it.
 
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Plc } from '@/types';

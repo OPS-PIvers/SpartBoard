@@ -4,7 +4,6 @@
 // omits `buildingDefaults` silently wipes any building appearance defaults
 // already set for this widget.
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import type { TalkingToolGlobalConfig } from '@/types';

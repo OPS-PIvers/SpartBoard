@@ -3,7 +3,6 @@
  * a take that isn't playable, and that the bytes are fetched lazily — only on
  * the student's own press, never on render.
  */
-import React from 'react';
 import { beforeAll, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

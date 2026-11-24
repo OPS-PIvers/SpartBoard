@@ -1,6 +1,5 @@
 // Answers save to the response doc as the student goes; submit sets completedAt and only
 // then shows the completion screen, with Retry on failure.
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   act,

@@ -3,7 +3,6 @@
  * join for a skipped student — otherwise the response doc is created before
  * the render-time exclusion gate ever runs.
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

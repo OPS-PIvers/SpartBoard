@@ -1,4 +1,4 @@
-import React, { useId } from 'react';
+import { useId } from 'react';
 import { Type } from 'lucide-react';
 import { SettingsLabel } from './SettingsLabel';
 import { handleRadioGroupKeyDown } from './radioGroupKeyNav';

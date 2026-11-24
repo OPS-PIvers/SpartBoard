@@ -24,7 +24,6 @@
  *   (8) The join hint shows the user's email.
  */
 
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 

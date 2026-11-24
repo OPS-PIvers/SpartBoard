@@ -1,7 +1,6 @@
 // Pins that an in-flight verify discards its result once the teacher has
 // moved on to a different url — a stale Cloud Function response must never
 // overwrite the newer url's isEmbeddable/blockedReason.
-import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import type { WidgetData } from '@/types';

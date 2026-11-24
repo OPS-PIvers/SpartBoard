@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import React from 'react';
 import type { WidgetData } from '@/types';
 
 // Stub the sticker chain so the test does not need DraggableSticker's full

@@ -9,7 +9,6 @@
  *   3. onExtractingChange(false) fires when extraction ends (success path).
  *   4. onExtractingChange(false) fires when extraction ends (error/cancel path).
  */
-import React from 'react';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';

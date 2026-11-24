@@ -1,5 +1,3 @@
-import React from 'react';
-
 /** A small row of mutually exclusive buttons, e.g. Score / Last name. */
 export function SegmentedToggle<T extends string>({
   label,

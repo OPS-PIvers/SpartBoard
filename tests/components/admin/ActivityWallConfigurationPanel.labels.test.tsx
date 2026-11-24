@@ -2,7 +2,6 @@
 // label association fix (WCAG 1.3.1) — pins the htmlFor/id pairing so it
 // doesn't silently regress if the file is touched again.
 
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 

@@ -9,7 +9,6 @@
  * interactions via react-testing-library, query through accessible labels.
  */
 
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
