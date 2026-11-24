@@ -32,6 +32,7 @@ describe('revertViewAsChangeV1 PII scrub parity', () => {
       const expected = Object.fromEntries(
         Object.entries(config).filter(([k]) => !dropped.has(k))
       );
+      if (dropped.has('teams')) expected.teams = [];
       expect(stripPii('config', config, type)).toEqual(expected);
     }
   );

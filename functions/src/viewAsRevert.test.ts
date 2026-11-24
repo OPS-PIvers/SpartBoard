@@ -229,7 +229,7 @@ describe('normalizeValue and stripPii', () => {
         { teams: [{ id: 'pin-01', name: 'Ann' }], history: [], t: 1 },
         'scoreboard'
       )
-    ).toEqual({ t: 1 });
+    ).toEqual({ t: 1, teams: [] });
   });
 });
 
@@ -257,6 +257,24 @@ describe('revertViewAsChangeV1', () => {
       before: { x: 50, y: 60, config: { format24: true } },
       after: { x: 10, y: 20, config: { format24: false } },
     });
+  });
+
+  it('does not write name-keyed savedPlans back to a seating chart', async () => {
+    (docs[BOARD].widgets as Array<Record<string, unknown>>)[0] = {
+      id: 'w1',
+      type: 'seating-chart',
+      x: 50,
+      y: 60,
+      config: { t: 2 },
+    };
+    docs['admin_audit_log/approve1'].before = {
+      config: { t: 1, savedPlans: [{ id: 'p', assignments: { Ann: 'f' } }] },
+    };
+    docs['admin_audit_log/approve1'].after = { config: { t: 2 } };
+    const res = await revert({ auth: BOSS, data: { logId: 'approve1' } });
+    expect(res).toEqual({ status: 'reverted' });
+    const widgets = docs[BOARD].widgets as Array<Record<string, unknown>>;
+    expect(widgets[0].config).toEqual({ t: 1 });
   });
 
   it('deletes a field the save created', async () => {

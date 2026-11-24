@@ -107,6 +107,7 @@ export function stripPii(key: string, value: unknown, type = ''): unknown {
   for (const [k, v] of Object.entries(config)) {
     if (!drop.has(k)) out[k] = v;
   }
+  if (drop.has('teams')) out.teams = [];
   return out;
 }
 

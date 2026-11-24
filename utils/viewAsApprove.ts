@@ -104,7 +104,13 @@ export async function approveViewAsChange(
         if (next.config && currentConfig) {
           const kept: FieldMap = { ...(next.config as FieldMap) };
           const type = typeof current.type === 'string' ? current.type : '';
-          for (const f of widgetPiiKeys(type, currentConfig)) {
+          const afterConfig = (change.after.config ?? {}) as FieldMap;
+          const piiKeys = new Set<string>([
+            ...widgetPiiKeys(type, currentConfig),
+            ...widgetPiiKeys(type, { ...currentConfig, ...afterConfig }),
+            'assignments',
+          ]);
+          for (const f of piiKeys) {
             if (currentConfig[f] !== undefined && kept[f] === undefined) {
               kept[f] = currentConfig[f];
             }
