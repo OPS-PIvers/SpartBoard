@@ -107,25 +107,56 @@ describe('RubricGradingPanel', () => {
     });
   });
 
-  it('renders the settings menu outside the panel, kept on screen', () => {
-    renderPanel();
+  const openMenuAt = (rect: Partial<DOMRect>, size = { w: 320, h: 146 }) => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(
+      size.w
+    );
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(
+      size.h
+    );
     const gear = screen.getByRole('button', { name: 'Rubric settings' });
-    gear.getBoundingClientRect = () =>
-      ({ top: 100, bottom: 132, left: 10, right: 38 }) as DOMRect;
+    gear.getBoundingClientRect = () => rect as DOMRect;
     fireEvent.click(gear);
-    const menu = screen.getByRole('group', { name: 'Rubric settings' });
+    return {
+      gear,
+      menu: screen.getByRole('dialog', { name: 'Rubric settings' }),
+    };
+  };
+
+  it('renders the settings menu outside the panel, right-aligned under the gear', () => {
+    renderPanel();
+    const { gear, menu } = openMenuAt({
+      top: 100,
+      bottom: 132,
+      left: 900,
+      right: 928,
+    });
     expect(menu.parentElement).toBe(document.body);
-    expect(gear.closest('div')?.contains(menu)).toBe(false);
-    expect(parseFloat(menu.style.left)).toBeGreaterThanOrEqual(8);
+    expect(menu.style.left).toBe('608px');
+    expect(menu.style.top).toBe('136px');
     fireEvent.pointerDown(
       screen.getByRole('switch', { name: 'Auto-advance to next category' })
     );
     expect(menu).toBeInTheDocument();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(
-      screen.queryByRole('group', { name: 'Rubric settings' })
+      screen.queryByRole('dialog', { name: 'Rubric settings' })
     ).not.toBeInTheDocument();
     expect(gear).toHaveFocus();
+    vi.restoreAllMocks();
+  });
+
+  it('keeps the settings menu inside the screen and flips it above when low', () => {
+    renderPanel();
+    const { menu } = openMenuAt({
+      top: window.innerHeight - 40,
+      bottom: window.innerHeight - 8,
+      left: 10,
+      right: 38,
+    });
+    expect(menu.style.left).toBe('8px');
+    expect(menu.style.top).toBe(`${window.innerHeight - 40 - 4 - 146}px`);
+    vi.restoreAllMocks();
   });
 
   it('saves the jump switch and disables Auto-open while it is off', () => {

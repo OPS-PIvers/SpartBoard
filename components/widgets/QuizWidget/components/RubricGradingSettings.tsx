@@ -18,8 +18,9 @@ const GAP = 4;
 const EDGE = 8;
 
 // Right-aligns the menu under the gear, flips it above when there's no room below, and keeps it on screen.
-function placeMenu(trigger: HTMLElement, menu: HTMLElement): void {
+function placeMenu(trigger: HTMLElement, menu: HTMLElement): boolean {
   const t = trigger.getBoundingClientRect();
+  if (!gearVisible(trigger, t)) return false;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const w = menu.offsetWidth;
@@ -33,6 +34,18 @@ function placeMenu(trigger: HTMLElement, menu: HTMLElement): void {
       : above;
   menu.style.left = `${Math.max(EDGE, left)}px`;
   menu.style.top = `${top}px`;
+  return true;
+}
+
+// False once the gear has scrolled out of any clipping ancestor, so the menu doesn't float over the header.
+function gearVisible(trigger: HTMLElement, t: DOMRect): boolean {
+  for (let el = trigger.parentElement; el; el = el.parentElement) {
+    if (!/auto|scroll|hidden|clip/.test(getComputedStyle(el).overflowY))
+      continue;
+    const r = el.getBoundingClientRect();
+    if (t.bottom <= r.top || t.top >= r.bottom) return false;
+  }
+  return true;
 }
 
 interface RubricGradingSettingsProps {
@@ -95,9 +108,8 @@ export const RubricGradingSettings: React.FC<RubricGradingSettingsProps> = ({
   useLayoutEffect(() => {
     if (!open) return undefined;
     const place = (): void => {
-      if (buttonRef.current && menuRef.current) {
-        placeMenu(buttonRef.current, menuRef.current);
-      }
+      if (!buttonRef.current || !menuRef.current) return;
+      if (!placeMenu(buttonRef.current, menuRef.current)) setOpen(false);
     };
     place();
     let frame = 0;
@@ -155,9 +167,10 @@ export const RubricGradingSettings: React.FC<RubricGradingSettingsProps> = ({
       ? document.activeElement === items[0]
       : document.activeElement === items[items.length - 1];
     if (!atEdge) return;
-    e.preventDefault();
     setOpen(false);
     buttonRef.current?.focus();
+    // Shift+Tab lands on the gear; forward Tab lets the browser carry on from the gear.
+    if (e.shiftKey) e.preventDefault();
   };
 
   return (
@@ -169,7 +182,7 @@ export const RubricGradingSettings: React.FC<RubricGradingSettingsProps> = ({
         onKeyDown={onTriggerKeyDown}
         {...tourTypeAttr('quiz-grading.rubric-settings', 'quiz')}
         aria-expanded={open}
-        aria-haspopup="true"
+        aria-haspopup="dialog"
         aria-label="Rubric settings"
         title="Rubric settings"
         className={`touch-target-expand flex h-8 w-7 items-center justify-center rounded-md transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${
@@ -182,7 +195,7 @@ export const RubricGradingSettings: React.FC<RubricGradingSettingsProps> = ({
         createPortal(
           <div
             ref={menuRef}
-            role="group"
+            role="dialog"
             aria-label="Rubric settings"
             data-click-outside-ignore="true"
             onKeyDown={onMenuKeyDown}
