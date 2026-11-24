@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-11-23_
+_Last audited: 2026-11-24_
 _Last action: 2026-10-07 — LOW `projects` scaling base updated to 620×560 to match its spawn size. Prior: 2026-09-26 — LOW `WIDGET_DEFAULTS` `as XConfig` trio resolved for `specialist-schedule`/`graphic-organizer`/`reveal-grid`: changed all three from `as` to `satisfies` per the skill's Step 5 guidance, with no field changes needed since every required field was already present. Moved to Completed._
 
 
@@ -596,3 +596,5 @@ _No open items._
 _2026-11-18 action: Wednesday daily run. Nothing In Progress in any journal. No Open items in widget-registry or typescript-eslint; css-scaling's two LOW items are portaled popover menus where scaling is a design call (RandomClassContextButton deferred 2026-11-04, and its file was last touched by 50062c379). Rebase onto `dev-paul` conflicts (unrelated histories, aborted). No code change._
 
 _2026-11-19 audit: Thursday run. All 71 `WidgetType`s are registered in WIDGET_COMPONENTS (sticker is the documented special case), widgetDefaults, widgetGradeLevels; tools.ts omits only the documented non-dock types; every lazyNamed export name resolves. The legacy settings/appearance maps are now empty by design (schema-driven drawer). No new issues. `scheduled-tasks` shares no history with `dev-paul` (rebase and merge both refuse), so audited a `dev-paul` worktree at ffdd6f777._
+
+_2026-11-24: Daily audit (Tuesday). Merged `origin/dev-paul` (`ea17cf285`; rebase would replay ~8.5k unrelated commits). `WidgetType` 71; `WIDGET_DEFAULTS`/`WIDGET_GRADE_LEVELS`/`WidgetRegistry` cover all 71; `tools.ts` gap = the 7 documented exclusions; all 68 `lazyNamed()` calls resolve to real exports. 0 new issues._

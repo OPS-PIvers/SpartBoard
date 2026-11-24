@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-11-19_
+_Last audited: 2026-11-24_
 _Last action: 2026-09-22 — HIGH `SpecialistSchedule` stale `Settings.tsx` reference fixed in both new-widget and admin-widget-config skills (all 4 mirror files): file-layout callout rewritten to the current schema-driven files, `featurePermissions`-read example repointed to `settingsFields.tsx`. Moved to Completed._
 
 _2026-11-17: Tuesday Audit B1, against `origin/dev-paul` (`6d3b439ec`). Skills read from `.claude/skills/{new-widget,admin-widget-config}/SKILL.md` (`/mnt/skills/user/` absent). Path scan: only `YourWidget` template placeholders fail to resolve (the `miniAppViewState.test.ts` hit is a false positive; it lives at `tests/components/miniApp/`). Checklist matches current registration files and the `pnpm run new-widget-settings` scaffold script exists; `SpecialistSchedule/` still has `SpecialistScheduleWidget.tsx`, `settings.schema.ts`, `settingsFields.tsx`; `lazyNamed` convention matches `WidgetRegistry.ts`; skills correctly state there are no `Settings.tsx` files. 0 new issues._
@@ -274,3 +274,5 @@ _2026-10-06 action: Resolved this HIGH item. Replaced the "Schema-driven setting
 - **Resolution:** Updated the reference table row to point to the correct path `components/widgets/SpecialistSchedule/SpecialistScheduleWidget.tsx` and added an inline parenthetical noting that this is the sole exception to the `Widget.tsx` naming convention and should not be imitated. Documentation-only change.
 
 _2026-11-19 audit: both skills (.claude/skills/new-widget, admin-widget-config) checked against the codebase: referenced real paths exist (ScaledEmptyState, defineSettings, Flashcards results/*, SpecialistSchedule gold standard), lazyNamed convention and the empty legacy settings maps match WidgetRegistry.ts. No drift found. Note the skills live in the repo under .claude/skills, not /mnt/skills/user._
+
+_2026-11-24: Tuesday Audit B1. Path scan of `.claude/skills/{new-widget,admin-widget-config}/SKILL.md`: only `YourWidget/*` template placeholders fail to resolve; `components/miniApp/miniAppViewState.ts` and its test (`tests/components/miniApp/`) exist; `SpecialistSchedule/` still has settings.schema.ts and the lazyNamed convention is unchanged. 0 new issues._

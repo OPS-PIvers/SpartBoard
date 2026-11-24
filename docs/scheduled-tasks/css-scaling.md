@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-11-23_
+_Last audited: 2026-11-24_
 _Last action: 2026-10-22 — LOW SmartNotebook Viewer page-counter `minWidth` scaled with cqmin (moved to Completed). Prior: 2026-10-21 — LOW MusicWidget landscape status row `gap-2` replaced with `min(8px, 2cqh)` gap (moved to Completed). Prior: 2026-10-18 — LOW `MiniAppAssignModal` skipped-students warning text scaled with cqmin (both duplicate entries moved to Completed). Prior: 2026-10-17 — LOW Soundboard active-sound dot scaled with cqmin._
 
 
@@ -1100,3 +1100,5 @@ Replaced the status pill, "Unlock results" button and delete button Tailwind pad
 _2026-11-14 action (deferred): Item selection ran (Saturday, the three dailies). Nothing In Progress anywhere. The only Open items are the two LOW portaled-dropdown findings (`RandomClassContextButton`, `ActiveClassChip`), which are converted together and still wait on the legibility-floor decision from the 2026-11-04 note (e.g. `clamp(12px, 1.4vmin, 16px)`). No source change made. Needs manual review._
 
 _2026-11-19 audit: no Widget.tsx has a max-h/max-w pixel cap on content; the only fixed pixel sizes are the two portaled popovers in DrawingWidget/Widget.tsx (min-w-[200px], w-[260px]), which are not scaled content. No new issues._
+
+_2026-11-24: Daily audit (Tuesday). Widget.tsx files changed since the last run (Flashcards, GuidedLearning, MiniApp, Quiz, VideoActivity) add no `max-[wh]-[Npx]`, large fixed-px sizes or content-level `cqmin`. Two existing LOW portaled-popover items unchanged. 0 new issues._
