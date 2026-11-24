@@ -31,6 +31,8 @@ const stamped = (over: Record<string, unknown> = {}) => ({
 
 interface StubState {
   switchOn?: boolean;
+  /** The substitute-sharing kill switch doc; absent means on. */
+  subSharing?: Record<string, unknown> | null;
   share?: Record<string, unknown> | null;
   session?: Record<string, unknown> | null;
   /** Response docs under the quiz session, by id. */
@@ -69,6 +71,7 @@ function pagedQuery(all: { ref: { path: string } }[]) {
 function stubDb(state: StubState = {}) {
   const {
     switchOn = true,
+    subSharing = null,
     share = {
       hostUid: HOST,
       intendedMode: 'substitute',
@@ -84,6 +87,7 @@ function stubDb(state: StubState = {}) {
   const written: Written[] = [];
   const docs: Record<string, Record<string, unknown> | null> = {
     'admin_settings/sub_launch_as_teacher': { enabled: switchOn },
+    'global_permissions/substitute-sharing': subSharing,
     [`shared_collections/${SHARE}`]: share,
     [`${collection}/${SESSION}`]: session,
   };
@@ -105,6 +109,7 @@ function stubDb(state: StubState = {}) {
     }),
     collection: (path: string) => ({
       path,
+      doc: (id: string) => db.doc(`${path}/${id}`),
       orderBy: () =>
         pagedQuery(path.endsWith('/responses') ? responseDocs : []),
       limit: (n: number) =>
@@ -501,6 +506,12 @@ describe('handleControlSubAssignment — who may act', () => {
     await expect(control({ switchOn: false }).run()).rejects.toThrow(
       'is turned off'
     );
+  });
+
+  it('refuses while substitute sharing is switched off', async () => {
+    const run = control({ subSharing: { enabled: false } });
+    await expect(run.run()).rejects.toThrow('Sharing with a substitute');
+    expect(run.written).toEqual([]);
   });
 
   it('refuses an expired share, or one that does not name them', async () => {
