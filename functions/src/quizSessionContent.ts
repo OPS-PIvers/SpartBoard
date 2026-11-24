@@ -47,7 +47,7 @@ export function passActive(
   return typeof from !== 'number' || from <= nowMs;
 }
 
-/** The start of a time set for this student, while it is still ahead or began within `withinMs`. */
+/** The start of a time set for this student, while its window runs or it began within `withinMs`. */
 export function setTimeStart(
   session: Record<string, unknown>,
   uid: string,
@@ -62,7 +62,7 @@ export function setTimeStart(
   )?.[uid];
   if (typeof from !== 'number' || typeof until !== 'number') return null;
   if (until <= nowMs || until <= from) return null;
-  return nowMs < from + withinMs ? from : null;
+  return nowMs < Math.max(from + withinMs, until) ? from : null;
 }
 
 /** True when a per-period session has this response's period closed or paused, so the attempt is frozen, not idle. */

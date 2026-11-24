@@ -3,6 +3,7 @@ import { Modal } from '@/components/common/Modal';
 import { tourAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import { combineDateAndTime, getLocalIsoDate } from '@/utils/localDate';
+import { useServerNow } from '@/hooks/useServerNow';
 import type { StudentTime } from './studentTimeFormat';
 
 interface SetStudentTimeDialogProps {
@@ -11,7 +12,8 @@ interface SetStudentTimeDialogProps {
   current: StudentTime | null;
   /** The quiz's due date; a time past it gets the Late line. */
   dueAt?: number | null;
-  now: number;
+  /** Fixed clock for tests; the dialog reads server time when it opens. */
+  now?: number;
   onClose: () => void;
   onSave: (time: StudentTime | null) => Promise<void>;
 }
@@ -75,10 +77,12 @@ export const SetStudentTimeDialog: React.FC<SetStudentTimeDialogProps> = ({
   studentName,
   current,
   dueAt,
-  now,
+  now: fixedNow,
   onClose,
   onSave,
 }) => {
+  const liveNow = useServerNow(30_000);
+  const now = fixedNow ?? liveNow;
   const [opens, setOpens] = useState(() =>
     toFields(current?.from ?? Math.ceil(now / FIVE_MIN) * FIVE_MIN)
   );

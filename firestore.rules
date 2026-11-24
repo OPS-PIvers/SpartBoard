@@ -341,10 +341,10 @@ service cloud.firestore {
               afterOpen(pa[classId]) && beforeClose(pa[classId]));
     }
     // "Let in now": one student's pass past their period's state, until a time.
-    // "Set a time" also writes when it starts (studentAccessFrom).
+    // "Schedule for later" also writes when it starts (studentAccessFrom), with the window grace.
     function studentLetIn(s) {
       return s.get('studentAccess', {}).get(authUid(), 0) > request.time.toMillis() &&
-             s.get('studentAccessFrom', {}).get(authUid(), 0) <= request.time.toMillis();
+             s.get('studentAccessFrom', {}).get(authUid(), 0) <= request.time.toMillis() + 120000;
     }
     // A join on a per-period session names a period the session targets, backed
     // by the caller's class claim when signed in; assessment mode refuses the
@@ -4748,7 +4748,8 @@ service cloud.firestore {
             (s.status != 'paused' &&
              // studentUid is authUid() here and cheaper: a PIN token's authUid() costs more expressions.
              (periodOpen(s, existing().get('classId', null)) ||
-              s.get('studentAccess', {}).get(existing().studentUid, 0) > request.time.toMillis()))) &&
+              (s.get('studentAccess', {}).get(existing().studentUid, 0) > request.time.toMillis() &&
+               s.get('studentAccessFrom', {}).get(existing().studentUid, 0) <= request.time.toMillis() + 120000)))) &&
            unchanged('studentUid') &&
            // SSO studentRole responses omit `pin` entirely, so direct dot-access on
            // `resource.data.pin` would throw a Null-value error and deny the write. Use

@@ -574,7 +574,7 @@ export async function runFinalizeIdleQuizAttempts(
     // A student held at a Stop waits for the next part, possibly for days.
     // None can resume once the run has ended or its close has passed, so they are turned in then.
     const snapData = docSnap.data() ?? {};
-    // A set time that starts later, or began under the idle threshold ago, is not idle yet.
+    // A scheduled student is not idle while their window runs, or the idle threshold after it starts.
     const heldOrFrozen =
       waitsForStudent(snapData) ||
       isPeriodFrozen(meta.periodGate, snapData, finalizedAt) ||

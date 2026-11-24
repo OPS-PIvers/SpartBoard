@@ -458,7 +458,6 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     perPeriod &&
     session.status !== 'ended' &&
     authContext?.canAccessFeature?.('student-set-time') === true;
-  const setTimeNow = useServerNow(timeFor ? 60_000 : null);
   const runPeriod = async (fn: () => Promise<void>) => {
     try {
       await fn();
@@ -1238,7 +1237,6 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           studentName={timeFor.name}
           current={studentSetTime(session, timeFor.uid)}
           dueAt={session.dueAt}
-          now={setTimeNow}
           onClose={() => setTimeFor(null)}
           onSave={async (time) => {
             try {

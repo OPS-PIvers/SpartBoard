@@ -95,7 +95,8 @@ describe('isPeriodFrozen', () => {
     expect(isPeriodFrozen(timed, r, NOW)).toBe(true);
     expect(isPeriodFrozen(timed, r, NOW + 1)).toBe(false);
     expect(setTimeStart(timed, 'u', NOW, 10)).toBe(NOW + 1);
-    expect(setTimeStart(timed, 'u', NOW + 11, 10)).toBeNull();
+    expect(setTimeStart(timed, 'u', NOW + 11, 10)).toBe(NOW + 1);
+    expect(setTimeStart(timed, 'u', NOW + 60_000, 10)).toBeNull();
     expect(setTimeStart(timed, 'other', NOW, 10)).toBeNull();
     expect(setTimeStart({ studentAccess: { u: NOW + 5 } }, 'u', NOW, 10)).toBe(
       null

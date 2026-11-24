@@ -500,6 +500,25 @@ describe('answer writes on a per-period session', () => {
     );
   });
 
+  it('refuses answers before a scheduled student time starts', async () => {
+    await withPeriod(
+      { state: 'paused' },
+      {
+        studentAccess: { [STUDENT_UID]: FUTURE + 1 },
+        studentAccessFrom: { [STUDENT_UID]: FUTURE },
+      }
+    );
+    await assertFails(writeAnswer());
+    await withPeriod(
+      { state: 'paused' },
+      {
+        studentAccess: { [STUDENT_UID]: FUTURE },
+        studentAccessFrom: { [STUDENT_UID]: PAST },
+      }
+    );
+    await assertSucceeds(writeAnswer());
+  });
+
   it('refuses answers on a response with no period', async () => {
     await withPeriod({});
     await seedResponse(S, STUDENT_UID, {
