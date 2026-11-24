@@ -13,8 +13,10 @@ import React, {
 } from 'react';
 import {
   collection,
+  deleteField,
   doc,
   FieldPath,
+  getDoc,
   onSnapshot,
   updateDoc,
   writeBatch,
@@ -412,25 +414,57 @@ const QuizLeftOpenHost: React.FC<{
   onLeaveOpen: () => void;
 }> = ({ row, cls, index, rosters, lifecycle, onLeaveOpen }) => {
   const a = row.assignment;
-  const actions = useQuizClassActions(a, lifecycle, rosters);
+  const { user } = useAuth();
+  const { addToast } = useDashboard();
+  const [held, setHeld] = useState<{ hold: PassHold; at: number } | null>(null);
+  const onHeld = useCallback(
+    (hold: PassHold) => setHeld({ hold, at: Date.now() }),
+    []
+  );
+  const actions = useQuizClassActions(a, lifecycle, rosters, onHeld);
   const run = usePeriodRunner('QuizAssignedTab.leftOpen');
   const [busy, setBusy] = useState(false);
   const single = row.status.singleLine;
+  const liveHold = a.passHold ?? held?.hold ?? null;
+  const heldList = held ? heldStudents(liveHold, held.at) : [];
   return (
-    <AssignedLeftOpenFlag
-      title={a.quizTitle}
-      classLabel={single ? null : cls.label}
-      busy={busy}
-      onClose={() => {
-        setBusy(true);
-        void run(() => actions.closeClass(single ? null : cls.key)).finally(
-          () => setBusy(false)
-        );
-      }}
-      onLeaveOpen={onLeaveOpen}
-      tourIndex={index}
-      tourWidgetType="quiz"
-    />
+    <>
+      {held && heldList.length > 0 && (
+        <AssignedHeldDialog
+          assignmentId={a.id}
+          classIds={a.classIds}
+          classLabel={single ? null : cls.label}
+          students={heldList}
+          accent={LIBRARY_HEADER_ACCENTS.quiz}
+          edit={
+            user?.uid === a.teacherUid
+              ? {
+                  teacherUid: a.teacherUid,
+                  assignmentId: a.id,
+                  hold: liveHold,
+                  dueAt: a.dueAt,
+                }
+              : null
+          }
+          onError={(m) => addToast(m, 'error')}
+          onClose={() => setHeld(null)}
+        />
+      )}
+      <AssignedLeftOpenFlag
+        title={a.quizTitle}
+        classLabel={single ? null : cls.label}
+        busy={busy}
+        onClose={() => {
+          setBusy(true);
+          void run(() => actions.closeClass(single ? null : cls.key)).finally(
+            () => setBusy(false)
+          );
+        }}
+        onLeaveOpen={onLeaveOpen}
+        tourIndex={index}
+        tourWidgetType="quiz"
+      />
+    </>
   );
 };
 
@@ -460,7 +494,9 @@ async function undoClose(
 ): Promise<void> {
   const assignmentRef = doc(db, 'users', uid, 'quiz_assignments', prev.id);
   const sessionRef = doc(db, 'quiz_sessions', prev.id);
-  if (prev.status !== 'inactive') {
+  // A Close held live for scheduled students never ended the run, so only an ended run reopens.
+  const ended = (await getDoc(assignmentRef)).data()?.status === 'inactive';
+  if (prev.status !== 'inactive' && ended) {
     await lifecycle.reopenAssignment(prev.id);
     if (prev.status === 'active') await lifecycle.resumeAssignment(prev.id);
   }
@@ -477,6 +513,12 @@ async function undoClose(
     doneAt: prev.doneAt ?? null,
     closedAt: prev.closedAt ?? null,
   });
+  if (!prev.passHold) {
+    const batch = writeBatch(db);
+    for (const ref of [sessionRef, assignmentRef])
+      batch.update(ref, { passHold: deleteField() });
+    await batch.commit();
+  }
 }
 
 export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
