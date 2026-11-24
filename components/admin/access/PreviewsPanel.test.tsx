@@ -94,6 +94,9 @@ const expandRow = (id: string, label: string) => {
   );
 };
 
+const openMenu = (key: string) =>
+  fireEvent.click(screen.getByTestId(`wrap-up-${key}`));
+
 const district = (title: string) =>
   screen.getByRole('switch', { name: `${title} district switch` });
 
@@ -201,6 +204,7 @@ describe('PreviewsPanel', () => {
       },
     ];
     await renderPanel();
+    openMenu('plc-docs-toolbar');
     const link = screen.getByTestId('retire-plc-docs-toolbar');
     const url = new URL(link.getAttribute('href') ?? '');
     expect(url.pathname).toBe('/OPS-PIvers/SpartBoard/issues/new');
@@ -225,6 +229,7 @@ describe('PreviewsPanel', () => {
       },
     ];
     await renderPanel();
+    openMenu('quiz-time-limit');
     fireEvent.click(screen.getByTestId('graduate-quiz-time-limit'));
     await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
     expect(setDocMock.mock.calls[0][0].path).toBe(
@@ -250,6 +255,7 @@ describe('PreviewsPanel', () => {
       },
     ];
     await renderPanel();
+    openMenu('quiz-time-limit');
     expect(screen.getByTestId('graduate-quiz-time-limit')).toBeEnabled();
     const url = new URL(
       screen.getByTestId('retire-quiz-time-limit').getAttribute('href') ?? ''
@@ -270,6 +276,7 @@ describe('PreviewsPanel', () => {
       },
     ];
     await renderPanel();
+    openMenu('plc-docs-toolbar');
     const url = new URL(
       screen.getByTestId('retire-plc-docs-toolbar').getAttribute('href') ?? ''
     );
@@ -278,6 +285,7 @@ describe('PreviewsPanel', () => {
 
   it('graduates a district switch to Features and retires one by issue', async () => {
     await renderPanel();
+    openMenu('projects_widget');
     const retire = screen.getByTestId('retire-projects_widget');
     const url = new URL(retire.getAttribute('href') ?? '');
     expect(url.searchParams.get('title')).toBe(
@@ -318,6 +326,7 @@ describe('PreviewsPanel', () => {
     expect(
       await screen.findByTestId('access-row-universal-import')
     ).toBeInTheDocument();
+    expect(screen.queryByTestId('wrap-up-universal-import')).toBeNull();
     expect(screen.queryByTestId('graduate-universal-import')).toBeNull();
     expect(screen.queryByTestId('retire-universal-import')).toBeNull();
   });

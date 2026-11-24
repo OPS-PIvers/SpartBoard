@@ -10770,6 +10770,11 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.previews.wrap-up': {
+    label: 'Retire menu button on a Previews row (opens Graduate and Remove)',
+    perField: true,
+    panel: true,
+  },
   'admin.previews.retire': {
     label: 'Retire button on a Previews row (opens a GitHub issue)',
     perField: true,

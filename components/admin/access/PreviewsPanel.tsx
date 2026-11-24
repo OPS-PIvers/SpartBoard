@@ -24,12 +24,7 @@ import { useGlobalPermissionsEditor } from './useGlobalPermissionsEditor';
 import { useRolloutSwitch } from './useRolloutSwitch';
 import { previewStatus } from './previewStatus';
 import { retireIssueUrl, retireSwitchIssueUrl } from './retireIssue';
-import {
-  DistrictSwitch,
-  GraduateButton,
-  RetireLink,
-  RolloutOnlyRow,
-} from './DistrictSwitch';
+import { DistrictSwitch, WrapUpMenu, RolloutOnlyRow } from './DistrictSwitch';
 import { useGraduatedSwitches } from './useGraduatedSwitches';
 
 export const PreviewRow: React.FC<{
@@ -76,28 +71,19 @@ export const PreviewRow: React.FC<{
         <>
           {sw && <DistrictSwitch sw={sw} state={district} />}
           {!hasPreviewOptions && (
-            <GraduateButton
+            <WrapUpMenu
               anchorKey={featureId}
-              testId={`graduate-${featureId}`}
-              busy={editor.saving.has(featureId)}
-              disabled={unsaved}
-              title={
-                unsaved
-                  ? 'Save first'
-                  : 'Moves it out of Previews with its settings'
-              }
-              onClick={graduate}
-            />
-          )}
-          {!hasPreviewOptions && (
-            <RetireLink
-              anchorKey={featureId}
-              testId={`retire-${featureId}`}
-              href={retireIssueUrl(featureId, savedPermission, districtOn)}
-              disabled={
-                unsaved ||
-                (!!sw && (district.enabled === null || district.failed))
-              }
+              graduate={{
+                busy: editor.saving.has(featureId),
+                disabled: unsaved,
+                onClick: graduate,
+              }}
+              retire={{
+                href: retireIssueUrl(featureId, savedPermission, districtOn),
+                disabled:
+                  unsaved ||
+                  (!!sw && (district.enabled === null || district.failed)),
+              }}
             />
           )}
         </>
@@ -248,22 +234,15 @@ export const PreviewsPanel: React.FC = () => {
                   key={rolloutSwitchKey(sw)}
                   sw={sw}
                   actions={(enabled) => (
-                    <>
-                      <GraduateButton
-                        anchorKey={rolloutSwitchKey(sw)}
-                        testId={`graduate-${rolloutSwitchKey(sw)}`}
-                        busy={switches.saving === rolloutSwitchKey(sw)}
-                        title="Moves it to Features, where it stays a switch"
-                        onClick={() =>
-                          void switches.graduate(rolloutSwitchKey(sw))
-                        }
-                      />
-                      <RetireLink
-                        anchorKey={rolloutSwitchKey(sw)}
-                        testId={`retire-${rolloutSwitchKey(sw)}`}
-                        href={retireSwitchIssueUrl(sw, enabled)}
-                      />
-                    </>
+                    <WrapUpMenu
+                      anchorKey={rolloutSwitchKey(sw)}
+                      graduate={{
+                        busy: switches.saving === rolloutSwitchKey(sw),
+                        onClick: () =>
+                          void switches.graduate(rolloutSwitchKey(sw)),
+                      }}
+                      retire={{ href: retireSwitchIssueUrl(sw, enabled) }}
+                    />
                   )}
                 />
               ))}

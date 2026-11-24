@@ -2450,6 +2450,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'admin.previews.focus-hours-day': ['admin.previews'],
     'admin.previews.focus-hours-save': ['admin.previews'],
     'admin.previews.graduate': ['admin.shared.access-controls'],
+    'admin.previews.wrap-up': ['admin.shared.access-controls'],
     'admin.previews.retire': ['admin.shared.access-controls'],
     'admin.analytics.active-students-search': [
       'admin.analytics.active-students',

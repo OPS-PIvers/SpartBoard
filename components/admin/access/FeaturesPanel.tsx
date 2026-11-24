@@ -19,7 +19,7 @@ import {
   switchForFeature,
 } from './accessSearch';
 import { rolloutSwitchKey } from '@/config/rolloutSwitches';
-import { DistrictSwitch, RetireLink, RolloutOnlyRow } from './DistrictSwitch';
+import { DistrictSwitch, RolloutOnlyRow, WrapUpMenu } from './DistrictSwitch';
 import { retireIssueUrl, retireSwitchIssueUrl } from './retireIssue';
 import { useRolloutSwitch } from './useRolloutSwitch';
 import { useGraduatedSwitches } from './useGraduatedSwitches';
@@ -50,18 +50,18 @@ const GraduatedRowActions: React.FC<{
   return (
     <>
       {sw && <DistrictSwitch sw={sw} state={district} />}
-      <RetireLink
+      <WrapUpMenu
         anchorKey={featureId}
-        testId={`retire-${featureId}`}
-        href={retireIssueUrl(
-          featureId,
-          editor.getSavedPermission(featureId),
-          sw ? district.enabled : undefined
-        )}
-        disabled={
-          editor.unsavedChanges.has(featureId) ||
-          (!!sw && (district.enabled === null || district.failed))
-        }
+        retire={{
+          href: retireIssueUrl(
+            featureId,
+            editor.getSavedPermission(featureId),
+            sw ? district.enabled : undefined
+          ),
+          disabled:
+            editor.unsavedChanges.has(featureId) ||
+            (!!sw && (district.enabled === null || district.failed)),
+        }}
       />
     </>
   );
@@ -151,10 +151,9 @@ export const FeaturesPanel: React.FC = () => {
                 key={rolloutSwitchKey(sw)}
                 sw={sw}
                 actions={(enabled) => (
-                  <RetireLink
+                  <WrapUpMenu
                     anchorKey={rolloutSwitchKey(sw)}
-                    testId={`retire-${rolloutSwitchKey(sw)}`}
-                    href={retireSwitchIssueUrl(sw, enabled)}
+                    retire={{ href: retireSwitchIssueUrl(sw, enabled) }}
                   />
                 )}
               />

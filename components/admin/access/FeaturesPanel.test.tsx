@@ -106,12 +106,13 @@ describe('FeaturesPanel', () => {
       },
     ];
     render(<FeaturesPanel />);
-    const link = await screen.findByTestId('retire-plc-docs-toolbar');
+    fireEvent.click(await screen.findByTestId('wrap-up-plc-docs-toolbar'));
+    const link = screen.getByTestId('retire-plc-docs-toolbar');
     expect(screen.getByText('Other')).toBeInTheDocument();
     const body =
       new URL(link.getAttribute('href') ?? '').searchParams.get('body') ?? '';
     expect(body).toContain('Schumann Elementary');
-    expect(screen.queryByTestId('retire-live-session')).toBeNull();
+    expect(screen.queryByTestId('wrap-up-live-session')).toBeNull();
   });
 
   // A pre-existing legacy mixed-case entry must not produce a duplicate on re-add.

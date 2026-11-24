@@ -1,5 +1,12 @@
-import React from 'react';
-import { Archive, FlaskConical, GraduationCap, Loader2 } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import {
+  Archive,
+  ChevronDown,
+  FlaskConical,
+  GraduationCap,
+  Loader2,
+} from 'lucide-react';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { rolloutSwitchKey, type RolloutSwitch } from '@/config/rolloutSwitches';
 import type { GlobalFeature } from '@/types';
@@ -54,65 +61,134 @@ export const PairedDistrictSwitch: React.FC<{ featureId: GlobalFeature }> = ({
   return sw ? <DistrictSwitch sw={sw} state={state} /> : null;
 };
 
-const ACTION =
-  'flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50';
+/** Main button and item names; Paul picks the wording. */
+const WRAP_UP_LABELS = {
+  menu: 'Retire',
+  graduate: 'Graduate',
+  graduateHint: 'Keep it as a switch with its settings.',
+  retire: 'Remove',
+  retireHint: 'Ask Claude to delete the switch and keep it as it is now.',
+};
 
-export const GraduateButton: React.FC<{
-  anchorKey: string;
-  testId: string;
-  busy: boolean;
-  disabled?: boolean;
-  title: string;
-  onClick: () => void;
-}> = ({ anchorKey, testId, busy, disabled, title, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    disabled={busy || disabled}
-    title={title}
-    data-testid={testId}
-    {...tourFieldAttr('admin.previews.graduate', 'admin', anchorKey)}
-    className={`${ACTION} disabled:opacity-50 disabled:cursor-not-allowed`}
-  >
-    {busy ? (
-      <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-    ) : (
-      <GraduationCap className="w-3.5 h-3.5" aria-hidden />
-    )}
-    Graduate
-  </button>
+const ITEM =
+  'flex w-full items-start gap-2.5 px-3 py-2 text-left hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-hidden';
+
+const ItemText: React.FC<{ label: string; hint: string }> = ({
+  label,
+  hint,
+}) => (
+  <span className="min-w-0">
+    <span className="block text-sm font-bold text-slate-800">{label}</span>
+    <span className="block text-xs text-slate-500">{hint}</span>
+  </span>
 );
 
-export const RetireLink: React.FC<{
+/** One button that opens Graduate and Retire for a preview row. */
+export const WrapUpMenu: React.FC<{
   anchorKey: string;
-  testId: string;
-  href: string;
-  disabled?: boolean;
-}> = ({ anchorKey, testId, href, disabled }) =>
-  disabled ? (
-    <span
-      aria-disabled="true"
-      title="Save first"
-      data-testid={testId}
-      className={`${ACTION} opacity-50 cursor-not-allowed hover:bg-white`}
-    >
-      <Archive className="w-3.5 h-3.5" aria-hidden />
-      Retire
+  graduate?: { busy: boolean; disabled?: boolean; onClick: () => void };
+  retire: { href: string; disabled?: boolean };
+}> = ({ anchorKey, graduate, retire }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  useClickOutside(ref, () => setOpen(false));
+  const busy = graduate?.busy ?? false;
+  return (
+    <span ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        data-testid={`wrap-up-${anchorKey}`}
+        {...tourFieldAttr('admin.previews.wrap-up', 'admin', anchorKey)}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50"
+      >
+        {busy ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+        ) : (
+          <Archive className="w-3.5 h-3.5" aria-hidden />
+        )}
+        {WRAP_UP_LABELS.menu}
+        <ChevronDown
+          className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
+          aria-hidden
+        />
+      </button>
+      {open && (
+        <span
+          role="menu"
+          onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
+          className="absolute right-0 top-full z-20 mt-1 block w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1 shadow-lg"
+        >
+          {graduate && (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={graduate.busy || graduate.disabled}
+              title={graduate.disabled ? 'Save first' : undefined}
+              onClick={() => {
+                setOpen(false);
+                graduate.onClick();
+              }}
+              data-testid={`graduate-${anchorKey}`}
+              {...tourFieldAttr('admin.previews.graduate', 'admin', anchorKey)}
+              className={`${ITEM} disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              <GraduationCap
+                className="mt-0.5 w-4 h-4 shrink-0 text-slate-500"
+                aria-hidden
+              />
+              <ItemText
+                label={WRAP_UP_LABELS.graduate}
+                hint={WRAP_UP_LABELS.graduateHint}
+              />
+            </button>
+          )}
+          {retire.disabled ? (
+            <span
+              role="menuitem"
+              aria-disabled="true"
+              title="Save first"
+              data-testid={`retire-${anchorKey}`}
+              className={`${ITEM} opacity-50 cursor-not-allowed hover:bg-white`}
+            >
+              <Archive
+                className="mt-0.5 w-4 h-4 shrink-0 text-slate-500"
+                aria-hidden
+              />
+              <ItemText
+                label={WRAP_UP_LABELS.retire}
+                hint={WRAP_UP_LABELS.retireHint}
+              />
+            </span>
+          ) : (
+            <a
+              role="menuitem"
+              href={retire.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setOpen(false)}
+              data-testid={`retire-${anchorKey}`}
+              {...tourFieldAttr('admin.previews.retire', 'admin', anchorKey)}
+              className={ITEM}
+            >
+              <Archive
+                className="mt-0.5 w-4 h-4 shrink-0 text-slate-500"
+                aria-hidden
+              />
+              <ItemText
+                label={WRAP_UP_LABELS.retire}
+                hint={WRAP_UP_LABELS.retireHint}
+              />
+            </a>
+          )}
+        </span>
+      )}
     </span>
-  ) : (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      title="Asks Claude to remove the switch and keep it as it is now"
-      data-testid={testId}
-      {...tourFieldAttr('admin.previews.retire', 'admin', anchorKey)}
-      className={ACTION}
-    >
-      <Archive className="w-3.5 h-3.5" aria-hidden />
-      Retire
-    </a>
   );
+};
 
 /** A district switch with no access flag of its own. */
 export const RolloutOnlyRow: React.FC<{
@@ -126,7 +202,7 @@ export const RolloutOnlyRow: React.FC<{
       data-testid={`rollout-row-${rolloutSwitchKey(sw)}`}
       className="bg-white flex flex-wrap items-center gap-3 p-3"
     >
-      <span className="flex min-w-0 flex-1 items-center gap-3">
+      <span className="flex min-w-[12rem] flex-1 items-center gap-3">
         <span className="bg-brand-blue-lighter p-2 rounded-lg text-brand-blue-primary shrink-0">
           <FlaskConical className="w-4 h-4" aria-hidden />
         </span>
