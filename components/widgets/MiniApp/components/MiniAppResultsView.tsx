@@ -1,6 +1,6 @@
 // Results for v2 Mini App sessions, laid out like the Quiz results page (docs/plans/shipped/MINI_APP_RESULTS.md D10).
-import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import React, { useMemo, useState } from 'react';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import {
   ArrowLeft,
   BarChart3,
@@ -374,7 +374,7 @@ export const MiniAppResultsView: React.FC<{
   return (
     <div className="flex flex-col h-full font-sans bg-white text-brand-gray-dark relative">
       <div
-        className="flex items-center text-white shrink-0"
+        className="flex items-center bg-brand-blue-primary text-white shrink-0"
         style={{
           backgroundColor: LIBRARY_HEADER_ACCENTS.miniApp,
           gap: 'min(8px, 2cqmin)',

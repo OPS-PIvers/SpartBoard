@@ -24,7 +24,7 @@ export const ParityHeader: React.FC<{
   actions?: React.ReactNode;
 }> = ({ title, status, onBack, backAnchor, actions }) => (
   <div
-    className="flex items-center text-white shrink-0"
+    className="flex items-center bg-brand-blue-primary text-white shrink-0"
     style={{
       backgroundColor: LIBRARY_HEADER_ACCENTS['video-activity'],
       gap: 'min(8px, 2cqmin)',

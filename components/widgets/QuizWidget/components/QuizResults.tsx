@@ -4,7 +4,6 @@
  * Allows exporting to Google Sheets.
  */
 
-import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import { promptLabel } from '@/utils/quizPromptText';
 import { MathText } from '@/components/common/MathText';
 import { plainMathText } from '@/utils/promptMath';
@@ -22,6 +21,7 @@ import React, {
   useEffectEvent,
   useContext,
 } from 'react';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { TabExitsPopover } from '@/components/common/TabExitsPopover';
 import { BadgePopover } from '@/components/common/BadgePopover';
@@ -2474,7 +2474,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     <div className="flex flex-col h-full font-sans bg-white text-brand-gray-dark relative">
       {/* Header in the widget's own color, matching the live monitor shell */}
       <div
-        className="flex items-center text-white shrink-0"
+        className="flex items-center bg-brand-blue-primary text-white shrink-0"
         style={{
           backgroundColor:
             LIBRARY_HEADER_ACCENTS[session?.widgetKind ?? 'quiz'],

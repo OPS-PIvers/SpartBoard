@@ -57,6 +57,7 @@ export const MonitorHeader: React.FC<{
     >
       {onBack && (
         <button
+          type="button"
           onClick={onBack}
           aria-label="Back"
           {...backAnchor}
