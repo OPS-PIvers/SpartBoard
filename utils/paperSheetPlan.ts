@@ -266,9 +266,14 @@ export function paperGroupOrder(
 
 /** Nothing to print from the quiz itself, so the teacher builds a stub. */
 export function isPaperStubAnalysis(
-  analysis: Pick<PaperQuizAnalysis, 'rows' | 'written'>
+  analysis: Pick<PaperQuizAnalysis, 'rows' | 'written'> &
+    Partial<Pick<PaperQuizAnalysis, 'groups'>>
 ): boolean {
-  return analysis.rows.length === 0 && analysis.written.length === 0;
+  return (
+    analysis.rows.length === 0 &&
+    analysis.written.length === 0 &&
+    !analysis.groups?.length
+  );
 }
 
 const clampChoices = (n: number): number =>

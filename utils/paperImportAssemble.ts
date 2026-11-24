@@ -131,6 +131,12 @@ function mergeDuplicate(
     ) {
       conflict = true;
     }
+    // Choose all rows carry marks instead of one choice.
+    if (prior?.marked?.length && answer.marked?.length) {
+      const a = [...prior.marked].sort().join(',');
+      const b = [...answer.marked].sort().join(',');
+      if (a !== b) conflict = true;
+    }
   }
   return { answers: incoming, conflict };
 }

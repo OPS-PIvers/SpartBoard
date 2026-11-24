@@ -15,6 +15,7 @@ import {
 import { db } from '@/config/firebase';
 import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import { useAuth } from '@/context/useAuth';
+import { useShowPickedStudents } from '@/hooks/useShowPickedStudents';
 import { useDashboard } from '@/context/useDashboard';
 import type {
   ClassRoster,
@@ -271,6 +272,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
   kindLabel,
 }) => {
   const { user, featurePermissions } = useAuth();
+  const showPicked = useShowPickedStudents();
   const uid = user?.uid;
   const fixture = useContext(UnifiedAssignmentsFixture);
   const library = useQuiz(fixture ? undefined : uid);
@@ -380,9 +382,10 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
         const extras: AssignedExtras = {
           responses: counted?.responses ?? null,
           needsGrading: counted?.needsGrading ?? null,
-          classSizes: picked
-            ? pickedClassSizes(picked, run.periodAccess)
-            : classSizes,
+          classSizes:
+            picked && showPicked
+              ? pickedClassSizes(picked, run.periodAccess)
+              : classSizes,
           bellFor: (access) =>
             todaysBell(access, rosters, featurePermissions, now),
         };
@@ -397,7 +400,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
           picked,
         };
       }),
-    [runs, responsesByPath, rosters, featurePermissions, now]
+    [runs, responsesByPath, rosters, featurePermissions, showPicked, now]
   );
 
   const items = useMemo<HubItem[]>(() => {

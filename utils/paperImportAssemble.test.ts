@@ -166,6 +166,21 @@ describe('assemblePaperScan', () => {
     expect(disagree.sheets[0].flags).toEqual(['duplicate-conflict']);
   });
 
+  it('flags a rescan whose choose all marks disagree', () => {
+    const disagree = assemblePaperScan(batch, [
+      page(0, 1, 1, [{ ...row(0, null), marked: [0, 2] }]),
+      page(5, 1, 1, [{ ...row(0, null), marked: [1] }]),
+      page(6, 1, 2, []),
+    ]);
+    expect(disagree.sheets[0].flags).toEqual(['duplicate-conflict']);
+    const agree = assemblePaperScan(batch, [
+      page(0, 1, 1, [{ ...row(0, null), marked: [2, 0] }]),
+      page(5, 1, 1, [{ ...row(0, null), marked: [0, 2] }]),
+      page(6, 1, 2, []),
+    ]);
+    expect(agree.sheets[0].flags).toEqual([]);
+  });
+
   it('sets aside unreadable, foreign and unprinted pages by scan position', () => {
     const result = assemblePaperScan(batch, [
       failed(0, 'no-registration'),

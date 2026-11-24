@@ -15,6 +15,7 @@ import {
 import { Trash2 } from 'lucide-react';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { useShowPickedStudents } from '@/hooks/useShowPickedStudents';
 import { useDashboard } from '@/context/useDashboard';
 import type { ClassRoster, WritingAssignmentRecord } from '@/types';
 import {
@@ -227,6 +228,7 @@ export const WritingAssignedTab: React.FC<WritingAssignedTabProps> = ({
   ...handlers
 }) => {
   const { featurePermissions } = useAuth();
+  const showPicked = useShowPickedStudents();
   const now = useNow();
   const live = useMemo(() => records.filter(wantsLiveData), [records]);
   const liveIds = useMemo(() => live.map((r) => r.id), [live]);
@@ -286,9 +288,10 @@ export const WritingAssignedTab: React.FC<WritingAssignedTabProps> = ({
           {
             responses: isLive ? responses : [],
             needsGrading: isLive ? needsGrading : 0,
-            classSizes: picked
-              ? pickedClassSizes(picked, r.periodAccess)
-              : classSizes,
+            classSizes:
+              picked && showPicked
+                ? pickedClassSizes(picked, r.periodAccess)
+                : classSizes,
             bellFor: (access) => bellFor({ rosterId: access.rosterId }),
           }
         );
@@ -298,7 +301,15 @@ export const WritingAssignedTab: React.FC<WritingAssignedTabProps> = ({
         );
         return { id: r.id, status, record: r, needsGrading, bells, picked };
       }),
-    [records, countsById, gradingById, rosters, featurePermissions, now]
+    [
+      records,
+      countsById,
+      gradingById,
+      rosters,
+      featurePermissions,
+      showPicked,
+      now,
+    ]
   );
 
   // D17: only a just-assigned row that nothing has opened yet sits on top.
