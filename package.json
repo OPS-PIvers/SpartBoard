@@ -104,7 +104,7 @@
     "jszip": "^3.10.2",
     "leaflet": "^1.9.4",
     "lib0": "^0.2.120",
-    "lucide-react": "^1.78.0",
+    "lucide-react": "^1.79.0",
     "mathlive": "0.111.4",
     "onnxruntime-web-1-31": "npm:onnxruntime-web@1.31.1",
     "pdfjs-dist": "^6.5.438",
@@ -112,7 +112,7 @@
     "react-dom": "^19.3.1",
     "react-i18next": "^17.1.9",
     "react-leaflet": "^5.0.0",
-    "recharts": "^3.11.0",
+    "recharts": "^3.11.1",
     "tesseract.js": "7.0.0",
     "tesseract.js-core": "7.0.0",
     "yjs": "^13.6.33"
