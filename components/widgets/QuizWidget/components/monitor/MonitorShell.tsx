@@ -39,6 +39,7 @@ import {
   ClassRoster,
   StudentOverride,
   QuizAssignment,
+  PassHold,
 } from '@/types';
 import { db } from '@/config/firebase';
 import { useDialog } from '@/context/useDialog';
@@ -104,10 +105,14 @@ import {
 } from '@/hooks/useQuizClassActions';
 import {
   deriveAssignedStatus,
+  heldStudents,
   quizAssignedInput,
   type AssignedClass,
   type ClassStatus,
+  type HeldStudent,
 } from '@/utils/assignedStatus';
+import { HeldStudentsDialog } from '@/components/common/library/assigned/HeldStudents';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import { joinCodesAllowedForBuildings } from './monitorUtils';
 import {
   EXTEND_MS,
@@ -400,6 +405,10 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     session.status === 'active' &&
     !outward.locked;
   const [liveViewKey, setLiveViewKey] = useState<string | null>(null);
+  const [heldNotice, setHeldNotice] = useState<{
+    classLabel: string | null;
+    students: HeldStudent[];
+  } | null>(null);
   const [timeFor, setTimeFor] = useState<{ uid: string; name: string } | null>(
     null
   );
@@ -471,10 +480,23 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       ? assignedTab.assignment
       : null;
   const assignedOn = assignedAssignment != null;
+  const periodLabels = assignedAssignment?.periodAccess;
+  const onHeld = useCallback(
+    (hold: PassHold, key: string | null) => {
+      const students = heldStudents(hold, Date.now());
+      if (students.length === 0) return;
+      setHeldNotice({
+        classLabel: key ? (periodLabels?.[key]?.label ?? null) : null,
+        students,
+      });
+    },
+    [periodLabels]
+  );
   const classActions = useQuizClassActions(
     assignedAssignment,
     assignedTab?.lifecycle ?? NO_LIFECYCLE,
-    rosters
+    rosters,
+    onHeld
   );
   const assignedNow = useServerNow(assignedOn ? 10_000 : null);
   const featurePermissions = authContext?.featurePermissions;
@@ -1230,6 +1252,15 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           students={reopenOptions}
           onClose={reopenPicker.onClose}
           onConfirm={handleReopenPicked}
+        />
+      )}
+      {heldNotice && (
+        <HeldStudentsDialog
+          classLabel={heldNotice.classLabel}
+          students={heldNotice.students}
+          names={data.byStudentUid}
+          accent={LIBRARY_HEADER_ACCENTS.quiz}
+          onClose={() => setHeldNotice(null)}
         />
       )}
       {timeFor && (

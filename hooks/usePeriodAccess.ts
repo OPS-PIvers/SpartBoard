@@ -18,6 +18,7 @@ import { useAuth } from '@/context/useAuth';
 import type {
   ClassRoster,
   FeaturePermission,
+  HeldPass,
   PeriodAccess,
   PeriodAccessSessionFields,
 } from '@/types';
@@ -295,6 +296,28 @@ export function usePeriodAccess(
     [periodAccess, write, session]
   );
 
+  // A run kept live for passes tracks each pass the teacher adds or changes afterwards.
+  const refreshHold = useCallback(
+    async (uid: string, pass: HeldPass | null) => {
+      const hold = session?.passHold;
+      if (!refs || !hold) return;
+      const students = { ...hold.students };
+      if (pass) students[uid] = pass;
+      else delete students[uid];
+      const untils = Object.values(students).map((p) => p.until);
+      // With no pass left, an until of now lets the hourly sweep end the run.
+      const next = {
+        until: untils.length > 0 ? Math.max(...untils) : Date.now(),
+        students,
+      };
+      const batch = writeBatch(db);
+      batch.update(refs.session, { passHold: next });
+      if (refs.assignment) batch.update(refs.assignment, { passHold: next });
+      await batch.commit();
+    },
+    [refs, session?.passHold]
+  );
+
   const letIn = useCallback(
     async (uid: string) => {
       if (!refs || !periodAccess) return;
@@ -314,8 +337,9 @@ export function usePeriodAccess(
           new FieldPath('studentAccessFrom', uid),
           deleteField()
         );
+      await refreshHold(uid, { from: null, until });
     },
-    [refs, periodAccess, rosters, featurePermissions, commit]
+    [refs, periodAccess, rosters, featurePermissions, commit, refreshHold]
   );
 
   /** "Set a time": one student's pass from `from` to `until`; null removes it. */
@@ -330,8 +354,9 @@ export function usePeriodAccess(
         new FieldPath('studentAccessFrom', uid),
         time ? time.from : deleteField()
       );
+      await refreshHold(uid, time);
     },
-    [refs, periodAccess, commit]
+    [refs, periodAccess, commit, refreshHold]
   );
 
   const keys = useMemo(() => Object.keys(periodAccess ?? {}), [periodAccess]);

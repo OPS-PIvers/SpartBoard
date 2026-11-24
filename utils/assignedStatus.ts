@@ -1,5 +1,7 @@
 import type {
   AssignmentKind,
+  HeldPass,
+  PassHold,
   PeriodAccess,
   QuizAssignment,
   QuizAssignmentStatus,
@@ -7,6 +9,22 @@ import type {
 } from '@/types';
 import { effectivePeriodState } from '@/utils/periodAccess';
 import type { EpochWindow } from '@/utils/periodPlan';
+
+/** A student whose pass keeps a fully closed run live, earliest start first. */
+export interface HeldStudent extends HeldPass {
+  uid: string;
+}
+
+/** A hold's students whose passes still have time, earliest start first. */
+export function heldStudents(
+  hold: PassHold | null | undefined,
+  nowMs: number
+): HeldStudent[] {
+  return Object.entries(hold?.students ?? {})
+    .filter(([, p]) => p.until > nowMs)
+    .map(([uid, p]) => ({ uid, ...p }))
+    .sort((a, b) => (a.from ?? 0) - (b.from ?? 0));
+}
 
 /** D2: one class's access, as the Assigned tab shows it. */
 export type ClassStatus = 'ready' | 'scheduled' | 'open' | 'paused' | 'closed';
@@ -67,6 +85,8 @@ export interface AssignedInput {
   viewOnly: boolean;
   /** Responses awaiting a grade; null while responses are still loading. */
   needsGrading: number | null;
+  /** Every class closed while students still had passes; the run waits for them. */
+  passHold?: PassHold | null;
   /** False where the kind or mode never publishes scores. */
   publishesScores: boolean;
   scoresPublished: boolean;
@@ -122,6 +142,7 @@ export type AssignedStatusLine =
       scheduledCount: number;
       closedCount: number;
     }
+  | { kind: 'students-scheduled'; students: HeldStudent[] }
   | { kind: 'needs-grading'; count: number }
   | { kind: 'grading-unknown' }
   | { kind: 'scores-unpublished'; submitted: number }
@@ -305,8 +326,15 @@ export function deriveAssignedStatus(
             ? 'scores-published'
             : 'scores-unpublished';
   const gradingDone = grading === 'no-scores' || grading === 'scores-published';
+  // Students still holding passes keep a fully closed run Active until they finish.
+  const held: HeldStudent[] =
+    allClosed && item.status !== 'inactive'
+      ? heldStudents(item.passHold, nowMs)
+      : [];
   const bucket: AssignedBucket =
-    legacyDone || movedToDone || (allClosed && gradingDone) ? 'done' : 'active';
+    legacyDone || movedToDone || (allClosed && gradingDone && held.length === 0)
+      ? 'done'
+      : 'active';
 
   const open = pick(classes, (c) => c.status === 'open');
   const paused = pick(classes, (c) => c.status === 'paused');
@@ -350,7 +378,9 @@ export function deriveAssignedStatus(
             scheduledCount: scheduled.length,
             closedCount: count('closed'),
           };
-  } else if (bucket === 'done')
+  } else if (held.length > 0)
+    line = { kind: 'students-scheduled', students: held };
+  else if (bucket === 'done')
     line = {
       kind: 'done',
       scoresPublished: grading === 'scores-published',
@@ -472,6 +502,7 @@ export interface AssignedRunFields {
   openAt?: number | null;
   closeAt?: number | null;
   openedAt?: number | null;
+  passHold?: PassHold | null;
   rosterIds?: string[];
   className?: string;
   periodNames?: string[];
@@ -539,6 +570,7 @@ export function buildAssignedInput(
     openAt: run.openAt ?? null,
     closeAt: run.closeAt ?? null,
     openedAt: run.openedAt ?? null,
+    passHold: run.passHold ?? null,
     viewOnly: fields.viewOnly,
     needsGrading: extras.responses == null ? null : extras.needsGrading,
     publishesScores: fields.publishesScores,

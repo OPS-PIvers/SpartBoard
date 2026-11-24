@@ -58,6 +58,7 @@ import {
 import { buildQuizFinalizeUpdate, sessionQuestionIds } from './quizFinalize';
 import { withServerTurnIn } from './quizTurnIn';
 import { safeErr } from './safeLog';
+import { runEndHeldQuizRuns } from './endHeldQuizRuns';
 
 export { resolveUnrespondedQuestionIds } from './quizFinalize';
 
@@ -737,6 +738,12 @@ export const finalizeIdleQuizAttempts = onSchedule(
   },
   async () => {
     const db = admin.firestore();
+    // Quizzes kept live for scheduled students end once the last pass runs out.
+    await runEndHeldQuizRuns(db).catch((err: unknown) =>
+      logger.error('[finalizeIdleQuizAttempts] held runs failed', {
+        err: safeErr(err),
+      })
+    );
     await runFinalizeIdleQuizAttempts(db);
   }
 );

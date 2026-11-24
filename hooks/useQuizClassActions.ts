@@ -14,6 +14,7 @@ import {
   type AssignmentLifecycle,
 } from '@/hooks/useAssignmentClassActions';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
+import { useAuth } from '@/context/useAuth';
 import {
   hasStudentPointers,
   studentTargetRefKey,
@@ -85,7 +86,9 @@ export function staleWindowOverrides(
 export function useQuizClassActions(
   assignment: QuizAssignment | null,
   lifecycle: QuizLifecycle,
-  rosters: readonly Pick<ClassRoster, 'id' | 'bellPeriod'>[] | undefined
+  rosters: readonly Pick<ClassRoster, 'id' | 'bellPeriod'>[] | undefined,
+  /** Shown which scheduled students kept the quiz live after a Close. */
+  onHeld?: AssignmentLifecycle['onHeld']
 ): QuizClassActions {
   const {
     pauseAssignment,
@@ -94,6 +97,9 @@ export function useQuizClassActions(
     reopenAssignment,
   } = lifecycle;
   const { setAssignmentTargets } = useSetAssignmentTargets();
+  // Schedule for later's flag also keeps a fully closed quiz live for its scheduled students.
+  const keepLiveForPasses =
+    useAuth().canAccessFeature?.('student-set-time') === true;
   // Accommodated and skipped students read the window off their pointer docs.
   const syncStudentWindows = useCallback(
     async (
@@ -176,6 +182,8 @@ export function useQuizClassActions(
       turnInDelayMs: END_TURN_IN_DELAY_MS,
       endTurnsIn: true,
       reopenClearsMarks: true,
+      keepLiveForPasses,
+      onHeld,
       // Once the class close is gone, any per-student close (even one not yet reached) would cut that student off alone.
       onWindowCleared: (assignmentId, patch) =>
         syncStudentWindows(assignmentId, patch, {
@@ -195,6 +203,8 @@ export function useQuizClassActions(
       deactivateAssignment,
       reopenAssignment,
       syncStudentWindows,
+      keepLiveForPasses,
+      onHeld,
     ]
   );
   return useAssignmentClassActions(

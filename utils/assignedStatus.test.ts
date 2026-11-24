@@ -671,3 +671,40 @@ describe('class left open (D11) review cases', () => {
     expect(c.leftOpenSince).toBe(T - 3 * HOUR);
   });
 });
+
+describe('students scheduled for later', () => {
+  const closedAll = three({ closedAt: 5 }, { closedAt: 6 }, { closedAt: 7 });
+  const hold = {
+    until: NOW + 90 * MIN,
+    students: {
+      late: { from: NOW + 60 * MIN, until: NOW + 90 * MIN },
+      now: { from: null, until: NOW + 30 * MIN },
+      gone: { from: null, until: NOW - MIN },
+    },
+  };
+
+  it('keeps a fully closed run Active and lists who is still waiting', () => {
+    const s = derive({ ...closedAll, passHold: hold });
+    expect(s.bucket).toBe('active');
+    expect(s.line).toEqual({
+      kind: 'students-scheduled',
+      students: [
+        { uid: 'now', from: null, until: NOW + 30 * MIN },
+        { uid: 'late', from: NOW + 60 * MIN, until: NOW + 90 * MIN },
+      ],
+    });
+  });
+
+  it('drops to Finished once every pass has run out', () => {
+    const s = derive({ ...closedAll, passHold: hold }, {}, NOW + 91 * MIN);
+    expect(s.bucket).toBe('done');
+  });
+
+  it('ignores the hold while a class is open again', () => {
+    const s = derive({
+      ...three({ state: 'open' }, { closedAt: 6 }, { closedAt: 7 }),
+      passHold: hold,
+    });
+    expect(s.line.kind).toBe('open');
+  });
+});
