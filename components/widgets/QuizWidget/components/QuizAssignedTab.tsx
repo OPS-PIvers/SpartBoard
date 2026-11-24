@@ -61,7 +61,6 @@ import {
   quizAssignedInput,
   type AssignedClass,
   type AssignedStatus,
-  type HeldStudent,
 } from '@/utils/assignedStatus';
 import { BELL_CLOSE_CUSHION_MS, type EpochWindow } from '@/utils/periodPlan';
 import { logError } from '@/utils/logError';
@@ -504,21 +503,32 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
   const { addToast } = useDashboard();
   const [heldNotice, setHeldNotice] = useState<{
     classLabel: string | null;
-    students: HeldStudent[];
+    hold: PassHold;
   } | null>(null);
   const periodLabels = a.periodAccess;
   const onHeld = useCallback(
     (hold: PassHold, key: string | null) => {
-      const students = heldStudents(hold, Date.now());
-      if (students.length === 0) return;
+      if (heldStudents(hold, Date.now()).length === 0) return;
       setHeldNotice({
         classLabel: key ? (periodLabels?.[key]?.label ?? null) : null,
-        students,
+        hold,
       });
     },
     [periodLabels]
   );
   const actions = useQuizClassActions(a, lifecycle, rosters, onHeld);
+  // The stored hold once it arrives, so edits and removals show at once.
+  const liveHold = a.passHold ?? heldNotice?.hold ?? null;
+  const noticeStudents = heldNotice ? heldStudents(liveHold, now) : [];
+  const heldEdit = (fallback: PassHold | null) =>
+    user?.uid === a.teacherUid
+      ? {
+          teacherUid: a.teacherUid,
+          assignmentId: a.id,
+          hold: a.passHold ?? fallback,
+          dueAt: a.dueAt,
+        }
+      : null;
   const run = usePeriodRunner('QuizAssignedTab.class');
   const [busy, setBusy] = useState(false);
   const exec = async (fn: () => Promise<unknown>) => {
@@ -688,13 +698,15 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
 
   return (
     <>
-      {heldNotice && (
+      {heldNotice && noticeStudents.length > 0 && (
         <AssignedHeldDialog
           assignmentId={a.id}
           classIds={a.classIds}
           classLabel={heldNotice.classLabel}
-          students={heldNotice.students}
+          students={noticeStudents}
           accent={LIBRARY_HEADER_ACCENTS.quiz}
+          edit={heldEdit(heldNotice.hold)}
+          onError={(m) => addToast(m, 'error')}
           onClose={() => setHeldNotice(null)}
         />
       )}
@@ -744,6 +756,8 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
               assignmentId={a.id}
               classIds={a.classIds}
               students={status.line.students}
+              edit={heldEdit(null)}
+              onError={(m) => addToast(m, 'error')}
             />
           ) : undefined
         }

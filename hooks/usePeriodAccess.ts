@@ -28,6 +28,7 @@ import {
 } from '@/utils/bellSchedule';
 import { BELL_CLOSE_CUSHION_MS } from '@/utils/periodPlan';
 import { dueLockAt } from '@/utils/periodAccess';
+import { nextHold } from '@/utils/heldStudentTime';
 
 /** Stale in-progress responses get a fresh `lastWriteAt` on start, inside the idle finalizer's 90-minute window. */
 const IDLE_REFRESH_CUTOFF_MS = 80 * 60 * 1000;
@@ -301,15 +302,7 @@ export function usePeriodAccess(
     async (uid: string, pass: HeldPass | null) => {
       const hold = session?.passHold;
       if (!refs || !hold) return;
-      const students = { ...hold.students };
-      if (pass) students[uid] = pass;
-      else delete students[uid];
-      const untils = Object.values(students).map((p) => p.until);
-      // With no pass left, an until of now lets the hourly sweep end the run.
-      const next = {
-        until: untils.length > 0 ? Math.max(...untils) : Date.now(),
-        students,
-      };
+      const next = nextHold(hold, uid, pass, Date.now());
       const batch = writeBatch(db);
       batch.update(refs.session, { passHold: next });
       if (refs.assignment) batch.update(refs.assignment, { passHold: next });

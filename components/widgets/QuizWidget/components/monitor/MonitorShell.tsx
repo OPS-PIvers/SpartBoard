@@ -109,7 +109,6 @@ import {
   quizAssignedInput,
   type AssignedClass,
   type ClassStatus,
-  type HeldStudent,
 } from '@/utils/assignedStatus';
 import { HeldStudentsDialog } from '@/components/common/library/assigned/HeldStudents';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
@@ -407,7 +406,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const [liveViewKey, setLiveViewKey] = useState<string | null>(null);
   const [heldNotice, setHeldNotice] = useState<{
     classLabel: string | null;
-    students: HeldStudent[];
+    hold: PassHold;
   } | null>(null);
   const [timeFor, setTimeFor] = useState<{ uid: string; name: string } | null>(
     null
@@ -483,11 +482,10 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const periodLabels = assignedAssignment?.periodAccess;
   const onHeld = useCallback(
     (hold: PassHold, key: string | null) => {
-      const students = heldStudents(hold, Date.now());
-      if (students.length === 0) return;
+      if (heldStudents(hold, Date.now()).length === 0) return;
       setHeldNotice({
         classLabel: key ? (periodLabels?.[key]?.label ?? null) : null,
-        students,
+        hold,
       });
     },
     [periodLabels]
@@ -499,6 +497,10 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     onHeld
   );
   const assignedNow = useServerNow(assignedOn ? 10_000 : null);
+  const noticeHold = session.passHold ?? heldNotice?.hold ?? null;
+  const noticeStudents = heldNotice
+    ? heldStudents(noticeHold, assignedNow)
+    : [];
   const featurePermissions = authContext?.featurePermissions;
   const assigned = useMemo(
     () =>
@@ -1254,12 +1256,23 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           onConfirm={handleReopenPicked}
         />
       )}
-      {heldNotice && (
+      {heldNotice && noticeStudents.length > 0 && assignedAssignment && (
         <HeldStudentsDialog
           classLabel={heldNotice.classLabel}
-          students={heldNotice.students}
+          students={noticeStudents}
           names={data.byStudentUid}
           accent={LIBRARY_HEADER_ACCENTS.quiz}
+          edit={
+            authContext?.user?.uid === assignedAssignment.teacherUid
+              ? {
+                  teacherUid: assignedAssignment.teacherUid,
+                  assignmentId: assignedAssignment.id,
+                  hold: noticeHold,
+                  dueAt: session.dueAt,
+                }
+              : null
+          }
+          onError={(m) => addToast(m, 'error')}
           onClose={() => setHeldNotice(null)}
         />
       )}

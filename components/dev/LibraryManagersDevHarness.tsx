@@ -1115,16 +1115,19 @@ const ReviewView: React.FC = () => <QuizView variant="review" />;
 const HELD_DIALOG = new URLSearchParams(window.location.search).has(
   'held-dialog'
 );
-const HELD_PREVIEW = heldStudents(
-  ASSIGNED_FIXTURES.find((a) => a.id === 'mitosis')?.passHold,
-  Date.now()
-);
+const HELD_HOLD = ASSIGNED_FIXTURES.find((a) => a.id === 'mitosis')?.passHold;
+const HELD_PREVIEW = heldStudents(HELD_HOLD, Date.now());
 const HeldDialogPreview: React.FC = () => {
   return (
     <AssignedHeldDialog
       assignmentId="mitosis"
       classLabel="Period 2"
       students={HELD_PREVIEW}
+      edit={{
+        teacherUid: 'mock-user-id',
+        assignmentId: 'mitosis',
+        hold: HELD_HOLD,
+      }}
       accent={LIBRARY_HEADER_ACCENTS.quiz}
       onClose={noop}
     />
