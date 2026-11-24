@@ -246,7 +246,7 @@ function makeDb(state: StubState) {
                 src = (src as Record<string, unknown>)[seg];
               let dst = next;
               for (const seg of segs.slice(0, -1)) {
-                dst[seg] = { ...((dst[seg]) ?? {}) };
+                dst[seg] = { ...(dst[seg] ?? {}) };
                 dst = dst[seg] as Record<string, unknown>;
               }
               const last = segs[segs.length - 1];
@@ -1995,6 +1995,33 @@ describe('handleSetAssignmentTargets — excludedTargets', () => {
     expect(
       (assignment.servedLanguageByStudentUid as Record<string, unknown>)[uid]
     ).toBe('es');
+  });
+
+  it('keeps served languages of other students across calls', async () => {
+    await run(
+      baseInput({
+        add: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { language: 'es' },
+        },
+      })
+    );
+    await run(
+      baseInput({
+        add: [{ kind: 'classlink', sourcedId: SOURCED_B }],
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_B}`]: { language: 'fr' },
+        },
+      })
+    );
+    const assignment = state.docs.get(assignmentPath()) as Record<
+      string,
+      unknown
+    >;
+    expect(assignment.servedLanguageByStudentUid).toEqual({
+      [computeStudentUid(SOURCED_A, HMAC)]: 'es',
+      [computeStudentUid(SOURCED_B, HMAC)]: 'fr',
+    });
   });
 
   it('leaves the assignment doc untouched when the field is absent', async () => {

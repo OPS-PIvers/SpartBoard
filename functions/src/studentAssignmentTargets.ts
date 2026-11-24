@@ -1343,14 +1343,15 @@ export async function handleSetAssignmentTargets(
         ? { servedLanguageByStudentUid }
         : {}),
     };
-    // Each override replaces its uid's whole field so dropped nested keys don't linger.
+    // Per-uid map keys get a path per uid: overrides replace whole, other uids' entries survive.
+    const perUidKeys = ['overridesByStudentUid', 'servedLanguageByStudentUid'];
     const mergeFields: (string | admin.firestore.FieldPath)[] = Object.keys(
       data
-    ).filter((k) => k !== 'overridesByStudentUid');
-    for (const uid of Object.keys(overridesByStudentUid)) {
-      mergeFields.push(
-        new admin.firestore.FieldPath('overridesByStudentUid', uid)
-      );
+    ).filter((k) => !perUidKeys.includes(k));
+    for (const key of perUidKeys) {
+      for (const uid of Object.keys((data[key] as object | undefined) ?? {})) {
+        mergeFields.push(new admin.firestore.FieldPath(key, uid));
+      }
     }
     tx.set(assignmentRef, data, { mergeFields });
     return refs;
