@@ -1,0 +1,1 @@
+claude/backlog-ab-372-20261123 (AB-372: substitute-sharing switch on sub callables, roster read cache, AI writing check plan restored)
