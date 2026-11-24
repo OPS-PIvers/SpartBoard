@@ -84,6 +84,10 @@ export interface LibraryMenuAction {
   anchor?: TourAnchorAttrs;
   /** Opens these rows in a side menu instead of running `onClick`. */
   submenu?: LibraryMenuAction[];
+  /** Assigned tab: moves the item out of the ⋯ menu into the row's status or publish chip. */
+  chip?: 'status' | 'publish';
+  /** Assigned tab publish chip: scores are published now. */
+  selected?: boolean;
 }
 
 /** Primary action on a card — always visible, never nested under overflow. */

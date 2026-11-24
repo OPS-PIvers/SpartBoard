@@ -8,14 +8,20 @@ export const useRolloutSwitch = (sw: RolloutSwitch | undefined) => {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A failed read shows as off, so Retire must not trust it.
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!sw) return;
     return onSnapshot(
       doc(db, 'admin_settings', sw.docId),
-      (snap) => setEnabled(sw.normalize(snap.data()).enabled),
+      (snap) => {
+        setFailed(false);
+        setEnabled(sw.normalize(snap.data()).enabled);
+      },
       (err) => {
         console.error('[useRolloutSwitch]', sw.docId, err);
+        setFailed(true);
         setEnabled(false);
       }
     );
@@ -38,5 +44,5 @@ export const useRolloutSwitch = (sw: RolloutSwitch | undefined) => {
     }
   };
 
-  return { enabled, saving, error, change };
+  return { enabled, failed, saving, error, change };
 };

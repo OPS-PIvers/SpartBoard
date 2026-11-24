@@ -7152,7 +7152,7 @@ export const TOUR_ANCHORS = {
     rows: true,
   },
   'library-shell.assigned-close-all': {
-    label: 'Close for all classes, in an Assigned row menu',
+    label: 'Closed, in an Assigned row status menu',
     persists: true,
     panel: true,
   },
@@ -7162,9 +7162,36 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'library-shell.assigned-reopen': {
-    label: 'Reopen, in an Assigned row menu',
+    label: 'Reopen, in an Assigned row status menu',
     persists: true,
     panel: true,
+  },
+  'library-shell.assigned-status': {
+    label: 'Status chip on an Assigned tab row; opens Open, Paused and Closed',
+    perField: true,
+    rows: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-status-option': {
+    label: 'Open, Paused or Closed in an Assigned row status menu',
+    persists: true,
+    perField: true,
+    panel: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-publish': {
+    label:
+      'Scores chip on an Assigned tab row; publishes or unpublishes scores',
+    perField: true,
+    rows: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-publish-option': {
+    label: 'Published or Not published in an Assigned row scores menu',
+    persists: true,
+    perField: true,
+    panel: true,
+    rowList: 'assignment-rows',
   },
   'assigned-reopen.class': {
     label: 'Class picker in the Reopen dialog of an Assigned row',
@@ -10768,6 +10795,16 @@ export const TOUR_ANCHORS = {
     label: 'Graduate button on a Previews row',
     perField: true,
     persists: true,
+    panel: true,
+  },
+  'admin.previews.wrap-up': {
+    label: 'Finish menu button on a Previews row (opens Graduate and Retire)',
+    perField: true,
+    panel: true,
+  },
+  'admin.previews.retire': {
+    label: 'Retire button on a Previews row (opens a GitHub issue)',
+    perField: true,
     panel: true,
   },
   'admin.analytics.active-students-search': {

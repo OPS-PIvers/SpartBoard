@@ -22,6 +22,17 @@ describe('matchesSearch', () => {
 });
 
 describe('countAccessMatches', () => {
+  it('counts a graduated district switch on Features, not Previews', () => {
+    const before = countAccessMatches('grammarly');
+    const after = countAccessMatches(
+      'grammarly',
+      undefined,
+      new Set(['student_grammarly'])
+    );
+    expect(after.previews).toBe(before.previews - 1);
+    expect(after.features).toBe(before.features + 1);
+  });
+
   it('counts matches on each Access tab without mounting it', () => {
     const counts = countAccessMatches('paper answer');
     expect(counts.features).toBe(0);

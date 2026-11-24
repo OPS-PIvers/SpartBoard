@@ -1,4 +1,8 @@
-import type { PeriodAccess, PeriodAccessSessionFields } from '@/types';
+import type {
+  PassHold,
+  PeriodAccess,
+  PeriodAccessSessionFields,
+} from '@/types';
 
 /** Chip/student view of one period: the stored state resolved against the clock. */
 export type EffectivePeriodState =
@@ -33,6 +37,25 @@ export function isLetIn(
   if (typeof until !== 'number' || until <= nowMs) return false;
   const from = session?.studentAccessFrom?.[uid];
   return typeof from !== 'number' || from <= nowMs;
+}
+
+/** Let in and Schedule passes that still have time left, or null when none do. */
+export function pendingPasses(
+  session: PeriodAccessSessionFields | null | undefined,
+  nowMs: number
+): PassHold | null {
+  const students: PassHold['students'] = {};
+  let until = 0;
+  for (const [uid, v] of Object.entries(session?.studentAccess ?? {})) {
+    if (typeof v !== 'number' || v <= nowMs) continue;
+    const from = session?.studentAccessFrom?.[uid];
+    students[uid] = {
+      from: typeof from === 'number' && from > nowMs ? from : null,
+      until: v,
+    };
+    until = Math.max(until, v);
+  }
+  return until > 0 ? { until, students } : null;
 }
 
 /** A time the teacher set for one student ("Set a time"), or null for none or a plain Let in. */

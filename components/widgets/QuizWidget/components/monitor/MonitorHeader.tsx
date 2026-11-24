@@ -1,4 +1,4 @@
-// The monitor header shared by Quiz and Writing: Back, title and the Live, Paused or Ended pill.
+// The monitor header shared by every assignment widget: Back, title and the Live, Paused or Ended pill.
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
@@ -8,8 +8,9 @@ export type MonitorHeaderStatus = 'live' | 'paused' | 'ended';
 
 const PILL: Record<MonitorHeaderStatus, { label: string; cls: string }> = {
   live: { label: 'Live', cls: 'bg-white text-brand-blue-primary' },
-  paused: { label: 'Paused', cls: 'bg-white/20 text-white' },
-  ended: { label: 'Ended', cls: 'bg-white/20 text-white' },
+  // Black wash keeps white text above 4.5:1 on every widget color; a white wash dropped to 3.5:1.
+  paused: { label: 'Paused', cls: 'bg-black/20 text-white' },
+  ended: { label: 'Ended', cls: 'bg-black/20 text-white' },
 };
 
 export const MonitorHeader: React.FC<{
@@ -17,10 +18,12 @@ export const MonitorHeader: React.FC<{
   status: MonitorHeaderStatus;
   /** The picked class's status; replaces `status` in the pill when given. */
   classStatus?: MonitorClassStatus;
+  /** Replaces the pill's word, e.g. "Not started"; `status` still sets its color. */
+  label?: string;
   /** Omitted hides Back. */
   onBack?: () => void;
   backAnchor: TourAnchorAttrs;
-  /** The widget's header color; omitted keeps Quiz's brand blue. */
+  /** The widget's header color from LIBRARY_HEADER_ACCENTS; omitted falls back to brand blue. */
   accent?: string;
   /** Room on the right, e.g. for a connected Review's corner tab. */
   paddingRight?: number | string;
@@ -28,6 +31,7 @@ export const MonitorHeader: React.FC<{
   title,
   status,
   classStatus,
+  label,
   accent,
   onBack,
   backAnchor,
@@ -53,10 +57,11 @@ export const MonitorHeader: React.FC<{
     >
       {onBack && (
         <button
+          type="button"
           onClick={onBack}
           aria-label="Back"
           {...backAnchor}
-          className="rounded-md hover:bg-white/15 transition-colors"
+          className="relative touch-target-expand rounded-md hover:bg-white/15 transition-colors"
           style={{ padding: 'min(4px, 1cqmin)' }}
         >
           <ArrowLeft
@@ -81,7 +86,7 @@ export const MonitorHeader: React.FC<{
           padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
         }}
       >
-        {pill.label}
+        {label ?? pill.label}
       </span>
     </div>
   );

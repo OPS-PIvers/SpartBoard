@@ -28971,7 +28971,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.assigned-close-all",
-    "label": "Close for all classes, in an Assigned row menu",
+    "label": "Closed, in an Assigned row status menu",
     "scope": "board",
     "panel": true,
     "persists": true,
@@ -28980,9 +28980,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.shell",
         "kind": "shared",
         "path": [
-          "library-shell.archive-menu"
+          "library-shell.assigned-status"
         ],
-        "reveal": "library-shell.archive-menu"
+        "reveal": "library-shell.assigned-status"
       }
     ]
   },
@@ -29005,7 +29005,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.assigned-reopen",
-    "label": "Reopen, in an Assigned row menu",
+    "label": "Reopen, in an Assigned row status menu",
     "scope": "board",
     "panel": true,
     "persists": true,
@@ -29014,9 +29014,73 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.shell",
         "kind": "shared",
         "path": [
-          "library-shell.archive-menu"
+          "library-shell.assigned-status"
         ],
-        "reveal": "library-shell.archive-menu"
+        "reveal": "library-shell.assigned-status"
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-status",
+    "label": "Status chip on an Assigned tab row; opens Open, Paused and Closed",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "assignment-rows",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-status-option",
+    "label": "Open, Paused or Closed in an Assigned row status menu",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "row_list": "assignment-rows",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.assigned-status"
+        ],
+        "reveal": "library-shell.assigned-status"
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-publish",
+    "label": "Scores chip on an Assigned tab row; publishes or unpublishes scores",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "assignment-rows",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-publish-option",
+    "label": "Published or Not published in an Assigned row scores menu",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "row_list": "assignment-rows",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.assigned-publish"
+        ],
+        "reveal": "library-shell.assigned-publish"
       }
     ]
   },
@@ -45433,12 +45497,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "admin.previews",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#previews"
-        ],
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
         "needs": [
           "admin"
         ]
@@ -45629,12 +45690,41 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "admin.previews",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#previews"
-        ],
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.previews.wrap-up",
+    "label": "Finish menu button on a Previews row (opens Graduate and Retire)",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.previews.retire",
+    "label": "Retire button on a Previews row (opens a GitHub issue)",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
         "needs": [
           "admin"
         ]

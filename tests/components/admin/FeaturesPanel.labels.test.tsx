@@ -11,6 +11,12 @@ vi.mock('firebase/firestore', () => ({
   setDoc: vi.fn().mockResolvedValue(undefined),
   getDocs: vi.fn().mockResolvedValue({ forEach: vi.fn() }),
   addDoc: vi.fn().mockResolvedValue(undefined),
+  onSnapshot: vi.fn(
+    (_ref: unknown, next: (snap: { data: () => unknown }) => void) => {
+      next({ data: () => undefined });
+      return () => undefined;
+    }
+  ),
   serverTimestamp: vi.fn(() => 0),
 }));
 

@@ -25,6 +25,8 @@ interface Fixture {
   counts?: [number, number, number];
   misses?: Record<number, number>;
   runs?: number;
+  author?: string;
+  article?: 'draft' | 'published';
 }
 
 const FIXTURES: Fixture[] = [
@@ -51,6 +53,8 @@ const FIXTURES: Fixture[] = [
     publicOn: true,
     counts: [0, 0, 3],
     runs: 2,
+    author: 'Paul Ivers',
+    article: 'draft',
   },
   {
     id: 'md',
@@ -67,6 +71,8 @@ const FIXTURES: Fixture[] = [
     check: 'pass',
     publicOn: true,
     runs: 1,
+    author: 'Sean Beaverson',
+    article: 'published',
   },
   {
     id: 'co',
@@ -84,6 +90,7 @@ const FIXTURES: Fixture[] = [
     check: { 2: 'none', 3: 'weak' },
     counts: [14, 11, 0],
     runs: 6,
+    author: 'Maria Fernanda Castellanos-Whitfield',
   },
   {
     id: 'sl',
@@ -105,7 +112,8 @@ const FIXTURES: Fixture[] = [
   {
     id: 'gm',
     title: 'Set up a Gmail filter for parent emails',
-    site: 'https://mail.google.com/mail/u/*',
+    site: 'https://orono.freshservice.com/a/solutions/*',
+    author: 'Sean Beaverson',
     steps: [
       'Open search options',
       'Type the sender',
@@ -114,6 +122,15 @@ const FIXTURES: Fixture[] = [
       'Save',
     ],
     updatedAt: 500,
+  },
+  {
+    id: 'gt',
+    title: 'Share a board with a guest teacher',
+    site: 'https://spartboard.web.app/*',
+    steps: ['Open Share', 'Add the guest', 'Click Done'],
+    updatedAt: 400,
+    check: 'pass',
+    author: 'Paul Ivers',
   },
 ];
 
@@ -139,6 +156,7 @@ const setOf = (f: Fixture): GuidedLearningSet => {
     createdAt: 1,
     updatedAt: f.updatedAt,
     steps: f.steps.map((label, i) => stepOf(f, label, i)),
+    ...(f.author ? { authorName: f.author } : {}),
   };
   if (!f.check) return set;
   const results: Record<string, WebTourCheckResult> = {};
@@ -209,7 +227,16 @@ const seed = (): WebToursDevSeed => {
     records: publicRecords as never,
     published: publicPublished,
   };
-  return { tours, published, counts, runs };
+  const articles: WebToursDevSeed['articles'] = {};
+  FIXTURES.forEach((f) => {
+    if (f.article)
+      articles[f.id] = {
+        published: f.article === 'published',
+        url: null,
+        sentAt: Number.MAX_SAFE_INTEGER,
+      };
+  });
+  return { tours, published, counts, runs, articles };
 };
 
 const auth = {

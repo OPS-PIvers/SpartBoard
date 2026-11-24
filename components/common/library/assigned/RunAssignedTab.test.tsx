@@ -62,6 +62,16 @@ const menuItems = (): string[] => {
   fireEvent.click(screen.getByRole('button', { name: /more/i }));
   return screen.getAllByRole('menuitem').map((item) => item.textContent ?? '');
 };
+const chipItems = (chip: RegExp): string[] => {
+  fireEvent.click(screen.getByRole('button', { name: chip }));
+  const items = screen
+    .getAllByRole('menuitemradio')
+    .map((item) => item.textContent ?? '');
+  return items;
+};
+const closeChip = () => fireEvent.keyDown(document, { key: 'Escape' });
+const statusItems = () => chipItems(/^Status of/);
+const publishItems = () => chipItems(/^Scores for/);
 const onMonitor = vi.fn();
 const onCopy = vi.fn<(id: string) => void>();
 
@@ -152,7 +162,7 @@ describe('RunAssignedTab', () => {
     ]);
   });
 
-  it('a row with several classes offers Close for all classes and Reopen once one is closed', () => {
+  it('a row with several classes moves Closed to the status chip and keeps Reopen for a partly closed row', () => {
     renderTab([
       ma({
         periodAccess: {
@@ -165,14 +175,15 @@ describe('RunAssignedTab', () => {
       'Copy student link',
       'Open app',
       'Edit classes',
-      'Close for all classes',
       'Reopen',
       'Move to Finished',
       'Delete',
     ]);
+    fireEvent.click(document.body);
+    expect(statusItems()).toEqual(['Open', 'Closed']);
   });
 
-  it('all closed and Active: no links or settings, Publish scores and Reopen', () => {
+  it('all closed and Active: no links or settings; the chips publish and reopen', () => {
     const a = ma({
       status: 'inactive',
       resultsVersion: 2,
@@ -182,15 +193,14 @@ describe('RunAssignedTab', () => {
       },
     });
     renderTab([a], { a1: miniAppRowResponses(a, [{}]) });
-    expect(menuItems()).toEqual([
-      'Publish scores',
-      'Reopen',
-      'Move to Finished',
-      'Delete',
-    ]);
+    expect(menuItems()).toEqual(['Move to Finished', 'Delete']);
+    fireEvent.click(document.body);
+    expect(statusItems()).toEqual(['Reopen', 'Closed']);
+    closeChip();
+    expect(publishItems()).toEqual(['Not published', 'Published']);
   });
 
-  it('Reopen asks which class and reopens it for everyone', async () => {
+  it('an open row with a closed class keeps Reopen in the ⋯ menu', async () => {
     renderTab([
       ma({
         periodAccess: {
@@ -200,8 +210,26 @@ describe('RunAssignedTab', () => {
         },
       }),
     ]);
+    expect(statusItems()).toEqual(['Open', 'Closed']);
+    closeChip();
     menuItems();
     await userEvent.click(screen.getByRole('menuitem', { name: 'Reopen' }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+
+  it('Reopen from the status chip asks which class and reopens it for everyone', async () => {
+    renderTab([
+      ma({
+        periodAccess: {
+          p1: row('P1', { closedAt: NOW - 1000 }),
+          p2: row('P2', { closedAt: NOW - 1000 }),
+        },
+      }),
+    ]);
+    statusItems();
+    await userEvent.click(
+      screen.getByRole('menuitemradio', { name: 'Reopen' })
+    );
     const dialog = screen.getByRole('dialog');
     expect(
       within(dialog).getByRole('radio', { name: 'Everyone in the class' })
@@ -222,7 +250,7 @@ describe('RunAssignedTab', () => {
     expect(actions.reopenClass).toHaveBeenCalledWith('p2');
   });
 
-  it('a Finished row keeps Publish scores, Reopen and Delete', async () => {
+  it('a Finished row keeps Delete in the menu and Reopen and Publish in its chips', async () => {
     renderTab([
       ma({
         status: 'inactive',
@@ -231,7 +259,11 @@ describe('RunAssignedTab', () => {
       } as Partial<MiniAppAssignment>),
     ]);
     await userEvent.click(screen.getByRole('button', { name: /^Finished/ }));
-    expect(menuItems()).toEqual(['Publish scores', 'Reopen', 'Delete']);
+    expect(menuItems()).toEqual(['Delete']);
+    fireEvent.click(document.body);
+    expect(statusItems()).toEqual(['Reopen', 'Closed']);
+    closeChip();
+    expect(publishItems()).toEqual(['Not published', 'Published']);
   });
 
   it('several classes with classless submissions show the total, not per-class counts', async () => {
@@ -265,7 +297,9 @@ describe('RunAssignedTab', () => {
     unmount();
     renderTab([ma({ mode: 'view-only', status: 'inactive' })]);
     fireEvent.click(screen.getByRole('button', { name: /^Finished/ }));
-    expect(menuItems()).toEqual(['Reopen', 'Delete']);
+    expect(menuItems()).toEqual(['Delete']);
+    fireEvent.click(document.body);
+    expect(statusItems()).toEqual(['Reopen', 'Closed']);
   });
 
   it('a closed version-2 run with unpublished submissions stays Active', () => {

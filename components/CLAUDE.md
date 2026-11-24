@@ -42,10 +42,12 @@ Teachers run the board on 50" classroom touchscreens as well as laptops, so ever
 
 Permanent helper text was cut across the app in September 2026 (`docs/plans/shipped/ALWAYS_VISIBLE_COPY.md`), so don't add it back.
 
+- **Before writing or changing any string**, run the `ui-copy` skill (`pauls-skills` plugin) and use the words in `.claude/rules/ui-copy.md`. One idea per sentence: no "X, so Y". Say what happened and what to do, never how it works. No trailing "…" on a menu item or button.
+
 - A label and its control need no sentence under them. Add a hint only when it states a prerequisite ("Signed-in students only."), a number or limit the label lacks, or the consequence of a destructive action.
 - Detail that is needed but rarely goes in the control's `title` tooltip, not in a new permanent line.
 - Empty states get a title and at most one short sentence naming the next action.
-- No em dashes, "Tip:" or "Note:" boxes, marketing words, or mechanics (Firestore, JSON, CSS, sync internals, flag names) in UI text. Run `deslop --writing` on new strings.
+- No em dashes, "Tip:" or "Note:" boxes, marketing words, or mechanics (Firestore, JSON, CSS, sync internals, flag names) in UI text. Run `ui-copy` on new strings (it overrides `deslop --writing`, which rejoins clauses).
 - A student's go at a quiz, card or recording is an "attempt" ("Attempts per card", "Attempt 2 of 3", "First-attempt accuracy"), never a "try" or "take". "Try again" and verbs like "Take a photo" are fine. `tests/copyGuard.test.ts` fails on the noun in `locales/*.json` and in strings under `components/`, `utils/`, `hooks/`, `context/` and `config/`, with no baseline.
 - `tests/copyGuard.test.ts` fails on new em dashes, Tip/Note prefixes and strings over 30 words. Shorten the string. Never add to `tests/fixtures/copyGuardBaseline.json`, which may only shrink.
 

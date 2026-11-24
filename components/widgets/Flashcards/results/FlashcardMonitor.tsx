@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ArrowLeft,
   BarChart3,
   ChevronDown,
   Loader2,
@@ -42,6 +41,7 @@ import {
 import type { MonitorRosterPrefs } from '@/components/widgets/QuizWidget/components/monitor/rosterStyles';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import { FlashcardCheckRoster } from './FlashcardCheckRoster';
+import { MonitorHeader } from '@/components/widgets/QuizWidget/components/monitor/MonitorHeader';
 import {
   FLASHCARD_TOOLBAR_ANCHORS,
   cardLabel,
@@ -529,51 +529,19 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
 
   return (
     <div className="relative flex h-full w-full flex-col bg-white text-brand-gray-dark">
-      <div
-        className="flex shrink-0 items-center text-white"
-        style={{
-          backgroundColor: FLASHCARDS_ACCENT,
-          gap: 'min(8px, 2cqmin)',
-          padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() =>
-            screen === 'home'
-              ? onBack()
-              : screen === 'cards' && cardIndex !== null
-                ? setCardIndex(null)
-                : setScreen('home')
-          }
-          aria-label="Back"
-          {...tourTypeAttr('flashcards.results-back', 'flashcards')}
-          className="touch-target-expand relative rounded-md transition-colors hover:bg-white/15"
-          style={{ padding: 'min(4px, 1cqmin)' }}
-        >
-          <ArrowLeft
-            style={{ width: 'min(16px, 5cqmin)', height: 'min(16px, 5cqmin)' }}
-          />
-        </button>
-        <p
-          className="flex-1 truncate font-sans font-semibold"
-          style={{ fontSize: 'min(14px, 5cqmin)' }}
-        >
-          {title}
-        </p>
-        <span
-          className={`shrink-0 rounded-full font-sans font-semibold uppercase tracking-wider ${
-            ended ? 'bg-white/20 text-white' : 'bg-white'
-          }`}
-          style={{
-            color: ended ? undefined : FLASHCARDS_ACCENT,
-            fontSize: 'min(10px, 3.5cqmin)',
-            padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
-          }}
-        >
-          {ended ? 'Ended' : 'Live'}
-        </span>
-      </div>
+      <MonitorHeader
+        title={title}
+        status={ended ? 'ended' : 'live'}
+        accent={FLASHCARDS_ACCENT}
+        onBack={() =>
+          screen === 'home'
+            ? onBack()
+            : screen === 'cards' && cardIndex !== null
+              ? setCardIndex(null)
+              : setScreen('home')
+        }
+        backAnchor={tourTypeAttr('flashcards.results-back', 'flashcards')}
+      />
 
       <div
         className="flex-1 overflow-y-auto"
