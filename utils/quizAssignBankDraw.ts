@@ -271,8 +271,10 @@ export async function loadPaperQuizWithFallback(
   try {
     const frozen = await loadFrozen();
     if (frozen) return frozen;
-  } catch {
-    // Fall back to the library quiz; only its failure is reported.
+  } catch (err) {
+    logError('quizAssignBankDraw.loadPaperQuizWithFallback', err, {
+      frozenDriveFileId,
+    });
   }
   return loadLive();
 }

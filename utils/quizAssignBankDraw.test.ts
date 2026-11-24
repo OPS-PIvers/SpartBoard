@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { logError } from '@/utils/logError';
 import type { QuizData, QuizQuestion } from '@/types';
 import type { BankContent } from '@/utils/questionBanks';
 import {
@@ -400,6 +401,8 @@ describe('paper import and reprint source', () => {
   });
 });
 
+vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
+
 describe('loadPaperQuizWithFallback', () => {
   const q = { id: 'live' } as unknown as QuizData;
   const f = { id: 'frozen' } as unknown as QuizData;
@@ -432,6 +435,11 @@ describe('loadPaperQuizWithFallback', () => {
       )
     ).toBe(q);
     expect(live).toHaveBeenCalledTimes(1);
+    expect(logError).toHaveBeenCalledWith(
+      'quizAssignBankDraw.loadPaperQuizWithFallback',
+      expect.objectContaining({ message: 'frozen gone' }),
+      { frozenDriveFileId: 'x' }
+    );
   });
 
   it('surfaces the library failure when both reads fail', async () => {
