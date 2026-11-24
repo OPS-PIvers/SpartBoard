@@ -44,6 +44,9 @@ export const normalizeHelpResourceItem = (
       typeof data.createdByEmail === 'string' ? data.createdByEmail : '',
     createdAt: typeof data.createdAt === 'number' ? data.createdAt : 0,
     updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : 0,
+    ...((data.audience === 'subs' || data.audience === 'students') && {
+      audience: data.audience,
+    }),
   };
 };
 

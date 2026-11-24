@@ -140,7 +140,7 @@ describe('Live tour editor header', () => {
       await Promise.resolve();
     });
     expect(session.flush).toHaveBeenCalled();
-    expect(h.publish).toHaveBeenCalledWith(set, 'admin-1');
+    expect(h.publish).toHaveBeenCalledWith(set, 'admin-1', undefined);
   });
 
   it('publishes nothing when the draft could not be saved', async () => {

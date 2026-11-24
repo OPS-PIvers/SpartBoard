@@ -28,6 +28,8 @@ import {
   previousRosterIdsFor,
   uncheckedRosterClassIds,
 } from '@/utils/assignmentClassEdit';
+import { dueLockAt } from '@/utils/periodAccess';
+import { addToOpenAssignment } from '@/utils/openAssignmentClasses';
 import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { isGameSession } from '@/utils/reviewResults';
 import { useReviewLaunch } from './useReviewLaunch';
@@ -39,6 +41,7 @@ import {
   PAPER_HANDWRITING_AI_FEATURE,
   PAPER_HANDWRITTEN_FEATURE,
   PAPER_KEPT_PAGES_FEATURE,
+  PAPER_STUDENT_COPY_FEATURE,
   changedPaperBoxSetup,
   withPaperBoxSizes,
   withPaperBoxStyles,
@@ -72,9 +75,10 @@ import { loadCatalogCodes } from '@/hooks/useStandardsCatalog';
 import { useQuestionBanks } from '@/hooks/useQuestionBanks';
 import {
   BankSlotResolutionError,
-  type BankContent,
+  type ResolvedQuizAssignment,
   quizHasBankSlots,
   resolveQuizAssignment,
+  resolvedFromSession,
   sampleQuizDraw,
 } from '@/utils/questionBanks';
 import {
@@ -238,6 +242,7 @@ import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { releasePaperRow } from '@/hooks/quizSession/joinHelpers';
 import { QuizLiveMonitor } from './components/QuizLiveMonitor';
 import { PaperPrintModal } from './components/PaperPrintModal';
+import type { PrintSeat } from './components/monitor/printSeats';
 import {
   PaperImportModal,
   type PaperImportRequestExtra,
@@ -271,10 +276,12 @@ import {
   planHybridWrittenBatch,
 } from '@/utils/paperWrittenHybrid';
 import {
-  PAPER_PRINTED_VERSIONS_FEATURE,
   printedGroupForPrint,
   printedGroupQuiz,
+  printedGroupResolved,
   printedGroupRecord,
+  STUDENT_COPY_LABEL,
+  studentCopyPick,
   printedReprintGroups,
   printedCopyPlan,
   printedStackOrder,
@@ -317,6 +324,10 @@ import {
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 import {
+  expandMixedTargeting,
+  savedStudentsByClass,
+} from '@/utils/assignTargets';
+import {
   buildAssignCreateOptions,
   buildAssignedWidgetConfig,
   buildAssignQuizRef,
@@ -354,6 +365,20 @@ const QUIZZES_COLLECTION = 'quizzes';
 const AUTO_TRANSLATE_TIMEOUT_MS = 300_000;
 /** How long assign holds for a translation before it goes out in English. */
 const AUTO_TRANSLATE_WAIT_MS = 45_000;
+
+const bankLoadErrorMessage = (err: unknown): string =>
+  err instanceof BankSlotResolutionError
+    ? err.problems.map((p) => p.message).join(' ')
+    : 'Could not load the question banks for this quiz.';
+
+/** The bank slots an assignment's session froze; empty when it drew none. */
+async function sessionBankSlotsOf(
+  assignmentId: string
+): Promise<QuizSessionBankSlot[]> {
+  const snap = await getDoc(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId));
+  const slots: unknown = snap.data()?.bankSlots;
+  return Array.isArray(slots) ? (slots as QuizSessionBankSlot[]) : [];
+}
 
 /** Staff assignments have no classes; ones made before the assignment doc carried `audience` keep it on their session. */
 async function isStaffQuizAssignment(a: QuizAssignment): Promise<boolean> {
@@ -976,11 +1001,9 @@ const TeacherQuizWidget: React.FC<{
   const [paperPrintMeta, setPaperPrintMeta] = useState<QuizMetadata | null>(
     null
   );
-  /** Banks behind `paperPrintQuiz`'s slots, so balanced versions can print. */
-  const [paperPrintBanks, setPaperPrintBanks] = useState<ReadonlyMap<
-    string,
-    BankContent
-  > | null>(null);
+  /** `paperPrintQuiz`'s bank pulls resolved to their pools, so each sheet prints its own draw. */
+  const [paperPrintResolved, setPaperPrintResolved] =
+    useState<ResolvedQuizAssignment | null>(null);
   const [paperImport, setPaperImport] = useState<{
     quiz: QuizData;
     meta: QuizMetadata;
@@ -1067,8 +1090,9 @@ const TeacherQuizWidget: React.FC<{
     canAccessFeature(PAPER_HANDWRITTEN_FEATURE) &&
     canAccessFeature(PAPER_WRITTEN_HYBRID_FEATURE);
   // A modification group's printed version, scanned back into the device assignment.
-  const printedVersionsOn =
-    !!paperUid && canAccessFeature(PAPER_PRINTED_VERSIONS_FEATURE);
+  const printedVersionsOn = !!paperUid;
+  const studentCopyOn =
+    !!paperUid && canAccessFeature(PAPER_STUDENT_COPY_FEATURE);
   const [paperGroupReprint, setPaperGroupReprint] = useState<
     PaperReprintGroup[] | null
   >(null);
@@ -1078,7 +1102,10 @@ const TeacherQuizWidget: React.FC<{
     groups: {
       pick: PrintedGroupPick;
       quiz: QuizData;
+      /** The assignment's bank pools with this group's changes, so its sheets draw like its students. */
+      resolved?: ResolvedQuizAssignment;
       translation?: PrintedTranslation;
+      studentName?: string;
     }[];
     /** Already printed groups, offered for reprint once the queue is done. */
     then?: PaperReprintGroup[];
@@ -1206,7 +1233,10 @@ const TeacherQuizWidget: React.FC<{
     quiz: QuizData,
     picks: PrintedGroupPick[],
     index: QuizMetadata['translations'],
-    then?: PaperReprintGroup[]
+    then?: PaperReprintGroup[],
+    resolved?: ResolvedQuizAssignment | null,
+    /** A student copy's dialog names the student in place of "Student copy". */
+    studentName?: string
   ) => {
     const translations = await printedGroupTranslations(
       quiz,
@@ -1216,13 +1246,97 @@ const TeacherQuizWidget: React.FC<{
     );
     setPrintedQueue({
       assignmentId,
-      groups: picks.map((pick, i) => ({
-        pick,
-        quiz: printedGroupQuiz(quiz, pick.group),
-        ...(translations[i] ? { translation: translations[i] } : {}),
-      })),
+      groups: picks.map((given, i) => {
+        // A bank draw replaces a question subset on devices too (QuizStudentApp drawIds).
+        const { questionIds: _subset, ...withoutSubset } = given;
+        const { questionIds: _groupSubset, ...groupWithout } = given.group;
+        const pick = resolved
+          ? { ...withoutSubset, group: groupWithout }
+          : given;
+        return {
+          pick,
+          quiz: printedGroupQuiz(quiz, pick.group, pick),
+          ...(resolved
+            ? {
+                resolved: printedGroupResolved(
+                  resolved,
+                  quiz,
+                  pick.group,
+                  pick.hiddenChoices
+                ),
+              }
+            : {}),
+          ...(translations[i] ? { translation: translations[i] } : {}),
+          ...(studentName && pick.single ? { studentName } : {}),
+        };
+      }),
       ...(then?.length ? { then } : {}),
     });
+  };
+  // Bank pulls print from the pools this assignment froze; false after a load error toast.
+  const frozenBankPools = async (
+    assignment: QuizAssignment
+  ): Promise<ResolvedQuizAssignment | null | false> => {
+    if (!assignment.resolvedDriveFileId) return null;
+    try {
+      const [pool, slots] = await Promise.all([
+        loadAnswerKeyQuiz(paperAssignmentMeta(assignment), assignment),
+        sessionBankSlotsOf(assignment.id),
+      ]);
+      if (!pool || slots.length === 0) throw new Error('no bank pools');
+      return resolvedFromSession(pool.questions, pool.stimuli ?? [], slots);
+    } catch (err) {
+      addToast(bankLoadErrorMessage(err), 'error');
+      return false;
+    }
+  };
+  const printStudentCopy = async (
+    assignment: QuizAssignment,
+    seat: PrintSeat
+  ) => {
+    const meta = paperAssignmentMeta(assignment);
+    const data = await loadPaperQuiz(assignment, meta);
+    if (!data) return;
+    const resolved = await frozenBankPools(assignment);
+    if (resolved === false) return;
+    const override =
+      (seat.refKey
+        ? assignment.overridesBySourcedId?.[seat.refKey]
+        : undefined) ??
+      (seat.studentUid
+        ? assignment.overridesByStudentUid?.[seat.studentUid]
+        : undefined);
+    const student = rosters
+      .find((r) => r.id === seat.rosterId)
+      ?.students.find((st) => st.id === seat.studentId);
+    const name = student
+      ? [student.lastName, student.firstName].filter(Boolean).join(', ')
+      : seat.name;
+    await queuePrintedGroups(
+      assignment.id,
+      data,
+      [studentCopyPick(seat, override)],
+      meta.translations,
+      undefined,
+      resolved,
+      name
+    );
+  };
+  const printedQueueGroup = (
+    entry: NonNullable<typeof printedQueue>['groups'][number]
+  ) => {
+    const base = printedGroupForPrint(entry.pick, entry.translation);
+    return {
+      ...base,
+      ...(entry.studentName
+        ? {
+            label: base.label.replace(STUDENT_COPY_LABEL, entry.studentName),
+          }
+        : {}),
+      ...(entry.pick.questionIds
+        ? { servedQuestionIds: entry.pick.questionIds }
+        : {}),
+    };
   };
   const paperAssignmentMeta = (assignment: QuizAssignment): QuizMetadata =>
     quizzes.find((q) => q.id === assignment.quizId) ?? {
@@ -1252,22 +1366,44 @@ const TeacherQuizWidget: React.FC<{
       batchId,
       periodNames,
       pool,
+      resolved,
     }: {
       batchId: string;
       periodNames: string[];
       pool: { plc: Plc; groupId: string } | null;
+      /** The bank pools the sheets drew from; the session grades against the same questions. */
+      resolved?: ResolvedQuizAssignment | null;
     }
   ): Promise<string> => {
     const behavior = getQuizBehavior(meta);
     const plc = pool ? buildPlcLinkage(pool.plc) : undefined;
-    const frozenDriveFileId = await freezeForAssign(data);
+    // Bank pulls freeze their pools into a Drive copy, as an online assign does.
+    const bankSlots = resolved?.sessionSlots.length
+      ? resolved.sessionSlots
+      : undefined;
+    const resolvedDriveFileId =
+      resolved && bankSlots
+        ? await saveDriveSnapshot({
+            ...data,
+            questions: resolved.questions,
+            stimuli: resolved.stimuli,
+            bankSlots: undefined,
+            order: undefined,
+          })
+        : undefined;
+    const frozenDriveFileId = resolvedDriveFileId
+      ? undefined
+      : await freezeForAssign(data);
+    const questions =
+      resolved && bankSlots ? resolved.questions : data.questions;
+    const stimuli = resolved && bankSlots ? resolved.stimuli : data.stimuli;
     const { id } = await createAssignment(
       {
         id: meta.id,
         title: meta.title,
-        driveFileId: meta.driveFileId,
-        questions: data.questions,
-        ...(data.stimuli ? { stimuli: data.stimuli } : {}),
+        driveFileId: resolvedDriveFileId ?? meta.driveFileId,
+        questions,
+        ...(stimuli ? { stimuli } : {}),
       },
       {
         sessionMode: 'student',
@@ -1284,12 +1420,14 @@ const TeacherQuizWidget: React.FC<{
           : {}),
         ...(plc && pool ? { plc } : {}),
         ...(frozenDriveFileId ? { frozenDriveFileId } : {}),
+        ...(resolvedDriveFileId ? { resolvedDriveFileId } : {}),
       },
       // No classIds and paused: never a live door for students.
       {
         ...kindTag,
         initialStatus: 'paused',
         paperBatchId: batchId,
+        ...(bankSlots ? { bankSlots } : {}),
         ...(plc && pool ? { plcPoolSyncGroupId: pool.groupId } : {}),
       }
     );
@@ -1418,10 +1556,11 @@ const TeacherQuizWidget: React.FC<{
   const loadQuiz = useCallback(
     async (
       meta: QuizMetadata,
-      refine?: (data: QuizData) => Promise<QuizData>
+      refine?: (data: QuizData) => Promise<QuizData>,
+      quiet = false
     ): Promise<QuizData | null> => {
       setLoadingQuizData(true);
-      setDataError(null);
+      if (!quiet) setDataError(null);
       try {
         const loaded = await loadQuizData(meta.driveFileId);
         const data = refine ? await refine(loaded) : loaded;
@@ -1429,6 +1568,7 @@ const TeacherQuizWidget: React.FC<{
         setLoadedQuizFileId(meta.driveFileId);
         return data;
       } catch (err) {
+        if (quiet) throw err;
         const msg = err instanceof Error ? err.message : 'Failed to load quiz';
         setDataError(msg);
         addToast(msg, 'error');
@@ -1473,11 +1613,10 @@ const TeacherQuizWidget: React.FC<{
     [loadBankContentsForQuiz, addToast]
   );
 
-  const freezeAssignments = canAccessFeature('quiz-frozen-assignments');
   // A copy of the questions as assigned, so editing the quiz later can't re-score the assignment.
   const freezeForAssign = useCallback(
     async (data: QuizData): Promise<string | undefined> => {
-      if (!freezeAssignments || quizHasBankSlots(data)) return undefined;
+      if (quizHasBankSlots(data)) return undefined;
       try {
         return await saveDriveSnapshot(data);
       } catch (err) {
@@ -1486,7 +1625,7 @@ const TeacherQuizWidget: React.FC<{
         return undefined;
       }
     },
-    [freezeAssignments, saveDriveSnapshot]
+    [saveDriveSnapshot]
   );
 
   // Frozen assignments grade against their Drive copy, under today's answer keys.
@@ -1495,17 +1634,23 @@ const TeacherQuizWidget: React.FC<{
       meta: QuizMetadata,
       assignment:
         | Pick<QuizAssignment, 'resolvedDriveFileId' | 'frozenDriveFileId'>
-        | undefined
+        | undefined,
+      quiet = false
     ): Promise<QuizData | null> => {
       const frozenId = assignmentFrozenFileId(assignment);
-      if (!frozenId || frozenId === meta.driveFileId) return loadQuiz(meta);
-      return loadQuiz({ ...meta, driveFileId: frozenId }, (frozen) =>
-        withCurrentAnswerKeys(
-          frozen,
-          meta.driveFileId,
-          { loadQuizData, loadBankContentsForQuiz },
-          keyFixOptionsFor(assignment)
-        )
+      if (!frozenId || frozenId === meta.driveFileId) {
+        return loadQuiz(meta, undefined, quiet);
+      }
+      return loadQuiz(
+        { ...meta, driveFileId: frozenId },
+        (frozen) =>
+          withCurrentAnswerKeys(
+            frozen,
+            meta.driveFileId,
+            { loadQuizData, loadBankContentsForQuiz },
+            keyFixOptionsFor(assignment)
+          ),
+        quiet
       );
     },
     [loadQuiz, loadQuizData, loadBankContentsForQuiz]
@@ -1518,7 +1663,7 @@ const TeacherQuizWidget: React.FC<{
   ): Promise<QuizData | null> =>
     loadPaperQuizWithFallback(
       paperFrozenFileId(assignment),
-      () => loadAnswerKeyQuiz(meta, assignment),
+      () => loadAnswerKeyQuiz(meta, assignment, true),
       () => loadQuiz(meta)
     );
 
@@ -1819,7 +1964,6 @@ const TeacherQuizWidget: React.FC<{
         : [];
     if (meta && live.length === 1) {
       const a = live[0];
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the quiz the PLC page asked to monitor
       void loadAnswerKeyQuiz(meta, a).then((data) => {
         if (!data) return;
         updateWidget(
@@ -1845,6 +1989,7 @@ const TeacherQuizWidget: React.FC<{
       return;
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- unchanged reveal; the compiler now reaches this effect
     setRevealRequest(meta && live.length === 0 ? { quizId: meta.id } : null);
     updateWidget(widget.id, {
       config: {
@@ -1887,7 +2032,6 @@ const TeacherQuizWidget: React.FC<{
       // A bank draw needs the bank list to apply today's answer keys.
       if (meta && assignment?.resolvedDriveFileId && bankSourcesLoading) return;
       if (meta) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the live session's quiz from Drive
         void loadAnswerKeyQuiz(meta, assignment);
       } else if (quizzesLoading === false) {
         // If the session exists but the quiz is not in our library (deleted),
@@ -3041,6 +3185,24 @@ const TeacherQuizWidget: React.FC<{
     );
   }
 
+  // Assign's "Add to the X assignment": the picked classes join an open copy instead of a new one.
+  const addClassesToAssignment = (
+    assignmentId: string,
+    addRosterIds: string[]
+  ): Promise<boolean> => {
+    const target = assignments.find((a) => a.id === assignmentId);
+    return addToOpenAssignment({
+      assignments,
+      assignmentId,
+      rosters,
+      addRosterIds,
+      dueLockAt: target ? dueLockAt(target) : null,
+      save: (a, edit) =>
+        setAssignmentRosters(a.id, edit, edit.periodAccessRows, [], []),
+      toast: addToast,
+    });
+  };
+
   // The live session's Tab warnings value wins, since the old monitor switch wrote only the session.
   const withLiveTabWarnings = (a: QuizAssignment): QuizAssignment =>
     liveSession?.id === a.id && liveSession.tabWarningsEnabled !== undefined
@@ -3160,24 +3322,46 @@ const TeacherQuizWidget: React.FC<{
             );
           }
           // Modifications save the way the Assignments hub edits them: the assignment and each student's copy.
-          if (extra?.overridesByKey && user?.uid) {
+          if ((extra?.overridesByKey || extra?.classes) && user?.uid) {
             const saved = assignments.find((a) => a.id === target.id) ?? target;
             const row = quizAssignmentRow(
               saved,
               new Map(rosters.map((r) => [r.id, r.name]))
             );
             const classIds = rosterIds ?? previousRosterIdsFor(saved, rosters);
+            const next = {
+              ...assignmentRowToTargetingValue(row),
+              ...(extra.overridesByKey
+                ? { overridesByKey: extra.overridesByKey }
+                : {}),
+            };
+            const previousClassIds = saved.studentTargetClassIds ?? [];
+            // Narrowed classes save their picks; the class-wide path would re-target the whole class.
+            const mixedClasses =
+              saved.targetMode !== 'students' &&
+              (extra.classes ??
+                (previousClassIds.length > 0
+                  ? {
+                      classIds,
+                      studentsByClass: savedStudentsByClass(saved, rosters),
+                    }
+                  : undefined));
             const result = await saveTargetingEdit(
               row,
               user.uid,
-              {
-                ...assignmentRowToTargetingValue(row),
-                overridesByKey: extra.overridesByKey,
-              },
+              next,
               {
                 rosters: rosters.filter((r) => classIds.includes(r.id)),
                 selectedRosterIds: classIds,
-              }
+              },
+              mixedClasses
+                ? {
+                    previousClassIds,
+                    current: expandMixedTargeting(next, mixedClasses, rosters, {
+                      useRosterDefaults: false,
+                    }),
+                  }
+                : undefined
             );
             if (result.skipped.length > 0)
               addToast(
@@ -3220,6 +3404,50 @@ const TeacherQuizWidget: React.FC<{
       }
     />
   ) : null;
+  const printedQueueModal = printedQueue &&
+    user?.uid &&
+    printedQueue.groups[0] && (
+      <PaperPrintModal
+        key={`${printedQueue.assignmentId}-${printedQueue.groups[0].pick.number}-${printedQueue.groups[0].pick.single ? printedQueue.groups[0].pick.students[0]?.studentId : ''}`}
+        quiz={printedQueue.groups[0].quiz}
+        group={printedQueueGroup(printedQueue.groups[0])}
+        {...(printedQueue.groups[0].resolved
+          ? { resolved: printedQueue.groups[0].resolved }
+          : {})}
+        rosters={rosters}
+        onSaveBatch={async (batch) => {
+          const { pick } = printedQueue.groups[0];
+          await savePrintedCopyBatch(user.uid, printedQueue.assignmentId, {
+            ...batch,
+            // A question subset grades only the questions this copy printed.
+            ...(pick.questionIds && !batch.versions
+              ? {
+                  versions: [
+                    {
+                      label: '',
+                      servedQuestionIds: pick.questionIds,
+                      swaps: {},
+                    },
+                  ],
+                }
+              : {}),
+            printedGroup: printedGroupRecord(pick),
+          });
+        }}
+        onClose={() => {
+          if (printedQueue.groups.length > 1)
+            setPrintedQueue({
+              ...printedQueue,
+              groups: printedQueue.groups.slice(1),
+            });
+          else {
+            setPrintedQueue(null);
+            if (printedQueue.then) setPaperGroupReprint(printedQueue.then);
+          }
+        }}
+        onError={(message) => addToast(message, 'error')}
+      />
+    );
   const assignmentSettingsModal = editingAssignment
     ? renderAssignmentSettings(editingAssignment, false)
     : null;
@@ -3379,6 +3607,22 @@ const TeacherQuizWidget: React.FC<{
           onReopenStudent={reopenStudentAttempt}
           onSubmitForStudent={submitForStudent}
           onReleasePaperRow={(key) => releasePaperRow(liveSession.id, key)}
+          onPrintPaperCopy={
+            studentCopyOn &&
+            monitorActiveAssignment &&
+            getAssignmentWidgetKind(monitorActiveAssignment) === 'quiz'
+              ? (seat) =>
+                  void printStudentCopy(monitorActiveAssignment, seat).catch(
+                    (err: unknown) =>
+                      addToast(
+                        err instanceof Error
+                          ? err.message
+                          : 'Could not print this copy.',
+                        'error'
+                      )
+                  )
+              : undefined
+          }
           onUnlockResultsForStudent={unlockResultsForStudent}
           onClearHand={clearHandForStudent}
           onRevealAnswer={revealAnswer}
@@ -3431,6 +3675,7 @@ const TeacherQuizWidget: React.FC<{
         />
         {assignmentSettingsModal}
         {sharePlcResultsModal}
+        {printedQueueModal}
       </>
     );
   }
@@ -3470,6 +3715,7 @@ const TeacherQuizWidget: React.FC<{
         periodAccess={assignPeriodCtx}
         defaultTeacherName={user?.displayName ?? undefined}
         assignmentMode={quizAssignmentMode}
+        onAddClassesToAssignment={addClassesToAssignment}
         quizzes={quizzes}
         folderDeleteActions={{
           isBlocked: (id) =>
@@ -3512,14 +3758,21 @@ const TeacherQuizWidget: React.FC<{
             ? async (meta) => {
                 const data = await loadQuiz(meta);
                 if (!data) return;
-                // A bank that will not load leaves its slots off the sheet, as before.
-                const banks = data.bankSlots?.some(
-                  (s) => s.dealing === 'balanced'
-                )
-                  ? await loadBankContentsForQuiz(data).catch(() => null)
-                  : null;
+                // Bank pulls resolve now, so every sheet prints its own draw.
+                let resolved: ResolvedQuizAssignment | null = null;
+                if (quizHasBankSlots(data)) {
+                  try {
+                    resolved = resolveQuizAssignment(
+                      data,
+                      await loadBankContentsForQuiz(data)
+                    );
+                  } catch (err) {
+                    addToast(bankLoadErrorMessage(err), 'error');
+                    return;
+                  }
+                }
                 setPaperPrintMeta(meta);
-                setPaperPrintBanks(banks);
+                setPaperPrintResolved(resolved);
                 setPaperPrintQuiz(data);
               }
             : undefined
@@ -3572,12 +3825,15 @@ const TeacherQuizWidget: React.FC<{
                   : [];
                 const index = paperAssignmentMeta(assignment).translations;
                 if (unprinted.length > 0) {
+                  const resolved = await frozenBankPools(assignment);
+                  if (resolved === false) return;
                   await queuePrintedGroups(
                     assignment.id,
                     data,
                     unprinted,
                     index,
-                    await reprintGroupsFor(data, copies, index)
+                    await reprintGroupsFor(data, copies, index),
+                    resolved
                   );
                   return;
                 }
@@ -3691,11 +3947,9 @@ const TeacherQuizWidget: React.FC<{
           dueAtByRosterId?: Record<string, number>,
           stepper?: QuizStepperAssign
         ) => {
-          // Flag on, a failure rejects so the stepper stays open and shows it inline.
-          const waitsForSave = canAccessFeature('quiz-assign-waits-for-save');
-          const fail = (message: string): void => {
-            if (waitsForSave) throw new Error(message);
-            addToast(message, 'error');
+          // A failure rejects so the stepper stays open and shows it inline.
+          const fail = (message: string): never => {
+            throw new Error(message);
           };
           // F1 fix — reuse the content QuizManager already fetched for the
           // B2 override editor (when the teacher expanded individual
@@ -3703,10 +3957,7 @@ const TeacherQuizWidget: React.FC<{
           // assigns never populate `preloadedQuizData`, so they still fetch
           // exactly once, here.
           const data = preloadedQuizData ?? (await loadQuiz(meta));
-          if (!data) {
-            if (waitsForSave) throw new Error('Could not load the quiz.');
-            return;
-          }
+          if (!data) throw new Error('Could not load the quiz.');
           // Autosave persists unfinished work, so assign can no longer assume
           // a saved quiz is a finished one.
           const blocker = quizAssignBlocker(data);
@@ -3741,11 +3992,7 @@ const TeacherQuizWidget: React.FC<{
               resolved = resolveQuizAssignment(data, contents);
             } catch (err) {
               if (err instanceof BankSlotResolutionError) {
-                if (waitsForSave)
-                  throw new Error(err.problems.map((p) => p.message).join(' '));
-                for (const problem of err.problems) {
-                  addToast(problem.message, 'error');
-                }
+                fail(err.problems.map((p) => p.message).join(' '));
               } else {
                 logError('QuizWidget.assignment.resolveBanks', err, {
                   quizId: meta.id,
@@ -4096,11 +4343,7 @@ const TeacherQuizWidget: React.FC<{
             );
             assignmentSaved = true;
             printWritten?.();
-            if (
-              printedVersionsOn &&
-              stepper?.printedGroups?.length &&
-              !quizHasBankSlots(data)
-            ) {
+            if (printedVersionsOn && stepper?.printedGroups?.length) {
               // Neither the plan write nor the translation load holds up the rest of assign.
               if (user?.uid)
                 void savePrintedCopyPlan(
@@ -4113,11 +4356,22 @@ const TeacherQuizWidget: React.FC<{
                     err
                   )
                 );
+              // Bank pulls print from the pools this assignment froze, like its students' draws.
               void queuePrintedGroups(
                 assignmentId,
-                { ...data, questions: assignQuestions },
+                sessionBankSlots
+                  ? data
+                  : { ...data, questions: assignQuestions },
                 stepper.printedGroups,
-                translationIndex
+                translationIndex,
+                undefined,
+                sessionBankSlots
+                  ? resolvedFromSession(
+                      assignQuestions,
+                      assignStimuli ?? [],
+                      sessionBankSlots
+                    )
+                  : null
               ).catch((err: unknown) =>
                 console.warn('[QuizWidget] printed groups not queued:', err)
               );
@@ -4793,9 +5047,7 @@ const TeacherQuizWidget: React.FC<{
           (a) => a.quizId === editingMeta?.id && a.hasPaperResponses
         )}
         rescoredAssignmentCount={
-          freezeAssignments && editingMeta
-            ? unfrozenAssignmentCount(editingMeta.id, assignments)
-            : 0
+          editingMeta ? unfrozenAssignmentCount(editingMeta.id, assignments) : 0
         }
         bankApi={bankApi}
         // A synced quiz publishes a new version to its PLC on every save, so
@@ -5075,6 +5327,7 @@ const TeacherQuizWidget: React.FC<{
               periodNames,
               sharing,
               quiz,
+              resolved,
             }) => {
               // Pools with the PLC the quiz syncs from unless Sharing was turned off.
               await createPaperAssignment(
@@ -5085,12 +5338,13 @@ const TeacherQuizWidget: React.FC<{
                   periodNames,
                   pool:
                     paperAssignPlc && sharing?.plcMode ? paperAssignPlc : null,
+                  resolved,
                 }
               );
             },
           }}
           rosters={rosters}
-          {...(paperPrintBanks ? { banks: paperPrintBanks } : {})}
+          {...(paperPrintResolved ? { resolved: paperPrintResolved } : {})}
           onSaveBatch={(batch) => savePaperBatch(user.uid, batch)}
           inPlcGroup={!!paperPrintMeta.sync}
           onSavePrintSetup={
@@ -5132,41 +5386,13 @@ const TeacherQuizWidget: React.FC<{
           }
           onClose={() => {
             setPaperPrintQuiz(null);
-            setPaperPrintBanks(null);
+            setPaperPrintResolved(null);
             setPaperPrintMeta(null);
           }}
           onError={(message) => addToast(message, 'error')}
         />
       )}
-      {printedQueue && user?.uid && printedQueue.groups[0] && (
-        <PaperPrintModal
-          key={`${printedQueue.assignmentId}-${printedQueue.groups[0].pick.number}`}
-          quiz={printedQueue.groups[0].quiz}
-          group={printedGroupForPrint(
-            printedQueue.groups[0].pick,
-            printedQueue.groups[0].translation
-          )}
-          rosters={rosters}
-          onSaveBatch={async (batch) => {
-            await savePrintedCopyBatch(user.uid, printedQueue.assignmentId, {
-              ...batch,
-              printedGroup: printedGroupRecord(printedQueue.groups[0].pick),
-            });
-          }}
-          onClose={() => {
-            if (printedQueue.groups.length > 1)
-              setPrintedQueue({
-                ...printedQueue,
-                groups: printedQueue.groups.slice(1),
-              });
-            else {
-              setPrintedQueue(null);
-              if (printedQueue.then) setPaperGroupReprint(printedQueue.then);
-            }
-          }}
-          onError={(message) => addToast(message, 'error')}
-        />
-      )}
+      {printedQueueModal}
       {paperImport && user?.uid && (
         <PaperImportModal
           quiz={paperImport.quiz}

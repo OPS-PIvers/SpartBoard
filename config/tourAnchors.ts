@@ -757,6 +757,288 @@ export const TOUR_ANCHORS = {
     label: "Edit wall button on a colleague's Activity Wall",
     perWidget: true,
   },
+  // Student Activity Wall page (/activity-wall/{sessionId}).
+  'student.activity-wall.identity-name': {
+    label: 'Your name box before a student posts on a wall',
+  },
+  'student.activity-wall.identity-pin': {
+    label: 'Your PIN box before a student posts on a wall',
+  },
+  'student.activity-wall.identity-continue': {
+    label: 'Continue button before a student posts on a wall',
+  },
+  'student.activity-wall.image-size': {
+    label: 'Images size button in the student wall header',
+  },
+  'student.activity-wall.add-post': {
+    label: 'Add post (or Add word) button on the student wall',
+  },
+  'student.activity-wall.like': {
+    label: 'Like button on a post on the student wall',
+    perField: true,
+    persists: true,
+    rows: true,
+    rowList: 'student-wall-posts',
+  },
+  'student.activity-wall.comment-name': {
+    label: 'Your name box in a post comment form on the student wall',
+    perField: true,
+    rows: true,
+    rowList: 'student-wall-posts',
+  },
+  'student.activity-wall.comment-pin': {
+    label: 'PIN box in a post comment form on the student wall',
+    perField: true,
+    rows: true,
+    rowList: 'student-wall-posts',
+  },
+  'student.activity-wall.comment-text': {
+    label: 'Leave a comment box on a post on the student wall',
+    perField: true,
+    rows: true,
+    rowList: 'student-wall-posts',
+  },
+  'student.activity-wall.comment-send': {
+    label: 'Send comment button on a post on the student wall',
+    perField: true,
+    persists: true,
+    rows: true,
+    rowList: 'student-wall-posts',
+  },
+  'student.activity-wall.reply': {
+    label: 'Reply button on a comment on the student wall',
+    perField: true,
+    rows: true,
+  },
+  'student.activity-wall.reply-name': {
+    label: 'Your name box in a reply form on the student wall',
+    perField: true,
+    rows: true,
+  },
+  'student.activity-wall.reply-pin': {
+    label: 'PIN box in a reply form on the student wall',
+    perField: true,
+    rows: true,
+  },
+  'student.activity-wall.reply-text': {
+    label: 'Write a reply box on the student wall',
+    perField: true,
+    rows: true,
+  },
+  'student.activity-wall.reply-send': {
+    label: 'Send reply button on the student wall',
+    perField: true,
+    persists: true,
+    rows: true,
+  },
+  'student.activity-wall.post-edit': {
+    label: "Edit button on the student's own post on the wall",
+    perField: true,
+    rows: true,
+    rowList: 'student-wall-posts',
+  },
+  'student.activity-wall.post-delete': {
+    label: "Delete button on the student's own post on the wall",
+    perField: true,
+    destructive: true,
+  },
+  'student.activity-wall.composer-close': {
+    label: 'Close button in the wall post form',
+    panel: true,
+    closes: 'own',
+  },
+  'student.activity-wall.post-type': {
+    label:
+      'Post type button (Text, Photo, Link and more) in the wall post form',
+    perField: true,
+    keyPattern: 'student-wall#(text|photo|video|file|link)',
+    keyHint: 'student-wall#photo for the Photo button',
+    panel: true,
+  },
+  'student.activity-wall.word': {
+    label: 'Your word or phrase box in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.title': {
+    label: 'Title box in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.body': {
+    label: 'Your response box in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.link-url': {
+    label: 'Link box in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.link-title': {
+    label: 'Say something about it box for a link in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.file-pick': {
+    label: 'Photo, video or file upload area in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.file-remove': {
+    label: 'Remove button for the picked file in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.column': {
+    label: 'Column picker in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.table-row': {
+    label: 'Row picker in the wall post form on a table wall',
+    panel: true,
+  },
+  'student.activity-wall.table-column': {
+    label: 'Column picker in the wall post form on a table wall',
+    panel: true,
+  },
+  'student.activity-wall.group': {
+    label: 'Group picker in the wall post form on a timeline',
+    panel: true,
+  },
+  'student.activity-wall.date-year': {
+    label: 'Year box for the start or end date in the wall post form',
+    perField: true,
+    keyPattern: 'student-wall#(start|end)',
+    keyHint: 'student-wall#start for the start date',
+    panel: true,
+  },
+  'student.activity-wall.date-era': {
+    label: 'Era picker for the start or end date in the wall post form',
+    perField: true,
+    keyPattern: 'student-wall#(start|end)',
+    keyHint: 'student-wall#start for the start date',
+    panel: true,
+  },
+  'student.activity-wall.date-accuracy': {
+    label: 'Accuracy picker for the date in the wall post form',
+    perField: true,
+    keyPattern: 'student-wall#start',
+    keyHint: 'student-wall#start',
+    panel: true,
+  },
+  'student.activity-wall.date-month': {
+    label: 'Month picker for the start or end date in the wall post form',
+    perField: true,
+    keyPattern: 'student-wall#(start|end)',
+    keyHint: 'student-wall#start for the start date',
+    panel: true,
+  },
+  'student.activity-wall.date-day': {
+    label: 'Day picker for the start or end date in the wall post form',
+    perField: true,
+    keyPattern: 'student-wall#(start|end)',
+    keyHint: 'student-wall#start for the start date',
+    panel: true,
+  },
+  'student.activity-wall.add-end-date': {
+    label: 'Add end date button in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.remove-end-date': {
+    label: 'Remove end date button in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.when-label': {
+    label: 'When box in the wall post form on a timeline without dates',
+    panel: true,
+  },
+  'student.activity-wall.pin-coordinates': {
+    label: 'Enter coordinates button under the map in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.pin-latitude': {
+    label: 'Latitude box in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.pin-longitude': {
+    label: 'Longitude box in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.pin-set': {
+    label: 'Set pin button in the wall post form',
+    panel: true,
+  },
+  'student.activity-wall.post-submit': {
+    label: 'Post (or Save) button in the wall post form',
+    panel: true,
+    persists: true,
+  },
+
+  // Student My Assignments page (/my-assignments).
+  'student.assignments.class-menu': {
+    label: 'Class name button that opens the class list on a phone',
+  },
+  'student.assignments.overview': {
+    label: 'Overview row in the student class list',
+  },
+  'student.assignments.class': {
+    label: 'A class in the student class list, keyed row-N',
+    perField: true,
+    keyPattern: 'student-assignments#row-[1-9]\\d*',
+    keyHint: 'student-assignments#row-1 for the first class',
+    rows: true,
+  },
+  'student.assignments.sign-out': {
+    label: 'Sign out button on My Assignments',
+    persists: true,
+  },
+  'student.assignments.tab': {
+    label: 'Assignments, Resources and Completed tabs for a class',
+    perField: true,
+    keyPattern: 'student-assignments#(assignments|resources|completed)',
+    keyHint: 'student-assignments#resources for the Resources tab',
+  },
+  'student.assignments.see-resources': {
+    label: 'See resources link when a class has no work left',
+  },
+  'student.assignments.see-all': {
+    label: 'See all assignments link on the Overview',
+  },
+  'student.assignments.see-all-resources': {
+    label: 'See all resources link on the Overview',
+  },
+  'student.assignments.live-join': {
+    label: 'Join button on a live assignment banner',
+    perField: true,
+    rows: true,
+  },
+  'student.assignments.work-row': {
+    label: 'An assignment row on My Assignments',
+    perField: true,
+    rows: true,
+    rowList: 'student-work',
+  },
+  'student.assignments.resource-row': {
+    label: 'A resource row on My Assignments',
+    perField: true,
+    rows: true,
+    rowList: 'student-resources',
+  },
+  'student.assignments.gallery': {
+    label: 'Gallery link on an Activity Wall resource row',
+    perField: true,
+    rows: true,
+    rowList: 'student-resources',
+  },
+  'student.assignments.agenda-open': {
+    label: 'Open in Google Slides link under a class Agenda',
+    perField: true,
+    rows: true,
+  },
+  'student.assignments.class-link': {
+    label: 'A pinned link on a class page, keyed row-N',
+    perField: true,
+    keyPattern: 'student-assignments#row-[1-9]\\d*',
+    keyHint: 'student-assignments#row-1 for the first link',
+    rows: true,
+  },
+  'student.assignments.done': {
+    label: 'Done button in the student page header',
+  },
   'time-tool.start-pause': {
     label: 'Start or pause button in Timer/Stopwatch',
     perWidget: true,
@@ -1376,6 +1658,14 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'assign-classes',
   },
+  'assign-classes.add-to-open': {
+    label: 'Add to the open assignment choice in the Assign dialog',
+    panel: true,
+  },
+  'assign-classes.assign-separately': {
+    label: 'Make a separate assignment choice in the Assign dialog',
+    panel: true,
+  },
   'assign-classes.select-all': {
     label: 'Select all button in the Assign dialog class list',
     panel: true,
@@ -1554,6 +1844,44 @@ export const TOUR_ANCHORS = {
   },
   'assign-mods.students-done': {
     label: 'Done button that closes the modification group Students menu',
+    panel: true,
+  },
+  'assign-mods.questions': {
+    label:
+      'Questions button that opens the question picker for a modification group',
+    panel: true,
+  },
+  'assign-mods.questions-count': {
+    label: 'Number of questions box in the modification group Questions dialog',
+    panel: true,
+  },
+  'assign-mods.questions-random': {
+    label: 'Pick at random button in the modification group Questions dialog',
+    panel: true,
+  },
+  'assign-mods.questions-search': {
+    label: 'Search box in the modification group Questions dialog',
+    panel: true,
+  },
+  'assign-mods.question': {
+    label: 'Question checkbox in the modification group Questions dialog',
+    perField: true,
+    panel: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for question 1',
+    rows: true,
+    rowList: 'assign-mods-questions',
+  },
+  'assign-mods.questions-all': {
+    label: 'Select all button in the modification group Questions dialog',
+    panel: true,
+  },
+  'assign-mods.questions-done': {
+    label: 'Done button that saves the modification group Questions dialog',
+    panel: true,
+  },
+  'assign-mods.questions-cancel': {
+    label: 'Cancel button in the modification group Questions dialog',
     panel: true,
   },
   'assign-mods.class-group': {
@@ -3710,11 +4038,6 @@ export const TOUR_ANCHORS = {
     panel: true,
     persists: true,
   },
-  'quiz-print.results-more-options': {
-    label: 'More print options disclosure in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-print.results-option-toggle': {
     label: 'Option toggles from TOGGLES map in the Quiz widget',
     perField: true,
@@ -5005,21 +5328,6 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'quiz-grading-strand-chip-orphan',
   },
-  'quiz-rubric.builder-resize': {
-    label: 'Resize handle on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.builder-close': {
-    label: 'Close button on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.builder-table': {
-    label: 'Edit as table button on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-rubric.builder-library': {
     label: 'Library select on the Quiz rubric builder',
     perWidgetType: true,
@@ -5033,99 +5341,6 @@ export const TOUR_ANCHORS = {
   'quiz-rubric.builder-import': {
     label: 'Import shared rubric on the Quiz rubric builder',
     perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.builder-title': {
-    label: 'Rubric title input on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.criterion-name': {
-    label: 'Criterion name input on the Quiz rubric builder, by criterion',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.criterion-up': {
-    label: 'Move criterion up on the Quiz rubric builder, by position',
-    perField: true,
-    panel: true,
-    keyPattern: 'quiz#[1-9]\\d*',
-    keyHint: 'quiz#1 for the first criterion',
-  },
-  'quiz-rubric.criterion-down': {
-    label: 'Move criterion down on the Quiz rubric builder, by position',
-    perField: true,
-    panel: true,
-    keyPattern: 'quiz#[1-9]\\d*',
-    keyHint: 'quiz#1 for the first criterion',
-  },
-  'quiz-rubric.criterion-remove': {
-    label: 'Remove criterion on the Quiz rubric builder, by position',
-    perField: true,
-    destructive: true,
-    panel: true,
-    keyPattern: 'quiz#[1-9]\\d*',
-    keyHint: 'quiz#1 for the first criterion',
-  },
-  'quiz-rubric.level-label': {
-    label: 'Level label textarea on the Quiz rubric builder, by level',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.level-points': {
-    label: 'Level points input on the Quiz rubric builder, by level',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.level-description': {
-    label: 'Level description textarea on the Quiz rubric builder, by level',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.level-remove': {
-    label: 'Remove level on the Quiz rubric builder, by level',
-    perField: true,
-    destructive: true,
-    panel: true,
-  },
-  'quiz-rubric.level-add': {
-    label: 'Add level on the Quiz rubric builder, by criterion',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.criterion-add': {
-    label: 'Add criterion on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.template': {
-    label: 'Levels or Scoring guide switch on the Quiz rubric builder',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-rubric.guide-guidelines': {
-    label: 'Scoring guidelines textarea on the Quiz rubric builder, by part',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.guide-example': {
-    label: 'Example response textarea on the Quiz rubric builder, by example',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.guide-example-add': {
-    label: 'Add example response on the Quiz rubric builder, by part',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.guide-example-remove': {
-    label: 'Remove example response on the Quiz rubric builder, by example',
-    perField: true,
-    panel: true,
-  },
-  'quiz-rubric.guide-points': {
-    label: 'Point max input on the Quiz rubric builder, by part',
-    perField: true,
     panel: true,
   },
   'quiz-rubric.csv-import': {
@@ -5248,6 +5463,11 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-monitor.student-set-time': {
+    label: 'Schedule for later item in the Quiz monitor student menu',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-monitor.student-mark-absent': {
     label:
       'Absent button on a student who has not joined, in the Quiz monitor roster',
@@ -5284,6 +5504,11 @@ export const TOUR_ANCHORS = {
     label: 'Unlock results item in the Quiz monitor student menu',
     perWidgetType: true,
     persists: true,
+    panel: true,
+  },
+  'quiz-monitor.student-print-copy': {
+    label: 'Print paper copy item in the Quiz monitor student menu',
+    perWidgetType: true,
     panel: true,
   },
   'quiz-monitor.student-remove': {
@@ -6377,138 +6602,94 @@ export const TOUR_ANCHORS = {
     label: 'Done button at the bottom of a student accommodations page',
     panel: true,
   },
-  'group-wizard.steps': {
-    label: 'Step list in the group editor',
-    panel: true,
-  },
-  'group-wizard.step': {
-    label:
-      'Students, Symbol, Schedule or Additional settings step in the group editor',
-    perField: true,
-    panel: true,
-  },
-  'group-wizard.student-search': {
-    label: 'Search students box in the group editor',
-    panel: true,
-  },
-  'group-wizard.student': {
-    label: 'Student checkbox in the group editor',
-    perField: true,
-    panel: true,
-    keyPattern: 'group-wizard#row-[1-9]\\d*',
-    keyHint: 'group-wizard#row-1 for the first row',
-    rows: true,
-    rowList: 'group-wizard-students',
-  },
-  'group-wizard.name': {
-    label: 'Group name box in the group editor',
-    panel: true,
-  },
   'group-wizard.icon-search': {
-    label: 'Search icons box in the group editor',
+    label: 'Search icons box on a group page',
     panel: true,
   },
   'group-wizard.icon': {
-    label: 'Icon button in the group editor',
+    label: 'Icon button on a group page',
     perField: true,
     panel: true,
   },
   'group-wizard.color': {
-    label: 'Color swatch in the group editor',
+    label: 'Color swatch on a group page',
     perField: true,
     panel: true,
   },
   'group-wizard.preview': {
-    label: 'Reminder preview in the group editor',
+    label: 'Reminder preview on a group page',
     panel: true,
   },
   'group-wizard.day': {
-    label: 'Weekday button in the group editor Schedule step',
+    label: 'Weekday button in a group page Schedule section',
     perField: true,
     panel: true,
   },
   'group-wizard.alert-time': {
-    label: 'Alert time box in the group editor Schedule step',
+    label: 'Alert time box on a group page',
     perField: true,
     panel: true,
   },
   'group-wizard.alert-lead': {
-    label: 'Pops up dropdown in the group editor Schedule step',
+    label: 'Pops up dropdown on a group page',
     perField: true,
     panel: true,
   },
   'group-wizard.alert-remove': {
-    label: 'Remove time button in the group editor Schedule step',
+    label: 'Remove time button on a group page',
     perField: true,
     panel: true,
   },
   'group-wizard.add-alert': {
-    label: 'Add another time button in the group editor Schedule step',
+    label: 'Add another time button on a group page',
     panel: true,
   },
   'group-wizard.repeat': {
-    label: 'Repeats dropdown in the group editor Schedule step',
+    label: 'Repeats dropdown on a group page',
     panel: true,
   },
   'group-wizard.start-date': {
-    label: 'Starting date box in the group editor Schedule step',
+    label: 'Starting date box on a group page',
     panel: true,
   },
   'group-wizard.on-board': {
-    label: 'Reminder on the board switch in the group editor Schedule step',
+    label: 'Reminder on the board switch on a group page',
     panel: true,
   },
   'group-wizard.sound': {
-    label: 'Sound dropdown in the group editor Schedule step',
+    label: 'Sound dropdown on a group page',
     panel: true,
   },
   'group-wizard.play-sound': {
-    label: 'Play sound button in the group editor Schedule step',
+    label: 'Play sound button on a group page',
     panel: true,
   },
   'group-wizard.snooze': {
-    label: 'Snooze dropdown in the group editor Schedule step',
+    label: 'Snooze dropdown on a group page',
     panel: true,
   },
   'group-wizard.show-name': {
-    label: 'Show group name switch in the group editor Schedule step',
+    label: 'Show group name switch on a group page',
     panel: true,
   },
   'group-wizard.show-time': {
-    label: 'Show time switch in the group editor Schedule step',
+    label: 'Show time switch on a group page',
     panel: true,
   },
   'group-wizard.show-message': {
-    label: 'Show a message switch in the group editor Schedule step',
+    label: 'Show a message switch on a group page',
     panel: true,
   },
   'group-wizard.message': {
-    label: 'Message box in the group editor Schedule step',
+    label: 'Message box on a group page',
     panel: true,
   },
   'group-wizard.email-alert': {
-    label: 'Email alert switch in the group editor Schedule step',
+    label: 'Email alert switch on a group page',
     panel: true,
   },
   'group-wizard.email-message': {
-    label: 'Email message box in the group editor Schedule step',
-    panel: true,
-  },
-  'group-wizard.group-maker': {
-    label:
-      'Enable in Group Maker switch in the group editor Additional settings step',
-    panel: true,
-  },
-  'group-wizard.cancel': {
-    label: 'Cancel button in the group editor',
-    panel: true,
-  },
-  'group-wizard.next': {
-    label: 'Continue button on the open step in the group editor',
-    panel: true,
-  },
-  'group-wizard.finish': {
-    label: 'Save group button in the group editor',
+    label: 'Email message box on a group page',
     panel: true,
   },
   'classlink-import.class-row': {
@@ -6981,7 +7162,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'library-shell.assigned-reopen': {
-    label: 'Reopen…, in an Assigned row menu',
+    label: 'Reopen, in an Assigned row menu',
     persists: true,
     panel: true,
   },
@@ -9780,6 +9961,14 @@ export const TOUR_ANCHORS = {
     label: 'Record a Live tour in the Help Center New menu',
     panel: true,
   },
+  'admin.help-center.new-record-subs-tour': {
+    label: 'Record a Live tour for subs in the Help Center New menu',
+    panel: true,
+  },
+  'admin.help-center.new-record-students-tour': {
+    label: 'Record a Live tour for students in the Help Center New menu',
+    panel: true,
+  },
   'admin.help-center.new-move': {
     label: 'Move from library in the Help Center New menu',
     panel: true,
@@ -9816,6 +10005,12 @@ export const TOUR_ANCHORS = {
   },
   'admin.help-center.detail-category': {
     label: 'Category select on the selected Help Center item',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.detail-audience': {
+    label:
+      'Who sees it select (Teachers or Substitutes) on a selected live tour',
     persists: true,
     panel: true,
   },
@@ -13741,6 +13936,12 @@ export const TOUR_ANCHORS = {
     label: 'Check tour button for a web tour on the Web tours page',
     perField: true,
   },
+  'web-tours.delete': {
+    label: 'Delete button for a web tour on the Web tours page',
+    perField: true,
+    destructive: true,
+    persists: true,
+  },
   'web-tours.play': {
     label: 'Play button for a published web tour on the Web tours page',
     perField: true,
@@ -13764,6 +13965,9 @@ export const TOUR_ANCHORS = {
     perField: true,
     persists: true,
   },
+  'web-tours.authors': {
+    label: 'Authors button on the Web tours page (admins only)',
+  },
   'web-tours.freshservice-settings': {
     label: 'FreshService settings button on the Web tours page',
   },
@@ -13782,7 +13986,20 @@ export const TOUR_ANCHORS = {
   },
   'web-tours.search': { label: 'Search box on the Web tours page' },
   'web-tours.filter': { label: 'Show filter on the Web tours page' },
+  'web-tours.filter-site': {
+    label: 'Website filter on the Web tours page',
+  },
+  'web-tours.filter-author': {
+    label: 'Author filter on the Web tours page',
+  },
+  'web-tours.filter-fresh': {
+    label: 'FreshService filter on the Web tours page',
+  },
+  'web-tours.sort': { label: 'Sort choice on the Web tours page' },
   'web-tour-editor.title': { label: 'Title field in the web tour editor' },
+  'web-tour-editor.start-page': {
+    label: 'Start page field on the web tour editor Settings tab',
+  },
   'web-tour-editor.play': {
     label: 'Play button in the web tour editor header',
   },
@@ -13917,6 +14134,41 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'gl-player.scrubber': { label: 'Watch scrubber in the player' },
+  'gl-player.video-close': {
+    label: 'Close button on a video step in the player',
+  },
+  'gl-player.answer-choice': {
+    label: 'Answer choice on a multiple choice step in the player',
+  },
+  'gl-player.match-select': {
+    label: 'Match picker on a matching step in the player',
+  },
+  'gl-player.sort-up': {
+    label: 'Move up button on a sorting step in the player',
+  },
+  'gl-player.sort-down': {
+    label: 'Move down button on a sorting step in the player',
+  },
+  'gl-player.question-submit': {
+    label: 'Submit button on a question step in the player',
+    persists: true,
+  },
+  'gl-player.change-answer': {
+    label: 'Change answer button on a question step in the player',
+  },
+  'gl-player.question-continue': {
+    label: 'Continue button after answering a question step in the player',
+  },
+  'gl-player.reveal-answer': {
+    label: 'Show answer button on a question step in the player',
+  },
+  'gl-player.popover-close': {
+    label: 'Close button on a text popover in the player',
+  },
+  'gl-player.banner-close': { label: 'Close button on a banner in the player' },
+  'gl-player.audio-play': {
+    label: 'Play or pause button on an audio step in the player',
+  },
   'gl-results.back': { label: 'Back button in the results header' },
   'gl-results.export': { label: 'Export button in the results header' },
   'gl-results.class-picker': { label: 'Class picker select in results' },
@@ -19094,64 +19346,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  'roster-editor.add-group': {
-    label: 'New Group button on the empty roster editor Groups tab',
-    panel: true,
-  },
-  'roster-editor.group-members': {
-    label: 'Edit group members button on a roster editor group, keyed group-N',
-    perField: true,
-    panel: true,
-  },
-  'roster-editor.group-name': {
-    label: 'Group name box on a roster editor group',
-    perField: true,
-    panel: true,
-  },
-  'roster-editor.group-remove': {
-    label: 'Remove group button on a roster editor group',
-    perField: true,
-    destructive: true,
-    panel: true,
-  },
-  'roster-editor.accommodations-group': {
-    label: 'Group row on the roster editor Accommodations tab',
-    perField: true,
-    panel: true,
-    keyPattern: 'roster-editor#row-[1-9]\\d*',
-    keyHint: 'roster-editor#row-1 for the first row',
-    rows: true,
-    rowList: 'roster-accommodation-groups',
-  },
-  'roster-editor.accommodations-add': {
-    label:
-      'Add menu for students and groups on the roster editor Accommodations tab',
-    panel: true,
-  },
-  'roster-editor.accommodations-search': {
-    label: 'Search box in the Accommodations Add menu',
-    panel: true,
-  },
-  'roster-editor.accommodations-pick-group': {
-    label: 'Group checkbox in the Accommodations Add menu',
-    perField: true,
-    panel: true,
-    persists: true,
-    keyPattern: 'roster-editor#row-[1-9]\\d*',
-    keyHint: 'roster-editor#row-1 for the first row',
-    rows: true,
-    rowList: 'roster-accommodations-pick-groups',
-  },
-  'roster-editor.accommodations-pick-student': {
-    label: 'Student checkbox in the Accommodations Add menu',
-    perField: true,
-    panel: true,
-    persists: true,
-    keyPattern: 'roster-editor#row-[1-9]\\d*',
-    keyHint: 'roster-editor#row-1 for the first row',
-    rows: true,
-    rowList: 'roster-accommodations-pick-students',
-  },
   'roster-editor.accommodations-answer-choices': {
     label:
       'Answer choices control for a student or group in the roster editor Accommodations tab',
@@ -19162,19 +19356,388 @@ export const TOUR_ANCHORS = {
       'Modified questions switch for a student or group in the roster editor Accommodations tab',
     panel: true,
   },
-  'roster-editor.accommodations-done': {
-    label: 'Done button that closes the Accommodations Add menu',
-    panel: true,
-  },
-  'roster-editor.accommodations-remove': {
-    label: 'Remove button on a row of the roster editor Accommodations tab',
-    perField: true,
-    destructive: true,
-    panel: true,
-  },
   'roster-editor.accommodations-add-student': {
     label: 'Add Student button on the empty roster editor Accommodations tab',
     panel: true,
+  },
+  // Quiz student app (/quiz): join, questions, answer tools, review, recordings and results.
+  'student.quiz.quote-selection': {
+    label: 'Quote button over selected passage text',
+  },
+  'student.quiz.ordering-empty-slot': {
+    label: 'Empty slot in an ordering answer',
+  },
+  'student.quiz.ordering-move-up': {
+    label: 'Move up arrow on an ordering item',
+  },
+  'student.quiz.ordering-move-down': {
+    label: 'Move down arrow on an ordering item',
+  },
+  'student.quiz.ordering-reset': {
+    label: 'Reset or Undo in an ordering word bank',
+  },
+  'student.quiz.whiteboard-materials': {
+    label: 'Materials button beside a drawing answer',
+  },
+  'student.quiz.whiteboard-materials-hide': {
+    label: 'Hide materials in the drawing answer drawer',
+    panel: true,
+  },
+  'student.quiz.whiteboard-tool': {
+    label: 'A drawing tool on the drawing answer toolbar, keyed by tool',
+    perField: true,
+    keyPattern: 'quiz-student#(pen|eraser|text|line|arrow|rect|ellipse)',
+    keyHint: 'quiz-student#pen for the pen',
+  },
+  'student.quiz.whiteboard-eraser-mode': {
+    label: 'An eraser mode on the drawing answer toolbar, keyed by mode',
+    perField: true,
+    keyPattern: 'quiz-student#(stroke|object|lasso)',
+    keyHint: 'quiz-student#stroke for the stroke eraser',
+    panel: true,
+  },
+  'student.quiz.whiteboard-color': {
+    label: 'A color on the drawing answer toolbar, keyed by color',
+    perField: true,
+    keyPattern: 'quiz-student#(black|blue|red|green|orange|yellow)',
+    keyHint: 'quiz-student#black for black',
+  },
+  'student.quiz.whiteboard-size': {
+    label: 'A pen size on the drawing answer toolbar, keyed by size',
+    perField: true,
+    keyPattern: 'quiz-student#(thin|medium|thick)',
+    keyHint: 'quiz-student#medium for the medium pen',
+    panel: true,
+  },
+  'student.quiz.whiteboard-undo': {
+    label: 'Undo on the drawing answer toolbar',
+  },
+  'student.quiz.whiteboard-redo': {
+    label: 'Redo on the drawing answer toolbar',
+  },
+  'student.quiz.whiteboard-zoom-out': {
+    label: 'Zoom out on a drawing answer',
+  },
+  'student.quiz.whiteboard-zoom-reset': {
+    label: 'Reset zoom on a drawing answer',
+  },
+  'student.quiz.whiteboard-zoom-in': {
+    label: 'Zoom in on a drawing answer',
+  },
+  'student.quiz.ordering-drag': {
+    label: 'Drag handle on an ordering item',
+  },
+  'student.quiz.picture-enlarge': {
+    label: 'Enlarge picture button on an answer picture',
+  },
+  'student.quiz.supports': {
+    label: 'Supports button on a question',
+  },
+  'student.quiz.supports-close': {
+    label: 'Close in the Supports panel',
+    panel: true,
+  },
+  'student.quiz.supports-tab': {
+    label: 'A tab in the Supports panel, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    panel: true,
+    rows: true,
+  },
+  'student.quiz.supports-resize': {
+    label: 'Resize bar between the question and the Supports panel',
+    panel: true,
+  },
+  'student.quiz.mark-review': {
+    label: 'Mark for review button on a question',
+  },
+  'student.quiz.review-back': {
+    label: 'Back arrow on the review screen',
+  },
+  'student.quiz.review-question': {
+    label: 'A question row on the review screen, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    rows: true,
+  },
+  'student.quiz.review-submit': {
+    label: 'Submit on the review screen',
+    persists: true,
+  },
+  'student.quiz.source-zoom-out': {
+    label: 'Zoom out on a source',
+  },
+  'student.quiz.source-zoom-reset': {
+    label: 'Reset zoom on a source',
+  },
+  'student.quiz.source-zoom-in': {
+    label: 'Zoom in on a source',
+  },
+  'student.quiz.game-raise-hand': {
+    label: 'Raise hand in a quiz game',
+    persists: true,
+  },
+  'student.quiz.game-choice': {
+    label: 'An answer choice in a quiz game, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    rows: true,
+    persists: true,
+  },
+  'student.quiz.game-answer': {
+    label: 'Answer box in a quiz game',
+  },
+  'student.quiz.game-submit': {
+    label: 'Submit in a quiz game',
+    persists: true,
+  },
+  'student.quiz.game-next': {
+    label: 'Next in a quiz game',
+  },
+  'student.quiz.game-pick-question': {
+    label: 'A question to pick in a quiz game round, one per question',
+    perField: true,
+    keyHint: 'one per question; quiz-student#row-1 for the first',
+    rows: true,
+  },
+  'student.quiz.game-continue': {
+    label: 'Continue after picking questions in a quiz game',
+    persists: true,
+  },
+  'student.quiz.reload': {
+    label: 'Try again button on a quiz error screen',
+  },
+  'student.quiz.results-attempt': {
+    label: 'An attempt tab on the results screen, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    rows: true,
+  },
+  'student.quiz.results-tab-warning-dismiss': {
+    label: 'Dismiss on the leaving-the-tab warning',
+    panel: true,
+  },
+  'student.quiz.recording-notice-ok': {
+    label: 'Acknowledge button on the recording notice',
+    persists: true,
+  },
+  'student.quiz.recording-notice-open': {
+    label: 'Open the recording notice again',
+  },
+  'student.quiz.playback-comment': {
+    label: 'A teacher comment on a recording, which jumps to its time',
+  },
+  'student.quiz.playback-retry': {
+    label: 'Try again when a recording does not load',
+  },
+  'student.quiz.playback-load': {
+    label: 'Play button that loads a recorded answer',
+  },
+  'student.quiz.recording-retry-upload': {
+    label: 'Try the upload again on a recorded answer',
+    persists: true,
+  },
+  'student.quiz.recording-start': {
+    label: 'Start recording',
+  },
+  'student.quiz.recording-stop': {
+    label: 'Stop recording',
+  },
+  'student.quiz.recording-submit': {
+    label: 'Submit a recorded answer',
+    persists: true,
+  },
+  'student.quiz.recording-redo': {
+    label: 'Redo a recorded answer',
+    destructive: true,
+  },
+  'student.quiz.whiteboard-page-retry': {
+    label: 'Try again when the starting page does not load',
+  },
+  'student.quiz.microphone-allow': {
+    label: 'Allow microphone button',
+  },
+  'student.quiz.read-aloud': {
+    label: 'Read question button on the read-aloud bar',
+  },
+  'student.quiz.read-aloud-speed': {
+    label: 'Speed button on the read-aloud bar',
+  },
+  'student.quiz.read-aloud-auto': {
+    label: 'Auto-read switch on the read-aloud bar',
+  },
+  'student.quiz.read-aloud-part': {
+    label: 'Read aloud button beside a choice or passage',
+  },
+  'student.quiz.blank': {
+    label: 'A blank in a fill-in-the-blank answer, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    rows: true,
+  },
+  'student.quiz.source-retry': {
+    label: 'Try again when an attachment does not load',
+  },
+  'student.quiz.word-bank-word': {
+    label: 'A word in a passage word bank',
+  },
+  'student.quiz.sources-toggle': {
+    label: 'Show or hide the sources for a question',
+  },
+  'student.quiz.source-tab': {
+    label: 'A source tab beside the questions, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    rows: true,
+  },
+  'student.quiz.equation-cancel': {
+    label: 'Cancel in the equation editor',
+    panel: true,
+  },
+  'student.quiz.equation-insert': {
+    label: 'Insert in the equation editor',
+    panel: true,
+  },
+  'student.quiz.written-resize': {
+    label: 'Resize handle under a written answer',
+  },
+  'student.quiz.blank-choice': {
+    label: 'A drop-down blank in a fill-in-the-blank answer, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    rows: true,
+  },
+  'student.quiz.word-bank-chip': {
+    label: 'A word chip in a word bank',
+  },
+  'student.quiz.blank-slot': {
+    label: 'An empty blank to drop a word into',
+  },
+  'student.quiz.word-bank-reset': {
+    label: 'Reset or Undo in a fill-in-the-blank word bank',
+  },
+  'student.quiz.part-start': {
+    label: 'Start button on a quiz part stop screen',
+    persists: true,
+  },
+  'student.quiz.part-intro-close': {
+    label: 'Close the part introduction',
+    panel: true,
+  },
+  'student.quiz.part-progress': {
+    label:
+      'Answered count above a question in a quiz part, which opens the part details',
+  },
+  'student.quiz.part-clear': {
+    label: 'Clear my answer on a question in a quiz part',
+    destructive: true,
+  },
+  'student.quiz.cross-out': {
+    label: 'Cross out button beside an answer choice',
+  },
+  'student.quiz.matching-slot': {
+    label: 'A match slot in a matching answer',
+  },
+  'student.quiz.matching-reset': {
+    label: 'Reset or Undo in a matching word bank',
+  },
+  'student.quiz.question-audio': {
+    label: 'Play the question audio',
+  },
+  'student.quiz.sources-resize': {
+    label: 'Resize bar between the sources and the question',
+  },
+  'student.quiz.period': {
+    label: 'A class period button when joining a quiz',
+  },
+  'student.quiz.period-confirm': {
+    label: 'Continue after picking a class period',
+    persists: true,
+  },
+  'student.quiz.period-back': {
+    label: 'Go back on the class period step',
+  },
+  'student.quiz.sign-in-google': {
+    label: 'Sign in with Google when joining a quiz',
+  },
+  'student.quiz.use-pin': {
+    label: 'Use a PIN instead when joining a quiz',
+  },
+  'student.quiz.join-code': {
+    label: 'Code box when joining a quiz',
+  },
+  'student.quiz.join-pin': {
+    label: 'PIN box when joining a quiz',
+  },
+  'student.quiz.join': {
+    label: 'Join button when joining a quiz',
+    persists: true,
+  },
+  'student.quiz.raise-hand': {
+    label: 'Raise hand button during a quiz',
+    persists: true,
+  },
+  'student.quiz.resume': {
+    label: 'Resume button after a quiz is unlocked',
+  },
+  'student.quiz.retry-submit': {
+    label: 'Try again when turning in after time is up fails',
+    persists: true,
+  },
+  'student.quiz.tab-warning-dismiss': {
+    label: 'Dismiss on the leaving-the-tab warning during a quiz',
+  },
+  'student.quiz.previous': {
+    label: 'Previous question arrow',
+  },
+  'student.quiz.next': {
+    label: 'Next question button',
+  },
+  'student.quiz.submit': {
+    label: 'Submit or Review button on the last question',
+    persists: true,
+  },
+  'student.quiz.submit-answer': {
+    label: 'Submit answer button under a question',
+    persists: true,
+  },
+  'student.quiz.short-answer': {
+    label: 'Answer box for a short answer question',
+  },
+  'student.quiz.back-to-list': {
+    label: 'Back to assignments button',
+  },
+  'student.quiz.rubric-toggle': {
+    label: 'Show or hide the rubric on a results screen',
+  },
+  'student.quiz.choice': {
+    label: 'An answer choice on a multiple choice question, keyed row-N',
+    perField: true,
+    keyPattern: 'quiz-student#row-[1-9]\\d*',
+    keyHint: 'quiz-student#row-1 for the first one',
+    rows: true,
+  },
+  'student.quiz.language-english': {
+    label: 'English button on the language switch',
+  },
+  'student.quiz.language-native': {
+    label: "The student's own language on the language switch",
+  },
+  'student.quiz.written-format': {
+    label: 'A formatting button on a written answer, keyed by button',
+    perField: true,
+    keyPattern: 'quiz-student#(bold|italic|underline|bullets|numbers|equation)',
+    keyHint: 'quiz-student#bold for Bold',
+  },
+  'student.quiz.written-answer': {
+    label: 'Response box for a written answer',
   },
   // Quiz library kebab items that open dialogs.
   'quiz-library.assign-paper': {
@@ -19312,6 +19875,37 @@ export const TOUR_ANCHORS = {
   'quiz-reopen-students.select-group': {
     label: 'Select all button for a group in the reopen students dialog',
     panel: true,
+  },
+  'quiz-student-time.opens-date': {
+    label: 'Opens date in the schedule one student dialog',
+    panel: true,
+  },
+  'quiz-student-time.opens-time': {
+    label: 'Opens time in the schedule one student dialog',
+    panel: true,
+  },
+  'quiz-student-time.closes-date': {
+    label: 'Closes date in the schedule one student dialog',
+    panel: true,
+  },
+  'quiz-student-time.closes-time': {
+    label: 'Closes time in the schedule one student dialog',
+    panel: true,
+  },
+  'quiz-student-time.remove': {
+    label: 'Remove schedule button in the schedule one student dialog',
+    panel: true,
+    persists: true,
+    destructive: true,
+  },
+  'quiz-student-time.cancel': {
+    label: 'Cancel button in the schedule one student dialog',
+    panel: true,
+  },
+  'quiz-student-time.save': {
+    label: 'Save button in the schedule one student dialog',
+    panel: true,
+    persists: true,
   },
   'quiz-reopen-students.cancel': {
     label: 'Cancel button in the reopen students dialog',
@@ -19492,6 +20086,120 @@ export const TOUR_ANCHORS = {
   'sub-launch.end-cancel': {
     label: 'Cancel button when ending a substitute-started run',
     panel: true,
+  },
+  // Substitute portal (/subs): the building and board pickers, the sub board's chrome and Help.
+  'student.help': { label: 'Help button on student pages (bottom right)' },
+  'student.help-tour': {
+    label: 'A live tour in the student Help menu, keyed row-N',
+    perField: true,
+    keyPattern: 'student-help#row-[1-9]\\d*',
+    keyHint: 'student-help#row-1 for the first tour',
+    panel: true,
+    rows: true,
+  },
+  'student.help-record': {
+    label: 'Record a tour in the student Help menu (admins in View as student)',
+    panel: true,
+    creates: true,
+  },
+  'subs.help': { label: 'Help button on every substitute portal screen' },
+  'subs.help-tour': {
+    label: 'A live tour in the substitute portal Help menu, keyed row-N',
+    perField: true,
+    keyPattern: 'subs-help#row-[1-9]\\d*',
+    keyHint: 'subs-help#row-1 for the first tour',
+    panel: true,
+    rows: true,
+  },
+  'subs.help-record': {
+    label: 'Record a tour in the substitute portal Help menu (admins)',
+    panel: true,
+    creates: true,
+  },
+  'subs.sign-out': { label: 'Sign out on the substitute building picker' },
+  'subs.building': {
+    label: 'A building card on the substitute building picker, keyed row-N',
+    perField: true,
+    keyPattern: 'subs-building#row-[1-9]\\d*',
+    keyHint: 'subs-building#row-1 for the first building',
+    rows: true,
+  },
+  'subs.change-building': {
+    label: 'Change building on the substitute teacher list',
+  },
+  'subs.empty-change-building': {
+    label: 'Change building when no boards are shared in that building',
+  },
+  'subs.board': {
+    label: 'A board card on the substitute teacher list, keyed row-N',
+    perField: true,
+    keyPattern: 'subs-directory#row-[1-9]\\d*',
+    keyHint: 'subs-directory#row-1 for the first card',
+    rows: true,
+    rowList: 'subs-directory',
+  },
+  'subs.collection-board': {
+    label:
+      'A board inside a shared collection card on the substitute teacher list',
+    perField: true,
+    keyPattern: 'subs-directory#row-[1-9]\\d*-board-[1-9]\\d*',
+    keyHint:
+      'subs-directory#row-1-board-2 for the second board in the first card',
+  },
+  'subs.board-menu': {
+    label: "Board menu with the teacher's name on a substitute board",
+  },
+  'subs.board-menu-reset': {
+    label: 'Reset board in the substitute board menu',
+    panel: true,
+  },
+  'subs.board-menu-directory': {
+    label: 'Back to teacher list in the substitute board menu',
+    panel: true,
+  },
+  'subs.board-menu-building': {
+    label: 'Change building in the substitute board menu',
+    panel: true,
+  },
+  'subs.board-menu-sign-out': {
+    label: 'Sign out in the substitute board menu',
+    panel: true,
+  },
+  'subs.load-classes': {
+    label: "Button on a substitute board that loads the teacher's class lists",
+  },
+  'subs.load-classes-confirm': {
+    label: 'Confirm button in the substitute class list prompt',
+    panel: true,
+  },
+  'subs.load-classes-later': {
+    label: 'Not now in the substitute class list prompt',
+    panel: true,
+  },
+  'subs.nav-previous': {
+    label: 'Previous board on a substitute collection board',
+  },
+  'subs.nav-next': { label: 'Next board on a substitute collection board' },
+  'subs.nav-menu': {
+    label:
+      "Button that lists the teacher's boards on a substitute collection board",
+  },
+  'subs.nav-board': {
+    label: 'A board in the substitute collection board list, keyed row-N',
+    perField: true,
+    keyPattern: 'subs-nav#row-[1-9]\\d*',
+    keyHint: 'subs-nav#row-1 for the first board',
+    panel: true,
+    rows: true,
+  },
+  'subs.nav-retry': {
+    label: 'Try again after a substitute collection board failed to open',
+  },
+  'subs.update-reload': {
+    label: 'Reload after the teacher updated the shared substitute boards',
+  },
+  'subs.error-back': {
+    label: 'Back button after a substitute board expired or failed to load',
   },
   // A colleague's quiz, video activity or guided activity open on a shared board.
   'colleague-item.assign': {
@@ -19734,6 +20442,99 @@ export const TOUR_ANCHORS = {
     label: 'Embed code box in the flashcard Share dialog',
     perWidgetType: true,
     panel: true,
+  },
+  'student.video-activity.period-option': {
+    label: 'Class option on the student Video Activity class picker',
+  },
+  'student.video-activity.period-continue': {
+    label: 'Continue button on the student Video Activity class picker',
+    persists: true,
+  },
+  'student.video-activity.period-back': {
+    label: 'Go Back button on the student Video Activity class picker',
+  },
+  'student.video-activity.pin': {
+    label: 'PIN box on the student Video Activity join page',
+  },
+  'student.video-activity.join': {
+    label: 'Join button on the student Video Activity join page',
+    persists: true,
+  },
+  'student.video-activity.answer-option': {
+    label: 'Answer choice on a student Video Activity question',
+  },
+  'student.video-activity.answer-check': {
+    label: 'Answer checkbox on a student Video Activity choose-all question',
+  },
+  'student.video-activity.answer-blank': {
+    label: 'Fill in the blank box on a student Video Activity question',
+  },
+  'student.video-activity.answer-text': {
+    label: 'Written answer box on a student Video Activity question',
+  },
+  'student.video-activity.submit-answer': {
+    label: 'Submit Answer button on a student Video Activity question',
+    persists: true,
+  },
+  'student.video-activity.live-submit': {
+    label: 'Submit button on a live student Video Activity question',
+    persists: true,
+  },
+  'student.video-activity.note-continue': {
+    label: 'Continue button on a student Video Activity note stop',
+  },
+  'student.video-activity.resume': {
+    label:
+      'Resume Activity button after a teacher unlocks a student Video Activity',
+  },
+  'student.video-activity.tab-warning-return': {
+    label:
+      'Return to Activity button on the student Video Activity tab warning',
+  },
+  'student.video-activity.finish': {
+    label: 'Finish activity button when a student Video Activity submit failed',
+    persists: true,
+  },
+  'student.video-activity.finish-retry': {
+    label: 'Try again button on the student Video Activity finished page',
+    persists: true,
+  },
+  'student.video-activity.back-link': {
+    label: 'Back to my assignments link in the student Video Activity',
+  },
+  'student.video-activity.error-retry': {
+    label: 'Try again button on the student Video Activity error page',
+  },
+  'student.video-activity.video-retry': {
+    label: 'Try again button when the student Video Activity video fails',
+  },
+
+  'student.guided-learning.period-option': {
+    label: 'Class option on the student Guided Learning class picker',
+  },
+  'student.guided-learning.change-class': {
+    label: 'Change class button on the student Guided Learning start page',
+  },
+  'student.guided-learning.pin': {
+    label: 'PIN box on the student Guided Learning start page',
+  },
+  'student.guided-learning.start': {
+    label: 'Start button on the student Guided Learning start page',
+    persists: true,
+  },
+  'student.guided-learning.done': {
+    label: 'Done button in the student Guided Learning player',
+    persists: true,
+  },
+  'student.guided-learning.finished-submit': {
+    label: 'Submit button on the student Guided Learning finished card',
+    persists: true,
+  },
+  'student.guided-learning.finished-back': {
+    label: 'Back button on the student Guided Learning finished card',
+  },
+  'student.guided-learning.replay': {
+    label: 'Replay button on the student Guided Learning end page',
   },
 } as const satisfies Record<string, TourAnchorDef>;
 

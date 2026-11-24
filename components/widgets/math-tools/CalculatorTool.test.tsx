@@ -301,4 +301,16 @@ describe('CalculatorTool', () => {
     clickBtn('+');
     expect(getDisplay(container).textContent).toBe('1234567900');
   });
+
+  it('backspace on a lone negative digit resets to 0 instead of a bare minus', () => {
+    const { container } = render(<CalculatorTool />);
+    clickBtn('5');
+    clickBtn('+/−');
+    clickBtn('⌫');
+    expect(getDisplay(container).textContent).toBe('0');
+    clickBtn('+');
+    clickBtn('2');
+    clickBtn('=');
+    expect(getDisplay(container).textContent).toBe('2');
+  });
 });

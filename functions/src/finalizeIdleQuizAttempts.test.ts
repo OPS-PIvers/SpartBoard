@@ -770,6 +770,39 @@ describe('runFinalizeIdleQuizAttempts - Manual due date', () => {
     ]);
   });
 
+  it('keeps work for a student with a time set after the due', async () => {
+    const { db, responses } = seed(
+      {
+        status: 'paused',
+        studentAccess: { s1: T + 2 * 24 * 60 * MIN },
+        studentAccessFrom: { s1: T + 24 * 60 * MIN },
+      },
+      [
+        { id: 'later', data: stale({ classId: 'B', studentUid: 's1' }) },
+        { id: 'other', data: stale({ classId: 'B', studentUid: 's2' }) },
+      ]
+    );
+    const result = await runFinalizeIdleQuizAttempts(db, T);
+    expect(result.finalized).toBe(1);
+    expect(responses.map((r) => r.data.status)).toEqual([
+      'in-progress',
+      'completed',
+    ]);
+  });
+
+  it('gives a set time that just started the idle threshold before turning in', async () => {
+    const { db, responses } = seed(
+      {
+        studentAccess: { s1: T + 60 * MIN },
+        studentAccessFrom: { s1: T - 5 * MIN },
+      },
+      [{ id: 'late', data: stale({ classId: 'B', studentUid: 's1' }) }]
+    );
+    const result = await runFinalizeIdleQuizAttempts(db, T);
+    expect(result.finalized).toBe(0);
+    expect(responses[0].data.status).toBe('in-progress');
+  });
+
   it('turns in a paused session past the due', async () => {
     const { db, responses } = seed({ status: 'paused' }, [
       { id: 'b', data: stale({ classId: 'B' }) },

@@ -401,6 +401,14 @@
           "after": 3
         }
       }
+    },
+    {
+      "pr": "claude/widget-loop-specialist-schedule-layout-2026-11-23",
+      "widgetType": "specialist-schedule",
+      "dimension": "layout",
+      "openedAt": "2026-11-23T05:40:00Z",
+      "outcome": "rejected",
+      "note": ""
     }
   ]
 }

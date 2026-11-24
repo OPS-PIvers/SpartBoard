@@ -62,6 +62,8 @@
       "drive": "Drive",
       "openMenu": "Abrir Menú",
       "closeMenu": "Cerrar Menú",
+      "lastUpdated": "Última actualización: {{date}}",
+      "buildId": "Versión {{version}} (compilación {{build}})",
       "back": "Atrás",
       "adminSettings": "Configuración Admin",
       "adminSettingsLoading": "Cargando Configuración Admin",
@@ -143,7 +145,7 @@
       "classLinkImportTitle": "Importar desde ClassLink",
       "classLinkMergeTitle": "Sincronizar \"{{name}}\" con ClassLink",
       "classLinkImportSubtitle": "Elige una clase para importar como nueva lista.",
-      "classLinkMergeSubtitle": "Elige la clase de ClassLink cuyos estudiantes quieres incorporar. Los estudiantes existentes se conservan.",
+      "classLinkMergeSubtitle": "Elige la clase de ClassLink con la que sincronizar. Se quitan los estudiantes que la dejaron. Los que añadiste tú se conservan.",
       "classLinkConnecting": "Conectando con ClassLink…",
       "classLinkNoClasses": "No se encontraron clases en ClassLink.",
       "classLinkImport": "Importar",
@@ -1325,6 +1327,9 @@
       "allAlreadyPresent": "Los {{count}} estudiantes ya están en {{name}}",
       "addedStudents_one": "Se añadió {{count}} estudiante a {{name}}",
       "addedStudents_other": "Se añadieron {{count}} estudiantes a {{name}}",
+      "removedStudents_one": "Se quitó {{count}} estudiante que ya no está en ClassLink",
+      "removedStudents_other": "Se quitaron {{count}} estudiantes que ya no están en ClassLink",
+      "removalSkipped": "Más de la mitad de {{name}} falta en ClassLink, así que no se quitó a nadie.",
       "syncFailed": "Error al sincronizar {{name}}"
     }
   },
@@ -4624,7 +4629,8 @@
       "needsText": "Necesita texto"
     },
     "savedToHelpCenter": "Guardado en el Centro de ayuda como Oculto.",
-    "openInHelpCenter": "Abrir en el Centro de ayuda"
+    "openInHelpCenter": "Abrir en el Centro de ayuda",
+    "savedToHelpCenterSubs": "Guardado en el Centro de ayuda como Oculto. Publícalo desde la Configuración de administración."
   },
   "glPlayer": {
     "modeChip": {
@@ -5129,5 +5135,10 @@
     "retry": "Intentar de nuevo",
     "label": "Pregunta de audio",
     "playCount": "Reproducir audio ({{used}}/{{total}})"
+  },
+  "subsTours": {
+    "help": "Ayuda",
+    "menuLabel": "Ayuda",
+    "record": "Grabar un recorrido"
   }
 }

@@ -4,7 +4,7 @@ import {
   cardInput,
   cardLabel,
 } from '@/components/tours/editor/shell/stepCardParts';
-import { isHandoffPattern } from './handoff';
+import { isHandoffPattern, openablePage, pageUrlOf } from './handoff';
 
 type Key = 'showWhen' | 'doneWhen';
 
@@ -104,3 +104,66 @@ export const WebConditionFields: React.FC<{
     <ConditionField field="doneWhen" web={web} onChange={onChange} />
   </>
 );
+
+/** A web step's set page: Go and a start on this step open it instead of the guessed address. */
+export const WebStepPageField: React.FC<{
+  web: WebTourBinding;
+  onChange: (web: WebTourBinding) => void;
+}> = ({ web, onChange }) => {
+  const value = web.openUrl ?? '';
+  const guessed = pageUrlOf(
+    [{ id: 'step', web: { ...web, openUrl: undefined } }],
+    0
+  );
+  return (
+    <PageField
+      label="Step page"
+      title="Go opens this page. Leave blank to use the recorded page."
+      value={value}
+      placeholder={guessed ?? 'https://'}
+      onChange={(next) => {
+        const rest = { ...web };
+        delete rest.openUrl;
+        onChange(next ? { ...rest, openUrl: next } : rest);
+      }}
+      testId="web-step-page"
+    />
+  );
+};
+
+/** An https page an admin types: Start page on the tour, Step page on a step. */
+export const PageField: React.FC<{
+  label: string;
+  title: string;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+  testId: string;
+  anchor?: Record<string, string>;
+}> = ({ label, title, value, placeholder, onChange, testId, anchor }) => {
+  const bad = value.trim() !== '' && !openablePage(value);
+  return (
+    <label className={cardLabel}>
+      {label}
+      {/* no-tour-anchor: the caller passes the anchor when one applies */}
+      <input
+        className={cardInput}
+        type="url"
+        inputMode="url"
+        value={value}
+        placeholder={placeholder}
+        spellCheck={false}
+        title={title}
+        aria-invalid={bad || undefined}
+        data-testid={testId}
+        onChange={(e) => onChange(e.target.value.trim())}
+        {...anchor}
+      />
+      {bad && (
+        <span className="text-xs font-normal text-red-700">
+          Start the address with https://.
+        </span>
+      )}
+    </label>
+  );
+};

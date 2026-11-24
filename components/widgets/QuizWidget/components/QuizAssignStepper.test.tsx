@@ -397,7 +397,7 @@ describe('QuizAssignStepper editing a launched quiz', () => {
       }
     ).overridesByKey;
 
-  it('names the students a class was narrowed to', () => {
+  it('lets the teacher change the students a class was narrowed to', () => {
     const row = classStudentRows({
       rosters: PRESET_ROSTERS,
       selectedRosterIds: ['c1'],
@@ -410,18 +410,18 @@ describe('QuizAssignStepper editing a launched quiz', () => {
         studentsByClass={{ c1: [row.ref] }}
       />
     );
-    expect(screen.getByTestId('picked-students-note')).toHaveTextContent(
-      `only ${row.name}`
-    );
+    expect(screen.queryByTestId('picked-students-note')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: /: 1 student$/ })
+    ).toBeInTheDocument();
   });
 
-  it('lists Modifications before Results, as assign does, with no student picker', () => {
+  it('lists Modifications before Results, as assign does', () => {
     render(<EditHarness saved={saved} onSubmit={vi.fn()} />);
     const titles = stepTitles();
     const mods = titles.findIndex((t) => t.startsWith('Modifications'));
     expect(titles[mods - 1]).toMatch(/^Quiz integrity/);
     expect(titles[mods + 1]).toMatch(/^Results/);
-    expect(screen.queryByText('Pick students')).toBeNull();
   });
 
   it('opens on the saved rules, not the class presets', () => {
@@ -468,7 +468,7 @@ describe('QuizAssignStepper editing groups by rule', () => {
       <EditHarness
         saved={{
           [keyOf('c1', 'a')]: { readAloud: true, closeAt: 5 },
-          [keyOf('c1', 'c')]: { readAloud: true, questionIds: ['q1'] },
+          [keyOf('c1', 'c')]: { readAloud: true, openAt: 3 },
           [keyOf('c1', 'b')]: { closeAt: 7 },
         }}
         onSubmit={vi.fn()}

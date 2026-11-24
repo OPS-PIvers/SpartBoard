@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import {
   collection,
+  deleteField,
   doc,
   FieldPath,
   getDocs,
@@ -61,7 +62,7 @@ type PeriodSession = PeriodAccessSessionFields & {
 const lockAt = (session: PeriodSession | null): number | null =>
   session ? dueLockAt(session) : null;
 
-/** A period's close, held to the due while it is ahead; after it, a Start runs late to the bell. */
+/** A close held to the Manual due while it is ahead. */
 export function capAtDue(
   closeAt: number | null,
   dueAt: number | null,
@@ -92,17 +93,6 @@ export function todaysBell(
     : null;
 }
 
-/** Today's end bell for the period's roster, when it is still ahead. */
-export function bellCloseFor(
-  access: Pick<PeriodAccess, 'rosterId'>,
-  rosters: readonly BellRoster[],
-  permissions: readonly FeaturePermission[] | undefined,
-  nowMs: number
-): number | null {
-  const window = todaysBell(access, rosters, permissions, nowMs);
-  return window && window.closeAt > nowMs ? window.closeAt : null;
-}
-
 /** When a Let in now pass runs out: the end of whichever targeted period is in session now, else 30 minutes. */
 export function letInUntil(
   periodAccess: Record<string, PeriodAccess>,
@@ -118,17 +108,23 @@ export function letInUntil(
   return nowMs + LET_IN_FALLBACK_MS;
 }
 
-/** The close time a Start writes: the end bell in assessment mode, a still-future window end otherwise. */
+/** The close time a Start writes: Manual stays open until paused or its due, a scheduled window keeps its end. */
 export function startCloseAt(
-  session: PeriodAccessSessionFields,
+  session: PeriodAccessSessionFields & {
+    dueLocks?: boolean;
+    dueAt?: number | null;
+  },
   access: PeriodAccess,
-  bellClose: number | null,
   nowMs: number
 ): number | null {
-  if (session.accessMode === 'assessment') return bellClose;
-  return access.closeAt != null && access.closeAt > nowMs
-    ? access.closeAt
-    : null;
+  const due = dueLockAt(session);
+  if (session.accessMode === 'assessment')
+    return due != null && due > nowMs ? due : null;
+  return capAtDue(
+    access.closeAt != null && access.closeAt > nowMs ? access.closeAt : null,
+    due,
+    nowMs
+  );
 }
 
 /** D24's Close patch: closedAt marks it apart from Ready, pausedAt keeps a just-flushed draft. */
@@ -236,52 +232,26 @@ export function usePeriodAccess(
     [sessionId, sessionCollection, refreshIdle]
   );
 
-  /** Resolves to the assessment periods that opened with no end bell to close them. */
   const start = useCallback(
-    async (keys: readonly string[], reopen = false): Promise<string[]> => {
-      if (!session || !periodAccess || keys.length === 0) return [];
+    async (keys: readonly string[], reopen = false): Promise<void> => {
+      if (!session || !periodAccess || keys.length === 0) return;
       await refreshStaleResponses(keys);
       const now = Date.now();
-      const untimed: string[] = [];
       const rows: Record<string, Partial<PeriodAccess>> = {};
       for (const key of keys) {
         const access = periodAccess[key];
         if (!access) continue;
-        const bell = bellCloseFor(
-          access,
-          rosters ?? [],
-          featurePermissions,
-          now
-        );
-        if (
-          session.accessMode === 'assessment' &&
-          bell == null &&
-          (lockAt(session) ?? now) <= now
-        )
-          untimed.push(key);
         rows[key] = {
           state: 'open',
           openAt: null,
-          closeAt: capAtDue(
-            startCloseAt(session, access, bell, now),
-            lockAt(session),
-            now
-          ),
+          closeAt: startCloseAt(session, access, now),
           ...(reopen || access.closedAt != null ? { closedAt: null } : {}),
           openedAt: now,
         };
       }
       await write(rows);
-      return untimed;
     },
-    [
-      session,
-      periodAccess,
-      refreshStaleResponses,
-      rosters,
-      featurePermissions,
-      write,
-    ]
+    [session, periodAccess, refreshStaleResponses, write]
   );
 
   const pause = useCallback(
@@ -339,10 +309,29 @@ export function usePeriodAccess(
         await updateDoc(
           refs.session,
           new FieldPath('studentAccess', uid),
-          until
+          until,
+          // A Let in now replaces any time set for later.
+          new FieldPath('studentAccessFrom', uid),
+          deleteField()
         );
     },
     [refs, periodAccess, rosters, featurePermissions, commit]
+  );
+
+  /** "Set a time": one student's pass from `from` to `until`; null removes it. */
+  const setStudentTime = useCallback(
+    async (uid: string, time: { from: number; until: number } | null) => {
+      if (!refs || !periodAccess || commit)
+        throw new Error('Cannot schedule here');
+      await updateDoc(
+        refs.session,
+        new FieldPath('studentAccess', uid),
+        time ? time.until : deleteField(),
+        new FieldPath('studentAccessFrom', uid),
+        time ? time.from : deleteField()
+      );
+    },
+    [refs, periodAccess, commit]
   );
 
   const keys = useMemo(() => Object.keys(periodAccess ?? {}), [periodAccess]);
@@ -366,6 +355,7 @@ export function usePeriodAccess(
         )
       ),
     letIn,
+    setStudentTime,
   };
 }
 

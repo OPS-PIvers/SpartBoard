@@ -5,6 +5,7 @@ import type {
   WebTourLocator,
 } from '@/types';
 import { startWebTour, watchWebTourCheck } from './extensionClient';
+import { CONDITIONS_PROTOCOL, OPEN_URL_PROTOCOL } from './extensionProtocol';
 import { buildHandoff, hubStepsOf, startUrlOf } from './webTourHub';
 import { targetsSignature } from './webStepReview';
 
@@ -96,10 +97,10 @@ export function useWebTourCheck(handlers: WebTourCheckHandlers) {
     );
   };
 
-  /** `withConditions`: the extension plays step conditions (CONDITIONS_PROTOCOL). */
-  const start = async (set: GuidedLearningSet, withConditions = false) => {
+  /** `protocol`: the extension's, which decides whether it gets step conditions and set pages. */
+  const start = async (set: GuidedLearningSet, protocol = 0) => {
     const hub = hubStepsOf(set.steps);
-    const url = startUrlOf(hub);
+    const url = startUrlOf(hub, set.webStartUrl);
     if (hub.length === 0 || !url) {
       latest.current.onStatus(
         "The first step's page can't be opened, so the tour can't be checked."
@@ -122,7 +123,8 @@ export function useWebTourCheck(handlers: WebTourCheckHandlers) {
       hub,
       new Map(),
       true,
-      withConditions
+      protocol >= CONDITIONS_PROTOCOL,
+      protocol >= OPEN_URL_PROTOCOL
     );
     const result = await startWebTour(handoff, url, 0, runId);
     if (!result.ok && runRef.current === runId)

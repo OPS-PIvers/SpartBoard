@@ -5657,6 +5657,8 @@ export interface PeriodAccessSessionFields {
   periodAccess?: Record<string, PeriodAccess>;
   /** "Let in now": auth uid → epoch ms the pass lasts until. */
   studentAccess?: Record<string, number>;
+  /** "Set a time": auth uid → epoch ms the pass starts; absent means it starts at once. */
+  studentAccessFrom?: Record<string, number>;
   /** Epoch ms of the last whole-session pause; see `PeriodAccess.pausedAt`. */
   pausedAt?: number;
   /** Manual due date: true locks every period at `dueAt`; false allows late work past it. */
@@ -6738,6 +6740,20 @@ export type PaperPageItem =
       /** Printed question number (position in the quiz). */
       label: string;
       originMm: PaperPointMm;
+      /** Bubbles this row prints, up to 10; absent = the sheet's `choiceCount`. */
+      choices?: number;
+      /** Matching, ordering and choose all: which answer row of the question this is. */
+      group?: PaperRowGroup;
+      /** 0-based row within the question; absent = the question's only row. */
+      part?: number;
+      /** Question-text sheets: bubbles run left to right after the row's term, not down the page. */
+      across?: true;
+      /** One-column sheets: bubbles per line; later bubbles wrap onto the next 8 mm line. */
+      wrap?: number;
+      /** First row of a question-text block: top of its stem, printed above the rows. */
+      headTopMm?: number;
+      /** With `headTopMm`: height of the stem's lines; the instruction prints under them. */
+      stemMm?: number;
     }
   | {
       kind: 'written';
@@ -6753,6 +6769,9 @@ export type PaperPageItem =
       /** A later page of a multi-page answer; its crop joins the first page's. */
       continued?: true;
     };
+
+/** How a matching, ordering or choose all question reads its bubbles: `all` fills several in one row, `match` one row per term, `order` one row per position (or per item, bubbling its position, when `across`). */
+export type PaperRowGroup = 'all' | 'match' | 'order';
 
 /** Positions of everything on one physical page; `page` is 1-based and absolute. */
 export interface PaperPageMap {
@@ -6782,6 +6801,12 @@ export interface PaperPrintedGroupRecord {
   supports?: QuizSupport[];
   /** The group's language, so a reprint prints the same translation. */
   language?: string;
+  /** One student's copy printed from the monitor, rather than a group's stack. */
+  single?: true;
+  /** Option text left off per question id: a student copy's own hidden answer choices. */
+  hiddenChoices?: Record<string, string[]>;
+  /** The questions a student copy or group printed, when given only some. */
+  questionIds?: string[];
 }
 
 /** A printed group planned at assign, kept so a version closed before printing can still print. */
@@ -6804,6 +6829,8 @@ export interface PaperBatch {
   spareSeats: number[];
   /** Seat carrying the bubbled ANSWER KEY sheet, when one was printed (plan Q16). */
   keySheetSeat?: number;
+  /** Every key seat, one per version, when a versioned stack printed more than one key; the first is `keySheetSeat`. */
+  keySheetSeats?: number[];
   /**
    * Option text per question id in the lettered order the test paper printed
    * (A first). Authored quizzes only; import maps a bubbled letter through it
@@ -6827,7 +6854,7 @@ export interface PaperBatch {
   pageMaps?: PaperPageMap[];
   /** Present iff `seatVersions` is; version 0 is what `pageMaps` carries. */
   versions?: PaperBatchVersion[];
-  /** Seat -> index into `versions`; the key sheet is absent and reads as version 0. */
+  /** Seat -> index into `versions`, keys included; a seat that is absent reads as version 0. */
   seatVersions?: Record<number, number>;
   /** Printed for a modification group of a device assignment: the rules its version applied, so a reprint matches. */
   printedGroup?: PaperPrintedGroupRecord;
@@ -6865,6 +6892,8 @@ export interface PaperBatchPendingQuizCopy {
 export interface PaperPendingAnswer {
   question: number;
   choice: number | null;
+  /** A choose all row: every choice marked. */
+  marked?: number[];
   doubt?: 'multiple' | 'unclear';
 }
 
@@ -9382,6 +9411,8 @@ export interface WebTourBinding {
   showWhen?: WebTourCondition;
   /** Moves on when this holds instead of at the learner's action: the target goes away, or the address matches. */
   doneWhen?: WebTourCondition;
+  /** The https page Go and a start on this step open; absent = the address guessed from `urlPattern`. */
+  openUrl?: string;
 }
 
 export interface WebTourStudentDataCheck {
@@ -9560,6 +9591,8 @@ export interface GuidedLearningSet {
   /** Building set owned by the Help Center: edited in Admin Settings, hidden from the library. */
   helpCenter?: boolean;
   authorUid?: string;
+  /** The author's display name, kept beside `authorUid` so a list can show it without a lookup. */
+  authorName?: string;
   /**
    * Hotspot pulse animation for the player. Default `'consistent'` (matches
    * pre-feature behavior — a continuous breathing pulse). `'reminder'` does
@@ -9616,6 +9649,8 @@ export interface GuidedLearningSet {
   webPicturesChecked?: WebTourStudentDataCheck;
   /** Web tours: what the tour explains, for Claude; never published. */
   webGoal?: string;
+  /** Web tours: the https page the tour opens on; absent = the first step's page. */
+  webStartUrl?: string;
   /** Web tours: the last Check tour run, which Publish needs passing for these targets (C13). */
   webTourChecked?: WebTourCheckRun;
   /** Web tours: suggested fixes from check runs, by step id; never published. */
@@ -11800,6 +11835,7 @@ export type GlobalFeature =
   | 'gemini-functions'
   | 'dashboard-sharing'
   | 'dashboard-import'
+  | 'substitute-sharing'
   | 'magic-layout'
   | 'smart-paste'
   | 'smart-poll'
@@ -11850,12 +11886,8 @@ export type GlobalFeature =
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
   | 'quiz-word-bank'
-  /** Quiz editor attaches stimuli in a list-and-preview dialog instead of an inline checklist. */
-  | 'quiz-stimulus-picker'
   /** A question's modified version can show different stimuli. */
   | 'quiz-modified-stimuli'
-  /** Question editor metadata (stimuli, targets, DOK) as labeled fields like Type and Points. */
-  | 'question-editor-fields'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
@@ -11864,6 +11896,7 @@ export type GlobalFeature =
   | 'paper-multi-page-answers'
   /** A live preview of one student's printed packet in the paper print dialogs. */
   | 'paper-print-preview'
+  | 'paper-student-copy'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
   | 'paper-written-hybrid'
   | 'paper-reword-sync'
@@ -11891,20 +11924,8 @@ export type GlobalFeature =
   | 'quiz-live-view-nudge-note'
   /** Live view's Screenshot button. */
   | 'quiz-live-view-screenshot'
-  /** Sign-in picks an account instead of forcing Google's consent page; idle sign-out after 30 days instead of 7. */
-  | 'quick-sign-in'
-  /** Teacher picture and PDF uploads need Google Drive; without it they ask to reconnect instead of saving to Firebase Storage. */
-  | 'drive-only-uploads'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
-  /** Quiz assign stays open with a spinner until the save finishes, and shows a failed save inline. */
-  | 'quiz-assign-waits-for-save'
-  /** Each quiz assignment keeps a copy of the questions it was given, so later edits never change its scores. */
-  | 'quiz-frozen-assignments'
-  /** Rubric grading redesign: one-tap level buttons, expandable criteria, level order switch, full-rubric table. */
-  | 'rubric-grading-v2'
-  /** Quiz assign: a modification group can get a printed version, scanned back into the same results. */
-  | 'paper-printed-versions'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -11915,8 +11936,6 @@ export type GlobalFeature =
   | 'routine-guide'
   /** Class groups with a weekly schedule that pop a reminder on the open board. */
   | 'group-reminders'
-  /** Edit Class: groups open as pages that hold their accommodations; Accommodations lists every student. */
-  | 'class-groups-redesign'
   | 'classlink-clean-names'
   /** Group reminders: the Symbol step of the class group editor. */
   | 'group-symbols'
@@ -12002,10 +12021,10 @@ export type GlobalFeature =
   | 'import-straight-to-board'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
   | 'video-import-ai'
-  /** Manual assignments get a due date, and Assign remembers the When step. */
-  | 'assign-due-date'
   /** Library and Assigned tabs with a status per class (docs/plans/ASSIGNED_TAB.md D19). */
   | 'assigned-tab'
+  /** Assignment rows name the students a picked-only run went to. */
+  | 'picked-student-names'
   /** Writing peer review: teachers pair students to read, comment on or suggest edits to each other's writing. */
   | 'writing-peer-review'
   /** The sidebar Assignments hub; on for everyone until an admin narrows it. */
@@ -12013,10 +12032,15 @@ export type GlobalFeature =
   /** Teachers record their voice for a quiz question prompt. */
   | 'quiz-question-audio'
   | 'quiz-random-numbers'
-  /** Print results with Settings and Students tabs and a Course > class > student picker. */
-  | 'results-print-v2'
   /** Widget update notes listed in the sidebar What's New instead of a button under each widget. */
-  | 'widget-notes-in-whats-new';
+  | 'widget-notes-in-whats-new'
+  /** Live tours on the /subs portal: the help button subs see and the Substitutes audience. */
+  | 'subs-live-tours'
+  | 'student-live-tours'
+  | 'assign-open-check'
+  | 'modification-fewer-questions'
+  /** Quiz monitor "Set a time": one student's own window past a paused class. */
+  | 'student-set-time';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {

@@ -46,6 +46,7 @@ export type SkipReason =
   | 'malformed-ref'
   | 'malformed-override'
   | 'not-in-teacher-classes'
+  | 'not-in-assigned-class'
   | 'test-class-not-authorized'
   | 'duplicate'
   | 'over-limit';
@@ -59,6 +60,8 @@ export interface TargetAuthorizationContext {
   classIdBySourcedId: Map<string, string>;
   /** Lowercased test-class member email → the test class slug. */
   classIdByTestEmail: Map<string, string>;
+  /** `refKey()` → every one of the caller's classes the student is in, when known. */
+  classIdsByRefKey?: Map<string, string[]>;
   /**
    * True only when the caller clears the same org-admin gate that governs the
    * `testClasses` docs themselves. False ⇒ every `test` ref is skipped with a
@@ -145,7 +148,9 @@ export interface ResolvedTarget {
 export function resolveTargets(
   refs: readonly StudentTargetRef[],
   ctx: TargetAuthorizationContext,
-  hmacSecret: string
+  hmacSecret: string,
+  /** The run's classes: the student must be in one, and their pointer files under it. */
+  targetClassIds?: ReadonlySet<string>
 ): {
   resolved: ResolvedTarget[];
   skipped: { ref: StudentTargetRef; reason: SkipReason }[];
@@ -164,13 +169,24 @@ export function resolveTargets(
       skipped.push({ ref, reason: 'test-class-not-authorized' });
       continue;
     }
-    const classId =
+    const firstClassId =
       ref.kind === 'classlink'
         ? ctx.classIdBySourcedId.get(ref.sourcedId)
         : ctx.classIdByTestEmail.get(ref.email);
-    if (!classId) {
+    if (!firstClassId) {
       skipped.push({ ref, reason: 'not-in-teacher-classes' });
       continue;
+    }
+    let classId = firstClassId;
+    if (targetClassIds && targetClassIds.size > 0) {
+      const inRun = (ctx.classIdsByRefKey?.get(key) ?? [firstClassId]).find(
+        (id) => targetClassIds.has(id)
+      );
+      if (!inRun) {
+        skipped.push({ ref, reason: 'not-in-assigned-class' });
+        continue;
+      }
+      classId = inRun;
     }
     resolved.push({ ref, key, uid: uidForRef(ref, hmacSecret), classId });
   }
@@ -261,7 +277,8 @@ export async function loadTestClassMembership(
   db: admin.firestore.Firestore,
   teacherEmail: string,
   testClassIds: readonly string[],
-  names?: Map<string, TargetDirectoryName>
+  names?: Map<string, TargetDirectoryName>,
+  allClasses?: Map<string, string[]>
 ): Promise<{
   membership: Map<string, string>;
   authorized: boolean;
@@ -303,6 +320,7 @@ export async function loadTestClassMembership(
     for (const email of memberEmails) {
       if (typeof email === 'string' && email.length > 0) {
         const lower = email.toLowerCase();
+        addClass(allClasses, `test:${lower}`, testClassIds[i]);
         if (!out.has(lower)) {
           out.set(lower, testClassIds[i]);
           // Display name = email local-part, matching the roster import dialog.
@@ -351,6 +369,17 @@ async function fetchClassLinkPages<T>(
   }
 }
 
+function addClass(
+  map: Map<string, string[]> | undefined,
+  key: string,
+  classId: string
+): void {
+  if (!map) return;
+  const list = map.get(key);
+  if (!list) map.set(key, [classId]);
+  else if (!list.includes(classId)) list.push(classId);
+}
+
 // Fail loudly rather than run into the function deadline with part of the roster.
 function assertWithinBudget(started: number): void {
   if (Date.now() - started > CLASSLINK_TOTAL_BUDGET_MS) {
@@ -365,7 +394,8 @@ export async function loadClassLinkMembership(
   classlinkClientId: string,
   classlinkClientSecret: string,
   tenantUrl: string,
-  names?: Map<string, TargetDirectoryName>
+  names?: Map<string, TargetDirectoryName>,
+  allClasses?: Map<string, string[]>
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (ownedClassIds?.length === 0) return out;
@@ -437,6 +467,8 @@ export async function loadClassLinkMembership(
   }
   for (const { classId, students } of rosters) {
     for (const student of students) {
+      if (student.sourcedId)
+        addClass(allClasses, `classlink:${student.sourcedId}`, classId);
       if (student.sourcedId && !out.has(student.sourcedId)) {
         out.set(student.sourcedId, classId);
         names?.set(`classlink:${student.sourcedId}`, {
@@ -480,13 +512,15 @@ export async function loadTargetDirectory(
   onClassLinkError: (err: unknown) => never
 ): Promise<TargetDirectory> {
   const namesByRefKey = new Map<string, TargetDirectoryName>();
+  const classIdsByRefKey = new Map<string, string[]>();
   const owned = await loadOwnedRosterClasses(db, callerUid);
   const [testClasses, classIdBySourcedId] = await Promise.all([
     loadTestClassMembership(
       db,
       teacherEmail,
       owned.testClassIds,
-      namesByRefKey
+      namesByRefKey,
+      classIdsByRefKey
     ),
     creds.classlinkClientId && creds.classlinkClientSecret && creds.tenantUrl
       ? loadClassLinkMembership(
@@ -495,7 +529,8 @@ export async function loadTargetDirectory(
           creds.classlinkClientId,
           creds.classlinkClientSecret,
           creds.tenantUrl,
-          namesByRefKey
+          namesByRefKey,
+          classIdsByRefKey
         ).catch(onClassLinkError)
       : new Map<string, string>(),
   ]);
@@ -503,6 +538,7 @@ export async function loadTargetDirectory(
     ctx: {
       classIdBySourcedId,
       classIdByTestEmail: testClasses.membership,
+      classIdsByRefKey,
       testClassAuthorized: testClasses.authorized,
     },
     namesByRefKey,

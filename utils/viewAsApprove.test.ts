@@ -128,6 +128,56 @@ describe('approveViewAsChange', () => {
     expect(payload.widgets[0].config).toEqual({ a: 2, roster: ['Ada'] });
   });
 
+  it('keeps name-keyed keys their stored config holds, by widget type', async () => {
+    stored = {
+      widgets: [
+        {
+          id: 'w1',
+          type: 'seating-chart',
+          config: {
+            a: 9,
+            savedPlans: [{ id: 'p', assignments: { Ada: 'f' } }],
+            assignments: { Ada: 'x' },
+          },
+        },
+      ],
+    };
+    await approveViewAsChange(change());
+    const [, payload] = txUpdate.mock.calls[0] as [
+      unknown,
+      { widgets: Record<string, unknown>[] },
+    ];
+    expect(payload.widgets[0].config).toEqual({
+      a: 2,
+      savedPlans: [{ id: 'p', assignments: { Ada: 'f' } }],
+      assignments: { Ada: 'x' },
+    });
+  });
+
+  it('keeps class assignments when the change switches to custom roster mode', async () => {
+    const id = '3f2b8c1e-9a4d-4e7b-8c2a-1d5e6f7a8b9c';
+    stored = {
+      widgets: [
+        {
+          id: 'w1',
+          type: 'stations',
+          config: { rosterMode: 'class', assignments: { [id]: 'A' } },
+        },
+      ],
+    };
+    await approveViewAsChange(
+      change({ after: { config: { rosterMode: 'custom' } } })
+    );
+    const [, payload] = txUpdate.mock.calls[0] as [
+      unknown,
+      { widgets: Record<string, unknown>[] },
+    ];
+    expect(payload.widgets[0].config).toEqual({
+      rosterMode: 'custom',
+      assignments: { [id]: 'A' },
+    });
+  });
+
   it('is stale and writes nothing when the widget is gone', async () => {
     stored = { widgets: [{ id: 'w0' }] };
     await expect(approveViewAsChange(change())).resolves.toBe('stale');

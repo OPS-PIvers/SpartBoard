@@ -1,3 +1,4 @@
+import { tourAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import {
@@ -103,6 +104,7 @@ export const StartScreen: React.FC<{
         <div className="mt-6 space-y-2 text-left">
           {periods.map((p) => (
             <button
+              {...tourAttr('student.guided-learning.period-option')}
               key={p}
               onClick={() => onPeriodChange(p)}
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base font-semibold text-slate-800 transition-colors hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
@@ -164,6 +166,7 @@ export const StartScreen: React.FC<{
               {selectedPeriod}
             </span>
             <button
+              {...tourAttr('student.guided-learning.change-class')}
               onClick={() => onPeriodChange(null)}
               className="text-xs font-medium text-brand-blue-primary hover:underline"
             >
@@ -192,6 +195,7 @@ export const StartScreen: React.FC<{
             </span>
           </label>
           <input
+            {...tourAttr('student.guided-learning.pin')}
             id="gl-student-pin"
             type="text"
             value={pin}
@@ -210,6 +214,7 @@ export const StartScreen: React.FC<{
       )}
 
       <button
+        {...tourAttr('student.guided-learning.start')}
         onClick={onStart}
         disabled={busy}
         className={`mt-7 ${GL_PRIMARY_BUTTON}`}
@@ -256,7 +261,11 @@ export const CompletionScreen: React.FC<{
         <p className="mt-3 text-sm text-slate-600">
           {t('glStudent.complete.reachedEnd')}
         </p>
-        <button onClick={onReplay} className={`mt-7 ${GL_PRIMARY_BUTTON}`}>
+        <button
+          {...tourAttr('student.guided-learning.replay')}
+          onClick={onReplay}
+          className={`mt-7 ${GL_PRIMARY_BUTTON}`}
+        >
           <RefreshCw className="h-4 w-4" aria-hidden="true" />
           {t('glStudent.complete.replay')}
         </button>

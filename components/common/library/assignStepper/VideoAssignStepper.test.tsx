@@ -24,7 +24,11 @@ const PLCS = [
 
 const PERIODS: AssignPeriodAccessContext = {
   bellOptions: [],
-  bellWindow: () => ({ openAt: 1, closeAt: 2 }),
+  // Later today, so a window that opens on assign still closes after it opens.
+  bellWindow: () => ({
+    openAt: Date.now() + 3_600_000,
+    closeAt: Date.now() + 7_200_000,
+  }),
   onTagRoster: vi.fn(),
 };
 
@@ -53,6 +57,15 @@ const stepHeader = (name: string) =>
   screen.getByRole('button', { name: new RegExp(`^\\d${name}`) });
 const assign = (name = 'Assign') =>
   fireEvent.click(screen.getByRole('button', { name }));
+
+vi.mock('@/hooks/useLastAssignSettings', async (orig) => ({
+  ...(await orig<typeof import('@/hooks/useLastAssignSettings')>()),
+  useLastAssignSettings: () => ({
+    lastUsed: null,
+    loaded: true,
+    save: vi.fn(),
+  }),
+}));
 
 describe('VideoAssignStepper', () => {
   it('self-paced shows Classes and When with no pacing switch when live is off', () => {

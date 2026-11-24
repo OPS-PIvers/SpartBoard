@@ -1,0 +1,1 @@
+claude/backlog-ab-117-20261123 (AB-117: client pins the synced bank owner on PLC bank import and in the bank picker)

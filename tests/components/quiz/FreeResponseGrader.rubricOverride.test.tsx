@@ -109,7 +109,7 @@ describe('FreeResponseGrader — per-student rubric override (M17 C4)', () => {
         onClose={vi.fn()}
       />
     );
-    expect(screen.getByText('Base rubric')).toBeInTheDocument();
+    expect(screen.getByText('Thesis')).toBeInTheDocument();
     expect(screen.queryByText(/Alternate rubric/)).toBeNull();
     expect(screen.queryByText(/Rubric overridden for this student/)).toBeNull();
   });
@@ -131,14 +131,14 @@ describe('FreeResponseGrader — per-student rubric override (M17 C4)', () => {
       />
     );
     // uid-a (student idx 0) gets the override rubric.
-    expect(screen.getByText('Simplified rubric')).toBeInTheDocument();
+    expect(screen.getByText('Effort')).toBeInTheDocument();
     expect(
       screen.getByText('Alternate rubric for this student')
     ).toBeInTheDocument();
 
     // Next student (uid-b) is unmatched — falls back to the base rubric.
     fireEvent.click(screen.getByRole('button', { name: /^next ungraded/i }));
-    expect(screen.getByText('Base rubric')).toBeInTheDocument();
+    expect(screen.getByText('Thesis')).toBeInTheDocument();
     expect(screen.queryByText(/Alternate rubric/)).toBeNull();
   });
 
@@ -209,7 +209,7 @@ describe('FreeResponseGrader — per-student rubric override (M17 C4)', () => {
         onClose={vi.fn()}
       />
     );
-    expect(screen.getByText('Base rubric')).toBeInTheDocument();
+    expect(screen.getByText('Thesis')).toBeInTheDocument();
     expect(screen.queryByText(/Alternate rubric/)).toBeNull();
   });
 
@@ -230,7 +230,7 @@ describe('FreeResponseGrader — per-student rubric override (M17 C4)', () => {
         onClose={vi.fn()}
       />
     );
-    expect(screen.getByText('Base rubric')).toBeInTheDocument();
+    expect(screen.getByText('Thesis')).toBeInTheDocument();
     expect(screen.queryByText(/Alternate rubric/)).toBeNull();
   });
 });

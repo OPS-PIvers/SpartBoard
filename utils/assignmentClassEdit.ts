@@ -57,12 +57,15 @@ export function planAssignmentClassEdit({
   previousRosterIds = [],
   periodAccess,
   accessMode,
+  dueLockAt,
 }: {
   rosters: readonly ClassRoster[];
   rosterIds: readonly string[];
   previousRosterIds?: readonly string[];
   periodAccess?: Record<string, PeriodAccess>;
   accessMode?: AccessMode;
+  /** A Manual due date a new assessment class locks at too. */
+  dueLockAt?: number | null;
 }): AssignmentClassEdit {
   const selected = rosters.filter((r) => rosterIds.includes(r.id));
   const unchecked = rosters.filter(
@@ -96,6 +99,7 @@ export function planAssignmentClassEdit({
       window: {
         openAt: shared.openAt ?? undefined,
         closeAt: shared.closeAt ?? undefined,
+        dueLockAt,
       },
     }),
   };
@@ -207,4 +211,28 @@ export function stageAssignmentClassEdit(
     },
     rows
   );
+}
+
+/** Assign's "Add to the X assignment": the open assignment's classes plus the new ones. */
+export function planAddClasses(
+  assignment: {
+    rosterIds?: string[];
+    periodNames?: string[];
+    periodName?: string;
+    periodAccess?: Record<string, PeriodAccess>;
+    accessMode?: AccessMode;
+  },
+  rosters: readonly ClassRoster[],
+  addRosterIds: readonly string[],
+  dueLockAt?: number | null
+): AssignmentClassEdit {
+  const previous = previousRosterIdsFor(assignment, rosters);
+  return planAssignmentClassEdit({
+    rosters,
+    rosterIds: [...new Set([...previous, ...addRosterIds])],
+    previousRosterIds: previous,
+    periodAccess: assignment.periodAccess,
+    accessMode: assignment.accessMode,
+    dueLockAt,
+  });
 }

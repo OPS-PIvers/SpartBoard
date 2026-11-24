@@ -283,6 +283,23 @@ describe('handleImportPaperResponses', () => {
     ).toBeUndefined();
   });
 
+  it("saves a student's assigned question subset as served, so the scan scores out of those questions", async () => {
+    const docs = baseDocs();
+    docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`] = {
+      quizId: 'quiz-1',
+      overridesByStudentUid: {
+        'pseudo-s2': { questionIds: ['q1', 'q3', 'deleted-q'] },
+      },
+    };
+    await call(docs, [sheet(1), sheet(2)]);
+    expect(
+      docs[`quiz_sessions/${ASSIGNMENT}/responses/pseudo-s2`].servedQuestionIds
+    ).toEqual(['q1', 'q3']);
+    expect(
+      docs[`quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-01`]
+    ).not.toHaveProperty('servedQuestionIds');
+  });
+
   it('replaces its own earlier import but reports a device response as a collision', async () => {
     const docs = baseDocs();
     docs[`quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0001`] = {
@@ -351,6 +368,17 @@ describe('handleImportPaperResponses', () => {
     await expect(
       call(baseDocs(), [sheet(3, { rosterId: 'someone-elses' })])
     ).rejects.toMatchObject({ code: 'invalid-argument', message: /Roster/ });
+  });
+
+  it("rejects any version's answer key", async () => {
+    const docs = baseDocs();
+    docs[`users/${UID}/paper_batches/${BATCH}`] = {
+      ...docs[`users/${UID}/paper_batches/${BATCH}`],
+      keySheetSeats: [4, 5],
+    };
+    await expect(call(docs, [sheet(5)])).rejects.toMatchObject({
+      message: /answer key/,
+    });
   });
 
   it('rejects a student seat sent under a different roster', async () => {

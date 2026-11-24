@@ -112,7 +112,10 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
     async (entry: PlcQuestionBankEntry) => {
       setBusyRowId(entry.id);
       try {
-        const content = await loadSyncedBankContent(entry.syncGroupId);
+        const content = await loadSyncedBankContent(
+          entry.syncGroupId,
+          entry.sharedBy
+        );
         const now = Date.now();
         await saveBank({
           id: crypto.randomUUID(),

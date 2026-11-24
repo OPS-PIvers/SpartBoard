@@ -42,6 +42,7 @@ import {
 } from './structuredLayout';
 import { READ_ALOUD_HIGHLIGHT_CLASS } from './readAloud/readAloudHighlight';
 import type { ReadAloudItemControls } from './readAloud/useQuizReadAloud';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface MatchingResponseInputProps {
   question: QuizPublicQuestion;
@@ -198,7 +199,7 @@ const DropZone: React.FC<DropZoneProps> = ({
       });
   return (
     <button
-      // no-tour-anchor: student quiz screen; tours walk teachers
+      {...tourAttr('student.quiz.matching-slot')}
       type="button"
       ref={setNodeRef}
       onClick={(e) => {
@@ -609,7 +610,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
               {t('quizStudent.wordBank')}
             </span>
             <button
-              // no-tour-anchor: student quiz screen; tours walk teachers
+              {...tourAttr('student.quiz.matching-reset')}
               type="button"
               onClick={undo ? undoReset : reset}
               disabled={disabled}

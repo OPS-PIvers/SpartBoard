@@ -47,6 +47,7 @@ import {
   sharedVisibility,
 } from '@/components/common/library/assigned/bulkPublish';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
+import { addToOpenAssignment } from '@/utils/openAssignmentClasses';
 import { VideoAssignmentSettingsModal } from './components/VideoAssignmentSettingsModal';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
@@ -982,6 +983,20 @@ const TeacherVideoActivityWidget: React.FC<{
   return (
     <>
       <VideoActivityManager
+        onAddClassesToAssignment={(assignmentId, addRosterIds) =>
+          addToOpenAssignment({
+            assignments,
+            assignmentId,
+            rosters,
+            addRosterIds,
+            save: (a, edit) => setAssignmentClasses(a.id, edit),
+            toast: addToast,
+            onError: (err) =>
+              logError('VideoActivityWidget.addClasses', err, {
+                assignmentId,
+              }),
+          })
+        }
         userId={user?.uid}
         assignmentMode={vaAssignmentMode}
         activities={activities}

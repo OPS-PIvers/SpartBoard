@@ -1339,7 +1339,7 @@ export async function handleLaunchSubAssignment(
   const { share, hostUid, expiresAt } = await verifySubShare(
     db,
     shareId,
-    email,
+    { email, uid: sub.uid },
     deps.now()
   );
 

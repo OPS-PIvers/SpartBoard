@@ -178,4 +178,18 @@ describe('test paper copies inside the response sheet document', () => {
       .filter((l) => l.includes('{'));
     expect(rules.every((l) => l.startsWith('.tp'))).toBe(true);
   });
+
+  it("prints a group's supports after every version's copy", () => {
+    const q = { row: 1, text: 'Pick one', choices: ['Red', 'Blue'] };
+    const copies = paperTestPacketCopies({
+      quizTitle: 'Unit 3 Test',
+      questions: [],
+      versions: [
+        { label: 'Version 1', questions: [q] },
+        { label: 'Version 2', questions: [q] },
+      ],
+      supports: [{ title: 'Word bank', body: 'nucleus' }],
+    });
+    expect(copies.every((c) => c.includes('Word bank'))).toBe(true);
+  });
 });

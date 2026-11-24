@@ -21,7 +21,11 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
-import type { HelpItemKind, HelpResourceItem } from '@/types/helpCenter';
+import {
+  helpAudienceOf,
+  type HelpItemKind,
+  type HelpResourceItem,
+} from '@/types/helpCenter';
 import { KIND_LABEL } from './helpCenterAdmin';
 
 export interface HelpListSection {
@@ -149,6 +153,8 @@ export const HelpItemList: React.FC<HelpItemListProps> = ({
             <span className="block text-xs text-slate-500">
               {KIND_LABEL[info.kind]} ·{' '}
               {info.published ? 'Published' : 'Hidden'}
+              {helpAudienceOf(item) === 'subs' && ' · Substitutes'}
+              {helpAudienceOf(item) === 'students' && ' · Students'}
             </span>
           </span>
           {info.attention && (

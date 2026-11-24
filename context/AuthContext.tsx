@@ -30,7 +30,7 @@ import { httpsCallable } from 'firebase/functions';
 import {
   auth,
   googleProvider,
-  quickSignInProvider,
+  driveConsentProvider,
   db,
   functions,
   isAuthBypass,
@@ -40,11 +40,6 @@ import {
   GOOGLE_CALENDAR_READONLY_SCOPE,
 } from '@/config/firebase';
 import { resolveAuthBypassFeatureOverride } from '@/utils/authBypassFeatureOverrides';
-import {
-  inactivityTimeoutMs,
-  readQuickSignIn,
-  writeQuickSignIn,
-} from '@/utils/quickSignIn';
 import {
   FeaturePermission,
   WidgetType,
@@ -314,6 +309,7 @@ const clampSettingsDrawerWidth = (n: number): number =>
   Math.min(MAX_SETTINGS_DRAWER_WIDTH, Math.max(MIN_SETTINGS_DRAWER_WIDTH, n));
 
 const LAST_ACTIVITY_KEY = 'spart_last_activity';
+const INACTIVITY_TIMEOUT_MS = 30 * 24 * 60 * 60 * 1000;
 const ACTIVITY_UPDATE_INTERVAL_MS = 5 * 60 * 1000; // Update activity timestamp every 5 minutes
 
 /**
@@ -974,7 +970,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (silent) return null;
 
         try {
-          const result = await signInWithPopup(auth, googleProvider);
+          const result = await signInWithPopup(auth, driveConsentProvider);
           const credential = GoogleAuthProvider.credentialFromResult(result);
           if (credential) {
             const token = credential.accessToken ?? null;
@@ -3216,11 +3212,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         // Check for inactivity timeout — if the user hasn't used the app past
-        // the idle limit (7 days, 30 with quick sign-in), force a full re-login
+        // the idle limit (30 days), force a full re-login
         // so Google OAuth tokens (Drive, Calendar, Sheets) are freshly issued.
         // This prevents stale tokens silently failing to load rosters and Drive data.
         const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY);
-        const idleLimitMs = inactivityTimeoutMs(readQuickSignIn(localStorage));
+        const idleLimitMs = INACTIVITY_TIMEOUT_MS;
         if (lastActivity) {
           const lastActivityTime = parseInt(lastActivity, 10);
           // Treat corrupted/unparseable values as stale — safer to force
@@ -3567,20 +3563,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, globalPermissions, resolvePermissionAccess, isAdmin, userTier]
   );
 
-  // Remember the quick-sign-in flag on this device; the next sign-in runs before permissions load.
-  const quickSignInAllowed =
-    !isAuthBypass &&
-    !isViewAsTab &&
-    !!user &&
-    isAdmin !== null &&
-    globalPermissionsLoaded
-      ? canAccessFeature('quick-sign-in')
-      : null;
-  useEffect(() => {
-    if (quickSignInAllowed === null) return;
-    writeQuickSignIn(localStorage, quickSignInAllowed);
-  }, [quickSignInAllowed]);
-
   usePageSpellCheck(!spellCheckEnabled);
 
   const canAccessWidget = useCallback(
@@ -3664,10 +3646,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
     try {
-      const provider = readQuickSignIn(localStorage)
-        ? quickSignInProvider
-        : googleProvider;
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, googleProvider);
       // Sign-in succeeded — safe to clear the sticky deactivation flag now.
       setAccessDeactivated(false);
       const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -3719,8 +3698,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.removeItem(LAST_ACTIVITY_KEY);
       localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
       localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
-      // A shared Chromebook's next user starts on the legacy sign-in until their own flag loads.
-      writeQuickSignIn(localStorage, false);
       backendConsentLatchRef.current = newBackendConsentLatch(null);
       await flushDebouncedWrites();
       await firebaseSignOut(auth);

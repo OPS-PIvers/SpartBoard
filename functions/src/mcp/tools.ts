@@ -72,6 +72,7 @@ import {
 } from './glTools';
 import { registerCreateGuidedLearning } from './glCreate';
 import { ADMIN_ONLY_TOOLS, registerLiveTourTools } from './glLiveTour';
+import { registerAnchorRequestTools } from './tourAnchorRequests';
 import {
   WEB_TOUR_TOOLS,
   isWebTourRevision,
@@ -811,6 +812,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerGuidedLearningTools(server, ctx);
   registerCreateGuidedLearning(server, ctx);
   registerLiveTourTools(server, ctx);
+  registerAnchorRequestTools(server, ctx);
   registerWebTourTools(server, ctx);
   registerMeetingTools(server, ctx);
   registerStandardsTools(server, ctx);

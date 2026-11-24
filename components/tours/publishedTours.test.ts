@@ -19,6 +19,16 @@ vi.mock('firebase/firestore', () => ({
     h.docs.set(ref.id, data);
     return Promise.resolve();
   },
+  updateDoc: (ref: { id: string }, patch: Record<string, unknown>) => {
+    const next = { ...(h.docs.get(ref.id) as Record<string, unknown>) };
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === 'DELETE') delete next[k];
+      else next[k] = v;
+    }
+    h.docs.set(ref.id, next);
+    return Promise.resolve();
+  },
+  deleteField: () => 'DELETE',
   onSnapshot: vi.fn(),
 }));
 vi.mock('@/hooks/useGuidedLearning', () => ({
@@ -26,11 +36,13 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
 }));
 
 import { onSnapshot } from 'firebase/firestore';
+import { parsePublishedTour } from './tourSnapshot';
 import {
   __resetPublishedToursForTests,
   isTourRunnable,
   loadPublishedTour,
   loadRunnableTour,
+  clearStudentTourMarker,
   publishTour,
   watchTours,
 } from './publishedTours';
@@ -89,6 +101,28 @@ describe('publishTour', () => {
     expect(written.set).not.toHaveProperty('imagePaths');
     expect(written.set).not.toHaveProperty('authorUid');
     expect(written.set).not.toHaveProperty('updatedAt');
+  });
+});
+
+describe('publishTour audience', () => {
+  it('marks a students tour, the marker the student read rule checks', async () => {
+    await publishTour(tourSet('Students'), 'admin-uid', 'students');
+    expect(h.docs.get('set-1')).toMatchObject({ audience: 'students' });
+    expect(parsePublishedTour('set-1', h.docs.get('set-1'))?.audience).toBe(
+      'students'
+    );
+  });
+
+  it('takes the students marker off and keeps the tour', async () => {
+    await publishTour(tourSet('Students'), 'admin-uid', 'students');
+    await clearStudentTourMarker('set-1');
+    expect(h.docs.get('set-1')).not.toHaveProperty('audience');
+    expect(h.docs.get('set-1')).toHaveProperty('set');
+  });
+
+  it('leaves teacher and substitute tours unmarked', async () => {
+    await publishTour(tourSet('Subs'), 'admin-uid', 'subs');
+    expect(h.docs.get('set-1')).not.toHaveProperty('audience');
   });
 });
 

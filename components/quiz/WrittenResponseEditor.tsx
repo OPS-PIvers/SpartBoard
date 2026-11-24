@@ -68,6 +68,7 @@ import {
   drawMathChips,
   plainMathHtml,
 } from '@/components/student/keyboards/mathChips';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const MathAnswerField = React.lazy(
   () => import('@/components/student/keyboards/MathAnswerField')
@@ -726,6 +727,7 @@ const WrittenResponseEditorInner: React.FC<
       >
         <ToolbarButton
           label="Bold"
+          tourKey="bold"
           onClick={() => exec('bold')}
           disabled={disabled}
           light={light}
@@ -734,6 +736,7 @@ const WrittenResponseEditorInner: React.FC<
         </ToolbarButton>
         <ToolbarButton
           label="Italic"
+          tourKey="italic"
           onClick={() => exec('italic')}
           disabled={disabled}
           light={light}
@@ -742,6 +745,7 @@ const WrittenResponseEditorInner: React.FC<
         </ToolbarButton>
         <ToolbarButton
           label="Underline"
+          tourKey="underline"
           onClick={() => exec('underline')}
           disabled={disabled}
           light={light}
@@ -753,6 +757,7 @@ const WrittenResponseEditorInner: React.FC<
         />
         <ToolbarButton
           label="Bulleted list"
+          tourKey="bullets"
           onClick={() => handleListToggle('ul')}
           disabled={disabled}
           light={light}
@@ -761,6 +766,7 @@ const WrittenResponseEditorInner: React.FC<
         </ToolbarButton>
         <ToolbarButton
           label="Numbered list"
+          tourKey="numbers"
           onClick={() => handleListToggle('ol')}
           disabled={disabled}
           light={light}
@@ -774,6 +780,7 @@ const WrittenResponseEditorInner: React.FC<
             />
             <ToolbarButton
               label="Insert equation"
+              tourKey="equation"
               onClick={() => openEquation(null)}
               disabled={disabled}
               light={light}
@@ -845,7 +852,7 @@ const WrittenResponseEditorInner: React.FC<
           </React.Suspense>
           <div className="flex justify-center gap-2">
             <button
-              // no-tour-anchor: student quiz screen; tours walk teachers
+              {...tourAttr('student.quiz.equation-cancel')}
               type="button"
               onClick={() => {
                 editingChipRef.current = null;
@@ -860,7 +867,7 @@ const WrittenResponseEditorInner: React.FC<
               Cancel
             </button>
             <button
-              // no-tour-anchor: student quiz screen; tours walk teachers
+              {...tourAttr('student.quiz.equation-insert')}
               type="button"
               onClick={commitEquation}
               className="px-4 py-2 rounded-lg text-sm font-bold bg-brand-blue-primary text-white hover:bg-brand-blue-dark"
@@ -873,6 +880,7 @@ const WrittenResponseEditorInner: React.FC<
 
       <div className="relative">
         <div
+          {...tourAttr('student.quiz.written-answer')}
           ref={editorRef}
           role="textbox"
           aria-multiline="true"
@@ -938,7 +946,7 @@ const WrittenResponseEditorInner: React.FC<
         )}
         {!disabled && (
           <button
-            // no-tour-anchor: student quiz screen; tours walk teachers
+            {...tourAttr('student.quiz.written-resize')}
             type="button"
             aria-label="Drag to resize response area (or use up and down arrow keys)"
             title="Drag to resize"
@@ -994,13 +1002,14 @@ const WrittenResponseEditorInner: React.FC<
 
 const ToolbarButton: React.FC<{
   label: string;
+  tourKey: string;
   onClick: () => void;
   disabled?: boolean;
   light?: boolean;
   children: React.ReactNode;
-}> = ({ label, onClick, disabled, light = false, children }) => (
+}> = ({ label, tourKey, onClick, disabled, light = false, children }) => (
   <button
-    // no-tour-anchor: student quiz screen; tours walk teachers
+    {...tourFieldAttr('student.quiz.written-format', 'quiz-student', tourKey)}
     type="button"
     aria-label={label}
     title={label}

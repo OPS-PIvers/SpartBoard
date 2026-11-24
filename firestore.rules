@@ -194,6 +194,13 @@ service cloud.firestore {
     function notAnon() {
       return request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
+    // A web tour author (WEB_TOUR_AUTHORS.md A1-A3): an admin, or district staff an admin added to /tour_authors.
+    // A view-as tab never counts: it would let an admin write as the author they are viewing.
+    function isTourAuthor() {
+      return isAdmin() ||
+             (tok().get('viewAs', null) == null && isDistrictStaff() &&
+              exists(/databases/$(database)/documents/tour_authors/$(tok().email.lower())));
+    }
     // Signed in, not anonymous, not a studentRole token.
     function staffSignedIn() { return signedIn() && notAnon() && !isStudentRoleUser(); }
     function liveStaffSignedIn() { return signedIn() && notAnon() && !isStudentRoleUser() && notDeactivated(); }
@@ -336,6 +343,11 @@ service cloud.firestore {
     // "Let in now": one student's pass past their period's state, until a time.
     function studentLetIn(s) {
       return s.get('studentAccess', {}).get(authUid(), 0) > request.time.toMillis();
+    }
+    // Quiz "Schedule for later" also sets when the pass starts, with the window grace.
+    function quizLetIn(s) {
+      return studentLetIn(s) &&
+             s.get('studentAccessFrom', {}).get(authUid(), 0) <= request.time.toMillis() + 120000;
     }
     // A join on a per-period session names a period the session targets, backed
     // by the caller's class claim when signed in; assessment mode refuses the
@@ -1157,20 +1169,56 @@ service cloud.firestore {
       allow read: if staffSignedIn() && (isDistrictStaff() || isAdmin());
     }
 
-    // Web tour drafts (CHROME_EXTENSION.md T6): admins only, never anonymous or student sessions.
-    match /building_web_tours/{setId} {
+    // The web tour author list (WEB_TOUR_AUTHORS.md A1): admins manage it; a person reads only their own doc.
+    match /tour_authors/{email} {
+      allow get: if signedIn() && emailVerified() && tok().get('email', '').lower() == email;
       allow read, write: if isAdmin();
+    }
+
+    // FreshService article records (WEB_TOUR_AUTHORS.md L2): the function writes them, the Web tours list reads them.
+    match /freshservice_articles/{setId} {
+      allow read: if isTourAuthor();
+    }
+
+    // Web tour drafts (CHROME_EXTENSION.md T6): admins and tour authors, never anonymous or student sessions.
+    // An author's new draft carries their own uid, no author edit changes it, and an author deletes only their own (L1, L3).
+    match /building_web_tours/{setId} {
+      allow read: if isTourAuthor();
+      allow create: if isAdmin() || (isTourAuthor() && myAuthorUid());
+      allow update: if isAdmin() || (isTourAuthor() && incoming().get('authorUid', '') == existing().get('authorUid', ''));
+      allow delete: if isAdmin() || (isTourAuthor() && existing().authorUid == authUid());
+    }
+
+    // A tour's public link record (WEB_TOUR_AUTHORS.md P1): an author reads it, turns a web tour's link on
+    // under their own email (never over a SpartBoard tour's record), and may otherwise only switch a link off.
+    // Admins write through /admin_settings. On a create the last test reads a missing doc and fails closed.
+    match /admin_settings/tour_public_links/tours/{setId} {
+      allow read: if isTourAuthor();
+      allow create, update: if isTourAuthor() &&
+        ((incoming().get('confirmedBy', '') == tok().email.lower() && incoming().get('kind', '') == 'web' &&
+          (noDoc() || existing().get('kind', '') == 'web')) ||
+         (changedOnly(['off']) && incoming().get('off', null) != null));
     }
 
     // Published live tours (P7-3): staff read, admins publish; students never run tours.
     // A web tour (surface 'web') is district staff only; a missing doc stays readable (_meta, unpublished ids).
     // A list can't rule out web snapshots, so only district staff list.
     match /building_guided_learning_tours/{setId} {
-      allow get: if staffSignedIn() && (noDoc() || existing().get('surface', 'spartboard') == 'spartboard' || isDistrictStaff() || isAdmin());
+      // A student reads only a snapshot published from a students Help item.
+      allow get: if (staffSignedIn() && (noDoc() || existing().get('surface', 'spartboard') == 'spartboard' || isDistrictStaff() || isAdmin()))
+        || (isStudentRoleUser() && existing().get('audience', '') == 'students' && existing().get('surface', 'spartboard') == 'spartboard');
       allow list: if staffSignedIn() && (isDistrictStaff() || isAdmin());
-      allow create, delete: if isAdmin();
+      // A tour author publishes web tours only (WEB_TOUR_AUTHORS.md B3); removing a snapshot stays with admins and the server.
+      allow create: if isAdmin() || (isTourAuthor() && incoming().surface == 'web');
+      allow delete: if isAdmin();
       // The read gate rests on surface, so a republish never changes it.
-      allow update: if isAdmin() && incoming().get('surface', 'spartboard') == existing().get('surface', 'spartboard');
+      allow update: if (isAdmin() || (isTourAuthor() && existing().surface == 'web')) &&
+        incoming().get('surface', 'spartboard') == existing().get('surface', 'spartboard');
+      // An author reads the runs and counts of web tours only.
+      function authorOfWebTour() {
+        return isTourAuthor() &&
+          get(/databases/$(database)/documents/building_guided_learning_tours/$(setId)).data.surface == 'web';
+      }
       // Each teacher's latest run of the tour (P7-6): write-only, admins read. Web tour runs add surface and weak (T10),
       // suggested fixes by step (C14), and `admin` on an admin's own run, whose fixes show after one run.
       match /runs/{uid} {
@@ -1181,14 +1229,14 @@ service cloud.firestore {
             d.misses is list && d.misses.size() <= 50 &&
             d.get('surface', 'web') == 'web' && d.get('weak', []) is list && d.get('weak', []).size() <= 50 &&
             d.get('fixes', {}) is map && d.get('fixes', {}).size() <= 50 &&
-            (!('admin' in d) || (d.admin == true && isAdmin()));
+            (!('admin' in d) || (d.admin == true && isTourAuthor()));
         }
-        allow read: if isAdmin();
+        allow read: if isAdmin() || authorOfWebTour();
         allow create, update: if staffSignedIn() && uid == authUid() && validRun(incoming());
       }
       // Play, finish and public link view counts, written only by the tourCounts functions.
       match /stats/{doc} {
-        allow read: if isAdmin();
+        allow read: if isAdmin() || authorOfWebTour();
       }
     }
 
@@ -1391,29 +1439,7 @@ service cloud.firestore {
         incoming().get('createdNonce', null) == existing().get('createdNonce', null) &&
         incoming().get('linkedCollectionId', null) == existing().get('linkedCollectionId', null);
 
-      // Self-join: any signed-in teacher (not anonymous, not a student) may add ONLY their own uid to participants
-      // (Synced/View-Only importers). Not allowed on substitute shares — subs
-      // view via /subs without importing, so a self-join would be a phantom.
-      allow update: if signedIn() && isDistrictStaff() &&
-        existing().get('intendedMode', null) != 'substitute' &&
-        // A View-Only link only ever makes a viewer; a Copy link makes no member.
-        existing().get('intendedMode', null) != 'copy' &&
-        (existing().get('intendedMode', null) != 'view-only'
-          || incoming().participants[authUid()].get('role', '') == 'viewer') &&
-        !(authUid() in existing().get('participants', {})) &&
-        authUid() in incoming().get('participants', {}) &&
-        incoming().participants.diff(existing().get('participants', {}))
-          .affectedKeys().hasOnly([authUid()]) &&
-        changedOnly(['participants']);
-
-      // Self-leave: any participant may remove ONLY their own uid from
-      // participants. No-op for substitute shares (they never accept participants).
-      allow update: if signedIn() &&
-        authUid() in existing().get('participants', {}) &&
-        !(authUid() in incoming().get('participants', {})) &&
-        existing().participants.diff(incoming().get('participants', {}))
-          .affectedKeys().hasOnly([authUid()]) &&
-        changedOnly(['participants']);
+      // Joining and leaving go through shareMembershipV1 (Admin SDK); no client participant writes.
 
       // The host of the shared collection a board belongs to may end it (Stop sharing),
       // including boards a current collaborator added (docs/plans/shipped/COLLECTION_SHARING.md
@@ -1694,25 +1720,7 @@ service cloud.firestore {
         && changedOnly(['name', 'color', 'icon', 'boards', 'sections', 'deletedSections', 'updatedAt', 'updatedBy'])
         && incoming().updatedBy == authUid() && lcShape();
 
-      // Self-join, only with the role the mode grants (a View-Only link never makes an editor).
-      allow update: if lcTeacher() && lcLive()
-        && !(authUid() in existing().participants)
-        && !(authUid() in existing().get('removed', {}))
-        && changedOnly(['participants'])
-        && incoming().participants.diff(existing().participants).affectedKeys().hasOnly([authUid()])
-        && incoming().participants[authUid()].keys().hasOnly(['role', 'name', 'joinedAt'])
-        && incoming().participants[authUid()].role
-          == (existing().mode == 'synced' ? 'collaborator' : 'viewer')
-        && incoming().participants[authUid()].get('name', '') is string
-        && incoming().participants[authUid()].get('name', '').size() <= 100
-        && incoming().participants[authUid()].joinedAt is number
-        && lcShape();
-
-      // Self-leave.
-      allow update: if signedIn() && authUid() in existing().participants
-        && !(authUid() in incoming().participants)
-        && changedOnly(['participants'])
-        && existing().participants.diff(incoming().participants).affectedKeys().hasOnly([authUid()]);
+      // Joining and leaving go through shareMembershipV1 (Admin SDK).
 
       allow delete: if signedIn() && (existing().hostUid == authUid() || isAdmin());
     }
@@ -4310,8 +4318,8 @@ service cloud.firestore {
 
     // D22 per-column grading setup.
     match /gradebook_columns/{sessionId} {
-      // A column not set up yet reads as missing instead of erroring the owner's listener.
-      allow read: if resource == null ? signedIn() : gbOwned();
+      // A column not set up yet reads as missing to staff only, so students can't probe session ids.
+      allow read: if resource == null ? liveStaffSignedIn() : gbOwned();
       allow delete: if liveStaffSignedIn() && gbOwned();
       allow create: if gbCreateOk(incoming()) && gbColumnOk(incoming()) &&
         incoming().sessionId == sessionId;
@@ -4743,7 +4751,8 @@ service cloud.firestore {
             (s.status != 'paused' &&
              // studentUid is authUid() here and cheaper: a PIN token's authUid() costs more expressions.
              (periodOpen(s, existing().get('classId', null)) ||
-              s.get('studentAccess', {}).get(existing().studentUid, 0) > request.time.toMillis()))) &&
+              (s.get('studentAccess', {}).get(existing().studentUid, 0) > request.time.toMillis() &&
+               s.get('studentAccessFrom', {}).get(existing().studentUid, 0) <= request.time.toMillis() + 120000)))) &&
            unchanged('studentUid') &&
            // SSO studentRole responses omit `pin` entirely, so direct dot-access on
            // `resource.data.pin` would throw a Null-value error and deny the write. Use
@@ -4999,7 +5008,7 @@ service cloud.firestore {
       match /content/{docId} {
         allow read: if signedIn() && (
           liveUid(sessionTeacherUid()) || isAdmin() ||
-          isSubMonitor(sessionData()) || studentLetIn(sessionData()) ||
+          isSubMonitor(sessionData()) || quizLetIn(sessionData()) ||
           sessionData().status == 'ended' ||
           periodOpen(sessionData(), seatedClassId('quiz_sessions', sessionId))
         );
@@ -5323,6 +5332,7 @@ service cloud.firestore {
     // admin only); an org-scoped item is written by that org's admins, or by a
     // real super admin for any org, and read by its members (also any super
     // admin). Teachers may only bump openCount, by exactly one.
+    // audience 'subs' marks a /subs portal tour; 'students' items are also readable by students (helpStudentReaderOk).
     match /help_resources/{itemId} {
       // isSuperAdmin() is also a fallback on the org-scoped branch (not just
       // the global one): without it, a real super admin could read any org's
@@ -5338,8 +5348,9 @@ service cloud.firestore {
         return d.id == itemId
           && d.keys().hasOnly(['id', 'kind', 'title', 'description', 'categoryId', 'order',
                'visible', 'orgId', 'widgetTypes', 'url', 'embedType', 'setId', 'openCount',
-               'createdBy', 'createdByEmail', 'createdAt', 'updatedAt'])
+               'createdBy', 'createdByEmail', 'createdAt', 'updatedAt', 'audience'])
           && d.kind in ['embed', 'guided-learning']
+          && d.get('audience', 'teachers') in ['teachers', 'subs', 'students']
           && d.title is string && d.title.size() > 0 && d.title.size() <= 200
           && d.description is string && d.description.size() <= 1000
           && d.categoryId is string && d.order is int && d.visible is bool
@@ -5361,7 +5372,14 @@ service cloud.firestore {
           && tok().get('email', '') != ''
           && (existing().orgId == null || isOrgMember(existing().orgId) || isSuperAdmin());
       }
-      allow read: if helpReaderOk();
+      // A student reads only Published students items in their own org.
+      function helpStudentReaderOk() {
+        return isStudentRoleUser()
+          && existing().get('audience', '') == 'students'
+          && existing().visible == true
+          && (existing().orgId == null || existing().orgId == tok().get('orgId', ''));
+      }
+      allow read: if helpReaderOk() || helpStudentReaderOk();
       // isAdmin() alone misses a member super admin with no /admins/{email} doc; match the read gate.
       allow create: if (isAdmin() || isSuperAdmin()) && helpShapeOk(incoming())
         && helpScopeOk(incoming())

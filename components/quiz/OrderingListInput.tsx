@@ -24,6 +24,7 @@ import { pictureOnlyName } from './pictureOnlyName';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
 import { READ_ALOUD_HIGHLIGHT_CLASS } from './readAloud/readAloudHighlight';
 import type { ReadAloudItemControls } from './readAloud/useQuizReadAloud';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface OrderingListInputProps {
   question: QuizPublicQuestion;
@@ -99,7 +100,7 @@ const Row: React.FC<{
         }`}
       >
         <button
-          // no-tour-anchor: student quiz screen; tours walk teachers
+          {...tourAttr('student.quiz.ordering-drag')}
           type="button"
           ref={setActivatorNodeRef}
           {...listeners}
@@ -123,7 +124,7 @@ const Row: React.FC<{
       {speaker}
       <div className="flex flex-col">
         <button
-          // no-tour-anchor: student quiz screen; tours walk teachers
+          {...tourAttr('student.quiz.ordering-move-up')}
           type="button"
           onClick={() => onMove('up')}
           disabled={(disabled ?? false) || position === 0}
@@ -133,7 +134,7 @@ const Row: React.FC<{
           ▲
         </button>
         <button
-          // no-tour-anchor: student quiz screen; tours walk teachers
+          {...tourAttr('student.quiz.ordering-move-down')}
           type="button"
           onClick={() => onMove('down')}
           disabled={(disabled ?? false) || position === count - 1}

@@ -40,18 +40,29 @@ export const TourEditorHost: React.FC = () => {
   // The open session's tour and where it started, for the round trip on Done (H13).
   const session = useRef<{ setId: string; origin?: TourOrigin } | null>(null);
 
+  // /subs has no Help Center to open, so its toast names where to publish instead; student tours say the same.
   const finish = (origin: TourOrigin | undefined, setId: string) =>
     endTourSession(origin, setId, (itemId) =>
-      addToast(
-        t('tours.savedToHelpCenter', {
-          defaultValue: 'Saved to the Help Center as Hidden.',
-        }),
-        'success',
-        openInHelpCenterAction(
-          itemId,
-          t('tours.openInHelpCenter', { defaultValue: 'Open in Help Center' })
-        )
-      )
+      origin === 'subs' || origin === 'students'
+        ? addToast(
+            t('tours.savedToHelpCenterSubs', {
+              defaultValue:
+                'Saved to the Help Center as Hidden. Publish it from Admin Settings.',
+            }),
+            'success'
+          )
+        : addToast(
+            t('tours.savedToHelpCenter', {
+              defaultValue: 'Saved to the Help Center as Hidden.',
+            }),
+            'success',
+            openInHelpCenterAction(
+              itemId,
+              t('tours.openInHelpCenter', {
+                defaultValue: 'Open in Help Center',
+              })
+            )
+          )
     );
 
   const onEdit = useEffectEvent((e: Event) => {

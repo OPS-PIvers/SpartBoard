@@ -77,6 +77,7 @@ import { MatchingResponseInput } from '../MatchingResponseInput';
 import { OrderingResponseInput } from '../OrderingResponseInput';
 import { loadGamePicks, saveGamePicks } from './gamePicks';
 import { effectivePageProtections } from '@/utils/pageProtections';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface GameAnswerResult {
   isCorrect: boolean;
@@ -666,7 +667,7 @@ const GameHeader: React.FC<{
       )}
       {handRaise && (
         <button
-          // no-tour-anchor: student quiz screen; tours walk teachers
+          {...tourAttr('student.quiz.game-raise-hand')}
           type="button"
           onClick={handRaise.onToggle}
           aria-pressed={handRaise.raised}
@@ -761,7 +762,11 @@ const GameQuestion: React.FC<{
           {choices.map((choice, i) => (
             <div key={choice} className="relative flex">
               <button
-                // no-tour-anchor: student quiz screen; tours walk teachers
+                {...tourFieldAttr(
+                  'student.quiz.game-choice',
+                  'quiz-student',
+                  `row-${i + 1}`
+                )}
                 type="button"
                 disabled={submitting}
                 onClick={() => onSubmit(choice)}
@@ -793,7 +798,11 @@ const GameQuestion: React.FC<{
             return (
               <div key={choice} className="relative flex">
                 <button
-                  // no-tour-anchor: student quiz screen; tours walk teachers
+                  {...tourFieldAttr(
+                    'student.quiz.game-choice',
+                    'quiz-student',
+                    `row-${i + 1}`
+                  )}
                   type="button"
                   role="checkbox"
                   aria-checked={on}
@@ -864,7 +873,7 @@ const GameQuestion: React.FC<{
           />
         ) : (
           <input
-            // no-tour-anchor: student quiz screen; tours walk teachers
+            {...tourAttr('student.quiz.game-answer')}
             type="text"
             value={draft}
             autoFocus
@@ -910,7 +919,7 @@ const GameQuestion: React.FC<{
 
       {question.type !== 'MC' && (
         <button
-          // no-tour-anchor: student quiz screen; tours walk teachers
+          {...tourAttr('student.quiz.game-submit')}
           type="button"
           onClick={() => onSubmit(answer || draft)}
           disabled={!ready || submitting}
@@ -1011,7 +1020,7 @@ const GameFeedback: React.FC<{
         </p>
       )}
       <button
-        // no-tour-anchor: student quiz screen; tours walk teachers
+        {...tourAttr('student.quiz.game-next')}
         ref={nextRef}
         type="button"
         onClick={onNext}
@@ -1060,7 +1069,11 @@ const SectionDivider: React.FC<{
               const full = !on && picked.length >= (chooseCount ?? 0);
               return (
                 <button
-                  // no-tour-anchor: student quiz screen; tours walk teachers
+                  {...tourFieldAttr(
+                    'student.quiz.game-pick-question',
+                    'quiz-student',
+                    q.id
+                  )}
                   key={q.id}
                   type="button"
                   role="checkbox"
@@ -1097,7 +1110,7 @@ const SectionDivider: React.FC<{
         </>
       )}
       <button
-        // no-tour-anchor: student quiz screen; tours walk teachers
+        {...tourAttr('student.quiz.game-continue')}
         type="button"
         disabled={!ready}
         onClick={() => onContinue(needsPick ? picked : undefined)}

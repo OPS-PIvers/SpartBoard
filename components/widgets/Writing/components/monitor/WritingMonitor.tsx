@@ -162,6 +162,7 @@ export const WritingMonitor: React.FC<{
     const out: string[] = [];
     if (!rosterKnown) return out;
     for (const uid of whole.byStudentUid.keys()) {
+      if (whole.formerStudentUids?.has(uid)) continue;
       const ref = whole.targetRefKeyByStudentUid.get(uid);
       if (!ref || !excluded.has(ref)) out.push(uid);
     }
@@ -174,6 +175,7 @@ export const WritingMonitor: React.FC<{
   }, [
     rosterKnown,
     whole.byStudentUid,
+    whole.formerStudentUids,
     whole.targetRefKeyByStudentUid,
     part.byStudentUid,
     part.targetRefKeyByStudentUid,
@@ -196,10 +198,7 @@ export const WritingMonitor: React.FC<{
     },
     rosters
   );
-  const runPeriod = usePeriodRunner(
-    record?.periodAccess,
-    'WritingMonitor.periodAccess'
-  );
+  const runPeriod = usePeriodRunner('WritingMonitor.periodAccess');
   const periodBar: WritingPeriodBar | null =
     perPeriod && record?.periodAccess && session?.status !== 'ended'
       ? {

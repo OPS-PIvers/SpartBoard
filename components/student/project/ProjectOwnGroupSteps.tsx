@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, Lock } from 'lucide-react';
 import type { ProjectGroup, ProjectStep, ProjectStepState } from '@/types';
 import {
@@ -178,7 +178,7 @@ export const ProjectOwnGroupSteps: React.FC<ProjectOwnGroupStepsProps> = ({
     setEdges({ prev: list.scrollLeft > 1, next: list.scrollLeft < max - 1 });
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const row = rowRef.current;
     if (!row || count === 0 || typeof ResizeObserver === 'undefined') return;
     const measure = () => setLayout(layoutFor(row.clientWidth, count));
@@ -188,13 +188,14 @@ export const ProjectOwnGroupSteps: React.FC<ProjectOwnGroupStepsProps> = ({
     return () => observer.disconnect();
   }, [count]);
 
-  // Open on the page holding the first unfinished step, once, so live updates never move it.
-  useEffect(() => {
+  // Placed on the first measure only, so a resize or a live update never moves the strip.
+  useLayoutEffect(() => {
     const list = listRef.current;
     if (!list || !layout) return;
-    if (!placedRef.current && layout.overflow && currentIndex > 0) {
+    if (!placedRef.current) {
       placedRef.current = true;
-      list.scrollLeft = (currentIndex - 1) * (layout.cellWidth + GAP);
+      if (layout.overflow && currentIndex > 0)
+        list.scrollLeft = (currentIndex - 1) * (layout.cellWidth + GAP);
     }
     readEdges();
   }, [layout, currentIndex]);

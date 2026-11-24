@@ -10,6 +10,7 @@ import {
   MousePointerClick,
   Unlock,
   FileScan,
+  CalendarClock,
 } from 'lucide-react';
 import { QuizSession, QuizConfig, StudentOverride } from '@/types';
 import {
@@ -19,7 +20,8 @@ import {
 import { InputSignalsBadge } from '@/components/common/InputSignalsPopover';
 import { useServerNow } from '@/hooks/useServerNow';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import { studentCanEnter } from '@/utils/periodAccess';
+import { studentCanEnter, studentSetTime } from '@/utils/periodAccess';
+import { formatStudentTime, formatStudentTimeStart } from './studentTimeFormat';
 import { canTeacherSubmit, isTabLockedOut } from '@/utils/quizTeacherSubmit';
 import { MonitorStudent } from './useMonitorData';
 import { BucketKey } from './StatusBuckets';
@@ -83,6 +85,8 @@ interface RosterListProps {
   onClearHand?: (key: string) => void;
   /** Per-period sessions: unlock one student past their period's state. */
   onLetIn?: (studentUid: string) => void;
+  /** Per-period sessions: opens the dialog that sets one student's own time. */
+  onSetTime?: (studentUid: string, name: string) => void;
   /** Quizzes with a Stop: open the next part for one waiting student. */
   onOpenPart?: (key: string, part: number) => void;
   /** M17 E2 F2: the active assignment's per-student overrides, keyed by
@@ -95,6 +99,9 @@ interface RosterListProps {
   boardViewChip?: boolean;
   /** Opens Live view on an in-progress student; absent when this teacher can't use it. */
   onLiveView?: (key: string) => void;
+  /** Prints a paper copy for one student; offered only on rows in `printCopyKeys`. */
+  onPrintCopy?: (key: string) => void;
+  printCopyKeys?: ReadonlySet<string>;
 }
 
 /** Time left on a student's overall quiz time limit; ticks on its own so the list doesn't. */
@@ -119,6 +126,30 @@ const TimeLeft: React.FC<{ deadline: number }> = ({ deadline }) => {
   );
 };
 
+const PRINT_COPY_LABEL = 'Print paper copy';
+
+const StudentSetTimeText: React.FC<{
+  session: QuizSession;
+  uid: string | undefined;
+}> = ({ session, uid }) => {
+  const time = studentSetTime(session, uid);
+  return time ? <SetTimeText time={time} /> : null;
+};
+
+/** The time a teacher set for one student, on their roster row. */
+const SetTimeText: React.FC<{ time: { from: number; until: number } }> = ({
+  time,
+}) => (
+  <span
+    className="inline-flex shrink-0 items-center whitespace-nowrap font-sans text-brand-blue-primary"
+    title={formatStudentTime(time)}
+    style={{ gap: 'min(3px, 0.8cqmin)', fontSize: 'min(11px, 3.8cqmin)' }}
+  >
+    <CalendarClock aria-hidden className="shrink-0" style={iconSize} />
+    {formatStudentTimeStart(time.from)}
+  </span>
+);
+
 const RowMenu: React.FC<{
   student: MonitorStudent;
   session: QuizSession;
@@ -130,7 +161,9 @@ const RowMenu: React.FC<{
   onReleasePaperRow?: (key: string) => void;
   onUnlockResults?: (key: string) => void;
   onLetIn?: (studentUid: string) => void;
+  onSetTime?: (studentUid: string, name: string) => void;
   onOpenPart?: (key: string, part: number) => void;
+  onPrintCopy?: (key: string) => void;
   overridesBySourcedId?: Record<string, StudentOverride> | null;
   targetRefKeyByStudentUid?: Map<string, string> | null;
   /** 1-based position in the roster, for the tour anchor. */
@@ -147,7 +180,9 @@ const RowMenu: React.FC<{
   onReleasePaperRow,
   onUnlockResults,
   onLetIn,
+  onSetTime,
   onOpenPart,
+  onPrintCopy,
   overridesBySourcedId,
   targetRefKeyByStudentUid,
 }) => {
@@ -182,6 +217,15 @@ const RowMenu: React.FC<{
       tour: tourTypeAttr('quiz-monitor.student-let-in', 'quiz'),
       onClick: () => onLetIn(r.studentUid),
     });
+  if (onSetTime && r.studentUid && r.status !== 'completed') {
+    const uid = r.studentUid;
+    items.push({
+      label: 'Schedule for later',
+      closes: true,
+      tour: tourTypeAttr('quiz-monitor.student-set-time', 'quiz'),
+      onClick: () => onSetTime(uid, student.name),
+    });
+  }
   if (onOpenPart && isResponseWaiting(session, r)) {
     const part = partsDoneOf(r) + 1;
     items.push({
@@ -224,6 +268,13 @@ const RowMenu: React.FC<{
       tour: tourTypeAttr('quiz-monitor.student-unlock-results', 'quiz'),
       onClick: () => onUnlockResults(student.key),
     });
+  if (onPrintCopy)
+    items.push({
+      label: PRINT_COPY_LABEL,
+      closes: true,
+      tour: tourTypeAttr('quiz-monitor.student-print-copy', 'quiz'),
+      onClick: () => onPrintCopy(student.key),
+    });
   if (onRemove)
     items.push({
       label: 'Remove student',
@@ -264,11 +315,14 @@ export const RosterList: React.FC<RosterListProps> = ({
   onUnlockResults,
   onClearHand,
   onLetIn,
+  onSetTime,
   onOpenPart,
   overridesBySourcedId = null,
   targetRefKeyByStudentUid = null,
   boardViewChip = false,
   onLiveView,
+  onPrintCopy,
+  printCopyKeys,
 }) => {
   const now = useServerNow(onLetIn ? 30_000 : null);
   const showToolbar = bucket !== 'notStarted';
@@ -454,6 +508,9 @@ export const RosterList: React.FC<RosterListProps> = ({
               )
             }
           >
+            {bucket !== 'done' && onSetTime && (
+              <StudentSetTimeText session={session} uid={r.studentUid} />
+            )}
             {bucket === 'inProgress' && (
               <RosterOnQuestion index={s.onQuestion} />
             )}
@@ -631,7 +688,13 @@ export const RosterList: React.FC<RosterListProps> = ({
               session={session}
               now={now}
               onLetIn={onLetIn}
+              onSetTime={onSetTime}
               onOpenPart={onOpenPart}
+              onPrintCopy={
+                onPrintCopy && printCopyKeys?.has(s.key)
+                  ? onPrintCopy
+                  : undefined
+              }
               onRemove={onRemove}
               onUnlockAttempt={onUnlockAttempt}
               onReopen={onReopen}
@@ -661,16 +724,37 @@ export const RosterList: React.FC<RosterListProps> = ({
             onClick: () => onLetIn(uid),
           });
         }
+        const setTime = studentSetTime(session, s.studentUid);
+        if (onSetTime && s.studentUid) {
+          const uid = s.studentUid;
+          items.push({
+            label: 'Schedule for later',
+            closes: true,
+            tour: tourTypeAttr('quiz-monitor.student-set-time', 'quiz'),
+            onClick: () => onSetTime(uid, s.name),
+          });
+        }
+        if (onPrintCopy && printCopyKeys?.has(s.key))
+          items.push({
+            label: PRINT_COPY_LABEL,
+            closes: true,
+            tour: tourTypeAttr('quiz-monitor.student-print-copy', 'quiz'),
+            onClick: () => onPrintCopy(s.key),
+          });
         const canMark = !!onSetAbsent && !!s.rosterId && !!s.studentId;
         return (
           <RosterRow key={s.key} name={s.name} muted>
-            {!s.absent && (
-              <span
-                className="font-sans text-brand-gray-primary"
-                style={{ fontSize: 'min(11px, 3.8cqmin)' }}
-              >
-                {s.onPaper ? 'On paper' : 'Not joined'}
-              </span>
+            {setTime ? (
+              <SetTimeText time={setTime} />
+            ) : (
+              !s.absent && (
+                <span
+                  className="font-sans text-brand-gray-primary"
+                  style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+                >
+                  {s.onPaper ? 'On paper' : 'Not joined'}
+                </span>
+              )
             )}
             {canMark ? (
               <ToggleChip

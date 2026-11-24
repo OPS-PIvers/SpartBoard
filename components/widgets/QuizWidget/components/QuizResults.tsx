@@ -217,6 +217,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
 import { servedVersionLabels } from '@/utils/quizBalancedDeal';
+import { reducedQuestionsLabel } from '@/utils/quizOverrideServing';
 import {
   buildQuizClassroomGradeEntries,
   type ClassroomGradeEntry,
@@ -317,7 +318,7 @@ interface QuizResultsProps {
   onBack: () => void;
   tabWarningsEnabled?: boolean;
   session?: import('@/types').QuizSession | null;
-  /** Printed group stacks (`paper-printed-versions`); a response scanned from one shows a Paper badge. */
+  /** Printed group stacks; a response scanned from one shows a Paper badge. */
   paperCopyBatchIds?: readonly string[];
   /**
    * Delete a single student response by its deterministic Firestore doc key
@@ -4682,6 +4683,9 @@ const StudentsScreen: React.FC<{
     [questions]
   );
   const { t } = useTranslation();
+  const reducedLabelsOn = useAuth().canAccessFeature(
+    'modification-fewer-questions'
+  );
   const selection = useStudentResultsSelection();
   const resultsActions = selection ? studentResultsActions : undefined;
   const classVisibility = session?.scoreVisibility ?? 'none';
@@ -5075,6 +5079,19 @@ const StudentsScreen: React.FC<{
                   {resultsActions && (
                     <ResultsOverrideBadge override={r.resultsOverride} />
                   )}
+                  {reducedLabelsOn &&
+                    (() => {
+                      const label = reducedQuestionsLabel(
+                        r.servedQuestionIds,
+                        questions,
+                        (session?.bankSlots?.length ?? 0) > 0
+                      );
+                      return label ? (
+                        <span className="shrink-0">
+                          <SessionBadge tone="neutral" label={label} />
+                        </span>
+                      ) : null;
+                    })()}
                   {servedVersionLabels(
                     session?.bankSlots,
                     r.servedQuestionIds

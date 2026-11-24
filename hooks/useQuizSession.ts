@@ -936,7 +936,9 @@ import {
   claimScannedResponse,
   getErrorCode,
   logQuizJoinFirestoreError,
+  NOT_IN_CLASS_MESSAGE,
   seatRef,
+  sharesClass,
 } from '@/hooks/quizSession/joinHelpers';
 
 // ─── Teacher hook ─────────────────────────────────────────────────────────────
@@ -2117,12 +2119,20 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         auth.currentUser
           ? (session?.studentAccess?.[auth.currentUser.uid] ?? null)
           : null,
+        auth.currentUser
+          ? (session?.studentAccessFrom?.[auth.currentUser.uid] ?? null)
+          : null,
       ])
     : '';
   useEffect(() => {
     if (!inContent || !session) return;
     const now = getServerNow();
-    const nextOpen = nextScheduledOpen(session, periodKeys, now);
+    const nextOpen = nextScheduledOpen(
+      session,
+      periodKeys,
+      now,
+      auth.currentUser?.uid
+    );
     if (nextOpen == null) return;
     const id = setTimeout(
       () => setContentRetry((n) => n + 1),
@@ -2546,6 +2556,21 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 err
               );
             }
+          }
+        }
+
+        // Mirrors the rules' class gate, so a signed-in student outside every class on the run hears why.
+        if (!isAnonymous) {
+          const claims = (
+            await Promise.resolve()
+              .then(() => currentUser?.getIdTokenResult())
+              .catch(() => null)
+          )?.claims;
+          if (
+            claims?.studentRole === true &&
+            !sharesClass(sessionData.classIds, claims.classIds)
+          ) {
+            throw new Error(NOT_IN_CLASS_MESSAGE);
           }
         }
 
@@ -3129,7 +3154,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             "It looks like you're already in this quiz on another tab or device. Close any other tabs you have this quiz open in and try again. If you're still stuck, ask your teacher to release your attempt.";
         } else if (getErrorCode(err) === 'permission-denied') {
           msg =
-            "You can't join this quiz. Ask your teacher to make sure you're enrolled in the right class.";
+            "You can't join this quiz right now. Ask your teacher for help.";
         } else if (err instanceof Error) {
           msg = err.message;
         } else {

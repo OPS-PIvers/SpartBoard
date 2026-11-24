@@ -1,4 +1,4 @@
-// Students holding a printed group copy of a device quiz (`paper-printed-versions`).
+// Students holding a printed group copy of a device quiz.
 import type { PaperBatch } from '@/types';
 
 /** Roster seat key, `rosterId:studentId`, matching the monitor's roster rows. */

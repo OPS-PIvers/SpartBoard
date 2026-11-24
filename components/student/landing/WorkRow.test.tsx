@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react';
 import type { AssignmentSummary } from '@/hooks/useStudentAssignments';
 import type { LandingRow } from '@/utils/studentLanding';
 import { WorkRow } from './LandingRows';
+import { formatOpensLabel } from '@/utils/assignmentWindow';
 
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showAlert: vi.fn() }),
@@ -62,27 +63,58 @@ describe('WorkRow', () => {
     expect(screen.getByText('Open')).toBeInTheDocument();
   });
 
-  it('dims a class not open yet, with no Open, but still links to the waiting screen', () => {
-    renderRow({ assignment: manual('closed'), state: 'open' });
+  it('dims a class not open yet and does not open it', () => {
+    const { container } = renderRow({
+      assignment: manual('closed'),
+      state: 'open',
+    });
     expect(screen.getByText('Not open yet')).toBeInTheDocument();
     expect(screen.queryByText('Open')).toBeNull();
     expect(screen.queryByText('Live')).toBeNull();
-    const link = screen.getByRole('link');
-    expect(link).toHaveAttribute('href', base.openHref);
-    expect(link.className).toContain('opacity-60');
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+    const row = container.querySelector('[aria-disabled="true"]');
+    expect(row?.className).toContain('opacity-60');
   });
 
   it('says Paused for a paused class and keeps the row listed (D22)', () => {
     renderRow({ assignment: manual('paused'), state: 'open' });
     expect(screen.getByText('Paused')).toBeInTheDocument();
     expect(screen.queryByText('Open')).toBeNull();
-    expect(screen.getByRole('link')).toHaveAttribute('href', base.openHref);
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('names the earlier class open over a later own time', () => {
+    const classOpen = NOW + 86_400_000;
+    const ownFrom = NOW + 5 * 86_400_000;
+    const assignment: AssignmentSummary = {
+      ...base,
+      periodGate: {
+        accessMode: 'assessment',
+        periodAccess: {
+          c1: {
+            state: 'open',
+            openAt: classOpen,
+            closeAt: null,
+            bellPeriodId: null,
+            verified: true,
+            label: 'P1',
+          },
+        },
+        periodKeys: ['c1'],
+        studentAccess: { s1: ownFrom + 3_600_000 },
+        studentAccessFrom: { s1: ownFrom },
+      },
+    };
+    renderRow({ assignment, state: 'open' });
+    expect(screen.getByText(formatOpensLabel(classOpen))).toBeInTheDocument();
   });
 
   it('says Not open yet for a quiz assigned but not started', () => {
     renderRow({ assignment: { ...base, held: 'not-open' }, state: 'open' });
     expect(screen.getByText('Not open yet')).toBeInTheDocument();
     expect(screen.queryByText('Open')).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
   });
 
   it('says Paused for a paused quiz, with no Open or Live (AB-150)', () => {
@@ -93,7 +125,7 @@ describe('WorkRow', () => {
     expect(screen.getByText('Paused')).toBeInTheDocument();
     expect(screen.queryByText('Open')).toBeNull();
     expect(screen.queryByText('Live')).toBeNull();
-    expect(screen.getByRole('link').className).toContain('opacity-60');
+    expect(screen.queryByRole('link')).toBeNull();
   });
 
   it('keeps an upcoming row locked with no Open', () => {
@@ -102,6 +134,7 @@ describe('WorkRow', () => {
       state: 'upcoming',
     });
     expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
     expect(screen.queryByText('Open')).toBeNull();
   });
 
@@ -126,7 +159,18 @@ describe('WorkRow', () => {
       state: 'open',
     });
     expect(screen.queryByText('Open')).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
     expect(screen.queryByText('Live')).toBeNull();
+  });
+
+  it('says Ask your teacher for a run outside every class of the student, and does not open', () => {
+    renderRow({
+      assignment: { ...base, outsideClasses: true },
+      state: 'open',
+    });
+    expect(screen.getByText('Ask your teacher')).toBeInTheDocument();
+    expect(screen.queryByText('Open')).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
   });
 
   it('names the activity type in words', () => {

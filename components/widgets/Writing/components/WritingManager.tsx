@@ -68,6 +68,7 @@ import {
 } from '@/utils/writingAssignments';
 import { WritingEditorModal } from './WritingEditorModal';
 import { WritingAssignStepper } from './WritingAssignStepper';
+import { openInputsFor } from '@/utils/openAssignmentClasses';
 import { WritingAssignmentRow } from './WritingAssignmentRow';
 import { WritingAssignedTab } from './WritingAssignedTab';
 
@@ -748,6 +749,17 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
           rosters={rosters}
           onClose={() => setAssigningId(null)}
           onAssign={performAssign}
+          openAssignments={
+            canAccessFeature('assign-open-check')
+              ? openInputsFor(
+                  sessions.records,
+                  rosters,
+                  (r) => r.itemId === assigning.id,
+                  (r) => r.status !== 'ended',
+                  { canAddClasses: () => false }
+                )
+              : null
+          }
         />
       )}
 

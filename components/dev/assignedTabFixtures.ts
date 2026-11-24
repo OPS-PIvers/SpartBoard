@@ -31,18 +31,79 @@ const LABELS = WORST
   : ['Period 1', 'Period 2', 'Period 5'];
 const KEYS = LABELS.map((_, i) => `r${i + 1}`);
 
+const LAST = WORST
+  ? [
+      'Hernandez-Whitfield-Oyelaran',
+      'Li',
+      'Nguyễn',
+      'Abernathy-Castellanos',
+      'O',
+      'Papadopoulou',
+      '张',
+    ]
+  : [
+      'Adams',
+      'Brooks',
+      'Chen',
+      'Diaz',
+      'Evans',
+      'Garcia',
+      'Hughes',
+      'Kim',
+      'Lopez',
+      'Moore',
+      'Nguyen',
+      'Patel',
+      'Reed',
+      'Shah',
+    ];
+const FIRST = WORST
+  ? [
+      'Maria-Guadalupe Alejandra',
+      'B',
+      'Thị Minh Khai',
+      'Christopher',
+      'Jo',
+      'Anastasia',
+      '伟',
+    ]
+  : [
+      'Ava',
+      'Ben',
+      'Cora',
+      'Dev',
+      'Eli',
+      'Fay',
+      'Gus',
+      'Ivy',
+      'Jon',
+      'Liv',
+      'Max',
+      'Nia',
+      'Owen',
+      'Rae',
+    ];
+const nameFor = (c: number, n: number): [string, string] => [
+  LAST[(n + c * 3) % LAST.length],
+  FIRST[(Math.floor(n / LAST.length) + n * 5 + c * 2) % FIRST.length],
+];
+
 export const ASSIGNED_ROSTERS: ClassRoster[] = KEYS.map((id, i) => ({
   id,
   name: LABELS[i],
   driveFileId: null,
   studentCount: 27,
   createdAt: now,
-  students: Array.from({ length: 28 - (i % 2) }, (_, n) => ({
-    id: `${id}-s${n}`,
-    firstName: 'S',
-    lastName: String(n),
-    pin: String(n).padStart(2, '0'),
-  })),
+  students: Array.from({ length: 28 - (i % 2) }, (_, n) => {
+    const [lastName, firstName] = nameFor(i, n);
+    return {
+      id: `${id}-s${n}`,
+      firstName,
+      lastName,
+      pin: String(n).padStart(2, '0'),
+      classLinkSourcedId: `${id}-sid${n}`,
+    };
+  }),
 }));
 
 const row = (i: number, over: Partial<PeriodAccess>): PeriodAccess => ({
@@ -80,6 +141,10 @@ const base = (
 });
 
 const closed = { closedAt: now - 2 * DAY };
+const sid = (c: number, n: number) => ({
+  kind: 'classlink' as const,
+  sourcedId: `${KEYS[c]}-sid${n}`,
+});
 
 export const ASSIGNED_FIXTURES: QuizAssignment[] = [
   base(
@@ -128,6 +193,40 @@ export const ASSIGNED_FIXTURES: QuizAssignment[] = [
     periodAccess: undefined,
     rosterIds: [],
   }),
+  base(
+    'retake',
+    WORST
+      ? 'Cells, Organelles and the Very Long Unit Title Retake for Picked Students'
+      : 'Cells Quiz Retake',
+    {
+      createdAt: now - 2 * MIN,
+      rosterIds: KEYS.slice(0, 2),
+      targetMode: 'students',
+      targetStudents: [
+        ...[3, 7, 12, 20].map((n) => sid(0, n)),
+        ...[1, 9].map((n) => sid(1, n)),
+        // Picked from a class this run no longer covers.
+        sid(2, 4),
+        // A student no class list has now.
+        { kind: 'classlink', sourcedId: 'gone-1' },
+      ],
+      periodAccess: Object.fromEntries(
+        KEYS.slice(0, 2).map((k, i) => [
+          k,
+          row(i, i === 0 ? { state: 'open', openedAt: now - 20 * MIN } : {}),
+        ])
+      ),
+    }
+  ),
+  base('makeup', 'Vocabulary Make-up', {
+    createdAt: now - 3 * MIN,
+    rosterIds: [KEYS[1]],
+    targetMode: 'students',
+    targetStudents: [2, 5, 8].map((n) => sid(1, n)),
+    periodAccess: {
+      [KEYS[1]]: row(1, { state: 'open', openedAt: now - 10 * MIN }),
+    },
+  }),
   base('osmosis', 'Osmosis Lab Quiz', {
     status: 'inactive',
     createdAt: now - 6 * DAY,
@@ -142,6 +241,7 @@ export const ASSIGNED_FIXTURES: QuizAssignment[] = [
     status: 'inactive',
     createdAt: now - 13 * DAY,
     scoreVisibility: 'score-only',
+    plc: { id: 'plc-sci', name: 'Grade 7 Science PLC', memberEmails: [] },
     periodAccess: rows(() => closed),
   }),
   base('metric', 'Metric Units Check', {
@@ -182,6 +282,11 @@ export const ASSIGNED_RESPONSES: Record<string, QuizResponse[]> = {
   photo: many(KEYS[0], 'completed', 26),
   eco: [],
   safety: [],
+  retake: [
+    response(KEYS[0], 'completed', 0),
+    response(KEYS[0], 'in-progress', 1),
+  ],
+  makeup: [response(KEYS[1], 'completed', 0)],
   single: many(KEYS[1], 'completed', 11),
   paper: many(KEYS[0], 'completed', 12),
   osmosis: KEYS.flatMap((k) =>

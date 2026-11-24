@@ -53,13 +53,13 @@ const legCounts = (page: Page, leg: string) =>
     leg
   );
 
-// Today's counts: every entry to preview, results or the monitor reads the file once behind the spinner; going back to the library reads nothing.
+// Today's counts with a live session on a frozen assignment: entering preview reads the library file; going back, results and the monitor each also read the frozen copy (AB-370).
 const EXPECTED: Record<string, Leg> = {
   'library → preview': { reads: 1, spinners: 1 },
-  'preview → library': { reads: 0, spinners: 0 },
-  'library → results': { reads: 1, spinners: 1 },
-  'results → library': { reads: 0, spinners: 0 },
-  'library → monitor': { reads: 1, spinners: 1 },
+  'preview → library': { reads: 2, spinners: 1 },
+  'library → results': { reads: 2, spinners: 1 },
+  'results → library': { reads: 2, spinners: 1 },
+  'library → monitor': { reads: 2, spinners: 1 },
   'monitor → library': { reads: 0, spinners: 0 },
   'library tabs': { reads: 0, spinners: 0 },
 };
@@ -184,7 +184,8 @@ test('switching views reloads the quiz no more than it does today', async ({
     await inProgressTab.click();
     await rowMenuItems(page, library);
     await page.getByRole('menuitem', { name: 'Results' }).click();
-    await expect(widget.getByText(EDITED)).toBeVisible();
+    // Results grade the frozen copy, which keeps the title it was assigned with.
+    await expect(widget.getByText(`${QUIZ} (assigned`)).toBeVisible();
     await widget.getByRole('button', { name: 'Back' }).click();
     await libraryTab.click();
     await expect(library.getByRole('heading', { name: EDITED })).toBeVisible();

@@ -126,6 +126,8 @@ export interface AssignmentSummary {
   live?: boolean;
   /** Quiz `status: 'paused'`: paused mid-run, or assigned and not started yet. It stays listed. */
   held?: 'paused' | 'not-open';
+  /** The run targets classes, none of them the student's: reached only by pointer, and the rules refuse it. */
+  outsideClasses?: true;
   /** Per-period sessions: the gate fields plus this student's periods, for the card's lock. */
   periodGate?: PeriodAccessSessionFields & { periodKeys: string[] };
 }
@@ -455,6 +457,15 @@ const isNumberRecord = (v: unknown): v is Record<string, number> =>
   v !== null &&
   Object.values(v).every((n) => typeof n === 'number');
 
+/** Kinds whose rules refuse a student outside the run's classes; Flashcards and Writing admit pointer holders. */
+const CLASS_GATED_KINDS: ReadonlySet<SessionKind> = new Set([
+  'quiz',
+  'video-activity',
+  'guided-learning',
+  'mini-app',
+  'projects',
+]);
+
 export function buildAssignmentSummary(
   kind: SessionKind,
   channel: AssignmentChannel,
@@ -539,11 +550,19 @@ export function buildAssignmentSummary(
     workKind: kind === 'writing' ? 'work' : resolveWorkKind(kind, record),
     live: isLiveSession(kind, channel, record) ? true : undefined,
     held: heldState(kind, channel, record),
+    outsideClasses:
+      CLASS_GATED_KINDS.has(kind) &&
+      candidates.length > 0 &&
+      intersected.length === 0
+        ? true
+        : undefined,
     periodGate: hasPeriodAccess(record)
       ? {
           accessMode: (record as PeriodAccessSessionFields).accessMode,
           periodAccess: (record as PeriodAccessSessionFields).periodAccess,
           studentAccess: (record as PeriodAccessSessionFields).studentAccess,
+          studentAccessFrom: (record as PeriodAccessSessionFields)
+            .studentAccessFrom,
           periodKeys: studentPeriodKeys(record, [...studentClassIds]),
         }
       : undefined,

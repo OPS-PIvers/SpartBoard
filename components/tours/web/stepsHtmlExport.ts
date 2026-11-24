@@ -11,7 +11,7 @@ import {
   MARKUP_HEAD,
   MARKUP_STROKE,
 } from '@/components/tours/tourPictureMarkupGeometry';
-import { webTourSequenceOf } from './tourSequence';
+import { hostOf, webTourSequenceOf } from './tourSequence';
 import { loadStepPicture } from './webPictures';
 
 const BRAND_RED = '#ad2122';
@@ -52,33 +52,127 @@ export interface ExportPicture {
   width: number;
 }
 
+/** Lines around the steps: an opening summary, the site to begin on, and the date sent. */
+export interface ArticleExtras {
+  intro?: string;
+  startHost?: string;
+  updated?: string;
+}
+
+// Help desks drop <style> blocks, so the spacing rides on each tag.
+const P_STYLE = 'margin:0 0 12px;line-height:1.6';
+const H2_STYLE = 'margin:28px 0 8px;font-size:18px;line-height:1.3';
+const IMG_STYLE =
+  'display:block;max-width:100%;height:auto;margin:4px 0 20px;border:1px solid #e2e8f0;border-radius:8px';
+const FOOT_STYLE =
+  'margin:32px 0 0;padding-top:12px;border-top:1px solid #e2e8f0;color:#64748b;font-size:13px';
+
+const oneLine = (s: string): string => s.replace(/\s+/g, ' ').trim();
+
+/** A step with no title, words or picture adds nothing to an article. */
+const isBlankStep = (step: StepsViewStep, hasPicture: boolean): boolean =>
+  !step.title.trim() && !step.text.trim() && !hasPicture;
+
+/** Step numbers an article reader would trip on: no title, no words, or no picture. */
+export interface ArticleIssues {
+  untitled: number[];
+  noText: number[];
+  noPicture: number[];
+  blank: number;
+}
+
+/** What to look at before sending the steps as a help article; blank steps are left out and counted. */
+export function articleIssues(steps: readonly StepsViewStep[]): ArticleIssues {
+  const out: ArticleIssues = {
+    untitled: [],
+    noText: [],
+    noPicture: [],
+    blank: 0,
+  };
+  let n = 0;
+  for (const step of steps) {
+    if (isBlankStep(step, !!step.picture)) {
+      out.blank += 1;
+      continue;
+    }
+    n += 1;
+    if (!step.title.trim()) out.untitled.push(n);
+    if (!step.text.trim()) out.noText.push(n);
+    if (!step.picture && !step.message) out.noPicture.push(n);
+  }
+  return out;
+}
+
+const listed = (nums: readonly number[]): string =>
+  nums.length === 1
+    ? `Step ${nums[0]}`
+    : `Steps ${nums.slice(0, -1).join(', ')} and ${nums[nums.length - 1]}`;
+
+/** One line per thing worth fixing before the article goes out. */
+export function issueLines(issues: ArticleIssues): string[] {
+  const has = (nums: readonly number[]) => (nums.length === 1 ? 'has' : 'have');
+  const lines: string[] = [];
+  if (issues.untitled.length)
+    lines.push(`${listed(issues.untitled)} ${has(issues.untitled)} no title.`);
+  if (issues.noText.length)
+    lines.push(`${listed(issues.noText)} ${has(issues.noText)} no words.`);
+  if (issues.noPicture.length)
+    lines.push(
+      `${listed(issues.noPicture)} ${has(issues.noPicture)} no picture.`
+    );
+  if (issues.blank)
+    lines.push(
+      `${issues.blank} empty step${issues.blank === 1 ? ' is' : 's are'} left out.`
+    );
+  return lines;
+}
+
 /** The steps as an article body: headings, words and pictures, with no scripts or classes. */
 export function buildStepsArticle(
   steps: readonly StepsViewStep[],
   pictures: Readonly<Record<string, ExportPicture>>,
-  labels: StepsLabels
+  labels: StepsLabels,
+  extras: ArticleExtras = {}
 ): string {
-  return steps
-    .map((step, i) => {
-      const parts: string[] = [];
-      if (step.continueOn)
-        parts.push(
-          `<p><em>${escapeHtml(labels.continueOn(step.continueOn))}</em></p>`
-        );
-      const heading = `${labels.stepNumber(i + 1)}: ${step.title.trim() || labels.untitledStep}`;
-      parts.push(`<h2>${escapeHtml(heading)}</h2>`);
-      if (step.onlyIfAppears)
-        parts.push(`<p><em>${escapeHtml(labels.onlyIfAppears)}</em></p>`);
-      const text = step.text.trim();
-      if (text) parts.push(`<p>${stepTextHtml(text)}</p>`);
-      const pic = pictures[step.id];
-      if (pic)
-        parts.push(
-          `<p><img src="${pic.src}" alt="${escapeHtml(labels.pictureAlt(i + 1))}" width="${pic.width}" style="max-width:100%;height:auto;border:1px solid #e2e8f0;border-radius:8px"></p>`
-        );
-      return parts.join('\n');
-    })
-    .join('\n\n');
+  const blocks: string[] = [];
+  const intro = extras.intro?.trim();
+  if (intro) blocks.push(`<p style="${P_STYLE}">${stepTextHtml(intro)}</p>`);
+  if (extras.startHost)
+    blocks.push(
+      `<p style="${P_STYLE}"><strong>Before you start:</strong> open ${escapeHtml(extras.startHost)}.</p>`
+    );
+  let n = 0;
+  for (const step of steps) {
+    const pic = pictures[step.id];
+    if (isBlankStep(step, !!pic)) continue;
+    n += 1;
+    const parts: string[] = [];
+    if (step.continueOn)
+      parts.push(
+        `<p style="${P_STYLE}"><em>${escapeHtml(labels.continueOn(step.continueOn))}</em></p>`
+      );
+    const title = oneLine(step.title);
+    const heading = title
+      ? `${labels.stepNumber(n)}: ${title}`
+      : labels.stepNumber(n);
+    parts.push(`<h2 style="${H2_STYLE}">${escapeHtml(heading)}</h2>`);
+    if (step.onlyIfAppears)
+      parts.push(
+        `<p style="${P_STYLE}"><em>${escapeHtml(labels.onlyIfAppears)}</em></p>`
+      );
+    const text = step.text.trim();
+    if (text) parts.push(`<p style="${P_STYLE}">${stepTextHtml(text)}</p>`);
+    if (pic)
+      parts.push(
+        `<p style="margin:0"><img src="${pic.src}" alt="${escapeHtml(labels.pictureAlt(n))}" width="${pic.width}" style="${IMG_STYLE}"></p>`
+      );
+    blocks.push(parts.join('\n'));
+  }
+  if (extras.updated)
+    blocks.push(
+      `<p style="${FOOT_STYLE}">Last updated ${escapeHtml(extras.updated)}.</p>`
+    );
+  return blocks.join('\n\n');
 }
 
 /** The tour as one HTML document a help desk article can take. */
@@ -86,7 +180,8 @@ export function buildStepsHtml(
   title: string,
   steps: readonly StepsViewStep[],
   pictures: Readonly<Record<string, ExportPicture>>,
-  labels: StepsLabels
+  labels: StepsLabels,
+  extras: ArticleExtras = {}
 ): string {
   const safeTitle = escapeHtml(title);
   return `<!doctype html>
@@ -95,12 +190,12 @@ export function buildStepsHtml(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${safeTitle}</title>
-<style>body{font-family:Lexend,Arial,sans-serif;max-width:860px;margin:2rem auto;padding:0 1rem;color:#0f172a;line-height:1.5}h2{margin-top:2rem}</style>
+<style>body{font-family:Lexend,Arial,sans-serif;max-width:860px;margin:2rem auto;padding:0 1rem;color:#0f172a;line-height:1.5}</style>
 </head>
 <body>
 <h1>${safeTitle}</h1>
 
-${buildStepsArticle(steps, pictures, labels)}
+${buildStepsArticle(steps, pictures, labels, extras)}
 </body>
 </html>
 `;
@@ -246,6 +341,23 @@ export async function webTourExportParts(
   return { steps, pictures, missing };
 }
 
+/** The site the tour begins on, from its first targeted step. */
+function startHostOf(set: GuidedLearningSet): string | undefined {
+  const first = webTourSequenceOf(set).find((step) => step.web?.urlPattern);
+  const host = first?.web ? hostOf(first.web.urlPattern) : null;
+  return host ? host.replace(/^www\./, '') : undefined;
+}
+
+/** The tour's own summary and its starting site, for the article around the steps. */
+export function articleExtrasOf(set: GuidedLearningSet): ArticleExtras {
+  const intro = set.description?.trim();
+  const startHost = startHostOf(set);
+  return {
+    ...(intro ? { intro } : {}),
+    ...(startHost ? { startHost } : {}),
+  };
+}
+
 /** The published tour's steps as an HTML file, pictures included. */
 export async function webTourStepsHtml(
   setId: string,
@@ -254,7 +366,18 @@ export async function webTourStepsHtml(
   labels: StepsLabels
 ): Promise<{ html: string; missing: number }> {
   const { steps, pictures, missing } = await webTourExportParts(setId, set);
-  return { html: buildStepsHtml(title, steps, pictures, labels), missing };
+  return {
+    // A help desk shows its own modified date, so only the file carries one.
+    html: buildStepsHtml(title, steps, pictures, labels, {
+      ...articleExtrasOf(set),
+      updated: new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
+    }),
+    missing,
+  };
 }
 
 /** Saves the HTML as a file in the browser's downloads. */

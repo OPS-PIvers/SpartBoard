@@ -259,7 +259,7 @@ async function authorizeSessionSub(
   const { share, hostUid, expiresAt } = await verifySubShare(
     db,
     shareId,
-    email,
+    { email, uid: caller.uid },
     now
   );
   if (!session.teacherUids.includes(hostUid))

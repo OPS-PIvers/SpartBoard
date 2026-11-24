@@ -31,6 +31,8 @@ import {
   placementFromPost,
   type PostDraft,
 } from './submitPost';
+import { tourAttr } from '@/config/tourAnchors';
+import { useStudentWallTour } from './studentWallTour';
 
 const MapPinPicker = lazy(() => import('./MapPinPicker'));
 
@@ -94,6 +96,7 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
   progress,
   error,
 }) => {
+  const tour = useStudentWallTour();
   const seedPlacement = editing ? placementFromPost(editing) : prefill;
   const [rawDraft, setDraft] = useState<PostDraft>(() =>
     editing ? draftFromPost(editing) : EMPTY_DRAFT
@@ -252,6 +255,7 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close composer"
+            {...tour(tourAttr('student.activity-wall.composer-close'))}
             className="rounded-full p-1.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           >
             <X className="h-5 w-5" aria-hidden="true" />
@@ -363,6 +367,7 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
           <button
             type="submit"
             disabled={busy || !valid}
+            {...tour(tourAttr('student.activity-wall.post-submit'))}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2 font-bold text-white transition hover:bg-emerald-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 disabled:opacity-60"
           >
             {busy ? (

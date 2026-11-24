@@ -146,8 +146,13 @@ import {
 } from '@/components/common/library';
 import { earliestDueAt } from '@/utils/perClassDueDates';
 import { AssignmentClassNames } from '@/components/common/library/AssignmentClassNames';
+import { pickedStudents } from '@/utils/assignedStudents';
 import { applyWhen } from '@/utils/assignAvailability';
 import { QuizAssignStepper } from './QuizAssignStepper';
+import {
+  quizOpenInputs,
+  withoutLiveClasses,
+} from '@/utils/openAssignmentClasses';
 import type { PrintedGroupPick } from '@/components/common/library/assignStepper/modificationGroups';
 import {
   DEFAULT_WRITTEN_ANSWERS,
@@ -223,7 +228,7 @@ export interface QuizStepperAssign {
     boxSizes: Record<string, PaperBoxSize>;
     boxStyles: Record<string, PaperBoxStylePick>;
   };
-  /** Modification groups that print their version at assign (`paper-printed-versions`). */
+  /** Modification groups that print their version at assign. */
   printedGroups?: PrintedGroupPick[];
 }
 
@@ -355,7 +360,7 @@ interface QuizManagerProps {
   hasLooseStack?: (quizId: string) => boolean;
   /** Assign can put written questions on paper (`paper-written-hybrid` and the paper gates). */
   writtenOnPaperAvailable?: boolean;
-  /** A modification group can print its version at assign (`paper-printed-versions` and the paper gates). */
+  /** A modification group can print its version at assign (with the paper gates). */
   printedVersionsAvailable?: boolean;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
@@ -534,6 +539,11 @@ interface QuizManagerProps {
   onPreviewBank?: (source: BankSource) => void;
   assignments?: QuizAssignment[];
   assignmentsLoading?: boolean;
+  /** Adds classes to an open assignment, from Assign's "Add to the X assignment". */
+  onAddClassesToAssignment?: (
+    assignmentId: string,
+    rosterIds: string[]
+  ) => Promise<boolean>;
   onArchiveCopyUrl?: (assignment: QuizAssignment) => void;
   onArchiveMonitor?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Opens the frozen copy students have; absent without the quiz-student-view flag. */
@@ -897,6 +907,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onPreviewBank,
   assignments = [],
   assignmentsLoading = false,
+  onAddClassesToAssignment,
   onArchiveCopyUrl,
   onArchiveMonitor,
   onArchiveStudentView,
@@ -937,6 +948,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 }) => {
   const isReview = variant === 'review';
   const { canAccessFeature } = useAuth();
+  const openCheckOn = canAccessFeature('assign-open-check');
   // ASSIGNED_TAB.md D12/D19: Library and Assigned, Quiz only, behind the preview flag.
   const assignedOn =
     !isReview && !!classLifecycle && canAccessFeature('assigned-tab');
@@ -1101,7 +1113,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const [assignWritten, setAssignWritten] = useState<WrittenAnswersValue>(
     DEFAULT_WRITTEN_ANSWERS
   );
-  const assignWaitsForSave = canAccessFeature('quiz-assign-waits-for-save');
   const [assignError, setAssignError] = useState<string | null>(null);
   const assignAudience = useAssignAudience();
   const assignToStaff = assignAudience.audience === 'staff';
@@ -1132,14 +1143,27 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       assignWhenState.reseed(quizWhenSeed());
       // eslint-disable-next-line react-hooks/refs -- reset with the adjust-state-while-rendering block
       loadedAssignQuizDataForRef.current = null;
+      const defaults = buildDefaultAssignOptions(
+        config,
+        assignTarget.id,
+        rosters,
+        defaultTeacherName,
+        resolveDefaultPlcSelection(assignTarget, config, plcs, syncedGroups)
+      );
+      // A remembered class that already has this quiz open would make a second copy.
       setAssignOptions(
-        buildDefaultAssignOptions(
-          config,
-          assignTarget.id,
-          rosters,
-          defaultTeacherName,
-          resolveDefaultPlcSelection(assignTarget, config, plcs, syncedGroups)
-        )
+        openCheckOn
+          ? {
+              ...defaults,
+              picker: {
+                ...defaults.picker,
+                rosterIds: withoutLiveClasses(
+                  defaults.picker.rosterIds,
+                  quizOpenInputs(assignments, assignTarget.id, rosters)
+                ),
+              },
+            }
+          : defaults
       );
     }
   }
@@ -2307,6 +2331,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const assignQuizContext = {
     questions: toOverrideEditorQuestions(assignQuizData),
     rubrics: assignRubrics,
+    // Bank draws and a teacher's own printed test (fixed numbering) can't take a subset.
+    fewerQuestions:
+      !assignQuizData?.bankSlots?.length &&
+      !assignQuizData?.questions.some((q) => q.paperOwnTest),
     ...(translationAllowed
       ? {
           translation: {
@@ -2413,7 +2441,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         validRosterIds.includes(id)
       )
     );
-    if (assignWaitsForSave) setAssignError(null);
+    setAssignError(null);
     const saved = onAssign(
       assignTarget,
       behavior,
@@ -2443,12 +2471,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           : {}),
       }
     );
-    if (!assignWaitsForSave) {
-      if (!assignToStaff) assignWhenState.remember(assignWhen);
-      resetAssign();
-      return;
-    }
-    // Flag on: the stepper keeps its spinner until the save settles and stays open on failure.
+    // The stepper keeps its spinner until the save settles and stays open on failure.
     return Promise.resolve(saved).then(
       () => {
         if (!assignToStaff) assignWhenState.remember(assignWhen);
@@ -3217,6 +3240,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           quizUpdatedAtById={quizUpdatedAtById}
           onSyncNow={onSyncAssignment ? confirmSyncAssignment : undefined}
           skippedTargetsByAssignmentId={skippedTargetsByAssignmentId}
+          rosters={rosters}
           emptyTitle={
             isViewOnly ? 'No active shares' : 'No quizzes in progress'
           }
@@ -3237,6 +3261,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           buildActions={buildArchiveActions}
           syncedGroups={syncedGroups}
           quizUpdatedAtById={quizUpdatedAtById}
+          rosters={rosters}
           emptyTitle={
             isViewOnly
               ? 'No archived shares'
@@ -3414,6 +3439,19 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onClose={resetAssign}
           onSubmit={handleStepperAssign}
           error={assignError}
+          {...(openCheckOn && onAddClassesToAssignment
+            ? {
+                openAssignments: quizOpenInputs(
+                  assignments,
+                  assignTarget.id,
+                  rosters
+                ),
+                onAddToOpen: async (id: string, rosterIds: string[]) => {
+                  if (await onAddClassesToAssignment(id, rosterIds))
+                    resetAssign();
+                },
+              }
+            : {})}
         />
       )}
 
@@ -3796,6 +3834,7 @@ const AssignmentsList: React.FC<{
   /** Library quiz id to its last content save, for the "Edited since assigned" note. */
   quizUpdatedAtById?: ReadonlyMap<string, number>;
   onSyncNow?: (a: QuizAssignment) => void | Promise<void>;
+  rosters: ClassRoster[];
   skippedTargetsByAssignmentId?: Record<
     string,
     { ref: StudentTargetRef; reason: string }[]
@@ -3812,6 +3851,7 @@ const AssignmentsList: React.FC<{
   quizUpdatedAtById,
   onSyncNow,
   skippedTargetsByAssignmentId,
+  rosters,
   emptyTitle,
   emptySub,
   tourWidgetType,
@@ -3850,6 +3890,7 @@ const AssignmentsList: React.FC<{
           quizUpdatedAtById={quizUpdatedAtById}
           onSyncNow={onSyncNow}
           skippedTargets={skippedTargetsByAssignmentId?.[a.id]}
+          rosters={rosters}
           tourIndex={index}
           tourWidgetType={tourWidgetType}
         />
@@ -3889,6 +3930,7 @@ interface QuizArchiveRowProps {
   onSyncNow?: (a: QuizAssignment) => void | Promise<void>;
   /** M17 skipped-ref row marker (spec §5 B3) — see `skippedTargetsByAssignmentId`. */
   skippedTargets?: { ref: StudentTargetRef; reason: string }[];
+  rosters: ClassRoster[];
   tourIndex?: number;
   tourWidgetType: 'quiz' | 'review';
 }
@@ -3907,9 +3949,11 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   quizUpdatedAtById,
   onSyncNow,
   skippedTargets,
+  rosters,
   tourIndex,
   tourWidgetType,
 }) => {
+  const picked = useMemo(() => pickedStudents(a, rosters), [a, rosters]);
   const assignmentIsViewOnly = a.mode === 'view-only';
   // Skipped-ref durability (canonical rule) — prefer the in-memory names
   // from this session's `setAssignmentTargetsV1` call; fall back to the
@@ -4112,7 +4156,7 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
         ) : noPeriods ? (
           <span className="font-semibold text-amber-600">No classes</span>
         ) : (
-          <AssignmentClassNames names={periods} />
+          <AssignmentClassNames names={periods} picked={picked} />
         )}
       </>
     );

@@ -211,6 +211,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
         ),
         spareCount,
         written: writtenOn,
+        groups: true,
       });
     } catch (err) {
       logError('PlcTeammatePrintModal.create', err, {

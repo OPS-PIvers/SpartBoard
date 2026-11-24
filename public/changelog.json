@@ -1,6 +1,62 @@
 {
   "entries": [
     {
+      "version": "2026.11.23.1",
+      "date": "2026-11-23",
+      "title": "Quiz assigning, classes and sign-in",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "Manual assignments are due when you end them or at a date and time you set. Assign remembers your last choices."
+            },
+            {
+              "text": "A modification group can get a printed copy of a quiz. Scanned answers join the same results as students on devices."
+            },
+            {
+              "text": "Editing a quiz after you assign it no longer changes earlier scores. Answer key fixes still apply to unchanged questions."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "Assign stays open until the quiz is saved. If saving fails, you see the error and your choices stay."
+            },
+            {
+              "text": "Stimuli, learning targets and DOK look like the Type field in the question editor."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Classes",
+          "items": [
+            {
+              "text": "Open a class's student page from My Classes."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Sign-in and uploads",
+          "items": [
+            {
+              "text": "Signing in only asks which Google account to use. You stay signed in until you are away for 30 days."
+            },
+            {
+              "text": "Pictures and PDFs you upload save to your Google Drive. If Drive is disconnected, you are asked to reconnect."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.11.20.1",
       "date": "2026-11-20",
       "title": "Quiz modifications and widget defaults",
@@ -2938,6 +2994,86 @@
   ],
   "widgetNotes": [
     {
+      "id": "quiz-manual-due-date-2026-11-23",
+      "widget": "quiz",
+      "date": "2026-11-23",
+      "text": "Manual assignments are due when you end them or at a date and time you set. Assign remembers your last choices."
+    },
+    {
+      "id": "quiz-printed-versions-2026-11-23",
+      "widget": "quiz",
+      "date": "2026-11-23",
+      "text": "A modification group can get a printed copy of a quiz. Scanned answers join the same results as students on devices."
+    },
+    {
+      "id": "quiz-frozen-assignments-2026-11-23",
+      "widget": "quiz",
+      "date": "2026-11-23",
+      "text": "Editing a quiz after you assign it no longer changes earlier scores. Answer key fixes still apply to unchanged questions."
+    },
+    {
+      "id": "quiz-assign-waits-2026-11-23",
+      "widget": "quiz",
+      "date": "2026-11-23",
+      "text": "Assign stays open until the quiz is saved. If saving fails, you see the error and your choices stay."
+    },
+    {
+      "id": "quiz-editor-fields-2026-11-23",
+      "widget": "quiz",
+      "date": "2026-11-23",
+      "text": "Stimuli, learning targets and DOK look like the Type field in the question editor."
+    },
+    {
+      "id": "quiz-assign-steady-size-2026-11-22",
+      "widget": "quiz",
+      "date": "2026-11-22",
+      "text": "The Assign window stays the same size as you open each step."
+    },
+    {
+      "id": "video-activity-assign-steady-size-2026-11-22",
+      "widget": "video-activity",
+      "date": "2026-11-22",
+      "text": "The Assign window stays the same size as you open each step."
+    },
+    {
+      "id": "flashcards-assign-steady-size-2026-11-22",
+      "widget": "flashcards",
+      "date": "2026-11-22",
+      "text": "The Assign window stays the same size as you open each step."
+    },
+    {
+      "id": "guided-learning-assign-steady-size-2026-11-22",
+      "widget": "guided-learning",
+      "date": "2026-11-22",
+      "text": "The Assign window stays the same size as you open each step."
+    },
+    {
+      "id": "miniApp-assign-steady-size-2026-11-22",
+      "widget": "miniApp",
+      "date": "2026-11-22",
+      "text": "The Assign window stays the same size as you open each step."
+    },
+    {
+      "id": "writing-assign-steady-size-2026-11-22",
+      "widget": "writing",
+      "date": "2026-11-22",
+      "text": "The Assign window stays the same size as you open each step."
+    },
+    {
+      "id": "quiz-assigned-status-column-2026-11-22",
+      "widget": "quiz",
+      "date": "2026-11-22",
+      "text": "On the Assigned tab, each class shows its status in the same column as its assignment.",
+      "feature": "assigned-tab"
+    },
+    {
+      "id": "quiz-paper-printed-stimuli-2026-11-22",
+      "widget": "quiz",
+      "date": "2026-11-22",
+      "text": "Response sheets with question text now print every stimulus, including text, word banks, pictures, PDFs and Google Docs. Each one prints with its question or on a resource page.",
+      "feature": "paper-answer-sheets"
+    },
+    {
       "id": "quiz-modifications-2026-11-20c",
       "widget": "quiz",
       "date": "2026-11-20",
@@ -2973,8 +3109,7 @@
       "id": "quiz-stimulus-picker-2026-11-20c",
       "widget": "quiz",
       "date": "2026-11-20",
-      "text": "Attach stimuli in a dialog. Pick one from the list and see a preview beside it.",
-      "feature": "quiz-stimulus-picker"
+      "text": "Attach stimuli in a dialog. Pick one from the list and see a preview beside it."
     },
     {
       "id": "video-activity-score-only-2026-11-20c",
@@ -3018,8 +3153,7 @@
       "id": "quiz-print-results-2026-11-20",
       "widget": "quiz",
       "date": "2026-11-20",
-      "text": "Print results has Settings and Students tabs. Pick students by course and class.",
-      "feature": "results-print-v2"
+      "text": "Print results has Settings and Students tabs. Pick students by course and class."
     },
     {
       "id": "quiz-recap-all-options-2026-11-20",
@@ -3117,8 +3251,7 @@
       "id": "quiz-rubric-grading-2026-11-17",
       "widget": "quiz",
       "date": "2026-11-17",
-      "text": "Grade with a rubric in one tap per criterion, and open the full rubric table while you grade.",
-      "feature": "rubric-grading-v2"
+      "text": "Grade with a rubric in one tap per criterion, and open the full rubric table while you grade."
     },
     {
       "id": "quiz-paper-fill-in-blank-2026-11-17",

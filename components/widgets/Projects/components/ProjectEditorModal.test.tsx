@@ -164,23 +164,20 @@ describe('ProjectEditorModal', () => {
   it('builds a new rubric in the rubric builder', async () => {
     const onSave = renderEditor();
     fireEvent.click(screen.getByRole('button', { name: 'New' }));
-    fireEvent.change(
-      screen.getByLabelText('Title', { selector: '#rubric-title' }),
-      { target: { value: 'Group work' } }
-    );
+    fireEvent.change(screen.getByLabelText('Rubric title'), {
+      target: { value: 'Group work' },
+    });
     fireEvent.change(screen.getByLabelText('Criterion 1 name'), {
       target: { value: 'Teamwork' },
     });
-    fireEvent.change(screen.getByLabelText('Criterion 1 level 1 label'), {
+    fireEvent.change(screen.getByLabelText('Level 1 name'), {
       target: { value: 'Below' },
     });
-    fireEvent.change(screen.getByLabelText('Criterion 1 level 2 label'), {
+    fireEvent.change(screen.getByLabelText('Level 2 name'), {
       target: { value: 'Meets' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Use for project' }));
-    expect(
-      screen.queryByRole('complementary', { name: 'Rubric builder' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Rubric title')).not.toBeInTheDocument();
     closeEditor();
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
     const saved = onSave.mock.calls[0][0] as ProjectDefinition;

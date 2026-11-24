@@ -11,7 +11,6 @@ import {
   Building2,
   Cast,
   ClipboardCheck,
-  HardDrive,
   Highlighter,
   ScanLine,
   Download,
@@ -62,12 +61,11 @@ import {
   SquareChevronDown,
   CalendarClock,
   MessageSquare,
-  LogIn,
   Shapes,
   Settings2,
   Users,
-  PanelLeft,
-  History,
+  UserCheck,
+  CopyX,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -202,6 +200,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Board Sharing',
     icon: Share2,
     description: 'Share a board by link.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    category: 'sharing',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
+  // Admin kill switch for every substitute feature: Share with a sub and the /subs portal.
+  'substitute-sharing': {
+    label: 'Substitute sharing',
+    icon: UserCheck,
+    description: 'Teachers can share boards with a sub.',
     stage: 'permanent',
     afterLaunch: 'keep',
     category: 'sharing',
@@ -451,7 +461,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Mic,
     description:
       'An accommodation that lets a student dictate written answers in Quiz and Writing.',
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
     category: 'students',
     defaultAccessLevel: 'admin',
@@ -657,21 +667,9 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: ListPlus,
     description:
       'Teachers add a word bank. Students tap a choice to fill a blank.',
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
     category: 'students',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Stimulus attach dialog in the quiz question editor. Admin-only until Paul has tested it in prod.
-  'quiz-stimulus-picker': {
-    label: 'Stimulus picker dialog',
-    icon: PanelLeft,
-    description:
-      'Teachers attach stimuli in a dialog. The list is on the left and a preview is on the right.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -681,18 +679,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Layers,
     description:
       "A question's modified version can show different stimuli to students with modified questions.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Question editor metadata as labeled fields. Admin-only until Paul has tested it in prod.
-  'question-editor-fields': {
-    label: 'Question editor fields',
-    icon: SquareChevronDown,
-    description:
-      'Stimuli, learning targets and DOK use the same field style as Type.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -759,6 +745,22 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     afterLaunch: 'retire',
     widget: 'quiz',
     modalLabel: 'Print preview',
+    group: 'questions',
+    requires: 'paper-answer-sheets',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Print paper copy in the live Quiz monitor's student row menu.
+  'paper-student-copy': {
+    label: 'Print for one student',
+    icon: Printer,
+    description:
+      'Print a paper copy of a live quiz for one student from the monitor.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Print for one student',
     group: 'questions',
     requires: 'paper-answer-sheets',
     defaultAccessLevel: 'admin',
@@ -1037,62 +1039,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
   },
 
-  // Quiz assign waits for the save, so a failed save keeps the teacher's choices. Admin-only until Paul has used it.
-  'quiz-assign-waits-for-save': {
-    label: 'Quiz assign waits for the save',
-    icon: Send,
-    description:
-      'Assign stays open until the assignment is saved. If the save fails, the error shows in the dialog and the choices are kept.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    modalLabel: 'Assign waits for the save',
-    group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Assignments grade against the questions students were given. Admin-only until Paul has used it.
-  'quiz-frozen-assignments': {
-    label: 'Quiz assignments keep their questions',
-    icon: History,
-    description:
-      'Editing a quiz after assigning it no longer changes earlier scores. Answer key fixes still apply when the question and its choices are unchanged.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    modalLabel: 'Assignments keep their questions',
-    group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'rubric-grading-v2': {
-    label: 'Rubric grading redesign',
-    icon: Table2,
-    description:
-      'Rubric grading shows one-tap level buttons, criteria that open to show descriptions, a highest or lowest first switch and a full rubric table.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // A modification group prints its own version of a device quiz; needs paper sheets too.
-  'paper-printed-versions': {
-    label: 'Printed versions for groups',
-    icon: Printer,
-    description:
-      'A modification group can get a printed copy of a quiz. Scanned answers join the same results as students on devices.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    modalLabel: 'Printed versions for groups',
-    group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Gradebook route and its data layer (docs/plans/GRADEBOOK.md D5).
   gradebook: {
     label: 'Gradebook',
@@ -1121,7 +1067,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'View Student Page',
     icon: Eye,
     description: "Teachers open a class's student page from My Classes.",
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
     category: 'students',
     defaultAccessLevel: 'admin',
@@ -1137,17 +1083,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'class-groups-redesign': {
-    label: 'Class groups redesign',
-    icon: UsersRound,
-    description:
-      'Edit Class groups open as pages that hold their accommodations. Accommodations lists every student.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1791,41 +1726,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Sign-in without the forced consent page, and a 30-day idle sign-out. Admin-only until Paul has used it on prod.
-  'quick-sign-in': {
-    label: 'Quick sign-in',
-    icon: LogIn,
-    description:
-      'Signing in only asks which Google account to use. Teachers stay signed in until they are away for 30 days.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Teacher uploads go only to Drive; without Drive they ask to reconnect. Admin-only until Paul has used it on prod.
-  'drive-only-uploads': {
-    label: 'Uploads save to Drive only',
-    icon: HardDrive,
-    description:
-      'Pictures and PDFs a teacher uploads save only to their Google Drive. Without Drive, they are asked to reconnect.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'assign-due-date': {
-    label: 'Assign: due date for Manual',
-    icon: CalendarClock,
-    description:
-      "Manual assignments are due when ended or at a set date and time, which closes them. Assign remembers each teacher's When choices.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'video-import-ai': {
     label: 'Video import: AI questions',
     icon: Sparkles,
@@ -1843,7 +1743,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Mic,
     description: 'Teachers record their voice for a quiz question.',
     group: 'questions',
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
     widget: 'quiz',
     defaultAccessLevel: 'admin',
@@ -1863,21 +1763,21 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'results-print-v2': {
-    label: 'Print results redesign',
-    icon: Printer,
-    description:
-      'Settings and Students tabs. Students are picked by Course and class.',
+  'assigned-tab': {
+    label: 'Assigned tab',
+    icon: ClipboardList,
+    description: 'Library and Assigned tabs. Each class has its own status.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'assigned-tab': {
-    label: 'Assigned tab',
-    icon: ClipboardList,
-    description: 'Library and Assigned tabs. Each class has its own status.',
+  'picked-student-names': {
+    label: 'Assigned students',
+    icon: Users,
+    description:
+      'Assignment rows list the students an assignment went to. Names show under each class.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1900,6 +1800,61 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Sparkles,
     description:
       "Widget update notes are listed in What's New instead of under each widget.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'subs-live-tours': {
+    label: 'Live tours for subs',
+    icon: UserCheck,
+    description:
+      'Subs get a Help button with live tours. Admins record them on the sub page.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'student-live-tours': {
+    label: 'Live tours for students',
+    icon: GraduationCap,
+    description:
+      'Students get a Help button with live tours. Admins record them in View as student.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'assign-open-check': {
+    label: 'Assign: no duplicate classes',
+    icon: CopyX,
+    description:
+      'Assign locks classes that already have the item open. New classes can join that assignment.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'modification-fewer-questions': {
+    label: 'Modifications: fewer questions',
+    icon: ListChecks,
+    description:
+      'A quiz modification group can answer fewer questions. Scores count only those questions.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'student-set-time': {
+    label: 'Quiz: schedule one student',
+    icon: CalendarClock,
+    description:
+      'The quiz monitor can schedule a quiz for one student. Their class can stay paused.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

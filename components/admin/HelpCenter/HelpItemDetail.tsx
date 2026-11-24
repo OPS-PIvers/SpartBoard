@@ -14,6 +14,8 @@ import type { GuidedLearningSet, InternalToolType, WidgetType } from '@/types';
 import {
   HELP_PUBLISH_REFUSAL_TEXT,
   UNFILED_CATEGORY_ID,
+  helpAudienceOf,
+  type HelpAudience,
   type HelpCategory,
   type HelpPublishRefusal,
   type HelpResourceItem,
@@ -46,6 +48,17 @@ export interface ScopeOption {
   label: string;
 }
 
+const AUDIENCE_ORDER: readonly HelpAudience[] = [
+  'teachers',
+  'subs',
+  'students',
+];
+const AUDIENCE_LABELS: Record<HelpAudience, string> = {
+  teachers: 'Teachers',
+  subs: 'Substitutes',
+  students: 'Students',
+};
+
 interface HelpItemDetailProps {
   item: HelpResourceItem;
   info: HelpRowInfo;
@@ -58,6 +71,8 @@ interface HelpItemDetailProps {
   scopeLabel: string;
   /** Present when the viewer may move the item between scopes (super admins). */
   scopeOptions: ScopeOption[] | null;
+  /** Audiences besides Teachers that this admin's flags allow. */
+  audiences: readonly HelpAudience[];
   onBack: () => void;
   onPatch: (patch: HelpItemFieldPatch) => Promise<void>;
   onScopeChange: (orgId: string | null) => Promise<void>;
@@ -79,6 +94,7 @@ export const HelpItemDetail: React.FC<HelpItemDetailProps> = ({
   canWrite,
   scopeLabel,
   scopeOptions,
+  audiences,
   onBack,
   onPatch,
   onScopeChange,
@@ -92,6 +108,10 @@ export const HelpItemDetail: React.FC<HelpItemDetailProps> = ({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isTour = info.kind === 'live-tour';
+  const current = helpAudienceOf(item);
+  const audienceOptions = AUDIENCE_ORDER.filter(
+    (a) => a === 'teachers' || a === current || audiences.includes(a)
+  );
 
   const run = async (name: string, work: () => Promise<void>) => {
     setBusy(name);
@@ -268,6 +288,28 @@ export const HelpItemDetail: React.FC<HelpItemDetailProps> = ({
               ))}
             </Select>
           </Field>
+          {isTour && audienceOptions.length > 1 && (
+            <Field label="Who sees it" htmlFor="help-detail-audience">
+              <Select
+                id="help-detail-audience"
+                value={helpAudienceOf(item)}
+                disabled={busy !== null}
+                {...tourAttr('admin.help-center.detail-audience')}
+                onChange={(e) =>
+                  void run('audience', () =>
+                    onPatch({ audience: e.target.value as HelpAudience })
+                  )
+                }
+                className="h-11!"
+              >
+                {audienceOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {AUDIENCE_LABELS[value]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
           <Field label="Widgets">
             <ChecklistSelect
               anchor={tourAttr('admin.help-center.related-widgets')}

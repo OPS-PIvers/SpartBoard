@@ -16,7 +16,6 @@ import {
   releaseStorageFiles,
 } from '@/utils/guidedLearningFileRelease';
 import { isTestRunProject } from '@/components/tours/tourTestRun';
-import { useAuth } from '@/context/useAuth';
 import { DriveAuthError, promptDriveReconnect } from '@/utils/driveAuthErrors';
 import {
   GL_SLIDE_APP_PROPERTIES,
@@ -69,12 +68,10 @@ export const useStorage = () => {
     setUploading(activeUploadsRef.current > 0);
   };
   const { driveService, userDomain } = useGoogleDrive();
-  const { canAccessFeature } = useAuth();
-  // Behind the flag a teacher upload without Drive asks to reconnect instead of falling back to Storage.
-  const requireDriveForTeacherUpload = (): void => {
-    if (!canAccessFeature('drive-only-uploads')) return;
+  // A teacher upload without Drive asks to reconnect instead of falling back to Storage.
+  const driveRequired = (): DriveAuthError => {
     promptDriveReconnect();
-    throw new DriveAuthError('Google Drive is not connected', 'expired');
+    return new DriveAuthError('Google Drive is not connected', 'expired');
   };
 
   const uploadFile = async (path: string, file: File): Promise<string> => {
@@ -89,8 +86,7 @@ export const useStorage = () => {
     }
   };
 
-  // Board-level uploads: Drive when connected (for all users including admins),
-  // falling back to Firebase Storage when Drive is not connected.
+  // Board-level uploads go to Drive; without Drive the teacher is asked to reconnect.
 
   const uploadBackgroundImage = async (
     userId: string,
@@ -111,12 +107,7 @@ export const useStorage = () => {
       }
     }
 
-    requireDriveForTeacherUpload();
-    const timestamp = Date.now();
-    return uploadFile(
-      `users/${userId}/backgrounds/${timestamp}-${file.name}`,
-      file
-    );
+    throw driveRequired();
   };
 
   const uploadSticker = async (
@@ -139,7 +130,7 @@ export const useStorage = () => {
       }
     }
 
-    if (!opts.districtAsset) requireDriveForTeacherUpload();
+    if (!opts.districtAsset) throw driveRequired();
     const timestamp = Date.now();
     return uploadFile(
       `users/${userId}/stickers/${timestamp}-${file.name}`,
@@ -167,7 +158,7 @@ export const useStorage = () => {
       }
     }
 
-    if (!opts.districtAsset) requireDriveForTeacherUpload();
+    if (!opts.districtAsset) throw driveRequired();
     const timestamp = Date.now();
     return uploadFile(
       `users/${userId}/display_images/${timestamp}-${file.name}`,
@@ -233,7 +224,7 @@ export const useStorage = () => {
     return { url, storagePath };
   };
 
-  // Image slides: Drive for personal sets (Storage when Drive is off), Storage with a thumbnail for district sets.
+  // Image slides: Drive for personal sets, Storage with a thumbnail for district sets.
   const uploadGuidedLearningImage = async (
     userId: string,
     blob: Blob,
@@ -262,7 +253,7 @@ export const useStorage = () => {
         endUpload();
       }
     }
-    if (home === 'drive') requireDriveForTeacherUpload();
+    if (home === 'drive') throw driveRequired();
     const uploaded = await uploadGuidedLearningMedia(userId, blob, fileName);
     const file =
       blob instanceof File
@@ -344,12 +335,7 @@ export const useStorage = () => {
       }
     }
 
-    requireDriveForTeacherUpload();
-    const timestamp = Date.now();
-    return uploadFile(
-      `users/${userId}/hotspot_images/${timestamp}-${file.name}`,
-      file
-    );
+    throw driveRequired();
   };
 
   const uploadScreenshot = async (
@@ -371,20 +357,7 @@ export const useStorage = () => {
       }
     }
 
-    requireDriveForTeacherUpload();
-    const timestamp = Date.now();
-    const storageRef = ref(
-      storage,
-      `users/${userId}/screenshots/${timestamp}.jpg`
-    );
-
-    beginUpload();
-    try {
-      const snapshot = await uploadBytes(storageRef, blob);
-      return await getDownloadURL(snapshot.ref);
-    } finally {
-      endUpload();
-    }
+    throw driveRequired();
   };
 
   const deleteFile = async (filePath: string): Promise<void> => {
@@ -524,11 +497,7 @@ export const useStorage = () => {
       }
     }
 
-    requireDriveForTeacherUpload();
-    const timestamp = Date.now();
-    const storagePath = `users/${userId}/pdfs/${timestamp}-${file.name}`;
-    const url = await uploadFile(storagePath, file);
-    return { url, storagePath };
+    throw driveRequired();
   };
 
   const uploadAdminPdf = async (

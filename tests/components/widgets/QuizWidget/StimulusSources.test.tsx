@@ -282,9 +282,6 @@ describe('Stimuli tab sources', () => {
     });
     await waitFor(() => expect(latest).toHaveLength(1));
     expect(toggle).toHaveBeenCalledWith(latest[0].id, 'q1');
-    expect(
-      screen.getByText('Drag a file or paste an image')
-    ).toBeInTheDocument();
   });
 
   it('attaches a screenshot pasted anywhere in the editor to the question', async () => {

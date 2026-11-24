@@ -54,7 +54,8 @@ export function useLiveTourPublish(
       // A failed save shows the editor's own save error; nothing is published.
       const saved = await session.flush();
       const latest = getTourEdit()?.set;
-      if (saved && latest) await publishTour(latest, uid);
+      // A republish keeps the students marker the Help Center's Publish wrote.
+      if (saved && latest) await publishTour(latest, uid, tour?.audience);
     } catch (err) {
       logError('useLiveTourPublish', err, { setId: set.id });
       setFailed(true);

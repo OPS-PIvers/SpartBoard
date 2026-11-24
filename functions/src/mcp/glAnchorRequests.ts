@@ -3,6 +3,9 @@ import * as admin from '../firebaseAdmin';
 import { createHash } from 'node:crypto';
 import { TOUR_ANCHOR_BATCHES, TOUR_ANCHOR_QUEUE } from '../tourAnchorQueue';
 import { SETTINGS_FIELD_LIST } from './settingsFieldList';
+import { TOUR_ANCHOR_LIST } from './tourAnchorList';
+
+const SCOPE_OF = new Map(TOUR_ANCHOR_LIST.map((a) => [a.id, a.scope]));
 
 type Step = Record<string, unknown> & { id: string };
 interface Tour {
@@ -182,4 +185,28 @@ export async function queueAnchorRequests(
     createdAt: now,
   });
   return requests.length;
+}
+
+export interface QueueItem {
+  status?: unknown;
+  anchorId?: unknown;
+  widgetType?: unknown;
+}
+
+/** The anchor ref Live tour health's Rebind would write for a queue item; mirrors reboundAnchorRef in components/tours/anchorQueue.ts. */
+export function readyAnchorRef(item: QueueItem): string | null {
+  const ref = item.anchorId;
+  if (typeof ref !== 'string' || !ref) return null;
+  if (['open', 'rebound', 'needs-human'].includes(String(item.status)))
+    return null;
+  const [head, fieldKey] = ref.split('#');
+  const [id, refType] = head.split(':');
+  const scope = SCOPE_OF.get(id);
+  if (!scope) return null;
+  if (scope === 'board') return ref;
+  const type =
+    refType || (typeof item.widgetType === 'string' ? item.widgetType : '');
+  if (!type) return null;
+  if (scope !== 'field') return `${id}:${type}`;
+  return fieldKey ? `${id}:${type}#${fieldKey}` : null;
 }

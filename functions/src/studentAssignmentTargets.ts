@@ -138,6 +138,14 @@ export const ASSIGNMENT_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   writing: 'writing_assignment_records',
 };
 
+/** Kinds whose rules refuse a student outside the run's classes; Flashcards and Writing also admit pointer holders. */
+const CLASS_GATED_KINDS: ReadonlySet<AssignmentKind> = new Set([
+  'quiz',
+  'video-activity',
+  'guided-learning',
+  'mini-app',
+]);
+
 /** Top-level session collection per kind (1:1 with the assignment doc). */
 export const SESSION_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   quiz: 'quiz_sessions',
@@ -871,10 +879,17 @@ export async function handleSetAssignmentTargets(
     ctx,
     hmacSecret
   );
+  // Where the rules gate on the run's classes, a picked student outside all of them could never open it, so they are skipped.
+  const gateClassIds =
+    CLASS_GATED_KINDS.has(input.kind) &&
+    ![...sessionClassIds].some((id) => id.startsWith('schoology:'))
+      ? sessionClassIds
+      : undefined;
   const addResolved = resolveTargets(
     input.add.filter((ref) => !excludedKeys.has(refKey(ref))),
     ctx,
-    hmacSecret
+    hmacSecret,
+    gateClassIds
   );
 
   const itemsPath = (uid: string) =>
@@ -1312,27 +1327,33 @@ export async function handleSetAssignmentTargets(
     // its pointer doc exists, so dropping the ref would strand it.
     for (const target of landed) byKey.set(target.key, target.ref);
     const refs = [...byKey.values()];
-    tx.set(
-      assignmentRef,
-      {
-        targetStudents: refs,
-        targetMode:
-          input.targetMode ?? (refs.length > 0 ? 'students' : 'class'),
-        ...(input.excludedTargets
-          ? { excludedTargets: resolveFinalExcluded(fresh.data()) }
-          : {}),
-        ...(narrowedClassIds !== undefined
-          ? { studentTargetClassIds: narrowedClassIds }
-          : {}),
-        ...(Object.keys(overridesByStudentUid).length > 0
-          ? { overridesByStudentUid }
-          : {}),
-        ...(Object.keys(servedLanguageByStudentUid).length > 0
-          ? { servedLanguageByStudentUid }
-          : {}),
-      },
-      { merge: true }
-    );
+    const data: Record<string, unknown> = {
+      targetStudents: refs,
+      targetMode: input.targetMode ?? (refs.length > 0 ? 'students' : 'class'),
+      ...(input.excludedTargets
+        ? { excludedTargets: resolveFinalExcluded(fresh.data()) }
+        : {}),
+      ...(narrowedClassIds !== undefined
+        ? { studentTargetClassIds: narrowedClassIds }
+        : {}),
+      ...(Object.keys(overridesByStudentUid).length > 0
+        ? { overridesByStudentUid }
+        : {}),
+      ...(Object.keys(servedLanguageByStudentUid).length > 0
+        ? { servedLanguageByStudentUid }
+        : {}),
+    };
+    // Per-uid map keys get a path per uid: overrides replace whole, other uids' entries survive.
+    const perUidKeys = ['overridesByStudentUid', 'servedLanguageByStudentUid'];
+    const mergeFields: (string | admin.firestore.FieldPath)[] = Object.keys(
+      data
+    ).filter((k) => !perUidKeys.includes(k));
+    for (const key of perUidKeys) {
+      for (const uid of Object.keys((data[key] as object | undefined) ?? {})) {
+        mergeFields.push(new admin.firestore.FieldPath(key, uid));
+      }
+    }
+    tx.set(assignmentRef, data, { mergeFields });
     return refs;
   });
 

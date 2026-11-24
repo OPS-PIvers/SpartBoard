@@ -33,7 +33,7 @@ vi.mock('./SubShareLinkScreen', () => ({
   ),
 }));
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'sub-uid' } }),
+  useAuth: () => ({ user: { uid: 'sub-uid' }, canAccessFeature: () => false }),
 }));
 
 import { SubsApp } from './SubsApp';

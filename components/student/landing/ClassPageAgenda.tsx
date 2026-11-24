@@ -1,4 +1,5 @@
 // The Agenda and pinned links above a Class page's tabs (docs/plans/COURSE_AND_AGENDA.md D11, D12, D22).
+import { tourFieldAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { ExternalLink } from 'lucide-react';
 import type { ClassPageView } from '@/hooks/useClassPageAgendas';
@@ -76,7 +77,11 @@ export const ClassPageAgenda: React.FC<ClassPageAgendaProps> = ({
                 href={agendaOpenUrl(agenda.fileId)}
                 target="_blank"
                 rel="noopener noreferrer"
-                // no-tour-anchor: student page, no teacher tour walks here
+                {...tourFieldAttr(
+                  'student.assignments.agenda-open',
+                  'student-assignments',
+                  agenda.fileId
+                )}
                 className="mt-1.5 inline-flex min-h-[32px] items-center gap-1 text-left rounded-sm text-sm text-slate-600 hover:text-brand-blue-primary hover:underline focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
               >
                 <span>Can&apos;t see it? Open in Google Slides</span>
@@ -90,13 +95,17 @@ export const ClassPageAgenda: React.FC<ClassPageAgendaProps> = ({
         <section aria-label="Links">
           <h2 className="mb-1.5 text-sm font-semibold text-slate-700">Links</h2>
           <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white px-3">
-            {links.map((link) => (
+            {links.map((link, i) => (
               <li key={link.url}>
                 <a
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  // no-tour-anchor: student page, no teacher tour walks here
+                  {...tourFieldAttr(
+                    'student.assignments.class-link',
+                    'student-assignments',
+                    `row-${i + 1}`
+                  )}
                   className="flex min-h-[44px] items-center gap-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
                 >
                   <span className="min-w-0 flex-1 truncate font-semibold text-slate-900">

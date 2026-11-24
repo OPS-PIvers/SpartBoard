@@ -6,6 +6,7 @@ import { useDictation } from '@/hooks/useDictation';
 import { DictateButton } from '@/components/common/dictate/DictateButton';
 import { dispatchDictation } from '@/utils/inputSignals';
 import { FIB_ROW_ATTR, blankPhrase } from '@/utils/speechToText/blankPhrase';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 const MathAnswerField = React.lazy(
   () => import('@/components/student/keyboards/MathAnswerField')
@@ -141,7 +142,11 @@ export const FibMultiBlankInput: React.FC<{
             </React.Suspense>
           ) : (
             <input
-              // no-tour-anchor: student quiz screen; tours walk teachers
+              {...tourFieldAttr(
+                'student.quiz.blank',
+                'quiz-student',
+                `row-${i + 1}`
+              )}
               type="text"
               aria-label={`Blank ${i + 1}`}
               value={parts[i] ?? ''}

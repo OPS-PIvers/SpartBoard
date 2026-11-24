@@ -3915,6 +3915,7 @@ describe('index barrel — deployed export set', () => {
     'writingPeerReviewV1',
     // Substitute shares
     'launchSubAssignmentV1',
+    'loadSubShareFilesV1',
     // Flashcards Check submission
     'submitFlashcardCheckV1',
     'recordFlashcardCheckRatingsV1',
@@ -4248,7 +4249,11 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
   it('throws permission-denied when the caller is below the minTier on gemini-functions', async () => {
     geminiConfigDocGet.mockResolvedValue({
       exists: true,
-      data: () => ({ enabled: true, accessLevel: 'all', minTier: 'internal' }),
+      data: () => ({
+        enabled: true,
+        accessLevel: 'public',
+        minTier: 'internal',
+      }),
     });
     await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
       'You do not have access to Gemini functions.'
@@ -4396,7 +4401,7 @@ describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
 
   interface PermDoc {
     enabled: boolean;
-    accessLevel: 'admin' | 'beta' | 'all';
+    accessLevel: 'admin' | 'beta' | 'public';
     betaUsers?: string[];
     minTier?: string;
     buildings?: string[];
@@ -4463,7 +4468,7 @@ describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
   it('throws permission-denied when embed-mini-app is disabled', async () => {
     vi.mocked(admin.firestore).mockReturnValueOnce(
       makeDb({
-        'embed-mini-app': { enabled: false, accessLevel: 'all' },
+        'embed-mini-app': { enabled: false, accessLevel: 'public' },
       }) as unknown as admin.firestore.Firestore
     );
 
@@ -4535,7 +4540,7 @@ describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
         {
           'embed-mini-app': {
             enabled: true,
-            accessLevel: 'all',
+            accessLevel: 'public',
             buildings: ['high'],
           },
         },
@@ -4553,7 +4558,7 @@ describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
         {
           'embed-mini-app': {
             enabled: true,
-            accessLevel: 'all',
+            accessLevel: 'public',
             buildings: ['orono-high-school'],
           },
         },
@@ -4572,7 +4577,7 @@ describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
       makeDb({
         'gemini-functions': {
           enabled: true,
-          accessLevel: 'all',
+          accessLevel: 'public',
           minTier: 'internal',
         },
       }) as unknown as admin.firestore.Firestore
@@ -4587,12 +4592,12 @@ describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
       makeDb({
         'gemini-functions': {
           enabled: true,
-          accessLevel: 'all',
+          accessLevel: 'public',
           minTier: 'internal',
         },
         'embed-mini-app': {
           enabled: true,
-          accessLevel: 'all',
+          accessLevel: 'public',
           minTier: 'internal',
         },
       }) as unknown as admin.firestore.Firestore
@@ -4763,7 +4768,11 @@ describe('transcribeVideoWithGemini', () => {
   it('throws permission-denied when the caller is below the minTier', async () => {
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
-      data: () => ({ enabled: true, accessLevel: 'all', minTier: 'internal' }),
+      data: () => ({
+        enabled: true,
+        accessLevel: 'public',
+        minTier: 'internal',
+      }),
     });
     await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
       'You do not have access to Gemini audio transcription.'
@@ -4792,7 +4801,7 @@ describe('transcribeVideoWithGemini', () => {
       exists: true,
       data: () => ({
         enabled: false,
-        accessLevel: 'all',
+        accessLevel: 'public',
       }),
     });
 

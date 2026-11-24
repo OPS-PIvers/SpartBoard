@@ -11,7 +11,13 @@ export const HELP_RESOURCES_COLLECTION = 'help_resources';
 export type HelpItemFieldPatch = Partial<
   Pick<
     HelpResourceItem,
-    'title' | 'description' | 'categoryId' | 'widgetTypes' | 'visible' | 'order'
+    | 'title'
+    | 'description'
+    | 'categoryId'
+    | 'widgetTypes'
+    | 'visible'
+    | 'order'
+    | 'audience'
   >
 >;
 

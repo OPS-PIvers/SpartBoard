@@ -7,6 +7,7 @@ import {
   nextWallImageSize,
   type WallImageSize,
 } from '@/components/activityWall/render';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface WallShellProps {
   appearance?: ActivityWallAppearance;
@@ -69,8 +70,8 @@ export const WallShell: React.FC<WallShellProps> = ({
             </div>
             {imageSize && onImageSizeChange && (
               <button
-                // no-tour-anchor: student wall page header, which never shows on the board
                 type="button"
+                {...tourAttr('student.activity-wall.image-size')}
                 onClick={() => onImageSizeChange(nextWallImageSize(imageSize))}
                 aria-label={`Image size: ${WALL_IMAGE_SIZE_LABEL[imageSize]}. Click to change.`}
                 className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/15 px-3 py-1 text-sm font-bold transition-colors hover:bg-white/25 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"

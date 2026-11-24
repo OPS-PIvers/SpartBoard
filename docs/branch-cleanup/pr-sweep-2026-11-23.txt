@@ -1,0 +1,8 @@
+nightly/debugger-log-2026-11-23 (debugger run 132 log, #6586)
+nightly/build-2026-11-23 (group reminder midnight fix, #6585)
+nightly/admin-2026-11-23 (Help Center retry fix, #6584)
+nightly/dashboard-2026-11-23 (collection cycle fix, #6583)
+nightly/widgets-2026-11-23 (calculator backspace fix, #6582)
+nightly/unifier-log-2026-11-23 (unifier run 155 log, #6577)
+claude/elegant-hypatia-tq3iat (safe dependency updates, #6534)
+claude/project-thread-eg7guu (this list)

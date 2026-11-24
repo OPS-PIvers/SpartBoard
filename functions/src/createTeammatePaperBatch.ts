@@ -29,6 +29,7 @@ import {
   isPaperBoxSize,
   isPaperBoxStyle,
   MAX_PAGE,
+  matchingPairs,
   planPaperBatch,
   planPaperPages,
   type PaperBatchDoc,
@@ -36,7 +37,10 @@ import {
   type PaperQuestion,
   type PaperSheetPlan,
 } from './paperBatchPlan';
-import { PAPER_HANDWRITTEN_FEATURE } from './paperWrittenTypes';
+import {
+  PAPER_HANDWRITTEN_FEATURE,
+  type PaperRowGroup,
+} from './paperWrittenTypes';
 import {
   GOOGLE_OAUTH_CLIENT_ID,
   GOOGLE_OAUTH_CLIENT_SECRET,
@@ -83,6 +87,8 @@ export interface CreateTeammatePaperBatchInput {
   spareCount: number;
   /** The caller's client can print handwritten boxes; honored only if the caller has the feature. */
   written: boolean;
+  /** The caller's client can print matching, ordering and choose all rows. */
+  groups?: boolean;
 }
 
 export interface WithdrawTeammatePaperBatchInput {
@@ -102,6 +108,10 @@ export interface TeammateTestPaperRow {
   choices: string[];
   /** A handwritten question; only on a layoutVersion 2 batch. */
   written?: true;
+  /** Matching, ordering or choose all; `choices` are its lettered options. */
+  group?: PaperRowGroup;
+  /** Matching: each term, in row order. */
+  terms?: string[];
   /** Mirrors utils/paperTestPrint `choicePictures`: a picture per choice, null where none. */
   choicePictures?: ({ url: string; alt?: string; only?: true } | null)[];
 }
@@ -241,6 +251,7 @@ export function parseCreateTeammatePaperBatchInput(
     selections: selections.map(parseSelection),
     spareCount,
     written: raw.written === true,
+    groups: raw.groups === true,
   };
 }
 
@@ -351,6 +362,13 @@ function toPaperQuestion(raw: unknown): PaperQuestion | null {
       ? { optionOrder: raw.optionOrder }
       : {}),
     ...(raw.paperOwnTest === true ? { paperOwnTest: true } : {}),
+    ...(Array.isArray(raw.matchingDistractors)
+      ? {
+          matchingDistractors: raw.matchingDistractors.filter(
+            (c): c is string => typeof c === 'string'
+          ),
+        }
+      : {}),
     ...(raw.recording ? { recording: true } : {}),
     ...(Array.isArray(raw.answerImages)
       ? {
@@ -654,20 +672,25 @@ export async function handleCreateTeammatePaperBatch(
     fib: true,
     sections: content.sections,
     order: content.order,
+    groups: input.groups === true,
   });
   if (analysis.writtenRefusals.length > 0)
     throw new HttpsError(
       'failed-precondition',
       `Written questions in an "answer any" section cannot print on paper: ${analysis.writtenRefusals.join('; ')}`
     );
-  if (analysis.rows.length === 0 && analysis.written.length === 0)
+  if (
+    analysis.rows.length === 0 &&
+    analysis.written.length === 0 &&
+    analysis.groups.length === 0
+  )
     throw new HttpsError(
       'failed-precondition',
       'This quiz has no multiple-choice questions to bubble.'
     );
   const columnsPerPage = content.paperSheetStimuli?.length ? 1 : 2;
   let pageMaps: PaperBatchDoc['pageMaps'];
-  if (analysis.written.length > 0) {
+  if (analysis.written.length > 0 || analysis.groups.length > 0) {
     const pages = planPaperPages({
       entries: analysis.entries,
       grid: columnsPerPage,
@@ -681,7 +704,7 @@ export async function handleCreateTeammatePaperBatch(
     pageMaps = pages.pageMaps;
   }
   const questionsById = new Map(questions.map((q) => [q.id, q]));
-  const sheetQuestions = analysis.rows.flatMap((r) => {
+  const sheetQuestions = [...analysis.rows, ...analysis.groups].flatMap((r) => {
     const q = questionsById.get(r.questionId);
     return q ? [q] : [];
   });
@@ -728,7 +751,7 @@ export async function handleCreateTeammatePaperBatch(
       batchId,
       quizId,
       selections,
-      questionCount: analysis.rows.length,
+      questionCount: analysis.rows.length + analysis.groups.length,
       choiceCount: analysis.sheetChoiceCount,
       spareCount,
       // An authored quiz already has its key, so a delegated run never bubbles
@@ -818,9 +841,23 @@ export async function handleCreateTeammatePaperBatch(
         const row = Number(e.label);
         const text =
           q.type === 'FIB' ? letteredBlanks(q.text ?? '') : (q.text ?? '');
-        return e.kind === 'written'
-          ? [{ row, questionId: q.id, text, choices: [], written: true }]
-          : [testPaperRow(row, q, choicesOf(q))];
+        if (e.kind === 'written')
+          return [{ row, questionId: q.id, text, choices: [], written: true }];
+        if (e.group) {
+          return [
+            {
+              row,
+              questionId: q.id,
+              text,
+              choices: choicesOf(q),
+              group: e.group,
+              ...(e.group === 'match'
+                ? { terms: matchingPairs(q.correctAnswer).map(([l]) => l) }
+                : {}),
+            },
+          ];
+        }
+        return [testPaperRow(row, q, choicesOf(q))];
       })
     : analysis.rows.flatMap((r): TeammateTestPaperRow[] => {
         const q = questionsById.get(r.questionId);

@@ -5,17 +5,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { RosterAccommodationsList } from './RosterAccommodationsList';
 import { useTranslation } from 'react-i18next';
-import {
-  Save,
-  AlertTriangle,
-  X,
-  Plus,
-  Users,
-  UsersRound,
-  Loader2,
-} from 'lucide-react';
+import { Save, AlertTriangle, X, Plus, Users, Loader2 } from 'lucide-react';
 import {
   Student,
   ClassRoster,
@@ -24,9 +15,7 @@ import {
   RosterBellPeriod,
 } from '@/types';
 import type { BuildingBellPeriodOption } from '@/utils/bellSchedule';
-import { SplitClassFooter } from './SplitClassFooter';
-import { GroupRemindersPanel } from './GroupRemindersPanel';
-import { RosterGroupsPanel as RosterGroupsPagePanel } from './RosterGroupsPanel';
+import { RosterGroupsPanel } from './RosterGroupsPanel';
 import { RosterAccommodationsByStudent } from './RosterAccommodationsByStudent';
 import { ALL_GROUP_STEPS, type GroupEditorSteps } from '@/utils/groupReminders';
 import { Modal } from '@/components/common/Modal';
@@ -74,8 +63,6 @@ interface RosterEditorModalProps {
   groupReminderEmailsEnabled?: boolean;
   /** Host-resolved per-step gates for the group editor. */
   groupSteps?: GroupEditorSteps;
-  /** Groups as pages that hold their accommodations, and a per-student Accommodations tab. */
-  groupsRedesign?: boolean;
 }
 
 const bellKey = (b: RosterBellPeriod | null | undefined): string =>
@@ -99,7 +86,6 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   groupRemindersEnabled = false,
   groupReminderEmailsEnabled = false,
   groupSteps = ALL_GROUP_STEPS,
-  groupsRedesign = false,
 }) => {
   const { t } = useTranslation();
   const {
@@ -535,17 +521,8 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
           )}
         </div>
 
-        {activeTab === 'groups' && roster && groupRemindersEnabled ? (
-          <GroupRemindersPanel
-            rosterName={name.trim()}
-            groups={groups}
-            emailAlertsEnabled={groupReminderEmailsEnabled}
-            steps={groupSteps}
-            students={validStudents}
-            onChange={setGroups}
-          />
-        ) : activeTab === 'groups' && roster && groupsRedesign ? (
-          <RosterGroupsPagePanel
+        {activeTab === 'groups' && roster ? (
+          <RosterGroupsPanel
             groups={groups}
             students={validStudents}
             onChange={setGroups}
@@ -554,26 +531,18 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             readAloudAvailable={readAloudAvailable}
             speechToTextAvailable={speechToTextAvailable}
             onSharingChange={sharingChange}
-          />
-        ) : activeTab === 'groups' && roster ? (
-          <RosterGroupsPanel
-            groups={groups}
-            students={validStudents}
-            onChange={setGroups}
-          />
-        ) : activeTab === 'accommodations' && roster && groupsRedesign ? (
-          <RosterAccommodationsByStudent
-            students={validStudents}
-            groups={groups}
-            overrides={defaultOverrides}
-            readAloudAvailable={readAloudAvailable}
-            speechToTextAvailable={speechToTextAvailable}
-            onChange={setDefaultOverrides}
-            onAddStudents={() => setActiveTab('students')}
-            onSharingChange={sharingChange}
+            reminders={
+              groupRemindersEnabled
+                ? {
+                    rosterName: name.trim(),
+                    emailAlertsEnabled: groupReminderEmailsEnabled,
+                    steps: groupSteps,
+                  }
+                : undefined
+            }
           />
         ) : activeTab === 'accommodations' && roster ? (
-          <RosterAccommodationsList
+          <RosterAccommodationsByStudent
             students={validStudents}
             groups={groups}
             overrides={defaultOverrides}
@@ -931,179 +900,6 @@ const RosterRow: React.FC<RosterRowProps> = ({
         <X size={16} />
       </button>
     </li>
-  );
-};
-
-interface RosterGroupsPanelProps {
-  groups: RosterGroup[];
-  students: Student[];
-  onChange: (groups: RosterGroup[]) => void;
-}
-
-/**
- * Per-roster group editor (M17 A4). Clones the toggle-row/checklist idiom
- * used by `RestrictionsPicker` — a compact expand/collapse list, no new
- * form controls.
- */
-const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
-  groups,
-  students,
-  onChange,
-}) => {
-  const { t } = useTranslation();
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const studentIds = useMemo(
-    () => new Set(students.map((s) => s.id)),
-    [students]
-  );
-
-  const addGroup = () => {
-    const group: RosterGroup = {
-      id: crypto.randomUUID(),
-      name: t('sidebar.classes.newGroupName', { defaultValue: 'New Group' }),
-      studentIds: [],
-    };
-    onChange([...groups, group]);
-    setExpandedId(group.id);
-  };
-
-  const renameGroup = (id: string, name: string) => {
-    onChange(groups.map((g) => (g.id === id ? { ...g, name } : g)));
-  };
-
-  const deleteGroup = (id: string) => {
-    onChange(groups.filter((g) => g.id !== id));
-    if (expandedId === id) setExpandedId(null);
-  };
-
-  const toggleMember = (groupId: string, studentId: string) => {
-    onChange(
-      groups.map((g) => {
-        if (g.id !== groupId) return g;
-        const inGroup = g.studentIds.includes(studentId);
-        return {
-          ...g,
-          studentIds: inGroup
-            ? g.studentIds.filter((id) => id !== studentId)
-            : [...g.studentIds, studentId],
-        };
-      })
-    );
-  };
-
-  return (
-    <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto scroll-inset">
-      {groups.length === 0 ? (
-        <RosterEmptyState
-          title={t('sidebar.classes.emptyGroupsTitle', {
-            defaultValue: 'No groups yet',
-          })}
-          subtitle={t('sidebar.classes.emptyGroupsSubtitle', {
-            defaultValue: 'Save a subset of this class for quick targeting.',
-          })}
-          addLabel={t('sidebar.classes.addGroup', {
-            defaultValue: 'New Group',
-          })}
-          onAdd={addGroup}
-          anchorProps={tourAttr('roster-editor.add-group')}
-        />
-      ) : (
-        <ul className="flex flex-col divide-y divide-slate-100">
-          {groups.map((group, groupIndex) => {
-            const expanded = expandedId === group.id;
-            const groupKey = `group-${groupIndex + 1}`;
-            // Count only members still on the roster — a student deleted in
-            // the Students tab isn't pruned from studentIds until save.
-            const memberCount = group.studentIds.filter((id) =>
-              studentIds.has(id)
-            ).length;
-            return (
-              <li key={group.id} className="p-3">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setExpandedId(expanded ? null : group.id)}
-                    {...tourFieldAttr(
-                      'roster-editor.group-members',
-                      'roster-editor',
-                      groupKey
-                    )}
-                    className="shrink-0 p-1 text-slate-400 hover:text-brand-blue-primary rounded-md transition-colors"
-                    aria-label={t('sidebar.classes.editGroupMembers', {
-                      defaultValue: 'Edit group members',
-                    })}
-                  >
-                    <UsersRound size={16} />
-                  </button>
-                  <input
-                    className="min-w-0 flex-1 px-2 py-1 text-sm font-bold rounded-md border border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden transition-colors"
-                    value={group.name}
-                    onChange={(e) => renameGroup(group.id, e.target.value)}
-                    {...tourFieldAttr(
-                      'roster-editor.group-name',
-                      'roster-editor',
-                      groupKey
-                    )}
-                  />
-                  <span className="shrink-0 whitespace-nowrap text-xxs font-bold text-slate-400 uppercase tracking-widest">
-                    {t('sidebar.classes.groupMemberCount', {
-                      count: memberCount,
-                      defaultValue: '{{count}} student',
-                      defaultValue_other: '{{count}} students',
-                    })}
-                  </span>
-                  <button
-                    onClick={() => deleteGroup(group.id)}
-                    {...tourFieldAttr(
-                      'roster-editor.group-remove',
-                      'roster-editor',
-                      groupKey
-                    )}
-                    aria-label={t('sidebar.classes.removeGroup', {
-                      defaultValue: 'Remove group',
-                    })}
-                    className="shrink-0 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-                {expanded && (
-                  <ul className="mt-2 ml-7 flex flex-col gap-1 max-h-48 overflow-y-auto custom-scrollbar">
-                    {students.length === 0 ? (
-                      <li className="text-xs text-slate-400 italic">
-                        {t('sidebar.classes.noStudentsToGroup', {
-                          defaultValue: 'Add students first.',
-                        })}
-                      </li>
-                    ) : (
-                      students.map((s) => (
-                        <li key={s.id}>
-                          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                            {/* no-tour-anchor: one checkbox per student per group, generated */}
-                            <input
-                              type="checkbox"
-                              checked={group.studentIds.includes(s.id)}
-                              onChange={() => toggleMember(group.id, s.id)}
-                              className="rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
-                            />
-                            {`${s.firstName} ${s.lastName}`.trim() || s.id}
-                          </label>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {/* RosterEmptyState already carries New group when there are none. */}
-      <SplitClassFooter
-        students={students}
-        onAddGroups={(made) => onChange([...groups, ...made])}
-        onNewGroup={groups.length > 0 ? addGroup : undefined}
-      />
-    </div>
   );
 };
 

@@ -32,6 +32,23 @@ const reply = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('openedTour', () => {
+  it('opens the start page and carries step pages the server sent, dropping bad ones', () => {
+    const opened = openedTour(
+      'set1',
+      reply({
+        startPage: 'https://vids.new',
+        openUrls: { b: 'https://vids.new', a: 'http://nope.example' },
+      })
+    );
+    expect(opened?.start.tour.startUrl).toBe('https://vids.new/');
+    expect(opened?.start.tour.steps.map((s) => s.openUrl)).toEqual([
+      undefined,
+      'https://vids.new/',
+    ]);
+    const plain = openedTour('set1', reply({ startPage: 'vids.new' }));
+    expect(plain?.start.tour.startUrl).toBe('https://app.example.com/');
+  });
+
   it('carries the markup the server sent with a picture, and drops malformed markup (E5)', () => {
     const box = { id: 'm1', kind: 'box', x: 0.1, y: 0.1, w: 0.2, h: 0.2 };
     const pic = { mime: 'image/png', data: 'AAAA', w: 10, h: 10 };

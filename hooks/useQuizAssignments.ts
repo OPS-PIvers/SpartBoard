@@ -1212,6 +1212,8 @@ export const useQuizAssignments = (
       const passes = letInUids.flatMap((uid) => [
         new FieldPath('studentAccess', uid),
         until,
+        new FieldPath('studentAccessFrom', uid),
+        deleteField(),
       ]);
       const batch = writeBatch(db);
       const [f, v, ...rest] = [...picks, ...rows, ...passes];

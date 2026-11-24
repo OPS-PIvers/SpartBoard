@@ -154,7 +154,6 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-stimuli.attach-all-questions': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.attach-question': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.attach-bank-slot': 'quiz-editor.tab-stimuli:quiz',
-      'quiz-stimuli.attach-stimulus': 'quiz-stimuli.attach-toggle:quiz',
       'quiz-library.language-locale': 'quiz-editor.tab-languages:quiz',
       'quiz-library.language-generate': 'quiz-editor.tab-languages:quiz',
       'quiz-library.language-regenerate-stale':
@@ -462,6 +461,7 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-monitor.open-join-link': 'quiz-monitor.menu-show-join-code',
       'quiz-monitor.question-result': 'quiz-monitor.menu-question-results',
       'quiz-monitor.student-let-in': 'quiz-monitor.roster-row-actions:quiz',
+      'quiz-monitor.student-set-time': 'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-unlock-attempt':
         'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-reopen': 'quiz-monitor.roster-row-actions:quiz',
@@ -470,6 +470,7 @@ export const SURFACES: TourSurfaceMap = {
         'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-unlock-results':
         'quiz-monitor.roster-row-actions:quiz',
+      'quiz-monitor.student-print-copy': 'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-remove': 'quiz-monitor.roster-row-actions:quiz',
     },
   },

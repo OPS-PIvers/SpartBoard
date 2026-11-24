@@ -67,7 +67,7 @@ const GroupsHost = ({
 };
 
 describe('RosterGroupsPanel (redesign)', () => {
-  it('lists each group with its members as Last, First and labeled buttons', () => {
+  it('lists each group with a member count naming them as Last, First, and labeled buttons', () => {
     render(
       <GroupsHost
         initialGroups={[{ id: 'g', name: 'Modified', studentIds: ['b', 'c'] }]}
@@ -77,9 +77,10 @@ describe('RosterGroupsPanel (redesign)', () => {
         }}
       />
     );
-    expect(
-      screen.getByText('Anderson, Margaret; Bui, Linh')
-    ).toBeInTheDocument();
+    expect(screen.getByText('2 students')).toHaveAttribute(
+      'title',
+      'Anderson, Margaret; Bui, Linh'
+    );
     expect(screen.getByText('2x time')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();

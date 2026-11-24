@@ -42,6 +42,7 @@ export type SkipReason =
   | 'malformed-ref'
   | 'malformed-override'
   | 'not-in-teacher-classes'
+  | 'not-in-assigned-class'
   | 'test-class-not-authorized'
   | 'duplicate'
   | 'over-limit';

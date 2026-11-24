@@ -62,6 +62,8 @@
       "drive": "Drive",
       "openMenu": "Open Menu",
       "closeMenu": "Close Menu",
+      "lastUpdated": "Last updated: {{date}}",
+      "buildId": "Version {{version}} (build {{build}})",
       "back": "Back",
       "adminSettings": "Admin Settings",
       "adminSettingsLoading": "Loading Admin Settings",
@@ -143,7 +145,7 @@
       "classLinkImportTitle": "Import from ClassLink",
       "classLinkMergeTitle": "Sync \"{{name}}\" with ClassLink",
       "classLinkImportSubtitle": "Pick a class to import as a new roster.",
-      "classLinkMergeSubtitle": "Pick the ClassLink class whose students should be pulled in. Existing students are preserved.",
+      "classLinkMergeSubtitle": "Pick the ClassLink class to sync with. Students who left it are removed. Students you added yourself stay.",
       "classLinkConnecting": "Connecting to ClassLink…",
       "classLinkNoClasses": "No classes found in ClassLink.",
       "classLinkImport": "Import",
@@ -2569,6 +2571,9 @@
       "allAlreadyPresent": "All {{count}} students already in {{name}}",
       "addedStudents_one": "Added {{count}} student to {{name}}",
       "addedStudents_other": "Added {{count}} students to {{name}}",
+      "removedStudents_one": "Removed {{count}} student no longer in ClassLink",
+      "removedStudents_other": "Removed {{count}} students no longer in ClassLink",
+      "removalSkipped": "Over half of {{name}} is missing from ClassLink, so no one was removed.",
       "syncFailed": "Failed to sync {{name}}"
     }
   },
@@ -5534,6 +5539,8 @@
     "linkReady": "Send this link to your sub — they sign in with their school account and land on this straight away.",
     "urlLabel": "Sub share link",
     "missedTitle": "Some widget content did not come along",
+    "driveWarningsTitle": "Student names may not reach your sub",
+    "driveNotConnected": "Google Drive is not connected, so your sub has to load the class lists by hand. Share again and choose Allow to fix this.",
     "missedHelp": "Your sub will see these empty. Open the board, check the widget loads, then push your changes again."
   },
   "subShare": {
@@ -5841,7 +5848,8 @@
       "needsText": "Needs text"
     },
     "savedToHelpCenter": "Saved to the Help Center as Hidden.",
-    "openInHelpCenter": "Open in Help Center"
+    "openInHelpCenter": "Open in Help Center",
+    "savedToHelpCenterSubs": "Saved to the Help Center as Hidden. Publish it from Admin Settings."
   },
   "glPlayer": {
     "modeChip": {
@@ -6571,5 +6579,10 @@
     "retry": "Try again",
     "label": "Audio question",
     "playCount": "Play audio ({{used}}/{{total}})"
+  },
+  "subsTours": {
+    "help": "Help",
+    "menuLabel": "Help",
+    "record": "Record a tour"
   }
 }

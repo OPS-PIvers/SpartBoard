@@ -64,7 +64,7 @@ const open = (existingSnapshot?: Rubric) =>
   );
 
 const titleInput = () =>
-  screen.getByLabelText<HTMLInputElement>('Title', { selector: 'input' });
+  screen.getByLabelText<HTMLInputElement>('Rubric title');
 
 const pickFromLibrary = () =>
   fireEvent.change(screen.getByLabelText('Library'), {
@@ -130,11 +130,11 @@ describe('RubricBuilderPanel — destructive-load guards', () => {
     await waitFor(() => expect(showConfirm).not.toHaveBeenCalled());
   });
 
-  it('disables the remove button for the last remaining criterion', () => {
+  it('offers no remove button for the last remaining criterion', () => {
     open();
-    expect(screen.getByLabelText('Remove criterion 1')).toBeDisabled();
+    expect(screen.queryByLabelText('Remove criterion 1')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add Criterion' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add criterion' }));
     expect(screen.getByLabelText('Remove criterion 1')).toBeEnabled();
     expect(screen.getByLabelText('Remove criterion 2')).toBeEnabled();
   });

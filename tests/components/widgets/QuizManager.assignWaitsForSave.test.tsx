@@ -1,6 +1,6 @@
-// QuizManager assign submit with the `quiz-assign-waits-for-save` preview flag off and on.
+// QuizManager assign submit waits for the save before closing.
 import React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   render,
   screen,
@@ -13,8 +13,6 @@ import '@/i18n';
 
 import { QuizManager } from '@/components/widgets/QuizWidget/components/QuizManager';
 import type { ClassRoster, QuizConfig, QuizMetadata } from '@/types';
-
-let waitsForSave = false;
 
 vi.mock('@/hooks/usePlcs', () => ({
   usePlcs: () => ({ plcs: [] }),
@@ -46,8 +44,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
     canSeeShareTracking: () => false,
     canAccessQuizMediaResponse: () => false,
-    canAccessFeature: (id: string) =>
-      id === 'quiz-assign-waits-for-save' && waitsForSave,
+    canAccessFeature: () => false,
   }),
 }));
 
@@ -122,25 +119,7 @@ const assignButton = (dialog: HTMLElement) =>
   within(dialog).getByRole('button', { name: /^assign$/i });
 
 describe('QuizManager assign waits for the save', () => {
-  afterEach(() => {
-    waitsForSave = false;
-  });
-
-  it('flag off: closes at once, before the save settles', async () => {
-    const save = deferred();
-    const onAssign = vi.fn(() => save.promise);
-    const dialog = await openStepper(onAssign);
-    fireEvent.click(assignButton(dialog));
-    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
-    expect(
-      screen.queryByRole('dialog', { name: /chapter 5 review/i })
-    ).not.toBeInTheDocument();
-    save.resolve();
-    await act(() => save.promise);
-  });
-
-  it('flag on: spins and blocks a second submit until the save succeeds, then closes', async () => {
-    waitsForSave = true;
+  it('spins and blocks a second submit until the save succeeds, then closes', async () => {
     const save = deferred();
     const onAssign = vi.fn(() => save.promise);
     const dialog = await openStepper(onAssign);
@@ -164,8 +143,7 @@ describe('QuizManager assign waits for the save', () => {
     );
   });
 
-  it('flag on: a failed save stays open with the error and the choices kept', async () => {
-    waitsForSave = true;
+  it('a failed save stays open with the error and the choices kept', async () => {
     const onAssign = vi
       .fn<React.ComponentProps<typeof QuizManager>['onAssign']>()
       .mockRejectedValueOnce(new Error('Could not reach the server.'))

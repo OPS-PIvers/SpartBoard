@@ -91,7 +91,13 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     shareSubstituteCollection,
     updateSubstituteCollectionShare,
   } = useDashboard();
-  const { selectedBuildings, hasOrg, canAccessFeature } = useAuth();
+  const {
+    selectedBuildings,
+    hasOrg,
+    canAccessFeature,
+    offlineGrantMissing,
+    captureOfflineGrant,
+  } = useAuth();
   const adminBuildings = useAdminBuildings();
   const headingId = useId();
 
@@ -164,6 +170,8 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
   const [copied, setCopied] = useState(false);
   // Widgets whose content could not be collected, named for the teacher.
   const [missed, setMissed] = useState<{ id: string; label: string }[]>([]);
+  // Drive problems that leave the sub without class lists or names.
+  const [driveWarnings, setDriveWarnings] = useState<string[]>([]);
 
   const takeBundle = useCallback((bundle: SubShareBundle) => {
     setMissed(
@@ -201,6 +209,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     setCreatedUrl(null);
     setCopied(false);
     setMissed([]);
+    setDriveWarnings([]);
     setCalendarTicked(existing?.calendarIds ?? []);
   }
   const selectedEmails = useMemo(() => emails ?? [], [emails]);
@@ -303,13 +312,27 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
 
     setBusy(true);
     setMissed([]);
+    setDriveWarnings([]);
     try {
+      // The server reads class lists for a named sub with this grant; asked first so the popup keeps the click.
+      const grantWarnings =
+        offlineGrantMissing &&
+        selectedEmails.length > 0 &&
+        !(await captureOfflineGrant())
+          ? [
+              t('shareWithSub.driveNotConnected', {
+                defaultValue:
+                  'Google Drive is not connected, so your sub has to load the class lists by hand. Share again and choose Allow to fix this.',
+              }),
+            ]
+          : [];
       let shareId: string;
       if (existing) {
         shareId = existing.shareId;
         await updateSubstituteCollectionShare({
           shareId,
           onBundle: takeBundle,
+          onWarnings: setDriveWarnings,
           collection,
           boards: tree.orderedBoards,
           kind: target.kind,
@@ -327,6 +350,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
         shareId = await shareSubstituteCollection({
           collection,
           onBundle: takeBundle,
+          onWarnings: setDriveWarnings,
           boards: tree.orderedBoards,
           collectionId: collection.id,
           sourceId: collection.id,
@@ -340,6 +364,9 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
           ...(sharedRosters.length > 0 ? { sharedRosters } : {}),
           ...(approvedCalendarIds ? { calendarIds: approvedCalendarIds } : {}),
         });
+      }
+      if (grantWarnings.length > 0) {
+        setDriveWarnings((prev) => [...grantWarnings, ...prev]);
       }
       const url = `${window.location.origin}/subs/s/${shareId}`;
       setCreatedUrl(url);
@@ -378,6 +405,8 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     rosters,
     activeRosterId,
     canAccessFeature,
+    offlineGrantMissing,
+    captureOfflineGrant,
     existing,
     sourceId,
     shareSubstituteCollection,
@@ -665,6 +694,23 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
                     'Send this link to your sub — they sign in with their school account and land on this straight away.',
                 })}
           </p>
+          {driveWarnings.length > 0 && (
+            <div
+              role="alert"
+              className="p-2 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-sm"
+            >
+              <p className="font-bold">
+                {t('shareWithSub.driveWarningsTitle', {
+                  defaultValue: 'Student names may not reach your sub',
+                })}
+              </p>
+              <ul className="mt-1 ml-4 list-disc">
+                {driveWarnings.map((message) => (
+                  <li key={message}>{message}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {missed.length > 0 && (
             <div className="p-2 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-sm">
               <p className="font-bold">

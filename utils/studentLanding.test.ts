@@ -113,6 +113,15 @@ describe('landingRowState', () => {
     }
   });
 
+  it('never marks a run outside the student classes missing or live, and locks it', () => {
+    const row = a({ dueAt: NOW - DAY, outsideClasses: true, live: true });
+    const state = landingRowState(row, checked(row, 'not-started'), NOW);
+    expect(state).toBe('open');
+    expect(
+      workAvailability({ assignment: row, state: 'open' }, NOW, 'u1')
+    ).toBe('locked');
+  });
+
   it('moves closed, unsubmitted work with a due date to missing and drops it without one', () => {
     const started = a({ channel: 'ended', endedAt: NOW - DAY });
     expect(landingRowState(started, checked(started, 'in-progress'), NOW)).toBe(

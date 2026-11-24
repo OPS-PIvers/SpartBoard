@@ -56,9 +56,9 @@ export async function commitQuizLifecycle(
     const clearPasses: Record<string, unknown> =
       event.type === 'end'
         ? Object.fromEntries(
-            (session?.reopenedFor ?? []).map((uid) => [
-              `studentAccess.${uid}`,
-              deleteField(),
+            (session?.reopenedFor ?? []).flatMap((uid) => [
+              [`studentAccess.${uid}`, deleteField()],
+              [`studentAccessFrom.${uid}`, deleteField()],
             ])
           )
         : {};

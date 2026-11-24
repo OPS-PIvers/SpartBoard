@@ -10,7 +10,13 @@ const h = vi.hoisted(() => ({
   readFails: false,
 }));
 
-vi.mock('@/config/firebase', () => ({ db: {}, storage: {} }));
+vi.mock('@/config/firebase', () => ({
+  db: {},
+  storage: {},
+  auth: {
+    currentUser: { uid: 'u1', displayName: 'Pat Lee', email: 'pat@x.org' },
+  },
+}));
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteDoc: vi.fn(),
@@ -286,6 +292,36 @@ describe('saveWebTourDraft', () => {
     expect(h.docs.get('building_web_tours/w1')).not.toHaveProperty(
       'webRevisionPictures'
     );
+  });
+});
+
+describe('saveWebTourDraft author', () => {
+  it('stamps the signed-in person on a first save and keeps them on later saves', async () => {
+    await saveWebTourDraft(draft([]) as never);
+    expect(h.docs.get('building_web_tours/w1')).toMatchObject({
+      authorUid: 'u1',
+      authorName: 'Pat Lee',
+    });
+    h.docs.set('building_web_tours/w1', {
+      ...draft([]),
+      authorUid: 'u0',
+      authorName: 'First Author',
+    });
+    await saveWebTourDraft({ ...draft([]), authorUid: 'u9' } as never);
+    expect(h.docs.get('building_web_tours/w1')).toMatchObject({
+      authorUid: 'u0',
+      authorName: 'First Author',
+    });
+  });
+
+  it('leaves an older tour and an offline save without an author', async () => {
+    h.docs.set('building_web_tours/w1', draft([]));
+    await saveWebTourDraft(draft([]) as never);
+    expect(h.docs.get('building_web_tours/w1')).not.toHaveProperty('authorUid');
+    h.docs.delete('building_web_tours/w1');
+    h.readFails = true;
+    await saveWebTourDraft(draft([]) as never);
+    expect(h.docs.get('building_web_tours/w1')).not.toHaveProperty('authorUid');
   });
 });
 

@@ -57,16 +57,12 @@ describe('preview groups', () => {
     expect(previewGroupChildren('paper-answer-sheets', all)).toEqual([]);
   });
 
-  it('nests the paid Speech to text extras under Speech to text', () => {
+  it('lists the paid Speech to text extras on their own now Speech to text is permanent', () => {
     const all = previewFeatures();
-    expect(previewGroupChildren('speech-to-text', all)).toEqual([
-      'speech-to-text-ai-transcription',
-      'speech-to-text-tidy-up',
-    ]);
-    expect(groupChildLabel('speech-to-text-ai-transcription')).toBe(
-      'AI transcription'
-    );
-    expect(groupChildLabel('speech-to-text-tidy-up')).toBe('Tidy up');
+    expect(all).not.toContain('speech-to-text');
+    expect(all).toContain('speech-to-text-ai-transcription');
+    expect(all).toContain('speech-to-text-tidy-up');
+    expect(previewGroupChildren('speech-to-text', all)).toEqual([]);
   });
 
   it('lists them under Features > Students once graduated', () => {

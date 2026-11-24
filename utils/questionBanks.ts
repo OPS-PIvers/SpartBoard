@@ -382,6 +382,23 @@ export function resolveQuizAssignment(
   return { questions, stimuli, sessionSlots, totalQuestions };
 }
 
+/** An assignment's frozen pools as a resolved assignment, for paper copies printed from it. */
+export function resolvedFromSession(
+  questions: QuizQuestion[],
+  stimuli: QuizStimulus[],
+  sessionSlots: QuizSessionBankSlot[]
+): ResolvedQuizAssignment {
+  const pooled = new Set(sessionSlots.flatMap((s) => s.poolQuestionIds));
+  return {
+    questions,
+    stimuli,
+    sessionSlots,
+    totalQuestions:
+      questions.filter((q) => !pooled.has(q.id)).length +
+      sessionSlots.reduce((sum, s) => sum + s.count, 0),
+  };
+}
+
 /** Unbiased random index in [0, n) from `crypto.getRandomValues`. */
 function secureIndex(n: number): number {
   if (n <= 1) return 0;

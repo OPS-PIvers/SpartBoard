@@ -141,15 +141,7 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
   );
   const runPeriod = async (fn: () => Promise<unknown>) => {
     try {
-      const untimed = await fn();
-      const labels = (Array.isArray(untimed) ? (untimed as string[]) : [])
-        .map((key) => session.periodAccess?.[key]?.label)
-        .filter(Boolean);
-      if (labels.length > 0)
-        addToast(
-          `${labels.join(', ')} stays open until you pause it. Tag the class with its bell period in My Classes so it closes at the bell.`,
-          'info'
-        );
+      await fn();
     } catch (err) {
       logError('VideoActivityMonitor.periodAccess', err);
       addToast('Could not update the period. Try again.', 'error');

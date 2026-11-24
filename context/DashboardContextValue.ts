@@ -485,6 +485,8 @@ export interface DashboardContextValue {
         sourceId: string;
         /** What travelled with the share, and what could not be collected. */
         onBundle?: (bundle: SubShareBundle) => void;
+        /** Drive problems that leave the sub without names; given here instead of toasted. */
+        onWarnings?: (messages: string[]) => void;
       }
   ) => Promise<string>;
   /** Re-push the current boards into an existing sub share. */
@@ -497,6 +499,7 @@ export interface DashboardContextValue {
       subEmails?: string[];
       sharedRosters?: SubstituteShareRoster[];
       onBundle?: (bundle: SubShareBundle) => void;
+      onWarnings?: (messages: string[]) => void;
     }
   ) => Promise<void>;
   /** Push a sub share's expiry out; the 14-day cap is enforced in rules. */

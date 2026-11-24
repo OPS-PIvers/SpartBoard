@@ -10,6 +10,7 @@ import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { isDistrictStaffToken } from './districtStaff';
+import { isWidgetGranted } from './featureGrant';
 import {
   parseRef,
   refKey,
@@ -164,7 +165,11 @@ export interface AssignWritingCaller {
   uid: string;
   /** District staff or an admin; resolved by the callable. */
   staff: boolean;
+  email?: string;
 }
+
+const writingWidgetGranted = (db: Firestore, caller: AssignWritingCaller) =>
+  isWidgetGranted(db, 'writing', caller.email ?? null, caller.uid);
 
 /** Writes the session and the teacher's record in one batch; the client then calls setAssignmentTargetsV1. */
 export async function handleAssignWriting(
@@ -172,11 +177,17 @@ export async function handleAssignWriting(
   caller: AssignWritingCaller | null,
   data: unknown,
   now: number,
-  newId: () => string = randomUUID
+  newId: () => string = randomUUID,
+  granted: typeof writingWidgetGranted = writingWidgetGranted
 ): Promise<{ sessionId: string }> {
   if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
   if (!caller.staff)
     throw new HttpsError('permission-denied', 'Teacher account required.');
+  if (!(await granted(db, caller)))
+    throw new HttpsError(
+      'permission-denied',
+      'Writing assignments are not turned on for your account.'
+    );
   const d = (data ?? {}) as Data;
   if (typeof d.itemId !== 'string' || !d.itemId || d.itemId.includes('/'))
     throw new HttpsError('invalid-argument', 'itemId is required.');
@@ -518,7 +529,7 @@ async function callerFrom(
     (token.email_verified === true &&
       email.length > 0 &&
       (await db.doc(`admins/${email}`).get()).exists);
-  return { uid: auth.uid, staff };
+  return { uid: auth.uid, staff, ...(email ? { email } : {}) };
 }
 
 const OPTIONS = {

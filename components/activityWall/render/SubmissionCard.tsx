@@ -18,6 +18,7 @@ import {
 } from './imageSize';
 import { ImageLightbox } from '@/components/common/ImageLightbox';
 import { isArchived, isSafeHttpUrl, useMediaUrl } from './useMediaUrl';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 export interface SubmissionCardProps extends WallRenderActions {
   submission: ActivityWallSubmission;
@@ -346,8 +347,12 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
         >
           {onEdit && (
             <button
-              // no-tour-anchor: one per post, generated from the wall submissions
               type="button"
+              {...tourFieldAttr(
+                'student.activity-wall.post-edit',
+                'student-wall',
+                submission.id
+              )}
               aria-label="Edit post"
               onClick={() => onEdit(submission.id)}
               className="rounded-sm p-1 opacity-80 transition hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60"
@@ -357,8 +362,12 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
           )}
           {onDelete && (
             <button
-              // no-tour-anchor: one per post, generated from the wall submissions
               type="button"
+              {...tourFieldAttr(
+                'student.activity-wall.post-delete',
+                'student-wall',
+                submission.id
+              )}
               aria-label="Delete post"
               onClick={() => onDelete(submission.id)}
               className="rounded-sm p-1 opacity-80 transition hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60"

@@ -12,6 +12,7 @@
  * view uses, so student feedback and the gradebook stay in lock-step.
  */
 
+import { tourAttr } from '@/config/tourAnchors';
 import { PromptText } from '@/components/common/PromptText';
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, XCircle, Clock } from 'lucide-react';
@@ -92,8 +93,8 @@ export const McOptionList: React.FC<McOptionListProps> = ({
             'border-2 border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary font-semibold';
         }
         return (
-          // no-tour-anchor: student answer option; tours walk teachers
           <button
+            {...tourAttr('student.video-activity.answer-option')}
             key={`${i}-${option}`}
             disabled={locked}
             aria-pressed={selected === option}
@@ -139,8 +140,8 @@ export const FibAnswerInput: React.FC<FibAnswerInputProps> = ({
   correctAnswer,
 }) => (
   <div className="px-5 pb-5">
-    {/* no-tour-anchor: student answer box; tours walk teachers */}
     <input
+      {...tourAttr('student.video-activity.answer-blank')}
       type="text"
       autoFocus
       disabled={locked}
@@ -182,8 +183,8 @@ export const ShortAnswerInput: React.FC<ShortAnswerInputProps> = ({
   locked,
 }) => (
   <div className="px-5 pb-5">
-    {/* no-tour-anchor: student answer box; tours walk teachers, not students */}
     <textarea
+      {...tourAttr('student.video-activity.answer-text')}
       autoFocus
       disabled={locked}
       value={value}
@@ -250,8 +251,8 @@ export const MaOptionList: React.FC<MaOptionListProps> = ({
             'border-2 border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary font-semibold';
         }
         return (
-          // no-tour-anchor: student answer option; tours walk teachers
           <button
+            {...tourAttr('student.video-activity.answer-check')}
             key={`${i}-${option}`}
             type="button"
             role="checkbox"
@@ -513,8 +514,8 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
               Couldn&apos;t send your answer. Try again.
             </p>
           )}
-          {/* no-tour-anchor: student submit; tours walk teachers */}
           <button
+            {...tourAttr('student.video-activity.submit-answer')}
             onClick={handleSubmit}
             disabled={!canSubmit}
             aria-busy={checking}

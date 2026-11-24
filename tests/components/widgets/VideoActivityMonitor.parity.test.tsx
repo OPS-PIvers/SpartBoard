@@ -22,6 +22,7 @@ const showConfirm = vi.hoisted(() => vi.fn(() => Promise.resolve(true)));
 vi.mock('@/utils/serverTime', () => ({ getServerNow: () => NOW }));
 vi.mock('@/config/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
+  deleteField: vi.fn(() => '__delete__'),
   collection: vi.fn(),
   doc: vi.fn((_db: unknown, ...segs: string[]) => segs.join('/')),
   FieldPath: class {
