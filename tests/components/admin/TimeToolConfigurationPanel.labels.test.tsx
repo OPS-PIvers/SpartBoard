@@ -1,6 +1,5 @@
 // Pins each radiogroup's aria-labelledby ↔ SettingsLabel id pairing; dropping an id leaves the group unnamed with nothing else failing.
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import type { TimeToolGlobalConfig } from '@/types';

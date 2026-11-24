@@ -1,5 +1,4 @@
 // P8-8: a reload or a new device resumes from the progress doc, and a finished run isn't asked "not at the end".
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   act,

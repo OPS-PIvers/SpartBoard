@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { ImportScreenHost } from '@/components/import/ImportScreenHost';

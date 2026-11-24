@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { CalculatorTool } from './CalculatorTool';
@@ -312,5 +311,17 @@ describe('CalculatorTool', () => {
     clickBtn('2');
     clickBtn('=');
     expect(getDisplay(container).textContent).toBe('2');
+  });
+
+  it('starts a fresh expression when a digit or decimal follows equals', () => {
+    const { container } = render(<CalculatorTool />);
+    ['2', '+', '3', '='].forEach(clickBtn);
+    clickBtn('4');
+    expect(getDisplay(container).textContent).toBe('4');
+    expect(getExpression(container).textContent).toBe('4');
+    ['=', '.'].forEach(clickBtn);
+    ['+', '1', '='].forEach(clickBtn);
+    clickBtn('.');
+    expect(getExpression(container).textContent).toBe('0.');
   });
 });

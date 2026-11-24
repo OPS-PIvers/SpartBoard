@@ -5,7 +5,6 @@
  * BuildingRecord list, so the building badge renders, the building filter
  * includes the member, and a scoped building_admin can see/manage them.
  */
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { UsersView } from '@/components/admin/Organization/views/UsersView';

@@ -1,6 +1,5 @@
 // Results opens a Check's Results screen; Monitor and study assignments keep the monitor.
 import '@testing-library/jest-dom';
-import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { FlashcardAssignment, FlashcardSession } from '@/types';

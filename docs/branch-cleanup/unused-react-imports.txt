@@ -1,0 +1,1 @@
+claude/project-thread-0zazta (remove unused React imports, typescript-eslint 8.74)

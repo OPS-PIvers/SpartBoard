@@ -16,7 +16,6 @@
  *   - Clicks on nested buttons / links never reach the body handler.
  */
 
-import React from 'react';
 import {
   describe,
   it,

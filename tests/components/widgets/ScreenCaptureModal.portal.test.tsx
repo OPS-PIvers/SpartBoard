@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import React from 'react';
 import { render, cleanup, fireEvent, act } from '@testing-library/react';
 import { ScreenCaptureModal } from '@/components/widgets/GuidedLearning/components/ScreenCaptureModal';
 

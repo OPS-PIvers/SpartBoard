@@ -3,7 +3,6 @@
  * `attemptStartedAt`, scales by the student's extended time, and submits the
  * attempt when it runs out. "Now" is the mocked server-offset clock.
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

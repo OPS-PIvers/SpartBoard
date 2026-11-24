@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   render,
@@ -749,6 +748,31 @@ describe('ImportWizard', () => {
     // The stale blank tab must have been closed, not navigated.
     expect(mockClose).toHaveBeenCalledTimes(1);
     openSpy.mockRestore();
+  });
+
+  it('shows a friendly message, not the raw clipboard error, when copying the template URL is blocked', async () => {
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi
+          .fn()
+          .mockRejectedValue(new Error('Document is not focused.')),
+      },
+    });
+    const { adapter } = makeAdapter({
+      templateHelper: {
+        createTemplate: () => Promise.resolve({ url: 'https://x.test/t' }),
+        instructions: <p>Template instructions here.</p>,
+      },
+    });
+    renderWizard(adapter);
+    fireEvent.click(
+      screen.getByRole('button', { name: /template .* format help/i })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /copy template url/i }));
+    expect(
+      await screen.findByText(/blocked copying the link.*https:\/\/x\.test\/t/i)
+    ).toBeTruthy();
+    expect(screen.queryByText(/Document is not focused/)).toBeNull();
   });
 
   it('does not surface a stale handleCopyTemplateUrl error after close/reopen', async () => {

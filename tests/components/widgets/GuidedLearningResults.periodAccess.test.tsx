@@ -1,6 +1,5 @@
 // Per-period GL sessions: the results view carries a period bar with Start and Pause,
 // kept live from the session doc, and writes through to the session and its hub mirror.
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   act,

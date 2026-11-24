@@ -1,6 +1,5 @@
 // Clearing a number field must not commit 0 (min/max snapped to 0, step to an invalid 0).
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 

@@ -1,6 +1,5 @@
 // The library shows small thumbnails: Storage thumbs for district sets, sized Drive URLs for personal ones.
 
-import React from 'react';
 import { buildBuildingIndexEntry } from '@/components/widgets/GuidedLearning/utils/buildingIndexEntry';
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';

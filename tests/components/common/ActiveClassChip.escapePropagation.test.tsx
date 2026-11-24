@@ -16,7 +16,6 @@
  * class.
  */
 
-import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { ActiveClassChip } from '@/components/common/ActiveClassChip';

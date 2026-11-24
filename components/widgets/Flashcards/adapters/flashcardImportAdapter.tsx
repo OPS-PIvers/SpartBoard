@@ -1,4 +1,3 @@
-import React from 'react';
 import type { ImportAdapter } from '@/components/common/library';
 import type { FlashcardCard } from '@/types';
 import {

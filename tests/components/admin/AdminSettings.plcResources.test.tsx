@@ -7,7 +7,6 @@
  * Additionally we render the full AdminSettings with deep mocks to confirm the
  * tab shows up in the rail and clicking it renders PlcResourcesManager.
  */
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 

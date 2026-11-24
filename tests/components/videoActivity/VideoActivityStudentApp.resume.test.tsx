@@ -1,5 +1,4 @@
 // Self-paced VA: a rejoining student's player is sent to their last answered question.
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

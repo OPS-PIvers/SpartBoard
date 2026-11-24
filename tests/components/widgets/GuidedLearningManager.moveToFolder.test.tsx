@@ -2,7 +2,6 @@
 // picker an unprefixed set id, so routing it through the drop handler (which
 // requires a "personal:" prefix) silently dropped every move.
 
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

@@ -1,6 +1,5 @@
 // Per-period sessions: a closed period shows a locked card before the student starts, the
 // stopped screen after, and the questions once the period is open or the student is let in.
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

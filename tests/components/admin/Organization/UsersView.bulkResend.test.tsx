@@ -7,7 +7,6 @@
  * - Clears the selection after firing
  * - The button is disabled when none of the selected users are 'invited'
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { UsersView } from '@/components/admin/Organization/views/UsersView';

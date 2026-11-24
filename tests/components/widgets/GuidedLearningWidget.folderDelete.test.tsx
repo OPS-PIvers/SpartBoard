@@ -1,5 +1,4 @@
 // "Delete the folder and everything in it" keeps GL sets that have open assignments.
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 

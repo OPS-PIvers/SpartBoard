@@ -8,7 +8,6 @@
  * primitives left real, rendered at the library tab.
  */
 
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@/i18n';

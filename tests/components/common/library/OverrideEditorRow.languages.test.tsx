@@ -1,7 +1,6 @@
 // The per-student language select offers only the admin-curated languages,
 // but never drops a code a student is already assigned (plan §5).
 
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AuthContext } from '@/context/AuthContextValue';

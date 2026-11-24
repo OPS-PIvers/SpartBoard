@@ -10,7 +10,6 @@
  * hook the component reaches into is stubbed at module-scope so the
  * test stays self-contained.
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';

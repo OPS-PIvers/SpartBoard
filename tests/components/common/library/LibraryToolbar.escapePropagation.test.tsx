@@ -1,5 +1,4 @@
 // Regression: LibraryToolbar's Sort dropdown had no Escape handling at all — it neither closed itself nor stopped propagation, so Escape fell through to whichever ancestor (widget/modal) owns Escape.
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';

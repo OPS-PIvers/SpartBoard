@@ -1,5 +1,4 @@
 // A response listener that fails after join must show its error, not spin on "Loading your quiz…".
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

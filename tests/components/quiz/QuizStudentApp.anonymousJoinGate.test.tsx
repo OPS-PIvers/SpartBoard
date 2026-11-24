@@ -1,5 +1,4 @@
 /** PIN joiners see a sign-in message instead of the code/PIN form when the session is stamped closed. */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

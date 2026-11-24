@@ -22,7 +22,6 @@
  *   (6) busy reentry guard: while onPick is pending, the close button is disabled
  */
 
-import React from 'react';
 import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';

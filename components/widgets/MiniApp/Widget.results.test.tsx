@@ -1,7 +1,6 @@
 // Mini App results v2 at assign (docs/plans/shipped/MINI_APP_RESULTS.md D18): only the preview flag plus
 // Mini App submissions on in Organization settings creates a v2 session; otherwise nothing changes.
 import '@testing-library/jest-dom';
-import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MiniAppWidget } from './Widget';

@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import React from 'react';
 import { render, screen, cleanup } from '@testing-library/react';
 import { PromptDialog } from '@/components/widgets/InstructionalRoutines/PromptDialog';
 

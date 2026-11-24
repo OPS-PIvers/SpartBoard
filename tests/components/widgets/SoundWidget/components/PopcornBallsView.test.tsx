@@ -1,7 +1,6 @@
 import { render, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PopcornBallsView } from '@/components/widgets/SoundWidget/components/PopcornBallsView';
-import React from 'react';
 
 // Capture the ResizeObserver callback so tests can drive a synthetic resize.
 // jsdom has no layout engine, so the component's own-container measurement

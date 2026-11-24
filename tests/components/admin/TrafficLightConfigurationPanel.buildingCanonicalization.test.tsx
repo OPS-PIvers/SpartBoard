@@ -5,7 +5,6 @@
 // canonical id or a saved default becomes invisible on read and a new
 // save silently writes under the wrong key.
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import type { TrafficLightGlobalConfig } from '@/types';

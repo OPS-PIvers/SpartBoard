@@ -1,6 +1,5 @@
 // Building Hub (T25, T26): the `hub` landing page for building teams; the registry picks it by group type.
 
-import React from 'react';
 import { LATEST_UPDATES_COUNT, pickHeroUpdate } from '@/utils/teamUpdates';
 import { UpdateHeroView } from '../updates/UpdateHero';
 import { useTeamUpdatesData } from '../updates/useTeamUpdatesData';

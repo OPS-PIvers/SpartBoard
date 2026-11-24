@@ -5,7 +5,6 @@
  * test document arrives and against the review pane silently dropping edits.
  */
 
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import {
   render,

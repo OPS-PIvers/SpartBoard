@@ -1,5 +1,5 @@
 // Share flashcard sets and class results with a PLC.
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { FlashcardAssignment, FlashcardSet, Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';

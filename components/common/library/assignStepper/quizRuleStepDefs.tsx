@@ -1,5 +1,4 @@
 // The three Quiz rule steps as stepper defs, shared by every Quiz assign surface (D8).
-import React from 'react';
 import type { QuizBehaviorSettings } from '@/types';
 import type { QuizHandRaiseMode } from '@/utils/quizHandRaise';
 import type { AssignStepDef } from './assignSteps';

@@ -4,7 +4,6 @@
  * the tap-to-place flow, hydration from saved answers, distractor presence
  * in the bank, reset, and the all-options-placed terminal state.
  */
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

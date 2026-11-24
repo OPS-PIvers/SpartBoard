@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DraggableWindow } from '@/components/common/DraggableWindow';
 import { WidgetData, GlobalStyle } from '@/types';

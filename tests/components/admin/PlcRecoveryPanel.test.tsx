@@ -10,7 +10,6 @@
  * deletePlc), both confirm-gated.
  */
 
-import React from 'react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PlcRecoveryPanel } from '@/components/admin/PlcResourcesManager/PlcRecoveryPanel';

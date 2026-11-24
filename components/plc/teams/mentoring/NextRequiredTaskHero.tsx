@@ -1,6 +1,6 @@
 // Hero for the `nextRequiredTask` default rule (T6): data wrapper around NextTaskHeroView.
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { nextRequiredTask, pairNames, pairTaskStatus } from '@/utils/mentoring';
 import { NextTaskHeroView } from './NextTaskHeroView';
 import { PostTaskModal } from './PostTaskModal';
