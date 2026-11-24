@@ -99,24 +99,24 @@ Field names in this plan came from a summarising reader of `docs.pangram.com`. C
 
 ## 5. Slices
 
-1. **Server.** Settings document, the access and settings callables, the Pangram client with an injected `fetch`, `runAiWritingCheckV1`, the check log, and the tests above. Needs the dev key (PT-310) to confirm the response shape.
+1. **Server.** Settings document, the access and settings callables, the Pangram client with an injected `fetch`, `runAiWritingCheckV1`, the check log, and the tests above. Needs the dev key (PT-311) to confirm the response shape.
 2. **Settings row.** Access > Features row for super admins: switch, people list, cap.
 3. **Tool page.** Tools > AI writing check: student search, the piece list, the reason and confirm step, the result, Past checks and the month's spend.
-4. **Prod readiness.** Privacy policy wording that names Pangram and says a named few can open a student's work for a check (PT-312), and anything the agreement changes (PT-311), such as a zero-retention setting.
+4. **Prod readiness.** Privacy policy wording that names Pangram and says a named few can open a student's work for a check (PT-313), and anything the agreement changes (PT-312), such as a zero-retention setting.
 
 ## 6. Before prod is switched on
 
 All three are Paul's and tracked in `PAUL_TODO.md`:
 
-- **PT-311:** a signed data privacy agreement with Pangram, zero retention on API submissions, and district pricing. Self-serve credits appear to include neither.
-- **PT-312:** district privacy review of the new data flow, and privacy policy wording. The policy now names only Google as a third party and says access is limited to the account that owns the content (`components/legal/PrivacyPolicyPage.tsx`).
+- **PT-312:** a signed data privacy agreement with Pangram, zero retention on API submissions, and district pricing. Self-serve credits appear to include neither.
+- **PT-313:** district privacy review of the new data flow, and privacy policy wording. The policy now names only Google as a third party and says access is limited to the account that owns the content (`components/legal/PrivacyPolicyPage.tsx`).
 - The prod key in Secret Manager, set by Paul, with auto-refill off.
 
 ## 7. Open items
 
 - **How long the check log is kept.** Not decided. Until it is, entries stay until a super admin deletes them.
 - **Under-50-word behaviour.** Pangram's docs don't say what the API returns below its floor. SpartBoard refuses first, so this only matters if the floor moves.
-- **K-12 accuracy.** No vendor or independent accuracy data on K-12 writers was found; PT-311 asks Pangram for it. If none exists, say so in the fixed wording.
+- **K-12 accuracy.** No vendor or independent accuracy data on K-12 writers was found; PT-312 asks Pangram for it. If none exists, say so in the fixed wording.
 - **Pangram retention on self-serve.** Their privacy policy and help article give different periods, and `/task` retention is not documented. Dev sends no student work, so this blocks only prod.
 
 ## 8. Facts this plan rests on (checked 2026-11-23)

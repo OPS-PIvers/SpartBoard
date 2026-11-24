@@ -109,6 +109,7 @@ function stubDb(state: StubState = {}) {
     }),
     collection: (path: string) => ({
       path,
+      doc: (id: string) => db.doc(`${path}/${id}`),
       orderBy: () =>
         pagedQuery(path.endsWith('/responses') ? responseDocs : []),
       limit: (n: number) =>

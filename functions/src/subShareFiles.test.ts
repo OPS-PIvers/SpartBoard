@@ -21,6 +21,7 @@ vi.mock('firebase-functions/v2/https', () => ({
 
 import {
   handleLoadSubShareFiles,
+  newSubShareFilesCache,
   type SubShareFilesDeps,
 } from './subShareFiles';
 import type { SubShareCaller } from './subShareAccess';
@@ -49,23 +50,31 @@ const shareDoc = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+type Docs = Record<string, Record<string, unknown> | null | undefined>;
+
 const dbWith = (
   share: Record<string, unknown> | null,
-  subSwitch: Record<string, unknown> | null = null
-) =>
-  ({
-    doc: (path: string) => {
-      const data =
-        path === 'global_permissions/substitute-sharing' ? subSwitch : share;
-      return {
-        get: () =>
-          Promise.resolve({
-            exists: data !== null,
-            data: () => data ?? undefined,
-          }),
-      };
-    },
-  }) as unknown as admin.firestore.Firestore;
+  subSwitch: Record<string, unknown> | null = null,
+  extra: Docs = {}
+) => {
+  const docs: Docs = {
+    'shared_collections/share-1': share,
+    'global_permissions/substitute-sharing': subSwitch,
+    ...extra,
+  };
+  const doc = (path: string) => ({
+    get: () =>
+      Promise.resolve({
+        exists: docs[path] != null,
+        data: () => docs[path] ?? undefined,
+        get: (field: string) => docs[path]?.[field],
+      }),
+  });
+  return {
+    doc,
+    collection: (col: string) => ({ doc: (id: string) => doc(`${col}/${id}`) }),
+  } as unknown as admin.firestore.Firestore;
+};
 
 const deps = (over: Partial<SubShareFilesDeps> = {}): SubShareFilesDeps => ({
   now: () => NOW,
@@ -75,7 +84,7 @@ const deps = (over: Partial<SubShareFilesDeps> = {}): SubShareFilesDeps => ({
     Promise.resolve(
       fileId === NAMES_FILE ? { version: 1, boards: {} } : [{ id: 's1' }]
     ),
-  cache: new Map(),
+  cache: newSubShareFilesCache(),
   ...over,
 });
 
@@ -83,10 +92,11 @@ const load = (
   share: Record<string, unknown> | null,
   d = deps(),
   who: SubShareCaller | null = caller(),
-  subSwitch: Record<string, unknown> | null = null
+  subSwitch: Record<string, unknown> | null = null,
+  extra: Docs = {}
 ) =>
   handleLoadSubShareFiles(
-    dbWith(share, subSwitch),
+    dbWith(share, subSwitch, extra),
     who,
     { shareId: 'share-1' },
     d
@@ -124,8 +134,37 @@ describe('handleLoadSubShareFiles', () => {
     ).rejects.toThrow('turned off');
     expect(getHostToken).not.toHaveBeenCalled();
     await expect(
-      load(shareDoc(), deps(), caller(), { enabled: true })
+      load(shareDoc(), deps(), caller(), {
+        enabled: true,
+        accessLevel: 'public',
+      })
     ).resolves.toMatchObject({ status: 'ok', missing: 0 });
+  });
+
+  it("refuses a sub the switch's access level leaves out, as the /subs gate does", async () => {
+    const adminOnly = { enabled: true, accessLevel: 'admin' };
+    await expect(load(shareDoc(), deps(), caller(), adminOnly)).rejects.toThrow(
+      'turned off'
+    );
+    await expect(
+      load(shareDoc(), deps(), caller(), adminOnly, {
+        [`admins/${SUB}`]: { role: 'admin' },
+      })
+    ).resolves.toMatchObject({ status: 'ok' });
+    const beta = { enabled: true, accessLevel: 'beta', betaUsers: [] };
+    await expect(load(shareDoc(), deps(), caller(), beta)).rejects.toThrow(
+      'turned off'
+    );
+    await expect(
+      load(shareDoc(), deps(), caller(), { ...beta, betaUsers: [SUB] })
+    ).resolves.toMatchObject({ status: 'ok' });
+    await expect(
+      load(shareDoc(), deps(), caller(), {
+        enabled: true,
+        accessLevel: 'public',
+        excludedUsers: [SUB],
+      })
+    ).rejects.toThrow('turned off');
   });
 
   it('serves a repeat read from the brief cache, and re-reads once it lapses', async () => {
@@ -150,6 +189,42 @@ describe('handleLoadSubShareFiles', () => {
     await expect(
       load(shareDoc(), d, caller(), { enabled: false })
     ).rejects.toThrow('turned off');
+  });
+
+  it('skips caching a single read over the per-result cap', async () => {
+    const big = 'x'.repeat(5 * 1024 * 1024);
+    const download = vi.fn((_t: string, fileId: string) =>
+      Promise.resolve(fileId === NAMES_FILE ? { big } : [{ id: 's1' }])
+    );
+    const d = deps({ download });
+    await load(shareDoc(), d);
+    await load(shareDoc(), d);
+    expect(download).toHaveBeenCalledTimes(4);
+    expect(d.cache.bytes).toBe(0);
+  });
+
+  it('keeps the cache under its byte cap by dropping the oldest reads', async () => {
+    const chunk = 'x'.repeat(3 * 1024 * 1024);
+    const d = deps({
+      download: (_t, fileId) =>
+        Promise.resolve(fileId === NAMES_FILE ? { chunk } : [{ id: 's1' }]),
+    });
+    for (let i = 0; i < 12; i++) {
+      await load(shareDoc({ hostUid: `teacher-${i}` }), d);
+    }
+    expect(d.cache.bytes).toBeLessThanOrEqual(32 * 1024 * 1024);
+    expect(d.cache.entries.size).toBe(10);
+    const keys = [...d.cache.entries.keys()];
+    expect(keys.some((k) => k.includes('"teacher-0"'))).toBe(false);
+    expect(keys.some((k) => k.includes('"teacher-11"'))).toBe(true);
+  });
+
+  it('keys the cache by host, so a share pointed at another teacher re-reads', async () => {
+    const download = vi.fn(deps().download);
+    const d = deps({ download });
+    await load(shareDoc(), d);
+    await load(shareDoc({ hostUid: 'other-teacher' }), d);
+    expect(download).toHaveBeenCalledTimes(4);
   });
 
   it('does not cache a read with a missing file', async () => {
