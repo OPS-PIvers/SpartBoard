@@ -47,6 +47,12 @@ vi.mock('firebase/firestore', () => ({
   doc: vi.fn(),
   setDoc: vi.fn(),
   addDoc: vi.fn(),
+  onSnapshot: vi.fn(
+    (_ref: unknown, next: (snap: { data: () => unknown }) => void) => {
+      next({ data: () => undefined });
+      return () => undefined;
+    }
+  ),
   serverTimestamp: vi.fn(),
   getDocs: vi.fn(() =>
     Promise.resolve({

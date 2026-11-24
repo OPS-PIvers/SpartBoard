@@ -60,7 +60,7 @@ describe('widgetSubFeatures', () => {
     );
   });
 
-  it('never graduates a retire flag', () => {
+  it('moves a graduated retire flag to its widget too', () => {
     const retire = ALL_GLOBAL_FEATURES.find(
       (id) =>
         FEATURE_DEFAULTS[id].afterLaunch === 'retire' &&
@@ -68,7 +68,7 @@ describe('widgetSubFeatures', () => {
     );
     if (!retire) return;
     const widget = FEATURE_DEFAULTS[retire].widget ?? '';
-    expect(widgetSubFeatures(widget, new Set([retire]))).not.toContain(retire);
+    expect(widgetSubFeatures(widget, new Set([retire]))).toContain(retire);
   });
 });
 

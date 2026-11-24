@@ -15,21 +15,17 @@ export const ACCESS_TAB_LABELS: Record<AccessTabId, string> = {
   previews: 'Previews',
 };
 
-/** Graduated `keep` previews, read from their saved access docs. */
+/** Graduated previews, read from their saved access docs. */
 export type GraduatedSet = ReadonlySet<GlobalFeature>;
 
 const NONE: GraduatedSet = new Set();
 
-/** Permanent in code, or a `keep` preview an admin graduated from the Previews tab. */
+/** Permanent in code, or a preview an admin graduated from the Previews tab. */
 export const isPermanentFeature = (
   id: GlobalFeature,
   graduated: GraduatedSet = NONE
 ): boolean => {
-  const def = FEATURE_DEFAULTS[id];
-  return (
-    def.stage === 'permanent' ||
-    (def.afterLaunch === 'keep' && graduated.has(id))
-  );
+  return FEATURE_DEFAULTS[id].stage === 'permanent' || graduated.has(id);
 };
 
 export const featuresTabFeatures = (

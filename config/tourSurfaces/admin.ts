@@ -55,6 +55,7 @@ export const SURFACES: TourSurfaceMap = {
       'components/admin/access/AccessFeatureRow.tsx',
       'components/admin/access/AdminSearchField.tsx',
       'components/admin/access/WidgetFeatureSwitches.tsx',
+      'components/admin/access/DistrictSwitch.tsx',
       'components/admin/BetaUsersPanel.tsx',
       'components/admin/MinTierSelect.tsx',
     ],
