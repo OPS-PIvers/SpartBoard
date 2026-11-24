@@ -210,6 +210,27 @@ describe('normalizeValue and stripPii', () => {
     ).toEqual({ rosterMode: 'custom', title: 'x' });
     expect(stripPii('x', { firstNames: 'Ann' })).toEqual({ firstNames: 'Ann' });
   });
+
+  it('drops name-keyed and quiz-built keys by widget type', () => {
+    expect(
+      stripPii(
+        'config',
+        {
+          savedPlans: [{ id: 'p', assignments: { Ann: 'f' } }],
+          assignments: { Ann: 1 },
+          t: 1,
+        },
+        'seating-chart'
+      )
+    ).toEqual({ t: 1 });
+    expect(
+      stripPii(
+        'config',
+        { teams: [{ id: 'pin-01', name: 'Ann' }], history: [], t: 1 },
+        'scoreboard'
+      )
+    ).toEqual({ t: 1 });
+  });
 });
 
 describe('revertViewAsChangeV1', () => {

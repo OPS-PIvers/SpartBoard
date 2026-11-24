@@ -5,6 +5,7 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
 import { isStrictSuperAdmin } from './authz';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { piiKeys } from './widgetPii';
 
 type Firestore = admin.firestore.Firestore;
 type FieldMap = Record<string, unknown>;
@@ -12,25 +13,6 @@ type FieldMap = Record<string, unknown>;
 export const REVERTABLE_ACTIONS: readonly string[] = [
   'view_as_save',
   'view_as_approve',
-];
-
-// Mirrors utils/dashboardPII.ts PII_WIDGET_FIELDS: these never reach Firestore.
-export const PII_WIDGET_FIELDS: readonly string[] = [
-  'firstNames',
-  'lastNames',
-  'completedNames',
-  'remainingStudents',
-  'lastResult',
-  'lockedNames',
-  'unassignedNames',
-  'doneNames',
-  'jigsawHomeGroups',
-  'jigsawExpertGroups',
-  'recentGroupings',
-  'names',
-  'roster',
-  'customRoster',
-  'lastSubmittedDetails',
 ];
 
 const PROTECTED_WIDGET_KEYS = new Set(['id', 'type']);
@@ -116,15 +98,14 @@ function sameValue(a: unknown, b: unknown): boolean {
   );
 }
 
-/** Drops PII from a widget `config`; custom-mode `assignments` are keyed by student names. */
-export function stripPii(key: string, value: unknown): unknown {
+/** Drops the config keys utils/dashboardPII.ts widgetPiiKeys marks as student names for this widget type. */
+export function stripPii(key: string, value: unknown, type = ''): unknown {
   const config = key === 'config' ? asFieldMap(value) : null;
   if (!config) return value;
+  const drop = new Set(piiKeys(type, config));
   const out: FieldMap = {};
   for (const [k, v] of Object.entries(config)) {
-    if (PII_WIDGET_FIELDS.includes(k)) continue;
-    if (k === 'assignments' && config.rosterMode === 'custom') continue;
-    out[k] = v;
+    if (!drop.has(k)) out[k] = v;
   }
   return out;
 }
@@ -133,7 +114,8 @@ export function stripPii(key: string, value: unknown): unknown {
 export function compareToLogged(
   keys: string[],
   current: FieldMap,
-  after: FieldMap
+  after: FieldMap,
+  type = ''
 ): { matches: boolean; currentNormalized: FieldMap } {
   let matches = true;
   const currentNormalized: FieldMap = {};
@@ -143,7 +125,10 @@ export function compareToLogged(
     if (has !== key in after) matches = false;
     else if (
       has &&
-      !sameValue(stripPii(key, current[key]), stripPii(key, after[key]))
+      !sameValue(
+        stripPii(key, current[key], type),
+        stripPii(key, after[key], type)
+      )
     )
       matches = false;
   }
@@ -256,12 +241,14 @@ export async function revertViewAsChange(
     let current: FieldMap;
     let widgets: FieldMap[] = [];
     let widgetIndex = -1;
+    let widgetType = '';
     if (target.widgetId) {
       const raw: unknown = snap.get('widgets');
       widgets = Array.isArray(raw) ? (raw as FieldMap[]) : [];
       widgetIndex = widgets.findIndex((w) => w?.id === target.widgetId);
       if (widgetIndex < 0) return { status: 'missing' } as const;
       const widget = widgets[widgetIndex];
+      widgetType = typeof widget.type === 'string' ? widget.type : '';
       current = {};
       for (const key of keys) {
         if (widget[key] !== undefined) current[key] = widget[key];
@@ -273,7 +260,8 @@ export async function revertViewAsChange(
     const { matches, currentNormalized } = compareToLogged(
       keys,
       current,
-      after
+      after,
+      widgetType
     );
     if (!matches) {
       const seenMatches =
@@ -288,7 +276,7 @@ export async function revertViewAsChange(
 
     const restored: FieldMap = {};
     for (const key of keys) {
-      if (key in before) restored[key] = stripPii(key, before[key]);
+      if (key in before) restored[key] = stripPii(key, before[key], widgetType);
     }
     if (target.widgetId) {
       const widget: FieldMap = { ...widgets[widgetIndex] };
