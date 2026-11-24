@@ -1,0 +1,1 @@
+claude/project-thread-nwzofw (dock defaults no longer hide widgets from the library)
