@@ -181,14 +181,10 @@ export async function isWidgetGranted(
   } else if (data.accessLevel !== 'public') {
     return false;
   }
-  if (
-    !(await permissionAudienceAllows(
-      db,
-      { minTier: data.minTier },
-      email,
-      teacherUid
-    ))
-  )
-    return false;
-  return true;
+  return permissionAudienceAllows(
+    db,
+    { minTier: data.minTier },
+    email,
+    teacherUid
+  );
 }
