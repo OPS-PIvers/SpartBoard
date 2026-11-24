@@ -13,6 +13,8 @@ import {
   registerWebTourTools,
   restoreWebTourRevision,
   isWebTourPicturePath,
+  writtenLocator,
+  writtenUrlPattern,
 } from './webTourTools';
 import { webTourTextHits } from './webTourStudentData';
 import { fixKey, runFixClues } from './webTourFixes';
@@ -669,7 +671,7 @@ describe('web tour connector tools', () => {
     ]);
     expect(
       await call('get_web_tour_step_picture', { set_id: 't1', step_id: 'b' })
-    ).toMatchObject({ error: matching(/no recorded picture/) });
+    ).toMatchObject({ error: matching(/has no picture/) });
     expect(
       await call('get_web_tour_step_picture', { set_id: 't1', step_id: 'c' })
     ).toMatchObject({ error: matching(/outside/) });
@@ -730,7 +732,7 @@ describe('web tour connector tools', () => {
     );
     expect(
       await call('get_web_tour_step_picture', { set_id: 't1', step_id: 'z' })
-    ).toMatchObject({ error: matching(/no recorded picture/) });
+    ).toMatchObject({ error: matching(/has no picture/) });
     const listed = JSON.stringify(await call('get_web_tour', { set_id: 't1' }));
     expect(listed).not.toContain('full.jpg');
     expect(listed).not.toContain('markup');
@@ -865,18 +867,247 @@ describe('web tour connector tools', () => {
     );
   });
 
-  it("can't create a recorded step or retarget one", async () => {
+  it('takes no clues on a kept or Message step, and no picture, box or frames on a written one', async () => {
     const call = await connect(seed().db);
+    const written = {
+      new_step: true,
+      url_pattern: 'https://lms.example.com/grades',
+      action: 'click',
+      locator: { text: 'Grades' },
+    };
     for (const step of [
       { id: 'a', web: { urlPattern: 'https://x.example.com/' } },
+      { id: 'a', locator: { text: 'Grades' } },
       { new_message: true, tip: 'Hi', web: { urlPattern: 'https://x/' } },
       { new_message: true, tip: 'Hi', id: 'z' },
       { title: 'No id' },
+      { ...written, picture: { path: 'web_tour_pictures/t1/p1.jpg' } },
+      { ...written, id: 'a' },
+      {
+        ...written,
+        locator: { text: 'Grades', box: { x: 0, y: 0, w: 1, h: 1 } },
+      },
+      { ...written, locator: { text: 'Grades', frames: [] } },
+      { ...written, locator: { text: 'Grades', pageTitle: 'Grades' } },
+      { ...written, action: 'drag' },
     ])
       expect(
         await call('update_web_tour_steps', { set_id: 't1', steps: [step] })
       ).toMatchObject({ error: expect.any(String) as unknown });
     expect(env.docs.get('building_web_tours/t1')).toEqual(tour());
+  });
+
+  it('adds a step written from clues, stored like a recorded one with no picture', async () => {
+    const call = await connect(seed().db);
+    const out = await call('update_web_tour_steps', {
+      set_id: 't1',
+      steps: [
+        { id: 'a' },
+        {
+          new_step: true,
+          url_pattern: 'HTTPS://LMS.Example.com/course/*/grades',
+          action: 'click',
+          locator: {
+            role: ' Button ',
+            name: '  Export   grades ',
+            heading: 'Gradebook',
+            css: '[data-tour="grades.export"]',
+            attrs: { testId: 'export', href: '' },
+          },
+          tip: 'Click **Export grades**.',
+        },
+        { id: 'b' },
+      ],
+    });
+    const saved = env.docs.get('building_web_tours/t1') as Data & {
+      steps: Data[];
+    };
+    const [a, written, b] = saved.steps;
+    expect(a).toEqual(STEP_A);
+    expect(b).toEqual(STEP_B);
+    expect(written).toEqual({
+      id: expect.any(String) as unknown,
+      xPct: 50,
+      yPct: 50,
+      imageIndex: 0,
+      interactionType: 'tooltip',
+      label: 'Click Export grades',
+      text: 'Click **Export grades**.',
+      web: {
+        urlPattern: 'https://lms.example.com/course/*/grades',
+        action: 'click',
+        locator: {
+          role: 'button',
+          name: 'Export grades',
+          heading: 'Gradebook',
+          css: '[data-tour="grades.export"]',
+          attrs: { testId: 'export' },
+        },
+      },
+    });
+    expect(out).toMatchObject({
+      added_steps: [written.id],
+      removed_steps: [],
+      note: matching(/Check tour/),
+      steps: [
+        containing({ id: 'a' }),
+        containing({
+          id: written.id,
+          number: 2,
+          kind: 'recorded',
+          action: 'click',
+          url_pattern: 'https://lms.example.com/course/*/grades',
+          has_picture: false,
+          locator: {
+            role: 'button',
+            name: 'Export grades',
+            heading: 'Gradebook',
+            attrs: { testId: 'export' },
+          },
+        }),
+        containing({ id: 'b' }),
+      ],
+    });
+    const rev = env.docs.get(
+      `users/u1/claude_revisions/${String(out.previous_version_revision_id)}`
+    ) as Data;
+    expect(rev.data).toMatchObject({ kind: 'steps', steps: [STEP_A, STEP_B] });
+  });
+
+  it('builds a written step without a title from its name or text, and lets it stand alone', () => {
+    const out = applyWebStepList(
+      [],
+      [
+        {
+          new_step: true,
+          url_pattern: 'https://docs.google.com/forms/d/*/edit',
+          action: 'observe',
+          locator: { text: 'Responses' },
+        },
+      ],
+      () => 'w1'
+    );
+    expect(out.steps[0]).toMatchObject({
+      id: 'w1',
+      label: 'Look at Responses',
+      text: '',
+    });
+    expect(out.added).toEqual(['w1']);
+    expect(out.warnings).toEqual([]);
+  });
+
+  it('accepts only an https page with ids as * and a real host', () => {
+    expect(
+      writtenUrlPattern('Step 1', ' https://Docs.Google.com/forms/d/*/edit ')
+    ).toBe('https://docs.google.com/forms/d/*/edit');
+    expect(
+      writtenUrlPattern(
+        'Step 1',
+        'https://app.schoology.com/course/*/materials?f=*#/x'
+      )
+    ).toBe('https://app.schoology.com/course/*/materials?f=*#/x');
+    for (const bad of [
+      'http://lms.example.com/',
+      'https://*.example.com/',
+      'https://localhost/',
+      'lms.example.com/grades',
+      'javascript:alert(1)',
+      'https://lms.example.com/a b',
+    ])
+      expect(() => writtenUrlPattern('Step 1', bad)).toThrow(
+        'url_pattern must'
+      );
+    for (const bad of [
+      'https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
+      'https://lms.example.com/course/2024/x',
+      'https://lms.example.com/a#/s/2024',
+    ])
+      expect(() => writtenUrlPattern('Step 1', bad)).toThrow('Put * there');
+    expect(() =>
+      writtenUrlPattern('Step 1', 'https://lms.example.com/a?tab=grades')
+    ).toThrow('query values must be *');
+    expect(() =>
+      writtenUrlPattern('Step 1', 'https://lms.example.com:443/a')
+    ).toThrow(':443');
+    expect(
+      writtenUrlPattern('Step 1', 'https://lms.example.com:8443/a/*')
+    ).toBe('https://lms.example.com:8443/a/*');
+    expect(() =>
+      writtenUrlPattern(
+        'Step 2',
+        'https://lms.example.com/course/12345678/grades'
+      )
+    ).toThrow(/Step 2 url_pattern holds what looks like an id/);
+    expect(() =>
+      writtenUrlPattern(
+        'Step 1',
+        'https://lms.example.com/s/123e4567-e89b-12d3-a456-426614174000'
+      )
+    ).toThrow('Put * in place of each id');
+  });
+
+  it('refuses a written locator nothing identifies, a bad role, css or href, and student data', () => {
+    const warnings: string[] = [];
+    const at = 'Step 3';
+    expect(() => writtenLocator(at, { role: 'button' }, warnings)).toThrow(
+      'Step 3 locator needs a clue that names the control'
+    );
+    expect(() =>
+      writtenLocator(at, { heading: 'Grades', name: '   ' }, warnings)
+    ).toThrow('needs a clue');
+    expect(() =>
+      writtenLocator(at, { role: 'button link', name: 'Go' }, warnings)
+    ).toThrow('one ARIA role word');
+    for (const css of ['a { color: red }', 'a; b', '<a>', 'a\nb'])
+      expect(() => writtenLocator(at, { css }, warnings)).toThrow(
+        'one CSS selector'
+      );
+    for (const href of ['grades', '/grades?id=*', 'javascript:x', '/a#b'])
+      expect(() => writtenLocator(at, { attrs: { href } }, warnings)).toThrow(
+        'link path'
+      );
+    expect(() =>
+      writtenLocator(at, { attrs: { href: '/student/1234567' } }, warnings)
+    ).toThrow('looks like an id');
+    expect(() => writtenLocator(at, { name: 'Go' }, warnings)).toThrow(
+      'role together with name'
+    );
+    expect(
+      writtenLocator(at, { role: 'button', name: 'Go' }, warnings)
+    ).toEqual({
+      role: 'button',
+      name: 'Go',
+    });
+    for (const attrs of [
+      { testId: 'row-123456' },
+      { name: 'field_ab12cd34' },
+      { testId: 'css-1x2y3z' },
+      { testId: 'x'.repeat(81) },
+    ])
+      expect(() => writtenLocator(at, { attrs }, warnings)).toThrow(
+        'can never match'
+      );
+    expect(
+      writtenLocator(at, { attrs: { testId: 'save-btn' } }, warnings).attrs
+    ).toEqual({ testId: 'save-btn' });
+    for (const href of [
+      '//evil.com/x',
+      '/course/2024/x',
+      'https://a.com/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
+    ])
+      expect(() => writtenLocator(at, { attrs: { href } }, warnings)).toThrow(
+        /link path|Put \* there/
+      );
+    expect(() =>
+      writtenLocator(at, { name: 'Message kid@school.org' }, warnings)
+    ).toThrow(/Step 3 locator.name looks like it holds student data/);
+    expect(warnings).toEqual([]);
+    writtenLocator(at, { text: 'Open Smith, Jane' }, warnings);
+    expect(warnings).toEqual([
+      expect.stringMatching(
+        /Step 3 locator.text has something that looks like/
+      ),
+    ]);
   });
 
   it('refuses unknown or repeated ids, an empty list, a blank message and student data', () => {

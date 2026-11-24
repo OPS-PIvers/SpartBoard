@@ -5,6 +5,6 @@ Claude, through the SpartBoard connector, can add, move and remove any step in a
 ## Consequences
 
 - Every structural edit keeps a revision of the whole step list, targets and picture references included, and a restore brings a removed recorded step back exactly. The editor's picture sweep and the publish cleanup keep every picture a stored revision references, so the revision always has its picture.
-- Claude still can't create a recorded step or change where one points: it has no clues or picture to give it. Retargeting stays the admin's **Use this fix**.
+- Claude still can't create a recorded step or change where one points: it has no clues or picture to give it. Retargeting stays the admin's **Use this fix**. Amendment (PR #6687): Claude can now add a written step from clues it writes, with no picture, which the admin checks with Check tour.
 - Edits land on the draft; publishing stays the admin's.
 - Claude adds intros, outros and switch messages only when asked.
