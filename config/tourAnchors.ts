@@ -10770,6 +10770,16 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.previews.wrap-up': {
+    label: 'Finish menu button on a Previews row (opens Graduate and Retire)',
+    perField: true,
+    panel: true,
+  },
+  'admin.previews.retire': {
+    label: 'Retire button on a Previews row (opens a GitHub issue)',
+    perField: true,
+    panel: true,
+  },
   'admin.analytics.active-students-search': {
     label: 'Search field in the active students list',
     panel: true,

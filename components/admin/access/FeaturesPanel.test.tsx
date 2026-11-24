@@ -42,16 +42,25 @@ const existingPermission = {
   config: {},
 };
 
+let extraPermissions: Record<string, unknown>[] = [];
+
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   doc: vi.fn(),
   setDoc: vi.fn(),
   addDoc: vi.fn(),
+  onSnapshot: vi.fn(
+    (_ref: unknown, next: (snap: { data: () => unknown }) => void) => {
+      next({ data: () => undefined });
+      return () => undefined;
+    }
+  ),
   serverTimestamp: vi.fn(),
   getDocs: vi.fn(() =>
     Promise.resolve({
       forEach: (cb: (doc: { data: () => unknown }) => void) => {
         cb({ data: () => existingPermission });
+        extraPermissions.forEach((p) => cb({ data: () => p }));
       },
     })
   ),
@@ -82,6 +91,28 @@ vi.mock('@/context/useDashboard', () => ({
 describe('FeaturesPanel', () => {
   afterEach(() => {
     cleanup();
+    extraPermissions = [];
+  });
+
+  it('lists a graduated preview under Other with a Retire link', async () => {
+    extraPermissions = [
+      {
+        featureId: 'plc-docs-toolbar',
+        accessLevel: 'public',
+        betaUsers: [],
+        enabled: true,
+        buildings: ['schumann'],
+        graduated: true,
+      },
+    ];
+    render(<FeaturesPanel />);
+    fireEvent.click(await screen.findByTestId('wrap-up-plc-docs-toolbar'));
+    const link = screen.getByTestId('retire-plc-docs-toolbar');
+    expect(screen.getByText('Other')).toBeInTheDocument();
+    const body =
+      new URL(link.getAttribute('href') ?? '').searchParams.get('body') ?? '';
+    expect(body).toContain('Schumann Elementary');
+    expect(screen.queryByTestId('wrap-up-live-session')).toBeNull();
   });
 
   // A pre-existing legacy mixed-case entry must not produce a duplicate on re-add.

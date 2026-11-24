@@ -1,11 +1,8 @@
 import React, { useMemo } from 'react';
-import { tourFieldAttr } from '@/config/tourAnchors';
-import { Archive, FlaskConical, GraduationCap, Loader2 } from 'lucide-react';
 import type { GlobalFeature, GlobalFeaturePermission } from '@/types';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
-import { rolloutSwitchKey, type RolloutSwitch } from '@/config/rolloutSwitches';
+import { rolloutSwitchKey } from '@/config/rolloutSwitches';
 import { TOOLS } from '@/config/tools';
-import { Toggle } from '@/components/common/Toggle';
 import { AccessFeatureRow } from './AccessFeatureRow';
 import { FocusHoursRow } from './FocusHoursRow';
 import { ImportOffersSection } from './ImportOffersSection';
@@ -25,46 +22,10 @@ import {
 import { useAccessSearch } from './accessSearchContext';
 import { useGlobalPermissionsEditor } from './useGlobalPermissionsEditor';
 import { useRolloutSwitch } from './useRolloutSwitch';
-import { isReadyToGraduate, previewStatus } from './previewStatus';
-import { retireIssueUrl } from './retireIssue';
-import { useAuth } from '@/context/useAuth';
-import { isSuperAdminActor } from '@/utils/superAdmin';
-
-// True when the rules refuse this switch's write for the signed-in admin.
-const useSuperAdminLock = (sw: RolloutSwitch): boolean => {
-  const { user, roleId, orgId } = useAuth();
-  return !!sw.superAdminOnly && !isSuperAdminActor(user?.email, roleId, orgId);
-};
-
-const DistrictSwitch: React.FC<{
-  sw: RolloutSwitch;
-  state: ReturnType<typeof useRolloutSwitch>;
-}> = ({ sw, state }) => {
-  const locked = useSuperAdminLock(sw);
-  return (
-    <span className="flex items-center gap-1.5">
-      <span className="text-xxs font-bold text-slate-400 uppercase">
-        District
-      </span>
-      {state.enabled === null ? (
-        <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-      ) : (
-        <Toggle
-          checked={state.enabled}
-          disabled={state.saving || locked}
-          onChange={(next) => void state.change(next)}
-          size="sm"
-          label={`${sw.title} district switch`}
-          anchor={tourFieldAttr(
-            'admin.previews.district-switch',
-            'admin',
-            rolloutSwitchKey(sw)
-          )}
-        />
-      )}
-    </span>
-  );
-};
+import { previewStatus } from './previewStatus';
+import { retireIssueUrl, retireSwitchIssueUrl } from './retireIssue';
+import { DistrictSwitch, WrapUpMenu, RolloutOnlyRow } from './DistrictSwitch';
+import { useGraduatedSwitches } from './useGraduatedSwitches';
 
 export const PreviewRow: React.FC<{
   featureId: GlobalFeature;
@@ -77,15 +38,13 @@ export const PreviewRow: React.FC<{
   const district = useRolloutSwitch(sw);
   const districtOn = sw ? district.enabled : undefined;
   const permission = editor.getPermission(featureId);
-  const saved = editor.isSaved(featureId);
-  const ready = isReadyToGraduate(permission, saved, districtOn);
+  const savedPermission = editor.getSavedPermission(featureId);
   const def = FEATURE_DEFAULTS[featureId];
-  const retire = def.afterLaunch === 'retire';
+  const unsaved = editor.unsavedChanges.has(featureId);
   // A group parent graduates only once its add-ons have left Previews.
   const hasPreviewOptions =
     previewGroupChildren(featureId, previewFeatures(editor.graduated)).length >
     0;
-  const graduating = editor.saving.has(featureId);
   const graduate = () => {
     const home = def.widget
       ? `${TOOLS.find((t) => t.type === def.widget)?.label ?? def.widget} settings`
@@ -100,9 +59,9 @@ export const PreviewRow: React.FC<{
     <AccessFeatureRow
       featureId={featureId}
       permission={permission}
-      isSaved={saved}
+      isSaved={editor.isSaved(featureId)}
       isSaving={editor.saving.has(featureId)}
-      hasUnsaved={editor.unsavedChanges.has(featureId)}
+      hasUnsaved={unsaved}
       onUpdate={(updates) => editor.updatePermission(featureId, updates)}
       onSave={() => void editor.savePermission(featureId)}
       showMessage={editor.showMessage}
@@ -111,35 +70,21 @@ export const PreviewRow: React.FC<{
       lead={
         <>
           {sw && <DistrictSwitch sw={sw} state={district} />}
-          {ready && !retire && !hasPreviewOptions && (
-            <button
-              type="button"
-              onClick={graduate}
-              disabled={graduating || editor.unsavedChanges.has(featureId)}
-              data-testid={`graduate-${featureId}`}
-              {...tourFieldAttr('admin.previews.graduate', 'admin', featureId)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-green-300 bg-green-50 text-green-800 text-xs font-bold hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {graduating ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-              ) : (
-                <GraduationCap className="w-3.5 h-3.5" aria-hidden />
-              )}
-              Graduate
-            </button>
-          )}
-          {ready && retire && (
-            <a
-              href={retireIssueUrl(featureId)}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Opens a GitHub issue asking Claude to remove the old version"
-              data-testid={`retire-${featureId}`}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-green-300 bg-green-50 text-green-800 text-xs font-bold hover:bg-green-100"
-            >
-              <Archive className="w-3.5 h-3.5" aria-hidden />
-              Retire
-            </a>
+          {!hasPreviewOptions && (
+            <WrapUpMenu
+              anchorKey={featureId}
+              graduate={{
+                busy: editor.saving.has(featureId),
+                disabled: unsaved,
+                onClick: graduate,
+              }}
+              retire={{
+                href: retireIssueUrl(featureId, savedPermission, districtOn),
+                disabled:
+                  unsaved ||
+                  (!!sw && (district.enabled === null || district.failed)),
+              }}
+            />
           )}
         </>
       }
@@ -159,39 +104,10 @@ export const PreviewRow: React.FC<{
 const needsFullRow = (p: GlobalFeaturePermission): boolean =>
   !p.enabled || (p.buildings?.length ?? 0) > 0 || !!p.minTier;
 
-const RolloutOnlyRow: React.FC<{ sw: RolloutSwitch }> = ({ sw }) => {
-  const state = useRolloutSwitch(sw);
-  const locked = useSuperAdminLock(sw);
-  return (
-    <div
-      data-testid={`rollout-row-${rolloutSwitchKey(sw)}`}
-      className="bg-white flex items-center gap-3 p-3"
-    >
-      <span className="bg-brand-blue-lighter p-2 rounded-lg text-brand-blue-primary shrink-0">
-        <FlaskConical className="w-4 h-4" aria-hidden />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block font-bold text-slate-800 text-sm">
-          {sw.title}
-        </span>
-        <span className="block text-xs sm:text-xxs text-slate-500 sm:truncate">
-          {state.enabled === null
-            ? sw.description
-            : state.enabled
-              ? 'Live for: everyone'
-              : 'Off everywhere'}
-          {state.error ? ` · ${state.error}` : ''}
-          {locked ? ' · Super admins only' : ''}
-        </span>
-      </span>
-      <DistrictSwitch sw={sw} state={state} />
-    </div>
-  );
-};
-
 /** Everything still being tested: access flags and district switches together (D1, D12). */
 export const PreviewsPanel: React.FC = () => {
   const editor = useGlobalPermissionsEditor();
+  const switches = useGraduatedSwitches();
   const { query } = useAccessSearch();
 
   const { features, groups } = useMemo(() => {
@@ -223,13 +139,15 @@ export const PreviewsPanel: React.FC = () => {
       .sort(byLabel);
     return { features, groups };
   }, [query, editor.graduated]);
-  const rolloutOnly = ROLLOUT_ONLY_SWITCHES.filter((sw) =>
-    matchesSearch(query, rolloutSearchFields(sw))
+  const rolloutOnly = ROLLOUT_ONLY_SWITCHES.filter(
+    (sw) =>
+      !switches.keys.has(rolloutSwitchKey(sw)) &&
+      matchesSearch(query, rolloutSearchFields(sw))
   );
   const focusHours = matchesSearch(query, FOCUS_HOURS_SEARCH_FIELDS);
   const district = rolloutOnly.length > 0 || focusHours;
 
-  if (editor.loading) {
+  if (editor.loading || switches.loading) {
     return (
       <div className="flex items-center justify-center py-12 text-slate-600">
         Loading previews...
@@ -245,6 +163,7 @@ export const PreviewsPanel: React.FC = () => {
           tab="previews"
           fallback="Nothing in preview."
           graduated={editor.graduated}
+          graduatedSwitches={switches.keys}
         />
       ) : (
         <>
@@ -298,6 +217,11 @@ export const PreviewsPanel: React.FC = () => {
               })}
             </div>
           )}
+          {switches.error && (
+            <p role="alert" className="text-xs text-brand-red-primary">
+              {switches.error}
+            </p>
+          )}
           {district && (
             <h3 className="pt-3 text-xs font-bold uppercase tracking-widest text-slate-500">
               District switches
@@ -306,7 +230,21 @@ export const PreviewsPanel: React.FC = () => {
           {district && (
             <div className="divide-y divide-slate-200 border-y border-slate-200">
               {rolloutOnly.map((sw) => (
-                <RolloutOnlyRow key={rolloutSwitchKey(sw)} sw={sw} />
+                <RolloutOnlyRow
+                  key={rolloutSwitchKey(sw)}
+                  sw={sw}
+                  actions={(enabled) => (
+                    <WrapUpMenu
+                      anchorKey={rolloutSwitchKey(sw)}
+                      graduate={{
+                        busy: switches.saving === rolloutSwitchKey(sw),
+                        onClick: () =>
+                          void switches.graduate(rolloutSwitchKey(sw)),
+                      }}
+                      retire={{ href: retireSwitchIssueUrl(sw, enabled) }}
+                    />
+                  )}
+                />
               ))}
               {focusHours && <FocusHoursRow />}
             </div>

@@ -20,6 +20,7 @@ const snapshotData: Record<string, Record<string, unknown> | undefined> = {
   sub_launch_as_teacher: undefined,
   view_as: undefined,
   focus_sessions: undefined,
+  graduated_switches: undefined,
 };
 
 vi.mock('@/hooks/useImportConversionSettings', async () => {
@@ -44,6 +45,7 @@ vi.mock('firebase/firestore', () => ({
   },
   setDoc: (ref: { path: string }, data: unknown, opts?: unknown) =>
     setDocMock(ref, data, opts),
+  arrayUnion: (...items: unknown[]) => ({ arrayUnion: items }),
   collection: vi.fn(),
   addDoc: vi.fn(),
   serverTimestamp: vi.fn(),
@@ -91,6 +93,9 @@ const expandRow = (id: string, label: string) => {
     })[0]
   );
 };
+
+const openMenu = (key: string) =>
+  fireEvent.click(screen.getByTestId(`wrap-up-${key}`));
 
 const district = (title: string) =>
   screen.getByRole('switch', { name: `${title} district switch` });
@@ -199,6 +204,7 @@ describe('PreviewsPanel', () => {
       },
     ];
     await renderPanel();
+    openMenu('plc-docs-toolbar');
     const link = screen.getByTestId('retire-plc-docs-toolbar');
     const url = new URL(link.getAttribute('href') ?? '');
     expect(url.pathname).toBe('/OPS-PIvers/SpartBoard/issues/new');
@@ -209,7 +215,7 @@ describe('PreviewsPanel', () => {
     expect(url.searchParams.get('body')).toContain(
       "canAccessFeature('plc-docs-toolbar')"
     );
-    expect(screen.queryByTestId('graduate-plc-docs-toolbar')).toBeNull();
+    expect(screen.getByTestId('graduate-plc-docs-toolbar')).toBeEnabled();
   });
 
   it('graduates a public keep flag in place and moves it off the tab', async () => {
@@ -223,6 +229,7 @@ describe('PreviewsPanel', () => {
       },
     ];
     await renderPanel();
+    openMenu('quiz-time-limit');
     fireEvent.click(screen.getByTestId('graduate-quiz-time-limit'));
     await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
     expect(setDocMock.mock.calls[0][0].path).toBe(
@@ -237,21 +244,72 @@ describe('PreviewsPanel', () => {
     );
   });
 
-  it('offers no Graduate button until a keep flag is public', async () => {
+  it('offers Graduate and Retire on a flag limited to some buildings', async () => {
     savedPermissions = [
       {
         featureId: 'quiz-time-limit',
         enabled: true,
-        accessLevel: 'admin',
+        accessLevel: 'public',
+        betaUsers: [],
+        buildings: ['schumann'],
+      },
+    ];
+    await renderPanel();
+    openMenu('quiz-time-limit');
+    expect(screen.getByTestId('graduate-quiz-time-limit')).toBeEnabled();
+    const url = new URL(
+      screen.getByTestId('retire-quiz-time-limit').getAttribute('href') ?? ''
+    );
+    const body = url.searchParams.get('body') ?? '';
+    expect(body).toContain('keeps that reach in code');
+    expect(body).toContain('Schumann Elementary (`schumann`)');
+  });
+
+  it('asks Claude to remove an off flag entirely', async () => {
+    savedPermissions = [
+      {
+        featureId: 'plc-docs-toolbar',
+        enabled: false,
+        accessLevel: 'public',
         betaUsers: [],
         buildings: [],
       },
     ];
     await renderPanel();
-    expect(
-      screen.getByTestId('access-row-quiz-time-limit')
-    ).toBeInTheDocument();
-    expect(screen.queryByTestId('graduate-quiz-time-limit')).toBeNull();
+    openMenu('plc-docs-toolbar');
+    const url = new URL(
+      screen.getByTestId('retire-plc-docs-toolbar').getAttribute('href') ?? ''
+    );
+    expect(url.searchParams.get('body')).toContain('is off everywhere');
+  });
+
+  it('graduates a district switch to Features and retires one by issue', async () => {
+    await renderPanel();
+    openMenu('projects_widget');
+    const retire = screen.getByTestId('retire-projects_widget');
+    const url = new URL(retire.getAttribute('href') ?? '');
+    expect(url.searchParams.get('title')).toBe(
+      'Retire district switch: Projects widget'
+    );
+    expect(url.searchParams.get('body')).toContain('is off and staying');
+    fireEvent.click(screen.getByTestId('graduate-projects_widget'));
+    await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
+    expect(setDocMock.mock.calls[0][0].path).toBe(
+      'admin_settings/graduated_switches'
+    );
+    expect(setDocMock.mock.calls[0][1]).toEqual({
+      keys: { arrayUnion: ['projects_widget'] },
+    });
+  });
+
+  it('keeps a graduated district switch off the Previews tab', async () => {
+    snapshotData.graduated_switches = { keys: ['plc_note_collab'] };
+    try {
+      await renderPanel();
+      expect(screen.queryByTestId('rollout-row-plc_note_collab')).toBeNull();
+    } finally {
+      snapshotData.graduated_switches = undefined;
+    }
   });
 
   it('holds Import anything on Previews while its options are in preview', async () => {
@@ -268,6 +326,7 @@ describe('PreviewsPanel', () => {
     expect(
       await screen.findByTestId('access-row-universal-import')
     ).toBeInTheDocument();
+    expect(screen.queryByTestId('wrap-up-universal-import')).toBeNull();
     expect(screen.queryByTestId('graduate-universal-import')).toBeNull();
     expect(screen.queryByTestId('retire-universal-import')).toBeNull();
   });

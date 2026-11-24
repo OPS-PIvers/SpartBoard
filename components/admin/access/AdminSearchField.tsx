@@ -52,9 +52,10 @@ export const AccessSearchEmpty: React.FC<{
   tab: AccessTabId;
   fallback: string;
   graduated?: GraduatedSet;
-}> = ({ tab, fallback, graduated }) => {
+  graduatedSwitches?: ReadonlySet<string>;
+}> = ({ tab, fallback, graduated, graduatedSwitches }) => {
   const { query, goToTab } = useAccessSearch();
-  const counts = countAccessMatches(query, graduated);
+  const counts = countAccessMatches(query, graduated, graduatedSwitches);
   const elsewhere = query.trim()
     ? (Object.keys(counts) as AccessTabId[]).filter(
         (t) => t !== tab && counts[t] > 0
