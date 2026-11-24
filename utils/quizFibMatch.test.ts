@@ -240,3 +240,14 @@ describe('lenientLocalesFor', () => {
     expect(lenientLocalesFor(answers, 'es-MX')).toEqual(['so']);
   });
 });
+
+describe('fibLenientMatch Unicode minus', () => {
+  it.each([
+    ['−5', '-5'],
+    ['-5', '−5'],
+  ])('treats %s and %s as the same number, client and server', (g, k) => {
+    expect(fibLenientMatch(g, k, 'en')).toBe(true);
+    expect(server.fibLenientMatch(g, k, 'en')).toBe(true);
+    expect(server.fibRelaxedEqual(g, k, 'en')).toBe(true);
+  });
+});
