@@ -321,7 +321,8 @@ export function usePeriodAccess(
   /** "Set a time": one student's pass from `from` to `until`; null removes it. */
   const setStudentTime = useCallback(
     async (uid: string, time: { from: number; until: number } | null) => {
-      if (!refs || !periodAccess || commit) return;
+      if (!refs || !periodAccess || commit)
+        throw new Error('Cannot schedule here');
       await updateDoc(
         refs.session,
         new FieldPath('studentAccess', uid),

@@ -111,6 +111,8 @@ export const SetStudentTimeDialog: React.FC<SetStudentTimeDialogProps> = ({
     try {
       await onSave(time);
       onClose();
+    } catch {
+      // The caller shows the error; the dialog stays open.
     } finally {
       setBusy(false);
     }
