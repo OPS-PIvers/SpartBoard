@@ -4313,8 +4313,8 @@ service cloud.firestore {
 
     // D22 per-column grading setup.
     match /gradebook_columns/{sessionId} {
-      // A column not set up yet reads as missing instead of erroring the owner's listener.
-      allow read: if resource == null ? signedIn() : gbOwned();
+      // A column not set up yet reads as missing to staff only, so students can't probe session ids.
+      allow read: if resource == null ? liveStaffSignedIn() : gbOwned();
       allow delete: if liveStaffSignedIn() && gbOwned();
       allow create: if gbCreateOk(incoming()) && gbColumnOk(incoming()) &&
         incoming().sessionId == sessionId;

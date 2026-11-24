@@ -1,5 +1,8 @@
 import type * as admin from './firebaseAdmin';
-import { canonicalizeBuildingIdsServer } from './buildingIds';
+import {
+  canonicalBuildingIdServer,
+  canonicalizeBuildingIdsServer,
+} from './buildingIds';
 import { normalizeEmailDomain, resolveOrgIdForDomain } from './classlinkShared';
 import { missingDocAccess } from './featureMissingDoc';
 import { isExcludedFrom } from './permissionExclusion';
@@ -146,4 +149,60 @@ export async function permissionAudienceAllows(
     if (!selected.some((b) => allowed.has(b))) return false;
   }
   return true;
+}
+
+/** Server twin of the client's canAccessWidget; a missing doc follows the generated WIDGET_DEFAULT_ACCESS_LEVEL mirror. */
+export async function isWidgetGranted(
+  db: Firestore,
+  widgetType: string,
+  teacherEmail: string | null,
+  teacherUid: string
+): Promise<boolean> {
+  const email = (teacherEmail ?? '').toLowerCase();
+  const [snap, adminDoc] = await Promise.all([
+    db.collection('feature_permissions').doc(widgetType).get(),
+    email ? db.collection('admins').doc(email).get() : null,
+  ]);
+  const isAdmin = !!adminDoc?.exists;
+  if (!snap.exists) {
+    if (isAdmin) return true;
+    // Lazy: only a widget with no permission doc needs the generated defaults.
+    const { WIDGET_CONFIG_RUNTIME } =
+      await import('./mcp/widgetConfigRuntime.gen');
+    if (WIDGET_CONFIG_RUNTIME.accessLevels[widgetType] === 'admin')
+      return false;
+    const minTier = WIDGET_CONFIG_RUNTIME.minTiers[widgetType];
+    return permissionAudienceAllows(db, { minTier }, email, teacherUid);
+  }
+  const data = snap.data() ?? {};
+  if (data.enabled !== true) return false;
+  if (isExcludedFrom(data, email)) return false;
+  if (isAdmin) return true;
+  if (data.accessLevel === 'beta') {
+    const betaUsers = Array.isArray(data.betaUsers) ? data.betaUsers : [];
+    if (!(await isBetaTeacher(db, betaUsers, email))) return false;
+  } else if (data.accessLevel !== 'public') {
+    return false;
+  }
+  if (
+    !(await permissionAudienceAllows(
+      db,
+      { minTier: data.minTier },
+      email,
+      teacherUid
+    ))
+  )
+    return false;
+  const config: unknown = data.config;
+  const dockDefaults: unknown =
+    typeof config === 'object' && config !== null
+      ? (config as Record<string, unknown>).dockDefaults
+      : null;
+  if (typeof dockDefaults !== 'object' || dockDefaults === null) return true;
+  const selected = await loadTeacherBuildings(db, teacherUid);
+  if (selected.length === 0) return true;
+  const canonical = new Map<string, unknown>();
+  for (const [id, on] of Object.entries(dockDefaults))
+    canonical.set(canonicalBuildingIdServer(id), on);
+  return !selected.every((b) => canonical.get(b) === false);
 }
