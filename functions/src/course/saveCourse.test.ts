@@ -565,6 +565,31 @@ describe('saveCourseV1 merges, partial saves and deleted classes', () => {
     expect(paths('family_pages/')).toEqual([]);
   });
 
+  it('fails loudly when Courses keep appearing faster than it deletes them', async () => {
+    await save({ ...base, rosterIds: ['p2'] });
+    const real = db.collection.bind(db);
+    let saving = false;
+    vi.spyOn(db, 'collection').mockImplementation(((path: string) => {
+      const ref = real(path);
+      if (path !== `users/${UID}/courses` || saving) return ref;
+      return {
+        ...ref,
+        limit: (n: number) => ({
+          get: async () => {
+            const snap = await ref.limit(n).get();
+            saving = true;
+            await save({ ...base, rosterIds: ['p2'] });
+            saving = false;
+            return snap;
+          },
+        }),
+      };
+    }) as typeof db.collection);
+    await expect(deleteAllCourseCopies(db, UID)).rejects.toThrow(
+      /account delete stopped/
+    );
+  });
+
   it('asks ClassLink again on unlink, so a class no longer taught gets no copy', async () => {
     await save({ ...base, rosterIds: ['p2', 'p5'] });
     taught = new Set(['cl-p2']);

@@ -168,9 +168,8 @@ export interface AssignWritingCaller {
   email?: string;
 }
 
-// Missing doc follows WIDGET_DEFAULT_ACCESS_LEVEL.writing (admins first, plan D19).
 const writingWidgetGranted = (db: Firestore, caller: AssignWritingCaller) =>
-  isWidgetGranted(db, 'writing', caller.email ?? null, caller.uid, 'admin');
+  isWidgetGranted(db, 'writing', caller.email ?? null, caller.uid);
 
 /** Writes the session and the teacher's record in one batch; the client then calls setAssignmentTargetsV1. */
 export async function handleAssignWriting(

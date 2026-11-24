@@ -750,4 +750,5 @@ export async function deleteAllCourseCopies(
         tx.delete(d.ref);
       });
   }
+  throw new Error(`Courses kept appearing for ${uid}; account delete stopped.`);
 }

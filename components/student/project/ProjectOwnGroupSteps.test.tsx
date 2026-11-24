@@ -15,6 +15,7 @@ const group = (done: number): ProjectGroup => ({
   classId: 'c1',
   memberUids: [],
   order: 0,
+  updatedAt: 0,
   stepStates: Object.fromEntries(
     steps.slice(0, done).map((s) => [s.id, 'done'])
   ),

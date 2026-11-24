@@ -145,13 +145,12 @@ export async function permissionAudienceAllows(
   return true;
 }
 
-/** Server twin of the client's canAccessWidget for one `feature_permissions/{widgetType}` doc. */
+/** Server twin of the client's canAccessWidget; a missing doc follows the generated WIDGET_DEFAULT_ACCESS_LEVEL mirror. */
 export async function isWidgetGranted(
   db: Firestore,
   widgetType: string,
   teacherEmail: string | null,
-  teacherUid: string,
-  missingDocLevel: 'admin' | 'public'
+  teacherUid: string
 ): Promise<boolean> {
   const email = (teacherEmail ?? '').toLowerCase();
   const [snap, adminDoc] = await Promise.all([
@@ -159,7 +158,16 @@ export async function isWidgetGranted(
     email ? db.collection('admins').doc(email).get() : null,
   ]);
   const isAdmin = !!adminDoc?.exists;
-  if (!snap.exists) return isAdmin || missingDocLevel === 'public';
+  if (!snap.exists) {
+    if (isAdmin) return true;
+    // Lazy: only a widget with no permission doc needs the generated defaults.
+    const { WIDGET_CONFIG_RUNTIME } =
+      await import('./mcp/widgetConfigRuntime.gen');
+    if (WIDGET_CONFIG_RUNTIME.accessLevels[widgetType] === 'admin')
+      return false;
+    const minTier = WIDGET_CONFIG_RUNTIME.minTiers[widgetType];
+    return permissionAudienceAllows(db, { minTier }, email, teacherUid);
+  }
   const data = snap.data() ?? {};
   if (data.enabled !== true) return false;
   if (isExcludedFrom(data, email)) return false;
