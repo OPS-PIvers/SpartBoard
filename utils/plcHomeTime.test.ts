@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  parseDateKey,
   schoolYearStart,
   zonedDateKey,
   zonedParts,
@@ -35,5 +36,18 @@ describe('plcHomeTime', () => {
     expect(
       zonedDateKey(schoolYearStart(zonedTimeToEpoch(2026, 7, 31, 23)))
     ).toBe('2025-08-01');
+  });
+
+  it('parseDateKey rejects dates that do not exist on the calendar', () => {
+    expect(parseDateKey('2026-02-31')).toBeNull();
+    expect(parseDateKey('2026-13-01')).toBeNull();
+    expect(parseDateKey('2026-00-10')).toBeNull();
+    expect(parseDateKey('2026-04-31')).toBeNull();
+    expect(parseDateKey('2026-02-29')).toBeNull();
+    expect(parseDateKey('2028-02-29')).toEqual({
+      year: 2028,
+      month: 2,
+      day: 29,
+    });
   });
 });
