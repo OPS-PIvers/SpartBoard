@@ -8,7 +8,14 @@
  */
 
 import type { PaperPageItem, PaperPageMap } from '@/types';
-import { mcItemsOf, writtenBoxBandsMm, writtenItemsOf } from './paperPageMap';
+import {
+  itemBubbleRectMm,
+  itemChoiceCount,
+  itemRowRectMm,
+  mcItemsOf,
+  writtenBoxBandsMm,
+  writtenItemsOf,
+} from './paperPageMap';
 import {
   DEFAULT_COLUMNS_PER_PAGE,
   MARKER_CELL_COUNT,
@@ -17,11 +24,9 @@ import {
   REGISTRATION_MARK_CENTERS_MM,
   REGISTRATION_MARK_SIZE_MM,
   STIMULUS_RECT_MM,
-  bubbleRectAtOriginMm,
   bubbleRectMm,
   markerCellRectMm,
   questionRowRectMm,
-  rowRectAtOriginMm,
   questionsPerPage,
   type PaperGrid,
   type PointMm,
@@ -456,6 +461,8 @@ export interface RowRead {
   sheetRow?: number;
   /** Marked choice index, or null when the row is blank or in doubt. */
   choice: number | null;
+  /** A choose all row: every choice marked, in order; `choice` stays null. */
+  marked?: number[];
   /** Present only when ink was seen but no single answer could be trusted. */
   doubt?: RowDoubt;
   /** Fill ratio per choice, for review and threshold tuning. */
@@ -530,6 +537,26 @@ export function classifyRow(fills: readonly number[]): {
   }
   if (top < mark) return { choice: null, doubt: 'unclear' };
   return { choice: fills.indexOf(top) };
+}
+
+/** A choose all row: every clear mark counts; a faint mark puts the row in doubt. */
+export function classifyMultiRow(fills: readonly number[]): {
+  choice: null;
+  marked: number[];
+  doubt?: RowDoubt;
+} {
+  const { mark, faint } = READER_THRESHOLDS;
+  const top = Math.max(0, ...fills);
+  if (top < faint) return { choice: null, marked: [] };
+  // Judged against the row's darkest mark, as `classifyRow` does.
+  const marked = fills.flatMap((f, i) =>
+    f >= mark && f >= top * 0.5 ? [i] : []
+  );
+  // Any other ink, a light check or an erasure, goes to the teacher.
+  const unsure = fills.some((f, i) => f >= faint && !marked.includes(i));
+  return unsure || marked.length === 0
+    ? { choice: null, marked, doubt: 'unclear' }
+    : { choice: null, marked };
 }
 
 /** Rows on `page` (1-based) of a test with `questionCount` questions. */
@@ -794,9 +821,11 @@ export function readPaperPage(
   const readRow = (
     indexOnPage: number,
     bubble: (choice: number) => RectMm,
-    rowRect: RectMm
+    rowRect: RectMm,
+    choiceCount = options.choiceCount,
+    multi = false
   ): RowRead => {
-    const fills = Array.from({ length: options.choiceCount }, (_, c) =>
+    const fills = Array.from({ length: choiceCount }, (_, c) =>
       fillRatio(
         bubbleDark,
         width,
@@ -808,7 +837,7 @@ export function readPaperPage(
     );
     return {
       indexOnPage,
-      ...classifyRow(fills),
+      ...(multi ? classifyMultiRow(fills) : classifyRow(fills)),
       fills,
       crop: pixelBounds(
         map,
@@ -831,8 +860,10 @@ export function readPaperPage(
     items.forEach((item, i) => {
       const row = readRow(
         i,
-        (c) => bubbleRectAtOriginMm(item.originMm, c, grid),
-        rowRectAtOriginMm(item.originMm, options.choiceCount, grid)
+        (c) => itemBubbleRectMm(item, c, grid),
+        itemRowRectMm(item, options.choiceCount, grid),
+        itemChoiceCount(item, options.choiceCount),
+        item.group === 'all'
       );
       rows.push({ ...row, sheetRow: item.sheetRow });
     });

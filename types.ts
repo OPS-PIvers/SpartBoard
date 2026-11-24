@@ -6738,6 +6738,20 @@ export type PaperPageItem =
       /** Printed question number (position in the quiz). */
       label: string;
       originMm: PaperPointMm;
+      /** Bubbles this row prints, up to 10; absent = the sheet's `choiceCount`. */
+      choices?: number;
+      /** Matching, ordering and choose all: which answer row of the question this is. */
+      group?: PaperRowGroup;
+      /** 0-based row within the question; absent = the question's only row. */
+      part?: number;
+      /** Question-text sheets: bubbles run left to right after the row's term, not down the page. */
+      across?: true;
+      /** One-column sheets: bubbles per line; later bubbles wrap onto the next 8 mm line. */
+      wrap?: number;
+      /** First row of a question-text block: top of its stem, printed above the rows. */
+      headTopMm?: number;
+      /** With `headTopMm`: height of the stem's lines; the instruction prints under them. */
+      stemMm?: number;
     }
   | {
       kind: 'written';
@@ -6753,6 +6767,9 @@ export type PaperPageItem =
       /** A later page of a multi-page answer; its crop joins the first page's. */
       continued?: true;
     };
+
+/** How a matching, ordering or choose all question reads its bubbles: `all` fills several in one row, `match` one row per term, `order` one row per position (or per item, bubbling its position, when `across`). */
+export type PaperRowGroup = 'all' | 'match' | 'order';
 
 /** Positions of everything on one physical page; `page` is 1-based and absolute. */
 export interface PaperPageMap {
@@ -6782,6 +6799,12 @@ export interface PaperPrintedGroupRecord {
   supports?: QuizSupport[];
   /** The group's language, so a reprint prints the same translation. */
   language?: string;
+  /** One student's copy printed from the monitor, rather than a group's stack. */
+  single?: true;
+  /** Option text left off per question id: a student copy's own hidden answer choices. */
+  hiddenChoices?: Record<string, string[]>;
+  /** The questions a student copy or group printed, when given only some. */
+  questionIds?: string[];
 }
 
 /** A printed group planned at assign, kept so a version closed before printing can still print. */
@@ -6804,6 +6827,8 @@ export interface PaperBatch {
   spareSeats: number[];
   /** Seat carrying the bubbled ANSWER KEY sheet, when one was printed (plan Q16). */
   keySheetSeat?: number;
+  /** Every key seat, one per version, when a versioned stack printed more than one key; the first is `keySheetSeat`. */
+  keySheetSeats?: number[];
   /**
    * Option text per question id in the lettered order the test paper printed
    * (A first). Authored quizzes only; import maps a bubbled letter through it
@@ -6827,7 +6852,7 @@ export interface PaperBatch {
   pageMaps?: PaperPageMap[];
   /** Present iff `seatVersions` is; version 0 is what `pageMaps` carries. */
   versions?: PaperBatchVersion[];
-  /** Seat -> index into `versions`; the key sheet is absent and reads as version 0. */
+  /** Seat -> index into `versions`, keys included; a seat that is absent reads as version 0. */
   seatVersions?: Record<number, number>;
   /** Printed for a modification group of a device assignment: the rules its version applied, so a reprint matches. */
   printedGroup?: PaperPrintedGroupRecord;
@@ -6865,6 +6890,8 @@ export interface PaperBatchPendingQuizCopy {
 export interface PaperPendingAnswer {
   question: number;
   choice: number | null;
+  /** A choose all row: every choice marked. */
+  marked?: number[];
   doubt?: 'multiple' | 'unclear';
 }
 
@@ -9382,6 +9409,8 @@ export interface WebTourBinding {
   showWhen?: WebTourCondition;
   /** Moves on when this holds instead of at the learner's action: the target goes away, or the address matches. */
   doneWhen?: WebTourCondition;
+  /** The https page Go and a start on this step open; absent = the address guessed from `urlPattern`. */
+  openUrl?: string;
 }
 
 export interface WebTourStudentDataCheck {
@@ -9560,6 +9589,8 @@ export interface GuidedLearningSet {
   /** Building set owned by the Help Center: edited in Admin Settings, hidden from the library. */
   helpCenter?: boolean;
   authorUid?: string;
+  /** The author's display name, kept beside `authorUid` so a list can show it without a lookup. */
+  authorName?: string;
   /**
    * Hotspot pulse animation for the player. Default `'consistent'` (matches
    * pre-feature behavior — a continuous breathing pulse). `'reminder'` does
@@ -9616,6 +9647,8 @@ export interface GuidedLearningSet {
   webPicturesChecked?: WebTourStudentDataCheck;
   /** Web tours: what the tour explains, for Claude; never published. */
   webGoal?: string;
+  /** Web tours: the https page the tour opens on; absent = the first step's page. */
+  webStartUrl?: string;
   /** Web tours: the last Check tour run, which Publish needs passing for these targets (C13). */
   webTourChecked?: WebTourCheckRun;
   /** Web tours: suggested fixes from check runs, by step id; never published. */
@@ -11800,6 +11833,7 @@ export type GlobalFeature =
   | 'gemini-functions'
   | 'dashboard-sharing'
   | 'dashboard-import'
+  | 'substitute-sharing'
   | 'magic-layout'
   | 'smart-paste'
   | 'smart-poll'
@@ -11860,6 +11894,7 @@ export type GlobalFeature =
   | 'paper-multi-page-answers'
   /** A live preview of one student's printed packet in the paper print dialogs. */
   | 'paper-print-preview'
+  | 'paper-student-copy'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
   | 'paper-written-hybrid'
   | 'paper-reword-sync'
@@ -11986,6 +12021,8 @@ export type GlobalFeature =
   | 'video-import-ai'
   /** Library and Assigned tabs with a status per class (docs/plans/ASSIGNED_TAB.md D19). */
   | 'assigned-tab'
+  /** Assignment rows name the students a picked-only run went to. */
+  | 'picked-student-names'
   /** Writing peer review: teachers pair students to read, comment on or suggest edits to each other's writing. */
   | 'writing-peer-review'
   /** The sidebar Assignments hub; on for everyone until an admin narrows it. */
@@ -11994,7 +12031,12 @@ export type GlobalFeature =
   | 'quiz-question-audio'
   | 'quiz-random-numbers'
   /** Widget update notes listed in the sidebar What's New instead of a button under each widget. */
-  | 'widget-notes-in-whats-new';
+  | 'widget-notes-in-whats-new'
+  /** Live tours on the /subs portal: the help button subs see and the Substitutes audience. */
+  | 'subs-live-tours'
+  | 'student-live-tours'
+  | 'assign-open-check'
+  | 'modification-fewer-questions';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {

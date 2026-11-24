@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { useShowPickedStudents } from '@/hooks/useShowPickedStudents';
 import { useDashboard } from '@/context/useDashboard';
 import type {
   ClassRoster,
@@ -43,6 +44,11 @@ import {
   videoActivityAssignedResponse,
 } from '@/utils/assignedAdapters';
 import { BELL_CLOSE_CUSHION_MS, type EpochWindow } from '@/utils/periodPlan';
+import {
+  pickedClassSizes,
+  pickedStudents,
+  type PickedStudents,
+} from '@/utils/assignedStudents';
 import { logError } from '@/utils/logError';
 import { isVideoActivityResponseAwaitingGrade } from '@/utils/videoActivityGrading';
 import { scoredVideoActivityQuestions } from '@/utils/videoActivityLive';
@@ -266,6 +272,7 @@ interface RowModel {
   owesTurnIn: boolean;
   viewOnly: boolean;
   published: boolean;
+  picked: PickedStudents | null;
 }
 
 /** The Video Activity Assigned tab: one row per assignment, one status per class (ASSIGNED_TAB.md slice 5). */
@@ -284,6 +291,7 @@ export const VideoActivityAssignedTab: React.FC<
   ...handlers
 }) => {
   const { featurePermissions } = useAuth();
+  const showPicked = useShowPickedStudents();
   const now = useNow();
   const liveIds = useMemo(
     () => assignments.filter(wantsLiveData).map((a) => a.id),
@@ -339,11 +347,16 @@ export const VideoActivityAssignedTab: React.FC<
           const n = sizeOf(a.rosterIds[0]);
           if (n != null) classSizes[''] = n;
         }
+        const picked = pickedStudents(a, rosters);
+        const sizes =
+          picked && showPicked
+            ? pickedClassSizes(picked, a.periodAccess)
+            : classSizes;
         const status = deriveAssignedStatus(
           videoActivityAssignedInput(a, {
             responses: responses?.map(videoActivityAssignedResponse) ?? null,
             needsGrading,
-            classSizes,
+            classSizes: sizes,
             bellFor: (access) => bellFor({ rosterId: access.rosterId }),
           }),
           now
@@ -363,6 +376,7 @@ export const VideoActivityAssignedTab: React.FC<
           owesTurnIn,
           viewOnly: a.mode === 'view-only',
           published: scoresShown(a.scoreVisibility),
+          picked,
         };
       }),
     [
@@ -371,6 +385,7 @@ export const VideoActivityAssignedTab: React.FC<
       questionsByKey,
       rosters,
       featurePermissions,
+      showPicked,
       now,
     ]
   );
@@ -440,10 +455,7 @@ const VideoActivityLeftOpenHost: React.FC<{
 }> = ({ row, cls, index, rosters, lifecycle, onLeaveOpen }) => {
   const a = row.assignment;
   const actions = useAssignmentClassActions(a, COLLECTIONS, lifecycle, rosters);
-  const run = usePeriodRunner(
-    a.periodAccess,
-    'VideoActivityAssignedTab.leftOpen'
-  );
+  const run = usePeriodRunner('VideoActivityAssignedTab.leftOpen');
   const [busy, setBusy] = useState(false);
   const single = row.status.singleLine;
   return (
@@ -535,7 +547,7 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
   const { user } = useAuth();
   const { addToast } = useDashboard();
   const actions = useAssignmentClassActions(a, COLLECTIONS, lifecycle, rosters);
-  const run = usePeriodRunner(a.periodAccess, 'VideoActivityAssignedTab.class');
+  const run = usePeriodRunner('VideoActivityAssignedTab.class');
   const [busy, setBusy] = useState(false);
   // A live run's own limits read as themselves, not as a failed write.
   const guarded = async (fn: () => Promise<unknown>) => {
@@ -732,6 +744,8 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
         busy={busy}
         tourIndex={index}
         tourWidgetType="video-activity"
+        picked={row.picked}
+        periodAccess={a.periodAccess}
       />
     </>
   );

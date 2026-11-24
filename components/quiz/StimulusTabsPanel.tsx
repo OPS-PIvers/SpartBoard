@@ -3,6 +3,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { QuizStimulus } from '@/types';
 import { activeStimulusTab, stimulusTabLabels } from '@/utils/quizStimulusTabs';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 export const StimulusTabsPanel: React.FC<{
   stimuli: QuizStimulus[];
@@ -79,7 +80,11 @@ export const StimulusTabsPanel: React.FC<{
           const selected = s.id === active;
           return (
             <button
-              // no-tour-anchor: student quiz screen; tours walk teachers
+              {...tourFieldAttr(
+                'student.quiz.source-tab',
+                'quiz-student',
+                `row-${i + 1}`
+              )}
               key={s.id}
               ref={(el) => {
                 tabRefs.current[i] = el;

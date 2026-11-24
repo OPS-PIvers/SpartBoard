@@ -21,6 +21,7 @@ import type {
 import { useQuizWhiteboardPlayback } from '@/hooks/useQuizWhiteboardPlayback';
 import { WhiteboardReplayView } from '@/components/quiz/whiteboard/WhiteboardReplayView';
 import { RubricStrandPills } from '@/components/widgets/QuizWidget/components/RubricStrandChips';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface WhiteboardPlaybackCardProps {
   sessionId: string;
@@ -191,7 +192,7 @@ export const WhiteboardPlaybackCard: React.FC<WhiteboardPlaybackCardProps> = ({
                 <li key={a.id}>
                   <button
                     type="button"
-                    // no-tour-anchor: per-comment rows on a student page; tours walk teachers
+                    {...tourAttr('student.quiz.playback-comment')}
                     onClick={() =>
                       setSeek((prev) => ({
                         ms: Math.max(0, a.from),
@@ -238,7 +239,7 @@ export const WhiteboardPlaybackCard: React.FC<WhiteboardPlaybackCardProps> = ({
           )}
           <button
             type="button"
-            // no-tour-anchor: student results page; tours walk teachers
+            {...tourAttr('student.quiz.playback-retry')}
             onClick={load}
             className={`mt-2 inline-flex items-center gap-2 rounded-2xl border px-3 py-1.5 text-xs font-bold transition focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary ${retryCls}`}
           >
@@ -251,7 +252,7 @@ export const WhiteboardPlaybackCard: React.FC<WhiteboardPlaybackCardProps> = ({
     return (
       <button
         type="button"
-        // no-tour-anchor: student results page; tours walk teachers
+        {...tourAttr('student.quiz.playback-load')}
         onClick={load}
         disabled={state.phase === 'loading'}
         className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-brand-blue-primary px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-60"

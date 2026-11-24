@@ -59,7 +59,7 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
     await reads('2 classes');
     await expect(
       panel.getByRole('button', { name: 'Choose class' })
-    ).toBeVisible();
+    ).toHaveCount(0);
     expect(await rowMenuItems(page, library)).toEqual([
       'Settings',
       'Assign to Google Classroom',
@@ -82,10 +82,6 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
       .getByRole('button', { name: 'Open', exact: true })
       .first()
       .click();
-    await expectToast(
-      page,
-      'Period 1 stays open until you pause it. Tag the class with its bell period in My Classes so it closes at the bell.'
-    );
     await reads('Open · Period 1 0 turned in · 1 class to go');
     await reads('Period 1 Open 0 turned in');
     await reads('Period 2 Ready');
@@ -150,11 +146,11 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
     await panel.getByRole('button', { name: 'Finished 1' }).click();
     await reads(`${QUIZ} Closed`);
     expect(await rowMenuItems(page, library)).toEqual([
-      'Publish scores…',
-      'Reopen…',
+      'Publish scores',
+      'Reopen',
       'Delete',
     ]);
-    await page.getByRole('menuitem', { name: 'Reopen…' }).click();
+    await page.getByRole('menuitem', { name: 'Reopen' }).click();
     const reopen = page.getByRole('dialog', { name: `Reopen ${QUIZ}` });
     await expect(reopen.getByRole('radio')).toHaveText([
       'Everyone in the class',
@@ -164,7 +160,7 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
     await reopen.getByRole('button', { name: 'Cancel' }).click();
     await expect(reopen).toBeHidden();
     await rowMenuItems(page, library);
-    await page.getByRole('menuitem', { name: 'Publish scores…' }).click();
+    await page.getByRole('menuitem', { name: 'Publish scores' }).click();
     const publish = page.getByRole('dialog', {
       name: 'Publish scores to students',
     });

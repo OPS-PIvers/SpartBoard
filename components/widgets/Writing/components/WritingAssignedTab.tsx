@@ -1,5 +1,10 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
+  pickedClassSizes,
+  pickedStudents,
+  type PickedStudents,
+} from '@/utils/assignedStudents';
+import {
   collection,
   doc,
   getCountFromServer,
@@ -10,6 +15,7 @@ import {
 import { Trash2 } from 'lucide-react';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { useShowPickedStudents } from '@/hooks/useShowPickedStudents';
 import { useDashboard } from '@/context/useDashboard';
 import type { ClassRoster, WritingAssignmentRecord } from '@/types';
 import {
@@ -209,6 +215,7 @@ interface RowModel {
   record: WritingAssignmentRecord;
   needsGrading: number | null;
   bells: Record<string, EpochWindow | null>;
+  picked: PickedStudents | null;
 }
 
 /** The Writing Assigned tab on the shared row and list (ASSIGNED_TAB.md slice 5). */
@@ -221,6 +228,7 @@ export const WritingAssignedTab: React.FC<WritingAssignedTabProps> = ({
   ...handlers
 }) => {
   const { featurePermissions } = useAuth();
+  const showPicked = useShowPickedStudents();
   const now = useNow();
   const live = useMemo(() => records.filter(wantsLiveData), [records]);
   const liveIds = useMemo(() => live.map((r) => r.id), [live]);
@@ -273,13 +281,17 @@ export const WritingAssignedTab: React.FC<WritingAssignedTabProps> = ({
           const n = sizeOf(r.rosterIds[0]);
           if (n != null) classSizes[''] = n;
         }
+        const picked = pickedStudents(r, rosters);
         const input = writingAssignedInput(
           r,
           isLive ? grading : { grading: { mode: 'ungraded' } },
           {
             responses: isLive ? responses : [],
             needsGrading: isLive ? needsGrading : 0,
-            classSizes,
+            classSizes:
+              picked && showPicked
+                ? pickedClassSizes(picked, r.periodAccess)
+                : classSizes,
             bellFor: (access) => bellFor({ rosterId: access.rosterId }),
           }
         );
@@ -287,9 +299,17 @@ export const WritingAssignedTab: React.FC<WritingAssignedTabProps> = ({
           { ...input, publishesScores: false },
           now
         );
-        return { id: r.id, status, record: r, needsGrading, bells };
+        return { id: r.id, status, record: r, needsGrading, bells, picked };
       }),
-    [records, countsById, gradingById, rosters, featurePermissions, now]
+    [
+      records,
+      countsById,
+      gradingById,
+      rosters,
+      featurePermissions,
+      showPicked,
+      now,
+    ]
   );
 
   // D17: only a just-assigned row that nothing has opened yet sits on top.
@@ -349,7 +369,7 @@ const WritingLeftOpenHost: React.FC<{
 }> = ({ row, cls, index, rosters, onLeaveOpen }) => {
   const r = row.record;
   const actions = useWritingClassActions(r, rosters);
-  const run = usePeriodRunner(r.periodAccess, 'WritingAssignedTab.leftOpen');
+  const run = usePeriodRunner('WritingAssignedTab.leftOpen');
   const [busy, setBusy] = useState(false);
   const single = row.status.singleLine;
   return (
@@ -386,10 +406,10 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
   onResults,
   onDelete,
 }) => {
-  const { record: r, status, needsGrading, bells } = row;
+  const { record: r, status, needsGrading, bells, picked } = row;
   const { addToast } = useDashboard();
   const actions = useWritingClassActions(r, rosters);
-  const run = usePeriodRunner(r.periodAccess, 'WritingAssignedTab.class');
+  const run = usePeriodRunner('WritingAssignedTab.class');
   const [busy, setBusy] = useState(false);
   const exec = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -522,6 +542,8 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
         busy={busy}
         tourIndex={index}
         tourWidgetType="writing"
+        picked={picked}
+        periodAccess={r.periodAccess}
       />
     </>
   );

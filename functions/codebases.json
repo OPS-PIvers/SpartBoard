@@ -18,6 +18,7 @@
       "gradebookDemoV1",
       "launchSubAssignmentV1",
       "listQuizMediaForOrgAdmin",
+      "loadSubShareFilesV1",
       "orgAdminV1",
       "organizationBuildingCounters",
       "organizationMemberCounters",

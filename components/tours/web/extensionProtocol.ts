@@ -13,7 +13,7 @@ import {
 } from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 14;
+export const EXTENSION_PROTOCOL_VERSION = 15;
 
 /** Protocol 4: locators may carry `heading`, `pageTitle` and `attrs`, and steps report `score` matches. */
 export const SCORED_MATCH_PROTOCOL = 4;
@@ -53,6 +53,9 @@ export const INSTALL_PROTOCOL = 13;
 
 /** Protocol 14: a tour may carry Message steps and cross sites; below it such a tour is not sent (WEB_TOURS_CROSS_SITE.md X13). */
 export const CROSS_SITE_PROTOCOL = 14;
+
+/** Protocol 15: a tour may carry the page an admin set on a step (`openUrls`), which Go and a start there open; older extensions get none. */
+export const OPEN_URL_PROTOCOL = 15;
 
 /** How Chrome got the extension: pushed by an admin policy, added by the user, or loaded unpacked. */
 export type ExtensionInstall = 'policy' | 'user' | 'dev';
@@ -119,6 +122,8 @@ export interface WebTourStartTour {
   markup?: Record<string, TourMarkupShape[]>;
   /** Where each step's control sits in its picture, 0-1, by step id; sent with markup, for Show me where's ring. */
   targets?: Record<string, PictureTarget>;
+  /** The page an admin set on a step, by step id; sent only to an extension at OPEN_URL_PROTOCOL or later. */
+  openUrls?: Record<string, string>;
 }
 
 /** A control's place in its step picture, as 0-1 of the picture. */
@@ -500,6 +505,7 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
       'conditions',
       'markup',
       'targets',
+      'openUrls',
     ])
   ) {
     return null;
@@ -569,6 +575,11 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
   const targets =
     raw.targets === undefined ? undefined : parseStepTargets(raw.targets, ids);
   if (targets === null) return null;
+  const openUrls =
+    raw.openUrls === undefined
+      ? undefined
+      : parseStepOpenUrls(raw.openUrls, ids);
+  if (openUrls === null) return null;
   return {
     setId,
     version,
@@ -577,7 +588,23 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
     ...(conditions ? { conditions } : {}),
     ...(markup ? { markup } : {}),
     ...(targets ? { targets } : {}),
+    ...(openUrls ? { openUrls } : {}),
   };
+}
+
+/** Set step pages by id, each an openable page without a wildcard for a targeted step; null when anything is off. */
+function parseStepOpenUrls(
+  v: unknown,
+  stepIds: ReadonlySet<string>
+): Record<string, string> | null {
+  if (!isPlainObject(v)) return null;
+  const out: Record<string, string> = {};
+  for (const [id, url] of Object.entries(v)) {
+    if (!stepIds.has(id) || !isOpenableUrl(url) || url.includes('*'))
+      return null;
+    out[id] = url;
+  }
+  return out;
 }
 
 /** A control's place in a picture, or null when it isn't one. */

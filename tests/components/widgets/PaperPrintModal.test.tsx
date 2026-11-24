@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import { PaperPrintModal } from '@/components/widgets/QuizWidget/components/PaperPrintModal';
+import { isValidDraw, resolveQuizAssignment } from '@/utils/questionBanks';
 
 const drive = {
   uploadFile: vi.fn<
@@ -284,6 +285,55 @@ describe('PaperPrintModal', () => {
     await waitFor(() => expect(onError).toHaveBeenCalledWith('offline'));
     expect(print).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('prints a quiz that pulls from a bank, each sheet with its own recorded draw', async () => {
+    const pool = ['b1', 'b2', 'b3', 'b4', 'b5'].map((id) => mc(id));
+    const bankQuiz = quiz({
+      questions: [mc('q1')],
+      bankSlots: [
+        {
+          id: 'slot-1',
+          bankId: 'bank-1',
+          bankTitle: 'Unit bank',
+          mode: 'random',
+          count: 2,
+        },
+      ],
+    });
+    const resolved = resolveQuizAssignment(
+      bankQuiz,
+      new Map([
+        ['bank-1', { id: 'bank-1', title: 'Unit bank', questions: pool }],
+      ])
+    );
+    const { onSaveBatch, print } = setup({ quiz: bankQuiz, resolved });
+    expect(screen.queryByText(/will not be on the/)).toBeNull();
+    selectWholeClass();
+    fireEvent.change(screen.getByLabelText(/Blank spare sheets/i), {
+      target: { value: '0' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    const batch = onSaveBatch.mock.calls[0][0];
+    expect(batch.questionCount).toBe(3);
+    expect(batch.versions).toHaveLength(2);
+    for (const version of batch.versions ?? []) {
+      expect(
+        isValidDraw(
+          resolved.questions.map((q) => q.id),
+          resolved.sessionSlots,
+          version.servedQuestionIds
+        )
+      ).toBe(true);
+    }
+    expect(Object.values(batch.seatVersions ?? {})).toEqual([0, 1]);
+    const job = print.mock.calls[0][0];
+    expect(job.versions?.map((v) => v.label)).toEqual([
+      'Version 1',
+      'Version 2',
+    ]);
+    expect(job.sheets.map((s) => s.versionIndex)).toEqual([0, 1]);
   });
 
   it('records each printed seat against its roster', async () => {
@@ -1415,7 +1465,7 @@ describe('PaperPrintModal with handwritten answers', () => {
     expect(screen.getByText(/1 question will not be on/)).toBeInTheDocument();
   });
 
-  it('refuses to print a written question inside a choose section', () => {
+  it('prints written questions inside a choose section', () => {
     setup({
       quiz: quiz({
         questions: [mc('q1'), fr('w1'), fr('w2')],
@@ -1430,9 +1480,9 @@ describe('PaperPrintModal with handwritten answers', () => {
     });
     selectWholeClass();
     expect(
-      screen.getByText(/Written questions can.t be in a choose section/)
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Print$/ })).toBeDisabled();
+      screen.queryByText(/Written questions can.t be in a choose section/)
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled();
   });
 
   it('prints written questions in place on the test paper, numbered like the sheet', async () => {

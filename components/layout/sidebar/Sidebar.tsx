@@ -83,6 +83,22 @@ import {
 } from './adminSettingsLoader';
 
 declare const __APP_VERSION__: string;
+declare const __APP_BUILD_ID__: string;
+declare const __APP_BUILD_DATE__: string;
+
+// Local dev builds carry 'dev' instead of a date, so the label hides there.
+const buildDate = new Date(
+  typeof __APP_BUILD_DATE__ === 'undefined' ? '' : __APP_BUILD_DATE__
+);
+const formatBuildDate = (language: string | undefined): string | null => {
+  if (Number.isNaN(buildDate.getTime())) return null;
+  const opts = { month: 'short', day: 'numeric', year: 'numeric' } as const;
+  try {
+    return buildDate.toLocaleDateString(language, opts);
+  } catch {
+    return buildDate.toLocaleDateString(undefined, opts);
+  }
+};
 
 type MenuSection = 'main' | 'classes' | 'plcs' | 'google-drive';
 
@@ -122,7 +138,8 @@ const PlcsMenuButton: React.FC<PlcsMenuButtonProps> = ({
 };
 
 export const Sidebar: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const buildDateLabel = formatBuildDate(i18n?.language);
   const { showConfirm } = useDialog();
   const [isOpen, setIsOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<MenuSection>('main');
@@ -500,7 +517,7 @@ export const Sidebar: React.FC = () => {
           />
           <div className="relative w-full max-w-80 h-full bg-white shadow-2xl flex flex-col p-0 animate-in slide-in-from-left duration-300 border-r border-slate-200">
             {/* Header */}
-            <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 shrink-0 bg-white z-10">
+            <div className="h-16 flex items-center justify-between px-4 shrink-0 bg-brand-blue-primary text-white z-10">
               <div className="flex items-center gap-3 min-w-0">
                 {activeSection !== 'main' ? (
                   <IconButton
@@ -511,10 +528,10 @@ export const Sidebar: React.FC = () => {
                     variant="ghost"
                     size="md"
                     shape="square"
-                    className="-ml-1.5"
+                    className="-ml-1.5 text-white/80! hover:bg-white/15! hover:text-white! focus-visible:ring-white! focus-visible:ring-offset-brand-blue-primary!"
                   />
                 ) : (
-                  <div className="w-9 h-9 shrink-0 bg-brand-blue-primary rounded-lg flex items-center justify-center overflow-hidden">
+                  <div className="w-9 h-9 shrink-0 bg-white/15 rounded-lg flex items-center justify-center overflow-hidden">
                     {appSettings?.logoUrl ? (
                       <img
                         src={appSettings.logoUrl}
@@ -526,7 +543,7 @@ export const Sidebar: React.FC = () => {
                     )}
                   </div>
                 )}
-                <span className="text-sm font-bold tracking-wider uppercase text-slate-500 truncate">
+                <span className="text-sm font-bold tracking-wider uppercase text-white truncate">
                   {activeSection === 'main'
                     ? t('sidebar.header.classroomManager')
                     : activeSection === 'plcs'
@@ -546,6 +563,7 @@ export const Sidebar: React.FC = () => {
                 label={t('sidebar.header.closeMenu')}
                 variant="ghost"
                 size="md"
+                className="text-white/80! hover:bg-white/15! hover:text-white! focus-visible:ring-white! focus-visible:ring-offset-brand-blue-primary!"
               />
             </div>
 
@@ -950,8 +968,15 @@ export const Sidebar: React.FC = () => {
                 />
               </div>
               <div className="px-4 pb-3 flex justify-between items-center">
-                <span className="text-xxs font-bold text-slate-400 uppercase tracking-[0.2em]">
-                  v2.0.4-stable
+                <span
+                  className="text-xxs text-slate-400"
+                  title={t('sidebar.header.buildId', {
+                    version: __APP_VERSION__,
+                    build: __APP_BUILD_ID__,
+                  })}
+                >
+                  {buildDateLabel &&
+                    t('sidebar.header.lastUpdated', { date: buildDateLabel })}
                 </span>
                 <div className="flex items-center gap-3">
                   <DevGradebookDemoButton />

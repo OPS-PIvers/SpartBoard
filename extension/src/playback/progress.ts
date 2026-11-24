@@ -42,7 +42,13 @@ export interface PlaybackStep {
   target?: { x: number; y: number; w: number; h: number };
   /** A Message step (X7): words only, on any page; its urlPattern is empty and it is never sought. */
   message?: true;
+  /** The page the admin set for Go and a start here; absent = the address guessed from urlPattern. */
+  openUrl?: string;
 }
+
+/** The page Go opens for a step: the admin's set page, else the address its pattern guesses (X2). */
+export const goUrlOf = (step: PlaybackStep): string | null =>
+  step.openUrl ?? switchUrlFor(step.urlPattern);
 
 export interface PlaybackTour {
   id: string;
@@ -138,7 +144,7 @@ export const targetedFrom = (
 export const canGoTo = (step: PlaybackStep): boolean =>
   !isMessage(step) &&
   isGoHost(patternHost(step.urlPattern)) &&
-  switchUrlFor(step.urlPattern) !== null;
+  goUrlOf(step) !== null;
 
 /** The site a Message step's Go opens: set when it sits right before a Site switch (X6). */
 export function switchAfter(

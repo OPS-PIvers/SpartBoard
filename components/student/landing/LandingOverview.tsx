@@ -9,6 +9,7 @@ import {
   WorkRow,
 } from './LandingRows';
 import type { LandingClass } from './types';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface LandingOverviewProps {
   partition: LandingPartition;
@@ -81,6 +82,7 @@ export const LandingOverview: React.FC<LandingOverviewProps> = ({
             <button
               type="button"
               onClick={() => setSeeAll((v) => !v)}
+              {...tourAttr('student.assignments.see-all')}
               className="relative touch-target-expand self-start rounded-sm text-sm font-semibold text-brand-blue-primary hover:underline focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
             >
               {seeAll ? 'Show less' : `See all ${total} assignments`}
@@ -112,6 +114,7 @@ export const LandingOverview: React.FC<LandingOverviewProps> = ({
               <button
                 type="button"
                 onClick={() => setSeeAllRes((v) => !v)}
+                {...tourAttr('student.assignments.see-all-resources')}
                 className="relative touch-target-expand self-start rounded-sm text-sm font-semibold text-brand-blue-primary hover:underline focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
               >
                 {seeAllRes

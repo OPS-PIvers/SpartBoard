@@ -15,7 +15,15 @@ import {
 } from '@/components/widgets/QuizWidget/components/QuizManager';
 import { PaperImportModal } from '@/components/widgets/QuizWidget/components/PaperImportModal';
 import { PaperPrintModal } from '@/components/widgets/QuizWidget/components/PaperPrintModal';
-import { printedGroupQuiz } from '@/utils/paperPrintedVersions';
+import {
+  printedGroupForPrint,
+  printedGroupQuiz,
+  printedGroupResolved,
+  studentCopyPick,
+} from '@/utils/paperPrintedVersions';
+import { RosterList } from '@/components/widgets/QuizWidget/components/monitor/RosterList';
+import type { MonitorStudent } from '@/components/widgets/QuizWidget/components/monitor/useMonitorData';
+import { resolveQuizAssignment } from '@/utils/questionBanks';
 import { PaperReprintModal } from '@/components/widgets/QuizWidget/components/PaperReprintModal';
 import { PaperGroupReprintModal } from '@/components/widgets/QuizWidget/components/PaperGroupReprintModal';
 import type {
@@ -25,6 +33,8 @@ import type {
   QuizConfig,
   QuizData,
   QuizMetadata,
+  QuizResponse,
+  QuizSession,
   QuizStimulus,
 } from '@/types';
 
@@ -187,6 +197,77 @@ const ASSIGN_QUIZ: QuizData = {
     incorrectAnswers: ['Ribosome', 'Vacuole', 'Cell wall'],
   })),
 };
+
+// A random pull of 3 from an 8-question bank: every sheet prints its own draw.
+const BANK_POOL: QuizData['questions'] = [
+  [
+    'Which organelle makes proteins?',
+    'Ribosome',
+    ['Nucleus', 'Vacuole', 'Cell wall'],
+  ],
+  [
+    'Which organelle holds the DNA?',
+    'Nucleus',
+    ['Ribosome', 'Golgi body', 'Vacuole'],
+  ],
+  [
+    'Where does photosynthesis happen?',
+    'Chloroplast',
+    ['Mitochondria', 'Nucleus', 'Ribosome'],
+  ],
+  [
+    'Which part controls what enters the cell?',
+    'Cell membrane',
+    ['Cell wall', 'Vacuole', 'Nucleus'],
+  ],
+  [
+    'Which organelle releases energy from food?',
+    'Mitochondria',
+    ['Chloroplast', 'Ribosome', 'Golgi body'],
+  ],
+  [
+    'Which structure stores water in plant cells?',
+    'Vacuole',
+    ['Nucleus', 'Ribosome', 'Cell membrane'],
+  ],
+  [
+    'Which cells have a cell wall?',
+    'Plant cells',
+    ['Animal cells', 'Both', 'Neither'],
+  ],
+  [
+    'Which organelle packages proteins?',
+    'Golgi body',
+    ['Nucleus', 'Vacuole', 'Chloroplast'],
+  ],
+].map(([text, correct, wrong], i) => ({
+  id: `bq${i + 1}`,
+  timeLimit: 0,
+  text: text as string,
+  type: 'MC' as const,
+  correctAnswer: correct as string,
+  incorrectAnswers: wrong as string[],
+}));
+const BANK_QUIZ: QuizData = {
+  ...QUIZ,
+  title: 'Organelles check',
+  questions: ASSIGN_QUIZ.questions.slice(0, 2),
+  bankSlots: [
+    {
+      id: 'slot-1',
+      bankId: 'bank-1',
+      bankTitle: 'Organelles',
+      mode: 'random',
+      count: 3,
+    },
+  ],
+};
+const BANK_RESOLVED = resolveQuizAssignment(
+  BANK_QUIZ,
+  new Map([
+    ['bank-1', { id: 'bank-1', title: 'Organelles', questions: BANK_POOL }],
+  ])
+);
 
 const PaperAssign: React.FC = () => (
   <PaperPrintModal
@@ -430,7 +511,84 @@ const GROUP_SEATS: Record<number, PaperBatch['seats']> = {
   },
 };
 
+// Matching, ordering and choose all beside multiple choice, for the grouped bubble rows.
+const GROUPS_QUIZ: QuizData = {
+  id: 'groups-quiz',
+  title: 'Cells unit test',
+  createdAt: 0,
+  updatedAt: 0,
+  questions: [
+    {
+      id: 'g1',
+      timeLimit: 0,
+      text: 'Which organelle makes proteins?',
+      type: 'MC',
+      correctAnswer: 'Ribosome',
+      incorrectAnswers: ['Vacuole', 'Nucleus', 'Cell wall'],
+    },
+    {
+      id: 'g2',
+      timeLimit: 0,
+      text: 'Which of these are found in plant cells?',
+      type: 'MA',
+      correctAnswer: 'Cell wall|Chloroplast|Vacuole',
+      incorrectAnswers: ['Centriole', 'Cilia'],
+    },
+    {
+      id: 'g3',
+      timeLimit: 0,
+      text: 'Match each organelle to its job.',
+      type: 'Matching',
+      correctAnswer:
+        'Mitochondria:Releases energy|Nucleus:Holds the DNA|Ribosome:Makes proteins|Cell membrane:Controls what enters the cell',
+      incorrectAnswers: [],
+      matchingDistractors: ['Stores water', 'Makes food from light'],
+    },
+    {
+      id: 'g4',
+      timeLimit: 0,
+      text: 'Put the steps of mitosis in order.',
+      type: 'Ordering',
+      correctAnswer: 'Prophase|Metaphase|Anaphase|Telophase',
+      incorrectAnswers: [],
+    },
+    {
+      id: 'g5',
+      timeLimit: 0,
+      text: 'Match each country to its capital.',
+      type: 'Matching',
+      correctAnswer:
+        'France:Paris|Kenya:Nairobi|Peru:Lima|Japan:Tokyo|Egypt:Cairo|Chile:Santiago',
+      incorrectAnswers: [],
+      matchingDistractors: [
+        'Madrid',
+        'Lagos',
+        'Quito',
+        'Seoul',
+        'Accra',
+        'Oslo',
+        'Hanoi',
+      ],
+    },
+  ],
+};
+
 const VIEWS = {
+  // Needs the paper-print-preview flag (admins have it).
+  groups: () => (
+    <PaperPrintModal
+      quiz={GROUPS_QUIZ}
+      rosters={ROSTERS}
+      assign={{
+        plcs: [],
+        initialSharing: { plcMode: false, plcId: '' },
+        onCreateAssignment: () => Promise.resolve(),
+      }}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
   library: () => <Manager tab="library" assignments={IN_PROGRESS} />,
   assign: () => <PaperAssign />,
   'assign-written': () => (
@@ -582,6 +740,39 @@ const VIEWS = {
       onError={noop}
     />
   ),
+  // Needs the paper-print-preview flag (admins have it).
+  bank: () => (
+    <PaperPrintModal
+      quiz={BANK_QUIZ}
+      resolved={BANK_RESOLVED}
+      rosters={ROSTERS}
+      assign={{
+        plcs: [],
+        initialSharing: { plcMode: false, plcId: '' },
+        onCreateAssignment: () => Promise.resolve(),
+      }}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
+  'printed-bank': () => {
+    const group = { answerChoices: 'two' as const, modifiedQuestions: true };
+    return (
+      <PaperPrintModal
+        quiz={printedGroupQuiz(BANK_QUIZ, group)}
+        resolved={printedGroupResolved(BANK_RESOLVED, BANK_QUIZ, group)}
+        group={{
+          label: 'Group 1',
+          students: { r1: ['r1-s0', 'r1-s3'] },
+        }}
+        rosters={ROSTERS}
+        onSaveBatch={() => Promise.resolve()}
+        onClose={noop}
+        onError={noop}
+      />
+    );
+  },
   'printed-stimuli': () => (
     <PaperPrintModal
       quiz={printedGroupQuiz(STIMULI_QUIZ, {
@@ -644,8 +835,90 @@ const VIEWS = {
       onError={noop}
     />
   ),
+  'student-copy-menu': () => <StudentCopyMenu />,
+  'student-copy': () => {
+    const pick = studentCopyPick(
+      { rosterId: 'r1', studentId: 'r1-s1' },
+      {
+        hiddenOptionIdsByQuestion: { q1: ['Vacuole'], q2: ['Cell wall'] },
+        questionIds: ASSIGN_QUIZ.questions.slice(0, 12).map((q) => q.id),
+        supports: [{ kind: 'text', title: 'Word bank', text: 'nucleus' }],
+      }
+    );
+    const group = printedGroupForPrint(pick);
+    return (
+      <PaperPrintModal
+        quiz={printedGroupQuiz(ASSIGN_QUIZ, pick.group, pick)}
+        group={{
+          ...group,
+          label: 'Garcia, Jordan',
+          ...(pick.questionIds ? { servedQuestionIds: pick.questionIds } : {}),
+        }}
+        rosters={ROSTERS}
+        onSaveBatch={() => Promise.resolve()}
+        onClose={noop}
+        onError={noop}
+      />
+    );
+  },
 } as const;
 type View = keyof typeof VIEWS;
+
+const monitorRow = (
+  key: string,
+  name: string,
+  status: QuizResponse['status']
+): MonitorStudent => ({
+  response: {
+    studentUid: key,
+    _responseKey: key,
+    answers: [],
+    status,
+    tabSwitchWarnings: 0,
+  } as unknown as QuizResponse,
+  key,
+  name,
+  bandScore: null,
+  displayScore: null,
+  awaitingGrade: false,
+  band: null,
+  tabWarnings: 0,
+  hand: null,
+  idle: null,
+  duplicate: false,
+  onQuestion: 3,
+});
+
+// The live monitor's In progress roster, with the row menu's Print paper copy.
+const StudentCopyMenu: React.FC = () => {
+  const rows = ['Jordan Larson', 'Avery Nguyen', 'Priya Patel'].map((n, i) =>
+    monitorRow(`uid-${i}`, n, 'in-progress')
+  );
+  return (
+    <div className="h-full overflow-y-auto p-3">
+      <RosterList
+        bucket="inProgress"
+        students={rows}
+        session={
+          {
+            id: 'qa-0',
+            quizId: 'quiz-0',
+            teacherUid: 'mock-user-id',
+            classIds: [],
+            attemptLimit: 1,
+          } as unknown as QuizSession
+        }
+        config={{} as QuizConfig}
+        isGamified={false}
+        onUpdateConfig={noop}
+        onSubmitForStudent={noop}
+        onRemove={noop}
+        onPrintCopy={noop}
+        printCopyKeys={new Set(rows.map((r) => r.key))}
+      />
+    </div>
+  );
+};
 
 const readView = (): View => {
   const q = new URLSearchParams(window.location.search).get('view');

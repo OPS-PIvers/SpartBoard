@@ -67,6 +67,9 @@ export function toPlayback(
       ...(hasPicture && msg.tour.targets?.[s.id]
         ? { target: msg.tour.targets[s.id] }
         : {}),
+      ...(msg.tour.openUrls?.[s.id]
+        ? { openUrl: msg.tour.openUrls[s.id] }
+        : {}),
     };
   });
   return {

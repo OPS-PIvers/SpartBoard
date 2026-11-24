@@ -62,6 +62,8 @@
       "drive": "Drive",
       "openMenu": "Ouvrir le menu",
       "closeMenu": "Fermer le menu",
+      "lastUpdated": "Dernière mise à jour : {{date}}",
+      "buildId": "Version {{version}} (build {{build}})",
       "back": "Retour",
       "adminSettings": "Paramètres admin",
       "adminSettingsLoading": "Chargement des paramètres admin",
@@ -4627,7 +4629,8 @@
       "needsText": "Texte manquant"
     },
     "savedToHelpCenter": "Enregistré dans le Centre d'aide comme Masqué.",
-    "openInHelpCenter": "Ouvrir dans le Centre d'aide"
+    "openInHelpCenter": "Ouvrir dans le Centre d'aide",
+    "savedToHelpCenterSubs": "Enregistré dans le Centre d'aide comme Masqué. Publiez-le depuis les Paramètres d'administration."
   },
   "glPlayer": {
     "modeChip": {
@@ -5132,5 +5135,10 @@
     "retry": "Réessayer",
     "label": "Question audio",
     "playCount": "Écouter l'audio ({{used}}/{{total}})"
+  },
+  "subsTours": {
+    "help": "Aide",
+    "menuLabel": "Aide",
+    "record": "Enregistrer une visite"
   }
 }

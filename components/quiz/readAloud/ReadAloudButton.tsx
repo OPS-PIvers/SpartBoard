@@ -3,6 +3,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Square, Volume2 } from 'lucide-react';
 import type { ReadAloudStatus } from './useQuizReadAloud';
+import { tourAttr } from '@/config/tourAnchors';
 
 const VARIANT: Record<'prominent' | 'ghost', string> = {
   prominent:
@@ -31,7 +32,8 @@ export const ReadAloudButton: React.FC<{
   const { t } = useTranslation();
   const active = status !== 'idle';
   return (
-    <button /* no-tour-anchor: student read-aloud control */
+    <button
+      {...tourAttr('student.quiz.read-aloud-part')}
       type="button"
       aria-label={active ? t('quizReadAloud.stop', 'Stop') : label}
       aria-pressed={status === 'playing'}

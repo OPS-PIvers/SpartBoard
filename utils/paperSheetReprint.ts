@@ -1,6 +1,12 @@
 import { choicePictureFields } from '@/utils/quizAnswerImages';
 import { promptLabelOf } from '@/utils/quizPromptText';
-import type { PaperBatch, PaperPageMap, QuizData, QuizResponse } from '@/types';
+import type {
+  PaperBatch,
+  PaperPageMap,
+  PaperRowGroup,
+  QuizData,
+  QuizResponse,
+} from '@/types';
 import { normalizeAnswer } from '@/hooks/useQuizSession';
 import { selectRepresentativeAnswers } from './answerTakeOrdering';
 import {
@@ -9,12 +15,13 @@ import {
   paperGridOf,
   type PaperGrid,
 } from './paperSheetLayout';
-import { printedChoiceOrder } from './paperImportPlan';
+import { groupRowBubbles, printedChoiceOrder } from './paperImportPlan';
 import { mcItemsOf } from './paperPageMap';
-import { analyzePaperQuiz } from './paperSheetPlan';
+import { analyzePaperQuiz, matchingPairs } from './paperSheetPlan';
 import { pageMapsForSeat } from './paperSheetVersions';
 import type {
   PaperSheetQuestionText,
+  PaperGroupText,
   SheetFill,
   SheetWrittenFill,
 } from './paperSheetPrint';
@@ -40,6 +47,11 @@ export interface SheetReprint {
   /** The key's bubble per row; null when the quiz has no key for it. */
   correct: (number | null)[];
   unclear: boolean[];
+  /** Choose all rows: the bubbles filled and the key's bubbles, by sheet row. */
+  filledSets?: Record<number, number[]>;
+  correctSets?: Record<number, number[]>;
+  /** Matching, ordering and choose all text, for a question-text sheet. */
+  groupTexts?: Record<string, PaperGroupText>;
 }
 
 /** Bubble index of an option's text on this batch's sheet: its place in the printed order, or a bare letter for a stub. */
@@ -100,8 +112,18 @@ export function planSheetReprint(
     ? pageMaps
         .flatMap(mcItemsOf)
         .sort((a, b) => a.sheetRow - b.sheetRow)
-        .map((item) => ({ questionId: item.questionId }))
-    : analyzePaperQuiz(quiz).rows;
+        .map((item) => ({
+          questionId: item.questionId,
+          group: item.group,
+          part: item.part ?? 0,
+          across: !!item.across,
+        }))
+    : analyzePaperQuiz(quiz).rows.map((r) => ({
+        questionId: r.questionId,
+        group: undefined,
+        part: 0,
+        across: false,
+      }));
   const questions = new Map(quiz.questions.map((q) => [q.id, q]));
   const answers = selectRepresentativeAnswers(response.answers ?? []);
   const columnsPerPage = paperGridOf(batch);
@@ -109,8 +131,42 @@ export function planSheetReprint(
   const filled: (number | null)[] = [];
   const correct: (number | null)[] = [];
   const unclear: boolean[] = [];
-  for (const row of rows) {
+  const filledSets: Record<number, number[]> = {};
+  const correctSets: Record<number, number[]> = {};
+  const groupTexts: Record<string, PaperGroupText> = {};
+  rows.forEach((row, i) => {
     const entry = answers.get(row.questionId);
+    const question = questions.get(row.questionId);
+    unclear.push(entry?.unresponded === 'paper-unclear');
+    if (row.group && question) {
+      const options = choiceOrder?.[row.questionId] ?? [];
+      const bubbles = (text: string) =>
+        groupRowBubbles(
+          question,
+          options,
+          row.group as PaperRowGroup,
+          row.part,
+          row.across,
+          text
+        );
+      const got =
+        entry && !entry.unresponded ? bubbles(entry.answer ?? '') : null;
+      const key = bubbles(question.correctAnswer ?? '');
+      filled.push(typeof got === 'number' ? got : null);
+      correct.push(typeof key === 'number' ? key : null);
+      if (Array.isArray(got)) filledSets[i] = got;
+      if (Array.isArray(key)) correctSets[i] = key;
+      groupTexts[row.questionId] ??= {
+        text: promptLabelOf(question),
+        options,
+        ...(row.group === 'match'
+          ? {
+              terms: matchingPairs(question.correctAnswer).map(([l]) => l),
+            }
+          : {}),
+      };
+      return;
+    }
     filled.push(
       entry && !entry.unresponded
         ? bubbleFor(
@@ -121,12 +177,11 @@ export function planSheetReprint(
           )
         : null
     );
-    unclear.push(entry?.unresponded === 'paper-unclear');
-    const key = questions.get(row.questionId)?.correctAnswer ?? '';
+    const key = question?.correctAnswer ?? '';
     correct.push(
       key.trim() ? bubbleFor(choiceOrder, row.questionId, key) : null
     );
-  }
+  });
   return {
     batchId: batch.id,
     seat: response.paperSeat,
@@ -158,6 +213,9 @@ export function planSheetReprint(
     filled,
     correct,
     unclear,
+    ...(Object.keys(filledSets).length ? { filledSets } : {}),
+    ...(Object.keys(correctSets).length ? { correctSets } : {}),
+    ...(Object.keys(groupTexts).length ? { groupTexts } : {}),
   };
 }
 
@@ -182,20 +240,41 @@ export function sheetFillFor(
   reprint: SheetReprint,
   options: SheetReprintMarks
 ): SheetFill {
-  const right = (i: number) =>
-    reprint.filled[i] !== null && reprint.filled[i] === reprint.correct[i];
+  const sameSet = (a: readonly number[], b: readonly number[]) =>
+    a.length === b.length && a.every((x) => b.includes(x));
+  const answered = (i: number) =>
+    reprint.filled[i] !== null || !!reprint.filledSets?.[i]?.length;
+  const hasKey = (i: number) =>
+    reprint.correct[i] !== null || reprint.correctSets?.[i] !== undefined;
+  const right = (i: number) => {
+    const want = reprint.correctSets?.[i];
+    if (want) return sameSet(reprint.filledSets?.[i] ?? [], want);
+    return (
+      reprint.filled[i] !== null && reprint.filled[i] === reprint.correct[i]
+    );
+  };
+  const showKey = (i: number) =>
+    options.keyMode === 'all' ||
+    (options.keyMode === 'missed' && answered(i) && !right(i));
+  const keySets = Object.fromEntries(
+    Object.entries(reprint.correctSets ?? {}).filter(([i]) =>
+      showKey(Number(i))
+    )
+  );
   return {
     filled: reprint.filled,
-    key: reprint.correct.map((c, i) => {
-      if (c === null || options.keyMode === 'off') return null;
-      if (options.keyMode === 'all') return c;
-      return reprint.filled[i] !== null && !right(i) ? c : null;
-    }),
-    marks: reprint.filled.map((f, i) => {
+    key: reprint.correct.map((c, i) =>
+      c === null || options.keyMode === 'off' || !showKey(i) ? null : c
+    ),
+    marks: reprint.filled.map((_, i) => {
       if (reprint.unclear[i]) return 'unclear';
-      if (!options.markAnswers || reprint.correct[i] === null) return null;
-      return f !== null && right(i) ? 'correct' : 'incorrect';
+      if (!options.markAnswers || !hasKey(i)) return null;
+      return answered(i) && right(i) ? 'correct' : 'incorrect';
     }),
+    ...(reprint.filledSets ? { filledSets: reprint.filledSets } : {}),
+    ...(options.keyMode !== 'off' && Object.keys(keySets).length
+      ? { keySets }
+      : {}),
     ...(options.score ? { score: options.score } : {}),
     ...(options.written ? { written: options.written } : {}),
   };

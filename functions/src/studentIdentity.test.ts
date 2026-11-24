@@ -453,6 +453,10 @@ const callPseudonymsForAssignment =
         targetRefKey: string;
       }
     >;
+    formerPseudonyms?: Record<
+      string,
+      { studentUid: string; givenName: string; familyName: string }
+    >;
     skipped?: { ref: unknown; reason: string }[];
   }>;
 const callDirectory = getStudentClassDirectoryV1 as unknown as (req: {
@@ -1556,6 +1560,47 @@ describe('getStudentClassDirectoryV1 — co-teachers, order and re-check', () =>
       sectionIds: ['HOMEROOM', 'A'],
     });
     const res = await callDirectory({ auth: studentAuth(['A']) });
+    expect(res.customToken).toBeUndefined();
+    expect(h.lastCustomToken).toBeNull();
+    expect(res.classes.map((c) => c.classId)).toEqual(['A']);
+  });
+
+  it('never re-mints for a View as student preview, which would drop its read-only claim', async () => {
+    h.docStore.set('users/t/rosters/a', { classlinkClassId: 'A', name: 'Art' });
+    h.docStore.set('users/t/rosters/b', {
+      classlinkClassId: 'B',
+      name: 'Biology',
+    });
+    h.docStore.set('student_sections/stu', {
+      orgId: 'org-orono',
+      sectionIds: ['A', 'B'],
+    });
+    h.docStore.set('view_as_sessions/sid-1', {
+      by: 'boss@school.org',
+      targetUid: 't',
+      expiresAt: Date.now() + 60_000,
+    });
+    h.docStore.set('admin_settings/view_as', { enabled: true });
+    h.docStore.set('organizations/orono/members/boss@school.org', {
+      roleId: 'super_admin',
+    });
+    const auth = studentAuth(['A']);
+    const res = await callDirectory({
+      auth: {
+        ...auth,
+        token: {
+          ...auth.token,
+          viewAs: {
+            by: 'boss@school.org',
+            sid: 'sid-1',
+            ro: true,
+            adminTarget: false,
+            exp: Date.now() + 60_000,
+            student: true,
+          },
+        },
+      },
+    });
     expect(res.customToken).toBeUndefined();
     expect(h.lastCustomToken).toBeNull();
     expect(res.classes.map((c) => c.classId)).toEqual(['A']);
@@ -2947,6 +2992,60 @@ describe('getPseudonymsForAssignmentV1', () => {
     );
     expect(res.pseudonyms['SID-A'].targetRefKey).toBe('classlink:SID-A');
     expect(res.skipped).toBeUndefined();
+  });
+
+  it('names a student who has left the class apart from the class list, and remembers who is in it now', async () => {
+    seedOneRoster();
+    const base = h.axiosGet!;
+    h.axiosGet = async (url: string, cfg?: unknown) => {
+      if (url.endsWith('/users/SID-OLD'))
+        return {
+          data: {
+            user: {
+              sourcedId: 'SID-OLD',
+              givenName: 'Sam',
+              familyName: 'Moved',
+              role: 'student',
+            },
+          },
+        };
+      if (url.endsWith('/users/SID-TCH'))
+        return {
+          data: { user: { sourcedId: 'SID-TCH', role: 'teacher' } },
+        };
+      if (url.endsWith('/users/SID-GONE')) throw new Error('404');
+      return base(url, cfg);
+    };
+    const recent = Date.now() - 1000;
+    h.docStore.set('classlink_class_members/teacher1__CL1', {
+      members: {
+        'SID-A': recent,
+        'SID-OLD': recent,
+        'SID-GONE': recent,
+        'SID-TCH': recent,
+      },
+    });
+    // Another teacher's record of the same class is never used.
+    h.docStore.set('classlink_class_members/other__CL1', {
+      members: { 'SID-OTHER': recent },
+    });
+
+    const res = await callPseudonymsForAssignment({
+      auth: TEACHER,
+      data: { assignmentId: ASSIGNMENT, classId: 'CL1' },
+    });
+
+    expect(Object.keys(res.pseudonyms).sort()).toEqual(['SID-A', 'SID-B']);
+    expect(Object.keys(res.formerPseudonyms ?? {})).toEqual(['SID-OLD']);
+    expect(res.formerPseudonyms?.['SID-OLD']).toMatchObject({
+      studentUid: computeStudentUid('SID-OLD', HMAC),
+      givenName: 'Sam',
+      familyName: 'Moved',
+    });
+    const written = h.docStore.get('classlink_class_members/teacher1__CL1') as {
+      members: Record<string, number>;
+    };
+    expect(Object.keys(written.members)).toContain('SID-B');
   });
 
   it('refs path resolves only the targeted subset of a class', async () => {

@@ -62,6 +62,8 @@
       "drive": "Drive",
       "openMenu": "Abrir Menú",
       "closeMenu": "Cerrar Menú",
+      "lastUpdated": "Última actualización: {{date}}",
+      "buildId": "Versión {{version}} (compilación {{build}})",
       "back": "Atrás",
       "adminSettings": "Configuración Admin",
       "adminSettingsLoading": "Cargando Configuración Admin",
@@ -4627,7 +4629,8 @@
       "needsText": "Necesita texto"
     },
     "savedToHelpCenter": "Guardado en el Centro de ayuda como Oculto.",
-    "openInHelpCenter": "Abrir en el Centro de ayuda"
+    "openInHelpCenter": "Abrir en el Centro de ayuda",
+    "savedToHelpCenterSubs": "Guardado en el Centro de ayuda como Oculto. Publícalo desde la Configuración de administración."
   },
   "glPlayer": {
     "modeChip": {
@@ -5132,5 +5135,10 @@
     "retry": "Intentar de nuevo",
     "label": "Pregunta de audio",
     "playCount": "Reproducir audio ({{used}}/{{total}})"
+  },
+  "subsTours": {
+    "help": "Ayuda",
+    "menuLabel": "Ayuda",
+    "record": "Grabar un recorrido"
   }
 }

@@ -1,3 +1,4 @@
+import { tourAttr } from '@/config/tourAnchors';
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -170,8 +171,8 @@ export const TextPopoverInteraction: React.FC<Props> = ({
               } as React.CSSProperties)
         }
       >
-        {/* no-tour-anchor: student player overlay, not on the teacher board during a tour */}
         <button
+          {...tourAttr('gl-player.popover-close')}
           onClick={onClose}
           className={`absolute ${tone.closeButton} transition-colors`}
           style={{

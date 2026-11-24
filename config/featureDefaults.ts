@@ -64,6 +64,8 @@ import {
   Shapes,
   Settings2,
   Users,
+  UserCheck,
+  CopyX,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -198,6 +200,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Board Sharing',
     icon: Share2,
     description: 'Share a board by link.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    category: 'sharing',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
+  // Admin kill switch for every substitute feature: Share with a sub and the /subs portal.
+  'substitute-sharing': {
+    label: 'Substitute sharing',
+    icon: UserCheck,
+    description: 'Teachers can share boards with a sub.',
     stage: 'permanent',
     afterLaunch: 'keep',
     category: 'sharing',
@@ -731,6 +745,22 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     afterLaunch: 'retire',
     widget: 'quiz',
     modalLabel: 'Print preview',
+    group: 'questions',
+    requires: 'paper-answer-sheets',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Print paper copy in the live Quiz monitor's student row menu.
+  'paper-student-copy': {
+    label: 'Print for one student',
+    icon: Printer,
+    description:
+      'Print a paper copy of a live quiz for one student from the monitor.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Print for one student',
     group: 'questions',
     requires: 'paper-answer-sheets',
     defaultAccessLevel: 'admin',
@@ -1743,6 +1773,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'picked-student-names': {
+    label: 'Assigned students',
+    icon: Users,
+    description:
+      'Assignment rows list the students an assignment went to. Names show under each class.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'writing-peer-review': {
     label: 'Writing peer review',
     icon: Users,
@@ -1759,6 +1800,50 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Sparkles,
     description:
       "Widget update notes are listed in What's New instead of under each widget.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'subs-live-tours': {
+    label: 'Live tours for subs',
+    icon: UserCheck,
+    description:
+      'Subs get a Help button with live tours. Admins record them on the sub page.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'student-live-tours': {
+    label: 'Live tours for students',
+    icon: GraduationCap,
+    description:
+      'Students get a Help button with live tours. Admins record them in View as student.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'assign-open-check': {
+    label: 'Assign: no duplicate classes',
+    icon: CopyX,
+    description:
+      'Assign locks classes that already have the item open. New classes can join that assignment.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'modification-fewer-questions': {
+    label: 'Modifications: fewer questions',
+    icon: ListChecks,
+    description:
+      'A quiz modification group can answer fewer questions. Scores count only those questions.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

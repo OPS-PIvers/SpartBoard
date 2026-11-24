@@ -428,6 +428,7 @@ export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';
 export { launchSubAssignmentV1 } from './subLaunchAssignment';
 export { controlSubAssignmentV1 } from './subControlAssignment';
+export { loadSubShareFilesV1 } from './subShareFiles';
 export {
   focusStartV1,
   focusExtendV1,

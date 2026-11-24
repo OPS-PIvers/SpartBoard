@@ -19,6 +19,7 @@ import {
   type TokenInfo,
 } from './extensionAuth';
 import { safeErr } from './safeLog';
+import { authorPassesFlag, isListedTourAuthor } from './tourAuthors';
 
 export {
   DISTRICT_DOMAIN,
@@ -85,6 +86,7 @@ interface StoredStep {
     };
     showWhen?: unknown;
     doneWhen?: unknown;
+    openUrl?: unknown;
   };
 }
 
@@ -107,8 +109,29 @@ const conditionOf = (v: unknown): StepCondition | null => {
 
 interface StoredSnapshot {
   publishedAt?: unknown;
-  set?: { title?: unknown; surface?: unknown; steps?: unknown };
+  set?: {
+    title?: unknown;
+    surface?: unknown;
+    steps?: unknown;
+    webStartUrl?: unknown;
+  };
 }
+
+/** An admin-set page the extension may open: https, no wildcard or sign-in parts; else null. */
+export const openablePage = (v: unknown): string | null => {
+  if (typeof v !== 'string' || v.length > 2048 || v.includes('*')) return null;
+  try {
+    const url = new URL(v.trim());
+    return url.protocol === 'https:' &&
+      !url.username &&
+      !url.password &&
+      url.hostname
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
+};
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 
@@ -315,6 +338,10 @@ export interface LoadedTour {
   title: string;
   steps: LoadedTourStep[];
   pictures: Record<string, LoadedTourPicture>;
+  /** The tour's start page, when the admin set one. */
+  startPage?: string;
+  /** Pages the admin set on steps, by id, beside the steps so an older extension never sees them. */
+  openUrls?: Record<string, string>;
   /** Step conditions by id, beside the steps so an extension before protocol 12 never sees them. */
   conditions?: Record<
     string,
@@ -402,8 +429,16 @@ export async function loadTour(
         ...(doneWhen ? { doneWhen } : {}),
       };
   }
+  const openUrls: Record<string, string> = {};
+  for (const step of steps) {
+    const url = isTargeted(step) ? openablePage(step.web?.openUrl) : null;
+    if (url) openUrls[str(step.id)] = url;
+  }
+  const startPage = openablePage(snap.set?.webStartUrl);
   return {
     ...(Object.keys(conditions).length > 0 ? { conditions } : {}),
+    ...(Object.keys(openUrls).length > 0 ? { openUrls } : {}),
+    ...(startPage ? { startPage } : {}),
     setId,
     version: Number(snap.publishedAt) || 0,
     title: str(snap.set?.title),
@@ -508,10 +543,19 @@ function defaultDeps(db: Firestore): ExtensionDeps {
         (await db.collection('admins').doc(email).get()).exists;
       if (!staff) return false;
       const { isGlobalFeatureGranted } = await import('./featureGrant');
-      return isGlobalFeatureGranted(db, WEB_TOURS_FEATURE_ID, email, uid ?? '');
+      return (
+        (await isGlobalFeatureGranted(
+          db,
+          WEB_TOURS_FEATURE_ID,
+          email,
+          uid ?? ''
+        )) || authorPassesFlag(db, WEB_TOURS_FEATURE_ID, email)
+      );
     },
+    // The extension shows Record, Manage tours and Edit tour from this, so an author counts (WEB_TOUR_AUTHORS.md E1).
     isAdmin: async (email) =>
-      (await db.collection('admins').doc(email).get()).exists,
+      (await db.collection('admins').doc(email).get()).exists ||
+      isListedTourAuthor(db, email),
   };
 }
 

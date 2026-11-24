@@ -21,7 +21,9 @@ export function isStudentFeatureOpen(
   );
 }
 
-export function useStudentFeatureOpen(featureId: 'student-gradebook'): boolean {
+export function useStudentFeatureOpen(
+  featureId: 'student-gradebook' | 'student-live-tours'
+): boolean {
   const [enabled, setEnabled] = useState(false);
   useEffect(() => {
     if (isAuthBypass) return;

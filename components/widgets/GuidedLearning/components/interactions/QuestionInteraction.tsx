@@ -1,3 +1,4 @@
+import { tourAttr } from '@/config/tourAnchors';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, XCircle, ArrowRight, BookOpen } from 'lucide-react';
@@ -180,8 +181,8 @@ export const QuestionInteraction: React.FC<Props> = ({
             {q.type === 'multiple-choice' && (
               <div className="space-y-2">
                 {(q.choices ?? []).map((choice) => (
-                  // no-tour-anchor: student player overlay, not on the teacher board during a tour
                   <button
+                    {...tourAttr('gl-player.answer-choice')}
                     key={choice}
                     onClick={() => setSelectedMC(choice)}
                     className={`w-full text-left rounded-xl border transition-all active:scale-[0.98] ${
@@ -236,6 +237,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                       →
                     </span>
                     <select
+                      {...tourAttr('gl-player.match-select')}
                       value={matchingAnswers[left] ?? ''}
                       onChange={(e) =>
                         setMatchingAnswers((prev) => ({
@@ -304,8 +306,8 @@ export const QuestionInteraction: React.FC<Props> = ({
                       className="flex flex-col"
                       style={{ gap: 'min(2px, 0.5cqmin)' }}
                     >
-                      {/* no-tour-anchor: student player overlay, not on the teacher board during a tour */}
                       <button
+                        {...tourAttr('gl-player.sort-up')}
                         disabled={idx === 0}
                         onClick={() => {
                           const arr = [...sortingOrder];
@@ -320,8 +322,8 @@ export const QuestionInteraction: React.FC<Props> = ({
                       >
                         ▲
                       </button>
-                      {/* no-tour-anchor: student player overlay, not on the teacher board during a tour */}
                       <button
+                        {...tourAttr('gl-player.sort-down')}
                         disabled={idx === sortingOrder.length - 1}
                         onClick={() => {
                           const arr = [...sortingOrder];
@@ -342,8 +344,8 @@ export const QuestionInteraction: React.FC<Props> = ({
               </div>
             )}
 
-            {/* no-tour-anchor: student player overlay, not on the teacher board during a tour */}
             <button
+              {...tourAttr('gl-player.question-submit')}
               onClick={handleSubmit}
               disabled={!canSubmit}
               className={`${primaryBtn} w-full disabled:bg-slate-200 disabled:text-slate-500 transition-all active:scale-95`}
@@ -388,8 +390,8 @@ export const QuestionInteraction: React.FC<Props> = ({
                   </p>
                 )}
                 {allowChange && (
-                  // no-tour-anchor: student player overlay, not on the teacher board during a tour
                   <button
+                    {...tourAttr('gl-player.change-answer')}
                     type="button"
                     onClick={() => {
                       setRecorded(undefined);
@@ -454,8 +456,8 @@ export const QuestionInteraction: React.FC<Props> = ({
                 )}
               </>
             )}
-            {/* no-tour-anchor: student player overlay, not on the teacher board during a tour */}
             <button
+              {...tourAttr('gl-player.question-continue')}
               onClick={onContinue}
               className={`${primaryBtn} flex items-center mx-auto transition-all active:scale-95`}
               style={{
@@ -484,8 +486,8 @@ export const QuestionInteraction: React.FC<Props> = ({
               paddingTop: 'min(10px, 2.5cqmin)',
             }}
           >
-            {/* no-tour-anchor: student player overlay, not on the teacher board during a tour */}
             <button
+              {...tourAttr('gl-player.reveal-answer')}
               type="button"
               aria-expanded={revealed}
               onClick={() => setRevealedStepId(revealed ? null : step.id)}

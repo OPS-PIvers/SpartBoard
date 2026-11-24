@@ -62,6 +62,8 @@
       "drive": "Drive",
       "openMenu": "Open Menu",
       "closeMenu": "Close Menu",
+      "lastUpdated": "Last updated: {{date}}",
+      "buildId": "Version {{version}} (build {{build}})",
       "back": "Back",
       "adminSettings": "Admin Settings",
       "adminSettingsLoading": "Loading Admin Settings",
@@ -5537,6 +5539,8 @@
     "linkReady": "Send this link to your sub — they sign in with their school account and land on this straight away.",
     "urlLabel": "Sub share link",
     "missedTitle": "Some widget content did not come along",
+    "driveWarningsTitle": "Student names may not reach your sub",
+    "driveNotConnected": "Google Drive is not connected, so your sub has to load the class lists by hand. Share again and choose Allow to fix this.",
     "missedHelp": "Your sub will see these empty. Open the board, check the widget loads, then push your changes again."
   },
   "subShare": {
@@ -5844,7 +5848,8 @@
       "needsText": "Needs text"
     },
     "savedToHelpCenter": "Saved to the Help Center as Hidden.",
-    "openInHelpCenter": "Open in Help Center"
+    "openInHelpCenter": "Open in Help Center",
+    "savedToHelpCenterSubs": "Saved to the Help Center as Hidden. Publish it from Admin Settings."
   },
   "glPlayer": {
     "modeChip": {
@@ -6574,5 +6579,10 @@
     "retry": "Try again",
     "label": "Audio question",
     "playCount": "Play audio ({{used}}/{{total}})"
+  },
+  "subsTours": {
+    "help": "Help",
+    "menuLabel": "Help",
+    "record": "Record a tour"
   }
 }

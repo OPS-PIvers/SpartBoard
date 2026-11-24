@@ -468,7 +468,7 @@ describe('QuizAssignStepper editing groups by rule', () => {
       <EditHarness
         saved={{
           [keyOf('c1', 'a')]: { readAloud: true, closeAt: 5 },
-          [keyOf('c1', 'c')]: { readAloud: true, questionIds: ['q1'] },
+          [keyOf('c1', 'c')]: { readAloud: true, openAt: 3 },
           [keyOf('c1', 'b')]: { closeAt: 7 },
         }}
         onSubmit={vi.fn()}

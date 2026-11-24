@@ -2,6 +2,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Undo2, X } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const CrossOutChoiceButton: React.FC<{
   /** 1-based position of the choice as shown. */
@@ -21,8 +22,8 @@ export const CrossOutChoiceButton: React.FC<{
     ? 'text-slate-500 hover:bg-slate-100'
     : 'text-slate-400 hover:bg-slate-800';
   return (
-    // no-tour-anchor: student quiz screen, which teacher tours never open.
     <button
+      {...tourAttr('student.quiz.cross-out')}
       type="button"
       aria-label={label}
       aria-pressed={crossedOut}

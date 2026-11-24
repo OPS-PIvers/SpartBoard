@@ -60,13 +60,13 @@ import type { RecordedWebStep } from './recorderProtocol';
 import { useWebTourRecorder, type RecorderLink } from './useWebTourRecorder';
 import { buildTourUrl } from './tourLinks';
 import { useCopyWebTourLink } from './useCopyWebTourLink';
-import { pageUrlOf, type HubStep } from './webTourHub';
+import { hubStepsOf, pageUrlOf, startUrlOf, type HubStep } from './webTourHub';
+import { PageField } from './WebConditionFields';
 import {
   canCheckWebTours,
   pingExtension,
   REPICK_PROTOCOL,
 } from './extensionClient';
-import { CONDITIONS_PROTOCOL } from './extensionProtocol';
 import { useWebTourCheck } from './useWebTourCheck';
 import {
   applyFix,
@@ -95,7 +95,8 @@ import {
 import { PublishCheck } from './webEditorParts';
 import { usePublicLinkControls } from '@/components/tours/publicLink/usePublicLinkControls';
 import { PictureCache } from './webPictures';
-import { FRESHSERVICE_FEATURE, sendTourToFreshservice } from './freshservice';
+import { sendTourToFreshservice, useCanFreshservice } from './freshservice';
+import { useTourAuthor } from './useTourAuthor';
 import { useStepsLabels } from '@/components/tours/steps/useStepsLabels';
 import {
   CHECK_LABEL,
@@ -181,7 +182,10 @@ const WebTourEditorBody: React.FC<{
   initialStepId?: string;
 }> = ({ initial, onClose, onOpen, initialStepId }) => {
   const { user, isAdmin, canAccessFeature } = useAuth();
-  const canFresh = !!isAdmin && canAccessFeature(FRESHSERVICE_FEATURE);
+  const canFresh = useCanFreshservice();
+  const access = useTourAuthor();
+  // An author deletes only a tour they made; the rule says the same.
+  const canDelete = !!isAdmin || (!!user && initial.authorUid === user.uid);
   const stepsLabels = useStepsLabels();
   const uid = user?.uid ?? '';
   const canCopyForClaude =
@@ -213,7 +217,7 @@ const WebTourEditorBody: React.FC<{
   } | null>(null);
   const [extensionCanFix, setCanFix] = useState(false);
   const [extensionCanCheck, setCanCheck] = useState(false);
-  const [playsConditions, setPlaysConditions] = useState(false);
+  const [playProtocol, setPlayProtocol] = useState(0);
   const copyLink = useCopyWebTourLink();
   const published = usePublishedTour(initial.id);
   const live =
@@ -221,6 +225,7 @@ const WebTourEditorBody: React.FC<{
   const publicLink = usePublicLinkControls({
     setId: initial.id,
     menuCopies: true,
+    author: access.author,
     published:
       webTourEditorDevSeed()?.publishedSet ??
       (published.loaded ? (live?.set ?? null) : undefined),
@@ -238,9 +243,7 @@ const WebTourEditorBody: React.FC<{
       if (cancelled) return;
       setCanFix(s.kind === 'ready' && s.protocol >= REPICK_PROTOCOL);
       setCanCheck(canCheckWebTours(s));
-      setPlaysConditions(
-        s.kind === 'ready' && s.protocol >= CONDITIONS_PROTOCOL
-      );
+      setPlayProtocol(s.kind === 'ready' ? s.protocol : 0);
     });
     return () => {
       cancelled = true;
@@ -718,14 +721,18 @@ const WebTourEditorBody: React.FC<{
       onSelect: () => void duplicate(),
       anchor: tourAttr('web-tour-editor.duplicate'),
     },
-    {
-      id: 'delete',
-      label: 'Delete web tour',
-      icon: Trash2,
-      danger: true,
-      onSelect: () => void remove(),
-      anchor: tourAttr('web-tour-editor.delete'),
-    },
+    ...(canDelete
+      ? [
+          {
+            id: 'delete' as const,
+            label: 'Delete web tour',
+            icon: Trash2,
+            danger: true,
+            onSelect: () => void remove(),
+            anchor: tourAttr('web-tour-editor.delete'),
+          },
+        ]
+      : []),
   ];
 
   const adapter: TourShellAdapter = {
@@ -742,7 +749,7 @@ const WebTourEditorBody: React.FC<{
         if (at >= 0) select(steps[at].id);
         void writing.run('blanks');
       } else if (state === 'check')
-        void checker.start(latest.current, playsConditions);
+        void checker.start(latest.current, playProtocol);
       else if (state === 'publish') publish();
     },
     // Play runs the published tour, so it shows once there is one.
@@ -983,6 +990,21 @@ const WebTourEditorBody: React.FC<{
                     {...tourAttr('web-tour-editor.title')}
                   />
                 </label>
+                <PageField
+                  label="Start page"
+                  title="The tour opens here. Leave blank to use the first step's page."
+                  value={set.webStartUrl ?? ''}
+                  placeholder={startUrlOf(hubStepsOf(set.steps)) ?? 'https://'}
+                  onChange={(next) =>
+                    change(
+                      ({ webStartUrl: _old, ...cur }) =>
+                        next ? { ...cur, webStartUrl: next } : cur,
+                      'start-page'
+                    )
+                  }
+                  testId="web-tour-start-page"
+                  anchor={tourAttr('web-tour-editor.start-page')}
+                />
                 <WebTourGoalField set={set} change={(u) => change(u, 'goal')} />
               </div>
             ) : (

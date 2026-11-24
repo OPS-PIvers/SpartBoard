@@ -5,7 +5,7 @@ import { TOUR_ANCHORS, type TourAnchorDef } from '@/config/tourAnchors';
 import { TOUR_ANCHOR_LIST } from '@/functions/src/mcp/tourAnchorList';
 import { TOUR_SURFACES } from '@/config/tourSurfaces';
 import { TOUR_ANCHOR_SURFACES } from '@/config/tourAnchorSurfaces.generated';
-import { surfacePath } from '@/config/tourAnchorRoutes';
+import { innerReveal, surfacePath } from '@/config/tourAnchorRoutes';
 import { anchorKeys } from './helpers/tourAnchorSources';
 import { writeGenerated } from './helpers/writeGenerated';
 import { WIDGET_TYPE_LIST } from '@/functions/src/mcp/widgetTypeList';
@@ -83,7 +83,7 @@ function routesOf(id: string) {
   const routes = (TOUR_ANCHOR_SURFACES[id] ?? []).map((surface) => {
     const def = TOUR_SURFACES[surface];
     const reach = surfacePath(surface);
-    const inner = def.inner?.[id];
+    const { reveal: inner, also } = innerReveal(def, id);
     return {
       surface,
       kind: def.kind,
@@ -91,6 +91,7 @@ function routesOf(id: string) {
       ...(def.url ? { url: def.url } : {}),
       ...(reach ? { path: inner ? [...reach.path, inner] : reach.path } : {}),
       ...(inner ? { reveal: inner } : {}),
+      ...(inner && also.length ? { opened_by: also } : {}),
       ...(!inner && def.alsoOpensWith?.length
         ? { opened_by: def.alsoOpensWith }
         : {}),

@@ -32,6 +32,7 @@ import { SubBoardNav } from './SubBoardNav';
 import { SubShareUpdateBanner } from './SubShareUpdateBanner';
 import { buildSubShareNav, type SubShareNavSource } from './subShareNav';
 import type { SubstituteShareDoc } from '@/hooks/useSubstituteShares';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface SubCollectionBoardScreenProps {
   shareId: string;
@@ -149,7 +150,8 @@ export const SubCollectionBoardScreen: React.FC<
 
   const rosterState = useSubstituteRosters(
     shown?.share.sharedRosters ?? share?.sharedRosters,
-    shown?.share.namesFileId ?? share?.namesFileId
+    shown?.share.namesFileId ?? share?.namesFileId,
+    shareId
   );
   const [expired, setExpired] = useState(false);
 
@@ -286,6 +288,7 @@ export const SubCollectionBoardScreen: React.FC<
           </span>
           <button
             type="button"
+            {...tourAttr('subs.nav-retry')}
             onClick={() => {
               setPendingAccept((p) =>
                 p ? { ...p, requestKey: `${boardId}::${attempt + 1}` } : null

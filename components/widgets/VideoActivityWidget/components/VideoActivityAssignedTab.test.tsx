@@ -178,8 +178,8 @@ describe('VideoActivityAssignedTab', () => {
       }),
     ]);
     expect(menuOf('Cells')).toEqual([
-      'Publish scores…',
-      'Reopen…',
+      'Publish scores',
+      'Reopen',
       'Move to Finished',
       'Delete',
     ]);
@@ -212,10 +212,10 @@ describe('VideoActivityAssignedTab', () => {
     );
   });
 
-  it('offers Reopen… on a closed self-paced single line, for everyone', async () => {
+  it('offers Reopen on a closed self-paced single line, for everyone', async () => {
     store.responses.a1 = [{ completedAt: NOW - 5000 }];
     renderTab([base({ id: 'a1', status: 'inactive', closedAt: NOW - 1000 })]);
-    fireEvent.click(screen.getByText('menu:Reopen…'));
+    fireEvent.click(screen.getByText('menu:Reopen'));
     expect(
       screen.getByRole('radio', { name: 'Everyone in the class' })
     ).toBeTruthy();
@@ -261,7 +261,7 @@ describe('VideoActivityAssignedTab', () => {
     );
     store.responses.a1 = [{ completedAt: NOW - 5000 }];
     renderTab([base({ id: 'a1', status: 'inactive', closedAt: NOW - 1000 })]);
-    fireEvent.click(screen.getByText('menu:Reopen…'));
+    fireEvent.click(screen.getByText('menu:Reopen'));
     fireEvent.click(screen.getByRole('button', { name: 'Reopen' }));
     await waitFor(() =>
       expect(store.toasts).toContainEqual([
@@ -278,7 +278,7 @@ describe('VideoActivityAssignedTab', () => {
     ];
     renderTab([base({ id: 'a1', status: 'inactive', closedAt: NOW })]);
     // The answered work keeps the row Active while it is owed.
-    expect(screen.getByText('menu:Reopen…')).toBeTruthy();
+    expect(screen.getByText('menu:Reopen')).toBeTruthy();
     await vi.advanceTimersByTimeAsync(200_000);
     expect(turnIn).toHaveBeenCalledWith('a1', 't1', NOW);
   });

@@ -19,6 +19,7 @@ import {
   type WhiteboardSize,
   type WhiteboardTool,
 } from './whiteboardTools';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const TOOLS: ReadonlyArray<{
   tool: WhiteboardTool;
@@ -108,7 +109,11 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
           <button
             key={id}
             type="button"
-            // no-tour-anchor: student quiz canvas, outside teacher tours
+            {...tourFieldAttr(
+              'student.quiz.whiteboard-tool',
+              'quiz-student',
+              id
+            )}
             aria-pressed={tool === id}
             aria-label={t(`quizWhiteboard.canvas.tool.${id}`)}
             title={t(`quizWhiteboard.canvas.tool.${id}`)}
@@ -133,7 +138,11 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
             <button
               key={mode}
               type="button"
-              // no-tour-anchor: student quiz canvas, outside teacher tours
+              {...tourFieldAttr(
+                'student.quiz.whiteboard-eraser-mode',
+                'quiz-student',
+                mode
+              )}
               aria-pressed={eraserMode === mode}
               aria-label={t(`quizWhiteboard.canvas.eraser.${mode}`)}
               title={t(`quizWhiteboard.canvas.eraser.${mode}`)}
@@ -155,7 +164,11 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
             <button
               key={hex}
               type="button"
-              // no-tour-anchor: student quiz canvas, outside teacher tours
+              {...tourFieldAttr(
+                'student.quiz.whiteboard-color',
+                'quiz-student',
+                key
+              )}
               aria-pressed={color === hex}
               aria-label={t(`quizWhiteboard.canvas.color.${key}`)}
               title={t(`quizWhiteboard.canvas.color.${key}`)}
@@ -189,7 +202,11 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
               <button
                 key={id}
                 type="button"
-                // no-tour-anchor: student quiz canvas, outside teacher tours
+                {...tourFieldAttr(
+                  'student.quiz.whiteboard-size',
+                  'quiz-student',
+                  id
+                )}
                 aria-pressed={size === id}
                 aria-label={t(`quizWhiteboard.canvas.size.${id}`)}
                 title={t(`quizWhiteboard.canvas.size.${id}`)}
@@ -213,7 +230,7 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
       <div className={group}>
         <button
           type="button"
-          // no-tour-anchor: student quiz canvas, outside teacher tours
+          {...tourAttr('student.quiz.whiteboard-undo')}
           aria-label={t('quizWhiteboard.canvas.undo')}
           title={t('quizWhiteboard.canvas.undo')}
           disabled={disabled || !canUndo}
@@ -224,7 +241,7 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
         </button>
         <button
           type="button"
-          // no-tour-anchor: student quiz canvas, outside teacher tours
+          {...tourAttr('student.quiz.whiteboard-redo')}
           aria-label={t('quizWhiteboard.canvas.redo')}
           title={t('quizWhiteboard.canvas.redo')}
           disabled={disabled || !canRedo}

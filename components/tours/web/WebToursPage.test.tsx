@@ -1,11 +1,30 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
 import { WebToursPage } from './WebToursPage';
 
 type Published = { set: unknown; publishedAt: number };
 
+const who = vi.hoisted(() => ({ admin: true }));
+vi.mock('./useTourAuthor', () => ({
+  useTourAuthor: () => ({
+    ready: true,
+    admin: who.admin,
+    author: true,
+    passes: () => true,
+  }),
+}));
+const fresh = vi.hoisted(() => ({
+  articles: null as Record<
+    string,
+    { published: boolean; url: string | null; sentAt: number }
+  > | null,
+}));
+vi.mock('./freshserviceArticles', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./freshserviceArticles')>()),
+  useFreshserviceArticles: () => fresh.articles,
+}));
 const h = vi.hoisted(() => ({
   onDrafts: null as ((sets: GuidedLearningSet[]) => void) | null,
   onDraftsError: null as (() => void) | null,
@@ -15,6 +34,8 @@ const h = vi.hoisted(() => ({
   published: new Map<string, Published>(),
   publicUrl: null as string | null,
   save: vi.fn<(set: GuidedLearningSet) => Promise<void>>(),
+  remove: vi.fn<(id: string) => Promise<void>>(),
+  confirm: vi.fn<() => Promise<boolean>>(),
   requestOn: vi.fn<(after?: (url: string) => void) => void>(),
 }));
 
@@ -30,6 +51,10 @@ vi.mock('@/components/tours/webTours', () => ({
   createWebTourDraft: () => h.create(),
   loadWebTourDraft: (id: string) => h.load(id),
   saveWebTourDraft: (set: GuidedLearningSet) => h.save(set),
+  deleteWebTourDraft: (id: string) => h.remove(id),
+}));
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({ showConfirm: () => h.confirm() }),
 }));
 vi.mock('@/components/tours/tourRuns', () => ({
   loadTourRuns: () => Promise.resolve([]),
@@ -111,10 +136,14 @@ describe('WebToursPage', () => {
     h.load.mockReset();
     h.copy.mockReset();
     h.published = new Map();
+    fresh.articles = null;
     h.publicUrl = null;
     h.save.mockReset();
+    h.remove.mockReset().mockResolvedValue(undefined);
+    h.confirm.mockReset().mockResolvedValue(true);
     h.requestOn.mockReset();
     window.history.replaceState(null, '', '/web-tours');
+    localStorage.clear();
   });
 
   it('lists the drafts newest first with their publish state', () => {
@@ -132,7 +161,7 @@ describe('WebToursPage', () => {
     expect(rows[0]).toHaveTextContent('1 step · example.com');
     expect(rows[0]).toHaveTextContent('12 views · 1 finished');
     expect(rows[0]).not.toHaveTextContent('link view');
-    expect(rows[1]).toHaveTextContent('Draft');
+    expect(rows[1]).toHaveTextContent('Check tour');
     expect(rows[1]).not.toHaveTextContent('views');
     expect(
       screen.getByRole('button', { name: 'Play Older tour' })
@@ -166,6 +195,93 @@ describe('WebToursPage', () => {
     expect(await screen.findByTestId('editor')).toHaveTextContent('new1');
     fireEvent.click(screen.getByText('close editor'));
     expect(screen.queryByTestId('editor')).toBeNull();
+  });
+
+  it('shows the author and deletes a tour only after a yes', async () => {
+    render(<WebToursPage />);
+    showDrafts([tour('a', 'Tour A', { authorName: 'Pat Lee' })]);
+    expect(screen.getByTestId('web-tour-row')).toHaveTextContent('by Pat Lee');
+    h.confirm.mockResolvedValueOnce(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Tour A' }));
+    await act(() => Promise.resolve());
+    expect(h.remove).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Tour A' }));
+    expect(await screen.findByText('Web tour deleted.')).toBeInTheDocument();
+    expect(h.remove).toHaveBeenCalledWith('a');
+  });
+
+  it('shows each tour in FreshService as a draft, published or needing an update', () => {
+    const url = 'https://orono.freshservice.com/a/solutions/articles/7';
+    fresh.articles = {
+      a: { published: false, url, sentAt: 300 },
+      b: { published: true, url: null, sentAt: 300 },
+      c: { published: true, url, sentAt: 100 },
+    };
+    h.published = new Map(
+      ['a', 'b', 'c', 'd'].map((id) => [
+        id,
+        { set: { surface: 'web', steps: [] }, publishedAt: 200 },
+      ])
+    );
+    render(<WebToursPage />);
+    showDrafts([
+      tour('a', 'Tour A'),
+      tour('b', 'Tour B'),
+      tour('c', 'Tour C'),
+      tour('d', 'Tour D'),
+    ]);
+    const cell = (title: string) =>
+      within(
+        screen
+          .getAllByTestId('web-tour-row')
+          .find((r) => r.textContent?.includes(title)) as HTMLElement
+      ).getByTestId('web-tour-fresh');
+    expect(cell('Tour A')).toHaveTextContent('Draft');
+    expect(within(cell('Tour A')).getByRole('link')).toHaveAttribute(
+      'href',
+      url
+    );
+    expect(cell('Tour B')).toHaveTextContent('Published');
+    expect(within(cell('Tour B')).queryByRole('link')).toBeNull();
+    expect(cell('Tour C')).toHaveTextContent('Needs update');
+    expect(cell('Tour D')).toBeEmptyDOMElement();
+
+    const visible = () =>
+      screen
+        .getAllByTestId('web-tour-row')
+        .filter((r) => !r.hidden)
+        .map((r) => r.textContent?.match(/Tour [A-D]/)?.[0]);
+    const pick = (value: string) =>
+      fireEvent.change(screen.getByLabelText('FreshService'), {
+        target: { value },
+      });
+    pick('unsent');
+    expect(visible()).toEqual(['Tour D']);
+    pick('stale');
+    expect(visible()).toEqual(['Tour C']);
+    pick('sent');
+    expect(visible().sort()).toEqual(['Tour A', 'Tour B', 'Tour C']);
+  });
+
+  it('leaves the FreshService column and filter out when there is nothing to read', () => {
+    render(<WebToursPage />);
+    showDrafts([tour('a', 'Tour A')]);
+    expect(screen.queryByTestId('web-tour-fresh')).toBeNull();
+    expect(screen.queryByLabelText('FreshService')).toBeNull();
+  });
+
+  it('hides Delete from an author on a tour someone else made', () => {
+    who.admin = false;
+    try {
+      render(<WebToursPage />);
+      showDrafts([tour('a', 'Tour A', { authorUid: 'someone-else' })]);
+      expect(screen.getByRole('button', { name: 'Edit Tour A' })).toBeVisible();
+      expect(
+        screen.queryByRole('button', { name: 'Delete Tour A' })
+      ).toBeNull();
+    } finally {
+      who.admin = true;
+    }
   });
 
   it('opens the editor from Edit and from Check tour', async () => {
@@ -333,6 +449,70 @@ describe('WebToursPage', () => {
     expect(visible()[0]).toContain('Docs markdown');
     fireEvent.change(search, { target: { value: 'gmail' } });
     expect(screen.getByText('No tours match.')).toBeInTheDocument();
+  });
+
+  it('filters by website and author, sorts by name, and remembers the choices', () => {
+    const sets = [
+      tour('a', 'Zebra tour', {
+        updatedAt: 300,
+        authorUid: 'u1',
+        authorName: 'Pat Lee',
+      }),
+      tour('b', 'Apple tour', {
+        updatedAt: 200,
+        authorUid: 'u2',
+        authorName: 'Sam Roe',
+        steps: [
+          { id: 'b-s1', web: { urlPattern: 'https://docs.google.com/*' } },
+        ] as never,
+      }),
+    ];
+    const first = render(<WebToursPage />);
+    showDrafts(sets);
+    const visible = () =>
+      screen
+        .getAllByTestId('web-tour-row')
+        .filter((r) => !r.hidden)
+        .map((r) => r.textContent ?? '');
+    expect(visible()[0]).toContain('Zebra tour');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort' }), {
+      target: { value: 'name' },
+    });
+    expect(visible()[0]).toContain('Apple tour');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Website' }), {
+      target: { value: 'docs.google.com' },
+    });
+    expect(visible()).toHaveLength(1);
+    expect(visible()[0]).toContain('Apple tour');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Author' }), {
+      target: { value: 'u1' },
+    });
+    expect(screen.getByText('No tours match.')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Website' }), {
+      target: { value: '' },
+    });
+    expect(visible()).toHaveLength(1);
+    expect(visible()[0]).toContain('Zebra tour');
+    fireEvent.change(
+      screen.getByRole('searchbox', { name: 'Search web tours' }),
+      { target: { value: 'sam roe' } }
+    );
+    expect(screen.getByText('No tours match.')).toBeInTheDocument();
+
+    first.unmount();
+    render(<WebToursPage />);
+    showDrafts(sets);
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: 'Author' }).value
+    ).toBe('u1');
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: 'Sort' }).value
+    ).toBe('name');
+    showDrafts([sets[1]]);
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: 'Author' }).value
+    ).toBe('');
+    expect(visible()).toHaveLength(1);
   });
 
   it('shows Fix issues for a failed check and opens the editor on the first bad step', async () => {

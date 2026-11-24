@@ -139,7 +139,7 @@ const expectEditorOpened = async (title: string, drafted: number) => {
 
 const renderSession = (
   onEnd = vi.fn(),
-  origin: 'widget' | 'help-center' = 'widget'
+  origin: 'widget' | 'help-center' | 'subs' = 'widget'
 ) => {
   render(
     <DashboardContext.Provider value={dashboard}>
@@ -206,6 +206,23 @@ describe('RecordingSession', () => {
         "1 class list didn't load, so its names can't be blurred automatically."
       )
     ).toBeInTheDocument();
+  });
+
+  it('blurs a class that loads after recording starts, such as a sub board opened mid-recording', () => {
+    const empty = { ...dashboard, rosters: [] } as DashboardContextValue;
+    const tree = (value: DashboardContextValue) => (
+      <DashboardContext.Provider value={value}>
+        <RecordingSession onEnd={vi.fn()} origin="subs" />
+      </DashboardContext.Provider>
+    );
+    const { rerender } = render(tree(empty));
+    fireEvent.change(screen.getByLabelText('What does this tour show?'), {
+      target: { value: 'Open a board' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(h.matcher).toBeNull();
+    rerender(tree(dashboard));
+    expect(h.matcher?.test('alice nguyen')).toBe(true);
   });
 
   it('records with the roster names, then uploads only the reviewed frames and opens the editor', async () => {
@@ -450,11 +467,56 @@ describe('RecordingSession', () => {
           email: 'admin@school.org',
           orgId: 'org-1',
           isSuperAdmin: false,
-        }
+        },
+        {}
       );
       expect(h.editRequests[0]).toEqual({ setId: saved.id, origin: 'widget' });
       expect(takeFiledHelpItem(saved.id)).toBe(`item-${saved.id}`);
       expect(h.toast).not.toHaveBeenCalled();
+    });
+
+    it('files a /subs recording for substitutes and carries the origin to the editor', async () => {
+      renderSession(vi.fn(), 'subs');
+      const saved = await finishAndUpload();
+      expect(h.createItem).toHaveBeenCalledWith(
+        expect.objectContaining({ id: saved.id }),
+        expect.objectContaining({ uid: 'admin-1' }),
+        { audience: 'subs' }
+      );
+      expect(h.editRequests[0]).toEqual({ setId: saved.id, origin: 'subs' });
+      takeFiledHelpItem(saved.id);
+    });
+
+    it('opens a View as student recording at review and files it for students', async () => {
+      render(
+        <DashboardContext.Provider value={dashboard}>
+          <RecordingSession
+            onEnd={vi.fn()}
+            origin="students"
+            handoff={h.recording as TourRecording}
+          />
+        </DashboardContext.Provider>
+      );
+      expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Next frame' }));
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole('button', { name: 'Upload and open' })
+        );
+        await Promise.resolve();
+      });
+      await waitFor(() => expect(h.edits).toHaveLength(1));
+      const saved = h.save.mock.calls[0][0] as GuidedLearningSet;
+      expect(h.createItem).toHaveBeenCalledWith(
+        expect.objectContaining({ id: saved.id }),
+        expect.objectContaining({ uid: 'admin-1' }),
+        { audience: 'students' }
+      );
+      expect(h.editRequests[0]).toEqual({
+        setId: saved.id,
+        origin: 'students',
+      });
+      takeFiledHelpItem(saved.id);
     });
 
     it('carries a Help Center start to the editor so Done goes back there', async () => {

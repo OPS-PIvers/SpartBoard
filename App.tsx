@@ -26,13 +26,16 @@ import {
 import { StudentIdleTimeoutGuard } from './components/student/StudentIdleTimeoutGuard';
 import {
   getStudentPreview,
+  getViewAsTabState,
   isStudentPreviewTab,
   isViewAsTab,
+  subscribeViewAsTab,
 } from './utils/viewAsTab';
 import { ViewAsGate } from './context/ViewAsContext';
 import { ViewAsBanner } from './components/viewAs/ViewAsBanner';
 import { ViewAsSaveToast } from './components/viewAs/ViewAsSaveToast';
 import { StudentPreviewGate } from './components/viewAs/StudentPreviewGate';
+import { StudentTours } from './components/student/tours/StudentTours';
 
 // Lazy load heavy components for code splitting
 // Using named export pattern: import(...).then(module => ({ default: module.ExportName }))
@@ -54,6 +57,12 @@ const MobileRemoteApp = lazy(() =>
 const ShortLinkRedirect = lazy(() =>
   import('./components/common/ShortLinkRedirect').then((module) => ({
     default: module.ShortLinkRedirect,
+  }))
+);
+// View as student only: records a tour for the admin's own tab to save.
+const StudentPreviewRecorder = lazy(() =>
+  import('./components/student/tours/StudentPreviewRecorder').then((m) => ({
+    default: m.StudentPreviewRecorder,
   }))
 );
 const StudentApp = lazy(() =>
@@ -981,6 +990,18 @@ const AppContent: React.FC = () => {
 
 /** The student app a View as student tab previews; the gate renders it only after sign-in. */
 const StudentPreviewApp: React.FC = () => {
+  const page = useSyncExternalStore(
+    subscribeViewAsTab,
+    () => getViewAsTabState().studentPage
+  );
+  if (page === 'my-assignments')
+    return (
+      <StudentAuthProvider>
+        <RequireStudentAuth>
+          <MyAssignmentsPage />
+        </RequireStudentAuth>
+      </StudentAuthProvider>
+    );
   switch (getStudentPreview()?.kind) {
     case 'quiz':
       return <QuizStudentApp />;
@@ -1003,6 +1024,9 @@ const App: React.FC = () => {
         <DialogProvider>
           <Suspense fallback={<FullPageLoader />}>
             <StudentPreviewApp />
+          </Suspense>
+          <Suspense fallback={null}>
+            <StudentPreviewRecorder />
           </Suspense>
           <DialogContainer />
         </DialogProvider>
@@ -2041,6 +2065,7 @@ const App: React.FC = () => {
         <Suspense fallback={<FullPageLoader />}>
           <VideoActivityStudentApp />
         </Suspense>
+        <StudentTours />
         <DialogContainer />
       </DialogProvider>
     );
@@ -2053,6 +2078,7 @@ const App: React.FC = () => {
         <Suspense fallback={<FullPageLoader />}>
           <ActivityWallStudentApp />
         </Suspense>
+        <StudentTours />
         <DialogContainer />
       </DialogProvider>
     );
@@ -2084,6 +2110,7 @@ const App: React.FC = () => {
         <Suspense fallback={<FullPageLoader />}>
           <GuidedLearningStudentApp />
         </Suspense>
+        <StudentTours />
         <DialogContainer />
       </DialogProvider>
     );
@@ -2115,6 +2142,7 @@ const App: React.FC = () => {
             <Suspense fallback={<FullPageLoader />}>
               <MyAssignmentsPage />
             </Suspense>
+            <StudentTours />
           </RequireStudentAuth>
         </StudentAuthProvider>
         <DialogContainer />
@@ -2177,6 +2205,7 @@ const App: React.FC = () => {
         <Suspense fallback={<FullPageLoader />}>
           <QuizStudentApp />
         </Suspense>
+        <StudentTours />
         <DialogContainer />
       </DialogProvider>
     );

@@ -17,6 +17,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'paper-handwritten-responses',
   'paper-multi-page-answers',
   'paper-print-preview',
+  'paper-student-copy',
   'paper-written-hybrid',
   'paper-reword-sync',
   'paper-kept-pages',
@@ -88,10 +89,15 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'embed-mini-app',
   'course-agenda',
   'assigned-tab',
+  'picked-student-names',
   'writing-peer-review',
   'quiz-question-audio',
   'quiz-random-numbers',
   'widget-notes-in-whats-new',
+  'subs-live-tours',
+  'student-live-tours',
+  'assign-open-check',
+  'modification-fewer-questions',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.
@@ -102,6 +108,7 @@ export const PUBLIC_MISSING_DOC_FEATURES: Readonly<
   'gemini-functions': null,
   'dashboard-sharing': null,
   'dashboard-import': null,
+  'substitute-sharing': null,
   'district-library': null,
   'magic-layout': null,
   'smart-paste': null,

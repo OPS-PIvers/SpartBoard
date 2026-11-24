@@ -62,6 +62,7 @@ import {
 } from '@/utils/takeRecoveryStore';
 import type { CommitState } from './AudioResponseCapture';
 import { useRedoCount } from './useRedoCount';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface WhiteboardResponseCaptureProps {
   config: RecordingConfig;
@@ -579,7 +580,7 @@ export const WhiteboardResponseCapture: React.FC<
           <div className="flex flex-wrap gap-2">
             {phase === 'armed' && !takeBudgetReached && startingPageReady && (
               <button
-                // no-tour-anchor: student quiz app, outside teacher tours
+                {...tourAttr('student.quiz.recording-start')}
                 type="button"
                 onClick={() => void handleStart()}
                 className={`${btn} bg-brand-red-primary text-white outline-brand-red-primary hover:bg-brand-red-dark`}
@@ -596,7 +597,7 @@ export const WhiteboardResponseCapture: React.FC<
             )}
             {recording && (
               <button
-                // no-tour-anchor: student quiz app, outside teacher tours
+                {...tourAttr('student.quiz.recording-stop')}
                 type="button"
                 onClick={() => void recorder.stop('user')}
                 className={`${btn} bg-slate-900 text-white outline-slate-900 hover:bg-slate-800`}
@@ -611,7 +612,7 @@ export const WhiteboardResponseCapture: React.FC<
               <>
                 {canRedoInReview && (
                   <button
-                    // no-tour-anchor: student quiz app, outside teacher tours
+                    {...tourAttr('student.quiz.recording-redo')}
                     type="button"
                     onClick={handleRedo}
                     disabled={commitState === 'committing'}
@@ -622,7 +623,7 @@ export const WhiteboardResponseCapture: React.FC<
                   </button>
                 )}
                 <button
-                  // no-tour-anchor: student quiz app, outside teacher tours
+                  {...tourAttr('student.quiz.recording-submit')}
                   type="button"
                   onClick={() => void handleCommit()}
                   disabled={commitState === 'committing'}
@@ -698,7 +699,7 @@ export const WhiteboardResponseCapture: React.FC<
                   {t('quizWhiteboard.startingPage.loadFailed')}
                 </p>
                 <button
-                  // no-tour-anchor: student quiz app, outside teacher tours
+                  {...tourAttr('student.quiz.whiteboard-page-retry')}
                   type="button"
                   onClick={retryStartingPage}
                   className={`${btn} bg-brand-blue-primary text-white outline-brand-blue-primary hover:bg-brand-blue-dark`}
@@ -759,7 +760,7 @@ export const WhiteboardResponseCapture: React.FC<
             </p>
             {archiveFailed && onRetryUpload && (
               <button
-                // no-tour-anchor: student quiz app, outside teacher tours
+                {...tourAttr('student.quiz.recording-retry-upload')}
                 ref={retryBtnRef}
                 type="button"
                 onClick={() => void handleRetryUpload()}

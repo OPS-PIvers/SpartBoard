@@ -155,6 +155,7 @@ import {
 import {
   grantedRosters,
   resolveSubShareDriveGrants,
+  subShareWarner,
 } from '@/utils/subShareDriveGrants';
 import { wallPostsReader } from '@/utils/subShareWallPosts';
 import {
@@ -5714,9 +5715,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           boards: Dashboard[];
           sourceId: string;
           onBundle?: (bundle: SubShareBundle) => void;
+          onWarnings?: (messages: string[]) => void;
         }
     ): Promise<string> => {
       if (!user) throw new Error('Not authenticated');
+      const warn = subShareWarner(input.onWarnings, addToast);
 
       // Resolve Drive grants BEFORE the share write so they persist atomically
       // on the parent doc — identical strategy to `handleShareSubstituteDashboard`.
@@ -5765,7 +5768,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       });
 
       if (namesOutcome.unread.length > 0) {
-        addToast(
+        warn(
           `Share created, but this could not be read, so the sub starts without it: ${namesOutcome.unread.join(', ')}.`,
           'warning'
         );
@@ -5774,7 +5777,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // Names live in Drive because the board snapshot is scrubbed of them, so
       // a sub without that file sees a widget with an empty roster.
       if (namesOutcome.attempted && namesOutcome.missed.length > 0) {
-        addToast(
+        warn(
           'Share created, but the student names on these boards could not be shared with every sub. Reconnect Google Drive and update the share.',
           'warning'
         );
@@ -5789,7 +5792,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         const missedEmails = Array.from(
           new Set(failedPairs.map((p) => p.email))
         );
-        addToast(
+        warn(
           `Share created, but roster access could not be granted to: ${missedEmails.join(
             ', '
           )}. Reconnect Google Drive and create a new share, or share the roster file manually.`,
@@ -5800,12 +5803,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // file (e.g. ClassLink-imported, not Drive-synced), so no grant was
         // even attempted. Without this the share is created with subEmails
         // persisted but zero Drive access and no feedback to the host.
-        addToast(
+        warn(
           'Share created, but your active roster has no linked Drive file — sub(s) will not get roster access. Share the roster file manually if they need it.',
           'warning'
         );
       }
 
+      warn.flush();
       return shareId;
     },
     [user, sharedCollectionApi, driveService, addToast]
@@ -5827,9 +5831,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         subEmails?: string[];
         sharedRosters?: SubstituteShareRoster[];
         onBundle?: (bundle: SubShareBundle) => void;
+        onWarnings?: (messages: string[]) => void;
       }
     ): Promise<void> => {
       if (!user) throw new Error('Not authenticated');
+      const warn = subShareWarner(input.onWarnings, addToast);
       const subEmails = input.subEmails ?? [];
       const fileIds = (input.sharedRosters ?? []).map((r) => r.driveFileId);
       const { driveGrants, failedPairs } = await resolveSubShareDriveGrants({
@@ -5885,14 +5891,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       });
 
       if (namesOutcome.unread.length > 0) {
-        addToast(
+        warn(
           `Boards updated, but this could not be read, so the sub starts without it: ${namesOutcome.unread.join(', ')}.`,
           'warning'
         );
       }
 
       if (namesOutcome.attempted && namesOutcome.missed.length > 0) {
-        addToast(
+        warn(
           'Boards updated, but the student names on them could not be shared with every sub. Reconnect Google Drive and try again.',
           'warning'
         );
@@ -5902,13 +5908,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         const missedEmails = Array.from(
           new Set(failedPairs.map((g) => g.email))
         );
-        addToast(
+        warn(
           `Boards updated, but roster access could not be granted to: ${missedEmails.join(
             ', '
           )}. Reconnect Google Drive and try again.`,
           'error'
         );
       }
+      warn.flush();
     },
     [user, sharedCollectionApi, driveService, addToast]
   );

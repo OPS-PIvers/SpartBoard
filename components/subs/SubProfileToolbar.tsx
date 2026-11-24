@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { formatExpiresAt } from './subsView';
+import { tourAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 
 interface SubProfileToolbarProps {
   teacherName: string;
@@ -60,9 +61,10 @@ export const SubProfileToolbar: React.FC<SubProfileToolbarProps> = ({
 
   return (
     <div ref={containerRef} className="fixed top-4 left-4 z-50">
-      <button /* no-tour-anchor: substitute portal, never on the board */
+      <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        {...tourAttr('subs.board-menu')}
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={`Board menu — ${teacherName}, ${boardName}`}
@@ -116,6 +118,7 @@ export const SubProfileToolbar: React.FC<SubProfileToolbarProps> = ({
               icon={RotateCcw}
               label="Reset board"
               description="Return widgets to their starting state"
+              anchor={tourAttr('subs.board-menu-reset')}
               onClick={() => {
                 onReset();
                 setOpen(false);
@@ -125,6 +128,7 @@ export const SubProfileToolbar: React.FC<SubProfileToolbarProps> = ({
               icon={ArrowLeft}
               label="Back to teacher list"
               description="Pick a different board in this building"
+              anchor={tourAttr('subs.board-menu-directory')}
               onClick={() => {
                 onBackToDirectory();
                 setOpen(false);
@@ -134,6 +138,7 @@ export const SubProfileToolbar: React.FC<SubProfileToolbarProps> = ({
               icon={School}
               label="Change building"
               description="Switch to a different building"
+              anchor={tourAttr('subs.board-menu-building')}
               onClick={() => {
                 onChangeBuilding();
                 setOpen(false);
@@ -146,6 +151,7 @@ export const SubProfileToolbar: React.FC<SubProfileToolbarProps> = ({
               icon={LogOut}
               label="Sign out"
               description={user?.email ?? ''}
+              anchor={tourAttr('subs.board-menu-sign-out')}
               danger
               onClick={() => {
                 setOpen(false);
@@ -164,6 +170,7 @@ interface MenuItemProps {
   label: string;
   description: string;
   danger?: boolean;
+  anchor: TourAnchorAttrs;
   onClick: () => void;
 }
 
@@ -172,12 +179,14 @@ const MenuItem: React.FC<MenuItemProps> = ({
   label,
   description,
   danger,
+  anchor,
   onClick,
 }) => (
-  <button /* no-tour-anchor: substitute portal, never on the board */
+  <button
     type="button"
     role="menuitem"
     onClick={onClick}
+    {...anchor}
     className={`w-full flex items-start gap-3 px-4 py-2.5 text-left transition-colors cursor-pointer ${
       danger
         ? 'text-red-600 hover:bg-red-50'

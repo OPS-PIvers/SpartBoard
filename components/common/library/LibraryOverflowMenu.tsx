@@ -23,7 +23,9 @@ interface OverflowMenuProps {
   anchor?: TourAnchorAttrs;
 }
 
-const MENU_WIDTH = 224; // w-56; fits the longest current item label ("Print response sheets") without truncating
+// The menu sizes to its longest label, between these widths.
+const MENU_MIN_WIDTH = 160;
+const MENU_MAX_WIDTH = 288;
 const MENU_GAP = 4;
 const MENU_ITEM_HEIGHT = 32;
 const MENU_CHROME_HEIGHT = 10;
@@ -45,9 +47,11 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   anchor,
 }) => {
   const [open, setOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
-    null
-  );
+  const [menuPos, setMenuPos] = useState<{
+    top: number;
+    right: number;
+    maxWidth: number;
+  } | null>(null);
   const [sub, setSub] = useState<{
     id: string;
     top: number;
@@ -112,9 +116,10 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
     const viewportW =
       typeof window !== 'undefined' ? window.innerWidth : rect.right;
     // Right-align menu to the trigger, clamped to viewport.
-    const left = Math.max(
-      8,
-      Math.min(rect.right - MENU_WIDTH, viewportW - MENU_WIDTH - 8)
+    const right = Math.max(8, viewportW - rect.right);
+    const maxWidth = Math.max(
+      MENU_MIN_WIDTH,
+      Math.min(MENU_MAX_WIDTH, viewportW - right - 8)
     );
     // Flip above the trigger when the menu would run off the bottom of the viewport.
     const viewportH =
@@ -125,7 +130,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
       below + menuH > viewportH - 8 && rect.top - MENU_GAP - menuH >= 8
         ? rect.top - MENU_GAP - menuH
         : below;
-    setMenuPos({ top, left });
+    setMenuPos({ top, right, maxWidth });
   }, [actions.length, open]);
 
   useLayoutEffect(() => {
@@ -159,12 +164,14 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
           <div
             role="menu"
             data-click-outside-ignore="true"
-            className={`min-w-[224px] ${MENU_PANEL_CLASS}`}
+            className={MENU_PANEL_CLASS}
             style={{
               position: 'fixed',
               top: menuPos.top,
-              left: menuPos.left,
-              width: MENU_WIDTH,
+              right: menuPos.right,
+              width: 'max-content',
+              minWidth: MENU_MIN_WIDTH,
+              maxWidth: menuPos.maxWidth,
               zIndex: Z_INDEX.popover,
             }}
           >

@@ -85,6 +85,8 @@ export interface CreateTeammatePaperBatchRequest {
   spareCount: number;
   /** Print free-response questions as handwritten boxes; the server also checks the caller's feature. */
   written?: boolean;
+  /** Print matching, ordering and choose all as bubble rows. */
+  groups?: boolean;
 }
 
 export interface CreateTeammatePaperBatchResult {

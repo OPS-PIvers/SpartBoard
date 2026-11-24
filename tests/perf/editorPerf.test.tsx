@@ -112,9 +112,9 @@ class FakeYTPlayer {
   constructor(
     _elementId: string | HTMLElement,
     options: {
-      height: string;
-      width: string;
-      videoId: string;
+      height?: string;
+      width?: string;
+      videoId?: string;
       playerVars?: Record<string, string | number | boolean>;
       events?: {
         onStateChange?: (event: { data: number }) => void;

@@ -11,6 +11,7 @@
  *    called and the video is paused.
  */
 
+import { tourAttr } from '@/config/tourAnchors';
 import React, {
   useEffect,
   useLayoutEffect,
@@ -468,8 +469,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           {!teacherMode && (
             <>
               <p className="text-sm text-slate-200">Tell your teacher.</p>
-              {/* no-tour-anchor: video failure card; live tours walk teachers. */}
               <button
+                {...tourAttr('student.video-activity.video-retry')}
                 type="button"
                 onClick={() => window.location.reload()}
                 className="min-h-[44px] rounded-xl bg-white px-6 py-2.5 text-sm font-bold text-slate-900"

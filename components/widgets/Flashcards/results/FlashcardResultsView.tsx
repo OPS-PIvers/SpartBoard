@@ -96,10 +96,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     },
     rosters
   );
-  const runPeriod = usePeriodRunner(
-    session?.periodAccess,
-    'FlashcardResultsView.periodAccess'
-  );
+  const runPeriod = usePeriodRunner('FlashcardResultsView.periodAccess');
   const periodNow = useServerNow(perPeriod ? 30_000 : null);
   // Only students with progress are listed, so one who never got in can't be let in from here.
   const letInFor = (studentUid: string): (() => void) | undefined => {

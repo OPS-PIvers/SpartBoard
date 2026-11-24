@@ -30,7 +30,8 @@ interface BoardContextMenuProps {
   onTogglePin: () => void;
   onMove: () => void;
   onShare: () => void;
-  onShareWithSub: () => void;
+  /** Omitted when substitute sharing is off. */
+  onShareWithSub?: () => void;
   /** When this board/collection is already shared with a sub: its end time. */
   subShareEndsAt?: number | null;
   onSaveAsTemplate: () => void;
@@ -117,13 +118,15 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
       icon: Share2,
       action: onShare,
     });
-    items.push({
-      label: subShareEndsAt
-        ? t('subShare.menu.update', { defaultValue: 'Update sub share…' })
-        : t('subShare.menu.share', { defaultValue: 'Share with a sub…' }),
-      icon: UserCheck,
-      action: onShareWithSub,
-    });
+    if (onShareWithSub) {
+      items.push({
+        label: subShareEndsAt
+          ? t('subShare.menu.update', { defaultValue: 'Update sub share…' })
+          : t('subShare.menu.share', { defaultValue: 'Share with a sub…' }),
+        icon: UserCheck,
+        action: onShareWithSub,
+      });
+    }
   }
 
   if (isAdmin) {

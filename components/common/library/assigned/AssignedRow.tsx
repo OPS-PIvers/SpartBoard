@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Clock, Pause, Play } from 'lucide-react';
 import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import type { AssignedClass, AssignedStatus } from '@/utils/assignedStatus';
 import { OverflowMenu } from '../LibraryOverflowMenu';
@@ -17,13 +17,23 @@ import {
 import { AssignedCheckbox } from './AssignedBulk';
 import { useAssignedRowSelect } from './assignedBulkContext';
 import { AssignedFocusClassContext } from './assignedFilterContext';
+import {
+  namesByClassKey,
+  studentCountLabel,
+  unnamedLabel,
+  unplacedGroups,
+  type PickedStudents,
+} from '@/utils/assignedStudents';
+import { PickedNames } from '../PickedStudentNames';
+import { useShowPickedStudents } from '@/hooks/useShowPickedStudents';
+import type { PeriodAccess } from '@/types';
 
 export interface AssignedRowProps {
   title: string;
   /** From `deriveAssignedStatus`; any assignment kind. */
   status: AssignedStatus;
   nowMs: number;
-  /** The next-step button; `choose-class` rows expand instead of calling `onMain`. */
+  /** The next-step button; `choose-class` rows show none, since the expanded row lists each class. */
   mainLabel: string | null;
   onMain: () => void;
   mainBadgeCount?: number;
@@ -60,6 +70,10 @@ export interface AssignedRowProps {
   selectAnchor?: TourAnchorAttrs;
   /** Drops turned-in counts the caller can't place in a class. */
   hideCounts?: boolean;
+  /** A run that went to picked students names them under each class. */
+  picked?: PickedStudents | null;
+  /** The run's classes, to place each picked student. */
+  periodAccess?: Record<string, Pick<PeriodAccess, 'rosterId'>>;
 }
 
 type MainKind = AssignedStatus['action']['kind'];
@@ -68,16 +82,20 @@ const RING = 'ring-1 ring-inset';
 const GREEN = `bg-emerald-50 text-emerald-700 ${RING} ring-emerald-200 hover:bg-emerald-100`;
 const AMBER = `bg-amber-50 text-amber-800 ${RING} ring-amber-200 hover:bg-amber-100`;
 const OUTLINE_BLUE = `bg-white text-brand-blue-primary ${RING} ring-brand-blue-light/40 hover:bg-brand-blue-lighter`;
-// Each action's light tint matches the status it leads to.
+const SOLID_BLUE = `bg-brand-blue-primary text-white ${RING} ring-brand-blue-primary hover:bg-brand-blue-dark`;
+const RED = `bg-red-50 text-brand-red-primary ${RING} ring-red-200 hover:bg-red-100`;
+// Monitor and Results both show the class's work, so they share a look.
+const MONITOR = `bg-brand-blue-lighter text-brand-blue-primary ${RING} ring-brand-blue-light/30 hover:bg-brand-blue-lighter/60`;
+// Publish is the one solid button, so it never reads as the amber Paused word.
 const TINT: Record<Tint, string> = {
   open: GREEN,
   resume: GREEN,
   pause: AMBER,
-  publish: AMBER,
+  publish: SOLID_BLUE,
   close: `bg-slate-100 text-slate-700 ${RING} ring-slate-300 hover:bg-slate-200`,
-  monitor: `bg-brand-blue-lighter text-brand-blue-primary ${RING} ring-brand-blue-light/30 hover:bg-brand-blue-lighter/60`,
-  grade: `bg-violet-50 text-violet-700 ${RING} ring-violet-200 hover:bg-violet-100`,
-  results: `bg-white text-slate-600 ${RING} ring-slate-300 hover:bg-slate-50`,
+  monitor: MONITOR,
+  grade: RED,
+  results: MONITOR,
   reopen: OUTLINE_BLUE,
   'choose-class': OUTLINE_BLUE,
 };
@@ -85,39 +103,59 @@ const WORD: Record<AccessBadge['tone'], string> = {
   success: 'text-emerald-700',
   warn: 'text-amber-700',
   info: 'text-brand-blue-primary',
+  scheduled: 'text-slate-600',
   neutral: 'text-slate-500',
+};
+const TONE_ICON: Partial<Record<AccessBadge['tone'], typeof Clock>> = {
+  warn: Pause,
+  info: Play,
+  scheduled: Clock,
 };
 
 const ICON = { width: 'min(14px, 4cqmin)', height: 'min(14px, 4cqmin)' };
 const BTN =
   'whitespace-nowrap rounded-lg font-bold transition-colors active:scale-95 disabled:cursor-not-allowed disabled:opacity-50';
 const BTN_STYLE: React.CSSProperties = {
-  paddingInline: 'min(12px, 2.6cqmin)',
+  paddingInline: 'min(6px, 1.4cqmin)',
   paddingBlock: 'min(6px, 1.4cqmin)',
   fontSize: 'min(12px, 3.5cqmin)',
 };
 const GREY_TEXT: React.CSSProperties = { fontSize: 'min(12.5px, 3.6cqmin)' };
 // Title, status word and grey text share the first three tracks in the row and in its panel.
-const ROW_GRID = `grid items-center grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.4fr)_var(--asg-btn)_var(--asg-ic)_var(--asg-ic)] [@container(max-width:600px)]:grid-cols-[minmax(0,1fr)_auto_var(--asg-ic)_var(--asg-ic)]`;
-const PANEL_GRID = `grid items-center grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.4fr)_calc(var(--asg-btn)+2*var(--asg-ic)+2*var(--asg-gap))] [@container(max-width:600px)]:grid-cols-[minmax(0,1fr)_auto]`;
+const ROW_GRID = `grid items-center grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.4fr)_var(--asg-btn)_var(--asg-ic)_var(--asg-ic)] [@container(max-width:600px)]:grid-cols-[minmax(0,1fr)_var(--asg-btn)_var(--asg-ic)_var(--asg-ic)]`;
+const PANEL_GRID = `grid items-center grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.4fr)_calc(var(--asg-btn)+2*var(--asg-ic)+2*var(--asg-gap))] [@container(max-width:600px)]:grid-cols-[minmax(0,1fr)_calc(var(--asg-btn)+2*var(--asg-ic)+2*var(--asg-gap))]`;
 // The status word and grey text are two cells when wide and one wrapped line when narrow.
 const STATUS_CELLS = `contents [@container(max-width:600px)]:col-span-full [@container(max-width:600px)]:row-start-2 [@container(max-width:600px)]:flex [@container(max-width:600px)]:flex-wrap [@container(max-width:600px)]:items-center`;
 
-const StatusWord: React.FC<{ badge: AccessBadge }> = ({ badge }) => (
-  <span
-    className={`flex min-w-0 items-center font-semibold ${WORD[badge.tone]}`}
-    style={{ ...GREY_TEXT, gap: 'min(5px, 1.2cqmin)' }}
-  >
-    {badge.dot && (
-      <span
-        aria-hidden="true"
-        className="shrink-0 rounded-full bg-current"
-        style={{ width: 'min(6px, 1.5cqmin)', height: 'min(6px, 1.5cqmin)' }}
-      />
-    )}
-    <span className="min-w-0 [overflow-wrap:anywhere]">{badge.label}</span>
-  </span>
-);
+const StatusWord: React.FC<{ badge: AccessBadge }> = ({ badge }) => {
+  const Icon = TONE_ICON[badge.tone];
+  return (
+    <span
+      className={`flex min-w-0 items-center font-semibold ${WORD[badge.tone]}`}
+      style={{ ...GREY_TEXT, gap: 'min(5px, 1.2cqmin)' }}
+    >
+      {badge.dot && (
+        <span
+          aria-hidden="true"
+          className="shrink-0 rounded-full bg-current"
+          style={{ width: 'min(6px, 1.5cqmin)', height: 'min(6px, 1.5cqmin)' }}
+        />
+      )}
+      {Icon && (
+        <Icon
+          aria-hidden="true"
+          className="shrink-0"
+          strokeWidth={2.5}
+          style={{
+            width: 'min(12px, 3.4cqmin)',
+            height: 'min(12px, 3.4cqmin)',
+          }}
+        />
+      )}
+      <span className="min-w-0 [overflow-wrap:anywhere]">{badge.label}</span>
+    </span>
+  );
+};
 
 const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
@@ -148,8 +186,13 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   onSelect,
   selectAnchor,
   hideCounts = false,
+  picked: pickedIn,
+  periodAccess,
 }) => {
+  const picked = useShowPickedStudents() ? pickedIn : null;
   const [expanded, setExpanded] = useState(false);
+  const namesBy = picked ? namesByClassKey(picked, periodAccess) : {};
+  const unplaced = picked ? unplacedGroups(picked, periodAccess) : [];
   const select = useAssignedRowSelect();
   const focusLabel = useContext(AssignedFocusClassContext);
   const rowKey = `row-${tourIndex + 1}`;
@@ -184,21 +227,24 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
     !focus ||
     (focus.status === 'closed' &&
       ['grade', 'publish'].includes(status.action.kind));
+  // Expanding the row already lists each class with its Open button.
+  const chooseClass = status.action.kind === 'choose-class' && !mainTone;
   const label = focusKind
     ? CLASS_ACTION_LABEL[focusKind]
-    : hostMain
+    : hostMain && !chooseClass
       ? mainLabel
       : null;
+  // The main button already opens Results, so the panel doesn't repeat it.
+  const mainIsResults =
+    !focusKind && !!label && !mainTone && status.action.kind === 'results';
   const tint: Tint = focusKind ?? mainTone ?? status.action.kind;
   const main = focusKind
     ? () => onClassAction(focusKind, focus?.key ?? null)
-    : status.action.kind === 'choose-class'
-      ? () => setExpanded(true)
-      : onMain;
+    : onMain;
   const vars = {
-    '--asg-btn': 'min(120px, 28cqmin)',
     '--asg-ic': 'min(30px, 8cqmin)',
     '--asg-gap': 'min(10px, 2.2cqmin)',
+    '--asg-split': 'min(6px, 1.4cqmin)',
     '--asg-px': 'min(8px, 1.8cqmin)',
     '--asg-py': 'min(10px, 2.2cqmin)',
   } as React.CSSProperties;
@@ -206,7 +252,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
 
   return (
     <div
-      className={`border-b border-slate-200/60 last:border-b-0 ${selected || select?.selected ? 'bg-brand-blue-lighter/40' : ''}`}
+      className={`border-b border-slate-200/60 last:border-b-0 [--asg-btn:min(144px,40cqmin)] [@container(max-width:600px)]:[--asg-btn:min(124px,36cqmin)] ${selected || select?.selected ? 'bg-brand-blue-lighter/40' : ''}`}
       aria-current={selected || undefined}
       style={{ ...vars, padding: 'var(--asg-py) var(--asg-px)' }}
       aria-busy={busy || undefined}
@@ -255,6 +301,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
               style={{ ...GREY_TEXT, columnGap: 'min(8px, 2cqmin)' }}
             >
               {grey && <span className="min-w-0">{grey}</span>}
+              {picked && <span>{studentCountLabel(picked.count)}</span>}
               {meta}
             </div>
           </div>
@@ -373,7 +420,8 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                     paddingLeft: 'min(14px, 3.2cqmin)',
                   }}
                 >
-                  {c.label || 'All students'}
+                  {c.label ||
+                    (picked ? studentCountLabel(picked.count) : 'All students')}
                 </div>
                 <div
                   className={STATUS_CELLS}
@@ -391,8 +439,8 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                   </div>
                 </div>
                 <div
-                  className={`flex flex-wrap items-center [@container(max-width:600px)]:col-start-2 [@container(max-width:600px)]:row-start-1 [@container(max-width:600px)]:justify-end`}
-                  style={{ gap: 'min(6px, 1.4cqmin)' }}
+                  className={`flex items-center [@container(max-width:600px)]:col-start-2 [@container(max-width:600px)]:row-start-1`}
+                  style={{ gap: 'var(--asg-split)', width: 'var(--asg-btn)' }}
                 >
                   {actions.map((kind) => (
                     <button
@@ -407,16 +455,49 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                         tourWidgetType,
                         `${kind}-${ci + 1}`
                       )}
-                      className={`${BTN} ${TINT[kind]}`}
-                      style={BTN_STYLE}
+                      className={`min-w-0 flex-1 ${BTN} ${TINT[kind]}`}
+                      style={{ ...BTN_STYLE, paddingInline: 0 }}
                     >
                       {CLASS_ACTION_LABEL[kind]}
                     </button>
                   ))}
                 </div>
+                {(namesBy[c.key]?.length ?? 0) > 0 && (
+                  <PickedNames
+                    names={namesBy[c.key]}
+                    className="col-span-full"
+                    style={{ ...GREY_TEXT, paddingLeft: 'min(14px, 3.2cqmin)' }}
+                  />
+                )}
               </div>
             );
           })}
+          {picked && (unplaced.length > 0 || picked.unnamed > 0) && (
+            <div
+              className="flex flex-col border-b border-slate-200/70"
+              style={{
+                ...GREY_TEXT,
+                gap: 'min(6px, 1.4cqmin)',
+                padding:
+                  'min(7px, 1.6cqmin) 0 min(7px, 1.6cqmin) min(14px, 3.2cqmin)',
+              }}
+            >
+              {unplaced.map((g, gi) => (
+                <div key={`${gi}-${g.label}`}>
+                  <div
+                    className="font-semibold text-brand-blue-dark [overflow-wrap:anywhere]"
+                    style={{ fontSize: 'min(13px, 3.8cqmin)' }}
+                  >
+                    {g.label}
+                  </div>
+                  <PickedNames names={g.names} />
+                </div>
+              ))}
+              {picked.unnamed > 0 && (
+                <p className="text-slate-500">{unnamedLabel(picked.unnamed)}</p>
+              )}
+            </div>
+          )}
           <div
             className={PANEL_GRID}
             style={{
@@ -425,13 +506,16 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
             }}
           >
             <p
-              className={`col-span-3 min-w-0 text-slate-500 [@container(max-width:600px)]:col-span-1`}
+              className={`col-span-3 min-w-0 text-slate-500 [@container(max-width:600px)]:col-span-full`}
               style={{ ...GREY_TEXT, paddingLeft: 'min(14px, 3.2cqmin)' }}
             >
               {footer?.join(' · ')}
             </p>
-            <div className={`flex [@container(max-width:600px)]:justify-end`}>
-              {onResults && (
+            <div
+              className="flex [@container(max-width:600px)]:col-start-2"
+              style={{ width: 'var(--asg-btn)' }}
+            >
+              {onResults && !mainIsResults && (
                 <button
                   type="button"
                   onClick={onResults}
@@ -440,7 +524,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                     tourWidgetType,
                     rowKey
                   )}
-                  className={`${BTN} ${TINT.results}`}
+                  className={`w-full ${BTN} ${TINT.results}`}
                   style={BTN_STYLE}
                 >
                   Results

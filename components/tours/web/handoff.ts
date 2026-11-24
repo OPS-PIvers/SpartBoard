@@ -8,6 +8,7 @@ import {
   type TourMarkupShape,
 } from '@/types';
 import {
+  isOpenableUrl,
   MAX_PICTURE_CHARS,
   MAX_PICTURE_TOTAL_CHARS,
   parseMarkupShapes,
@@ -30,6 +31,8 @@ export interface HandoffTargetStep {
     locator: WebTourLocator;
     showWhen?: WebTourCondition;
     doneWhen?: WebTourCondition;
+    /** The page Go and a start here open, set by the admin. */
+    openUrl?: string;
     /** Only its markup is handed over; the picture itself travels as bytes. */
     picture?: { markup?: readonly TourMarkupShape[]; target?: unknown };
   };
@@ -155,27 +158,31 @@ function handoffLocator(
   return out;
 }
 
+/** An admin-set page the extension can open: https, no wildcard; else null. */
+export const openablePage = (v: string | undefined): string | null =>
+  v && !v.includes('*') && isOpenableUrl(v.trim())
+    ? new URL(v.trim()).href
+    : null;
+
 /** The step whose page a step opens on: itself, or for a Message step the next targeted step, else the last one before it. */
 function pageStepOf(
   steps: readonly HandoffStep[],
   index: number
-): HandoffTargetStep | undefined {
+): { step: HandoffTargetStep; ahead: boolean } | undefined {
   const own = steps[index];
-  if (!own || own.web) return own;
+  if (!own) return undefined;
+  if (own.web) return { step: own, ahead: true };
   const next = steps.slice(index + 1).find((s) => !!s.web);
+  if (next) return { step: next, ahead: true };
   const before = steps
     .slice(0, index)
     .reverse()
     .find((s) => !!s.web);
-  return next ?? before;
+  return before ? { step: before, ahead: false } : undefined;
 }
 
-/** The page a step opens on: its address, or its site when the path has wildcards. */
-export function pageUrlOf(
-  steps: readonly HandoffStep[],
-  index: number
-): string | null {
-  const pattern = pageStepOf(steps, index)?.web.urlPattern;
+/** The address a step pattern guesses: itself, or its site when the path has wildcards. */
+function patternPage(pattern: string | undefined): string | null {
   // A wildcard in the host can't be opened.
   const host = pattern ? /^https:\/\/([^/?#]*)/.exec(pattern)?.[1] : undefined;
   if (!pattern || !host || host.includes('*')) return null;
@@ -189,9 +196,47 @@ export function pageUrlOf(
   return pattern.includes('*') ? `${url.origin}/` : url.href;
 }
 
-/** The page a tour opens on: the first targeted step's (X8). */
-export const startUrlOf = (steps: readonly HandoffStep[]): string | null =>
-  pageUrlOf(steps, 0);
+/** The page a step opens on: its set page, else its address, or its site when the path has wildcards. */
+export function pageUrlOf(
+  steps: readonly HandoffStep[],
+  index: number
+): string | null {
+  const page = pageStepOf(steps, index);
+  if (!page) return null;
+  // A page set on the step before would reopen it, e.g. make another new file, so only a step ahead's counts.
+  const set = page.ahead ? openablePage(page.step.web.openUrl) : null;
+  return set ?? patternPage(page.step.web.urlPattern);
+}
+
+/** The page a tour opens on: the admin's start page, else the first targeted step's (X8). */
+export const startUrlOf = (
+  steps: readonly HandoffStep[],
+  startPage?: string
+): string | null => openablePage(startPage) ?? pageUrlOf(steps, 0);
+
+/** The page a start at `index` opens: the tour's start page up to its first targeted step, then that step's page. */
+export function startUrlAt(
+  steps: readonly HandoffStep[],
+  index: number,
+  startPage?: string
+): string | null {
+  const first = steps.findIndex((s) => !!s.web);
+  return first < 0 || index <= first
+    ? startUrlOf(steps, startPage)
+    : pageUrlOf(steps, index);
+}
+
+/** Set pages by step id, for an extension that opens them (OPEN_URL_PROTOCOL); undefined when there are none. */
+export function handoffOpenUrls(
+  steps: readonly HandoffStep[]
+): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  for (const step of targetsOf(steps)) {
+    const url = openablePage(step.web.openUrl);
+    if (url) out[step.id] = url;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
 
 /** The tour as the extension takes it, with pictures until the per-picture and total caps. */
 export function buildStartTour(
@@ -202,7 +247,9 @@ export function buildStartTour(
   pictures: ReadonlyMap<string, WebTourPictureBytes>,
   scored = false,
   /** Only an extension at protocol 12 (CONDITIONS_PROTOCOL, MARKUP_PROTOCOL) accepts conditions and markup. */
-  withConditions = false
+  withConditions = false,
+  /** Only an extension at OPEN_URL_PROTOCOL accepts set step pages. */
+  withOpenUrls = false
 ): WebTourStartTour {
   let total = 0;
   const sent = new Set<string>();
@@ -245,9 +292,13 @@ export function buildStartTour(
   };
   const markup = withConditions ? handoffMarkup(steps, sent) : undefined;
   const targets = withConditions ? handoffTargets(steps, sent) : undefined;
+  const openUrls = withOpenUrls
+    ? handoffOpenUrls(steps.slice(0, MAX_STEPS))
+    : undefined;
   return {
     ...tour,
     ...(markup ? { markup } : {}),
     ...(targets ? { targets } : {}),
+    ...(openUrls ? { openUrls } : {}),
   };
 }

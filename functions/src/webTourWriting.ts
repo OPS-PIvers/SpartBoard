@@ -21,6 +21,7 @@ import {
 import { isWebTour } from './mcp/webTours';
 import { isHardTextHit, webTourTextHits } from './mcp/webTourStudentData';
 import { safeErr } from './safeLog';
+import { authorPassesFlag, resolveCallerIsTourAuthor } from './tourAuthors';
 
 type Firestore = admin.firestore.Firestore;
 type Token = { email?: string; email_verified?: boolean };
@@ -298,7 +299,10 @@ export async function runWebTourWriting(
 
 function defaultDeps(db: Firestore): WritingDeps {
   return {
-    isAdmin: (token) => resolveCallerIsAdmin(db, token),
+    // An admin, or a listed tour author (WEB_TOUR_AUTHORS.md B4).
+    isAdmin: async (token) =>
+      (await resolveCallerIsAdmin(db, token)) ||
+      resolveCallerIsTourAuthor(db, token),
     allowed: async (token, uid) => {
       const { isGlobalFeatureGranted } = await import('./featureGrant');
       const ai = await db
@@ -308,12 +312,14 @@ function defaultDeps(db: Firestore): WritingDeps {
       return (
         ai.data()?.enabled !== false &&
         !isExcludedFrom(ai.data(), token.email) &&
-        (await isGlobalFeatureGranted(
+        ((await isGlobalFeatureGranted(
           db,
           WEB_TOURS_FEATURE_ID,
           token.email ?? null,
           uid
-        ))
+        )) ||
+          (token.email_verified === true &&
+            (await authorPassesFlag(db, WEB_TOURS_FEATURE_ID, token.email))))
       );
     },
     loadTour: async (setId) => {

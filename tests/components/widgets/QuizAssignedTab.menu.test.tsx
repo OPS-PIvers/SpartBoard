@@ -159,7 +159,7 @@ describe('Quiz Assigned row menu', () => {
   it('hides Share results with PLC until there is a response', () => {
     const a = quiz({ periodAccess: { p1: pa('P1', { state: 'open' }) } });
     renderTab([a], { a1: [] });
-    expect(menuItems()).not.toContain('Share results with PLC…');
+    expect(menuItems()).not.toContain('Share results with PLC');
   });
 
   it('a class open: Monitor stays on the row, menu keeps whole-assignment items', () => {
@@ -174,15 +174,15 @@ describe('Quiz Assigned row menu', () => {
     expect(menuItems()).toEqual([
       'Student view',
       'Settings',
-      'Share results with PLC…',
+      'Share results with PLC',
       'Close for all classes',
-      'Reopen…',
+      'Reopen',
       'Move to Finished',
       'Delete',
     ]);
   });
 
-  it('all closed and Active: no settings, one Publish scores… item and Reopen…', () => {
+  it('all closed and Active: no settings, one Publish scores item and Reopen', () => {
     const a = quiz({
       status: 'inactive',
       periodAccess: {
@@ -193,15 +193,15 @@ describe('Quiz Assigned row menu', () => {
     renderTab([a], { a1: [done] });
     expect(menuItems()).toEqual([
       'Import written answers',
-      'Publish scores…',
-      'Share results with PLC…',
-      'Reopen…',
+      'Publish scores',
+      'Share results with PLC',
+      'Reopen',
       'Move to Finished',
       'Delete',
     ]);
   });
 
-  it('Finished with scores published: Published scores… and no paper import', () => {
+  it('Finished with scores published: Publish settings and no paper import', () => {
     renderTab([
       quiz({
         status: 'inactive',
@@ -211,9 +211,9 @@ describe('Quiz Assigned row menu', () => {
     ]);
     fireEvent.click(screen.getByRole('button', { name: /^Finished/ }));
     expect(menuItems()).toEqual([
-      'Published scores…',
-      'Share results with PLC…',
-      'Reopen…',
+      'Publish settings',
+      'Share results with PLC',
+      'Reopen',
       'Delete',
     ]);
   });
@@ -228,7 +228,7 @@ describe('Quiz Assigned row menu', () => {
     expect(menuItems()).toEqual(['Delete']);
   });
 
-  it('Reopen… names the class and reopens it for everyone', async () => {
+  it('Reopen names the class and reopens it for everyone', async () => {
     const a = quiz({
       status: 'inactive',
       periodAccess: {
@@ -238,7 +238,7 @@ describe('Quiz Assigned row menu', () => {
     });
     renderTab([a], { a1: [done] });
     menuItems();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Reopen…' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reopen' }));
     const dialog = screen.getByRole('dialog');
     fireEvent.change(within(dialog).getByRole('combobox', { name: 'Class' }), {
       target: { value: 'p2' },
@@ -250,14 +250,14 @@ describe('Quiz Assigned row menu', () => {
     expect(classActions.reopenClass).toHaveBeenCalledWith('p2');
   });
 
-  it('Reopen… for chosen students opens the existing student picker', () => {
+  it('Reopen for chosen students opens the existing student picker', () => {
     const a = quiz({
       status: 'inactive',
       periodAccess: { p1: pa('P1', { closedAt: NOW - 1000 }) },
     });
     renderTab([a], { a1: [done] });
     menuItems();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Reopen…' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reopen' }));
     const dialog = screen.getByRole('dialog');
     fireEvent.click(
       within(dialog).getByRole('radio', { name: 'Only chosen students' })

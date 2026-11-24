@@ -3311,6 +3311,1116 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "student.activity-wall.identity-name",
+    "label": "Your name box before a student posts on a wall",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.identity-pin",
+    "label": "Your PIN box before a student posts on a wall",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.identity-continue",
+    "label": "Continue button before a student posts on a wall",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.image-size",
+    "label": "Images size button in the student wall header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.add-post",
+    "label": "Add post (or Add word) button on the student wall",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.like",
+    "label": "Like button on a post on the student wall",
+    "scope": "field",
+    "persists": true,
+    "row_wildcard": true,
+    "row_list": "student-wall-posts",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.comment-name",
+    "label": "Your name box in a post comment form on the student wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "student-wall-posts",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.comment-pin",
+    "label": "PIN box in a post comment form on the student wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "student-wall-posts",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.comment-text",
+    "label": "Leave a comment box on a post on the student wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "student-wall-posts",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.comment-send",
+    "label": "Send comment button on a post on the student wall",
+    "scope": "field",
+    "persists": true,
+    "row_wildcard": true,
+    "row_list": "student-wall-posts",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.reply",
+    "label": "Reply button on a comment on the student wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.reply-name",
+    "label": "Your name box in a reply form on the student wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.reply-pin",
+    "label": "PIN box in a reply form on the student wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.reply-text",
+    "label": "Write a reply box on the student wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.reply-send",
+    "label": "Send reply button on the student wall",
+    "scope": "field",
+    "persists": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.post-edit",
+    "label": "Edit button on the student's own post on the wall",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "student-wall-posts",
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.post-delete",
+    "label": "Delete button on the student's own post on the wall",
+    "scope": "field",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "student-wall.page",
+        "kind": "page",
+        "url": "/activity-wall/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.composer-close",
+    "label": "Close button in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.post-type",
+    "label": "Post type button (Text, Photo, Link and more) in the wall post form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "student-wall#(text|photo|video|file|link)",
+    "key_hint": "student-wall#photo for the Photo button",
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.word",
+    "label": "Your word or phrase box in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.title",
+    "label": "Title box in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.body",
+    "label": "Your response box in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.link-url",
+    "label": "Link box in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.link-title",
+    "label": "Say something about it box for a link in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.file-pick",
+    "label": "Photo, video or file upload area in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.file-remove",
+    "label": "Remove button for the picked file in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.column",
+    "label": "Column picker in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.table-row",
+    "label": "Row picker in the wall post form on a table wall",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.table-column",
+    "label": "Column picker in the wall post form on a table wall",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.group",
+    "label": "Group picker in the wall post form on a timeline",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.date-year",
+    "label": "Year box for the start or end date in the wall post form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "student-wall#(start|end)",
+    "key_hint": "student-wall#start for the start date",
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.date-era",
+    "label": "Era picker for the start or end date in the wall post form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "student-wall#(start|end)",
+    "key_hint": "student-wall#start for the start date",
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.date-accuracy",
+    "label": "Accuracy picker for the date in the wall post form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "student-wall#start",
+    "key_hint": "student-wall#start",
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.date-month",
+    "label": "Month picker for the start or end date in the wall post form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "student-wall#(start|end)",
+    "key_hint": "student-wall#start for the start date",
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.date-day",
+    "label": "Day picker for the start or end date in the wall post form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "student-wall#(start|end)",
+    "key_hint": "student-wall#start for the start date",
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.add-end-date",
+    "label": "Add end date button in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.remove-end-date",
+    "label": "Remove end date button in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.when-label",
+    "label": "When box in the wall post form on a timeline without dates",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.pin-coordinates",
+    "label": "Enter coordinates button under the map in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.pin-latitude",
+    "label": "Latitude box in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.pin-longitude",
+    "label": "Longitude box in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.pin-set",
+    "label": "Set pin button in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.activity-wall.post-submit",
+    "label": "Post (or Save) button in the wall post form",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-wall.composer",
+        "kind": "modal",
+        "path": [
+          "student.activity-wall.add-post"
+        ],
+        "opened_by": [
+          "student.activity-wall.post-edit:student-wall"
+        ],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.class-menu",
+    "label": "Class name button that opens the class list on a phone",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.overview",
+    "label": "Overview row in the student class list",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.class",
+    "label": "A class in the student class list, keyed row-N",
+    "scope": "field",
+    "key_pattern": "student-assignments#row-[1-9]\\d*",
+    "key_hint": "student-assignments#row-1 for the first class",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.sign-out",
+    "label": "Sign out button on My Assignments",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.tab",
+    "label": "Assignments, Resources and Completed tabs for a class",
+    "scope": "field",
+    "key_pattern": "student-assignments#(assignments|resources|completed)",
+    "key_hint": "student-assignments#resources for the Resources tab",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.see-resources",
+    "label": "See resources link when a class has no work left",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.see-all",
+    "label": "See all assignments link on the Overview",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.see-all-resources",
+    "label": "See all resources link on the Overview",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.live-join",
+    "label": "Join button on a live assignment banner",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.work-row",
+    "label": "An assignment row on My Assignments",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "student-work",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.resource-row",
+    "label": "A resource row on My Assignments",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "student-resources",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.gallery",
+    "label": "Gallery link on an Activity Wall resource row",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "student-resources",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.agenda-open",
+    "label": "Open in Google Slides link under a class Agenda",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.class-link",
+    "label": "A pinned link on a class page, keyed row-N",
+    "scope": "field",
+    "key_pattern": "student-assignments#row-[1-9]\\d*",
+    "key_hint": "student-assignments#row-1 for the first link",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.assignments.done",
+    "label": "Done button in the student page header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-assignments.page",
+        "kind": "page",
+        "url": "/my-assignments",
+        "path": [],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
     "id": "time-tool.start-pause",
     "label": "Start or pause button in Timer/Stopwatch",
     "scope": "widget",
@@ -5568,6 +6678,32 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-classes.add-to-open",
+    "label": "Add to the open assignment choice in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "assign-classes.assign-separately",
+    "label": "Make a separate assignment choice in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-classes.select-all",
     "label": "Select all button in the Assign dialog class list",
     "scope": "board",
@@ -6336,6 +7472,138 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "assign-mods.students"
         ],
         "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions",
+    "label": "Questions button that opens the question picker for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-count",
+    "label": "Number of questions box in the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-random",
+    "label": "Pick at random button in the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-search",
+    "label": "Search box in the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.question",
+    "label": "Question checkbox in the modification group Questions dialog",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for question 1",
+    "row_wildcard": true,
+    "row_list": "assign-mods-questions",
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-all",
+    "label": "Select all button in the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-done",
+    "label": "Done button that saves the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.questions-cancel",
+    "label": "Cancel button in the modification group Questions dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.questions"
+        ],
+        "reveal": "assign-mods.questions"
       }
     ]
   },
@@ -20914,6 +22182,32 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-monitor.student-print-copy",
+    "label": "Print paper copy item in the Quiz monitor student menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.roster-row-actions:quiz"
+        ],
+        "reveal": "quiz-monitor.roster-row-actions:quiz",
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-monitor.student-remove",
     "label": "Remove student item in the Quiz monitor student menu",
     "scope": "widget type",
@@ -25258,6 +26552,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25281,6 +26578,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25305,6 +26605,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25328,6 +26631,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25351,6 +26657,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25374,6 +26683,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25397,6 +26709,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25420,6 +26735,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-groups.edit:roster-groups"
         ],
         "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
+          "roster-groups.new"
+        ],
         "needs": [
           "class"
         ]
@@ -25519,133 +26837,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "group-wizard.steps",
-    "label": "Step list in the group editor",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.step",
-    "label": "Students, Symbol, Schedule or Additional settings step in the group editor",
-    "scope": "field",
-    "panel": true,
-    "keys": [
-      "group-wizard#schedule",
-      "group-wizard#settings",
-      "group-wizard#students",
-      "group-wizard#symbol"
-    ],
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.student-search",
-    "label": "Search students box in the group editor",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.student",
-    "label": "Student checkbox in the group editor",
-    "scope": "field",
-    "panel": true,
-    "key_pattern": "group-wizard#row-[1-9]\\d*",
-    "key_hint": "group-wizard#row-1 for the first row",
-    "row_wildcard": true,
-    "row_list": "group-wizard-students",
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.name",
-    "label": "Group name box in the group editor",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
     "id": "group-wizard.icon-search",
-    "label": "Search icons box in the group editor",
+    "label": "Search icons box on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25657,9 +26850,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -25668,7 +26864,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.icon",
-    "label": "Icon button in the group editor",
+    "label": "Icon button on a group page",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -25680,9 +26876,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -25691,7 +26890,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.color",
-    "label": "Color swatch in the group editor",
+    "label": "Color swatch on a group page",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -25703,9 +26902,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -25714,7 +26916,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.preview",
-    "label": "Reminder preview in the group editor",
+    "label": "Reminder preview on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25726,9 +26928,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -25737,7 +26942,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.day",
-    "label": "Weekday button in the group editor Schedule step",
+    "label": "Weekday button in a group page Schedule section",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -25749,9 +26954,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -25760,7 +26968,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.alert-time",
-    "label": "Alert time box in the group editor Schedule step",
+    "label": "Alert time box on a group page",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -25772,9 +26980,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -25783,7 +26994,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.alert-lead",
-    "label": "Pops up dropdown in the group editor Schedule step",
+    "label": "Pops up dropdown on a group page",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -25795,9 +27006,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -25806,7 +27020,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.alert-remove",
-    "label": "Remove time button in the group editor Schedule step",
+    "label": "Remove time button on a group page",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -25818,9 +27032,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -25829,7 +27046,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.add-alert",
-    "label": "Add another time button in the group editor Schedule step",
+    "label": "Add another time button on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25841,9 +27058,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -25852,7 +27072,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.repeat",
-    "label": "Repeats dropdown in the group editor Schedule step",
+    "label": "Repeats dropdown on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25864,9 +27084,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -25875,7 +27098,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.start-date",
-    "label": "Starting date box in the group editor Schedule step",
+    "label": "Starting date box on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25887,9 +27110,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -25898,7 +27124,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.on-board",
-    "label": "Reminder on the board switch in the group editor Schedule step",
+    "label": "Reminder on the board switch on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25910,9 +27136,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -25921,7 +27150,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.sound",
-    "label": "Sound dropdown in the group editor Schedule step",
+    "label": "Sound dropdown on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25933,9 +27162,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -25944,7 +27176,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.play-sound",
-    "label": "Play sound button in the group editor Schedule step",
+    "label": "Play sound button on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25956,9 +27188,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -25967,7 +27202,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.snooze",
-    "label": "Snooze dropdown in the group editor Schedule step",
+    "label": "Snooze dropdown on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -25979,9 +27214,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -25990,7 +27228,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.show-name",
-    "label": "Show group name switch in the group editor Schedule step",
+    "label": "Show group name switch on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -26002,9 +27240,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -26013,7 +27254,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.show-time",
-    "label": "Show time switch in the group editor Schedule step",
+    "label": "Show time switch on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -26025,9 +27266,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -26036,7 +27280,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.show-message",
-    "label": "Show a message switch in the group editor Schedule step",
+    "label": "Show a message switch on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -26048,9 +27292,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -26059,7 +27306,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.message",
-    "label": "Message box in the group editor Schedule step",
+    "label": "Message box on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -26071,9 +27318,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -26082,7 +27332,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.email-alert",
-    "label": "Email alert switch in the group editor Schedule step",
+    "label": "Email alert switch on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -26094,9 +27344,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -26105,7 +27358,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "group-wizard.email-message",
-    "label": "Email message box in the group editor Schedule step",
+    "label": "Email message box on a group page",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -26117,101 +27370,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.classes",
           "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "opened_by": [
           "roster-groups.new"
         ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.group-maker",
-    "label": "Enable in Group Maker switch in the group editor Additional settings step",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.cancel",
-    "label": "Cancel button in the group editor",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.next",
-    "label": "Continue button on the open step in the group editor",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "group-wizard.finish",
-    "label": "Save group button in the group editor",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups",
-          "roster-groups.new"
-        ],
-        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -27815,7 +28979,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.assigned-reopen",
-    "label": "Reopen…, in an Assigned row menu",
+    "label": "Reopen, in an Assigned row menu",
     "scope": "board",
     "panel": true,
     "persists": true,
@@ -39924,6 +41088,44 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.help-center.new-record-subs-tour",
+    "label": "Record a Live tour for subs in the Help Center New menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.new-record-students-tour",
+    "label": "Record a Live tour for students in the Help Center New menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.help-center.new-move",
     "label": "Move from library in the Help Center New menu",
     "scope": "board",
@@ -40066,6 +41268,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "admin.help-center.detail-category",
     "label": "Category select on the selected Help Center item",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.detail-audience",
+    "label": "Who sees it select (Teachers or Substitutes) on a selected live tour",
     "scope": "board",
     "panel": true,
     "persists": true,
@@ -58495,6 +59717,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tours.delete",
+    "label": "Delete button for a web tour on the Web tours page",
+    "scope": "field",
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tours.play",
     "label": "Play button for a published web tour on the Web tours page",
     "scope": "field",
@@ -58580,6 +59820,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "web-tours.copy-link:web-tours"
         ],
         "reveal": "web-tours.copy-link:web-tours",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.authors",
+    "label": "Authors button on the Web tours page (admins only)",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
         "needs": [
           "admin"
         ]
@@ -58687,8 +59943,91 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tours.filter-site",
+    "label": "Website filter on the Web tours page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.filter-author",
+    "label": "Author filter on the Web tours page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.filter-fresh",
+    "label": "FreshService filter on the Web tours page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.sort",
+    "label": "Sort choice on the Web tours page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tour-editor.title",
     "label": "Title field in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "path": [
+          "web-tours.new",
+          "web-tour-editor.tab-settings"
+        ],
+        "reveal": "web-tour-editor.tab-settings",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.start-page",
+    "label": "Start page field on the web tour editor Settings tab",
     "scope": "board",
     "routes": [
       {
@@ -59578,6 +60917,235 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "gl-player.scrubber",
     "label": "Watch scrubber in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.video-close",
+    "label": "Close button on a video step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.answer-choice",
+    "label": "Answer choice on a multiple choice step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.match-select",
+    "label": "Match picker on a matching step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.sort-up",
+    "label": "Move up button on a sorting step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.sort-down",
+    "label": "Move down button on a sorting step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.question-submit",
+    "label": "Submit button on a question step in the player",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.change-answer",
+    "label": "Change answer button on a question step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.question-continue",
+    "label": "Continue button after answering a question step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.reveal-answer",
+    "label": "Show answer button on a question step in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.popover-close",
+    "label": "Close button on a text popover in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.banner-close",
+    "label": "Close button on a banner in the player",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.player",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-secondary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-player.audio-play",
+    "label": "Play or pause button on an audio step in the player",
     "scope": "board",
     "routes": [
       {
@@ -76828,7 +78396,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "routes": [
       {
-        "surface": "guidedLearning.student-app",
+        "surface": "student-assignments.page",
         "kind": "page",
         "url": "/my-assignments",
         "path": [],
@@ -76844,7 +78412,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "routes": [
       {
-        "surface": "guidedLearning.student-app",
+        "surface": "student-assignments.page",
         "kind": "page",
         "url": "/my-assignments",
         "path": [],
@@ -76860,7 +78428,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "routes": [
       {
-        "surface": "guidedLearning.student-app",
+        "surface": "student-assignments.page",
         "kind": "page",
         "url": "/my-assignments",
         "path": [],
@@ -76876,7 +78444,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "routes": [
       {
-        "surface": "guidedLearning.student-app",
+        "surface": "student-assignments.page",
         "kind": "page",
         "url": "/my-assignments",
         "path": [],
@@ -81635,6 +83203,1368 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "student.quiz.quote-selection",
+    "label": "Quote button over selected passage text",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.ordering-empty-slot",
+    "label": "Empty slot in an ordering answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.ordering-move-up",
+    "label": "Move up arrow on an ordering item",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.ordering-move-down",
+    "label": "Move down arrow on an ordering item",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.ordering-reset",
+    "label": "Reset or Undo in an ordering word bank",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-materials",
+    "label": "Materials button beside a drawing answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-materials-hide",
+    "label": "Hide materials in the drawing answer drawer",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-tool",
+    "label": "A drawing tool on the drawing answer toolbar, keyed by tool",
+    "scope": "field",
+    "key_pattern": "quiz-student#(pen|eraser|text|line|arrow|rect|ellipse)",
+    "key_hint": "quiz-student#pen for the pen",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-eraser-mode",
+    "label": "An eraser mode on the drawing answer toolbar, keyed by mode",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "quiz-student#(stroke|object|lasso)",
+    "key_hint": "quiz-student#stroke for the stroke eraser",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-color",
+    "label": "A color on the drawing answer toolbar, keyed by color",
+    "scope": "field",
+    "key_pattern": "quiz-student#(black|blue|red|green|orange|yellow)",
+    "key_hint": "quiz-student#black for black",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-size",
+    "label": "A pen size on the drawing answer toolbar, keyed by size",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "quiz-student#(thin|medium|thick)",
+    "key_hint": "quiz-student#medium for the medium pen",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-undo",
+    "label": "Undo on the drawing answer toolbar",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-redo",
+    "label": "Redo on the drawing answer toolbar",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-zoom-out",
+    "label": "Zoom out on a drawing answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-zoom-reset",
+    "label": "Reset zoom on a drawing answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-zoom-in",
+    "label": "Zoom in on a drawing answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.ordering-drag",
+    "label": "Drag handle on an ordering item",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.picture-enlarge",
+    "label": "Enlarge picture button on an answer picture",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.supports",
+    "label": "Supports button on a question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.supports-close",
+    "label": "Close in the Supports panel",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.supports-tab",
+    "label": "A tab in the Supports panel, keyed row-N",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.supports-resize",
+    "label": "Resize bar between the question and the Supports panel",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.mark-review",
+    "label": "Mark for review button on a question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.review-back",
+    "label": "Back arrow on the review screen",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.review-question",
+    "label": "A question row on the review screen, keyed row-N",
+    "scope": "field",
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.review-submit",
+    "label": "Submit on the review screen",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.source-zoom-out",
+    "label": "Zoom out on a source",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.source-zoom-reset",
+    "label": "Reset zoom on a source",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.source-zoom-in",
+    "label": "Zoom in on a source",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.game-raise-hand",
+    "label": "Raise hand in a quiz game",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.game-choice",
+    "label": "An answer choice in a quiz game, keyed row-N",
+    "scope": "field",
+    "persists": true,
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.game-answer",
+    "label": "Answer box in a quiz game",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.game-submit",
+    "label": "Submit in a quiz game",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.game-next",
+    "label": "Next in a quiz game",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.game-pick-question",
+    "label": "A question to pick in a quiz game round, one per question",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.game-continue",
+    "label": "Continue after picking questions in a quiz game",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.reload",
+    "label": "Try again button on a quiz error screen",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.results-attempt",
+    "label": "An attempt tab on the results screen, keyed row-N",
+    "scope": "field",
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.results-tab-warning-dismiss",
+    "label": "Dismiss on the leaving-the-tab warning",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.recording-notice-ok",
+    "label": "Acknowledge button on the recording notice",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.recording-notice-open",
+    "label": "Open the recording notice again",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.playback-comment",
+    "label": "A teacher comment on a recording, which jumps to its time",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.playback-retry",
+    "label": "Try again when a recording does not load",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.playback-load",
+    "label": "Play button that loads a recorded answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.recording-retry-upload",
+    "label": "Try the upload again on a recorded answer",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.recording-start",
+    "label": "Start recording",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.recording-stop",
+    "label": "Stop recording",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.recording-submit",
+    "label": "Submit a recorded answer",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.recording-redo",
+    "label": "Redo a recorded answer",
+    "scope": "board",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.whiteboard-page-retry",
+    "label": "Try again when the starting page does not load",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.microphone-allow",
+    "label": "Allow microphone button",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.read-aloud",
+    "label": "Read question button on the read-aloud bar",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.read-aloud-speed",
+    "label": "Speed button on the read-aloud bar",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.read-aloud-auto",
+    "label": "Auto-read switch on the read-aloud bar",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.read-aloud-part",
+    "label": "Read aloud button beside a choice or passage",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.blank",
+    "label": "A blank in a fill-in-the-blank answer, keyed row-N",
+    "scope": "field",
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.source-retry",
+    "label": "Try again when an attachment does not load",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.word-bank-word",
+    "label": "A word in a passage word bank",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.sources-toggle",
+    "label": "Show or hide the sources for a question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.source-tab",
+    "label": "A source tab beside the questions, keyed row-N",
+    "scope": "field",
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.equation-cancel",
+    "label": "Cancel in the equation editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.equation-insert",
+    "label": "Insert in the equation editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.written-resize",
+    "label": "Resize handle under a written answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.blank-choice",
+    "label": "A drop-down blank in a fill-in-the-blank answer, keyed row-N",
+    "scope": "field",
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.word-bank-chip",
+    "label": "A word chip in a word bank",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.blank-slot",
+    "label": "An empty blank to drop a word into",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.word-bank-reset",
+    "label": "Reset or Undo in a fill-in-the-blank word bank",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.part-start",
+    "label": "Start button on a quiz part stop screen",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.part-intro-close",
+    "label": "Close the part introduction",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.part-progress",
+    "label": "Answered count above a question in a quiz part, which opens the part details",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.part-clear",
+    "label": "Clear my answer on a question in a quiz part",
+    "scope": "board",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.cross-out",
+    "label": "Cross out button beside an answer choice",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.matching-slot",
+    "label": "A match slot in a matching answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.matching-reset",
+    "label": "Reset or Undo in a matching word bank",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.question-audio",
+    "label": "Play the question audio",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.sources-resize",
+    "label": "Resize bar between the sources and the question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.period",
+    "label": "A class period button when joining a quiz",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.period-confirm",
+    "label": "Continue after picking a class period",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.period-back",
+    "label": "Go back on the class period step",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.sign-in-google",
+    "label": "Sign in with Google when joining a quiz",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.use-pin",
+    "label": "Use a PIN instead when joining a quiz",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.join-code",
+    "label": "Code box when joining a quiz",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.join-pin",
+    "label": "PIN box when joining a quiz",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.join",
+    "label": "Join button when joining a quiz",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.raise-hand",
+    "label": "Raise hand button during a quiz",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.resume",
+    "label": "Resume button after a quiz is unlocked",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.retry-submit",
+    "label": "Try again when turning in after time is up fails",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.tab-warning-dismiss",
+    "label": "Dismiss on the leaving-the-tab warning during a quiz",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.previous",
+    "label": "Previous question arrow",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.next",
+    "label": "Next question button",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.submit",
+    "label": "Submit or Review button on the last question",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.submit-answer",
+    "label": "Submit answer button under a question",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.short-answer",
+    "label": "Answer box for a short answer question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.back-to-list",
+    "label": "Back to assignments button",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.rubric-toggle",
+    "label": "Show or hide the rubric on a results screen",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.choice",
+    "label": "An answer choice on a multiple choice question, keyed row-N",
+    "scope": "field",
+    "key_pattern": "quiz-student#row-[1-9]\\d*",
+    "key_hint": "quiz-student#row-1 for the first one",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.language-english",
+    "label": "English button on the language switch",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.language-native",
+    "label": "The student's own language on the language switch",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.written-format",
+    "label": "A formatting button on a written answer, keyed by button",
+    "scope": "field",
+    "key_pattern": "quiz-student#(bold|italic|underline|bullets|numbers|equation)",
+    "key_hint": "quiz-student#bold for Bold",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.quiz.written-answer",
+    "label": "Response box for a written answer",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-quiz.page",
+        "kind": "page",
+        "url": "/quiz",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-library.assign-paper",
     "label": "Assign on paper button in the quiz assign dialog",
     "scope": "widget type",
@@ -82898,6 +85828,410 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "student.help",
+    "label": "Help button on student pages (bottom right)",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student.help",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "student.help-tour",
+    "label": "A live tour in the student Help menu, keyed row-N",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "student-help#row-[1-9]\\d*",
+    "key_hint": "student-help#row-1 for the first tour",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "student.help-menu",
+        "kind": "menu",
+        "path": [
+          "student.help"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.help-record",
+    "label": "Record a tour in the student Help menu (admins in View as student)",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "student.help-menu",
+        "kind": "menu",
+        "path": [
+          "student.help"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "subs.help",
+    "label": "Help button on every substitute portal screen",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-portal",
+        "kind": "page",
+        "url": "/subs",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.help-tour",
+    "label": "A live tour in the substitute portal Help menu, keyed row-N",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "subs-help#row-[1-9]\\d*",
+    "key_hint": "subs-help#row-1 for the first tour",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.subs-help",
+        "kind": "menu",
+        "path": [
+          "subs.help"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "subs.help-record",
+    "label": "Record a tour in the substitute portal Help menu (admins)",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.subs-help",
+        "kind": "menu",
+        "path": [
+          "subs.help"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "subs.sign-out",
+    "label": "Sign out on the substitute building picker",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-portal",
+        "kind": "page",
+        "url": "/subs",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.building",
+    "label": "A building card on the substitute building picker, keyed row-N",
+    "scope": "field",
+    "key_pattern": "subs-building#row-[1-9]\\d*",
+    "key_hint": "subs-building#row-1 for the first building",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.subs-portal",
+        "kind": "page",
+        "url": "/subs",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.change-building",
+    "label": "Change building on the substitute teacher list",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-portal",
+        "kind": "page",
+        "url": "/subs",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.empty-change-building",
+    "label": "Change building when no boards are shared in that building",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-portal",
+        "kind": "page",
+        "url": "/subs",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.board",
+    "label": "A board card on the substitute teacher list, keyed row-N",
+    "scope": "field",
+    "key_pattern": "subs-directory#row-[1-9]\\d*",
+    "key_hint": "subs-directory#row-1 for the first card",
+    "row_wildcard": true,
+    "row_list": "subs-directory",
+    "routes": [
+      {
+        "surface": "board.subs-portal",
+        "kind": "page",
+        "url": "/subs",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.collection-board",
+    "label": "A board inside a shared collection card on the substitute teacher list",
+    "scope": "field",
+    "key_pattern": "subs-directory#row-[1-9]\\d*-board-[1-9]\\d*",
+    "key_hint": "subs-directory#row-1-board-2 for the second board in the first card",
+    "routes": [
+      {
+        "surface": "board.subs-portal",
+        "kind": "page",
+        "url": "/subs",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.board-menu",
+    "label": "Board menu with the teacher's name on a substitute board",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.board-menu-reset",
+    "label": "Reset board in the substitute board menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": [
+          "subs.board-menu"
+        ],
+        "reveal": "subs.board-menu"
+      }
+    ]
+  },
+  {
+    "id": "subs.board-menu-directory",
+    "label": "Back to teacher list in the substitute board menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": [
+          "subs.board-menu"
+        ],
+        "reveal": "subs.board-menu"
+      }
+    ]
+  },
+  {
+    "id": "subs.board-menu-building",
+    "label": "Change building in the substitute board menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": [
+          "subs.board-menu"
+        ],
+        "reveal": "subs.board-menu"
+      }
+    ]
+  },
+  {
+    "id": "subs.board-menu-sign-out",
+    "label": "Sign out in the substitute board menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": [
+          "subs.board-menu"
+        ],
+        "reveal": "subs.board-menu"
+      }
+    ]
+  },
+  {
+    "id": "subs.load-classes",
+    "label": "Button on a substitute board that loads the teacher's class lists",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.load-classes-confirm",
+    "label": "Confirm button in the substitute class list prompt",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": [
+          "subs.load-classes"
+        ],
+        "reveal": "subs.load-classes"
+      }
+    ]
+  },
+  {
+    "id": "subs.load-classes-later",
+    "label": "Not now in the substitute class list prompt",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": [
+          "subs.load-classes"
+        ],
+        "reveal": "subs.load-classes"
+      }
+    ]
+  },
+  {
+    "id": "subs.nav-previous",
+    "label": "Previous board on a substitute collection board",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.nav-next",
+    "label": "Next board on a substitute collection board",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.nav-menu",
+    "label": "Button that lists the teacher's boards on a substitute collection board",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.nav-board",
+    "label": "A board in the substitute collection board list, keyed row-N",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "subs-nav#row-[1-9]\\d*",
+    "key_hint": "subs-nav#row-1 for the first board",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": [
+          "subs.nav-menu"
+        ],
+        "reveal": "subs.nav-menu"
+      }
+    ]
+  },
+  {
+    "id": "subs.nav-retry",
+    "label": "Try again after a substitute collection board failed to open",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.update-reload",
+    "label": "Reload after the teacher updated the shared substitute boards",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "subs.error-back",
+    "label": "Back button after a substitute board expired or failed to load",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.subs-board",
+        "kind": "page",
+        "url": "/subs/s/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "colleague-item.assign",
     "label": "Assign button on a colleague's item on a shared board",
     "scope": "board",
@@ -83859,6 +87193,447 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.flashcard-share",
         "kind": "modal",
         "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.period-option",
+    "label": "Class option on the student Video Activity class picker",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.period-continue",
+    "label": "Continue button on the student Video Activity class picker",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.period-back",
+    "label": "Go Back button on the student Video Activity class picker",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.pin",
+    "label": "PIN box on the student Video Activity join page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.join",
+    "label": "Join button on the student Video Activity join page",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.answer-option",
+    "label": "Answer choice on a student Video Activity question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.answer-check",
+    "label": "Answer checkbox on a student Video Activity choose-all question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.answer-blank",
+    "label": "Fill in the blank box on a student Video Activity question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.answer-text",
+    "label": "Written answer box on a student Video Activity question",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.submit-answer",
+    "label": "Submit Answer button on a student Video Activity question",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.live-submit",
+    "label": "Submit button on a live student Video Activity question",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.note-continue",
+    "label": "Continue button on a student Video Activity note stop",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.resume",
+    "label": "Resume Activity button after a teacher unlocks a student Video Activity",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.tab-warning-return",
+    "label": "Return to Activity button on the student Video Activity tab warning",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.finish",
+    "label": "Finish activity button when a student Video Activity submit failed",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.finish-retry",
+    "label": "Try again button on the student Video Activity finished page",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.back-link",
+    "label": "Back to my assignments link in the student Video Activity",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.error-retry",
+    "label": "Try again button on the student Video Activity error page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.video-activity.video-retry",
+    "label": "Try again button when the student Video Activity video fails",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-video.page",
+        "kind": "page",
+        "url": "/activity/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.period-option",
+    "label": "Class option on the student Guided Learning class picker",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.change-class",
+    "label": "Change class button on the student Guided Learning start page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.pin",
+    "label": "PIN box on the student Guided Learning start page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.start",
+    "label": "Start button on the student Guided Learning start page",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.done",
+    "label": "Done button in the student Guided Learning player",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.finished-submit",
+    "label": "Submit button on the student Guided Learning finished card",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.finished-back",
+    "label": "Back button on the student Guided Learning finished card",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "student.guided-learning.replay",
+    "label": "Replay button on the student Guided Learning end page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "student-guided-learning.page",
+        "kind": "page",
+        "url": "/guided-learning/{sessionId}",
+        "path": [],
+        "needs": [
+          "live-session"
+        ]
       }
     ]
   }

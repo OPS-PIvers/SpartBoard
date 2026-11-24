@@ -119,7 +119,7 @@ describe('analyzePaperQuiz written list', () => {
     expect(result.exclusions.map((e) => e.reason)).toEqual(['recording']);
   });
 
-  it('refuses written questions inside a choose-N section', () => {
+  it('prints written questions inside a choose-N section', () => {
     const result = analyzePaperQuiz(
       quiz({
         questions: [mc({ id: 'a' }), fr({ id: 'w' }), fr({ id: 'v' })],
@@ -133,11 +133,8 @@ describe('analyzePaperQuiz written list', () => {
       }),
       { written: true }
     );
-    expect(result.written).toEqual([]);
-    expect(result.writtenRefusals.map((e) => [e.reason, e.label])).toEqual([
-      ['choose-section', '2. Explain why.'],
-      ['choose-section', '3. Explain why.'],
-    ]);
+    expect(result.written.map((w) => w.questionId)).toEqual(['w', 'v']);
+    expect(result.writtenRefusals).toEqual([]);
   });
 
   it('keeps written questions in a section students answer in full', () => {
@@ -160,6 +157,23 @@ describe('analyzePaperQuiz written list', () => {
     const only = quiz({ questions: [fr()] });
     expect(isPaperStubAnalysis(analyzePaperQuiz(only))).toBe(true);
     expect(isPaperStubAnalysis(analyzePaperQuiz(only, { written: true }))).toBe(
+      false
+    );
+  });
+
+  it('does not treat a matching-only quiz as a stub when groups print', () => {
+    const only = quiz({
+      questions: [
+        mc({
+          id: 'match',
+          type: 'Matching',
+          text: 'Pairs',
+          correctAnswer: 'A:One|B:Two|C:Three',
+          incorrectAnswers: [],
+        }),
+      ],
+    });
+    expect(isPaperStubAnalysis(analyzePaperQuiz(only, { groups: true }))).toBe(
       false
     );
   });

@@ -26,6 +26,7 @@ import {
 } from './utils/flashcardAssignmentRow';
 import { AssignmentArchiveCard } from '@/components/common/library';
 import { AssignmentClassNames } from '@/components/common/library/AssignmentClassNames';
+import { pickedStudents } from '@/utils/assignedStudents';
 import type { LibraryMenuAction } from '@/components/common/library';
 
 export interface FlashcardAssignmentRowHandlers {
@@ -77,10 +78,7 @@ export const FlashcardAssignmentRow: React.FC<FlashcardAssignmentRowProps> = ({
     },
     rosters
   );
-  const runPeriod = usePeriodRunner(
-    a.periodAccess,
-    'FlashcardAssignmentRow.periodAccess'
-  );
+  const runPeriod = usePeriodRunner('FlashcardAssignmentRow.periodAccess');
   const paused = perPeriod && flashcardAssignmentPaused(a);
   const isCheck = a.kind === 'check';
   const published = !!a.scoreVisibility && a.scoreVisibility !== 'none';
@@ -133,9 +131,8 @@ export const FlashcardAssignmentRow: React.FC<FlashcardAssignmentRowProps> = ({
           icon: Rocket,
           onClick: () =>
             void runPeriod(async () => {
-              const untimed = await periods.startAll();
+              await periods.startAll();
               onMonitor(a);
-              return untimed;
             }),
         }
       : { label: 'Monitor', icon: Monitor, onClick: () => onMonitor(a) };
@@ -233,7 +230,10 @@ export const FlashcardAssignmentRow: React.FC<FlashcardAssignmentRowProps> = ({
         </span>
       )}
       {classes.length > 0 ? (
-        <AssignmentClassNames names={classes} />
+        <AssignmentClassNames
+          names={classes}
+          picked={pickedStudents(a, rosters)}
+        />
       ) : a.audience === 'staff' ? (
         <span className="font-semibold">Staff</span>
       ) : mode === 'active' ? (

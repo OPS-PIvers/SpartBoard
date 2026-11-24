@@ -12,6 +12,7 @@ import {
 import { mcItemsOf } from './paperPageMap';
 import { paperBatchTag } from './paperSheetMarker';
 import { seatQuestionId } from './paperSheetVersions';
+import { isPaperKeySeat } from './paperSheetPlan';
 import type {
   PageRead,
   PageReadResult,
@@ -30,6 +31,8 @@ export interface SheetAnswer {
   /** 0-based question index across the whole test. */
   question: number;
   choice: number | null;
+  /** A choose all row: every choice marked. */
+  marked?: number[];
   doubt?: RowDoubt;
   fills: number[];
   crop: RowRead['crop'];
@@ -82,11 +85,16 @@ export interface AssembleResult {
 }
 
 const seatKind = (batch: PaperBatch, seat: number): SheetKind | null => {
-  if (batch.keySheetSeat === seat) return 'key';
+  if (isPaperKeySeat(batch, seat)) return 'key';
   if (batch.seats[seat]) return 'student';
   if (batch.spareSeats.includes(seat)) return 'spare';
   return null;
 };
+
+/** No mark and no doubt on the row. */
+export const isBlankAnswer = (
+  a: Pick<SheetAnswer, 'choice' | 'marked' | 'doubt'>
+): boolean => a.choice === null && !a.marked?.length && !a.doubt;
 
 /** Row index across the whole sheet: the map's on v2 pages, else page arithmetic. */
 export function sheetRowOf(
@@ -122,6 +130,12 @@ function mergeDuplicate(
       prior.choice !== answer.choice
     ) {
       conflict = true;
+    }
+    // Choose all rows carry marks instead of one choice.
+    if (prior?.marked?.length && answer.marked?.length) {
+      const a = [...prior.marked].sort().join(',');
+      const b = [...answer.marked].sort().join(',');
+      if (a !== b) conflict = true;
     }
   }
   return { answers: incoming, conflict };
@@ -167,6 +181,7 @@ export function assemblePaperScan(
     const answers: SheetAnswer[] = read.rows.map((row) => ({
       question: sheetRowOf(read, row, grid),
       choice: row.choice,
+      ...(row.marked ? { marked: row.marked } : {}),
       ...(row.doubt ? { doubt: row.doubt } : {}),
       fills: row.fills,
       crop: row.crop,
@@ -213,8 +228,7 @@ export function assemblePaperScan(
       pagesSeen.flatMap((p) => entry.written.get(p) ?? [])
     );
     const isBlank =
-      answers.every((a) => a.choice === null && !a.doubt) &&
-      written.every((w) => w.state === 'blank');
+      answers.every(isBlankAnswer) && written.every((w) => w.state === 'blank');
     const flags: SheetFlag[] = [];
     if (missingPages.length > 0) flags.push('missing-page');
     if (answers.some((a) => a.doubt)) flags.push('doubtful-rows');
@@ -235,7 +249,10 @@ export function assemblePaperScan(
 
   return {
     sheets: sheets.filter((s) => s.kind !== 'key'),
-    keySheet: sheets.find((s) => s.kind === 'key') ?? null,
+    keySheet:
+      sheets.find((s) => s.seat === batch.keySheetSeat) ??
+      sheets.find((s) => s.kind === 'key') ??
+      null,
     unreadablePages,
     foreignPages,
     unknownPages,
@@ -323,7 +340,7 @@ export function skipSheetPage(
       skippedRows,
       missingPages,
       isBlank:
-        answers.every((a) => a.choice === null && !a.doubt) &&
+        answers.every(isBlankAnswer) &&
         (written ?? []).every((w) => w.state === 'blank'),
       flags,
     };

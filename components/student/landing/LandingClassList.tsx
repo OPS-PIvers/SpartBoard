@@ -6,6 +6,7 @@ import {
   type LandingPartition,
 } from '@/utils/studentLanding';
 import type { LandingClass } from './types';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface LandingClassListProps {
   classes: LandingClass[];
@@ -63,6 +64,7 @@ export const LandingClassList: React.FC<LandingClassListProps> = ({
       <button
         type="button"
         onClick={() => onSelect(null)}
+        {...tourAttr('student.assignments.overview')}
         aria-current={selectedClassId === null ? 'page' : undefined}
         className={rowClass(overviewActive, dark)}
       >
@@ -86,7 +88,7 @@ export const LandingClassList: React.FC<LandingClassListProps> = ({
       >
         My classes
       </p>
-      {classes.map((c) => {
+      {classes.map((c, i) => {
         const line = classListLine(
           partitionForClass(partition, c.classId).work,
           inSessionIds.has(c.classId),
@@ -99,6 +101,11 @@ export const LandingClassList: React.FC<LandingClassListProps> = ({
             key={c.classId}
             type="button"
             onClick={() => onSelect(c.classId)}
+            {...tourFieldAttr(
+              'student.assignments.class',
+              'student-assignments',
+              `row-${i + 1}`
+            )}
             aria-current={active ? 'page' : undefined}
             className={rowClass(active, dark)}
           >

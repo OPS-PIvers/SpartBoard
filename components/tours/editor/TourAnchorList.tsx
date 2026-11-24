@@ -107,7 +107,8 @@ function scanScreen(slots: TourSlots | undefined): OnScreen[] {
   document.querySelectorAll<HTMLElement>('[data-tour]').forEach((el) => {
     const id = el.getAttribute('data-tour') ?? '';
     if (id === WHOLE_BOARD_ANCHOR || !isTourAnchorId(id)) return;
-    if (el.closest('[data-tour-ignore]') || !isAnchorVisible(el)) return;
+    if (el.closest('[data-tour-ignore], [inert]') || !isAnchorVisible(el))
+      return;
     const r = el.getBoundingClientRect();
     if (r.bottom < 0 || r.right < 0) return;
     if (r.top > window.innerHeight || r.left > window.innerWidth) return;

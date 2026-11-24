@@ -3,6 +3,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ReadAloudControls } from './readAloud/ReadAloudToolbar';
 import type { QuizReadAloudController } from './readAloud/useQuizReadAloud';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface AccommodationLocaleToggle {
   /** Native-language label for the target side, e.g. `Español`. Data, not an i18n key. */
@@ -33,6 +34,7 @@ export const StudentAccommodationBar: React.FC<{
             className={`inline-flex items-center gap-1 rounded-2xl border-2 border-slate-200 bg-white p-1 ${readAloud ? '' : 'ml-auto'}`}
           >
             <button
+              {...tourAttr('student.quiz.language-english')}
               type="button"
               aria-pressed={!locale.localized}
               onClick={() => locale.onChange(false)}
@@ -41,6 +43,7 @@ export const StudentAccommodationBar: React.FC<{
               {t('quizTranslation.student.toggle.english', 'English')}
             </button>
             <button
+              {...tourAttr('student.quiz.language-native')}
               type="button"
               aria-pressed={locale.localized}
               onClick={() => locale.onChange(true)}

@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
+import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import type { AssignmentSummary } from '@/hooks/useStudentAssignments';
 import type { ClassDirectoryEntry } from '@/hooks/useStudentClassDirectory';
 import type { TurnInMap } from '@/hooks/useStudentTurnIns';
@@ -102,7 +103,8 @@ export const StudentLandingV2: React.FC<StudentLandingV2Props> = ({
             return;
           }
           void recheck(a);
-          window.location.assign(a.openHref);
+          // A View as student preview stays on this page; leaving would end it.
+          if (!studentPreviewBlocksWrite()) window.location.assign(a.openHref);
         })
         .catch((err: unknown) => {
           logError('StudentLandingV2.recheckLock', err, {
@@ -121,7 +123,9 @@ export const StudentLandingV2: React.FC<StudentLandingV2Props> = ({
   const onOpenGradeOnly = useCallback(
     (item: DoneItem) => {
       resolveStudentOpenHref(item.kind, item.sessionId)
-        .then((href) => window.location.assign(href))
+        .then((href) => {
+          if (!studentPreviewBlocksWrite()) window.location.assign(href);
+        })
         .catch((err: unknown) => {
           logError('StudentLandingV2.openGradeOnly', err, {
             sessionId: item.sessionId,

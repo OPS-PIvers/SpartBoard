@@ -18,7 +18,8 @@ import type {
 type SectionAnswer = Pick<
   QuizResponseAnswer,
   'questionId' | 'answer' | 'unresponded' | 'artifacts'
->;
+> &
+  Partial<Pick<QuizResponseAnswer, 'paperTranscript'>>;
 
 /** Sections in `order`, each with the question ids after it; slot entries bring their whole pool. */
 export function sessionSectionsFor(
@@ -100,6 +101,8 @@ export function effectiveChooseCount(
 
 const hasContent = (answer: SectionAnswer): boolean => {
   if (answer.unresponded) return false;
+  // A paper box the scan found empty still carries its crop.
+  if (answer.paperTranscript === 'blank') return false;
   if (answer.artifacts?.some((a) => a?.uploadState !== 'failed')) return true;
   return stripTags(answer.answer ?? '').trim().length > 0;
 };
