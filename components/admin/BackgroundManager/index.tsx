@@ -58,7 +58,10 @@ import { StockPhotoPicker, type StockPhotoSelection } from './StockPhotoPicker';
 import { isPexelsConfigured } from '@/utils/pexelsService';
 import { Modal } from '@/components/common/Modal';
 import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
+<<<<<<< HEAD
 import type { BatchResult } from '@/components/common/imagePicker/useImageSources';
+=======
+>>>>>>> d2ad6a6a187357a674713986e150049827900092
 
 const DEFAULT_PRESETS = [
   {
@@ -841,7 +844,10 @@ export const BackgroundManager: React.FC = () => {
             upload={uploadPickedBackground}
             onChange={handlePickedBackground}
             multiple
+<<<<<<< HEAD
             onBatchDone={showUploadSummary}
+=======
+>>>>>>> d2ad6a6a187357a674713986e150049827900092
             pasteScope="element"
             maxBytes={5 * 1024 * 1024}
             disabled={!user}

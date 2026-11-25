@@ -96,6 +96,7 @@ describe('ImagePicker', () => {
     );
   });
 
+<<<<<<< HEAD
   it('reports batch counts instead of an error line when asked', async () => {
     const upload = vi
       .fn()
@@ -153,6 +154,8 @@ describe('ImagePicker', () => {
     );
   });
 
+=======
+>>>>>>> d2ad6a6a187357a674713986e150049827900092
   it('takes only the first file without multiple', async () => {
     const upload = vi.fn().mockResolvedValue('https://saved/1');
     const { container } = render(
