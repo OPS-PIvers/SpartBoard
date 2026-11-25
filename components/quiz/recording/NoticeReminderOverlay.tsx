@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { Modal } from '@/components/common/Modal';
 import { RecordingConsentNotice } from './RecordingConsentNotice';
 
 const FOCUSABLE =
@@ -18,11 +19,6 @@ export const NoticeReminderOverlay: React.FC<{
       Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE));
     focusable()[0]?.focus();
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-        return;
-      }
       if (e.key !== 'Tab') return;
       const items = focusable();
       if (items.length === 0) return;
@@ -39,23 +35,25 @@ export const NoticeReminderOverlay: React.FC<{
     };
     node.addEventListener('keydown', onKeyDown);
     return () => node.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="recording-notice-heading"
-        className="max-h-full w-full max-w-lg overflow-y-auto"
-      >
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      zIndex="z-dialog"
+      maxWidth="max-w-lg"
+      captureEscape
+      ariaLabelledby="recording-notice-heading"
+    >
+      <div ref={dialogRef}>
         <RecordingConsentNotice
           variant="reminder"
           light={light}
           onAcknowledge={onClose}
         />
       </div>
-    </div>
+    </Modal>
   );
 };

@@ -2185,25 +2185,6 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'assign-periods-untagged',
   },
-  'assign-periods.selector-close': {
-    label: 'Close button in the Class Periods popup',
-    panel: true,
-  },
-  'assign-periods.selector-period': {
-    label: 'Class period checkbox in the Class Periods popup',
-    perField: true,
-    panel: true,
-    rows: true,
-    rowList: 'assign-periods-selector-period',
-  },
-  'assign-periods.selector-cancel': {
-    label: 'Cancel button in the Class Periods popup',
-    panel: true,
-  },
-  'assign-periods.selector-save': {
-    label: 'Save button in the Class Periods popup',
-    panel: true,
-  },
   'assign-settings.attempts': {
     label: 'Attempts allowed option in the Assign window',
     perField: true,
@@ -7804,27 +7785,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     rows: true,
     rowList: 'plc-index-open-plc',
-  },
-  'plc-assign.teacher-name': {
-    label: 'Teacher name field in the PLC assign dialog',
-    panel: true,
-  },
-  'plc-assign.close': {
-    label: 'Close button in the PLC assign dialog',
-    panel: true,
-  },
-  'plc-assign.due-date': {
-    label: 'Due date field in the PLC assign dialog',
-    panel: true,
-  },
-  'plc-assign.cancel': {
-    label: 'Cancel button in the PLC assign dialog',
-    panel: true,
-  },
-  'plc-assign.submit': {
-    label: 'Submit button in the PLC assign dialog',
-    persists: true,
-    panel: true,
   },
   'plc-dashboard.home': {
     label: 'Home button in the PLC dashboard',

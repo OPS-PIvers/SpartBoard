@@ -8606,60 +8606,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "assign-periods.selector-close",
-    "label": "Close button in the Class Periods popup",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-periods.selector-period",
-    "label": "Class period checkbox in the Class Periods popup",
-    "scope": "field",
-    "panel": true,
-    "row_wildcard": true,
-    "row_list": "assign-periods-selector-period",
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-periods.selector-cancel",
-    "label": "Cancel button in the Class Periods popup",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-periods.selector-save",
-    "label": "Save button in the Class Periods popup",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
     "id": "assign-settings.attempts",
     "label": "Attempts allowed option in the Assign window",
     "scope": "field",
@@ -31307,67 +31253,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "page",
         "url": "/plc",
         "path": []
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.teacher-name",
-    "label": "Teacher name field in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.close",
-    "label": "Close button in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.due-date",
-    "label": "Due date field in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.cancel",
-    "label": "Cancel button in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.submit",
-    "label": "Submit button in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
       }
     ]
   },
@@ -76871,18 +76756,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gradebook.settings"
         ],
         "reveal": "gradebook.settings",
-        "needs": [
-          "class"
-        ]
-      },
-      {
-        "surface": "guidedLearning.gradebook.settings",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.gradebook",
-          "gradebook.settings"
-        ],
         "needs": [
           "class"
         ]

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
-import { ConfirmDialog } from '@/components/widgets/InstructionalRoutines/ConfirmDialog';
+import { useDialog } from '@/context/useDialog';
 import { AI_READER_CONFIRM } from './aiReaderConfirm';
 
 interface AiRetryLinkProps {
@@ -17,29 +17,23 @@ export const AiRetryLink: React.FC<AiRetryLinkProps> = ({
   anchor,
   className = 'font-semibold',
 }) => {
-  const [confirming, setConfirming] = useState(false);
+  const { showConfirm } = useDialog();
+  const confirmRetry = async () => {
+    const { message, ...options } = AI_READER_CONFIRM;
+    if (await showConfirm(message, options)) onRetry();
+  };
 
   return (
     <>
       <button
         type="button"
         {...anchor}
-        onClick={() => setConfirming(true)}
+        onClick={() => void confirmRetry()}
         disabled={disabled}
         className={`${className} text-brand-blue-primary underline-offset-2 hover:underline disabled:opacity-50`}
       >
         Not what you expected? Try again with AI
       </button>
-      {confirming && (
-        <ConfirmDialog
-          {...AI_READER_CONFIRM}
-          onConfirm={() => {
-            setConfirming(false);
-            onRetry();
-          }}
-          onCancel={() => setConfirming(false)}
-        />
-      )}
     </>
   );
 };

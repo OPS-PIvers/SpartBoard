@@ -18,9 +18,10 @@
  */
 
 import type React from 'react';
+import type { OverflowMenuItem } from '@/components/common/OverflowMenu';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import type { LucideIcon } from 'lucide-react';
-import type { ClassRoster, WidgetType } from '@/types';
+import type { WidgetType } from '@/types';
 import type { UploadedDocument } from '@/utils/quizDocumentImport/uploadIntake';
 import type { ConversionInput } from '@/utils/import/aiConversion';
 import type { ImportCardSet, ImportForm } from '@/utils/import/contract';
@@ -66,22 +67,8 @@ export type ImportSourceKind =
 /* ─── Generic value objects ───────────────────────────────────────────────── */
 
 /** A clickable menu entry — used in overflow menus, secondary action lists. */
-export interface LibraryMenuAction {
+export interface LibraryMenuAction extends OverflowMenuItem {
   id: string;
-  label: string;
-  icon?: React.ComponentType<{
-    size?: number;
-    className?: string;
-    style?: React.CSSProperties;
-  }>;
-  onClick: () => void;
-  /** Renders with danger styling and (optionally) moves to the bottom. */
-  destructive?: boolean;
-  disabled?: boolean;
-  /** Tooltip when hover-disabled. */
-  disabledReason?: string;
-  /** Live-tour anchor; replaces the positional row tag. */
-  anchor?: TourAnchorAttrs;
   /** Opens these rows in a side menu instead of running `onClick`. */
   submenu?: LibraryMenuAction[];
   /** Assigned tab: moves the item out of the ⋯ menu into the row's status or publish chip. */
@@ -564,20 +551,6 @@ export interface AssignModalProps<TOptions> {
   cancelTourAttrs?: Record<string, string>;
   /** Override the modal's z-index tier (e.g. "z-dialog"). See Modal's `zIndex` prop. */
   zIndex?: string;
-}
-
-/* ─── PeriodSelector (extracted from QuizPeriodSelector) ──────────────────── */
-
-export interface PeriodSelectorProps {
-  rosters: ClassRoster[];
-  selectedPeriodNames: string[];
-  /**
-   * Period names that have students who've already joined. These cannot be
-   * unchecked. Consumer computes this from responses/submissions.
-   */
-  lockedPeriodNames?: string[];
-  onSave: (periodNames: string[]) => void;
-  onClose: () => void;
 }
 
 /* ─── ImportWizard (shared chrome) + ImportAdapter<TData> (contract) ──────── */

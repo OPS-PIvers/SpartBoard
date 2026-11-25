@@ -963,7 +963,9 @@ describe('FreeResponseGrader close', () => {
     const failing = vi.fn<FreeResponseGraderProps['onSaveGrade']>(() =>
       Promise.reject(new Error('offline'))
     );
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    showConfirm.mockClear();
+    showConfirm.mockImplementation(((message: string) =>
+      Promise.resolve(!message.includes('Ada'))) as () => Promise<boolean>);
     try {
       renderGrader([recorded('ada', 1)], failing, onClose);
       await screen.findByLabelText(/^Score$/);
@@ -972,11 +974,16 @@ describe('FreeResponseGrader close', () => {
       });
       fireEvent.keyDown(document.body, { key: 'Escape' });
 
-      await waitFor(() => expect(confirmSpy).toHaveBeenCalledTimes(1));
-      expect(confirmSpy.mock.calls[0][0]).toMatch(/Ada Lovelace/);
+      await waitFor(() =>
+        expect(
+          showConfirm.mock.calls.some((call: unknown[]) =>
+            /Ada Lovelace/.test(String(call[0]))
+          )
+        ).toBe(true)
+      );
       expect(onClose).not.toHaveBeenCalled();
     } finally {
-      confirmSpy.mockRestore();
+      showConfirm.mockImplementation(() => Promise.resolve(true));
     }
   });
 });

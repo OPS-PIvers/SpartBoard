@@ -46,7 +46,6 @@ const renderManager = (features: string[], isAdmin = true) => {
       value={
         {
           canAccessFeature: (id: string) => features.includes(id),
-          canSeeShareTracking: () => false,
         } as unknown as React.ContextType<typeof AuthContext>
       }
     >

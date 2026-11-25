@@ -1,5 +1,6 @@
 // Rubric library + criteria/levels builder in the rubric modal (M12 spec §6.1).
 
+import { copyText } from '@/utils/copyText';
 import React, { useContext, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
@@ -321,15 +322,8 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
       const shareId = await shareRubric(savedInLibrary.id);
       const url = `${window.location.origin}/share/rubric/${shareId}`;
       setShareUrl(url);
-      if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        try {
-          await navigator.clipboard.writeText(url);
-          setCopied(true);
-        } catch {
-          // Clipboard write can fail (permissions/insecure context) — the
-          // link is still shown below for manual copy.
-        }
-      }
+      // A refused copy still leaves the link shown below for manual copy.
+      if (await copyText(url)) setCopied(true);
     } catch (err) {
       setShareError(err instanceof Error ? err.message : 'Share failed.');
     } finally {
@@ -339,12 +333,8 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
 
   const handleCopyShareUrl = async () => {
     if (!shareUrl) return;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-    } catch {
-      setShareError('Could not copy — select and copy the link manually.');
-    }
+    if (await copyText(shareUrl)) setCopied(true);
+    else setShareError('Could not copy — select and copy the link manually.');
   };
 
   const handleImport = async () => {

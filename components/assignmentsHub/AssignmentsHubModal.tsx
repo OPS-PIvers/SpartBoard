@@ -16,8 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
-import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
-import { getOpenModalCount } from '@/components/common/modalStore';
+import { Modal } from '@/components/common/Modal';
 import { useServerNow } from '@/hooks/useServerNow';
 import { summarizePeriods } from '@/utils/periodAccess';
 import { AssignmentDetailPane } from './AssignmentDetailPane';
@@ -260,18 +259,6 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
   // Phones show the roster in place of the list after Monitor.
   const [phoneDetail, setPhoneDetail] = useState(false);
 
-  React.useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (isEscapeFromWidgetInput(event)) return;
-      // A stacked Modal owns this Escape.
-      if (getOpenModalCount() > 0) return;
-      onClose();
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
-
   const classNames = useMemo(
     () => Array.from(new Set(rows.map((r) => r.className))).sort(),
     [rows]
@@ -389,18 +376,16 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
     null;
 
   return (
-    <div
-      className="fixed inset-0 z-modal flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="assignments-hub-title"
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      fullBleedOnPhone
+      maxWidth="md:max-w-5xl"
+      ariaLabelledby="assignments-hub-title"
+      className="md:h-[85vh] md:max-h-[720px] bg-white md:rounded-2xl shadow-2xl overflow-hidden"
     >
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-xs"
-        onClick={onClose}
-      />
-
-      <div className="relative w-full h-full md:h-[85vh] md:max-h-[720px] md:max-w-5xl bg-white md:rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+      <div className="flex h-full min-h-0 flex-col">
         <div className="h-14 md:h-16 px-4 flex items-center justify-between border-b border-slate-200 shrink-0 bg-white">
           <div className="flex items-center gap-2 min-w-0">
             <ClipboardList
@@ -645,6 +630,6 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };

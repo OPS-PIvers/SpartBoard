@@ -167,12 +167,6 @@ export interface FeatureDefault {
  * member that doesn't declare its defaults here. Keep this honest —
  * don't add features to the union without adding a corresponding
  * entry, even if the entry is just the "all public, all on" baseline.
- *
- * Note on `share-link-tracking`: `canAccessFeature('share-link-tracking')`
- * returns the usual default-public behavior. `canSeeShareTracking()`
- * is a separate gate that diverges to admin-only — see
- * `AuthContextValue.ts` for why the divergence is intentional. This
- * table covers the `canAccessFeature` path only.
  */
 export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
   'live-session': {
@@ -357,7 +351,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     category: 'sharing',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
-    missingDocPublic: true,
+    // Each card runs a view-count read, so teachers wait for an admin to open it.
+    missingDocPublic: false,
   },
   'personal-spotify': {
     label: 'Personal Spotify',
@@ -1867,6 +1862,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Duplicate: Flashcards and Rubrics',
     icon: Copy,
     description: 'Flashcard sets and rubrics get a Duplicate button.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Server only: functions/src/turnInQueue.ts checks it when a run ends (AB-388).
+  'server-turn-in': {
+    label: 'Turn in work after End',
+    icon: ClipboardCheck,
+    description:
+      'Open work turns in after End or Close. The teacher tab can be closed.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

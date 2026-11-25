@@ -18,6 +18,7 @@ import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useBankSources } from '@/hooks/useBankSources';
 import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
+import { buildAssignQuizRef } from '@/hooks/quizAssign/builders';
 import {
   callJoinPlcAssignmentSyncGroup,
   callLeaveSyncedQuizGroup,
@@ -286,55 +287,45 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
         const content = await resolveQuizAssignContent(
           fresh,
           savedMeta.driveFileId,
-          { loadBankContentsForQuiz, saveDriveSnapshot }
+          { loadBankContentsForQuiz, saveDriveSnapshot },
+          { freeze: true }
         );
         const quizPlan: PlcQuizStepperPlan = {
           ...plan,
           mixed: withPlanAnswerChoices(plan.mixed, content.questions),
         };
-        const fields = plcStepperCreateFields(quizPlan, rosters);
+        const fields = plcStepperCreateFields(quizPlan, rosters, {
+          behavior: assignBehavior,
+          teacherName: (user.displayName ?? '').trim() || undefined,
+          content,
+          assignmentMode: getAssignmentMode('quiz'),
+          // PLC linkage so this pickup registers on the In-progress tab alongside the originator's run.
+          plcLinkage: {
+            id: plc.id,
+            name: plc.name,
+            sheetUrl: target.sheetUrl,
+            memberEmails: getPlcMemberEmails(plc),
+          },
+          skipPlcTemplateWrite: true,
+          ...(mode === 'sync' && liveVersion !== undefined
+            ? {
+                syncedFrom: {
+                  groupId: target.syncGroupId,
+                  syncedVersion: liveVersion,
+                },
+              }
+            : {}),
+        });
         const created = await createAssignment(
-          {
-            id: savedMeta.id,
-            title: savedMeta.title,
+          buildAssignQuizRef({
+            meta: savedMeta,
+            data: { ...fresh, language: canonical.language },
             driveFileId: content.driveFileId,
             questions: content.questions,
-            ...(content.stimuli?.length ? { stimuli: content.stimuli } : {}),
-            ...(canonical.language ? { language: canonical.language } : {}),
-            ...(fresh.sections?.length
-              ? { order: fresh.order, sections: fresh.sections }
-              : {}),
-          },
-          {
-            ...assignBehavior,
-            teacherName: (user.displayName ?? '').trim() || undefined,
-            ...fields.settings,
-            ...(content.resolvedDriveFileId
-              ? { resolvedDriveFileId: content.resolvedDriveFileId }
-              : {}),
-            // PLC linkage so this pickup registers on the In-progress tab
-            // alongside the originator's run.
-            plc: {
-              id: plc.id,
-              name: plc.name,
-              sheetUrl: target.sheetUrl,
-              memberEmails: getPlcMemberEmails(plc),
-            },
-          },
-          {
-            ...fields.options,
-            mode: getAssignmentMode('quiz'),
-            skipPlcTemplateWrite: true,
-            ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
-            ...(mode === 'sync' && liveVersion !== undefined
-              ? {
-                  syncedFrom: {
-                    groupId: target.syncGroupId,
-                    syncedVersion: liveVersion,
-                  },
-                }
-              : {}),
-          }
+            stimuli: content.stimuli?.length ? content.stimuli : undefined,
+          }),
+          fields.settings,
+          fields.options
         );
 
         savePlcStepperFinalScore({

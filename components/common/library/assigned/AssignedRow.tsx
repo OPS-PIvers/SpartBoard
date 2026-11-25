@@ -2,7 +2,8 @@ import React, { useContext, useState } from 'react';
 import { ChevronDown, ChevronUp, Clock, Eye, Pause, Play } from 'lucide-react';
 import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import type { AssignedClass, AssignedStatus } from '@/utils/assignedStatus';
-import { OverflowMenu } from '../LibraryOverflowMenu';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
+import { libraryMenuProps } from '../libraryMenuProps';
 import type { LibraryMenuAction } from '../types';
 import {
   CLASS_ACTION_LABEL,
@@ -460,10 +461,12 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
           >
             {!select && kebab.length > 0 && (
               <OverflowMenu
-                actions={kebab}
-                rowKey={rowKey}
-                widgetType={tourWidgetType}
-                archive
+                items={kebab}
+                {...libraryMenuProps({
+                  rowKey,
+                  widgetType: tourWidgetType,
+                  archive: true,
+                })}
               />
             )}
           </div>

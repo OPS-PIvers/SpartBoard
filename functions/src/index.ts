@@ -449,8 +449,11 @@ export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';
 export { finalizeExpiredQuizAttempts } from './finalizeExpiredQuizAttempts';
 export {
   queueVideoClassTurnIns,
+  queueQuizTurnIns,
+  queueGuidedLearningTurnIns,
+  queueVideoRunTurnIns,
   sweepVideoClassTurnIns,
-} from './videoClassTurnIn';
+} from './turnInQueue';
 export {
   exchangeGoogleAuthCode,
   refreshGoogleAccessToken,

@@ -1,0 +1,240 @@
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
+
+// Captures the observed target + callback so a test can fire a resize by
+// hand — the global tests/setup.ts stub is a pure no-op and never invokes it.
+class ResizeObserverSpy {
+  static instances: ResizeObserverSpy[] = [];
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  constructor(public callback: ResizeObserverCallback) {
+    ResizeObserverSpy.instances.push(this);
+  }
+}
+
+describe('OverflowMenu', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('opens on click and shows items', () => {
+    render(<OverflowMenu items={[{ label: 'Export', onClick: vi.fn() }]} />);
+    expect(screen.queryByRole('menu')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    expect(
+      screen.getByRole('menuitem', { name: 'Export' })
+    ).toBeInTheDocument();
+  });
+
+  it('fires the item onClick and closes', () => {
+    const onClick = vi.fn();
+    render(<OverflowMenu items={[{ label: 'Export', onClick }]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Export' }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('closes on Tab and returns focus to the trigger', () => {
+    render(<OverflowMenu items={[{ label: 'Export', onClick: vi.fn() }]} />);
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+    fireEvent.click(trigger);
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Tab' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('closes on Escape and returns focus to the trigger', () => {
+    render(<OverflowMenu items={[{ label: 'Export', onClick: vi.fn() }]} />);
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+    fireEvent.click(trigger);
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(trigger).toHaveFocus();
+  });
+
+  // Regression test for a missing-stopPropagation bug: the menu is portalled
+  // to document.body (outside any `.widget` DraggableWindow ancestor), so an
+  // unstopped Escape here bubbles all the way to DashboardView's global
+  // window-level Escape handler. That handler finds no `.widget` ancestor for
+  // the portalled menu item and falls back to targeting the topmost z-index
+  // widget on the board, silently minimizing an unrelated widget (e.g. a
+  // running timer) just because the user dismissed this menu. This mirrors
+  // the same bug class already fixed in ToolDockItem/RemoteControlMenu/
+  // ClassRosterMenu (#2266) and BoardNavFab/CollectionSwitcherMenu/
+  // BoardActionsFab (#2289) — see tests/components/layout/ToolDockItem.test.tsx.
+  it('does not leak the Escape keydown to window-level listeners (would otherwise let DashboardView minimize an unrelated widget)', () => {
+    render(<OverflowMenu items={[{ label: 'Export', onClick: vi.fn() }]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    // Stand-in for DashboardView's `window.addEventListener('keydown', ...)`
+    // global handler.
+    const windowKeydownSpy = vi.fn();
+    window.addEventListener('keydown', windowKeydownSpy);
+
+    try {
+      fireEvent.keyDown(screen.getByRole('menu'), {
+        key: 'Escape',
+        bubbles: true,
+      });
+      expect(windowKeydownSpy).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', windowKeydownSpy);
+    }
+  });
+
+  it('focuses the first item on open and navigates with Arrow keys', () => {
+    render(
+      <OverflowMenu
+        items={[
+          { label: 'A', onClick: vi.fn() },
+          { label: 'B', onClick: vi.fn() },
+        ]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menuitem', { name: 'A' })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowDown' });
+    expect(screen.getByRole('menuitem', { name: 'B' })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowUp' });
+    expect(screen.getByRole('menuitem', { name: 'A' })).toHaveFocus();
+  });
+
+  it('closes when the host widget resizes (e.g. Alt+M maximize/restore)', () => {
+    // Alt+M and Alt+R resize/reposition the widget without any pointerdown
+    // (so useClickOutside never fires) and without a window 'resize' event
+    // (so the scroll/resize listener above never fires either) — this menu
+    // is `position: fixed` and portalled to document.body, so it would
+    // otherwise keep floating at its stale, pre-resize coordinates.
+    ResizeObserverSpy.instances.length = 0;
+    vi.stubGlobal('ResizeObserver', ResizeObserverSpy);
+    render(
+      <div data-draggable-window="">
+        <OverflowMenu items={[{ label: 'Export', onClick: vi.fn() }]} />
+      </div>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    expect(ResizeObserverSpy.instances).toHaveLength(1);
+    const instance = ResizeObserverSpy.instances[0];
+    // A real ResizeObserver always fires once immediately on observe(), before any actual resize.
+    act(() => {
+      instance.callback([], instance);
+    });
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    act(() => {
+      instance.callback([], instance);
+    });
+
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('renders a spinner for a loading item', () => {
+    render(
+      <OverflowMenu
+        items={[{ label: 'Export', loading: true, onClick: vi.fn() }]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    // Menu is portalled to document.body, so query the document, not container.
+    expect(document.querySelector('.animate-spin')).not.toBeNull();
+    // A loading item is aria-disabled (stays focusable/announced) and its
+    // onClick is guarded so it can't double-fire.
+    expect(screen.getByRole('menuitem', { name: 'Export' })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+  });
+
+  it('asks again in the row before a confirm item runs', () => {
+    const onClick = vi.fn();
+    render(
+      <OverflowMenu
+        items={[{ label: 'Remove', confirmLabel: 'Confirm remove', onClick }]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
+    expect(onClick).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Confirm remove' }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('keeps the menu open for a keepOpen item', () => {
+    render(
+      <OverflowMenu
+        items={[{ label: 'Unlock', keepOpen: true, onClick: vi.fn() }]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Unlock' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+
+  it('moves destructive rows last unless told not to', () => {
+    const items = [
+      { label: 'Delete', destructive: true, onClick: vi.fn() },
+      { label: 'Edit', onClick: vi.fn() },
+    ];
+    const { unmount } = render(<OverflowMenu items={items} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getAllByRole('menuitem').map((el) => el.textContent)).toEqual(
+      ['Edit', 'Delete']
+    );
+    unmount();
+    render(<OverflowMenu items={items} destructiveLast={false} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getAllByRole('menuitem').map((el) => el.textContent)).toEqual(
+      ['Delete', 'Edit']
+    );
+  });
+
+  it('opens a side menu with a checked row and runs its item', () => {
+    const onMove = vi.fn();
+    render(
+      <OverflowMenu
+        items={[
+          {
+            label: 'Move to folder',
+            onClick: vi.fn(),
+            submenu: [
+              { label: 'Unit 1', checked: true, onClick: vi.fn() },
+              { label: 'Unit 2', onClick: onMove },
+            ],
+          },
+        ]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move to folder' }));
+    const side = screen.getByRole('menu', { name: 'Move to folder' });
+    expect(side).toBeInTheDocument();
+    expect(screen.getByLabelText('Selected')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Unit 2' }));
+    expect(onMove).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('closes and stops holding Escape when every item goes away', () => {
+    const items = [{ label: 'Unlock attempt', onClick: vi.fn() }];
+    const { rerender } = render(<OverflowMenu items={items} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    rerender(<OverflowMenu items={[]} />);
+    const onWindowEscape = vi.fn();
+    window.addEventListener('keydown', onWindowEscape);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    window.removeEventListener('keydown', onWindowEscape);
+    expect(onWindowEscape).toHaveBeenCalledTimes(1);
+    rerender(<OverflowMenu items={items} />);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+});
