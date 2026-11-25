@@ -750,6 +750,10 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const tabPolicy = useTabStrikePolicy({
     rules: resolveTabStrikeRules({
       settings: session?.sessionOptions ?? {},
+      // Students' own accommodations apply only on sessions stamped with the flag.
+      override: session?.sessionOptions?.studentTabRules
+        ? pointer?.override
+        : undefined,
       live: isLive,
     }),
     warn: session?.sessionOptions?.tabWarningsEnabled !== false,

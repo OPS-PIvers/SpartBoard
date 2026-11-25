@@ -249,6 +249,8 @@ export const useVideoActivitySessionTeacher =
     const authContext = useContext(AuthContext);
     const tabAwayTimerOn =
       authContext?.canAccessFeature?.('tab-away-timer') === true;
+    const studentTabRulesOn =
+      authContext?.canAccessFeature?.('va-student-tab-rules') === true;
     const pageProtectionsOn =
       authContext?.canAccessFeature?.(PAGE_PROTECTIONS_FEATURE) === true;
     // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
@@ -291,7 +293,12 @@ export const useVideoActivitySessionTeacher =
           sessionOptions,
           status: 'active',
           now: Date.now(),
-          gates: { tabAwayTimerOn, pageProtectionsOn, allowAnonymousJoin },
+          gates: {
+            tabAwayTimerOn,
+            studentTabRulesOn,
+            pageProtectionsOn,
+            allowAnonymousJoin,
+          },
           mode,
           sessionMode,
           allowedPins,
@@ -310,7 +317,7 @@ export const useVideoActivitySessionTeacher =
 
         return sessionId;
       },
-      [tabAwayTimerOn, pageProtectionsOn, allowAnonymousJoin]
+      [tabAwayTimerOn, studentTabRulesOn, pageProtectionsOn, allowAnonymousJoin]
     );
 
     const subscribeToActivitySessions = useCallback(

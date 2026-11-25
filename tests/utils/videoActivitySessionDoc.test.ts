@@ -74,6 +74,23 @@ describe('buildVideoActivitySessionDoc', () => {
     expect(session.allowAnonymousJoin).toBe(false);
   });
 
+  it('stamps student tab rules only with the flag', () => {
+    expect(
+      buildVideoActivitySessionDoc(base()).session.sessionOptions
+    ).not.toHaveProperty('studentTabRules');
+    const { session } = buildVideoActivitySessionDoc(
+      base({
+        gates: {
+          tabAwayTimerOn: false,
+          studentTabRulesOn: true,
+          pageProtectionsOn: false,
+          allowAnonymousJoin: true,
+        },
+      })
+    );
+    expect(session.sessionOptions?.studentTabRules).toBe(true);
+  });
+
   it('writes the window on the session', () => {
     const { session } = buildVideoActivitySessionDoc(
       base({
