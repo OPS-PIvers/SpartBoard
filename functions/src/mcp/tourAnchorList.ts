@@ -61025,7 +61025,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "gl-results.export",
-    "label": "Export button in the results header",
+    "label": "Export to Sheets button in results",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.open-sheet",
+    "label": "Open Sheet link in results",
     "scope": "board",
     "routes": [
       {
@@ -80783,6 +80804,52 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "writing-results.grade",
     "label": "Grade button in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.export",
+    "label": "Export to Sheets button in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.open-sheet",
+    "label": "Open Sheet link in Writing results",
     "scope": "widget type",
     "keys": [
       "writing"
