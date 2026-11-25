@@ -156,3 +156,54 @@ export function usePlcLibraryActions({
 
   return { unshare, busyId };
 }
+
+/** Confirm, write and toast for "Update the shared copy" on any PLC library kind; true when it updated. */
+export function usePlcSharedCopyUpdate(): (
+  title: string,
+  run: () => Promise<unknown>
+) => Promise<boolean> {
+  const { t } = useTranslation();
+  const { addToast } = useDashboard();
+  const { showConfirm } = useDialog();
+  return useCallback(
+    async (title: string, run: () => Promise<unknown>) => {
+      const confirmed = await showConfirm(
+        t('plcDashboard.updateSharedCopy.confirm', {
+          title,
+          defaultValue:
+            'Teammates will see your current version of "{{title}}".',
+        }),
+        {
+          title: t('plcDashboard.updateSharedCopy.title', {
+            defaultValue: 'Update the shared copy?',
+          }),
+          confirmLabel: t('plcDashboard.updateSharedCopy.action', {
+            defaultValue: 'Update',
+          }),
+        }
+      );
+      if (!confirmed) return false;
+      try {
+        await run();
+        addToast(
+          t('plcDashboard.updateSharedCopy.done', {
+            title,
+            defaultValue: 'Updated the shared copy of "{{title}}".',
+          }),
+          'success'
+        );
+        return true;
+      } catch (err) {
+        logError('usePlcSharedCopyUpdate', err, { title });
+        addToast(
+          t('plcDashboard.updateSharedCopy.failed', {
+            defaultValue: 'Could not update the shared copy.',
+          }),
+          'error'
+        );
+        return false;
+      }
+    },
+    [addToast, showConfirm, t]
+  );
+}

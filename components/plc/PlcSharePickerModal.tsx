@@ -17,7 +17,7 @@
 
 import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Share2, X } from 'lucide-react';
+import { Loader2, RefreshCw, Share2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
@@ -30,10 +30,11 @@ export interface PlcSharePickerItem {
   metaLine?: string;
   /**
    * When true the item is already shared with the current PLC; we still
-   * render it but disable the Share button and surface a small pill so
-   * the teacher knows why.
+   * render it with a small pill, and disable its button unless `updatable`.
    */
   alreadyShared?: boolean;
+  /** An already-shared row stays pickable and reads Update (the caller updates the shared copy). */
+  updatable?: boolean;
 }
 
 interface PlcSharePickerModalProps {
@@ -161,8 +162,12 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
               ) : (
                 filtered.map((item) => {
                   const rowBusy = busyId === item.id;
+                  const updates = !!item.alreadyShared && !!item.updatable;
                   const disabled =
-                    !!item.alreadyShared || !!busyId || outward.locked;
+                    (!!item.alreadyShared && !updates) ||
+                    !!busyId ||
+                    outward.locked;
+                  const RowIcon = updates ? RefreshCw : Share2;
                   return (
                     <div
                       key={item.id}
@@ -205,11 +210,15 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
                             aria-hidden="true"
                           />
                         ) : (
-                          <Share2 className="w-3.5 h-3.5" aria-hidden="true" />
+                          <RowIcon className="w-3.5 h-3.5" aria-hidden="true" />
                         )}
-                        {t('plcDashboard.sharePicker.shareAction', {
-                          defaultValue: 'Share',
-                        })}
+                        {updates
+                          ? t('plcDashboard.sharePicker.updateAction', {
+                              defaultValue: 'Update',
+                            })
+                          : t('plcDashboard.sharePicker.shareAction', {
+                              defaultValue: 'Share',
+                            })}
                       </button>
                     </div>
                   );
