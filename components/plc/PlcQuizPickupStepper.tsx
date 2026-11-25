@@ -1,4 +1,5 @@
 // "Assign to my classes" on a teammate's PLC quiz: the Quiz assign stepper before anything is created.
+import { useAuth } from '@/context/useAuth';
 import React, { useRef, useState } from 'react';
 import type { QuizBehaviorSettings } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
@@ -36,6 +37,7 @@ export const PlcQuizPickupStepper: React.FC<PlcQuizPickupStepperProps> = ({
   const { rosters, updateRoster } = useDashboard();
   const periodAccess = useAssignPeriodAccess(updateRoster);
   const handRaiseMode = useQuizHandRaiseMode();
+  const { canAccessFeature } = useAuth();
   const [classes, setClasses] = useState<AssignClassesValue>({
     classIds: [],
     studentsByClass: {},
@@ -61,6 +63,7 @@ export const PlcQuizPickupStepper: React.FC<PlcQuizPickupStepperProps> = ({
         when,
         rosters,
         bellWindow: periodAccess?.bellWindow,
+        everyClass: canAccessFeature('student-set-time'),
       });
       await onAssign(plan, toAssessmentBehavior(behavior));
       onClose();
