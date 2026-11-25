@@ -3542,19 +3542,15 @@
     "join": {
       "joining": "Joining quiz…",
       "unableToConnect": "Unable to connect. Please refresh the page and try again.",
-      "studentQuiz": "Student Quiz",
       "title": "Join Quiz",
       "intro": "Enter the code and your PIN from your teacher.",
       "codePlaceholder": "Quiz Code (XXXXXX)",
       "pinPlaceholder": "Your PIN",
-      "periodTitle": "Select Your Class",
-      "periodIntro": "Which class period are you in?",
       "goBack": "Go Back",
       "signInTitle": "Sign in to join",
       "signInIntro": "Use your school Google account.",
       "usePin": "Can’t sign in? Use a PIN instead",
       "join": "Join",
-      "continue": "Continue",
       "signInGoogle": "Sign in with Google",
       "closed": "This quiz is closed.",
       "loadFailed": "We couldn't load your quiz. Please refresh and try again."
@@ -3573,10 +3569,6 @@
       "title": "Paused. Eyes up.",
       "saved": "Your answers are saved.",
       "keepOpen": "Keep this tab open."
-    },
-    "locked": {
-      "opensSoon": "Opens when your teacher starts it.",
-      "keepOpen": "Keep this tab open. The quiz appears here as soon as your class is let in."
     },
     "errors": {
       "saveAnswer": "Couldn't save your answer. Tap to try again.",
@@ -5215,7 +5207,6 @@
       "correctOf": "{{correct}} of {{total}} correct",
       "answersTitle": "Your Answers",
       "noResponse": "No response",
-      "periodClosedBody": "Keep this tab open. The set appears here as soon as your teacher lets your class in.",
       "periodPausedTitle": "Paused for your class",
       "periodPausedBody": "Your progress stays on this page. Keep this tab open.",
       "notInPeriod": "You're not in a class this set was assigned to. Ask your teacher.",
@@ -5959,7 +5950,6 @@
     "start": {
       "selectClass": "Select Your Class",
       "whichPeriod": "Which class period are you in?",
-      "pickOne": "Pick one to continue. You can enter your PIN after this step.",
       "steps_one": "{{count}} step",
       "steps_other": "{{count}} steps",
       "class": "Class",
@@ -5989,7 +5979,7 @@
     },
     "locked": {
       "title": "Not open yet",
-      "body": "Keep this tab open. The activity appears here as soon as your class is let in.",
+      "body": "Keep this tab open. The activity appears here as soon as your teacher opens it.",
       "bodyOwn": "Keep this tab open. The activity appears here as soon as it’s open.",
       "paused": "Paused",
       "closed": "Closed",
@@ -6560,6 +6550,13 @@
     "help": "Help",
     "menuLabel": "Help",
     "record": "Record a tour"
+  },
+  "studentJoin": {
+    "title": "Join Activity",
+    "pinIntro": "Enter your PIN from your teacher.",
+    "liveTitle": "Classroom Live",
+    "liveIntro": "Join your teacher's session",
+    "roomCode": "Teacher ID / Room Code"
   },
   "studentTab": {
     "title": "You left the page",

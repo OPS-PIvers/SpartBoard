@@ -2288,19 +2288,15 @@
     "join": {
       "joining": "Connexion au quiz…",
       "unableToConnect": "Connexion impossible. Actualise la page et réessaie.",
-      "studentQuiz": "Quiz élève",
       "title": "Rejoindre le quiz",
       "intro": "Saisis le code et le PIN donnés par ton enseignant.",
       "codePlaceholder": "Code du quiz (XXXXXX)",
       "pinPlaceholder": "Ton PIN",
-      "periodTitle": "Choisis ta classe",
-      "periodIntro": "Dans quelle classe es-tu ?",
       "goBack": "Retour",
       "signInTitle": "Connecte-toi pour rejoindre",
       "signInIntro": "Utilise ton compte Google de l'école.",
       "usePin": "Tu ne peux pas te connecter ? Utilise un PIN",
       "join": "Rejoindre",
-      "continue": "Continuer",
       "signInGoogle": "Se connecter avec Google",
       "closed": "Ce quiz est fermé.",
       "loadFailed": "Nous n'avons pas pu charger ton quiz. Actualise la page et réessaie."
@@ -2319,10 +2315,6 @@
       "title": "En pause. Regarde devant.",
       "saved": "Tes réponses sont enregistrées.",
       "keepOpen": "Garde cet onglet ouvert."
-    },
-    "locked": {
-      "opensSoon": "S'ouvre quand ton enseignant le lance.",
-      "keepOpen": "Garde cet onglet ouvert. Le quiz apparaît ici dès que ta classe peut commencer."
     },
     "errors": {
       "saveAnswer": "Impossible d'enregistrer ta réponse. Touche pour réessayer.",
@@ -3899,7 +3891,6 @@
       "correctOf": "{{correct}} sur {{total}} justes",
       "answersTitle": "Tes réponses",
       "noResponse": "Pas de réponse",
-      "periodClosedBody": "Garde cet onglet ouvert. La série apparaîtra ici dès que ton enseignant ouvrira l’accès à ta classe.",
       "periodPausedTitle": "En pause pour ta classe",
       "periodPausedBody": "Ta progression reste sur cette page. Garde cet onglet ouvert.",
       "notInPeriod": "Tu n’es dans aucune classe à laquelle cette série a été attribuée. Demande à ton enseignant.",
@@ -4740,7 +4731,6 @@
     "start": {
       "selectClass": "Choisis ta classe",
       "whichPeriod": "Dans quel cours es-tu ?",
-      "pickOne": "Choisis-en un pour continuer. Tu pourras saisir ton code PIN ensuite.",
       "steps_one": "{{count}} étape",
       "steps_other": "{{count}} étapes",
       "class": "Classe",
@@ -4770,7 +4760,7 @@
     },
     "locked": {
       "title": "Pas encore ouverte",
-      "body": "Garde cet onglet ouvert. L’activité apparaîtra ici dès que ta classe y aura accès.",
+      "body": "Garde cet onglet ouvert. L’activité apparaîtra ici dès que ton enseignant l’ouvrira.",
       "bodyOwn": "Garde cet onglet ouvert. L’activité apparaîtra ici dès qu’elle sera ouverte.",
       "paused": "En pause",
       "closed": "Fermée",
@@ -5116,6 +5106,13 @@
     "help": "Aide",
     "menuLabel": "Aide",
     "record": "Enregistrer une visite"
+  },
+  "studentJoin": {
+    "title": "Rejoindre l'activité",
+    "pinIntro": "Saisis le PIN donné par ton enseignant.",
+    "liveTitle": "Classe en direct",
+    "liveIntro": "Rejoins la session de ton enseignant",
+    "roomCode": "ID de l'enseignant / code de salle"
   },
   "studentTab": {
     "title": "Tu as quitté la page",

@@ -18,6 +18,7 @@ import {
   GuidedLearningWelcomeHeader,
   GuidedLearningWelcomeMessage,
 } from './GuidedLearningScreenShell';
+import { StudentPeriodPicker } from '@/components/student/StudentPeriodScreens';
 
 // The student app's light full-page screens: loading, error, start and end.
 
@@ -93,30 +94,13 @@ export const StartScreen: React.FC<{
 
   if (needsPeriodPicker) {
     return (
-      <GuidedLearningScreenShell>
-        <GuidedLearningLogo />
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-          {t('glStudent.start.selectClass')}
-        </h1>
-        <p className="mt-2 text-sm text-slate-600">
-          {t('glStudent.start.whichPeriod')}
-        </p>
-        <div className="mt-6 space-y-2 text-left">
-          {periods.map((p) => (
-            <button
-              {...tourAttr('student.guided-learning.period-option')}
-              key={p}
-              onClick={() => onPeriodChange(p)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base font-semibold text-slate-800 transition-colors hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-        <p className="mt-5 text-xs text-slate-500">
-          {t('glStudent.start.pickOne')}
-        </p>
-      </GuidedLearningScreenShell>
+      <StudentPeriodPicker
+        title={session.title}
+        periods={periods}
+        pendingPeriod={null}
+        onPick={onPeriodChange}
+        optionTourId="student.guided-learning.period-option"
+      />
     );
   }
 

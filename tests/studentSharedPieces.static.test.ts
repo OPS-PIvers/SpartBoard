@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, resolve, dirname, relative } from 'path';
 import { fileURLToPath } from 'url';
 
-// Fails when a student page writes its own hydrate-then-sign-in instead of the shared hook.
+// Fails when a student page rebuilds sign-in, the class gate or the locked screen instead of the shared pieces.
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ROOTS = ['components', 'hooks', 'context', 'utils'];
 
@@ -35,6 +35,46 @@ describe('student sign-in goes through useStudentAuthBootstrap', () => {
     expect(
       offenders,
       'Use useStudentAuthBootstrap (or bootstrapStudentAuth) from hooks/useStudentAuthBootstrap.ts'
+    ).toEqual([]);
+  });
+});
+
+// Student apps that gate by class; each reads the gate from usePeriodGate.
+const GATED_APPS = [
+  'components/quiz/QuizStudentApp.tsx',
+  'components/videoActivity/VideoActivityStudentApp.tsx',
+  'components/guidedLearning/GuidedLearningStudentApp.tsx',
+  'components/miniApp/MiniAppStudentApp.tsx',
+  'components/flashcards/FlashcardAssignmentPage.tsx',
+];
+
+describe('student class gate and screens are shared', () => {
+  it('gated apps take the open check from usePeriodGate', () => {
+    for (const f of GATED_APPS) {
+      const text = readFileSync(join(repoRoot, f), 'utf8');
+      expect(text, f).toMatch(/\busePeriodGate\(/);
+      expect(text, `${f}: use usePeriodGate`).not.toMatch(
+        /\bstudentCanEnter\(/
+      );
+    }
+  });
+
+  it('no app keeps its own locked screen, class picker or paused overlay', () => {
+    const copies = ROOTS.flatMap(listFiles)
+      .map((f) => f.replace(/\\/g, '/'))
+      .filter((f) => !f.startsWith('components/student/'))
+      .filter(
+        (f) =>
+          /(PeriodLockedScreen|PeriodPausedOverlay|PeriodPicker)\.tsx$/.test(
+            f
+          ) ||
+          /export const \w+(PeriodLockedScreen|PeriodPausedOverlay|PeriodPicker)\b/.test(
+            readFileSync(join(repoRoot, f), 'utf8')
+          )
+      );
+    expect(
+      copies,
+      'Use components/student/StudentPeriodScreens.tsx and StudentPeriodPausedOverlay.tsx'
     ).toEqual([]);
   });
 });
