@@ -5203,3 +5203,11 @@ rather than "no data") is also still open.
   - Ready: #6659, #6661, #6662, #6663, #6664 (merge after #6659–#6663).
   - Ready with minor notes: #6660 (the fallback message sends teachers to "Create template", which makes a second template).
 - Notes: CI `summary` was green on all six and none had merge conflicts. Nothing was changed, so I didn't run lint, type-check or tests locally.
+
+## 2026-11-25
+- PRs reviewed: #6708 docs(debugger): log 2026-11-25 nightly run; #6707 fix(admin): Starter Pack position number fields can be cleared and retyped; #6706 fix(calculator): percent rounds float noise and expression follows display after equals
+- Comments processed: 1 total, 0 fixed, 0 replied to. It was a Claude bot "no issues found" summary on #6707 with no inline threads, so there was nothing to act on.
+- Fixes pushed: none.
+- Reviews posted: 3
+  - Ready: #6706 (the description overstates the exponent-form fix: `formatResult(1e-8)` still shows `1e-8`), #6707 (per-widget fields have no test), #6708 (merge after #6706 and #6707).
+- Notes: CI `summary` was green on all three and none had merge conflicts. Nothing was changed, so I didn't run lint, type-check or tests locally.
