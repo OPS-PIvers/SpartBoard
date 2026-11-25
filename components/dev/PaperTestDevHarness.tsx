@@ -527,6 +527,14 @@ const GROUPS_QUIZ: QuizData = {
       incorrectAnswers: ['Vacuole', 'Nucleus', 'Cell wall'],
     },
     {
+      id: 'g0',
+      timeLimit: 0,
+      text: 'Plant cells have a cell wall.',
+      type: 'MC',
+      correctAnswer: 'True',
+      incorrectAnswers: ['False'],
+    },
+    {
       id: 'g2',
       timeLimit: 0,
       text: 'Which of these are found in plant cells?',

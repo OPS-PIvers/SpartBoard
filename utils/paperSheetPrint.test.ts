@@ -227,6 +227,20 @@ describe('buildPaperSheetsHtml', () => {
     expect(rendered[1]).toContain('Question &lt;6&gt;');
   });
 
+  it('prints one bubble per choice on the question-text grid', () => {
+    const html = buildPaperSheetsHtml(
+      job({
+        questionCount: 2,
+        columnsPerPage: 'questions',
+        questionTexts: [
+          { text: 'Sky is blue', choices: ['True', 'False'] },
+          { text: 'Capital', choices: ['Paris', 'Lyon', 'Nice', 'Lille'] },
+        ],
+      })
+    );
+    expect(html.match(/class="bub"/g)).toHaveLength(2 + 4);
+  });
+
   it('prints no question text on the ordinary grids', () => {
     const html = buildPaperSheetsHtml(
       job({ questionTexts: [{ text: 'Hidden', choices: ['x', 'y'] }] })

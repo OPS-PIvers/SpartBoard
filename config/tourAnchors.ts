@@ -3979,16 +3979,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'quiz-print.include-key-sheet': {
-    label: 'Include answer key sheet toggle in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-print.include-question-text': {
-    label: 'Include question text toggle in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-print.pdf-page-add': {
     label: 'PDF page Add page in the Quiz widget',
     perWidgetType: true,

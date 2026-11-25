@@ -15818,52 +15818,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-print.include-key-sheet",
-    "label": "Include answer key sheet toggle in the Quiz widget",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-print.include-question-text",
-    "label": "Include question text toggle in the Quiz widget",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "quiz-print.pdf-page-add",
     "label": "PDF page Add page in the Quiz widget",
     "scope": "widget type",
