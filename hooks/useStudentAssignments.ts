@@ -447,12 +447,6 @@ export const isClosedUnsubmittableRun = (
   a: Pick<AssignmentSummary, 'kind' | 'acceptingResponses' | 'studentSubmit'>
 ): boolean => isClosedProjectRun(a) && a.studentSubmit !== true;
 
-/**
- * Build an `AssignmentSummary` from a session doc. Hoisted to module scope
- * (rather than a closure inside the subscription effect) so the fan-out
- * hydration path (M17 C1) can build the same shape from a one-off `getDoc`.
- */
-
 /** Kinds whose rules refuse a student outside the run's classes; Flashcards and Writing admit pointer holders. */
 const CLASS_GATED_KINDS: ReadonlySet<SessionKind> = new Set([
   'quiz',
@@ -462,6 +456,11 @@ const CLASS_GATED_KINDS: ReadonlySet<SessionKind> = new Set([
   'projects',
 ]);
 
+/**
+ * Build an `AssignmentSummary` from a session doc. Hoisted to module scope
+ * (rather than a closure inside the subscription effect) so the fan-out
+ * hydration path (M17 C1) can build the same shape from a one-off `getDoc`.
+ */
 export function buildAssignmentSummary(
   kind: SessionKind,
   channel: AssignmentChannel,
