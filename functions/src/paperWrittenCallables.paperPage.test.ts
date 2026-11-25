@@ -193,6 +193,26 @@ describe('getPaperPageV1', () => {
     expect(deps.isKeptPagesGranted).not.toHaveBeenCalled();
   });
 
+  it('serves a student token that holds a targeted class', async () => {
+    const deps = makeDeps(
+      published({
+        [SESSION]: {
+          teacherUid: 't1',
+          scoreVisibility: 'score-and-responses',
+          classIds: ['c1'],
+        },
+      }),
+      { objects: { [PATH]: 'page' } }
+    );
+    const caller: Caller = {
+      ...STUDENT,
+      claims: { studentRole: true, classIds: ['c1'] },
+    };
+    await expect(handleGetPaperPage(deps, caller, request)).resolves.toEqual(
+      expect.objectContaining({ status: 'ready' })
+    );
+  });
+
   it('does not serve the student a rescan held for review', async () => {
     const store = published();
     store[RESPONSE] = {
@@ -229,6 +249,18 @@ describe('getPaperPageV1', () => {
           teacherUid: 't1',
           scoreVisibility: 'score-and-responses',
           writtenReturnMode: 'typed',
+        },
+      },
+      {},
+    ],
+    [
+      'a student token for another class',
+      { ...STUDENT, claims: { studentRole: true, classIds: ['c9'] } },
+      {
+        [SESSION]: {
+          teacherUid: 't1',
+          scoreVisibility: 'score-and-responses',
+          classIds: ['c1'],
         },
       },
       {},

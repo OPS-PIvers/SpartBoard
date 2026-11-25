@@ -367,6 +367,59 @@ describe('getPaperWrittenCropV1', () => {
     ).resolves.toMatchObject({ status: 'ready' });
   });
 
+  describe('class gate on student tokens', () => {
+    const inClass = (classIds: string[], extra: StubData = {}): Caller => ({
+      ...STUDENT,
+      claims: { studentRole: true, classIds, ...extra },
+    });
+    const targeted = () =>
+      seed({
+        [SESSION]: {
+          ...seed()[SESSION],
+          classIds: ['c1'],
+        },
+      });
+
+    it('serves a student token that holds a targeted class', async () => {
+      const { deps } = makeDeps(targeted(), objects);
+      await expect(
+        handleGetPaperWrittenCrop(deps, inClass(['c1', 'c2']), target)
+      ).resolves.toMatchObject({ status: 'ready' });
+    });
+
+    it('SECURITY: refuses a student token for another class', async () => {
+      const { deps } = makeDeps(targeted(), objects);
+      await expectCode(
+        handleGetPaperWrittenCrop(deps, inClass(['c9']), target),
+        'permission-denied'
+      );
+      expect(deps.readObject).not.toHaveBeenCalled();
+    });
+
+    it('SECURITY: refuses a PIN token proven for another session', async () => {
+      const { deps } = makeDeps(targeted(), objects);
+      await expectCode(
+        handleGetPaperWrittenCrop(
+          deps,
+          inClass(['c1'], { pinLogin: true, pinSessionId: 's9' }),
+          target
+        ),
+        'permission-denied'
+      );
+    });
+
+    it('serves a PIN token proven for this session', async () => {
+      const { deps } = makeDeps(targeted(), objects);
+      await expect(
+        handleGetPaperWrittenCrop(
+          deps,
+          inClass(['c1'], { pinLogin: true, pinSessionId: 's1' }),
+          target
+        )
+      ).resolves.toMatchObject({ status: 'ready' });
+    });
+  });
+
   it("refuses a student's answer pointed at a classmate's crop", async () => {
     const store = seed();
     const res = store[RESPONSE] as { answers: StubData[] };
