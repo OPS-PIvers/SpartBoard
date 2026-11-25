@@ -451,6 +451,14 @@ const SidebarListsDevHarness =
         }))
       )
     : null;
+const BoardsFoldersDevHarness =
+  import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
+    ? lazy(() =>
+        import('./components/dev/BoardsFoldersDevHarness').then((module) => ({
+          default: module.BoardsFoldersDevHarness,
+        }))
+      )
+    : null;
 // Also built into auth-bypass (E2E) builds for the widget grader.
 const WidgetGraderHarness =
   import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
@@ -1585,6 +1593,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <SidebarListsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // Boards window on fixture boards and collections; auth-bypass only, so never on a deployed site.
+  if (
+    BoardsFoldersDevHarness &&
+    isAuthBypass &&
+    pathname === '/boards-folders-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <BoardsFoldersDevHarness />
       </Suspense>
     );
   }

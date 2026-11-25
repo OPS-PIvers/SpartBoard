@@ -31,11 +31,13 @@ import {
   where,
   writeBatch,
   addDoc,
+  deleteField,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { collectDescendantIds } from '@/utils/folderTree';
+import { withPaletteColor } from '@/components/boardsModal/collectionFolders';
 import type { Collection } from '@/types';
 
 const COLLECTIONS_SUBPATH = 'collections';
@@ -141,7 +143,7 @@ export const useCollections = (
       (snap) => {
         const list: Collection[] = snap.docs.map((d) => {
           const data = d.data() as Omit<Collection, 'id'>;
-          return { ...data, id: d.id };
+          return withPaletteColor({ ...data, id: d.id });
         });
         setCollections(list);
         setLoading(false);
@@ -368,15 +370,23 @@ export const useCollections = (
         if (!trimmed) throw new Error('Collection name is required');
         update.name = trimmed;
       }
-      if (patch.color !== undefined) update.color = patch.color;
+      // An empty colour clears it back to none.
+      const clearColor = patch.color === '';
+      if (patch.color) update.color = patch.color;
       if (patch.icon !== undefined) update.icon = patch.icon;
 
       if (isAuthBypass) {
         setCollections((prev) =>
-          prev.map((c) => (c.id === collectionId ? { ...c, ...update } : c))
+          prev.map((c) => {
+            if (c.id !== collectionId) return c;
+            const next: Collection = { ...c, ...update };
+            if (clearColor) delete next.color;
+            return next;
+          })
         );
         return;
       }
+      if (clearColor) update.color = deleteField();
 
       const batch = writeBatch(db);
       batch.update(

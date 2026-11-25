@@ -3,6 +3,7 @@ import { Folder, Loader2, Lock, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import type { LibraryFolder } from '@/types';
 import { folderColorSwatch } from './folderColors';
+import { tourAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 
 export type DeleteFolderChoice = 'keep' | 'delete-everything';
 
@@ -80,12 +81,14 @@ export const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
   const option = (
     value: DeleteFolderChoice,
     title: string,
-    detail: React.ReactNode
+    detail: React.ReactNode,
+    anchor: TourAnchorAttrs
   ): React.ReactNode => {
     const selected = choice === value;
     const danger = value === 'delete-everything';
     return (
       <label
+        {...anchor}
         className={`flex items-start gap-2.5 rounded-xl border-2 px-3 py-2.5 text-sm cursor-pointer transition-colors ${
           selected
             ? danger
@@ -129,6 +132,7 @@ export const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
       <button
         type="button"
         onClick={onCancel}
+        {...tourAttr('library-shell.folder-dialog-close')}
         className="self-start p-1 rounded-full text-white/80 hover:bg-white/15 hover:text-white"
         aria-label="Close"
       >
@@ -143,6 +147,7 @@ export const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
         type="button"
         onClick={onCancel}
         disabled={busy}
+        {...tourAttr('library-shell.folder-dialog-cancel')}
         className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
       >
         Cancel
@@ -151,6 +156,7 @@ export const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
         type="button"
         onClick={() => void confirm()}
         disabled={busy}
+        {...tourAttr('library-shell.folder-dialog-confirm')}
         className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-60 ${
           deleting
             ? 'bg-brand-red-primary hover:bg-brand-red-dark'
@@ -190,7 +196,8 @@ export const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
             Move the {joinCounts([subfolders, items], ' and ')} to{' '}
             <b className="font-semibold">{parentName}</b>. Only the folder goes
             away.
-          </>
+          </>,
+          tourAttr('library-shell.folder-dialog-move-contents')
         )}
         {canDeleteItems &&
           option(
@@ -202,7 +209,8 @@ export const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
                 deletableCount > 0 ? countOf(deletableCount, noun) : '',
               ],
               ' and '
-            )}. You can’t undo this.`
+            )}. You can’t undo this.`,
+            tourAttr('library-shell.folder-dialog-delete-all')
           )}
       </div>
       {deleting && blockedCount > 0 && blockedReason && (

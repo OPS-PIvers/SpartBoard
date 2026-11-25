@@ -65075,6 +65075,38 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "boards-modal.new-collection-input",
+    "label": "Name field on a new collection card",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-modal",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.collection-name-input",
+    "label": "Name field on a collection card being renamed",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-modal",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards"
+        ]
+      }
+    ]
+  },
+  {
     "id": "boards-modal.new-board",
     "label": "New Board button in the Manage Boards dialog",
     "scope": "board",
@@ -65593,37 +65625,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "boards-modal.move-close",
-    "label": "Close button in the move to collection dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.boards-move",
-        "kind": "menu",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.board-select",
-          "boards-modal.bulk-move"
-        ]
-      }
-    ]
-  },
-  {
     "id": "boards-modal.move-to-root",
     "label": "Root option in the move to collection dialog",
     "scope": "board",
     "panel": true,
     "routes": [
       {
-        "surface": "board.boards-move",
-        "kind": "menu",
+        "surface": "board.boards-modal",
+        "kind": "modal",
         "path": [
           "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.board-select",
-          "boards-modal.bulk-move"
+          "sidebar.boards"
         ]
       }
     ]
@@ -65635,94 +65647,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "board.boards-move",
-        "kind": "menu",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.board-select",
-          "boards-modal.bulk-move"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "boards-modal.color-close",
-    "label": "Close button in the collection color dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.boards-color",
+        "surface": "board.boards-modal",
         "kind": "modal",
         "path": [
           "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-edit",
-          "boards-modal.collection-menu-color"
-        ],
-        "needs": [
-          "library-item"
+          "sidebar.boards"
         ]
       }
     ]
   },
   {
     "id": "boards-modal.color-swatch",
-    "label": "Color swatch in the collection color dialog",
+    "label": "Color swatch in the collection card menu",
     "scope": "board",
     "panel": true,
     "routes": [
       {
-        "surface": "board.boards-color",
-        "kind": "modal",
+        "surface": "board.boards-collection-menu",
+        "kind": "menu",
         "path": [
           "sidebar.open-menu",
           "sidebar.boards",
-          "boards-modal.collection-edit",
-          "boards-modal.collection-menu-color"
-        ],
-        "needs": [
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "boards-modal.color-custom",
-    "label": "Custom color picker in the collection color dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.boards-color",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-edit",
-          "boards-modal.collection-menu-color"
-        ],
-        "needs": [
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "boards-modal.color-apply-custom",
-    "label": "Apply custom color button in the collection color dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.boards-color",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-edit",
-          "boards-modal.collection-menu-color"
+          "boards-modal.collection-edit"
         ],
         "needs": [
           "library-item"
@@ -65732,18 +65678,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "boards-modal.color-done",
-    "label": "Done button in the collection color dialog",
+    "label": "Color row in the collection card menu",
     "scope": "board",
     "panel": true,
     "routes": [
       {
-        "surface": "board.boards-color",
-        "kind": "modal",
+        "surface": "board.boards-collection-menu",
+        "kind": "menu",
         "path": [
           "sidebar.open-menu",
           "sidebar.boards",
-          "boards-modal.collection-edit",
-          "boards-modal.collection-menu-color"
+          "boards-modal.collection-edit"
         ],
         "needs": [
           "library-item"
@@ -67594,10 +67539,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.folder-dialog-move-contents",
-    "label": "Move contents to parent button in the delete folder dialog",
+    "label": "Keep everything choice in the delete folder dialog",
     "scope": "board",
     "panel": true,
-    "persists": true,
     "routes": [
       {
         "surface": "library.shell",
@@ -67611,7 +67555,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.folder-dialog-delete-all",
-    "label": "Delete folder and subfolders button in the delete folder dialog",
+    "label": "Delete everything choice in the delete folder dialog",
     "scope": "board",
     "panel": true,
     "destructive": true,
@@ -67631,6 +67575,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the delete folder dialog",
     "scope": "board",
     "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.folder-menu-delete"
+        ],
+        "reveal": "library-shell.folder-menu-delete"
+      }
+    ]
+  },
+  {
+    "id": "library-shell.folder-dialog-confirm",
+    "label": "Delete button in the delete folder dialog",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
     "routes": [
       {
         "surface": "library.shell",
@@ -86751,26 +86713,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "boards-modal.collection-menu-move",
     "label": "Move to item in the collection card menu",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.boards-collection-menu",
-        "kind": "menu",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-edit"
-        ],
-        "needs": [
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "boards-modal.collection-menu-color",
-    "label": "Set color item in the collection card menu",
     "scope": "board",
     "panel": true,
     "routes": [

@@ -48,7 +48,6 @@
     "components/common/AbsentButton.tsx::Open attendance — {{count}} marked absent today",
     "components/common/AbsentStudentsModal.tsx::Mark absent — {{date}}",
     "components/common/library/AssignmentSettingsToggleGroup.tsx::— make this assignment inactive to change it.",
-    "components/common/library/FolderSidebar.tsx::Safe — no items deleted.",
     "components/common/library/ViewOnlyShareModal.tsx::Couldn&apos;t copy automatically — please select and copy th",
     "components/landing/AboutPage.tsx::Build boards from dozens of widgets — schedules, announcemen",
     "components/landing/AboutPage.tsx::Per-building defaults, admin-managed feature permissions, su",

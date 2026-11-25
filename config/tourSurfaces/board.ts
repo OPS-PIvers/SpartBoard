@@ -804,20 +804,7 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'boards-modal.collection-edit',
     needs: ['library-item'],
   },
-  'board.boards-move': {
-    label: 'Move to collection menu',
-    kind: 'menu',
-    files: ['components/boardsModal/MoveToCollectionMenu.tsx'],
-    opensWith: 'boards-modal.bulk-move',
-  },
-  'board.boards-color': {
-    label: 'Collection color picker',
-    kind: 'modal',
-    files: ['components/boardsModal/CollectionColorPicker.tsx'],
-    opensWith: 'boards-modal.collection-menu-color',
-    parent: 'board.boards-collection-menu',
-    needs: ['library-item'],
-  },
+
   'board.boards-template': {
     label: 'Create board from template',
     kind: 'modal',
