@@ -5,7 +5,11 @@ import type {
   WebTourLocator,
 } from '@/types';
 import { startWebTour, watchWebTourCheck } from './extensionClient';
-import { CONDITIONS_PROTOCOL, OPEN_URL_PROTOCOL } from './extensionProtocol';
+import {
+  CONDITIONS_PROTOCOL,
+  OPEN_URL_PROTOCOL,
+  PICK_ANY_PROTOCOL,
+} from './extensionProtocol';
 import { buildHandoff, hubStepsOf, startUrlOf } from './webTourHub';
 import { targetsSignature } from './webStepReview';
 
@@ -124,7 +128,8 @@ export function useWebTourCheck(handlers: WebTourCheckHandlers) {
       new Map(),
       true,
       protocol >= CONDITIONS_PROTOCOL,
-      protocol >= OPEN_URL_PROTOCOL
+      protocol >= OPEN_URL_PROTOCOL,
+      protocol >= PICK_ANY_PROTOCOL
     );
     const result = await startWebTour(handoff, url, 0, runId);
     if (!result.ok && runRef.current === runId)

@@ -90,6 +90,16 @@ describe('web-tour/start', () => {
     ).toBe('invalid');
   });
 
+  it('marks the clues of a pick-any step, which every frame then lights', () => {
+    const m = valid();
+    const parsed = parse({ ...m, tour: { ...m.tour, pickAny: ['b'] } });
+    expect(parsed.kind).toBe('ok');
+    if (parsed.kind !== 'ok') return;
+    const steps = toPlayback(parsed.message as WebTourStartMessage).tour.steps;
+    expect(steps[0].clues.any).toBeUndefined();
+    expect(steps[1].clues).toEqual({ text: 'Grades', any: true });
+  });
+
   it('clamps the step index to the tour', () => {
     const p = toPlayback({
       ...(valid() as WebTourStartMessage),

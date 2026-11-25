@@ -9427,6 +9427,8 @@ export interface WebTourBinding {
   doneWhen?: WebTourCondition;
   /** The https page Go and a start on this step open; absent = the address guessed from `urlPattern`. */
   openUrl?: string;
+  /** Lights every control like the recorded one, and the learner may pick any of them. */
+  pickAny?: true;
 }
 
 export interface WebTourStudentDataCheck {

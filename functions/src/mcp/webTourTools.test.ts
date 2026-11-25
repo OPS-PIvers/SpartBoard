@@ -9,6 +9,7 @@ import {
   applyWebStepList,
   applyWebStepText,
   keepRevisionPictures,
+  publicWebStep,
   publishState,
   registerWebTourTools,
   restoreWebTourRevision,
@@ -1163,6 +1164,25 @@ describe('web tour connector tools', () => {
         { id: 'm', open_url: '', show_when: null, done_when: null },
       ]).steps[1]
     ).toEqual(steps[2]);
+  });
+
+  it('sets and clears Which one: Any one like it on a step', () => {
+    const steps = tour().steps as Parameters<typeof applyWebStepList>[0];
+    const on = applyWebStepList(steps, [
+      { id: 'a', pick_any: true },
+      { id: 'b' },
+    ]);
+    expect(on.steps[0].web?.pickAny).toBe(true);
+    expect(publicWebStep(on.steps[0], 0).pick_any).toBe(true);
+    expect(publicWebStep(on.steps[1], 1)).not.toHaveProperty('pick_any');
+    const off = applyWebStepList(on.steps, [
+      { id: 'a', pick_any: false },
+      { id: 'b' },
+    ]);
+    expect(off.steps[0].web).not.toHaveProperty('pickAny');
+    expect(on.warnings.some((w) => w.includes('pick_any needs a css'))).toBe(
+      !steps[0].web?.locator?.css
+    );
   });
 
   it('warns when no step points at a control any more', () => {

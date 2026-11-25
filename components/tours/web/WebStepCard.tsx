@@ -197,6 +197,34 @@ export const WebStepCard: React.FC<{
           </span>
         )}
       </div>
+      {step.web && (
+        <label className={cardLabel}>
+          Which one
+          {/* no-tour-anchor: per-step controls repeat on every step */}
+          <select
+            className={cardInput}
+            value={step.web.pickAny ? 'any' : 'this'}
+            data-testid="web-step-pick-any"
+            onChange={(e) => {
+              if (!step.web) return;
+              const { pickAny: _pickAny, ...rest } = step.web;
+              onChange(
+                {
+                  ...step,
+                  web:
+                    e.target.value === 'any'
+                      ? { ...rest, pickAny: true }
+                      : rest,
+                },
+                'pickAny'
+              );
+            }}
+          >
+            <option value="this">This one</option>
+            <option value="any">Any one like it</option>
+          </select>
+        </label>
+      )}
       {fix && step.web && (
         <SuggestedFix
           before={step.web.locator}
