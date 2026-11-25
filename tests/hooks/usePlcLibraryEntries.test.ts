@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { collection, onSnapshot, query, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+  updateDoc,
+} from 'firebase/firestore';
 import {
   isLivePlcLibraryEntry,
   usePlcLibraryEntries,
@@ -20,6 +26,10 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'u1' } }),
 }));
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
+const providerSlice = vi.fn<() => unknown>(() => null);
+vi.mock('@/context/usePlcContext', () => ({
+  usePlcSubcollection: () => providerSlice(),
+}));
 
 interface Row {
   id: string;
@@ -47,12 +57,23 @@ const SPEC: PlcLibrarySpec<Row, { title: string }, string> = {
   share,
 };
 
+const ORDERED: PlcLibrarySpec<Row, { title: string }, string> = {
+  ...SPEC,
+  kind: 'rubric',
+  subcollection: 'rubrics',
+  orderByUpdatedAt: true,
+  sort: undefined,
+};
+
 const snap = (docs: { id: string; data: Record<string, unknown> }[]) => ({
   forEach: (fn: (d: { id: string; data: () => unknown }) => void) =>
     docs.forEach((d) => fn({ id: d.id, data: () => d.data })),
 });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  providerSlice.mockReturnValue(null);
+});
 
 describe('usePlcLibraryEntries', () => {
   it('lists unordered when asked, drops tombstones and malformed rows, sorts client side', () => {
@@ -94,5 +115,52 @@ describe('usePlcLibraryEntries', () => {
     expect(res.deletedAt).toBeNull();
     await expect(result.current.share({ title: 'T' })).resolves.toBe('created');
     expect(share).toHaveBeenCalledWith('p1', 'u1', { title: 'T' });
+  });
+
+  it('orders by updatedAt on the server when the spec asks', () => {
+    (onSnapshot as Mock).mockReturnValue(() => undefined);
+    renderHook(() =>
+      usePlcLibraryEntries('p1', { ...ORDERED, subcollection: 'rubrics' })
+    );
+    expect(orderBy).toHaveBeenCalledWith('updatedAt', 'desc');
+    expect(query).toHaveBeenCalledWith('plcs/p1/rubrics', {
+      field: 'updatedAt',
+      dir: 'desc',
+    });
+  });
+
+  it('reads the PlcProvider slice instead of opening a listener', () => {
+    providerSlice.mockReturnValue({
+      data: [{ id: 'z', sharedAt: 1 }],
+      loading: false,
+      error: null,
+      enabled: true,
+    });
+    const { result } = renderHook(() => usePlcLibraryEntries('p1', ORDERED));
+    expect(onSnapshot).not.toHaveBeenCalled();
+    expect(result.current.entries.map((e) => e.id)).toEqual(['z']);
+  });
+
+  it('resets on PLC change and clears rows on a listener error', () => {
+    let next: (s: unknown) => void = () => undefined;
+    let fail: (e: unknown) => void = () => undefined;
+    (onSnapshot as Mock).mockImplementation((_q, onNext, onErr) => {
+      next = onNext;
+      fail = onErr;
+      return () => undefined;
+    });
+    const { result, rerender } = renderHook(
+      ({ id }: { id: string }) => usePlcLibraryEntries(id, ORDERED),
+      { initialProps: { id: 'p1' } }
+    );
+    act(() => next(snap([{ id: 'a', data: { sharedAt: 1 } }])));
+    expect(result.current.entries).toHaveLength(1);
+    act(() => fail(new Error('denied')));
+    expect(result.current.entries).toEqual([]);
+    expect(result.current.error?.message).toBe('denied');
+    act(() => next(snap([{ id: 'a', data: { sharedAt: 1 } }])));
+    rerender({ id: 'p2' });
+    expect(result.current.entries).toEqual([]);
+    expect(result.current.loading).toBe(true);
   });
 });

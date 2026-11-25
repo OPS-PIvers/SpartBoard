@@ -66,11 +66,9 @@ describe('PLC library rows go through usePlcLibraryEntries', () => {
   it('writes no other unshare or restore tombstone on a PLC library row', () => {
     const offenders = files.filter(({ path, text }) => {
       if (path in TOMBSTONE_ALLOWED) return false;
-      return (
-        /deletedAt: (Date\.now\(\)|now|null),\s*updatedAt: (Date\.now\(\)|now)/.test(
-          text
-        ) && LIBRARY_SUBS.test(text)
-      );
+      const tombstone =
+        /deletedAt: (Date\.now\(\)|now|null),\s*updatedAt: (Date\.now\(\)|now)\b|updatedAt: (Date\.now\(\)|now),\s*deletedAt: (Date\.now\(\)|now|null)\b/;
+      return tombstone.test(text) && LIBRARY_SUBS.test(text);
     });
     expect(
       offenders.map((f) => f.path),

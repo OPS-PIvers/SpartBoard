@@ -101,6 +101,8 @@ export function usePlcSubscription<T>(
       },
       (err) => {
         logError(logTag ?? `usePlcSubscription.${sub}`, err, { plcId });
+        // Clear like PlcProvider does, so a lost membership never leaves stale rows.
+        setItems([]);
         setLoading(false);
         setError(err instanceof Error ? err : new Error(String(err)));
       }
