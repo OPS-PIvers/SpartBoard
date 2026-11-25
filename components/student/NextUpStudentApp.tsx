@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { doc, onSnapshot, collection, addDoc } from 'firebase/firestore';
-import { signInAnonymously } from 'firebase/auth';
 import { db, auth } from '@/config/firebase';
-import { dropPinLogin } from '@/utils/pinLoginScope';
+import { useStudentAuthBootstrap } from '@/hooks/useStudentAuthBootstrap';
 import { NextUpSession } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import {
@@ -22,36 +21,14 @@ export const NextUpStudentApp: React.FC = () => {
   const { showAlert } = useDialog();
 
   const [session, setSession] = useState<NextUpSession | null>(null);
-  const [authInitialized, setAuthInitialized] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  // Sign in anonymously on mount only if nobody is signed in yet. Awaiting
-  // `authStateReady()` first prevents a hydration race that would otherwise
-  // replace an existing SSO user with a fresh anonymous one on full-page
-  // navigations from `/my-assignments` (see QuizStudentApp for the same fix).
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        await auth.authStateReady();
-        if (!auth.currentUser) {
-          await signInAnonymously(auth);
-        } else {
-          await dropPinLogin(auth);
-        }
-        setAuthInitialized(true);
-      } catch (err) {
-        console.error('Anonymous auth failed:', err);
-        setError('Authentication failed. Please refresh and try again.');
-        setLoading(false);
-        setAuthInitialized(true);
-      }
-    };
-    void initAuth();
-  }, []);
+  const { ready: authInitialized, failed: authFailed } =
+    useStudentAuthBootstrap({ label: 'NextUpStudentApp' });
 
   useEffect(() => {
     if (!widgetId) {
@@ -61,7 +38,7 @@ export const NextUpStudentApp: React.FC = () => {
       return;
     }
 
-    if (!authInitialized) return;
+    if (!authInitialized || authFailed) return;
 
     const sessionRef = doc(db, SESSIONS_COLLECTION, widgetId);
     return onSnapshot(
@@ -91,7 +68,7 @@ export const NextUpStudentApp: React.FC = () => {
         setLoading(false);
       }
     );
-  }, [widgetId, authInitialized]);
+  }, [widgetId, authInitialized, authFailed]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,7 +98,11 @@ export const NextUpStudentApp: React.FC = () => {
     }
   };
 
-  if (!authInitialized || loading) {
+  const shownError = authFailed
+    ? 'Authentication failed. Please refresh and try again.'
+    : error;
+
+  if (!authInitialized || (loading && !shownError)) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
         <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
@@ -132,7 +113,7 @@ export const NextUpStudentApp: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (shownError) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
         <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6">
@@ -141,7 +122,7 @@ export const NextUpStudentApp: React.FC = () => {
         <h1 className="text-2xl font-black text-slate-800 mb-2">
           Queue Inactive
         </h1>
-        <p className="text-slate-500 max-w-xs">{error}</p>
+        <p className="text-slate-500 max-w-xs">{shownError}</p>
       </div>
     );
   }

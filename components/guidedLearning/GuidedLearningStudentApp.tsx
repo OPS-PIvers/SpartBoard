@@ -12,7 +12,6 @@
 
 import { tourAttr } from '@/config/tourAnchors';
 import React, { useState, useEffect, useReducer, useRef } from 'react';
-import { signInAnonymously } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowRight,
@@ -28,9 +27,9 @@ import {
   onSnapshot,
   serverTimestamp,
 } from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
+import { db } from '@/config/firebase';
+import { useStudentAuthBootstrap } from '@/hooks/useStudentAuthBootstrap';
 import { logError } from '@/utils/logError';
-import { dropPinLogin } from '@/utils/pinLoginScope';
 import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import { useDialog } from '@/context/useDialog';
 import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSession';
@@ -88,56 +87,13 @@ const NAV_FOOTER_CLEARANCE_PX = 68;
 
 export const GuidedLearningStudentApp: React.FC = () => {
   const { t } = useTranslation();
-  const [authReady, setAuthReady] = useState(false);
-  const [authFailed, setAuthFailed] = useState(false);
-  const [anonymousUid, setAnonymousUid] = useState<string | null>(null);
-  // True iff `auth.currentUser` carries the `studentRole: true` custom claim
-  // minted by `studentLoginV1`. Anonymous/PIN joiners (the majority of GL
-  // traffic) stay `false` — they never hold this claim, so the pointer-doc
-  // read must be gated on it (see M17 C3-gl fix note below).
-  const [isStudentRole, setIsStudentRole] = useState(false);
-  // The signed-in student's class claims, which pick their period on a per-period session.
-  const [claimClassIds, setClaimClassIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    const init = async () => {
-      try {
-        // Await IndexedDB hydration before checking `auth.currentUser`,
-        // otherwise a full-page navigation from `/my-assignments` would
-        // race hydration and demote an SSO user to a fresh anonymous
-        // session. See QuizStudentApp for the same fix.
-        await auth.authStateReady();
-        await dropPinLogin(auth);
-        if (!auth.currentUser) {
-          const cred = await signInAnonymously(auth);
-          setAnonymousUid(cred.user.uid);
-        } else {
-          const user = auth.currentUser;
-          setAnonymousUid(user.uid);
-          if (!user.isAnonymous) {
-            // Probe custom claims once — stale is fine for this read-only
-            // gate; Firestore rules re-validate on every read regardless.
-            const tokenResult = await user.getIdTokenResult();
-            if (tokenResult.claims?.studentRole === true) {
-              setIsStudentRole(true);
-            }
-            const rawClaims: unknown = tokenResult.claims?.classIds;
-            if (Array.isArray(rawClaims)) {
-              setClaimClassIds(
-                rawClaims.filter((c): c is string => typeof c === 'string')
-              );
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('[GuidedLearningStudentApp] Anonymous auth failed:', err);
-        setAuthFailed(true);
-      } finally {
-        setAuthReady(true);
-      }
-    };
-    void init();
-  }, []);
+  const {
+    ready: authReady,
+    failed: authFailed,
+    uid: anonymousUid,
+    isStudentRole,
+    classIds: claimClassIds,
+  } = useStudentAuthBootstrap({ label: 'GuidedLearningStudentApp' });
 
   if (!authReady) return <FullPageLoader />;
   if (authFailed) return <ErrorScreen message={t('glStudent.error.connect')} />;
