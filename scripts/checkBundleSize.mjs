@@ -17,6 +17,10 @@ export function initialScripts(html) {
   );
 }
 
+export function dashboardViewChunks(files) {
+  return files.filter((f) => /^DashboardView-.*\.js$/.test(f));
+}
+
 export function checkBundle(dist) {
   const html = readFileSync(path.join(dist, 'index.html'), 'utf8');
   const scripts = initialScripts(html);
@@ -29,18 +33,20 @@ export function checkBundle(dist) {
   );
   if (initialGzip > BUDGETS.initialGzipBytes) {
     problems.push(
-      `First-load JS is ${Math.round(initialGzip / KB)} kB gzip, over the ${BUDGETS.initialGzipBytes / KB} kB budget`
+      `First-load JS is ${Math.round(initialGzip / KB)} kB gzip, over the ${BUDGETS.initialGzipBytes / KB} kB budget; raise BUDGETS.initialGzipBytes in scripts/checkBundleSize.mjs in this PR if the growth is intended`
     );
   }
-  const dv = readdirSync(path.join(dist, 'assets')).find((f) =>
-    /^DashboardView-.*\.js$/.test(f)
-  );
-  if (!dv) problems.push('No DashboardView chunk found in dist/assets');
+  const dvFiles = dashboardViewChunks(readdirSync(path.join(dist, 'assets')));
+  if (dvFiles.length === 0)
+    problems.push('No DashboardView chunk found in dist/assets');
   else {
-    const size = readFileSync(path.join(dist, 'assets', dv)).length;
+    const size = dvFiles.reduce(
+      (sum, f) => sum + readFileSync(path.join(dist, 'assets', f)).length,
+      0
+    );
     if (size > BUDGETS.dashboardViewRawBytes) {
       problems.push(
-        `${dv} is ${Math.round(size / KB)} kB, over the ${BUDGETS.dashboardViewRawBytes / KB} kB budget`
+        `DashboardView chunks (${dvFiles.join(', ')}) are ${Math.round(size / KB)} kB, over the ${BUDGETS.dashboardViewRawBytes / KB} kB budget; raise BUDGETS.dashboardViewRawBytes in scripts/checkBundleSize.mjs in this PR if the growth is intended`
       );
     }
   }

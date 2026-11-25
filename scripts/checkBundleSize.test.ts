@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { initialScripts } from './checkBundleSize.mjs';
+import { dashboardViewChunks, initialScripts } from './checkBundleSize.mjs';
 
 describe('initialScripts', () => {
   it('lists the entry script and modulepreloads, not CSS', () => {
@@ -11,5 +11,18 @@ describe('initialScripts', () => {
       'assets/index-A.js',
       'assets/react-vendor-B.js',
     ]);
+  });
+});
+
+describe('dashboardViewChunks', () => {
+  it('returns every DashboardView chunk, not just the first', () => {
+    expect(
+      dashboardViewChunks([
+        'DashboardView-A.js',
+        'x.js',
+        'DashboardView-B.js',
+        'DashboardView-C.css',
+      ])
+    ).toEqual(['DashboardView-A.js', 'DashboardView-B.js']);
   });
 });
