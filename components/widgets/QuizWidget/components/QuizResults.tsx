@@ -76,6 +76,7 @@ import {
   buildReviewRanking,
   type ReviewRankRow,
   canShowResultsScore,
+  classAverage,
   classFirstTryAccuracy,
   gameFirstTry,
   isGameSession,
@@ -1152,28 +1153,21 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       ),
     [filteredCompleted, quiz.questions, session]
   );
-  const filteredAvgScore =
-    filteredScoreable.length > 0
-      ? Math.round(
-          filteredScoreable.reduce(
-            (sum, r) =>
-              sum + resultsDisplayScore(r, quiz.questions, session, fibGrading),
-            0
-          ) / filteredScoreable.length
-        )
-      : null;
-  // Any ungraded written response in the averaged set makes the average
-  // provisional — the ungraded slot counts as 0 until the teacher grades it.
-  const avgIsProvisional = useMemo(
+  // With final scores on, students awaiting a grade sit out, like the gradebook and PLC (AB-389).
+  const {
+    average: filteredAvgScore,
+    provisional: avgIsProvisional,
+    skipped: avgSkippedAwaiting,
+  } = useMemo(
     () =>
-      filteredScoreable.some((r) =>
-        isResponseAwaitingGrade(
-          r,
-          quiz.questions,
-          session?.paperWrittenQuestionIds
-        )
+      classAverage(
+        filteredScoreable,
+        quiz.questions,
+        session,
+        fibGrading,
+        canAccessFeature('lms-push-final-scores')
       ),
-    [filteredScoreable, quiz.questions, session?.paperWrittenQuestionIds]
+    [filteredScoreable, quiz.questions, session, fibGrading, canAccessFeature]
   );
   const firstTryAccuracy = useMemo(
     () => (isGame ? classFirstTryAccuracy(filteredCompleted) : null),
@@ -2717,12 +2711,15 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                     : `${filteredCompleted.length} of ${filteredResponses.length} students finished`
                 }
                 note={
-                  filteredAvgScore !== null && avgIsProvisional ? (
+                  (filteredAvgScore !== null && avgIsProvisional) ||
+                  avgSkippedAwaiting > 0 ? (
                     <p
                       className="font-sans font-semibold text-amber-800"
                       style={{ fontSize: 'min(11px, 3.8cqmin)' }}
                     >
-                      Provisional. Written answers need grading.
+                      {avgIsProvisional
+                        ? 'Provisional. Written answers need grading.'
+                        : 'Written answers need grading.'}
                     </p>
                   ) : undefined
                 }

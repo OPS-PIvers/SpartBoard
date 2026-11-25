@@ -4,6 +4,7 @@ import {
   canScoreResponse,
   getDisplayScore,
   isGamificationActive,
+  isResponseAwaitingGrade,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import type { FibGradingContext } from '@/utils/quizFibAnswers';
 
@@ -54,6 +55,46 @@ export function resultsDisplayScore(
 ): number {
   if (isGameSession(session)) return gameDisplayPoints(r.game?.points ?? 0);
   return getDisplayScore(r, questions, session, fibGrading);
+}
+
+export interface ClassAverage {
+  /** Whole-number average, or null when no student counts. */
+  average: number | null;
+  /** True when a counted student still has an ungraded answer scored as 0. */
+  provisional: boolean;
+  /** Students left out because they are awaiting a grade. */
+  skipped: number;
+}
+
+/** Class average over scoreable responses; with `skipAwaiting`, students awaiting a grade are left out, like the gradebook and PLC (AB-389). */
+export function classAverage(
+  scoreable: QuizResponse[],
+  questions: QuizQuestion[],
+  session:
+    | (ScoringSession & Pick<QuizSession, 'paperWrittenQuestionIds'>)
+    | null
+    | undefined,
+  fibGrading: FibGradingContext | null | undefined,
+  skipAwaiting: boolean
+): ClassAverage {
+  const awaiting = (r: QuizResponse) =>
+    isResponseAwaitingGrade(r, questions, session?.paperWrittenQuestionIds);
+  const counted = skipAwaiting
+    ? scoreable.filter((r) => !awaiting(r))
+    : scoreable;
+  const skipped = scoreable.length - counted.length;
+  if (counted.length === 0)
+    return { average: null, provisional: false, skipped };
+  const sum = counted.reduce(
+    (total, r) =>
+      total + resultsDisplayScore(r, questions, session, fibGrading),
+    0
+  );
+  return {
+    average: Math.round(sum / counted.length),
+    provisional: !skipAwaiting && counted.some(awaiting),
+    skipped,
+  };
 }
 
 export interface FirstTryTally {
