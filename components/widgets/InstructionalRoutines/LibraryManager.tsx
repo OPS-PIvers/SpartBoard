@@ -145,8 +145,10 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
 
       if (type === 'sticker') {
         const reader = new FileReader();
-        const dataUrl = await new Promise<string>((resolve) => {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
           reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () =>
+            reject(reader.error ?? new Error('Read failed'));
           reader.readAsDataURL(file);
         });
 

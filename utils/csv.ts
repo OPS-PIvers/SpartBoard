@@ -44,8 +44,10 @@ export function parseCsvLines(text: string): CsvLine[] {
       i += 1;
       continue;
     }
-    if (ch === '"') {
+    // A quote opens a quoted field only at its start; mid-field it is literal (5" ruler).
+    if (ch === '"' && field.trim() === '') {
       quoted = true;
+      field = '';
       i += 1;
       continue;
     }

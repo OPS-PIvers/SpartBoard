@@ -9,6 +9,17 @@ describe('parseCsvRecords', () => {
     ]);
   });
 
+  it('keeps a quote in the middle of a cell as text', () => {
+    expect(parseCsvRecords('5" ruler,12 inches\nCat,Gato')).toEqual([
+      ['5" ruler', '12 inches'],
+      ['Cat', 'Gato'],
+    ]);
+  });
+
+  it('opens a quoted cell after leading spaces', () => {
+    expect(parseCsvRecords('a, "b, c"')).toEqual([['a', 'b, c']]);
+  });
+
   it('drops a leading byte-order mark', () => {
     expect(parseCsvRecords('\uFEFFa,b')).toEqual([['a', 'b']]);
   });
