@@ -63,6 +63,12 @@ describe('studentCloseAt', () => {
     expect(studentCloseAt(widened, 900)).toBe(900);
     expect(studentCloseAt(widened, 400)).toBe(400);
   });
+  it('never keeps a student past a Close that moved the session close earlier', () => {
+    const closedNow = { ...widened, closeAt: 300 };
+    expect(studentCloseAt(closedNow, 900)).toBe(300);
+    expect(studentCloseAt({ closeAt: null }, 900)).toBe(900);
+    expect(studentCloseAt({ closeAt: 300 }, 900)).toBe(900);
+  });
   it('closes a student without one at the class close', () => {
     expect(studentCloseAt(widened)).toBe(500);
     expect(studentCloseAt(widened, null)).toBe(500);

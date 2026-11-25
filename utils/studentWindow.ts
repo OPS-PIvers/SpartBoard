@@ -33,12 +33,16 @@ export function classCloseAt(session: {
   return num(marker.classCloseAt);
 }
 
-/** One student's close: their own, else their class's. */
+/** One student's close: their own, else their class's; on marked sessions never past the close the rules hold. */
 export function studentCloseAt(
   session: { closeAt?: unknown; studentWindows?: unknown },
   pointerCloseAt?: unknown
 ): number | null {
-  return num(pointerCloseAt) ?? classCloseAt(session);
+  const own = num(pointerCloseAt);
+  if (own === null) return classCloseAt(session);
+  const bound = num(session.closeAt);
+  if (bound === null || !hasStudentWindows(session)) return own;
+  return Math.min(own, bound);
 }
 
 /** One student's due date: their own, else their class's, else the session's. */
