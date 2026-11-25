@@ -105,4 +105,20 @@ describe('detailsPatch', () => {
       widgetTypes: ['clock'],
     });
   });
+
+  it('leaves the audience of a published item alone when it would cross students', () => {
+    expect(
+      detailsPatch(
+        { ...item, visible: true },
+        {
+          title: item.title,
+          description: '',
+          categoryId: item.categoryId,
+          audience: 'students',
+          widgetTypes: ['quiz'],
+        },
+        { ...opts, audiences: ['teachers', 'students'] }
+      )
+    ).toEqual({});
+  });
 });

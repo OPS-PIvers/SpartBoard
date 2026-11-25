@@ -76,9 +76,14 @@ export function detailsPatch(
     result.categoryId !== item.categoryId
   )
     patch.categoryId = result.categoryId;
+  const was = helpAudienceOf(item);
+  // A published item moving to or from students would be hidden, so only the admin makes that change.
+  const hides =
+    item.visible && (was === 'students' || result.audience === 'students');
   if (
     opts.audiences.includes(result.audience) &&
-    result.audience !== helpAudienceOf(item)
+    result.audience !== was &&
+    !hides
   )
     patch.audience = result.audience;
   const widgetTypes = [

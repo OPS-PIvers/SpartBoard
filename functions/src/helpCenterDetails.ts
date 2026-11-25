@@ -155,7 +155,7 @@ export function parseDetailsResponse(
   categoryIds: string[],
   req: DetailsRequest
 ): HelpDetails {
-  const raw = parseGeminiJson(text) ?? {};
+  const raw = parseGeminiJson<Data | null>(text) ?? {};
   const title = str(raw.title, 200) || facts.title;
   const description = str(raw.description, 1000) || facts.description;
   const categoryId = categoryIds.includes(raw.categoryId as string)

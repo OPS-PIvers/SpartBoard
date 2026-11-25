@@ -137,19 +137,6 @@ export async function resolveHelpScope(
   return { orgId: wanted, label: wanted };
 }
 
-/** Whether the caller may change an item, as the help_resources rules decide: super admins any, others their own org's. */
-async function assertCanWriteHelpItem(
-  ctx: ToolContext,
-  orgId: unknown
-): Promise<void> {
-  const own = await helpCenterScope(ctx);
-  if (own.orgId === null) return;
-  if (typeof orgId === 'string' && orgId === own.orgId) return;
-  throw new ToolError(
-    "This tour's Help Center item belongs to another organization, so you can't change it."
-  );
-}
-
 /** The help_resources doc for a new tour, hidden until an admin publishes it; fields match the rules' allowlist. */
 export function buildHelpItem(
   placement: HelpCenterPlacement & { category_id: string },
@@ -898,6 +885,35 @@ export function helpItemUpdate(
   return out;
 }
 
+/** The tour's Help Center items this caller may change: all of them for a super admin, else their own org's. */
+async function writableHelpItems(ctx: ToolContext, setId: string) {
+  let scope: { orgId: string | null };
+  try {
+    scope = await helpCenterScope(ctx);
+  } catch {
+    return [];
+  }
+  let query = ctx.db.collection(HELP_RESOURCES).where('setId', '==', setId);
+  if (scope.orgId !== null) query = query.where('orgId', '==', scope.orgId);
+  return (await query.get()).docs;
+}
+
+const AUDIENCE_FLAGS: Record<string, string> = {
+  subs: 'subs-live-tours',
+  students: 'student-live-tours',
+};
+
+/** Refuses an audience whose flag this admin doesn't have, as the manager only offers granted ones. */
+async function assertAudienceAllowed(ctx: ToolContext, audience?: string) {
+  const flag = audience ? AUDIENCE_FLAGS[audience] : undefined;
+  if (!flag) return;
+  const { isGlobalFeatureGranted } = await import('../featureGrant');
+  if (!(await isGlobalFeatureGranted(ctx.db, flag, ctx.email, ctx.uid)))
+    throw new ToolError(
+      `help_center.audience "${audience}" is not turned on for this account.`
+    );
+}
+
 /** Updates the tour's Help Center item (title and description follow the tour), or adds a hidden one when a category is given. */
 async function helpItemWrite(
   ctx: ToolContext,
@@ -907,24 +923,31 @@ async function helpItemWrite(
 ): Promise<
   ((batch: admin.firestore.WriteBatch, saved: GlSet) => void) | undefined
 > {
-  const found = await ctx.db
-    .collection(HELP_RESOURCES)
-    .where('setId', '==', set.id)
-    .limit(1)
-    .get();
+  const docs = await writableHelpItems(ctx, set.id);
   const now = Date.now();
-  if (!found.empty) {
-    const doc = found.docs[0];
+  // A text-only edit just keeps any item the caller can change in step; it never refuses the save.
+  if (!placement)
+    return docs.length
+      ? (batch) => {
+          for (const d of docs)
+            batch.update(d.ref, helpItemUpdate(d.data(), text, now));
+        }
+      : undefined;
+  await assertAudienceAllowed(ctx, placement.audience);
+  if (docs.length > 1)
+    throw new ToolError(
+      'This tour is in the Help Center more than once. Change its settings in Admin Settings > Help Center.'
+    );
+  if (docs.length === 1) {
+    const doc = docs[0];
     const item = doc.data();
-    await assertCanWriteHelpItem(ctx, item.orgId);
-    if (placement?.category_id)
-      await assertCategory(ctx, placement.category_id);
+    if (placement.category_id) await assertCategory(ctx, placement.category_id);
     const scope =
-      placement?.scope !== undefined
+      placement.scope !== undefined
         ? await resolveHelpScope(ctx, placement.scope)
         : undefined;
     const order =
-      placement?.category_id && placement.category_id !== item.categoryId
+      placement.category_id && placement.category_id !== item.categoryId
         ? await nextOrder(ctx.db, placement.category_id)
         : undefined;
     const update = helpItemUpdate(
@@ -936,18 +959,18 @@ async function helpItemWrite(
       update.audience !== undefined &&
       (item.audience ?? 'teachers') === 'students' &&
       update.audience !== 'students';
+    const snapshot = ctx.db.doc(`${GL_TOURS}/${set.id}`);
+    // Mirrors clearStudentTourMarker: only a published snapshot marked for students changes.
+    const clearMarker =
+      leavesStudents && (await snapshot.get()).get('audience') === 'students';
     return (batch) => {
       batch.update(doc.ref, update);
-      // Mirrors clearStudentTourMarker: the published snapshot stops being readable by students.
-      if (leavesStudents)
-        batch.set(
-          ctx.db.doc(`${GL_TOURS}/${set.id}`),
-          { audience: admin.firestore.FieldValue.delete() },
-          { merge: true }
-        );
+      if (clearMarker)
+        batch.update(snapshot, {
+          audience: admin.firestore.FieldValue.delete(),
+        });
     };
   }
-  if (!placement) return undefined;
   const categoryId = placement.category_id;
   if (!categoryId)
     throw new ToolError(
@@ -972,17 +995,13 @@ async function helpItemWrite(
     );
 }
 
-/** The tour's Help Center item as Claude sees it, or null when it isn't in the Help Center. */
+/** The tour's Help Center item as Claude sees it, or null when it has none this caller can change. */
 async function helpItemView(ctx: ToolContext, setId: string) {
-  const found = await ctx.db
-    .collection(HELP_RESOURCES)
-    .where('setId', '==', setId)
-    .limit(1)
-    .get();
-  if (found.empty) return null;
-  const d = found.docs[0].data();
+  const docs = await writableHelpItems(ctx, setId);
+  if (docs.length === 0) return null;
+  const d = docs[0].data();
   return {
-    id: found.docs[0].id,
+    id: docs[0].id,
     title: typeof d.title === 'string' ? d.title : '',
     description: typeof d.description === 'string' ? d.description : '',
     category_id: typeof d.categoryId === 'string' ? d.categoryId : '',
@@ -1114,6 +1133,7 @@ export function registerLiveTourTools(
         } | null = null;
         if (placement) {
           await assertAccess(ctx, 'help_center');
+          await assertAudienceAllowed(ctx, placement.audience);
           help = await helpPlacement(ctx, placement);
         }
         const materials = input.materials
