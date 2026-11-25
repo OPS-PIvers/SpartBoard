@@ -1287,9 +1287,9 @@ service cloud.firestore {
 
     // Shared boards - backing store for live-shared dashboards. Import modes: copy
     // (snapshot, no doc-side state), view-only (reader joins as viewer, host pushes),
-    // synced (reader joins as collaborator, both push). Update rules: host = anything;
-    // collaborator = content but not participants/ownership; viewer = none; any authed
-    // user may append only themselves to participants; intendedMode immutable after
+    // synced (reader joins as collaborator, both push). Update rules: host = anything but
+    // adding members; collaborator = content but not participants/ownership; viewer = none;
+    // joins and leaves go through shareMembershipV1; intendedMode immutable after
     // create (the recipient flow trusts it to skip the picker).
     match /shared_boards/{shareId} {
       function sbLinkHostOf(link) {
@@ -1352,6 +1352,8 @@ service cloud.firestore {
       // Only district staff (or admins) host a share: joiners must be staff, so a non-staff host would steer a teacher's board.
       allow create: if signedIn() &&
         myOrigAuthor() && (isDistrictStaff() || isAdmin()) &&
+        // No members at create, so a deleted share can't be re-created at its id with chosen members.
+        incoming().get('participants', {}).size() == 0 &&
         (
           incoming().get('intendedMode', null) != 'substitute'
           || (

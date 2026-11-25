@@ -849,6 +849,29 @@ describe('shared_boards — only staff host a share', () => {
     }
   });
 
+  it('a share cannot be created with members, even re-created at a deleted id', async () => {
+    await assertFails(
+      setDoc(doc(asHost(), `shared_boards/${NEW_ID}`), seededShare())
+    );
+    await assertSucceeds(deleteDoc(doc(asHost(), `shared_boards/${SHARE_ID}`)));
+    await assertFails(
+      setDoc(
+        doc(asHost(), `shared_boards/${SHARE_ID}`),
+        seededShare({
+          participants: {
+            [STRANGER_UID]: { role: 'collaborator', joinedAt: 2000 },
+          },
+        })
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asHost(), `shared_boards/${SHARE_ID}`),
+        seededShare({ participants: {} })
+      )
+    );
+  });
+
   it('staff and admins still create shares in every mode', async () => {
     for (const intendedMode of ['synced', 'view-only', 'copy']) {
       await assertSucceeds(
@@ -914,7 +937,7 @@ describe('shared_boards — a synced building admin', () => {
     await assertFails(getDocs(collection(asBuildingAdmin(), 'shared_boards')));
   });
 
-  it("cannot write itself into another teacher's participants beyond a link join", async () => {
+  it("cannot write itself into another teacher's participants", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), 'shared_boards/view-share'),
@@ -927,7 +950,7 @@ describe('shared_boards — a synced building admin', () => {
         [`participants.${BA_UID}`]: { role: 'collaborator', joinedAt: 1 },
       })
     );
-    // Joining alongside another change is not a self-join.
+    // Nor alongside another change.
     await assertFails(
       updateDoc(doc(asBuildingAdmin(), `shared_boards/${SHARE_ID}`), {
         [`participants.${BA_UID}`]: { role: 'collaborator', joinedAt: 1 },
