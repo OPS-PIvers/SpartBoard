@@ -1,1 +1,1 @@
-claude/project-thread-rp9gkw
+claude/project-thread-rp9gkw (Boards use the library folder system)
