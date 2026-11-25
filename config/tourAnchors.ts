@@ -16011,6 +16011,41 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'image-picker.open': {
+    label: 'Add image button that opens the image picker',
+    perField: true,
+  },
+  'image-picker.upload': {
+    label: 'Upload button in the image picker',
+    perField: true,
+    panel: true,
+  },
+  'image-picker.drive': {
+    label: 'Google Drive button in the image picker',
+    perField: true,
+    panel: true,
+  },
+  'image-picker.link': {
+    label: 'Image link button in the image picker',
+    perField: true,
+    panel: true,
+  },
+  'image-picker.link-input': {
+    label: 'Image link field in the image picker',
+    perField: true,
+    panel: true,
+  },
+  'image-picker.link-add': {
+    label: 'Add button for an image link in the image picker',
+    perField: true,
+    panel: true,
+  },
+  'image-picker.remove': {
+    label: 'Remove image button in the image picker',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
   'url.upload-image': {
     label: 'Upload image button in the link picker',
     perField: true,

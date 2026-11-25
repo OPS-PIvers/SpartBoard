@@ -376,6 +376,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
   if (step === 'pick') {
     return (
       <PlcSharePickerModal
+        widgetType="quiz"
         title={t('plcDashboard.newAssignment.quiz.groupPickTitle', {
           defaultValue: 'New Team Quiz Assignment',
         })}

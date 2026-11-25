@@ -182,6 +182,11 @@ export const SURFACES: TourSurfaceMap = {
       'components/common/PenColorSwatches.tsx',
     ],
   },
+  'board.shared-image-picker': {
+    label: 'Shared image picker (Upload, Google Drive, Image link)',
+    kind: 'shared',
+    files: ['components/common/imagePicker/'],
+  },
   'board.import': {
     label: 'Add to board window (a page sent from the browser or a board drop)',
     kind: 'modal',

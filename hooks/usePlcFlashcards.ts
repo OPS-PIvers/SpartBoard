@@ -45,12 +45,14 @@ export const PLC_FLASHCARD_SETS = 'flashcard_sets';
 export const PLC_FLASHCARD_RESULTS = 'flashcard_results';
 
 export type SharePlcFlashcardSetOutcome =
-  'created' | 'restored' | 'already-shared';
+  'created' | 'restored' | 'already-shared' | 'updated';
 
 export interface SharePlcFlashcardSetInput {
   set: FlashcardSet;
   sharedByName: string;
   sharedByEmail: string;
+  /** Overwrite a live shared copy's content instead of reporting already-shared. */
+  update?: boolean;
 }
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
@@ -238,9 +240,8 @@ export async function writePlcFlashcardSetEntry(
     definition,
   }));
   if (existing.exists()) {
-    if ((existing.data() as Record<string, unknown>).deletedAt == null) {
-      return 'already-shared';
-    }
+    const live = (existing.data() as Record<string, unknown>).deletedAt == null;
+    if (live && !input.update) return 'already-shared';
     await updateDoc(ref, {
       title: set.title,
       termLanguage: set.termLanguage,
@@ -250,7 +251,7 @@ export async function writePlcFlashcardSetEntry(
       updatedAt: now,
       deletedAt: deleteField(),
     });
-    return 'restored';
+    return live ? 'updated' : 'restored';
   }
   await setDoc(ref, {
     id: set.id,
