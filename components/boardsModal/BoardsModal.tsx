@@ -233,7 +233,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       } catch {
         addToast(
           t('boardsModal.createCollectionFailed', {
-            defaultValue: 'Failed to create Collection',
+            defaultValue: 'Failed to create folder',
           }),
           'error'
         );
@@ -250,7 +250,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       } catch {
         addToast(
           t('boardsModal.renameCollectionFailed', {
-            defaultValue: 'Failed to rename Collection',
+            defaultValue: 'Failed to rename folder',
           }),
           'error'
         );
@@ -346,7 +346,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const toastNoBoardsInSelection = useCallback(() => {
     addToast(
       t('boardsModal.noBoardsInSelection', {
-        defaultValue: "No Boards in selection — Collections can't be used here",
+        defaultValue: "Select at least one board. Folders can't be used here.",
       }),
       'info'
     );
@@ -476,7 +476,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
           await moveCollection(id, destId);
           addToast(
             t('boardsModal.collectionMoved', {
-              defaultValue: 'Collection moved',
+              defaultValue: 'Folder moved',
             }),
             'success'
           );
@@ -489,7 +489,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
             err instanceof Error
               ? err.message
               : t('boardsModal.collectionMoveFailed', {
-                  defaultValue: 'Failed to move Collection',
+                  defaultValue: 'Failed to move folder',
                 }),
             'error'
           );
@@ -623,7 +623,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
             <ArrowLeft className="w-5 h-5" aria-hidden />
           </button>
           <h2 id="boards-modal-title" className="text-lg font-bold">
-            {t('boardsModal.title', { defaultValue: 'Boards & Collections' })}
+            {t('boardsModal.title', { defaultValue: 'Boards & Folders' })}
           </h2>
         </div>
 
@@ -817,7 +817,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
                 const ok = await showConfirm(
                   t('collectionMenu.stopSharingConfirm', {
                     defaultValue:
-                      'Stop sharing this collection? Synced teachers keep their own copy. View-only teachers lose it.',
+                      'Stop sharing this folder? Synced teachers keep their own copy. View-only teachers lose it.',
                   }),
                   { title: label, variant: 'warning', confirmLabel: label }
                 );
@@ -825,17 +825,17 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               }}
               onLeaveShared={async () => {
                 const label = t('collectionMenu.leaveShared', {
-                  defaultValue: 'Leave shared collection',
+                  defaultValue: 'Leave shared folder',
                 });
                 const ok = await showConfirm(
                   c.linkedCollectionRole === 'viewer'
                     ? t('collectionMenu.leaveSharedViewerConfirm', {
                         defaultValue:
-                          'Leave this shared collection? It will be removed from your account.',
+                          'Leave this shared folder? It will be removed from your account.',
                       })
                     : t('collectionMenu.leaveSharedConfirm', {
                         defaultValue:
-                          'Leave this shared collection? You keep a copy of its boards, but they stop updating.',
+                          'Leave this shared folder? You keep a copy of its boards, but they stop updating.',
                       }),
                   { title: label, variant: 'warning', confirmLabel: label }
                 );
@@ -914,7 +914,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
             } catch {
               throw new Error(
                 t('boardsModal.deleteCollectionFailed', {
-                  defaultValue: 'Failed to delete Collection',
+                  defaultValue: 'Failed to delete folder',
                 })
               );
             }

@@ -121,7 +121,7 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
             <div className="mb-6 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
               {t('subCollections.loadError', {
                 defaultValue:
-                  "Couldn't load shared Collections. Refresh to try again.",
+                  "Couldn't load shared folders. Refresh to try again.",
               })}
             </div>
           )}

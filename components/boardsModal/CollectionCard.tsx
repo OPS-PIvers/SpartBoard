@@ -198,10 +198,10 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
           }}
           onPointerDown={(e) => e.stopPropagation()}
           aria-label={t('boardsModal.editCollection', {
-            defaultValue: 'Edit Collection',
+            defaultValue: 'Edit Folder',
           })}
           title={t('boardsModal.editCollection', {
-            defaultValue: 'Edit Collection',
+            defaultValue: 'Edit Folder',
           })}
           aria-haspopup="menu"
           {...tourAttr('boards-modal.collection-edit')}
@@ -220,7 +220,7 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
             }}
             onPointerDown={(e) => e.stopPropagation()}
             aria-label={t('collectionMenu.share', {
-              defaultValue: 'Share Collection',
+              defaultValue: 'Share folder',
             })}
             {...tourAttr('boards-modal.collection-share')}
             className={`p-1 rounded hover:text-brand-blue-primary hover:bg-brand-blue-lighter transition ${
@@ -241,7 +241,7 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
           disabled={isDuplicating}
           aria-busy={isDuplicating}
           aria-label={t('collectionMenu.duplicate', {
-            defaultValue: 'Duplicate Collection',
+            defaultValue: 'Duplicate Folder',
           })}
           {...tourAttr('boards-modal.collection-duplicate')}
           className={`p-1 rounded hover:text-slate-700 hover:bg-slate-100 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${
@@ -314,7 +314,7 @@ export const NewCollectionCard: React.FC<{
         <FolderNameInput
           initial=""
           placeholder={t('boardsModal.newCollectionPlaceholder', {
-            defaultValue: 'New collection name',
+            defaultValue: 'New folder name',
           })}
           onCommit={onCommit}
           onCancel={onCancel}

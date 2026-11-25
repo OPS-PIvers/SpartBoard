@@ -93,7 +93,7 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
 
   if (canShare) {
     items.push({
-      label: t('collectionMenu.share', { defaultValue: 'Share Collection…' }),
+      label: t('collectionMenu.share', { defaultValue: 'Share folder' }),
       icon: Share2,
       action: onShare,
     });
@@ -118,7 +118,7 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
   } else if (liveShareRole === 'member' && onLeaveShared) {
     items.push({
       label: t('collectionMenu.leaveShared', {
-        defaultValue: 'Leave shared collection',
+        defaultValue: 'Leave shared folder',
       }),
       icon: LogOut,
       action: onLeaveShared,

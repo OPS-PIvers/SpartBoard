@@ -150,7 +150,7 @@ export const useCollections = (
       },
       (err) => {
         logError('useCollections.onSnapshot', err, { userId });
-        setError('Failed to load collections');
+        setError('Failed to load folders');
         setLoading(false);
       }
     );
@@ -166,7 +166,7 @@ export const useCollections = (
     ): Promise<string> => {
       if (!userId) throw new Error('Not authenticated');
       const trimmed = name.trim();
-      if (!trimmed) throw new Error('Collection name is required');
+      if (!trimmed) throw new Error('Folder name is required');
 
       const siblingOrders = collections
         .filter((c) => c.parentCollectionId === parentCollectionId)
@@ -220,7 +220,7 @@ export const useCollections = (
     async (collectionId: string, nextName: string): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
       const trimmed = nextName.trim();
-      if (!trimmed) throw new Error('Collection name is required');
+      if (!trimmed) throw new Error('Folder name is required');
 
       if (isAuthBypass) {
         setCollections((prev) =>
@@ -273,15 +273,13 @@ export const useCollections = (
     ): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
       if (collectionId === nextParentCollectionId) {
-        throw new Error('Cannot move a collection into itself');
+        throw new Error('Cannot move a folder into itself');
       }
       if (
         nextParentCollectionId != null &&
         isDescendantOrSelf(nextParentCollectionId, collectionId)
       ) {
-        throw new Error(
-          'Cannot move a collection into one of its own subcollections'
-        );
+        throw new Error('Cannot move a folder into one of its own subfolders');
       }
 
       const siblingOrders = collections
@@ -367,7 +365,7 @@ export const useCollections = (
       const update: Record<string, unknown> = { updatedAt: Date.now() };
       if (patch.name !== undefined) {
         const trimmed = patch.name.trim();
-        if (!trimmed) throw new Error('Collection name is required');
+        if (!trimmed) throw new Error('Folder name is required');
         update.name = trimmed;
       }
       // An empty colour clears it back to none.
@@ -461,7 +459,7 @@ export const useCollections = (
     async (collectionId: string, mode: DeleteCollectionMode): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
       const target = collections.find((c) => c.id === collectionId);
-      if (!target) throw new Error('Collection not found');
+      if (!target) throw new Error('Folder not found');
 
       const now = Date.now();
       // Phase tracking lets a partial failure log "how far we got" so a

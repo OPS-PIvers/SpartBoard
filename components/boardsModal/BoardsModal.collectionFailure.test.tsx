@@ -107,7 +107,7 @@ describe('BoardsModal collection menu failures', () => {
       expect(deleteCollection).toHaveBeenCalledWith('c1', 'move-to-parent')
     );
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Failed to delete Collection'
+      'Failed to delete folder'
     );
   });
 });

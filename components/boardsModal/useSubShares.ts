@@ -158,7 +158,7 @@ export function useSubShares(enabled: boolean): SubSharesApi {
           addToast(
             t('subShare.panel.nowEmpty', {
               defaultValue:
-                'This collection has no boards left to share. End the share instead.',
+                'This folder has no boards left to share. End the share instead.',
             }),
             'error'
           );

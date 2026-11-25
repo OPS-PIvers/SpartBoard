@@ -257,7 +257,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     if (tree.orderedBoards.length === 0) {
       addToast(
         t('shareWithSub.noBoards', {
-          defaultValue: 'There are no boards in this collection to share.',
+          defaultValue: 'There are no boards in this folder to share.',
         }),
         'error'
       );

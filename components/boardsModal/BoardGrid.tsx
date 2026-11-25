@@ -123,7 +123,7 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
         <div className="flex flex-col items-center justify-center h-full text-slate-400 text-sm">
           {t('boardsModal.empty', {
             defaultValue:
-              'This Collection is empty. Drag Boards here or create one.',
+              'This folder is empty. Drag boards here or create one.',
           })}
         </div>
       ) : (
@@ -132,7 +132,7 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
             <div className="mb-6">
               <h3 className="text-xxs font-bold text-slate-500 uppercase tracking-widest mb-3">
                 {t('boardsModal.subCollections', {
-                  defaultValue: 'Collections',
+                  defaultValue: 'Folders',
                 })}
               </h3>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">

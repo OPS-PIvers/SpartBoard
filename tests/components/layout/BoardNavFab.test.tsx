@@ -154,7 +154,7 @@ describe('BoardNavFab', () => {
       });
       render(<BoardNavFab />);
       expect(
-        screen.queryByRole('button', { name: /select collection/i })
+        screen.queryByRole('button', { name: /select folder/i })
       ).not.toBeInTheDocument();
     });
 
@@ -165,7 +165,7 @@ describe('BoardNavFab', () => {
       });
       render(<BoardNavFab />);
       expect(
-        screen.getByRole('button', { name: /select collection/i })
+        screen.getByRole('button', { name: /select folder/i })
       ).toBeInTheDocument();
     });
 
@@ -176,7 +176,7 @@ describe('BoardNavFab', () => {
       });
       render(<BoardNavFab />);
       expect(
-        screen.getByRole('button', { name: /select collection/i })
+        screen.getByRole('button', { name: /select folder/i })
       ).toBeInTheDocument();
     });
 
@@ -187,11 +187,11 @@ describe('BoardNavFab', () => {
       });
       render(<BoardNavFab />);
       await userEvent.click(
-        screen.getByRole('button', { name: /select collection/i })
+        screen.getByRole('button', { name: /select folder/i })
       );
       // CollectionSwitcherMenu renders the "No Collection" entry + each collection.
       expect(
-        screen.getByRole('menuitem', { name: /no collection/i })
+        screen.getByRole('menuitem', { name: /no folder/i })
       ).toBeInTheDocument();
       expect(
         screen.getByRole('menuitem', { name: 'Math' })
@@ -405,10 +405,10 @@ describe('BoardNavFab', () => {
       render(<BoardNavFab />);
       await openBoards();
       await userEvent.click(
-        screen.getAllByRole('button', { name: 'Move to Collection' })[0]
+        screen.getAllByRole('button', { name: 'Move to folder' })[0]
       );
       expect(
-        screen.getByRole('menuitemradio', { name: /no collection/i })
+        screen.getByRole('menuitemradio', { name: /no folder/i })
       ).toHaveAttribute('aria-checked', 'true');
       await userEvent.click(
         screen.getByRole('menuitemradio', { name: 'Math' })
@@ -422,13 +422,13 @@ describe('BoardNavFab', () => {
       render(<BoardNavFab />);
       await openBoards();
       await userEvent.click(
-        screen.getAllByRole('button', { name: 'Move to Collection' })[0]
+        screen.getAllByRole('button', { name: 'Move to folder' })[0]
       );
       await userEvent.click(
-        screen.getByRole('menuitem', { name: 'New Collection' })
+        screen.getByRole('menuitem', { name: 'New Folder' })
       );
       await userEvent.type(
-        screen.getByRole('textbox', { name: 'New Collection' }),
+        screen.getByRole('textbox', { name: 'New Folder' }),
         'Art{Enter}'
       );
       expect(actions.createCollection).toHaveBeenCalledWith('Art', null);
@@ -444,21 +444,21 @@ describe('BoardNavFab', () => {
       const actions = mockContext({ collections: [collection('c1', 'Math')] });
       render(<BoardNavFab />);
       await userEvent.click(
-        screen.getByRole('button', { name: /select collection/i })
+        screen.getByRole('button', { name: /select folder/i })
       );
       await userEvent.click(
-        screen.getByRole('button', { name: 'Rename collection' })
+        screen.getByRole('button', { name: 'Rename folder' })
       );
-      const input = screen.getByRole('textbox', { name: 'Rename collection' });
+      const input = screen.getByRole('textbox', { name: 'Rename folder' });
       await userEvent.clear(input);
       await userEvent.type(input, 'Algebra{Enter}');
       expect(actions.renameCollection).toHaveBeenCalledWith('c1', 'Algebra');
 
       await userEvent.click(
-        screen.getByRole('menuitem', { name: 'New Collection' })
+        screen.getByRole('menuitem', { name: 'New Folder' })
       );
       await userEvent.type(
-        screen.getByRole('textbox', { name: 'New Collection' }),
+        screen.getByRole('textbox', { name: 'New Folder' }),
         'Art{Enter}'
       );
       expect(actions.createCollection).toHaveBeenCalledWith('Art', null);

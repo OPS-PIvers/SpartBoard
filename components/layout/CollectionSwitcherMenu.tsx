@@ -30,7 +30,7 @@ interface CollectionSwitcherMenuProps {
   onClose: () => void;
   /** Enables the inline rename action on each Collection row. */
   onRename?: (collectionId: string, name: string) => void;
-  /** Enables the "New Collection" row at the bottom of the menu. */
+  /** Enables the "New Folder" row at the bottom of the menu. */
   onCreate?: (name: string) => void;
   /** Enables drag (and Alt+Arrow) reordering among sibling Collections. */
   onReorder?: (parentId: string | null, orderedIds: string[]) => void;
@@ -60,7 +60,7 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
   const [isCreating, setIsCreating] = useState(false);
 
   // itemRefs[0] = root button, itemRefs[1..n] = Collection buttons in flat
-  // order, itemRefs[n + 1] = "New Collection" (when onCreate is provided).
+  // order, itemRefs[n + 1] = "New Folder" (when onCreate is provided).
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const flat = useMemo(() => flattenCollections(collections), [collections]);
@@ -199,10 +199,10 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
           key={c.id}
           initialValue={c.name}
           placeholder={t('boardsModal.newCollectionPrompt', {
-            defaultValue: 'Collection name',
+            defaultValue: 'Folder name',
           })}
           ariaLabel={t('collectionSwitcher.renameCollection', {
-            defaultValue: 'Rename collection',
+            defaultValue: 'Rename folder',
           })}
           commitOnBlur
           onCommit={(name) => {
@@ -261,7 +261,7 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
               <RowActionButton
                 icon={Pencil}
                 label={t('collectionSwitcher.renameCollection', {
-                  defaultValue: 'Rename collection',
+                  defaultValue: 'Rename folder',
                 })}
                 onClick={() => setEditingId(c.id)}
                 anchor={tourFieldAttr(
@@ -317,12 +317,12 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
       role="menu"
       onKeyDown={handleKeyDown}
       aria-label={t('collectionSwitcher.title', {
-        defaultValue: 'Switch Collection',
+        defaultValue: 'Switch Folder',
       })}
       className={MENU_PANEL_CLASS}
     >
       <div className={MENU_HEADER_CLASS}>
-        {t('collectionSwitcher.title', { defaultValue: 'Switch Collection' })}
+        {t('collectionSwitcher.title', { defaultValue: 'Switch Folder' })}
       </div>
       <button
         ref={(el) => {
@@ -337,7 +337,7 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
         className={itemClass(activeCollectionId === null)}
       >
         <Home className="w-3.5 h-3.5 shrink-0" />
-        {t('collectionSwitcher.root', { defaultValue: 'No Collection' })}
+        {t('collectionSwitcher.root', { defaultValue: 'No Folder' })}
       </button>
       {renderGroup(null, 0)}
       {onCreate && (
@@ -346,10 +346,10 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
             <InlineNameInput
               anchor={tourAttr('board-nav.name-input')}
               placeholder={t('boardsModal.newCollectionPrompt', {
-                defaultValue: 'Collection name',
+                defaultValue: 'Folder name',
               })}
               ariaLabel={t('boardsModal.newCollection', {
-                defaultValue: 'New Collection',
+                defaultValue: 'New Folder',
               })}
               commitOnBlur={false}
               onCommit={(name) => {
@@ -375,7 +375,7 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
             >
               <Plus className="w-3.5 h-3.5 shrink-0" />
               {t('boardsModal.newCollection', {
-                defaultValue: 'New Collection',
+                defaultValue: 'New Folder',
               })}
             </button>
           )}
