@@ -104,6 +104,7 @@ export function buildPeriodGate({
   sharedWindow,
   bellWindow,
   manualStart = false,
+  everyClass = false,
 }: {
   plan: PeriodPlan | undefined;
   rosters: readonly PeriodRoster[];
@@ -112,15 +113,22 @@ export function buildPeriodGate({
     ((roster: PeriodRoster, date: Date) => EpochWindow | null) | undefined;
   /** The stepper's Manual start: one class also gets a closed assessment gate. */
   manualStart?: boolean;
+  /** Every quiz runs on class rows: one class or no bell schedule still gets a gate, Scheduled opening on its window. */
+  everyClass?: boolean;
 }):
   | { accessMode: AccessMode; periodAccess: Record<string, PeriodAccess> }
   | undefined {
-  const minPeriods = manualStart ? 1 : 2;
-  if ((!bellWindow && !manualStart) || rosters.length < minPeriods)
+  const minPeriods = manualStart || everyClass ? 1 : 2;
+  if (
+    (!bellWindow && !manualStart && !everyClass) ||
+    rosters.length < minPeriods
+  )
     return undefined;
   const resolved: PeriodPlan = manualStart
     ? { mode: 'assessment' }
-    : (plan ?? DEFAULT_PERIOD_PLAN);
+    : everyClass
+      ? { mode: plan?.mode ?? 'assignment', rows: plan?.rows }
+      : (plan ?? DEFAULT_PERIOD_PLAN);
   const built = buildPeriodAccess({
     plan: resolved,
     rosters,

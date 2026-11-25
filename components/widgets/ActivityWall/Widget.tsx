@@ -88,6 +88,8 @@ import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMig
 import { tourAttr } from '@/config/tourAnchors';
 import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 import { ImportWizard } from '@/components/common/library/importer';
+import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
+import { useLibraryDuplicate } from '@/components/common/library/useLibraryDuplicate';
 import {
   completeImportHandoff,
   takeImportHandoff,
@@ -540,25 +542,24 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     widget.id,
   ]);
 
-  const duplicateWall = useCallback(
-    async (entry: ActivityWallLibraryEntry) => {
+  const wallDuplicate = useLibraryDuplicate({
+    duplicate: async (entry: ActivityWallLibraryEntry) => {
       const now = Date.now();
-      try {
-        await saveActivity({
-          ...entry,
-          id: crypto.randomUUID(),
-          title: `${entry.title || 'Untitled wall'} (copy)`,
-          createdAt: now,
-          updatedAt: now,
-        });
-        addToast('Wall duplicated.', 'success');
-      } catch (err) {
-        console.error('[ActivityWall] Failed to duplicate wall:', err);
-        addToast('Could not duplicate the wall.', 'error');
-      }
+      const copy = {
+        ...entry,
+        id: crypto.randomUUID(),
+        title: suggestDuplicateTitle(entry.title || 'Untitled wall'),
+        createdAt: now,
+        updatedAt: now,
+      };
+      await saveActivity(copy);
+      return copy;
     },
-    [addToast, saveActivity]
-  );
+    addToast,
+    errorMessage: 'Could not duplicate the wall.',
+    onError: (err) =>
+      console.error('[ActivityWall] Failed to duplicate wall:', err),
+  });
 
   const removeWall = useCallback(
     async (entryId: string) => {
@@ -1079,7 +1080,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             );
             return review ? [review] : [];
           }}
-          onDuplicate={duplicateWall}
+          onDuplicate={wallDuplicate.duplicate}
           onDelete={removeWall}
           onClearPosts={clearActivityPosts}
           addToast={addToast}

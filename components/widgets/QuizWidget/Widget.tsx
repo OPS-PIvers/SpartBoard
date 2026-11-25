@@ -103,7 +103,7 @@ import { useQuizDelete } from '@/hooks/useQuizDelete';
 import { useQuizPlcShare } from '@/hooks/useQuizPlcShare';
 import { useQuizPublish } from '@/hooks/useQuizPublish';
 import { useQuizLinkShare } from '@/hooks/useQuizLinkShare';
-import { useBusyIdSet } from '@/hooks/useBusyIdSet';
+import { useLibraryDuplicate } from '@/components/common/library/useLibraryDuplicate';
 import { useFolders } from '@/hooks/useFolders';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { useQuizDocumentImportGate } from '@/hooks/useQuizDocumentImportGate';
@@ -963,10 +963,14 @@ const TeacherQuizWidget: React.FC<{
   const [loadingQuizData, setLoadingQuizData] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
 
-  // Rapid-double-click guard for the Duplicate kebab. The shared hook
-  // owns the set, the `run()` wrapper, and the no-op-on-busy semantics
-  // so the four library widgets stay in lockstep.
-  const duplicateBusy = useBusyIdSet();
+  const quizDuplicate = useLibraryDuplicate({
+    duplicate: duplicateQuiz,
+    addToast,
+  });
+  const bankDuplicate = useLibraryDuplicate({
+    duplicate: duplicateBank,
+    addToast,
+  });
 
   // Bump a token whenever the user navigates INTO the results view so the
   // QuizResults consumer remounts with fresh memos over the current live
@@ -3547,6 +3551,7 @@ const TeacherQuizWidget: React.FC<{
                     reopenForStudents(reopenPickFor, {
                       uids,
                       letInUids: uids,
+                      rosters,
                     }),
                 }
               : null
@@ -4065,6 +4070,7 @@ const TeacherQuizWidget: React.FC<{
               sharedWindow: resolvedTargeting,
               bellWindow: assignPeriodCtx?.bellWindow,
               manualStart: stepper?.manualStart,
+              everyClass: canAccessFeature('student-set-time'),
             });
 
           // PLC link only (D2): results pool server-side, no sheet is
@@ -4545,20 +4551,8 @@ const TeacherQuizWidget: React.FC<{
         onCreateViewOnlyShare={linkShare.onCreateViewOnlyShare}
         deleteDetail={(meta) => quizDeleteDetail(assignments, meta.id)}
         onDelete={quizDelete.onDelete}
-        onDuplicate={(meta) =>
-          void duplicateBusy.run(meta.id, async () => {
-            try {
-              const copy = await duplicateQuiz(meta);
-              addToast(`Duplicated as "${copy.title}".`, 'success');
-            } catch (err) {
-              addToast(
-                err instanceof Error ? err.message : 'Duplicate failed',
-                'error'
-              );
-            }
-          })
-        }
-        isDuplicating={duplicateBusy.isBusy}
+        onDuplicate={(meta) => void quizDuplicate.duplicate(meta)}
+        isDuplicating={quizDuplicate.isDuplicating}
         onBulkDelete={quizDelete.onBulkDelete}
         // ─── Archive tab ─────────────────────────────────────────────────────
         managerTab={config.managerTab ?? 'library'}
@@ -4606,17 +4600,7 @@ const TeacherQuizWidget: React.FC<{
             );
           }
         }}
-        onDuplicateBank={async (meta) => {
-          try {
-            const copy = await duplicateBank(meta);
-            addToast(`Duplicated as "${copy.title}".`, 'success');
-          } catch (err) {
-            addToast(
-              err instanceof Error ? err.message : 'Failed to duplicate bank',
-              'error'
-            );
-          }
-        }}
+        onDuplicateBank={bankDuplicate.duplicate}
         onDeleteBank={async (meta) => {
           try {
             await deleteBank(meta);
