@@ -48,7 +48,13 @@ const periods = vi.hoisted(() => ({
   pausePeriod: vi.fn(),
   closePeriod: vi.fn(),
   closeAllPeriods: vi.fn(),
+  closePeriods: vi.fn(),
 }));
+periods.closePeriods.mockImplementation(
+  async (keys: readonly string[], at?: number) => {
+    for (const k of keys) await periods.closePeriod(k, at);
+  }
+);
 vi.mock('@/hooks/usePeriodAccess', () => ({
   usePeriodAccess: () => periods,
   closedRow: (now: number) => ({

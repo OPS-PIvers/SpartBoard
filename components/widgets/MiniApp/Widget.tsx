@@ -1,4 +1,5 @@
 import { copyText } from '@/utils/copyText';
+import { copyLinkWithToast } from '@/hooks/useCopyShortLink';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import React, {
   useState,
@@ -895,12 +896,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         assignmentMode === 'view-only'
           ? `Share link created! URL: ${url}`
           : `Assignment created! URL: ${url}`;
-      try {
-        await navigator.clipboard.writeText(url);
-        addToast(successCopy, 'success');
-      } catch {
-        addToast(fallbackCopy, 'info');
-      }
+      await copyLinkWithToast(url, addToast, {
+        success: successCopy,
+        failure: fallbackCopy,
+        failureType: 'info',
+      });
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Failed to create assignment.';
@@ -1390,12 +1390,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const handleArchiveCopyUrl = useCallback(
     async (assignment: MiniAppAssignment) => {
       const url = `${window.location.origin}/miniapp/${assignment.sessionId}`;
-      try {
-        await navigator.clipboard.writeText(url);
-        addToast('Link copied to clipboard', 'success');
-      } catch {
-        addToast(`Link: ${url}`, 'info');
-      }
+      await copyLinkWithToast(url, addToast, {
+        success: 'Link copied to clipboard',
+        failure: `Link: ${url}`,
+        failureType: 'info',
+      });
     },
     [addToast]
   );

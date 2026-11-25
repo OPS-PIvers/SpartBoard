@@ -32,7 +32,7 @@ import {
   CollapsibleSection,
   QuizBehaviorSettingsPanel,
 } from '@/components/common/library';
-import { AssignClassPicker } from '@/components/common/AssignClassPicker';
+import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import {
   makeEmptyPickerValue,
   resolveSelectedRosters,
@@ -620,10 +620,15 @@ export const QuizAssignmentSettingsModal: React.FC<
       onAssign={() => handleAssign()}
       extraSlot={
         <>
-          <AssignClassPicker
+          <ClassChecklist
             rosters={rosters}
-            value={options.picker}
-            onChange={(picker) => setOptions((prev) => ({ ...prev, picker }))}
+            value={{ classIds: options.picker.rosterIds, studentsByClass: {} }}
+            onChange={(v) =>
+              setOptions((prev) => ({
+                ...prev,
+                picker: { rosterIds: v.classIds },
+              }))
+            }
           />
 
           <AssignAvailabilitySection

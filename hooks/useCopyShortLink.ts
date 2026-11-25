@@ -3,6 +3,19 @@ import { useCreateShortLink } from '@/hooks/useShortLinks';
 import { resolveShortLink } from '@/utils/shortLinksApi';
 import { buildShortUrl } from '@/utils/shortLinkValidation';
 import { logError } from '@/utils/logError';
+import { copyText } from '@/utils/copyText';
+
+/** The one copy-link path: copies, then reports `success` or `failure` through the caller's toast. */
+export async function copyLinkWithToast<T extends 'success' | 'error' | 'info'>(
+  text: string,
+  notify: (message: string, type: 'success' | T) => void,
+  messages: { success: string; failure: string; failureType: T }
+): Promise<boolean> {
+  const ok = await copyText(text);
+  if (ok) notify(messages.success, 'success');
+  else notify(messages.failure, messages.failureType);
+  return ok;
+}
 
 export interface ShortLinkTarget {
   destination: string;

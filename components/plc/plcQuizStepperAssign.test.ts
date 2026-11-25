@@ -4,6 +4,7 @@ import { defaultAvailability } from '@/utils/assignAvailability';
 import { saveAttemptPolicy } from '@/hooks/gradebook/useGradebookColumnWrites';
 import {
   planPlcQuizStepperAssign,
+  plcStepperCreateFields,
   savePlcStepperFinalScore,
 } from './plcQuizStepperAssign';
 
@@ -118,5 +119,36 @@ describe('savePlcStepperFinalScore', () => {
     save(behavior(undefined, 3));
     save(behavior('highest', 1));
     expect(saveAttemptPolicy).not.toHaveBeenCalled();
+  });
+});
+
+describe('plcStepperCreateFields', () => {
+  const fields = () => {
+    const plan = planPlcQuizStepperAssign({
+      classes: { classIds: ['r1'], studentsByClass: {} },
+      when: { mode: 'manual', availability: defaultAvailability(now, true) },
+      rosters,
+      bellWindow: undefined,
+    });
+    return plcStepperCreateFields(plan, rosters, {
+      behavior: { sessionMode: 'student', sessionOptions: {}, attemptLimit: 1 },
+      teacherName: 'Ms. Lee',
+      content: { questions: [], driveFileId: 'live', frozenDriveFileId: 'fz' },
+      assignmentMode: 'submissions',
+      plcLinkage: { id: 'plc-1', name: 'Team', memberEmails: [] },
+      translationIndex: {},
+    });
+  };
+
+  it('writes the Quiz widget fields: lenient answers, translations, frozen copy', () => {
+    const { settings, options } = fields();
+    expect(options.lenientTranslatedFib).toBe(true);
+    expect(options.translationIndex).toEqual({});
+    expect(options.mode).toBe('submissions');
+    expect(settings.frozenDriveFileId).toBe('fz');
+    expect(settings.plc?.id).toBe('plc-1');
+    // Manual with one class is gated per period, so it opens with its gate.
+    expect(options.initialStatus).toBe('active');
+    expect(options.accessMode).toBe('assessment');
   });
 });
