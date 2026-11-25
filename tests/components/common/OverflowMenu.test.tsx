@@ -223,4 +223,18 @@ describe('OverflowMenu', () => {
     expect(onMove).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('menu')).toBeNull();
   });
+
+  it('closes and stops holding Escape when every item goes away', () => {
+    const items = [{ label: 'Unlock attempt', onClick: vi.fn() }];
+    const { rerender } = render(<OverflowMenu items={items} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    rerender(<OverflowMenu items={[]} />);
+    const onWindowEscape = vi.fn();
+    window.addEventListener('keydown', onWindowEscape);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    window.removeEventListener('keydown', onWindowEscape);
+    expect(onWindowEscape).toHaveBeenCalledTimes(1);
+    rerender(<OverflowMenu items={items} />);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
 });

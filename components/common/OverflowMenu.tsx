@@ -117,7 +117,8 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{
     top: number;
-    right: number;
+    left?: number;
+    right?: number;
     maxWidth: number;
     maxHeight: number;
   } | null>(null);
@@ -163,6 +164,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
     if (!open) return undefined;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || isEscapeFromWidgetInput(e)) return;
+      e.preventDefault();
       e.stopPropagation();
       if (sub) {
         setSub(null);
@@ -186,11 +188,14 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
+    // Right-aligned to the trigger, or left-aligned when that would run off the left edge.
+    const leftAlign = rect.right - EDGE < MENU_MAX_WIDTH;
     const right = Math.max(EDGE, window.innerWidth - rect.right);
-    const maxWidth = Math.max(
-      MENU_MIN_WIDTH,
-      Math.min(MENU_MAX_WIDTH, window.innerWidth - right - EDGE)
-    );
+    const left = Math.max(EDGE, rect.left);
+    const room = leftAlign
+      ? window.innerWidth - left - EDGE
+      : window.innerWidth - right - EDGE;
+    const maxWidth = Math.max(MENU_MIN_WIDTH, Math.min(MENU_MAX_WIDTH, room));
     const h = menuHeight(ordered.length);
     const below = rect.bottom + MENU_GAP;
     const spaceBelow = window.innerHeight - below - EDGE;
@@ -198,7 +203,11 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
     const flip = h > spaceBelow && spaceAbove > spaceBelow;
     const maxHeight = Math.max(ROW_HEIGHT * 3, flip ? spaceAbove : spaceBelow);
     const top = flip ? rect.top - MENU_GAP - Math.min(h, maxHeight) : below;
-    setPos({ top, right, maxWidth, maxHeight });
+    setPos(
+      leftAlign
+        ? { top, left, maxWidth, maxHeight }
+        : { top, right, maxWidth, maxHeight }
+    );
   }, [open, ordered.length]);
 
   // Focus enters the menu once it is placed.
@@ -231,6 +240,12 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
     setConfirming(null);
   });
 
+  // A menu whose rows all went away closes, so its Escape listener lets go.
+  if (open && items.length === 0) {
+    setOpen(false);
+    setSub(null);
+    setConfirming(null);
+  }
   if (items.length === 0) return null;
 
   // Side menu opens right of its row, or left when the right runs off screen.
@@ -315,7 +330,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
         aria-disabled={blocked || undefined}
         aria-haspopup={hasSub ? 'menu' : undefined}
         aria-expanded={hasSub ? expanded : undefined}
-        title={item.disabled ? item.disabledReason : item.title}
+        title={item.disabled ? item.disabledReason : (item.title ?? item.label)}
         {...anchorFor(item, path, index)}
         onPointerEnter={(e) => {
           if (inSub) return cancelSubClose();
@@ -389,6 +404,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
             style={{
               position: 'fixed',
               top: pos.top,
+              left: pos.left,
               right: pos.right,
               width: 'max-content',
               minWidth: MENU_MIN_WIDTH,

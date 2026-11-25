@@ -1185,7 +1185,7 @@
       "noArchived": "Keine archivierten Quiz.",
       "folders": {
         "sidebarLabel": "Ordner",
-        "moveToFolder": "In Ordner verschieben…",
+        "moveToFolder": "In Ordner verschieben",
         "noFolder": "Kein Ordner",
         "dragHandle": "Zum Verschieben ziehen",
         "movedToast": "Nach „{{folder}}“ verschoben",
