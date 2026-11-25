@@ -29,6 +29,7 @@ import {
 import { useInstructionalRoutines } from '@/hooks/useInstructionalRoutines';
 import { useStorage } from '@/hooks/useStorage';
 import { useAuth } from '@/context/useAuth';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 import { logError } from '@/utils/logError';
 import { IconPicker } from '@/components/widgets/InstructionalRoutines/IconPicker';
 import { QUICK_TOOLS } from '@/components/widgets/InstructionalRoutines/constants';
@@ -84,7 +85,7 @@ const StepImage: React.FC<{
   stepNumber: number;
   onChange: (url: string | undefined) => void;
 }> = ({ url, stepNumber, onChange }) => {
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { uploadDisplayImage } = useStorage();
   const [busy, setBusy] = useState(false);
   if (url) {
@@ -109,6 +110,22 @@ const StepImage: React.FC<{
           <X size={10} />
         </button>
       </span>
+    );
+  }
+  if (canAccessFeature('unified-image-picker')) {
+    return (
+      <ImagePicker
+        layout="button"
+        label={`Step ${stepNumber} image`}
+        disabled={!user}
+        tourScope={{ type: 'routineGuide', field: `stepImage-${stepNumber}` }}
+        upload={(file) => {
+          if (!user) throw new Error('Sign in to upload images.');
+          return uploadDisplayImage(user.uid, file, { districtAsset: true });
+        }}
+        onChange={(u) => onChange(u)}
+        buttonClassName="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-dashed border-slate-300 text-slate-500 hover:text-slate-800 hover:border-slate-500 disabled:opacity-40"
+      />
     );
   }
   return (

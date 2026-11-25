@@ -3,6 +3,8 @@ import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { SoundboardConfigurationPanel } from './SoundboardConfigurationPanel';
 import { WeatherDetailsBuildings } from './WeatherDetailsBuildings';
 import React, { useState } from 'react';
+import { useAuth } from '@/context/useAuth';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 import {
   FeaturePermission,
   WidgetType,
@@ -167,6 +169,8 @@ export const FeatureConfigurationPanel: React.FC<
   uploadWeatherImage,
 }) => {
   const [uploadingRangeId, setUploadingRangeId] = useState<string | null>(null);
+  const { canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
 
   const addWeatherRange = (widgetType: WidgetType | InternalToolType) => {
     const config = (permission.config ?? {
@@ -618,68 +622,98 @@ export const FeatureConfigurationPanel: React.FC<
                           className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:border-brand-blue-primary outline-hidden"
                         />
 
-                        <div className="flex items-center gap-2">
-                          {range.imageUrl ? (
-                            <div className="relative w-10 h-10 rounded-sm bg-slate-100 overflow-hidden shrink-0 group">
-                              <img
-                                src={range.imageUrl}
-                                alt="Range"
-                                className="w-full h-full object-cover"
-                              />
-                              <button
-                                onClick={() =>
-                                  updateWeatherRange(tool.type, range.id, {
-                                    imageUrl: undefined,
-                                  })
-                                }
-                                {...tourFieldAttr(
-                                  'admin.widget-config.field',
-                                  'weather',
-                                  `rangeImageClear-${range.id}`
-                                )}
-                                className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="w-10 h-10 rounded-sm bg-slate-50 border border-dashed border-slate-300 flex items-center justify-center shrink-0">
-                              <ImageIcon className="w-4 h-4 text-slate-300" />
-                            </div>
-                          )}
-
-                          <div className="flex-1">
-                            <label className="flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-sm px-3 py-1.5 transition-colors w-max">
-                              {uploadingRangeId === range.id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-blue-primary" />
-                              ) : (
-                                <Upload className="w-3.5 h-3.5 text-slate-500" />
-                              )}
-                              <span className="text-xxs font-bold text-slate-600 uppercase">
-                                {range.imageUrl
-                                  ? 'Change Image'
-                                  : 'Upload Image'}
-                              </span>
-                              <input
-                                // no-tour-anchor: hidden file input opened by its upload button
-                                type="file"
-                                className="hidden"
-                                accept="image/*"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    void handleWeatherImageUpload(
-                                      tool.type,
-                                      range.id,
-                                      file
-                                    );
+                        {unifiedPicker ? (
+                          <ImagePicker
+                            value={range.imageUrl}
+                            tourScope={{
+                              type: 'weather',
+                              field: `rangeImage-${range.id}`,
+                            }}
+                            tourOverrides={{
+                              remove: tourFieldAttr(
+                                'admin.widget-config.field',
+                                'weather',
+                                `rangeImageClear-${range.id}`
+                              ),
+                            }}
+                            upload={(file) =>
+                              uploadWeatherImage(range.id, file)
+                            }
+                            onChange={(url) =>
+                              updateWeatherRange(tool.type, range.id, {
+                                imageUrl: url,
+                              })
+                            }
+                            onRemove={() =>
+                              updateWeatherRange(tool.type, range.id, {
+                                imageUrl: undefined,
+                              })
+                            }
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            {range.imageUrl ? (
+                              <div className="relative w-10 h-10 rounded-sm bg-slate-100 overflow-hidden shrink-0 group">
+                                <img
+                                  src={range.imageUrl}
+                                  alt="Range"
+                                  className="w-full h-full object-cover"
+                                />
+                                <button
+                                  onClick={() =>
+                                    updateWeatherRange(tool.type, range.id, {
+                                      imageUrl: undefined,
+                                    })
                                   }
-                                }}
-                                disabled={!!uploadingRangeId}
-                              />
-                            </label>
+                                  {...tourFieldAttr(
+                                    'admin.widget-config.field',
+                                    'weather',
+                                    `rangeImageClear-${range.id}`
+                                  )}
+                                  className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="w-10 h-10 rounded-sm bg-slate-50 border border-dashed border-slate-300 flex items-center justify-center shrink-0">
+                                <ImageIcon className="w-4 h-4 text-slate-300" />
+                              </div>
+                            )}
+
+                            <div className="flex-1">
+                              <label className="flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-sm px-3 py-1.5 transition-colors w-max">
+                                {uploadingRangeId === range.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-blue-primary" />
+                                ) : (
+                                  <Upload className="w-3.5 h-3.5 text-slate-500" />
+                                )}
+                                <span className="text-xxs font-bold text-slate-600 uppercase">
+                                  {range.imageUrl
+                                    ? 'Change Image'
+                                    : 'Upload Image'}
+                                </span>
+                                <input
+                                  // no-tour-anchor: hidden file input opened by its upload button
+                                  type="file"
+                                  className="hidden"
+                                  accept="image/*"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      void handleWeatherImageUpload(
+                                        tool.type,
+                                        range.id,
+                                        file
+                                      );
+                                    }
+                                  }}
+                                  disabled={!!uploadingRangeId}
+                                />
+                              </label>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     ))}
                   </div>

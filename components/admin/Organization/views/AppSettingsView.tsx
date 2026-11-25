@@ -3,6 +3,7 @@ import { tourAttr } from '@/config/tourAnchors';
 import { LayoutGrid, Shield } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 import { AccessFeatureRow } from '@/components/admin/access/AccessFeatureRow';
 import { useGlobalPermissionsEditor } from '@/components/admin/access/useGlobalPermissionsEditor';
 
@@ -18,7 +19,8 @@ export const AppSettingsView: React.FC = () => {
     showMessage,
     loading,
   } = useGlobalPermissionsEditor();
-  const { appSettings, updateAppSettings } = useAuth();
+  const { appSettings, updateAppSettings, canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
   const { uploadAdminLogo, deleteAdminLogo, uploading } = useStorage();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -54,6 +56,16 @@ export const AppSettingsView: React.FC = () => {
     }
   };
 
+  const savePickedLogo = async (url: string) => {
+    try {
+      await updateAppSettings({ logoUrl: url });
+      showMessage('success', 'Logo updated successfully');
+    } catch (error) {
+      console.error('Error saving logo:', error);
+      showMessage('error', 'Failed to upload logo');
+    }
+  };
+
   const handleRemoveLogo = async () => {
     try {
       await deleteAdminLogo();
@@ -81,49 +93,66 @@ export const AppSettingsView: React.FC = () => {
             <h4 className="font-bold text-slate-800 text-lg">Custom Logo</h4>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
-            <div className="w-16 h-16 bg-slate-200 rounded-xl flex items-center justify-center overflow-hidden shrink-0 border border-slate-300">
-              {appSettings?.logoUrl ? (
-                <img
-                  src={appSettings.logoUrl}
-                  alt="Custom Logo"
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <LayoutGrid className="w-8 h-8 text-slate-400" />
-              )}
-            </div>
-
-            <div className="flex-1 flex items-center gap-3">
-              <input
-                // no-tour-anchor: hidden file input opened by its upload button
-                type="file"
-                accept="image/*"
-                className="hidden"
-                ref={fileInputRef}
-                onChange={(e) => void handleLogoUpload(e)}
+          {unifiedPicker ? (
+            <div className="max-w-md">
+              <ImagePicker
+                value={appSettings?.logoUrl}
+                maxBytes={1024 * 1024}
+                tourScope={{ type: 'admin.org', field: 'logo' }}
+                tourOverrides={{
+                  upload: tourAttr('admin.org.upload-logo'),
+                  remove: tourAttr('admin.org.remove-logo'),
+                }}
+                upload={uploadAdminLogo}
+                onChange={(url) => void savePickedLogo(url)}
+                onRemove={() => void handleRemoveLogo()}
               />
-              <button
-                {...tourAttr('admin.org.upload-logo')}
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="px-4 py-2 bg-brand-blue-primary text-white text-sm font-bold rounded-lg shadow-xs hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
-              >
-                {uploading ? 'Uploading...' : 'Upload Logo'}
-              </button>
-
-              {appSettings?.logoUrl && (
-                <button
-                  {...tourAttr('admin.org.remove-logo')}
-                  onClick={() => void handleRemoveLogo()}
-                  disabled={uploading}
-                  className="px-4 py-2 bg-white text-red-600 text-sm font-bold border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
-                >
-                  Remove Logo
-                </button>
-              )}
             </div>
-          </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="w-16 h-16 bg-slate-200 rounded-xl flex items-center justify-center overflow-hidden shrink-0 border border-slate-300">
+                {appSettings?.logoUrl ? (
+                  <img
+                    src={appSettings.logoUrl}
+                    alt="Custom Logo"
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <LayoutGrid className="w-8 h-8 text-slate-400" />
+                )}
+              </div>
+
+              <div className="flex-1 flex items-center gap-3">
+                <input
+                  // no-tour-anchor: hidden file input opened by its upload button
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={(e) => void handleLogoUpload(e)}
+                />
+                <button
+                  {...tourAttr('admin.org.upload-logo')}
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="px-4 py-2 bg-brand-blue-primary text-white text-sm font-bold rounded-lg shadow-xs hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
+                >
+                  {uploading ? 'Uploading...' : 'Upload Logo'}
+                </button>
+
+                {appSettings?.logoUrl && (
+                  <button
+                    {...tourAttr('admin.org.remove-logo')}
+                    onClick={() => void handleRemoveLogo()}
+                    disabled={uploading}
+                    className="px-4 py-2 bg-white text-red-600 text-sm font-bold border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    Remove Logo
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       }
 

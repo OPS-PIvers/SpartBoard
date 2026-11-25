@@ -49,6 +49,54 @@ describe('ImagePicker', () => {
     expect(upload).toHaveBeenCalledTimes(1);
   });
 
+  it('adds each of several files when multiple is on, past one that fails', async () => {
+    const upload = vi
+      .fn()
+      .mockResolvedValueOnce('https://saved/a')
+      .mockResolvedValueOnce('https://saved/c');
+    const onChange = vi.fn();
+    const { container } = render(
+      <ImagePicker
+        multiple
+        maxBytes={2}
+        tourScope={scope}
+        upload={upload}
+        onChange={onChange}
+      />
+    );
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    expect(input.multiple).toBe(true);
+    const big = new File(['xxxx'], 'big.png', { type: 'image/png' });
+    fireEvent.change(input, {
+      target: { files: [png('a.png'), big, png('c.png')] },
+    });
+    await waitFor(() => expect(onChange).toHaveBeenCalledTimes(2));
+    expect(onChange).toHaveBeenNthCalledWith(1, 'https://saved/a');
+    expect(onChange).toHaveBeenNthCalledWith(2, 'https://saved/c');
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'too large'
+    );
+  });
+
+  it('takes only the first file when multiple is off', async () => {
+    const upload = vi.fn().mockResolvedValue('https://saved/1');
+    const onChange = vi.fn();
+    const { container } = render(
+      <ImagePicker tourScope={scope} upload={upload} onChange={onChange} />
+    );
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    expect(input.multiple).toBe(false);
+    fireEvent.change(input, {
+      target: { files: [png('a.png'), png('b.png')] },
+    });
+    await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+    expect(upload).toHaveBeenCalledTimes(1);
+  });
+
   it('takes a dropped image', async () => {
     const upload = vi.fn().mockResolvedValue('https://saved/2');
     const onChange = vi.fn();
