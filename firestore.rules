@@ -346,8 +346,12 @@ service cloud.firestore {
     }
     // Quiz "Schedule for later" also sets when the pass starts, with the window grace.
     function quizLetIn(s) {
-      return studentLetIn(s) &&
-             s.get('studentAccessFrom', {}).get(authUid(), 0) <= request.time.toMillis() + 120000;
+      return quizPass(s, authUid());
+    }
+    // The same pass for a given uid, with the window grace at both ends; it also outlasts a whole-quiz pause or close, never an End.
+    function quizPass(s, uid) {
+      return s.get('studentAccess', {}).get(uid, 0) + 120000 > request.time.toMillis() &&
+             s.get('studentAccessFrom', {}).get(uid, 0) <= request.time.toMillis() + 120000;
     }
     // A join on a per-period session names a period the session targets, backed
     // by the caller's class claim when signed in; assessment mode refuses the
@@ -4603,7 +4607,8 @@ service cloud.firestore {
           let n = incoming().inputSignals;
           let o = existing().get('inputSignals', {});
           let k = string(existing().get('completedAttempts', 0));
-          return s.get('inputSignals', false) && (runOpen(s) || existing().get('unlocked', false)) &&
+          return s.get('inputSignals', false) &&
+                 (runOpen(s) || existing().get('unlocked', false) || (s.status != 'ended' && quizPass(s, existing().studentUid))) &&
                  n.diff(o).affectedKeys().hasOnly([k]) &&
                  n[k] is map && n[k].keys().size() <= 500 && n[k].keys().hasAll(o.get(k, {}).keys());
         }
@@ -4731,10 +4736,9 @@ service cloud.firestore {
           passesStudentClassGateList(sessionClassIds()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           sessionMode() == 'submissions' &&
-          // Block joins after the assignment's close time (M17) or the run's end.
-          runOpen(sessionData()) &&
-          // Block joins before the assignment's open time (M17).
-          afterOpen(sessionData()) &&
+          // Block joins outside the assignment's open and close times (M17) or after the run's end, unless the student is scheduled now.
+          ((runOpen(sessionData()) && afterOpen(sessionData())) ||
+           (quizLetIn(sessionData()) && sessionData().status != 'ended')) &&
           periodJoinOk(sessionData(), incoming()) && claimClassOk(incoming()) &&
           staffJoinOk(sessionData(), incoming()) &&
           joinKeyOk(sessionData(), responseKey) &&
@@ -4747,16 +4751,16 @@ service cloud.firestore {
            passesStudentClassGateList(s.get('classIds', [])) &&
            // Student writes stop at the session close time (M17) or the run's end.
            // The teacher branch below is unaffected — grading continues after close.
+           // A scheduled student's pass outlasts the close, but not an End.
            (runOpen(s) ||
             k.hasOnly(['resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt']) ||
-            existing().get('unlocked', false) == true) &&
-           // Pause is enforced here for every session, and per period where set.
+            existing().get('unlocked', false) == true ||
+            (s.status != 'ended' && quizPass(s, existing().studentUid))) &&
+           // Pause is enforced here for every session, and per period where set; a pass outlasts both.
+           // studentUid is authUid() here and cheaper: a PIN token's authUid() costs more expressions.
            (frozenWriteOk(s, existing().get('classId', null)) ||
-            (s.status != 'paused' &&
-             // studentUid is authUid() here and cheaper: a PIN token's authUid() costs more expressions.
-             (periodOpen(s, existing().get('classId', null)) ||
-              (s.get('studentAccess', {}).get(existing().studentUid, 0) > request.time.toMillis() &&
-               s.get('studentAccessFrom', {}).get(existing().studentUid, 0) <= request.time.toMillis() + 120000)))) &&
+            (s.status != 'paused' && periodOpen(s, existing().get('classId', null))) ||
+            quizPass(s, existing().studentUid)) &&
            unchanged('studentUid') &&
            // SSO studentRole responses omit `pin` entirely, so direct dot-access on
            // `resource.data.pin` would throw a Null-value error and deny the write. Use

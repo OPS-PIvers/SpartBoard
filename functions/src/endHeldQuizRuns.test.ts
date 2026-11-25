@@ -72,4 +72,25 @@ describe('heldRunStep', () => {
       )
     ).toEqual({ kind: 'clear' });
   });
+
+  it('holds a whole-quiz Close as a pause until the last pass ends', () => {
+    expect(
+      heldRunStep({ status: 'paused', studentAccess: { s1: NOW + 500 } }, NOW)
+    ).toEqual({
+      kind: 'wait',
+      hold: {
+        until: NOW + 500,
+        students: { s1: { from: null, until: NOW + 500 } },
+      },
+    });
+    expect(
+      heldRunStep({ status: 'paused', studentAccess: { s1: NOW - 1 } }, NOW)
+    ).toEqual({ kind: 'end' });
+  });
+
+  it('forgets a whole-quiz hold once the teacher resumes', () => {
+    expect(
+      heldRunStep({ status: 'active', studentAccess: { s1: NOW + 500 } }, NOW)
+    ).toEqual({ kind: 'clear' });
+  });
 });

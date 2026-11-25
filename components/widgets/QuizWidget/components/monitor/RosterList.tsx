@@ -20,7 +20,7 @@ import {
 import { InputSignalsBadge } from '@/components/common/InputSignalsPopover';
 import { useServerNow } from '@/hooks/useServerNow';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import { studentCanEnter, studentSetTime } from '@/utils/periodAccess';
+import { studentCanEnterQuiz, studentSetTime } from '@/utils/periodAccess';
 import { formatStudentTime, formatStudentTimeStart } from './studentTimeFormat';
 import { canTeacherSubmit, isTabLockedOut } from '@/utils/quizTeacherSubmit';
 import { MonitorStudent } from './useMonitorData';
@@ -209,7 +209,12 @@ const RowMenu: React.FC<{
     onLetIn &&
     r.studentUid &&
     r.status !== 'completed' &&
-    !studentCanEnter(session, r.classId ? [r.classId] : [], r.studentUid, now)
+    !studentCanEnterQuiz(
+      session,
+      r.classId ? [r.classId] : [],
+      r.studentUid,
+      now
+    )
   )
     items.push({
       label: 'Let in now',
@@ -713,8 +718,12 @@ export const RosterList: React.FC<RosterListProps> = ({
         if (
           onLetIn &&
           s.studentUid &&
-          s.periodKey &&
-          !studentCanEnter(session, [s.periodKey], s.studentUid, now)
+          !studentCanEnterQuiz(
+            session,
+            s.periodKey ? [s.periodKey] : [],
+            s.studentUid,
+            now
+          )
         ) {
           const uid = s.studentUid;
           items.push({

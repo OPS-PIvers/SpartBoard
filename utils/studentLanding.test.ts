@@ -11,6 +11,7 @@ import {
   periodLabel,
   periodSquare,
   upNextRows,
+  withLandingPass,
   workAvailability,
 } from './studentLanding';
 
@@ -492,5 +493,32 @@ describe('completedItems', () => {
     expect(
       completedItems(p.expired).map((i) => [i.sessionId, i.missing])
     ).toEqual([['m', true]]);
+  });
+});
+
+describe('withLandingPass', () => {
+  const passes = {
+    studentAccess: { s1: NOW + DAY },
+    studentAccessFrom: { s1: NOW - 1 },
+  };
+
+  it('opens a closed or paused quiz row for the scheduled student', () => {
+    const closed = a({ closeAt: NOW - DAY, held: 'paused', passes });
+    const open = withLandingPass(closed, 's1', NOW);
+    expect(open.held).toBeUndefined();
+    expect(open.closeAt).toBe(NOW + DAY);
+    expect(landingRowState(open, {}, NOW)).toBe('open');
+    expect(withLandingPass(closed, 's2', NOW)).toBe(closed);
+  });
+
+  it('lists the row as workable in the partition', () => {
+    const row = a({ held: 'paused', passes });
+    const out = partitionLanding([row], {}, NOW, 's1');
+    expect(workAvailability(out.work[0], NOW, 's1')).toBe('open');
+  });
+
+  it('never reopens an ended run', () => {
+    const ended = a({ channel: 'ended', passes });
+    expect(withLandingPass(ended, 's1', NOW)).toBe(ended);
   });
 });

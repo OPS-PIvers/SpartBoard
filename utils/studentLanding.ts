@@ -7,7 +7,12 @@ import {
 import type { TurnInMap } from '@/hooks/useStudentTurnIns';
 import { getWindowState, isResourceAvailable } from '@/utils/assignmentWindow';
 import { isMissingStillOpen, type TurnInState } from '@/utils/studentTurnIn';
-import { effectivePeriodState, studentCanEnter } from '@/utils/periodAccess';
+import {
+  closeWithPass,
+  effectivePeriodState,
+  runningPassUntil,
+  studentCanEnter,
+} from '@/utils/periodAccess';
 import { readsTurnIn } from '@/utils/studentResponseDoc';
 import { listBellPeriods, normalizePeriodKey } from '@/utils/bellSchedule';
 import type { ScheduleLookup } from '@/utils/studentClassOrder';
@@ -126,6 +131,23 @@ export function workAvailability(
   return started ? 'live' : 'open';
 }
 
+/** A running Schedule or Let in pass opens the row past a whole-quiz pause, open time or close. */
+export function withLandingPass(
+  a: AssignmentSummary,
+  uid: string | null,
+  nowMs: number
+): AssignmentSummary {
+  const until = runningPassUntil(a.passes, uid, nowMs);
+  if (until == null || a.channel === 'ended' || a.endedAt !== undefined)
+    return a;
+  return {
+    ...a,
+    openAt: undefined,
+    closeAt: closeWithPass(a.closeAt, until) ?? undefined,
+    held: undefined,
+  };
+}
+
 const AVAILABILITY_RANK = { live: 0, open: 1, locked: 2 } as const;
 
 /** Splits the student's assignments into the landing page's sections, sorted. */
@@ -142,7 +164,8 @@ export function partitionLanding(
     done: [],
     expired: [],
   };
-  for (const assignment of assignments) {
+  for (const listed of assignments) {
+    const assignment = withLandingPass(listed, uid, nowMs);
     const state = landingRowState(assignment, checks, nowMs);
     if (!state) continue;
     const row = { assignment, state };

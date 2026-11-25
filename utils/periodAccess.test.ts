@@ -4,10 +4,13 @@ import {
   effectivePeriodState,
   nextScheduledOpen,
   pickPeriodKey,
+  runningPassUntil,
   studentCanEnter,
+  studentCanEnterQuiz,
   studentPeriodKeys,
   studentSetTime,
   summarizePeriods,
+  withStudentPass,
 } from './periodAccess';
 
 const NOW = 1_000_000;
@@ -153,5 +156,55 @@ describe('nextScheduledOpen / summarizePeriods', () => {
   it('counts live periods', () => {
     expect(summarizePeriods(session, NOW)).toEqual({ live: 1, total: 4 });
     expect(summarizePeriods({}, NOW)).toBeNull();
+  });
+});
+
+describe('Schedule and Let in on a whole-quiz session', () => {
+  const pass = (from: number | null, until: number) => ({
+    studentAccess: { s1: until },
+    ...(from != null ? { studentAccessFrom: { s1: from } } : {}),
+  });
+
+  it('opens a paused or closed quiz to the scheduled student only while the pass runs', () => {
+    const paused = { status: 'paused', ...pass(NOW - 10, NOW + 100) };
+    expect(studentCanEnterQuiz(paused, [], 's1', NOW)).toBe(true);
+    expect(studentCanEnterQuiz(paused, [], 's2', NOW)).toBe(false);
+    expect(studentCanEnterQuiz(paused, [], 's1', NOW + 100)).toBe(false);
+    const closed = {
+      status: 'active',
+      closeAt: NOW - 1,
+      ...pass(null, NOW + 5),
+    };
+    expect(studentCanEnterQuiz(closed, [], 's1', NOW)).toBe(true);
+    expect(studentCanEnterQuiz(closed, [], 's2', NOW)).toBe(false);
+    const later = { status: 'paused', ...pass(NOW + 50, NOW + 100) };
+    expect(studentCanEnterQuiz(later, [], 's1', NOW)).toBe(false);
+  });
+
+  it('treats an open whole-quiz session as enterable', () => {
+    expect(studentCanEnterQuiz({ status: 'active' }, [], 's2', NOW)).toBe(true);
+    expect(
+      studentCanEnterQuiz({ status: 'active', openAt: NOW + 1 }, [], 's2', NOW)
+    ).toBe(false);
+  });
+
+  it('shows the student an open quiz while their pass runs, never past an End', () => {
+    const until = runningPassUntil(pass(null, NOW + 100), 's1', NOW);
+    expect(until).toBe(NOW + 100);
+    expect(
+      withStudentPass(
+        { status: 'paused', openAt: NOW + 5, closeAt: NOW - 5 },
+        until
+      )
+    ).toEqual({ status: 'active', openAt: null, closeAt: NOW + 100 });
+    expect(withStudentPass({ status: 'paused', closeAt: null }, until)).toEqual(
+      { status: 'active', openAt: null, closeAt: NOW + 100 }
+    );
+    expect(withStudentPass({ status: 'active', closeAt: null }, until)).toEqual(
+      { status: 'active', openAt: null, closeAt: null }
+    );
+    const ended = { status: 'ended', closeAt: NOW - 5 };
+    expect(withStudentPass(ended, until)).toBe(ended);
+    expect(runningPassUntil(pass(null, NOW + 100), 's2', NOW)).toBeNull();
   });
 });
