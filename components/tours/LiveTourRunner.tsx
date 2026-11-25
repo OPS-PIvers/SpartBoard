@@ -165,6 +165,7 @@ import {
 import { domSettleHost } from './settleDom';
 import { useStepRhythm } from './useStepRhythm';
 import { useDialogLift } from './useDialogLift';
+import { revealTourAnchors } from './tourReveal';
 import {
   endTestRun,
   installTestRunHook,
@@ -1865,6 +1866,14 @@ export const LiveTourRunner: React.FC = () => {
   }, [active]);
   // Next and the bar never close a menu the step is about.
   useEffect(() => (active ? shieldTourUi() : undefined), [active]);
+  const revealKey = (tour?.steps ?? [])
+    .map((s) => s.tour?.anchor ?? '')
+    .join('\n');
+  // A step can't hover, so the tour's hover-only controls stay shown while it runs.
+  useEffect(
+    () => (revealKey ? revealTourAnchors(revealKey.split('\n')) : undefined),
+    [revealKey]
+  );
   // A dropdown or picker the teacher just opened keeps focus when the step moves on.
   const openPopup = useRef<HTMLElement | null>(null);
   useEffect(

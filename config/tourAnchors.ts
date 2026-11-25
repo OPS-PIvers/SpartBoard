@@ -15560,6 +15560,11 @@ export const TOUR_ANCHORS = {
   'library-shell.folder-tree-item': {
     label: 'Folder row in the library folder panel',
     panel: true,
+    perField: true,
+    rows: true,
+    keyHint:
+      'folders#row-1 is the first folder row; folders#row-* lets the teacher pick',
+    rowList: 'library-folders',
   },
   'library-shell.folder-tree-expand': {
     label: 'Expand arrow on a library folder row',
@@ -15572,6 +15577,10 @@ export const TOUR_ANCHORS = {
   'library-shell.folder-menu': {
     label: 'Actions button on a library folder row',
     panel: true,
+    perField: true,
+    rows: true,
+    keyHint: 'folders#row-* opens the menu on the folder the teacher picks',
+    rowList: 'library-folders',
   },
   'library-shell.folder-menu-rename': {
     label: 'Rename item in the library folder menu',
