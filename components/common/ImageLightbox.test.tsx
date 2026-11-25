@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
@@ -27,11 +26,32 @@ describe('ImageLightbox focus', () => {
     expect(enlarge).toHaveFocus();
   });
 
-  it('makes the enlarge button at least 44px', () => {
+  it('wraps Tab across several buttons when actions are passed', async () => {
+    const user = userEvent.setup();
+    render(
+      <ImageLightbox
+        src="a.png"
+        alt="Cat"
+        onClose={vi.fn()}
+        actions={<button type="button">Remove</button>}
+      />
+    );
+    const close = screen.getByRole('button', { name: 'Close image' });
+    const remove = screen.getByRole('button', { name: 'Remove' });
+    await user.tab();
+    expect(remove).toHaveFocus();
+    await user.tab();
+    expect(close).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(remove).toHaveFocus();
+  });
+
+  it('expands the enlarge button hit area without growing it', () => {
     render(<AnswerImageZoomButton src="a.png" label="Cat" />);
     expect(screen.getByRole('button', { name: /Enlarge picture/ })).toHaveClass(
-      'h-11',
-      'w-11'
+      'touch-target-expand',
+      'h-8',
+      'w-8'
     );
   });
 });
