@@ -25,6 +25,8 @@ import {
   Palette,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
+import { useDashboard } from '@/context/useDashboard';
+import type { Toast } from '@/types';
 import { isSuperAdminActor } from '@/utils/superAdmin';
 import { openViewAsTab } from '@/utils/viewAsOpener';
 import { useViewAsSettings } from '@/hooks/useViewAsSettings';
@@ -57,14 +59,7 @@ import { StudentPageView } from './views/StudentPageView';
 import { TestClassesView } from './views/TestClassesView';
 import { MediaReviewSection } from './views/MediaReviewView';
 import { AppSettingsView } from './views/AppSettingsView';
-import {
-  Btn,
-  Confirm,
-  LocalModal,
-  OrgLogoTile,
-  OrgToast,
-  type OrgToastType,
-} from './components/primitives';
+import { Btn, Confirm, LocalModal, OrgLogoTile } from './components/primitives';
 
 type SectionId =
   | 'orgs'
@@ -297,10 +292,6 @@ export const OrganizationPanel: React.FC = () => {
   const usersLoading = usersLoadingRaw || isMembershipHydrating;
   const testClassesLoading = testClassesLoadingRaw || isMembershipHydrating;
 
-  const [toast, setToast] = useState<{
-    message: string;
-    type: OrgToastType;
-  } | null>(null);
   // When the org's email queue is disabled, the reset-password CF returns the
   // minted URL so the admin can deliver it manually. We surface it in a modal
   // (sensitive — never logged, never toasted, never persisted). The URL itself
@@ -326,18 +317,9 @@ export const OrganizationPanel: React.FC = () => {
   const [deletePhase, setDeletePhase] = useState<
     'idle' | 'preflight' | 'deleting'
   >('idle');
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showToast = (message: string, type: OrgToastType = 'info') => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast({ message, type });
-    toastTimer.current = setTimeout(() => setToast(null), 3500);
-  };
-  useEffect(
-    () => () => {
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-    },
-    []
-  );
+  const { addToast } = useDashboard();
+  const showToast = (message: string, type: Toast['type'] = 'info') =>
+    addToast(message, type);
 
   // Phase 3: real writes are gated behind the `org-admin-writes` global
   // feature flag. When the flag is off (or not yet enabled for this user) we
@@ -975,8 +957,6 @@ export const OrganizationPanel: React.FC = () => {
           )}
         </main>
       </div>
-
-      {toast && <OrgToast message={toast.message} type={toast.type} />}
 
       <ManualResetLinkModal
         email={manualResetEmail}
