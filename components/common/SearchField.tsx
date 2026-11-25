@@ -107,7 +107,8 @@ export const SearchField: React.FC<SearchFieldProps> = ({
         onFocus={onFocus}
         onBlur={onBlur}
         placeholder={placeholder}
-        aria-label={ariaLabel ?? placeholder}
+        // An id means a <label htmlFor> names the box.
+        aria-label={ariaLabel ?? (id ? undefined : placeholder)}
         autoFocus={autoFocus}
         disabled={disabled}
         data-testid={testId}

@@ -171,7 +171,8 @@ const StudentMenu: React.FC<{
         onChange={setSearch}
         placeholder="Search students"
         anchor={tourAttr('assign-students.search')}
-        className="m-1 flex h-8 items-center gap-2 rounded-lg border border-slate-200 px-2"
+        size="sm"
+        className="m-1"
       />
       {groups.length > 0 && (
         <>

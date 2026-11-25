@@ -475,6 +475,7 @@ export const LinkShortenerManager: React.FC = () => {
             </p>
           </div>
           <SearchField
+            className="w-64"
             value={search}
             onChange={setSearch}
             placeholder="Search…"

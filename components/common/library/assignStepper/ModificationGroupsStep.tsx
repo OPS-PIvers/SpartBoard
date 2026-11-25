@@ -197,7 +197,8 @@ const StudentsMenu: React.FC<{
             onChange={setSearch}
             placeholder="Search students"
             anchor={tourAttr('assign-mods.students-search')}
-            className="m-1 flex h-8 items-center gap-2 rounded-lg border border-slate-200 px-2"
+            size="sm"
+            className="m-1"
           />
           <div className="custom-scrollbar max-h-64 overflow-y-auto pb-1">
             {shownGroups.length > 0 && (

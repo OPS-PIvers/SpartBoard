@@ -257,6 +257,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
         <div className="px-4 py-3 border-b border-slate-200 space-y-2">
           <div className="flex flex-wrap gap-2">
             <SearchField
+              size="sm"
               value={query}
               onChange={setQuery}
               placeholder="Search by code or text"

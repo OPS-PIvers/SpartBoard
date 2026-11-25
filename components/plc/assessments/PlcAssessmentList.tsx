@@ -1113,6 +1113,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
             })}
           </div>
           <SearchField
+            className="w-44"
             value={search}
             onChange={setSearch}
             placeholder={t('plcDashboard.assessmentList.searchPlaceholder', {

@@ -278,6 +278,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
           <>
             <div className="px-4 py-3 border-b border-slate-200">
               <SearchField
+                size="sm"
                 value={query}
                 onChange={setQuery}
                 placeholder="Search banks"
@@ -382,6 +383,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <SearchField
+                      size="sm"
                       value={pickQuery}
                       onChange={setPickQuery}
                       placeholder="Search questions"

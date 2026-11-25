@@ -154,7 +154,7 @@ const QuestionsDialog: React.FC<{
           onChange={setSearch}
           placeholder="Search questions"
           anchor={tourAttr('assign-mods.questions-search')}
-          className="flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-2.5"
+          size="sm"
         />
       </div>
       <div className="divide-y divide-slate-100">

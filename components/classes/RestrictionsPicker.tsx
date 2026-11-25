@@ -102,16 +102,18 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
           }}
           className="absolute top-full right-0 mt-1 w-72 max-h-80 flex flex-col z-popover rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-xl overflow-hidden origin-top-right animate-in fade-in zoom-in-95 duration-200"
         >
-          <SearchField
-            value={filter}
-            onChange={setFilter}
-            placeholder={t('sidebar.classes.restrictionsFilter', {
-              defaultValue: 'Search classmates…',
-            })}
-            anchor={tourAttr('classes.restrictions-filter')}
-            className="p-2 border-b border-slate-200 flex items-center gap-2"
-            autoFocus
-          />
+          <div className="p-2 border-b border-slate-200">
+            <SearchField
+              value={filter}
+              onChange={setFilter}
+              placeholder={t('sidebar.classes.restrictionsFilter', {
+                defaultValue: 'Search classmates…',
+              })}
+              anchor={tourAttr('classes.restrictions-filter')}
+              size="sm"
+              autoFocus
+            />
+          </div>
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar py-1">
             {filtered.length === 0 ? (
               <div className="px-3 py-6 text-center text-xs italic text-slate-400">

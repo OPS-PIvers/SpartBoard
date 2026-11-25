@@ -135,6 +135,7 @@ export const FlashcardsCardsStep: React.FC<FlashcardsCardsStepProps> = ({
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <SearchField
+              size="sm"
               value={query}
               onChange={setQuery}
               placeholder="Search cards"

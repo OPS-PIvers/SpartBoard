@@ -666,6 +666,7 @@ const MemberChecklist: React.FC<{
         {sorted.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             <SearchField
+              className="w-48"
               value={query}
               onChange={setQuery}
               placeholder={searchLabel}
