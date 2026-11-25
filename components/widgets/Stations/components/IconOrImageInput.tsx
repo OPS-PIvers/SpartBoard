@@ -14,6 +14,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { renderCatalystIcon } from '@/components/widgets/Catalyst/catalystHelpers';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -51,7 +52,8 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
   const inFlightRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
   const { addToast } = useDashboard();
   const { uploadSticker, deleteFile } = useStorage();
 
@@ -150,7 +152,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
   // Paste support — listens only while the inline panel is mounted to avoid
   // global conflicts with text inputs elsewhere on the page.
   useEffect(() => {
-    if (tab !== 'image') return;
+    if (tab !== 'image' || unifiedPicker) return;
     const onPaste = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (!containerRef.current?.contains(target)) return;
@@ -169,7 +171,24 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
     };
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
-  }, [tab, handleUpload]);
+  }, [tab, handleUpload, unifiedPicker]);
+
+  const clearIconButton = (
+    <button
+      type="button"
+      onClick={() => onChange({ iconName: undefined, imageUrl: undefined })}
+      className="w-full text-xxs font-bold uppercase tracking-widest text-slate-400 hover:text-brand-red-primary py-1 flex items-center justify-center gap-1.5"
+      {...tourFieldAttr(
+        'widget-settings.stations.clear-icon',
+        widgetType,
+        fieldKey
+      )}
+      data-tour-widget={widgetId}
+    >
+      <X size={11} />
+      Clear icon (no preview)
+    </button>
+  );
 
   return (
     <div ref={containerRef} className="space-y-2">
@@ -258,7 +277,53 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
         </div>
       )}
 
-      {tab === 'image' && (
+      {tab === 'image' && unifiedPicker && (
+        <div className="space-y-2">
+          <ImagePicker
+            value={imageUrl}
+            maxBytes={MAX_BYTES}
+            tourScope={{ type: widgetType, field: fieldKey }}
+            tourOverrides={{
+              upload: {
+                ...tourFieldAttr(
+                  'widget-settings.stations.upload-image',
+                  widgetType,
+                  fieldKey
+                ),
+                'data-tour-widget': widgetId,
+              },
+              remove: {
+                ...tourFieldAttr(
+                  'widget-settings.stations.remove-image',
+                  widgetType,
+                  fieldKey
+                ),
+                'data-tour-widget': widgetId,
+              },
+            }}
+            upload={(file) => {
+              if (!user) throw new Error('Sign in to upload images.');
+              return uploadSticker(user.uid, file);
+            }}
+            onChange={(url) => {
+              const previous = imageUrl;
+              onChange({ iconName: undefined, imageUrl: url });
+              if (previous && previous !== url) {
+                void deleteFile(previous).catch((err: unknown) => {
+                  console.warn(
+                    '[StationsIconOrImageInput] Failed to delete replaced image.',
+                    err
+                  );
+                });
+              }
+            }}
+            onRemove={() => void handleClearImage()}
+          />
+          {iconName && imageUrl == null && clearIconButton}
+        </div>
+      )}
+
+      {tab === 'image' && !unifiedPicker && (
         <div className="space-y-2">
           {/* no-tour-anchor: hidden file input, opened by the upload buttons */}
           <input
@@ -340,24 +405,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
               </div>
             </button>
           )}
-          {iconName && imageUrl == null && !uploading && (
-            <button
-              type="button"
-              onClick={() =>
-                onChange({ iconName: undefined, imageUrl: undefined })
-              }
-              className="w-full text-xxs font-bold uppercase tracking-widest text-slate-400 hover:text-brand-red-primary py-1 flex items-center justify-center gap-1.5"
-              {...tourFieldAttr(
-                'widget-settings.stations.clear-icon',
-                widgetType,
-                fieldKey
-              )}
-              data-tour-widget={widgetId}
-            >
-              <X size={11} />
-              Clear icon (no preview)
-            </button>
-          )}
+          {iconName && imageUrl == null && !uploading && clearIconButton}
         </div>
       )}
     </div>

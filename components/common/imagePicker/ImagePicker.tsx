@@ -42,6 +42,8 @@ export interface ImagePickerProps extends Omit<
   buttonClassName?: string;
   buttonStyle?: React.CSSProperties;
   iconStyle?: React.CSSProperties;
+  /** What the 'button' layout shows instead of its icon, such as an icon and a word. */
+  buttonContent?: (busy: boolean) => React.ReactNode;
 }
 
 const SLOT_TAGS: Record<
@@ -313,6 +315,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
   buttonClassName,
   buttonStyle,
   iconStyle,
+  buttonContent,
   ...sourceOptions
 }) => {
   const [panel, setPanel] = useState<PanelPos | null>(null);
@@ -376,7 +379,9 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
           style={buttonStyle}
           {...src.dropProps}
         >
-          {src.busy ? (
+          {buttonContent ? (
+            buttonContent(src.busy)
+          ) : src.busy ? (
             <Loader2
               style={iconStyle}
               size={16}
