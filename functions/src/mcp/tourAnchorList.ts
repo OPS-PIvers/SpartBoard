@@ -21334,6 +21334,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-rubric.duplicate",
+    "label": "Duplicate rubric on the Quiz rubric builder",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-builder",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-rubric.share-link",
     "label": "Rubric share link field on the Quiz rubric builder",
     "scope": "widget type",

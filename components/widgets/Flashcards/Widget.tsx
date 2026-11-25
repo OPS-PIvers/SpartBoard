@@ -88,6 +88,10 @@ import {
 } from '@/components/import/importHandoff';
 import { attributionFor } from '@/components/import/attribution';
 import {
+  suggestDuplicateTitle,
+  useLibraryDuplicate,
+} from '@/components/common/library';
+import {
   LIBRARY_ITEM_NOUNS,
   useLibraryDeleteConfirm,
 } from '@/components/common/library/useLibraryDeleteConfirm';
@@ -480,6 +484,30 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       );
     return succeeded > 0;
   };
+
+  const duplicateOn = canAccessFeature('library-duplicate-more');
+  const setDuplicate = useLibraryDuplicate<FlashcardSet>({
+    duplicate: async (set) => {
+      const now = Date.now();
+      const {
+        publicShareId: _share,
+        plcOrigin: _plc,
+        claudeReviewPendingAt: _review,
+        ...rest
+      } = set;
+      const copy: FlashcardSet = {
+        ...rest,
+        id: crypto.randomUUID(),
+        title: suggestDuplicateTitle(set.title || 'Untitled set'),
+        createdAt: now,
+        updatedAt: now,
+      };
+      await flashcardSets.saveSet(copy);
+      return copy;
+    },
+    addToast,
+    errorMessage: 'That set could not be duplicated.',
+  });
 
   const handleAssign = (set: FlashcardSet): void => {
     if (set.cards.length === 0) {
@@ -913,6 +941,12 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onShare={setSharingSet}
                 onAssign={handleAssign}
                 onDelete={(set) => void handleDelete(set)}
+                onDuplicate={
+                  duplicateOn && !inShare
+                    ? (set) => void setDuplicate.duplicate(set)
+                    : undefined
+                }
+                isDuplicating={setDuplicate.isDuplicating}
                 folderDeleteActions={{
                   deleteItems: async (ids) => {
                     for (const id of ids) await flashcardSets.deleteSet(id);

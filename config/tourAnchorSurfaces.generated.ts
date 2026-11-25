@@ -1078,6 +1078,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-rubric.csv-import': ['quiz.rubric-builder'],
     'quiz-rubric.csv-export': ['quiz.rubric-builder'],
     'quiz-rubric.share': ['quiz.rubric-builder'],
+    'quiz-rubric.duplicate': ['quiz.rubric-builder'],
     'quiz-rubric.share-link': ['quiz.rubric-builder'],
     'quiz-rubric.share-copy': ['quiz.rubric-builder'],
     'quiz-rubric.save-library': ['quiz.rubric-builder'],
