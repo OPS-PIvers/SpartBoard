@@ -133,7 +133,7 @@ describe('ActiveQuiz mirror and the tab warning', () => {
       renderQuiz(response(), { watchQuestionId: 'q1', warningCount: 2 })
     );
     await screen.findByText('First question?');
-    expect(screen.queryByText('TAB SWITCH DETECTED')).toBeNull();
+    expect(screen.queryByText('You left the page')).toBeNull();
 
     rerender(
       renderQuiz(response(), {
@@ -142,8 +142,8 @@ describe('ActiveQuiz mirror and the tab warning', () => {
         warningCount: 2,
       })
     );
-    expect(screen.getByText('TAB SWITCH DETECTED')).toBeTruthy();
-    expect(screen.getByText('Warning 2.')).toBeTruthy();
+    expect(screen.getByText('You left the page')).toBeTruthy();
+    expect(screen.getByText('Warning 2 of 3.')).toBeTruthy();
   });
 });
 

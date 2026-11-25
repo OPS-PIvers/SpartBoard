@@ -54,6 +54,7 @@ import {
   saveKeyOf,
   turnInFlush,
 } from '@/utils/writingSaveFlow';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 const isNum = (v: unknown): v is number =>
   typeof v === 'number' && Number.isFinite(v);
@@ -121,9 +122,6 @@ const codeOf = (err: unknown): string => {
 const editableIn = (root: HTMLElement | null): HTMLElement | null =>
   root?.querySelector<HTMLElement>('[contenteditable="true"]') ?? null;
 
-const isOnline = () =>
-  typeof navigator === 'undefined' ? true : navigator.onLine;
-
 export function useWritingPiece(args: {
   sessionId: string;
   studentUid: string | null;
@@ -143,7 +141,7 @@ export function useWritingPiece(args: {
   const [slow, setSlow] = useState(false);
   const [refused, setRefused] = useState(false);
   const [copyOk, setCopyOk] = useState(true);
-  const [online, setOnline] = useState(isOnline);
+  const online = useOnlineStatus();
   const [unsent, setUnsent] = useState<UnsentWriting[]>(() =>
     studentUid
       ? readUnsent(safeStorage(), studentUid, sessionId).map((u) => ({
@@ -648,22 +646,17 @@ export function useWritingPiece(args: {
       storeCopy();
       void runSave(false);
     };
-    const onOnline = () => {
-      setOnline(true);
-      void runSave(false);
-    };
-    const onOffline = () => setOnline(false);
+    // Reconnecting sends what waited.
+    const onOnline = () => void runSave(false);
     document.addEventListener('visibilitychange', onHide);
     window.addEventListener('pagehide', onPageHide);
     window.addEventListener('online', onOnline);
-    window.addEventListener('offline', onOffline);
     const timers = saveTimer.current;
     return () => {
       window.clearInterval(tick);
       document.removeEventListener('visibilitychange', onHide);
       window.removeEventListener('pagehide', onPageHide);
       window.removeEventListener('online', onOnline);
-      window.removeEventListener('offline', onOffline);
       if (timers.idle !== null) window.clearTimeout(timers.idle);
       timers.idle = null;
       timers.firstAt = null;
@@ -900,7 +893,7 @@ export function useWritingPiece(args: {
     setNotice(null);
     try {
       await runSave(true);
-      if (!isOnline()) {
+      if (!navigator.onLine) {
         setNotice('not-saved');
         return;
       }

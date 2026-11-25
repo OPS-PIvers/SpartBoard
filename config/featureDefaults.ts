@@ -619,6 +619,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Video Activity reads students' tab accommodations. Admin-only until Paul has tested it in prod.
+  'va-student-tab-rules': {
+    label: 'Video Activity tab accommodations',
+    icon: Timer,
+    description:
+      "Video Activity follows each student's tab-switch accommodations.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Quote from passages in written answers. Admin-only until Paul has tested it in prod.
   'quiz-stimulus-quotes': {
     label: 'Quote from passages',

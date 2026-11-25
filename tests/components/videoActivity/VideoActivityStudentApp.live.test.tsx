@@ -466,7 +466,7 @@ describe('VideoActivityStudentApp: teacher-paced tab warnings', () => {
     act(() => {
       window.dispatchEvent(new Event('blur'));
     });
-    expect(await screen.findByText('TAB SWITCH DETECTED')).toBeInTheDocument();
+    expect(await screen.findByText('You left the page')).toBeInTheDocument();
     expect(screen.getByText('Warning 1.')).toBeInTheDocument();
     expect(spies.reportTabSwitch).toHaveBeenCalledOnce();
     await new Promise((r) => setTimeout(r, 150));

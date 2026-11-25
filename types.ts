@@ -8297,6 +8297,8 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
   dueAtHasTime?: boolean;
   /** Stamped by assigns that carry their own rules; only then does the player honor shuffle, right/wrong and reveal answer. */
   answerRulesSet?: boolean;
+  /** Stamped with the va-student-tab-rules flag: each student's tab accommodations apply. */
+  studentTabRules?: boolean;
 }
 
 /** VA counterpart of QuizBehaviorSettings. */
@@ -11903,6 +11905,8 @@ export type GlobalFeature =
   | 'freshservice-sync'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
+  /** Video Activity honors each student's tab-warning and away-limit accommodations. */
+  | 'va-student-tab-rules'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
   | 'quiz-stimulus-quotes'
   /** Students cross out multiple-choice options while they work; display only, never graded. */
