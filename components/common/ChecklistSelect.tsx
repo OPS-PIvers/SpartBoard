@@ -121,7 +121,12 @@ export const ChecklistSelect: React.FC<ChecklistSelectProps> = ({
     close();
   });
 
+  // A full search box clears first, like every SearchField.
   const closeOnEscape = useEffectEvent(() => {
+    if (search !== '') {
+      setSearch('');
+      return;
+    }
     close();
     triggerRef.current?.focus();
   });

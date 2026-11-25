@@ -59,4 +59,28 @@ describe('ChecklistSelect', () => {
     unmount();
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
   });
+
+  it('clears a full search box on the first Escape, then closes', () => {
+    const many = Array.from({ length: 10 }, (_, i) => ({
+      id: `o${i}`,
+      label: `Option ${i}`,
+    }));
+    render(
+      <ChecklistSelect
+        label="Standards"
+        options={many}
+        selected={[]}
+        onToggle={vi.fn()}
+        emptyText="None"
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Standards' }));
+    const box = screen.getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'Option 3' } });
+    fireEvent.keyDown(box, { key: 'Escape' });
+    expect(box).toHaveValue('');
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent.keyDown(box, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
 });
