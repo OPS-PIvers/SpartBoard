@@ -35,6 +35,7 @@ import {
   type SubShareBundle,
 } from '@/utils/bundleSubShareContent';
 import type { Collection, Dashboard, SharedCollection } from '@/types';
+import { copyText } from '@/utils/copyText';
 
 /** What the teacher chose to hand over. */
 export type SubShareTarget =
@@ -370,11 +371,12 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
       }
       const url = `${window.location.origin}/subs/s/${shareId}`;
       setCreatedUrl(url);
-      try {
-        await navigator.clipboard.writeText(url);
+      if (
+        await copyText(url, (err) =>
+          logError('ShareWithSubModal.clipboard', err)
+        )
+      ) {
         setCopied(true);
-      } catch (err) {
-        logError('ShareWithSubModal.clipboard', err);
       }
       onSaved?.();
     } catch (err) {
@@ -747,11 +749,12 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
               type="button"
               onClick={() => {
                 void (async () => {
-                  try {
-                    await navigator.clipboard.writeText(createdUrl);
+                  if (
+                    await copyText(createdUrl, (err) =>
+                      logError('ShareWithSubModal.manualCopy', err)
+                    )
+                  ) {
                     setCopied(true);
-                  } catch (err) {
-                    logError('ShareWithSubModal.manualCopy', err);
                   }
                 })();
               }}

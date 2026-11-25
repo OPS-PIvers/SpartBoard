@@ -17,6 +17,7 @@ import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 import { ModeOption } from './ShareModeOption';
 import { logError } from '@/utils/logError';
 import { tourAttr } from '@/config/tourAnchors';
+import { copyText } from '@/utils/copyText';
 
 interface ShareCollectionLinkCreatorModalProps {
   isOpen: boolean;
@@ -122,13 +123,10 @@ export const ShareCollectionLinkCreatorModal: FC<
         return;
       }
       setShareUrl(url);
-      try {
-        await navigator.clipboard.writeText(url);
-        setCopyState('copied');
-      } catch (err) {
-        setCopyState('failed');
-        logError('ShareCollectionLinkCreatorModal.clipboard', err);
-      }
+      const ok = await copyText(url, (err) =>
+        logError('ShareCollectionLinkCreatorModal.clipboard', err)
+      );
+      setCopyState(ok ? 'copied' : 'failed');
     } finally {
       setBusy(false);
     }
@@ -349,16 +347,13 @@ export const ShareCollectionLinkCreatorModal: FC<
                 type="button"
                 onClick={() => {
                   void (async () => {
-                    try {
-                      await navigator.clipboard.writeText(shareUrl);
-                      setCopyState('copied');
-                    } catch (err) {
-                      setCopyState('failed');
+                    const ok = await copyText(shareUrl, (err) =>
                       logError(
                         'ShareCollectionLinkCreatorModal.manualCopy',
                         err
-                      );
-                    }
+                      )
+                    );
+                    setCopyState(ok ? 'copied' : 'failed');
                   })();
                 }}
                 {...tourAttr('share-collection.copy-link')}

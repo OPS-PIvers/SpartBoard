@@ -67,17 +67,18 @@ export function useCopyShortLink(logContext: string): {
   const copy = async (target: ShortLinkTarget) => {
     if (state === 'working') return;
     setState('working');
-    try {
-      await navigator.clipboard.writeText(await getShareUrl(target));
-      setState('done');
-      if (resetTimerRef.current !== null) {
-        window.clearTimeout(resetTimerRef.current);
-      }
-      resetTimerRef.current = window.setTimeout(() => setState('idle'), 1500);
-    } catch (err) {
-      logError(`${logContext}.clipboard`, err, { code: target.code });
+    const ok = await copyText(await getShareUrl(target), (err) =>
+      logError(`${logContext}.clipboard`, err, { code: target.code })
+    );
+    if (!ok) {
       setState('idle');
+      return;
     }
+    setState('done');
+    if (resetTimerRef.current !== null) {
+      window.clearTimeout(resetTimerRef.current);
+    }
+    resetTimerRef.current = window.setTimeout(() => setState('idle'), 1500);
   };
 
   return { state, copy };

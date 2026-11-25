@@ -18,7 +18,7 @@ import {
 } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { canonicalizeBuildingIds } from '@/config/buildings';
-import { Toast } from '@/components/common/Toast';
+import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 
@@ -39,23 +39,11 @@ export const VideoActivityConfigurationModal: React.FC<
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const { showConfirm } = useDialog();
-  const [message, setMessage] = useState<{
-    type: 'success' | 'error';
-    text: string;
-  } | null>(null);
-  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-
-  const showMessage = useCallback((type: 'success' | 'error', text: string) => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    setMessage({ type, text });
-    timeoutRef.current = setTimeout(() => setMessage(null), 3000);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
+  const { addToast } = useDashboard();
+  const showMessage = useCallback(
+    (type: 'success' | 'error', text: string) => addToast(text, type),
+    [addToast]
+  );
 
   useEffect(() => {
     if (isAuthBypass) {
@@ -189,16 +177,6 @@ export const VideoActivityConfigurationModal: React.FC<
             <X size={20} />
           </button>
         </div>
-
-        {message && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-toast">
-            <Toast
-              message={message.text}
-              type={message.type}
-              onClose={() => setMessage(null)}
-            />
-          </div>
-        )}
 
         {/* View Tabs */}
         <div className="flex px-6 border-b border-slate-100 bg-slate-50 shrink-0">

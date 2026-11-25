@@ -1312,13 +1312,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []);
 
+  // Takes a toast id or a replaceKey.
   const removeToast = useCallback((id: string) => {
+    const hit = (t: Toast) => t.id === id || t.replaceKey === id;
     setToasts((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, leaving: true } : t))
+      prev.map((t) => (hit(t) ? { ...t, leaving: true } : t))
     );
     const timer = setTimeout(() => {
       toastTimersRef.current.delete(timer);
-      setToasts((prev) => prev.filter((t) => t.id !== id));
+      setToasts((prev) => prev.filter((t) => !(t.leaving && hit(t))));
     }, TOAST_EXIT_MS);
     toastTimersRef.current.add(timer);
   }, []);
@@ -1328,7 +1330,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       message: string,
       type: Toast['type'] = 'info',
       action?: Toast['action'],
-      options?: { replaceKey?: string }
+      options?: { replaceKey?: string; persist?: boolean }
     ) => {
       const id = crypto.randomUUID();
       const replaceKey = options?.replaceKey;
@@ -1338,7 +1340,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           : prev),
         { id, message, type, action, replaceKey },
       ]);
-      if (action?.persist) return;
+      if (action?.persist || options?.persist) return;
       // If there's an action, keep it longer (10s) so the user has time to click
       const duration = action ? 10000 : 3000;
       const timer = setTimeout(() => {

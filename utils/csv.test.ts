@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { csvDataRows, parseCsvRecords } from '@/utils/csv';
+import { csvDataRows, parseCsvLines, parseCsvRecords } from '@/utils/csv';
 
 describe('parseCsvRecords', () => {
   it('handles quoted commas, newlines and escaped quotes', () => {
@@ -32,5 +32,13 @@ describe('csvDataRows', () => {
 
   it('drops blank rows', () => {
     expect(csvDataRows(' , \n', isNumber)).toEqual([]);
+  });
+});
+
+describe('parseCsvLines', () => {
+  it('reports the physical start line and raw text of each record', () => {
+    const lines = parseCsvLines('h1,h2\r\n"a\nb",c\n\nd,e');
+    expect(lines.map((l) => l.line)).toEqual([1, 2, 4, 5]);
+    expect(lines[1]).toMatchObject({ cells: ['a\nb', 'c'], raw: '"a\nb",c' });
   });
 });

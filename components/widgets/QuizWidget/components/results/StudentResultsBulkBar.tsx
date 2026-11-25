@@ -39,6 +39,7 @@ import type {
   StudentResultsActions,
   StudentResultsSelection,
 } from './studentResultsSelection';
+import { copyText } from '@/utils/copyText';
 
 interface StudentResultsBulkBarProps {
   /** Rows on screen; selected keys outside this list are ignored. */
@@ -168,13 +169,11 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
   };
 
   const copyNames = async () => {
-    try {
-      await navigator.clipboard.writeText(selected.map(resolveName).join('\n'));
-      addToast(`Copied ${plural(selected.length)}.`, 'success');
-    } catch (err) {
-      logError('StudentResultsBulkBar.copyNames', err);
-      addToast('Could not copy names.', 'error');
-    }
+    const ok = await copyText(selected.map(resolveName).join('\n'), (err) =>
+      logError('StudentResultsBulkBar.copyNames', err)
+    );
+    if (ok) addToast(`Copied ${plural(selected.length)}.`, 'success');
+    else addToast('Could not copy names.', 'error');
   };
 
   const inline = variant === 'inline';
