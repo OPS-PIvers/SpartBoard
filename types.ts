@@ -12046,8 +12046,6 @@ export type GlobalFeature =
   /** Teachers record their voice for a quiz question prompt. */
   | 'quiz-question-audio'
   | 'quiz-random-numbers'
-  /** Widget update notes listed in the sidebar What's New instead of a button under each widget. */
-  | 'widget-notes-in-whats-new'
   /** Live tours on the /subs portal: the help button subs see and the Substitutes audience. */
   | 'subs-live-tours'
   | 'student-live-tours'
