@@ -68,6 +68,10 @@ import { isActiveInstructor } from './linkSectionByUrl';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { isDistrictTeacher } from './teacherAuth';
 import { safeErr } from '../safeLog';
+import {
+  finalScorePushPlan,
+  wantsFinalScores,
+} from '../gradebook/finalScorePush';
 
 const LTI_TOOL_PRIVATE_KEY = defineSecret('LTI_TOOL_PRIVATE_KEY');
 const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
@@ -141,6 +145,7 @@ interface OwnedSession {
   title: string;
   classIds: string[];
   rosterIds: string[];
+  raw: Record<string, unknown>;
 }
 
 async function loadOwnedSession(
@@ -176,6 +181,7 @@ async function loadOwnedSession(
         : 'SpartBoard assignment',
     classIds: strings(s.classIds),
     rosterIds: strings(s.rosterIds),
+    raw: s,
   };
 }
 
@@ -640,6 +646,45 @@ function failedStatusCounts(
   return out;
 }
 
+/** Final-score grades for a tool column: scores, plus Missing when asked, including students the client saw with no work at all. */
+export function finalToolColumnGrades(
+  final: {
+    plan: {
+      entries: { pseudonymUid: string; pointsEarned: number }[];
+      missing: string[];
+    };
+    studentUids: readonly string[];
+  },
+  data: Record<string, unknown>
+): unknown[] {
+  // A Retry resends only the students named here.
+  const only = Array.isArray(data.onlyUids)
+    ? new Set(data.onlyUids.filter((u): u is string => typeof u === 'string'))
+    : null;
+  const keep = (g: unknown): boolean =>
+    !only || only.has((g as { pseudonymUid: string }).pseudonymUid);
+  const out: unknown[] = [...final.plan.entries];
+  if (data.includeMissing !== true) return out.filter(keep);
+  const seen = new Set(
+    out.map((g) => (g as { pseudonymUid: string }).pseudonymUid)
+  );
+  const withWork = new Set(final.studentUids);
+  const add = (uid: string): void => {
+    if (seen.has(uid)) return;
+    seen.add(uid);
+    out.push({ pseudonymUid: uid, missing: true });
+  };
+  for (const uid of final.plan.missing) add(uid);
+  // A roster student with no row has turned in nothing, so only Missing can be sent for them.
+  const extra = Array.isArray(data.missingWithoutWork)
+    ? data.missingWithoutWork
+    : [];
+  for (const uid of extra.slice(0, MAX_GRADES)) {
+    if (typeof uid === 'string' && uid !== '' && !withWork.has(uid)) add(uid);
+  }
+  return out.filter(keep);
+}
+
 // ── ltiPushToolColumnV1 ─────────────────────────────────────────────────────
 export const ltiPushToolColumnV1 = onCall(
   {
@@ -660,14 +705,42 @@ export const ltiPushToolColumnV1 = onCall(
     const { uid, email } = await requireTeacher(request);
     const db = admin.firestore();
     const data = (request.data ?? {}) as Record<string, unknown>;
-    const maxPoints =
-      typeof data.maxPoints === 'number' &&
-      Number.isFinite(data.maxPoints) &&
-      data.maxPoints > 0 &&
-      data.maxPoints <= MAX_POINTS
+    // AB-389: with `source: 'final-scores'` the scores and scale come from the gradebook, never the client.
+    const fromFinal = wantsFinalScores(data);
+    const finalSession = fromFinal
+      ? await loadOwnedSession(db, uid, data)
+      : null;
+    const final = finalSession
+      ? await finalScorePushPlan(db, {
+          kind: finalSession.kind,
+          sessionId: finalSession.sessionId,
+          ownerUid: uid,
+          maxPoints: null,
+          session: finalSession.raw,
+        })
+      : null;
+    const maxPoints = final
+      ? Math.min(final.maxPoints ?? 0, MAX_POINTS)
+      : typeof data.maxPoints === 'number' &&
+          Number.isFinite(data.maxPoints) &&
+          data.maxPoints > 0 &&
+          data.maxPoints <= MAX_POINTS
         ? data.maxPoints
         : 0;
-    const rawGrades = Array.isArray(data.grades) ? data.grades : [];
+    const rawGrades: unknown[] = final
+      ? finalToolColumnGrades(final, data)
+      : Array.isArray(data.grades)
+        ? data.grades
+        : [];
+    if (final && (rawGrades.length === 0 || !maxPoints)) {
+      return {
+        results: [],
+        pushed: 0,
+        total: 0,
+        sections: [],
+        awaiting: final.plan.awaiting,
+      };
+    }
     if (!maxPoints || rawGrades.length === 0 || rawGrades.length > MAX_GRADES) {
       throw new HttpsError(
         'invalid-argument',
@@ -698,7 +771,7 @@ export const ltiPushToolColumnV1 = onCall(
     const create = data.create === true;
     const dueDate = parseDueDate(data.dueDate);
 
-    const session = await loadOwnedSession(db, uid, data);
+    const session = finalSession ?? (await loadOwnedSession(db, uid, data));
     const targets = await requireTargets(db, uid, session);
     const store = firestoreColumnStore(
       db,
@@ -792,6 +865,7 @@ export const ltiPushToolColumnV1 = onCall(
       results,
       pushed: results.filter((r) => r.ok).length,
       total: grades.length,
+      ...(final ? { awaiting: final.plan.awaiting } : {}),
       sections: outcomes.map(
         ({ contextId, title, status, columnCreated, needsCategory }) => ({
           contextId,

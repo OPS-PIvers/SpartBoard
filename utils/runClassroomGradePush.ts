@@ -125,6 +125,8 @@ export interface RunClassroomGradePushOptions {
   attachments: ClassroomGradePushAttachment[];
   /** Builds the PII-free grade payload — the only genuinely per-surface logic. */
   buildGrades: () => ClassroomGradeEntry[];
+  /** AB-389: when set, the server builds the grades from the gradebook final scores and `buildGrades` is not called. */
+  finalScores?: { sessionId: string; kind: 'quiz' | 'va' } | null;
   /** Mints a fresh `classroom.addons.teacher` token (a GIS popup). */
   requestToken: () => Promise<string>;
   /** Maps each emitted status beat to the surface's UI. */
@@ -162,6 +164,7 @@ export async function runClassroomGradePush({
   functions,
   attachments,
   buildGrades,
+  finalScores,
   requestToken,
   onStatus,
   onError,
@@ -204,8 +207,8 @@ export async function runClassroomGradePush({
       accessToken = await requestToken();
     }
 
-    const grades = buildGrades();
-    if (grades.length === 0) {
+    const grades = finalScores ? null : buildGrades();
+    if (grades && grades.length === 0) {
       onStatus({ phase: 'nothing-to-push' });
       return;
     }
@@ -231,6 +234,8 @@ export async function runClassroomGradePush({
     let anyPermissionDenied = false;
     let unreachableCourses = 0;
     let lastError: unknown = null;
+    // Every course gets the same grades, so the largest result list is the payload size.
+    let sent = grades?.length ?? 0;
     for (const attachment of attachments) {
       try {
         const data = await pushClassroomGradesForAssignment(functions, {
@@ -238,9 +243,13 @@ export async function runClassroomGradePush({
           itemId: attachment.itemId,
           attachmentId: attachment.attachmentId,
           accessToken,
-          grades,
           maxPoints: attachment.maxPoints,
+          ...(finalScores
+            ? { source: 'final-scores' as const, ...finalScores }
+            : { grades: grades ?? [] }),
         });
+        sent = Math.max(sent, data.results.length);
+        if (data.awaiting !== undefined) agg.awaiting = data.awaiting;
         agg.results.push(...data.results);
         agg.pushed += data.pushed;
         agg.skipped += data.skipped;
@@ -263,9 +272,11 @@ export async function runClassroomGradePush({
     // pushed + skipped + failed === grades.length, so this is a no-op there, but
     // it's gated to keep the common path on the server's exact counts.
     if (attachments.length > 1) {
-      agg.skipped = Math.max(0, grades.length - agg.pushed - agg.failed);
+      agg.skipped = Math.max(0, sent - agg.pushed - agg.failed);
     }
-    if (anySucceeded) {
+    if (anySucceeded && finalScores && sent === 0) {
+      onStatus({ phase: 'nothing-to-push' });
+    } else if (anySucceeded) {
       // Partial success: at least one course pushed. Carry the count of courses
       // that threw so the reporter can warn "couldn't reach N — retry" instead of
       // reporting a clean success that silently dropped a whole course.

@@ -41,15 +41,19 @@ export interface LtiPushGradesData {
   pushed: number;
   /** Total entries the push was attempted for. */
   total: number;
+  /** Final-score pushes only: students left out while a grade is owed. */
+  awaiting?: number;
 }
 
-/** Request shape for the `ltiPushGradesForAssignmentV1` callable. */
-export interface LtiPushGradesRequest {
-  sessionId: string;
-  kind: 'quiz' | 'va';
-  maxPoints: number;
-  grades: LtiGradeEntry[];
-}
+/** Request shape for the `ltiPushGradesForAssignmentV1` callable; `final-scores` has the server build grades and scale (AB-389). */
+export type LtiPushGradesRequest =
+  | {
+      sessionId: string;
+      kind: 'quiz' | 'va';
+      maxPoints: number;
+      grades: LtiGradeEntry[];
+    }
+  | { sessionId: string; kind: 'quiz' | 'va'; source: 'final-scores' };
 
 /**
  * Split a push result into pushed / skipped / failed. A not-ok entry whose
@@ -62,19 +66,30 @@ export function bucketLtiPushResults(data: LtiPushGradesData): {
   pushed: number;
   skipped: number;
   failed: number;
+  awaiting: number;
 } {
   const notPushed = data.results.filter((r) => !r.ok);
   const skipped = notPushed.filter(
     (r) => r.reason === LTI_PUSH_SKIP_REASON
   ).length;
-  return { pushed: data.pushed, skipped, failed: notPushed.length - skipped };
+  return {
+    pushed: data.pushed,
+    skipped,
+    failed: notPushed.length - skipped,
+    awaiting: data.awaiting ?? 0,
+  };
 }
+
+/** The note a final-score push adds for students it left out while a grade is owed. */
+export const awaitingSkippedNote = (awaiting: number | undefined): string =>
+  awaiting && awaiting > 0 ? ` ${awaiting} awaiting grade skipped.` : '';
 
 /** Build the teacher-facing toast for a completed Schoology push. */
 export function formatLtiPushToast(b: {
   pushed: number;
   skipped: number;
   failed: number;
+  awaiting?: number;
 }): string {
   const parts = [
     `Pushed ${b.pushed} grade${b.pushed === 1 ? '' : 's'} to Schoology.`,
@@ -87,7 +102,7 @@ export function formatLtiPushToast(b: {
       `${b.failed} failed to push — check your connection and try again.`
     );
   }
-  return parts.join(' ');
+  return parts.join(' ') + awaitingSkippedNote(b.awaiting);
 }
 
 /**

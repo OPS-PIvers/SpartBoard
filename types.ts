@@ -11991,6 +11991,8 @@ export type GlobalFeature =
   | 'plc-goal-coach'
   /** Generate with AI on a Help Center tour: fills its title, description, category, audience and widgets. */
   | 'help-center-ai'
+  /** Every Classroom and Schoology grade push sends the gradebook final score, built on the server (AB-389). */
+  | 'lms-push-final-scores'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */

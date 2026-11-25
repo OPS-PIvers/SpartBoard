@@ -52,6 +52,12 @@ import {
   unverifiedClassIds,
 } from './verifiedClassList';
 import { safeErr } from './safeLog';
+import {
+  finalScorePushPlan,
+  parsePushKind,
+  readOwnedPushSession,
+  wantsFinalScores,
+} from './gradebook/finalScorePush';
 
 // Same named secrets as index.ts; Firebase params dedupes by name. The
 // CLASSLINK_* secrets power the ClassLink identity bridge: a Classroom student
@@ -2139,6 +2145,74 @@ async function resolveGradeSyncEntry(
   };
 }
 
+/** Grades built server side from the gradebook final scores (AB-389). */
+interface FinalScoreGrades {
+  grades: BatchGradeEntryInput[];
+  maxPoints: number;
+  awaiting: number;
+}
+
+/** The caller must own the session and the attachment must be one of its links; the scale is the session's own. */
+async function finalScoreGrades(
+  db: admin.firestore.Firestore,
+  callerUid: string,
+  data: { sessionId: string; kind?: unknown },
+  target: { courseId: string; itemId: string; attachmentId: string }
+): Promise<FinalScoreGrades> {
+  const kind = parsePushKind(data.kind);
+  const session = await readOwnedPushSession(
+    db,
+    kind,
+    data.sessionId,
+    callerUid
+  );
+  if (!session) {
+    throw new HttpsError(
+      'permission-denied',
+      'Only the teacher who linked this Classroom course can push grades for it.'
+    );
+  }
+  const links = [
+    ...(Array.isArray(session.classroomAttachments)
+      ? (session.classroomAttachments as unknown[])
+      : []),
+    session.classroomAttachment,
+  ];
+  const link = links.find((l) => {
+    const a = (l ?? {}) as Record<string, unknown>;
+    return (
+      a.attachmentId === target.attachmentId &&
+      a.courseId === target.courseId &&
+      a.itemId === target.itemId
+    );
+  }) as { maxPoints?: unknown } | undefined;
+  const maxPoints = Number(link?.maxPoints);
+  if (!link || !Number.isFinite(maxPoints) || maxPoints <= 0) {
+    throw new HttpsError(
+      'failed-precondition',
+      'This assignment is not linked to that Classroom attachment.'
+    );
+  }
+  const { plan } = await finalScorePushPlan(db, {
+    kind,
+    sessionId: data.sessionId,
+    ownerUid: callerUid,
+    maxPoints,
+    session,
+  });
+  if (plan.entries.length > MAX_BATCH_GRADES) {
+    throw new HttpsError(
+      'invalid-argument',
+      `grades exceeds the maximum batch size of ${MAX_BATCH_GRADES}.`
+    );
+  }
+  return {
+    grades: plan.entries,
+    maxPoints: Math.floor(maxPoints),
+    awaiting: plan.awaiting,
+  };
+}
+
 /**
  * pushClassroomGradesForAssignment — BATCH DRAFT-grade passback for one
  * Classroom-linked assignment. Called by the teacher's quiz / video-activity
@@ -2195,32 +2269,44 @@ export const pushClassroomGradesForAssignment = onCall(
         'accessToken is required (the teacher add-on token to PATCH grades with).'
       );
     }
-    if (!Array.isArray(data.grades) || data.grades.length === 0) {
+    const db = admin.firestore();
+    const fromFinal = wantsFinalScores(request.data)
+      ? await finalScoreGrades(db, request.auth?.uid ?? '', request.data, {
+          courseId,
+          itemId,
+          attachmentId,
+        })
+      : null;
+    if (
+      !fromFinal &&
+      (!Array.isArray(data.grades) || data.grades.length === 0)
+    ) {
       throw new HttpsError(
         'invalid-argument',
         'grades must be a non-empty array.'
       );
     }
-    if (data.grades.length > MAX_BATCH_GRADES) {
+    if (!fromFinal && (data.grades as unknown[]).length > MAX_BATCH_GRADES) {
       throw new HttpsError(
         'invalid-argument',
         `grades exceeds the maximum batch size of ${MAX_BATCH_GRADES}.`
       );
     }
-    const rawGrades = data.grades as BatchGradeEntryInput[];
+    const rawGrades = fromFinal
+      ? fromFinal.grades
+      : (data.grades as BatchGradeEntryInput[]);
 
     // Optional server-side clamp bound (defense-in-depth; see PushBatchData).
     // Absent/invalid → no upper clamp (Number.POSITIVE_INFINITY).
     const coercedMaxPoints = Number(data.maxPoints);
-    const maxPointsCap =
-      data.maxPoints !== undefined &&
-      data.maxPoints !== null &&
-      Number.isFinite(coercedMaxPoints) &&
-      coercedMaxPoints > 0
+    const maxPointsCap = fromFinal
+      ? fromFinal.maxPoints
+      : data.maxPoints !== undefined &&
+          data.maxPoints !== null &&
+          Number.isFinite(coercedMaxPoints) &&
+          coercedMaxPoints > 0
         ? Math.floor(coercedMaxPoints)
         : Number.POSITIVE_INFINITY;
-
-    const db = admin.firestore();
 
     // SECURITY GATE: the caller must be the teacher who linked this course.
     // Read the course link and require an exact uid match. A missing link OR a
@@ -2338,7 +2424,13 @@ export const pushClassroomGradesForAssignment = onCall(
       (r) => !r.ok && r.reason === 'no matching submission'
     ).length;
     const failed = results.length - pushed - skipped;
-    return { results, pushed, skipped, failed };
+    return {
+      results,
+      pushed,
+      skipped,
+      failed,
+      ...(fromFinal ? { awaiting: fromFinal.awaiting } : {}),
+    };
   }
 );
 
@@ -2409,25 +2501,40 @@ export const pushClassroomFinalGradesForAssignment = onCall(
         'accessToken is required (a classroom.coursework.students teacher token).'
       );
     }
-    if (!Array.isArray(data.grades) || data.grades.length === 0) {
+    const db = admin.firestore();
+    const fromFinal = wantsFinalScores(request.data)
+      ? await finalScoreGrades(db, request.auth?.uid ?? '', request.data, {
+          courseId,
+          itemId,
+          attachmentId,
+        })
+      : null;
+    if (
+      !fromFinal &&
+      (!Array.isArray(data.grades) || data.grades.length === 0)
+    ) {
       throw new HttpsError(
         'invalid-argument',
         'grades must be a non-empty array.'
       );
     }
-    if (data.grades.length > MAX_BATCH_GRADES) {
+    if (!fromFinal && (data.grades as unknown[]).length > MAX_BATCH_GRADES) {
       throw new HttpsError(
         'invalid-argument',
         `grades exceeds the maximum batch size of ${MAX_BATCH_GRADES}.`
       );
     }
-    const rawGrades = data.grades as BatchGradeEntryInput[];
+    const rawGrades = fromFinal
+      ? fromFinal.grades
+      : (data.grades as BatchGradeEntryInput[]);
 
     // Unlike the DRAFT push (where maxPoints is an optional sanity cap), the
     // FINAL path writes an irreversible gradebook value, so a valid scale is
     // REQUIRED — we never want an un-clamped assignedGrade. Reject rather than
     // default to no ceiling.
-    const coercedMaxPoints = Number(data.maxPoints);
+    const coercedMaxPoints = fromFinal
+      ? fromFinal.maxPoints
+      : Number(data.maxPoints);
     if (!Number.isFinite(coercedMaxPoints) || coercedMaxPoints <= 0) {
       throw new HttpsError(
         'invalid-argument',
@@ -2435,8 +2542,6 @@ export const pushClassroomFinalGradesForAssignment = onCall(
       );
     }
     const maxPointsCap = Math.floor(coercedMaxPoints);
-
-    const db = admin.firestore();
 
     // SECURITY GATE: the caller must be the teacher who linked this course.
     // Same opaque error for "no link" and "wrong caller" (never reveal linkage).
@@ -2567,6 +2672,12 @@ export const pushClassroomFinalGradesForAssignment = onCall(
         !r.ok && r.reason !== undefined && FINAL_PUSH_BENIGN_SKIPS.has(r.reason)
     ).length;
     const failed = results.length - pushed - skipped;
-    return { results, pushed, skipped, failed };
+    return {
+      results,
+      pushed,
+      skipped,
+      failed,
+      ...(fromFinal ? { awaiting: fromFinal.awaiting } : {}),
+    };
   }
 );

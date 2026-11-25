@@ -26,6 +26,7 @@ import {
   isResponseAwaitingGrade,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { questionPointsFor } from '@/utils/mediaGrading';
+import { awaitingSkippedNote } from '@/utils/ltiGradePush';
 import { dedupeQuestionsById } from '@/utils/quizMaxPoints';
 import type { QuizQuestion, QuizResponse } from '@/types';
 
@@ -146,7 +147,12 @@ export interface PushClassroomGradesArgs {
    * linking teacher server-side.
    */
   accessToken: string;
-  grades: ClassroomGradeEntry[];
+  /** Omitted with `source: 'final-scores'`: the server builds them. */
+  grades?: ClassroomGradeEntry[];
+  /** AB-389: the server sends each student's gradebook final score for this session. */
+  source?: 'final-scores';
+  sessionId?: string;
+  kind?: 'quiz' | 'va';
   /**
    * The attachment's frozen grade scale. Forwarded so the CF can clamp each
    * pointsEarned to [0, maxPoints] server-side (defense-in-depth; the client
@@ -172,6 +178,8 @@ export interface PushClassroomGradesData {
   skipped: number;
   /** Real errors (upstream PATCH / lookup / malformed) the teacher should retry. */
   failed: number;
+  /** Final-score pushes only: students left out while a grade is owed. */
+  awaiting?: number;
 }
 
 /**
@@ -233,5 +241,5 @@ export function formatGradePushToast(data: PushClassroomGradesData): string {
       `${data.failed} failed to push — check your connection and try again.`
     );
   }
-  return parts.join(' ');
+  return parts.join(' ') + awaitingSkippedNote(data.awaiting);
 }

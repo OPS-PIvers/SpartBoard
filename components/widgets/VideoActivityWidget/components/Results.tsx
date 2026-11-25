@@ -62,6 +62,7 @@ import {
 import { requestClassroomTeacherToken } from '@/components/classroomAddon/gisOAuth';
 import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import {
+  awaitingSkippedNote,
   bucketLtiPushResults,
   formatLtiPushToast,
   ltiPushErrorMessage,
@@ -161,6 +162,8 @@ export const Results: React.FC<ResultsProps> = ({
   const { ensureGoogleScope, user, orgId, canAccessFeature, isExternalUser } =
     useAuth();
   const tabAwayTimerOn = canAccessFeature('tab-away-timer');
+  // AB-389: the server sends each student's gradebook final score.
+  const sendFinalScores = canAccessFeature('lms-push-final-scores');
   const { showConfirm } = useDialog();
   const { addToast, rosters } = useDashboard();
   // Use the multi-class variant — `session.classId` is a transitional
@@ -566,6 +569,9 @@ export const Results: React.FC<ResultsProps> = ({
       })),
       requestToken: () =>
         requestClassroomTeacherToken(user?.email ?? undefined),
+      finalScores: sendFinalScores
+        ? { sessionId: session.id, kind: 'va' }
+        : null,
       buildGrades: () => grades,
       confirm: () =>
         showConfirm(
@@ -625,7 +631,7 @@ export const Results: React.FC<ResultsProps> = ({
       ),
       maxPoints
     );
-    if (grades.length === 0) {
+    if (!sendFinalScores && grades.length === 0) {
       addToast('No completed responses to push yet.', 'info');
       return;
     }
@@ -637,12 +643,19 @@ export const Results: React.FC<ResultsProps> = ({
         'ltiPushGradesForAssignmentV1',
         LTI_PUSH_GRADES_CALL_OPTS
       );
-      const { data } = await callable({
-        sessionId: session.id,
-        kind: 'va',
-        maxPoints,
-        grades,
-      });
+      const { data } = await callable(
+        sendFinalScores
+          ? { sessionId: session.id, kind: 'va', source: 'final-scores' }
+          : { sessionId: session.id, kind: 'va', maxPoints, grades }
+      );
+      if (data.total === 0) {
+        addToast(
+          'No completed responses to push yet.' +
+            awaitingSkippedNote(data.awaiting),
+          'info'
+        );
+        return;
+      }
       const bucket = bucketLtiPushResults(data);
       addToast(
         formatLtiPushToast(bucket),
@@ -695,6 +708,7 @@ export const Results: React.FC<ResultsProps> = ({
       );
       return {
         maxPoints,
+        ...(sendFinalScores ? { finalScores: { includeMissing: true } } : {}),
         grades: await buildToolColumnGrades({
           kind: 'va',
           ownerUid: user?.uid,
