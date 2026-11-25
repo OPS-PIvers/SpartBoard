@@ -48,11 +48,6 @@ const ALLOWED: Record<string, { count: number; why: string }> = {
   'components/widgets/QuizWidget/Widget.tsx': { count: 1, why: 'paper batch' },
   // A view-only link has no class, window or grading.
   'hooks/useQuizLinkShare.ts': { count: 1, why: 'view-only link' },
-  // AB-391 deletes this modal's assign half.
-  'components/plc/assignments/PlcAssignmentConfigModal.tsx': {
-    count: 1,
-    why: 'AB-391',
-  },
 };
 
 // Files with a quiz create: the hook itself, its callers, and the course helper.

@@ -128,12 +128,7 @@ import {
   claimSchoologyReview,
   subscribeSchoologyReview,
 } from '@/utils/schoologyInbox';
-import {
-  callLeaveSyncedQuizGroup,
-  createSyncedQuizGroup,
-  syncedTranslationsInput,
-  useSyncedQuizGroupsByIds,
-} from '@/hooks/useSyncedQuizGroups';
+import { useSyncedQuizGroupsByIds } from '@/hooks/useSyncedQuizGroups';
 import { mirrorPlcQuizHeadersBySyncGroup } from '@/hooks/usePlcQuizzes';
 import { usePlcAutoPullSync } from '@/hooks/usePlcAutoPullSync';
 import { PlcSyncConflictPrompt } from '@/components/plc/sync/PlcSyncConflictPrompt';
@@ -219,11 +214,7 @@ import {
   offerToolColumnsRemoval,
   sessionHasToolColumn,
 } from '@/utils/schoologyToolColumns';
-import {
-  RESULTS_PROTECTION_DEFAULTS,
-  type QuizAssignment,
-  type PlcLinkage,
-} from '@/types';
+import { RESULTS_PROTECTION_DEFAULTS, type QuizAssignment } from '@/types';
 import {
   buildPinToNameMap,
   buildScoreboardTeams,
@@ -341,7 +332,7 @@ import type { StudentTargetRef } from '@/types';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
-import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
+import { resolveQuizPlcLinkageForAssign } from '@/hooks/quizAssign/plcLinkage';
 import { isSandboxed } from '@/utils/tourSandbox';
 import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 import { isDistrictLinkedCopy } from '@/utils/districtLibraryOrigin';
@@ -417,6 +408,7 @@ const TeacherQuizWidget: React.FC<{
     user,
     isAdmin,
     googleAccessToken,
+    refreshGoogleToken,
     ensureGoogleScope,
     orgId,
     canAccessFeature,
@@ -529,20 +521,7 @@ const TeacherQuizWidget: React.FC<{
   // D13/D14: one upload per picture, linked to every question that uses it,
   // into the same Drive folder and sharing as an editor-added stimulus.
   const stimulusUploader = useMemo(
-    () =>
-      driveStimulusUploader({
-        uploadFile: (file, name, folder) => {
-          if (!driveService) throw new Error('Google Drive is not connected.');
-          return driveService.uploadFile(file, name, folder);
-        },
-        makePublic: (id, domain) => {
-          if (!driveService) throw new Error('Google Drive is not connected.');
-          return driveService.makePublic(id, domain);
-        },
-        deleteFile: async (id) => {
-          await driveService?.deleteFile(id);
-        },
-      }),
+    () => driveStimulusUploader(driveService),
     [driveService]
   );
 
@@ -1124,7 +1103,7 @@ const TeacherQuizWidget: React.FC<{
     isAuthBypass
       ? new MockQuizDriveService(user?.uid ?? '')
       : googleAccessToken
-        ? new QuizDriveService(googleAccessToken)
+        ? new QuizDriveService(googleAccessToken, refreshGoogleToken)
         : null;
   const autoTranslateTargetedLocales = async (
     meta: QuizMetadata,
@@ -4068,109 +4047,30 @@ const TeacherQuizWidget: React.FC<{
               everyClass: canAccessFeature('student-set-time'),
             });
 
-          // PLC link only (D2): results pool server-side, no sheet is
-          // created here. Sheet export stays opt-in on the Results screen.
+          // PLC link only (D2): results pool server-side, no sheet is created here.
           const selectedPlc =
             plcOptions.plcMode && plcOptions.plcId
               ? plcs.find((p) => p.id === plcOptions.plcId)
               : undefined;
-          let plcLinkage: PlcLinkage | undefined;
-          if (plcOptions.plcMode && plcOptions.plcId && user) {
-            plcLinkage = buildPlcLinkage(selectedPlc);
-            // Cold-load race: `plcs` snapshot hasn't hydrated yet, so the
-            // PLC couldn't be resolved and the linkage was skipped. The
-            // downstream non-member toast guard requires both plcId AND
-            // plcName, so a missing snapshot silently disables the toast
-            // for downstream non-member importers. Surface a toast so the
-            // teacher knows their PLC selection didn't take and can retry.
-            if (!selectedPlc) {
-              console.warn(
-                '[QuizWidget] PLC name unresolved at assignment-create time — downstream non-member toast will be skipped',
-                { plcId: plcOptions.plcId }
-              );
-              addToast(
-                "PLC info wasn't ready yet — the assignment was created without PLC sharing. Try again in a moment.",
-                'warning'
-              );
-            }
+          // Cold load: the PLC list may not have arrived, so the assign goes out unshared.
+          if (plcOptions.plcMode && plcOptions.plcId && user && !selectedPlc) {
+            addToast(
+              "PLC info wasn't ready yet — the assignment was created without PLC sharing. Try again in a moment.",
+              'warning'
+            );
           }
-
-          // Drive-only PLC bubble-up: when the teacher opts a brand-new
-          // (un-shared) quiz into PLC mode, promote it to a synced group
-          // here so `createAssignment` has a `syncGroupId` to anchor the
-          // PLC assignment template against. Without this, the template
-          // write path in `useQuizAssignments.createAssignment` no-ops
-          // (it requires a resolved sync-group pointer) and the PLC's
-          // Library sub-tab stays empty.
-          //
-          // Mirrors `handleShareWithPlc` for the promote step but does NOT
-          // write the `plcs/{plcId}/quizzes/{plcQuizId}` header — bubble-up
-          // is about the assignment template, not the standalone shared
-          // quiz. The teacher can still "Share with PLC" from the Quiz
-          // Library kebab if they want a discoverable shared-quiz entry.
-          //
-          // Best-effort: any failure here is logged and we fall through
-          // without a sync group; the assignment still creates and the
-          // `assignment_index` In-progress entry still surfaces, only the
-          // Library template is skipped.
-          let plcTemplateSyncGroupId: string | undefined = meta.sync?.groupId;
-          if (plcLinkage && user && !plcTemplateSyncGroupId) {
-            const newSyncGroupId = crypto.randomUUID();
-            try {
-              await createSyncedQuizGroup({
-                groupId: newSyncGroupId,
-                uid: user.uid,
-                title: data.title,
-                questions: data.questions,
-                ...syncedQuizContentFields(data),
-                plcId: plcLinkage.id,
-                behavior: meta.behavior,
-                ...syncedTranslationsInput(
-                  await loadSyncedTranslations(meta, {
-                    title: data.title,
-                    questions: data.questions,
-                    stimuli: data.stimuli,
-                    behavior: meta.behavior,
-                  })
-                ),
-              });
-              try {
-                await attachSyncLinkage(meta.id, {
-                  groupId: newSyncGroupId,
-                  lastSyncedVersion: 1,
-                });
-                plcTemplateSyncGroupId = newSyncGroupId;
-              } catch (linkageErr) {
-                // Drop the freshly-minted self-participant entry so we
-                // don't leave a phantom participant pointing at a sync
-                // group the local library never knew about. Empty group
-                // doc itself stays — synced_quizzes rules don't allow
-                // client deletes.
-                try {
-                  await callLeaveSyncedQuizGroup(newSyncGroupId);
-                } catch (leaveErr) {
-                  logError(
-                    'QuizWidget.assignment.promoteSync.rollbackLeave',
-                    leaveErr,
-                    {
-                      plcId: plcLinkage.id,
-                      syncGroupId: newSyncGroupId,
-                    }
-                  );
-                }
-                logError(
-                  'QuizWidget.assignment.promoteSync.attachLinkage',
-                  linkageErr,
-                  { plcId: plcLinkage.id, quizId: meta.id }
-                );
-              }
-            } catch (createErr) {
-              logError('QuizWidget.assignment.promoteSync.create', createErr, {
-                plcId: plcLinkage.id,
-                quizId: meta.id,
-              });
-            }
-          }
+          const { plcLinkage, plcPoolSyncGroupId, plcTemplateSyncGroupId } =
+            await resolveQuizPlcLinkageForAssign({
+              plc: user ? selectedPlc : undefined,
+              uid: user?.uid ?? '',
+              meta,
+              data,
+              plcLibrary: plcOptions.plcLibrary ?? [],
+              canPromote: !isDistrictCopy(meta),
+              attachSyncLinkage,
+              loadSyncedTranslations,
+              logScope: 'QuizWidget.assignment',
+            });
 
           let paperWritten: {
             batchId: string;
@@ -4336,7 +4236,7 @@ const TeacherQuizWidget: React.FC<{
                 sessionBankSlots,
                 paperWritten,
                 plcLinkage,
-                plcPoolSyncGroupId: plcOptions.plcPoolSyncGroupId,
+                plcPoolSyncGroupId,
                 plcTemplateSyncGroupId,
                 districtCopy: isDistrictCopy(meta),
                 translationIndex,
