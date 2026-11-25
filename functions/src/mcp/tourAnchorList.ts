@@ -21805,6 +21805,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-monitor.student-schedule",
+    "label": "Schedule button on an absent student, in the Quiz monitor roster",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "quiz-monitor-roster",
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-monitor.student-mark-absent",
     "label": "Absent button on a student who has not joined, in the Quiz monitor roster",
     "scope": "field",
