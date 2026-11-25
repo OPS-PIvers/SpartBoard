@@ -1,0 +1,88 @@
+[
+  {
+    "name": "an ordinary student is turned in",
+    "session": {},
+    "response": { "studentUid": "a" },
+    "blank": false,
+    "expected": false
+  },
+  {
+    "name": "a blank row stays open",
+    "session": {},
+    "response": { "studentUid": "a" },
+    "blank": true,
+    "expected": true
+  },
+  {
+    "name": "an unlocked student stays open",
+    "session": {},
+    "response": { "studentUid": "a", "unlocked": true },
+    "blank": false,
+    "expected": true
+  },
+  {
+    "name": "a reopened-for student stays open",
+    "session": { "reopenedFor": ["a"] },
+    "response": { "studentUid": "a" },
+    "blank": false,
+    "expected": true
+  },
+  {
+    "name": "someone else's reopen does not count",
+    "session": { "reopenedFor": ["b"] },
+    "response": { "studentUid": "a" },
+    "blank": false,
+    "expected": false
+  },
+  {
+    "name": "a running Let in pass stays open",
+    "session": { "studentAccess": { "a": 2000 } },
+    "response": { "studentUid": "a" },
+    "blank": false,
+    "expected": true
+  },
+  {
+    "name": "a Let in pass that ran out is turned in",
+    "session": { "studentAccess": { "a": 1000 } },
+    "response": { "studentUid": "a" },
+    "blank": false,
+    "expected": false
+  },
+  {
+    "name": "a running Schedule pass stays open",
+    "session": {
+      "studentAccess": { "a": 2000 },
+      "studentAccessFrom": { "a": 500 }
+    },
+    "response": { "studentUid": "a" },
+    "blank": false,
+    "expected": true
+  },
+  {
+    "name": "a Schedule pass for later stays open",
+    "session": {
+      "studentAccess": { "a": 5000 },
+      "studentAccessFrom": { "a": 3000 }
+    },
+    "response": { "studentUid": "a" },
+    "blank": false,
+    "expected": true
+  },
+  {
+    "name": "a Schedule pass that ended is turned in",
+    "session": {
+      "studentAccess": { "a": 900 },
+      "studentAccessFrom": { "a": 500 }
+    },
+    "response": { "studentUid": "a" },
+    "blank": false,
+    "expected": false
+  },
+  {
+    "name": "a row with no student is turned in",
+    "session": { "studentAccess": { "": 5000 } },
+    "response": {},
+    "blank": false,
+    "expected": false
+  }
+]
