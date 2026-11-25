@@ -324,4 +324,20 @@ describe('CalculatorTool', () => {
     clickBtn('.');
     expect(getExpression(container).textContent).toBe('0.');
   });
+
+  it('percent rounds floating-point noise like other results', () => {
+    const { container } = render(<CalculatorTool />);
+    ['1', '.', '1', '%'].forEach(clickBtn);
+    expect(getDisplay(container).textContent).toBe('0.011');
+    expect(getExpression(container).textContent).toBe('0.011');
+  });
+
+  it('keeps the expression in sync when percent or sign toggle follows equals', () => {
+    const { container } = render(<CalculatorTool />);
+    ['2', '+', '3', '=', '%'].forEach(clickBtn);
+    expect(getDisplay(container).textContent).toBe('0.05');
+    expect(getExpression(container).textContent).toBe('0.05');
+    clickBtn('+/−');
+    expect(getExpression(container).textContent).toBe('−0.05');
+  });
 });
