@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import {
@@ -17,6 +23,8 @@ import { GlobalSticker, GradeLevel } from '@/types';
 import { ALL_GRADE_LEVELS } from '@/config/widgetGradeLevels';
 import { useDialog } from '@/context/useDialog';
 import { Modal } from '@/components/common/Modal';
+import { useAuth } from '@/context/useAuth';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 
 interface StickerLibraryModalProps {
   stickers: (string | GlobalSticker)[];
@@ -50,6 +58,13 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const { showConfirm } = useDialog();
+  const { canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
+  // Several picked images arrive one after another, before the parent re-renders.
+  const latestStickersRef = useRef(stickers);
+  useLayoutEffect(() => {
+    latestStickersRef.current = stickers;
+  });
 
   // Normalize stickers to GlobalSticker objects
   const normalizedStickers = React.useMemo(() => {
@@ -112,8 +127,18 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
     [stickers, onStickersChange, processAndUploadImage]
   );
 
+  const addPickedSticker = (url: string) => {
+    const next = [
+      ...latestStickersRef.current,
+      { url, gradeLevels: [...ALL_GRADE_LEVELS] },
+    ];
+    latestStickersRef.current = next;
+    onStickersChange(next);
+  };
+
   // Handle global paste events when this modal is mounted
   useEffect(() => {
+    if (unifiedPicker) return;
     const handlePaste = (e: ClipboardEvent) => {
       // Don't intercept if user is typing in an input or textarea
       const target = e.target as HTMLElement;
@@ -153,7 +178,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
     return () => {
       window.removeEventListener('paste', handlePaste, true);
     };
-  }, [handleFiles]);
+  }, [handleFiles, unifiedPicker]);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) {
@@ -272,55 +297,74 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
           {t('admin.stickers.description')}
         </p>
 
+        {unifiedPicker && (
+          <div className="mb-6">
+            <ImagePicker
+              multiple
+              tourScope={{ type: 'admin.stickers', field: 'stickers' }}
+              tourOverrides={{ upload: tourAttr('admin.stickers.upload') }}
+              upload={async (file) => {
+                const url = await processAndUploadImage(file);
+                if (!url) throw new Error('Sticker upload failed.');
+                uploadedThisSessionRef.current.add(url);
+                return url;
+              }}
+              onChange={addPickedSticker}
+            />
+          </div>
+        )}
+
         {/* Upload zone */}
-        <div
-          {...tourAttr('admin.stickers.upload')}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDragging(true);
-          }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all mb-6 p-8 gap-3 ${
-            isDragging
-              ? 'border-brand-blue-primary bg-brand-blue-lighter/20'
-              : 'border-slate-300 bg-white hover:border-brand-blue-light hover:bg-slate-50'
-          } ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
-        >
-          {uploading ? (
-            <>
-              <Loader2 className="w-8 h-8 text-brand-blue-primary animate-spin" />
-              <p className="text-sm font-bold text-slate-500">
-                {t('common.loading')}
-              </p>
-            </>
-          ) : (
-            <>
-              <div className="p-3 bg-slate-100 rounded-xl">
-                <Upload className="w-6 h-6 text-slate-400" />
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-black text-slate-600 uppercase tracking-tight">
-                  {t('widgets.stickers.dropOrPaste')}
+        {!unifiedPicker && (
+          <div
+            {...tourAttr('admin.stickers.upload')}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all mb-6 p-8 gap-3 ${
+              isDragging
+                ? 'border-brand-blue-primary bg-brand-blue-lighter/20'
+                : 'border-slate-300 bg-white hover:border-brand-blue-light hover:bg-slate-50'
+            } ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="w-8 h-8 text-brand-blue-primary animate-spin" />
+                <p className="text-sm font-bold text-slate-500">
+                  {t('common.loading')}
                 </p>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                  {t('admin.stickers.supportedFiles')}
-                </p>
-              </div>
-            </>
-          )}
-          <input
-            // no-tour-anchor: hidden file input opened by its upload button
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleFileInput}
-            disabled={uploading}
-          />
-        </div>
+              </>
+            ) : (
+              <>
+                <div className="p-3 bg-slate-100 rounded-xl">
+                  <Upload className="w-6 h-6 text-slate-400" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-black text-slate-600 uppercase tracking-tight">
+                    {t('widgets.stickers.dropOrPaste')}
+                  </p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    {t('admin.stickers.supportedFiles')}
+                  </p>
+                </div>
+              </>
+            )}
+            <input
+              // no-tour-anchor: hidden file input opened by its upload button
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleFileInput}
+              disabled={uploading}
+            />
+          </div>
+        )}
 
         {/* Sticker grid */}
         {normalizedStickers.length === 0 ? (

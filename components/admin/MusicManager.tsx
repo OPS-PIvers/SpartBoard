@@ -27,6 +27,7 @@ import { MusicStation, MUSIC_GENRES, MusicGenre } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { canonicalizeBuildingIds } from '@/config/buildings';
 import { useAuth } from '@/context/useAuth';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 import { Button } from '@/components/common/Button';
 import { useDialog } from '@/context/useDialog';
 import { extractYouTubeId } from '@/utils/youtube';
@@ -94,28 +95,36 @@ const ThumbnailInput: React.FC<ThumbnailInputProps> = ({
   onUploadStart,
   onUploadEnd,
 }) => {
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
-  const uploadImageFile = useCallback(
+  const saveThumbnail = useCallback(
     async (file: File) => {
-      if (!file.type.startsWith('image/')) return;
       onUploadStart();
       try {
         const timestamp = Date.now();
         const path = `admin_music_thumbnails/${user?.uid ?? 'anon'}/${timestamp}-${file.name}`;
         const sRef = storageRef(storage, path);
         const snap = await uploadBytes(sRef, file);
-        const url = await getDownloadURL(snap.ref);
-        onChange(url);
-      } catch (err) {
-        console.error('Thumbnail upload failed', err);
+        return await getDownloadURL(snap.ref);
       } finally {
         onUploadEnd();
       }
     },
-    [user, onChange, onUploadStart, onUploadEnd]
+    [user, onUploadStart, onUploadEnd]
+  );
+
+  const uploadImageFile = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith('image/')) return;
+      try {
+        onChange(await saveThumbnail(file));
+      } catch (err) {
+        console.error('Thumbnail upload failed', err);
+      }
+    },
+    [onChange, saveThumbnail]
   );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,6 +157,28 @@ const ThumbnailInput: React.FC<ThumbnailInputProps> = ({
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
   };
+
+  if (canAccessFeature('unified-image-picker')) {
+    return (
+      <div className="col-span-2 space-y-2">
+        <span className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          Thumbnail
+        </span>
+        <ImagePicker
+          value={thumbnail || undefined}
+          tourScope={{ type: 'admin.music', field: 'thumbnail' }}
+          tourOverrides={{
+            upload: tourAttr('admin.music.thumbnail-browse'),
+            linkInput: tourAttr('admin.music.thumbnail-url'),
+            remove: tourAttr('admin.music.thumbnail-remove'),
+          }}
+          upload={saveThumbnail}
+          onChange={onChange}
+          onRemove={() => onChange('')}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="col-span-2 space-y-2">
