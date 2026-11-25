@@ -21,6 +21,20 @@ export interface ImageSourcesOptions {
 
 const DEFAULT_MAX = 10 * 1024 * 1024;
 
+/** A message the picker shows as written; anything else shows the generic line. */
+class PickerError extends Error {}
+
+export type RunResult = 'added' | 'skipped' | 'failed';
+
+// Files the app itself saved; a link to one is re-picked from Drive so a later delete can't trash the original.
+const APP_FILE_HOSTS = [
+  'lh3.googleusercontent.com',
+  'drive.google.com',
+  'docs.google.com',
+  'firebasestorage.googleapis.com',
+  'storage.googleapis.com',
+];
+
 export const isImageLink = (raw: string): boolean => {
   try {
     const url = new URL(raw.trim());
@@ -49,19 +63,21 @@ export function useImageSources({
   const { getDriveFileAsBlob } = useGoogleDrive();
 
   const run = useCallback(
-    async (work: () => Promise<string | null>): Promise<boolean> => {
-      if (inFlight.current || disabled) return false;
+    async (work: () => Promise<string | null>): Promise<RunResult> => {
+      if (inFlight.current || disabled) return 'skipped';
       inFlight.current = true;
       setBusy(true);
       setError(null);
       try {
         const url = await work();
-        if (!url) return false;
+        if (!url) return 'skipped';
         onChange(url);
-        return true;
+        return 'added';
       } catch (err) {
-        setError(err instanceof Error ? err.message : "The image didn't add.");
-        return false;
+        setError(
+          err instanceof PickerError ? err.message : "The image didn't add."
+        );
+        return 'failed';
       } finally {
         inFlight.current = false;
         setBusy(false);
@@ -73,9 +89,9 @@ export function useImageSources({
   const addFile = useCallback(
     (file: File) =>
       run(async () => {
-        if (!isImageFile(file)) throw new Error('Select an image file.');
+        if (!isImageFile(file)) throw new PickerError('Select an image file.');
         if (file.size > maxBytes) {
-          throw new Error(
+          throw new PickerError(
             `That image is too large. The limit is ${Math.round(maxBytes / 1048576)} MB.`
           );
         }
@@ -89,10 +105,16 @@ export function useImageSources({
   const openDrive = useCallback(
     () =>
       run(async () => {
-        const picked = await openPicker({ mode: 'images' });
+        const picked = await openPicker({ mode: 'images' }).catch(
+          (err: unknown) => {
+            throw new PickerError(
+              err instanceof Error ? err.message : "Google Drive didn't open."
+            );
+          }
+        );
         if (!picked) return null;
         const got = await getDriveFileAsBlob(picked.id);
-        if (!got) throw new Error("That Drive image didn't open.");
+        if (!got) throw new PickerError("That Drive image didn't open.");
         return upload(new File([got.blob], got.name, { type: got.mimeType }));
       }),
     [run, openPicker, getDriveFileAsBlob, upload]
@@ -102,13 +124,19 @@ export function useImageSources({
     (raw: string) =>
       run(async () => {
         const link = raw.trim();
-        if (!isImageLink(link))
-          throw new Error('Paste a link that starts with https.');
+        if (!isImageLink(link)) {
+          throw new PickerError('Paste a link that starts with https.');
+        }
+        if (APP_FILE_HOSTS.includes(new URL(link).hostname)) {
+          throw new PickerError(
+            'Select that image with the Google Drive button.'
+          );
+        }
         if (!linkAsFile) return link;
         const res = await fetch(link).catch(() => null);
         const blob = res?.ok ? await res.blob() : null;
         if (!blob || !blob.type.startsWith('image/')) {
-          throw new Error(
+          throw new PickerError(
             "That link can't be used here. Download the image and upload it."
           );
         }

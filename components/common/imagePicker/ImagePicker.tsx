@@ -1,10 +1,17 @@
 // The one image picker: upload, paste, drop, Google Drive or an image link, as a settings field or a small button.
-import React, { useMemo, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { ImagePlus, Link2, Loader2, Monitor, Trash2, X } from 'lucide-react';
 import { GoogleDriveIcon } from '../GoogleDriveIcon';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Z_INDEX } from '@/config/zIndex';
+import { scrollMovesAnchor } from '@/utils/domHelpers';
 import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import {
   useImageSources,
@@ -60,6 +67,20 @@ const layerZ = (el: Element | null | undefined): number => {
   return z;
 };
 
+/** Drops any host layer above the Google Picker below it while the picker is open; returns the undo. */
+const belowGooglePicker = (el: Element | null | undefined): (() => void) => {
+  const lowered: Array<[HTMLElement, string]> = [];
+  for (let n = el?.parentElement ?? null; n; n = n.parentElement) {
+    if (Number(getComputedStyle(n).zIndex) >= Z_INDEX.googlePickerBackdrop) {
+      lowered.push([n, n.style.zIndex]);
+      n.style.zIndex = String(Z_INDEX.modalDeep);
+    }
+  }
+  return () => {
+    for (const [n, z] of lowered) n.style.zIndex = z;
+  };
+};
+
 const btn =
   'inline-flex min-h-9 whitespace-nowrap items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:border-brand-blue-primary hover:text-brand-blue-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-40';
 const iconBtn =
@@ -73,8 +94,8 @@ const LinkRow: React.FC<{
   const [url, setUrl] = useState('');
   const submit = () => {
     if (!url.trim()) return;
-    void src.addLink(url).then((added) => {
-      if (added) onCancel();
+    void src.addLink(url).then((result) => {
+      if (result === 'added') onCancel();
     });
   };
   return (
@@ -228,11 +249,35 @@ const Panel: React.FC<{
 }> = ({ anchor, pos, label, onClose, children, panelRef }) => {
   const ignore = useMemo(() => [anchor], [anchor]);
   useClickOutside(panelRef, onClose, ignore);
+  // Focus moves into the panel so Tab, Escape and paste work there.
+  useEffect(() => {
+    panelRef.current
+      ?.querySelector<HTMLElement>('button:not([disabled])')
+      ?.focus();
+  }, [panelRef]);
+  // The panel is placed once, so it closes when its button moves.
+  const closeRef = useRef(onClose);
+  useLayoutEffect(() => {
+    closeRef.current = onClose;
+  });
+  useEffect(() => {
+    const onScroll = (e: Event) => {
+      if (scrollMovesAnchor(e, anchor.current)) closeRef.current();
+    };
+    const onResize = () => closeRef.current();
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [anchor]);
   return createPortal(
     <div
       ref={panelRef}
       role="dialog"
       aria-label={label}
+      data-click-outside-ignore="true"
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.stopPropagation();
@@ -289,6 +334,16 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
       setOpen(false);
     },
   });
+  // The Google Picker must sit above the panel and any z-critical host while it is open.
+  const pickFromDrive = async () => {
+    const host = isButton ? triggerRef.current : fieldRef.current;
+    if (isButton) setOpen(false);
+    const restore = belowGooglePicker(host);
+    const result = await src.openDrive().finally(restore);
+    if (isButton && result === 'failed') setOpen(true);
+    return result;
+  };
+  const view: ImageSources = { ...src, openDrive: pickFromDrive };
   const tag = (slot: ImagePickerSlot): TourAnchorAttrs =>
     tourOverrides?.[slot] ?? SLOT_TAGS[slot](tourScope.type, tourScope.field);
 
@@ -301,6 +356,12 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
           ref={triggerRef}
           type="button"
           onClick={() => setOpen(!open)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && open) {
+              e.stopPropagation();
+              setOpen(false);
+            }
+          }}
           disabled={src.busy || sourceOptions.disabled}
           aria-label={label}
           title={label}
@@ -332,7 +393,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
             label={label}
             onClose={() => setOpen(false)}
           >
-            <DropZone src={src} tag={tag} />
+            <DropZone src={view} tag={tag} />
             <ErrorLine src={src} />
           </Panel>
         )}
@@ -376,10 +437,10 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
               </button>
             )}
           </div>
-          <SourceButtons src={src} tag={tag} stretch />
+          <SourceButtons src={view} tag={tag} stretch />
         </>
       ) : (
-        <DropZone src={src} tag={tag} tall />
+        <DropZone src={view} tag={tag} tall />
       )}
       <ErrorLine src={src} />
     </div>

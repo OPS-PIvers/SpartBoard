@@ -113,6 +113,36 @@ describe('ImagePicker', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('sends a link to a saved app file to the Drive button', async () => {
+    const onChange = vi.fn();
+    render(
+      <ImagePicker tourScope={scope} upload={vi.fn()} onChange={onChange} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Image link' }));
+    fireEvent.change(screen.getByLabelText('Image link'), {
+      target: { value: 'https://lh3.googleusercontent.com/d/abc' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(
+      /Google Drive/
+    );
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('shows a plain line when an upload fails', async () => {
+    const upload = vi.fn().mockRejectedValue(new Error('storage/unauthorized'));
+    const { container } = render(
+      <ImagePicker tourScope={scope} upload={upload} onChange={vi.fn()} />
+    );
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [png()] } });
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      "The image didn't add."
+    );
+  });
+
   it('saves a Drive pick through the caller upload', async () => {
     openPicker.mockResolvedValue({ id: 'd1' });
     getDriveFileAsBlob.mockResolvedValue({

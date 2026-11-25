@@ -61,8 +61,9 @@ const NOT_A_PICKER: Record<string, number> = {
   'components/widgets/QuizWidget/components/StimulusManagerPanel.tsx': 1,
 };
 
+// accept= or accept: with an image type or extension, or a *_ACCEPT constant naming one.
 const RAW_IMAGE_ACCEPT =
-  /(\baccept\s*[=:]\s*\{?[^}\n]*['"`][^'"`]*image\/|_ACCEPT\s*=\s*['"`][^'"`]*image\/)/g;
+  /(\baccept\s*[=:]\s*\{?[^}\n]*['"`][^'"`]*(?:image\/|\.(?:png|jpe?g|gif|webp)\b)|_ACCEPT\s*=\s*['"`][^'"`]*image\/)/g;
 
 const countsByFile = (): Record<string, number> => {
   const files = execFileSync(
