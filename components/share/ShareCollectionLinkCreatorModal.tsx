@@ -148,7 +148,7 @@ export const ShareCollectionLinkCreatorModal: FC<
     <Modal
       isOpen
       onClose={busy ? () => undefined : onClose}
-      dismissible={false}
+      closeOnBackdrop={false}
       variant="bare"
       ariaLabelledby={headingId}
       className="bg-white rounded-2xl shadow-2xl overflow-hidden"

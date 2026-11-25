@@ -88,7 +88,7 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
     <Modal
       isOpen
       onClose={submitting ? () => undefined : onClose}
-      dismissible={false}
+      closeOnBackdrop={false}
       variant="bare"
       zIndex="z-modal-nested"
       ariaLabel={modalTitle}
