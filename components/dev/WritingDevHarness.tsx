@@ -171,7 +171,6 @@ const StudentPageDev: React.FC = () => {
     unsent: f.unsent ? [f.unsent] : [],
     notice: f.notice ?? null,
     busy: f.turningIn ? 'turn-in' : null,
-    online: f.online ?? true,
     contextMenuOff: true,
     onStart: noop,
     onTurnIn: noop,

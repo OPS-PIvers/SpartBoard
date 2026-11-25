@@ -24,6 +24,7 @@ import {
   RequireStudentAuth,
 } from './context/StudentAuthContext';
 import { StudentIdleTimeoutGuard } from './components/student/StudentIdleTimeoutGuard';
+import { StudentOfflineBanner } from './components/common/StudentOfflineBanner';
 import {
   getStudentPreview,
   getViewAsTabState,
@@ -2026,6 +2027,7 @@ const App: React.FC = () => {
     return (
       <DialogProvider>
         <StudentIdleTimeoutGuard />
+        <StudentOfflineBanner />
         <Suspense fallback={<FullPageLoader />}>
           <MiniAppStudentApp />
         </Suspense>
@@ -2137,6 +2139,7 @@ const App: React.FC = () => {
     return (
       <DialogProvider>
         <StudentIdleTimeoutGuard />
+        <StudentOfflineBanner />
         <Suspense fallback={<FullPageLoader />}>
           <ActivityWallStudentApp />
         </Suspense>
@@ -2154,6 +2157,7 @@ const App: React.FC = () => {
     return (
       <DialogProvider>
         <StudentIdleTimeoutGuard />
+        <StudentOfflineBanner />
         <Suspense fallback={<FullPageLoader />}>
           <PollVoteApp />
         </Suspense>
@@ -2169,6 +2173,7 @@ const App: React.FC = () => {
     return (
       <DialogProvider>
         <StudentIdleTimeoutGuard />
+        <StudentOfflineBanner />
         <Suspense fallback={<FullPageLoader />}>
           <GuidedLearningStudentApp />
         </Suspense>
@@ -2217,6 +2222,7 @@ const App: React.FC = () => {
       <DialogProvider>
         <StudentAuthProvider>
           <RequireStudentAuth>
+            <StudentOfflineBanner />
             <Suspense fallback={<FullPageLoader />}>
               <ProjectStudentPage />
             </Suspense>

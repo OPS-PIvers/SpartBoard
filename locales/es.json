@@ -2316,12 +2316,6 @@
       "saved": "Tus respuestas están guardadas.",
       "keepOpen": "Deja esta pestaña abierta."
     },
-    "autoSubmit": {
-      "unlocked": "Tu intento desbloqueado se entregó.",
-      "strikes": "Saliste de la página demasiadas veces. Tu tarea se entregó. Pregunta a tu maestro si crees que fue un error.",
-      "title": "Quiz entregado automáticamente",
-      "awayTooLong": "Estuviste fuera del quiz demasiado tiempo, así que se entregó."
-    },
     "errors": {
       "saveAnswer": "No se pudo guardar tu respuesta. Toca para intentar de nuevo.",
       "submitQuiz": "No se pudo entregar tu quiz. Toca para intentar de nuevo.",
@@ -2358,13 +2352,6 @@
     "closed": {
       "submitted": "Esta tarea se cerró. Tus respuestas se entregaron.",
       "submitFailed": "No se pudo entregar. Revisa tu conexión e inténtalo de nuevo, o pide más tiempo a tu maestro."
-    },
-    "tabWarning": {
-      "title": "CAMBIO DE PESTAÑA DETECTADO",
-      "body": "Saliste del quiz. Esto quedó registrado.",
-      "warningN": "Aviso {{n}}.",
-      "autoSubmit": "Si cambias de pestaña muchas veces, tu quiz se entregará solo.",
-      "dismiss": "Entiendo, volver al quiz"
     },
     "timer": {
       "secondsLeft_one": "Queda {{count}} segundo",
@@ -2458,7 +2445,6 @@
     "allItemsPlaced": "Todos los elementos colocados."
   },
   "quizSubmit": {
-    "offline": "No tienes conexión. Deja esta pestaña abierta y tus respuestas se guardarán cuando vuelvas a conectarte.",
     "undo": "Deshacer",
     "confirmTitle": "¿Entregar tu prueba?",
     "confirmBody": "Después de esto no podrás cambiar tus respuestas.",
@@ -3909,19 +3895,13 @@
       "periodPausedBody": "Tu progreso se queda en esta página. Mantén esta pestaña abierta.",
       "notInPeriod": "No estás en ninguna clase a la que se haya asignado este conjunto. Pregúntale a tu docente.",
       "seatError": "No se pudo entrar a tu clase. Recarga la página para intentarlo de nuevo.",
-      "tabTitle": "Saliste de la página",
-      "tabBody": "Tu maestro puede verlo.",
-      "tabWarning": "Advertencia {{count}}.",
-      "tabSubmits": "Después de {{limit}} advertencias, se entrega tu tarea.",
-      "tabReturn": "Volver a mi tarea",
       "raiseHand": "Levantar la mano",
       "handRaised": "Mano levantada",
       "timeUpTitle": "Se acabó el tiempo",
       "tabSubmitTitle": "Saliste de la página demasiadas veces",
       "submittingAnswers": "Entregando tus respuestas…",
       "forcedTab": "Saliste de la página demasiadas veces. Tu tarea se entregó. Habla con tu maestro si crees que fue un error.",
-      "tryAgainError": "No se pudo empezar un nuevo intento. Inténtalo de nuevo.",
-      "tabWarningOf": "Advertencia {{count}} de {{limit}}."
+      "tryAgainError": "No se pudo empezar un nuevo intento. Inténtalo de nuevo."
     },
     "speak": {
       "player": {
@@ -5133,5 +5113,20 @@
     "liveTitle": "Clase en vivo",
     "liveIntro": "Únete a la sesión de tu maestro",
     "roomCode": "ID del maestro / código de sala"
+  },
+  "studentTab": {
+    "title": "Saliste de la página",
+    "body": "Tu maestro puede verlo.",
+    "warning": "Advertencia {{count}}.",
+    "warningOf": "Advertencia {{count}} de {{limit}}.",
+    "submits": "Después de {{limit}} advertencias, se entrega tu tarea.",
+    "return": "Volver a mi tarea",
+    "submittedTitle": "Tarea entregada",
+    "strikes": "Saliste de la página demasiadas veces. Tu tarea se entregó. Pregunta a tu maestro si crees que fue un error.",
+    "unlocked": "Tu intento desbloqueado se entregó.",
+    "awayTooLong": "Estuviste fuera demasiado tiempo. Tu tarea se entregó."
+  },
+  "studentOffline": {
+    "banner": "No tienes conexión. Deja esta pestaña abierta hasta que vuelvas a conectarte."
   }
 }

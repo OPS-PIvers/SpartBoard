@@ -13,6 +13,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'roster-groups',
   'quiz-document-import',
   'tab-away-timer',
+  'va-student-tab-rules',
   'live-tour-editing-v2',
   'paper-handwritten-responses',
   'paper-multi-page-answers',

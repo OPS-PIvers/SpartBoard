@@ -19,12 +19,14 @@ interface StudentPeriodLockedScreenProps {
   started?: boolean;
   /** Roster PIN for anonymous joiners; empty for signed-in students. */
   pin?: string;
+  /** Link under the card, such as back to My Assignments. */
+  footer?: React.ReactNode;
 }
 
 /** Shown while a student's class isn't open, in every student app. */
 export const StudentPeriodLockedScreen: React.FC<
   StudentPeriodLockedScreenProps
-> = ({ title, lock, started = false, pin = '' }) => {
+> = ({ title, lock, started = false, pin = '', footer }) => {
   const { t, i18n } = useTranslation();
   const opens =
     lock.opensAt != null
@@ -48,6 +50,7 @@ export const StudentPeriodLockedScreen: React.FC<
         <StudentScreenMark icon={Lock} />
         <StudentScreenEyebrow>{title}</StudentScreenEyebrow>
         <StudentScreenTitle>{t('glStudent.closed.title')}</StudentScreenTitle>
+        {footer}
       </StudentScreenShell>
     );
   }
@@ -75,6 +78,7 @@ export const StudentPeriodLockedScreen: React.FC<
           <span className="font-mono font-semibold text-slate-900">{pin}</span>
         </p>
       )}
+      {footer}
     </StudentScreenShell>
   );
 };
