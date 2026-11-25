@@ -134,6 +134,7 @@ import { getServerNow, retryWithFreshClock } from '@/utils/serverTime';
 import { deleteLiveLog, deleteLiveState } from '@/utils/quizLiveViewStore';
 import {
   attemptClockRanOut,
+  classPauses,
   clampQuizTimeLimitMinutes,
   timestampMillis,
 } from '@/utils/quizTimeLimit';
@@ -1442,7 +1443,14 @@ export const useQuizSessionTeacher = (
         timestampMillis(target.attemptStartedAt),
         rawSession?.timeLimitMinutes,
         Date.now(),
-        rawSession?.pauseSpans
+        classPauses(
+          {
+            pauseSpans: rawSession?.pauseSpans,
+            pausedAt: rawSession?.pausedAt,
+            periodAccess: rawSession?.periodAccess,
+          },
+          target.classId
+        ).pauseSpans
       );
       const currentAttempts = target.completedAttempts ?? 0;
       const refundedAttempts = Math.max(0, currentAttempts - 1);
@@ -1505,7 +1513,14 @@ export const useQuizSessionTeacher = (
       }
       await batch.commit();
     },
-    [sessionId, responses, rawSession?.timeLimitMinutes, rawSession?.pauseSpans]
+    [
+      sessionId,
+      responses,
+      rawSession?.timeLimitMinutes,
+      rawSession?.pauseSpans,
+      rawSession?.pausedAt,
+      rawSession?.periodAccess,
+    ]
   );
   const unlockStudentAttempt = useCallback(
     (responseKey: string) => unlockOrReopen(responseKey, false),

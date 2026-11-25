@@ -4,7 +4,7 @@ import {
   doc,
   getDocs,
   runTransaction,
-  writeBatch,
+  updateDoc,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { PeriodAccess, QuizAssignment } from '@/types';
@@ -83,11 +83,13 @@ export async function convertQuizToPerClass(
     const classId = backfillClassId(result.rows, d.data());
     return classId ? [{ ref: d.ref, classId }] : [];
   });
+  // One by one, so a response the rules refuse can't hold back the rest.
   for (let i = 0; i < fixes.length; i += RESPONSE_BATCH) {
-    const batch = writeBatch(db);
-    for (const f of fixes.slice(i, i + RESPONSE_BATCH))
-      batch.update(f.ref, { classId: f.classId });
-    await batch.commit();
+    await Promise.allSettled(
+      fixes
+        .slice(i, i + RESPONSE_BATCH)
+        .map((f) => updateDoc(f.ref, { classId: f.classId }))
+    );
   }
   return result.rows;
 }

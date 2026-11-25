@@ -31,6 +31,9 @@ describe('canConvertToPerClass', () => {
       false
     );
     expect(canConvertToPerClass({ ...base, classIds: [] })).toBe(false);
+    expect(
+      canConvertToPerClass({ ...base, classIds: [], rosterIds: ['r5'] })
+    ).toBe(true);
     expect(canConvertToPerClass({ ...base, periodAccess: {} })).toBe(false);
   });
 });
@@ -75,11 +78,32 @@ describe('perClassConversion', () => {
     expect(out?.accessMode).toBe('assignment');
   });
 
-  it('keeps a never-started quiz closed until Start, as Manual', () => {
+  it('keeps a never-started quiz closed until Start', () => {
     const out = perClassConversion({ ...base, status: 'paused' }, [], 100);
     expect(out?.periodAccess['cl-1'].state).toBe('closed');
-    expect(out?.accessMode).toBe('assessment');
+    expect(out?.accessMode).toBe('assignment');
     expect(out?.resume).toEqual({ pauseSpans: null });
+  });
+});
+
+describe('local rosters', () => {
+  it('key a roster without ClassLink by the roster, unverified', () => {
+    const out = perClassConversion(
+      { ...base, classIds: ['cl-1'], rosterIds: ['r1', 'r5'] },
+      [...rosters, { id: 'r5', name: 'P5 Local' }],
+      0
+    );
+    expect(Object.keys(out?.periodAccess ?? {})).toEqual(['cl-1', 'roster:r5']);
+    expect(out?.periodAccess['roster:r5']).toMatchObject({
+      verified: false,
+      label: 'P5 Local',
+      rosterId: 'r5',
+    });
+  });
+  it('cannot move without rosters to key local classes', () => {
+    expect(
+      perClassConversion({ ...base, classIds: [], rosterIds: ['r5'] }, [], 0)
+    ).toBeNull();
   });
 });
 
@@ -88,10 +112,15 @@ describe('backfillClassId', () => {
   it('leaves a response that already names a class', () => {
     expect(backfillClassId(rows, { classId: 'cl-2' })).toBeNull();
   });
-  it('matches the period name, else the first class', () => {
+  it('matches the period name, else a signed-in student gets the first class', () => {
     expect(backfillClassId(rows, { classPeriod: 'Period 2' })).toBe('cl-2');
     expect(backfillClassId(rows, {})).toBe('cl-1');
+    expect(backfillClassId(rows, { classId: '' })).toBe('cl-1');
+    expect(backfillClassId(rows, { pin: '1234' })).toBeNull();
     expect(backfillClassId({}, {})).toBeNull();
+  });
+  it('never moves a class already set', () => {
+    expect(backfillClassId(rows, { classId: 'other' })).toBeNull();
   });
 });
 

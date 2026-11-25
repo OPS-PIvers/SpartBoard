@@ -4918,7 +4918,7 @@ service cloud.firestore {
           (authUid() == existing().studentUid && changedOnly(['dictated']) && dictatedOk()) ||
           // The teacher can update any field but the student identity the gradebook keys on (a missing class may be filled in); another admin also can't touch the server-written archive, override and paper fields.
           (liveUid(sessionTeacherUid()) && !changed(['studentUid']) &&
-           (!changed(['classId']) || existing().get('classId', null) == null)) ||
+           (!changed(['classId']) || existing().get('classId', null) in [null, ''])) ||
           (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations', 'liveView']))
         );
         allow delete: if signedIn() &&

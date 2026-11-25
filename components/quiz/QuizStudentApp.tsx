@@ -114,7 +114,11 @@ import {
   studentPreviewBlocksWrite,
 } from '@/utils/viewAsTab';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
-import { resolveAttemptDeadline, timestampMillis } from '@/utils/quizTimeLimit';
+import {
+  classPauses,
+  resolveAttemptDeadline,
+  timestampMillis,
+} from '@/utils/quizTimeLimit';
 import { QuizTimeLimitClock } from './QuizTimeLimitClock';
 import { useServerNow } from '@/hooks/useServerNow';
 import {
@@ -2346,13 +2350,14 @@ export const ActiveQuiz: React.FC<{
   }, [closeAtForAttempt, myResponse?.status, reopened, attemptCloseAutoSubmit]);
 
   // Overall time limit: counts from the server-stamped attempt start, scaled by extended time.
+  const myPauses = classPauses(session, myResponse?.classId);
   const attemptDeadline =
-    session.sessionMode === 'student' && session.status !== 'paused'
+    session.sessionMode === 'student' && !myPauses.paused
       ? resolveAttemptDeadline(
           timestampMillis(myResponse?.attemptStartedAt),
           session.timeLimitMinutes,
           override?.timeMultiplier,
-          session.pauseSpans
+          myPauses.pauseSpans
         )
       : null;
   // Any open timed attempt without a clock (a limit added mid-assignment, or a row a paper scan created) starts it.

@@ -49,6 +49,7 @@ import {
 } from './RosterParts';
 import {
   QUIZ_TIME_LIMIT_WARN_MS,
+  classPauses,
   formatTimeLeft,
   resolveAttemptDeadline,
   timestampMillis,
@@ -476,15 +477,16 @@ export const RosterList: React.FC<RosterListProps> = ({
           targetRefKeyByStudentUid
         );
         const refKey = targetRefKeyByStudentUid?.get(r.studentUid);
+        const pauses = classPauses(session, r.classId);
         const deadline =
-          session.sessionMode === 'student' && session.status !== 'paused'
+          session.sessionMode === 'student' && !pauses.paused
             ? resolveAttemptDeadline(
                 timestampMillis(r.attemptStartedAt),
                 session.timeLimitMinutes,
                 refKey
                   ? overridesBySourcedId?.[refKey]?.timeMultiplier
                   : undefined,
-                session.pauseSpans
+                pauses.pauseSpans
               )
             : null;
         const locked =

@@ -1203,6 +1203,8 @@ export const useQuizAssignments = (
       const periodAccess =
         live?.periodAccess ??
         (await convertQuizToPerClass(userId, assignmentId, rosters));
+      // Without class rows a resume would open the quiz to everyone.
+      if (!periodAccess) throw new Error('Could not reopen for these students');
       const now = Date.now();
       const until = now + REOPEN_PASS_MS;
       const rows: unknown[] = [];

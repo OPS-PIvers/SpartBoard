@@ -29,6 +29,7 @@ import {
 import { BELL_CLOSE_CUSHION_MS } from '@/utils/periodPlan';
 import { dueLockAt } from '@/utils/periodAccess';
 import { nextHold } from '@/utils/heldStudentTime';
+import { appendPauseSpan } from '@/utils/quizTimeLimit';
 
 /** Stale in-progress responses get a fresh `lastWriteAt` on start, inside the idle finalizer's 90-minute window. */
 const IDLE_REFRESH_CUTOFF_MS = 80 * 60 * 1000;
@@ -246,17 +247,23 @@ export function usePeriodAccess(
       for (const key of keys) {
         const access = periodAccess[key];
         if (!access) continue;
+        // A quiz class's time limit skips the time it sat paused or closed.
+        const spans =
+          sessionCollection === 'quiz_sessions' && access.state !== 'open'
+            ? appendPauseSpan(access.pauseSpans, access.pausedAt, now)
+            : null;
         rows[key] = {
           state: 'open',
           openAt: null,
           closeAt: startCloseAt(session, access, now),
           ...(reopen || access.closedAt != null ? { closedAt: null } : {}),
           openedAt: now,
+          ...(spans ? { pauseSpans: spans } : {}),
         };
       }
       await write(rows);
     },
-    [session, periodAccess, refreshStaleResponses, write]
+    [session, periodAccess, sessionCollection, refreshStaleResponses, write]
   );
 
   const pause = useCallback(

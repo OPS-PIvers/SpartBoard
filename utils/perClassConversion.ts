@@ -5,7 +5,11 @@ import type {
   PeriodAccess,
   PeriodAccessSessionFields,
 } from '@/types';
-import { periodKeyForRoster, type PeriodRoster } from '@/utils/periodPlan';
+import {
+  periodKeyForRoster,
+  rosterIsVerified,
+  type PeriodRoster,
+} from '@/utils/periodPlan';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { appendPauseSpan, hasOpenPause } from '@/utils/quizTimeLimit';
 
@@ -16,6 +20,7 @@ export interface WholeQuizSession extends PeriodAccessSessionFields {
   closeAt?: number | null;
   pauseSpans?: PauseSpan[];
   classIds?: string[];
+  rosterIds?: string[];
   classPeriodByClassId?: Record<string, string>;
 }
 
@@ -35,7 +40,9 @@ export function canConvertToPerClass(
     !hasPeriodAccess(session) &&
     session.sessionMode === 'student' &&
     (session.status === 'active' || session.status === 'paused') &&
-    (session.classIds ?? []).some((c) => typeof c === 'string' && c !== '')
+    [...(session.classIds ?? []), ...(session.rosterIds ?? [])].some(
+      (c) => typeof c === 'string' && c !== ''
+    )
   );
 }
 
@@ -56,33 +63,37 @@ export function perClassConversion(
       ? 'paused'
       : 'closed';
   const periodAccess: Record<string, PeriodAccess> = {};
-  for (const classId of session.classIds ?? []) {
-    if (
-      typeof classId !== 'string' ||
-      classId === '' ||
-      classId in periodAccess
-    )
-      continue;
-    const roster = rosters.find((r) => periodKeyForRoster(r) === classId);
-    periodAccess[classId] = {
+  const add = (key: string, roster: PeriodRoster | undefined) => {
+    if (key === '' || key in periodAccess) return;
+    periodAccess[key] = {
       state,
       openAt,
       closeAt,
       bellPeriodId: roster?.bellPeriod?.periodId ?? null,
-      verified: true,
-      label: roster?.name ?? session.classPeriodByClassId?.[classId] ?? classId,
+      verified: roster ? rosterIsVerified(roster) : true,
+      label: roster?.name ?? session.classPeriodByClassId?.[key] ?? key,
       ...(roster ? { rosterId: roster.id } : {}),
       ...(state === 'paused' && typeof session.pausedAt === 'number'
         ? { pausedAt: session.pausedAt }
         : {}),
     };
+  };
+  // Each assigned roster keys its row as a new assign would; class ids no roster explains keep their own.
+  for (const id of session.rosterIds ?? []) {
+    const roster = rosters.find((r) => r.id === id);
+    if (roster) add(periodKeyForRoster(roster), roster);
   }
+  for (const classId of session.classIds ?? []) {
+    if (typeof classId !== 'string') continue;
+    add(
+      classId,
+      rosters.find((r) => periodKeyForRoster(r) === classId)
+    );
+  }
+  if (Object.keys(periodAccess).length === 0) return null;
   return {
-    // A quiz that never had a window waits for the teacher's Start, like Manual.
-    accessMode:
-      running || openAt != null || closeAt != null
-        ? 'assignment'
-        : 'assessment',
+    // Assignment mode keeps PIN joins working; rows that are not open still wait for Start.
+    accessMode: 'assignment',
     periodAccess,
     resume: running
       ? null
@@ -96,12 +107,13 @@ export function perClassConversion(
   };
 }
 
-/** The class row a response without one follows: its period name, else the first class (all start with the same gate). */
+/** The class row a response without one follows: its period name, else a signed-in student's first class (all start with the same gate). */
 export function backfillClassId(
   periodAccess: Record<string, PeriodAccess>,
-  response: { classId?: unknown; classPeriod?: unknown }
+  response: { classId?: unknown; classPeriod?: unknown; pin?: unknown }
 ): string | null {
-  if (typeof response.classId === 'string' && response.classId in periodAccess)
+  // Only a missing class can be filled in; one already set stays.
+  if (typeof response.classId === 'string' && response.classId !== '')
     return null;
   const keys = Object.keys(periodAccess);
   const byLabel = keys.find(
@@ -110,7 +122,8 @@ export function backfillClassId(
       periodAccess[k].label === response.classPeriod
   );
   if (byLabel) return byLabel;
-  return keys[0] ?? null;
+  if (typeof response.pin === 'string' && response.pin !== '') return null;
+  return keys.find((k) => periodAccess[k].verified) ?? null;
 }
 
 /** Whether a student can work now, reading a whole-quiz session as the per-class rows it would move to. */

@@ -967,6 +967,11 @@ describe('a whole-quiz session moved to class rows', () => {
     await assertSucceeds(updateDoc(teacherResp(), { classId: CLASS_A }));
     await assertFails(updateDoc(teacherResp(), { classId: CLASS_B }));
     await assertSucceeds(getDoc(teacherResp()));
+    await seedResponse(S, STUDENT_UID, {
+      studentUid: STUDENT_UID,
+      classId: '',
+    });
+    await assertSucceeds(updateDoc(teacherResp(), { classId: CLASS_B }));
   });
 
   it('takes answers once the student class row opens', async () => {
