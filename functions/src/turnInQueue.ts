@@ -160,6 +160,52 @@ function writeMarker(
   });
 }
 
+/** When a pass granted, or a reopen removed, by this write next needs a look; null when it changed neither. */
+function passDue(
+  before: Doc | undefined,
+  after: Doc | undefined,
+  serverNow: number
+): number | null {
+  const was = passesOf(before);
+  const granted = Object.entries(passesOf(after))
+    .filter(([uid, end]) => end > serverNow && was[uid] !== end)
+    .map(([, end]) => end);
+  const nowReopened = new Set(reopenedOf(after));
+  const unReopened = reopenedOf(before).some((u) => !nowReopened.has(u));
+  if (!granted.length && !unReopened) return null;
+  return Math.min(
+    ...granted,
+    ...(unReopened ? [serverNow + TURN_IN_DELAY_MS] : [])
+  );
+}
+
+/** Keeps an existing marker for the same close, moving it earlier only; otherwise writes one due at `due`. */
+function requeueMarker(
+  db: Firestore,
+  m: MarkerRef,
+  due: number,
+  serverNow: number
+): Promise<void> {
+  const ref = db
+    .collection(TURN_INS)
+    .doc(markerId(m.sessionId, m.classKey, m.kind, m.scope));
+  return db.runTransaction(async (tx) => {
+    const prev = (await tx.get(ref)).data();
+    if (prev?.closedAt === m.closedAt && typeof prev.dueAt === 'number') {
+      if (prev.dueAt <= due) return;
+      tx.set(ref, { ...prev, dueAt: due });
+      return;
+    }
+    tx.set(ref, {
+      ...m,
+      serverClosedAt: m.closedAt,
+      queuedAt: serverNow,
+      attempts: 0,
+      dueAt: due,
+    });
+  });
+}
+
 /** A pass granted or a reopen removed on an already-closed class (re)queues its marker for when the pass ends. */
 async function queuePassChanges(
   db: Firestore,
@@ -170,17 +216,8 @@ async function queuePassChanges(
   serverNow: number,
   closedNow: Array<[string, number]>
 ): Promise<void> {
-  const was = passesOf(before);
-  const granted = Object.entries(passesOf(after))
-    .filter(([uid, end]) => end > serverNow && was[uid] !== end)
-    .map(([, end]) => end);
-  const nowReopened = new Set(reopenedOf(after));
-  const unReopened = reopenedOf(before).some((u) => !nowReopened.has(u));
-  if (!granted.length && !unReopened) return;
-  const due = Math.min(
-    ...granted,
-    ...(unReopened ? [serverNow + TURN_IN_DELAY_MS] : [])
-  );
+  const due = passDue(before, after, serverNow);
+  if (due === null) return;
   const fresh = new Set(closedNow.map(([k]) => k));
   const jobs = Object.entries(rowsOf(after))
     .filter(
@@ -189,31 +226,20 @@ async function queuePassChanges(
         row?.state === 'closed' &&
         typeof row.closedAt === 'number'
     )
-    .map(([classKey, row]) => {
-      const closedAt = row.closedAt as number;
-      const ref = db
-        .collection(TURN_INS)
-        .doc(markerId(sessionId, classKey, kind, 'class'));
-      return db.runTransaction(async (tx) => {
-        const prev = (await tx.get(ref)).data();
-        if (prev?.closedAt === closedAt && typeof prev.dueAt === 'number') {
-          if (prev.dueAt <= due) return;
-          tx.set(ref, { ...prev, dueAt: due });
-          return;
-        }
-        tx.set(ref, {
+    .map(([classKey, row]) =>
+      requeueMarker(
+        db,
+        {
           kind,
           scope: 'class',
           sessionId,
           classKey,
-          closedAt,
-          serverClosedAt: closedAt,
-          queuedAt: serverNow,
-          attempts: 0,
-          dueAt: due,
-        });
-      });
-    });
+          closedAt: row.closedAt as number,
+        },
+        due,
+        serverNow
+      )
+    );
   await Promise.all(jobs);
 }
 
@@ -232,9 +258,18 @@ export async function queueSessionTurnIns(
 ): Promise<number> {
   const closed = newlyClosed(before, after);
   const ended = newlyEnded(kind, before, after, serverNow);
+  const passDiff =
+    JSON.stringify(passesOf(before)) !== JSON.stringify(passesOf(after)) ||
+    reopenedOf(before).join() !== reopenedOf(after).join();
+  // A single-line video run has no class rows; its run marker follows the pass instead.
+  if (
+    kind === 'videoActivity' &&
+    passDiff &&
+    Object.keys(rowsOf(after)).length === 0
+  )
+    await requeueVideoRun(db, sessionId, before, after, serverNow);
   const passChange =
-    (JSON.stringify(passesOf(before)) !== JSON.stringify(passesOf(after)) ||
-      reopenedOf(before).join() !== reopenedOf(after).join()) &&
+    passDiff &&
     Object.values(rowsOf(after)).some(
       (r) => r?.state === 'closed' && typeof r.closedAt === 'number'
     );
@@ -257,7 +292,8 @@ export async function queueSessionTurnIns(
         db,
         { kind, scope: 'run', sessionId, classKey: '', closedAt: ended },
         serverNow,
-        { dueAt }
+        // A close set a little ahead is the close time the stamp counts from.
+        { dueAt, serverClosedAt: Math.max(serverNow, ended) }
       )
     );
   }
@@ -289,8 +325,7 @@ export async function queueVideoRunTurnIn(
   sessionId: string,
   before: Doc | undefined,
   after: Doc | undefined,
-  serverNow: number,
-  granted: GrantCheck
+  serverNow: number
 ): Promise<boolean> {
   const closedAt = after?.closedAt;
   if (typeof closedAt !== 'number' || closedAt === before?.closedAt)
@@ -301,13 +336,36 @@ export async function queueVideoRunTurnIn(
   ).data();
   if (!session || session.sessionMode === 'teacher') return false;
   if (Object.keys(rowsOf(session)).length > 0) return false;
-  if (!(await granted())) return false;
+  // Like a Video Activity class Close, this backs up the tab's own turn-in with no preview.
   await writeMarker(
     db,
     { kind: 'videoActivity', scope: 'run', sessionId, classKey: '', closedAt },
     serverNow
   );
   return true;
+}
+
+/** A Let in on a closed single-line video run moves its run marker to when the pass ends. */
+async function requeueVideoRun(
+  db: Firestore,
+  sessionId: string,
+  before: Doc | undefined,
+  after: Doc | undefined,
+  serverNow: number
+): Promise<void> {
+  if (!after || after.sessionMode === 'teacher') return;
+  const due = passDue(before, after, serverNow);
+  const ref = vaAssignmentRef(db, after, sessionId);
+  if (due === null || !ref) return;
+  const assignment = (await ref.get()).data();
+  const closedAt: unknown = assignment?.closedAt;
+  if (typeof closedAt !== 'number' || assignment?.mode === 'view-only') return;
+  await requeueMarker(
+    db,
+    { kind: 'videoActivity', scope: 'run', sessionId, classKey: '', closedAt },
+    due,
+    serverNow
+  );
 }
 
 function vaAssignmentRef(
@@ -362,11 +420,19 @@ function unfinished(kind: TurnInKind, r: Doc): boolean {
     : r.completedAt == null;
 }
 
-/** Nothing to turn in: a blank video or guided join, or a scanned written-answers row the student never opened (AB-152). */
-function blank(kind: TurnInKind, r: Doc): boolean {
+/** Nothing to turn in: a blank video join, a guided join with no answer to an activity that asks questions, or a scanned row never opened (AB-152). */
+function blank(kind: TurnInKind, r: Doc, session: Doc): boolean {
   if (kind === 'quiz')
     return r.status === 'joined' && !!r.paperWrittenBatchId && !r.lastWriteAt;
-  return !Array.isArray(r.answers) || r.answers.length === 0;
+  const none = !Array.isArray(r.answers) || r.answers.length === 0;
+  if (kind === 'videoActivity') return none;
+  // A walkthrough with no questions never writes answers, so an empty list says nothing there.
+  const steps = session.publicSteps;
+  return (
+    none &&
+    Array.isArray(steps) &&
+    steps.some((step) => !!(step as Doc | null)?.question)
+  );
 }
 
 /** A class Close and a single-line video Close leave let-in students open; an End finishes everyone. */
@@ -388,7 +454,7 @@ function picked(
   now: number
 ): boolean {
   if (!unfinished(m.kind, r) || !inScope(m, session, r)) return false;
-  const isBlank = blank(m.kind, r);
+  const isBlank = blank(m.kind, r, session);
   if (!honoursPasses(m)) return !isBlank;
   return !staysOpenAtClose(
     session,
@@ -398,10 +464,14 @@ function picked(
   );
 }
 
-function hadPass(session: Doc, uid: string): boolean {
+/** Let in past the close, or reopened: they may have worked after it, so their stamp is the real time. */
+function workedPastClose(session: Doc, uid: string, closedAt: number): boolean {
   if (!uid) return false;
-  const access = session.studentAccess as Doc | undefined;
-  return !!access && uid in access ? true : reopenedOf(session).includes(uid);
+  const pass = (session.studentAccess as Doc | undefined)?.[uid];
+  return (
+    (typeof pass === 'number' && pass > closedAt) ||
+    reopenedOf(session).includes(uid)
+  );
 }
 
 /** When a let-in student's pass ends, if they're left open only because of it. */
@@ -505,9 +575,11 @@ export async function turnInMarker(
         if (!parent || !stillClosed(m, parent, a)) return false;
         const fresh = (await tx.get(d.ref)).data();
         if (!fresh || !picked(m, parent, fresh, d.id, now)) return false;
-        // A student let in after the Close may have worked past it, so their stamp is the real time.
         const stamp =
-          honoursPasses(m) && hadPass(parent, uidOf(fresh, d.id)) ? now : at;
+          honoursPasses(m) &&
+          workedPastClose(parent, uidOf(fresh, d.id), m.closedAt)
+            ? now
+            : at;
         const patch = turnInPatch(m.kind, fresh, stamp, meta);
         if (!patch) return false;
         tx.update(d.ref, patch);
@@ -675,6 +747,7 @@ function sessionTrigger(kind: TurnInKind) {
       document: `${SESSIONS[kind]}/{sessionId}`,
       region: 'us-central1',
       retry: true,
+      ...(kind === 'videoActivity' ? {} : { maxInstances: 10 }),
     },
     async (event) => {
       const db = admin.firestore();
@@ -709,8 +782,7 @@ export const queueVideoRunTurnIns = onDocumentUpdated(
       event.params.assignmentId,
       event.data?.before.data(),
       event.data?.after.data(),
-      Date.parse(event.time) || Date.now(),
-      teacherGrant(db, event.params.teacherUid)
+      Date.parse(event.time) || Date.now()
     );
   }
 );

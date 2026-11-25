@@ -737,6 +737,44 @@ describe('every kind', () => {
   });
 
   describe('guided learning', () => {
+    const QSTEPS = [{ id: 's', question: { type: 'text', text: 'Q' } }];
+
+    it('turns in a walkthrough join, which never writes answers', async () => {
+      store.docs.set(G, { closeAt: CLOSED_AT, publicSteps: [{ id: 's' }] });
+      glResp('walk', { answers: [] });
+      const r = await turnInMarker(
+        db as never,
+        {
+          kind: 'guidedLearning',
+          scope: 'run',
+          sessionId: 'g1',
+          classKey: '',
+          closedAt: CLOSED_AT,
+        },
+        NOW,
+        CLOSED_AT
+      );
+      expect(r.turnedIn).toBe(1);
+    });
+
+    it('counts the turn-in from a close set a little ahead', async () => {
+      const ahead = NOW + 60_000;
+      await queueSessionTurnIns(
+        db as never,
+        'guidedLearning',
+        'g1',
+        {},
+        { closeAt: ahead },
+        NOW,
+        yes
+      );
+      const [, m] = markers()[0];
+      expect(m).toMatchObject({
+        serverClosedAt: ahead,
+        dueAt: ahead + TURN_IN_DELAY_MS,
+      });
+    });
+
     const glResp = (id: string, extra: Doc) =>
       store.docs.set(`${G}/responses/${id}`, {
         answers: [{ stepId: 's', answer: 'x', isCorrect: null }],
@@ -755,7 +793,7 @@ describe('every kind', () => {
           yes
         )
       ).toBe(1);
-      store.docs.set(G, { closeAt: CLOSED_AT });
+      store.docs.set(G, { closeAt: CLOSED_AT, publicSteps: QSTEPS });
       glResp('a', {});
       glResp('blank', { answers: [] });
       glResp('done', { completedAt: 3 });
@@ -797,6 +835,7 @@ describe('every kind', () => {
 
     it('a closed class leaves its blank joins and reopened students open', async () => {
       store.docs.set(G, {
+        publicSteps: QSTEPS,
         periodAccess: {
           p1: { state: 'closed', closedAt: CLOSED_AT, label: 'P1' },
         },
@@ -832,7 +871,7 @@ describe('every kind', () => {
         ...extra,
       });
 
-    it('queues a close mark with the preview and turns in all but let-in students', async () => {
+    it('queues a close mark and turns in all but let-in students', async () => {
       store.docs.set(V, {
         teacherUid: 't1',
         status: 'ended',
@@ -845,18 +884,7 @@ describe('every kind', () => {
           'v1',
           {},
           { closedAt: CLOSED_AT },
-          CLOSED_AT,
-          no
-        )
-      ).toBe(false);
-      expect(
-        await queueVideoRunTurnIn(
-          db as never,
-          'v1',
-          {},
-          { closedAt: CLOSED_AT },
-          CLOSED_AT,
-          yes
+          CLOSED_AT
         )
       ).toBe(true);
       vaResp('a', {});
@@ -873,25 +901,11 @@ describe('every kind', () => {
         periodAccess: { p1: { state: 'closed' } },
       });
       expect(
-        await queueVideoRunTurnIn(
-          db as never,
-          'v1',
-          {},
-          { closedAt: 1 },
-          1,
-          yes
-        )
+        await queueVideoRunTurnIn(db as never, 'v1', {}, { closedAt: 1 }, 1)
       ).toBe(false);
       store.docs.set(V, { teacherUid: 't1', sessionMode: 'teacher' });
       expect(
-        await queueVideoRunTurnIn(
-          db as never,
-          'v1',
-          {},
-          { closedAt: 1 },
-          1,
-          yes
-        )
+        await queueVideoRunTurnIn(db as never, 'v1', {}, { closedAt: 1 }, 1)
       ).toBe(false);
       store.docs.set(V, { teacherUid: 't1' });
       expect(
@@ -900,10 +914,34 @@ describe('every kind', () => {
           'v1',
           {},
           { closedAt: 1, mode: 'view-only' },
-          1,
-          yes
+          1
         )
       ).toBe(false);
+    });
+
+    it('a Let in on a closed run moves its marker to when the pass ends', async () => {
+      store.docs.set(A, { closedAt: CLOSED_AT });
+      const before = { teacherUid: 't1' };
+      const after = {
+        teacherUid: 't1',
+        studentAccess: { late: NOW + 600_000 },
+      };
+      store.docs.set(V, after);
+      await queueSessionTurnIns(
+        db as never,
+        'videoActivity',
+        'v1',
+        before,
+        after,
+        NOW
+      );
+      const [, m] = markers()[0];
+      expect(m).toMatchObject({
+        kind: 'videoActivity',
+        scope: 'run',
+        closedAt: CLOSED_AT,
+        dueAt: NOW + 600_000,
+      });
     });
 
     it('is stale once Undo or Reopen clears the close mark', async () => {

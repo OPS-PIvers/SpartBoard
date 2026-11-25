@@ -16,9 +16,13 @@ const RESPONSES = 'responses';
 
 type SessionGate = (s: GuidedLearningSession | undefined) => boolean;
 
-/** A join with no answers has nothing to turn in, so it stays Not started. */
-const isBlank = (r: GuidedLearningResponse): boolean =>
-  !Array.isArray(r.answers) || r.answers.length === 0;
+/** A join with no answer to an activity that asks questions has nothing to turn in; a walkthrough never writes answers. */
+const isBlank = (
+  r: GuidedLearningResponse,
+  s: GuidedLearningSession
+): boolean =>
+  (!Array.isArray(r.answers) || r.answers.length === 0) &&
+  (s.publicSteps ?? []).some((step) => !!step.question);
 
 /** Turns in one closed class's unfinished GL responses (ASSIGNED_TAB D6); `closedAt` is the Close that scheduled it. */
 export async function finalizeClassGuidedLearningResponses(
@@ -36,7 +40,7 @@ export async function finalizeClassGuidedLearningResponses(
     const label = s.periodAccess?.[classKey]?.label ?? '';
     return (
       responseInClass(r, classKey, label) &&
-      !staysOpenAtClose(s, { studentUid: uid }, now, { blank: isBlank(r) })
+      !staysOpenAtClose(s, { studentUid: uid }, now, { blank: isBlank(r, s) })
     );
   });
 }
@@ -48,7 +52,7 @@ export async function finalizeOpenGuidedLearningResponses(
   now: number = Date.now()
 ): Promise<void> {
   const gate: SessionGate = (s) => s?.closeAt === closeAt;
-  await finalizeOpen(sessionId, now, gate, (r) => !isBlank(r));
+  await finalizeOpen(sessionId, now, gate, (r, _uid, s) => !isBlank(r, s));
 }
 
 async function finalizeOpen(
