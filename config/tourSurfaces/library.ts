@@ -67,7 +67,6 @@ export const SURFACES: TourSurfaceMap = {
       'components/common/library/AssignTargetingSection.tsx',
       'components/common/library/AssignAvailabilitySection.tsx',
       'components/common/library/AssignPeriodAccessSection.tsx',
-      'components/common/library/PeriodSelector.tsx',
     ],
     inner: {
       'assign-targeting.clear': 'assign-targeting.open',

@@ -5642,6 +5642,8 @@ export interface PeriodAccess {
   closedAt?: number | null;
   /** Epoch ms the teacher last opened or resumed this class (ASSIGNED_TAB D11). */
   openedAt?: number | null;
+  /** Quiz: this class's closed pauses, which its students' time limit skips. */
+  pauseSpans?: PauseSpan[];
 }
 
 export type AccessMode = 'assessment' | 'assignment';
@@ -11814,6 +11816,8 @@ export interface Toast {
   };
   /** Set while the toast eases out, just before it is removed. */
   leaving?: boolean;
+  /** A newer toast with the same key replaces this one. */
+  replaceKey?: string;
 }
 
 export type WidgetCategory =

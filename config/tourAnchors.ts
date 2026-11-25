@@ -2185,25 +2185,6 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'assign-periods-untagged',
   },
-  'assign-periods.selector-close': {
-    label: 'Close button in the Class Periods popup',
-    panel: true,
-  },
-  'assign-periods.selector-period': {
-    label: 'Class period checkbox in the Class Periods popup',
-    perField: true,
-    panel: true,
-    rows: true,
-    rowList: 'assign-periods-selector-period',
-  },
-  'assign-periods.selector-cancel': {
-    label: 'Cancel button in the Class Periods popup',
-    panel: true,
-  },
-  'assign-periods.selector-save': {
-    label: 'Save button in the Class Periods popup',
-    panel: true,
-  },
   'assign-settings.attempts': {
     label: 'Attempts allowed option in the Assign window',
     perField: true,

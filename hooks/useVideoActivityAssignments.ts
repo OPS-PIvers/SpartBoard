@@ -78,10 +78,15 @@ import type {
 } from '@/types';
 import { dedupeQuestionsById } from '@/utils/videoActivityGrading';
 import {
-  splitVideoActivitySessionQuestions,
   VA_KEY_DOC_ID,
   VA_KEY_SUBCOLLECTION,
 } from '@/utils/videoActivityPublicQuestions';
+import {
+  buildVideoActivitySessionDoc,
+  setVideoActivitySessionDocs,
+  type VideoActivitySessionWindow,
+} from '@/utils/videoActivitySessionDoc';
+import { PAGE_PROTECTIONS_FEATURE } from '@/utils/pageProtections';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
 import {
   assignmentLifecyclePatches,
@@ -174,7 +179,9 @@ export interface UseVideoActivityAssignmentsResult {
     rosterIds?: string[],
     /** Org-wide assignment mode frozen onto the assignment + session.
      *  Defaults to `'submissions'` (preserves pre-feature behavior). */
-    mode?: AssignmentMode
+    mode?: AssignmentMode,
+    /** Opens, closes and due date, written on both docs in the create batch. */
+    window?: VideoActivitySessionWindow
   ) => Promise<{ id: string }>;
   /** Set both assignment.status and session.status to 'paused' (assignment) / 'ended' (session). */
   pauseAssignment: (assignmentId: string) => Promise<void>;
@@ -310,8 +317,11 @@ export const useVideoActivityAssignments = (
   const [loading, setLoading] = useState<boolean>(!!userId);
   const [error, setError] = useState<string | null>(null);
   // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
-  const allowAnonymousJoin =
-    useContext(AuthContext)?.canAccessFeature?.('anonymous-join') !== false;
+  const canAccessFeature = useContext(AuthContext)?.canAccessFeature;
+  const allowAnonymousJoin = canAccessFeature?.('anonymous-join') !== false;
+  const tabAwayTimerOn = canAccessFeature?.('tab-away-timer') === true;
+  const pageProtectionsOn =
+    canAccessFeature?.(PAGE_PROTECTIONS_FEATURE) === true;
   const { setAssignmentTargets } = useSetAssignmentTargets();
 
   // Live mirror of `assignments` so status mutators can look up a
@@ -376,7 +386,8 @@ export const useVideoActivityAssignments = (
       classIds,
       periodNames,
       rosterIds,
-      mode = 'submissions'
+      mode = 'submissions',
+      window
     ) => {
       if (!userId) throw new Error('Not authenticated');
       // An imported question still waiting for its key fails every assign path, not just the widget's.
@@ -390,8 +401,6 @@ export const useVideoActivityAssignments = (
       const targetRosterIds = rosterIds ?? [];
       const assignmentId = crypto.randomUUID();
       const now = Date.now();
-      // Dedupes, so a duplicated question id can't inflate "Question X of N".
-      const split = splitVideoActivitySessionQuestions(activity.questions);
 
       const assignment: VideoActivityAssignment = {
         id: assignmentId,
@@ -420,46 +429,31 @@ export const useVideoActivityAssignments = (
         // `useQuizAssignments.createAssignment` spreads `settings.plc`
         // onto its assignment doc the same way.
         ...(settings.plc ? { plc: settings.plc } : {}),
+        ...(window?.openAt != null ? { openAt: window.openAt } : {}),
+        ...(window?.closeAt != null ? { closeAt: window.closeAt } : {}),
+        ...(window?.dueAt != null ? { dueAt: window.dueAt } : {}),
         mode,
       };
 
       // Session's status is binary — if the assignment is paused or inactive,
       // the session is 'ended' (students can't join/submit). Only an 'active'
       // assignment produces an 'active' session.
-      const sessionStatus: VideoActivitySession['status'] =
-        initialStatus === 'active' ? 'active' : 'ended';
-
-      const session: VideoActivitySession = {
-        id: assignmentId,
-        activityId: activity.id,
-        activityTitle: activity.title,
-        assignmentName: settings.className ?? activity.title,
+      const sessionDocs = buildVideoActivitySessionDoc({
+        sessionId: assignmentId,
+        activity,
         teacherUid: userId,
-        youtubeUrl: activity.youtubeUrl,
-        ...videoActivityPlayback(activity),
-        ...split.sessionFields,
+        assignmentName: settings.className ?? activity.title,
         settings: settings.sessionSettings,
-        ...(settings.sessionOptions
-          ? { sessionOptions: settings.sessionOptions }
-          : {}),
-        status: sessionStatus,
-        allowedPins: [],
-        allowAnonymousJoin,
-        createdAt: now,
-        ...(sessionStatus === 'ended' ? { endedAt: now } : {}),
-        // Phase 5A: multi-class ClassLink targeting + post-PIN period picker.
-        // Mirror `classIds[0]` into the legacy `classId` field so
-        // pre-Phase-5A rules keep gating correctly until the fallback is
-        // removed.
-        ...(targetClassIds.length > 0
-          ? { classIds: targetClassIds, classId: targetClassIds[0] }
-          : {}),
-        ...(targetPeriodNames.length > 0
-          ? { periodNames: targetPeriodNames }
-          : {}),
-        ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
+        sessionOptions: settings.sessionOptions,
+        status: initialStatus === 'active' ? 'active' : 'ended',
+        now,
+        gates: { tabAwayTimerOn, pageProtectionsOn, allowAnonymousJoin },
         mode,
-      };
+        classIds: targetClassIds,
+        periodNames: targetPeriodNames,
+        rosterIds: targetRosterIds,
+        window,
+      });
 
       const batch = writeBatch(db);
       batch.set(
@@ -472,20 +466,7 @@ export const useVideoActivityAssignments = (
         ),
         assignment
       );
-      batch.set(
-        doc(db, VIDEO_ACTIVITY_SESSIONS_COLLECTION, assignmentId),
-        session
-      );
-      batch.set(
-        doc(
-          db,
-          VIDEO_ACTIVITY_SESSIONS_COLLECTION,
-          assignmentId,
-          VA_KEY_SUBCOLLECTION,
-          VA_KEY_DOC_ID
-        ),
-        split.key
-      );
+      setVideoActivitySessionDocs(batch, db, sessionDocs);
       await batch.commit();
 
       // PLC dashboard index: when this VA assignment opts into PLC mode,
@@ -513,7 +494,7 @@ export const useVideoActivityAssignments = (
 
       return { id: assignmentId };
     },
-    [userId, allowAnonymousJoin]
+    [userId, allowAnonymousJoin, tabAwayTimerOn, pageProtectionsOn]
   );
 
   const setStatus = useCallback(

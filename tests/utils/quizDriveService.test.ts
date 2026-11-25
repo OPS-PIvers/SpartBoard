@@ -1511,3 +1511,19 @@ describe('QuizDriveService.exportResultsToSheet — attempt history', () => {
     expect(layouts[0].headers).not.toContain('Attempts');
   });
 });
+
+describe('QuizDriveService.parseCSVQuestions', () => {
+  it('skips a header row and reads quoted cells', () => {
+    const qs = QuizDriveService.parseCSVQuestions(
+      'Time,Question,Type,Correct,Wrong\n30,"Pick one, please",MC,A,B\n'
+    );
+    expect(qs).toHaveLength(1);
+    expect(qs[0]).toMatchObject({ text: 'Pick one, please', type: 'MC' });
+  });
+
+  it('keeps a first row that is a question', () => {
+    expect(
+      QuizDriveService.parseCSVQuestions('30,Q1,MC,A,B\n30,Q2,FIB,C')
+    ).toHaveLength(2);
+  });
+});

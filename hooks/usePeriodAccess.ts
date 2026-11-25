@@ -29,6 +29,7 @@ import {
 import { BELL_CLOSE_CUSHION_MS } from '@/utils/periodPlan';
 import { dueLockAt } from '@/utils/periodAccess';
 import { nextHold } from '@/utils/heldStudentTime';
+import { appendPauseSpan } from '@/utils/quizTimeLimit';
 
 /** Stale in-progress responses get a fresh `lastWriteAt` on start, inside the idle finalizer's 90-minute window. */
 const IDLE_REFRESH_CUTOFF_MS = 80 * 60 * 1000;
@@ -46,6 +47,8 @@ export interface PeriodAccessCollections {
   assignmentId?: string;
   /** Kinds whose session no client writes (Writing) send the period and Let in patches through this instead. */
   commit?: (patch: PeriodAccessPatch) => Promise<void>;
+  /** Moves a whole-quiz session onto per-class rows before a pass is written; null when it can't. */
+  toPerClass?: () => Promise<Record<string, PeriodAccess> | null>;
 }
 
 /** Per-period field patches and Let in passes, for a kind that saves them through a callable. */
@@ -145,6 +148,7 @@ export function usePeriodAccess(
     refreshIdle = true,
     assignmentId,
     commit,
+    toPerClass,
   }: PeriodAccessCollections,
   rosters: readonly BellRoster[] | undefined
 ) {
@@ -243,17 +247,23 @@ export function usePeriodAccess(
       for (const key of keys) {
         const access = periodAccess[key];
         if (!access) continue;
+        // A quiz class's time limit skips the time it sat paused or closed.
+        const spans =
+          sessionCollection === 'quiz_sessions' && access.state !== 'open'
+            ? appendPauseSpan(access.pauseSpans, access.pausedAt, now)
+            : null;
         rows[key] = {
           state: 'open',
           openAt: null,
           closeAt: startCloseAt(session, access, now),
           ...(reopen || access.closedAt != null ? { closedAt: null } : {}),
           openedAt: now,
+          ...(spans ? { pauseSpans: spans } : {}),
         };
       }
       await write(rows);
     },
-    [session, periodAccess, refreshStaleResponses, write]
+    [session, periodAccess, sessionCollection, refreshStaleResponses, write]
   );
 
   const pause = useCallback(
@@ -311,11 +321,22 @@ export function usePeriodAccess(
     [refs, session?.passHold]
   );
 
+  // A pass is only honored by per-class rows, so a whole-quiz session moves to them first.
+  const perClassRows = useCallback(
+    async () => periodAccess ?? (toPerClass ? await toPerClass() : null),
+    [periodAccess, toPerClass]
+  );
+
   const letIn = useCallback(
     async (uid: string) => {
       if (!refs) return;
+      const rows = await perClassRows();
+      if (!rows) {
+        if (toPerClass) throw new Error('Cannot let in here');
+        return;
+      }
       const until = letInUntil(
-        periodAccess ?? {},
+        rows,
         rosters ?? [],
         featurePermissions,
         Date.now()
@@ -332,13 +353,23 @@ export function usePeriodAccess(
         );
       await refreshHold(uid, { from: null, until });
     },
-    [refs, periodAccess, rosters, featurePermissions, commit, refreshHold]
+    [
+      refs,
+      perClassRows,
+      toPerClass,
+      rosters,
+      featurePermissions,
+      commit,
+      refreshHold,
+    ]
   );
 
   /** "Set a time": one student's pass from `from` to `until`; null removes it. */
   const setStudentTime = useCallback(
     async (uid: string, time: { from: number; until: number } | null) => {
       if (!refs || commit) throw new Error('Cannot schedule here');
+      if (time && !(await perClassRows()))
+        throw new Error('Cannot schedule here');
       await updateDoc(
         refs.session,
         new FieldPath('studentAccess', uid),
@@ -348,7 +379,7 @@ export function usePeriodAccess(
       );
       await refreshHold(uid, time);
     },
-    [refs, commit, refreshHold]
+    [refs, commit, perClassRows, refreshHold]
   );
 
   const keys = useMemo(() => Object.keys(periodAccess ?? {}), [periodAccess]);
@@ -360,6 +391,8 @@ export function usePeriodAccess(
     pauseAll: () => pause(keys),
     /** `at` stamps a known closedAt, for a caller that schedules work against it. */
     closePeriod: (key: string, at?: number) => close([key], at),
+    /** Closes these classes in one write, all stamped `at`. */
+    closePeriods: (keys: readonly string[], at?: number) => close(keys, at),
     /** D9: lets the class back in at once, exactly like Start, and clears closedAt. */
     reopenPeriod: (key: string) => start([key], true),
     /** Closes every class not already closed by hand, so earlier closedAt marks stand. */

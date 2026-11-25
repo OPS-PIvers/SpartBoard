@@ -66,6 +66,7 @@ import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import { guidedLearningLifecycle } from './utils/glClassLifecycle';
 import { useFolders } from '@/hooks/useFolders';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
+import { useLibraryDuplicate } from '@/components/common/library/useLibraryDuplicate';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import {
   LIBRARY_ITEM_NOUNS,
@@ -415,8 +416,15 @@ const TeacherGuidedLearningWidget: React.FC<{
   );
   // Shared rapid-click guards (personal sets + admin building sets).
   // See `hooks/useBusyIdSet.ts`.
-  const personalDuplicateBusy = useBusyIdSet();
-  const buildingDuplicateBusy = useBusyIdSet();
+  const personalDuplicate = useLibraryDuplicate({
+    duplicate: (source: GuidedLearningSetMetadata) => duplicateSet(source),
+    addToast,
+  });
+  const buildingDuplicate = useLibraryDuplicate({
+    duplicate: ({ id }: { id: string }) => duplicateBuildingSet(id),
+    addToast,
+    successMessage: (title) => `Duplicated building set as "${title}".`,
+  });
   const helpMoveBusy = useBusyIdSet();
   const tourConvertBusy = useBusyIdSet();
   const [recentSessionIds, setRecentSessionIds] = useState<
@@ -1745,47 +1753,15 @@ const TeacherGuidedLearningWidget: React.FC<{
                     void handleDelete(setId, driveFileId);
                   }}
                   onBulkDeletePersonal={handleBulkDeletePersonal}
-                  onDuplicatePersonal={(setId, _driveFileId) => {
-                    // `_driveFileId` is part of the manager's signature
-                    // (mirrors onDeletePersonal) but we don't need it —
-                    // `duplicateSet` reads driveFileId off the resolved
-                    // source metadata.
+                  onDuplicatePersonal={(setId) => {
                     const source = sets.find((s) => s.id === setId);
-                    if (!source) return;
-                    void personalDuplicateBusy.run(setId, async () => {
-                      try {
-                        const copy = await duplicateSet(source);
-                        addToast(`Duplicated as "${copy.title}".`, 'success');
-                      } catch (err) {
-                        addToast(
-                          err instanceof Error
-                            ? err.message
-                            : 'Duplicate failed',
-                          'error'
-                        );
-                      }
-                    });
+                    if (source) void personalDuplicate.duplicate(source);
                   }}
-                  isDuplicatingPersonal={personalDuplicateBusy.isBusy}
-                  onDuplicateBuilding={(setId) => {
-                    void buildingDuplicateBusy.run(setId, async () => {
-                      try {
-                        const copy = await duplicateBuildingSet(setId);
-                        addToast(
-                          `Duplicated building set as "${copy.title}".`,
-                          'success'
-                        );
-                      } catch (err) {
-                        addToast(
-                          err instanceof Error
-                            ? err.message
-                            : 'Duplicate failed',
-                          'error'
-                        );
-                      }
-                    });
-                  }}
-                  isDuplicatingBuilding={buildingDuplicateBusy.isBusy}
+                  isDuplicatingPersonal={personalDuplicate.isDuplicating}
+                  onDuplicateBuilding={(setId) =>
+                    void buildingDuplicate.duplicate({ id: setId })
+                  }
+                  isDuplicatingBuilding={buildingDuplicate.isDuplicating}
                   onConvertToLiveTour={
                     canEditToursOnBoard
                       ? (setId, driveFileId, buildingEntry) => {

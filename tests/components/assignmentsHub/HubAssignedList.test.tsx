@@ -19,8 +19,9 @@ const classActions = {
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { uid: 't1' }, featurePermissions: [] }),
 }));
+const addToast = vi.fn();
 vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({ addToast: vi.fn() }),
+  useDashboard: () => ({ addToast }),
 }));
 vi.mock('@/config/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
@@ -44,17 +45,14 @@ vi.mock('@/hooks/useQuiz', () => ({
 vi.mock('@/hooks/useQuizClassActions', () => ({
   useQuizClassActions: () => classActions,
 }));
+const restoreRun = vi.fn(
+  (_prev: unknown, _uid: string, _collections: unknown, _lifecycle: unknown) =>
+    Promise.resolve()
+);
 vi.mock('@/hooks/useAssignmentClassActions', () => ({
   useAssignmentClassActions: () => classActions,
-}));
-const writingActions = {
-  ...classActions,
-  closeAll: vi.fn(() => Promise.resolve()),
-};
-const undoWritingClose = vi.fn((_prev: unknown) => Promise.resolve());
-vi.mock('@/hooks/useWritingClassActions', () => ({
-  useWritingClassActions: () => writingActions,
-  undoWritingClose: (prev: unknown) => undoWritingClose(prev),
+  restoreRun: (prev: unknown, uid: string, c: unknown, l: unknown) =>
+    restoreRun(prev, uid, c, l),
 }));
 vi.mock('@/hooks/useSetAssignmentTargets', () => ({
   useSetAssignmentTargets: () => ({ setAssignmentTargets: vi.fn() }),
@@ -224,15 +222,32 @@ describe('HubAssignedList', () => {
     expect(onSelect).toHaveBeenCalledWith('f1');
   });
 
-  it('Writing closes through its server-backed actions, with Undo putting the record back', async () => {
+  it('Writing closes through the shared class actions, with Undo putting the record back through its server writer', async () => {
     renderList([row('w1', 'writing')]);
     fireEvent.click(screen.getByRole('button', { name: /Details for/ }));
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Close' }));
       await Promise.resolve();
     });
-    expect(writingActions.closeAll).toHaveBeenCalled();
-    expect(classActions.closeClass).not.toHaveBeenCalled();
+    expect(classActions.closeClass).toHaveBeenCalledWith(null);
+    const toast = addToast.mock.calls.at(-1) as unknown as [
+      string,
+      string,
+      { onClick: () => void },
+    ];
+    await act(async () => {
+      toast[2].onClick();
+      await Promise.resolve();
+    });
+    expect(restoreRun).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'w1' }),
+      't1',
+      expect.objectContaining({
+        writer: expect.objectContaining({ restore: expect.any(Function) }),
+      }),
+      expect.anything()
+    );
+    expect(classActions.reopenClass).not.toHaveBeenCalled();
   });
 
   it('marks the selected row', () => {

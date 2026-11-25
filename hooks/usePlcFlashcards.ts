@@ -1,5 +1,5 @@
 // PLC Flashcards: shared sets at plcs/{plcId}/flashcard_sets and class results at plcs/{plcId}/flashcard_results.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   collection,
   deleteDoc,
@@ -7,14 +7,10 @@ import {
   doc,
   getDoc,
   getDocs,
-  onSnapshot,
-  orderBy,
-  query,
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
-import { db, isAuthBypass } from '@/config/firebase';
-import { useAuth } from '@/context/useAuth';
+import { db } from '@/config/firebase';
 import type {
   FlashcardCard,
   FlashcardSession,
@@ -23,7 +19,12 @@ import type {
   PlcFlashcardResultEntry,
   PlcFlashcardSetEntry,
 } from '@/types';
-import { logError } from '@/utils/logError';
+import {
+  isLivePlcLibraryEntry,
+  usePlcLibraryEntries,
+  usePlcSubscription,
+  type PlcLibrarySpec,
+} from '@/hooks/usePlcLibraryEntries';
 import {
   FC_CONTENT_COLLECTION,
   FC_CONTENT_DOC,
@@ -175,81 +176,35 @@ export function plcSyncGroupId(
   return set?.plcOrigin?.plcId === plcId ? set.plcOrigin.setId : setId;
 }
 
-function usePlcSubscription<T>(
-  plcId: string | null,
-  sub: string,
-  parse: (id: string, data: Record<string, unknown>) => T | null,
-  keep: (item: T) => boolean
-): { items: T[]; loading: boolean; error: Error | null } {
-  const { user } = useAuth();
-  const [items, setItems] = useState<T[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [prevPlcId, setPrevPlcId] = useState(plcId);
-  if (plcId !== prevPlcId) {
-    setPrevPlcId(plcId);
-    setItems([]);
-    setLoading(true);
-    setError(null);
-  }
-
-  useEffect(() => {
-    if (!plcId || !user || isAuthBypass) {
-      const t = setTimeout(() => {
-        setItems([]);
-        setLoading(false);
-      }, 0);
-      return () => clearTimeout(t);
-    }
-    return onSnapshot(
-      query(collection(db, PLCS, plcId, sub), orderBy('updatedAt', 'desc')),
-      (snap) => {
-        const list: T[] = [];
-        snap.forEach((d) => {
-          const parsed = parse(d.id, d.data());
-          if (parsed && keep(parsed)) list.push(parsed);
-        });
-        setItems(list);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        logError(`usePlcFlashcards.${sub}`, err, { plcId });
-        setLoading(false);
-        setError(err instanceof Error ? err : new Error(String(err)));
-      }
-    );
-  }, [plcId, user, sub, parse, keep]);
-
-  return { items, loading, error };
-}
-
-const isLiveSet = (entry: PlcFlashcardSetEntry): boolean =>
-  entry.deletedAt == null;
 const keepAll = (): boolean => true;
 
+const FLASHCARD_SET_LIBRARY: PlcLibrarySpec<
+  PlcFlashcardSetEntry,
+  SharePlcFlashcardSetInput,
+  SharePlcFlashcardSetOutcome
+> = {
+  kind: 'flashcards',
+  subcollection: PLC_FLASHCARD_SETS,
+  parse: parsePlcFlashcardSetEntry,
+  keep: isLivePlcLibraryEntry,
+  orderByUpdatedAt: true,
+  share: writePlcFlashcardSetEntry,
+};
+
 export const usePlcFlashcardSets = (plcId: string | null) => {
-  const { user } = useAuth();
-  const { items, loading, error } = usePlcSubscription(
+  const { entries, loading, error, share, unshare } = usePlcLibraryEntries(
     plcId,
-    PLC_FLASHCARD_SETS,
-    parsePlcFlashcardSetEntry,
-    isLiveSet
-  );
-  const unshareSet = useCallback(
-    async (setId: string): Promise<void> => {
-      if (!plcId || !user) throw new Error('Not signed in');
-      const now = Date.now();
-      await updateDoc(doc(db, PLCS, plcId, PLC_FLASHCARD_SETS, setId), {
-        deletedAt: now,
-        updatedAt: now,
-      });
-    },
-    [plcId, user]
+    FLASHCARD_SET_LIBRARY
   );
   return useMemo(
-    () => ({ sets: items, loading, error, unshareSet }),
-    [items, loading, error, unshareSet]
+    () => ({
+      sets: entries,
+      loading,
+      error,
+      shareSet: share,
+      unshareSet: unshare,
+    }),
+    [entries, loading, error, share, unshare]
   );
 };
 
@@ -258,7 +213,8 @@ export const usePlcFlashcardResults = (plcId: string | null) => {
     plcId,
     PLC_FLASHCARD_RESULTS,
     parsePlcFlashcardResultEntry,
-    keepAll
+    keepAll,
+    { logTag: `usePlcFlashcards.${PLC_FLASHCARD_RESULTS}` }
   );
   return useMemo(
     () => ({ results: items, loading, error }),
