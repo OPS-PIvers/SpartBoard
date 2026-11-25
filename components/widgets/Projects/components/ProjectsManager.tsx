@@ -42,6 +42,7 @@ import {
   LibraryShell,
   LibraryToolbar,
   buildDuplicateAction,
+  useLibraryDuplicate,
   buildMoveToFolderAction,
   countItemsByFolder,
   useLibrarySelection,
@@ -158,6 +159,11 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
     duplicateProject,
     reorderProjects,
   } = useProjectLibrary(userId);
+  const libraryDuplicate = useLibraryDuplicate({
+    duplicate: duplicateProject,
+    addToast,
+    errorMessage: 'That project could not be duplicated.',
+  });
   const { runs, loading: runsLoading } = useProjectRuns(userId);
   const { rubrics } = useRubrics(userId);
   const folderState = useFolders(userId, 'projects');
@@ -457,13 +463,8 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
         icon: SquarePen,
         onClick: () => setEditingId(project.id),
       },
-      buildDuplicateAction(project, async () => {
-        try {
-          const copy = await duplicateProject(project);
-          addToast(`Duplicated as "${copy.title}".`, 'success');
-        } catch {
-          addToast('That project could not be duplicated.', 'error');
-        }
+      buildDuplicateAction(project, () => libraryDuplicate.duplicate(project), {
+        disabled: libraryDuplicate.isDuplicating(project.id),
       }),
       buildMoveToFolderAction({
         onOpenPicker: () => setFolderPickerTarget(project),

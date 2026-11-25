@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
+import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import type {
   ActivityWallLibraryEntry,
   GuidedLearningAssignment,
@@ -243,7 +244,7 @@ export function useSandboxedQuiz(api: UseQuizResult): UseQuizResult {
       if (!isSandboxed(meta.id)) return api.duplicateQuiz(meta);
       const data = await loadEither('quiz', meta.driveFileId, api.loadQuizData);
       const id = sandboxId();
-      const copy = { ...data, id, title: `${data.title} (Copy)` };
+      const copy = { ...data, id, title: suggestDuplicateTitle(data.title) };
       return putDriveItem('quiz', metaOf(copy), copy, realIds);
     },
     shareQuiz: (meta, load) =>
@@ -294,7 +295,11 @@ export function useSandboxedVideoActivity(
         meta.driveFileId,
         api.loadActivityData
       );
-      const copy = { ...data, id: sandboxId(), title: `${data.title} (Copy)` };
+      const copy = {
+        ...data,
+        id: sandboxId(),
+        title: suggestDuplicateTitle(data.title),
+      };
       return putDriveItem('video-activity', metaOf(copy), copy, realIds);
     },
     attachSyncLinkage: (id, linkage) =>
@@ -343,7 +348,11 @@ export function useSandboxedGuidedLearning(
         meta.driveFileId,
         api.loadSetData
       );
-      const copy = { ...data, id: sandboxId(), title: `${data.title} (Copy)` };
+      const copy = {
+        ...data,
+        id: sandboxId(),
+        title: suggestDuplicateTitle(data.title),
+      };
       return putDriveItem('guided-learning', metaOf(copy), copy, realIds);
     },
     saveBuildingSet: () => Promise.resolve(),

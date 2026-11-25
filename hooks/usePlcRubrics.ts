@@ -8,22 +8,21 @@
  * is inlined on the PLC doc, so sharing is a single write.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
-  collection,
   deleteField,
   doc,
   getDoc,
-  onSnapshot,
-  orderBy,
-  query,
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
-import { db, isAuthBypass } from '@/config/firebase';
-import { useAuth } from '@/context/useAuth';
+import { db } from '@/config/firebase';
 import type { PlcRubricEntry, Rubric, RubricCriterion } from '@/types';
-import { logError } from '@/utils/logError';
+import {
+  isLivePlcLibraryEntry,
+  usePlcLibraryEntries,
+  type PlcLibrarySpec,
+} from '@/hooks/usePlcLibraryEntries';
 
 const PLCS_COLLECTION = 'plcs';
 const RUBRICS_SUBCOLLECTION = 'rubrics';
@@ -165,97 +164,32 @@ export function toPortableRubric(entry: PlcRubricEntry): Rubric {
   return rubric;
 }
 
+const RUBRIC_LIBRARY: PlcLibrarySpec<
+  PlcRubricEntry,
+  ShareRubricWithPlcInput,
+  ShareRubricOutcome
+> = {
+  kind: 'rubric',
+  subcollection: RUBRICS_SUBCOLLECTION,
+  parse: parsePlcRubricEntry,
+  keep: isLivePlcLibraryEntry,
+  orderByUpdatedAt: true,
+  share: writePlcRubricEntry,
+};
+
 export const usePlcRubrics = (plcId: string | null): UsePlcRubricsResult => {
-  const { user } = useAuth();
-  const [rubrics, setRubrics] = useState<PlcRubricEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  const [prevPlcId, setPrevPlcId] = useState(plcId);
-  if (plcId !== prevPlcId) {
-    setPrevPlcId(plcId);
-    setRubrics([]);
-    setLoading(true);
-    setError(null);
-  }
-
-  useEffect(() => {
-    if (!plcId || !user || isAuthBypass) {
-      const t = setTimeout(() => {
-        setRubrics([]);
-        setLoading(false);
-      }, 0);
-      return () => clearTimeout(t);
-    }
-    const ref = collection(db, PLCS_COLLECTION, plcId, RUBRICS_SUBCOLLECTION);
-    const unsub = onSnapshot(
-      query(ref, orderBy('updatedAt', 'desc')),
-      (snap) => {
-        const list: PlcRubricEntry[] = [];
-        snap.forEach((d) => {
-          const parsed = parsePlcRubricEntry(d.id, d.data());
-          if (parsed && parsed.deletedAt == null) list.push(parsed);
-        });
-        setRubrics(list);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        logError('usePlcRubrics.snapshot', err, { plcId });
-        setLoading(false);
-        setError(err instanceof Error ? err : new Error(String(err)));
-      }
-    );
-    return () => unsub();
-  }, [plcId, user]);
-
-  const shareRubricWithPlc = useCallback(
-    async (input: ShareRubricWithPlcInput): Promise<ShareRubricOutcome> => {
-      if (!plcId || !user) throw new Error('Not signed in');
-      return writePlcRubricEntry(plcId, user.uid, input);
-    },
-    [plcId, user]
-  );
-
-  const unshareRubricFromPlc = useCallback(
-    async (rubricId: string): Promise<void> => {
-      if (!plcId || !user) throw new Error('Not signed in');
-      await updateDoc(
-        doc(db, PLCS_COLLECTION, plcId, RUBRICS_SUBCOLLECTION, rubricId),
-        { deletedAt: Date.now(), updatedAt: Date.now() }
-      );
-    },
-    [plcId, user]
-  );
-
-  const restoreRubricInPlc = useCallback(
-    async (rubricId: string): Promise<void> => {
-      if (!plcId || !user) throw new Error('Not signed in');
-      await updateDoc(
-        doc(db, PLCS_COLLECTION, plcId, RUBRICS_SUBCOLLECTION, rubricId),
-        { deletedAt: null, updatedAt: Date.now() }
-      );
-    },
-    [plcId, user]
-  );
-
+  const { entries, loading, error, share, unshare, restore } =
+    usePlcLibraryEntries(plcId, RUBRIC_LIBRARY);
   return useMemo(
     () => ({
-      rubrics,
+      rubrics: entries,
       loading,
       error,
-      shareRubricWithPlc,
-      unshareRubricFromPlc,
-      restoreRubricInPlc,
+      shareRubricWithPlc: share,
+      unshareRubricFromPlc: unshare,
+      restoreRubricInPlc: restore,
     }),
-    [
-      rubrics,
-      loading,
-      error,
-      shareRubricWithPlc,
-      unshareRubricFromPlc,
-      restoreRubricInPlc,
-    ]
+    [entries, loading, error, share, unshare, restore]
   );
 };
 

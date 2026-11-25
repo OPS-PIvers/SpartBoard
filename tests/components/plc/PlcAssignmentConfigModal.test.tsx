@@ -651,7 +651,7 @@ describe('PlcAssignmentConfigModal (video-activity kind)', () => {
 // rosterIds, so rosterIds forwarding is never actually proven. Here we drive
 // the REAL derivation: real rosters are supplied via useDashboard, the resolver
 // mock delegates to the real implementation, and we select rosters through the
-// real AssignClassPicker. We then assert createAssignment receives the actual
+// real ClassChecklist. We then assert createAssignment receives the actual
 // selected rosterIds — pinning the picker → derive → createAssignment seam.
 // ---------------------------------------------------------------------------
 
@@ -714,7 +714,7 @@ describe('PlcAssignmentConfigModal — genuine rosterIds forwarding (T6)', () =>
       />
     );
 
-    // Select a real roster through the real AssignClassPicker.
+    // Select a real roster through the real ClassChecklist.
     fireEvent.click(screen.getByText('Period 1 Alpha'));
 
     act(() => {

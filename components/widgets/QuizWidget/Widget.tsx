@@ -103,7 +103,7 @@ import { useQuizDelete } from '@/hooks/useQuizDelete';
 import { useQuizPlcShare } from '@/hooks/useQuizPlcShare';
 import { useQuizPublish } from '@/hooks/useQuizPublish';
 import { useQuizLinkShare } from '@/hooks/useQuizLinkShare';
-import { useBusyIdSet } from '@/hooks/useBusyIdSet';
+import { useLibraryDuplicate } from '@/components/common/library/useLibraryDuplicate';
 import { useFolders } from '@/hooks/useFolders';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { useQuizDocumentImportGate } from '@/hooks/useQuizDocumentImportGate';
@@ -204,7 +204,6 @@ import {
   CLASSROOM_ASSIGN_ENABLED,
   CLASSROOM_ASSIGN_ADMIN_ONLY,
 } from '@/config/constants';
-import { saveAttemptPolicy } from '@/hooks/gradebook/useGradebookColumnWrites';
 import {
   fibGradingFromAssignment,
   type FibGradingContext,
@@ -321,7 +320,6 @@ import {
   useSetAssignmentTargets,
   type SkipReason,
 } from '@/hooks/useSetAssignmentTargets';
-import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 import {
   expandMixedTargeting,
@@ -335,6 +333,8 @@ import {
   buildAssignSettings,
   buildAssignTargetsCall,
   resolveAssignTargeting,
+  applyAssignTargetsCall,
+  saveAssignFinalScore,
 } from '@/hooks/quizAssign/builders';
 import type { QuizStepperAssign } from './components/QuizManager';
 import type { StudentTargetRef } from '@/types';
@@ -963,10 +963,14 @@ const TeacherQuizWidget: React.FC<{
   const [loadingQuizData, setLoadingQuizData] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
 
-  // Rapid-double-click guard for the Duplicate kebab. The shared hook
-  // owns the set, the `run()` wrapper, and the no-op-on-busy semantics
-  // so the four library widgets stay in lockstep.
-  const duplicateBusy = useBusyIdSet();
+  const quizDuplicate = useLibraryDuplicate({
+    duplicate: duplicateQuiz,
+    addToast,
+  });
+  const bankDuplicate = useLibraryDuplicate({
+    duplicate: duplicateBank,
+    addToast,
+  });
 
   // Bump a token whenever the user navigates INTO the results view so the
   // QuizResults consumer remounts with fresh memos over the current live
@@ -4378,19 +4382,13 @@ const TeacherQuizWidget: React.FC<{
                 console.warn('[QuizWidget] printed groups not queued:', err)
               );
             }
-            const finalScore = behavior.finalScore ?? 'latest';
-            if (finalScore !== 'latest' && attemptLimit !== 1 && user?.uid) {
-              saveAttemptPolicy(
-                user.uid,
+            if (user?.uid)
+              saveAssignFinalScore({
+                uid: user.uid,
                 assignmentId,
-                'quiz',
-                finalScore
-              ).catch((err: unknown) =>
-                logError('QuizWidget.assignment.finalScore', err, {
-                  assignmentId,
-                })
-              );
-            }
+                behavior: { finalScore: behavior.finalScore, attemptLimit },
+                logScope: 'QuizWidget.assignment',
+              });
             if (assessmentAssign) {
               saveLastAssignSettings({
                 sessionMode: mode,
@@ -4404,56 +4402,22 @@ const TeacherQuizWidget: React.FC<{
             // today. Individual targeting fans the pick-list out to
             // `/student_assignments` pointer docs; skipped refs are surfaced,
             // never silently dropped.
-            const targetsCall = buildAssignTargetsCall({
-              assignmentId,
-              mixedTargeting,
-              resolvedTargeting,
+            const targetsResult = await applyAssignTargetsCall({
+              targetsCall: buildAssignTargetsCall({
+                assignmentId,
+                mixedTargeting,
+                resolvedTargeting,
+              }),
+              setAssignmentTargets,
+              setAssignmentTargetSkippedCount,
+              notify: addToast,
+              logScope: 'QuizWidget.assignment',
             });
-            if (targetsCall) {
-              try {
-                const result = await setAssignmentTargets(targetsCall);
-                if (result.skipped.length > 0) {
-                  setAssignSkippedByAssignmentId((prev) => ({
-                    ...prev,
-                    [assignmentId]: result.skipped,
-                  }));
-                  addToast(
-                    skippedTargetsToastMessage(
-                      result.skipped.length,
-                      result.skippedExclusions?.length ?? 0
-                    ),
-                    'warning'
-                  );
-                  // Skipped-ref durability (canonical rule) — persist the
-                  // PII-free count onto the assignment doc so the "N
-                  // skipped" list-row marker survives a reload; the toast
-                  // with names above is ephemeral only. Best-effort: a
-                  // failure here doesn't affect the already-created
-                  // assignment or the in-session toast/marker.
-                  try {
-                    await setAssignmentTargetSkippedCount(
-                      assignmentId,
-                      result.skipped.length
-                    );
-                  } catch (persistErr) {
-                    logError(
-                      'QuizWidget.assignment.setAssignmentTargetSkippedCount',
-                      persistErr,
-                      { assignmentId }
-                    );
-                  }
-                }
-              } catch (targetErr) {
-                logError(
-                  'QuizWidget.assignment.setAssignmentTargets',
-                  targetErr,
-                  { assignmentId }
-                );
-                addToast(
-                  'Assigned to the class, but individual student targeting failed to save. Reopen Settings to retry.',
-                  'error'
-                );
-              }
+            if (targetsResult && targetsResult.skipped.length > 0) {
+              setAssignSkippedByAssignmentId((prev) => ({
+                ...prev,
+                [assignmentId]: targetsResult.skipped,
+              }));
             }
 
             // Persist the teacher's last-used rosters per quiz so
@@ -4547,20 +4511,8 @@ const TeacherQuizWidget: React.FC<{
         onCreateViewOnlyShare={linkShare.onCreateViewOnlyShare}
         deleteDetail={(meta) => quizDeleteDetail(assignments, meta.id)}
         onDelete={quizDelete.onDelete}
-        onDuplicate={(meta) =>
-          void duplicateBusy.run(meta.id, async () => {
-            try {
-              const copy = await duplicateQuiz(meta);
-              addToast(`Duplicated as "${copy.title}".`, 'success');
-            } catch (err) {
-              addToast(
-                err instanceof Error ? err.message : 'Duplicate failed',
-                'error'
-              );
-            }
-          })
-        }
-        isDuplicating={duplicateBusy.isBusy}
+        onDuplicate={(meta) => void quizDuplicate.duplicate(meta)}
+        isDuplicating={quizDuplicate.isDuplicating}
         onBulkDelete={quizDelete.onBulkDelete}
         // ─── Archive tab ─────────────────────────────────────────────────────
         managerTab={config.managerTab ?? 'library'}
@@ -4608,17 +4560,7 @@ const TeacherQuizWidget: React.FC<{
             );
           }
         }}
-        onDuplicateBank={async (meta) => {
-          try {
-            const copy = await duplicateBank(meta);
-            addToast(`Duplicated as "${copy.title}".`, 'success');
-          } catch (err) {
-            addToast(
-              err instanceof Error ? err.message : 'Failed to duplicate bank',
-              'error'
-            );
-          }
-        }}
+        onDuplicateBank={bankDuplicate.duplicate}
         onDeleteBank={async (meta) => {
           try {
             await deleteBank(meta);

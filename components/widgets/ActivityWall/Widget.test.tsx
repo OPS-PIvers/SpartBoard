@@ -346,7 +346,7 @@ describe('ActivityWallWidget', () => {
     await waitFor(() => {
       const copy = mockSaveActivity.mock.calls
         .map((call) => call[0] as ActivityWallLibraryEntry)
-        .find((entry) => entry.title.includes('(copy)'));
+        .find((entry) => entry.title.includes('(Copy)'));
       expect(copy).toBeDefined();
       expect(copy?.id).not.toBe('wall-1');
     });
