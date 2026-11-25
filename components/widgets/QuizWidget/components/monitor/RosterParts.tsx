@@ -159,7 +159,6 @@ export interface RosterMenuItem {
   onClick: () => void;
 }
 
-/** A student row's vertical-dots menu; renders nothing without items. */
 /** Scrolls only the nearest scrolling ancestor, never the board around the widget. */
 function revealInScroller(el: HTMLElement): void {
   let scroller = el.parentElement;
@@ -174,6 +173,7 @@ function revealInScroller(el: HTMLElement): void {
   if (overBy > 0) scroller.scrollTop += overBy;
 }
 
+/** A student row's vertical-dots menu; renders nothing without items. */
 export const RosterRowMenu: React.FC<{
   ariaLabel: string;
   triggerAnchor: TourAnchorAttrs;
