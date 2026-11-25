@@ -23,6 +23,7 @@ import { EmbedTab } from './types';
 import { EmbedConfig } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { ShortenUrlButton } from '@/components/admin/ShortenUrlButton';
+import { copyText } from '@/utils/copyText';
 
 export const EmbedConfigEditor: React.FC<{
   config: Partial<EmbedConfig>;
@@ -117,7 +118,7 @@ export const EmbedConfigEditor: React.FC<{
   };
 
   const copyToClipboard = (text: string) => {
-    void navigator.clipboard.writeText(text);
+    void copyText(text);
     setCopied(true);
     if (copiedTimerRef.current !== null) clearTimeout(copiedTimerRef.current);
     copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);

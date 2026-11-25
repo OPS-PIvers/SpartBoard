@@ -19,6 +19,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { parseCsvRecords } from '@/utils/csv';
 
 const inputClass =
   'w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500';
@@ -263,19 +264,14 @@ export const RevealGridCardsField: React.FC<{
     reader.onload = (loadEvent) => {
       const csvData = loadEvent.target?.result;
       if (typeof csvData !== 'string') return;
-      const newCards = csvData
-        .split('\n')
-        .map((line) => {
-          const parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-          if (parts.length < 2) return null;
-          return {
-            id: crypto.randomUUID(),
-            frontContent: parts[0].replace(/^"|"$/g, '').trim(),
-            backContent: parts[1].replace(/^"|"$/g, '').trim(),
-            isRevealed: false,
-          } satisfies RevealCard;
-        })
-        .filter((card) => card !== null) as RevealCard[];
+      const newCards = parseCsvRecords(csvData)
+        .filter((parts) => parts.length >= 2)
+        .map((parts): RevealCard => ({
+          id: crypto.randomUUID(),
+          frontContent: parts[0].trim(),
+          backContent: parts[1].trim(),
+          isRevealed: false,
+        }));
       if (newCards.length > 0) updateCards([...cards, ...newCards]);
     };
     reader.readAsText(file);

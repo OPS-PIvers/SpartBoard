@@ -11,6 +11,13 @@ import '@testing-library/jest-dom/vitest';
 // canonicalizeBuildingIds — otherwise the UI can never fully unassign a
 // legacy-tagged building (see toggleBuilding in the component under test).
 
+const dashboardStub = vi.hoisted(() => ({
+  addToast: () => undefined,
+  removeToast: () => undefined,
+}));
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => dashboardStub,
+}));
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: vi.fn().mockResolvedValue(true) }),
 }));

@@ -7,6 +7,7 @@ import { Smartphone, ExternalLink, Copy, Check } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import { Toggle } from '@/components/common/Toggle';
 import { tourAttr } from '@/config/tourAnchors';
+import { copyText } from '@/utils/copyText';
 
 interface Props {
   onClose: () => void;
@@ -30,7 +31,7 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(remoteUrl);
+      if (!(await copyText(remoteUrl))) throw new Error('Clipboard refused');
       if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
       setCopied(true);
       copiedTimeoutRef.current = setTimeout(() => {

@@ -8,6 +8,7 @@ import {
   type CalcSpec,
 } from './quizCalculated';
 import { notChosenIds, type ChooseSection } from './quizSectionsChosen';
+import { scoreResponseTotal } from './quizResponseTotal';
 import {
   fibExtrasParts,
   fibLenientAccepts,
@@ -1204,7 +1205,6 @@ export function computeAssessmentAggregate(
       teachers.set(session.teacherUid, teacher);
     }
 
-    const paperWritten = new Set(session.paperWrittenQuestionIds ?? []);
     const servedSeeds = publicCalcSeeds(session.publicQuestions);
     for (const r of completed) {
       studentCount++;
@@ -1242,66 +1242,51 @@ export function computeAssessmentAggregate(
 
       // Grade locally from the answer key so unpublished sessions still score;
       // any served question without a key or an owed manual grade blocks the score.
-      let earned = 0;
-      let max = 0;
-      let gradable = true;
-      const scoredGrades = new Map<string, LocalGrade>();
+      const keyed: GroupQuestion[] = [];
+      let unmapped = false;
       for (const sessionQid of servedSet) {
         const groupQid = alignment.map.get(sessionQid);
         const question = groupQid ? questionById.get(groupQid) : undefined;
-        if (!question) {
-          gradable = false;
-          continue;
-        }
-        const a = representative.get(sessionQid);
+        if (question) keyed.push({ ...question, id: sessionQid });
+        else unmapped = true;
+      }
+      const modified =
+        session.overridesByStudentUid?.[r.studentUid]?.modifiedQuestions ===
+        true;
+      const total = scoreResponseTotal({
+        questions: keyed,
+        answers:
+          input.kind === 'video-activity'
+            ? [...representative.values()]
+            : answers,
+        servedQuestionIds: r.servedQuestionIds,
+        sections: session.sections,
+        countedChoices: r.countedChoices,
+        manualGrades: r.manualGrades,
+        fibAnswersFor: (id) => servedFibAnswers(session, r.studentUid, id),
+        paperAttested: r.paperAttested,
+        paperWrittenQuestionIds: session.paperWrittenQuestionIds,
         // Numbers come from the question id the student was served.
-        const servedSeed = servedSeeds.get(sessionQid);
-        const own = question.calc
-          ? withCalcValues(
-              {
-                ...question,
-                id: sessionQid,
-                calc: {
-                  ...question.calc,
-                  seed: servedSeed ?? question.calc.seed,
-                },
-              },
-              r.responseKey,
-              session.overridesByStudentUid?.[r.studentUid]
-                ?.modifiedQuestions === true
-            )
-          : undefined;
-        const graded = own
-          ? { ...question, calc: own.calc, calcValues: own.calcValues }
-          : question;
-        const grade = gradeGroupAnswer(
-          graded,
-          a?.answer ?? '',
-          r.manualGrades?.[sessionQid],
-          question.type === 'FIB'
-            ? servedFibAnswers(session, r.studentUid, sessionQid)
-            : undefined,
-          trustedPaperTranscript(question, r.paperAttested, a)
-        );
-        // A paper answer not yet scanned or still untranscribed is owed a grade, never a 0.
-        const paperOwed =
-          grade.state === 'not-attempted' &&
-          ((r.paperAttested === true &&
-            (question.type === 'free-response' ||
-              paperWritten.has(sessionQid)) &&
-            paperAnswerOwed(a?.paperTranscript)) ||
-            (paperWritten.has(sessionQid) && a?.paperTranscript !== 'blank'));
-        if (
-          grade.state === 'no-key' ||
-          grade.state === 'awaiting-grade' ||
-          paperOwed
-        ) {
-          gradable = false;
-        } else {
-          earned += grade.pointsEarned;
-          max += grade.pointsMax;
-        }
-        if (grade.state === 'scored' && a) scoredGrades.set(sessionQid, grade);
+        prepare: (q) => {
+          if (!q.calc) return q;
+          const own = withCalcValues(
+            {
+              ...q,
+              calc: { ...q.calc, seed: servedSeeds.get(q.id) ?? q.calc.seed },
+            },
+            r.responseKey,
+            modified
+          );
+          return { ...q, calc: own.calc, calcValues: own.calcValues };
+        },
+      });
+      const gradable = !unmapped && !total.awaiting && !total.noKey;
+      const earned = total.earned;
+      const max = total.gradedMax;
+      const scoredGrades = new Map<string, LocalGrade>();
+      for (const t of total.questions) {
+        if (t.counted && t.grade.state === 'scored' && t.answer)
+          scoredGrades.set(t.question.id, t.grade);
       }
       const published = asFiniteNumber(r.score);
       const score =
