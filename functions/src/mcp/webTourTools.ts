@@ -455,6 +455,10 @@ export function writtenUrlPattern(at: string, raw: string): string {
     throw new ToolError(
       `${at} url_pattern holds what looks like an id or student data (${hits.join(', ')}). Put * in place of each id.`
     );
+  if (pattern.split(/[/?&#=]/).some((part) => part.split('*').length > 2))
+    throw new ToolError(
+      `${at} url_pattern can have at most one * in each path segment or query value.`
+    );
   if (/:443$/.test(m[1]))
     throw new ToolError(
       `${at} url_pattern must not include the :443 port; leave it off.`
@@ -643,6 +647,11 @@ const hasPlace = (place: StepPlace): boolean =>
   place.show_when !== undefined ||
   place.done_when !== undefined;
 
+const onlyClears = (place: StepPlace): boolean =>
+  [place.open_url, place.show_when, place.done_when].every(
+    (v) => v === undefined || v === null || v === ''
+  );
+
 const VERB: Record<WebAction, string> = {
   observe: 'Look at',
   click: 'Click',
@@ -749,6 +758,7 @@ export function applyWebStepList(
       out = edited.steps[0];
     }
     if (!hasPlace(entry)) return out;
+    if (!out.web && onlyClears(entry)) return out;
     if (!out.web)
       throw new ToolError(
         `${at} is a message, which plays on whatever page the teacher is on, so it takes no open_url, show_when or done_when.`

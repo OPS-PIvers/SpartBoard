@@ -1033,6 +1033,12 @@ describe('web tour connector tools', () => {
     expect(() =>
       writtenUrlPattern('Step 1', 'https://lms.example.com/a?tab=grades')
     ).toThrow('query values must be *');
+    for (const bad of [
+      'https://lms.example.com/a/**********z',
+      'https://lms.example.com/a*b*/x',
+      'https://lms.example.com/a?f=**',
+    ])
+      expect(() => writtenUrlPattern('Step 1', bad)).toThrow('at most one *');
     expect(() =>
       writtenUrlPattern('Step 1', 'https://lms.example.com:443/a')
     ).toThrow(':443');
@@ -1151,6 +1157,12 @@ describe('web tour connector tools', () => {
     expect(
       applyWebStepList(steps, [{ id: 'b', tip: '' }, { id: 'm' }]).steps[0].text
     ).toBe('');
+    expect(
+      applyWebStepList(steps, [
+        { id: 'a' },
+        { id: 'm', open_url: '', show_when: null, done_when: null },
+      ]).steps[1]
+    ).toEqual(steps[2]);
   });
 
   it('warns when no step points at a control any more', () => {
