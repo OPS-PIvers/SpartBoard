@@ -625,6 +625,7 @@ export const FeatureConfigurationPanel: React.FC<
                         {unifiedPicker ? (
                           <ImagePicker
                             value={range.imageUrl}
+                            pasteScope="element"
                             tourScope={{
                               type: 'weather',
                               field: `rangeImage-${range.id}`,

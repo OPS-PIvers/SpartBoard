@@ -97,6 +97,7 @@ export const AppSettingsView: React.FC = () => {
             <div className="max-w-md">
               <ImagePicker
                 value={appSettings?.logoUrl}
+                pasteScope="element"
                 maxBytes={1024 * 1024}
                 tourScope={{ type: 'admin.org', field: 'logo' }}
                 tourOverrides={{

@@ -445,6 +445,7 @@ export const RecessGearConfigurationPanel: React.FC<
               {unifiedPicker ? (
                 <ImagePicker
                   value={range.imageUrl}
+                  pasteScope="element"
                   tourScope={{
                     type: 'recessGear',
                     field: `rangeImage-${range.id}`,
