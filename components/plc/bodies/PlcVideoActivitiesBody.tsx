@@ -824,6 +824,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
 
   const sharePickerModal = sharePickerOpen ? (
     <PlcSharePickerModal
+      widgetType="video-activity"
       title={t('plcDashboard.videoActivities.sharePicker.groupTitle', {
         defaultValue: 'Share a video activity with this team',
       })}

@@ -1,0 +1,1 @@
+claude/project-thread-arn92w (One Path S9: shared student sign-in, join, class picker, locked screens and class gate; #6731 and this PR)
