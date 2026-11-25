@@ -106,6 +106,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { useStudentAuthBootstrap } from '@/hooks/useStudentAuthBootstrap';
+import { usePeriodGate } from '@/hooks/usePeriodGate';
 import { QUIZ_SSO_REDIRECT_ENABLED } from '@/config/constants';
 import { AnonymousJoinBlockedScreen } from '@/components/common/AnonymousJoinBlockedScreen';
 import { shouldGateToSso } from '@/utils/studentJoinRouting';
@@ -121,13 +122,19 @@ import {
   timestampMillis,
 } from '@/utils/quizTimeLimit';
 import { QuizTimeLimitClock } from './QuizTimeLimitClock';
-import { useServerNow } from '@/hooks/useServerNow';
 import {
-  hasPeriodAccess,
-  nextScheduledOpen,
-  studentCanEnter,
-} from '@/utils/periodAccess';
-import { QuizPeriodLockedScreen } from './QuizPeriodLockedScreen';
+  StudentPeriodLockedScreen,
+  StudentPeriodPicker,
+} from '@/components/student/StudentPeriodScreens';
+import { periodLockState } from '@/components/student/periodLockState';
+import { StudentPinJoinCard } from '@/components/student/StudentPinJoinCard';
+import {
+  STUDENT_PRIMARY_BUTTON,
+  STUDENT_TEXT_BUTTON,
+  StudentScreenLogo,
+  StudentScreenShell,
+  StudentScreenTitle,
+} from '@/components/student/StudentScreenShell';
 import {
   useQuizSessionStudent,
   normalizeAnswer,
@@ -275,7 +282,6 @@ import {
   highlightClass,
   sameReadAloudPart,
 } from './readAloud/readAloudHighlight';
-import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
 import { isReviewGame } from '@/utils/quizWidgetKind';
@@ -496,54 +502,25 @@ const QuizPreviewLobby: React.FC = () => {
     typeof window === 'undefined'
       ? ''
       : (new URLSearchParams(window.location.search).get('code') ?? '');
-
   return (
-    <div className="h-screen h-dvh overflow-y-auto bg-slate-900 flex flex-col">
-      <TeacherPreviewBanner />
-      <div className="flex-1 flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-sm">
-          <div className="flex items-center justify-center mb-8">
-            <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
-            <span className="text-sm text-slate-300 font-semibold">
-              {t('quizStudent.join.studentQuiz')}
-            </span>
-          </div>
-
-          <h1 className="text-2xl font-black text-white mb-2 text-center">
-            {t('quizStudent.join.title')}
-          </h1>
-          <p className="text-slate-400 text-sm text-center mb-6">
-            {t('quizStudent.join.intro')}
-          </p>
-
-          <div className="space-y-4" aria-hidden="true">
-            <input
-              type="text"
-              value={urlCode}
-              readOnly
-              tabIndex={-1}
-              placeholder={t('quizStudent.join.codePlaceholder')}
-              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center uppercase placeholder-slate-600 focus:outline-hidden cursor-default"
-            />
-            <input
-              type="text"
-              readOnly
-              tabIndex={-1}
-              placeholder={t('quizStudent.join.pinPlaceholder')}
-              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-hidden cursor-default"
-            />
-            <button
-              type="button"
-              disabled
-              tabIndex={-1}
-              className="w-full py-4 bg-violet-600 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
-            >
-              {t('quizStudent.join.join')} <ArrowRight className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <StudentPinJoinCard
+      preview
+      title={t('quizStudent.join.title')}
+      intro={t('quizStudent.join.intro')}
+      code={{
+        value: urlCode,
+        onChange: () => undefined,
+        placeholder: t('quizStudent.join.codePlaceholder'),
+        maxLength: 8,
+      }}
+      codeTourId="student.quiz.join-code"
+      pin=""
+      onPinChange={() => undefined}
+      pinTourId="student.quiz.join-pin"
+      onSubmit={() => undefined}
+      submitTourId="student.quiz.join"
+      busy={false}
+    />
   );
 };
 
@@ -672,15 +649,15 @@ const QuizJoinFlow: React.FC<{
     [lookupSession, joinQuizSession]
   );
 
-  const handlePeriodConfirm = useCallback(async () => {
-    if (!selectedPeriod) return;
-    // Only anonymous joiners reach the period picker (SSO students auto-join
-    // via the effect below and skip period selection entirely), so PIN is
-    // always populated here. The hook keys their response doc by
-    // `pin-{period}-{pin}`.
-    await joinQuizSession(code, pin, selectedPeriod);
-    dispatchFlow({ type: 'joined' });
-  }, [joinQuizSession, code, pin, selectedPeriod]);
+  // Only anonymous joiners pick a period, so the PIN is set; it keys `pin-{period}-{pin}`.
+  const handlePeriodPick = useCallback(
+    async (period: string) => {
+      dispatchFlow({ type: 'periodPicked', period });
+      await joinQuizSession(code, pin, period);
+      dispatchFlow({ type: 'joined' });
+    },
+    [joinQuizSession, code, pin]
+  );
 
   // SSO auto-join: bypass the PIN form AND the period picker entirely. SSO
   // students arrive with a stable identity (auth.uid via /student/login),
@@ -1004,11 +981,12 @@ const QuizJoinFlow: React.FC<{
   }, []);
 
   // Per-period gate, re-checked as the clock passes a window edge.
-  const periodNow = useServerNow(hasPeriodAccess(session) ? 5000 : null);
-  const periodLocked =
-    hasPeriodAccess(session) &&
-    session.status !== 'ended' &&
-    !studentCanEnter(session, periodKeys, authedUid, periodNow);
+  const { now: periodNow, paused: periodLocked } = usePeriodGate({
+    session,
+    periodKeys,
+    uid: authedUid,
+    active: session?.status !== 'ended',
+  });
 
   // M17 C2 (§3a-D) — clock-skew guard for the mid-attempt window-close
   // auto-submit below: window comparisons use server-offset time, not raw
@@ -1343,90 +1321,20 @@ const QuizJoinFlow: React.FC<{
   // any class periods. SSO joiners skip this and join via the auto-join effect.
   if (periodStep && !joined) {
     return (
-      // Outer wrapper owns the scroll: body has `overflow: hidden` globally
-      // (index.css), so a `min-h-screen` child can't trigger document scroll
-      // when the period list is taller than the viewport. We give the outer
-      // an explicit viewport height + `overflow-y-auto`, then let the inner
-      // grow past 100% via `min-h-full` — content centers when it fits and
-      // the outer scrolls when it doesn't (e.g. teacher with 8+ periods on
-      // a phone-sized viewport).
-      <div className="h-screen h-dvh overflow-y-auto bg-slate-900">
-        <div className="min-h-full flex flex-col items-center justify-center p-6">
-          <div className="w-full max-w-sm">
-            <div className="flex items-center justify-center mb-8">
-              <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
-              <span className="text-sm text-slate-300 font-semibold">
-                {t('quizStudent.join.studentQuiz')}
-              </span>
-            </div>
-
-            <h1 className="text-2xl font-black text-white mb-2 text-center">
-              {t('quizStudent.join.periodTitle')}
-            </h1>
-            <p className="text-slate-400 text-sm text-center mb-6">
-              {t('quizStudent.join.periodIntro')}
-            </p>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-xl text-red-300 text-sm flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                {error}
-              </div>
-            )}
-
-            <div className="space-y-2 mb-6">
-              {periodStep.map((period) => (
-                <button
-                  {...tourAttr('student.quiz.period')}
-                  key={period}
-                  onClick={() => dispatchFlow({ type: 'periodPicked', period })}
-                  className={`w-full px-4 py-4 rounded-xl text-lg font-bold transition-all ${
-                    selectedPeriod === period
-                      ? 'bg-violet-600 text-white ring-2 ring-violet-400'
-                      : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  {period}
-                </button>
-              ))}
-            </div>
-
-            <button
-              {...tourAttr('student.quiz.period-confirm')}
-              onClick={() => {
-                // joinQuizSession re-throws after populating `error` state for
-                // the UI. Catch here so the rejection isn't an unhandled
-                // promise — `void` would only silence the linter, not handle
-                // the rejection.
-                handlePeriodConfirm().catch((err: unknown) => {
-                  console.warn('[QuizStudentApp] Period confirm failed:', err);
-                });
-              }}
-              disabled={loading || !selectedPeriod}
-              className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  {t('quizStudent.join.continue')}{' '}
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
-
-            <button
-              {...tourAttr('student.quiz.period-back')}
-              onClick={() => {
-                dispatchFlow({ type: 'periodBack' });
-              }}
-              className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
-            >
-              {t('quizStudent.join.goBack')}
-            </button>
-          </div>
-        </div>
-      </div>
+      <StudentPeriodPicker
+        periods={periodStep}
+        pendingPeriod={loading ? selectedPeriod : null}
+        onPick={(period) => {
+          // joinQuizSession re-throws after setting `error`; catch so it isn't unhandled.
+          handlePeriodPick(period).catch((err: unknown) => {
+            console.warn('[QuizStudentApp] Period join failed:', err);
+          });
+        }}
+        error={error}
+        optionTourId="student.quiz.period"
+        onBack={() => dispatchFlow({ type: 'periodBack' })}
+        backTourId="student.quiz.period-back"
+      />
     );
   }
 
@@ -1482,121 +1390,62 @@ const QuizJoinFlow: React.FC<{
         urlCode
       )}`;
       return (
-        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6">
-          <div className="w-full max-w-sm">
-            <div className="flex items-center justify-center mb-8">
-              <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
-              <span className="text-sm text-slate-300 font-semibold">
-                {t('quizStudent.join.studentQuiz')}
-              </span>
-            </div>
-
-            <h1 className="text-2xl font-black text-white mb-2 text-center">
-              {t('quizStudent.join.signInTitle')}
-            </h1>
-            <p className="text-slate-400 text-sm text-center mb-6">
-              {t('quizStudent.join.signInIntro')}
-            </p>
-
-            <button
-              {...tourAttr('student.quiz.sign-in-google')}
-              onClick={() =>
-                window.location.assign(
-                  `/student/login?next=${encodeURIComponent(nextTarget)}`
-                )
-              }
-              className="w-full py-4 bg-violet-600 hover:bg-violet-500 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
-            >
-              {t('quizStudent.join.signInGoogle')}{' '}
-              <ArrowRight className="w-5 h-5" />
-            </button>
-
-            <button
-              {...tourAttr('student.quiz.use-pin')}
-              onClick={() => dispatchFlow({ type: 'usePin' })}
-              className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
-            >
-              {t('quizStudent.join.usePin')}
-            </button>
-          </div>
-        </div>
+        <StudentScreenShell>
+          <StudentScreenLogo />
+          <StudentScreenTitle>
+            {t('quizStudent.join.signInTitle')}
+          </StudentScreenTitle>
+          <p className="mt-2 text-sm text-slate-600">
+            {t('quizStudent.join.signInIntro')}
+          </p>
+          <button
+            {...tourAttr('student.quiz.sign-in-google')}
+            type="button"
+            onClick={() =>
+              window.location.assign(
+                `/student/login?next=${encodeURIComponent(nextTarget)}`
+              )
+            }
+            className={`mt-6 ${STUDENT_PRIMARY_BUTTON}`}
+          >
+            {t('quizStudent.join.signInGoogle')}
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </button>
+          <button
+            {...tourAttr('student.quiz.use-pin')}
+            type="button"
+            onClick={() => dispatchFlow({ type: 'usePin' })}
+            className={STUDENT_TEXT_BUTTON}
+          >
+            {t('quizStudent.join.usePin')}
+          </button>
+        </StudentScreenShell>
       );
     }
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-sm">
-          <div className="flex items-center justify-center mb-8">
-            <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
-            <span className="text-sm text-slate-300 font-semibold">
-              {t('quizStudent.join.studentQuiz')}
-            </span>
-          </div>
-
-          <h1 className="text-2xl font-black text-white mb-2 text-center">
-            {t('quizStudent.join.title')}
-          </h1>
-          <p className="text-slate-400 text-sm text-center mb-6">
-            {t('quizStudent.join.intro')}
-          </p>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-xl text-red-300 text-sm flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              {error}
-            </div>
-          )}
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              // joinQuizSession re-throws after populating `error` state for
-              // the UI. Catch here so the rejection isn't an unhandled
-              // promise — `void` would only silence the linter, not handle
-              // the rejection.
-              handleJoin(code, pin).catch((err: unknown) => {
-                console.warn('[QuizStudentApp] Join failed:', err);
-              });
-            }}
-            className="space-y-4"
-          >
-            <input
-              {...tourAttr('student.quiz.join-code')}
-              type="text"
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder={t('quizStudent.join.codePlaceholder')}
-              maxLength={8}
-              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center uppercase placeholder-slate-600 focus:outline-hidden focus:ring-2 focus:ring-violet-500"
-              required
-            />
-            <input
-              {...tourAttr('student.quiz.join-pin')}
-              type="text"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              placeholder={t('quizStudent.join.pinPlaceholder')}
-              maxLength={10}
-              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-hidden focus:ring-2 focus:ring-violet-500"
-              required
-            />
-            <button
-              {...tourAttr('student.quiz.join')}
-              type="submit"
-              disabled={loading || !code.trim() || !pin.trim()}
-              className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  {t('quizStudent.join.join')}{' '}
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
-          </form>
-        </div>
-      </div>
+      <StudentPinJoinCard
+        title={t('quizStudent.join.title')}
+        intro={t('quizStudent.join.intro')}
+        code={{
+          value: code,
+          onChange: (value) => setCode(value.toUpperCase()),
+          placeholder: t('quizStudent.join.codePlaceholder'),
+          maxLength: 8,
+        }}
+        codeTourId="student.quiz.join-code"
+        pin={pin}
+        onPinChange={setPin}
+        pinTourId="student.quiz.join-pin"
+        onSubmit={() => {
+          // joinQuizSession re-throws after setting `error`; catch so it isn't unhandled.
+          handleJoin(code, pin).catch((err: unknown) => {
+            console.warn('[QuizStudentApp] Join failed:', err);
+          });
+        }}
+        submitTourId="student.quiz.join"
+        busy={loading}
+        error={error}
+      />
     );
   }
 
@@ -1663,14 +1512,9 @@ const QuizJoinFlow: React.FC<{
         return screen.started ? (
           <QuizPausedPlaceholder session={session} pin={pin} periodClosed />
         ) : (
-          <QuizPeriodLockedScreen
-            session={session}
-            opensAt={nextScheduledOpen(
-              session,
-              periodKeys,
-              periodNow,
-              authedUid
-            )}
+          <StudentPeriodLockedScreen
+            title={session.quizTitle}
+            lock={periodLockState(session, periodKeys, periodNow, authedUid)}
             pin={pin}
           />
         );
