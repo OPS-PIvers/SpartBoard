@@ -26,6 +26,14 @@ import { DRIVE_APP_FOLDER } from '@/config/devProject';
 import { DevProdDriveWriteError } from './devDriveWriteGuard';
 import { authError } from './driveAuthErrors';
 import {
+  DRIVE_API_URL,
+  DRIVE_UPLOAD_API_URL as UPLOAD_API_URL,
+  DriveSession,
+  driveQueryEscape,
+  sanitizeDriveFileName,
+  type DriveTokenRefresher,
+} from './driveRequest';
+import {
   buildResultsSheetData as buildResultsSheetDataShared,
   compareExportRowsByStudent,
   formatQuizAnswerExport,
@@ -81,8 +89,6 @@ const quizGradeFnWithManualGrades = makeQuizGradeFn(null);
 /** A stalled Drive GET must never hold a publish open (§4.2). */
 const TRANSLATION_FETCH_TIMEOUT_MS = 15000;
 
-const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
-const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
 const SHEETS_API_URL = 'https://sheets.googleapis.com/v4/spreadsheets';
 
 /** Column indices in the teacher's Google Sheet (0-based) */
@@ -94,19 +100,6 @@ const COL_INCORRECT_1 = 4;
 const COL_INCORRECT_4 = 7;
 
 const QUIZ_FOLDER_NAME = 'Quizzes';
-
-/** Escape single quotes in Drive API q-string values (single-quote is the delimiter). */
-function driveQueryEscape(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-}
-
-/**
- * Sanitize a title for use as a Drive file name.
- * Drive disallows `/` and some OS-reserved characters; replace them with underscores.
- */
-function sanitizeDriveFileName(title: string): string {
-  return title.replace(/[/\\:*?"<>|]/g, '_').trim() || 'untitled';
-}
 
 interface DriveFileCreateResponse {
   id: string;
@@ -182,61 +175,27 @@ export class PlcSheetSchemaMismatchError extends Error {
 }
 
 export class QuizDriveService {
-  private accessToken: string;
+  private session: DriveSession;
 
-  constructor(accessToken: string) {
-    this.accessToken = accessToken;
+  constructor(accessToken: string, refreshToken?: DriveTokenRefresher) {
+    this.session = new DriveSession(accessToken, refreshToken);
   }
 
   private get authHeaders() {
-    return { Authorization: `Bearer ${this.accessToken}` };
+    return { Authorization: `Bearer ${this.session.accessToken}` };
   }
 
   private get jsonHeaders() {
     return {
-      Authorization: `Bearer ${this.accessToken}`,
+      Authorization: `Bearer ${this.session.accessToken}`,
       'Content-Type': 'application/json',
     };
   }
 
-  // ─── Folder helpers ────────────────────────────────────────────────────────
-
-  private async getOrCreateFolder(
-    folderName: string,
-    parentId?: string
-  ): Promise<string> {
-    let q = `name = '${driveQueryEscape(folderName)}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-    if (parentId) q += ` and '${parentId}' in parents`;
-
-    const listRes = await fetch(
-      `${DRIVE_API_URL}/files?q=${encodeURIComponent(q)}&fields=files(id)`,
-      { headers: this.authHeaders }
-    );
-    if (!listRes.ok) throw new Error('Failed to list Drive folders');
-    const listData = (await listRes.json()) as DriveFileListResponse;
-    if (listData.files && listData.files.length > 0)
-      return listData.files[0].id;
-
-    const body: { name: string; mimeType: string; parents?: string[] } = {
-      name: folderName,
-      mimeType: 'application/vnd.google-apps.folder',
-    };
-    if (parentId) body.parents = [parentId];
-
-    const createRes = await fetch(`${DRIVE_API_URL}/files`, {
-      method: 'POST',
-      headers: this.jsonHeaders,
-      body: JSON.stringify(body),
-    });
-    if (!createRes.ok)
-      throw new Error(`Failed to create folder: ${folderName}`);
-    const created = (await createRes.json()) as DriveFileCreateResponse;
-    return created.id;
-  }
-
-  private async getQuizFolderId(): Promise<string> {
-    const appFolderId = await this.getOrCreateFolder(DRIVE_APP_FOLDER);
-    return this.getOrCreateFolder(QUIZ_FOLDER_NAME, appFolderId);
+  private getQuizFolderId(): Promise<string> {
+    return this.session.getOrCreateFolderPath(DRIVE_APP_FOLDER, [
+      QUIZ_FOLDER_NAME,
+    ]);
   }
 
   // On dev, a file synced from the live site can't be written, so the save makes a dev copy and the caller repoints to it.
@@ -245,7 +204,7 @@ export class QuizDriveService {
     content: string
   ): Promise<boolean> {
     try {
-      const res = await fetch(
+      const res = await this.session.request(
         `${UPLOAD_API_URL}/files/${fileId}?uploadType=media`,
         {
           method: 'PATCH',
@@ -285,7 +244,7 @@ export class QuizDriveService {
     }
 
     // Check if a file with the same name already exists in the folder
-    const existingRes = await fetch(
+    const existingRes = await this.session.request(
       `${DRIVE_API_URL}/files?q=${encodeURIComponent(
         `name = '${driveQueryEscape(fileName)}' and '${folderId}' in parents and trashed = false`
       )}&fields=files(id)`,
@@ -295,7 +254,7 @@ export class QuizDriveService {
       const existing = (await existingRes.json()) as DriveFileListResponse;
       if (existing.files && existing.files.length > 0) {
         const fileId = existing.files[0].id;
-        const patchRes = await fetch(
+        const patchRes = await this.session.request(
           `${UPLOAD_API_URL}/files/${fileId}?uploadType=media`,
           {
             method: 'PATCH',
@@ -312,7 +271,7 @@ export class QuizDriveService {
     }
 
     // Create new file
-    const metaRes = await fetch(`${DRIVE_API_URL}/files`, {
+    const metaRes = await this.session.request(`${DRIVE_API_URL}/files`, {
       method: 'POST',
       headers: this.jsonHeaders,
       body: JSON.stringify({
@@ -321,10 +280,14 @@ export class QuizDriveService {
         mimeType: 'application/json',
       }),
     });
-    if (!metaRes.ok) throw new Error('Failed to create quiz file in Drive');
+    if (!metaRes.ok) {
+      // A stale cached folder (deleted by the teacher) is looked up again next save.
+      this.session.forgetFolders();
+      throw new Error('Failed to create quiz file in Drive');
+    }
     const meta = (await metaRes.json()) as DriveFileCreateResponse;
 
-    const uploadRes = await fetch(
+    const uploadRes = await this.session.request(
       `${UPLOAD_API_URL}/files/${meta.id}?uploadType=media`,
       {
         method: 'PATCH',
@@ -339,9 +302,12 @@ export class QuizDriveService {
 
   /** Load full quiz data from a Drive file */
   async loadQuiz(fileId: string): Promise<QuizData> {
-    const res = await fetch(`${DRIVE_API_URL}/files/${fileId}?alt=media`, {
-      headers: this.authHeaders,
-    });
+    const res = await this.session.request(
+      `${DRIVE_API_URL}/files/${fileId}?alt=media`,
+      {
+        headers: this.authHeaders,
+      }
+    );
     if (!res.ok) {
       if (res.status === 404) throw new Error('Quiz file not found in Drive');
       throw new Error('Failed to download quiz from Drive');
@@ -351,7 +317,7 @@ export class QuizDriveService {
 
   /** Delete a quiz file from Google Drive */
   async deleteQuizFile(fileId: string): Promise<void> {
-    const res = await fetch(`${DRIVE_API_URL}/files/${fileId}`, {
+    const res = await this.session.request(`${DRIVE_API_URL}/files/${fileId}`, {
       method: 'DELETE',
       headers: this.authHeaders,
     });
@@ -395,7 +361,7 @@ export class QuizDriveService {
       if (updated) return existingFileId;
     }
 
-    const existingRes = await fetch(
+    const existingRes = await this.session.request(
       `${DRIVE_API_URL}/files?q=${encodeURIComponent(
         `name = '${driveQueryEscape(fileName)}' and '${folderId}' in parents and trashed = false`
       )}&fields=files(id)`,
@@ -405,7 +371,7 @@ export class QuizDriveService {
       const existing = (await existingRes.json()) as DriveFileListResponse;
       if (existing.files && existing.files.length > 0) {
         const fileId = existing.files[0].id;
-        const patchRes = await fetch(
+        const patchRes = await this.session.request(
           `${UPLOAD_API_URL}/files/${fileId}?uploadType=media`,
           {
             method: 'PATCH',
@@ -420,7 +386,7 @@ export class QuizDriveService {
       }
     }
 
-    const metaRes = await fetch(`${DRIVE_API_URL}/files`, {
+    const metaRes = await this.session.request(`${DRIVE_API_URL}/files`, {
       method: 'POST',
       headers: this.jsonHeaders,
       body: JSON.stringify({
@@ -429,11 +395,13 @@ export class QuizDriveService {
         mimeType: 'application/json',
       }),
     });
-    if (!metaRes.ok)
+    if (!metaRes.ok) {
+      this.session.forgetFolders();
       throw new Error('Failed to create translation file in Drive');
+    }
     const meta = (await metaRes.json()) as DriveFileCreateResponse;
 
-    const uploadRes = await fetch(
+    const uploadRes = await this.session.request(
       `${UPLOAD_API_URL}/files/${meta.id}?uploadType=media`,
       {
         method: 'PATCH',
@@ -448,24 +416,14 @@ export class QuizDriveService {
 
   /** Load one language's translation payload from its Drive sidecar. */
   async loadTranslation(fileId: string): Promise<QuizTranslation> {
-    const controller = new AbortController();
-    const timer = setTimeout(
-      () => controller.abort(),
-      TRANSLATION_FETCH_TIMEOUT_MS
+    const res = await this.session.request(
+      `${DRIVE_API_URL}/files/${fileId}?alt=media`,
+      { headers: this.authHeaders },
+      {
+        timeoutMs: TRANSLATION_FETCH_TIMEOUT_MS,
+        timeoutMessage: 'Translation download from Drive timed out',
+      }
     );
-    let res: Response;
-    try {
-      res = await fetch(`${DRIVE_API_URL}/files/${fileId}?alt=media`, {
-        headers: this.authHeaders,
-        signal: controller.signal,
-      });
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError')
-        throw new Error('Translation download from Drive timed out');
-      throw err;
-    } finally {
-      clearTimeout(timer);
-    }
     if (!res.ok) {
       if (res.status === 404)
         throw new Error('Translation file not found in Drive');
@@ -476,7 +434,7 @@ export class QuizDriveService {
 
   /** Delete a translation sidecar; a missing file is not an error. */
   async deleteTranslation(fileId: string): Promise<void> {
-    const res = await fetch(`${DRIVE_API_URL}/files/${fileId}`, {
+    const res = await this.session.request(`${DRIVE_API_URL}/files/${fileId}`, {
       method: 'DELETE',
       headers: this.authHeaders,
     });
@@ -517,7 +475,7 @@ export class QuizDriveService {
     const range = sheetName ? `${sheetName}!A:H` : 'A:H';
     const url = `${SHEETS_API_URL}/${sheetId}/values/${encodeURIComponent(range)}`;
 
-    const res = await fetch(url, { headers: this.authHeaders });
+    const res = await this.session.request(url, { headers: this.authHeaders });
     if (!res.ok) {
       if (res.status === 403) {
         throw new Error(
@@ -990,7 +948,7 @@ export class QuizDriveService {
       : null;
 
     // Create the spreadsheet
-    const createRes = await fetch(SHEETS_API_URL, {
+    const createRes = await this.session.request(SHEETS_API_URL, {
       method: 'POST',
       headers: this.jsonHeaders,
       body: JSON.stringify({
@@ -1062,7 +1020,7 @@ export class QuizDriveService {
 
     let sheetTitle = 'Sheet1';
     try {
-      const metaRes = await fetch(
+      const metaRes = await this.session.request(
         `${SHEETS_API_URL}/${spreadsheetId}?fields=sheets.properties.title`,
         { headers: this.authHeaders }
       );
@@ -1079,7 +1037,7 @@ export class QuizDriveService {
     }
 
     const encodedTitle = encodeURIComponent(sheetTitle);
-    const res = await fetch(
+    const res = await this.session.request(
       `${SHEETS_API_URL}/${spreadsheetId}/values/${encodedTitle}`,
       { headers: this.authHeaders }
     );
@@ -1147,7 +1105,7 @@ export class QuizDriveService {
 
     let sheetTitle = 'Sheet1';
     try {
-      const metaRes = await fetch(
+      const metaRes = await this.session.request(
         `${SHEETS_API_URL}/${spreadsheetId}?fields=sheets.properties.title`,
         { headers: this.authHeaders }
       );
@@ -1170,7 +1128,7 @@ export class QuizDriveService {
     // Content-Type) rather than `jsonHeaders`, because some proxies and
     // strict API implementations reject a Content-Type: application/json
     // declaration on a request with no body.
-    const clearRes = await fetch(
+    const clearRes = await this.session.request(
       `${SHEETS_API_URL}/${spreadsheetId}/values/${encodedTitle}:clear`,
       { method: 'POST', headers: this.authHeaders }
     );
@@ -1192,7 +1150,7 @@ export class QuizDriveService {
     // `values:update` with `valueInputOption=RAW` so cells render exactly
     // what we send (matching the original export path's escaping rules).
     const allRows = [headers, ...dataRows];
-    const writeRes = await fetch(
+    const writeRes = await this.session.request(
       `${SHEETS_API_URL}/${spreadsheetId}/values/${encodedTitle}!A1?valueInputOption=RAW`,
       {
         method: 'PUT',
@@ -1237,7 +1195,7 @@ export class QuizDriveService {
     // Discover the first sheet's actual title (handles renamed tabs)
     let sheetTitle = 'Sheet1';
     try {
-      const metaRes = await fetch(
+      const metaRes = await this.session.request(
         `${SHEETS_API_URL}/${spreadsheetId}?fields=sheets.properties.title`,
         { headers: this.authHeaders }
       );
@@ -1260,7 +1218,7 @@ export class QuizDriveService {
     // in the export would silently shift every subsequent column on PLC
     // sheets created with an older schema — wrong student names, wrong
     // PINs, wrong answers — with no API error.
-    const checkRes = await fetch(
+    const checkRes = await this.session.request(
       `${SHEETS_API_URL}/${spreadsheetId}/values/${encodedTitle}!1:1`,
       { headers: this.authHeaders }
     );
@@ -1325,7 +1283,7 @@ export class QuizDriveService {
       : layout.dataRows;
 
     // Append via Sheets API
-    const appendRes = await fetch(
+    const appendRes = await this.session.request(
       `${SHEETS_API_URL}/${spreadsheetId}/values/${encodedTitle}!A1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
       {
         method: 'POST',
@@ -1373,7 +1331,7 @@ export class QuizDriveService {
     memberEmailsToShareWith: string[];
   }): Promise<{ url: string; spreadsheetId: string }> {
     const title = `${args.plcName} – ${args.quizTitle} – Results`;
-    const createRes = await fetch(SHEETS_API_URL, {
+    const createRes = await this.session.request(SHEETS_API_URL, {
       method: 'POST',
       headers: this.jsonHeaders,
       body: JSON.stringify({
@@ -1430,7 +1388,7 @@ export class QuizDriveService {
     spreadsheetId: string,
     email: string
   ): Promise<void> {
-    const res = await fetch(
+    const res = await this.session.request(
       `${DRIVE_API_URL}/files/${spreadsheetId}/permissions?sendNotificationEmail=false`,
       {
         method: 'POST',
@@ -1469,7 +1427,7 @@ export class QuizDriveService {
 
     const allRows = [headers, exampleRow];
 
-    const createRes = await fetch(
+    const createRes = await this.session.request(
       'https://sheets.googleapis.com/v4/spreadsheets',
       {
         method: 'POST',
@@ -1519,7 +1477,7 @@ export class QuizDriveService {
         'Failed to read sheetId from created template spreadsheet'
       );
     }
-    const formatRes = await fetch(
+    const formatRes = await this.session.request(
       `${SHEETS_API_URL}/${sheet.spreadsheetId}:batchUpdate`,
       {
         method: 'POST',
@@ -1632,7 +1590,7 @@ export class QuizDriveService {
       ...QuizDriveService.QUIZ_TEMPLATE_EXAMPLES,
     ];
 
-    const createRes = await fetch(SHEETS_API_URL, {
+    const createRes = await this.session.request(SHEETS_API_URL, {
       method: 'POST',
       headers: this.jsonHeaders,
       body: JSON.stringify({

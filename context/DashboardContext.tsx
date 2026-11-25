@@ -243,6 +243,7 @@ import { STANDARD_COLORS } from '@/config/colors';
 import { IS_DEV_PROJECT } from '@/config/devProject';
 import { DevProdDriveWriteError } from '@/utils/devDriveWriteGuard';
 import type { GoogleDriveService } from '@/utils/googleDriveService';
+import { uploadDriveAsset } from '@/utils/driveAssetUpload';
 import { tourDemoConfig } from '@/config/tourDemoContent';
 import {
   createWidgetHistoryStack,
@@ -2417,14 +2418,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           // A separate scrubbed copy: the board's own backup file keeps student names and live-syncs.
           const { driveFileId: _backupId, ...shareCopy } =
             scrubDashboardPII(dashboard);
-          const file = await driveService.uploadFile(
-            new Blob([JSON.stringify(shareCopy, null, 2)], {
+          const file = await uploadDriveAsset(driveService, {
+            blob: new Blob([JSON.stringify(shareCopy, null, 2)], {
               type: 'application/json',
             }),
-            `${dashboard.name}.spart`,
-            'Shared Boards'
-          );
-          await driveService.makePublic(file.id, userDomain);
+            name: `${dashboard.name}.spart`,
+            folder: 'Shared Boards',
+            audience: 'domain',
+            domain: userDomain,
+          });
           return `drive-${file.id}`;
         } catch (e) {
           console.error('Drive sharing failed, falling back to Firestore:', e);

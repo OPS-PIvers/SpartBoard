@@ -417,6 +417,7 @@ const TeacherQuizWidget: React.FC<{
     user,
     isAdmin,
     googleAccessToken,
+    refreshGoogleToken,
     ensureGoogleScope,
     orgId,
     canAccessFeature,
@@ -529,20 +530,7 @@ const TeacherQuizWidget: React.FC<{
   // D13/D14: one upload per picture, linked to every question that uses it,
   // into the same Drive folder and sharing as an editor-added stimulus.
   const stimulusUploader = useMemo(
-    () =>
-      driveStimulusUploader({
-        uploadFile: (file, name, folder) => {
-          if (!driveService) throw new Error('Google Drive is not connected.');
-          return driveService.uploadFile(file, name, folder);
-        },
-        makePublic: (id, domain) => {
-          if (!driveService) throw new Error('Google Drive is not connected.');
-          return driveService.makePublic(id, domain);
-        },
-        deleteFile: async (id) => {
-          await driveService?.deleteFile(id);
-        },
-      }),
+    () => driveStimulusUploader(driveService),
     [driveService]
   );
 
@@ -1125,7 +1113,7 @@ const TeacherQuizWidget: React.FC<{
     isAuthBypass
       ? new MockQuizDriveService(user?.uid ?? '')
       : googleAccessToken
-        ? new QuizDriveService(googleAccessToken)
+        ? new QuizDriveService(googleAccessToken, refreshGoogleToken)
         : null;
   const autoTranslateTargetedLocales = async (
     meta: QuizMetadata,

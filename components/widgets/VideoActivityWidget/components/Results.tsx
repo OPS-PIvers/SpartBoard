@@ -158,8 +158,14 @@ export const Results: React.FC<ResultsProps> = ({
   onAssignMakeUp,
 }) => {
   const outward = useViewAsOutward();
-  const { ensureGoogleScope, user, orgId, canAccessFeature, isExternalUser } =
-    useAuth();
+  const {
+    ensureGoogleScope,
+    refreshGoogleToken,
+    user,
+    orgId,
+    canAccessFeature,
+    isExternalUser,
+  } = useAuth();
   const tabAwayTimerOn = canAccessFeature('tab-away-timer');
   const { showConfirm } = useDialog();
   const { addToast, rosters } = useDashboard();
@@ -418,7 +424,7 @@ export const Results: React.FC<ResultsProps> = ({
     setExportError(null);
 
     try {
-      const drive = new QuizDriveService(token);
+      const drive = new QuizDriveService(token, refreshGoogleToken);
 
       // Map VideoActivityResponses to QuizResponse shape for reuse
       const quizResponses = responses.map((raw) => {

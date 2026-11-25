@@ -106,6 +106,7 @@ import {
   type FlashcardImportData,
 } from './adapters/flashcardImportAdapter';
 import { flashcardAssignmentUrl } from '@/utils/staffAudience';
+import { DriveSession } from '@/utils/driveRequest';
 import {
   FlashcardPlayer,
   FlashcardShareModal,
@@ -348,7 +349,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         interactive: true,
       });
       if (!token) throw new Error('Google Drive access is required.');
-      const response = await fetch(
+      const response = await new DriveSession(token).request(
         `${SHEETS_API_URL}/${sheetId}/values/${encodeURIComponent('A:B')}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
