@@ -651,8 +651,33 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         console.warn('[useQuiz] Drive delete warning:', msg);
       });
 
-      // Delete metadata from Firestore
-      await deleteDoc(doc(db, 'users', userId, QUIZZES_COLLECTION, quizId));
+      const metaRef = doc(db, 'users', userId, QUIZZES_COLLECTION, quizId);
+      // Translation sidecars are the teacher's own Drive files; read the index before the doc goes.
+      const sidecarIds = await getDoc(metaRef)
+        .then((snap) =>
+          Object.values(
+            (snap.data() as QuizMetadata | undefined)?.translations ?? {}
+          ).map((entry) => entry.driveFileId)
+        )
+        .catch((err: unknown) => {
+          logError('useQuiz.deleteQuiz.readTranslations', err, { quizId });
+          return [] as string[];
+        });
+
+      await deleteDoc(metaRef);
+
+      // Best-effort: an orphaned sidecar is harmless, a failed delete is not.
+      await Promise.all(
+        sidecarIds
+          .filter(Boolean)
+          .map((fileId) =>
+            drive
+              .deleteTranslation(fileId)
+              .catch((err: unknown) =>
+                logError('useQuiz.deleteQuiz.sidecar', err, { quizId, fileId })
+              )
+          )
+      );
     },
     [userId, getDriveService]
   );

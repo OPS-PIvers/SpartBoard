@@ -16,7 +16,8 @@ import {
 
 import { useShortLinks } from '@/hooks/useShortLinks';
 import { useDialog } from '@/context/useDialog';
-import { Toast } from '@/components/common/Toast';
+import { useDashboard } from '@/context/useDashboard';
+import { copyText } from '@/utils/copyText';
 import { logError } from '@/utils/logError';
 import {
   buildShortUrl,
@@ -139,12 +140,7 @@ export const ShortLinkCreateForm: React.FC<CreateFormProps> = ({
   }, [copied]);
 
   const handleCopy = async (url: string) => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-    } catch (err) {
-      console.warn('[ShortLinkCreateForm] clipboard failed:', err);
-    }
+    if (await copyText(url)) setCopied(true);
   };
 
   return (
@@ -403,10 +399,7 @@ export const LinkShortenerManager: React.FC = () => {
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<ShortLink | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
-  const [toast, setToast] = useState<{
-    type: 'success' | 'error';
-    text: string;
-  } | null>(null);
+  const { addToast } = useDashboard();
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -421,34 +414,19 @@ export const LinkShortenerManager: React.FC = () => {
     });
   }, [links, search]);
 
-  // Toast and "copied" pills auto-dismiss after a delay. Both timers are
-  // owned by effects so React clears them on unmount, avoiding state
-  // updates on an unmounted component if the admin closes the panel
-  // mid-animation.
-  useEffect(() => {
-    if (!toast) return;
-    const timerId = window.setTimeout(() => setToast(null), 3000);
-    return () => window.clearTimeout(timerId);
-  }, [toast]);
-
+  // The "copied" pill auto-dismisses; the effect owns the timer so unmount clears it.
   useEffect(() => {
     if (!copiedCode) return;
     const timerId = window.setTimeout(() => setCopiedCode(null), 1500);
     return () => window.clearTimeout(timerId);
   }, [copiedCode]);
 
-  const showToast = (type: 'success' | 'error', text: string) => {
-    setToast({ type, text });
-  };
+  const showToast = (type: 'success' | 'error', text: string) =>
+    addToast(text, type);
 
   const handleCopy = async (code: string) => {
-    try {
-      await navigator.clipboard.writeText(buildShortUrl(code));
-      setCopiedCode(code);
-    } catch (err) {
-      console.warn('[LinkShortenerManager] clipboard failed:', err);
-      showToast('error', 'Could not copy to clipboard');
-    }
+    if (await copyText(buildShortUrl(code))) setCopiedCode(code);
+    else showToast('error', 'Could not copy to clipboard');
   };
 
   const handleDelete = async (link: ShortLink) => {
@@ -638,16 +616,6 @@ export const LinkShortenerManager: React.FC = () => {
           onClose={() => setEditing(null)}
           onSaved={(message) => showToast('success', message)}
         />
-      )}
-
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-toast">
-          <Toast
-            message={toast.text}
-            type={toast.type}
-            onClose={() => setToast(null)}
-          />
-        </div>
       )}
     </div>
   );

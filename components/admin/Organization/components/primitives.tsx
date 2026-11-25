@@ -1,12 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  Check,
-  CheckCircle2,
-  AlertCircle,
-  Info,
-  AlertTriangle,
-} from 'lucide-react';
+import { Check } from 'lucide-react';
 import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
 import {
   tourAttr,
@@ -682,32 +676,6 @@ export const PopoverOption: React.FC<{
     )}
   </button>
 );
-
-// Inline toast shim (bottom-center) ----------------------------------
-
-export type OrgToastType = 'info' | 'success' | 'warn' | 'error';
-
-export const OrgToast: React.FC<{
-  message: string;
-  type?: OrgToastType;
-}> = ({ message, type = 'info' }) => {
-  const styles: Record<OrgToastType, { bg: string; Icon: typeof Info }> = {
-    info: { bg: 'bg-brand-blue-dark', Icon: Info },
-    success: { bg: 'bg-emerald-600', Icon: CheckCircle2 },
-    warn: { bg: 'bg-amber-600', Icon: AlertTriangle },
-    error: { bg: 'bg-brand-red', Icon: AlertCircle },
-  };
-  const { bg, Icon } = styles[type];
-  return (
-    <div
-      role="status"
-      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-toast ${bg} text-white text-sm px-4 py-2.5 rounded-lg shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] flex items-center gap-2 animate-in slide-in-from-bottom-2 fade-in duration-200`}
-    >
-      <Icon size={16} />
-      {message}
-    </div>
-  );
-};
 
 // Confirm Modal -----------------------------------------------------
 

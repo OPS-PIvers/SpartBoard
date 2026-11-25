@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { copyLinkWithToast } from '@/hooks/useCopyShortLink';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { Layers, LogIn } from 'lucide-react';
 import { deleteField, doc, setDoc, updateDoc } from 'firebase/firestore';
@@ -587,15 +588,11 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       setAssigningSet(null);
 
       const url = flashcardAssignmentUrl(sessionId, input.audience);
-      try {
-        await navigator.clipboard.writeText(url);
-        addToast(
-          `“${set.title}” assigned. Link copied to clipboard.`,
-          'success'
-        );
-      } catch {
-        addToast(`“${set.title}” assigned.`, 'success');
-      }
+      await copyLinkWithToast(url, addToast, {
+        success: `“${set.title}” assigned. Link copied to clipboard.`,
+        failure: `“${set.title}” assigned.`,
+        failureType: 'success',
+      });
       if (
         sharePlc &&
         !(await plcSharing.shareNewAssignmentResults(

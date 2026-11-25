@@ -5,6 +5,7 @@
  * as a sibling of the Manager library view.
  */
 
+import { copyLinkWithToast } from '@/hooks/useCopyShortLink';
 import React, {
   useState,
   useCallback,
@@ -102,7 +103,7 @@ import {
   videoActivityLifecycle,
 } from './videoActivityLifecycle';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
-import { useBusyIdSet } from '@/hooks/useBusyIdSet';
+import { useLibraryDuplicate } from '@/components/common/library/useLibraryDuplicate';
 import { useFolders } from '@/hooks/useFolders';
 import { usePlcs } from '@/hooks/usePlcs';
 import {
@@ -163,16 +164,11 @@ async function copyUrlToClipboard(
     errorMessage: string;
   }
 ): Promise<void> {
-  if (typeof navigator === 'undefined' || !navigator.clipboard) {
-    addToast(errorMessage, 'info');
-    return;
-  }
-  try {
-    await navigator.clipboard.writeText(url);
-    addToast(successMessage, 'success');
-  } catch {
-    addToast(errorMessage, 'info');
-  }
+  await copyLinkWithToast(url, addToast, {
+    success: successMessage,
+    failure: errorMessage,
+    failureType: 'info',
+  });
 }
 
 const TeacherVideoActivityWidget: React.FC<{
@@ -417,8 +413,10 @@ const TeacherVideoActivityWidget: React.FC<{
     else openingHandoffRef.current = null;
   }, [vaHandoff]);
 
-  // Shared rapid-click guard. See `hooks/useBusyIdSet.ts`.
-  const duplicateBusy = useBusyIdSet();
+  const activityDuplicate = useLibraryDuplicate({
+    duplicate: duplicateActivity,
+    addToast,
+  });
 
   const { folders: videoActivityFolders, moveItem: moveVideoActivityItem } =
     useFolders(user?.uid, 'video_activity');
@@ -1338,20 +1336,8 @@ const TeacherVideoActivityWidget: React.FC<{
             );
           }
         }}
-        onDuplicate={(meta) =>
-          void duplicateBusy.run(meta.id, async () => {
-            try {
-              const copy = await duplicateActivity(meta);
-              addToast(`Duplicated as "${copy.title}".`, 'success');
-            } catch (err) {
-              addToast(
-                err instanceof Error ? err.message : 'Duplicate failed',
-                'error'
-              );
-            }
-          })
-        }
-        isDuplicating={duplicateBusy.isBusy}
+        onDuplicate={(meta) => void activityDuplicate.duplicate(meta)}
+        isDuplicating={activityDuplicate.isDuplicating}
         assignments={assignments}
         assignmentsLoading={assignmentsLoading}
         onArchiveCopyUrl={(assignment) => {

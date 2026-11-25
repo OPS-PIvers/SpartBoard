@@ -1,4 +1,5 @@
 import { copyText } from '@/utils/copyText';
+import { copyLinkWithToast } from '@/hooks/useCopyShortLink';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import React, {
   useState,
@@ -17,7 +18,7 @@ import {
 } from '@/utils/miniAppResults';
 import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
-import { useBusyIdSet } from '@/hooks/useBusyIdSet';
+import { useLibraryDuplicate } from '@/components/common/library/useLibraryDuplicate';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import { miniAppLifecycle } from './utils/miniAppClassLifecycle';
 import {
@@ -518,8 +519,15 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     if (miniAppHandoff) takeImportHandoff(widget.id);
     setShowImportWizard(false);
   };
-  // Shared rapid-click guard. See `hooks/useBusyIdSet.ts`.
-  const duplicateBusy = useBusyIdSet();
+  const appDuplicate = useLibraryDuplicate({
+    duplicate: (app: MiniAppItem) => duplicateMiniApp(app),
+    addToast,
+    onError: (err, app) =>
+      logError('MiniAppWidget.handleDuplicate', err, {
+        userId: user?.uid,
+        sourceAppId: app.id,
+      }),
+  });
 
   // Per-teacher MiniApp assignment archive — populates the In Progress /
   // Archive tabs. Lives in `/users/{uid}/miniapp_assignments/`.
@@ -886,12 +894,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         assignmentMode === 'view-only'
           ? `Share link created! URL: ${url}`
           : `Assignment created! URL: ${url}`;
-      try {
-        await navigator.clipboard.writeText(url);
-        addToast(successCopy, 'success');
-      } catch {
-        addToast(fallbackCopy, 'info');
-      }
+      await copyLinkWithToast(url, addToast, {
+        success: successCopy,
+        failure: fallbackCopy,
+        failureType: 'info',
+      });
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Failed to create assignment.';
@@ -1216,35 +1223,22 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
    * `handleCreate` uses, so the duplicate appears at the top of the
    * personal library where the teacher just acted.
    */
-  const handleDuplicate = (app: MiniAppItem) => {
-    if (!user) return;
-    void duplicateBusy.run(app.id, async () => {
-      try {
-        const copy: MiniAppItem = {
-          ...app,
-          id: crypto.randomUUID(),
-          title: suggestDuplicateTitle(app.title),
-          createdAt: Date.now(),
-          order:
-            library.length > 0
-              ? library.reduce((min, a) => Math.min(min, a.order ?? 0), 0) - 1
-              : 0,
-        };
-        const appsRef = collection(db, 'users', user.uid, 'miniapps');
-        if (!sandboxMiniAppWrite(copy, realLibrary))
-          await setDoc(doc(appsRef, copy.id), copy);
-        addToast(`Duplicated as "${copy.title}".`, 'success');
-      } catch (err) {
-        logError('MiniAppWidget.handleDuplicate', err, {
-          userId: user.uid,
-          sourceAppId: app.id,
-        });
-        addToast(
-          err instanceof Error ? err.message : 'Duplicate failed',
-          'error'
-        );
-      }
-    });
+  const duplicateMiniApp = async (app: MiniAppItem): Promise<MiniAppItem> => {
+    if (!user) throw new Error('Not signed in.');
+    const copy: MiniAppItem = {
+      ...app,
+      id: crypto.randomUUID(),
+      title: suggestDuplicateTitle(app.title),
+      createdAt: Date.now(),
+      order:
+        library.length > 0
+          ? library.reduce((min, a) => Math.min(min, a.order ?? 0), 0) - 1
+          : 0,
+    };
+    const appsRef = collection(db, 'users', user.uid, 'miniapps');
+    if (!sandboxMiniAppWrite(copy, realLibrary))
+      await setDoc(doc(appsRef, copy.id), copy);
+    return copy;
   };
 
   const saveMiniApp = async (updated: MiniAppItem) => {
@@ -1394,12 +1388,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const handleArchiveCopyUrl = useCallback(
     async (assignment: MiniAppAssignment) => {
       const url = `${window.location.origin}/miniapp/${assignment.sessionId}`;
-      try {
-        await navigator.clipboard.writeText(url);
-        addToast('Link copied to clipboard', 'success');
-      } catch {
-        addToast(`Link: ${url}`, 'info');
-      }
+      await copyLinkWithToast(url, addToast, {
+        success: 'Link copied to clipboard',
+        failure: `Link: ${url}`,
+        failureType: 'info',
+      });
     },
     [addToast]
   );
@@ -2035,8 +2028,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                   }
                 },
               }}
-              onDuplicate={(app) => void handleDuplicate(app)}
-              isDuplicating={duplicateBusy.isBusy}
+              onDuplicate={(app) => {
+                if (user) void appDuplicate.duplicate(app);
+              }}
+              isDuplicating={appDuplicate.isDuplicating}
               onRun={handleRun}
               onAssign={handleOpenAssign}
               badgesFor={(app) => {
