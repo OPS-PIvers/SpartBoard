@@ -540,6 +540,10 @@ describe('DrawingWidget', () => {
   });
 
   it('renders an Image button that opens the hidden file picker', () => {
+    (useAuth as Mock).mockReturnValue({
+      user: { uid: 'user1' },
+      canAccessFeature: vi.fn((id: string) => id !== 'unified-image-picker'),
+    });
     const { getByLabelText, container } = render(
       <DrawingWidget widget={widget} />
     );
@@ -554,6 +558,17 @@ describe('DrawingWidget', () => {
       });
     fireEvent.click(button);
     expect(clickSpy).toHaveBeenCalled();
+  });
+
+  it('opens the shared image picker from Insert image when it is on', () => {
+    const { getByLabelText, getByRole, container } = render(
+      <DrawingWidget widget={widget} />
+    );
+    const button = getByLabelText('Insert image');
+    expect(button.getAttribute('data-tour')).toBe('drawing.insert-image');
+    expect(container.querySelector('input[accept="image/*"]')).not.toBeNull();
+    fireEvent.click(button);
+    expect(getByRole('dialog', { name: 'Insert image' })).not.toBeNull();
   });
 
   it('handles drawing interaction', () => {

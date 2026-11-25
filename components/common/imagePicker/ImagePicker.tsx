@@ -40,6 +40,8 @@ export interface ImagePickerProps extends Omit<
   /** Existing anchor ids a migrated control keeps instead of the shared ones. */
   tourOverrides?: Anchors;
   buttonClassName?: string;
+  /** Replaces the small button's icon, as for a labelled toolbar button. */
+  buttonContent?: React.ReactNode;
   buttonStyle?: React.CSSProperties;
   iconStyle?: React.CSSProperties;
 }
@@ -263,8 +265,19 @@ const Panel: React.FC<{
     closeRef.current = onClose;
   });
   useEffect(() => {
+    const at = anchor.current?.getBoundingClientRect();
+    // A late scroll from the click's own focus leaves the button where the panel was placed.
+    const moved = () => {
+      const now = anchor.current?.getBoundingClientRect();
+      return (
+        !at ||
+        !now ||
+        Math.abs(now.top - at.top) > 1 ||
+        Math.abs(now.left - at.left) > 1
+      );
+    };
     const onScroll = (e: Event) => {
-      if (scrollMovesAnchor(e, anchor.current)) closeRef.current();
+      if (scrollMovesAnchor(e, anchor.current) && moved()) closeRef.current();
     };
     const onResize = () => closeRef.current();
     window.addEventListener('scroll', onScroll, true);
@@ -279,6 +292,7 @@ const Panel: React.FC<{
       ref={panelRef}
       role="dialog"
       aria-label={label}
+      data-image-picker-panel="true"
       data-click-outside-ignore="true"
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
@@ -311,6 +325,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
   tourScope,
   tourOverrides,
   buttonClassName,
+  buttonContent,
   buttonStyle,
   iconStyle,
   ...sourceOptions
@@ -376,16 +391,17 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
           style={buttonStyle}
           {...src.dropProps}
         >
-          {src.busy ? (
-            <Loader2
-              style={iconStyle}
-              size={16}
-              className="animate-spin"
-              aria-hidden
-            />
-          ) : (
-            <ImagePlus style={iconStyle} size={16} aria-hidden />
-          )}
+          {buttonContent ??
+            (src.busy ? (
+              <Loader2
+                style={iconStyle}
+                size={16}
+                className="animate-spin"
+                aria-hidden
+              />
+            ) : (
+              <ImagePlus style={iconStyle} size={16} aria-hidden />
+            ))}
         </button>
         {panel && (
           <Panel

@@ -217,4 +217,31 @@ describe('ImagePicker', () => {
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Google Drive' })).toBeTruthy();
   });
+
+  it('stays open on a scroll that leaves its button in place, and closes when it moves', () => {
+    render(
+      <div data-testid="host">
+        <ImagePicker
+          layout="button"
+          label="Insert image"
+          buttonContent={<span>Replace</span>}
+          tourScope={scope}
+          upload={vi.fn()}
+          onChange={vi.fn()}
+        />
+      </div>
+    );
+    const button = screen.getByRole('button', { name: 'Insert image' });
+    expect(button.textContent).toBe('Replace');
+    let top = 100;
+    button.getBoundingClientRect = () =>
+      ({ top, left: 10, bottom: top + 20, right: 30 }) as DOMRect;
+    fireEvent.click(button);
+    const host = screen.getByTestId('host');
+    fireEvent.scroll(host);
+    expect(screen.getByRole('dialog', { name: 'Insert image' })).toBeTruthy();
+    top = 140;
+    fireEvent.scroll(host);
+    expect(screen.queryByRole('dialog', { name: 'Insert image' })).toBeNull();
+  });
 });

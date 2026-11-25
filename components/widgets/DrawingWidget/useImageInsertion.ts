@@ -60,12 +60,17 @@ interface UseImageInsertionResult {
   handleDragOver: (e: React.DragEvent) => void;
   /** True while the upload pipeline is in flight (file upload + decode). */
   isUploading: boolean;
+  /** The shared ImagePicker's `upload`: places the image at the canvas center and resolves to its URL. */
+  pickerUpload: (file: File) => Promise<string | null>;
 }
 
 // Max width an inserted image takes on the canvas at insertion time. Capped at
 // 50% of canvas width per the spec so a teacher pasting a 3000px reference
 // image doesn't blow up the canvas; aspect ratio is preserved.
 const INSERT_MAX_FRACTION = 0.5;
+
+// Matches the Storage rule for display images; the picker checks it before uploading.
+export const INSERT_MAX_BYTES = 25 * 1024 * 1024;
 
 /**
  * Decode a `File` into its natural pixel dimensions. Used to preserve the
@@ -176,10 +181,13 @@ export const useImageInsertion = ({
 
   // Shared upload + geometry path for all three entry points.
   const ingestFile = useCallback(
-    async (file: File, focal: { x: number; y: number } | null) => {
-      if (!file.type.startsWith('image/')) return;
+    async (
+      file: File,
+      focal: { x: number; y: number } | null
+    ): Promise<string | null> => {
+      if (!file.type.startsWith('image/')) return null;
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) return null;
       const area = getVisibleArea?.();
       // Zoomed out, the visible area is bigger than the page; size against whichever is smaller.
       const canvasW = Math.min(area?.width ?? canvas.width, canvas.width);
@@ -191,7 +199,7 @@ export const useImageInsertion = ({
         readNaturalSize(file),
         processAndUploadImage(file, { skipProcessing: true }),
       ]);
-      if (!url) return;
+      if (!url) return null;
 
       const geom = computeGeometry(
         natural,
@@ -206,6 +214,7 @@ export const useImageInsertion = ({
           : undefined
       );
       onImageReady({ src: url, ...geom });
+      return url;
     },
     [canvasRef, onImageReady, processAndUploadImage, getVisibleArea]
   );
@@ -229,7 +238,17 @@ export const useImageInsertion = ({
   // Returns true if it consumed the event (caller should suppress further
   // default handling — e.g. the Dock's smart-paste listener).
   const ingestFromClipboard = useCallback(
-    (clipboardData: DataTransfer | null): boolean => {
+    (
+      clipboardData: DataTransfer | null,
+      target: EventTarget | null
+    ): boolean => {
+      // The shared image picker's open panel takes its own paste.
+      if (
+        target instanceof Element &&
+        target.closest('[data-image-picker-panel]')
+      ) {
+        return false;
+      }
       const items = clipboardData?.items;
       if (!items) return false;
       for (let i = 0; i < items.length; i++) {
@@ -249,7 +268,7 @@ export const useImageInsertion = ({
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
-      if (ingestFromClipboard(e.clipboardData)) {
+      if (ingestFromClipboard(e.clipboardData, e.target)) {
         e.preventDefault();
       }
     },
@@ -277,7 +296,7 @@ export const useImageInsertion = ({
       ) {
         return;
       }
-      if (ingestFromClipboard(e.clipboardData)) {
+      if (ingestFromClipboard(e.clipboardData, e.target)) {
         e.preventDefault();
         // Stop other listeners (e.g. the Dock's smart-paste handler) from
         // re-processing the same image.
@@ -302,6 +321,8 @@ export const useImageInsertion = ({
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
+      // The shared image picker already took a drop on its button or panel.
+      if (e.defaultPrevented) return;
       const file = e.dataTransfer?.files?.[0];
       if (!file || !file.type.startsWith('image/')) return;
       e.preventDefault();
@@ -332,5 +353,6 @@ export const useImageInsertion = ({
     handleDrop,
     handleDragOver,
     isUploading: uploading,
+    pickerUpload: (file: File) => ingestFile(file, null),
   };
 };

@@ -52,7 +52,11 @@ import {
   TextEditorOverlay,
   TextEditorHandle,
 } from '@/components/widgets/DrawingWidget/TextEditorOverlay';
-import { useImageInsertion } from '@/components/widgets/DrawingWidget/useImageInsertion';
+import {
+  useImageInsertion,
+  INSERT_MAX_BYTES,
+} from '@/components/widgets/DrawingWidget/useImageInsertion';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 import { useSelection } from '@/components/widgets/DrawingWidget/useSelection';
 import { hitTestObject } from '@/components/widgets/DrawingWidget/hitTest';
 import { applyTextWrapOnResize } from '@/components/widgets/DrawingWidget/renderers/text';
@@ -161,6 +165,7 @@ export const AnnotationOverlay: React.FC = () => {
   const hasRemoteStrokes = (annotationState.objects?.length ?? 0) > 0;
   const shouldRender = annotationActive || hasRemoteStrokes;
   const { canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
   const { showConfirm } = useDialog();
   const { saveDrawingToDrive, isConnected: isDriveConnected } =
     useGoogleDrive();
@@ -403,6 +408,7 @@ export const AnnotationOverlay: React.FC = () => {
     handleDrop: handleImageDrop,
     handleDragOver: handleImageDragOver,
     isUploading: isUploadingImage,
+    pickerUpload,
   } = useImageInsertion({
     canvasRef,
     onImageReady: handleImageReady,
@@ -742,7 +748,7 @@ export const AnnotationOverlay: React.FC = () => {
       className="fixed inset-0 pointer-events-none overflow-hidden"
       style={{ zIndex: Z_INDEX.annotationChrome }}
     >
-      {interactive && <input {...fileInputProps} />}
+      {interactive && !unifiedPicker && <input {...fileInputProps} />}
 
       {interactive && editingText && canvasRect && (
         <TextEditorOverlay
@@ -882,22 +888,37 @@ export const AnnotationOverlay: React.FC = () => {
               icon={<Trash2 className="w-4 h-4" />}
             />
 
-            <Button
-              onClick={openImagePicker}
-              disabled={isUploadingImage}
-              {...tourAttr('annotation.insert-image')}
-              title="Insert image"
-              aria-label="Insert image"
-              variant="ghost"
-              size="icon"
-              icon={
-                isUploadingImage ? (
-                  <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
-                ) : (
-                  <ImagePlus className="w-4 h-4" />
-                )
-              }
-            />
+            {unifiedPicker ? (
+              <ImagePicker
+                layout="button"
+                label="Insert image"
+                maxBytes={INSERT_MAX_BYTES}
+                linkAsFile
+                disabled={isUploadingImage}
+                tourScope={{ type: 'annotation', field: 'insert-image' }}
+                tourOverrides={{ open: tourAttr('annotation.insert-image') }}
+                buttonClassName="flex items-center justify-center rounded-lg p-2 text-slate-600 transition duration-160 ease-out hover:bg-brand-blue-lighter hover:text-brand-blue-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white enabled:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+                upload={pickerUpload}
+                onChange={() => undefined}
+              />
+            ) : (
+              <Button
+                onClick={openImagePicker}
+                disabled={isUploadingImage}
+                {...tourAttr('annotation.insert-image')}
+                title="Insert image"
+                aria-label="Insert image"
+                variant="ghost"
+                size="icon"
+                icon={
+                  isUploadingImage ? (
+                    <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
+                  ) : (
+                    <ImagePlus className="w-4 h-4" />
+                  )
+                }
+              />
+            )}
 
             <div className="h-6 w-px bg-slate-200 mx-1" />
 

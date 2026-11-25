@@ -14,6 +14,8 @@ import {
 import type { TourMarkupShape, WebTourPicture } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
 import { logError } from '@/utils/logError';
+import { useAuth } from '@/context/useAuth';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 import {
   iconBtn,
   primaryBtn,
@@ -38,6 +40,7 @@ import {
   cropImage,
   imageSize,
   isStepPictureType,
+  STEP_PICTURE_TYPES,
 } from './pictureFiles';
 import {
   FULL,
@@ -98,6 +101,7 @@ export function useWebPictureTools(ctx: Ctx) {
   const [failed, setFailed] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const load = useLoad();
+  const unifiedPicker = useAuth().canAccessFeature('unified-image-picker');
   const base = usePictureBlob(
     tool === 'crop' ? (picture?.original?.path ?? picture?.path) : undefined
   );
@@ -167,22 +171,28 @@ export function useWebPictureTools(ctx: Ctx) {
     }
   };
 
-  const replace = async (file: File) => {
-    if (!step) return;
+  // Saves a new picture for the step; resolves to its path, or null when it can't be used.
+  const savePictureFile = async (file: File): Promise<string | null> => {
+    if (!step) return null;
     if (!isStepPictureType(file.type)) {
       ctx.onStatus('Choose a PNG, JPEG or WebP picture.');
-      return;
+      return null;
     }
     if (file.size > WEB_TOUR_PICTURE_MAX_BYTES) {
       ctx.onStatus('Choose a picture smaller than 5 MB.');
-      return;
+      return null;
     }
+    const { w, h } = await imageSize(file);
+    const path = await uploadStepPicture(ctx.setId, file, file.type);
+    // An uploaded picture has no known target place, scale or capture behind it.
+    await ctx.savePicture(step.id, { path, w, h });
+    ctx.onStatus(`Step ${index + 1} has a new picture.`);
+    return path;
+  };
+
+  const replace = async (file: File) => {
     try {
-      const { w, h } = await imageSize(file);
-      const path = await uploadStepPicture(ctx.setId, file, file.type);
-      // An uploaded picture has no known target place, scale or capture behind it.
-      await ctx.savePicture(step.id, { path, w, h });
-      ctx.onStatus(`Step ${index + 1} has a new picture.`);
+      await savePictureFile(file);
     } catch (err) {
       logError('web tour replace picture', err, { setId: ctx.setId });
       ctx.onStatus("The picture couldn't be replaced.");
@@ -247,29 +257,59 @@ export function useWebPictureTools(ctx: Ctx) {
         <Camera className="h-4 w-4" aria-hidden="true" />
         Retake
       </button>
-      <button
-        type="button"
-        className={toolBtn}
-        onClick={() => fileInput.current?.click()}
-        {...tourAttr('web-tour-editor.picture-replace')}
-      >
-        <ImageUp className="h-4 w-4" aria-hidden="true" />
-        Replace
-      </button>
-      {/* no-tour-anchor: hidden file picker opened by Replace */}
-      <input
-        ref={fileInput}
-        type="file"
-        accept="image/png,image/jpeg,image/webp"
-        className="hidden"
-        aria-label="Replace picture"
-        data-testid="web-picture-replace-file"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = '';
-          if (file) void replace(file);
-        }}
-      />
+      {unifiedPicker ? (
+        <ImagePicker
+          layout="button"
+          label="Replace"
+          accept={STEP_PICTURE_TYPES.join(',')}
+          maxBytes={WEB_TOUR_PICTURE_MAX_BYTES}
+          linkAsFile
+          tourScope={{ type: 'web-tour-editor', field: 'picture' }}
+          tourOverrides={{ open: tourAttr('web-tour-editor.picture-replace') }}
+          buttonClassName={toolBtn}
+          buttonContent={
+            <>
+              <ImageUp className="h-4 w-4" aria-hidden="true" />
+              Replace
+            </>
+          }
+          upload={async (file) => {
+            try {
+              return await savePictureFile(file);
+            } catch (err) {
+              logError('web tour replace picture', err, { setId: ctx.setId });
+              throw err;
+            }
+          }}
+          onChange={() => undefined}
+        />
+      ) : (
+        <>
+          <button
+            type="button"
+            className={toolBtn}
+            onClick={() => fileInput.current?.click()}
+            {...tourAttr('web-tour-editor.picture-replace')}
+          >
+            <ImageUp className="h-4 w-4" aria-hidden="true" />
+            Replace
+          </button>
+          {/* no-tour-anchor: hidden file picker opened by Replace */}
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            aria-label="Replace picture"
+            data-testid="web-picture-replace-file"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) void replace(file);
+            }}
+          />
+        </>
+      )}
       <button
         type="button"
         className={toolBtn}
