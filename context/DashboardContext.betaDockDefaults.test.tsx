@@ -249,3 +249,47 @@ describe('DashboardContext getDefaultDockTools beta-access parity', () => {
     expect(getToolVis().visibleTools).not.toContain('clock');
   });
 });
+
+describe('DashboardContext getDefaultDockTools uses the widget access rules', () => {
+  function reset(): string[] {
+    setup();
+    act(() => {
+      getToolVis().resetDockToDefaults();
+    });
+    return getToolVis().visibleTools;
+  }
+
+  it('leaves out an admin-default widget that has no permission doc', () => {
+    expect(reset()).not.toContain('flashcards');
+  });
+
+  it('leaves out a widget restricted to buildings the teacher is not in', () => {
+    authMock.featurePermissions = [
+      {
+        widgetType: 'clock',
+        enabled: true,
+        accessLevel: 'public',
+        betaUsers: [],
+        buildings: ['middle'],
+        config: { dockDefaults: { high: true } },
+      },
+    ];
+    authMock.selectedBuildings = ['high'];
+    expect(reset()).not.toContain('clock');
+  });
+
+  it('seeds the same widget for a teacher in an allowed building', () => {
+    authMock.featurePermissions = [
+      {
+        widgetType: 'clock',
+        enabled: true,
+        accessLevel: 'public',
+        betaUsers: [],
+        buildings: ['high'],
+        config: { dockDefaults: { high: true } },
+      },
+    ];
+    authMock.selectedBuildings = ['high'];
+    expect(reset()).toContain('clock');
+  });
+});

@@ -118,7 +118,6 @@ const renderManager = (
           canAccessFeature: (id: string) =>
             id === 'gemini-functions' ||
             (id === 'guided-learning-ai' && isAdmin),
-          canSeeShareTracking: () => false,
         } as unknown as React.ContextType<typeof AuthContext>
       }
     >

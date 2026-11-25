@@ -220,7 +220,8 @@ import {
 } from '@/utils/widgetSettingsDefaults';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
 import { seedMaterialsConfig } from '@/utils/materialsPreferences';
-import { isBetaUser, isExcludedUser } from '@/utils/betaAccess';
+import { isBetaUser } from '@/utils/betaAccess';
+import { resolveWidgetAccess } from '@/utils/widgetAccess';
 import { AnnotationState } from './DashboardContextValue';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import { closeWallsToBoard } from '@/utils/activityWallBoardAccess';
@@ -825,6 +826,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     canAccessFeature,
     roleId,
     userRoles,
+    userTier,
     isStudentRole,
     roleResolved,
     refreshGoogleToken,
@@ -1462,18 +1464,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const getDefaultDockTools = useCallback((): (
     WidgetType | InternalToolType
   )[] => {
-    // Checks whether a FeaturePermission is accessible to the current user; beta check delegates to the shared isBetaUser helper.
-    const isPermAccessible = (perm: FeaturePermission): boolean => {
-      const isEnabled =
-        perm.enabled !== false &&
-        !isExcludedUser(perm.excludedUsers, user?.email);
-      const isAccessibleByRole =
-        perm.accessLevel !== 'admin' || isAdmin === true;
-      const isBetaAccessible =
-        perm.accessLevel !== 'beta' ||
-        isBetaUser(perm.betaUsers, user?.email, userRoles, roleId);
-      return isEnabled && isAccessibleByRole && isBetaAccessible;
+    // Same decision canAccessWidget makes: tiers, buildings and admin-default widgets included.
+    const accessCtx = {
+      isAdmin,
+      email: user?.email,
+      isBetaUser: (betaUsers: string[], email: string | null | undefined) =>
+        isBetaUser(betaUsers, email, userRoles, roleId),
+      userTier,
+      selectedBuildings,
     };
+    const isPermAccessible = (
+      type: WidgetType | InternalToolType,
+      perm: FeaturePermission | undefined
+    ): boolean => resolveWidgetAccess(type, perm, accessCtx);
 
     // Build a Map for O(1) permission look-ups when iterating over TOOLS.
     const permByType = new Map<string, FeaturePermission>(
@@ -1484,10 +1487,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // convention: empty selectedBuildings = no building-based filtering).
     if (selectedBuildings.length === 0) {
       return TOOLS.filter((tool) => {
-        const perm = permByType.get(tool.type);
-        // No permission record → public by default
-        if (!perm) return true;
-        return isPermAccessible(perm);
+        return isPermAccessible(tool.type, permByType.get(tool.type));
       }).map((tool) => tool.type);
     }
 
@@ -1519,7 +1519,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Only include tools that the current user can actually access,
       // mirroring the same checks performed by canAccessWidget / the dock.
-      if (isPermAccessible(perm)) {
+      if (isPermAccessible(perm.widgetType, perm)) {
         tools.push(perm.widgetType);
       }
     });
@@ -1529,7 +1529,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     return tools;
-  }, [featurePermissions, selectedBuildings, isAdmin, user, userRoles, roleId]);
+  }, [
+    featurePermissions,
+    selectedBuildings,
+    isAdmin,
+    user,
+    userRoles,
+    roleId,
+    userTier,
+  ]);
 
   // Empty-dock recovery: whenever the dock is empty after hydration,
   // refill it with building-aware defaults. Earlier iterations of this

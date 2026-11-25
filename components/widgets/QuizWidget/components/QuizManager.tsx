@@ -3972,8 +3972,8 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   // Admin-only by default — view-count display fires one Firestore
   // aggregation per visible card per dashboard tab-focus, gated behind the
   // `share-link-tracking` global permission.
-  const { canSeeShareTracking, canAccessFeature } = useAuth();
-  const trackingEnabled = canSeeShareTracking();
+  const { canAccessFeature } = useAuth();
+  const trackingEnabled = canAccessFeature('share-link-tracking');
   const showJoinCode =
     urlLive && !a.paper && canAccessFeature('anonymous-join');
   const { count } = useSessionViewCount(

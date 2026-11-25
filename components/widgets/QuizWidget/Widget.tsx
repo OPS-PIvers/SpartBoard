@@ -268,7 +268,7 @@ import type {
   ImportPaperResponsesResult,
   ImportPaperSheetPayload,
 } from '@/utils/paperImportPlan';
-import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettings';
+import { usePaperAnswerSheetsGate } from '@/hooks/usePaperAnswerSheetsGate';
 import {
   PAPER_WRITTEN_HYBRID_FEATURE,
   hybridBoxImages,
@@ -990,12 +990,7 @@ const TeacherQuizWidget: React.FC<{
   const [editingQuiz, setEditingQuiz] = useState<QuizData | null>(null);
   const [editingMeta, setEditingMeta] = useState<QuizMetadata | null>(null);
   // Paper answer sheets: Assign on paper prints the stack and makes a paper assignment.
-  const paperSheetsRollout = usePaperAnswerSheetsSettings();
-  // Two gates: the org-wide district switch, then who may use it.
-  const paperSheets = {
-    enabled:
-      paperSheetsRollout.enabled && canAccessFeature('paper-answer-sheets'),
-  };
+  const paperSheets = { enabled: usePaperAnswerSheetsGate() };
   const [paperPrintQuiz, setPaperPrintQuiz] = useState<QuizData | null>(null);
   /** Library entry behind `paperPrintQuiz`. */
   const [paperPrintMeta, setPaperPrintMeta] = useState<QuizMetadata | null>(
