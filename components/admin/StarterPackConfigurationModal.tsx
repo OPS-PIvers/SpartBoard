@@ -49,43 +49,7 @@ import {
 } from '@/utils/lucideIconMap';
 import { SNAP_LAYOUTS } from '@/config/snapLayouts';
 import { calculateSnapBounds } from '@/utils/layoutMath';
-
-// Local draft lets the field be cleared and retyped; it snaps back to the committed value on blur.
-const DraftNumberInput: React.FC<
-  {
-    value: number;
-    onCommit: (next: number) => void;
-  } & Omit<
-    React.InputHTMLAttributes<HTMLInputElement>,
-    'value' | 'onChange' | 'type'
-  >
-> = ({ value, onCommit, onBlur, ...rest }) => {
-  const [draft, setDraft] = useState(String(value));
-  const [prevValue, setPrevValue] = useState(value);
-  const [focused, setFocused] = useState(false);
-  if (prevValue !== value) {
-    setPrevValue(value);
-    if (!focused) setDraft(String(value));
-  }
-  return (
-    <input // no-tour-anchor: callers spread tourFieldAttr via rest
-      {...rest}
-      type="number"
-      value={draft}
-      onChange={(e) => {
-        setDraft(e.currentTarget.value);
-        const next = e.currentTarget.valueAsNumber;
-        if (Number.isFinite(next)) onCommit(next);
-      }}
-      onFocus={() => setFocused(true)}
-      onBlur={(e) => {
-        setFocused(false);
-        setDraft(String(value));
-        onBlur?.(e);
-      }}
-    />
-  );
-};
+import { DraftNumberField } from './DraftNumberField';
 
 interface StarterPackConfigurationModalProps {
   isOpen: boolean;
@@ -1140,7 +1104,7 @@ export const StarterPackConfigurationModal: React.FC<
                                   <span className="font-bold text-slate-400 uppercase">
                                     {label}
                                   </span>
-                                  <DraftNumberInput
+                                  <DraftNumberField
                                     {...tourFieldAttr(
                                       'admin.widget-config.field',
                                       'starter-pack',
@@ -1336,7 +1300,7 @@ export const StarterPackConfigurationModal: React.FC<
                               ? 'Width'
                               : 'Height'}
                         </label>
-                        <DraftNumberInput
+                        <DraftNumberField
                           {...tourFieldAttr(
                             'admin.widget-config.field',
                             'starter-pack',
