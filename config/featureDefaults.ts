@@ -67,6 +67,7 @@ import {
   Users,
   UserCheck,
   CopyX,
+  ImagePlus,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1907,6 +1908,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: ClipboardCheck,
     description:
       'Open work turns in after End or Close. The teacher tab can be closed.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'unified-image-picker': {
+    label: 'One image picker',
+    icon: ImagePlus,
+    description:
+      'Upload, paste, drop, Google Drive or an image link wherever an image is added.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
