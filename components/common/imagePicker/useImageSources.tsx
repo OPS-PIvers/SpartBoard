@@ -13,10 +13,10 @@ export interface ImageSourcesOptions {
   accept?: string;
   /** Also takes a PDF from every source; the caller's upload handles it. */
   allowPdf?: boolean;
-  /** Takes several files from upload, paste and drop, saved one at a time. */
-  multiple?: boolean;
   maxBytes?: number;
   disabled?: boolean;
+  /** Takes several files at once from upload, drop or paste; each one saves and calls onChange. */
+  multiple?: boolean;
   /** Paste reaches the picker anywhere in its dialog, or only inside the picker. */
   pasteScope?: 'dialog' | 'element' | 'off';
   /** The element paste is scoped to. */
@@ -56,9 +56,9 @@ export function useImageSources({
   linkAsFile = false,
   accept,
   allowPdf = false,
-  multiple = false,
   maxBytes = DEFAULT_MAX,
   disabled = false,
+  multiple = false,
   pasteScope = 'dialog',
   scopeRef,
 }: ImageSourcesOptions) {
@@ -117,13 +117,37 @@ export function useImageSources({
     [run, save]
   );
 
+  // Saves each file in turn; the first problem stays on screen after the rest finish.
   const addFiles = useCallback(
     async (files: File[]) => {
-      for (const file of multiple ? files : files.slice(0, 1)) {
-        if ((await addFile(file)) === 'failed') return;
+      if (!multiple || files.length < 2) {
+        if (files[0]) await addFile(files[0]);
+        return;
+      }
+      if (inFlight.current || disabled) return;
+      inFlight.current = true;
+      setBusy(true);
+      setError(null);
+      let firstError: string | null = null;
+      try {
+        for (const file of files) {
+          try {
+            const url = await save(file);
+            if (url) onChange(url);
+          } catch (err) {
+            firstError ??=
+              err instanceof PickerError
+                ? err.message
+                : "The image didn't add.";
+          }
+        }
+      } finally {
+        setError(firstError);
+        inFlight.current = false;
+        setBusy(false);
       }
     },
-    [addFile, multiple]
+    [multiple, addFile, disabled, save, onChange]
   );
 
   const openFile = useCallback(() => inputRef.current?.click(), []);
@@ -227,6 +251,7 @@ export function useImageSources({
 
   return {
     busy,
+    disabled,
     error,
     setError,
     dragging,

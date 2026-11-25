@@ -1,0 +1,5 @@
+release-fix/quiz-classid-fill-rules-tests (#6752, release 2026.11.25d)
+release-fix/gate-video-run-turn-in (#6753, release 2026.11.25d)
+release-fix/modal-dismiss-regressions (#6754, release 2026.11.25d)
+release-fix/notes-2026-11-25d (#6755, release 2026.11.25d)
+claude/project-thread-z0qpyk (release branch for #6751, release 2026.11.25d)

@@ -57,6 +57,7 @@ import { GridPresetCard } from './GridPresetCard';
 import { StockPhotoPicker, type StockPhotoSelection } from './StockPhotoPicker';
 import { isPexelsConfigured } from '@/utils/pexelsService';
 import { Modal } from '@/components/common/Modal';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 
 const DEFAULT_PRESETS = [
   {
@@ -105,6 +106,23 @@ const DEFAULT_PRESETS = [
   },
 ];
 
+/** A file name without its extension, with dashes and underscores as spaces. */
+const labelFromName = (name: string): string => {
+  const dot = name.lastIndexOf('.');
+  return (dot > 0 ? name.substring(0, dot) : name).replace(/[-_]/g, ' ');
+};
+
+/** An image link's file name, or its site when the path has none. */
+const labelFromUrl = (raw: string): string => {
+  try {
+    const url = new URL(raw);
+    const last = url.pathname.split('/').filter(Boolean).pop();
+    return last ? labelFromName(decodeURIComponent(last)) : url.hostname;
+  } catch {
+    return raw;
+  }
+};
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const BackgroundManager: React.FC = () => {
@@ -152,7 +170,8 @@ export const BackgroundManager: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploadAdminBackground } = useStorage();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
   const { driveService, isConnected: isDriveConnected } = useGoogleDrive();
   const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
   const [loadingDrive, setLoadingDrive] = useState(false);
@@ -355,10 +374,7 @@ export const BackgroundManager: React.FC = () => {
       try {
         downloadURL = await uploadAdminBackground(presetId, file);
 
-        const lastDotIndex = file.name.lastIndexOf('.');
-        const baseName =
-          lastDotIndex > 0 ? file.name.substring(0, lastDotIndex) : file.name;
-        const label = baseName.replace(/[-_]/g, ' ');
+        const label = labelFromName(file.name);
 
         const newPreset: BackgroundPreset = {
           id: presetId,
@@ -399,6 +415,48 @@ export const BackgroundManager: React.FC = () => {
     setUploading(false);
     setUploadProgress(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // URLs the picker's upload already saved as presets; anything else it hands back is an image link.
+  const savedUploadsRef = useRef(new Set<string>());
+
+  const savePreset = async (id: string, url: string, label: string) => {
+    const newPreset: BackgroundPreset = {
+      id,
+      url,
+      label,
+      active: true,
+      accessLevel: 'public',
+      betaUsers: [],
+      createdAt: Date.now(),
+    };
+    await setDoc(doc(db, 'admin_backgrounds', id), newPreset);
+    setPresets((prev) => [newPreset, ...prev]);
+  };
+
+  const uploadPickedBackground = async (file: File): Promise<string> => {
+    const presetId = crypto.randomUUID();
+    const url = await uploadAdminBackground(presetId, file);
+    try {
+      await savePreset(presetId, url, labelFromName(file.name));
+    } catch (error) {
+      await deleteObject(ref(storage, url)).catch((cleanupError: unknown) =>
+        console.error('Failed to cleanup orphaned file:', cleanupError)
+      );
+      throw error;
+    }
+    savedUploadsRef.current.add(url);
+    return url;
+  };
+
+  const handlePickedBackground = (url: string) => {
+    if (savedUploadsRef.current.delete(url)) return;
+    savePreset(crypto.randomUUID(), url, labelFromUrl(url)).catch(
+      (error: unknown) => {
+        console.error('Failed to add image link:', error);
+        showMessage('error', 'Failed to add background');
+      }
+    );
   };
 
   const handleAddYoutubeVideo = async () => {
@@ -764,24 +822,41 @@ export const BackgroundManager: React.FC = () => {
 
       {/* Filters and Actions */}
       <div className="flex flex-col gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl mb-2">
+        {unifiedPicker && (
+          <ImagePicker
+            upload={uploadPickedBackground}
+            onChange={handlePickedBackground}
+            multiple
+            pasteScope="element"
+            maxBytes={5 * 1024 * 1024}
+            disabled={!user}
+            tourScope={{ type: 'admin', field: 'backgrounds' }}
+            tourOverrides={{
+              upload: tourAttr('admin.backgrounds.upload'),
+              drive: tourAttr('admin.backgrounds.google-drive'),
+            }}
+          />
+        )}
         {/* Top Row: Actions */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
           <div className="flex gap-2 flex-wrap">
-            <Button
-              variant="dark"
-              {...tourAttr('admin.backgrounds.google-drive')}
-              onClick={() => void loadDriveImages()}
-              disabled={!isDriveConnected}
-              isLoading={loadingDrive}
-              icon={<Database size={16} />}
-              title={
-                isDriveConnected
-                  ? 'Select from Google Drive'
-                  : 'Sign in with Google to use Drive'
-              }
-            >
-              Google Drive
-            </Button>
+            {!unifiedPicker && (
+              <Button
+                variant="dark"
+                {...tourAttr('admin.backgrounds.google-drive')}
+                onClick={() => void loadDriveImages()}
+                disabled={!isDriveConnected}
+                isLoading={loadingDrive}
+                icon={<Database size={16} />}
+                title={
+                  isDriveConnected
+                    ? 'Select from Google Drive'
+                    : 'Sign in with Google to use Drive'
+                }
+              >
+                Google Drive
+              </Button>
+            )}
             <Button
               variant="secondary"
               {...tourAttr('admin.backgrounds.restore-defaults')}
@@ -802,27 +877,31 @@ export const BackgroundManager: React.FC = () => {
                 Stock Photos
               </Button>
             )}
-            <Button
-              variant="primary"
-              {...tourAttr('admin.backgrounds.upload')}
-              onClick={() => fileInputRef.current?.click()}
-              isLoading={uploading}
-              icon={<Upload size={16} />}
-            >
-              {uploadProgress
-                ? `Uploading ${uploadProgress.current}/${uploadProgress.total}`
-                : 'Upload New'}
-            </Button>
+            {!unifiedPicker && (
+              <Button
+                variant="primary"
+                {...tourAttr('admin.backgrounds.upload')}
+                onClick={() => fileInputRef.current?.click()}
+                isLoading={uploading}
+                icon={<Upload size={16} />}
+              >
+                {uploadProgress
+                  ? `Uploading ${uploadProgress.current}/${uploadProgress.total}`
+                  : 'Upload New'}
+              </Button>
+            )}
           </div>
-          <input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
-            accept="image/*"
-            multiple
-            {...tourAttr('admin.backgrounds.upload-input')}
-            onChange={(e) => void handleFileUpload(e)}
-          />
+          {!unifiedPicker && (
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept="image/*"
+              multiple
+              {...tourAttr('admin.backgrounds.upload-input')}
+              onChange={(e) => void handleFileUpload(e)}
+            />
+          )}
 
           <button
             {...tourAttr('admin.backgrounds.manage-categories')}
