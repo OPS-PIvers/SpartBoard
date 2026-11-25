@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 156_
-_Last run: 2026-11-24_
+_Run count: 157_
+_Last run: 2026-11-25_
 _Base branch: dev-paul_
 
 ---
@@ -580,6 +580,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-11-25 | `claude/kind-johnson-no05eu` | D4 | Unified (run 157) — light probe of `aae1d8cf^..dev-paul` found one real drift: `components/common/library/assigned/AssignedChip.tsx` imported `'../../useCloseOnHostResize'`; now `'@/components/common/useCloseOnHostResize'`. Enforcement: new `eslint.config.js` block bans `'../../'` imports in non-test `components/common/**` (verified firing on a temp file; the folder had no other hits). Mechanical (same module resolved). D1/D2/D3/D5 aligned: no brand hex, label combos, `<Toast`, `aria-pressed` or new Widget/Settings files in added lines. Fix applied by orchestrator directly (one-line change, no subagent). | — |
 | 2026-11-24 | `nightly/unifier-log-2026-11-24` | D1/D2/D3/D4/D5 | Aligned (run 156) — light probe of `ae199d7f..dev-paul` (56 commits, 303 non-test client files). Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `#2d3f89`/`#ad2122`/`#4356a0`, no hand-rolled `text-xxs font-bold/black uppercase tracking-widest` labels; no widget `Settings.tsx` added (five `Widget.tsx` modified, none new). `ToastContainer`/local `useState<Toast[]>` hits are the dev harness, student tour layer and subs provider, which render outside DashboardProvider (D5 exception 1). The one `aria-pressed` is a conditional multi-select toggle spread, not an exclusive-choice group. 'No … yet' hits are an editor list and tests (D1 out of scope). No subagents dispatched, no code shipped; `pnpm run validate` skipped per CLAUDE.md. | — |
 | 2026-11-23 | `nightly/unifier-log-2026-11-23` | D1/D2/D3/D4/D5 | Aligned (run 155) — light probe of `cd6ffb9f..dev-paul` (75 commits, 114 non-test client files). Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`, no hand-rolled `text-xxs font-bold/black uppercase tracking-widest` labels, no `aria-pressed`; the only brand hex is the already-excepted `BRAND_RED` in `stepsHtmlExport.ts`. New RevealGrid empty state already uses `ScaledEmptyState`; ActivityWall/RevealGrid `items-center justify-center` hits are flip-card faces, not empty states; `FreshserviceSettings.tsx` is an admin tour form (no D3 drift). No subagents dispatched, no code shipped; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |
 | 2026-11-22 | `nightly/unifier-log-2026-11-22` | D1/D2/D3/D4/D5 | Aligned (run 154) — light probe of `cd6ffb9f^..dev-paul` (31 commits, 29 non-test client files). Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`/`common/Toast`, no new `Widget.tsx`; the only brand hex is the already-excepted `BRAND_RED` in `stepsHtmlExport.ts`. One new `Settings.tsx` (`components/tours/web/FreshserviceSettings.tsx`) is an admin tour form with its own local label class and no exclusive-choice picker, so no D3 drift. No subagents dispatched, no code shipped; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |

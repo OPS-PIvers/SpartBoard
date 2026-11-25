@@ -217,6 +217,26 @@ export default tseslint.config(
     },
   },
   {
+    // D4: shared components reach other folders via '@/', never multi-level '../../'.
+    files: ['components/common/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '^\\.\\./\\.\\./',
+              caseSensitive: true,
+              message:
+                "Use the '@/' alias instead of a multi-level '../../' import in components/common (see D4 in docs/routines/unifier.md).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // D4 (Import Path Convention) enforcement: a file under a
     // components/plc/<subdir>/ directory must not reach across into a
     // SIBLING plc subdirectory (or the shared `plc/sections` module) via a
