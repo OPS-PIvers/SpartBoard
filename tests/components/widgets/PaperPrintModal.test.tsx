@@ -408,7 +408,7 @@ describe('PaperPrintModal', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
-  it("keeps a group's supports on a separate test paper", async () => {
+  it("prints a group's supports on pages after the question sheet", async () => {
     const { print } = setup({
       quiz: quiz({ questions: [mc('q1'), mc('q2')] }),
       group: {
@@ -420,11 +420,13 @@ describe('PaperPrintModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
     await waitFor(() => expect(print).toHaveBeenCalled());
     const job = print.mock.calls[0][0];
-    expect(job.columnsPerPage).not.toBe('questions');
-    expect(job.testPaper).toContain('nucleus, ribosome');
+    expect(job.columnsPerPage).toBe('questions');
+    expect(job.testPaper).toBeUndefined();
+    expect(job.resourcePages?.map((p) => p.title)).toEqual(['Supports']);
+    expect(job.resourcePages?.[0].html).toContain('nucleus, ribosome');
   });
 
-  it('keeps section headings on a separate test paper', async () => {
+  it('prints a section heading above its first question on the sheet', async () => {
     const { print } = setup({
       quiz: quiz({
         questions: [mc('q1'), mc('q2')],
@@ -439,8 +441,17 @@ describe('PaperPrintModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
     await waitFor(() => expect(print).toHaveBeenCalled());
     const job = print.mock.calls[0][0];
-    expect(job.columnsPerPage).not.toBe('questions');
-    expect(job.testPaper).toContain('Part B heading');
+    expect(job.columnsPerPage).toBe('questions');
+    expect(job.testPaper).toBeUndefined();
+    expect(Object.keys(job.sectionHeadings ?? {})).toEqual(['q2']);
+    const items = job.pageMaps?.flatMap((m) => m.items) ?? [];
+    expect(
+      items.find((i) => i.questionId === 'q2')?.sectionTopMm
+    ).toBeDefined();
+    expect(
+      items.find((i) => i.questionId === 'q1')?.sectionTopMm
+    ).toBeUndefined();
+    expect(buildPaperSheetsHtml(job)).toContain('Part B heading');
   });
 
   it('prints each question beside its bubbles on the tall-row layout', async () => {

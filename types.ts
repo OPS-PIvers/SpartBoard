@@ -6768,6 +6768,8 @@ export type PaperPageItem =
       headTopMm?: number;
       /** With `headTopMm`: height of the stem's lines; the instruction prints under them. */
       stemMm?: number;
+      /** Question-text sheets: top of the section heading printed above this question. */
+      sectionTopMm?: number;
     }
   | {
       kind: 'written';
@@ -6782,6 +6784,8 @@ export type PaperPageItem =
       blanks?: number;
       /** A later page of a multi-page answer; its crop joins the first page's. */
       continued?: true;
+      /** Question-text sheets: top of the section heading printed above this question. */
+      sectionTopMm?: number;
     };
 
 /** How a matching, ordering or choose all question reads its bubbles: `all` fills several in one row, `match` one row per term, `order` one row per position (or per item, bubbling its position, when `across`). */

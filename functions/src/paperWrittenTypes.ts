@@ -32,6 +32,7 @@ export type PaperPageItem =
       wrap?: number;
       headTopMm?: number;
       stemMm?: number;
+      sectionTopMm?: number;
     }
   | {
       kind: 'written';
@@ -46,6 +47,7 @@ export type PaperPageItem =
       blanks?: number;
       /** A later page of a multi-page answer; mirrors root `types.ts`. */
       continued?: true;
+      sectionTopMm?: number;
     };
 
 export interface PaperPageMap {

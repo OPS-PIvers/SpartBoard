@@ -102,6 +102,8 @@ import {
   withPaperBoxSizes,
   withPaperBoxStyles,
   paperBoxStyleOf,
+  paperBoxLines,
+  PAPER_FULL_PAGE_LINES,
   type PaperBoxStylePick,
 } from '@/utils/paperWritten';
 import { splitBlanks } from '@/utils/quizFibBlanks';
@@ -116,8 +118,11 @@ import {
 import {
   browserBlockMeasure,
   estimateBlockMm,
+  paginateStimuli,
   planSheetStimuli,
+  sheetSectionHeading,
   type BlockMeasure,
+  type SheetStimulusBlock,
 } from '@/utils/paperSheetStimulusBlocks';
 import { paperPrintWords } from '@/utils/paperPrintWords';
 import {
@@ -475,11 +480,43 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   // Anything in the band takes the page's right half, so the answers drop to
   // one column and the test spreads over twice as many pages (D1).
   const columnsPerPage = sheetStimuli.length > 0 ? 1 : 2;
-  // Stimuli, a group's supports and section headings print only on a separate test paper.
+  const sections = useMemo(() => sessionSectionsFor(quiz), [quiz]);
+  // Each section's heading, by the first printed question it sits above.
+  const sectionHeads = useMemo(() => {
+    const printedIds = analysis.entries.map((e) => e.questionId);
+    const out = new Map<
+      string,
+      { title: string; directions?: string; chooseLine?: string }
+    >();
+    const headed = new Set<string>();
+    for (const e of analysis.entries) {
+      const section = sectionOfQuestion(sections, e.questionId);
+      if (!section || headed.has(section.id)) continue;
+      headed.add(section.id);
+      const chooseLine = chooseLineFor(section, printedIds);
+      out.set(e.questionId, {
+        title: section.title,
+        ...(section.directions ? { directions: section.directions } : {}),
+        ...(chooseLine ? { chooseLine } : {}),
+      });
+    }
+    return out;
+  }, [analysis.entries, sections]);
+  // A heading has no room above a written box that prints on a page of its own, or across versions.
+  const headingsNeedTestPaper =
+    sectionHeads.size > 0 &&
+    (!!versionPlan ||
+      analysis.entries.some(
+        (e) =>
+          e.kind === 'written' &&
+          sectionHeads.has(e.questionId) &&
+          (promptIds.has(e.questionId) ||
+            paperBoxLines(e.size) >= PAPER_FULL_PAGE_LINES ||
+            !!questionsById.get(e.questionId)?.stimulusIds?.length)
+      ));
+  // Stimuli on the sheet send the questions to a separate test paper.
   const questionTextLayout =
-    sheetStimuli.length === 0 &&
-    !group?.supports?.length &&
-    sessionSectionsFor(quiz).length === 0;
+    sheetStimuli.length === 0 && !headingsNeedTestPaper;
   const grid = questionTextLayout ? 'questions' : columnsPerPage;
   const blockMeasure = useMemo(
     (): BlockMeasure => browserBlockMeasure() ?? estimateBlockMm,
@@ -493,22 +530,39 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   // A response sheet with question text is the whole test, so it prints every stimulus too.
   const stimuliSets = useMemo((): SheetStimuliSet[] | null => {
     if (!questionTextLayout || testStimulusFiles.loading) return null;
+    // A group's supports print on pages after each sheet, where the test paper printed them.
+    const supportPages = group?.supports?.length
+      ? paginateStimuli(
+          group.supports.map((sup) => ({
+            title: 'Supports',
+            item: { kind: 'text' as const, title: sup.title, text: sup.body },
+          })),
+          blockMeasure,
+          printWords
+        )
+      : [];
     const setOf = (
       entries: readonly PaperSheetEntry[],
       slots: readonly PaperSheetEntry[]
-    ): SheetStimuliSet => ({
-      entries,
-      mapIds: slots.map((e) => e.questionId),
-      slots,
-      plan: planSheetStimuli(
+    ): SheetStimuliSet => {
+      const plan = planSheetStimuli(
         entries.map((e) => ({ questionId: e.questionId, row: e.label })),
         questionsById,
         quizStimuli,
         testStimulusFiles.files,
         blockMeasure,
         printWords
-      ),
-    });
+      );
+      return {
+        entries,
+        mapIds: slots.map((e) => e.questionId),
+        slots,
+        plan: {
+          ...plan,
+          resourcePages: [...plan.resourcePages, ...supportPages],
+        },
+      };
+    };
     if (versionPlan) {
       const template = versionPlan.template.entries;
       return versionPlan.versions.map((v) =>
@@ -526,10 +580,30 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     quizStimuli,
     blockMeasure,
     printWords,
+    group,
   ]);
   const stimuliLayout = useMemo(
     () => (stimuliSets ? layoutSheetStimuli(stimuliSets, promptIds) : null),
     [stimuliSets, promptIds]
+  );
+  const sectionHeadings = useMemo(
+    (): Record<string, SheetStimulusBlock> =>
+      questionTextLayout
+        ? Object.fromEntries(
+            [...sectionHeads].map(([id, head]) => [
+              id,
+              sheetSectionHeading(head, blockMeasure),
+            ])
+          )
+        : {},
+    [questionTextLayout, sectionHeads, blockMeasure]
+  );
+  const headingMm = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(sectionHeadings).map(([id, b]) => [id, b.heightMm])
+      ),
+    [sectionHeadings]
   );
   /** Written questions that print their prompt above the box, with or without a stimulus block. */
   const sheetPromptIds = useMemo(
@@ -619,8 +693,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         ...(stimuliLayout && Object.keys(stimuliLayout.stimulusMm).length > 0
           ? { stimulusMm: stimuliLayout.stimulusMm }
           : {}),
+        ...(Object.keys(headingMm).length > 0 ? { headingMm } : {}),
       }),
-    [grid, choiceCount, stemLines, sheetPromptRows, stimuliLayout]
+    [grid, choiceCount, stemLines, sheetPromptRows, stimuliLayout, headingMm]
   );
   // Only a sheet with written boxes, question text or versions prints by page map; every other sheet keeps today's layout.
   const pagePlan = useMemo((): PlanPaperPagesResult | null => {
@@ -924,7 +999,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
 
   /** The test paper for a batch, lettered in the order its sheets will be decoded. */
   const testPaperJobFor = (batch: PaperBatch): PaperTestJob => {
-    const sections = sessionSectionsFor(quiz);
     // A sheet with written boxes numbers by quiz position and prints them in place (D11, D18).
     const byMap = !!batch.pageMaps;
     const questionsOf = (a: PaperQuizAnalysis) => {
@@ -1113,6 +1187,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                   stimulusBlocks: stimuliLayout.sets[0]?.written ?? {},
                   pagesBefore: stimuliLayout.sets[0]?.pagesBefore ?? {},
                   resourcePages: stimuliSets?.[0]?.plan.resourcePages ?? [],
+                  ...(Object.keys(sectionHeadings).length > 0
+                    ? { sectionHeadings }
+                    : {}),
                 }
               : promptIds.size > 0
                 ? { prompts: promptPages }
