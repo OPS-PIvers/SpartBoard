@@ -1629,10 +1629,15 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         : Promise.resolve(true);
     void ask.then((closeAnyway) => {
       if (!closeAnyway) return;
-      void flushAll().then((failures) => {
+      void flushAll().then(async (failures) => {
         if (failures.length > 0) {
           const names = failures.map((f) => f.studentName).join(', ');
-          if (!window.confirm(tg('closeWithFailures', { names }))) return;
+          if (
+            !(await showConfirm(tg('closeWithFailures', { names }), {
+              variant: 'warning',
+            }))
+          )
+            return;
         }
         onCloseRef.current();
       });

@@ -1,3 +1,4 @@
+import { useDialog } from '@/context/useDialog';
 import React, { useRef } from 'react';
 import {
   HelpCircle,
@@ -40,6 +41,7 @@ const getConfig = (ctx: CustomRenderCtx): HotspotImageConfig =>
 
 const HotspotBaseImageField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
   const { addToast } = useDashboard();
+  const { showConfirm, showPrompt } = useDialog();
   const { user, savedWidgetPresets, saveWidgetPreset } = useAuth();
   const { uploadHotspotImage, uploading } = useStorage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -108,9 +110,9 @@ const HotspotBaseImageField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
     ctx.updateConfig({ hotspots: [...hotspots, newHotspot] });
   };
 
-  const handleSaveToLibrary = () => {
+  const handleSaveToLibrary = async () => {
     if (!baseImageUrl) return;
-    const name = window.prompt(t('savePrompt'));
+    const name = await showPrompt(t('savePrompt'));
     if (!name) return;
     const newItem: HotspotSavedItem = {
       id: crypto.randomUUID(),
@@ -136,8 +138,8 @@ const HotspotBaseImageField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
     addToast(t('loadedFromLibrary'), 'success');
   };
 
-  const handleDeleteFromLibrary = (id: string) => {
-    if (!window.confirm(t('deletePrompt'))) return;
+  const handleDeleteFromLibrary = async (id: string) => {
+    if (!(await showConfirm(t('deletePrompt'), { variant: 'danger' }))) return;
     saveWidgetPreset('hotspot-image', {
       savedLibrary: savedLibrary.filter((item) => item.id !== id),
     });

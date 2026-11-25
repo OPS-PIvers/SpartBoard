@@ -1,3 +1,4 @@
+import React from 'react';
 /**
  * The `'document'` import source and the optional editable review step
  * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D9, D10). Quiz is the only adapter that
@@ -19,6 +20,18 @@ import type {
   ImportSourceKind,
   ImportSourcePayload,
 } from '@/components/common/library/types';
+import { DialogProvider } from '@/context/DialogContext';
+import { DialogContainer } from '@/components/common/DialogContainer';
+
+// The real dialog shows the AI cost prompt.
+vi.unmock('@/context/useDialog');
+
+const withDialogs = ({ children }: { children: React.ReactNode }) => (
+  <DialogProvider>
+    {children}
+    <DialogContainer />
+  </DialogProvider>
+);
 
 // Content sniffing opens the file with the real readers; these tests are about routing.
 vi.mock('@/utils/quizDocumentImport/uploadIntake', async () => {
@@ -102,7 +115,8 @@ function renderWizard(adapter: ImportAdapter<FakeData>) {
   return {
     onClose,
     ...render(
-      <ImportWizard<FakeData> isOpen onClose={onClose} adapter={adapter} />
+      <ImportWizard<FakeData> isOpen onClose={onClose} adapter={adapter} />,
+      { wrapper: withDialogs }
     ),
   };
 }
@@ -163,7 +177,9 @@ describe('ImportWizard — test document source', () => {
       name: 'Not what you expected? Try again with AI',
     });
     fireEvent.click(retry);
-    const prompt = screen.getByRole('dialog', { name: 'Convert with AI?' });
+    const prompt = await screen.findByRole('dialog', {
+      name: 'Convert with AI?',
+    });
     fireEvent.click(within(prompt).getByRole('button', { name: 'Use AI' }));
     await screen.findByText('Converted with AI.');
     expect(parseSpy).toHaveBeenCalledTimes(2);

@@ -4,7 +4,7 @@ import { X, Plus, Edit, Trash2, Sparkles } from 'lucide-react';
 import { useInstructionalRoutines } from '@/hooks/useInstructionalRoutines';
 import { LibraryManager } from '@/components/widgets/InstructionalRoutines/LibraryManager';
 import { InstructionalRoutine } from '@/config/instructionalRoutines';
-import { ConfirmDialog } from '@/components/widgets/InstructionalRoutines/ConfirmDialog';
+import { useDialog } from '@/context/useDialog';
 import { getRoutineColorClasses } from '@/components/widgets/InstructionalRoutines/colorHelpers';
 import { useDashboard } from '@/context/useDashboard';
 import { logError } from '@/utils/logError';
@@ -20,10 +20,25 @@ export const InstructionalRoutinesManager: React.FC<
   const { addToast } = useDashboard();
   const [editingRoutine, setEditingRoutine] =
     useState<InstructionalRoutine | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    routineId: string;
-    routineName: string;
-  } | null>(null);
+  const { showConfirm } = useDialog();
+
+  const confirmDeleteRoutine = async (routine: InstructionalRoutine) => {
+    const ok = await showConfirm(
+      `Are you sure you want to delete "${routine.name}"? This action cannot be undone.`,
+      { title: 'Delete Routine', confirmLabel: 'Delete', variant: 'danger' }
+    );
+    if (!ok) return;
+    try {
+      await deleteRoutine(routine.id);
+      addToast('Routine deleted successfully', 'success');
+    } catch (error) {
+      logError('InstructionalRoutinesManager.deleteRoutine', error, {
+        routineId: routine.id,
+        routineName: routine.name,
+      });
+      addToast('Failed to delete routine. Please try again.', 'error');
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -117,12 +132,7 @@ export const InstructionalRoutinesManager: React.FC<
                         'admin',
                         routine.id
                       )}
-                      onClick={() => {
-                        setDeleteConfirm({
-                          routineId: routine.id,
-                          routineName: routine.name,
-                        });
-                      }}
+                      onClick={() => void confirmDeleteRoutine(routine)}
                       className="p-2 hover:bg-red-50 rounded-xl text-slate-400 hover:text-red-600 transition-colors flex items-center gap-1.5 text-xxs font-black uppercase tracking-wider"
                       title="Delete Routine"
                     >
@@ -177,32 +187,6 @@ export const InstructionalRoutinesManager: React.FC<
             />
           </div>
         </div>
-      )}
-
-      {/* Delete Confirmation Dialog */}
-      {deleteConfirm && (
-        <ConfirmDialog
-          title="Delete Routine"
-          message={`Are you sure you want to delete "${deleteConfirm.routineName}"? This action cannot be undone.`}
-          confirmLabel="Delete"
-          cancelLabel="Cancel"
-          onConfirm={async () => {
-            if (!deleteConfirm) return;
-            try {
-              await deleteRoutine(deleteConfirm.routineId);
-              addToast('Routine deleted successfully', 'success');
-            } catch (error) {
-              logError('InstructionalRoutinesManager.deleteRoutine', error, {
-                routineId: deleteConfirm.routineId,
-                routineName: deleteConfirm.routineName,
-              });
-              addToast('Failed to delete routine. Please try again.', 'error');
-            } finally {
-              setDeleteConfirm(null);
-            }
-          }}
-          onCancel={() => setDeleteConfirm(null)}
-        />
       )}
     </div>
   );

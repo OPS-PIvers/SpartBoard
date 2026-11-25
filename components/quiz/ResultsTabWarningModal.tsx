@@ -1,5 +1,5 @@
 import React from 'react';
-import { Z_INDEX } from '@/config/zIndex';
+import { Modal } from '@/components/common/Modal';
 import { tourAttr } from '@/config/tourAnchors';
 
 interface ResultsTabWarningModalProps {
@@ -30,14 +30,14 @@ export const ResultsTabWarningModal: React.FC<ResultsTabWarningModalProps> = ({
   if (!open) return null;
   const remaining = Math.max(0, threshold - warningCount);
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-      className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-xs"
-      style={{ zIndex: Z_INDEX.modal }}
+    <Modal
+      isOpen
+      onClose={() => undefined}
+      variant="bare"
+      ariaLabelledby={titleId}
+      className="rounded-xl border border-white/20 bg-slate-900 shadow-2xl"
     >
-      <div className="mx-4 max-w-md rounded-xl border border-white/20 bg-slate-900 p-6 shadow-2xl">
+      <div className="p-6">
         <h2 id={titleId} className="text-lg font-semibold text-white">
           Stay on this tab
         </h2>
@@ -60,6 +60,6 @@ export const ResultsTabWarningModal: React.FC<ResultsTabWarningModalProps> = ({
           I understand
         </button>
       </div>
-    </div>
+    </Modal>
   );
 };
