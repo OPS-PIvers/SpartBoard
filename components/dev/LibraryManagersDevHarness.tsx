@@ -1073,6 +1073,7 @@ const FlashcardsView: React.FC<{ assigned?: boolean }> = ({
         onEdit={noop}
         onPresent={noop}
         onShare={noop}
+        onDuplicate={noop}
         onAssign={noop}
         onDelete={noop}
         onAssignmentResults={noop}

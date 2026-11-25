@@ -2,6 +2,7 @@
 import type React from 'react';
 import {
   ClipboardList,
+  Copy,
   MonitorPlay,
   Camera,
   PenLine,
@@ -1873,6 +1874,16 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: CalendarClock,
     description:
       'The quiz monitor can schedule a quiz for one student. Their class can stay paused.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'library-duplicate-more': {
+    label: 'Duplicate: Flashcards and Rubrics',
+    icon: Copy,
+    description: 'Flashcard sets and rubrics get a Duplicate button.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

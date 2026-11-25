@@ -12070,7 +12070,8 @@ export type GlobalFeature =
   | 'assign-open-check'
   | 'modification-fewer-questions'
   /** Quiz monitor "Set a time": one student's own window past a paused class. */
-  | 'student-set-time';
+  | 'student-set-time'
+  | 'library-duplicate-more';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {
