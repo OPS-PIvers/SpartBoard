@@ -122,7 +122,7 @@ describe('AudioResponseCapture notice gate', () => {
         recorderDeps={deps}
       />
     );
-    expect(screen.getByText('Turned in')).toBeTruthy();
+    expect(screen.getByText('Submitted')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Record|Redo/i })).toBeNull();
   });
 });

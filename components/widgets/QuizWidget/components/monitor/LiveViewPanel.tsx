@@ -609,7 +609,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
         gone
           ? {
               title: 'This student is no longer in progress',
-              line: 'Open Results to see a turned-in attempt.',
+              line: 'Open Results to view submissions.',
             }
           : null
       }

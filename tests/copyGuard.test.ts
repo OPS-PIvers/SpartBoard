@@ -8,6 +8,8 @@ import {
   attemptWordingTexts,
   copyProblem,
   copyProblemTexts,
+  turnInWordingProblem,
+  turnInWordingTexts,
 } from '@/scripts/widget-grader/static/copyGuard.ts';
 
 // Blocks new long or slop-marked on-screen copy (docs/plans/shipped/ALWAYS_VISIBLE_COPY.md, Phase 6).
@@ -75,15 +77,18 @@ const parse = (abs: string) =>
     abs.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
   );
 
-const attemptWordingViolations = (): string[] => {
+const wordingViolations = (
+  texts: (sf: ts.SourceFile) => string[],
+  problem: (text: string) => boolean
+): string[] => {
   const out: string[] = [];
   for (const abs of sourceFiles(ATTEMPT_SCAN_ROOTS)) {
-    for (const text of attemptWordingTexts(parse(abs))) {
+    for (const text of texts(parse(abs))) {
       out.push(`${toRel(abs)}::${text.replace(/\s+/g, ' ').trim()}`);
     }
   }
   for (const locale of LOCALES) {
-    for (const key of localeViolations(locale, attemptWordingProblem)) {
+    for (const key of localeViolations(locale, problem)) {
       out.push(`locales/${locale}.json::${key}`);
     }
   }
@@ -178,6 +183,50 @@ describe('on-screen copy guard', () => {
   });
 
   it('says "attempts", never "tries" or "takes" (fix the string, there is no baseline)', () => {
-    expect(attemptWordingViolations()).toEqual([]);
+    expect(
+      wordingViolations(attemptWordingTexts, attemptWordingProblem)
+    ).toEqual([]);
+  }, 30_000);
+
+  it('flags "turn in" in any form', () => {
+    for (const text of [
+      'Turn in',
+      'Turned in',
+      'Turning in...',
+      '3 of 6 turned in',
+      'Open work turns in after End.',
+      'You turned this in.',
+      "Couldn't turn it in. Try again.",
+      'Turn your essay in today',
+      'Open Results to see a turned-in attempt.',
+      'Turn-in Bin',
+      'TURN IN',
+    ]) {
+      expect(turnInWordingProblem(text), text).toBe(true);
+    }
+    for (const text of [
+      'turned-in',
+      'turn-in',
+      'Submitted',
+      'Students take turns in pairs.',
+      'Return in 5 minutes',
+      'Turn into a quiz',
+      'Turn off the timer',
+      'Your turn',
+    ]) {
+      expect(turnInWordingProblem(text), text).toBe(false);
+    }
+  });
+
+  it('says "submit", never "turn in" (fix the string, there is no baseline)', () => {
+    const keep = new Set([
+      // Paul keeps the classroom tray's name (2026-11-25).
+      'components/widgets/NeedDoPutThen/constants.ts::Turn-in Bin',
+    ]);
+    expect(
+      wordingViolations(turnInWordingTexts, turnInWordingProblem).filter(
+        (v) => !keep.has(v)
+      )
+    ).toEqual([]);
   }, 30_000);
 });

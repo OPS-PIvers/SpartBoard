@@ -602,8 +602,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const confirmClose = (name: string | null) =>
     showConfirm(
       name
-        ? `Students in ${name} lose access. Open attempts are turned in.`
-        : 'Students lose access. Open attempts are turned in.',
+        ? `Students in ${name} will no longer be able to access this quiz. Open attempts will be submitted.`
+        : 'Students will no longer be able to access this quiz. Open attempts will be submitted.',
       {
         title: name ? `Close ${name}` : 'Close',
         variant: 'warning',
@@ -1066,7 +1066,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const handleSubmitForStudent = useCallback(
     async (key: string) => {
       const ok = await showConfirm(
-        "Turn in this student's quiz with the answers saved so far? Reopen it if they need to keep working.",
+        "Submit this student's quiz? Responses may be incomplete.",
         { title: 'Submit for student?', confirmLabel: 'Submit' }
       );
       if (!ok) return;

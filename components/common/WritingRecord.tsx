@@ -25,7 +25,7 @@ const WRITING_RECORD_STRINGS = {
   chars: (n: number) =>
     `${n.toLocaleString()} ${n === 1 ? 'character' : 'characters'}`,
   playFromHere: 'Play from here',
-  draftTurnedIn: (n: number) => `Draft ${n} turned in`,
+  draftTurnedIn: (n: number) => `Draft ${n} submitted`,
   logFull: 'Recording stopped here: the log was full.',
   purged: 'Playback no longer available.',
   empty: 'No writing recorded yet.',

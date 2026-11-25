@@ -482,7 +482,7 @@ function completedRight(
   if (item.kind === 'writing')
     return (
       <span className="text-xs text-slate-500">
-        {check?.returned ? 'Returned' : 'Turned in'}
+        {check?.returned ? 'Returned' : 'Submitted'}
       </span>
     );
   return item.row && areResultsShared(item.row.assignment, check, nowMs) ? (
@@ -491,7 +491,7 @@ function completedRight(
     </span>
   ) : (
     <span className="text-xs text-slate-500">
-      {NEVER_GRADED.has(item.kind) ? 'Turned in' : 'Not graded yet'}
+      {NEVER_GRADED.has(item.kind) ? 'Submitted' : 'Not graded yet'}
     </span>
   );
 }
@@ -501,7 +501,7 @@ const missingMessage = (item: DoneItem, teachers: string): string => {
     item.row?.assignment.closeAt ?? item.row?.assignment.endedAt ?? item.when;
   const closed =
     when !== undefined ? `This closed on ${fmtDay(when)}` : 'This closed';
-  return `${closed} before you turned it in. Talk to ${teachers || 'your teacher'} if you need it reopened.`;
+  return `${closed} before you submitted it. Talk to ${teachers || 'your teacher'} if you need it reopened.`;
 };
 
 /** D17, D18: a Completed or Gradebook row; every one opens the student's own work, or says why it was not submitted. */

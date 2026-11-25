@@ -21,8 +21,8 @@ export function formatOpensAt(ms: number, nowMs: number): string {
 
 const turnedIn = (submitted: number, total: number | null) =>
   total != null && total > 0
-    ? `${submitted} of ${total} turned in`
-    : `${submitted} turned in`;
+    ? `${submitted} of ${total} submitted`
+    : `${submitted} submitted`;
 
 /** The row's status word: where its classes stand, never grading or publishing. */
 export interface AccessBadge {
@@ -134,7 +134,7 @@ export function detailText(
     case 'grading-unknown':
       break;
     case 'scores-unpublished':
-      if (counts) parts.push(`${line.submitted} turned in`);
+      if (counts) parts.push(`${line.submitted} submitted`);
       break;
     case 'view-only':
       parts.push('View only');

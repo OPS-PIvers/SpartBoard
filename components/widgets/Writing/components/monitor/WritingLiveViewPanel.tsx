@@ -140,7 +140,7 @@ export const WritingLiveViewPanel: React.FC<{
         gone
           ? {
               title: 'This student is no longer writing',
-              line: 'Their work was turned in or has not started.',
+              line: 'Student writing is submitted or not started.',
             }
           : null
       }

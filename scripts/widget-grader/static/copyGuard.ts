@@ -98,22 +98,55 @@ const isCodeLiteral = (node: ts.StringLiteralLike, sf: ts.SourceFile) => {
   return false;
 };
 
-/** String literals, templates and JSX text in a source file that call an attempt a try or take. */
-export const attemptWordingTexts = (sf: ts.SourceFile): string[] => {
+// "Turn in" in any form; the app always says "Submit" (Paul, 2026-11-25).
+const TURN_IN =
+  /(?<!\b(?:take|takes|taking|took)\s)\bturn(?:s|ed|ing)?(?:-|\s+(?:(?:it|this|that|them|these|those|(?:your|my|their|the)\s+\w+)\s+)?)in\b/i;
+
+// A lone kebab token such as 'turned-in' is a status id, not copy.
+export const turnInWordingProblem = (text: string): boolean =>
+  !/^[\w-]+$/.test(text.trim()) && TURN_IN.test(text);
+
+const isConsoleArg = (node: ts.Node): boolean => {
+  const call = node.parent;
+  return (
+    ts.isCallExpression(call) &&
+    ts.isPropertyAccessExpression(call.expression) &&
+    ts.isIdentifier(call.expression.expression) &&
+    call.expression.expression.text === 'console'
+  );
+};
+
+/** String literals, templates and JSX text in a source file that `problem` flags. */
+export const wordingTexts = (
+  sf: ts.SourceFile,
+  problem: (text: string) => boolean
+): string[] => {
   const out: string[] = [];
   const visit = (node: ts.Node) => {
     let text: string | null = null;
     if (ts.isJsxText(node)) text = node.text;
-    else if (ts.isStringLiteralLike(node) && !isCodeLiteral(node, sf)) {
+    else if (
+      ts.isStringLiteralLike(node) &&
+      !isCodeLiteral(node, sf) &&
+      !isConsoleArg(node)
+    ) {
       text = node.text;
-    } else if (ts.isTemplateExpression(node)) {
+    } else if (ts.isTemplateExpression(node) && !isConsoleArg(node)) {
       text =
         node.head.text +
         node.templateSpans.map((s) => `{{x}}${s.literal.text}`).join('');
     }
-    if (text !== null && attemptWordingProblem(text)) out.push(text);
+    if (text !== null && problem(text)) out.push(text);
     ts.forEachChild(node, visit);
   };
   visit(sf);
   return out;
 };
+
+/** On-screen strings in a source file that call an attempt a try or take. */
+export const attemptWordingTexts = (sf: ts.SourceFile): string[] =>
+  wordingTexts(sf, attemptWordingProblem);
+
+/** On-screen strings in a source file that say "turn in" instead of "submit". */
+export const turnInWordingTexts = (sf: ts.SourceFile): string[] =>
+  wordingTexts(sf, turnInWordingProblem);

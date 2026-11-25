@@ -296,7 +296,7 @@ describe('HubAssignedList', () => {
   it('a Mini App in several classes shows no per-class counts, since submissions carry no class', () => {
     renderList([row('m1', 'mini-app')]);
     expect(screen.getByText('Rock Sort')).toBeInTheDocument();
-    expect(screen.queryByText(/turned in/)).toBeNull();
+    expect(screen.queryByText(/\d+ (of \d+ )?submitted/)).toBeNull();
   });
 
   it('Monitor asks the hub to show the roster, and the title keeps the row tour anchor', () => {

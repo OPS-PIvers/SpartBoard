@@ -18,6 +18,7 @@ are in [docs/ONBOARDING.md](docs/ONBOARDING.md).
 - The one exception is Flashcards Speak's pinned pronunciation models (on-device wav2vec2 from our own Storage, server-side espeak-ng); see `docs/AI_MODELS.md` "Pronunciation models".
 - Functions deploy in codebases: `functions/codebases.json` names the functions each non-default codebase owns (the rest stay in `default`), and `pnpm -C functions build` writes each one's source to `functions/deploy/<name>/` (gitignored). See `docs/plans/FUNCTION_CODEBASES.md`.
 - `extension/` is the Chrome extension (web tours): its own package, tsconfig and ESLint pass, wired into `install:all`, `type-check:all` and `lint`. See `extension/README.md`.
+- **Any on-screen string, from any folder** (components, config, utils, locales, functions emails, release notes): run the `ui-copy` skill first and use the words in `.claude/rules/ui-copy.md`. Work is "submitted", never "turned in" in any form; `tests/copyGuard.test.ts` enforces it.
 - **UI rules live in `components/CLAUDE.md`**, including two that reach outside that folder: every new control gets a live tour anchor (`tourAttr`, registered in `config/tourAnchors.ts` and `config/tourSurfaces/`), and scroll panels and full pages keep bottom padding. Read it before adding a control or a page from anywhere.
 
 ## Commands

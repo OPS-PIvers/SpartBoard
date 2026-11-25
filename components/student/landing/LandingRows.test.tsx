@@ -114,7 +114,7 @@ describe('DoneRow', () => {
     fireEvent.click(screen.getByRole('button'));
     expect(showAlert).toHaveBeenCalledWith(
       expect.stringContaining(
-        'before you turned it in. Talk to Ms. Ortiz if you need it reopened.'
+        'before you submitted it. Talk to Ms. Ortiz if you need it reopened.'
       ),
       expect.objectContaining({ title: 'Ch. 1-2 reading quiz' })
     );
@@ -139,7 +139,7 @@ describe('DoneRow', () => {
         row: { assignment: va, state: 'turned-in' },
       }),
     });
-    expect(screen.getByText('Turned in')).toBeInTheDocument();
+    expect(screen.getByText('Submitted')).toBeInTheDocument();
   });
 
   it('keeps Not graded yet for a quiz without shared results', () => {

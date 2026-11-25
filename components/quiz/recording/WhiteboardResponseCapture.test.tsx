@@ -238,7 +238,7 @@ describe('WhiteboardResponseCapture', () => {
     expect(onCommit).not.toHaveBeenCalled();
 
     await act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Turn in' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
       return Promise.resolve();
     });
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
@@ -295,7 +295,7 @@ describe('WhiteboardResponseCapture', () => {
     await stop();
     await screen.findByTestId('replay');
     await act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Turn in' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
       return Promise.resolve();
     });
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
@@ -307,7 +307,7 @@ describe('WhiteboardResponseCapture', () => {
     await record();
     await stop();
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
-    expect(screen.queryByRole('button', { name: 'Turn in' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Submit' })).toBeNull();
   });
 
   it('draw-only skips the mic and records no mic state', async () => {
@@ -408,7 +408,7 @@ describe('WhiteboardResponseCapture', () => {
   it('hides Record and Redo once the take limit is used', () => {
     renderCapture({ config: config({ takeLimit: 1 }), takesCommitted: 1 });
     expect(screen.queryByRole('button', { name: /Record|Redo/ })).toBeNull();
-    expect(screen.getAllByText('Turned in').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Submitted').length).toBeGreaterThan(0);
   });
 
   it('shows the turned-in take, not a blank page, and offers Redo', async () => {
@@ -434,23 +434,23 @@ describe('WhiteboardResponseCapture', () => {
     await stop();
     await screen.findByTestId('replay');
     await act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Turn in' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
       return Promise.resolve();
     });
 
-    expect(await screen.findByText('Turned in')).toBeTruthy();
+    expect(await screen.findByText('Submitted')).toBeTruthy();
     const replay = screen.getByTestId('replay');
     expect(replay.dataset.duration).toBe('5000');
     expect(replay.dataset.audio).toBe('blob:x');
     expect(screen.queryByTestId('canvas')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Turn in' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Submit' })).toBeNull();
 
     await act(() => {
       fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
       return Promise.resolve();
     });
     expect(screen.getByTestId('canvas').dataset.disabled).toBe('false');
-    expect(screen.queryByText('Turned in')).toBeNull();
+    expect(screen.queryByText('Submitted')).toBeNull();
   });
 
   it('counts a redo in review against the take limit', async () => {
@@ -465,7 +465,7 @@ describe('WhiteboardResponseCapture', () => {
     await record();
     await stop();
     await screen.findByTestId('replay');
-    expect(screen.getByRole('button', { name: 'Turn in' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Submit' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Redo' })).toBeNull();
   });
 

@@ -79,7 +79,7 @@ describe('accessBadge and detailText', () => {
       tone: 'success',
       dot: true,
     });
-    expect(detailText(s, NOW)).toBe('2 of 27 turned in · 1 class to go');
+    expect(detailText(s, NOW)).toBe('2 of 27 submitted · 1 class to go');
     expect(detailText(s, NOW, false)).toBe('1 class to go');
   });
 
@@ -96,7 +96,7 @@ describe('accessBadge and detailText', () => {
   it('drops the class name on a single line (D15)', () => {
     const s = derive({ status: 'active' }, { responses: [done('')] });
     expect(accessBadge(s)?.label).toBe('Open');
-    expect(detailText(s, NOW)).toBe('1 turned in');
+    expect(detailText(s, NOW)).toBe('1 submitted');
     expect(mainActionLabel(s.action, 0)).toBe('Monitor');
   });
 
@@ -136,7 +136,7 @@ describe('accessBadge and detailText', () => {
       tone: 'success',
       dot: true,
     });
-    expect(classDetailText(p2, NOW, null)).toBe('1 of 27 turned in');
+    expect(classDetailText(p2, NOW, null)).toBe('1 of 27 submitted');
     expect(classBadge(p1).label).toBe('Closed');
     expect(classBadge(p5).label).toBe('Ready');
     expect(classDetailText(p5, NOW, '9:55 to 10:40')).toBe('9:55 to 10:40');

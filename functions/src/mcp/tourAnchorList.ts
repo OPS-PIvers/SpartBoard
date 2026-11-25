@@ -84136,7 +84136,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "student.quiz.retry-submit",
-    "label": "Try again when turning in after time is up fails",
+    "label": "Try again button when a quiz could not be submitted",
     "scope": "board",
     "persists": true,
     "routes": [

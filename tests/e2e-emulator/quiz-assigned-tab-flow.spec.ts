@@ -88,27 +88,27 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
       .first()
       .click();
     await status('Open · Period 1', '0 turned in · 1 class to go');
-    await reads('Period 1 Open 0 turned in');
+    await reads('Period 1 Open 0 submitted');
     await reads('Period 2 Ready');
   });
 
   await test.step('pause and resume that class', async () => {
     await panel.getByRole('button', { name: 'Pause', exact: true }).click();
     await status('Paused · Period 1', '1 class to go');
-    await reads('Period 1 Paused 0 turned in');
+    await reads('Period 1 Paused 0 submitted');
     await panel.getByRole('button', { name: 'Resume', exact: true }).click();
-    await reads('Period 1 Open 0 turned in');
+    await reads('Period 1 Open 0 submitted');
   });
 
   await test.step('close it, then reopen it', async () => {
     await panel.getByRole('button', { name: 'Close', exact: true }).click();
     await reads('1 of 2 classes closed');
-    await reads('Period 1 Closed 0 turned in');
+    await reads('Period 1 Closed 0 submitted');
     await expect(
       panel.getByRole('button', { name: 'Open for Period 2' })
     ).toBeVisible();
     await panel.getByRole('button', { name: 'Reopen', exact: true }).click();
-    await reads('Period 1 Open 0 turned in');
+    await reads('Period 1 Open 0 submitted');
   });
 
   await test.step('open the monitor for the open class and come back', async () => {

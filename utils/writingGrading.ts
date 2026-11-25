@@ -19,7 +19,7 @@ export type WritingRowState = 'not-started' | WritingResponseStatus;
 export const WRITING_ROW_LABELS: Record<WritingRowState, string> = {
   'not-started': 'Not started',
   draft: 'Writing',
-  'turned-in': 'Turned in',
+  'turned-in': 'Submitted',
   returned: 'Returned',
   revising: 'Revising',
 };
