@@ -13,6 +13,7 @@ import {
   type ResolvedAvailability,
 } from '@/utils/assignAvailability';
 import { earliestDueAt } from '@/utils/perClassDueDates';
+import { periodKeyForRoster } from '@/utils/periodPlan';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 
 export interface WindowBaseline {
@@ -93,7 +94,12 @@ export function assignmentWindowEdit({
       if ('closeAt' in changed) edit.closeAt = changed.closeAt ?? null;
       if (Object.keys(edit).length > 0) {
         for (const [key, row] of Object.entries(periodAccess ?? {})) {
-          if (rosters.some((r) => r.id === row.rosterId)) rowEdits[key] = edit;
+          if (
+            rosters.some(
+              (r) => r.id === row.rosterId || key === periodKeyForRoster(r)
+            )
+          )
+            rowEdits[key] = edit;
         }
       }
     }

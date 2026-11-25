@@ -132,6 +132,7 @@ export function buildAssignSessionTargets({
   sharedWindow,
   bellWindow,
   manualStart,
+  everyClass,
 }: {
   mode: QuizSessionMode;
   rosters: ClassRoster[];
@@ -140,6 +141,8 @@ export function buildAssignSessionTargets({
   sharedWindow: PeriodGateInput['sharedWindow'];
   bellWindow: PeriodGateInput['bellWindow'];
   manualStart: boolean | undefined;
+  /** Gives every class its own Start and Pause, one class included. */
+  everyClass?: boolean;
 }): AssignSessionTargets {
   const selectedRosters = rosters.filter((r) => rosterIds.includes(r.id));
   const derived = deriveSessionTargetsFromRosters(selectedRosters);
@@ -151,6 +154,7 @@ export function buildAssignSessionTargets({
           sharedWindow,
           bellWindow,
           manualStart,
+          everyClass,
         })
       : undefined;
   return {

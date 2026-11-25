@@ -897,7 +897,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
 
     // VA has no join code — the assignment is identified by its sessionId
     // (== assignment id). `createAssignment`'s args are POSITIONAL:
-    // (activity, settings, initialStatus?, classIds?, periodNames?, rosterIds?, mode?).
+    // (activity, settings, initialStatus?, classIds?, periodNames?, rosterIds?, mode?, window?).
     // `periodNames` ALSO rides on the settings object (1st positional after the
     // activity): the hook writes the assignment doc's `periodNames` from
     // `settings.periodNames`, while the positional 5th arg only reaches the
@@ -927,45 +927,17 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       'active',
       targeting.classIds,
       targeting.periodNames,
-      targeting.rosterIds
+      targeting.rosterIds,
+      undefined,
+      {
+        openAt: windowTargeting.openAt,
+        closeAt: windowTargeting.closeAt,
+        dueAt,
+      }
     );
     append(`Video-activity session created (sessionId ${sessionId}).`);
     if (vaRules) lastVaRules.save(vaRules);
 
-    // VA's createAssignment has no targeting/window channel, so the M17 fields
-    // are written post-create — the same pattern the in-app VA assign path
-    // uses (session doc owns openAt/closeAt; the teacher archive doc owns
-    // targetGroupIds/overridesBySourcedId).
-    if (
-      windowTargeting.openAt != null ||
-      windowTargeting.closeAt != null ||
-      dueAt != null
-    ) {
-      await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
-        ...(windowTargeting.openAt != null
-          ? { openAt: windowTargeting.openAt }
-          : {}),
-        ...(windowTargeting.closeAt != null
-          ? { closeAt: windowTargeting.closeAt }
-          : {}),
-        ...(dueAt != null ? { dueAt } : {}),
-      });
-      if (user?.uid) {
-        await setDoc(
-          doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
-          {
-            ...(windowTargeting.openAt != null
-              ? { openAt: windowTargeting.openAt }
-              : {}),
-            ...(windowTargeting.closeAt != null
-              ? { closeAt: windowTargeting.closeAt }
-              : {}),
-            ...(dueAt != null ? { dueAt } : {}),
-          },
-          { merge: true }
-        );
-      }
-    }
     // Expanded once: the archive doc and the CF payload must agree, or a
     // re-edit reads back overrides the fan-out never saw.
     const expandedTargeting = expandClassTargeting(
