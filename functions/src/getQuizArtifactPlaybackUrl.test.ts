@@ -748,8 +748,26 @@ describe('resolveArtifactPlayback: a PIN token cannot replay another session', (
     ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
-  it('still plays for the SSO token and for the PIN token’s own session', async () => {
+  it('SECURITY: denies a student token whose classes the session does not target', async () => {
     const sso = { studentRole: true, sso: true, classIds: ['class-a'] };
+    await expect(
+      resolveArtifactPlayback({ ...REQ, callerClaims: sso }, makeDeps(docs()))
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('still plays for an untargeted session and a non-student token', async () => {
+    const sso = { studentRole: true, classIds: ['class-a'] };
+    const open = makeDocs({ session: { classIds: [] } });
+    await expect(
+      resolveArtifactPlayback({ ...REQ, callerClaims: sso }, makeDeps(open))
+    ).resolves.toMatchObject({ status: 'ready' });
+    await expect(
+      resolveArtifactPlayback({ ...REQ, callerClaims: {} }, makeDeps(docs()))
+    ).resolves.toMatchObject({ status: 'ready' });
+  });
+
+  it('still plays for the SSO token and for the PIN token’s own session', async () => {
+    const sso = { studentRole: true, sso: true, classIds: ['class-b'] };
     await expect(
       resolveArtifactPlayback({ ...REQ, callerClaims: sso }, makeDeps(docs()))
     ).resolves.toMatchObject({ status: 'ready' });

@@ -3979,12 +3979,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'quiz-print.import-remove': {
-    label: 'Remove imported test document in the Quiz widget',
-    perWidgetType: true,
-    destructive: true,
-    panel: true,
-  },
   'quiz-print.include-key-sheet': {
     label: 'Include answer key sheet toggle in the Quiz widget',
     perWidgetType: true,
@@ -4122,20 +4116,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  'quiz-print.roster-expand': {
-    label: 'Roster expand/collapse in the Quiz widget',
-    perField: true,
-    panel: true,
-    rows: true,
-    rowList: 'quiz-print-rosters',
-  },
-  'quiz-print.roster-select': {
-    label: 'Roster select-all checkbox in the Quiz widget',
-    perField: true,
-    panel: true,
-    rows: true,
-    rowList: 'quiz-print-rosters',
-  },
   'quiz-print.share-and-print': {
     label: 'Share and print in the Quiz widget',
     perWidgetType: true,
@@ -4231,32 +4211,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'quiz-print.stub-choice-count': {
-    label: 'Stub Choices per question select in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-print.stub-question-count': {
-    label: 'Stub Questions count input in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-print.stub-title': {
-    label: 'Stub paper Title input in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-print.student-select': {
-    label: 'Per-student checkbox in the Quiz widget',
-    perField: true,
-    panel: true,
-    rowList: 'quiz-print-rosters',
-  },
-  'quiz-print.written-add': {
-    label: 'Written answers Add in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-print.written-box-size': {
     label: 'Written box size select in the Quiz widget',
     perField: true,
@@ -4280,22 +4234,6 @@ export const TOUR_ANCHORS = {
   'quiz-print.written-box-lines': {
     label: 'Written box custom line count in the Quiz widget',
     perField: true,
-    panel: true,
-  },
-  'quiz-print.written-number': {
-    label: 'Written answers question-number input in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-print.written-points': {
-    label: 'Written points input in the Quiz widget',
-    perField: true,
-    panel: true,
-  },
-  'quiz-print.written-remove': {
-    label: 'Remove written question (×) in the Quiz widget',
-    perField: true,
-    destructive: true,
     panel: true,
   },
   'quiz-stimuli.add-calculator': {
@@ -5734,11 +5672,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     persists: true,
   },
-  'quiz-print.import-retry-with-ai': {
-    label: 'Try again with AI link in the Quiz print import dialog',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-import.paper-text-retry-with-ai': {
     label: 'Try again with AI link in the Quiz paper question text dialog',
     perWidgetType: true,
@@ -5760,11 +5693,6 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.language-preview-voice': {
     label: 'Preview voice button in the Quiz language settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-print.import-questions': {
-    label: 'Import questions uploader in the Quiz print dialog',
     perWidgetType: true,
     panel: true,
   },
