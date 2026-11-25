@@ -138,6 +138,24 @@ export const ChecklistSelect: React.FC<ChecklistSelectProps> = ({
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [open]);
 
+  // Without a search box, focus starts on the first checked row so the keyboard reaches the menu.
+  useEffect(() => {
+    if (!open || searchable) return;
+    const rows = panelRef.current?.querySelectorAll<HTMLElement>(
+      '[role="menuitemcheckbox"]'
+    );
+    const list = Array.from(rows ?? []);
+    (
+      list.find((r) => r.getAttribute('aria-checked') === 'true') ?? list[0]
+    )?.focus();
+  }, [open, searchable]);
+
+  const reportClosed = useEffectEvent(() => onOpenChange?.(false));
+  useEffect(() => {
+    if (!open) return undefined;
+    return () => reportClosed();
+  }, [open]);
+
   useLayoutEffect(() => {
     if (!open) return undefined;
     const place = () => {
@@ -207,6 +225,11 @@ export const ChecklistSelect: React.FC<ChecklistSelectProps> = ({
         disabled={disabled}
         title={title}
         onClick={() => (open ? close() : setOpen(true))}
+        onKeyDown={(e) => {
+          if (e.key !== 'ArrowDown' || open) return;
+          e.preventDefault();
+          setOpen(true);
+        }}
         className={
           triggerClassName ??
           `${CHECKLIST_FIELD} flex min-w-0 items-center gap-2 text-left ${className}`

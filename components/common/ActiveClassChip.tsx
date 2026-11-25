@@ -153,10 +153,12 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
     );
   }
 
-  const value =
-    selectedGroupSize === null
-      ? activeRoster.id
-      : `${activeRoster.id}${GROUP_SEP}${selectedGroupId}`;
+  const listedGroup =
+    groupSelectable &&
+    groupMakerGroups(activeRoster).some((g) => g.id === selectedGroupId);
+  const value = listedGroup
+    ? `${activeRoster.id}${GROUP_SEP}${selectedGroupId}`
+    : activeRoster.id;
   const classOption = (r: (typeof rosters)[number]) => (
     <option key={r.id} value={r.id}>
       {`${r.name} (${r.studentCount})`}

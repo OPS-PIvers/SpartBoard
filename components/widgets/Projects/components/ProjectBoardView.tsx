@@ -230,11 +230,13 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
     );
 
   const openFirstReview = () => {
-    const first = waiting[0];
-    if (!first) return;
-    const cell = gridRef.current?.querySelector<HTMLSelectElement>(
-      `select[data-project-cell="${cellKey(first.groupId, first.stepId)}"]`
-    );
+    const cell = waiting
+      .map((w) =>
+        gridRef.current?.querySelector<HTMLSelectElement>(
+          `select[data-project-cell="${cellKey(w.groupId, w.stepId)}"]`
+        )
+      )
+      .find((el) => el && !el.disabled);
     if (!cell) return;
     cell.focus();
     openSelectMenu(cell);
