@@ -42,7 +42,7 @@ export const NoticeReminderOverlay: React.FC<{
       isOpen
       onClose={onClose}
       variant="bare"
-      zIndex="z-50"
+      zIndex="z-dialog"
       maxWidth="max-w-lg"
       captureEscape
       ariaLabelledby="recording-notice-heading"

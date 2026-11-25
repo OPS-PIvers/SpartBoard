@@ -1695,7 +1695,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         isOpen
         onClose={handleClose}
         variant="bare"
-        zIndex="z-overlay"
+        zIndex="z-modal"
         maxWidth="max-w-lg"
         ariaLabel={tg('title')}
         className="rounded-2xl bg-white shadow-2xl"

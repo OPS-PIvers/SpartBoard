@@ -14,7 +14,7 @@ export const ProjectRubricSheet: React.FC<{
     onClose={onClose}
     ariaLabel={`How this is scored: ${rubric.title}`}
     placement="sheet"
-    zIndex="z-50"
+    zIndex="z-dialog"
     maxWidth="max-w-2xl"
     className="max-h-[85vh]!"
     contentClassName="space-y-4 px-5 py-4"

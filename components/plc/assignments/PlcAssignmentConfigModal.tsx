@@ -436,7 +436,7 @@ export const PlcAssignmentConfigModal: React.FC<
       onClose={onClose}
       dismissible={false}
       variant="bare"
-      zIndex="z-9999"
+      zIndex="z-modal-nested"
       maxWidth="max-w-2xl"
       ariaLabel={title}
       className="bg-white rounded-2xl shadow-2xl overflow-hidden"

@@ -819,7 +819,7 @@ const DeleteFolderModal: React.FC<{
       isOpen
       onClose={onCancel}
       variant="bare"
-      zIndex="z-modal-nested"
+      zIndex="z-dialog"
       maxWidth="max-w-sm"
       ariaLabel={`Delete “${folder.name}”?`}
       className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-5"

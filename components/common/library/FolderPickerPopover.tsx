@@ -314,7 +314,7 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
         isOpen
         onClose={onClose}
         variant="bare"
-        zIndex="z-modal-nested"
+        zIndex="z-dialog"
         maxWidth="max-w-xs"
         captureEscape
         ariaLabelledby={headerId}

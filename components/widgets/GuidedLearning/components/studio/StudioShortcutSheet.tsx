@@ -90,7 +90,7 @@ export const StudioShortcutSheet: React.FC<{ onClose: () => void }> = ({
       isOpen
       onClose={onClose}
       variant="bare"
-      zIndex="z-50"
+      zIndex="z-modal-nested"
       maxWidth="max-w-2xl"
       ariaLabelledby="gl-studio-shortcuts-title"
       className="max-h-full! overflow-hidden rounded-xl bg-white shadow-2xl"
