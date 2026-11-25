@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ChevronLeft,
@@ -33,7 +33,6 @@ import {
   groupsForClass,
   rosterHasStudentSignIn,
   sortGroupsForBoard,
-  stepStateOf,
 } from '../projectSteps';
 import {
   DENSE_GROUPS,
@@ -53,7 +52,7 @@ import { STATE_STYLES } from '../stepVisuals';
 import { StateMark } from '../StateMark';
 import { BoardClassPicker } from './board/BoardClassPicker';
 import { GroupRow, type BoardGroup } from './board/GroupRow';
-import { StatusPopover } from './board/StatusPopover';
+import { openSelectMenu } from '@/utils/selectMenu';
 import { GroupViewModal } from './board/GroupViewModal';
 
 const HEADER_PAD = 'min(4px, 1cqmin) min(3px, 0.8cqmin)';
@@ -64,12 +63,6 @@ interface ProjectBoardViewProps {
   onBackToLibrary: () => void;
   onGrade: () => void;
   onManageGroups: () => void;
-}
-
-interface OpenCell {
-  groupId: string;
-  stepId: string;
-  anchor: HTMLElement;
 }
 
 const NO_GROUPS: BoardGroup[] = [];
@@ -146,7 +139,6 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
   const [busyKeys, setBusyKeys] = useState<ReadonlySet<string>>(
     () => new Set<string>()
   );
-  const [openCell, setOpenCell] = useState<OpenCell | null>(null);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
   const [viewGroupId, setViewGroupId] = useState<string | null>(null);
   // Missing is judged against the open time; a due date passing mid-lesson shows on the next open.
@@ -227,30 +219,29 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
     }
   };
 
-  const closePopover = useCallback(() => setOpenCell(null), []);
-
-  const openCellAt = (groupId: string, stepId: string, anchor: HTMLElement) =>
-    setOpenCell((current) =>
-      current?.groupId === groupId && current.stepId === stepId
-        ? null
-        : { groupId, stepId, anchor }
+  const pickState = (
+    groupId: string,
+    stepId: string,
+    state: ProjectStepState
+  ) =>
+    void runAction(
+      setStepState(groupId, stepId, state, 'teacher'),
+      cellKey(groupId, stepId)
     );
 
   const openFirstReview = () => {
     const first = waiting[0];
     if (!first) return;
-    const cell = gridRef.current?.querySelector<HTMLElement>(
-      `[data-project-cell="${cellKey(first.groupId, first.stepId)}"]`
+    const cell = gridRef.current?.querySelector<HTMLSelectElement>(
+      `select[data-project-cell="${cellKey(first.groupId, first.stepId)}"]`
     );
-    setOpenCell({
-      ...first,
-      anchor: cell ?? reviewButtonRef.current ?? document.body,
-    });
+    if (!cell) return;
+    cell.focus();
+    openSelectMenu(cell);
   };
 
   const pickClass = (classId: string) => {
     setExpandedGroupId(null);
-    setOpenCell(null);
     if (readOnly) setLocalClassId(classId);
     else
       updateWidget(widget.id, { config: { ...config, boardClassId: classId } });
@@ -332,13 +323,6 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
       Manage groups
     </button>
   );
-
-  const openGroup = openCell
-    ? visibleGroups.find((g) => g.id === openCell.groupId)
-    : undefined;
-  const openStep = openCell
-    ? steps.find((s) => s.id === openCell.stepId)
-    : undefined;
 
   const body =
     visibleGroups.length === 0 ? (
@@ -467,10 +451,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                 }
                 onOpenGroup={() => setViewGroupId(group.id)}
                 busyKeys={busyKeys}
-                openCellKey={
-                  openCell ? cellKey(openCell.groupId, openCell.stepId) : null
-                }
-                onOpenCell={openCellAt}
+                onPickState={pickState}
                 stickyStyle={stickyStyle}
                 submitStatus={submitStatusOf(
                   group,
@@ -577,7 +558,6 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                         ))}
                     onClick={() => {
                       if (collapsed === option.value) return;
-                      setOpenCell(null);
                       updateWidget(widget.id, {
                         config: { ...config, boardCollapsed: option.value },
                       });
@@ -682,22 +662,6 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
           onClose={() => setViewGroupId(null)}
           onSetState={(stepId, state) =>
             setStepState(viewGroup.id, stepId, state, 'teacher')
-          }
-        />
-      )}
-
-      {openCell && openGroup && openStep && !readOnly && (
-        <StatusPopover
-          widgetId={widget.id}
-          anchor={openCell.anchor}
-          title={`${openGroup.name}: ${openStep.title}`}
-          current={stepStateOf(openGroup, openStep.id)}
-          onClose={closePopover}
-          onPick={(state: ProjectStepState) =>
-            void runAction(
-              setStepState(openGroup.id, openStep.id, state, 'teacher'),
-              cellKey(openGroup.id, openStep.id)
-            )
           }
         />
       )}

@@ -16,7 +16,7 @@ import {
   Select,
   Textarea,
 } from '@/components/admin/Organization/components/primitives';
-import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
+import { ChecklistSelect } from '@/components/common/ChecklistSelect';
 import { TOOLS } from '@/config/tools';
 import type { GuidedLearningSet, InternalToolType, WidgetType } from '@/types';
 import {

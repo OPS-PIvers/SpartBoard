@@ -467,11 +467,6 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     requires: 'widget-restored',
   },
-  'projects.status-popover': {
-    label: 'Projects step status menu',
-    perWidget: true,
-    panel: true,
-  },
   'profile.close': {
     label: 'Close button in Profile & Settings',
     panel: true,
@@ -6956,7 +6951,7 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
   },
   'library-shell.sort': {
-    label: 'Sort dropdown trigger in a library toolbar',
+    label: 'Sort select in a library toolbar',
     perWidgetType: true,
   },
   'library-shell.filter': {
@@ -12571,11 +12566,6 @@ export const TOUR_ANCHORS = {
     destructive: true,
     persists: true,
   },
-  'projects.status-option': {
-    label: 'Step status choice in the Projects status menu',
-    perWidget: true,
-    panel: true,
-  },
   'projects.group-student-view': {
     label: 'Group student view button on the Projects board',
     perWidgetType: true,
@@ -15503,11 +15493,6 @@ export const TOUR_ANCHORS = {
     label: 'Sort direction button in a library toolbar',
     perWidgetType: true,
   },
-  'library-shell.sort-option': {
-    label: 'Option in a library sort dropdown',
-    perField: true,
-    panel: true,
-  },
   'library-shell.select-item': {
     label: 'Select checkbox on a library item card',
     perField: true,
@@ -17162,13 +17147,6 @@ export const TOUR_ANCHORS = {
     panel: true,
     rows: true,
     rowList: 'random-class-group',
-  },
-  'seating.class-group': {
-    label: 'Group row under a class in the Seating Chart class menu',
-    perField: true,
-    panel: true,
-    rows: true,
-    rowList: 'seating-class-group',
   },
   'absent-students.clear-all': {
     label: 'Clear all button in the absent students dialog',
