@@ -87,7 +87,7 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
       .getByRole('button', { name: 'Open', exact: true })
       .first()
       .click();
-    await status('Open · Period 1', '0 turned in · 1 class to go');
+    await status('Open · Period 1', '0 submitted · 1 class to go');
     await reads('Period 1 Open 0 submitted');
     await reads('Period 2 Ready');
   });
@@ -127,7 +127,7 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
       widget.getByRole('button', { name: 'Close Period 1' })
     ).toBeVisible();
     await widget.getByRole('button', { name: 'Back' }).click();
-    await status('Open · Period 1', '0 turned in · 1 class to go');
+    await status('Open · Period 1', '0 submitted · 1 class to go');
   });
 
   await test.step('close for all classes, then undo', async () => {
@@ -144,7 +144,7 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
     ).toBeVisible();
     await page.getByRole('button', { name: 'Undo' }).click();
     await reads('Active 1');
-    await status('Open · Period 1', '0 turned in · 1 class to go');
+    await status('Open · Period 1', '0 submitted · 1 class to go');
   });
 
   await test.step('move to Finished and open results', async () => {
