@@ -492,7 +492,10 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
             },
             writing: {
               collections: WRITING_CLASS_COLLECTIONS,
-              lifecycle: writingLifecycle(uid, { setAssignmentTargets }),
+              lifecycle: writingLifecycle(uid, {
+                setAssignmentTargets,
+                studentWindows,
+              }),
             },
           }
         : {}),
