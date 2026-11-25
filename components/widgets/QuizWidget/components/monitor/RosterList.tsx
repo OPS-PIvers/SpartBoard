@@ -365,6 +365,7 @@ export const RosterList: React.FC<RosterListProps> = ({
     students.filter((s) => !handKeys.has(s.key)),
     (s) => ({
       name: s.name,
+      sortName: s.sortName,
       status: s.response.status,
       score: s.bandScore,
       tabWarnings: s.tabWarnings,

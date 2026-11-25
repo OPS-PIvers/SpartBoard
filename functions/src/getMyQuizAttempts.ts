@@ -155,19 +155,11 @@ export async function handleGetMyQuizAttempts(
   // Mid-retake the earlier attempts stay hidden, as the client's results screen does.
   if (response.status !== 'completed' || response.resultsLockedOut === true)
     return none;
-  const { visibility: resolved, source } = resolveServerResultsVisibility(
+  const { visibility } = resolveServerResultsVisibility(
     session,
     response,
     deps.now()
   );
-  // Score on submit shows the score before any publish, as utils/quizResultsVisibility.ts does.
-  const visibility =
-    resolved === 'none' &&
-    session.showScoreOnSubmit === true &&
-    typeof response.score === 'number' &&
-    source === 'class'
-      ? 'score-only'
-      : resolved;
   if (visibility === 'none') return none;
 
   const [copiesSnap, listSnap] = await Promise.all([

@@ -47,6 +47,7 @@ import {
   type TeammatePrintRoster,
 } from '@/hooks/usePlcTeammatePrintContext';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { lastFirst } from '@/utils/studentName';
 
 const MAX_SPARES = 20;
 
@@ -544,7 +545,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
                         onChange={() => toggleStudent(student.id)}
                         className="h-4 w-4 rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
                       />
-                      {`${student.lastName}, ${student.firstName}`.trim()}
+                      {lastFirst(student)}
                     </label>
                   </li>
                 ))}

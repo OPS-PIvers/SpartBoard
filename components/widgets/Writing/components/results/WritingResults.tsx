@@ -18,6 +18,7 @@ import { useResultsSheetExport } from '@/hooks/useResultsSheetExport';
 import { exportWritingResults } from '@/utils/writingResultsExport';
 import { WritingResultsView } from './WritingResultsView';
 import { WritingGrader } from './WritingGrader';
+import { lastFirst } from '@/utils/studentName';
 
 export const WritingResults: React.FC<{
   sessionId: string;
@@ -99,12 +100,7 @@ export const WritingResults: React.FC<{
             )
           }
           onClose={() => setGrading(null)}
-          nameOf={(uid) => {
-            const n = pseudonyms.byStudentUid.get(uid);
-            return n
-              ? [n.familyName, n.givenName].filter(Boolean).join(', ')
-              : '';
-          }}
+          nameOf={(uid) => lastFirst(pseudonyms.byStudentUid.get(uid))}
         />
       )}
     </>

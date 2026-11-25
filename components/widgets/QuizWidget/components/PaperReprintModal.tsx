@@ -48,6 +48,7 @@ import {
   reprintSheets,
 } from '@/utils/paperReprint';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
+import { lastFirst } from '@/utils/studentName';
 
 /** One saved stack and the quiz version it printed from. */
 export interface ReprintStack {
@@ -92,8 +93,7 @@ const BLOCKED_MESSAGE = {
 
 const pickKey = (stackIndex: number, seat: number) => `${stackIndex}:${seat}`;
 
-const studentName = (s: Student) =>
-  [s.lastName, s.firstName].filter(Boolean).join(', ');
+const studentName = (s: Student) => lastFirst(s);
 
 export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
   quiz,
