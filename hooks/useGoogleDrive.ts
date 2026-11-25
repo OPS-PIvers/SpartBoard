@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/useAuth';
 import { GoogleDriveService } from '@/utils/googleDriveService';
+import {
+  driveImageUrl,
+  driveViewUrl,
+  uploadDriveAsset,
+} from '@/utils/driveAssetUpload';
 import { isDriveAuthError, onDriveTokenChange } from '@/utils/driveAuthErrors';
 import { APP_NAME } from '@/config/constants';
 import { DRIVE_APP_FOLDER, IS_DEV_PROJECT } from '@/config/devProject';
@@ -83,19 +88,14 @@ export const useGoogleDrive = () => {
         throw new Error('Google Drive is not connected. Please sign in again.');
       }
 
-      const driveFile = await driveService.uploadFile(
-        file,
-        file.name,
-        BACKGROUNDS_FOLDER
-      );
-
-      // Pass undefined for domain to force type: 'anyone' sharing so the URL
-      // is loadable in all contexts (student view, preview, etc.).
-      await driveService.makePublic(driveFile.id, undefined);
-
-      // Use the lh3.googleusercontent.com domain which serves Drive files with
-      // proper CORS headers, making the URL usable as a CSS background-image.
-      return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
+      // Anyone with the link, so the lh3 URL loads as a CSS background everywhere.
+      const driveFile = await uploadDriveAsset(driveService, {
+        blob: file,
+        name: file.name,
+        folder: BACKGROUNDS_FOLDER,
+        audience: 'anyone',
+      });
+      return driveImageUrl(driveFile.id);
     },
     [driveService]
   );
@@ -155,15 +155,14 @@ export const useGoogleDrive = () => {
         throw new Error('Google Drive is not connected. Please sign in again.');
       }
 
-      const driveFile = await driveService.uploadFile(
+      const driveFile = await uploadDriveAsset(driveService, {
         blob,
-        fileName,
-        DRAWINGS_FOLDER
-      );
-
-      await driveService.makePublic(driveFile.id, userDomain);
-
-      return `https://drive.google.com/file/d/${driveFile.id}/view`;
+        name: fileName,
+        folder: DRAWINGS_FOLDER,
+        audience: 'domain',
+        domain: userDomain,
+      });
+      return driveViewUrl(driveFile.id);
     },
     [driveService, userDomain]
   );

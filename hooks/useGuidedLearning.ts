@@ -222,7 +222,7 @@ export interface UseGuidedLearningResult {
 export const useGuidedLearning = (
   userId: string | undefined
 ): UseGuidedLearningResult => {
-  const { googleAccessToken, isAdmin } = useAuth();
+  const { googleAccessToken, refreshGoogleToken, isAdmin } = useAuth();
   const { isConnected } = useGoogleDrive();
   // Shared across every GL widget on the board: one listener per collection.
   const personal = useSharedSubscription(personalSetsSource, userId ?? null);
@@ -239,9 +239,9 @@ export const useGuidedLearning = (
       return userId ? new MockGuidedLearningDriveService(userId) : null;
     }
     return googleAccessToken
-      ? new GuidedLearningDriveService(googleAccessToken)
+      ? new GuidedLearningDriveService(googleAccessToken, refreshGoogleToken)
       : null;
-  }, [googleAccessToken, userId]);
+  }, [googleAccessToken, refreshGoogleToken, userId]);
 
   const getDriveService = useCallback((): GuidedLearningDriveLike => {
     if (driveService) return driveService;

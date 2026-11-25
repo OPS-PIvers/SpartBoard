@@ -1,5 +1,6 @@
 // Drive calls for an Agenda deck: a 403 here means "not yours to share", not a lost sign-in, so it never fires the sign-in toast.
 import { authError } from '@/utils/driveAuthErrors';
+import { DRIVE_API_URL, DriveSession } from '@/utils/driveRequest';
 import { aspectFromPageSize } from '@/utils/course/agendaFrame';
 import { cleanAgendaAspect } from '@/utils/course/contract';
 import type { DrivePermission } from '@/utils/googleDriveService';
@@ -9,7 +10,6 @@ import {
   type DeckState,
 } from '@/utils/course/deckSharing';
 
-const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const SLIDES_API_URL = 'https://slides.googleapis.com/v1/presentations';
 const THUMBNAIL_TIMEOUT_MS = 10_000;
 const TIMEOUT_MS = 20_000;
@@ -80,40 +80,18 @@ export function deckErrorFor(status: number, body: string): Error {
 }
 
 export class DeckDrive implements DeckSharingDrive {
-  private token: string;
-  private readonly refresh: () => Promise<string | null>;
+  private readonly session: DriveSession;
 
   constructor(token: string, refresh: () => Promise<string | null>) {
-    this.token = token;
-    this.refresh = refresh;
+    this.session = new DriveSession(token, refresh);
   }
 
-  private async send(url: string, init: RequestInit = {}): Promise<Response> {
-    const attempt = async () => {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-      try {
-        return await fetch(url, {
-          ...init,
-          headers: {
-            Authorization: `Bearer ${this.token}`,
-            'Content-Type': 'application/json',
-          },
-          signal: controller.signal,
-        });
-      } finally {
-        clearTimeout(timer);
-      }
-    };
-    let response = await attempt();
-    if (response.status === 401) {
-      const next = await this.refresh();
-      if (next) {
-        this.token = next;
-        response = await attempt();
-      }
-    }
-    return response;
+  private send(url: string, init: RequestInit = {}): Promise<Response> {
+    return this.session.request(
+      url,
+      { ...init, headers: { 'Content-Type': 'application/json' } },
+      { timeoutMs: TIMEOUT_MS }
+    );
   }
 
   private async ok(url: string, init?: RequestInit): Promise<Response> {

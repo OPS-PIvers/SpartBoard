@@ -305,11 +305,14 @@ export const useQuizAssignments = (
   // provider-less caller denies instead of throwing.
   const authContext = useContext(AuthContext);
   const googleAccessToken = authContext?.googleAccessToken ?? null;
+  const refreshGoogleToken = authContext?.refreshGoogleToken;
   // Drive handle for publish-time sidecar reads; null when Drive isn't connected.
   const translationLoader = useCallback((): TranslationLoader | null => {
     if (isAuthBypass) return userId ? new MockQuizDriveService(userId) : null;
-    return googleAccessToken ? new QuizDriveService(googleAccessToken) : null;
-  }, [googleAccessToken, userId]);
+    return googleAccessToken
+      ? new QuizDriveService(googleAccessToken, refreshGoogleToken)
+      : null;
+  }, [googleAccessToken, refreshGoogleToken, userId]);
   const mediaResponseGranted =
     authContext?.canAccessQuizMediaResponse?.() === true;
   // Same two checks as canAccessQuizWhiteboardResponse, tolerant of a partial context.
