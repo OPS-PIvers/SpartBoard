@@ -107,7 +107,6 @@ const authValue = {
   quizGraderMode: 'question',
   quizGraderAutoAdvance: false,
   disableCloseConfirmation: false,
-  canSeeShareTracking: false,
   canAccessQuizMediaResponse: false,
   canAccessWidget: () => true,
   canAccessFeature: () => true,

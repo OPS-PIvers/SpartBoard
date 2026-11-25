@@ -254,7 +254,11 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'page',
     opensWith: 'sidebar.gradebook',
     needs: ['class'],
-    files: [GB, `${GB}settings/GradebookSettingsModal.tsx`],
+    files: [
+      GB,
+      `${GB}settings/GradebookSettingsModal.tsx`,
+      `${GB}settings/useUndoToast.tsx`,
+    ],
     inner: {
       'gradebook.view.scores-format': 'gradebook.view-menu',
       'gradebook.view.proficiency-colors': 'gradebook.view-menu',

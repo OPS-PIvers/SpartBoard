@@ -1,13 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import {
-  collection,
-  doc,
-  FieldPath,
-  onSnapshot,
-  updateDoc,
-  writeBatch,
-  type DocumentData,
-} from 'firebase/firestore';
+import { collection, onSnapshot, type DocumentData } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useShowPickedStudents } from '@/hooks/useShowPickedStudents';
@@ -21,6 +13,7 @@ import {
 import { todaysBell } from '@/hooks/usePeriodAccess';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import {
+  restoreRun,
   useAssignmentClassActions,
   type AssignmentClassCollections,
   type AssignmentLifecycle,
@@ -331,46 +324,6 @@ export function RunAssignedTab<A extends RunAssignment>(
   );
 }
 
-/** Puts back what Close for all classes or Move to Finished changed (D10 Undo). */
-async function undoClose(
-  prev: RunAssignment,
-  uid: string,
-  collections: AssignmentClassCollections,
-  lifecycle: AssignmentLifecycle,
-  wasEnded: boolean
-): Promise<void> {
-  const assignmentRef = doc(
-    db,
-    'users',
-    uid,
-    collections.assignmentCollection,
-    prev.id
-  );
-  const sessionRef = doc(
-    db,
-    collections.sessionCollection,
-    prev.sessionId ?? prev.id
-  );
-  if (!wasEnded) {
-    await lifecycle.reopen(prev.id);
-    if (runStatus(prev.status) === 'active' && lifecycle.resume)
-      await lifecycle.resume(prev.id);
-  }
-  // Every class row goes back exactly as it was, times and marks included.
-  const rows = Object.entries(prev.periodAccess ?? {});
-  if (rows.length > 0) {
-    const batch = writeBatch(db);
-    for (const ref of [sessionRef, assignmentRef])
-      for (const [key, row] of rows)
-        batch.update(ref, new FieldPath('periodAccess', key), row);
-    await batch.commit();
-  }
-  await updateDoc(assignmentRef, {
-    doneAt: prev.doneAt ?? null,
-    closedAt: prev.closedAt ?? null,
-  });
-}
-
 const NO_LIFECYCLE: AssignmentLifecycle = {
   end: () => Promise.reject(new Error('Sign in to change this.')),
   reopen: () => Promise.reject(new Error('Sign in to change this.')),
@@ -462,10 +415,6 @@ function RunAssignedRowHost<A extends RunAssignment>({
   };
   const title = titleOf(a);
   const viewOnly = viewOnlyOf(a);
-  const isEnded = (x: A) =>
-    lifecycle.isEnded
-      ? lifecycle.isEnded(x)
-      : runStatus(x.status) === 'inactive';
   const monitor = onMonitor ?? onResults;
 
   const onClassAction = (kind: ClassActionKind, key: string | null) => {
@@ -492,7 +441,6 @@ function RunAssignedRowHost<A extends RunAssignment>({
 
   const withUndo = (act: () => Promise<void>, message: string) => {
     const prev = a;
-    const wasEnded = isEnded(a);
     void exec(async () => {
       await act();
       addToast(message, 'success', {
@@ -500,9 +448,7 @@ function RunAssignedRowHost<A extends RunAssignment>({
         onClick: () => {
           if (!user?.uid) return;
           const uid = user.uid;
-          void run(() =>
-            undoClose(prev, uid, collections, lifecycle, wasEnded)
-          );
+          void run(() => restoreRun(prev, uid, collections, lifecycle));
         },
       });
     });
@@ -510,22 +456,21 @@ function RunAssignedRowHost<A extends RunAssignment>({
 
   const allClosed = status.classes.every((c) => c.status === 'closed');
   const [reopening, setReopening] = useState(false);
-  const undoFor = (prev: A, wasEnded: boolean) => async () => {
-    if (user?.uid)
-      await undoClose(prev, user.uid, collections, lifecycle, wasEnded);
+  const undoFor = (prev: A) => async () => {
+    if (user?.uid) await restoreRun(prev, user.uid, collections, lifecycle);
   };
   useAssignedBulkOps({
     close: allClosed
       ? undefined
       : async () => {
-          const undo = undoFor(a, isEnded(a));
+          const undo = undoFor(a);
           await actions.closeAll();
           return undo;
         },
     moveToDone:
       status.bucket === 'active' && !viewOnly
         ? async () => {
-            const undo = undoFor(a, isEnded(a));
+            const undo = undoFor(a);
             await actions.moveToDone();
             return undo;
           }

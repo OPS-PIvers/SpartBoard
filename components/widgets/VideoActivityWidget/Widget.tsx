@@ -5,6 +5,7 @@
  * as a sibling of the Manager library view.
  */
 
+import { copyLinkWithToast } from '@/hooks/useCopyShortLink';
 import React, {
   useState,
   useCallback,
@@ -163,16 +164,11 @@ async function copyUrlToClipboard(
     errorMessage: string;
   }
 ): Promise<void> {
-  if (typeof navigator === 'undefined' || !navigator.clipboard) {
-    addToast(errorMessage, 'info');
-    return;
-  }
-  try {
-    await navigator.clipboard.writeText(url);
-    addToast(successMessage, 'success');
-  } catch {
-    addToast(errorMessage, 'info');
-  }
+  await copyLinkWithToast(url, addToast, {
+    success: successMessage,
+    failure: errorMessage,
+    failureType: 'info',
+  });
 }
 
 const TeacherVideoActivityWidget: React.FC<{

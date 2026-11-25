@@ -57,7 +57,6 @@ vi.mock('@/hooks/useSessionViewCount', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
-    canSeeShareTracking: vi.fn(() => false),
     canAccessQuizMediaResponse: vi.fn(() => false),
     canAccessFeature: vi.fn(() => false),
   }),

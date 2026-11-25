@@ -391,6 +391,8 @@ export function usePeriodAccess(
     pauseAll: () => pause(keys),
     /** `at` stamps a known closedAt, for a caller that schedules work against it. */
     closePeriod: (key: string, at?: number) => close([key], at),
+    /** Closes these classes in one write, all stamped `at`. */
+    closePeriods: (keys: readonly string[], at?: number) => close(keys, at),
     /** D9: lets the class back in at once, exactly like Start, and clears closedAt. */
     reopenPeriod: (key: string) => start([key], true),
     /** Closes every class not already closed by hand, so earlier closedAt marks stand. */

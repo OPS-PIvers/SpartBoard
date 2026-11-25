@@ -100,6 +100,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'student-set-time',
   'help-center-ai',
   'lms-push-final-scores',
+  'share-link-tracking',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.
@@ -120,7 +121,6 @@ export const PUBLIC_MISSING_DOC_FEATURES: Readonly<
   'ai-file-context': 'org',
   'org-admin-writes': null,
   'assignment-modes': null,
-  'share-link-tracking': null,
   'google-classroom': 'org',
   'anonymous-join': null,
   'video-activity-ai': null,

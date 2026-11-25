@@ -8606,60 +8606,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "assign-periods.selector-close",
-    "label": "Close button in the Class Periods popup",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-periods.selector-period",
-    "label": "Class period checkbox in the Class Periods popup",
-    "scope": "field",
-    "panel": true,
-    "row_wildcard": true,
-    "row_list": "assign-periods-selector-period",
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-periods.selector-cancel",
-    "label": "Cancel button in the Class Periods popup",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-periods.selector-save",
-    "label": "Save button in the Class Periods popup",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
     "id": "assign-settings.attempts",
     "label": "Attempts allowed option in the Assign window",
     "scope": "field",
@@ -76855,18 +76801,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gradebook.settings"
         ],
         "reveal": "gradebook.settings",
-        "needs": [
-          "class"
-        ]
-      },
-      {
-        "surface": "guidedLearning.gradebook.settings",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.gradebook",
-          "gradebook.settings"
-        ],
         "needs": [
           "class"
         ]
