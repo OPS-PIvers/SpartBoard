@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { createPortal } from 'react-dom';
+import { WidgetAccentScope } from '@/components/common/WidgetAccentScope';
 import { ChevronDown, type LucideIcon } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Z_INDEX } from '@/config/zIndex';
@@ -87,59 +88,61 @@ export function SettingChip<T extends string>({
         // Without this the menu was being clipped by ancestor scroll
         // containers and inaccessible.
         createPortal(
-          <div
-            ref={popoverRef}
-            role="menu"
-            data-widget-portal=""
-            data-click-outside-ignore="true"
-            className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
-            style={{
-              position: 'fixed',
-              top: pos.top,
-              left: pos.left,
-              width: SETTING_CHIP_POPOVER_WIDTH,
-              zIndex: Z_INDEX.modalContent,
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                e.nativeEvent.stopImmediatePropagation();
-                // Also stop React's synthetic bubble: this popover renders in
-                // the widget settings panel wrapped by DraggableWindow's
-                // onKeyDown, whose flipped-close branch would otherwise fire and
-                // close the whole settings panel along with this popover.
-                e.stopPropagation();
-                setOpen(false);
-              }
-            }}
-          >
-            {options.map((opt) => {
-              const isCurrent = opt.value === value;
-              return (
-                <button
-                  {...optionAnchor?.(opt.value)}
-                  key={opt.value}
-                  role="menuitem"
-                  type="button"
-                  onClick={() => {
-                    onChange(opt.value);
-                    setOpen(false);
-                  }}
-                  className={`flex w-full flex-col gap-0.5 px-3 py-2 text-left transition-colors ${
-                    isCurrent
-                      ? 'bg-brand-blue-lighter/40 text-brand-blue-dark'
-                      : 'text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <span className="font-bold text-xs">{opt.label}</span>
-                  {opt.desc && (
-                    <span className="text-xxs text-slate-500 leading-snug">
-                      {opt.desc}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>,
+          <WidgetAccentScope>
+            <div
+              ref={popoverRef}
+              role="menu"
+              data-widget-portal=""
+              data-click-outside-ignore="true"
+              className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
+              style={{
+                position: 'fixed',
+                top: pos.top,
+                left: pos.left,
+                width: SETTING_CHIP_POPOVER_WIDTH,
+                zIndex: Z_INDEX.modalContent,
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.nativeEvent.stopImmediatePropagation();
+                  // Also stop React's synthetic bubble: this popover renders in
+                  // the widget settings panel wrapped by DraggableWindow's
+                  // onKeyDown, whose flipped-close branch would otherwise fire and
+                  // close the whole settings panel along with this popover.
+                  e.stopPropagation();
+                  setOpen(false);
+                }
+              }}
+            >
+              {options.map((opt) => {
+                const isCurrent = opt.value === value;
+                return (
+                  <button
+                    {...optionAnchor?.(opt.value)}
+                    key={opt.value}
+                    role="menuitem"
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.value);
+                      setOpen(false);
+                    }}
+                    className={`flex w-full flex-col gap-0.5 px-3 py-2 text-left transition-colors ${
+                      isCurrent
+                        ? 'bg-brand-blue-lighter/40 text-brand-blue-dark'
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span className="font-bold text-xs">{opt.label}</span>
+                    {opt.desc && (
+                      <span className="text-xxs text-slate-500 leading-snug">
+                        {opt.desc}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </WidgetAccentScope>,
           document.body
         )}
     </div>

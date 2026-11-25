@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { WidgetAccentScope } from '@/components/common/WidgetAccentScope';
 import {
   BellRing,
   Camera,
@@ -121,68 +122,72 @@ export const LiveViewFrame: React.FC<{
   aside: React.ReactNode;
 }> = ({ name, onPrevious, onNext, onClose, anchors, gone, body, aside }) =>
   createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Live view"
-      className="fixed inset-0 flex flex-col bg-slate-100"
-      style={{ zIndex: Z_INDEX.modalDeep }}
-    >
-      <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap bg-slate-900 px-3 text-xs text-slate-300">
-        <div className="flex items-center gap-1.5 border-r border-slate-700 pr-2 font-bold text-white">
-          <Eye className="h-4 w-4" aria-hidden />
-          Live view
+    <WidgetAccentScope>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Live view"
+        className="fixed inset-0 flex flex-col bg-slate-100"
+        style={{ zIndex: Z_INDEX.modalDeep }}
+      >
+        <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap bg-slate-900 px-3 text-xs text-slate-300">
+          <div className="flex items-center gap-1.5 border-r border-slate-700 pr-2 font-bold text-white">
+            <Eye className="h-4 w-4" aria-hidden />
+            Live view
+          </div>
+          <span className="truncate text-sm font-semibold text-white">
+            {name}
+          </span>
+          <div className="ml-auto flex items-center gap-1 pl-2">
+            <button
+              type="button"
+              {...anchors.previous}
+              onClick={onPrevious}
+              disabled={!onPrevious}
+              className={navButton}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
+              Previous
+            </button>
+            <button
+              type="button"
+              {...anchors.next}
+              onClick={onNext}
+              disabled={!onNext}
+              className={navButton}
+            >
+              Next
+              <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              {...anchors.close}
+              onClick={onClose}
+              className="ml-1 flex items-center gap-1 rounded-md bg-white px-2.5 py-1 font-bold text-slate-900 hover:bg-slate-100"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+              Close
+            </button>
+          </div>
         </div>
-        <span className="truncate text-sm font-semibold text-white">
-          {name}
-        </span>
-        <div className="ml-auto flex items-center gap-1 pl-2">
-          <button
-            type="button"
-            {...anchors.previous}
-            onClick={onPrevious}
-            disabled={!onPrevious}
-            className={navButton}
-          >
-            <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
-            Previous
-          </button>
-          <button
-            type="button"
-            {...anchors.next}
-            onClick={onNext}
-            disabled={!onNext}
-            className={navButton}
-          >
-            Next
-            <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-          </button>
-          <button
-            type="button"
-            {...anchors.close}
-            onClick={onClose}
-            className="ml-1 flex items-center gap-1 rounded-md bg-white px-2.5 py-1 font-bold text-slate-900 hover:bg-slate-100"
-          >
-            <X className="h-3.5 w-3.5" aria-hidden />
-            Close
-          </button>
-        </div>
-      </div>
 
-      {gone ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-1 p-6 text-center">
-          <p className="text-base font-semibold text-slate-800">{gone.title}</p>
-          <p className="text-sm text-slate-600">{gone.line}</p>
-        </div>
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          {body}
-          <aside className="w-full shrink-0 overflow-y-auto border-t border-slate-200 bg-white p-4 pb-8 text-sm md:w-80 md:border-l md:border-t-0">
-            {aside}
-          </aside>
-        </div>
-      )}
-    </div>,
+        {gone ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-1 p-6 text-center">
+            <p className="text-base font-semibold text-slate-800">
+              {gone.title}
+            </p>
+            <p className="text-sm text-slate-600">{gone.line}</p>
+          </div>
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+            {body}
+            <aside className="w-full shrink-0 overflow-y-auto border-t border-slate-200 bg-white p-4 pb-8 text-sm md:w-80 md:border-l md:border-t-0">
+              {aside}
+            </aside>
+          </div>
+        )}
+      </div>
+    </WidgetAccentScope>,
     document.body
   );
 

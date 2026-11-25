@@ -12009,6 +12009,8 @@ export type GlobalFeature =
   | 'server-turn-in'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
+  /** Dialogs opened from a widget take its library color for the header and brand-blue buttons. */
+  | 'widget-colored-dialogs'
   /** One shared image picker everywhere an image is added: upload, paste, drop, Google Drive or an image link. */
   | 'unified-image-picker'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
