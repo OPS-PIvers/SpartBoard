@@ -308,7 +308,7 @@ describe('extractNormingContent', () => {
 describe('setPlcNormingFlag', () => {
   it('writes an anonymized copy and a private pointer', async () => {
     const { stub, deps } = setup();
-    const out = await setPlcNormingFlag(flag('high'), T, deps);
+    const out = await setPlcNormingFlag(flag('high'), T, {}, deps);
     expect(out).toEqual({ normingId: 'norm1', level: 'high' });
     const copy = stub.get(`plcs/${PLC}/norming/norm1`)!;
     expect(copy).toMatchObject({
@@ -333,10 +333,10 @@ describe('setPlcNormingFlag', () => {
 
   it('changes the level in place, then unflags', async () => {
     const { stub, deps } = setup();
-    await setPlcNormingFlag(flag('high'), T, deps);
-    await setPlcNormingFlag(flag('review'), T, deps);
+    await setPlcNormingFlag(flag('high'), T, {}, deps);
+    await setPlcNormingFlag(flag('review'), T, {}, deps);
     expect(stub.get(`plcs/${PLC}/norming/norm1`)?.level).toBe('review');
-    await setPlcNormingFlag(flag(null), T, deps);
+    await setPlcNormingFlag(flag(null), T, {}, deps);
     expect(stub.has(`plcs/${PLC}/norming/norm1`)).toBe(false);
     expect(stub.has(sourcePath())).toBe(false);
   });
@@ -344,7 +344,7 @@ describe('setPlcNormingFlag', () => {
   it('denies another teacher, a viewer, a closed flag and an unlinked session', async () => {
     const { deps } = setup();
     await expect(
-      setPlcNormingFlag(flag('high'), 'teacher-2', deps)
+      setPlcNormingFlag(flag('high'), 'teacher-2', {}, deps)
     ).rejects.toMatchObject({ code: 'permission-denied' });
     const viewer = setup({
       [`quiz_sessions/${SESSION}`]: {
@@ -353,7 +353,7 @@ describe('setPlcNormingFlag', () => {
       },
     });
     await expect(
-      setPlcNormingFlag(flag('high'), 'viewer-1', viewer.deps)
+      setPlcNormingFlag(flag('high'), 'viewer-1', {}, viewer.deps)
     ).rejects.toMatchObject({ code: 'permission-denied' });
     const unlinked = setup({
       [`quiz_sessions/${SESSION}`]: {
@@ -362,8 +362,25 @@ describe('setPlcNormingFlag', () => {
       },
     });
     await expect(
-      setPlcNormingFlag(flag('high'), T, unlinked.deps)
+      setPlcNormingFlag(flag('high'), T, {}, unlinked.deps)
     ).rejects.toMatchObject({ code: 'failed-precondition' });
+  });
+
+  it('refuses a deactivated operator-org teacher before writing', async () => {
+    const { stub, deps } = setup({
+      'organizations/orono/members/t@orono.k12.mn.us': {
+        status: 'deactivated',
+      },
+    });
+    for (const token of [
+      { email: 'T@orono.k12.mn.us' },
+      { deactivated: true },
+    ]) {
+      await expect(
+        setPlcNormingFlag(flag('high'), T, token, deps)
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+    }
+    expect(stub.has(`plcs/${PLC}/norming/norm1`)).toBe(false);
   });
 
   it('copies archived audio from Drive to a random path and deletes it on unflag', async () => {
@@ -384,7 +401,7 @@ describe('setPlcNormingFlag', () => {
         },
       },
     });
-    await setPlcNormingFlag(flag('low'), T, deps);
+    await setPlcNormingFlag(flag('low'), T, {}, deps);
     expect(deps.readDrive).toHaveBeenCalledWith(T, 'drive-9');
     expect(saved.get(`plc_norming_media/${PLC}/norm1.m4a`)?.toString()).toBe(
       'm4a:drive-audio'
@@ -397,7 +414,7 @@ describe('setPlcNormingFlag', () => {
       durationMs: 4000,
     });
     expect(JSON.stringify(copy)).not.toContain('drive-9');
-    await setPlcNormingFlag(flag(null), T, deps);
+    await setPlcNormingFlag(flag(null), T, {}, deps);
     expect(deleted).toContain(`plc_norming_media/${PLC}/norm1.m4a`);
   });
 
@@ -428,7 +445,7 @@ describe('setPlcNormingFlag', () => {
       return Promise.resolve();
     };
     await expect(
-      setPlcNormingFlag(flag('high'), T, deps)
+      setPlcNormingFlag(flag('high'), T, {}, deps)
     ).rejects.toMatchObject({ code: 'failed-precondition' });
     expect(deleted).toEqual([`plc_norming_media/${PLC}/norm1.m4a`]);
     expect(stub.has(`plcs/${PLC}/norming/norm1`)).toBe(false);
@@ -436,16 +453,16 @@ describe('setPlcNormingFlag', () => {
 
   it('lets only the flagging teacher remove a copy from the PLC page', async () => {
     const { stub, deps } = setup();
-    await setPlcNormingFlag(flag('high'), T, deps);
+    await setPlcNormingFlag(flag('high'), T, {}, deps);
     const remove = parseNormingRequest({
       plcId: PLC,
       normingId: 'norm1',
       level: null,
     });
     await expect(
-      setPlcNormingFlag(remove, 'teacher-2', deps)
+      setPlcNormingFlag(remove, 'teacher-2', {}, deps)
     ).rejects.toMatchObject({ code: 'permission-denied' });
-    await setPlcNormingFlag(remove, T, deps);
+    await setPlcNormingFlag(remove, T, {}, deps);
     expect(stub.has(`plcs/${PLC}/norming/norm1`)).toBe(false);
     expect(stub.has(sourcePath())).toBe(false);
   });

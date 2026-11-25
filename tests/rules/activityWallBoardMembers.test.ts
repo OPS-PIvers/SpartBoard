@@ -509,13 +509,19 @@ describe('review hardening', () => {
       await deleteDoc(doc(ctx.firestore(), `shared_boards/${SHARE_ID}`));
     });
     const db = asTeacher(VIEWER_UID);
-    await assertSucceeds(
-      setDoc(doc(db, `shared_boards/${SHARE_ID}`), {
-        originalAuthor: VIEWER_UID,
-        intendedMode: 'synced',
-        participants: { [HOST_UID]: participant('collaborator') },
-      })
-    );
+    const recreated = {
+      originalAuthor: VIEWER_UID,
+      intendedMode: 'synced',
+      participants: { [HOST_UID]: participant('collaborator') },
+    };
+    // A client can't create a share with members; the rule check below covers one that has them anyway.
+    await assertFails(setDoc(doc(db, `shared_boards/${SHARE_ID}`), recreated));
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_boards/${SHARE_ID}`),
+        recreated
+      );
+    });
     await assertFails(approvedQuery(db, HOST_SESSION));
     await assertFails(
       updateDoc(submissionRef(db, HOST_SESSION, 'pending-1'), {

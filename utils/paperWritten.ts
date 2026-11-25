@@ -298,6 +298,8 @@ export interface PaperKeptPagePayload {
 /** Request field `importPaperResponsesV1` accepts beside `sheets`; absent imports as before kept pages. */
 export interface PaperKeptPagesRequestField {
   pages?: PaperKeptPagePayload[];
+  /** Page numbers each seat's sheet covered, by seat; pages not listed keep their earlier copy. */
+  coveredPages?: Record<number, number[]>;
 }
 
 /** `getPaperPageV1` request: one kept page of one response, for the session teacher or the student it belongs to. */

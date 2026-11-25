@@ -1,4 +1,5 @@
 // Import inbox (docs/plans/IMPORT.md D14, D16, D18): the extension's Send to SpartBoard posts a read page with a Google token.
+import { isLiveAdmin } from './authz';
 import './functionsInit';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
@@ -640,7 +641,7 @@ function defaultDeps(db: Firestore): ImporterDeps {
       // Students share the district domain, so the flag alone can't admit an address.
       const staff =
         (await isDistrictStaffEmail(db, email)) ||
-        (await db.collection('admins').doc(email).get()).exists;
+        (await isLiveAdmin(db, email));
       if (!staff) return false;
       const { isGlobalFeatureGranted } = await import('./featureGrant');
       const granted = (feature: string) =>

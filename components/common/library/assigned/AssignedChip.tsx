@@ -5,7 +5,7 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { isEscapeFromWidgetInput, scrollMovesAnchor } from '@/utils/domHelpers';
 import { Z_INDEX } from '@/config/zIndex';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
-import { useCloseOnHostResize } from '../../useCloseOnHostResize';
+import { useCloseOnHostResize } from '@/components/common/useCloseOnHostResize';
 
 type IconType = React.ComponentType<{
   className?: string;

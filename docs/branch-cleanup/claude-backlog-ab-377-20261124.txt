@@ -1,0 +1,1 @@
+claude/backlog-ab-377-20261124 (AB-377: shared board host can no longer add participants)

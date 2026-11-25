@@ -1,4 +1,5 @@
 // The extension's own tour calls (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H7): a Google access token, never Firebase auth.
+import { isLiveAdmin } from './authz';
 import './functionsInit';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
@@ -540,7 +541,7 @@ function defaultDeps(db: Firestore): ExtensionDeps {
       // Students share the district domain, so the flag alone can't admit an address.
       const staff =
         (await isDistrictStaffEmail(db, email)) ||
-        (await db.collection('admins').doc(email).get()).exists;
+        (await isLiveAdmin(db, email));
       if (!staff) return false;
       const { isGlobalFeatureGranted } = await import('./featureGrant');
       return (
@@ -554,8 +555,7 @@ function defaultDeps(db: Firestore): ExtensionDeps {
     },
     // The extension shows Record, Manage tours and Edit tour from this, so an author counts (WEB_TOUR_AUTHORS.md E1).
     isAdmin: async (email) =>
-      (await db.collection('admins').doc(email).get()).exists ||
-      isListedTourAuthor(db, email),
+      (await isLiveAdmin(db, email)) || isListedTourAuthor(db, email),
   };
 }
 

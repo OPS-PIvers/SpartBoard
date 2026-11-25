@@ -1,4 +1,5 @@
 // Schoology quiz import inbox (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8, Q14): the extension posts read quizzes with a Google token.
+import { isLiveAdmin } from './authz';
 import './functionsInit';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
@@ -443,7 +444,7 @@ function defaultDeps(db: Firestore): ImporterDeps {
       // Students share the district domain, so the flag alone can't admit an address.
       const staff =
         (await isDistrictStaffEmail(db, email)) ||
-        (await db.collection('admins').doc(email).get()).exists;
+        (await isLiveAdmin(db, email));
       if (!staff) return false;
       const { isGlobalFeatureGranted } = await import('./featureGrant');
       return isGlobalFeatureGranted(
