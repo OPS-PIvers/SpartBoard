@@ -9,6 +9,7 @@ export interface CardImageState {
   uploading: boolean;
   failed: boolean;
   pick: (file: File | null | undefined) => void;
+  clearFailed: () => void;
   /** Spread on the side's wrapper: paste or drop an image anywhere in it. */
   targetProps: Pick<
     React.HTMLAttributes<HTMLDivElement>,
@@ -38,23 +39,32 @@ export const useCardImage = (
 
   const hasFile = (event: React.DragEvent): boolean =>
     Array.from(event.dataTransfer.types).includes('Files');
+  // The shared picker's button and its portaled panel take their own paste and drop.
+  const pickerOwns = (event: React.SyntheticEvent): boolean =>
+    event.defaultPrevented ||
+    !(event.target instanceof Node) ||
+    !event.currentTarget.contains(event.target);
 
   return {
     uploading,
     failed,
     pick,
+    clearFailed: () => setFailed(false),
     targetProps: upload
       ? {
           onPaste: (event) => {
+            if (pickerOwns(event)) return;
             const file = imageFileFrom(event.clipboardData.items);
             if (!file) return;
             event.preventDefault();
             pick(file);
           },
           onDragOver: (event) => {
+            if (pickerOwns(event)) return;
             if (hasFile(event)) event.preventDefault();
           },
           onDrop: (event) => {
+            if (pickerOwns(event)) return;
             const file = imageFileFrom(event.dataTransfer.files);
             if (!file) return;
             event.preventDefault();
