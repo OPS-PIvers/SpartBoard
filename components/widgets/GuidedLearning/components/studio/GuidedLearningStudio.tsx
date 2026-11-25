@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { copyLinkWithToast } from '@/hooks/useCopyShortLink';
 import { createPortal } from 'react-dom';
+import { WidgetAccentScope } from '@/components/common/WidgetAccentScope';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
@@ -883,393 +884,400 @@ const StudioSession: React.FC<
     : [];
 
   return createPortal(
-    <div
-      ref={rootRef}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('glStudio.dialogLabel')}
-      tabIndex={-1}
-      data-testid="gl-studio"
-      className="fixed inset-0 flex flex-col bg-slate-100 focus:outline-hidden"
-      style={{ zIndex: Z_INDEX.modalContent }}
-    >
-      <EditorHeader
-        title={editorState.title}
-        onTitleChange={readOnly ? () => undefined : editorState.setTitle}
-        titleReadOnly={readOnly}
-        titlePlaceholder={t('glStudio.titlePlaceholder')}
-        subtitle={t('glStudio.stepCount', { count: stepCount })}
-        notice={
-          autosave.error instanceof SetTooLargeError
-            ? autosave.error.message
-            : editorState.imageUrls.length === 0 && editorState.mode !== 'tour'
-              ? t('glStudio.needSlide')
-              : !editorState.title.trim()
-                ? t('glStudio.needTitle')
-                : null
-        }
-        autosaveStatus={autosave.status}
-        onRetrySave={() => void autosave.flush()}
-        onDraftWithAi={
-          canUseAi && !compact ? () => setShowAiGen(true) : undefined
-        }
-        onOpenClassic={
-          onOpenClassic && !compact ? () => void openClassic() : undefined
-        }
-        onClose={() => void requestClose()}
-        compact={compact}
-        extras={
-          <>
-            {!playing && (
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  {...tourAttr('studio.undo')}
-                  onClick={undo}
-                  disabled={!canUndo || readOnly}
-                  aria-label={t('glStudio.undo')}
-                  title={t('glStudio.undo')}
-                  data-testid="gl-studio-undo"
-                  className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:hover:bg-transparent"
-                >
-                  <Undo2 className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  {...tourAttr('studio.redo')}
-                  onClick={redo}
-                  disabled={!canRedo || readOnly}
-                  aria-label={t('glStudio.redo')}
-                  title={t('glStudio.redo')}
-                  data-testid="gl-studio-redo"
-                  className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:hover:bg-transparent"
-                >
-                  <Redo2 className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </div>
-            )}
-            {!playing && (
-              <button
-                type="button"
-                {...tourAttr('studio.play')}
-                onClick={startPlay}
-                disabled={stepCount === 0}
-                title={t('glStudio.playShortcut')}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:border-slate-400 disabled:opacity-40"
-              >
-                <Play className="h-4 w-4" aria-hidden="true" />
-                {t('glStudio.playFromHere')}
-              </button>
-            )}
-            <DevicePresetPicker
-              preset={preset}
-              onChange={choosePreset}
-              compact={compact}
-            />
-            {canCopyForClaude && !compact && (
-              <button
-                type="button"
-                {...tourAttr('studio.copy-for-claude')}
-                onClick={() => void copyForClaude({ kind: 'activity' })}
-                aria-label={t('glStudio.copyForClaude')}
-                title={t('glStudio.copyForClaude')}
-                data-testid="gl-studio-copy-for-claude"
-                className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-              >
-                <ClipboardCopy className="h-5 w-5" aria-hidden="true" />
-              </button>
-            )}
-            {!compact && (
-              <button
-                type="button"
-                {...tourAttr('studio.shortcuts')}
-                onClick={() => setShortcutsOpen(true)}
-                aria-label={t('glStudio.shortcutsOpen')}
-                title={t('glStudio.shortcutsOpen')}
-                aria-haspopup="dialog"
-                data-testid="gl-studio-shortcuts-button"
-                className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-              >
-                <Keyboard className="h-5 w-5" aria-hidden="true" />
-              </button>
-            )}
-            <button
-              type="button"
-              {...tourAttr('studio.properties')}
-              onClick={() => setPropertiesOpen((v) => !v)}
-              aria-expanded={propertiesOpen}
-              aria-controls="gl-studio-properties"
-              className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:border-slate-400 lg:hidden"
-            >
-              <PanelRight className="h-4 w-4" aria-hidden="true" />
-              {t('glStudio.properties')}
-            </button>
-            {compact && (
-              <div ref={moreRef}>
-                <StudioMenu
-                  label={t('glStudio.moreActions')}
-                  items={overflowItems}
-                  testId="gl-studio-more"
-                  anchor={tourAttr('studio.more-actions')}
-                  itemAnchor={(id) =>
-                    tourFieldAttr('studio.menu-item', 'guided-learning', id)
-                  }
-                  iconClassName="h-5 w-5"
-                  triggerClassName="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
-                />
-              </div>
-            )}
-            {folderPickerEnabled && !compact && (
-              <button
-                {...tourAttr('studio.folder')}
-                ref={folderButtonRef}
-                type="button"
-                onClick={() => setFolderPickerOpen((v) => !v)}
-                title={folderLabel}
-                aria-label={folderLabel}
-                aria-expanded={folderPickerOpen}
-                aria-haspopup="dialog"
-                className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-              >
-                {folderId == null ? (
-                  <Inbox className="h-5 w-5" aria-hidden="true" />
-                ) : (
-                  <FolderIcon className="h-5 w-5" aria-hidden="true" />
-                )}
-              </button>
-            )}
-          </>
-        }
-      />
-      {conflict && (
-        <div
-          role="alert"
-          data-testid="gl-studio-conflict"
-          className="flex flex-wrap items-center gap-3 border-b border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900"
-        >
-          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <p className="min-w-0 flex-1">
-            <strong className="font-bold">
-              {t(
-                claudeWrote
-                  ? 'glStudio.claudeConflictTitle'
-                  : 'glStudio.conflictTitle'
-              )}
-            </strong>{' '}
-            {t(
-              claudeWrote
-                ? 'glStudio.claudeConflictBody'
-                : 'glStudio.conflictBody'
-            )}
-          </p>
-          <button
-            type="button"
-            {...tourAttr('studio.conflict-reload')}
-            onClick={() => void reloadLatest()}
-            disabled={resolving}
-            className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
-          >
-            {t(
-              claudeWrote
-                ? 'glStudio.claudeConflictLoad'
-                : 'glStudio.conflictReload'
-            )}
-          </button>
-          <button
-            type="button"
-            {...tourAttr('studio.conflict-overwrite')}
-            onClick={() => void overwrite()}
-            disabled={resolving}
-            className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
-          >
-            {t(
-              claudeWrote
-                ? 'glStudio.claudeConflictKeep'
-                : 'glStudio.conflictOverwrite'
-            )}
-          </button>
-        </div>
-      )}
-      {readOnly && (
-        <p
-          role="status"
-          data-testid="gl-studio-read-only"
-          className="flex items-center gap-2 border-b border-slate-300 bg-slate-50 px-4 py-2.5 text-sm text-slate-700"
-        >
-          <Lock className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {t('glStudio.newerVersion')}
-        </p>
-      )}
-      {smallScreen && !noteDismissed && (
-        <div
-          data-testid="gl-studio-small-screen-note"
-          className="flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600"
-        >
-          <Laptop
-            className="h-4 w-4 shrink-0 text-slate-500"
-            aria-hidden="true"
-          />
-          <p className="min-w-0 flex-1">{t('glStudio.smallScreenNote')}</p>
-          <button
-            type="button"
-            {...tourAttr('studio.dismiss-note')}
-            onClick={dismissNote}
-            aria-label={t('glStudio.dismissSmallScreenNote')}
-            title={t('glStudio.dismissSmallScreenNote')}
-            className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
-      )}
+    <WidgetAccentScope>
       <div
-        // Read-only sets can still be played from the header.
-        inert={readOnly && !playing}
-        className={`relative grid min-h-0 flex-1 ${
-          filmstripCollapsed
-            ? 'grid-cols-[52px_minmax(0,1fr)] lg:grid-cols-[52px_minmax(0,1fr)_360px]'
-            : 'grid-cols-[200px_minmax(0,1fr)] lg:grid-cols-[200px_minmax(0,1fr)_360px]'
-        }`}
+        ref={rootRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('glStudio.dialogLabel')}
+        tabIndex={-1}
+        data-testid="gl-studio"
+        className="fixed inset-0 flex flex-col bg-slate-100 focus:outline-hidden"
+        style={{ zIndex: Z_INDEX.modalContent }}
       >
-        <StudioFilmstrip
-          state={editorState}
-          onDeleteSlide={deleteSlideWithUndo}
-          collapsed={filmstripCollapsed}
-          onToggleCollapsed={() => setFilmstripCollapsed((v) => !v)}
-          onCopyForClaude={canCopyForClaude ? copySlideForClaude : undefined}
-          onSelectSlide={selectSlide}
-          onSelectWelcome={selectWelcome}
-          welcomeSelected={welcomeShown}
-        />
-        <div className="flex min-h-0 min-w-0 flex-col">
-          <main
-            ref={canvasRef}
-            data-testid="gl-studio-canvas-drop"
-            className="relative min-h-0 flex-1 p-6"
-            {...canvasDrop.handlers}
-          >
-            {playing ? (
-              <StudioPlayMode
-                set={playing.set}
+        <EditorHeader
+          title={editorState.title}
+          onTitleChange={readOnly ? () => undefined : editorState.setTitle}
+          titleReadOnly={readOnly}
+          titlePlaceholder={t('glStudio.titlePlaceholder')}
+          subtitle={t('glStudio.stepCount', { count: stepCount })}
+          notice={
+            autosave.error instanceof SetTooLargeError
+              ? autosave.error.message
+              : editorState.imageUrls.length === 0 &&
+                  editorState.mode !== 'tour'
+                ? t('glStudio.needSlide')
+                : !editorState.title.trim()
+                  ? t('glStudio.needTitle')
+                  : null
+          }
+          autosaveStatus={autosave.status}
+          onRetrySave={() => void autosave.flush()}
+          onDraftWithAi={
+            canUseAi && !compact ? () => setShowAiGen(true) : undefined
+          }
+          onOpenClassic={
+            onOpenClassic && !compact ? () => void openClassic() : undefined
+          }
+          onClose={() => void requestClose()}
+          compact={compact}
+          extras={
+            <>
+              {!playing && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    {...tourAttr('studio.undo')}
+                    onClick={undo}
+                    disabled={!canUndo || readOnly}
+                    aria-label={t('glStudio.undo')}
+                    title={t('glStudio.undo')}
+                    data-testid="gl-studio-undo"
+                    className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:hover:bg-transparent"
+                  >
+                    <Undo2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    {...tourAttr('studio.redo')}
+                    onClick={redo}
+                    disabled={!canRedo || readOnly}
+                    aria-label={t('glStudio.redo')}
+                    title={t('glStudio.redo')}
+                    data-testid="gl-studio-redo"
+                    className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:hover:bg-transparent"
+                  >
+                    <Redo2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+              )}
+              {!playing && (
+                <button
+                  type="button"
+                  {...tourAttr('studio.play')}
+                  onClick={startPlay}
+                  disabled={stepCount === 0}
+                  title={t('glStudio.playShortcut')}
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:border-slate-400 disabled:opacity-40"
+                >
+                  <Play className="h-4 w-4" aria-hidden="true" />
+                  {t('glStudio.playFromHere')}
+                </button>
+              )}
+              <DevicePresetPicker
                 preset={preset}
-                startStepId={playing.startStepId}
-                onStepShown={(id) => {
-                  lastPlayedRef.current = id;
-                }}
-                onExit={exitPlay}
+                onChange={choosePreset}
+                compact={compact}
               />
-            ) : welcomeShown ? (
-              <StudioWelcomePreview
-                title={editorState.title}
-                enabled={editorState.welcomeEnabled}
-                message={editorState.welcomeMessage}
-                imageUrl={editorState.welcomeImageUrl}
-                imageAlt={editorState.welcomeImageAlt}
-              />
-            ) : imageUrls.length === 0 ? (
-              <StudioStartHub
-                onFiles={(files) => void editorState.uploadFromFiles(files)}
-                onPaste={() => void editorState.uploadFromClipboard()}
-                pasteBlocked={pasteBlocked}
-                onCapture={() => setCapturing(true)}
-                uploadProgress={editorState.uploadProgress}
-                onRecordTour={
-                  canRecordTour ? () => leaveThen(requestRecordTour) : undefined
-                }
-                onDraftWithAi={canUseAi ? () => setShowAiGen(true) : undefined}
-                onImport={onImport ? () => leaveThen(onImport) : undefined}
-              />
-            ) : (
-              <StudioCanvas
-                state={editorState}
-                tools={tools}
-                setId={set.id}
-                preset={preset}
-                onDeleteStep={deleteStepWithUndo}
-              />
-            )}
-            {canvasDrop.active && (
-              <div
-                data-testid="gl-studio-drop-overlay"
-                className="pointer-events-none absolute inset-3 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-blue-primary bg-white/85 text-sm font-bold text-brand-blue-primary"
+              {canCopyForClaude && !compact && (
+                <button
+                  type="button"
+                  {...tourAttr('studio.copy-for-claude')}
+                  onClick={() => void copyForClaude({ kind: 'activity' })}
+                  aria-label={t('glStudio.copyForClaude')}
+                  title={t('glStudio.copyForClaude')}
+                  data-testid="gl-studio-copy-for-claude"
+                  className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                >
+                  <ClipboardCopy className="h-5 w-5" aria-hidden="true" />
+                </button>
+              )}
+              {!compact && (
+                <button
+                  type="button"
+                  {...tourAttr('studio.shortcuts')}
+                  onClick={() => setShortcutsOpen(true)}
+                  aria-label={t('glStudio.shortcutsOpen')}
+                  title={t('glStudio.shortcutsOpen')}
+                  aria-haspopup="dialog"
+                  data-testid="gl-studio-shortcuts-button"
+                  className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                >
+                  <Keyboard className="h-5 w-5" aria-hidden="true" />
+                </button>
+              )}
+              <button
+                type="button"
+                {...tourAttr('studio.properties')}
+                onClick={() => setPropertiesOpen((v) => !v)}
+                aria-expanded={propertiesOpen}
+                aria-controls="gl-studio-properties"
+                className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:border-slate-400 lg:hidden"
               >
-                <Upload className="h-6 w-6" aria-hidden="true" />
-                {t('glStudio.dropToAdd')}
-              </div>
-            )}
-          </main>
-          <StudioTimeline
-            state={editorState}
-            onCopyStep={copyStepWithToast}
-            onCopyForClaude={canCopyForClaude ? copyStepForClaude : undefined}
-          />
-        </div>
-        {propertiesOpen && (
-          <button
-            type="button"
-            aria-label={t('glStudio.closeProperties')}
-            {...tourAttr('studio.properties-close')}
-            onClick={() => setPropertiesOpen(false)}
-            className="absolute inset-0 z-10 bg-slate-900/30 lg:hidden"
-          />
-        )}
-        <aside
-          id="gl-studio-properties"
-          aria-label={t('glStudio.properties')}
-          data-open={propertiesOpen}
-          className={`absolute inset-y-0 right-0 z-20 w-[360px] max-w-full overflow-y-auto border-l border-slate-200 bg-white shadow-xl transition-transform custom-scrollbar lg:static lg:z-auto lg:w-auto lg:translate-x-0 lg:shadow-none ${
-            propertiesOpen
-              ? 'translate-x-0'
-              : 'invisible translate-x-full lg:visible'
-          }`}
-        >
-          <StudioPropertiesPanel
-            state={editorState}
-            onDeleteStep={deleteStepWithUndo}
-            canvasRef={canvasRef}
-            welcomeSelected={welcomeShown}
-            onEditOnBoard={
-              liveTours && isAdmin === true && !readOnly
-                ? () => void editOnBoard()
-                : undefined
-            }
-            canOfferTour={liveTours}
-          />
-        </aside>
-      </div>
-      {capturing && (
-        <ScreenCaptureModal
-          mode="snap"
-          onAddMedia={editorState.addCapturedMedia}
-          onClose={() => setCapturing(false)}
-        />
-      )}
-      {showAiGen && canUseAi && (
-        <GuidedLearningAIGenerator
-          mediaHome={editorState.mediaHome}
-          onClose={() => setShowAiGen(false)}
-          onGenerated={appendDrafted}
-        />
-      )}
-      {shortcutsOpen && (
-        <StudioShortcutSheet onClose={() => setShortcutsOpen(false)} />
-      )}
-      {folderPickerEnabled && folderPickerOpen && (
-        <FolderPickerPopover
-          variant="popover"
-          anchorRef={compact ? moreRef : folderButtonRef}
-          folders={folders ?? []}
-          selectedFolderId={folderId ?? null}
-          onSelect={(next) => onFolderChange?.(next)}
-          onClose={() => setFolderPickerOpen(false)}
-          title={t('glStudio.selectFolder')}
-          rootAnchor={tourAttr('gl-folder-picker.root')}
-          rowAnchor={(id) =>
-            tourFieldAttr('gl-folder-picker.folder', 'guided-learning', id)
+                <PanelRight className="h-4 w-4" aria-hidden="true" />
+                {t('glStudio.properties')}
+              </button>
+              {compact && (
+                <div ref={moreRef}>
+                  <StudioMenu
+                    label={t('glStudio.moreActions')}
+                    items={overflowItems}
+                    testId="gl-studio-more"
+                    anchor={tourAttr('studio.more-actions')}
+                    itemAnchor={(id) =>
+                      tourFieldAttr('studio.menu-item', 'guided-learning', id)
+                    }
+                    iconClassName="h-5 w-5"
+                    triggerClassName="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                  />
+                </div>
+              )}
+              {folderPickerEnabled && !compact && (
+                <button
+                  {...tourAttr('studio.folder')}
+                  ref={folderButtonRef}
+                  type="button"
+                  onClick={() => setFolderPickerOpen((v) => !v)}
+                  title={folderLabel}
+                  aria-label={folderLabel}
+                  aria-expanded={folderPickerOpen}
+                  aria-haspopup="dialog"
+                  className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                >
+                  {folderId == null ? (
+                    <Inbox className="h-5 w-5" aria-hidden="true" />
+                  ) : (
+                    <FolderIcon className="h-5 w-5" aria-hidden="true" />
+                  )}
+                </button>
+              )}
+            </>
           }
         />
-      )}
-    </div>,
+        {conflict && (
+          <div
+            role="alert"
+            data-testid="gl-studio-conflict"
+            className="flex flex-wrap items-center gap-3 border-b border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900"
+          >
+            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <p className="min-w-0 flex-1">
+              <strong className="font-bold">
+                {t(
+                  claudeWrote
+                    ? 'glStudio.claudeConflictTitle'
+                    : 'glStudio.conflictTitle'
+                )}
+              </strong>{' '}
+              {t(
+                claudeWrote
+                  ? 'glStudio.claudeConflictBody'
+                  : 'glStudio.conflictBody'
+              )}
+            </p>
+            <button
+              type="button"
+              {...tourAttr('studio.conflict-reload')}
+              onClick={() => void reloadLatest()}
+              disabled={resolving}
+              className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+            >
+              {t(
+                claudeWrote
+                  ? 'glStudio.claudeConflictLoad'
+                  : 'glStudio.conflictReload'
+              )}
+            </button>
+            <button
+              type="button"
+              {...tourAttr('studio.conflict-overwrite')}
+              onClick={() => void overwrite()}
+              disabled={resolving}
+              className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+            >
+              {t(
+                claudeWrote
+                  ? 'glStudio.claudeConflictKeep'
+                  : 'glStudio.conflictOverwrite'
+              )}
+            </button>
+          </div>
+        )}
+        {readOnly && (
+          <p
+            role="status"
+            data-testid="gl-studio-read-only"
+            className="flex items-center gap-2 border-b border-slate-300 bg-slate-50 px-4 py-2.5 text-sm text-slate-700"
+          >
+            <Lock className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {t('glStudio.newerVersion')}
+          </p>
+        )}
+        {smallScreen && !noteDismissed && (
+          <div
+            data-testid="gl-studio-small-screen-note"
+            className="flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600"
+          >
+            <Laptop
+              className="h-4 w-4 shrink-0 text-slate-500"
+              aria-hidden="true"
+            />
+            <p className="min-w-0 flex-1">{t('glStudio.smallScreenNote')}</p>
+            <button
+              type="button"
+              {...tourAttr('studio.dismiss-note')}
+              onClick={dismissNote}
+              aria-label={t('glStudio.dismissSmallScreenNote')}
+              title={t('glStudio.dismissSmallScreenNote')}
+              className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        )}
+        <div
+          // Read-only sets can still be played from the header.
+          inert={readOnly && !playing}
+          className={`relative grid min-h-0 flex-1 ${
+            filmstripCollapsed
+              ? 'grid-cols-[52px_minmax(0,1fr)] lg:grid-cols-[52px_minmax(0,1fr)_360px]'
+              : 'grid-cols-[200px_minmax(0,1fr)] lg:grid-cols-[200px_minmax(0,1fr)_360px]'
+          }`}
+        >
+          <StudioFilmstrip
+            state={editorState}
+            onDeleteSlide={deleteSlideWithUndo}
+            collapsed={filmstripCollapsed}
+            onToggleCollapsed={() => setFilmstripCollapsed((v) => !v)}
+            onCopyForClaude={canCopyForClaude ? copySlideForClaude : undefined}
+            onSelectSlide={selectSlide}
+            onSelectWelcome={selectWelcome}
+            welcomeSelected={welcomeShown}
+          />
+          <div className="flex min-h-0 min-w-0 flex-col">
+            <main
+              ref={canvasRef}
+              data-testid="gl-studio-canvas-drop"
+              className="relative min-h-0 flex-1 p-6"
+              {...canvasDrop.handlers}
+            >
+              {playing ? (
+                <StudioPlayMode
+                  set={playing.set}
+                  preset={preset}
+                  startStepId={playing.startStepId}
+                  onStepShown={(id) => {
+                    lastPlayedRef.current = id;
+                  }}
+                  onExit={exitPlay}
+                />
+              ) : welcomeShown ? (
+                <StudioWelcomePreview
+                  title={editorState.title}
+                  enabled={editorState.welcomeEnabled}
+                  message={editorState.welcomeMessage}
+                  imageUrl={editorState.welcomeImageUrl}
+                  imageAlt={editorState.welcomeImageAlt}
+                />
+              ) : imageUrls.length === 0 ? (
+                <StudioStartHub
+                  onFiles={(files) => void editorState.uploadFromFiles(files)}
+                  onPaste={() => void editorState.uploadFromClipboard()}
+                  pasteBlocked={pasteBlocked}
+                  onCapture={() => setCapturing(true)}
+                  uploadProgress={editorState.uploadProgress}
+                  onRecordTour={
+                    canRecordTour
+                      ? () => leaveThen(requestRecordTour)
+                      : undefined
+                  }
+                  onDraftWithAi={
+                    canUseAi ? () => setShowAiGen(true) : undefined
+                  }
+                  onImport={onImport ? () => leaveThen(onImport) : undefined}
+                />
+              ) : (
+                <StudioCanvas
+                  state={editorState}
+                  tools={tools}
+                  setId={set.id}
+                  preset={preset}
+                  onDeleteStep={deleteStepWithUndo}
+                />
+              )}
+              {canvasDrop.active && (
+                <div
+                  data-testid="gl-studio-drop-overlay"
+                  className="pointer-events-none absolute inset-3 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-blue-primary bg-white/85 text-sm font-bold text-brand-blue-primary"
+                >
+                  <Upload className="h-6 w-6" aria-hidden="true" />
+                  {t('glStudio.dropToAdd')}
+                </div>
+              )}
+            </main>
+            <StudioTimeline
+              state={editorState}
+              onCopyStep={copyStepWithToast}
+              onCopyForClaude={canCopyForClaude ? copyStepForClaude : undefined}
+            />
+          </div>
+          {propertiesOpen && (
+            <button
+              type="button"
+              aria-label={t('glStudio.closeProperties')}
+              {...tourAttr('studio.properties-close')}
+              onClick={() => setPropertiesOpen(false)}
+              className="absolute inset-0 z-10 bg-slate-900/30 lg:hidden"
+            />
+          )}
+          <aside
+            id="gl-studio-properties"
+            aria-label={t('glStudio.properties')}
+            data-open={propertiesOpen}
+            className={`absolute inset-y-0 right-0 z-20 w-[360px] max-w-full overflow-y-auto border-l border-slate-200 bg-white shadow-xl transition-transform custom-scrollbar lg:static lg:z-auto lg:w-auto lg:translate-x-0 lg:shadow-none ${
+              propertiesOpen
+                ? 'translate-x-0'
+                : 'invisible translate-x-full lg:visible'
+            }`}
+          >
+            <StudioPropertiesPanel
+              state={editorState}
+              onDeleteStep={deleteStepWithUndo}
+              canvasRef={canvasRef}
+              welcomeSelected={welcomeShown}
+              onEditOnBoard={
+                liveTours && isAdmin === true && !readOnly
+                  ? () => void editOnBoard()
+                  : undefined
+              }
+              canOfferTour={liveTours}
+            />
+          </aside>
+        </div>
+        {capturing && (
+          <ScreenCaptureModal
+            mode="snap"
+            onAddMedia={editorState.addCapturedMedia}
+            onClose={() => setCapturing(false)}
+          />
+        )}
+        {showAiGen && canUseAi && (
+          <GuidedLearningAIGenerator
+            mediaHome={editorState.mediaHome}
+            onClose={() => setShowAiGen(false)}
+            onGenerated={appendDrafted}
+          />
+        )}
+        {shortcutsOpen && (
+          <StudioShortcutSheet onClose={() => setShortcutsOpen(false)} />
+        )}
+        {folderPickerEnabled && folderPickerOpen && (
+          <FolderPickerPopover
+            variant="popover"
+            anchorRef={compact ? moreRef : folderButtonRef}
+            folders={folders ?? []}
+            selectedFolderId={folderId ?? null}
+            onSelect={(next) => onFolderChange?.(next)}
+            onClose={() => setFolderPickerOpen(false)}
+            title={t('glStudio.selectFolder')}
+            rootAnchor={tourAttr('gl-folder-picker.root')}
+            rowAnchor={(id) =>
+              tourFieldAttr('gl-folder-picker.folder', 'guided-learning', id)
+            }
+          />
+        )}
+      </div>
+    </WidgetAccentScope>,
     document.body
   );
 };

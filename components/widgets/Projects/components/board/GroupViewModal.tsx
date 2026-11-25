@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { WidgetAccentScope } from '@/components/common/WidgetAccentScope';
 import { ScrollText, X } from 'lucide-react';
 import type {
   ProjectGroup,
@@ -161,13 +162,15 @@ export const GroupViewModal: React.FC<GroupViewModalProps> = ({
       {rubricOpen &&
         run.rubric &&
         createPortal(
-          <div className="relative z-modal-nested">
-            <ProjectRubricSheet
-              rubric={run.rubric}
-              maxPoints={maxPoints}
-              onClose={() => setRubricOpen(false)}
-            />
-          </div>,
+          <WidgetAccentScope>
+            <div className="relative z-modal-nested">
+              <ProjectRubricSheet
+                rubric={run.rubric}
+                maxPoints={maxPoints}
+                onClose={() => setRubricOpen(false)}
+              />
+            </div>
+          </WidgetAccentScope>,
           document.body
         )}
     </>

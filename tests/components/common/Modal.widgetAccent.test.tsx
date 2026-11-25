@@ -55,3 +55,26 @@ describe('widgetDialogAccent', () => {
     expect(widgetDialogAccent('clock', () => true)).toBeUndefined();
   });
 });
+
+describe('WidgetAccentScope', () => {
+  it('adds no wrapper outside a widget and themes inside one', async () => {
+    const { WidgetAccentScope } =
+      await import('@/components/common/WidgetAccentScope');
+    const { container, rerender } = render(
+      <WidgetAccentScope>
+        <span>menu</span>
+      </WidgetAccentScope>
+    );
+    expect(container.firstElementChild?.tagName).toBe('SPAN');
+    rerender(
+      <WidgetAccentContext value="#c2410c">
+        <WidgetAccentScope>
+          <span>menu</span>
+        </WidgetAccentScope>
+      </WidgetAccentContext>
+    );
+    const wrap = container.firstElementChild as HTMLElement;
+    expect(wrap.className).toBe('contents');
+    expect(wrap.style.getPropertyValue('--brand-blue-primary')).toBe('#c2410c');
+  });
+});

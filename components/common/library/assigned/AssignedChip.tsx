@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { WidgetAccentScope } from '@/components/common/WidgetAccentScope';
 import { Check, ChevronDown } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { isEscapeFromWidgetInput, scrollMovesAnchor } from '@/utils/domHelpers';
@@ -233,33 +234,35 @@ export const AssignedChip: React.FC<AssignedChipProps> = ({
         pos &&
         !disabled &&
         createPortal(
-          <div
-            ref={menu}
-            role="menu"
-            aria-label={ariaLabel}
-            data-click-outside-ignore="true"
-            onKeyDown={onMenuKey}
-            onClick={(e) => e.stopPropagation()}
-            className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
-            style={{
-              position: 'fixed',
-              top: pos.top,
-              left: pos.left,
-              minWidth: MENU_WIDTH,
-              zIndex: Z_INDEX.popover,
-            }}
-          >
-            {options.map((o) => row(o, true))}
-            {footer && (
-              <>
-                <div
-                  role="separator"
-                  className="my-1 border-t border-slate-200"
-                />
-                {row(footer, false)}
-              </>
-            )}
-          </div>,
+          <WidgetAccentScope>
+            <div
+              ref={menu}
+              role="menu"
+              aria-label={ariaLabel}
+              data-click-outside-ignore="true"
+              onKeyDown={onMenuKey}
+              onClick={(e) => e.stopPropagation()}
+              className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
+              style={{
+                position: 'fixed',
+                top: pos.top,
+                left: pos.left,
+                minWidth: MENU_WIDTH,
+                zIndex: Z_INDEX.popover,
+              }}
+            >
+              {options.map((o) => row(o, true))}
+              {footer && (
+                <>
+                  <div
+                    role="separator"
+                    className="my-1 border-t border-slate-200"
+                  />
+                  {row(footer, false)}
+                </>
+              )}
+            </div>
+          </WidgetAccentScope>,
           document.body
         )}
     </div>
