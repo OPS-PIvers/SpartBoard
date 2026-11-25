@@ -2,6 +2,7 @@
 import type React from 'react';
 import {
   ClipboardList,
+  Copy,
   MonitorPlay,
   Camera,
   PenLine,
@@ -1339,6 +1340,28 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'video-activity-share-sync': {
+    label: 'Video Activity: Synced share links',
+    icon: Video,
+    description:
+      'A shared Video Activity link can import as Synced or as a copy.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'lms-push-final-scores': {
+    label: 'Grade push: Send final scores',
+    icon: Send,
+    description:
+      'Classroom and Schoology pushes send the score shown in the gradebook.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'embed-reload': {
     label: 'Embed: Reload button',
     icon: RefreshCw,
@@ -1851,6 +1874,27 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: CalendarClock,
     description:
       'The quiz monitor can schedule a quiz for one student. Their class can stay paused.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'student-windows': {
+    label: 'Opens and Closes for one student',
+    icon: CalendarClock,
+    description:
+      "A student's own Opens and Closes work in every assignment. One student's later close no longer keeps the class open.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'library-duplicate-more': {
+    label: 'Duplicate: Flashcards and Rubrics',
+    icon: Copy,
+    description: 'Flashcard sets and rubrics get a Duplicate button.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

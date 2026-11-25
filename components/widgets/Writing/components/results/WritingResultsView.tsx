@@ -18,6 +18,8 @@ import {
   ScoreDistributionBars,
 } from '@/components/widgets/QuizWidget/components/results/ResultsHome';
 import { SegmentedToggle } from '@/components/widgets/QuizWidget/components/results/SegmentedToggle';
+import { ResultsSheetButton } from '@/components/widgets/QuizWidget/components/results/ResultsSheetButton';
+import type { ResultsSheetExport } from '@/hooks/useResultsSheetExport';
 import {
   isGradable,
   WRITING_ROW_LABELS,
@@ -34,6 +36,9 @@ export interface WritingResultsViewProps {
   error: boolean;
   onBack: () => void;
   onGrade: (studentUid: string) => void;
+  /** Export to Sheets; absent in harness pages. */
+  sheet?: ResultsSheetExport;
+  canExport?: boolean;
 }
 
 type Screen = 'home' | 'students';
@@ -43,6 +48,13 @@ const headerIcon = { width: 'min(16px, 5cqmin)', height: 'min(16px, 5cqmin)' };
 const footerIcon = {
   width: 'min(14px, 4.5cqmin)',
   height: 'min(14px, 4.5cqmin)',
+};
+const footerButtonClass =
+  'inline-flex items-center whitespace-nowrap rounded-md border border-brand-gray-lighter bg-white font-sans font-semibold text-brand-blue-primary transition-colors hover:border-brand-blue-light disabled:opacity-60';
+const footerButtonStyle = {
+  gap: 'min(6px, 1.5cqmin)',
+  padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
+  fontSize: 'min(13px, 4.5cqmin)',
 };
 const collator = new Intl.Collator(undefined, {
   sensitivity: 'base',
@@ -68,6 +80,8 @@ export const WritingResultsView: React.FC<WritingResultsViewProps> = ({
   error,
   onBack,
   onGrade,
+  sheet,
+  canExport = false,
 }) => {
   const [screen, setScreen] = useState<Screen>('home');
   const [sort, setSort] = useState<StudentSort>('lastName');
@@ -324,16 +338,31 @@ export const WritingResultsView: React.FC<WritingResultsViewProps> = ({
             onClick={() => firstToGrade && onGrade(firstToGrade.studentUid)}
             disabled={!firstToGrade}
             {...tourTypeAttr('writing-results.grade', 'writing')}
-            className="inline-flex items-center rounded-md border border-brand-gray-lighter bg-white font-sans font-semibold text-brand-blue-primary transition-colors hover:border-brand-blue-light disabled:opacity-60"
-            style={{
-              gap: 'min(6px, 1.5cqmin)',
-              padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
-              fontSize: 'min(13px, 4.5cqmin)',
-            }}
+            className={footerButtonClass}
+            style={footerButtonStyle}
           >
             <Pencil aria-hidden style={footerIcon} />
             Grade
           </button>
+          {sheet && (
+            <div
+              className="ml-auto flex min-w-0 items-center"
+              style={{ gap: 'min(8px, 2cqmin)' }}
+            >
+              <ResultsSheetButton
+                sheet={sheet}
+                disabled={!canExport}
+                exportAnchor={tourTypeAttr('writing-results.export', 'writing')}
+                openAnchor={tourTypeAttr(
+                  'writing-results.open-sheet',
+                  'writing'
+                )}
+                className={footerButtonClass}
+                style={footerButtonStyle}
+                iconStyle={footerIcon}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

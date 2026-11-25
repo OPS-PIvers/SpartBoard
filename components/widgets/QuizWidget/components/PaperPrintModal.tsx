@@ -58,7 +58,6 @@ import type {
   PaperSheetStimulus,
   Plc,
   QuizData,
-  Student,
 } from '@/types';
 import { pageCountForQuestions, paperGridOf } from '@/utils/paperSheetLayout';
 import {
@@ -163,6 +162,7 @@ import {
   sectionOfQuestion,
   sessionSectionsFor,
 } from '@/utils/quizSections';
+import { compareLastFirst, lastFirst } from '@/utils/studentName';
 
 const MAX_SPARES = 20;
 /** Upload cap for a sheet image; a page of toner cannot use more than this. */
@@ -270,9 +270,6 @@ export interface PaperPrintSetup {
 const tooManyPagesMessage = (pageCount: number): string =>
   `This sheet needs ${pageCount} pages. The most one sheet can print is ${MAX_SHEET_PAGE}.`;
 
-const studentSort = (a: Student, b: Student): number =>
-  `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`);
-
 export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   quiz: savedQuiz,
   assign,
@@ -341,7 +338,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         .map((roster) => ({
           roster,
           students: [...roster.students]
-            .sort(studentSort)
+            .sort(compareLastFirst)
             .filter((s) => selectedStudentIds[roster.id]?.has(s.id)),
         }))
         .filter((s) => s.students.length > 0),
@@ -1614,11 +1611,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   }
 
   const groupStudentNames = group
-    ? selectionsForPrint.flatMap(({ students }) =>
-        students.map((st) =>
-          [st.lastName, st.firstName].filter(Boolean).join(', ')
-        )
-      )
+    ? selectionsForPrint.flatMap(({ students }) => students.map(lastFirst))
     : [];
 
   const footerMessage = tooManyPages

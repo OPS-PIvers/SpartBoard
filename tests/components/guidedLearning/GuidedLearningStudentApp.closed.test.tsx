@@ -20,6 +20,7 @@ const { mockAuth, hookState, submitResponse, listener, playerProps } =
     },
     hookState: {
       session: null as import('@/types').GuidedLearningSession | null,
+      pointer: undefined as { closeAt?: number; openAt?: number } | undefined,
     },
     submitResponse: vi.fn(),
     listener: {
@@ -74,7 +75,7 @@ vi.mock('@/hooks/useGuidedLearningSession', () => ({
 }));
 
 vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
-  useStudentAssignmentPointer: () => undefined,
+  useStudentAssignmentPointer: () => hookState.pointer,
 }));
 
 vi.mock('@/hooks/useGuidedLearningProgress', () => ({
@@ -122,6 +123,7 @@ beforeEach(() => {
   listener.error = null;
   playerProps.current = null;
   hookState.session = session();
+  hookState.pointer = undefined;
   submitResponse.mockResolvedValue(undefined);
   window.history.replaceState({}, '', '/guided-learning/session-1');
 });
@@ -291,5 +293,60 @@ describe('GuidedLearningStudentApp — closed session and reconnect', () => {
     expect(
       screen.getByText('Your responses have been submitted.')
     ).toBeInTheDocument();
+  });
+
+  describe("a student's own window", () => {
+    const LATER = Date.now() + 3_600_000;
+    // A later close for one student widened the session; the class closed already.
+    const widened = (): GuidedLearningSession =>
+      ({
+        ...session(),
+        closeAt: LATER,
+        studentWindows: { classCloseAt: PAST, closeAt: LATER },
+      }) as GuidedLearningSession;
+
+    it('closes a student without an extension at the class close', async () => {
+      hookState.session = widened();
+      render(<GuidedLearningStudentApp />);
+      await waitFor(() => expect(listener.next).not.toBeNull());
+      emit(null);
+      expect(await screen.findByText(CLOSED)).toBeInTheDocument();
+    });
+
+    it('keeps the extended student in', async () => {
+      hookState.session = widened();
+      hookState.pointer = { closeAt: LATER };
+      render(<GuidedLearningStudentApp />);
+      await waitFor(() => expect(listener.next).not.toBeNull());
+      emit(null);
+      expect(
+        await screen.findByRole('button', { name: /^start/i })
+      ).toBeInTheDocument();
+      expect(screen.queryByText(CLOSED)).toBeNull();
+    });
+
+    it('closes a student whose own close passed while the class is open', async () => {
+      hookState.session = {
+        ...session(),
+        closeAt: LATER,
+        studentWindows: { classCloseAt: LATER, closeAt: LATER },
+      } as GuidedLearningSession;
+      hookState.pointer = { closeAt: PAST };
+      render(<GuidedLearningStudentApp />);
+      await waitFor(() => expect(listener.next).not.toBeNull());
+      emit(null);
+      expect(await screen.findByText(CLOSED)).toBeInTheDocument();
+    });
+
+    it("ignores the student's own close on sessions saved without it", async () => {
+      hookState.session = { ...session(), closeAt: LATER };
+      hookState.pointer = { closeAt: PAST };
+      render(<GuidedLearningStudentApp />);
+      await waitFor(() => expect(listener.next).not.toBeNull());
+      emit(null);
+      expect(
+        await screen.findByRole('button', { name: /^start/i })
+      ).toBeInTheDocument();
+    });
   });
 });

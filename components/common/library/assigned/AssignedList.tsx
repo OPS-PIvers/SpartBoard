@@ -34,6 +34,7 @@ import {
   type AssignedBulkUndo,
 } from './assignedBulkContext';
 import { LibrarySelectToggle } from '../LibrarySelectToggle';
+import { SearchField } from '@/components/common/SearchField';
 
 export interface AssignedListItem {
   id: string;
@@ -460,15 +461,14 @@ export function AssignedList<T extends AssignedListItem>({
       }}
     >
       {titleOf && (
-        <input
-          type="search"
+        <SearchField
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={setQuery}
           placeholder="Search assignments"
-          aria-label="Search assignments"
-          {...tourTypeAttr('library-shell.assigned-search', tourWidgetType)}
-          className={`flex-1 ${FIELD_CLASS} ${fieldTone(false)}`}
-          style={{ ...FIELD_STYLE, minWidth: 'min(140px, 40cqmin)' }}
+          anchor={tourTypeAttr('library-shell.assigned-search', tourWidgetType)}
+          size="scaled"
+          className="flex-1"
+          style={{ minWidth: 'min(140px, 40cqmin)' }}
         />
       )}
       {classLabels.length > 1 && (

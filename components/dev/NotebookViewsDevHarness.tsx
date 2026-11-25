@@ -18,7 +18,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Library } from '@/components/widgets/SmartNotebook/components/Library';
 import { Viewer } from '@/components/widgets/SmartNotebook/components/Viewer';
 import { PageEditorOverlay } from '@/components/widgets/SmartNotebook/components/PageEditorOverlay';
-import { Toast } from '@/components/common/Toast';
 import { NotebookItem } from '@/types';
 import {
   buildMockNotebook,
@@ -143,7 +142,9 @@ const NotebookViewsState: React.FC<{
           onChangeDisplayMode={noop}
           fileInputRef={fileInputRef}
         />
-        <Toast message={mock.importSummaryText} type="success" />
+        <p role="status" className="p-4 text-sm font-semibold text-green-800">
+          {mock.importSummaryText}
+        </p>
       </>
     );
   }

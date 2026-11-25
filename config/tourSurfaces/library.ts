@@ -11,7 +11,6 @@ export const SURFACES: TourSurfaceMap = {
     inner: {
       'library-shell.new-menu-item': 'library-shell.new',
       'library-shell.secondary-menu-item': 'library-shell.secondary-action',
-      'library-shell.sort-option': 'library-shell.sort',
       'library-shell.card-menu-item': 'library-shell.card-menu',
       'library-shell.assigned-class-action': 'library-shell.assigned-classes',
       'library-shell.assigned-results': 'library-shell.assigned-classes',
@@ -36,6 +35,7 @@ export const SURFACES: TourSurfaceMap = {
       'library-shell.folder-dialog-delete-all':
         'library-shell.folder-menu-delete',
       'library-shell.folder-dialog-cancel': 'library-shell.folder-menu-delete',
+      'library-shell.folder-dialog-confirm': 'library-shell.folder-menu-delete',
     },
   },
   // Every library's In Progress and Archive tabs render these rows, so each widget's face maps the tab.

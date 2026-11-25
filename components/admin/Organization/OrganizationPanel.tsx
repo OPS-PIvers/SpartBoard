@@ -60,6 +60,8 @@ import { TestClassesView } from './views/TestClassesView';
 import { MediaReviewSection } from './views/MediaReviewView';
 import { AppSettingsView } from './views/AppSettingsView';
 import { Btn, Confirm, LocalModal, OrgLogoTile } from './components/primitives';
+import { copyText } from '@/utils/copyText';
+import { copyLinkWithToast } from '@/hooks/useCopyShortLink';
 
 type SectionId =
   | 'orgs'
@@ -519,25 +521,11 @@ export const OrganizationPanel: React.FC = () => {
     // Auto-copy the claim URL when there's exactly one new invite; that's
     // the common single-invite case and avoids an extra click.
     if (created.length === 1 && created[0]) {
-      try {
-        if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(created[0].claimUrl);
-          showToast(
-            `Invite link copied for ${created[0].email}. Paste it into your email or chat.`,
-            'success'
-          );
-        } else {
-          showToast(
-            `Invite created for ${created[0].email}. Link: ${created[0].claimUrl}`,
-            'success'
-          );
-        }
-      } catch {
-        showToast(
-          `Invite created for ${created[0].email}. Link: ${created[0].claimUrl}`,
-          'success'
-        );
-      }
+      await copyLinkWithToast(created[0].claimUrl, showToast, {
+        success: `Invite link copied for ${created[0].email}. Paste it into your email or chat.`,
+        failure: `Invite created for ${created[0].email}. Link: ${created[0].claimUrl}`,
+        failureType: 'success',
+      });
     } else if (created.length > 1) {
       showToast(
         `Created ${created.length} invites. Copy each link from the users list.`,
@@ -1130,12 +1118,11 @@ const ManualResetLinkModal: React.FC<{
   const handleCopy = async () => {
     const url = getUrl();
     if (!url) return;
-    try {
-      await navigator.clipboard.writeText(url);
+    if (await copyText(url)) {
       setCopyState('copied');
       if (copyTimer.current) clearTimeout(copyTimer.current);
       copyTimer.current = setTimeout(() => setCopyState('idle'), 2000);
-    } catch {
+    } else {
       // Clipboard unavailable (insecure origin, permissions denied, or
       // jsdom). Surface the failure explicitly so the admin doesn't assume
       // the copy succeeded and send nothing — then pre-select the URL so

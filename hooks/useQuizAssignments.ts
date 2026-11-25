@@ -262,6 +262,7 @@ export type {
   QuizTranslationsByLocale,
   ResponseGradingContext,
 } from './quizAssignments/publishGrading';
+import { librarySharePath } from '@/utils/shareRoutes';
 
 /** A pass for a student reopened after End runs until the teacher ends the quiz again. */
 const REOPEN_PASS_MS = 365 * 24 * 60 * 60 * 1000;
@@ -1793,7 +1794,7 @@ export const useQuizAssignments = (
         collection(db, SHARED_ASSIGNMENTS_COLLECTION),
         payload
       );
-      return `${window.location.origin}/share/assignment/${ref.id}`;
+      return `${window.location.origin}${librarySharePath('assignment', ref.id)}`;
     },
     [userId]
   );

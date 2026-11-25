@@ -130,8 +130,7 @@ export const Dock: React.FC = () => {
     activeDashboard,
     updateWidget,
     addToast,
-    setPendingQuizShareId,
-    setPendingAssignmentShareId,
+    setPendingLibraryShare,
     annotationActive,
     annotationState,
   } = useDashboard();
@@ -607,16 +606,9 @@ export const Dock: React.FC = () => {
               config: { activeApp: previewItem, activeAppUnsaved: true },
             });
             addToast('HTML opened — click the save icon to keep it!', 'info');
-          } else if (result.action === 'import-quiz') {
-            // Soft import — set pending state; DashboardView will import the
-            // quiz and open the Quiz widget to the Library tab. No reload.
-            setPendingQuizShareId(result.shareId);
-            addToast('Importing shared quiz…', 'info');
-          } else if (result.action === 'import-assignment') {
-            // Soft import — set pending state; DashboardView will import the
-            // assignment (paused) and open the Quiz widget to the Archive tab.
-            setPendingAssignmentShareId(result.shareId);
-            addToast('Importing shared assignment…', 'info');
+          } else if (result.action === 'import-library-share') {
+            // Soft import: the share importer confirms, imports and opens the right widget.
+            setPendingLibraryShare(result.link);
           } else if (result.action === 'import-notebook') {
             // Copy the shared notebook into the user's library, then drop a
             // SmartNotebook widget on the board opened to it. Async (downloads
@@ -662,8 +654,7 @@ export const Dock: React.FC = () => {
     smartPastePending,
     urlPastePending,
     videoPastePending,
-    setPendingQuizShareId,
-    setPendingAssignmentShareId,
+    setPendingLibraryShare,
     importSharedNotebookCopy,
     annotationActive,
   ]);

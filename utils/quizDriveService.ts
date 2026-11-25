@@ -39,6 +39,7 @@ import {
   compareExportRowsByStudent,
   formatQuizAnswerExport,
   headersHaveAnswerColumns,
+  type BuildResultsSheetDataOptions,
 } from '@/utils/assignmentExportShared';
 import {
   fibAnswersForResponse,
@@ -760,6 +761,16 @@ export class QuizDriveService {
       timeAway?: boolean;
       /** Live video activity questions the class was never asked. */
       notAskedQuestionIds?: string[];
+      /** Answer-text columns for a caller-supplied grader (Guided Learning); solo sheets only. */
+      formatAnswer?: BuildResultsSheetDataOptions<
+        QuizQuestion,
+        QuizResponse
+      >['formatAnswer'];
+      /** One column after the questions, such as Final score or Words. */
+      extraColumn?: BuildResultsSheetDataOptions<
+        QuizQuestion,
+        QuizResponse
+      >['extraColumn'];
       /** Quiz attempt history, solo sheets only: an Attempts column and an "Every attempt" tab. */
       attempts?: {
         countFor: (response: QuizResponse) => string;

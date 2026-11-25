@@ -33,6 +33,7 @@ import { useLiveTourPublish } from './useLiveTourPublish';
 import { tourEditorDevSeed } from './devSeed';
 import { liveCheckNeeded } from './liveCheck';
 import type { TourEditorSession } from './useTourEditorSession';
+import { copyLinkWithToast } from '@/hooks/useCopyShortLink';
 
 /** The panel's publishing, once the session exists. */
 const PublishedPanel: React.FC<
@@ -123,18 +124,19 @@ const TourEditorSessionView: React.FC = () => {
       return;
     }
     const set = getTourEdit()?.set ?? session.set;
-    try {
-      await navigator.clipboard.writeText(
-        buildClaudePrompt(
-          set,
-          stepId ? { kind: 'step', stepId } : { kind: 'activity' },
-          { dev: isDevProject() }
-        )
-      );
-      addToast(t('glStudio.copiedForClaude'), 'success');
-    } catch {
-      addToast(t('glStudio.clipboardFailed'), 'error');
-    }
+    await copyLinkWithToast(
+      buildClaudePrompt(
+        set,
+        stepId ? { kind: 'step', stepId } : { kind: 'activity' },
+        { dev: isDevProject() }
+      ),
+      addToast,
+      {
+        success: t('glStudio.copiedForClaude'),
+        failure: t('glStudio.clipboardFailed'),
+        failureType: 'error',
+      }
+    );
   };
   return (
     <PublishedPanel

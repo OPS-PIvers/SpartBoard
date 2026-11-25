@@ -88,6 +88,10 @@ import {
   useImportHandoff,
 } from '@/components/import/importHandoff';
 import { attributionFor } from '@/components/import/attribution';
+import {
+  suggestDuplicateTitle,
+  useLibraryDuplicate,
+} from '@/components/common/library';
 import { LIBRARY_ITEM_NOUNS } from '@/components/common/library/useLibraryDeleteConfirm';
 import { useLibraryDelete } from '@/components/common/library/useLibraryDelete';
 import { FlashcardSetEditorModal } from './FlashcardSetEditorModal';
@@ -197,6 +201,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   } = useFlashcardAssignments(inShare ? undefined : user?.uid);
   const { setAssignmentTargets } = useSetAssignmentTargets();
   const uid = user?.uid;
+  const studentWindows = canAccessFeature('student-windows');
   // ASSIGNED_TAB.md D21: the Assigned tab's class actions drive these whole-run writes.
   const classLifecycle = useMemo(
     () =>
@@ -205,9 +210,17 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
             endAssignment,
             reopenAssignment,
             setAssignmentTargets,
+            studentWindows,
           })
         : undefined,
-    [uid, inShare, endAssignment, reopenAssignment, setAssignmentTargets]
+    [
+      uid,
+      inShare,
+      endAssignment,
+      reopenAssignment,
+      setAssignmentTargets,
+      studentWindows,
+    ]
   );
   const assignedOn = !!classLifecycle && canAccessFeature('assigned-tab');
   const openCheckOn = canAccessFeature('assign-open-check');
@@ -442,6 +455,30 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     titleOf: (set) => set.title,
     remove: (set) => flashcardSets.deleteSet(set.id),
     addToast,
+  });
+
+  const duplicateOn = canAccessFeature('library-duplicate-more');
+  const setDuplicate = useLibraryDuplicate<FlashcardSet>({
+    duplicate: async (set) => {
+      const now = Date.now();
+      const {
+        publicShareId: _share,
+        plcOrigin: _plc,
+        claudeReviewPendingAt: _review,
+        ...rest
+      } = set;
+      const copy: FlashcardSet = {
+        ...rest,
+        id: crypto.randomUUID(),
+        title: suggestDuplicateTitle(set.title || 'Untitled set'),
+        createdAt: now,
+        updatedAt: now,
+      };
+      await flashcardSets.saveSet(copy);
+      return copy;
+    },
+    addToast,
+    errorMessage: 'That set could not be duplicated.',
   });
 
   const handleAssign = (set: FlashcardSet): void => {
@@ -872,6 +909,12 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onShare={setSharingSet}
                 onAssign={handleAssign}
                 onDelete={(set) => void setDelete.deleteOne(set)}
+                onDuplicate={
+                  duplicateOn && !inShare
+                    ? (set) => void setDuplicate.duplicate(set)
+                    : undefined
+                }
+                isDuplicating={setDuplicate.isDuplicating}
                 folderDeleteActions={setDelete.folderActions(
                   flashcardSets.sets
                 )}

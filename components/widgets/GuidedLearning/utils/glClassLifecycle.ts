@@ -10,7 +10,12 @@ import type {
   AssignmentRun,
 } from '@/hooks/useAssignmentClassActions';
 import type { UseSetAssignmentTargetsResult } from '@/hooks/useSetAssignmentTargets';
-import { hasStudentPointers } from '@/utils/studentTargetRef';
+import {
+  clearedWindowRule,
+  syncPointerWindows,
+  type StaleWindowRule,
+  type StudentWindowsOption,
+} from '@/utils/pointerWindowSync';
 import {
   finalizeClassGuidedLearningResponses,
   finalizeOpenGuidedLearningResponses,
@@ -56,7 +61,8 @@ export function isGuidedLearningEnded(
 export function guidedLearningLifecycle(
   uid: string,
   actions: Pick<UseGuidedLearningAssignmentsResult, 'archiveAssignment'> &
-    Pick<UseSetAssignmentTargetsResult, 'setAssignmentTargets'>
+    Pick<UseSetAssignmentTargetsResult, 'setAssignmentTargets'> &
+    StudentWindowsOption
 ): GuidedLearningLifecycle {
   const scheduleTurnIn = (id: string, closeAt: number) => {
     const wait = Math.max(0, closeAt + END_TURN_IN_DELAY_MS - Date.now());
@@ -67,28 +73,24 @@ export function guidedLearningLifecycle(
     }, wait);
   };
 
-  const syncPointers = async (
+  const syncPointers = (
     id: string,
     row: Partial<GuidedLearningAssignment> | undefined,
-    window: { openAt?: number | null; closeAt?: number | null }
-  ) => {
-    if (!row || !hasStudentPointers(row)) return;
-    try {
-      await actions.setAssignmentTargets({
-        assignmentId: id,
+    window: { openAt?: number | null; closeAt?: number | null },
+    rule: StaleWindowRule
+  ) =>
+    syncPointerWindows(
+      actions.setAssignmentTargets,
+      {
+        uid,
         kind: 'guided-learning',
-        sessionId: id,
-        targetMode: row.targetMode,
-        add: [],
-        remove: [],
-        overridesBySourcedId: {},
-        window,
-      });
-    } catch (err) {
-      // A failed pointer sync must not stop Open.
-      console.error('[guidedLearningLifecycle] Pointer sync failed:', err);
-    }
-  };
+        assignmentCollection: ASSIGNMENTS,
+        assignmentId: id,
+        fallback: row,
+      },
+      window,
+      actions.studentWindows ? rule : null
+    );
 
   return {
     async end(id) {
@@ -139,14 +141,15 @@ export function guidedLearningLifecycle(
       invalidateSessionViewCount(SESSIONS, id);
       // Accommodated and skipped students read the close off their own pointer doc.
       if (sessionClosed || rowClosed)
-        await syncPointers(id, row, { closeAt: next });
+        await syncPointers(
+          id,
+          row,
+          { closeAt: next },
+          { closeAt: 'expired', futureOpenAt: false }
+        );
     },
-    async onWindowCleared(id, patch) {
-      const row = (
-        await getDoc(doc(db, 'users', uid, ASSIGNMENTS, id))
-      ).data() as Partial<GuidedLearningAssignment> | undefined;
-      await syncPointers(id, row, patch);
-    },
+    onWindowCleared: (id, patch) =>
+      syncPointers(id, undefined, patch, clearedWindowRule(patch)),
     turnInClass: (sessionId, classKey, closedAt) =>
       finalizeClassGuidedLearningResponses(sessionId, classKey, closedAt),
     turnInDelayMs: END_TURN_IN_DELAY_MS,

@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   dueAtByClassIdFromRosters,
   earliestDueAt,
-  resolveStudentDueAt,
 } from '@/utils/perClassDueDates';
+import { studentDueAt } from '@/utils/studentWindow';
 import type { ClassRoster } from '@/types';
 
 const roster = (id: string, extra: Partial<ClassRoster> = {}) =>
@@ -35,8 +35,12 @@ describe('perClassDueDates', () => {
   });
 
   it("a student sees their own class's date, else the shared one", () => {
-    expect(resolveStudentDueAt(50, { c1: 100, c2: 200 }, ['c2'])).toBe(200);
-    expect(resolveStudentDueAt(50, { c1: 100 }, ['c9'])).toBe(50);
-    expect(resolveStudentDueAt(50, undefined, ['c1'])).toBe(50);
+    const due = (dueAtByClassId?: Record<string, number>) => ({
+      dueAt: 50,
+      dueAtByClassId,
+    });
+    expect(studentDueAt(due({ c1: 100, c2: 200 }), ['c2'])).toBe(200);
+    expect(studentDueAt(due({ c1: 100 }), ['c9'])).toBe(50);
+    expect(studentDueAt(due(), ['c1'])).toBe(50);
   });
 });

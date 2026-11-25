@@ -1,5 +1,6 @@
 // Writing peer review: groups of two (or three) students, each reading the next one's writing.
 import type { WritingPeerAccess } from '@/types';
+import { lastFirst } from '@/utils/studentName';
 
 /** A group lists student uids; each reviews the next, and the last reviews the first. */
 export type PeerGroup = string[];
@@ -118,11 +119,7 @@ export function peerStudentList(
   return [...new Set(uids)]
     .map((uid) => {
       const n = names.get(uid);
-      const name = !n
-        ? ''
-        : n.familyName && n.givenName
-          ? `${n.familyName}, ${n.givenName}`
-          : n.familyName || n.givenName;
+      const name = lastFirst(n);
       return { uid, name };
     })
     .filter((s) => s.name)

@@ -259,7 +259,7 @@ export const BoardNavFab: FC = () => {
     } catch {
       addToast(
         t('boardsModal.createCollectionFailed', {
-          defaultValue: 'Failed to create Collection',
+          defaultValue: 'Failed to create folder',
         }),
         'error'
       );
@@ -411,8 +411,8 @@ export const BoardNavFab: FC = () => {
           />
           <RowActionButton
             icon={FolderInput}
-            label={t('boardsModal.moveTitle', {
-              defaultValue: 'Move to Collection',
+            label={t('boardNav.moveBoard', {
+              defaultValue: 'Move to folder',
             })}
             onClick={() => setMovingBoardId(db.id)}
             anchor={tourFieldAttr('board-nav.move-board', 'boards', db.id)}
@@ -472,7 +472,7 @@ export const BoardNavFab: FC = () => {
             renameCollection(id, name).catch(() =>
               addToast(
                 t('collectionSwitcher.renameFailed', {
-                  defaultValue: 'Failed to rename Collection',
+                  defaultValue: 'Failed to rename folder',
                 }),
                 'error'
               )
@@ -482,7 +482,7 @@ export const BoardNavFab: FC = () => {
             reorderSiblings(parentId, ids).catch(() =>
               addToast(
                 t('collectionSwitcher.reorderFailed', {
-                  defaultValue: 'Failed to save the new Collection order',
+                  defaultValue: 'Failed to save the new folder order',
                 }),
                 'error'
               )
@@ -492,7 +492,7 @@ export const BoardNavFab: FC = () => {
             createCollection(name, null).catch(() =>
               addToast(
                 t('boardsModal.createCollectionFailed', {
-                  defaultValue: 'Failed to create Collection',
+                  defaultValue: 'Failed to create folder',
                 }),
                 'error'
               )
@@ -669,12 +669,12 @@ export const BoardNavFab: FC = () => {
               setIsCollectionMenuOpen((v) => !v);
             }}
             aria-label={t('boardNav.selectCollection', {
-              defaultValue: 'Select collection',
+              defaultValue: 'Select folder',
             })}
             aria-haspopup="menu"
             aria-expanded={isCollectionMenuOpen}
             title={t('boardNav.selectCollection', {
-              defaultValue: 'Select collection',
+              defaultValue: 'Select folder',
             })}
             className={FAB_BASE}
           >

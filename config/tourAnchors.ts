@@ -467,11 +467,6 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     requires: 'widget-restored',
   },
-  'projects.status-popover': {
-    label: 'Projects step status menu',
-    perWidget: true,
-    panel: true,
-  },
   'profile.close': {
     label: 'Close button in Profile & Settings',
     panel: true,
@@ -5268,6 +5263,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-rubric.duplicate': {
+    label: 'Duplicate rubric on the Quiz rubric builder',
+    perWidgetType: true,
+    creates: true,
+    panel: true,
+  },
   'quiz-rubric.share-link': {
     label: 'Rubric share link field on the Quiz rubric builder',
     perWidgetType: true,
@@ -6956,7 +6957,7 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
   },
   'library-shell.sort': {
-    label: 'Sort dropdown trigger in a library toolbar',
+    label: 'Sort select in a library toolbar',
     perWidgetType: true,
   },
   'library-shell.filter': {
@@ -12550,11 +12551,6 @@ export const TOUR_ANCHORS = {
     destructive: true,
     persists: true,
   },
-  'projects.status-option': {
-    label: 'Step status choice in the Projects status menu',
-    perWidget: true,
-    panel: true,
-  },
   'projects.group-student-view': {
     label: 'Group student view button on the Projects board',
     perWidgetType: true,
@@ -14100,7 +14096,8 @@ export const TOUR_ANCHORS = {
     label: 'Play or pause button on an audio step in the player',
   },
   'gl-results.back': { label: 'Back button in the results header' },
-  'gl-results.export': { label: 'Export button in the results header' },
+  'gl-results.export': { label: 'Export to Sheets button in results' },
+  'gl-results.open-sheet': { label: 'Open Sheet link in results' },
   'gl-results.class-picker': { label: 'Class picker select in results' },
   'gl-results.period-start': {
     label: 'Start class button in results',
@@ -14933,6 +14930,14 @@ export const TOUR_ANCHORS = {
     label: 'New Collection button in the Manage Boards dialog',
     panel: true,
   },
+  'boards-modal.new-collection-input': {
+    label: 'Name field on a new collection card',
+    panel: true,
+  },
+  'boards-modal.collection-name-input': {
+    label: 'Name field on a collection card being renamed',
+    panel: true,
+  },
   'boards-modal.new-board': {
     label: 'New Board button in the Manage Boards dialog',
     panel: true,
@@ -15077,10 +15082,6 @@ export const TOUR_ANCHORS = {
     panel: true,
     creates: true,
   },
-  'boards-modal.move-close': {
-    label: 'Close button in the move to collection dialog',
-    panel: true,
-  },
   'boards-modal.move-to-root': {
     label: 'Root option in the move to collection dialog',
     panel: true,
@@ -15089,24 +15090,12 @@ export const TOUR_ANCHORS = {
     label: 'Collection option in the move to collection dialog',
     panel: true,
   },
-  'boards-modal.color-close': {
-    label: 'Close button in the collection color dialog',
-    panel: true,
-  },
   'boards-modal.color-swatch': {
-    label: 'Color swatch in the collection color dialog',
-    panel: true,
-  },
-  'boards-modal.color-custom': {
-    label: 'Custom color picker in the collection color dialog',
-    panel: true,
-  },
-  'boards-modal.color-apply-custom': {
-    label: 'Apply custom color button in the collection color dialog',
+    label: 'Color swatch in the collection card menu',
     panel: true,
   },
   'boards-modal.color-done': {
-    label: 'Done button in the collection color dialog',
+    label: 'Color row in the collection card menu',
     panel: true,
   },
   'board-actions.zoom-slider': {
@@ -15482,11 +15471,6 @@ export const TOUR_ANCHORS = {
     label: 'Sort direction button in a library toolbar',
     perWidgetType: true,
   },
-  'library-shell.sort-option': {
-    label: 'Option in a library sort dropdown',
-    perField: true,
-    panel: true,
-  },
   'library-shell.select-item': {
     label: 'Select checkbox on a library item card',
     perField: true,
@@ -15571,18 +15555,23 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'library-shell.folder-dialog-move-contents': {
-    label: 'Move contents to parent button in the delete folder dialog',
+    label: 'Keep everything choice in the delete folder dialog',
     panel: true,
-    persists: true,
   },
   'library-shell.folder-dialog-delete-all': {
-    label: 'Delete folder and subfolders button in the delete folder dialog',
+    label: 'Delete everything choice in the delete folder dialog',
     panel: true,
     destructive: true,
   },
   'library-shell.folder-dialog-cancel': {
     label: 'Cancel button in the delete folder dialog',
     panel: true,
+  },
+  'library-shell.folder-dialog-confirm': {
+    label: 'Delete button in the delete folder dialog',
+    panel: true,
+    destructive: true,
+    persists: true,
   },
   'library-shell.folder-crumb': {
     label: 'Folder path link above the library list',
@@ -17141,13 +17130,6 @@ export const TOUR_ANCHORS = {
     panel: true,
     rows: true,
     rowList: 'random-class-group',
-  },
-  'seating.class-group': {
-    label: 'Group row under a class in the Seating Chart class menu',
-    perField: true,
-    panel: true,
-    rows: true,
-    rowList: 'seating-class-group',
   },
   'absent-students.clear-all': {
     label: 'Clear all button in the absent students dialog',
@@ -18724,6 +18706,14 @@ export const TOUR_ANCHORS = {
     label: 'Grade button in Writing results',
     perWidgetType: true,
   },
+  'writing-results.export': {
+    label: 'Export to Sheets button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.open-sheet': {
+    label: 'Open Sheet link in Writing results',
+    perWidgetType: true,
+  },
   'writing-results.hide-names': {
     label: 'Hide names button in Writing results',
     perWidgetType: true,
@@ -20274,10 +20264,6 @@ export const TOUR_ANCHORS = {
   },
   'boards-modal.collection-menu-move': {
     label: 'Move to item in the collection card menu',
-    panel: true,
-  },
-  'boards-modal.collection-menu-color': {
-    label: 'Set color item in the collection card menu',
     panel: true,
   },
   'boards-modal.collection-menu-stop-sharing': {

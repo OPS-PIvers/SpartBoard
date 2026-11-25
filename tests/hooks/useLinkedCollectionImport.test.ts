@@ -242,8 +242,8 @@ describe('useLinkedCollectionImport with hostile names', () => {
       })
     );
     expect(out).toMatchObject({ ok: true, imported: 1 });
-    expect(createCollection.mock.calls[0][0]).toBe('Shared collection');
-    expect(createCollection.mock.calls[1][0]).toBe('Shared collection');
+    expect(createCollection.mock.calls[0][0]).toBe('Shared folder');
+    expect(createCollection.mock.calls[1][0]).toBe('Shared folder');
     expect(createNewDashboard.mock.calls[0][0]).toBe('s-top');
   });
 });

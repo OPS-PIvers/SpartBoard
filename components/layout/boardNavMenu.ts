@@ -1,6 +1,6 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { Collection } from '@/types';
-import { cycleMemberOf } from '@/components/boardsModal/collectionTreeUtils';
+import { flattenTree } from '@/utils/folderTree';
 
 export const MENU_PANEL_CLASS =
   'absolute bottom-full left-0 mb-2 w-64 max-h-[60vh] overflow-y-auto rounded-2xl border border-white/20 bg-slate-900/80 backdrop-blur-xl shadow-2xl py-1.5 animate-in fade-in slide-in-from-bottom-2 duration-150';
@@ -24,53 +24,14 @@ export interface FlatCollection {
 /** Tree-ordered flat list of Collections with their nesting depth. */
 export const flattenCollections = (
   collections: Collection[]
-): FlatCollection[] => {
-  const childrenByParent = new Map<string | null, Collection[]>();
-  for (const c of collections) {
-    const bucket = childrenByParent.get(c.parentCollectionId) ?? [];
-    bucket.push(c);
-    childrenByParent.set(c.parentCollectionId, bucket);
-  }
-  for (const bucket of childrenByParent.values()) {
-    bucket.sort((a, b) => a.order - b.order);
-  }
-  const knownIds = new Set(collections.map((c) => c.id));
-  const out: FlatCollection[] = [];
-  const visited = new Set<string>();
-  const walk = (parent: string | null, depth: number) => {
-    for (const k of childrenByParent.get(parent) ?? []) {
-      if (visited.has(k.id)) continue;
-      visited.add(k.id);
-      out.push({ c: k, depth, effectiveParentId: parent });
-      walk(k.id, depth + 1);
-    }
-  };
-  walk(null, 0);
-  // Surface orphans (parent missing, e.g. a partial delete) at root instead of hiding them.
-  const orphanRoots = collections
-    .filter(
-      (c) =>
-        c.parentCollectionId != null &&
-        !knownIds.has(c.parentCollectionId) &&
-        !visited.has(c.id)
-    )
-    .sort((a, b) => a.order - b.order);
-  for (const c of orphanRoots) {
-    visited.add(c.id);
-    out.push({ c, depth: 0, effectiveParentId: null });
-    walk(c.id, 1);
-  }
-  // Parent cycles (two-tab races) are unreachable from root; surface them there too.
-  const byId = new Map(collections.map((c) => [c.id, c]));
-  for (const start of [...collections].sort((a, b) => a.order - b.order)) {
-    if (visited.has(start.id)) continue;
-    const c = cycleMemberOf(start, byId);
-    visited.add(c.id);
-    out.push({ c, depth: 0, effectiveParentId: null });
-    walk(c.id, 1);
-  }
-  return out;
-};
+): FlatCollection[] =>
+  flattenTree(collections, (c) => c.parentCollectionId).map(
+    ({ node, depth, effectiveParentId }) => ({
+      c: node,
+      depth,
+      effectiveParentId,
+    })
+  );
 
 /** ArrowLeft/ArrowRight between a row's menuitem and its action buttons. */
 export const moveFocusWithinRow = (

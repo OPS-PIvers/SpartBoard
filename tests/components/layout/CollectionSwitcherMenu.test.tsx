@@ -28,7 +28,7 @@ describe('CollectionSwitcherMenu', () => {
       />
     );
     expect(
-      screen.getByRole('menuitem', { name: /no collection/i })
+      screen.getByRole('menuitem', { name: /no folder/i })
     ).toBeInTheDocument();
   });
 
@@ -51,7 +51,7 @@ describe('CollectionSwitcherMenu', () => {
     // "No Collection" + 4 Collections = 5 items, in DFS order: root, A, B, C, D.
     const labels = menuItems.map((el) => el.textContent?.trim());
     expect(labels).toEqual([
-      expect.stringContaining('No Collection'),
+      expect.stringContaining('No Folder'),
       'A',
       'B',
       'C',
@@ -98,9 +98,7 @@ describe('CollectionSwitcherMenu', () => {
         onClose={vi.fn()}
       />
     );
-    await userEvent.click(
-      screen.getByRole('menuitem', { name: /no collection/i })
-    );
+    await userEvent.click(screen.getByRole('menuitem', { name: /no folder/i }));
     expect(onSelect).toHaveBeenCalledWith(null);
   });
 

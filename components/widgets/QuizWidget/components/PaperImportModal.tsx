@@ -111,6 +111,7 @@ import {
   type PaperKeptPagesRequestField,
 } from '@/utils/paperWritten';
 import { overAnsweredSections, sessionSectionsFor } from '@/utils/quizSections';
+import { lastFirst } from '@/utils/studentName';
 
 const IMPORT_CHUNK = 200;
 /** Debounce for parking the review on the batch doc (plan Q26). */
@@ -253,7 +254,7 @@ const sheetLabel = (
   if (sheet.kind === 'spare') return `Spare sheet (seat ${sheet.seat})`;
   const found = sheet.student ? findStudent(rosters, sheet.student) : null;
   if (!found) return `Seat ${sheet.seat}`;
-  return `${found.student.lastName}, ${found.student.firstName} · ${found.roster.name}`;
+  return `${lastFirst(found.student)} · ${found.roster.name}`;
 };
 
 export const PaperImportModal: React.FC<PaperImportModalProps> = ({

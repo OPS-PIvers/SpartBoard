@@ -367,6 +367,7 @@ const TeacherGuidedLearningWidget: React.FC<{
     );
   const { setAssignmentTargets: setTargets } = useSetAssignmentTargets();
   const uid = user?.uid;
+  const studentWindows = canAccessFeature('student-windows');
   // ASSIGNED_TAB.md D21: the whole-run writes the Assigned tab's class actions drive.
   const classLifecycle = useMemo(
     () =>
@@ -374,9 +375,10 @@ const TeacherGuidedLearningWidget: React.FC<{
         ? guidedLearningLifecycle(uid, {
             archiveAssignment,
             setAssignmentTargets: setTargets,
+            studentWindows,
           })
         : null,
-    [uid, archiveAssignment, setTargets]
+    [uid, archiveAssignment, setTargets, studentWindows]
   );
   const [assignedFocus, setAssignedFocus] = useState(0);
 

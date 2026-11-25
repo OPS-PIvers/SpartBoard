@@ -140,7 +140,7 @@ export const useLinkedCollectionImport = () => {
           return { ok: false, reason: 'error' };
         }
 
-        const rootName = safeName(link.name, 'Shared collection');
+        const rootName = safeName(link.name, 'Shared folder');
         const rootId = await collectionsApi.createCollection(rootName, null, {
           color: safeStyleValue(link.color),
           icon: safeStyleValue(link.icon),

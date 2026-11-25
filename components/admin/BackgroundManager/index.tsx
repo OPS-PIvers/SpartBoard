@@ -48,7 +48,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import { Toast } from '@/components/common/Toast';
+import { useDashboard } from '@/context/useDashboard';
 import { Button } from '@/components/common/Button';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useDialog } from '@/context/useDialog';
@@ -119,10 +119,6 @@ export const BackgroundManager: React.FC = () => {
     current: number;
     total: number;
   } | null>(null);
-  const [message, setMessage] = useState<{
-    type: 'success' | 'error';
-    text: string;
-  } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
 
@@ -163,9 +159,11 @@ export const BackgroundManager: React.FC = () => {
   const [showDrivePicker, setShowDrivePicker] = useState(false);
   const [showStockPicker, setShowStockPicker] = useState(false);
 
-  const showMessage = useCallback((type: 'success' | 'error', text: string) => {
-    setMessage({ type, text });
-  }, []);
+  const { addToast } = useDashboard();
+  const showMessage = useCallback(
+    (type: 'success' | 'error', text: string) => addToast(text, type),
+    [addToast]
+  );
 
   const loadDriveImages = async () => {
     if (!driveService) return;
@@ -251,17 +249,6 @@ export const BackgroundManager: React.FC = () => {
       showMessage('error', 'Failed to add stock photo');
     }
   };
-
-  // Manage message timeout lifecycle
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => {
-        setMessage(null);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [message]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loading flag for the Firestore subscription
@@ -770,15 +757,6 @@ export const BackgroundManager: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full space-y-4">
-      {/* Message Toast */}
-      {message && (
-        <Toast
-          message={message.text}
-          type={message.type}
-          onClose={() => setMessage(null)}
-        />
-      )}
-
       <BoardBackgroundDefaultsPanel
         presets={presets}
         onError={(text) => showMessage('error', text)}

@@ -87,7 +87,7 @@ export const ImportSharedCollectionModal: FC<
           />
           <h2 id={headingId} className="text-lg font-bold text-slate-800">
             {t('importSharedCollection.title', {
-              defaultValue: 'Import shared Collection',
+              defaultValue: 'Import shared folder',
             })}
           </h2>
         </div>
@@ -95,22 +95,21 @@ export const ImportSharedCollectionModal: FC<
           {state.kind === 'loading' && (
             <p className="text-sm text-slate-500">
               {t('importSharedCollection.loading', {
-                defaultValue: 'Loading shared Collection…',
+                defaultValue: 'Loading shared folder…',
               })}
             </p>
           )}
           {state.kind === 'not-found' && (
             <p className="text-sm text-red-600">
               {t('importSharedCollection.notFound', {
-                defaultValue:
-                  'Shared Collection not found. The link may be wrong or the host may have deleted it.',
+                defaultValue: 'Shared folder not found or expired.',
               })}
             </p>
           )}
           {state.kind === 'expired' && (
             <p className="text-sm text-red-600">
               {t('importSharedCollection.expired', {
-                defaultValue: 'This shared Collection has expired.',
+                defaultValue: 'This shared folder has expired.',
               })}
             </p>
           )}
@@ -118,7 +117,7 @@ export const ImportSharedCollectionModal: FC<
             <p className="text-sm text-red-600">
               {t('importSharedCollection.unauthorized', {
                 defaultValue:
-                  "You don't have permission to view this Collection. Reconnect your Google account or ask the host to re-share.",
+                  "You don't have permission to view this folder. Reconnect your Google account or ask the host to re-share.",
               })}
             </p>
           )}
@@ -126,7 +125,7 @@ export const ImportSharedCollectionModal: FC<
             <p className="text-sm text-red-600">
               {t('importSharedCollection.loadError', {
                 defaultValue:
-                  'Could not load the shared Collection. Check your connection and try again.',
+                  'Could not load the shared folder. Check your connection and try again.',
               })}
             </p>
           )}
@@ -186,7 +185,7 @@ export const ImportSharedCollectionModal: FC<
                     defaultValue: 'Importing…',
                   })
                 : t('importSharedCollection.import', {
-                    defaultValue: 'Import Collection',
+                    defaultValue: 'Import Folder',
                   })}
             </button>
           </div>

@@ -11995,6 +11995,10 @@ export type GlobalFeature =
   | 'plc-goal-coach'
   /** Generate with AI on a Help Center tour: fills its title, description, category, audience and widgets. */
   | 'help-center-ai'
+  /** Video Activity share links offer Synced or Make a copy, like quiz assignment links. */
+  | 'video-activity-share-sync'
+  /** Every Classroom and Schoology grade push sends the gradebook final score, built on the server (AB-389). */
+  | 'lms-push-final-scores'
   /** Class Close, End and sub End turn open work in from the server, with no teacher tab open (AB-388). */
   | 'server-turn-in'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
@@ -12066,7 +12070,10 @@ export type GlobalFeature =
   | 'assign-open-check'
   | 'modification-fewer-questions'
   /** Quiz monitor "Set a time": one student's own window past a paused class. */
-  | 'student-set-time';
+  | 'student-set-time'
+  /** Per-student Opens and Closes hold in every student app, and a later close for one student no longer keeps the class open. */
+  | 'student-windows'
+  | 'library-duplicate-more';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {

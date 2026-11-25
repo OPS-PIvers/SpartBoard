@@ -234,6 +234,7 @@ export const useQuizPublish = ({
       classroomFinalAttachments,
       classroomToken,
       schoologyMaxPoints: pushMaxPoints,
+      finalScores: canAccessFeature('lms-push-final-scores'),
       buildClassroomGrades: (responses) => {
         // All attachments share the assignment's maxPoints.
         const mp = classroomFinalAttachments[0]?.maxPoints;

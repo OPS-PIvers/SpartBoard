@@ -1,11 +1,12 @@
 // Rubric library + criteria/levels builder in the rubric modal (M12 spec §6.1).
 
 import { copyText } from '@/utils/copyText';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useContext, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   Check,
   Copy,
+  CopyPlus,
   Download,
   ExternalLink,
   Loader2,
@@ -19,6 +20,11 @@ import {
   RUBRIC_TEMPLATE_SHEET_URL,
 } from '@/config/rubricTemplate';
 import { useDialog } from '@/context/useDialog';
+import { AuthContext } from '@/context/AuthContextValue';
+import {
+  suggestDuplicateTitle,
+  useLibraryDuplicate,
+} from '@/components/common/library';
 import { useRubrics } from '@/hooks/useRubrics';
 import { parseRubricCsv, rubricToCsv } from '@/utils/rubricCsv';
 import {
@@ -30,6 +36,7 @@ import { useRubricLevelOrder } from '@/hooks/useRubricLevelOrder';
 import { RubricTableModal } from './RubricTableModal';
 import { isScoringGuide } from '@/utils/rubricGuide';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import { librarySharePath, parseLibraryShareLink } from '@/utils/shareRoutes';
 
 export interface RubricBuilderPanelProps {
   questionId: string;
@@ -124,24 +131,13 @@ const validateRubric = (rubric: Rubric): string[] => {
   return errors;
 };
 
-// Accepts a bare share id or a pasted share URL (`/share/rubric/{id}`) and
-// returns the id, mirroring how quiz share links resolve to a doc id.
+// Accepts a bare share id or a pasted rubric share link.
 const extractShareId = (input: string): string => {
   const trimmed = input.trim();
-  if (!trimmed) return '';
-  try {
-    const url = new URL(trimmed);
-    const segments = url.pathname.split('/').filter(Boolean);
-    return segments[segments.length - 1] ?? '';
-  } catch {
-    // Scheme-less pastes (`spartboard.web.app/share/rubric/abc`) fail URL
-    // parsing — fall back to the last path segment; bare codes pass through.
-    if (trimmed.includes('/')) {
-      const segments = trimmed.split(/[?#]/)[0].split('/').filter(Boolean);
-      return segments[segments.length - 1] ?? '';
-    }
-    return trimmed;
-  }
+  const link = parseLibraryShareLink(trimmed);
+  if (link) return link.shareId;
+  const segments = trimmed.split(/[?#]/)[0].split('/').filter(Boolean);
+  return segments[segments.length - 1] ?? '';
 };
 
 export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
@@ -156,6 +152,32 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   const { rubrics, saveRubric, shareRubric, importSharedRubric } =
     useRubrics(teacherUid);
   const { showConfirm } = useDialog();
+  const auth = useContext(AuthContext);
+  const duplicateOn = auth?.canAccessFeature('library-duplicate-more') ?? false;
+  const [duplicateStatus, setDuplicateStatus] = useState<{
+    message: string;
+    tone: 'success' | 'error';
+  } | null>(null);
+  const rubricDuplicate = useLibraryDuplicate<Rubric>({
+    duplicate: async (rubric) => {
+      const now = Date.now();
+      const copy: Rubric = {
+        ...rubric,
+        id: crypto.randomUUID(),
+        title: suggestDuplicateTitle(rubric.title || 'Untitled rubric'),
+        createdAt: now,
+        updatedAt: now,
+      };
+      await saveRubric(copy);
+      return copy;
+    },
+    addToast: (message, tone) =>
+      setDuplicateStatus({
+        message,
+        tone: tone === 'success' ? 'success' : 'error',
+      }),
+    errorMessage: 'That rubric could not be duplicated.',
+  });
   const [draft, setDraft] = useState<Rubric>(
     () => existingSnapshot ?? blankRubric()
   );
@@ -275,7 +297,9 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   const canShare = !!savedInLibrary && !draftDivergedFromLibrary;
   const shareBlockedReason = canShare
     ? null
-    : 'Save to library before sharing.';
+    : duplicateOn
+      ? 'Save to library before sharing or duplicating.'
+      : 'Save to library before sharing.';
 
   const handleShare = async () => {
     if (!savedInLibrary || draftDivergedFromLibrary) return;
@@ -285,7 +309,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
     setCopied(false);
     try {
       const shareId = await shareRubric(savedInLibrary.id);
-      const url = `${window.location.origin}/share/rubric/${shareId}`;
+      const url = `${window.location.origin}${librarySharePath('rubric', shareId)}`;
       setShareUrl(url);
       // A refused copy still leaves the link shown below for manual copy.
       if (await copyText(url)) setCopied(true);
@@ -460,6 +484,25 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           )}
           Share
         </button>
+        {duplicateOn && (
+          <button
+            onClick={() => {
+              if (!savedInLibrary) return;
+              setDuplicateStatus(null);
+              void rubricDuplicate.duplicate(savedInLibrary);
+            }}
+            disabled={
+              !canShare ||
+              (!!savedInLibrary &&
+                rubricDuplicate.isDuplicating(savedInLibrary.id))
+            }
+            {...tourTypeAttr('quiz-rubric.duplicate', 'quiz')}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors disabled:opacity-40"
+          >
+            <CopyPlus className="w-3.5 h-3.5" />
+            Duplicate
+          </button>
+        )}
       </div>
     </>
   );
@@ -467,6 +510,14 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
     <>
       {shareBlockedReason && (
         <p className="text-xs text-slate-600">{shareBlockedReason}</p>
+      )}
+      {duplicateStatus && (
+        <p
+          className={`text-xs ${duplicateStatus.tone === 'success' ? 'text-emerald-700' : 'text-rose-700'}`}
+          role={duplicateStatus.tone === 'success' ? 'status' : 'alert'}
+        >
+          {duplicateStatus.message}
+        </p>
       )}
       {shareError && (
         <p className="text-xs text-rose-700" role="alert">

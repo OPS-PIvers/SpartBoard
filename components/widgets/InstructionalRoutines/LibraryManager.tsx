@@ -28,9 +28,11 @@ import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useStorage } from '@/hooks/useStorage';
 import { removeBackground, trimImageWhitespace } from '@/utils/imageProcessing';
 import { useDialog } from '@/context/useDialog';
-import { Toast } from '@/components/common/Toast';
+import { useDashboard } from '@/context/useDashboard';
 import { Card } from '@/components/common/Card';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+
+const PROCESSING_TOAST = 'ir-library-processing';
 
 // Derive widget types from TOOLS registry, excluding catalyst-related widgets and internal tools
 const WIDGET_TYPES: WidgetType[] = TOOLS.filter(
@@ -66,10 +68,16 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
     null
   );
   const { showPrompt } = useDialog();
-  const [processingMessage, setProcessingMessage] = useState<string | null>(
-    null
-  );
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { addToast, removeToast } = useDashboard();
+  const showProcessing = (message: string) =>
+    addToast(message, 'loading', undefined, {
+      replaceKey: PROCESSING_TOAST,
+      persist: true,
+    });
+  const showError = (message: string) => {
+    removeToast(PROCESSING_TOAST);
+    addToast(message, 'error');
+  };
 
   const handleMagicDesign = async (prompt: string) => {
     setIsGenerating(true);
@@ -102,8 +110,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
       });
     } catch (error) {
       console.error('Magic Design failed:', error);
-      setErrorMessage('Failed to generate routine. Please try again.');
-      setTimeout(() => setErrorMessage(null), 3000);
+      showError('Failed to generate routine. Please try again.');
     } finally {
       setIsGenerating(false);
     }
@@ -117,10 +124,9 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
     if (!user || !file) return;
 
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
-      setErrorMessage(
+      showError(
         'The selected image is too large. Please choose an image smaller than 5MB.'
       );
-      setTimeout(() => setErrorMessage(null), 4000);
       return;
     }
 
@@ -128,7 +134,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
       type === 'sticker' ? setUploadingStickerIndex : setUploadingImageIndex;
     setUploading(index);
 
-    setProcessingMessage(
+    showProcessing(
       type === 'sticker'
         ? 'Processing sticker... This may take a few seconds for large images.'
         : 'Uploading display image...'
@@ -139,15 +145,17 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
 
       if (type === 'sticker') {
         const reader = new FileReader();
-        const dataUrl = await new Promise<string>((resolve) => {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
           reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () =>
+            reject(reader.error ?? new Error('Read failed'));
           reader.readAsDataURL(file);
         });
 
         const noBg = await removeBackground(dataUrl);
         const trimmed = await trimImageWhitespace(noBg);
 
-        setProcessingMessage('Uploading sticker...');
+        showProcessing('Uploading sticker...');
         const response = await fetch(trimmed);
         const blob = await response.blob();
         finalFile = new File(
@@ -172,14 +180,12 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
         [type === 'sticker' ? 'stickerUrl' : 'imageUrl']: url,
       };
       onChange({ ...routine, steps: nextSteps });
-      setProcessingMessage(null);
+      removeToast(PROCESSING_TOAST);
     } catch (e) {
       console.error(`${type} upload failed:`, e);
-      setErrorMessage(
+      showError(
         `Failed to upload ${type}. Please check your image and try again.`
       );
-      setTimeout(() => setErrorMessage(null), 3000);
-      setProcessingMessage(null);
     } finally {
       setUploading(null);
     }
@@ -688,20 +694,6 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
           </button>
         </div>
       </Card>
-
-      {/* Processing Message */}
-      {processingMessage && (
-        <Toast message={processingMessage} type="loading" />
-      )}
-
-      {/* Error Message */}
-      {errorMessage && (
-        <Toast
-          message={errorMessage}
-          type="error"
-          onClose={() => setErrorMessage(null)}
-        />
-      )}
     </div>
   );
 };

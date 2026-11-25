@@ -39,7 +39,46 @@ export const startingDueDate = (
 
 export interface ToolColumnPayload {
   maxPoints: number;
+  /** With `finalScores` set this is a preview for the dialog; the server builds what is sent. */
   grades: ToolColumnGradeEntry[];
+  /** AB-389: push the gradebook final scores, built on the server. */
+  finalScores?: { includeMissing: boolean; scopeUids?: string[] };
+}
+
+/** The callable request for a payload; `only` limits a Retry to those students. */
+export function toolColumnRequestFields(
+  payload: ToolColumnPayload,
+  only: ReadonlySet<string> | null
+): {
+  maxPoints: number;
+  grades: ToolColumnGradeEntry[];
+  source?: 'final-scores';
+  includeMissing?: boolean;
+  missingWithoutWork?: string[];
+  onlyUids?: string[];
+  scopeUids?: string[];
+} {
+  if (!payload.finalScores) {
+    return {
+      maxPoints: payload.maxPoints,
+      grades: only
+        ? payload.grades.filter((g) => only.has(g.pseudonymUid))
+        : payload.grades,
+    };
+  }
+  return {
+    maxPoints: payload.maxPoints,
+    grades: [],
+    source: 'final-scores',
+    includeMissing: payload.finalScores.includeMissing,
+    missingWithoutWork: payload.grades
+      .filter((g) => 'missing' in g)
+      .map((g) => g.pseudonymUid),
+    ...(only ? { onlyUids: [...only] } : {}),
+    ...(payload.finalScores.scopeUids
+      ? { scopeUids: payload.finalScores.scopeUids }
+      : {}),
+  };
 }
 
 interface Options {
@@ -88,7 +127,8 @@ export function useSchoologyToolColumnPush({
   const run = async (
     payload: ToolColumnPayload,
     categories: Record<string, string>,
-    dueDate: string | null = null
+    dueDate: string | null = null,
+    only: ReadonlySet<string> | null = null
   ) => {
     if (!sessionId || inFlight.has(sessionId)) return;
     inFlight.add(sessionId);
@@ -104,24 +144,25 @@ export function useSchoologyToolColumnPush({
         logError('schoologyToolColumn.retry', err, { sessionId });
       }
       const base = fresh ?? payload;
-      const grades = base.grades.filter((g) => uids.has(g.pseudonymUid));
-      if (grades.length > 0) {
-        await run({ maxPoints: base.maxPoints, grades }, categories, dueDate);
+      if (base.grades.some((g) => uids.has(g.pseudonymUid))) {
+        await run(base, categories, dueDate, uids);
       }
     };
     try {
       const data = await pushToolColumn(functions, {
         sessionId,
         kind,
-        maxPoints: payload.maxPoints,
-        grades: payload.grades,
+        ...toolColumnRequestFields(payload, only),
         create: true,
         categories,
         ...(dueDate ? { dueDate } : {}),
       });
       const { message, failed, retryUids } = formatToolColumnPushToast(data);
       const resend = new Set(retryUids);
-      const retryable = payload.grades.some((g) => resend.has(g.pseudonymUid));
+      const sent = only
+        ? payload.grades.filter((g) => only.has(g.pseudonymUid))
+        : payload.grades;
+      const retryable = sent.some((g) => resend.has(g.pseudonymUid));
       report(
         message,
         failed === 0,
@@ -129,7 +170,7 @@ export function useSchoologyToolColumnPush({
       );
     } catch (err) {
       logError('schoologyToolColumn.push', err, { sessionId });
-      const all = new Set(payload.grades.map((g) => g.pseudonymUid));
+      const all = only ?? new Set(payload.grades.map((g) => g.pseudonymUid));
       report(ltiPushErrorMessage(err), false, () => void retryOf(all)());
     } finally {
       inFlight.delete(sessionId);

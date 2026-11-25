@@ -16,10 +16,7 @@ import {
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ScorePill } from '@/components/common/sessionViews';
 import { StudentAnswerLine } from '@/components/widgets/QuizWidget/components/results/StudentAnswerLine';
-import {
-  SCORE_DISTRIBUTION_BANDS,
-  scoreColorClasses,
-} from '@/utils/scoreColor';
+import { bucketScores, scoreColorClasses } from '@/utils/scoreColor';
 import type { StudentQuestionLine } from '@/utils/quizStudentDrilldown';
 import type { MiniAppBestAttempt, MiniAppManifestQuestion } from '@/types';
 import { tourTypeAttr } from '@/config/tourAnchors';
@@ -492,10 +489,7 @@ export const MiniAppResultsView: React.FC<{
                   >
                     Score distribution
                   </p>
-                  {SCORE_DISTRIBUTION_BANDS.map((b) => {
-                    const count = scores.filter(
-                      (s) => s >= b.min && s <= b.max
-                    ).length;
+                  {bucketScores(scores).map(({ band: b, count }) => {
                     const share = Math.round((count / scores.length) * 100);
                     return (
                       <div key={b.label}>
