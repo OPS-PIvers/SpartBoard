@@ -1,0 +1,1 @@
+claude/backlog-ab-122-20261124 (AB-122: lightbox focus trap/return, 44px zoom and ordering arrow targets)
