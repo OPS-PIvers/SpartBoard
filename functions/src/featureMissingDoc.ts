@@ -93,7 +93,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'writing-peer-review',
   'quiz-question-audio',
   'quiz-random-numbers',
-  'widget-notes-in-whats-new',
   'subs-live-tours',
   'student-live-tours',
   'assign-open-check',
