@@ -82,7 +82,9 @@ export const VideoActivityPeriodLockedScreen: React.FC<
             <p className="text-slate-600 text-sm">
               {started
                 ? 'Your answers are saved. Keep this tab open.'
-                : 'Keep this tab open. The video appears here as soon as your class is let in.'}
+                : ownWindow?.state === 'upcoming'
+                  ? 'Keep this tab open. The activity appears here as soon as it’s open.'
+                  : 'Keep this tab open. The video appears here as soon as your class is let in.'}
             </p>
           )}
         </div>

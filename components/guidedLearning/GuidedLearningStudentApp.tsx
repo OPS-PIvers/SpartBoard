@@ -553,6 +553,7 @@ const StudentExperience: React.FC<{
           periodKeys={periodKeys}
           now={windowGated ? studentWindow.now : periodNow}
           opensAt={windowGated ? studentWindow.window.openAt : undefined}
+          ownOpen={windowGated && studentWindow.state === 'upcoming'}
         />
       );
     case 'enteringPeriod':

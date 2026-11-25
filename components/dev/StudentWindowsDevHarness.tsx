@@ -70,6 +70,7 @@ const VIEWS: Record<string, React.ReactNode> = {
       periodKeys={[]}
       now={NOW}
       opensAt={OPENS}
+      ownOpen
     />
   ),
 };

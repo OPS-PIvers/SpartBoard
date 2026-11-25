@@ -4796,6 +4796,7 @@
     "locked": {
       "title": "Pas encore ouverte",
       "body": "Garde cet onglet ouvert. L’activité apparaîtra ici dès que ta classe y aura accès.",
+      "bodyOwn": "Garde cet onglet ouvert. L’activité apparaîtra ici dès qu’elle sera ouverte.",
       "paused": "En pause",
       "closed": "Fermée",
       "opens": "Ouvre le {{day}} à {{time}}"

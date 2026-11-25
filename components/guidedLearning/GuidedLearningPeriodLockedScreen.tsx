@@ -13,6 +13,8 @@ interface GuidedLearningPeriodLockedScreenProps {
   now: number;
   /** The student's own open time, when their window holds them out. */
   opensAt?: number;
+  /** Held by the student's own Opens time, not the class. */
+  ownOpen?: boolean;
 }
 
 /** "Closed", "Paused" or "Opens Tue 10:40 AM" for the student's period. */
@@ -51,7 +53,7 @@ function lockedStateLabel(
 /** Shown while a student's class period isn't open; no slides or steps until it is. */
 export const GuidedLearningPeriodLockedScreen: React.FC<
   GuidedLearningPeriodLockedScreenProps
-> = ({ session, periodKeys, now, opensAt }) => {
+> = ({ session, periodKeys, now, opensAt, ownOpen = false }) => {
   const { t } = useTranslation();
   return (
     <GuidedLearningScreenShell>
@@ -66,7 +68,7 @@ export const GuidedLearningPeriodLockedScreen: React.FC<
         {lockedStateLabel(session, periodKeys, now, t, opensAt)}
       </p>
       <p className="mt-3 text-sm text-slate-600">
-        {t('glStudent.locked.body')}
+        {t(ownOpen ? 'glStudent.locked.bodyOwn' : 'glStudent.locked.body')}
       </p>
     </GuidedLearningScreenShell>
   );

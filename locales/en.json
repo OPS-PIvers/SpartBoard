@@ -6015,6 +6015,7 @@
     "locked": {
       "title": "Not open yet",
       "body": "Keep this tab open. The activity appears here as soon as your class is let in.",
+      "bodyOwn": "Keep this tab open. The activity appears here as soon as it’s open.",
       "paused": "Paused",
       "closed": "Closed",
       "opens": "Opens {{day}} {{time}}"

@@ -49,8 +49,9 @@ export const MiniAppPeriodLockedScreen: React.FC<
       </p>
       <h1 className="text-white font-bold text-xl mb-2">Not open yet</h1>
       <p className="text-slate-300 text-sm">
-        Keep this tab open. The activity appears here as soon as your class is
-        let in.
+        {opensAt != null
+          ? 'Keep this tab open. The activity appears here as soon as it’s open.'
+          : 'Keep this tab open. The activity appears here as soon as your class is let in.'}
       </p>
     </div>
   </div>
