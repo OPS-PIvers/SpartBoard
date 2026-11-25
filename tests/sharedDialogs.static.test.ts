@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import baseline from './fixtures/centeredOverlayBaseline.json';
 
 // Confirms go through useDialog() and centered dialogs through components/common/Modal.tsx.
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -27,6 +26,50 @@ const OVERLAY_SHELLS = new Set([
   'components/common/Modal.tsx',
   'components/common/DialogContainer.tsx',
 ]);
+// Full-screen screens that are not dialogs, with how many each builds.
+const FULL_SCREEN_OVERLAYS: Record<string, { count: number; why: string }> = {
+  'components/common/PageProtectionGuards.tsx': {
+    count: 2,
+    why: 'page lock covers',
+  },
+  'components/flashcards/CheckTabWarning.tsx': {
+    count: 1,
+    why: 'student tab-away cover',
+  },
+  'components/quiz/QuizStudentApp.tsx': {
+    count: 2,
+    why: 'quiz lock and tab-away covers',
+  },
+  'components/student/StudentApp.tsx': { count: 1, why: 'student lock screen' },
+  'components/plc/PlcRouteHost.tsx': {
+    count: 1,
+    why: 'solid full-page PLC host',
+  },
+  'components/common/ImageLightbox.tsx': {
+    count: 1,
+    why: 'image lightbox, no panel',
+  },
+  'components/layout/dock/WidgetLibrary.tsx': {
+    count: 1,
+    why: 'pointer-through layout above the dock',
+  },
+  'components/tours/TourDialog.tsx': {
+    count: 1,
+    why: "the live tour's own dialog layer",
+  },
+  'components/layout/sidebar/AdminSettingsSlot.tsx': {
+    count: 1,
+    why: 'loading spinner',
+  },
+  'components/widgets/GuidedLearning/Widget.tsx': {
+    count: 1,
+    why: 'loading spinner',
+  },
+  'components/widgets/QuizWidget/components/QuizAssignmentSettingsModal.tsx': {
+    count: 1,
+    why: 'loading spinner',
+  },
+};
 
 /** Counts string literals that build a full-viewport centered overlay. */
 export const countCenteredOverlays = (source: string): number => {
@@ -62,27 +105,21 @@ describe('shared dialogs', () => {
     ).toEqual([]);
   });
 
-  it('builds no new centered overlay outside the shared Modal', () => {
-    const known = baseline as Record<string, number>;
-    const grown: string[] = [];
-    const shrunk: string[] = [];
+  it('builds every centered dialog on the shared Modal', () => {
+    const offenders: string[] = [];
     for (const file of files) {
       if (OVERLAY_SHELLS.has(file)) continue;
       const count = countCenteredOverlays(read(file));
-      const allowed = known[file] ?? 0;
-      if (count > allowed) grown.push(`${file} (${count} > ${allowed})`);
-      if (count < allowed) shrunk.push(`${file} (${count} < ${allowed})`);
+      const allowed = FULL_SCREEN_OVERLAYS[file]?.count ?? 0;
+      if (count !== allowed)
+        offenders.push(`${file} (${count}, allowed ${allowed})`);
     }
-    for (const file of Object.keys(known)) {
-      if (!files.includes(file)) shrunk.push(`${file} (gone)`);
+    for (const file of Object.keys(FULL_SCREEN_OVERLAYS)) {
+      if (!files.includes(file)) offenders.push(`${file} (gone)`);
     }
     expect(
-      grown,
-      'Use components/common/Modal.tsx (variant="bare" for custom chrome).'
-    ).toEqual([]);
-    expect(
-      shrunk,
-      'Lower or remove these entries in tests/fixtures/centeredOverlayBaseline.json.'
+      offenders,
+      'Use components/common/Modal.tsx (variant="bare" for custom chrome), or list a real full-screen screen in FULL_SCREEN_OVERLAYS.'
     ).toEqual([]);
   });
 
