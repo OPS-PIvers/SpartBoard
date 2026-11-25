@@ -15818,30 +15818,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-print.import-remove",
-    "label": "Remove imported test document in the Quiz widget",
-    "scope": "widget type",
-    "panel": true,
-    "destructive": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "quiz-print.include-key-sheet",
     "label": "Include answer key sheet toggle in the Quiz widget",
     "scope": "widget type",
@@ -16421,50 +16397,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-print.roster-expand",
-    "label": "Roster expand/collapse in the Quiz widget",
-    "scope": "field",
-    "panel": true,
-    "row_wildcard": true,
-    "row_list": "quiz-print-rosters",
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-print.roster-select",
-    "label": "Roster select-all checkbox in the Quiz widget",
-    "scope": "field",
-    "panel": true,
-    "row_wildcard": true,
-    "row_list": "quiz-print-rosters",
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "quiz-print.share-and-print",
     "label": "Share and print in the Quiz widget",
     "scope": "widget type",
@@ -16860,119 +16792,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-print.stub-choice-count",
-    "label": "Stub Choices per question select in the Quiz widget",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-print.stub-question-count",
-    "label": "Stub Questions count input in the Quiz widget",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-print.stub-title",
-    "label": "Stub paper Title input in the Quiz widget",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-print.student-select",
-    "label": "Per-student checkbox in the Quiz widget",
-    "scope": "field",
-    "panel": true,
-    "row_list": "quiz-print-rosters",
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-print.written-add",
-    "label": "Written answers Add in the Quiz widget",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "quiz-print.written-box-size",
     "label": "Written box size select in the Quiz widget",
     "scope": "field",
@@ -17057,70 +16876,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Written box custom line count in the Quiz widget",
     "scope": "field",
     "panel": true,
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-print.written-number",
-    "label": "Written answers question-number input in the Quiz widget",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-print.written-points",
-    "label": "Written points input in the Quiz widget",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-print.written-remove",
-    "label": "Remove written question (×) in the Quiz widget",
-    "scope": "field",
-    "panel": true,
-    "destructive": true,
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -22050,6 +21805,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-monitor.student-schedule",
+    "label": "Schedule button on an absent student, in the Quiz monitor roster",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "quiz-monitor-roster",
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-monitor.student-mark-absent",
     "label": "Absent button on a student who has not joined, in the Quiz monitor roster",
     "scope": "field",
@@ -23420,29 +23197,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-print.import-retry-with-ai",
-    "label": "Try again with AI link in the Quiz print import dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "quiz-import.paper-text-retry-with-ai",
     "label": "Try again with AI link in the Quiz paper question text dialog",
     "scope": "widget type",
@@ -23550,29 +23304,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1"
         ],
         "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-print.import-questions",
-    "label": "Import questions uploader in the Quiz print dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.paper-print",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1",
-          "quiz-library.assign-paper:quiz"
-        ],
-        "needs": [
-          "library-item",
           "widget-on-stage"
         ]
       }

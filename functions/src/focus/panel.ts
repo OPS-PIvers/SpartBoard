@@ -1,4 +1,5 @@
 // The extension side panel's Focus tab (CHROME_EXTENSION.md F12): one endpoint over the teacher session actions.
+import { isLiveAdmin } from '../authz';
 import { HttpsError } from 'firebase-functions/v2/https';
 import type * as admin from '../firebaseAdmin';
 import {
@@ -136,8 +137,7 @@ export async function handleFocusPanel(
       const canStart = await canUseFocusWidget(db, email);
       // Mock classes start only on dev or for admins (taughtClassStudentUids), so list them only then.
       const includeMock =
-        deps.mockClassesOpen() ||
-        (await db.doc(`admins/${email}`).get()).exists;
+        deps.mockClassesOpen() || (await isLiveAdmin(db, email));
       const classes = await panelClasses(db, caller.uid, includeMock);
       await joinCoTaughtSessions(db, caller, email, classes, deps);
       const sessions = await panelSessions(db, caller.uid, deps.now());

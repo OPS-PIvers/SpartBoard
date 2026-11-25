@@ -1,4 +1,5 @@
 // Teacher-only gate for callables that spend on AI, OCR or speech: staff or admin, never anonymous, student or unverified.
+import { hasDeactivatedClaim, isLiveAdmin } from './authz';
 import { HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import { isDistrictStaffToken } from './districtStaff';
@@ -9,6 +10,7 @@ export interface AiCallerToken {
   email_verified?: boolean;
   studentRole?: unknown;
   pinLogin?: unknown;
+  deactivated?: unknown;
   firebase?: { sign_in_provider?: string };
 }
 
@@ -37,14 +39,14 @@ export async function isAiTeacherCaller(
   db: admin.firestore.Firestore,
   token: AiCallerToken
 ): Promise<boolean> {
-  if (!isTeacherShapedToken(token)) return false;
+  if (!isTeacherShapedToken(token) || hasDeactivatedClaim(token)) return false;
   const email = (token.email as string).trim().toLowerCase();
   const cachedAt = teacherCache.get(email);
   if (cachedAt !== undefined && Date.now() - cachedAt < TEACHER_CACHE_TTL_MS)
     return true;
   const ok =
     (await isDistrictStaffToken(db, token)) ||
-    (await db.collection('admins').doc(email).get()).exists;
+    (await isLiveAdmin(db, email, token));
   if (ok) teacherCache.set(email, Date.now());
   return ok;
 }

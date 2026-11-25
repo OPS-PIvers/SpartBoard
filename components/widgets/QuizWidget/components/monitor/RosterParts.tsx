@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Clock, MoreVertical } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { tourTypeAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
@@ -159,6 +159,20 @@ export interface RosterMenuItem {
   onClick: () => void;
 }
 
+/** Scrolls only the nearest scrolling ancestor, never the board around the widget. */
+function revealInScroller(el: HTMLElement): void {
+  let scroller = el.parentElement;
+  while (scroller) {
+    const { overflowY } = getComputedStyle(scroller);
+    if (overflowY === 'auto' || overflowY === 'scroll') break;
+    scroller = scroller.parentElement;
+  }
+  if (!scroller) return;
+  const overBy =
+    el.getBoundingClientRect().bottom - scroller.getBoundingClientRect().bottom;
+  if (overBy > 0) scroller.scrollTop += overBy;
+}
+
 /** A student row's vertical-dots menu; renders nothing without items. */
 export const RosterRowMenu: React.FC<{
   ariaLabel: string;
@@ -172,6 +186,10 @@ export const RosterRowMenu: React.FC<{
     setOpen(false);
     setConfirming(null);
   });
+  // Bottom rows (absent students sort last) would open the menu out of view.
+  const revealMenu = useCallback((el: HTMLDivElement | null) => {
+    if (el) revealInScroller(el);
+  }, []);
   if (items.length === 0) return null;
 
   return (
@@ -192,6 +210,7 @@ export const RosterRowMenu: React.FC<{
       </button>
       {open && (
         <div
+          ref={revealMenu}
           className="absolute right-0 top-full z-30 bg-white border border-brand-gray-lighter rounded-lg shadow-lg overflow-hidden"
           style={{
             marginTop: 'min(4px, 1cqmin)',

@@ -1,4 +1,5 @@
 // Teacher focus-session actions (docs/plans/CHROME_EXTENSION.md F1, F6, F7, F8, F11); onCall wrappers are in sessionCallables.ts.
+import { isLiveAdmin } from '../authz';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { isExcludedFrom } from '../permissionExclusion';
 import { Timestamp } from 'firebase-admin/firestore';
@@ -133,11 +134,10 @@ export async function canUseFocusWidget(
   db: Firestore,
   emailLower: string
 ): Promise<boolean> {
-  const [perm, adminDoc] = await Promise.all([
+  const [perm, isAdmin] = await Promise.all([
     db.doc(`feature_permissions/${FOCUS_WIDGET_TYPE}`).get(),
-    db.doc(`admins/${emailLower}`).get(),
+    isLiveAdmin(db, emailLower),
   ]);
-  const isAdmin = adminDoc.exists;
   if (!perm.exists) return isAdmin;
   const data = perm.data() ?? {};
   if (data.enabled !== true) return false;
@@ -191,10 +191,7 @@ export async function taughtClassStudentUids(
         .get(),
     ]);
     if (!member.exists || owned.empty) return null;
-    if (
-      !deps.mockClassesOpen() &&
-      !(await db.doc(`admins/${caller.email}`).get()).exists
-    )
+    if (!deps.mockClassesOpen() && !(await isLiveAdmin(db, caller.email)))
       return null;
     const raw: unknown = testClass.data()?.memberEmails;
     const emails = Array.isArray(raw)

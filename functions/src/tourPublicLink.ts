@@ -1,4 +1,5 @@
 // Public tour links (TOURS_10X.md S6, ADR 0003): serves a public tour's Steps view without sign-in, and turns a link off when its pictures change.
+import { isLiveAdmin } from './authz';
 import './functionsInit';
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
@@ -233,7 +234,7 @@ export function defaultPublicLinkDeps(
     async isAdmin(email, kind) {
       return (
         !!email &&
-        ((await db.collection('admins').doc(email).get()).exists ||
+        ((await isLiveAdmin(db, email)) ||
           (kind === 'web' && (await isListedTourAuthor(db, email))))
       );
     },

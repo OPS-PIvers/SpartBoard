@@ -39,12 +39,12 @@ const ctxFor = (exists: boolean | Error): ToolContext =>
     email: 'Admin@School.org',
     grantId: 'g',
     db: {
-      collection: () => ({
+      collection: (name: string) => ({
         doc: () => ({
           get: () =>
             exists instanceof Error
               ? Promise.reject(exists)
-              : Promise.resolve({ exists }),
+              : Promise.resolve({ exists: name === 'admins' && exists }),
         }),
       }),
     },
