@@ -10,15 +10,7 @@ import { useAuth } from '@/context/useAuth';
 import type { AuthContextType } from '@/context/AuthContextValue';
 import type { GlobalFeaturePermission } from '@/types';
 
-/**
- * Tests `useAuth().canSeeShareTracking()` — the gate guarding the view-count
- * Firestore aggregation reads. The contract is "admin-only by default": a
- * missing or disabled `share-link-tracking` permission record means
- * non-admins skip the read entirely (no `<ViewCountBadge>` mounts, no
- * Firestore aggregation fires). This protects unseed deployments from
- * accidental read bloat — flipping access to public is an explicit admin
- * action, not a deploy-side default.
- */
+// `canAccessFeature('share-link-tracking')` guards the view-count reads; a missing doc is admin-only per FEATURE_DEFAULTS.
 
 vi.mock('firebase/auth', async () => {
   const actual =
@@ -178,26 +170,24 @@ beforeEach(() => {
   ctxHolder.current = null;
 });
 
-describe('AuthContext — canSeeShareTracking', () => {
+describe('AuthContext — share-link-tracking', () => {
   it('returns true for admins when no permission doc exists', async () => {
     await mountAs({
       email: 'admin@example.com',
       isAdmin: true,
       perms: [],
     });
-    expect(getCtx().canSeeShareTracking()).toBe(true);
+    expect(getCtx().canAccessFeature('share-link-tracking')).toBe(true);
   });
 
   it('returns FALSE for non-admins when no permission doc exists (admin-only default)', async () => {
-    // The whole point of the gate: a missing record means teachers don't
-    // get charged for the aggregation reads. canAccessFeature defaults to
-    // true here; canSeeShareTracking deliberately diverges.
+    // A missing record means teachers don't run the aggregation reads.
     await mountAs({
       email: 'teacher@example.com',
       isAdmin: false,
       perms: [],
     });
-    expect(getCtx().canSeeShareTracking()).toBe(false);
+    expect(getCtx().canAccessFeature('share-link-tracking')).toBe(false);
   });
 
   it('returns false for non-admins when accessLevel is admin', async () => {
@@ -213,7 +203,7 @@ describe('AuthContext — canSeeShareTracking', () => {
         },
       ],
     });
-    expect(getCtx().canSeeShareTracking()).toBe(false);
+    expect(getCtx().canAccessFeature('share-link-tracking')).toBe(false);
   });
 
   it('returns true for everyone when accessLevel is public and enabled', async () => {
@@ -229,12 +219,11 @@ describe('AuthContext — canSeeShareTracking', () => {
         },
       ],
     });
-    expect(getCtx().canSeeShareTracking()).toBe(true);
+    expect(getCtx().canAccessFeature('share-link-tracking')).toBe(true);
   });
 
   it('returns false for everyone when the permission is disabled (even admins)', async () => {
     // The `enabled: false` master kill switch should win over admin status.
-    // Mirrors canAccessFeature's behavior — disabled means disabled.
     await mountAs({
       email: 'admin@example.com',
       isAdmin: true,
@@ -247,7 +236,7 @@ describe('AuthContext — canSeeShareTracking', () => {
         },
       ],
     });
-    expect(getCtx().canSeeShareTracking()).toBe(false);
+    expect(getCtx().canAccessFeature('share-link-tracking')).toBe(false);
   });
 
   it('returns true for beta users on the betaUsers list', async () => {
@@ -263,7 +252,7 @@ describe('AuthContext — canSeeShareTracking', () => {
         },
       ],
     });
-    expect(getCtx().canSeeShareTracking()).toBe(true);
+    expect(getCtx().canAccessFeature('share-link-tracking')).toBe(true);
   });
 
   it('returns false for non-beta users when accessLevel is beta', async () => {
@@ -279,6 +268,6 @@ describe('AuthContext — canSeeShareTracking', () => {
         },
       ],
     });
-    expect(getCtx().canSeeShareTracking()).toBe(false);
+    expect(getCtx().canAccessFeature('share-link-tracking')).toBe(false);
   });
 });

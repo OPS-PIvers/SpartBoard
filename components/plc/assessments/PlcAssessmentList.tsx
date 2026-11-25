@@ -40,7 +40,7 @@ import {
   usePlcMembers,
 } from '@/context/usePlcContext';
 import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
-import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettings';
+import { usePaperAnswerSheetsGate } from '@/hooks/usePaperAnswerSheetsGate';
 import { usePlcDelegatedPrintingSettings } from '@/hooks/usePlcDelegatedPrintingSettings';
 import {
   OverflowMenu,
@@ -627,7 +627,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
     setPendingQuizReveal,
   } = useDashboard();
   const { showPrompt } = useDialog();
-  const { user, canAccessFeature, getAssignmentMode } = useAuth();
+  const { user, getAssignmentMode } = useAuth();
   const showInQuiz = useCallback(
     (row: AssessmentListRow, target: 'monitor' | 'library') => {
       const quizWidget = activeDashboard?.widgets.find(
@@ -683,12 +683,11 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   // switch, and `canEdit` (a viewer prints for nobody). The callable re-checks
   // every one of them server-side — this only decides what to render.
   const delegatedPrintingRollout = usePlcDelegatedPrintingSettings();
-  const paperSheetsRollout = usePaperAnswerSheetsSettings();
+  const paperSheetsOn = usePaperAnswerSheetsGate();
   const canPrintForTeammate =
     canEdit &&
     delegatedPrintingRollout.enabled &&
-    paperSheetsRollout.enabled &&
-    canAccessFeature('paper-answer-sheets') &&
+    paperSheetsOn &&
     getPlcFeatures(plc).printForTeammates;
   const teammates = useMemo(
     () => members.filter((m) => m.uid !== user?.uid && m.status === 'active'),
