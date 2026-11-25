@@ -68,14 +68,16 @@ export function withStudentPass<
   },
 >(session: T, passUntil: number | null): T {
   if (passUntil == null || session.status === 'ended') return session;
+  const held = session.status === 'paused' || session.status === 'waiting';
   return {
     ...session,
-    status:
-      session.status === 'paused' || session.status === 'waiting'
-        ? 'active'
-        : session.status,
+    status: held ? 'active' : session.status,
     openAt: null,
-    closeAt: closeWithPass(session.closeAt, passUntil),
+    // Held open only by the pass, the attempt turns in when the pass ends.
+    closeAt:
+      held && session.closeAt == null
+        ? passUntil
+        : closeWithPass(session.closeAt, passUntil),
   };
 }
 

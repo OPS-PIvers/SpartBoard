@@ -348,9 +348,9 @@ service cloud.firestore {
     function quizLetIn(s) {
       return quizPass(s, authUid());
     }
-    // The same pass for a given uid; it also outlasts a whole-quiz pause or close, never an End.
+    // The same pass for a given uid, with the window grace at both ends; it also outlasts a whole-quiz pause or close, never an End.
     function quizPass(s, uid) {
-      return s.get('studentAccess', {}).get(uid, 0) > request.time.toMillis() &&
+      return s.get('studentAccess', {}).get(uid, 0) + 120000 > request.time.toMillis() &&
              s.get('studentAccessFrom', {}).get(uid, 0) <= request.time.toMillis() + 120000;
     }
     // A join on a per-period session names a period the session targets, backed

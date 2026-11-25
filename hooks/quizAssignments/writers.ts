@@ -67,11 +67,24 @@ export async function commitQuizLifecycle(
       event.type === 'reopen' || event.type === 'resume'
         ? { closedAt: deleteField(), doneAt: deleteField() }
         : {};
+    // A whole-quiz Resume or Reopen hands the end back to the teacher, so a Close's pass hold goes.
+    const clearHold =
+      (event.type === 'resume' || event.type === 'reopen') &&
+      session?.passHold != null &&
+      !session.periodAccess
+        ? { passHold: deleteField() }
+        : {};
     // D11 measures a single line left open from its last Resume.
     const opened = event.type === 'resume' ? { openedAt: now } : {};
     tx.update(
       doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-      { ...patches.assignment, ...clearPicks, ...clearMarks, ...opened }
+      {
+        ...patches.assignment,
+        ...clearPicks,
+        ...clearMarks,
+        ...clearHold,
+        ...opened,
+      }
     );
     // A repeat Pause, or a Reopen after a paused End, keeps the open pause's start.
     const sessionPatch = { ...patches.session };
@@ -87,6 +100,7 @@ export async function commitQuizLifecycle(
       ...sessionPatch,
       ...(event.type === 'end' ? { revealedAnswers: deleteField() } : {}),
       ...clearPicks,
+      ...clearHold,
       ...clearPasses,
       ...(pauseSpans ? { pauseSpans } : {}),
       ...(session && extraSessionPatch ? extraSessionPatch(session) : {}),

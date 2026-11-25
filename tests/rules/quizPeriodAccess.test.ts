@@ -580,6 +580,15 @@ describe('Schedule for later on a whole-quiz session (no period access)', () => 
     await assertFails(writeAnswer());
   });
 
+  it('takes the turn-in that lands just after the pass ends, inside the grace', async () => {
+    await seedSession(S, {
+      status: 'paused',
+      studentAccess: { [STUDENT_UID]: Date.now() - 30_000 },
+      studentAccessFrom: { [STUDENT_UID]: PAST },
+    });
+    await assertSucceeds(writeAnswer());
+  });
+
   it('lets a scheduled student join after the close time, and only them', async () => {
     await testEnv.clearFirestore();
     await seedSession(S, { closeAt: PAST, ...passNow });

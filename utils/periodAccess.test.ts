@@ -197,6 +197,9 @@ describe('Schedule and Let in on a whole-quiz session', () => {
         until
       )
     ).toEqual({ status: 'active', openAt: null, closeAt: NOW + 100 });
+    expect(withStudentPass({ status: 'paused', closeAt: null }, until)).toEqual(
+      { status: 'active', openAt: null, closeAt: NOW + 100 }
+    );
     expect(withStudentPass({ status: 'active', closeAt: null }, until)).toEqual(
       { status: 'active', openAt: null, closeAt: null }
     );

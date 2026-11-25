@@ -1553,6 +1553,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 }
                 onClearHand={onClearHand ? handleClearHand : undefined}
                 onLetIn={
+                  (perPeriod || canSetTime) &&
                   session.sessionMode === 'student' &&
                   session.status !== 'ended'
                     ? (uid) => void runPeriod(() => periodActions.letIn(uid))
