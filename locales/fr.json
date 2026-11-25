@@ -1185,7 +1185,7 @@
       "noArchived": "Aucun quiz archivé.",
       "folders": {
         "sidebarLabel": "Dossiers",
-        "moveToFolder": "Déplacer vers un dossier…",
+        "moveToFolder": "Déplacer vers un dossier",
         "noFolder": "Aucun dossier",
         "dragHandle": "Glisser pour déplacer",
         "movedToast": "Déplacé vers « {{folder}} »",
