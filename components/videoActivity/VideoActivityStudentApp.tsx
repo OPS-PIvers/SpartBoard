@@ -14,7 +14,6 @@
 
 import { tourAttr } from '@/config/tourAnchors';
 import React, {
-  useId,
   useMemo,
   useState,
   useCallback,
@@ -27,15 +26,15 @@ import {
   PlayCircle,
   Loader2,
   AlertCircle,
-  ArrowRight,
   CheckCircle2,
-  ClipboardList,
   Trophy,
   Unlock as UnlockIcon,
   ShieldAlert,
 } from 'lucide-react';
 import { useDialog } from '@/context/useDialog';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
+import { usePeriodGate } from '@/hooks/usePeriodGate';
 import { auth, db } from '@/config/firebase';
 import { useStudentAuthBootstrap } from '@/hooks/useStudentAuthBootstrap';
 import { logError } from '@/utils/logError';
@@ -71,7 +70,6 @@ import {
 import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
 import { ResultsProtectionGate } from '@/components/student/ResultsProtectionGate';
 import { isQuestionClosedError } from '@/utils/videoActivityLiveStudent';
-import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
 import { isStaffAudience } from '@/utils/staffAudience';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
@@ -82,18 +80,19 @@ import {
   hasReachedTabWarningThreshold,
 } from '@/utils/tabWarningThreshold';
 import { TabAwayClock } from '@/components/common/TabAwayClock';
-import { useServerNow } from '@/hooks/useServerNow';
 import { useStudentWindow } from '@/hooks/useStudentWindow';
 import { syncServerTime } from '@/utils/serverTime';
-import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { isAnonymousJoinBlocked } from '@/utils/anonymousJoin';
 import { AnonymousJoinBlockedScreen } from '@/components/common/AnonymousJoinBlockedScreen';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import { effectivePageProtections } from '@/utils/pageProtections';
 import {
-  VideoActivityPeriodLockedScreen,
-  VideoActivityPeriodPausedOverlay,
-} from './VideoActivityPeriodLockedScreen';
+  StudentPeriodLockedScreen,
+  StudentPeriodPicker,
+} from '@/components/student/StudentPeriodScreens';
+import { periodLockState } from '@/components/student/periodLockState';
+import { StudentPeriodPausedOverlay } from '@/components/student/StudentPeriodPausedOverlay';
+import { StudentPinJoinCard } from '@/components/student/StudentPinJoinCard';
 
 function errorCode(err: unknown): unknown {
   return err && typeof err === 'object' && 'code' in err
@@ -201,44 +200,22 @@ export const VideoActivityStudentApp: React.FC = () => {
  * the lobby UI without mounting any hooks that would touch Firebase Auth or
  * Firestore — pasting the `?preview=1` URL into a tab is safe regardless of
  * what auth state that browser profile already carries. */
-const VideoActivityPreviewLobby: React.FC = () => (
-  <div className="h-screen h-dvh overflow-y-auto bg-linear-to-b from-white to-slate-100 flex flex-col">
-    <TeacherPreviewBanner />
-    <div className="flex-1 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <div className="flex items-center justify-center mb-8">
-          <PlayCircle className="w-5 h-5 text-brand-blue-primary mr-2" />
-          <span className="text-sm text-slate-700 font-semibold">
-            Video Activity
-          </span>
-        </div>
-        <h1 className="text-2xl font-black text-slate-900 mb-2 text-center">
-          Join Activity
-        </h1>
-        <p className="text-slate-500 text-sm text-center mb-6">
-          Enter your PIN from your teacher.
-        </p>
-        <div className="space-y-4" aria-hidden="true">
-          <input
-            type="text"
-            readOnly
-            tabIndex={-1}
-            placeholder="Your PIN"
-            className="w-full px-4 py-4 bg-white border border-slate-300 rounded-xl text-slate-900 text-xl font-black font-mono tracking-widest text-center placeholder-slate-400 focus:outline-hidden cursor-default"
-          />
-          <button
-            type="button"
-            disabled
-            tabIndex={-1}
-            className="w-full py-4 bg-brand-blue-primary disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
-          >
-            Join <ArrowRight className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-);
+const VideoActivityPreviewLobby: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <StudentPinJoinCard
+      preview
+      title={t('studentJoin.title')}
+      intro={t('studentJoin.pinIntro')}
+      pin=""
+      onPinChange={() => undefined}
+      pinTourId="student.video-activity.pin"
+      onSubmit={() => undefined}
+      submitTourId="student.video-activity.join"
+      busy={false}
+    />
+  );
+};
 
 // ─── Join + Play ───────────────────────────────────────────────────────────────
 
@@ -321,45 +298,35 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   );
 
   // Per-period gate, re-checked as the clock passes a window edge.
-  const perPeriod = hasPeriodAccess(session) && session.status !== 'ended';
-  const periodNow = useServerNow(perPeriod ? 5000 : null);
   // This student's own Opens and Closes, on sessions saved with them.
   const studentWindow = useStudentWindow(session, pointer);
   const windowGated =
     studentWindow.enforced && !isViewOnly && session?.status !== 'ended';
-  const gated = perPeriod || windowGated;
-  const canEnter =
-    studentCanEnter(session, periodKeys, authedUid, periodNow) &&
-    (!windowGated || studentWindow.state === 'open');
-  const gateKey = perPeriod
-    ? JSON.stringify([
-        periodKeys.map((k) => session?.periodAccess?.[k] ?? null),
-        authedUid ? (session?.studentAccess?.[authedUid] ?? null) : null,
-      ])
-    : '';
-  // A write the server refused as frozen holds the pause until the gate fields change.
-  const [frozenGate, setFrozenGate] = useState<string | null>(null);
-  if (frozenGate !== null && frozenGate !== gateKey) setFrozenGate(null);
-  const periodPaused =
-    (perPeriod && frozenGate === gateKey) || (gated && !canEnter);
-  // Once the player has shown, a later close pauses it in place rather than swapping screens.
-  const [entered, setEntered] = useState(false);
-  if (
-    !entered &&
-    gated &&
-    canEnter &&
-    !contentPending &&
-    !retakePending &&
-    joinStatus === 'joined'
-  ) {
-    setEntered(true);
-  }
-  const periodHold = gated && (periodPaused || !entered);
+  const {
+    perPeriod,
+    gated,
+    now: periodNow,
+    canEnter,
+    paused: periodPaused,
+    entered,
+    hold: periodHold,
+    freeze,
+  } = usePeriodGate({
+    session,
+    periodKeys,
+    uid: authedUid,
+    active: session?.status !== 'ended',
+    readyToEnter: !contentPending && !retakePending && joinStatus === 'joined',
+    ownWindow: {
+      enforced: windowGated,
+      open: studentWindow.state === 'open',
+    },
+  });
   const checkFrozenRef = useRef(false);
   const freezeForPeriod = useCallback(() => {
-    setFrozenGate(gateKey);
+    freeze();
     dispatchPlayer({ type: 'periodFrozen' });
-  }, [gateKey]);
+  }, [freeze]);
   const guardedCheckAnswer = useCallback(
     async (questionId: string, answer: string) => {
       try {
@@ -399,6 +366,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   // skip this step entirely.
   const [periodStep, setPeriodStep] = useState<string[] | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
+  const [periodTitle, setPeriodTitle] = useState('');
   // Local guard for the async `lookupSession` leg of `handleJoin` — the
   // hook's `joinStatus` only flips to `loading` once `joinSession` starts,
   // so without this the button would stay clickable during the lookup and
@@ -508,8 +476,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     [myResponse?.answers]
   );
 
-  const handleJoin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleJoin = async () => {
     if (!pin.trim() || !sessionId) return;
     if (lookingUp || joinStatus === 'loading') return;
     setLookingUp(true);
@@ -521,6 +488,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       // response doc. With a single period there's nothing for the
       // student to choose, so auto-pick to skip a friction tap.
       if (periodNames.length > 1) {
+        setPeriodTitle(sessionInfo?.activityTitle ?? '');
         setPeriodStep(periodNames);
         return;
       }
@@ -530,10 +498,14 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     }
   };
 
-  const handlePeriodConfirm = useCallback(async () => {
-    if (!selectedPeriod || !sessionId) return;
-    await joinSession(sessionId, pin.trim(), selectedPeriod);
-  }, [joinSession, sessionId, pin, selectedPeriod]);
+  const handlePeriodPick = useCallback(
+    async (period: string) => {
+      if (!sessionId) return;
+      setSelectedPeriod(period);
+      await joinSession(sessionId, pin.trim(), period);
+    },
+    [joinSession, sessionId, pin]
+  );
 
   const handleQuestionTrigger = useCallback(
     (question: VideoActivityPublicQuestion) => {
@@ -684,7 +656,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   // No player in live mode: tab exits log the board's last known position.
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   if (isLive) playheadRef.current = session?.live?.playheadSeconds ?? 0;
-  const pinInputId = useId();
+  const { t } = useTranslation();
 
   const resumeSeconds = useMemo(() => {
     if (
@@ -871,75 +843,19 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
   if (periodStep && joinStatus !== 'joined') {
     return (
-      <div className="h-screen h-dvh overflow-y-auto bg-linear-to-b from-white to-slate-100">
-        <div className="min-h-full flex flex-col items-center justify-center p-6">
-          <div className="w-full max-w-sm">
-            <div className="flex items-center justify-center mb-8">
-              <ClipboardList className="w-5 h-5 text-brand-blue-primary mr-2" />
-              <span className="text-sm text-slate-700 font-semibold">
-                Video Activity
-              </span>
-            </div>
-
-            <h1 className="text-2xl font-black text-slate-900 mb-2 text-center">
-              Select Your Class
-            </h1>
-            <p className="text-slate-500 text-sm text-center mb-6">
-              Which class period are you in?
-            </p>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-                {error}
-              </div>
-            )}
-
-            <div className="space-y-2 mb-6">
-              {periodStep.map((period) => (
-                <button
-                  {...tourAttr('student.video-activity.period-option')}
-                  key={period}
-                  onClick={() => setSelectedPeriod(period)}
-                  className={`w-full px-4 py-4 rounded-xl text-lg font-bold transition-all ${
-                    selectedPeriod === period
-                      ? 'border border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary ring-2 ring-brand-blue-light'
-                      : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  {period}
-                </button>
-              ))}
-            </div>
-
-            <button
-              {...tourAttr('student.video-activity.period-continue')}
-              onClick={() => void handlePeriodConfirm()}
-              disabled={joinStatus === 'loading' || !selectedPeriod}
-              className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors shadow-xs shadow-brand-blue-primary/20"
-            >
-              {joinStatus === 'loading' ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  Continue <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
-
-            <button
-              {...tourAttr('student.video-activity.period-back')}
-              onClick={() => {
-                setPeriodStep(null);
-                setSelectedPeriod(null);
-              }}
-              className="w-full mt-3 py-2 text-slate-500 hover:text-slate-700 text-sm font-medium transition-colors"
-            >
-              Go Back
-            </button>
-          </div>
-        </div>
-      </div>
+      <StudentPeriodPicker
+        title={periodTitle}
+        periods={periodStep}
+        pendingPeriod={joinStatus === 'loading' ? selectedPeriod : null}
+        onPick={(period) => void handlePeriodPick(period)}
+        error={error}
+        optionTourId="student.video-activity.period-option"
+        onBack={() => {
+          setPeriodStep(null);
+          setSelectedPeriod(null);
+        }}
+        backTourId="student.video-activity.period-back"
+      />
     );
   }
 
@@ -975,85 +891,17 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     }
 
     return (
-      <div className="h-screen h-dvh overflow-y-auto bg-linear-to-b from-white to-slate-100">
-        <div className="min-h-full flex flex-col items-center justify-center p-4">
-          <div className="w-full max-w-sm">
-            {/* Brand header */}
-            <div className="flex items-center justify-center gap-3 mb-8">
-              <div className="bg-brand-red-primary rounded-xl p-2.5">
-                <PlayCircle className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <p className="text-slate-900 font-black text-xl leading-none">
-                  SpartBoard
-                </p>
-                <p className="text-slate-500 text-xs font-medium mt-0.5">
-                  Video Activity
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-xs shadow-slate-900/5 border border-slate-200 overflow-hidden">
-              <div className="bg-brand-blue-primary px-5 py-4">
-                <h1 className="text-white font-black text-base uppercase tracking-wide">
-                  Join Activity
-                </h1>
-              </div>
-
-              <form onSubmit={handleJoin} className="p-5 flex flex-col gap-4">
-                <div>
-                  <label
-                    htmlFor={pinInputId}
-                    className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5"
-                  >
-                    Your PIN
-                  </label>
-                  <input
-                    {...tourAttr('student.video-activity.pin')}
-                    id={pinInputId}
-                    type="text"
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    placeholder="Ask your teacher"
-                    inputMode="numeric"
-                    autoFocus
-                    className="w-full bg-white border border-slate-300 focus:border-brand-blue-light focus:ring-2 focus:ring-brand-blue-light text-slate-900 placeholder-slate-400 rounded-xl px-3 py-2.5 text-base font-medium outline-hidden transition-colors"
-                    required
-                  />
-                </div>
-
-                {error && (
-                  <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
-                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                    <p className="text-red-700 text-sm">{error}</p>
-                  </div>
-                )}
-
-                <button
-                  {...tourAttr('student.video-activity.join')}
-                  type="submit"
-                  disabled={
-                    joinStatus === 'loading' || lookingUp || !pin.trim()
-                  }
-                  className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 flex items-center justify-center gap-2 shadow-xs shadow-brand-blue-primary/20"
-                >
-                  {joinStatus === 'loading' || lookingUp ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Joining…
-                    </>
-                  ) : (
-                    <>
-                      <PlayCircle className="w-4 h-4" />
-                      Join &amp; Watch
-                    </>
-                  )}
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
+      <StudentPinJoinCard
+        title={t('studentJoin.title')}
+        intro={t('studentJoin.pinIntro')}
+        pin={pin}
+        onPinChange={setPin}
+        pinTourId="student.video-activity.pin"
+        onSubmit={() => void handleJoin()}
+        submitTourId="student.video-activity.join"
+        busy={joinStatus === 'loading' || lookingUp}
+        error={error}
+      />
     );
   }
 
@@ -1260,11 +1108,15 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   if (gated && session && !entered) {
     if (!canEnter) {
       return (
-        <VideoActivityPeriodLockedScreen
-          session={session}
-          periodKeys={periodKeys}
-          now={windowGated ? studentWindow.now : periodNow}
-          ownWindow={windowGated ? studentWindow : undefined}
+        <StudentPeriodLockedScreen
+          title={session.activityTitle}
+          lock={periodLockState(
+            session,
+            periodKeys,
+            windowGated ? studentWindow.now : periodNow,
+            authedUid,
+            windowGated ? studentWindow : null
+          )}
           started={!retakePending && (myResponse?.answers.length ?? 0) > 0}
         />
       );
@@ -1447,7 +1299,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
               />
 
               {periodPaused && (
-                <VideoActivityPeriodPausedOverlay
+                <StudentPeriodPausedOverlay
                   closed={windowGated && studentWindow.state === 'closed'}
                 />
               )}

@@ -507,6 +507,14 @@ const ClassStudentPageDevHarness = import.meta.env.DEV
       }))
     )
   : null;
+// DEV-ONLY: the shared student join, class and locked screens on fixtures.
+const StudentScreensDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/StudentScreensDevHarness').then((m) => ({
+        default: m.StudentScreensDevHarness,
+      }))
+    )
+  : null;
 // Also built into auth-bypass (E2E) builds for the student page end-padding guard.
 const StudentLandingDevHarness =
   import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
@@ -1652,6 +1660,14 @@ const App: React.FC = () => {
         </Suspense>
         <DialogContainer />
       </DialogProvider>
+    );
+  }
+
+  if (StudentScreensDevHarness && pathname === '/student-screens-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <StudentScreensDevHarness />
+      </Suspense>
     );
   }
 

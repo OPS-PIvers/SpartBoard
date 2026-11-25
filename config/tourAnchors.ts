@@ -19586,10 +19586,6 @@ export const TOUR_ANCHORS = {
   'student.quiz.period': {
     label: 'A class period button when joining a quiz',
   },
-  'student.quiz.period-confirm': {
-    label: 'Continue after picking a class period',
-    persists: true,
-  },
   'student.quiz.period-back': {
     label: 'Go back on the class period step',
   },
@@ -20370,10 +20366,6 @@ export const TOUR_ANCHORS = {
   },
   'student.video-activity.period-option': {
     label: 'Class option on the student Video Activity class picker',
-  },
-  'student.video-activity.period-continue': {
-    label: 'Continue button on the student Video Activity class picker',
-    persists: true,
   },
   'student.video-activity.period-back': {
     label: 'Go Back button on the student Video Activity class picker',
