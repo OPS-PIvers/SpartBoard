@@ -25,7 +25,7 @@ import { DialogContext } from '@/context/DialogContextValue';
 import { assignPins } from '@/utils/rosterPins';
 import { mergeOverrideEdits } from '@/utils/rosterDefaultOverrides';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
-import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
+import { ChecklistSelect } from '@/components/common/ChecklistSelect';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useViewAs } from '@/context/useViewAs';
 import { useRosterRowsState, DraftRow } from './useRosterRowsState';

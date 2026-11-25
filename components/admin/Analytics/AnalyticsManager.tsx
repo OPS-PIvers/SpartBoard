@@ -29,7 +29,6 @@ import {
   LayoutGrid,
   Link2,
   School,
-  Search,
   WandSparkles,
 } from 'lucide-react';
 import { logError } from '@/utils/logError';
@@ -66,6 +65,7 @@ import {
   LastActivePanel,
   NewUsersPanel,
 } from './OverviewCharts';
+import { SearchField } from '@/components/common/SearchField';
 
 interface EngagementCounts {
   total: number;
@@ -1324,17 +1324,13 @@ const KpiUserModal: React.FC<{
       <div className="space-y-4 pb-4">
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              {...tourAttr('admin.analytics.user-search')}
-              type="text"
-              placeholder="Search by email…"
-              value={emailSearch}
-              onChange={(e) => setEmailSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+          <SearchField
+            value={emailSearch}
+            onChange={setEmailSearch}
+            placeholder="Search by email…"
+            anchor={tourAttr('admin.analytics.user-search')}
+            className="flex-1"
+          />
           <select
             {...tourAttr('admin.analytics.user-building-filter')}
             value={buildingFilter}

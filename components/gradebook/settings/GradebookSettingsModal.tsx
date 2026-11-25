@@ -1,16 +1,7 @@
-import React, { useRef, useState } from 'react';
-import {
-  Check,
-  ChevronDown,
-  Copy,
-  Pencil,
-  Settings2,
-  Trash2,
-} from 'lucide-react';
-import {
-  Btn,
-  CellPopover,
-} from '@/components/admin/Organization/components/primitives';
+import React, { useState } from 'react';
+import { Copy, Pencil, Settings2, Trash2 } from 'lucide-react';
+import { Btn } from '@/components/admin/Organization/components/primitives';
+import { ChecklistSelect } from '@/components/common/ChecklistSelect';
 import { Modal } from '@/components/common/Modal';
 import { useUndoToast, type UndoEntry } from './useUndoToast';
 import { useAuth } from '@/context/useAuth';
@@ -84,7 +75,6 @@ export const GradebookSettingsModalView: React.FC<
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [applyOpen, setApplyOpen] = useState(false);
   const { notify, fail } = useUndoToast('GradebookSettings');
-  const applyRef = useRef<HTMLButtonElement>(null);
 
   const personal = entries.filter((e) => e.source === 'personal');
   const fallback =
@@ -369,29 +359,32 @@ export const GradebookSettingsModalView: React.FC<
                 <span id="gb-applies" className={ROW_LABEL}>
                   Applies to
                 </span>
-                <button
-                  ref={applyRef}
-                  type="button"
-                  aria-labelledby="gb-applies"
-                  {...tourAttr('gradebook.settings.applies-to')}
-                  aria-haspopup="menu"
-                  aria-expanded={applyOpen}
-                  onClick={() => setApplyOpen((o) => !o)}
-                  className={`${FIELD} flex flex-1 min-w-0 max-w-[320px] items-center gap-2 text-left`}
-                >
-                  <span
-                    className={`flex-1 truncate ${classesOnShown.length ? '' : 'text-slate-400'}`}
-                  >
-                    {classesOnShown.length
-                      ? classesOnShown.map((c) => c.name).join(', ')
-                      : 'No classes'}
-                  </span>
-                  <ChevronDown
-                    size={16}
-                    className={`shrink-0 text-slate-400 transition-transform ${applyOpen ? 'rotate-180' : ''}`}
-                    aria-hidden
-                  />
-                </button>
+                <ChecklistSelect
+                  label="Applies to"
+                  options={classes.map((c) => {
+                    const cur = configForClass(c.id);
+                    return {
+                      id: c.id,
+                      label: c.name,
+                      note: cur.source !== 'builtin' ? cur.name : undefined,
+                      anchor: tourFieldAttr(
+                        'gradebook.settings.applies-option',
+                        'gradebook-settings',
+                        c.id
+                      ),
+                    };
+                  })}
+                  selected={classesOnShown.map((c) => c.id)}
+                  onToggle={(id) => {
+                    const cls = classes.find((c) => c.id === id);
+                    if (cls) onApply(cls);
+                  }}
+                  emptyText="No classes"
+                  anchor={tourAttr('gradebook.settings.applies-to')}
+                  className="flex-1 max-w-[320px]"
+                  searchFrom={Infinity}
+                  onOpenChange={setApplyOpen}
+                />
               </div>
             )}
 
@@ -431,48 +424,6 @@ export const GradebookSettingsModalView: React.FC<
           </p>
         </div>
       </Modal>
-
-      <CellPopover
-        open={applyOpen}
-        onClose={() => setApplyOpen(false)}
-        anchorRef={applyRef}
-        className="max-h-[280px] overflow-y-auto"
-      >
-        <div role="menu" aria-label="Applies to" className="min-w-[312px]">
-          {classes.length === 0 && (
-            <p className="px-3 py-2 text-sm text-slate-500">No classes</p>
-          )}
-          {classes.map((c) => {
-            const on = configForClass(c.id).key === shown.key;
-            const cur = configForClass(c.id);
-            return (
-              <button
-                key={c.id}
-                type="button"
-                role="menuitemcheckbox"
-                aria-checked={on}
-                {...tourFieldAttr(
-                  'gradebook.settings.applies-option',
-                  'gradebook-settings',
-                  c.id
-                )}
-                onClick={() => onApply(c)}
-                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] leading-5 hover:bg-slate-50 focus:bg-slate-50 focus:outline-hidden ${on ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
-              >
-                <span className="w-4 shrink-0 text-brand-blue-primary">
-                  {on && <Check size={16} aria-hidden />}
-                </span>
-                <span className="flex-1 truncate">{c.name}</span>
-                {!on && cur.source !== 'builtin' && (
-                  <span className="text-[11px] font-normal text-slate-400">
-                    {cur.name}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </CellPopover>
     </>
   );
 };

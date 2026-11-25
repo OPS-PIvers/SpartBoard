@@ -58,7 +58,7 @@ test.describe('settings drawer at 1280x800', () => {
     await expect(tabs).toHaveCount(2);
 
     // Find-a-setting: typing hides the tab bar, clearing restores it.
-    const filter = drawer.getByRole('textbox', { name: 'Find a setting' });
+    const filter = drawer.getByRole('searchbox', { name: 'Find a setting' });
     await filter.fill('trans');
     await expect(drawer.getByRole('tab')).toHaveCount(0);
 

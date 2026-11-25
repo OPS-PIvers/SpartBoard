@@ -20,9 +20,10 @@ import {
 } from '@/components/widgets/MaterialsWidget/constants';
 import { IconPicker } from '@/components/widgets/InstructionalRoutines/IconPicker';
 import { Button } from '@/components/common/Button';
-import { Plus, Trash2, Search } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { Card } from '@/components/common/Card';
 import { getLucideIconNames, useLucideIconMap } from '@/utils/lucideIconMap';
+import { SearchField } from '@/components/common/SearchField';
 
 interface MaterialsConfigurationPanelProps {
   config: MaterialsGlobalConfig;
@@ -332,21 +333,16 @@ export const MaterialsConfigurationPanel: React.FC<
               <label className="text-xxs font-bold uppercase tracking-widest text-slate-500 block">
                 Search Full Lucide Set
               </label>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={iconQuery}
-                  onChange={(e) => setIconQuery(e.target.value)}
-                  placeholder="Search more icons..."
-                  {...tourFieldAttr(
-                    'admin.widget-config.field',
-                    'materials',
-                    'iconSearch'
-                  )}
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-hidden focus:border-brand-blue-primary"
-                />
-              </div>
+              <SearchField
+                value={iconQuery}
+                onChange={setIconQuery}
+                placeholder="Search more icons..."
+                anchor={tourFieldAttr(
+                  'admin.widget-config.field',
+                  'materials',
+                  'iconSearch'
+                )}
+              />
               {filteredFallbackIcons.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {filteredFallbackIcons.map((iconName) => {

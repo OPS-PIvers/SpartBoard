@@ -11,7 +11,7 @@ import {
 import { isPlcLeadOrCoLead } from '@/utils/plc';
 import { Btn } from '@/components/admin/Organization/components/primitives';
 import { GradebookSettingsEditor } from '@/components/gradebook/settings/GradebookSettingsEditor';
-import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
+import { ChecklistSelect } from '@/components/common/ChecklistSelect';
 import { useUndoToast } from '@/components/gradebook/settings/useUndoToast';
 import {
   resolveScale,

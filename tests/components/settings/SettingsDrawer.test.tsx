@@ -57,7 +57,7 @@ function renderDrawer(overrides: Overrides = {}) {
 }
 
 const dialog = () => screen.getByRole('dialog');
-const filter = () => screen.getByRole('textbox', { name: 'Find a setting' });
+const filter = () => screen.getByRole('searchbox', { name: 'Find a setting' });
 
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
