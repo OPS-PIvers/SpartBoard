@@ -32,7 +32,8 @@ export const ResultsTabWarningModal: React.FC<ResultsTabWarningModalProps> = ({
   return (
     <Modal
       isOpen
-      onClose={() => undefined}
+      onClose={onDismiss}
+      dismissible={false}
       variant="bare"
       ariaLabelledby={titleId}
       className="rounded-xl border border-white/20 bg-slate-900 shadow-2xl"
