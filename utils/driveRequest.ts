@@ -74,8 +74,19 @@ async function fetchWithTimeout(
   }
 }
 
-// Folder id per access token and path, so repeat saves skip the lookups.
-const folderIds = new Map<string, Promise<string>>();
+/** Drive sends some rate limits as a 403 with a rateLimitExceeded reason. */
+export async function isRateLimited(res: Response): Promise<boolean> {
+  if (res.status !== 403) return false;
+  try {
+    return /ratelimitexceeded/i.test(await res.clone().text());
+  } catch {
+    return false;
+  }
+}
+
+// Folder id per access token and path; expires so a folder trashed mid-session is looked up again.
+const FOLDER_CACHE_MS = 10 * 60 * 1000;
+const folderIds = new Map<string, { id: Promise<string>; at: number }>();
 
 /** One signed-in Drive connection: holds the token and refreshes it once on a 401. */
 export class DriveSession {
@@ -118,7 +129,9 @@ export class DriveSession {
         continue;
       }
       const retryable =
-        res.status === 429 || (retryServerErrors && res.status >= 500);
+        res.status === 429 ||
+        (retryServerErrors && res.status >= 500) ||
+        (await isRateLimited(res));
       if (res.ok || !retryable || attempt >= MAX_ATTEMPTS) return res;
       const delay = retryBaseMs * 2 ** (attempt - 1);
       if (delay > 0) await new Promise((r) => setTimeout(r, delay));
@@ -132,7 +145,10 @@ export class DriveSession {
     const res = await this.request(
       `${DRIVE_API_URL}/files?q=${encodeURIComponent(q)}&fields=files(id)`
     );
-    if (res.status === 401 || res.status === 403) {
+    if (
+      res.status === 401 ||
+      (res.status === 403 && !(await isRateLimited(res)))
+    ) {
       throw authError('Google Drive access expired. Please sign in again.');
     }
     if (!res.ok) {
@@ -146,7 +162,7 @@ export class DriveSession {
   getOrCreateFolder(name: string, parentId?: string): Promise<string> {
     const key = `${this.token}\u0000${parentId ?? ''}\u0000${name}`;
     const cached = folderIds.get(key);
-    if (cached) return cached;
+    if (cached && Date.now() - cached.at < FOLDER_CACHE_MS) return cached.id;
     const lookup = (async () => {
       const found = await this.findFolder(name, parentId);
       if (found) return found;
@@ -162,7 +178,7 @@ export class DriveSession {
       if (!res.ok) throw new Error(`Failed to create folder ${name} in Drive`);
       return ((await res.json()) as { id: string }).id;
     })();
-    folderIds.set(key, lookup);
+    folderIds.set(key, { id: lookup, at: Date.now() });
     lookup.catch(() => folderIds.delete(key));
     return lookup;
   }

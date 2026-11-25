@@ -33,6 +33,19 @@ describe('DriveSession.request', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  it('retries a 403 rate limit but not a plain 403', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        res(403, { error: { errors: [{ reason: 'userRateLimitExceeded' }] } })
+      )
+      .mockResolvedValueOnce(res(200));
+    expect((await new DriveSession('t').request('https://x')).status).toBe(200);
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue(res(403, { error: 'forbidden' }));
+    expect((await new DriveSession('t').request('https://x')).status).toBe(403);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('never retries a POST 5xx, which could make a duplicate', async () => {
     fetchMock.mockResolvedValue(res(500));
     const r = await new DriveSession('t').request('https://x/files', {
@@ -92,6 +105,22 @@ describe('DriveSession folders', () => {
     session.forgetFolders();
     await session.getOrCreateFolderPath('App', ['Assets']);
     expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it('looks a folder up again after ten minutes', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      fetchMock.mockImplementation(() =>
+        Promise.resolve(res(200, { files: [{ id: 'f' }] }))
+      );
+      const session = new DriveSession('t');
+      await session.getOrCreateFolder('App');
+      vi.setSystemTime(Date.now() + 11 * 60 * 1000);
+      await session.getOrCreateFolder('App');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('creates a missing folder under its parent', async () => {
