@@ -163,6 +163,27 @@ describe('ImagePicker', () => {
     expect((upload.mock.calls[0][0] as File).name).toBe('pic.png');
   });
 
+  it('holds a Drive pick to the size limit', async () => {
+    openPicker.mockResolvedValue({ id: 'd2' });
+    getDriveFileAsBlob.mockResolvedValue({
+      blob: new Blob(['x'.repeat(2048)], { type: 'image/png' }),
+      mimeType: 'image/png',
+      name: 'big.png',
+    });
+    const upload = vi.fn();
+    render(
+      <ImagePicker
+        tourScope={scope}
+        upload={upload}
+        onChange={vi.fn()}
+        maxBytes={1024}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Google Drive' }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/too large/);
+    expect(upload).not.toHaveBeenCalled();
+  });
+
   it('shows the image with Remove once one is set', () => {
     const onRemove = vi.fn();
     render(

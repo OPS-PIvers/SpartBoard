@@ -86,18 +86,23 @@ export function useImageSources({
     [disabled, onChange]
   );
 
+  // Every source goes through the same type and size check before it saves.
+  const save = useCallback(
+    (file: File) => {
+      if (!isImageFile(file)) throw new PickerError('Select an image file.');
+      if (file.size > maxBytes) {
+        throw new PickerError(
+          `That image is too large. The limit is ${Math.round(maxBytes / 1048576)} MB.`
+        );
+      }
+      return upload(file);
+    },
+    [upload, maxBytes]
+  );
+
   const addFile = useCallback(
-    (file: File) =>
-      run(async () => {
-        if (!isImageFile(file)) throw new PickerError('Select an image file.');
-        if (file.size > maxBytes) {
-          throw new PickerError(
-            `That image is too large. The limit is ${Math.round(maxBytes / 1048576)} MB.`
-          );
-        }
-        return upload(file);
-      }),
-    [run, upload, maxBytes]
+    (file: File) => run(async () => save(file)),
+    [run, save]
   );
 
   const openFile = useCallback(() => inputRef.current?.click(), []);
@@ -115,9 +120,9 @@ export function useImageSources({
         if (!picked) return null;
         const got = await getDriveFileAsBlob(picked.id);
         if (!got) throw new PickerError("That Drive image didn't open.");
-        return upload(new File([got.blob], got.name, { type: got.mimeType }));
+        return save(new File([got.blob], got.name, { type: got.mimeType }));
       }),
-    [run, openPicker, getDriveFileAsBlob, upload]
+    [run, openPicker, getDriveFileAsBlob, save]
   );
 
   const addLink = useCallback(
@@ -140,9 +145,9 @@ export function useImageSources({
             "That link can't be used here. Download the image and upload it."
           );
         }
-        return upload(new File([blob], 'linked-image', { type: blob.type }));
+        return save(new File([blob], 'linked-image', { type: blob.type }));
       }),
-    [run, linkAsFile, upload]
+    [run, linkAsFile, save]
   );
 
   const onPasted = useCallback(
