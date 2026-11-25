@@ -105,7 +105,7 @@ export interface UseVideoActivityResult {
 export const useVideoActivity = (
   userId: string | undefined
 ): UseVideoActivityResult => {
-  const { googleAccessToken } = useAuth();
+  const { googleAccessToken, refreshGoogleToken } = useAuth();
   const { isConnected } = useGoogleDrive();
   const [activities, setActivities] = useState<VideoActivityMetadata[]>([]);
   const [loading, setLoading] = useState(!!userId);
@@ -163,8 +163,8 @@ export const useVideoActivity = (
         )
       );
     }
-    return new QuizDriveService(googleAccessToken);
-  }, [googleAccessToken, userId]);
+    return new QuizDriveService(googleAccessToken, refreshGoogleToken);
+  }, [googleAccessToken, refreshGoogleToken, userId]);
 
   const saveActivity = useCallback(
     async (

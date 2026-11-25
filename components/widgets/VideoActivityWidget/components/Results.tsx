@@ -159,8 +159,14 @@ export const Results: React.FC<ResultsProps> = ({
   onAssignMakeUp,
 }) => {
   const outward = useViewAsOutward();
-  const { ensureGoogleScope, user, orgId, canAccessFeature, isExternalUser } =
-    useAuth();
+  const {
+    ensureGoogleScope,
+    refreshGoogleToken,
+    user,
+    orgId,
+    canAccessFeature,
+    isExternalUser,
+  } = useAuth();
   const tabAwayTimerOn = canAccessFeature('tab-away-timer');
   // AB-389: the server sends each student's gradebook final score.
   const sendFinalScores = canAccessFeature('lms-push-final-scores');
@@ -421,7 +427,7 @@ export const Results: React.FC<ResultsProps> = ({
     setExportError(null);
 
     try {
-      const drive = new QuizDriveService(token);
+      const drive = new QuizDriveService(token, refreshGoogleToken);
 
       // Map VideoActivityResponses to QuizResponse shape for reuse
       const quizResponses = responses.map((raw) => {

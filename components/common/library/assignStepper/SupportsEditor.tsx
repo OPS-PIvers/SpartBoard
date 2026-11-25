@@ -18,6 +18,7 @@ import { useAuth } from '@/context/useAuth';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useFilesDrop } from '@/hooks/useFileDrop';
 import { extractGoogleFileId } from '@/utils/urlHelpers';
+import { copyDriveAsset, uploadDriveAsset } from '@/utils/driveAssetUpload';
 import {
   FileSourceButtons,
   UrlAddRow,
@@ -118,20 +119,17 @@ export const SupportsEditor: React.FC<{
   // Shares a copy so the teacher's original keeps its own sharing.
   const shareCopy = async (fileId: string, name: string): Promise<boolean> => {
     if (!driveService) return false;
-    let copyId: string | null = null;
     try {
-      const copy = await driveService.copyFile(
+      // Anyone with the link, like quiz stimuli, so every student can open it.
+      const copy = await copyDriveAsset(driveService, {
         fileId,
         name,
-        'Assets/QuizSupports'
-      );
-      copyId = copy.id;
-      // Anyone with the link, like quiz stimuli, so every student can open it.
-      await driveService.makePublic(copy.id, undefined);
+        folder: 'Assets/QuizSupports',
+        audience: 'anyone',
+      });
       addDriveSupport(copy.id, name);
       return true;
     } catch {
-      if (copyId) await driveService.deleteFile(copyId).catch(() => undefined);
       setError('Couldn’t share that file. Try again.');
       return false;
     }
@@ -174,22 +172,19 @@ export const SupportsEditor: React.FC<{
           setError(`"${f.name}" is too large (max 200 MB).`);
           continue;
         }
-        let id: string | null = null;
         try {
-          const up = await driveService.uploadFile(
-            f,
-            `support-${Date.now()}-${safeName(f.name)}`,
-            'Assets/QuizSupports'
-          );
-          id = up.id;
-          await driveService.makePublic(up.id, undefined);
+          const up = await uploadDriveAsset(driveService, {
+            blob: f,
+            name: `support-${Date.now()}-${safeName(f.name)}`,
+            folder: 'Assets/QuizSupports',
+            audience: 'anyone',
+          });
           addDriveSupport(
             up.id,
             pasted && f.type.startsWith('image/') ? 'Pasted image' : f.name
           );
           added += 1;
         } catch {
-          if (id) await driveService.deleteFile(id).catch(() => undefined);
           setError('Couldn’t upload that file. Try again.');
         }
       }

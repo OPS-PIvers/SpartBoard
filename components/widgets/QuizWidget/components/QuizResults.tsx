@@ -1692,7 +1692,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     if (!owningPlc) {
       throw exportErr;
     }
-    const svc = new QuizDriveService(token);
+    const svc = new QuizDriveService(token, refreshGoogleToken);
     await clearPlcSharedSheetUrl(owningPlc.id);
     const created = await svc.createPlcSheetAndShare({
       plcName: owningPlc.name,
@@ -1788,7 +1788,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     setExporting(true);
     setExportError(null);
     try {
-      const svc = new QuizDriveService(token);
+      const svc = new QuizDriveService(token, refreshGoogleToken);
       const exportOpts = {
         pinToName: exportPinToName,
         byStudentUid,
@@ -1926,7 +1926,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     }
     setExporting(true);
     try {
-      const svc = new QuizDriveService(token);
+      const svc = new QuizDriveService(token, refreshGoogleToken);
       const url = await svc.exportResultsToSheet(
         quiz.title,
         responses,
@@ -2025,7 +2025,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     setUpdatingSheet(true);
     setExportError(null);
     try {
-      const svc = new QuizDriveService(token);
+      const svc = new QuizDriveService(token, refreshGoogleToken);
       // Smart re-export: when there's an append-delta, append. When there
       // isn't, do a clear-and-rewrite ("regenerate") on the same sheet so
       // the teacher has a way to force a clean rebuild without abandoning

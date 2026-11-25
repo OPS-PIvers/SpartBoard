@@ -45,6 +45,7 @@ import {
 } from '@/utils/paperAssignClasses';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { uploadDriveAsset } from '@/utils/driveAssetUpload';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { usePaperSheetImageSharing } from '@/hooks/usePaperSheetImageSharing';
 import { usePaperSheetStimulusImages } from '@/hooks/usePaperSheetStimulusImages';
@@ -821,11 +822,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       }
       // Uploaded unshared: it stays the teacher's until the quiz is
       // published to a PLC, which is where the sharing prompt belongs (D6).
-      const driveFile = await driveService.uploadFile(
+      const driveFile = await uploadDriveAsset(driveService, {
         blob,
-        `sheet-${Date.now()}-${fileName.replace(/[^\w.-]+/g, '_')}`,
-        SHEET_IMAGE_FOLDER
-      );
+        name: `sheet-${Date.now()}-${fileName.replace(/[^\w.-]+/g, '_')}`,
+        folder: SHEET_IMAGE_FOLDER,
+        audience: 'private',
+      });
       return {
         id: crypto.randomUUID(),
         label,
