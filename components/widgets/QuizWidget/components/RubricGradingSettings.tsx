@@ -7,6 +7,7 @@ import React, {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { WidgetAccentScope } from '@/components/common/WidgetAccentScope';
 import { Settings } from 'lucide-react';
 import type { RubricLevelOrder } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -193,48 +194,53 @@ export const RubricGradingSettings: React.FC<RubricGradingSettingsProps> = ({
       </button>
       {open &&
         createPortal(
-          <div
-            ref={menuRef}
-            role="dialog"
-            aria-label="Rubric settings"
-            data-click-outside-ignore="true"
-            onKeyDown={onMenuKeyDown}
-            style={{
-              position: 'fixed',
-              zIndex: Z_INDEX.popover,
-            }}
-            className="w-80 max-w-[calc(100vw-1rem)] divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
-          >
-            <SwitchRow
-              label="Auto-advance to next category"
-              checked={autoAdvance}
-              onChange={onAutoAdvanceChange}
-              anchor={tourTypeAttr('quiz-grading.rubric-auto-advance', 'quiz')}
-            />
-            <SwitchRow
-              label="Auto-open next category"
-              disabled={!autoAdvance}
-              checked={autoAdvance && openNext}
-              onChange={onOpenNextChange}
-              anchor={tourTypeAttr('quiz-grading.rubric-open-next', 'quiz')}
-            />
-            <div className="flex items-center justify-between gap-2 px-3 py-2">
-              <span className="whitespace-nowrap text-sm font-semibold text-slate-800">
-                Level order
-              </span>
-              <SegmentedControl<RubricLevelOrder>
-                role="radiogroup"
-                ariaLabel="Level order"
-                value={order}
-                onChange={onOrderChange}
-                anchor={tourTypeAttr('quiz-grading.rubric-order', 'quiz')}
-                options={[
-                  { value: 'high-first', label: 'Highest' },
-                  { value: 'low-first', label: 'Lowest' },
-                ]}
+          <WidgetAccentScope>
+            <div
+              ref={menuRef}
+              role="dialog"
+              aria-label="Rubric settings"
+              data-click-outside-ignore="true"
+              onKeyDown={onMenuKeyDown}
+              style={{
+                position: 'fixed',
+                zIndex: Z_INDEX.popover,
+              }}
+              className="w-80 max-w-[calc(100vw-1rem)] divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
+            >
+              <SwitchRow
+                label="Auto-advance to next category"
+                checked={autoAdvance}
+                onChange={onAutoAdvanceChange}
+                anchor={tourTypeAttr(
+                  'quiz-grading.rubric-auto-advance',
+                  'quiz'
+                )}
               />
+              <SwitchRow
+                label="Auto-open next category"
+                disabled={!autoAdvance}
+                checked={autoAdvance && openNext}
+                onChange={onOpenNextChange}
+                anchor={tourTypeAttr('quiz-grading.rubric-open-next', 'quiz')}
+              />
+              <div className="flex items-center justify-between gap-2 px-3 py-2">
+                <span className="whitespace-nowrap text-sm font-semibold text-slate-800">
+                  Level order
+                </span>
+                <SegmentedControl<RubricLevelOrder>
+                  role="radiogroup"
+                  ariaLabel="Level order"
+                  value={order}
+                  onChange={onOrderChange}
+                  anchor={tourTypeAttr('quiz-grading.rubric-order', 'quiz')}
+                  options={[
+                    { value: 'high-first', label: 'Highest' },
+                    { value: 'low-first', label: 'Lowest' },
+                  ]}
+                />
+              </div>
             </div>
-          </div>,
+          </WidgetAccentScope>,
           document.body
         )}
     </div>

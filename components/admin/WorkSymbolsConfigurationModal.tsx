@@ -22,6 +22,8 @@ import { Card } from '@/components/common/Card';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { WorkSymbolsConfigurationPanel } from './WorkSymbolsConfigurationPanel';
 import { Modal } from '@/components/common/Modal';
+import { useAuth } from '@/context/useAuth';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 
 interface WorkSymbolsConfigurationModalProps {
   isOpen: boolean;
@@ -60,6 +62,10 @@ export const WorkSymbolsConfigurationModal: React.FC<
   const uploadedThisSessionRef = useRef<Set<string>>(new Set());
 
   const { uploadAdminWorkSymbol, deleteFile } = useStorage();
+  const { canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
+  // File names of picked uploads, so each new symbol starts with its name as the title.
+  const pickedNamesRef = useRef<Map<string, string>>(new Map());
 
   // Sync state if permission.config changes externally
   const [prevConfig, setPrevConfig] = useState(permission.config);
@@ -126,6 +132,32 @@ export const WorkSymbolsConfigurationModal: React.FC<
     },
     [addToast, setSymbols, uploadAdminWorkSymbol]
   );
+
+  const uploadPicked = async (file: File) => {
+    const url = await uploadAdminWorkSymbol(file);
+    uploadedThisSessionRef.current.add(url);
+    pickedNamesRef.current.set(url, file.name);
+    return url;
+  };
+
+  const addPickedSymbol = (url: string) => {
+    let name = pickedNamesRef.current.get(url);
+    pickedNamesRef.current.delete(url);
+    if (name === undefined) {
+      try {
+        name = decodeURIComponent(new URL(url).pathname.split('/').pop() ?? '');
+      } catch {
+        name = '';
+      }
+    }
+    const symbol: WorkSymbol = {
+      id: crypto.randomUUID(),
+      title: name.replace(/\.[^.]+$/, ''),
+      imageUrl: url,
+      buildings: [],
+    };
+    setSymbols((prev) => [...prev, symbol]);
+  };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) {
@@ -229,52 +261,64 @@ export const WorkSymbolsConfigurationModal: React.FC<
 
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-        {/* Upload Zone */}
-        <div
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDragging(true);
-          }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all p-8 gap-3 ${
-            isDragging
-              ? 'border-violet-400 bg-violet-50'
-              : 'border-slate-300 bg-white hover:border-violet-300 hover:bg-violet-50/30'
-          } ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
-        >
-          {uploading ? (
-            <>
-              <Loader2 className="w-8 h-8 text-violet-500 animate-spin" />
-              <p className="text-sm font-bold text-slate-500">Uploading...</p>
-            </>
-          ) : (
-            <>
-              <div className="p-3 bg-slate-100 rounded-xl">
-                <Upload className="w-6 h-6 text-slate-400" />
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-black text-slate-600 uppercase tracking-tight">
-                  Drop images here or click to upload
-                </p>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                  PNG, JPG, or WebP
-                </p>
-              </div>
-            </>
-          )}
-          <input
-            // no-tour-anchor: hidden file input opened by its upload button
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
+        {unifiedPicker && (
+          <ImagePicker
             multiple
-            className="hidden"
-            onChange={handleFileInput}
-            disabled={uploading}
+            maxBytes={MAX_FILE_SIZE}
+            tourScope={{ type: 'work-symbols', field: 'symbols' }}
+            upload={uploadPicked}
+            onChange={addPickedSymbol}
           />
-        </div>
+        )}
+
+        {/* Upload Zone */}
+        {!unifiedPicker && (
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all p-8 gap-3 ${
+              isDragging
+                ? 'border-violet-400 bg-violet-50'
+                : 'border-slate-300 bg-white hover:border-violet-300 hover:bg-violet-50/30'
+            } ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="w-8 h-8 text-violet-500 animate-spin" />
+                <p className="text-sm font-bold text-slate-500">Uploading...</p>
+              </>
+            ) : (
+              <>
+                <div className="p-3 bg-slate-100 rounded-xl">
+                  <Upload className="w-6 h-6 text-slate-400" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-black text-slate-600 uppercase tracking-tight">
+                    Drop images here or click to upload
+                  </p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    PNG, JPG, or WebP
+                  </p>
+                </div>
+              </>
+            )}
+            <input
+              // no-tour-anchor: hidden file input opened by its upload button
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleFileInput}
+              disabled={uploading}
+            />
+          </div>
+        )}
 
         {/* Symbol Grid */}
         {globalConfig.symbols.length === 0 ? (

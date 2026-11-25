@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { RecessGearConfigurationPanel } from './RecessGearConfigurationPanel';
+
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
 
 const Harness = () => {
   const [config, setConfig] = useState<Record<string, unknown>>({

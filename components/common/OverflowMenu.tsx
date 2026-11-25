@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { WidgetAccentScope } from '@/components/common/WidgetAccentScope';
 import { Check, ChevronRight, Loader2, MoreHorizontal } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -394,27 +395,29 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   const menu =
     open && pos
       ? createPortal(
-          <div
-            ref={menuRef}
-            role="menu"
-            aria-label={ariaLabel}
-            data-click-outside-ignore="true"
-            onKeyDown={onMenuKeyDown}
-            className={PANEL_CLASS}
-            style={{
-              position: 'fixed',
-              top: pos.top,
-              left: pos.left,
-              right: pos.right,
-              width: 'max-content',
-              minWidth: MENU_MIN_WIDTH,
-              maxWidth: pos.maxWidth,
-              maxHeight: pos.maxHeight,
-              zIndex: Z_INDEX.popover,
-            }}
-          >
-            {ordered.map((item, i) => renderRow(item, `${i + 1}`, i, false))}
-          </div>,
+          <WidgetAccentScope>
+            <div
+              ref={menuRef}
+              role="menu"
+              aria-label={ariaLabel}
+              data-click-outside-ignore="true"
+              onKeyDown={onMenuKeyDown}
+              className={PANEL_CLASS}
+              style={{
+                position: 'fixed',
+                top: pos.top,
+                left: pos.left,
+                right: pos.right,
+                width: 'max-content',
+                minWidth: MENU_MIN_WIDTH,
+                maxWidth: pos.maxWidth,
+                maxHeight: pos.maxHeight,
+                zIndex: Z_INDEX.popover,
+              }}
+            >
+              {ordered.map((item, i) => renderRow(item, `${i + 1}`, i, false))}
+            </div>
+          </WidgetAccentScope>,
           document.body
         )
       : null;
@@ -426,30 +429,32 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   const submenu =
     activeSub && subParent?.submenu
       ? createPortal(
-          <div
-            ref={subRef}
-            role="menu"
-            aria-label={subParent.label}
-            data-click-outside-ignore="true"
-            onPointerEnter={cancelSubClose}
-            onKeyDown={onMenuKeyDown}
-            className={PANEL_CLASS}
-            style={{
-              position: 'fixed',
-              top: activeSub.top,
-              left: activeSub.left,
-              right: activeSub.right,
-              width: 'max-content',
-              minWidth: MENU_MIN_WIDTH,
-              maxWidth: SUBMENU_WIDTH,
-              maxHeight: activeSub.maxHeight,
-              zIndex: Z_INDEX.popover,
-            }}
-          >
-            {subParent.submenu.map((child, j) =>
-              renderRow(child, `${subParentIndex + 1}-${j + 1}`, j, true)
-            )}
-          </div>,
+          <WidgetAccentScope>
+            <div
+              ref={subRef}
+              role="menu"
+              aria-label={subParent.label}
+              data-click-outside-ignore="true"
+              onPointerEnter={cancelSubClose}
+              onKeyDown={onMenuKeyDown}
+              className={PANEL_CLASS}
+              style={{
+                position: 'fixed',
+                top: activeSub.top,
+                left: activeSub.left,
+                right: activeSub.right,
+                width: 'max-content',
+                minWidth: MENU_MIN_WIDTH,
+                maxWidth: SUBMENU_WIDTH,
+                maxHeight: activeSub.maxHeight,
+                zIndex: Z_INDEX.popover,
+              }}
+            >
+              {subParent.submenu.map((child, j) =>
+                renderRow(child, `${subParentIndex + 1}-${j + 1}`, j, true)
+              )}
+            </div>
+          </WidgetAccentScope>,
           document.body
         )
       : null;

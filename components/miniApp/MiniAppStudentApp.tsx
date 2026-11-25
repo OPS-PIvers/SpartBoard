@@ -1102,7 +1102,7 @@ const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
 const TurnedInScreen: React.FC<{ appTitle: string }> = ({ appTitle }) => (
   <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4 p-8 text-center">
     <CheckCircle2 className="w-10 h-10 text-emerald-400" />
-    <h1 className="text-white text-xl font-bold">Turned in</h1>
+    <h1 className="text-white text-xl font-bold">Submitted</h1>
     <p className="text-white/60 max-w-sm">{appTitle}</p>
   </div>
 );

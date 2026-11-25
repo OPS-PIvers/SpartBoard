@@ -87,28 +87,28 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
       .getByRole('button', { name: 'Open', exact: true })
       .first()
       .click();
-    await status('Open · Period 1', '0 turned in · 1 class to go');
-    await reads('Period 1 Open 0 turned in');
+    await status('Open · Period 1', '0 submitted · 1 class to go');
+    await reads('Period 1 Open 0 submitted');
     await reads('Period 2 Ready');
   });
 
   await test.step('pause and resume that class', async () => {
     await panel.getByRole('button', { name: 'Pause', exact: true }).click();
     await status('Paused · Period 1', '1 class to go');
-    await reads('Period 1 Paused 0 turned in');
+    await reads('Period 1 Paused 0 submitted');
     await panel.getByRole('button', { name: 'Resume', exact: true }).click();
-    await reads('Period 1 Open 0 turned in');
+    await reads('Period 1 Open 0 submitted');
   });
 
   await test.step('close it, then reopen it', async () => {
     await panel.getByRole('button', { name: 'Close', exact: true }).click();
     await reads('1 of 2 classes closed');
-    await reads('Period 1 Closed 0 turned in');
+    await reads('Period 1 Closed 0 submitted');
     await expect(
       panel.getByRole('button', { name: 'Open for Period 2' })
     ).toBeVisible();
     await panel.getByRole('button', { name: 'Reopen', exact: true }).click();
-    await reads('Period 1 Open 0 turned in');
+    await reads('Period 1 Open 0 submitted');
   });
 
   await test.step('open the monitor for the open class and come back', async () => {
@@ -127,7 +127,7 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
       widget.getByRole('button', { name: 'Close Period 1' })
     ).toBeVisible();
     await widget.getByRole('button', { name: 'Back' }).click();
-    await status('Open · Period 1', '0 turned in · 1 class to go');
+    await status('Open · Period 1', '0 submitted · 1 class to go');
   });
 
   await test.step('close for all classes, then undo', async () => {
@@ -144,7 +144,7 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
     ).toBeVisible();
     await page.getByRole('button', { name: 'Undo' }).click();
     await reads('Active 1');
-    await status('Open · Period 1', '0 turned in · 1 class to go');
+    await status('Open · Period 1', '0 submitted · 1 class to go');
   });
 
   await test.step('move to Finished and open results', async () => {

@@ -1372,7 +1372,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     if (open.length === 0) return false;
     const label = `${open.length} student${open.length === 1 ? '' : 's'}`;
     const ok = await showConfirm(
-      `Turn in the quiz for ${label} with the answers saved so far? Reopen it if they need to keep working.`,
+      `Submit the quiz for ${label}? Responses may be incomplete.`,
       { title: 'Submit for selected students', confirmLabel: 'Submit' }
     );
     if (!ok) return false;

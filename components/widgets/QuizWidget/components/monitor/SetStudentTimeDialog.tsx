@@ -197,7 +197,7 @@ export const SetStudentTimeDialog: React.FC<SetStudentTimeDialogProps> = ({
         ) : (
           late && (
             <p className="text-sm text-amber-700">
-              Work turned in after the due date shows as Late.
+              Any work submitted after the due date will be marked Late.
             </p>
           )
         )}

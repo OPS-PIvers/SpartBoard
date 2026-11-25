@@ -11,6 +11,7 @@ import { acquireBodyScrollLock, releaseBodyScrollLock } from './bodyScrollLock';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
 import { ModalHeader } from './ModalHeader';
+import { useWidgetAccent, widgetAccentVars } from './widgetAccentContext';
 import {
   tourAttr,
   tourFieldAttr,
@@ -102,6 +103,9 @@ export const Modal: React.FC<ModalProps> = ({
   rootProps,
 }) => {
   const [fullscreenState, setFullscreenState] = useState(false);
+  // Inside a widget (flag on), its accent recolors the header and brand-blue controls.
+  const widgetAccent = useWidgetAccent();
+  const themeAccent = widgetAccent ? (accent ?? widgetAccent) : undefined;
   const isFullscreen = fullscreenProp ?? (allowFullscreen && fullscreenState);
   const setFullscreen = onFullscreenChange ?? setFullscreenState;
   const showHeaderToggle = allowFullscreen && fullscreenProp === undefined;
@@ -190,6 +194,7 @@ export const Modal: React.FC<ModalProps> = ({
     <div
       className={`fixed inset-0 ${zIndex} flex justify-center ${placement === 'sheet' ? 'items-end sm:items-center' : 'items-center'} ${isFullscreen ? 'p-0' : `${fullBleedOnPhone || placement === 'sheet' ? 'p-0' : 'p-4'} ${fullBleedOnPhone ? 'md:p-4' : placement === 'sheet' ? 'sm:p-4' : ''}`} bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200`}
       ref={rootRef}
+      style={themeAccent ? widgetAccentVars(themeAccent) : undefined}
       {...rootProps}
       {...backdropProps}
       role="dialog"

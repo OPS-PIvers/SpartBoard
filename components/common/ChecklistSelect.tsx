@@ -6,6 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { WidgetAccentScope } from '@/components/common/WidgetAccentScope';
 import { Check, ChevronDown } from 'lucide-react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -254,79 +255,81 @@ export const ChecklistSelect: React.FC<ChecklistSelectProps> = ({
       </button>
       {open &&
         createPortal(
-          <div
-            ref={panelRef}
-            data-click-outside-ignore="true"
-            onKeyDown={onMenuKeyDown}
-            style={{
-              position: 'fixed',
-              top: pos?.top ?? -9999,
-              left: pos?.left ?? -9999,
-              minWidth: Math.max(pos?.minWidth ?? 0, 260),
-              maxHeight: pos?.maxHeight,
-            }}
-            className="z-popover flex max-w-[min(360px,calc(100vw-16px))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
-          >
-            {searchable && (
-              <div className="shrink-0 p-1">
-                <SearchField
-                  autoFocus
-                  value={search}
-                  onChange={setSearch}
-                  placeholder={searchPlaceholder}
-                  ariaLabel={`Search ${label.toLowerCase()}`}
-                  anchor={searchAnchor}
-                  size="sm"
-                />
-              </div>
-            )}
-            {showCount && (
-              <div className="shrink-0 px-2 pb-1 text-xs text-slate-500">
-                {selected.length} selected
-              </div>
-            )}
+          <WidgetAccentScope>
             <div
-              role="menu"
-              aria-label={label}
-              className="scroll-inset flex min-h-0 flex-col overflow-y-auto pb-1"
+              ref={panelRef}
+              data-click-outside-ignore="true"
+              onKeyDown={onMenuKeyDown}
+              style={{
+                position: 'fixed',
+                top: pos?.top ?? -9999,
+                left: pos?.left ?? -9999,
+                minWidth: Math.max(pos?.minWidth ?? 0, 260),
+                maxHeight: pos?.maxHeight,
+              }}
+              className="z-popover flex max-w-[min(360px,calc(100vw-16px))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
             >
-              {shown.length === 0 && (
-                <p className="px-3 py-2 text-sm text-slate-500">
-                  {noMatchesText}
-                </p>
+              {searchable && (
+                <div className="shrink-0 p-1">
+                  <SearchField
+                    autoFocus
+                    value={search}
+                    onChange={setSearch}
+                    placeholder={searchPlaceholder}
+                    ariaLabel={`Search ${label.toLowerCase()}`}
+                    anchor={searchAnchor}
+                    size="sm"
+                  />
+                </div>
               )}
-              {shown.map((o) => {
-                const on = picked.has(o.id);
-                return (
-                  <button
-                    key={o.id}
-                    type="button"
-                    role="menuitemcheckbox"
-                    aria-checked={on}
-                    {...o.anchor}
-                    title={o.label}
-                    onClick={() => onToggle(o.id, !on)}
-                    className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-slate-50 focus-visible:bg-slate-50 focus:outline-hidden ${on ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
-                  >
-                    <span className="w-4 shrink-0 text-brand-blue-primary">
-                      {on && <Check size={16} aria-hidden />}
-                    </span>
-                    {o.code && (
-                      <b className="min-w-10 shrink-0 font-bold text-slate-800">
-                        {o.code}
-                      </b>
-                    )}
-                    <span className="min-w-0 flex-1 truncate">{o.label}</span>
-                    {!on && o.note && (
-                      <span className="shrink-0 text-[11px] font-normal text-slate-400">
-                        {o.note}
+              {showCount && (
+                <div className="shrink-0 px-2 pb-1 text-xs text-slate-500">
+                  {selected.length} selected
+                </div>
+              )}
+              <div
+                role="menu"
+                aria-label={label}
+                className="scroll-inset flex min-h-0 flex-col overflow-y-auto pb-1"
+              >
+                {shown.length === 0 && (
+                  <p className="px-3 py-2 text-sm text-slate-500">
+                    {noMatchesText}
+                  </p>
+                )}
+                {shown.map((o) => {
+                  const on = picked.has(o.id);
+                  return (
+                    <button
+                      key={o.id}
+                      type="button"
+                      role="menuitemcheckbox"
+                      aria-checked={on}
+                      {...o.anchor}
+                      title={o.label}
+                      onClick={() => onToggle(o.id, !on)}
+                      className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-slate-50 focus-visible:bg-slate-50 focus:outline-hidden ${on ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
+                    >
+                      <span className="w-4 shrink-0 text-brand-blue-primary">
+                        {on && <Check size={16} aria-hidden />}
                       </span>
-                    )}
-                  </button>
-                );
-              })}
+                      {o.code && (
+                        <b className="min-w-10 shrink-0 font-bold text-slate-800">
+                          {o.code}
+                        </b>
+                      )}
+                      <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                      {!on && o.note && (
+                        <span className="shrink-0 text-[11px] font-normal text-slate-400">
+                          {o.note}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>,
+          </WidgetAccentScope>,
           document.body
         )}
     </>

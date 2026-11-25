@@ -22,6 +22,7 @@ import React, {
   type RefObject,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { WidgetAccentScope } from '@/components/common/WidgetAccentScope';
 import { Folder as FolderIcon, Check, Inbox } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import { Modal } from '@/components/common/Modal';
@@ -282,7 +283,10 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
 
   if (isPortaledPopover) {
     if (!anchorPos || typeof document === 'undefined') return null;
-    return createPortal(card, document.body);
+    return createPortal(
+      <WidgetAccentScope>{card}</WidgetAccentScope>,
+      document.body
+    );
   }
 
   return card;
