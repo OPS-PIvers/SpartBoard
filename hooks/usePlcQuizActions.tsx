@@ -465,7 +465,8 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
         const content = await resolveQuizAssignContent(
           fresh,
           savedMeta.driveFileId,
-          { loadBankContentsForQuiz, saveDriveSnapshot }
+          { loadBankContentsForQuiz, saveDriveSnapshot },
+          { freeze: true }
         );
         const plcLinkage = buildPlcLinkage(plc);
         const quizPlan: PlcQuizStepperPlan = {

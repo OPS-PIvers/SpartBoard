@@ -31,11 +31,15 @@ function topLevelArgs(args: string): string[] {
   return parts.filter((p) => p.length > 0);
 }
 
-/** A literal options object (the third argument) means the assign built its own. */
+// Third arguments that come from the shared builder.
+const BUILT_OPTIONS =
+  /^(buildAssignCreateOptions\(|reviewCreateOptions\(|fields\.options$)/;
+
+/** Options that aren't the builder's output (a literal, a variable or none) mean the assign built its own. */
 function handBuiltOptions(args: string): boolean {
   const code = args.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   const options = topLevelArgs(code)[2];
-  return !!options && options.startsWith('{');
+  return !options || !BUILT_OPTIONS.test(options);
 }
 
 // file -> number of createAssignment calls that may hand-build options, and why.
@@ -51,8 +55,10 @@ const ALLOWED: Record<string, { count: number; why: string }> = {
   },
 };
 
+// Files with a quiz create: the hook itself, its callers, and the course helper.
 const QUIZ_HOOK =
-  /from '@\/hooks\/(useQuizAssignments|quizAssignments\/types)'|assignFromCourse/;
+  /from '@\/hooks\/(useQuizAssignments|quizAssignments\/types)'|assignFromCourse|UseQuizAssignmentsResult\['createAssignment'\]/;
+const QUIZ_HOOK_FILE = 'hooks/useQuizAssignments.ts';
 
 function sourceFiles(): string[] {
   const out = execFileSync(
@@ -88,7 +94,7 @@ describe('quiz assigns use the shared options builder', () => {
     const seen: Record<string, number> = {};
     for (const file of sourceFiles()) {
       const src = readFileSync(resolve(repoRoot, file), 'utf8');
-      if (!QUIZ_HOOK.test(src)) continue;
+      if (file !== QUIZ_HOOK_FILE && !QUIZ_HOOK.test(src)) continue;
       for (const args of createAssignmentCalls(src)) {
         if (!handBuiltOptions(args)) continue;
         seen[file] = (seen[file] ?? 0) + 1;
