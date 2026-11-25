@@ -21,6 +21,9 @@ import type {
 } from '@/types';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
+
+const MAX_BYTES = 10 * 1024 * 1024;
 
 const ICON_OPTIONS: ReadonlyArray<{
   value: ImageHotspot['icon'];
@@ -43,6 +46,7 @@ const HotspotBaseImageField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
   const { addToast } = useDashboard();
   const { showConfirm, showPrompt } = useDialog();
   const { user, savedWidgetPresets, saveWidgetPreset } = useAuth();
+  const unifiedPicker = ctx.canAccessFeature('unified-image-picker');
   const { uploadHotspotImage, uploading } = useStorage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
@@ -67,7 +71,7 @@ const HotspotBaseImageField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > MAX_BYTES) {
       addToast(t('imageTooLarge'), 'error');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
@@ -179,39 +183,59 @@ const HotspotBaseImageField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
-        <Button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="flex w-full items-center justify-center gap-2"
-          {...tourAttr(
-            'widget-settings.hotspot-image.upload',
-            ctx.widget.id,
-            ctx.widget.type
-          )}
-        >
-          {uploading ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <Upload className="h-4 w-4" aria-hidden="true" />
-          )}
-          {uploading
-            ? t('uploading')
-            : baseImageUrl
-              ? t('replaceImage')
-              : t('uploadImage')}
-        </Button>
-        {/* no-tour-anchor: hidden file input opened by its visible upload button */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          aria-label={t('uploadImage')}
-          onChange={(event) => void handleFileChange(event)}
+      {unifiedPicker ? (
+        <ImagePicker
+          value={baseImageUrl}
+          maxBytes={MAX_BYTES}
+          tourScope={{ type: ctx.widget.type, field: 'baseImageUrl' }}
+          tourOverrides={{
+            upload: tourAttr(
+              'widget-settings.hotspot-image.upload',
+              ctx.widget.id,
+              ctx.widget.type
+            ),
+          }}
+          upload={(file) => {
+            if (!user) throw new Error('Sign in to upload images.');
+            return uploadHotspotImage(user.uid, file);
+          }}
+          onChange={(url) => ctx.updateConfig({ baseImageUrl: url })}
         />
-      </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <Button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex w-full items-center justify-center gap-2"
+            {...tourAttr(
+              'widget-settings.hotspot-image.upload',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
+          >
+            {uploading ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Upload className="h-4 w-4" aria-hidden="true" />
+            )}
+            {uploading
+              ? t('uploading')
+              : baseImageUrl
+                ? t('replaceImage')
+                : t('uploadImage')}
+          </Button>
+          {/* no-tour-anchor: hidden file input opened by its visible upload button */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            aria-label={t('uploadImage')}
+            onChange={(event) => void handleFileChange(event)}
+          />
+        </div>
+      )}
 
       <div className="mt-2 space-y-2">
         <p className="text-xs font-semibold text-slate-700">

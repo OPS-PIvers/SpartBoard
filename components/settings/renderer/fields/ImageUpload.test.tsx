@@ -7,7 +7,10 @@ import { makeCtx, widget } from './testUtils';
 const mockUploadDisplayImage =
   vi.fn<(uid: string, file: File) => Promise<string>>();
 const mockDeleteFile = vi.fn<(url: string) => Promise<void>>();
-const authState: { user: { uid: string } | null } = { user: { uid: 'u1' } };
+const authState: { user: { uid: string } | null; unified: boolean } = {
+  user: { uid: 'u1' },
+  unified: false,
+};
 const pickerState = { isConnected: false };
 
 vi.mock('@/context/useAuth', () => ({
@@ -50,7 +53,11 @@ function renderField(
     <FieldRenderer
       field={{ ...field, ...override }}
       widget={widget}
-      ctx={makeCtx(config)}
+      ctx={{
+        ...makeCtx(config),
+        canAccessFeature: (id) =>
+          id !== 'unified-image-picker' || authState.unified,
+      }}
       updateConfig={updateConfig}
     />
   );
@@ -72,6 +79,7 @@ beforeEach(() => {
   mockUploadDisplayImage.mockReset();
   mockDeleteFile.mockReset().mockResolvedValue(undefined);
   authState.user = { uid: 'u1' };
+  authState.unified = false;
   pickerState.isConnected = false;
 });
 
@@ -200,5 +208,72 @@ describe('ImageUpload field', () => {
       imageUrl: 'https://example.com/a.png',
     });
     expect(await axe(container, STRUCTURAL_ONLY)).toHaveNoViolations();
+  });
+});
+
+describe('ImageUpload field with the shared picker', () => {
+  beforeEach(() => {
+    authState.unified = true;
+  });
+
+  const pickerInput = (container: HTMLElement) =>
+    container.querySelector<HTMLInputElement>(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+
+  it('shows the shared picker instead of the old buttons', () => {
+    const { container } = renderField({});
+    expect(screen.getByRole('button', { name: /Upload/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Google Drive/ })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'uploadImage' })).toBeNull();
+    const upload = screen.getByRole('button', { name: /Upload/ });
+    expect(upload).toHaveAttribute('data-tour', 'image-picker.upload');
+    expect(upload).toHaveAttribute('data-tour-field', 'imageUrl');
+    expect(pickerInput(container)).toHaveAttribute('accept', 'image/*');
+  });
+
+  it('uploads through the same save target and deletes the replaced image', async () => {
+    mockUploadDisplayImage.mockResolvedValue('https://example.com/new.png');
+    const updateConfig = vi.fn();
+    const { container } = renderField(
+      { imageUrl: 'https://example.com/old.png' },
+      updateConfig
+    );
+    const file = makeFile();
+    fireEvent.change(pickerInput(container), { target: { files: [file] } });
+    await waitFor(() =>
+      expect(updateConfig).toHaveBeenCalledWith({
+        imageUrl: 'https://example.com/new.png',
+      })
+    );
+    expect(mockUploadDisplayImage).toHaveBeenCalledWith('u1', file);
+    expect(mockDeleteFile).toHaveBeenCalledWith('https://example.com/old.png');
+  });
+
+  it('keeps the 5 MB cap', async () => {
+    const { container } = renderField({});
+    fireEvent.change(pickerInput(container), {
+      target: { files: [makeFile('image/png', 5 * 1024 * 1024 + 1)] },
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent('5 MB');
+    expect(mockUploadDisplayImage).not.toHaveBeenCalled();
+  });
+
+  it('removes the image and deletes it', () => {
+    const updateConfig = vi.fn();
+    renderField({ imageUrl: 'https://example.com/a.png' }, updateConfig);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove image' }));
+    expect(updateConfig).toHaveBeenCalledWith({ imageUrl: '' });
+    expect(mockDeleteFile).toHaveBeenCalledWith('https://example.com/a.png');
+  });
+
+  it('honours disabled', () => {
+    renderField({ imageUrl: 'https://example.com/a.png' }, vi.fn(), {
+      disabledWhen: () => true,
+    });
+    expect(screen.getByRole('button', { name: /Upload/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Remove image' })).toBeDisabled();
   });
 });
