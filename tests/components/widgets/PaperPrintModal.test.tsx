@@ -88,10 +88,6 @@ import type {
   QuizData,
   QuizQuestion,
 } from '@/types';
-import type {
-  ExtractedQuestion,
-  ExtractedQuiz,
-} from '@/utils/quizDocumentImport';
 import {
   buildPaperSheetsHtml,
   type PaperPrintJob,
@@ -127,6 +123,9 @@ const roster: ClassRoster = {
   ],
 };
 
+/** A printed group's stack for Period 1: the modal opens with its students already chosen. */
+const WHOLE_CLASS = { label: '', students: { r1: ['s1', 's2'] } };
+
 const setup = (
   over: Partial<React.ComponentProps<typeof PaperPrintModal>> = {}
 ) => {
@@ -140,6 +139,7 @@ const setup = (
     <PaperPrintModal
       quiz={quiz()}
       rosters={[roster]}
+      group={WHOLE_CLASS}
       onSaveBatch={onSaveBatch}
       onClose={onClose}
       onError={onError}
@@ -156,9 +156,6 @@ const fileInput = (): HTMLInputElement => {
   if (!input) throw new Error('No file input rendered');
   return input as HTMLInputElement;
 };
-
-const selectWholeClass = () =>
-  fireEvent.click(screen.getByLabelText('Period 1', { selector: 'input' }));
 
 describe('PaperPrintModal', () => {
   beforeEach(() => {
@@ -210,9 +207,6 @@ describe('PaperPrintModal', () => {
 
     it("draws the first student's packet without saving anything", () => {
       const { onSaveBatch, print } = setup();
-      // A spare sheet until someone is picked.
-      expect(frame().srcdoc).toContain('Name ______');
-      selectWholeClass();
       expect(frame().srcdoc).toContain('Alvarez, Sam');
       expect(frame().srcdoc).not.toContain('Baker, Jo');
       expect(onSaveBatch).not.toHaveBeenCalled();
@@ -223,7 +217,6 @@ describe('PaperPrintModal', () => {
       const { print } = setup({
         quiz: quiz({ questions: [{ ...mc('q1'), text: 'Which is a cell?' }] }),
       });
-      selectWholeClass();
       fireEvent.click(screen.getByRole('switch', { name: /question text/i }));
       const preview = frame().srcdoc;
       expect(preview).toContain('Which is a cell?');
@@ -254,7 +247,6 @@ describe('PaperPrintModal', () => {
 
   it('counts sheets and pages for the chosen students plus spares', () => {
     setup();
-    selectWholeClass();
     fireEvent.change(screen.getByLabelText(/Blank spare sheets/i), {
       target: { value: '3' },
     });
@@ -271,7 +263,6 @@ describe('PaperPrintModal', () => {
       order.push('print');
     });
     setup({ onSaveBatch, print: print });
-    selectWholeClass();
     fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
     await waitFor(() => expect(print).toHaveBeenCalled());
     expect(order).toEqual(['save', 'print']);
@@ -280,7 +271,6 @@ describe('PaperPrintModal', () => {
   it('never prints when the batch could not be saved', async () => {
     const onSaveBatch = vi.fn().mockRejectedValue(new Error('offline'));
     const { print, onError, onClose } = setup({ onSaveBatch });
-    selectWholeClass();
     fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
     await waitFor(() => expect(onError).toHaveBeenCalledWith('offline'));
     expect(print).not.toHaveBeenCalled();
@@ -309,7 +299,6 @@ describe('PaperPrintModal', () => {
     );
     const { onSaveBatch, print } = setup({ quiz: bankQuiz, resolved });
     expect(screen.queryByText(/will not be on the/)).toBeNull();
-    selectWholeClass();
     fireEvent.change(screen.getByLabelText(/Blank spare sheets/i), {
       target: { value: '0' },
     });
@@ -338,7 +327,6 @@ describe('PaperPrintModal', () => {
 
   it('records each printed seat against its roster', async () => {
     const { onSaveBatch, print } = setup();
-    selectWholeClass();
     fireEvent.change(screen.getByLabelText(/Blank spare sheets/i), {
       target: { value: '0' },
     });
@@ -355,7 +343,6 @@ describe('PaperPrintModal', () => {
 
   it('records the printed choice order and opens each packet with the matching test paper', async () => {
     const { onSaveBatch, print, onClose } = setup();
-    selectWholeClass();
     fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
     await waitFor(() => expect(print).toHaveBeenCalled());
     const batch = onSaveBatch.mock.calls[0][0];
@@ -403,218 +390,11 @@ describe('PaperPrintModal', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
-  it('lets a new paper test choose its own length and creates the stub on print', async () => {
-    const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
-    const { print, onSaveBatch } = setup({
-      quiz: quiz({ title: '', questions: [] }),
-      onCreateQuiz,
-    });
-    fireEvent.change(screen.getByLabelText('Title'), {
-      target: { value: 'Pop quiz' },
-    });
-    fireEvent.change(screen.getByLabelText('Questions'), {
-      target: { value: '30' },
-    });
-    fireEvent.change(screen.getByLabelText(/Choices per question/i), {
-      target: { value: '2' },
-    });
-    selectWholeClass();
-    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
-
-    await waitFor(() => expect(print).toHaveBeenCalled());
-    const created = onCreateQuiz.mock.calls[0][0] as QuizData;
-    expect(created.title).toBe('Pop quiz');
-    expect(created.questions).toHaveLength(30);
-    expect(created.questions[0].incorrectAnswers).toEqual(['B']);
-    expect(onSaveBatch.mock.calls[0][0].choiceCount).toBe(2);
-    // The stub must exist before the batch that points at it.
-    expect(onCreateQuiz).toHaveBeenCalledBefore(onSaveBatch);
-  });
-
-  describe('a new paper test built from the teacher’s own test paper', () => {
-    const extracted = (
-      questions: ExtractedQuestion[],
-      warnings: string[] = []
-    ): ExtractedQuiz => ({
-      title: 'Unit 3 Test',
-      questions,
-      images: [],
-      warnings,
-    });
-
-    const question = (
-      number: number,
-      over: Partial<ExtractedQuestion> = {}
-    ): ExtractedQuestion => ({
-      number,
-      text: `Question ${number} from the paper`,
-      type: 'MC',
-      options: [
-        { letter: 'A', text: 'First' },
-        { letter: 'B', text: 'Second' },
-        { letter: 'C', text: 'Third' },
-      ],
-      correctAnswer: 'Second',
-      imageIds: [],
-      warnings: [],
-      ...over,
-    });
-
-    const newPaperTest = (read: ExtractedQuiz) => {
-      const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
-      const readDocument = vi.fn(() => Promise.resolve(read));
-      const rest = setup({
-        quiz: quiz({ title: '', questions: [] }),
-        onCreateQuiz,
-        readDocument,
-      });
-      return { ...rest, onCreateQuiz, readDocument };
-    };
-
-    const dropTestPaper = async () => {
-      const file = new File([new Uint8Array(4)], 'unit3.pdf', {
-        type: 'application/pdf',
-      });
-      fireEvent.drop(screen.getByTestId('test-zone'), {
-        dataTransfer: { files: [file], types: ['Files'] },
-      });
-      await screen.findByText('unit3.pdf');
-      fireEvent.click(screen.getByRole('button', { name: 'Import' }));
-    };
-
-    it('reads the paper, sizes the sheet to it and names the test', async () => {
-      const { readDocument } = newPaperTest(
-        extracted([question(1), question(2), question(3)])
-      );
-      await dropTestPaper();
-      await waitFor(() => expect(readDocument).toHaveBeenCalled());
-      expect(await screen.findByText(/3 questions read/)).toBeInTheDocument();
-      expect(screen.getByLabelText('Questions')).toHaveValue(3);
-      expect(screen.getByLabelText(/Choices per question/i)).toHaveValue('3');
-      expect(screen.getByLabelText('Title')).toHaveValue('Unit 3 Test');
-    });
-
-    it('creates the quiz with the real questions, not placeholders', async () => {
-      const { onCreateQuiz, print } = newPaperTest(
-        extracted([question(1), question(2)])
-      );
-      await dropTestPaper();
-      await screen.findByText(/2 questions read/);
-      selectWholeClass();
-      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
-      await waitFor(() => expect(print).toHaveBeenCalled());
-
-      const created = onCreateQuiz.mock.calls[0][0] as QuizData;
-      expect(created.questions.map((q) => q.text)).toEqual([
-        'Question 1 from the paper',
-        'Question 2 from the paper',
-      ]);
-      expect(created.questions[0].correctAnswer).toBe('Second');
-      expect(created.questions[0].incorrectAnswers).toEqual(['First', 'Third']);
-      expect(created.questions[0].needsKey).toBeUndefined();
-    });
-
-    it('records the printed choice order, so a bubbled B means that answer', async () => {
-      const { onCreateQuiz, onSaveBatch, print } = newPaperTest(
-        extracted([question(1)])
-      );
-      await dropTestPaper();
-      await screen.findByText(/1 question read/);
-      selectWholeClass();
-      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
-      await waitFor(() => expect(print).toHaveBeenCalled());
-
-      const created = onCreateQuiz.mock.calls[0][0] as QuizData;
-      const batch = onSaveBatch.mock.calls[0][0];
-      // The teacher's paper is already printed, so its own A/B/C order is
-      // what the bubbles stand for — never a reshuffle.
-      expect(batch.choiceOrder?.[created.questions[0].id]).toEqual([
-        'First',
-        'Second',
-        'Third',
-      ]);
-    });
-
-    it('says which questions the paper left unanswered', async () => {
-      newPaperTest(
-        extracted([question(1), question(2, { correctAnswer: '' })])
-      );
-      await dropTestPaper();
-      expect(
-        await screen.findByText(/1 question came in without an answer/)
-      ).toBeInTheDocument();
-    });
-
-    it('shows what the reader doubted about a row, not just the document', async () => {
-      newPaperTest(
-        extracted(
-          [
-            question(1, {
-              warnings: ['Only one answer choice was found.'],
-            }),
-          ],
-          ['The document was read the simple way.']
-        )
-      );
-      await dropTestPaper();
-      expect(
-        await screen.findByText('Question 1: Only one answer choice was found.')
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText('The document was read the simple way.')
-      ).toBeInTheDocument();
-    });
-
-    it('keeps a plain stub when the paper is put back', async () => {
-      const { onCreateQuiz, print } = newPaperTest(extracted([question(1)]));
-      await dropTestPaper();
-      await screen.findByText(/1 question read/);
-      fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
-      selectWholeClass();
-      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
-      await waitFor(() => expect(print).toHaveBeenCalled());
-
-      const created = onCreateQuiz.mock.calls[0][0] as QuizData;
-      expect(created.questions[0].text).toBe('Question 1');
-    });
-
-    it('reports a paper it cannot read and leaves the zone open', async () => {
-      const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
-      const { onError } = setup({
-        quiz: quiz({ title: '', questions: [] }),
-        onCreateQuiz,
-        readDocument: () => Promise.reject(new Error('PDF exploded')),
-      });
-      await dropTestPaper();
-      await waitFor(() => expect(onError).toHaveBeenCalledWith('PDF exploded'));
-      expect(screen.getByTestId('test-zone')).toBeInTheDocument();
-    });
-
-    it('says so when the paper held no numbered questions', async () => {
-      const { onError } = newPaperTest(extracted([]));
-      await dropTestPaper();
-      await waitFor(() =>
-        expect(onError).toHaveBeenCalledWith(
-          expect.stringContaining('No numbered questions')
-        )
-      );
-    });
-
-    it('offers no upload when the document reader is off', () => {
-      setup({
-        quiz: quiz({ title: '', questions: [] }),
-        onCreateQuiz: vi.fn().mockResolvedValue(undefined),
-      });
-      expect(screen.queryByTestId('test-zone')).not.toBeInTheDocument();
-    });
-  });
-
   it('prints each question beside its bubbles when asked, on the tall-row layout', async () => {
     const tenQuestions = quiz({
       questions: Array.from({ length: 10 }, (_, i) => mc(`q${i}`)),
     });
     const { print, onSaveBatch } = setup({ quiz: tenQuestions });
-    selectWholeClass();
     fireEvent.change(screen.getByLabelText(/Blank spare sheets/i), {
       target: { value: '0' },
     });
@@ -635,40 +415,6 @@ describe('PaperPrintModal', () => {
       choices: batch.choiceOrder?.q0,
     });
     expect(job.questionTexts).toHaveLength(10);
-  });
-
-  it('offers no question text on a new paper test', () => {
-    render(
-      <PaperPrintModal
-        quiz={quiz({ questions: [] })}
-        rosters={[roster]}
-        onSaveBatch={vi.fn()}
-        onClose={vi.fn()}
-        onError={vi.fn()}
-        print={vi.fn() as never}
-      />
-    );
-    expect(screen.queryByLabelText('Include question text')).toBeNull();
-  });
-
-  it('defaults the answer key sheet on for a new paper test and off otherwise', () => {
-    const { unmount } = render(
-      <PaperPrintModal
-        quiz={quiz({ questions: [] })}
-        rosters={[roster]}
-        onSaveBatch={vi.fn()}
-        onClose={vi.fn()}
-        onError={vi.fn()}
-        print={vi.fn() as never}
-      />
-    );
-    expect(screen.getByLabelText('Include an answer key sheet')).toBeChecked();
-    unmount();
-
-    setup();
-    expect(
-      screen.getByLabelText('Include an answer key sheet')
-    ).not.toBeChecked();
   });
 
   describe('answer sheet stimuli', () => {
@@ -709,7 +455,6 @@ describe('PaperPrintModal', () => {
         questions: Array.from({ length: 30 }, (_, i) => mc(`q${i}`)),
       });
       setup({ quiz: thirtyQuestions });
-      selectWholeClass();
       fireEvent.change(screen.getByLabelText(/Blank spare sheets/i), {
         target: { value: '0' },
       });
@@ -734,7 +479,6 @@ describe('PaperPrintModal', () => {
       const { print, onSaveBatch } = setup({
         quiz: quiz({ paperSheetStimuli: [graph] }),
       });
-      selectWholeClass();
       fireEvent.change(screen.getByLabelText(/Blank spare sheets/i), {
         target: { value: '0' },
       });
@@ -750,7 +494,6 @@ describe('PaperPrintModal', () => {
 
     it('leaves a sheet with nothing on it two-column, as it was', async () => {
       const { print, onSaveBatch } = setup();
-      selectWholeClass();
       fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
       await waitFor(() => expect(print).toHaveBeenCalled());
       expect(onSaveBatch.mock.calls[0][0].columnsPerPage).toBeUndefined();
@@ -764,7 +507,6 @@ describe('PaperPrintModal', () => {
       const { print, onSaveBatch, onError } = setup({
         quiz: quiz({ paperSheetStimuli: [graph] }),
       });
-      selectWholeClass();
       fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
       expect(onError).toHaveBeenCalledWith(
         expect.stringContaining('Unit 3 graph')
@@ -776,7 +518,6 @@ describe('PaperPrintModal', () => {
     it('waits for the images before it will print', () => {
       sheetImages = { src: {}, failed: [], loading: true };
       setup({ quiz: quiz({ paperSheetStimuli: [graph] }) });
-      selectWholeClass();
       expect(screen.getByRole('button', { name: /^Print$/ })).toBeDisabled();
     });
 
@@ -798,7 +539,6 @@ describe('PaperPrintModal', () => {
       fireEvent.change(screen.getByLabelText('Caption for Unit 3 graph'), {
         target: { value: 'Use for 1-10' },
       });
-      selectWholeClass();
       fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
       await waitFor(() => expect(print).toHaveBeenCalled());
       expect(onSavePrintSetup).toHaveBeenCalledWith({
@@ -815,59 +555,19 @@ describe('PaperPrintModal', () => {
         quiz: quiz({ paperSheetStimuli: [graph] }),
         onSavePrintSetup,
       });
-      selectWholeClass();
       fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
       await waitFor(() => expect(print).toHaveBeenCalled());
       // An unchanged save would publish a new PLC version on every print.
       expect(onSavePrintSetup).not.toHaveBeenCalled();
     });
 
-    it('carries them on the stub a new paper test creates, not a second save', async () => {
-      const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
-      const onSavePrintSetup = vi.fn();
-      const { print } = setup({
-        quiz: quiz({ title: '', questions: [] }),
-        onCreateQuiz,
-        onSavePrintSetup,
-      });
-      fireEvent.change(screen.getByLabelText('Title'), {
-        target: { value: 'Pop quiz' },
-      });
-      fireEvent.click(
-        screen.getByRole('button', { name: /Add to the response sheet/ })
-      );
-      fireEvent.click(screen.getByRole('button', { name: 'From Drive' }));
-      await screen.findByText('1 item');
-      selectWholeClass();
-      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
-      await waitFor(() => expect(print).toHaveBeenCalled());
-
-      const created = onCreateQuiz.mock.calls[0][0] as QuizData;
-      expect(created.paperSheetStimuli).toEqual([
-        expect.objectContaining({
-          label: 'Diagram.png',
-          source: 'image',
-          driveFileId: 'picked-1',
-        }),
-      ]);
-      expect(onSavePrintSetup).not.toHaveBeenCalled();
-    });
-
     it('stays open until the print window has the images, then closes', async () => {
-      const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
-      const { print, onClose } = setup({
-        quiz: quiz({ title: '', questions: [] }),
-        onCreateQuiz,
-      });
-      fireEvent.change(screen.getByLabelText('Title'), {
-        target: { value: 'Pop quiz' },
-      });
+      const { print, onClose } = setup();
       fireEvent.click(
         screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.click(screen.getByRole('button', { name: 'From Drive' }));
       await screen.findByText('1 item');
-      selectWholeClass();
       fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
       await waitFor(() => expect(print).toHaveBeenCalled());
 
@@ -890,7 +590,6 @@ describe('PaperPrintModal', () => {
       expect(drive.uploadFile.mock.calls[0]).toHaveLength(3);
       // The natural size rides along, so auto-fit never has to load the file.
       await screen.findByText('2 items');
-      selectWholeClass();
       fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
       await waitFor(() => expect(print).toHaveBeenCalled());
       expect(print.mock.calls[0][0].sheetStimuli?.[1]).toMatchObject({
@@ -916,7 +615,6 @@ describe('PaperPrintModal', () => {
 
     it('never asks about a quiz nobody else can see', async () => {
       const { print } = setup({ quiz: withGraph() });
-      selectWholeClass();
       clickPrint();
       await waitFor(() => expect(print).toHaveBeenCalled());
       expect(drive.listFilePermissions).not.toHaveBeenCalled();
@@ -931,7 +629,6 @@ describe('PaperPrintModal', () => {
         })
       );
       setup({ quiz: withGraph(), inPlcGroup: true });
-      selectWholeClass();
       // Empty `unshared` while Drive is still thinking is not "nothing to
       // share", so the button stays out of reach until it answers.
       expect(screen.getByRole('button', { name: /^Print$/ })).toBeDisabled();
@@ -955,7 +652,6 @@ describe('PaperPrintModal', () => {
       await waitFor(() =>
         expect(drive.listFilePermissions).toHaveBeenCalledTimes(2)
       );
-      selectWholeClass();
 
       // The section opens itself when the quiz already has a stack.
       fireEvent.click(
@@ -972,7 +668,6 @@ describe('PaperPrintModal', () => {
       await waitFor(() =>
         expect(drive.listFilePermissions).toHaveBeenCalledWith('drive-1')
       );
-      selectWholeClass();
       clickPrint();
 
       expect(
@@ -988,7 +683,6 @@ describe('PaperPrintModal', () => {
     it('prints anyway when the teacher would rather not share', async () => {
       const { print } = setup({ quiz: withGraph(), inPlcGroup: true });
       await waitFor(() => expect(drive.listFilePermissions).toHaveBeenCalled());
-      selectWholeClass();
       clickPrint();
       fireEvent.click(
         await screen.findByRole('button', { name: /Print without sharing/ })
@@ -1003,7 +697,6 @@ describe('PaperPrintModal', () => {
       ]);
       const { print } = setup({ quiz: withGraph(), inPlcGroup: true });
       await waitFor(() => expect(drive.listFilePermissions).toHaveBeenCalled());
-      selectWholeClass();
       clickPrint();
       await waitFor(() => expect(print).toHaveBeenCalled());
       expect(screen.queryByText(/is only visible to you/)).toBeNull();
@@ -1016,7 +709,6 @@ describe('PaperPrintModal', () => {
         inPlcGroup: true,
       });
       await waitFor(() => expect(drive.listFilePermissions).toHaveBeenCalled());
-      selectWholeClass();
       clickPrint();
       fireEvent.click(
         await screen.findByRole('button', { name: /Share and print/ })
@@ -1088,7 +780,6 @@ describe('PaperPrintModal', () => {
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
       await pickPage(1);
       await screen.findByText('1 item');
-      selectWholeClass();
       fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
       await waitFor(() => expect(print).toHaveBeenCalled());
       expect(print.mock.calls[0][0].sheetStimuli?.[0]).toMatchObject({
@@ -1214,7 +905,6 @@ describe('PaperPrintModal with handwritten answers', () => {
   });
 
   const printIt = async (print: ReturnType<typeof setup>['print']) => {
-    selectWholeClass();
     fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
     await waitFor(() => expect(print).toHaveBeenCalled());
   };
@@ -1478,7 +1168,6 @@ describe('PaperPrintModal with handwritten answers', () => {
         ],
       }),
     });
-    selectWholeClass();
     expect(
       screen.queryByText(/Written questions can.t be in a choose section/)
     ).not.toBeInTheDocument();
@@ -1512,141 +1201,17 @@ describe('PaperPrintModal with handwritten answers', () => {
     expect(paper).toContain('Escribe tu respuesta en tu hoja de respuestas.');
   });
 
-  it('turns a stub number marked written into a free-response question', async () => {
-    const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
-    const { onSaveBatch, print } = setup({
-      quiz: quiz({ title: 'Pop quiz', questions: [] }),
-      onCreateQuiz,
-    });
-    fireEvent.change(screen.getByLabelText('Questions'), {
-      target: { value: '4' },
-    });
-    fireEvent.change(screen.getByLabelText('Written question number'), {
-      target: { value: '3' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
-    fireEvent.change(screen.getByLabelText('Question 3 box size'), {
-      target: { value: 'full' },
-    });
-    fireEvent.change(screen.getByLabelText('Question 3 points'), {
-      target: { value: '4' },
-    });
-    await printIt(print);
-
-    const created = onCreateQuiz.mock.calls[0][0] as QuizData;
-    expect(created.questions.map((q) => q.type)).toEqual([
-      'MC',
-      'MC',
-      'free-response',
-      'MC',
-    ]);
-    expect(created.questions[2]).toMatchObject({
-      paperBoxSize: 'full',
-      points: 4,
-      correctAnswer: '',
-      incorrectAnswers: [],
-    });
-    const batch = onSaveBatch.mock.calls[0][0];
-    expect(batch.questionCount).toBe(3);
-    const items = batch.pageMaps?.flatMap((m) => m.items) ?? [];
-    expect(items.map((i) => `${i.kind}:${i.label}:${i.questionId}`)).toEqual(
-      created.questions.map(
-        (q, n) => `${q.type === 'MC' ? 'mc' : 'written'}:${n + 1}:${q.id}`
-      )
-    );
-    // Stubs print the number only, never a stem.
-    expect(print.mock.calls[0][0].writtenTexts).toBeUndefined();
-  });
-
-  it('only adds written numbers within the question count, and removes them', () => {
-    setup({ quiz: quiz({ title: 'Pop quiz', questions: [] }) });
-    fireEvent.change(screen.getByLabelText('Questions'), {
-      target: { value: '4' },
-    });
-    const number = screen.getByLabelText('Written question number');
-    const add = screen.getByRole('button', { name: 'Add' });
-    fireEvent.change(number, { target: { value: '9' } });
-    expect(add).toBeDisabled();
-    fireEvent.change(number, { target: { value: '2' } });
-    fireEvent.keyDown(number, { key: 'Enter' });
-    expect(number).toHaveValue(null);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Remove question 2 written' })
-    );
-    expect(screen.queryByLabelText('Question 2 box size')).toBeNull();
-  });
-
-  it('pre-marks numbers the reader found without choices as written', async () => {
-    const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
-    const read: ExtractedQuiz = {
-      title: 'Unit 3 Test',
-      warnings: [],
-      images: [],
-      questions: [1, 2].map((number) => ({
-        number,
-        text: `Question ${number}`,
-        type: 'MC',
-        options:
-          number === 1
-            ? [
-                { letter: 'A', text: 'First' },
-                { letter: 'B', text: 'Second' },
-              ]
-            : [],
-        correctAnswer: number === 1 ? 'First' : '',
-        imageIds: [],
-        warnings: [],
-      })),
-    };
-    const { print } = setup({
-      quiz: quiz({ title: '', questions: [] }),
-      onCreateQuiz,
-      readDocument: vi.fn(() => Promise.resolve(read)),
-    });
-    const file = new File([new Uint8Array(4)], 'unit3.pdf', {
-      type: 'application/pdf',
-    });
-    fireEvent.drop(screen.getByTestId('test-zone'), {
-      dataTransfer: { files: [file], types: ['Files'] },
-    });
-    await screen.findByText('unit3.pdf');
-    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
-    await screen.findByText(/2 questions read/);
-    expect(
-      screen.getByRole('button', { name: 'Remove question 2 written' })
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText('Question 2 box size')).toHaveValue('M');
-    await printIt(print);
-    const created = onCreateQuiz.mock.calls[0][0] as QuizData;
-    expect(created.questions[1]).toMatchObject({
-      type: 'free-response',
-      text: 'Question 2',
-      paperBoxSize: 'M',
-      points: 1,
-    });
-  });
-
-  it('offers no written toggle on a stub while the flag is off', () => {
-    features.clear();
-    setup({ quiz: quiz({ title: '', questions: [] }), onCreateQuiz: vi.fn() });
-    expect(screen.queryByText('Written answers')).not.toBeInTheDocument();
-  });
-
   it('refuses a sheet past the page limit before saving anything', () => {
-    const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
     const { onSaveBatch } = setup({
       quiz: quiz({
         questions: Array.from({ length: 64 }, (_, i) =>
           fr(`w${i}`, { paperBoxSize: 'full' })
         ),
       }),
-      onCreateQuiz: undefined,
     });
-    selectWholeClass();
     expect(screen.getByText(/needs 64 pages/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Print$/ })).toBeDisabled();
     expect(onSaveBatch).not.toHaveBeenCalled();
-    expect(onCreateQuiz).not.toHaveBeenCalled();
   });
 });
 
