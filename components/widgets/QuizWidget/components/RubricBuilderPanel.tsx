@@ -153,8 +153,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
     useRubrics(teacherUid);
   const { showConfirm } = useDialog();
   const auth = useContext(AuthContext);
-  const duplicateOn =
-    auth?.canAccessFeature('library-duplicate-more') ?? false;
+  const duplicateOn = auth?.canAccessFeature('library-duplicate-more') ?? false;
   const [duplicateStatus, setDuplicateStatus] = useState<{
     message: string;
     tone: 'success' | 'error';
