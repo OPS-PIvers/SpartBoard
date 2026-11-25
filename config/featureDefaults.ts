@@ -1927,10 +1927,10 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
   },
   // Server only: functions/src/turnInQueue.ts checks it when a run ends (AB-388).
   'server-turn-in': {
-    label: 'Turn in work after End',
+    label: 'Submit work after End',
     icon: ClipboardCheck,
     description:
-      'Open work turns in after End or Close. The teacher tab can be closed.',
+      'A Quiz, Video Activity or Guided Learning activity is submitted when it ends.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
