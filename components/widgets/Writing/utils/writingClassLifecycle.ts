@@ -65,11 +65,11 @@ export function writingLifecycle(
     reopenClearsMarks: true,
     isEnded: (a: Pick<AssignmentRun, 'status'>) => a.status === 'ended',
     async onWindowCleared(id, window) {
-      const record = (
-        await getDoc(doc(db, 'users', uid, WRITING_RECORDS_COLLECTION, id))
-      ).data() as WritingAssignmentRecord | undefined;
-      if (!record || !hasStudentPointers(record)) return;
       try {
+        const record = (
+          await getDoc(doc(db, 'users', uid, WRITING_RECORDS_COLLECTION, id))
+        ).data() as WritingAssignmentRecord | undefined;
+        if (!record || !hasStudentPointers(record)) return;
         await actions.setAssignmentTargets({
           assignmentId: id,
           kind: 'writing',
