@@ -9,7 +9,7 @@ import * as admin from './firebaseAdmin';
 import { randomUUID } from 'node:crypto';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { readAnalyticsSnapshot } from './adminAnalyticsSnapshot';
-import { isRevokedMemberStatus, isSiteWideAdmin } from './authz';
+import { isRevokedMemberStatus, isSiteSuperAdmin } from './authz';
 import './functionsInit';
 
 /**
@@ -102,8 +102,8 @@ export const adminAnalytics = onRequest(
       'domain_admin',
       'building_admin',
     ]);
-    const [adminDoc, memberDoc] = await Promise.all([
-      db.collection('admins').doc(email).get(),
+    const [isSuperAdmin, memberDoc] = await Promise.all([
+      isSiteSuperAdmin(db, email),
       db.doc(`organizations/${orgId}/members/${email}`).get(),
     ]);
     const memberData = memberDoc.exists
@@ -111,12 +111,6 @@ export const adminAnalytics = onRequest(
       : undefined;
     const memberRoleId =
       typeof memberData?.roleId === 'string' ? memberData.roleId.trim() : '';
-    const adminData = adminDoc.exists
-      ? (adminDoc.data?.() as { roleId?: unknown; orgId?: unknown } | undefined)
-      : undefined;
-    const isSuperAdmin =
-      adminDoc.exists &&
-      (await isSiteWideAdmin(db, email, adminData?.roleId, adminData?.orgId));
     const isOrgAdmin =
       memberDoc.exists &&
       ORG_ADMIN_ROLE_IDS.has(memberRoleId) &&

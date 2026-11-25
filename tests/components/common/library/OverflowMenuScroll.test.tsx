@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { OverflowMenu } from './LibraryOverflowMenu';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
 import { scrollMovesAnchor } from '@/utils/domHelpers';
 
 const scroll = (target: EventTarget) =>
@@ -14,9 +14,7 @@ const renderMenu = () =>
       <div data-testid="pane" />
       <div data-testid="list">
         <OverflowMenu
-          widgetType="quiz"
-          rowKey="row-1"
-          actions={[{ id: 'edit', label: 'Edit', onClick: vi.fn() }]}
+          items={[{ id: 'edit', label: 'Edit', onClick: vi.fn() }]}
         />
       </div>
     </div>

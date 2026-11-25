@@ -172,9 +172,9 @@ describe('FlashcardMonitor quiz style', () => {
     fireEvent.click(bucket('In progress'));
     expect(screen.getByText('Q2')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Actions for Cy Xu' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Remove student' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove student' }));
     expect(onResetStudent).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm remove' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Confirm remove' }));
     expect(onResetStudent).toHaveBeenCalledWith('cy');
     expect(
       screen.queryByRole('button', { name: 'Reset this student' })
@@ -204,7 +204,7 @@ describe('FlashcardMonitor quiz style', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Actions for Ben Young' })
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Unlock attempt' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Unlock attempt' }));
     expect(unlock).toHaveBeenCalled();
   });
 
