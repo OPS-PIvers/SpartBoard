@@ -294,7 +294,7 @@ export function parseImportPaperResponsesInput(
     sheets,
     ...(v2 ? { layoutVersion: 2 as const, scanId } : {}),
     ...(pages ? { pages, ...(scanId ? { scanId } : {}) } : {}),
-    ...(pages && isRecord(data.coveredPages)
+    ...(isRecord(data.coveredPages)
       ? { coveredPages: parseCoveredPages(data.coveredPages) }
       : {}),
   };
@@ -302,7 +302,7 @@ export function parseImportPaperResponsesInput(
 
 function parseCoveredPages(raw: Record<string, unknown>) {
   const out = new Map<number, Set<number>>();
-  for (const [key, list] of Object.entries(raw)) {
+  for (const [key, list] of Object.entries(raw).slice(0, MAX_SHEETS_PER_CALL)) {
     const seat = Number(key);
     if (!Number.isInteger(seat) || !Array.isArray(list)) continue;
     out.set(
@@ -950,13 +950,12 @@ async function keptPageFields(
       }))
     : [];
   const replaced = new Set([...(covered ?? []), ...pages.map((p) => p.page)]);
-  const kept =
-    scanId && covered
-      ? prior.filter((a) => {
-          const n = typeof a.id === 'string' ? paperPageNumberOf(a.id) : null;
-          return n === null || !replaced.has(n);
-        })
-      : [];
+  const kept = covered
+    ? prior.filter((a) => {
+        const n = typeof a.id === 'string' ? paperPageNumberOf(a.id) : null;
+        return n !== null && !replaced.has(n);
+      })
+    : [];
   const pageOf = (a: Record<string, unknown>) =>
     (typeof a.id === 'string' ? paperPageNumberOf(a.id) : null) ?? 0;
   const next = [...kept, ...fresh].sort((a, b) => pageOf(a) - pageOf(b));
