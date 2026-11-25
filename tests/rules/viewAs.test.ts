@@ -282,7 +282,7 @@ describe('top-level collections keyed on the caller uid', () => {
       name: 'Renamed',
     });
 
-  it('read-only cannot self-join, rename or delete its own share', async () => {
+  it('read-only cannot join, rename or delete its own share', async () => {
     await assertFails(join(asViewAs()));
     await assertFails(rename(asViewAs()));
     await assertFails(
@@ -294,6 +294,7 @@ describe('top-level collections keyed on the caller uid', () => {
     // Joining goes through shareMembershipV1, never a client write.
     await assertFails(join(asTeacher()));
     await assertSucceeds(rename(asTeacher()));
+    await assertSucceeds(rename(asViewAs({ ro: false })));
     await assertSucceeds(
       deleteDoc(
         doc(asViewAs({ ro: false }).firestore(), 'shared_boards/share-mine')
