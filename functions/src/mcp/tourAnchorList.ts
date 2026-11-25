@@ -67436,8 +67436,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "library-shell.folder-tree-item",
     "label": "Folder row in the library folder panel",
-    "scope": "board",
+    "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "library-folders",
     "routes": [
       {
         "surface": "library.shell",
@@ -67478,8 +67480,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "library-shell.folder-menu",
     "label": "Actions button on a library folder row",
-    "scope": "board",
+    "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "library-folders",
     "routes": [
       {
         "surface": "library.shell",
