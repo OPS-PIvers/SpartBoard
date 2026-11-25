@@ -78,6 +78,7 @@ import {
   canShowResultsScore,
   classAverage,
   classFirstTryAccuracy,
+  classStatResponses,
   gameFirstTry,
   isGameSession,
   isResultsFinished,
@@ -1154,6 +1155,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     [filteredCompleted, quiz.questions, session]
   );
   // With final scores on, students awaiting a grade sit out, like the gradebook and PLC (AB-389).
+  const skipAwaitingInStats = canAccessFeature('lms-push-final-scores');
   const {
     average: filteredAvgScore,
     provisional: avgIsProvisional,
@@ -1165,9 +1167,15 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         quiz.questions,
         session,
         fibGrading,
-        canAccessFeature('lms-push-final-scores')
+        skipAwaitingInStats
       ),
-    [filteredScoreable, quiz.questions, session, fibGrading, canAccessFeature]
+    [
+      filteredScoreable,
+      quiz.questions,
+      session,
+      fibGrading,
+      skipAwaitingInStats,
+    ]
   );
   const firstTryAccuracy = useMemo(
     () => (isGame ? classFirstTryAccuracy(filteredCompleted) : null),
@@ -2731,6 +2739,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   questions={quiz.questions}
                   session={session}
                   fibGrading={fibGrading}
+                  skipAwaiting={skipAwaitingInStats}
                 />
               )}
 
@@ -3278,17 +3287,22 @@ const ScoreDistribution: React.FC<{
   questions: QuizQuestion[];
   session?: import('@/types').QuizSession | null;
   fibGrading?: FibGradingContext | null;
-}> = ({ completed, questions, session, fibGrading }) => {
+  /** Leave out students awaiting a grade, like the class average. */
+  skipAwaiting: boolean;
+}> = ({ completed, questions, session, fibGrading, skipAwaiting }) => {
   // ⚡ Bolt: Pre-calculate scores for all completed responses once
   // This avoids calculating `getResponseScore` inside the `buckets.map` filter
   // which was O(B*R*Q), changing it to O(R*Q + B*R).
   // Distribution chart always uses percentage scores for meaningful bucketing,
   // even when gamification is active (points would not fit 0-100% buckets).
   const completedScores = React.useMemo(() => {
-    return completed
-      .filter((r) => canScoreResponse(r, questions))
-      .map((r) => getResponseScore(r, questions, session, fibGrading));
-  }, [completed, questions, session, fibGrading]);
+    return classStatResponses(
+      completed.filter((r) => canScoreResponse(r, questions)),
+      questions,
+      session,
+      skipAwaiting
+    ).map((r) => getResponseScore(r, questions, session, fibGrading));
+  }, [completed, questions, session, fibGrading, skipAwaiting]);
 
   // Denominator is the scoreable population, so unscoreable responses can't make the buckets under-sum.
   return <ScoreDistributionBars scores={completedScores} />;

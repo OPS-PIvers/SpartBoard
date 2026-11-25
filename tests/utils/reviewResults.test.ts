@@ -3,6 +3,7 @@ import type { QuizQuestion, QuizResponse, QuizSession } from '@/types';
 import {
   buildReviewRanking,
   classAverage,
+  classStatResponses,
   classFirstTryAccuracy,
   gameFirstTry,
   isResultsFinished,
@@ -138,5 +139,15 @@ describe('classAverage (AB-389)', () => {
       provisional: false,
       skipped: 1,
     });
+  });
+
+  it('leaves the same students out of the score distribution', () => {
+    expect(classStatResponses([graded, ungraded], qs, paced, true)).toEqual([
+      graded,
+    ]);
+    expect(classStatResponses([graded, ungraded], qs, paced, false)).toEqual([
+      graded,
+      ungraded,
+    ]);
   });
 });

@@ -66,6 +66,20 @@ export interface ClassAverage {
   skipped: number;
 }
 
+/** The responses class stats count; with `skipAwaiting`, students awaiting a grade sit out (AB-389). */
+export function classStatResponses(
+  responses: QuizResponse[],
+  questions: QuizQuestion[],
+  session: Pick<QuizSession, 'paperWrittenQuestionIds'> | null | undefined,
+  skipAwaiting: boolean
+): QuizResponse[] {
+  if (!skipAwaiting) return responses;
+  return responses.filter(
+    (r) =>
+      !isResponseAwaitingGrade(r, questions, session?.paperWrittenQuestionIds)
+  );
+}
+
 /** Class average over scoreable responses; with `skipAwaiting`, students awaiting a grade are left out, like the gradebook and PLC (AB-389). */
 export function classAverage(
   scoreable: QuizResponse[],
@@ -79,9 +93,12 @@ export function classAverage(
 ): ClassAverage {
   const awaiting = (r: QuizResponse) =>
     isResponseAwaitingGrade(r, questions, session?.paperWrittenQuestionIds);
-  const counted = skipAwaiting
-    ? scoreable.filter((r) => !awaiting(r))
-    : scoreable;
+  const counted = classStatResponses(
+    scoreable,
+    questions,
+    session,
+    skipAwaiting
+  );
   const skipped = scoreable.length - counted.length;
   if (counted.length === 0)
     return { average: null, provisional: false, skipped };
