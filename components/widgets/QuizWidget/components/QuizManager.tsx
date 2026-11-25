@@ -949,6 +949,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const isReview = variant === 'review';
   const { canAccessFeature } = useAuth();
   const openCheckOn = canAccessFeature('assign-open-check');
+  // A whole-quiz assignment moves to class rows when reopened for selected students.
+  const setTimeOn = canAccessFeature('student-set-time');
   // ASSIGNED_TAB.md D12/D19: Library and Assigned, Quiz only, behind the preview flag.
   const assignedOn =
     !isReview && !!classLifecycle && canAccessFeature('assigned-tab');
@@ -2249,7 +2251,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       anchor: tourTypeAttr('quiz-library.archive-reopen', 'quiz'),
       onClick: reopenAll,
       ...(onArchiveReopenStudents &&
-      a.periodAccess &&
+      (a.periodAccess || (setTimeOn && (a.rosterIds?.length ?? 0) > 0)) &&
       a.sessionMode === 'student'
         ? {
             submenu: [

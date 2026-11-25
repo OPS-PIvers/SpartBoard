@@ -179,6 +179,51 @@ describe('useVideoActivityAssignments — createAssignment persists sessionOptio
     expect(sessionPayload.sessionOptions).toEqual(sessionOptions);
   });
 
+  it('writes the window on both docs in the create batch', async () => {
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+
+    await act(async () => {
+      await result.current.createAssignment(
+        ACTIVITY,
+        makeSettings(),
+        'active',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { openAt: 10, closeAt: 20, dueAt: 30 }
+      );
+    });
+
+    expect(batchCommit).toHaveBeenCalledOnce();
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
+    const window = { openAt: 10, closeAt: 20, dueAt: 30 };
+    expect(batchSet.mock.calls[0][1]).toMatchObject(window);
+    expect(batchSet.mock.calls[1][1]).toMatchObject(window);
+  });
+
+  it('strips page protections the admin gate has off', async () => {
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    const settings = makeSettings({
+      sessionOptions: makeSessionOptions({
+        blockCopyPaste: true,
+        focusLevel: 'lock',
+      }),
+    });
+
+    await act(async () => {
+      await result.current.createAssignment(ACTIVITY, settings);
+    });
+
+    const sessionPayload = batchSet.mock.calls[1][1] as VideoActivitySession;
+    expect(sessionPayload.sessionOptions).not.toHaveProperty('blockCopyPaste');
+    expect(sessionPayload.sessionOptions).not.toHaveProperty('focusLevel');
+  });
+
   it('omits sessionOptions field entirely when not provided (legacy callers)', async () => {
     const { result } = renderHook(() =>
       useVideoActivityAssignments(TEACHER_UID)

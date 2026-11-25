@@ -42,12 +42,12 @@ export function heldRunStep(
   if (session.status === 'ended') return { kind: 'clear' };
   const pa = session.periodAccess as Record<string, PeriodRow> | undefined;
   // A class the teacher opened again runs on Manual timing, so only the teacher ends it.
-  // A whole-quiz Close holds as a pause; a Resume hands the end back to the teacher too.
-  const closed =
-    pa && typeof pa === 'object'
-      ? Object.values(pa).every((row) => classClosed(row ?? {}, now))
-      : session.status === 'paused';
-  if (!closed) return { kind: 'clear' };
+  if (
+    !pa ||
+    typeof pa !== 'object' ||
+    !Object.values(pa).every((row) => classClosed(row ?? {}, now))
+  )
+    return { kind: 'clear' };
   const access = (session.studentAccess ?? {}) as Record<string, unknown>;
   const from = (session.studentAccessFrom ?? {}) as Record<string, unknown>;
   const students: Record<string, HeldPass> = {};

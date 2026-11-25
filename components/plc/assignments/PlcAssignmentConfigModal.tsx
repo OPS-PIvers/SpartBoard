@@ -341,7 +341,8 @@ export const PlcAssignmentConfigModal: React.FC<
           derived.classIds,
           derived.periodNames,
           derived.rosterIds,
-          assignmentMode
+          assignmentMode,
+          { dueAt: parsedDueAt }
         );
         lastVaRules.save(vaRules);
 
