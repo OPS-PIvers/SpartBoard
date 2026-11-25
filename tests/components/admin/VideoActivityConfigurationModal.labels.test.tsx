@@ -1,6 +1,5 @@
 // Global Settings has no AI toggle; Video Activity AI is the switch on its Access > Widgets row.
 
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

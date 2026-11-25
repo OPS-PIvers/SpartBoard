@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/require-await -- the fakes stand in for async calls */
-import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PublicTourPage } from './PublicTourPage';

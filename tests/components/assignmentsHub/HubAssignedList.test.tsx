@@ -253,21 +253,23 @@ describe('HubAssignedList', () => {
     expect(classActions.moveToDone).toHaveBeenCalled();
   });
 
-  it('a row in several classes offers Close for all classes, never Monitor', async () => {
+  it('a row in several classes closes from its status chip, never Monitor', async () => {
     renderList([row('m1', 'mini-app')]);
-    expect(menuItems()).toEqual(['Close for all classes', 'Move to Finished']);
+    expect(menuItems()).toEqual(['Move to Finished']);
+    fireEvent.click(screen.getByRole('button', { name: /^Status of/ }));
     await act(async () => {
-      fireEvent.click(screen.getByText('Close for all classes'));
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Closed' }));
       await Promise.resolve();
     });
     expect(classActions.closeAll).toHaveBeenCalled();
   });
 
-  it('a Finished quiz offers Reopen with Everyone only', () => {
+  it('a Finished quiz offers Reopen with Everyone only, from its status chip', () => {
     renderList([row('q1', 'quiz')]);
     fireEvent.click(screen.getByRole('button', { name: /Finished/ }));
-    expect(menuItems()).toEqual(['Reopen']);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Reopen' }));
+    expect(screen.queryByRole('button', { name: /more/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^Status of/ }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Reopen' }));
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getAllByRole('radio')).toHaveLength(1);
   });

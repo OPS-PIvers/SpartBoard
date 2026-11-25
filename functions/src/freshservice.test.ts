@@ -200,6 +200,22 @@ describe('runFreshservice', () => {
     );
   });
 
+  it("logs FreshService's reason when it refuses the key", async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const refused = deps();
+    vi.mocked(refused.d.fetch).mockResolvedValueOnce(
+      reply(403, { code: 'access_denied', message: 'Not authorized.' })
+    );
+    await expect(runFreshservice(send, 'u', token, refused.d)).rejects.toThrow(
+      'API key'
+    );
+    expect(logged).toHaveBeenCalledWith(
+      '[freshserviceV1] send refused',
+      expect.objectContaining({ status: 403, code: 'access_denied' })
+    );
+    logged.mockRestore();
+  });
+
   it('sends the chosen folder, tags and keywords and reuses them on the next publish', async () => {
     const { d, saved } = deps();
     const options = {

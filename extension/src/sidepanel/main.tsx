@@ -1,4 +1,3 @@
-import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { PanelShell } from './PanelShell';
 import css from './sidepanel.css?inline';

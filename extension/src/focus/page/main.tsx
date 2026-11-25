@@ -1,4 +1,3 @@
-import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { FocusPage, pageMode, PARKED_TITLE } from './FocusPage';
 import css from './focus.css?inline';

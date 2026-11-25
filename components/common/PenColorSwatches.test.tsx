@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';

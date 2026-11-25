@@ -254,7 +254,7 @@ describe('AuthContext — canAccessFeature buildings check', () => {
 
   it('canonicalizes legacy permission.buildings entries against canonical selections', async () => {
     // Legacy admin write keyed by `orono-high-school` must match the
-    // canonical `high` selection, same as the dockDefaults gate.
+    // canonical `high` selection.
     await mountAs({
       email: 'teacher@example.com',
       isAdmin: false,

@@ -1,0 +1,1 @@
+claude/backlog-ab-193-20261124 (AB-193: deactivated members refused by PLC callables and server admin checks)

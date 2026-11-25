@@ -28,7 +28,6 @@
  * does not leak past the popover's own handler.
  */
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import type { ToolMetadata, WidgetData, GlobalStyle } from '@/types';

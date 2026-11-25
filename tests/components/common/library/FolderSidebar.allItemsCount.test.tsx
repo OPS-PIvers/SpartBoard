@@ -15,7 +15,6 @@
  * folder), matching what the row actually shows.
  */
 
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';

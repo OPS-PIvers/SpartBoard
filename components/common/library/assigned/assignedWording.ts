@@ -123,6 +123,11 @@ export function detailText(
       );
       break;
     }
+    case 'students-scheduled':
+      parts.push(
+        `${plural(line.students.length, 'student', 'students')} scheduled`
+      );
+      break;
     case 'needs-grading':
       parts.push(line.count > 0 ? `${line.count} to grade` : 'Needs grading');
       break;

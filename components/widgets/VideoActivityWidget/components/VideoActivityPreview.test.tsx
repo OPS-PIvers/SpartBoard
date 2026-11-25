@@ -1,7 +1,6 @@
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import React from 'react';
 import { VideoActivityPreview } from './VideoActivityPreview';
 import type { SubShareVideoActivityView, VideoActivityQuestion } from '@/types';
 

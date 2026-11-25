@@ -6,6 +6,7 @@ import {
 } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
+import { isLiveCaller } from './authz';
 import { createHash } from 'crypto';
 import * as fs from 'fs/promises';
 import * as os from 'os';
@@ -321,9 +322,16 @@ async function removeCopy(
 export async function setPlcNormingFlag(
   req: NormingRequest,
   callerUid: string,
+  token: unknown,
   deps: NormingDeps
 ): Promise<NormingResult> {
   const { db } = deps;
+  if (!(await isLiveCaller(db, token))) {
+    throw new HttpsError(
+      'permission-denied',
+      'You are not an editing member of this PLC.'
+    );
+  }
   if (req.mode === 'copy') {
     const copy = await db
       .doc(`plcs/${req.plcId}/norming/${req.normingId}`)
@@ -723,6 +731,7 @@ export const setPlcNormingFlagV1 = onCall(
     return setPlcNormingFlag(
       parseNormingRequest(request.data),
       request.auth.uid,
+      request.auth.token,
       defaultNormingDeps()
     );
   }

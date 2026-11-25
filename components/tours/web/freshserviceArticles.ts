@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { webToursDevSeed } from './webToursDevSeed';
 
 const FRESHSERVICE_ARTICLES = 'freshservice_articles';
 
@@ -55,6 +56,7 @@ export function useFreshserviceArticles(
   );
   useEffect(() => {
     if (!enabled) return;
+    if (webToursDevSeed()?.articles) return;
     return onSnapshot(
       collection(db, FRESHSERVICE_ARTICLES),
       (snap) => {
@@ -71,5 +73,5 @@ export function useFreshserviceArticles(
       }
     );
   }, [enabled]);
-  return enabled ? articles : null;
+  return enabled ? (webToursDevSeed()?.articles ?? articles) : null;
 }

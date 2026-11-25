@@ -1,7 +1,6 @@
 // Per-period Mini-app assigns: with the flag on and more than one class checked, the session
 // gets one period per class and no shared window; one class or the flag off stays legacy.
 import '@testing-library/jest-dom';
-import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MiniAppWidget } from './Widget';

@@ -21,6 +21,7 @@ import React, {
   useEffectEvent,
   useContext,
 } from 'react';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { TabExitsPopover } from '@/components/common/TabExitsPopover';
 import { BadgePopover } from '@/components/common/BadgePopover';
@@ -2471,10 +2472,12 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
 
   return (
     <div className="flex flex-col h-full font-sans bg-white text-brand-gray-dark relative">
-      {/* Header — blue bar matching the live monitor shell */}
+      {/* Header in the widget's own color, matching the live monitor shell */}
       <div
         className="flex items-center bg-brand-blue-primary text-white shrink-0"
         style={{
+          backgroundColor:
+            LIBRARY_HEADER_ACCENTS[session?.widgetKind ?? 'quiz'],
           gap: 'min(8px, 2cqmin)',
           padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
         }}
@@ -2550,7 +2553,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           )}
         </button>
         <span
-          className="shrink-0 rounded-full font-sans font-semibold uppercase tracking-wider bg-white/20 text-white"
+          className="shrink-0 rounded-full font-sans font-semibold uppercase tracking-wider bg-black/20 text-white"
           style={{
             fontSize: 'min(10px, 3.5cqmin)',
             padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',

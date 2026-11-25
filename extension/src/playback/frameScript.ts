@@ -1,4 +1,5 @@
 import { assessTarget, rootsOf, type WebLocatorClues } from './locate';
+import { ownRootsIn } from '../ownRoots';
 import type { WebStepAction } from './progress';
 import { captureTarget } from '../recorder/captureTarget';
 import { toBox } from '../recorder/geometry';
@@ -174,7 +175,7 @@ export function installFrameSeeker(
   let detach: (() => void) | null = null;
   let toldAmbiguous = false;
   let toldCandidate = '';
-  // Every open shadow root is searched and watched; kept up to date from mutation records instead of a full walk per search.
+  // Every open shadow root, and the extension's own closed ones, is searched and watched; kept up to date from mutation records instead of a full walk per search.
   let roots = new Set<Document | ShadowRoot>();
   let rootsAt = 0;
   let lastCost = 0;
@@ -216,12 +217,15 @@ export function installFrameSeeker(
   };
 
   const addedRoots = (records: MutationRecord[]) => {
+    let own: ShadowRoot[] | null = null;
     for (const r of records) {
       for (const node of r.addedNodes) {
         if (!(node instanceof Element)) continue;
         if (node.shadowRoot) watchRoot(node.shadowRoot);
         for (const el of node.querySelectorAll('*'))
           if (el.shadowRoot) watchRoot(el.shadowRoot);
+        own ??= ownRootsIn(doc);
+        for (const root of own) if (node.contains(root.host)) watchRoot(root);
       }
     }
   };

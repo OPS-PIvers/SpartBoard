@@ -490,7 +490,16 @@ export function ImportWizard<TData>({
     try {
       const { url } = await adapter.templateHelper.createTemplate();
       if (session !== sessionRef.current) return;
-      await navigator.clipboard.writeText(url);
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+        if (session !== sessionRef.current) return;
+        setCopyState('idle');
+        setParseError(
+          `Your browser blocked copying the link. Copy it from here: ${url}`
+        );
+        return;
+      }
       if (session === sessionRef.current) setCopyState('copied');
     } catch (err) {
       if (session !== sessionRef.current) return;

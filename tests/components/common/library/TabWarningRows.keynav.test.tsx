@@ -1,5 +1,4 @@
 // Regression test: the tab-away time-limit radiogroup must support roving-tabindex arrow-key nav.
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TabAwayLimitRow } from '@/components/common/library/TabWarningRows';

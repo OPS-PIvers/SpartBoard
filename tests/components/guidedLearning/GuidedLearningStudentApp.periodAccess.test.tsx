@@ -1,6 +1,5 @@
 // Per-period GL sessions: the student is seated on Start, sees a locked card (no slides) until
 // their period opens or they are let in, and a paused overlay if it closes mid-activity.
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

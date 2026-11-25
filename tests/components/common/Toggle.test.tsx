@@ -1,7 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { Toggle } from '@/components/common/Toggle';
-import React from 'react';
 
 describe('Toggle Component', () => {
   it('renders correctly', () => {

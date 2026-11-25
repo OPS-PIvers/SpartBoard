@@ -10,7 +10,6 @@
  *  - data has neither → state stays empty (no false-positive log)
  */
 
-import React from 'react';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';

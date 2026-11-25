@@ -368,6 +368,26 @@ describe('runGoalCoach gating', () => {
     }
   });
 
+  it('denies a deactivated operator-org member before charging', async () => {
+    const { deps } = setup({
+      extra: {
+        'organizations/orono/members/pat@orono.k12.mn.us': {
+          status: 'deactivated',
+        },
+      },
+    });
+    for (const token of [
+      { email: 'Pat@orono.k12.mn.us' },
+      { deactivated: true },
+    ]) {
+      await expect(
+        runGoalCoach({ plcId: PLC, goal: GOAL }, MEMBER, token, deps)
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+    }
+    expect(deps.charge).not.toHaveBeenCalled();
+    expect(deps.generate).not.toHaveBeenCalled();
+  });
+
   it('denies a missing team', async () => {
     const { deps } = setup();
     await expect(

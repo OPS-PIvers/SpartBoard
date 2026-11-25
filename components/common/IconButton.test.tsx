@@ -1,7 +1,6 @@
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { IconButton } from './IconButton';
-import React from 'react';
 
 describe('IconButton', () => {
   it('renders with icon and aria-label', () => {

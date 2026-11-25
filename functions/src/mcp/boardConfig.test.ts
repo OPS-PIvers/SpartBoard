@@ -352,10 +352,17 @@ describe('canUseWidget', () => {
     ).toBe(false);
   });
 
-  it('refuses a widget switched off for every one of the teacher buildings', async () => {
+  it('allows a widget whose dock default is off for every teacher building', async () => {
     const perms = [
       perm({ config: { dockDefaults: { 'orono-middle-school': false } } }),
     ];
+    expect(
+      (await canUseWidget(ctx({ featurePermissions: perms }), 'poll')).ok
+    ).toBe(true);
+  });
+
+  it('limits a widget to its buildings', async () => {
+    const perms = [perm({ buildings: ['orono-high-school'] })];
     expect(
       (await canUseWidget(ctx({ featurePermissions: perms }), 'poll')).ok
     ).toBe(false);
@@ -366,6 +373,14 @@ describe('canUseWidget', () => {
             featurePermissions: perms,
             selectedBuildings: ['middle', 'high'],
           }),
+          'poll'
+        )
+      ).ok
+    ).toBe(true);
+    expect(
+      (
+        await canUseWidget(
+          ctx({ featurePermissions: perms, isAdmin: true }),
           'poll'
         )
       ).ok

@@ -8,6 +8,7 @@ import {
   FEATURE_GROUP_LABELS,
 } from '@/config/featureDefaults';
 import { Toggle } from '@/components/common/Toggle';
+import { PairedDistrictSwitch } from './DistrictSwitch';
 import { BetaUsersPanel } from '@/components/admin/BetaUsersPanel';
 import { MinTierSelect } from '@/components/admin/MinTierSelect';
 import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
@@ -69,6 +70,7 @@ const SwitchRow: React.FC<{
             aria-hidden
           />
         </button>
+        <PairedDistrictSwitch featureId={featureId} />
         <Toggle
           checked={permission.enabled}
           onChange={(enabled) => onUpdate({ enabled })}

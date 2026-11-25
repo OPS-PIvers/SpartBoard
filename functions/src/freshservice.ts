@@ -286,15 +286,24 @@ const idOf = (v: unknown): string | null =>
 
 /** Throws the caller-facing error for a FreshService answer that isn't a success. */
 function assertOk(
-  result: { status: number },
+  result: { status: number; json?: unknown },
   what: string,
   detail: Record<string, unknown> = {}
 ): void {
-  if (result.status === 401 || result.status === 403)
+  if (result.status === 401 || result.status === 403) {
+    const body = result.json as { code?: unknown; message?: unknown } | null;
+    console.error(`[freshserviceV1] ${what} refused`, {
+      status: result.status,
+      code: typeof body?.code === 'string' ? body.code.slice(0, 100) : null,
+      message:
+        typeof body?.message === 'string' ? body.message.slice(0, 300) : null,
+      ...detail,
+    });
     throw new HttpsError(
       'permission-denied',
       'FreshService turned down the API key.'
     );
+  }
   if (result.status >= 200 && result.status < 300) return;
   console.error(`[freshserviceV1] ${what} failed`, {
     status: result.status,

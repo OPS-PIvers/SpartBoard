@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PlcAdminMembersEditor } from '@/components/admin/PlcResourcesManager/PlcAdminMembersEditor';

@@ -1,0 +1,1 @@
+claude/backlog-ab-114-20261124 (AB-114: delete the unreachable stub and roster-checklist paths from PaperPrintModal)

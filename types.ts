@@ -5665,6 +5665,20 @@ export interface PeriodAccessSessionFields {
   dueLocks?: boolean;
   /** Reopened after End for these student uids only; cleared on End or a whole reopen. */
   reopenedFor?: string[];
+  /** Every class closed while students still had passes; the run ends when the last one runs out. */
+  passHold?: PassHold | null;
+}
+
+/** Students whose Let in or Schedule pass kept a fully closed run live, and when the last pass ends. */
+export interface PassHold {
+  until: number;
+  /** Auth uid to the pass; a null `from` is a Let in running now. */
+  students: Record<string, HeldPass>;
+}
+
+export interface HeldPass {
+  from: number | null;
+  until: number;
 }
 
 /** One closed pause, epoch ms; the overall time limit does not run through it. */
@@ -12226,6 +12240,8 @@ export interface FeaturePermission {
   excludedUsers?: string[];
   /** When false, disables the widget for everyone including admins */
   enabled: boolean;
+  /** Buildings that get the widget; empty or absent means every building. Admins bypass it. */
+  buildings?: string[];
   /** Optional override for grade levels. If set, this takes precedence over the static configuration. */
   gradeLevels?: GradeLevel[];
   /** Optional override for the widget's display name. */

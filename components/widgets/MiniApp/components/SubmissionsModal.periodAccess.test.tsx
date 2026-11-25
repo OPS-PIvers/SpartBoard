@@ -1,7 +1,6 @@
 // Per-period Mini-app sessions: the results view carries one chip per period plus
 // Start/Pause all, writing through to the session and its archive row (a distinct id).
 import '@testing-library/jest-dom';
-import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MiniAppSession, PeriodAccess } from '@/types';

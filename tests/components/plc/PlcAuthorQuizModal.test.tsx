@@ -16,7 +16,6 @@
  *   - PlcAssignmentConfigModal: renders a sentinel div so we can assert it mounts.
  */
 
-import React from 'react';
 import {
   render,
   screen,

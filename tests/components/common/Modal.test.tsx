@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   render,
   screen,

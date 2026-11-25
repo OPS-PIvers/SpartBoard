@@ -1,7 +1,6 @@
 // Pins each building's dock-default Toggle to an accessible name; without a
 // label prop every building's switch shares the same unnamed role="switch".
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 

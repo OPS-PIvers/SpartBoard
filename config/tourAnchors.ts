@@ -3979,12 +3979,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'quiz-print.import-remove': {
-    label: 'Remove imported test document in the Quiz widget',
-    perWidgetType: true,
-    destructive: true,
-    panel: true,
-  },
   'quiz-print.include-key-sheet': {
     label: 'Include answer key sheet toggle in the Quiz widget',
     perWidgetType: true,
@@ -4122,20 +4116,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  'quiz-print.roster-expand': {
-    label: 'Roster expand/collapse in the Quiz widget',
-    perField: true,
-    panel: true,
-    rows: true,
-    rowList: 'quiz-print-rosters',
-  },
-  'quiz-print.roster-select': {
-    label: 'Roster select-all checkbox in the Quiz widget',
-    perField: true,
-    panel: true,
-    rows: true,
-    rowList: 'quiz-print-rosters',
-  },
   'quiz-print.share-and-print': {
     label: 'Share and print in the Quiz widget',
     perWidgetType: true,
@@ -4231,32 +4211,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'quiz-print.stub-choice-count': {
-    label: 'Stub Choices per question select in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-print.stub-question-count': {
-    label: 'Stub Questions count input in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-print.stub-title': {
-    label: 'Stub paper Title input in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-print.student-select': {
-    label: 'Per-student checkbox in the Quiz widget',
-    perField: true,
-    panel: true,
-    rowList: 'quiz-print-rosters',
-  },
-  'quiz-print.written-add': {
-    label: 'Written answers Add in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-print.written-box-size': {
     label: 'Written box size select in the Quiz widget',
     perField: true,
@@ -4280,22 +4234,6 @@ export const TOUR_ANCHORS = {
   'quiz-print.written-box-lines': {
     label: 'Written box custom line count in the Quiz widget',
     perField: true,
-    panel: true,
-  },
-  'quiz-print.written-number': {
-    label: 'Written answers question-number input in the Quiz widget',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-print.written-points': {
-    label: 'Written points input in the Quiz widget',
-    perField: true,
-    panel: true,
-  },
-  'quiz-print.written-remove': {
-    label: 'Remove written question (×) in the Quiz widget',
-    perField: true,
-    destructive: true,
     panel: true,
   },
   'quiz-stimuli.add-calculator': {
@@ -5468,6 +5406,12 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-monitor.student-schedule': {
+    label: 'Schedule button on an absent student, in the Quiz monitor roster',
+    perField: true,
+    rows: true,
+    rowList: 'quiz-monitor-roster',
+  },
   'quiz-monitor.student-mark-absent': {
     label:
       'Absent button on a student who has not joined, in the Quiz monitor roster',
@@ -5734,11 +5678,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     persists: true,
   },
-  'quiz-print.import-retry-with-ai': {
-    label: 'Try again with AI link in the Quiz print import dialog',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-import.paper-text-retry-with-ai': {
     label: 'Try again with AI link in the Quiz paper question text dialog',
     perWidgetType: true,
@@ -5760,11 +5699,6 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.language-preview-voice': {
     label: 'Preview voice button in the Quiz language settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-print.import-questions': {
-    label: 'Import questions uploader in the Quiz print dialog',
     perWidgetType: true,
     panel: true,
   },
@@ -7152,7 +7086,7 @@ export const TOUR_ANCHORS = {
     rows: true,
   },
   'library-shell.assigned-close-all': {
-    label: 'Close for all classes, in an Assigned row menu',
+    label: 'Closed, in an Assigned row status menu',
     persists: true,
     panel: true,
   },
@@ -7162,9 +7096,36 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'library-shell.assigned-reopen': {
-    label: 'Reopen, in an Assigned row menu',
+    label: 'Reopen, in an Assigned row status menu',
     persists: true,
     panel: true,
+  },
+  'library-shell.assigned-status': {
+    label: 'Status chip on an Assigned tab row; opens Open, Paused and Closed',
+    perField: true,
+    rows: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-status-option': {
+    label: 'Open, Paused or Closed in an Assigned row status menu',
+    persists: true,
+    perField: true,
+    panel: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-publish': {
+    label:
+      'Scores chip on an Assigned tab row; publishes or unpublishes scores',
+    perField: true,
+    rows: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-publish-option': {
+    label: 'Published or Not published in an Assigned row scores menu',
+    persists: true,
+    perField: true,
+    panel: true,
+    rowList: 'assignment-rows',
   },
   'assigned-reopen.class': {
     label: 'Class picker in the Reopen dialog of an Assigned row',
@@ -10768,6 +10729,16 @@ export const TOUR_ANCHORS = {
     label: 'Graduate button on a Previews row',
     perField: true,
     persists: true,
+    panel: true,
+  },
+  'admin.previews.wrap-up': {
+    label: 'Finish menu button on a Previews row (opens Graduate and Retire)',
+    perField: true,
+    panel: true,
+  },
+  'admin.previews.retire': {
+    label: 'Retire button on a Previews row (opens a GitHub issue)',
+    perField: true,
     panel: true,
   },
   'admin.analytics.active-students-search': {

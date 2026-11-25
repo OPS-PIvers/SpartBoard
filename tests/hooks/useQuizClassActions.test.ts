@@ -25,6 +25,8 @@ const SESSION = 'quiz_sessions/a1';
 // The stored assignment doc; every write bumps its version so a transaction that read an older one retries.
 const store = vi.hoisted(() => ({
   doc: null as Record<string, unknown> | null,
+  /** The session's own fields, when a test needs them apart from the assignment. */
+  session: null as Record<string, unknown> | null,
   version: 0,
   calls: [] as string[],
   writes: [] as Array<[string, Record<string, unknown>]>,
@@ -88,9 +90,14 @@ vi.mock('firebase/firestore', () => {
     FieldPath,
     deleteField: () => 'DELETE',
     doc: (_db: unknown, ...segs: string[]) => segs.join('/'),
-    getDoc: vi.fn(() =>
+    getDoc: vi.fn((path: string) =>
       Promise.resolve({
-        data: () => (store.doc ? structuredClone(store.doc) : undefined),
+        data: () =>
+          path === SESSION && store.session
+            ? structuredClone(store.session)
+            : store.doc
+              ? structuredClone(store.doc)
+              : undefined,
       })
     ),
     updateDoc: vi.fn((path: string, fields: Record<string, unknown>) => {
@@ -111,7 +118,7 @@ vi.mock('firebase/firestore', () => {
     runTransaction: async (
       _db: unknown,
       fn: (tx: {
-        get: (p: string) => Promise<{ data: () => unknown }>;
+        get: (path: string) => Promise<{ data: () => unknown }>;
         update: (p: string, ...args: unknown[]) => void;
       }) => Promise<unknown>
     ) => {
@@ -119,9 +126,11 @@ vi.mock('firebase/firestore', () => {
         let seen = -1;
         const ops: Array<[string, Record<string, unknown>]> = [];
         const result = await fn({
-          get: async () => {
+          get: async (path: string) => {
             seen = store.version;
-            const snapshot = store.doc ? structuredClone(store.doc) : undefined;
+            const source =
+              path === SESSION && store.session ? store.session : store.doc;
+            const snapshot = source ? structuredClone(source) : undefined;
             await tick();
             return { data: () => snapshot };
           },
@@ -139,9 +148,13 @@ const setTargets = vi.hoisted(() => vi.fn(() => Promise.resolve({})));
 vi.mock('@/hooks/useSetAssignmentTargets', () => ({
   useSetAssignmentTargets: () => ({ setAssignmentTargets: setTargets }),
 }));
-const authUid = vi.hoisted(() => ({ uid: 't1' }));
+const authUid = vi.hoisted(() => ({ uid: 't1', scheduleFlag: false }));
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: authUid.uid } }),
+  useAuth: () => ({
+    user: { uid: authUid.uid },
+    canAccessFeature: (id: string) =>
+      id === 'student-set-time' && authUid.scheduleFlag,
+  }),
 }));
 
 const lifecycle = {
@@ -185,10 +198,11 @@ const assignment = (over: Partial<QuizAssignment>): QuizAssignment =>
   }) as QuizAssignment;
 
 /** Seeds the stored doc and renders the hook with the same (or a staler) snapshot. */
+const onHeld = vi.fn();
 const setup = (stored: QuizAssignment, rendered: QuizAssignment = stored) => {
   store.doc = structuredClone(stored) as unknown as Record<string, unknown>;
   const { result } = renderHook(() =>
-    useQuizClassActions(rendered, lifecycle, [])
+    useQuizClassActions(rendered, lifecycle, [], onHeld)
   );
   return result;
 };
@@ -198,7 +212,9 @@ beforeEach(() => {
   store.calls = [];
   store.writes = [];
   store.version = 0;
+  store.session = null;
   authUid.uid = 't1';
+  authUid.scheduleFlag = false;
   periods.startPeriod.mockImplementation((k: string) => {
     store.calls.push(`start:${k}`);
     setRow(k, { state: 'open' });
@@ -417,6 +433,87 @@ describe('useQuizClassActions (D21)', () => {
       'status:end:a1',
     ]);
     vi.restoreAllMocks();
+  });
+});
+
+describe('scheduled students keep a closed quiz live', () => {
+  const later = () => Date.now() + 86_400_000;
+
+  it('closing the last class holds the run for a scheduled student and lists them', async () => {
+    authUid.scheduleFlag = true;
+    const from = later();
+    store.session = {
+      studentAccess: { s1: from + 3_600_000, gone: 1 },
+      studentAccessFrom: { s1: from },
+    };
+    const x = setup(
+      assignment({
+        periodAccess: { c1: row({ state: 'open' }), c2: row({ closedAt: 5 }) },
+      })
+    );
+    await act(() => x.current.closeClass('c1'));
+    expect(lifecycle.deactivateAssignment).not.toHaveBeenCalled();
+    const hold = {
+      until: from + 3_600_000,
+      students: { s1: { from, until: from + 3_600_000 } },
+    };
+    expect(onHeld).toHaveBeenCalledWith(hold, 'c1');
+    expect(store.doc?.passHold).toEqual(hold);
+    expect(
+      store.writes.filter(([, f]) => 'passHold' in f).map(([p]) => p)
+    ).toEqual([SESSION, ASSIGNMENT]);
+  });
+
+  it('without the Schedule for later flag the last Close still ends the run', async () => {
+    store.session = { studentAccess: { s1: later() } };
+    const x = setup(
+      assignment({
+        periodAccess: { c1: row({ state: 'open' }), c2: row({ closedAt: 5 }) },
+      })
+    );
+    await act(() => x.current.closeClass('c1'));
+    expect(store.calls).toEqual(['status:end:a1']);
+    expect(onHeld).not.toHaveBeenCalled();
+  });
+
+  it('with no pass left the last Close ends the run', async () => {
+    authUid.scheduleFlag = true;
+    store.session = { studentAccess: { s1: 1 } };
+    const x = setup(
+      assignment({
+        periodAccess: { c1: row({ state: 'open' }), c2: row({ closedAt: 5 }) },
+      })
+    );
+    await act(() => x.current.closeClass('c1'));
+    expect(store.calls).toEqual(['status:end:a1']);
+  });
+
+  it('Close for all classes holds the run and turns each class in itself', async () => {
+    vi.useFakeTimers();
+    authUid.scheduleFlag = true;
+    const until = later();
+    store.session = { studentAccess: { s1: until } };
+    periods.closeAllPeriods.mockImplementation(() => {
+      store.calls.push('closeAll');
+      setRow('c1', { state: 'closed', closedAt: 9 });
+      setRow('c2', { state: 'closed', closedAt: 9 });
+      return Promise.resolve();
+    });
+    const x = setup(
+      assignment({ periodAccess: { c1: row({ state: 'open' }), c2: row() } })
+    );
+    await act(() => x.current.closeAll());
+    expect(store.calls).toEqual(['closeAll']);
+    expect(onHeld).toHaveBeenCalledWith(
+      { until, students: { s1: { from: null, until } } },
+      null
+    );
+    vi.advanceTimersByTime(END_TURN_IN_DELAY_MS);
+    expect(
+      (finalizeClassQuizResponses as Mock).mock.calls.map(
+        (c: unknown[]) => c[1]
+      )
+    ).toEqual(['c1', 'c2']);
   });
 });
 

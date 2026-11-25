@@ -1,7 +1,6 @@
 import { render } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { Bell } from 'lucide-react';
-import React from 'react';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { SettingsLabelToneProvider } from '@/components/common/SettingsLabelToneContext';
 

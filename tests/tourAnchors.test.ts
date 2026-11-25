@@ -101,6 +101,8 @@ describe('tour anchor registry', () => {
       'library-shell.assigned-select-row',
       'library-shell.assigned-select-all',
       'library-shell.assigned-select-cancel',
+      'library-shell.assigned-status',
+      'library-shell.assigned-publish',
       'assigned-reopen.class',
       'assigned-reopen.who',
       'assigned-reopen.cancel',

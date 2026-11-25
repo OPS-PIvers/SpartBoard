@@ -1316,6 +1316,7 @@ describe('hiddenToolsFor', () => {
     const hidden = await hiddenToolsFor(ctxFor(fakeDb().db));
     expect([...hidden].sort()).toEqual([
       'create_live_tour',
+      'create_web_tour',
       'get_live_tour',
       'get_mini_app_results_summary',
       'get_web_tour',
@@ -1323,6 +1324,7 @@ describe('hiddenToolsFor', () => {
       'list_uploaded_pictures',
       'list_web_tours',
       'start_picture_upload',
+      'update_web_tour_settings',
       'update_web_tour_steps',
       'update_web_tour_text',
     ]);

@@ -19,7 +19,6 @@
  *     mounts with the right props.
  */
 
-import React from 'react';
 import {
   render,
   screen,

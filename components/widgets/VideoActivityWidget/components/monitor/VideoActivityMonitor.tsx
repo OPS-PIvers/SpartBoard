@@ -2,7 +2,6 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { plainPromptText } from '@/utils/promptMath';
 import { PromptText } from '@/components/common/PromptText';
 import {
-  ArrowLeft,
   BarChart3,
   ChevronRight,
   Loader2,
@@ -41,6 +40,8 @@ import {
   PeriodBar,
 } from '@/components/widgets/QuizWidget/components/monitor/PeriodBar';
 import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
+import { MonitorHeader } from '@/components/widgets/QuizWidget/components/monitor/MonitorHeader';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import type {
   MonitorFilterBy,
   MonitorSortBy,
@@ -300,12 +301,6 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
     : screen.name === 'question'
       ? `Q${screen.index + 1} results`
       : 'Question results';
-  const statusPill = isLive
-    ? { label: 'Live', cls: 'bg-white text-brand-blue-primary' }
-    : run?.phase === 'waiting'
-      ? { label: 'Not started', cls: 'bg-white/20 text-white' }
-      : { label: 'Paused', cls: 'bg-white/20 text-white' };
-
   const periodControls = periodBar ? (
     <PeriodBar
       periodAccess={session.periodAccess ?? {}}
@@ -351,54 +346,25 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
 
   return (
     <div className="h-full w-full flex flex-col bg-white text-brand-gray-dark relative font-sans">
-      <div
-        className="flex items-center bg-brand-blue-primary text-white shrink-0"
-        style={{
-          gap: 'min(8px, 2cqmin)',
-          padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
-        }}
-      >
-        {(onBack != null || !onHome) && (
-          <button
-            type="button"
-            onClick={() =>
-              onHome
-                ? onBack?.()
-                : setScreen(
-                    screen.name === 'question'
-                      ? { name: 'questions' }
-                      : { name: 'home' }
-                  )
-            }
-            aria-label="Back"
-            {...tourTypeAttr('video-activity.monitor-back', TYPE)}
-            className="rounded-md hover:bg-white/15 transition-colors"
-            style={{ padding: 'min(4px, 1cqmin)' }}
-          >
-            <ArrowLeft
-              style={{
-                width: 'min(16px, 5cqmin)',
-                height: 'min(16px, 5cqmin)',
-              }}
-            />
-          </button>
-        )}
-        <p
-          className="font-semibold truncate flex-1"
-          style={{ fontSize: 'min(14px, 5cqmin)' }}
-        >
-          {headerTitle}
-        </p>
-        <span
-          className={`shrink-0 rounded-full font-semibold uppercase tracking-wider ${statusPill.cls}`}
-          style={{
-            fontSize: 'min(10px, 3.5cqmin)',
-            padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
-          }}
-        >
-          {statusPill.label}
-        </span>
-      </div>
+      <MonitorHeader
+        title={headerTitle}
+        status={isLive ? 'live' : 'paused'}
+        label={!isLive && run?.phase === 'waiting' ? 'Not started' : undefined}
+        accent={LIBRARY_HEADER_ACCENTS['video-activity']}
+        onBack={
+          onBack != null || !onHome
+            ? () =>
+                onHome
+                  ? onBack?.()
+                  : setScreen(
+                      screen.name === 'question'
+                        ? { name: 'questions' }
+                        : { name: 'home' }
+                    )
+            : undefined
+        }
+        backAnchor={tourTypeAttr('video-activity.monitor-back', TYPE)}
+      />
 
       <div
         className="flex-1 overflow-y-auto"

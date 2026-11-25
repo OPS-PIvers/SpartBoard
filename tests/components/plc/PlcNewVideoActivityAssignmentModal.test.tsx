@@ -11,7 +11,6 @@
  *   - PlcSharePickerModal mocked as a sentinel that immediately calls onPick.
  */
 
-import React from 'react';
 import {
   render,
   screen,

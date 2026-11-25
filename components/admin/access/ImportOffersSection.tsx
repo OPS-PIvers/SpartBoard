@@ -165,7 +165,7 @@ const PreviewAccess: React.FC<{
       {off && <span className="text-xxs text-amber-700">Preview: off</span>}
       {ready && (
         <a
-          href={retireIssueUrl(featureId)}
+          href={retireIssueUrl(featureId, permission, undefined)}
           target="_blank"
           rel="noopener noreferrer"
           title="Opens a GitHub issue asking Claude to remove the old version"

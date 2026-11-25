@@ -5,6 +5,7 @@ import {
   createQuiz,
   expectToast,
   openBoard,
+  rowChipItems,
   rowMenuItems,
   setFeatureOverrides,
   teacherFeatureOverrides,
@@ -33,6 +34,11 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
   // A row's line is split across elements, so match it as a screen reader reads it.
   const reads = (text: string) =>
     expect.poll(() => panel.ariaSnapshot()).toContain(text);
+  // The row's status word is a menu button, so its text sits apart from the grey text.
+  const status = async (label: string, grey?: string) => {
+    await reads(`Status of ${QUIZ}: ${label}`);
+    if (grey) await reads(`text: ${grey}`);
+  };
 
   await test.step('assign to two classes with a manual start', async () => {
     await expect(library.getByRole('tab')).toHaveText(['Library', 'Assigned']);
@@ -63,7 +69,6 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
     expect(await rowMenuItems(page, library)).toEqual([
       'Settings',
       'Assign to Google Classroom',
-      'Close for all classes',
       'Move to Finished',
       'Delete',
     ]);
@@ -82,14 +87,14 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
       .getByRole('button', { name: 'Open', exact: true })
       .first()
       .click();
-    await reads('Open · Period 1 0 turned in · 1 class to go');
+    await status('Open · Period 1', '0 turned in · 1 class to go');
     await reads('Period 1 Open 0 turned in');
     await reads('Period 2 Ready');
   });
 
   await test.step('pause and resume that class', async () => {
     await panel.getByRole('button', { name: 'Pause', exact: true }).click();
-    await reads('Paused · Period 1 1 class to go');
+    await status('Paused · Period 1', '1 class to go');
     await reads('Period 1 Paused 0 turned in');
     await panel.getByRole('button', { name: 'Resume', exact: true }).click();
     await reads('Period 1 Open 0 turned in');
@@ -122,12 +127,16 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
       widget.getByRole('button', { name: 'Close Period 1' })
     ).toBeVisible();
     await widget.getByRole('button', { name: 'Back' }).click();
-    await reads('Open · Period 1 0 turned in · 1 class to go');
+    await status('Open · Period 1', '0 turned in · 1 class to go');
   });
 
   await test.step('close for all classes, then undo', async () => {
-    await rowMenuItems(page, library);
-    await page.getByRole('menuitem', { name: 'Close for all classes' }).click();
+    expect(await rowChipItems(page, library, 'Status')).toEqual([
+      'Open',
+      'Paused',
+      'Closed',
+    ]);
+    await page.getByRole('menuitemradio', { name: 'Closed' }).click();
     await expectToast(page, `${QUIZ} is closed for all classes.`);
     await reads('Nothing active');
     await expect(
@@ -135,7 +144,7 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
     ).toBeVisible();
     await page.getByRole('button', { name: 'Undo' }).click();
     await reads('Active 1');
-    await reads('Open · Period 1 0 turned in · 1 class to go');
+    await status('Open · Period 1', '0 turned in · 1 class to go');
   });
 
   await test.step('move to Finished and open results', async () => {
@@ -144,13 +153,15 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
     await expectToast(page, `${QUIZ} moved to Finished.`);
     await reads('Nothing active');
     await panel.getByRole('button', { name: 'Finished 1' }).click();
-    await reads(`${QUIZ} Closed`);
-    expect(await rowMenuItems(page, library)).toEqual([
-      'Publish scores',
+    await status('Closed');
+    expect(await rowMenuItems(page, library)).toEqual(['Delete']);
+    await library.getByRole('button', { name: 'More actions' }).click();
+    await expect(page.getByRole('menuitem')).toHaveCount(0);
+    expect(await rowChipItems(page, library, 'Status')).toEqual([
       'Reopen',
-      'Delete',
+      'Closed',
     ]);
-    await page.getByRole('menuitem', { name: 'Reopen' }).click();
+    await page.getByRole('menuitemradio', { name: 'Reopen' }).click();
     const reopen = page.getByRole('dialog', { name: `Reopen ${QUIZ}` });
     await expect(reopen.getByRole('radio')).toHaveText([
       'Everyone in the class',
@@ -159,8 +170,13 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
     await expect(reopen.getByRole('combobox', { name: 'Class' })).toBeVisible();
     await reopen.getByRole('button', { name: 'Cancel' }).click();
     await expect(reopen).toBeHidden();
-    await rowMenuItems(page, library);
-    await page.getByRole('menuitem', { name: 'Publish scores' }).click();
+    expect(await rowChipItems(page, library, 'Scores')).toEqual([
+      'Not published',
+      'Published',
+    ]);
+    await page
+      .getByRole('menuitemradio', { name: 'Published', exact: true })
+      .click();
     const publish = page.getByRole('dialog', {
       name: 'Publish scores to students',
     });

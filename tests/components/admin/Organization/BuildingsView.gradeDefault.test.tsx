@@ -9,7 +9,6 @@
  * manually editing "Grades served" silently gets elementary-band widget
  * filtering for that building instead of 9-12.
  */
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { BuildingsView } from '@/components/admin/Organization/views/BuildingsView';

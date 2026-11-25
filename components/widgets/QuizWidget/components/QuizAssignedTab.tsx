@@ -4,11 +4,19 @@ import {
   pickedStudents,
   type PickedStudents,
 } from '@/utils/assignedStudents';
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   collection,
+  deleteField,
   doc,
   FieldPath,
+  getDoc,
   onSnapshot,
   updateDoc,
   writeBatch,
@@ -19,6 +27,7 @@ import { useShowPickedStudents } from '@/hooks/useShowPickedStudents';
 import { useDashboard } from '@/context/useDashboard';
 import type {
   ClassRoster,
+  PassHold,
   QuizAssignment,
   QuizData,
   QuizMetadata,
@@ -35,6 +44,11 @@ import {
   type ClassActionKind,
   mainActionLabel,
 } from '@/components/common/library/assigned';
+import {
+  AssignedHeldDialog,
+  AssignedHeldStudents,
+} from '@/components/common/library/assigned/HeldStudents';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import type { LibraryMenuAction } from '@/components/common/library/types';
 import { tourTypeAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import { todaysBell } from '@/hooks/usePeriodAccess';
@@ -45,6 +59,7 @@ import {
 } from '@/hooks/useQuizClassActions';
 import {
   deriveAssignedStatus,
+  heldStudents,
   quizAssignedInput,
   type AssignedClass,
   type AssignedStatus,
@@ -399,25 +414,57 @@ const QuizLeftOpenHost: React.FC<{
   onLeaveOpen: () => void;
 }> = ({ row, cls, index, rosters, lifecycle, onLeaveOpen }) => {
   const a = row.assignment;
-  const actions = useQuizClassActions(a, lifecycle, rosters);
+  const { user } = useAuth();
+  const { addToast } = useDashboard();
+  const [held, setHeld] = useState<{ hold: PassHold; at: number } | null>(null);
+  const onHeld = useCallback(
+    (hold: PassHold) => setHeld({ hold, at: Date.now() }),
+    []
+  );
+  const actions = useQuizClassActions(a, lifecycle, rosters, onHeld);
   const run = usePeriodRunner('QuizAssignedTab.leftOpen');
   const [busy, setBusy] = useState(false);
   const single = row.status.singleLine;
+  const liveHold = a.passHold ?? held?.hold ?? null;
+  const heldList = held ? heldStudents(liveHold, held.at) : [];
   return (
-    <AssignedLeftOpenFlag
-      title={a.quizTitle}
-      classLabel={single ? null : cls.label}
-      busy={busy}
-      onClose={() => {
-        setBusy(true);
-        void run(() => actions.closeClass(single ? null : cls.key)).finally(
-          () => setBusy(false)
-        );
-      }}
-      onLeaveOpen={onLeaveOpen}
-      tourIndex={index}
-      tourWidgetType="quiz"
-    />
+    <>
+      {held && heldList.length > 0 && (
+        <AssignedHeldDialog
+          assignmentId={a.id}
+          classIds={a.classIds}
+          classLabel={single ? null : cls.label}
+          students={heldList}
+          accent={LIBRARY_HEADER_ACCENTS.quiz}
+          edit={
+            user?.uid === a.teacherUid
+              ? {
+                  teacherUid: a.teacherUid,
+                  assignmentId: a.id,
+                  hold: liveHold,
+                  dueAt: a.dueAt,
+                }
+              : null
+          }
+          onError={(m) => addToast(m, 'error')}
+          onClose={() => setHeld(null)}
+        />
+      )}
+      <AssignedLeftOpenFlag
+        title={a.quizTitle}
+        classLabel={single ? null : cls.label}
+        busy={busy}
+        onClose={() => {
+          setBusy(true);
+          void run(() => actions.closeClass(single ? null : cls.key)).finally(
+            () => setBusy(false)
+          );
+        }}
+        onLeaveOpen={onLeaveOpen}
+        tourIndex={index}
+        tourWidgetType="quiz"
+      />
+    </>
   );
 };
 
@@ -447,7 +494,9 @@ async function undoClose(
 ): Promise<void> {
   const assignmentRef = doc(db, 'users', uid, 'quiz_assignments', prev.id);
   const sessionRef = doc(db, 'quiz_sessions', prev.id);
-  if (prev.status !== 'inactive') {
+  // A Close held live for scheduled students never ended the run, so only an ended run reopens.
+  const ended = (await getDoc(assignmentRef)).data()?.status === 'inactive';
+  if (prev.status !== 'inactive' && ended) {
     await lifecycle.reopenAssignment(prev.id);
     if (prev.status === 'active') await lifecycle.resumeAssignment(prev.id);
   }
@@ -464,6 +513,12 @@ async function undoClose(
     doneAt: prev.doneAt ?? null,
     closedAt: prev.closedAt ?? null,
   });
+  if (!prev.passHold) {
+    const batch = writeBatch(db);
+    for (const ref of [sessionRef, assignmentRef])
+      batch.update(ref, { passHold: deleteField() });
+    await batch.commit();
+  }
 }
 
 export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
@@ -488,7 +543,34 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
   const { assignment: a, status, needsGrading, bells, picked } = row;
   const { user } = useAuth();
   const { addToast } = useDashboard();
-  const actions = useQuizClassActions(a, lifecycle, rosters);
+  const [heldNotice, setHeldNotice] = useState<{
+    classLabel: string | null;
+    hold: PassHold;
+  } | null>(null);
+  const periodLabels = a.periodAccess;
+  const onHeld = useCallback(
+    (hold: PassHold, key: string | null) => {
+      if (heldStudents(hold, Date.now()).length === 0) return;
+      setHeldNotice({
+        classLabel: key ? (periodLabels?.[key]?.label ?? null) : null,
+        hold,
+      });
+    },
+    [periodLabels]
+  );
+  const actions = useQuizClassActions(a, lifecycle, rosters, onHeld);
+  // The stored hold once it arrives, so edits and removals show at once.
+  const liveHold = a.passHold ?? heldNotice?.hold ?? null;
+  const noticeStudents = heldNotice ? heldStudents(liveHold, now) : [];
+  const heldEdit = (fallback: PassHold | null) =>
+    user?.uid === a.teacherUid
+      ? {
+          teacherUid: a.teacherUid,
+          assignmentId: a.id,
+          hold: a.passHold ?? fallback,
+          dueAt: a.dueAt,
+        }
+      : null;
   const run = usePeriodRunner('QuizAssignedTab.class');
   const [busy, setBusy] = useState(false);
   const exec = async (fn: () => Promise<unknown>) => {
@@ -658,6 +740,18 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
 
   return (
     <>
+      {heldNotice && noticeStudents.length > 0 && (
+        <AssignedHeldDialog
+          assignmentId={a.id}
+          classIds={a.classIds}
+          classLabel={heldNotice.classLabel}
+          students={noticeStudents}
+          accent={LIBRARY_HEADER_ACCENTS.quiz}
+          edit={heldEdit(heldNotice.hold)}
+          onError={(m) => addToast(m, 'error')}
+          onClose={() => setHeldNotice(null)}
+        />
+      )}
       {reopening && (
         <AssignedReopenDialog
           title={a.quizTitle}
@@ -698,6 +792,17 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
         selectAnchor={selectAnchor}
         picked={picked}
         periodAccess={a.periodAccess}
+        held={
+          status.line.kind === 'students-scheduled' ? (
+            <AssignedHeldStudents
+              assignmentId={a.id}
+              classIds={a.classIds}
+              students={status.line.students}
+              edit={heldEdit(null)}
+              onError={(m) => addToast(m, 'error')}
+            />
+          ) : undefined
+        }
       />
     </>
   );

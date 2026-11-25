@@ -1,2 +1,1 @@
-claude/project-thread-9juohh (release PR #6655, closed and replaced by #6657)
-nightly/unifier-log-2026-11-24 (#6652)
+claude/project-thread-4imbfg (Release 2026.11.24 branch, merged in #6672)

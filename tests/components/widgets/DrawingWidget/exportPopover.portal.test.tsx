@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import React from 'react';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 
 vi.mock('@/context/useDashboard', () => ({

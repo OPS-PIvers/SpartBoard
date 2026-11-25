@@ -55,9 +55,8 @@ export const resolveGateBuildingIds = (
 /**
  * Reads the raise-hand mode off `feature_permissions/quiz.config` across every
  * building the teacher belongs to, most-restrictive-wins: any `force-off`
- * decides, then any `force-on`, else the teacher's choice. Mirrors the
- * multi-building `dockDefaults` gate in AuthContext, and canonicalizes stored
- * keys so legacy building ids still match. With no building at all (a teacher
+ * decides, then any `force-on`, else the teacher's choice. Canonicalizes
+ * stored keys so legacy building ids still match. With no building at all (a teacher
  * in no org), the default applies — another tenant's gate never leaks across.
  */
 export const readQuizHandRaiseMode = (

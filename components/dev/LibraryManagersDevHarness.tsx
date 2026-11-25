@@ -28,12 +28,17 @@ import {
   ASSIGNED_QUIZZES,
   ASSIGNED_RESPONSES,
   ASSIGNED_ROSTERS,
+  HELD_NAMES,
   loadAssignedQuiz,
   VA_ASSIGNED_FIXTURES,
   VA_ASSIGNED_QUESTIONS,
   VA_ASSIGNED_RESPONSES,
 } from './assignedTabFixtures';
 import { RunAssignedResponsesFixture } from '@/components/common/library/assigned/runAssignedFixture';
+import { AssignedHeldDialog } from '@/components/common/library/assigned/HeldStudents';
+import { HeldNamesFixture } from '@/components/common/library/assigned/heldStudentsData';
+import { heldStudents } from '@/utils/assignedStatus';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import {
   GL_ASSIGNED,
   MA_ASSIGNED,
@@ -1106,9 +1111,34 @@ const ActivityWallView: React.FC = () => (
 );
 
 const ReviewView: React.FC = () => <QuizView variant="review" />;
+// ?held-dialog shows the Close notice for the fixture's held students.
+const HELD_DIALOG = new URLSearchParams(window.location.search).has(
+  'held-dialog'
+);
+const HELD_HOLD = ASSIGNED_FIXTURES.find((a) => a.id === 'mitosis')?.passHold;
+const HELD_PREVIEW = heldStudents(HELD_HOLD, Date.now());
+const HeldDialogPreview: React.FC = () => {
+  return (
+    <AssignedHeldDialog
+      assignmentId="mitosis"
+      classLabel="Period 2"
+      students={HELD_PREVIEW}
+      edit={{
+        teacherUid: 'mock-user-id',
+        assignmentId: 'mitosis',
+        hold: HELD_HOLD,
+      }}
+      accent={LIBRARY_HEADER_ACCENTS.quiz}
+      onClose={noop}
+    />
+  );
+};
 const QuizAssignedView: React.FC = () => (
   <AssignedResponsesFixture.Provider value={ASSIGNED_RESPONSES}>
-    <QuizView assigned />
+    <HeldNamesFixture.Provider value={HELD_NAMES}>
+      <QuizView assigned />
+      {HELD_DIALOG && <HeldDialogPreview />}
+    </HeldNamesFixture.Provider>
   </AssignedResponsesFixture.Provider>
 );
 

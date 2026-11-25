@@ -1,4 +1,5 @@
 // Writing sessions: assign (snapshot the Library item), delete, and the cleanup that removes responses, copies and logs (D21).
+import { isLiveAdmin } from './authz';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import type { CallableRequest } from 'firebase-functions/v2/https';
 import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
@@ -528,7 +529,7 @@ async function callerFrom(
     (await isDistrictStaffToken(db, token)) ||
     (token.email_verified === true &&
       email.length > 0 &&
-      (await db.doc(`admins/${email}`).get()).exists);
+      (await isLiveAdmin(db, email, token)));
   return { uid: auth.uid, staff, ...(email ? { email } : {}) };
 }
 

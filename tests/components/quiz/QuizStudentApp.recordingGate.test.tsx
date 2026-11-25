@@ -4,7 +4,6 @@
  * block on a session without the marker must fall back to its ordinary
  * answer UI rather than mounting capture.
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, expect, Mock, beforeEach } from 'vitest';
 import { PollWidget } from '.';

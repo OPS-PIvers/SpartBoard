@@ -1,6 +1,5 @@
 // Pins the "Enable ClassLink Sync" Toggle's accessible name; without a label prop the switch is unnamed for screen readers.
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import type { ClassesGlobalConfig } from '@/types';

@@ -37,6 +37,7 @@ import {
   type PaperTranscriptionJob,
 } from './paperWrittenTypes';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { studentTokenReachesSession } from './studentSessionGate';
 import { safeErr } from './safeLog';
 
 /** Crops are capped at 2 MB on upload; the slack covers Drive's copy. */
@@ -70,6 +71,8 @@ export interface Caller {
   studentRole: boolean;
   /** Lower-cased and verified; read only by the kept-page feature gate. */
   email?: string | null;
+  /** Raw token claims for the student class gate; absent falls back to `studentRole`. */
+  claims?: Record<string, unknown>;
 }
 
 export interface StoredObject {
@@ -123,6 +126,20 @@ function parseTarget(raw: unknown): AnswerTarget {
     responseKey: readId(data, 'responseKey'),
     questionId: readId(data, 'questionId', 200),
   };
+}
+
+function reachesSession(
+  caller: Caller,
+  sessionId: string,
+  session: Rec | undefined,
+  now: number
+): boolean {
+  return studentTokenReachesSession(
+    caller.claims ?? { studentRole: caller.studentRole },
+    sessionId,
+    session ?? {},
+    now
+  );
 }
 
 function requireCaller(caller: Caller | null): Caller {
@@ -377,6 +394,7 @@ export async function handleGetPaperPage(
     !response ||
     typeof response.studentUid !== 'string' ||
     response.studentUid !== caller.uid ||
+    !reachesSession(caller, sessionId, session, deps.now()) ||
     !studentMaySeeHandwriting(session, response, deps.now()) ||
     !(await deps.isStudentPagesGranted?.(teacherUid))
   ) {
@@ -460,6 +478,7 @@ export async function handleGetPaperWrittenCrop(
       !response ||
       typeof response.studentUid !== 'string' ||
       response.studentUid !== caller.uid ||
+      !reachesSession(caller, target.sessionId, session, deps.now()) ||
       scan !== 'current' ||
       !studentMaySeeHandwriting(session, response, deps.now())
     ) {
@@ -1140,6 +1159,7 @@ function callerOf(
           firebase?: { sign_in_provider?: string };
           email?: unknown;
           email_verified?: unknown;
+          [claim: string]: unknown;
         };
       }
     | undefined
@@ -1153,6 +1173,7 @@ function callerOf(
       auth.token.email_verified === true && typeof auth.token.email === 'string'
         ? auth.token.email.toLowerCase()
         : null,
+    claims: auth.token,
   };
 }
 

@@ -1,6 +1,5 @@
 // Pins each feature's Enabled and Daily limit toggles to an accessible name.
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 
@@ -12,6 +11,12 @@ vi.mock('firebase/firestore', () => ({
   setDoc: vi.fn().mockResolvedValue(undefined),
   getDocs: vi.fn().mockResolvedValue({ forEach: vi.fn() }),
   addDoc: vi.fn().mockResolvedValue(undefined),
+  onSnapshot: vi.fn(
+    (_ref: unknown, next: (snap: { data: () => unknown }) => void) => {
+      next({ data: () => undefined });
+      return () => undefined;
+    }
+  ),
   serverTimestamp: vi.fn(() => 0),
 }));
 

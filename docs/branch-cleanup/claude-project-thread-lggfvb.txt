@@ -1,0 +1,2 @@
+claude/web-tour-written-steps (written web tour steps, #6687)
+claude/tour-own-shadow-roots (extension own shadow roots, #6688)

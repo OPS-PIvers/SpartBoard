@@ -1,0 +1,2 @@
+claude/kind-johnson-no05eu (unifier D4 import rule, #6701)
+claude/web-tour-create-tool (web tour connector create tool, #6697)

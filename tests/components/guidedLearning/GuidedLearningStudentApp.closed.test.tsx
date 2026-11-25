@@ -1,5 +1,4 @@
 // Past the session's close time (Close now, Archive, sub End) an unsubmitted student sees a closed screen.
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   act,

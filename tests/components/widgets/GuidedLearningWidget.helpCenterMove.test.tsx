@@ -1,5 +1,4 @@
 // The GL widget moves sets into the Help Center and finishes tagged moves when the library loads.
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 

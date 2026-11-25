@@ -2,7 +2,6 @@
  * Whiteboard capture reaches `/quiz` only through `session.whiteboardResponseEnabled`;
  * without it a whiteboard question degrades like an ungated spoken one.
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';

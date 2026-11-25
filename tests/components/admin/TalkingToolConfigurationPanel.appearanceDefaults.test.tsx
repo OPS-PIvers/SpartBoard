@@ -5,7 +5,6 @@
 // persisted — that would silently freeze the default stem library into
 // Firestore as a side effect of an unrelated action.
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import type { TalkingToolGlobalConfig } from '@/types';

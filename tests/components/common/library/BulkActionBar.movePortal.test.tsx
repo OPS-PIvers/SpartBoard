@@ -2,7 +2,6 @@
 // fallback, so it stacked inside the bar and the grid rows painted over it.
 // Anchoring it portals the card to <body> above every row.
 
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
