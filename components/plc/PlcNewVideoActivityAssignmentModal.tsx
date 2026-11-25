@@ -32,8 +32,6 @@
 
 import React, { useCallback, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { doc, writeBatch } from 'firebase/firestore';
-import { db } from '@/config/firebase';
 import type {
   AssignmentMode,
   ClassRoster,
@@ -60,7 +58,6 @@ import {
   PlcSharePickerModal,
   type PlcSharePickerItem,
 } from './PlcSharePickerModal';
-import { mirrorPlcAssignmentStatus } from '@/hooks/usePlcAssignmentIndex';
 import { AssignStepper } from '@/components/common/library/assignStepper/AssignStepper';
 import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import { AssignWhenStep } from '@/components/common/library/assignStepper/AssignWhenStep';
@@ -365,29 +362,13 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
           teacherName: options.teacherName.trim() || undefined,
           plc: plcLinkage,
         },
-        'paused',
+        'active',
         derived.classIds,
         derived.periodNames,
         derived.rosterIds,
-        assignmentMode
+        assignmentMode,
+        { openAt: window.openAt, closeAt: window.closeAt, dueAt: window.dueAt }
       );
-      const fields = {
-        ...(window.openAt != null ? { openAt: window.openAt } : {}),
-        ...(window.closeAt != null ? { closeAt: window.closeAt } : {}),
-        ...(window.dueAt != null ? { dueAt: window.dueAt } : {}),
-      };
-      // One batch opens it with its window, so a failed write leaves it paused.
-      const batch = writeBatch(db);
-      batch.update(doc(db, 'video_activity_sessions', assignmentId), {
-        ...fields,
-        status: 'active',
-      });
-      batch.update(
-        doc(db, 'users', user.uid, 'video_activity_assignments', assignmentId),
-        { ...fields, status: 'active', updatedAt: Date.now() }
-      );
-      await batch.commit();
-      void mirrorPlcAssignmentStatus(plc.id, assignmentId, 'active');
       if (rules) lastRules.save(rules);
 
       addToast('Assignment created.', 'success');
