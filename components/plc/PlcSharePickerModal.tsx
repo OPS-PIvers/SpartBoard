@@ -22,6 +22,8 @@ import { Modal } from '@/components/common/Modal';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { SearchField } from '@/components/common/SearchField';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
+import type { WidgetType } from '@/types';
 
 export interface PlcSharePickerItem {
   id: string;
@@ -54,6 +56,8 @@ interface PlcSharePickerModalProps {
    */
   onPick: (itemId: string) => Promise<void>;
   onClose: () => void;
+  /** Colors the header like that widget's library; brand blue when absent. */
+  widgetType?: WidgetType;
 }
 
 export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
@@ -64,7 +68,9 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
   items,
   onPick,
   onClose,
+  widgetType,
 }) => {
+  const accent = widgetType ? LIBRARY_HEADER_ACCENTS[widgetType] : undefined;
   const outward = useViewAsOutward();
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
@@ -107,7 +113,10 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
       maxWidth="max-w-md"
       contentClassName=""
       customHeader={
-        <div className="flex items-start justify-between gap-3 px-5 py-3.5 bg-brand-blue-primary text-white rounded-t-2xl">
+        <div
+          className="flex items-start justify-between gap-3 px-5 py-3.5 bg-brand-blue-primary text-white rounded-t-2xl"
+          style={accent ? { backgroundColor: accent } : undefined}
+        >
           <div className="flex items-start gap-3">
             <div className="shrink-0 w-9 h-9 rounded-lg bg-white/15 text-white flex items-center justify-center">
               <Share2 className="w-5 h-5" />
@@ -202,7 +211,8 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
                         onClick={() => void handlePick(item.id)}
                         disabled={disabled}
                         title={outward.lockedTitle}
-                        className="shrink-0 inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-bold transition-colors bg-brand-blue-primary text-white hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={accent ? { backgroundColor: accent } : undefined}
+                        className="shrink-0 inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-bold transition-colors bg-brand-blue-primary text-white hover:bg-brand-blue-dark hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         {rowBusy ? (
                           <Loader2

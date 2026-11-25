@@ -488,6 +488,7 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
 
       {pickerOpen && (
         <PlcSharePickerModal
+          widgetType="flashcards"
           title={t('plcDashboard.flashcards.pickerTitle', {
             defaultValue: 'Share a flashcard set',
           })}
