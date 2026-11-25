@@ -408,6 +408,41 @@ describe('PaperPrintModal', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
+  it("keeps a group's supports on a separate test paper", async () => {
+    const { print } = setup({
+      quiz: quiz({ questions: [mc('q1'), mc('q2')] }),
+      group: {
+        label: 'Group 1',
+        students: { r1: ['s1'] },
+        supports: [{ title: 'Word bank', body: 'nucleus, ribosome' }],
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    const job = print.mock.calls[0][0];
+    expect(job.columnsPerPage).not.toBe('questions');
+    expect(job.testPaper).toContain('nucleus, ribosome');
+  });
+
+  it('keeps section headings on a separate test paper', async () => {
+    const { print } = setup({
+      quiz: quiz({
+        questions: [mc('q1'), mc('q2')],
+        sections: [{ id: 's1', title: 'Part B heading' }],
+        order: [
+          { kind: 'question', id: 'q1' },
+          { kind: 'section', id: 's1' },
+          { kind: 'question', id: 'q2' },
+        ],
+      }),
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    const job = print.mock.calls[0][0];
+    expect(job.columnsPerPage).not.toBe('questions');
+    expect(job.testPaper).toContain('Part B heading');
+  });
+
   it('prints each question beside its bubbles on the tall-row layout', async () => {
     const tenQuestions = quiz({
       questions: Array.from({ length: 10 }, (_, i) => mc(`q${i}`)),

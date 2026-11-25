@@ -475,8 +475,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   // Anything in the band takes the page's right half, so the answers drop to
   // one column and the test spreads over twice as many pages (D1).
   const columnsPerPage = sheetStimuli.length > 0 ? 1 : 2;
-  // Question text takes the band stimuli would print in, so a sheet with stimuli prints a separate test paper.
-  const questionTextLayout = sheetStimuli.length === 0;
+  // Stimuli, a group's supports and section headings print only on a separate test paper.
+  const questionTextLayout =
+    sheetStimuli.length === 0 &&
+    !group?.supports?.length &&
+    sessionSectionsFor(quiz).length === 0;
   const grid = questionTextLayout ? 'questions' : columnsPerPage;
   const blockMeasure = useMemo(
     (): BlockMeasure => browserBlockMeasure() ?? estimateBlockMm,

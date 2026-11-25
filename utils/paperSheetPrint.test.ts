@@ -13,6 +13,7 @@ import {
 import { decodePaperMarker, paperBatchTag } from './paperSheetMarker';
 import type { PaperSheetPlan } from './paperSheetPlan';
 import {
+  buildFilledSheetHtml,
   buildPaperSheetsHtml,
   printPaperSheets,
   type PaperPrintJob,
@@ -239,6 +240,21 @@ describe('buildPaperSheetsHtml', () => {
       })
     );
     expect(html.match(/class="bub"/g)).toHaveLength(2 + 4);
+  });
+
+  it('still draws a filled bubble past the choices on an older question-text sheet', () => {
+    const html = buildFilledSheetHtml(
+      sheet(),
+      job({
+        questionCount: 1,
+        columnsPerPage: 'questions',
+        questionTexts: [{ text: 'Sky is blue', choices: ['True', 'False'] }],
+      }),
+      1,
+      { filled: [2], key: [0], marks: ['incorrect'] }
+    );
+    expect(html.match(/class="bub[^"]*"/g)).toHaveLength(3);
+    expect(html).toContain('class="bub filled"');
   });
 
   it('prints no question text on the ordinary grids', () => {

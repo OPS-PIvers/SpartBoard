@@ -616,13 +616,20 @@ function mcRowHtml(
       label ? ' labelled' : ''
     }" style="${style}">${numberHtml}</div>`;
   const text = questionTexts?.[index];
-  // A question-text row prints one bubble per printed choice, so True/False shows two.
+  // A question-text row prints one bubble per printed choice, plus any bubble an older sheet's student filled.
   const bubbles =
     columnsPerPage === 'questions' &&
     text &&
     text.choices.length >= 2 &&
     !isPlaceholderLetterChoices(text.choices)
-      ? Math.min(choiceCount, text.choices.length)
+      ? Math.min(
+          choiceCount,
+          Math.max(
+            text.choices.length,
+            (fill?.filled[index] ?? -1) + 1,
+            (fill?.key[index] ?? -1) + 1
+          )
+        )
       : choiceCount;
   if (columnsPerPage === 'questions' && text) {
     parts.push(questionTextHtml(origin, text, numberDiv));
