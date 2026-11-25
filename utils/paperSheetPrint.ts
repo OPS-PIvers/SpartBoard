@@ -569,12 +569,6 @@ function groupRowHtml(
           );
         });
       }
-      for (let c = 0; c < Math.min(choices, item.wrap ?? choices); c += 1) {
-        const r = itemBubbleRectMm(item, c, grid);
-        parts.push(
-          `<div class="legend" style="left:${mm(r.x)};top:${mm(rowsTop - GROUP_LEGEND_MM + 0.8)};width:${mm(r.w)}">${labelOf(c)}</div>`
-        );
-      }
     }
   }
 
@@ -622,6 +616,21 @@ function mcRowHtml(
       label ? ' labelled' : ''
     }" style="${style}">${numberHtml}</div>`;
   const text = questionTexts?.[index];
+  // A question-text row prints one bubble per printed choice, plus any bubble an older sheet's student filled.
+  const bubbles =
+    columnsPerPage === 'questions' &&
+    text &&
+    text.choices.length >= 2 &&
+    !isPlaceholderLetterChoices(text.choices)
+      ? Math.min(
+          choiceCount,
+          Math.max(
+            text.choices.length,
+            (fill?.filled[index] ?? -1) + 1,
+            (fill?.key[index] ?? -1) + 1
+          )
+        )
+      : choiceCount;
   if (columnsPerPage === 'questions' && text) {
     parts.push(questionTextHtml(origin, text, numberDiv));
   } else {
@@ -631,7 +640,7 @@ function mcRowHtml(
       )
     );
   }
-  for (let choice = 0; choice < choiceCount; choice += 1) {
+  for (let choice = 0; choice < bubbles; choice += 1) {
     const r = bubbleRectAtOriginMm(origin, choice, columnsPerPage);
     const cls = fill
       ? `bub${fill.filled[index] === choice ? ' filled' : ''}${
@@ -646,7 +655,7 @@ function mcRowHtml(
   }
   const mark = fill?.marks[index];
   if (mark) {
-    const r = bubbleRectAtOriginMm(origin, choiceCount - 1, columnsPerPage);
+    const r = bubbleRectAtOriginMm(origin, bubbles - 1, columnsPerPage);
     // Beside the number on the question-text grid, where choice text fills the row.
     const left =
       columnsPerPage === 'questions'

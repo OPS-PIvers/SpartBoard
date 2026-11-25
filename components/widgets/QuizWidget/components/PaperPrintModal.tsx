@@ -43,7 +43,6 @@ import {
   paperSelectedStudentIds,
   paperStudentRef,
 } from '@/utils/paperAssignClasses';
-import { Toggle } from '@/components/common/Toggle';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
@@ -380,8 +379,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       analyzePaperQuiz(quiz, { written: writtenOn, fib: true, groups: true })
     );
   }, [versionPlan, quiz, writtenOn]);
-  const [includeKeySheet, setIncludeKeySheet] = useState(false);
-  const [includeQuestionText, setIncludeQuestionText] = useState(false);
   const [printing, setPrinting] = useState(false);
   /** Set once an authored quiz's sheets printed; the test paper comes next. */
 
@@ -478,8 +475,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   // Anything in the band takes the page's right half, so the answers drop to
   // one column and the test spreads over twice as many pages (D1).
   const columnsPerPage = sheetStimuli.length > 0 ? 1 : 2;
-  // Question text takes the band stimuli would print in, so the two never combine.
-  const questionTextLayout = includeQuestionText && sheetStimuli.length === 0;
+  // Stimuli, a group's supports and section headings print only on a separate test paper.
+  const questionTextLayout =
+    sheetStimuli.length === 0 &&
+    !group?.supports?.length &&
+    sessionSectionsFor(quiz).length === 0;
   const grid = questionTextLayout ? 'questions' : columnsPerPage;
   const blockMeasure = useMemo(
     (): BlockMeasure => browserBlockMeasure() ?? estimateBlockMm,
@@ -890,8 +890,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               ...selectionsForPrint.map((x) => x.students.length)
             )
       );
-  const keySheetCount = includeKeySheet ? Math.max(1, versionsDealt) : 0;
-  const sheetCount = studentSheetCount + spareCount + keySheetCount;
+  const sheetCount = studentSheetCount + spareCount;
   const pagesPerSheet = pagePlan
     ? pagePlan.ok
       ? pagePlan.pageMaps.length
@@ -902,9 +901,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     ? (stimuliSets?.[0]?.plan.resourcePages.length ?? 0) +
       Object.values(firstStimuli.pagesBefore).reduce((n, p) => n + p.length, 0)
     : 0;
-  const printedPages =
-    sheetCount * pagesPerSheet +
-    (sheetCount - keySheetCount) * stimulusPagesPerSheet;
+  const printedPages = sheetCount * (pagesPerSheet + stimulusPagesPerSheet);
   const stimuliLoading =
     testStimulusFiles.loading || (questionTextLayout && !stimuliLayout);
   const canPrint =
@@ -1289,7 +1286,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         questionCount,
         choiceCount,
         spareCount,
-        includeKeySheet,
+        includeKeySheet: false,
         questions: versionPlan ? versionSheetQuestions(versionPlan) : lettered,
         ...(columnsPerPage === 1 ? { columnsPerPage: 1 as const } : {}),
         ...(questionTextLayout ? { sheetLayout: 'questions' as const } : {}),
@@ -1308,7 +1305,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           x.students.map((st) => st.id),
         ]),
         spareCount,
-        includeKeySheet,
         sheetStimuli,
         boxSizes,
         boxStyles,
@@ -1709,7 +1705,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         </div>
       )}
 
-      {analysis.shortRows.length > 0 && (
+      {analysis.shortRows.length > 0 && !questionTextLayout && (
         <p className="text-xs text-slate-500">
           Question{analysis.shortRows.length === 1 ? ' ' : 's '}
           {analysis.shortRows.join(', ')}{' '}
@@ -1764,36 +1760,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         onPickFromDrive={pickSheetImage}
         busy={stimulusBusy}
       />
-
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm text-slate-700">Include question text</p>
-          {sheetStimuli.length > 0 && (
-            <p className="text-xs text-slate-500">
-              Not available while the sheet has images or templates on it.
-            </p>
-          )}
-        </div>
-        <Toggle
-          checked={questionTextLayout}
-          onChange={setIncludeQuestionText}
-          disabled={sheetStimuli.length > 0}
-          label="Include question text"
-          anchor={tourTypeAttr('quiz-print.include-question-text', 'quiz')}
-          size="sm"
-        />
-      </div>
-
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm text-slate-700">Include an answer key sheet</p>
-        <Toggle
-          checked={includeKeySheet}
-          onChange={setIncludeKeySheet}
-          label="Include an answer key sheet"
-          anchor={tourTypeAttr('quiz-print.include-key-sheet', 'quiz')}
-          size="sm"
-        />
-      </div>
     </div>
   );
 
