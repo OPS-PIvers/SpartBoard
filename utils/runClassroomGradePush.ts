@@ -27,6 +27,7 @@
 import type { Functions } from 'firebase/functions';
 import type { Toast } from '@/types';
 import { logError } from '@/utils/logError';
+import { awaitingSkippedNote } from '@/utils/ltiGradePush';
 import {
   pushClassroomGradesForAssignment,
   formatGradePushToast,
@@ -91,7 +92,7 @@ export type ClassroomGradePushStatus =
   | { phase: 'requesting-token' }
   | { phase: 'pushing' }
   | { phase: 'token-cancelled'; error: unknown }
-  | { phase: 'nothing-to-push' }
+  | { phase: 'nothing-to-push'; awaiting?: number }
   | {
       phase: 'pushed';
       data: PushClassroomGradesData;
@@ -126,7 +127,11 @@ export interface RunClassroomGradePushOptions {
   /** Builds the PII-free grade payload — the only genuinely per-surface logic. */
   buildGrades: () => ClassroomGradeEntry[];
   /** AB-389: when set, the server builds the grades from the gradebook final scores and `buildGrades` is not called. */
-  finalScores?: { sessionId: string; kind: 'quiz' | 'va' } | null;
+  finalScores?: {
+    sessionId: string;
+    kind: 'quiz' | 'va';
+    scopeUids?: string[];
+  } | null;
   /** Mints a fresh `classroom.addons.teacher` token (a GIS popup). */
   requestToken: () => Promise<string>;
   /** Maps each emitted status beat to the surface's UI. */
@@ -275,7 +280,7 @@ export async function runClassroomGradePush({
       agg.skipped = Math.max(0, sent - agg.pushed - agg.failed);
     }
     if (anySucceeded && finalScores && sent === 0) {
-      onStatus({ phase: 'nothing-to-push' });
+      onStatus({ phase: 'nothing-to-push', awaiting: agg.awaiting });
     } else if (anySucceeded) {
       // Partial success: at least one course pushed. Carry the count of courses
       // that threw so the reporter can warn "couldn't reach N — retry" instead of
@@ -316,7 +321,10 @@ export function createToastGradePushHandlers(
           addToast(TOKEN_CANCELLED_MESSAGE, 'error');
           break;
         case 'nothing-to-push':
-          addToast(NOTHING_TO_PUSH_TOAST, 'info');
+          addToast(
+            NOTHING_TO_PUSH_TOAST + awaitingSkippedNote(status.awaiting),
+            'info'
+          );
           break;
         case 'pushed': {
           // Mirror the Publish=Push fan-out reporting: a course that threw while

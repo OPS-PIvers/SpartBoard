@@ -92,6 +92,7 @@ const seed = (extra: Record<string, StubData> = {}) => ({
   'gradebook_marks/s1__over': mark('over', { override: { points: 5, at: 1 } }),
   'gradebook_marks/s1__exc': mark('exc', { flags: ['excused'] }),
   'gradebook_marks/s1__solo': mark('solo', { override: { points: 9, at: 1 } }),
+  'gradebook_marks/s1__gone': mark('gone', { override: { points: 7, at: 1 } }),
   'gradebook_marks/s1__theirs': mark('theirs', {
     ownerUid: 't2',
     override: { points: 10, at: 1 },
@@ -152,6 +153,26 @@ describe('finalScorePushPlan', () => {
     expect(uids).not.toContain('theirs');
     expect(uids).not.toContain('gone');
     expect(result.studentUids).not.toContain('gone');
+  });
+
+  it('limits a gradebook push to the class it shows', async () => {
+    const stub = makeStubFirestore(seed());
+    const result = await finalScorePushPlan(
+      stub.db as unknown as Db,
+      {
+        kind: 'quiz',
+        sessionId: 's1',
+        ownerUid: 't1',
+        maxPoints: 10,
+        session,
+        scopeUids: ['raw', 'solo'],
+        now: NOW,
+      },
+      { refresh: () => Promise.resolve() }
+    );
+    expect(pointsByUid(result.plan.entries)).toEqual({ raw: 8, solo: 9 });
+    expect(result.plan.awaiting).toBe(0);
+    expect(result.plan.missing).toEqual([]);
   });
 
   it('uses the column Out of for Schoology when no scale is given', async () => {

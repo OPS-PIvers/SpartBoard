@@ -43,6 +43,8 @@ export interface FinalScorePushInput {
   maxPoints: number | null;
   /** Session doc, already read by the caller, for the removed-class filter. */
   session: Record<string, unknown> | undefined;
+  /** The gradebook pushes one class: only these students, as its grid shows them. */
+  scopeUids?: readonly string[] | null;
   now?: number;
 }
 
@@ -84,16 +86,26 @@ export async function finalScorePushPlan(
     );
   }
   const keepClass = sessionClassPredicate(input.session);
+  const scope = input.scopeUids ? new Set(input.scopeUids) : null;
+  const inScope = (uid: string): boolean => !scope || scope.has(uid);
+  // Students whose work sits in a class taken off the assignment; their marks stay out too.
+  const removedUids = new Set<string>();
   const rows = (await rowsForSession(db, input.sessionId).get()).docs
     .map((d) => d.data() as IndexRow)
-    .filter(
-      (r) =>
-        (r.kind ?? kind) === kind &&
-        r.ownerUid === input.ownerUid &&
-        typeof r.studentUid === 'string' &&
-        r.studentUid !== '' &&
-        keepClass({ classId: r.classId ?? undefined })
-    );
+    .filter((r) => {
+      if (
+        (r.kind ?? kind) !== kind ||
+        r.ownerUid !== input.ownerUid ||
+        typeof r.studentUid !== 'string' ||
+        r.studentUid === ''
+      )
+        return false;
+      if (!keepClass({ classId: r.classId ?? undefined })) {
+        removedUids.add(r.studentUid);
+        return false;
+      }
+      return inScope(r.studentUid);
+    });
 
   const columnSnap = await db
     .collection(GRADEBOOK_COLUMNS)
@@ -163,7 +175,13 @@ export async function finalScorePushPlan(
   }
   // A student with no work but a teacher mark (an override or a flag) still has a final score in the grid.
   for (const [uid, mark] of marks) {
-    if (rowUids.has(uid) || (mark.kind && mark.kind !== kind)) continue;
+    if (
+      rowUids.has(uid) ||
+      removedUids.has(uid) ||
+      !inScope(uid) ||
+      (mark.kind && mark.kind !== kind)
+    )
+      continue;
     const { settings } = await settingsFor(mark.rosterIds[0] ?? null);
     const config = borrowMax(false);
     cells.push({
@@ -227,3 +245,12 @@ export function wantsFinalScores(data: unknown): data is {
 
 export const parsePushKind = (raw: unknown): PushSessionKind =>
   raw === 'va' ? 'va' : 'quiz';
+
+/** The class list a gradebook push is limited to; absent means every student. */
+export function parseScopeUids(data: unknown): string[] | null {
+  const raw = ((data ?? {}) as Record<string, unknown>).scopeUids;
+  if (!Array.isArray(raw)) return null;
+  return raw
+    .filter((u): u is string => typeof u === 'string' && u !== '')
+    .slice(0, 2000);
+}

@@ -89,6 +89,8 @@ export interface ToolColumnPushRequest {
   missingWithoutWork?: string[];
   /** Final scores only: a Retry resends just these students. */
   onlyUids?: string[];
+  /** Final scores only: limit the push to one class's students, as the gradebook shows them. */
+  scopeUids?: string[];
   /** Only an explicit "Push to Schoology" creates the column. */
   create: boolean;
   /** Picked category per section id. */

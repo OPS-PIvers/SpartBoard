@@ -55,6 +55,7 @@ import { safeErr } from './safeLog';
 import {
   finalScorePushPlan,
   parsePushKind,
+  parseScopeUids,
   readOwnedPushSession,
   wantsFinalScores,
 } from './gradebook/finalScorePush';
@@ -2199,6 +2200,7 @@ async function finalScoreGrades(
     ownerUid: callerUid,
     maxPoints,
     session,
+    scopeUids: parseScopeUids(data),
   });
   if (plan.entries.length > MAX_BATCH_GRADES) {
     throw new HttpsError(

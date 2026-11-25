@@ -70,6 +70,7 @@ import { isDistrictTeacher } from './teacherAuth';
 import { safeErr } from '../safeLog';
 import {
   finalScorePushPlan,
+  parseScopeUids,
   wantsFinalScores,
 } from '../gradebook/finalScorePush';
 
@@ -664,7 +665,8 @@ export function finalToolColumnGrades(
   const keep = (g: unknown): boolean =>
     !only || only.has((g as { pseudonymUid: string }).pseudonymUid);
   const out: unknown[] = [...final.plan.entries];
-  if (data.includeMissing !== true) return out.filter(keep);
+  if (data.includeMissing !== true)
+    return out.filter(keep).slice(0, MAX_GRADES);
   const seen = new Set(
     out.map((g) => (g as { pseudonymUid: string }).pseudonymUid)
   );
@@ -682,7 +684,7 @@ export function finalToolColumnGrades(
   for (const uid of extra.slice(0, MAX_GRADES)) {
     if (typeof uid === 'string' && uid !== '' && !withWork.has(uid)) add(uid);
   }
-  return out.filter(keep);
+  return out.filter(keep).slice(0, MAX_GRADES);
 }
 
 // ── ltiPushToolColumnV1 ─────────────────────────────────────────────────────
@@ -717,6 +719,7 @@ export const ltiPushToolColumnV1 = onCall(
           ownerUid: uid,
           maxPoints: null,
           session: finalSession.raw,
+          scopeUids: parseScopeUids(data),
         })
       : null;
     const maxPoints = final

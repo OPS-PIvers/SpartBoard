@@ -153,6 +153,8 @@ export interface PushClassroomGradesArgs {
   source?: 'final-scores';
   sessionId?: string;
   kind?: 'quiz' | 'va';
+  /** Final scores only: limit the push to one class's students, as the gradebook shows them. */
+  scopeUids?: string[];
   /**
    * The attachment's frozen grade scale. Forwarded so the CF can clamp each
    * pointsEarned to [0, maxPoints] server-side (defense-in-depth; the client

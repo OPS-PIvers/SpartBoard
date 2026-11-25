@@ -53,7 +53,13 @@ export type LtiPushGradesRequest =
       maxPoints: number;
       grades: LtiGradeEntry[];
     }
-  | { sessionId: string; kind: 'quiz' | 'va'; source: 'final-scores' };
+  | {
+      sessionId: string;
+      kind: 'quiz' | 'va';
+      source: 'final-scores';
+      /** Limit the push to one class's students, as the gradebook shows them. */
+      scopeUids?: string[];
+    };
 
 /**
  * Split a push result into pushed / skipped / failed. A not-ok entry whose

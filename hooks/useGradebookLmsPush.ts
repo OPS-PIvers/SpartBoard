@@ -77,6 +77,8 @@ export function useGradebookLmsPush(
   const pushKind = column.kind === 'video-activity' ? 'va' : 'quiz';
   const note = (p: GradebookPushPlan): string =>
     sendFinalScores ? '' : skippedNote(p);
+  // The grid shows one class, so the server pushes only its students.
+  const scopeUids = cells.map((c) => c.student.uid);
   const [loaded, setLoaded] = useState<{
     sessionId: string;
     link: GradebookLmsLink;
@@ -140,7 +142,7 @@ export function useGradebookLmsPush(
           ? {
               maxPoints,
               ...(sendFinalScores
-                ? { finalScores: { includeMissing: true } }
+                ? { finalScores: { includeMissing: true, scopeUids } }
                 : {}),
               grades: [
                 ...plan.entries,
@@ -191,6 +193,7 @@ export function useGradebookLmsPush(
                 sessionId: column.sessionId,
                 kind: pushKind,
                 source: 'final-scores',
+                scopeUids,
               }
             : {
                 sessionId: column.sessionId,
@@ -232,7 +235,7 @@ export function useGradebookLmsPush(
         requestClassroomTeacherToken(user?.email ?? undefined),
       buildGrades: () => plan.entries,
       finalScores: sendFinalScores
-        ? { sessionId: column.sessionId, kind: pushKind }
+        ? { sessionId: column.sessionId, kind: pushKind, scopeUids }
         : null,
       distinctTokenCancel: true,
       logTag: 'gradebook.pushClassroom',
@@ -252,7 +255,12 @@ export function useGradebookLmsPush(
               note(plan),
           };
         } else if (status.phase === 'nothing-to-push') {
-          outcome = { ok: true, message: 'No final scores to push yet.' };
+          outcome = {
+            ok: true,
+            message:
+              'No final scores to push yet.' +
+              awaitingSkippedNote(status.awaiting),
+          };
         }
       },
       onError: ({ permissionDenied }) => {

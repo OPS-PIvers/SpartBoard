@@ -42,7 +42,7 @@ export interface ToolColumnPayload {
   /** With `finalScores` set this is a preview for the dialog; the server builds what is sent. */
   grades: ToolColumnGradeEntry[];
   /** AB-389: push the gradebook final scores, built on the server. */
-  finalScores?: { includeMissing: boolean };
+  finalScores?: { includeMissing: boolean; scopeUids?: string[] };
 }
 
 /** The callable request for a payload; `only` limits a Retry to those students. */
@@ -56,6 +56,7 @@ export function toolColumnRequestFields(
   includeMissing?: boolean;
   missingWithoutWork?: string[];
   onlyUids?: string[];
+  scopeUids?: string[];
 } {
   if (!payload.finalScores) {
     return {
@@ -74,6 +75,9 @@ export function toolColumnRequestFields(
       .filter((g) => 'missing' in g)
       .map((g) => g.pseudonymUid),
     ...(only ? { onlyUids: [...only] } : {}),
+    ...(payload.finalScores.scopeUids
+      ? { scopeUids: payload.finalScores.scopeUids }
+      : {}),
   };
 }
 

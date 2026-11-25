@@ -681,7 +681,10 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
             setStatusMsg('Pushing grades to Google Classroom…');
             break;
           case 'nothing-to-push':
-            setStatusMsg('No completed responses to push yet.');
+            setStatusMsg(
+              'No completed responses to push yet.' +
+                awaitingSkippedNote(status.awaiting)
+            );
             break;
           case 'pushed':
             setStatusMsg(

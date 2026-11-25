@@ -49,6 +49,7 @@ import { isDistrictTeacher } from './teacherAuth';
 import { safeErr } from '../safeLog';
 import {
   finalScorePushPlan,
+  parseScopeUids,
   wantsFinalScores,
 } from '../gradebook/finalScorePush';
 
@@ -258,6 +259,7 @@ export const ltiPushGradesForAssignmentV1 = onCall(
           ownerUid: sessTeacherUid,
           maxPoints: null,
           session: sess,
+          scopeUids: parseScopeUids(request.data),
         })
       : null;
     const maxPoints = final ? (final.maxPoints ?? 0) : clientMaxPoints;
