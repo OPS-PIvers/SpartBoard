@@ -13,6 +13,7 @@ import {
   type SchoologyItem,
 } from './page';
 import { sendItem } from './sendItem';
+import { shareOwnRoot } from '../ownRoots';
 
 const HOST_ID = 'spartboard-schoology-import';
 
@@ -58,7 +59,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
 function mount(): HTMLDivElement {
   document.getElementById(HOST_ID)?.remove();
   const host = el('div', { id: HOST_ID });
-  const root = host.attachShadow({ mode: 'closed' });
+  const root = shareOwnRoot(host.attachShadow({ mode: 'closed' }));
   root.append(el('style', { textContent: STYLE }));
   const wrap = el('div', { className: 'wrap' });
   root.append(wrap);

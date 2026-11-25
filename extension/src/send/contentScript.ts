@@ -10,6 +10,7 @@ import {
 } from './messages';
 import { SEND_SETTINGS_KEY } from './settings';
 import { sendNote, type SendNote } from './sendNote';
+import { shareOwnRoot } from '../ownRoots';
 import { singleItem } from '../schoology/singleItem';
 import { sendItem } from '../schoology/sendItem';
 import type { SchoologyMessage } from '../schoology/messages';
@@ -110,7 +111,7 @@ function mount(): Ui {
   if (ui?.tab.isConnected) return ui;
   document.getElementById(SEND_HOST_ID)?.remove();
   const host = el('div', { id: SEND_HOST_ID });
-  const root = host.attachShadow({ mode: 'closed' });
+  const root = shareOwnRoot(host.attachShadow({ mode: 'closed' }));
   const label = el('span', { className: 'label', textContent: LABEL });
   const tab = el('button', { className: 'tab', type: 'button', title: LABEL });
   tab.setAttribute('aria-label', LABEL);
