@@ -37,7 +37,6 @@ vi.mock('@/hooks/useGuidedLearningSession', () => ({
     responses: mockResponses,
     responsesLoading: false,
     subscribeToResponses: () => () => undefined,
-    exportResponsesAsCSV: vi.fn(),
   }),
   isAnswerCorrect: () => false,
 }));

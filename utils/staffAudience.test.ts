@@ -7,7 +7,6 @@ import {
   isDistrictStaffEmail,
   isStaffAudience,
   readStaffIdentity,
-  staffCsvCells,
   staffDisplayName,
   staffResponseFields,
   staffResultsLabel,
@@ -103,10 +102,9 @@ describe('staff results helpers', () => {
     );
   });
 
-  it('adds CSV name and email only when a staff row is present', () => {
+  it('finds staff rows', () => {
     expect(hasStaffRows([{}, staff])).toBe(true);
     expect(hasStaffRows([{}, null])).toBe(false);
-    expect(staffCsvCells(staff)).toEqual(['Pat T', 'pat@orono.k12.mn.us']);
   });
 
   it('marks a staff Flashcards link', () => {

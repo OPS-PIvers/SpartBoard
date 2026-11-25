@@ -119,16 +119,10 @@ export const staffResultsLabel = (
   return name ? `${name} (${row.staffEmail})` : row.staffEmail;
 };
 
-/** CSV exports add Name and Email only when a staff response is present, so student exports keep their columns. */
+/** Exports add an Email column only when a staff response is present, so student exports keep their columns. */
 export const hasStaffRows = (
   rows: readonly (StaffResponseFields | null | undefined)[]
 ): boolean => rows.some((r) => !!r?.staffEmail);
-
-export const STAFF_CSV_HEADERS = ['Name', 'Email'] as const;
-
-export const staffCsvCells = (
-  row: StaffResponseFields | null | undefined
-): string[] => [row?.staffName ?? '', row?.staffEmail ?? ''];
 
 /** Flashcards links are student sign-in only, so a Staff link says so in its query. */
 export const FLASHCARD_STAFF_PARAM = 'staff';
