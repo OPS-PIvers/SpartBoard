@@ -4,12 +4,15 @@ import type { TFunction } from 'i18next';
 import { Lock, PauseCircle } from 'lucide-react';
 import type { GuidedLearningSession } from '@/types';
 import { effectivePeriodState, nextScheduledOpen } from '@/utils/periodAccess';
+import { laterOpen } from '@/utils/assignmentWindow';
 import { GuidedLearningScreenShell } from './GuidedLearningScreenShell';
 
 interface GuidedLearningPeriodLockedScreenProps {
   session: GuidedLearningSession;
   periodKeys: readonly string[];
   now: number;
+  /** The student's own open time, when their window holds them out. */
+  opensAt?: number;
 }
 
 /** "Closed", "Paused" or "Opens Tue 10:40 AM" for the student's period. */
@@ -17,9 +20,13 @@ function lockedStateLabel(
   session: GuidedLearningSession,
   periodKeys: readonly string[],
   now: number,
-  t: TFunction
+  t: TFunction,
+  ownOpensAt?: number
 ): string {
-  const opensAt = nextScheduledOpen(session, periodKeys, now);
+  const opensAt = laterOpen(
+    nextScheduledOpen(session, periodKeys, now),
+    ownOpensAt !== undefined && ownOpensAt > now ? ownOpensAt : null
+  );
   if (opensAt != null) {
     const d = new Date(opensAt);
     return t('glStudent.locked.opens', {
@@ -44,7 +51,7 @@ function lockedStateLabel(
 /** Shown while a student's class period isn't open; no slides or steps until it is. */
 export const GuidedLearningPeriodLockedScreen: React.FC<
   GuidedLearningPeriodLockedScreenProps
-> = ({ session, periodKeys, now }) => {
+> = ({ session, periodKeys, now, opensAt }) => {
   const { t } = useTranslation();
   return (
     <GuidedLearningScreenShell>
@@ -56,7 +63,7 @@ export const GuidedLearningPeriodLockedScreen: React.FC<
         {t('glStudent.locked.title')}
       </h1>
       <p className="mt-2 text-sm font-semibold text-brand-blue-primary">
-        {lockedStateLabel(session, periodKeys, now, t)}
+        {lockedStateLabel(session, periodKeys, now, t, opensAt)}
       </p>
       <p className="mt-3 text-sm text-slate-600">
         {t('glStudent.locked.body')}

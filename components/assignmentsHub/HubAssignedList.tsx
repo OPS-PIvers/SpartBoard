@@ -271,7 +271,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
   onSelect,
   kindLabel,
 }) => {
-  const { user, featurePermissions } = useAuth();
+  const { user, featurePermissions, canAccessFeature } = useAuth();
   const showPicked = useShowPickedStudents();
   const uid = user?.uid;
   const fixture = useContext(UnifiedAssignmentsFixture);
@@ -436,8 +436,13 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
   );
   const { setAssignmentTargets } = useSetAssignmentTargets();
   const va = sources.videoActivity;
+  const studentWindows = canAccessFeature('student-windows');
   const vaLifecycle = useMemo(
-    () => videoActivityLifecycle(va),
+    () =>
+      videoActivityLifecycle(
+        va,
+        uid ? { uid, setAssignmentTargets, studentWindows } : undefined
+      ),
     // The hook's writes are stable callbacks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -445,6 +450,9 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
       va.resumeAssignment,
       va.deactivateAssignment,
       va.reactivateAssignment,
+      uid,
+      setAssignmentTargets,
+      studentWindows,
     ]
   );
   const { endAssignment, reactivateAssignment } = sources.miniApp;
@@ -474,6 +482,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
                 endAssignment,
                 reactivateAssignment,
                 setAssignmentTargets,
+                studentWindows,
               }),
             },
             'guided-learning': {
@@ -481,6 +490,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
               lifecycle: guidedLearningLifecycle(uid, {
                 archiveAssignment,
                 setAssignmentTargets,
+                studentWindows,
               }),
             },
             flashcards: {
@@ -489,6 +499,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
                 endAssignment: fc.endAssignment,
                 reopenAssignment: fc.reopenAssignment,
                 setAssignmentTargets,
+                studentWindows,
               }),
             },
           }
@@ -503,6 +514,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
       fc.endAssignment,
       fc.reopenAssignment,
       setAssignmentTargets,
+      studentWindows,
     ]
   );
 

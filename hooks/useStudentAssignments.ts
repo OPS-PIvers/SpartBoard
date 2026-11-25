@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { resolveStudentDueAt } from '@/utils/perClassDueDates';
+import { classCloseAt, studentDueAt } from '@/utils/studentWindow';
 import {
   collection,
   doc,
@@ -525,15 +525,8 @@ export function buildAssignmentSummary(
         ? true
         : undefined,
     openAt: typeof record.openAt === 'number' ? record.openAt : undefined,
-    closeAt:
-      typeof record.closeAt === 'number'
-        ? record.closeAt
-        : dueLockClose(record, intersected),
-    dueAt: resolveStudentDueAt(
-      typeof record.dueAt === 'number' ? record.dueAt : undefined,
-      isNumberRecord(record.dueAtByClassId) ? record.dueAtByClassId : undefined,
-      intersected
-    ),
+    closeAt: classCloseAt(record) ?? dueLockClose(record, intersected),
+    dueAt: studentDueAt(record, intersected) ?? undefined,
     acceptingResponses: acceptingFlag(
       kind === 'projects' ? record.acceptingUpdates : record.acceptingResponses
     ),

@@ -546,6 +546,13 @@ const PromptFormattingDevHarness = import.meta.env.DEV
       }))
     )
   : null;
+const StudentWindowsDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/StudentWindowsDevHarness').then((module) => ({
+        default: module.StudentWindowsDevHarness,
+      }))
+    )
+  : null;
 const StudentKeyboardsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/StudentKeyboardsDevHarness').then((module) => ({
@@ -1720,6 +1727,18 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <PromptFormattingDevHarness />
+      </Suspense>
+    );
+  }
+
+  if (
+    import.meta.env.DEV &&
+    StudentWindowsDevHarness &&
+    pathname === '/student-windows-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <StudentWindowsDevHarness />
       </Suspense>
     );
   }

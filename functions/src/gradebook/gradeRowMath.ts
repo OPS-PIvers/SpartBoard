@@ -23,6 +23,12 @@ import {
 import type { FibExtras } from '../quizFibMatch';
 import { notChosenIds, parseChooseSections } from '../quizSectionsChosen';
 import { isCompletionOnly, type TargetEvidence } from '../gradebookCore';
+import {
+  classCloseAt,
+  hasStudentWindows,
+  studentCloseAt,
+  studentDueAt,
+} from '../studentWindow';
 import type {
   BuildState,
   GradeKind,
@@ -130,9 +136,13 @@ export function parseSessionMeta(
     classIds,
     openAt: toMillis(session.openAt),
     dueAt: toMillis(session.dueAt),
-    closeAt: toMillis(session.closeAt),
+    closeAt:
+      typeof session.closeAt === 'number'
+        ? classCloseAt(session)
+        : toMillis(session.closeAt),
     createdAt: toMillis(session.createdAt) ?? toMillis(session.startedAt),
     individualTargeting: session.individualTargeting === true,
+    ...(hasStudentWindows(session) ? { studentWindows: true } : {}),
     rosterIdByClassId,
     dueAtByRosterId: numberMap(assignment.dueAtByRosterId),
     dueAtByClassId: numberMap(session.dueAtByClassId),
@@ -145,15 +155,20 @@ export function effectiveDueAt(
   classId: string | null,
   pointerDueAt: number | null
 ): number | null {
-  if (pointerDueAt !== null) return pointerDueAt;
-  if (classId) {
-    if (meta.dueAtByClassId[classId] !== undefined)
-      return meta.dueAtByClassId[classId];
-    const rosterId = meta.rosterIdByClassId[classId];
-    if (rosterId && meta.dueAtByRosterId[rosterId] !== undefined)
-      return meta.dueAtByRosterId[rosterId];
-  }
-  return meta.dueAt;
+  const rosterId = classId ? meta.rosterIdByClassId[classId] : undefined;
+  const rosterDue =
+    classId && rosterId !== undefined
+      ? meta.dueAtByRosterId[rosterId]
+      : undefined;
+  const dueAtByClassId =
+    classId && rosterDue !== undefined
+      ? { [classId]: rosterDue, ...meta.dueAtByClassId }
+      : meta.dueAtByClassId;
+  return studentDueAt(
+    { dueAt: meta.dueAt, dueAtByClassId },
+    classId,
+    pointerDueAt
+  );
 }
 
 /** One entry per turn-in: entries sharing a turn-in time are one submission re-counted, so the latest number stands. */
@@ -193,6 +208,8 @@ export interface AssembleInput {
   previousAttempts: readonly IndexAttempt[];
   assigned: boolean;
   pointerDueAt: number | null;
+  /** The student's own close, off their pointer. */
+  pointerCloseAt?: number | null;
   now: number;
   /** Keeps `createdAt` stable across rebuilds when the session has none. */
   previousCreatedAt?: number | null;
@@ -248,7 +265,10 @@ export function assembleRow(input: AssembleInput): IndexRow {
     submittedAt: score.submittedAt,
     dueAt,
     openAt: meta.openAt,
-    closeAt: meta.closeAt,
+    closeAt: studentCloseAt(
+      { closeAt: meta.closeAt },
+      input.pointerCloseAt ?? null
+    ),
     createdAt:
       meta.createdAt ?? meta.openAt ?? input.previousCreatedAt ?? input.now,
     attempts,

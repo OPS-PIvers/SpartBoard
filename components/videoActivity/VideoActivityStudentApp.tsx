@@ -82,6 +82,7 @@ import {
 } from '@/utils/tabWarningThreshold';
 import { TabAwayClock } from '@/components/common/TabAwayClock';
 import { useServerNow } from '@/hooks/useServerNow';
+import { useStudentWindow } from '@/hooks/useStudentWindow';
 import { syncServerTime } from '@/utils/serverTime';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { isAnonymousJoinBlocked } from '@/utils/anonymousJoin';
@@ -341,10 +342,33 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     syncServerTime(authedUid);
   }, [authedUid]);
 
+  // M17 C3-va: read the student's own pointer override (`timeMultiplier`
+  // accommodation). VA has no timed elements in its player today (no
+  // per-question countdown, no session time limit) — this is a documented
+  // no-op pass-through wired for when a timed element is added, per spec §5
+  // C3. `enabled: isStudentRole` because only SSO joiners carry the
+  // `studentRole` claim the Firestore rule requires; anon/PIN joiners are
+  // out of scope for individual targeting (spec §6 non-goals).
+  // Keyed off the URL session id (not `session?.id`) so the exclusion marker
+  // resolves BEFORE the auto-join effect can create a response doc.
+  const pointer = useStudentAssignmentPointer(
+    authedUid,
+    sessionId || null,
+    isStudentRole,
+    { sessionId, teacherUid: session?.teacherUid, kind: 'video-activity' }
+  );
+
   // Per-period gate, re-checked as the clock passes a window edge.
   const perPeriod = hasPeriodAccess(session) && session.status !== 'ended';
   const periodNow = useServerNow(perPeriod ? 5000 : null);
-  const canEnter = studentCanEnter(session, periodKeys, authedUid, periodNow);
+  // This student's own Opens and Closes, on sessions saved with them.
+  const studentWindow = useStudentWindow(session, pointer);
+  const windowGated =
+    studentWindow.enforced && !isViewOnly && session?.status !== 'ended';
+  const gated = perPeriod || windowGated;
+  const canEnter =
+    studentCanEnter(session, periodKeys, authedUid, periodNow) &&
+    (!windowGated || studentWindow.state === 'open');
   const gateKey = perPeriod
     ? JSON.stringify([
         periodKeys.map((k) => session?.periodAccess?.[k] ?? null),
@@ -354,12 +378,13 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   // A write the server refused as frozen holds the pause until the gate fields change.
   const [frozenGate, setFrozenGate] = useState<string | null>(null);
   if (frozenGate !== null && frozenGate !== gateKey) setFrozenGate(null);
-  const periodPaused = perPeriod && (!canEnter || frozenGate === gateKey);
+  const periodPaused =
+    (perPeriod && frozenGate === gateKey) || (gated && !canEnter);
   // Once the player has shown, a later close pauses it in place rather than swapping screens.
   const [entered, setEntered] = useState(false);
   if (
     !entered &&
-    perPeriod &&
+    gated &&
     canEnter &&
     !contentPending &&
     !retakePending &&
@@ -367,7 +392,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   ) {
     setEntered(true);
   }
-  const periodHold = perPeriod && (periodPaused || !entered);
+  const periodHold = gated && (periodPaused || !entered);
   const checkFrozenRef = useRef(false);
   const freezeForPeriod = useCallback(() => {
     setFrozenGate(gateKey);
@@ -383,22 +408,6 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       }
     },
     [checkAnswer, perPeriod]
-  );
-
-  // M17 C3-va: read the student's own pointer override (`timeMultiplier`
-  // accommodation). VA has no timed elements in its player today (no
-  // per-question countdown, no session time limit) — this is a documented
-  // no-op pass-through wired for when a timed element is added, per spec §5
-  // C3. `enabled: isStudentRole` because only SSO joiners carry the
-  // `studentRole` claim the Firestore rule requires; anon/PIN joiners are
-  // out of scope for individual targeting (spec §6 non-goals).
-  // Keyed off the URL session id (not `session?.id`) so the exclusion marker
-  // resolves BEFORE the auto-join effect can create a response doc.
-  const pointer = useStudentAssignmentPointer(
-    authedUid,
-    sessionId || null,
-    isStudentRole,
-    { sessionId, teacherUid: session?.teacherUid, kind: 'video-activity' }
   );
 
   // View tracking — log each pageview of a view-only Share link as an
@@ -1101,7 +1110,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const completedCount = myResponse?.completedAttempts ?? 0;
   const atCap = attemptLimit !== null && completedCount >= attemptLimit;
   // A retake waiting on a shut period shows the locked card; otherwise finished work always shows here.
-  const retakeWaiting = retakePending && perPeriod && !canEnter;
+  const retakeWaiting = retakePending && gated && !canEnter;
   if (
     (videoEnded ||
       (myResponse != null && isVaResponseCompleted(myResponse)) ||
@@ -1286,13 +1295,14 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
   // ── Per-period session not open for this student ─────────────────────────
 
-  if (perPeriod && session && !entered) {
+  if (gated && session && !entered) {
     if (!canEnter) {
       return (
         <VideoActivityPeriodLockedScreen
           session={session}
           periodKeys={periodKeys}
-          now={periodNow}
+          now={windowGated ? studentWindow.now : periodNow}
+          ownWindow={windowGated ? studentWindow : undefined}
           started={!retakePending && (myResponse?.answers.length ?? 0) > 0}
         />
       );
@@ -1474,7 +1484,11 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 onNoteTrigger={setActiveNote}
               />
 
-              {periodPaused && <VideoActivityPeriodPausedOverlay />}
+              {periodPaused && (
+                <VideoActivityPeriodPausedOverlay
+                  closed={windowGated && studentWindow.state === 'closed'}
+                />
+              )}
 
               {finishPending && !periodPaused && (
                 <div className="absolute inset-0 z-30 bg-slate-900/80 flex flex-col items-center justify-center gap-4 p-6 text-center">

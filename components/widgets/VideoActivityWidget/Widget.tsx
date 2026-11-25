@@ -259,6 +259,7 @@ const TeacherVideoActivityWidget: React.FC<{
   } = useVideoActivityAssignments(user?.uid);
   const { setAssignmentTargets } = useSetAssignmentTargets();
   const uid = user?.uid;
+  const studentWindows = canAccessFeature('student-windows');
   const assignedTabLifecycle = useMemo(
     () =>
       videoActivityLifecycle(
@@ -268,7 +269,7 @@ const TeacherVideoActivityWidget: React.FC<{
           deactivateAssignment,
           reactivateAssignment,
         },
-        uid ? { uid, setAssignmentTargets } : undefined
+        uid ? { uid, setAssignmentTargets, studentWindows } : undefined
       ),
     [
       pauseAssignment,
@@ -277,6 +278,7 @@ const TeacherVideoActivityWidget: React.FC<{
       reactivateAssignment,
       uid,
       setAssignmentTargets,
+      studentWindows,
     ]
   );
   // ASSIGNED_TAB.md D24: an End here is a Close, so the row keeps its grading hold (D5).

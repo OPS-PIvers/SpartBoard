@@ -98,6 +98,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'assign-open-check',
   'modification-fewer-questions',
   'student-set-time',
+  'student-windows',
   'help-center-ai',
 ];
 

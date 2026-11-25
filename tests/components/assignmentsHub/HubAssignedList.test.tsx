@@ -17,7 +17,11 @@ const classActions = {
 };
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 't1' }, featurePermissions: [] }),
+  useAuth: () => ({
+    user: { uid: 't1' },
+    featurePermissions: [],
+    canAccessFeature: () => false,
+  }),
 }));
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: vi.fn() }),

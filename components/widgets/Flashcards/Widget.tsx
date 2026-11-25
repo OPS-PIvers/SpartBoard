@@ -198,6 +198,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   } = useFlashcardAssignments(inShare ? undefined : user?.uid);
   const { setAssignmentTargets } = useSetAssignmentTargets();
   const uid = user?.uid;
+  const studentWindows = canAccessFeature('student-windows');
   // ASSIGNED_TAB.md D21: the Assigned tab's class actions drive these whole-run writes.
   const classLifecycle = useMemo(
     () =>
@@ -206,9 +207,17 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
             endAssignment,
             reopenAssignment,
             setAssignmentTargets,
+            studentWindows,
           })
         : undefined,
-    [uid, inShare, endAssignment, reopenAssignment, setAssignmentTargets]
+    [
+      uid,
+      inShare,
+      endAssignment,
+      reopenAssignment,
+      setAssignmentTargets,
+      studentWindows,
+    ]
   );
   const assignedOn = !!classLifecycle && canAccessFeature('assigned-tab');
   const openCheckOn = canAccessFeature('assign-open-check');

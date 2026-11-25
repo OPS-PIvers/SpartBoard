@@ -539,6 +539,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     assignments.some((a) => a.appId === activeApp.id && a.mode !== 'view-only');
   const { setAssignmentTargets: setTargets } = useSetAssignmentTargets();
   const uid = user?.uid;
+  const studentWindows = canAccessFeature('student-windows');
   // ASSIGNED_TAB.md D21: the whole-run writes the Assigned tab's class actions drive.
   const classLifecycle = useMemo(
     () =>
@@ -547,9 +548,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
             endAssignment,
             reactivateAssignment,
             setAssignmentTargets: setTargets,
+            studentWindows,
           })
         : null,
-    [uid, endAssignment, reactivateAssignment, setTargets]
+    [uid, endAssignment, reactivateAssignment, setTargets, studentWindows]
   );
   const assignedTabOn = canAccessFeature('assigned-tab');
   const openCheckOn = canAccessFeature('assign-open-check');
