@@ -9,6 +9,7 @@
  * primary recording slot, so nothing already in `grading` changes meaning.
  */
 
+import { Modal } from '@/components/common/Modal';
 import { promptLabel } from '@/utils/quizPromptText';
 import { QuestionAudioButton } from '@/components/quiz/QuestionAudioButton';
 import { PromptText } from '@/components/common/PromptText';
@@ -1690,18 +1691,16 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   if (questions.length === 0 || !hasAnyQueue || !question) {
     const noQuestions = questions.length === 0;
     return (
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={tg('title')}
-        className="fixed inset-0 z-overlay flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-xs"
+      <Modal
+        isOpen
+        onClose={handleClose}
+        variant="bare"
+        zIndex="z-overlay"
+        maxWidth="max-w-lg"
+        ariaLabel={tg('title')}
+        className="rounded-2xl bg-white shadow-2xl"
       >
-        <div
-          aria-hidden
-          className="absolute inset-0 cursor-default"
-          onClick={handleClose}
-        />
-        <div className="relative w-full max-w-lg rounded-2xl bg-white p-10 text-center text-slate-600 shadow-2xl">
+        <div className="p-10 text-center text-slate-600">
           <Pencil aria-hidden className="mx-auto mb-3 h-8 w-8 text-slate-400" />
           <p className="text-lg font-bold">
             {tg(noQuestions ? 'emptyQuestions.title' : 'empty.title')}
@@ -1721,7 +1720,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             {tg('close')}
           </button>
         </div>
-      </div>
+      </Modal>
     );
   }
 
