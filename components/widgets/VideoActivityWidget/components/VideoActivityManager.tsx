@@ -443,7 +443,7 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
   //   - Submissions + active+paused or no monitor wired: Copy link.
   //   - Submissions + archive: Results.
   const isLiveActive = mode === 'active' && assignment.status === 'active';
-  const { canSeeShareTracking, canAccessFeature } = useAuth();
+  const { canAccessFeature } = useAuth();
   // No-sign-in join links are gated; view-only shares are not joins.
   const canCopyLink =
     assignmentIsViewOnly || canAccessFeature('anonymous-join');
@@ -463,7 +463,7 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
   // Admin-only by default — view-count display fires one Firestore
   // aggregation per visible card per dashboard tab-focus, gated behind the
   // `share-link-tracking` global permission.
-  const trackingEnabled = canSeeShareTracking();
+  const trackingEnabled = canAccessFeature('share-link-tracking');
   const { count } = useSessionViewCount(
     'video_activity_sessions',
     assignment.id,
