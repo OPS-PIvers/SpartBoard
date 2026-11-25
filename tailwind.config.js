@@ -98,6 +98,7 @@ export default {
         'tool-menu': Z_INDEX.toolMenu.toString(),
         tooltip: Z_INDEX.tooltip.toString(),
         toast: Z_INDEX.toast.toString(),
+        tour: Z_INDEX.tour.toString(),
         dialog: Z_INDEX.dialog.toString(),
         critical: Z_INDEX.critical.toString(),
         'quiz-lock': Z_INDEX.quizLockOverlay.toString(),

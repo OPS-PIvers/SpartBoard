@@ -18,6 +18,7 @@ import { ModeOption } from './ShareModeOption';
 import { logError } from '@/utils/logError';
 import { tourAttr } from '@/config/tourAnchors';
 import { copyText } from '@/utils/copyText';
+import { Modal } from '@/components/common/Modal';
 
 interface ShareCollectionLinkCreatorModalProps {
   isOpen: boolean;
@@ -144,13 +145,14 @@ export const ShareCollectionLinkCreatorModal: FC<
   if (!isOpen || !collection) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-modal bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={headingId}
+    <Modal
+      isOpen
+      onClose={busy ? () => undefined : onClose}
+      variant="bare"
+      ariaLabelledby={headingId}
+      className="bg-white rounded-2xl shadow-2xl overflow-hidden"
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div>
         <div className="p-5 border-b border-slate-100 flex items-center gap-2">
           <Folder
             className="w-5 h-5 shrink-0"
@@ -375,6 +377,6 @@ export const ShareCollectionLinkCreatorModal: FC<
           </div>
         )}
       </div>
-    </div>
+    </Modal>
   );
 };

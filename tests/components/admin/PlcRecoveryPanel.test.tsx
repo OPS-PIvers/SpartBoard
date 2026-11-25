@@ -16,6 +16,18 @@ import { PlcRecoveryPanel } from '@/components/admin/PlcResourcesManager/PlcReco
 import { usePlcs } from '@/hooks/usePlcs';
 import { useAuth } from '@/context/useAuth';
 
+const { mockShowConfirm, mockShowPrompt } = vi.hoisted(() => ({
+  mockShowConfirm: vi.fn<(...args: unknown[]) => Promise<boolean>>(),
+  mockShowPrompt: vi.fn<(...args: unknown[]) => Promise<string | null>>(),
+}));
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showConfirm: mockShowConfirm,
+    showPrompt: mockShowPrompt,
+    showAlert: vi.fn(),
+  }),
+}));
+
 const interpolate = (s: string, o?: Record<string, unknown>) =>
   s.replace(/\{\{(\w+)\}\}/g, (_m, k: string) => {
     const v = o?.[k];
@@ -157,7 +169,7 @@ describe('PlcRecoveryPanel - gating', () => {
 
 describe('PlcRecoveryPanel - reassign lead', () => {
   it('reassigns to a chosen active member after confirmation', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirmSpy = mockShowConfirm.mockResolvedValue(true);
     render(<PlcRecoveryPanel />);
 
     fireEvent.click(screen.getByRole('button', { name: /reassign lead/i }));
@@ -171,13 +183,14 @@ describe('PlcRecoveryPanel - reassign lead', () => {
     confirmSpy.mockRestore();
   });
 
-  it('does NOT reassign when the confirm dialog is cancelled', () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('does NOT reassign when the confirm dialog is cancelled', async () => {
+    const confirmSpy = mockShowConfirm.mockResolvedValue(false);
     render(<PlcRecoveryPanel />);
 
     fireEvent.click(screen.getByRole('button', { name: /reassign lead/i }));
     fireEvent.click(screen.getByRole('button', { name: /^confirm$/i }));
 
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalled());
     expect(mockAdminReassignLead).not.toHaveBeenCalled();
     confirmSpy.mockRestore();
   });
@@ -200,7 +213,7 @@ describe('PlcRecoveryPanel - reassign lead', () => {
 
 describe('PlcRecoveryPanel - dissolve', () => {
   it('dissolves after confirmation', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirmSpy = mockShowConfirm.mockResolvedValue(true);
     render(<PlcRecoveryPanel />);
 
     fireEvent.click(screen.getByRole('button', { name: /dissolve plc/i }));
@@ -209,12 +222,13 @@ describe('PlcRecoveryPanel - dissolve', () => {
     confirmSpy.mockRestore();
   });
 
-  it('does NOT dissolve when the confirm dialog is cancelled', () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('does NOT dissolve when the confirm dialog is cancelled', async () => {
+    const confirmSpy = mockShowConfirm.mockResolvedValue(false);
     render(<PlcRecoveryPanel />);
 
     fireEvent.click(screen.getByRole('button', { name: /dissolve plc/i }));
 
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalled());
     expect(mockDeletePlc).not.toHaveBeenCalled();
     confirmSpy.mockRestore();
   });
@@ -247,7 +261,7 @@ describe('PlcRecoveryPanel - members', () => {
 
   it('removes a member after confirmation', async () => {
     mockAdminRemoveMember.mockResolvedValue(undefined);
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirmSpy = mockShowConfirm.mockResolvedValue(true);
     render(<PlcRecoveryPanel />);
     fireEvent.click(screen.getByRole('button', { name: /^members$/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove Mary Member' }));

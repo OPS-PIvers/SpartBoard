@@ -27,7 +27,7 @@ import { useAuth } from '@/context/useAuth';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useStorage } from '@/hooks/useStorage';
 import { removeBackground, trimImageWhitespace } from '@/utils/imageProcessing';
-import { PromptDialog } from './PromptDialog';
+import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 import { Card } from '@/components/common/Card';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
@@ -67,7 +67,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
   const [uploadingImageIndex, setUploadingImageIndex] = useState<number | null>(
     null
   );
-  const [showPromptDialog, setShowPromptDialog] = useState(false);
+  const { showPrompt } = useDialog();
   const { addToast, removeToast } = useDashboard();
   const showProcessing = (message: string) =>
     addToast(message, 'loading', undefined, {
@@ -211,7 +211,21 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
           {routine.id ? 'Edit Routine Template' : 'Add New Routine'}
         </h3>
         <button
-          onClick={() => setShowPromptDialog(true)}
+          onClick={async () => {
+            const prompt = (
+              await showPrompt(
+                'Describe the instructional routine you want to create',
+                {
+                  title: 'Draft with AI',
+                  placeholder:
+                    'e.g., "A 3-step routine for peer review where students swap papers twice"',
+                  multiline: true,
+                  confirmLabel: 'Generate',
+                }
+              )
+            )?.trim();
+            if (prompt) await handleMagicDesign(prompt);
+          }}
           {...tourAttr('admin.routines.editor-ai')}
           disabled={isGenerating}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xxs font-black uppercase tracking-wider disabled:opacity-50 transition-colors shadow-xs"
@@ -680,22 +694,6 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
           </button>
         </div>
       </Card>
-
-      {/* AI prompt dialog */}
-      {showPromptDialog && (
-        <PromptDialog
-          title="Draft with AI"
-          message="Describe the instructional routine you want to create"
-          placeholder='e.g., "A 3-step routine for peer review where students swap papers twice"'
-          confirmLabel="Generate"
-          cancelLabel="Cancel"
-          onConfirm={(prompt) => {
-            setShowPromptDialog(false);
-            void handleMagicDesign(prompt);
-          }}
-          onCancel={() => setShowPromptDialog(false)}
-        />
-      )}
     </div>
   );
 };

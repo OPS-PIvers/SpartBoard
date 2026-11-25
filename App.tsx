@@ -1667,7 +1667,10 @@ const App: React.FC = () => {
   ) {
     return (
       <Suspense fallback={<FullPageLoader />}>
-        <ImportConversionDevHarness />
+        <DialogProvider>
+          <ImportConversionDevHarness />
+          <DialogContainer />
+        </DialogProvider>
       </Suspense>
     );
   }
@@ -1855,7 +1858,10 @@ const App: React.FC = () => {
   ) {
     return (
       <Suspense fallback={<FullPageLoader />}>
-        <QuizVersionImportDevHarness />
+        <DialogProvider>
+          <QuizVersionImportDevHarness />
+          <DialogContainer />
+        </DialogProvider>
       </Suspense>
     );
   }
