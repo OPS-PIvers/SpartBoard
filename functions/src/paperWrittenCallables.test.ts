@@ -408,6 +408,24 @@ describe('getPaperWrittenCropV1', () => {
       );
     });
 
+    it('serves a student token in a legacy classId-only session', async () => {
+      const store = seed({ [SESSION]: { ...seed()[SESSION], classId: 'c1' } });
+      const { deps } = makeDeps(store, objects);
+      await expect(
+        handleGetPaperWrittenCrop(deps, inClass(['c1']), target)
+      ).resolves.toMatchObject({ status: 'ready' });
+    });
+
+    it('SECURITY: refuses another class in a legacy classId-only session', async () => {
+      const store = seed({ [SESSION]: { ...seed()[SESSION], classId: 'c1' } });
+      const { deps } = makeDeps(store, objects);
+      await expectCode(
+        handleGetPaperWrittenCrop(deps, inClass(['c9']), target),
+        'permission-denied'
+      );
+      expect(deps.readObject).not.toHaveBeenCalled();
+    });
+
     it('serves a PIN token proven for this session', async () => {
       const { deps } = makeDeps(targeted(), objects);
       await expect(
