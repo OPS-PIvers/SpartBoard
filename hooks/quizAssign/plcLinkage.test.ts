@@ -63,7 +63,7 @@ describe('resolveQuizPlcLinkageForAssign', () => {
         id: 'quiz-1',
         title: 'Cells',
         sync: { groupId: 'g', lastSyncedVersion: 1 },
-      },
+      } as QuizMetadata,
     });
     expect(result.plcLinkage).toBeUndefined();
     expect(result.plcPoolSyncGroupId).toBeUndefined();
@@ -97,7 +97,7 @@ describe('resolveQuizPlcLinkageForAssign', () => {
         id: 'quiz-1',
         title: 'Cells',
         sync: { groupId: 'other-group', lastSyncedVersion: 3 },
-      },
+      } as QuizMetadata,
     });
     expect(result.plcPoolSyncGroupId).toBe('other-group');
     expect(result.plcTemplateSyncGroupId).toBe('other-group');
