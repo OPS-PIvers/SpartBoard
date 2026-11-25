@@ -1,7 +1,7 @@
 // PLC membership changes run here so firestore.rules no longer has to validate each transition.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
-import { isRevokedMemberStatus, OPERATOR_ORG_ID } from './authz';
+import { hasDeactivatedClaim, isDeactivatedOperatorMember } from './authz';
 import { assertViewAsAllowed, readViewAsClaim } from './viewAsGuard';
 
 if (!admin.apps.length) {
@@ -510,6 +510,8 @@ export interface Caller {
   emailVerified: boolean;
   displayName: string;
   viewAs: boolean;
+  /** Token carries the deactivation claim (rules' notDeactivated()). */
+  deactivated?: boolean;
 }
 
 /** An invite counts only while its sender still manages the PLC and it postdates the invitee's last removal. */
@@ -582,15 +584,14 @@ export async function runMembershipAction(
   ts: unknown = admin.firestore.FieldValue.serverTimestamp()
 ): Promise<MembershipResult> {
   // Mirrors notDeactivated(): a deactivated operator-org member changes nothing.
-  if (caller.emailLower) {
-    const op = await db
-      .doc(`organizations/${OPERATOR_ORG_ID}/members/${caller.emailLower}`)
-      .get();
-    if (op.exists && isRevokedMemberStatus(op.get('status'))) {
-      throw new HttpsError('permission-denied', 'notAllowed', {
-        reason: 'notAllowed',
-      });
-    }
+  if (
+    caller.deactivated ||
+    (caller.emailLower &&
+      (await isDeactivatedOperatorMember(db, caller.emailLower)))
+  ) {
+    throw new HttpsError('permission-denied', 'notAllowed', {
+      reason: 'notAllowed',
+    });
   }
   try {
     if (action.action === 'acceptInvite') {
@@ -699,6 +700,7 @@ export const plcMembershipV1 = onCall(
       emailVerified: token.email_verified === true,
       displayName: typeof token.name === 'string' ? token.name : '',
       viewAs: readViewAsClaim(request) !== null,
+      deactivated: hasDeactivatedClaim(token),
     };
     return runMembershipAction(admin.firestore(), caller, action);
   }

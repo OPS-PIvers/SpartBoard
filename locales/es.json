@@ -1186,7 +1186,7 @@
       "noArchived": "No hay cuestionarios archivados.",
       "folders": {
         "sidebarLabel": "Carpetas",
-        "moveToFolder": "Mover a carpeta…",
+        "moveToFolder": "Mover a carpeta",
         "noFolder": "Sin carpeta",
         "dragHandle": "Arrastrar para mover",
         "movedToast": "Movido a “{{folder}}”",

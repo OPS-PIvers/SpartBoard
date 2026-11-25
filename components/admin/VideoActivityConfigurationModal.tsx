@@ -18,9 +18,10 @@ import {
 } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { canonicalizeBuildingIds } from '@/config/buildings';
-import { Toast } from '@/components/common/Toast';
+import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
+import { Modal } from '@/components/common/Modal';
 
 interface VideoActivityConfigurationModalProps {
   onClose: () => void;
@@ -39,23 +40,11 @@ export const VideoActivityConfigurationModal: React.FC<
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const { showConfirm } = useDialog();
-  const [message, setMessage] = useState<{
-    type: 'success' | 'error';
-    text: string;
-  } | null>(null);
-  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-
-  const showMessage = useCallback((type: 'success' | 'error', text: string) => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    setMessage({ type, text });
-    timeoutRef.current = setTimeout(() => setMessage(null), 3000);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
+  const { addToast } = useDashboard();
+  const showMessage = useCallback(
+    (type: 'success' | 'error', text: string) => addToast(text, type),
+    [addToast]
+  );
 
   useEffect(() => {
     if (isAuthBypass) {
@@ -163,235 +152,228 @@ export const VideoActivityConfigurationModal: React.FC<
   const config = (permission.config ?? {}) as VideoActivityGlobalConfig;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-modal-nested p-4 font-sans backdrop-blur-xs">
-      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-brand-red-light rounded-xl">
-              <Video className="w-5 h-5 text-brand-red-primary" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-800">
-                Video Activity Library
-              </h2>
-              <p className="text-sm text-slate-500 font-medium">
-                Manage globally available video activities
-              </p>
-            </div>
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      zIndex="z-modal-nested"
+      maxWidth="max-w-4xl"
+      dismissible={false}
+      className="overflow-hidden rounded-2xl border border-slate-200 bg-white font-sans shadow-2xl [&>div]:flex [&>div]:flex-col [&>div]:overflow-hidden"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-brand-red-light rounded-xl">
+            <Video className="w-5 h-5 text-brand-red-primary" />
           </div>
-          <button
-            {...tourAttr('modal.close')}
-            onClick={onClose}
-            {...tourTypeAttr('admin.widget-config.close', 'video-activity')}
-            className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"
-          >
-            <X size={20} />
-          </button>
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">
+              Video Activity Library
+            </h2>
+            <p className="text-sm text-slate-500 font-medium">
+              Manage globally available video activities
+            </p>
+          </div>
         </div>
+        <button
+          {...tourAttr('modal.close')}
+          onClick={onClose}
+          {...tourTypeAttr('admin.widget-config.close', 'video-activity')}
+          className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"
+        >
+          <X size={20} />
+        </button>
+      </div>
 
-        {message && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-toast">
-            <Toast
-              message={message.text}
-              type={message.type}
-              onClose={() => setMessage(null)}
+      {/* View Tabs */}
+      <div className="flex px-6 border-b border-slate-100 bg-slate-50 shrink-0">
+        <button
+          {...tourFieldAttr(
+            'video-activity.admin-tab',
+            'video-activity',
+            'list'
+          )}
+          onClick={() => setView('list')}
+          {...tourFieldAttr(
+            'admin.widget-config.field',
+            'video-activity',
+            'view-list'
+          )}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors ${
+            view === 'list'
+              ? 'border-brand-blue-primary text-brand-blue-primary'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Library className="w-4 h-4" />
+          Global Library
+        </button>
+        <button
+          {...tourFieldAttr(
+            'video-activity.admin-tab',
+            'video-activity',
+            'settings'
+          )}
+          onClick={() => setView('settings')}
+          {...tourFieldAttr(
+            'admin.widget-config.field',
+            'video-activity',
+            'view-settings'
+          )}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors ${
+            view === 'settings'
+              ? 'border-brand-blue-primary text-brand-blue-primary'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Settings className="w-4 h-4" />
+          Global Settings
+        </button>
+      </div>
+
+      {/* Content Area */}
+      <div className="flex-1 overflow-y-auto bg-slate-50 p-6 min-h-0">
+        {view === 'settings' ? (
+          <div className="max-w-2xl mx-auto space-y-6">
+            <DockDefaultsPanel
+              config={{ dockDefaults: config.dockDefaults ?? {} }}
+              onChange={(dockDefaults) =>
+                onSave({ config: { ...config, dockDefaults } })
+              }
             />
           </div>
-        )}
-
-        {/* View Tabs */}
-        <div className="flex px-6 border-b border-slate-100 bg-slate-50 shrink-0">
-          <button
-            {...tourFieldAttr(
-              'video-activity.admin-tab',
-              'video-activity',
-              'list'
-            )}
-            onClick={() => setView('list')}
-            {...tourFieldAttr(
-              'admin.widget-config.field',
-              'video-activity',
-              'view-list'
-            )}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors ${
-              view === 'list'
-                ? 'border-brand-blue-primary text-brand-blue-primary'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Library className="w-4 h-4" />
-            Global Library
-          </button>
-          <button
-            {...tourFieldAttr(
-              'video-activity.admin-tab',
-              'video-activity',
-              'settings'
-            )}
-            onClick={() => setView('settings')}
-            {...tourFieldAttr(
-              'admin.widget-config.field',
-              'video-activity',
-              'view-settings'
-            )}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors ${
-              view === 'settings'
-                ? 'border-brand-blue-primary text-brand-blue-primary'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Settings className="w-4 h-4" />
-            Global Settings
-          </button>
-        </div>
-
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto bg-slate-50 p-6 min-h-0">
-          {view === 'settings' ? (
-            <div className="max-w-2xl mx-auto space-y-6">
-              <DockDefaultsPanel
-                config={{ dockDefaults: config.dockDefaults ?? {} }}
-                onChange={(dockDefaults) =>
-                  onSave({ config: { ...config, dockDefaults } })
-                }
-              />
-            </div>
-          ) : (
-            <div className="max-w-4xl mx-auto space-y-4">
-              {loading ? (
-                <div className="py-12 text-center text-slate-500">
-                  <div className="animate-spin w-8 h-8 border-4 border-brand-blue-primary border-t-transparent rounded-full mx-auto mb-4" />
-                  Loading activities...
-                </div>
-              ) : activities.length === 0 ? (
-                <div className="py-12 text-center bg-white border border-slate-200 rounded-xl">
-                  <Video className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-500 font-medium mb-1">
-                    No global video activities found
-                  </p>
-                  <p className="text-sm text-slate-400">
-                    Share an activity from the Video Activity widget to add it
-                    here. Teachers in its assigned buildings can use it.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid gap-3">
-                  {activities.map((activity) => (
-                    <div
-                      key={activity.id}
-                      className={`bg-white border rounded-xl p-4 transition-all ${
-                        savingId === activity.id
-                          ? 'border-brand-blue-primary/50 opacity-70'
-                          : 'border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-slate-800 text-lg truncate">
-                            {activity.title}
-                          </h3>
-                          <div className="flex items-center gap-3 mt-1 text-xs font-medium text-slate-500">
-                            <span className="flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-brand-red-primary" />
-                              {activity.questionCount} Questions
-                            </span>
-                            <span className="text-slate-300">•</span>
-                            <a
-                              href={activity.youtubeUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-brand-blue-primary hover:underline truncate"
-                            >
-                              {activity.youtubeUrl}
-                            </a>
-                          </div>
-
-                          {/* Building Assignment */}
-                          <div className="mt-4">
-                            <label className="text-xxs font-bold text-slate-400 uppercase tracking-wider mb-2 block flex items-center gap-1">
-                              <Building2 className="w-3 h-3" /> Target Buildings
-                            </label>
-                            <div className="flex flex-wrap gap-1.5">
-                              <button
-                                {...tourAttr(
-                                  'video-activity.admin-building-all'
-                                )}
-                                onClick={() => toggleAllBuildings(activity)}
-                                {...tourFieldAttr(
-                                  'admin.widget-config.field',
-                                  'video-activity',
-                                  `buildings-all-${activity.id}`
-                                )}
-                                className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-all ${
-                                  (activity.buildings ?? []).length === 0
-                                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
-                                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                                }`}
-                              >
-                                ALL BUILDINGS
-                              </button>
-                              {(() => {
-                                // Canonicalize once so a legacy stored id still matches building.id.
-                                const assignedBuildings =
-                                  canonicalizeBuildingIds(
-                                    activity.buildings ?? []
-                                  );
-                                return BUILDINGS.map((building) => (
-                                  <button
-                                    {...tourFieldAttr(
-                                      'video-activity.admin-building',
-                                      'video-activity',
-                                      building.id
-                                    )}
-                                    key={building.id}
-                                    {...tourFieldAttr(
-                                      'admin.widget-config.field',
-                                      'video-activity',
-                                      `building-${activity.id}-${building.id}`
-                                    )}
-                                    onClick={() =>
-                                      toggleBuilding(activity, building.id)
-                                    }
-                                    className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-all ${
-                                      assignedBuildings.includes(building.id)
-                                        ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
-                                        : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                                    }`}
-                                  >
-                                    {building.gradeLabel}
-                                  </button>
-                                ));
-                              })()}
-                            </div>
-                          </div>
+        ) : (
+          <div className="max-w-4xl mx-auto space-y-4">
+            {loading ? (
+              <div className="py-12 text-center text-slate-500">
+                <div className="animate-spin w-8 h-8 border-4 border-brand-blue-primary border-t-transparent rounded-full mx-auto mb-4" />
+                Loading activities...
+              </div>
+            ) : activities.length === 0 ? (
+              <div className="py-12 text-center bg-white border border-slate-200 rounded-xl">
+                <Video className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500 font-medium mb-1">
+                  No global video activities found
+                </p>
+                <p className="text-sm text-slate-400">
+                  Share an activity from the Video Activity widget to add it
+                  here. Teachers in its assigned buildings can use it.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {activities.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className={`bg-white border rounded-xl p-4 transition-all ${
+                      savingId === activity.id
+                        ? 'border-brand-blue-primary/50 opacity-70'
+                        : 'border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-slate-800 text-lg truncate">
+                          {activity.title}
+                        </h3>
+                        <div className="flex items-center gap-3 mt-1 text-xs font-medium text-slate-500">
+                          <span className="flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-brand-red-primary" />
+                            {activity.questionCount} Questions
+                          </span>
+                          <span className="text-slate-300">•</span>
+                          <a
+                            href={activity.youtubeUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-brand-blue-primary hover:underline truncate"
+                          >
+                            {activity.youtubeUrl}
+                          </a>
                         </div>
 
-                        <div className="flex flex-col items-end gap-2 shrink-0">
-                          <button
-                            {...tourAttr('video-activity.admin-delete')}
-                            onClick={() => handleDelete(activity.id)}
-                            {...tourFieldAttr(
-                              'admin.widget-config.field',
-                              'video-activity',
-                              `remove-${activity.id}`
-                            )}
-                            disabled={savingId === activity.id}
-                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete activity"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        {/* Building Assignment */}
+                        <div className="mt-4">
+                          <label className="text-xxs font-bold text-slate-400 uppercase tracking-wider mb-2 block flex items-center gap-1">
+                            <Building2 className="w-3 h-3" /> Target Buildings
+                          </label>
+                          <div className="flex flex-wrap gap-1.5">
+                            <button
+                              {...tourAttr('video-activity.admin-building-all')}
+                              onClick={() => toggleAllBuildings(activity)}
+                              {...tourFieldAttr(
+                                'admin.widget-config.field',
+                                'video-activity',
+                                `buildings-all-${activity.id}`
+                              )}
+                              className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-all ${
+                                (activity.buildings ?? []).length === 0
+                                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
+                                  : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                              }`}
+                            >
+                              ALL BUILDINGS
+                            </button>
+                            {(() => {
+                              // Canonicalize once so a legacy stored id still matches building.id.
+                              const assignedBuildings = canonicalizeBuildingIds(
+                                activity.buildings ?? []
+                              );
+                              return BUILDINGS.map((building) => (
+                                <button
+                                  {...tourFieldAttr(
+                                    'video-activity.admin-building',
+                                    'video-activity',
+                                    building.id
+                                  )}
+                                  key={building.id}
+                                  {...tourFieldAttr(
+                                    'admin.widget-config.field',
+                                    'video-activity',
+                                    `building-${activity.id}-${building.id}`
+                                  )}
+                                  onClick={() =>
+                                    toggleBuilding(activity, building.id)
+                                  }
+                                  className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-all ${
+                                    assignedBuildings.includes(building.id)
+                                      ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
+                                      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {building.gradeLabel}
+                                </button>
+                              ));
+                            })()}
+                          </div>
                         </div>
                       </div>
+
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        <button
+                          {...tourAttr('video-activity.admin-delete')}
+                          onClick={() => handleDelete(activity.id)}
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'video-activity',
+                            `remove-${activity.id}`
+                          )}
+                          disabled={savingId === activity.id}
+                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete activity"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 };

@@ -1,13 +1,11 @@
 // The Updates page (T27): compose for leads, the archive, reactions and acknowledgements (mock: BuildingUpdatesMock).
 
 import React, { useState } from 'react';
-import { MoreHorizontal, Pin } from 'lucide-react';
+import { Pin } from 'lucide-react';
 import { Button } from '@/components/common/Button';
-import { IconButton } from '@/components/common/IconButton';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
 import {
   EYEBROW,
-  MENU_ITEM,
-  MENU_PANEL,
   MenuSelect,
   META,
   Section,
@@ -94,71 +92,44 @@ const OptionsMenu: React.FC<{
   onEdit: () => void;
   onDelete?: (update: PlcUpdate) => void;
   onPin?: (updateId: string, pinned: boolean) => void;
-}> = ({ update, onEdit, onDelete, onPin }) => {
-  const [open, setOpen] = useState(false);
-  const pick = (fn: () => void) => () => {
-    setOpen(false);
-    fn();
-  };
-  return (
-    <div
-      className="relative"
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) {
-          setOpen(false);
-        }
-      }}
-    >
-      <IconButton
-        icon={<MoreHorizontal className="h-4 w-4" />}
-        label="Update options"
-        size="sm"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        {...tourFieldAttr('teams.update.options', 'teams-updates', update.id)}
-        onClick={() => setOpen((v) => !v)}
-      />
-      {open && (
-        <div
-          role="menu"
-          className={`${MENU_PANEL} absolute right-0 top-full z-20 mt-1 w-40`}
-        >
-          <button
-            type="button"
-            role="menuitem"
-            className={MENU_ITEM}
-            {...tourFieldAttr('teams.update.pin', 'teams-updates', update.id)}
-            onClick={pick(() => onPin?.(update.id, !update.pinned))}
-          >
-            {update.pinned ? 'Unpin' : 'Pin'}
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className={MENU_ITEM}
-            {...tourFieldAttr('teams.update.edit', 'teams-updates', update.id)}
-            onClick={pick(onEdit)}
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className={`${MENU_ITEM} text-brand-red-primary`}
-            {...tourFieldAttr(
-              'teams.update.delete',
-              'teams-updates',
-              update.id
-            )}
-            onClick={pick(() => onDelete?.(update))}
-          >
-            Delete
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
+}> = ({ update, onEdit, onDelete, onPin }) => (
+  <OverflowMenu
+    items={[
+      {
+        id: 'pin',
+        label: update.pinned ? 'Unpin' : 'Pin',
+        onClick: () => onPin?.(update.id, !update.pinned),
+        anchor: tourFieldAttr('teams.update.pin', 'teams-updates', update.id),
+      },
+      {
+        id: 'edit',
+        label: 'Edit',
+        onClick: onEdit,
+        anchor: tourFieldAttr('teams.update.edit', 'teams-updates', update.id),
+      },
+      {
+        id: 'delete',
+        label: 'Delete',
+        destructive: true,
+        onClick: () => onDelete?.(update),
+        anchor: tourFieldAttr(
+          'teams.update.delete',
+          'teams-updates',
+          update.id
+        ),
+      },
+    ]}
+    ariaLabel="Update options"
+    triggerAnchor={tourFieldAttr(
+      'teams.update.options',
+      'teams-updates',
+      update.id
+    )}
+    triggerClassName="rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+    triggerStyle={{ width: 28, height: 28 }}
+    iconStyle={{ width: 16, height: 16 }}
+  />
+);
 
 const UpdateArticle: React.FC<
   Omit<UpdatesViewProps, 'updates' | 'onPost' | 'loading'> & {

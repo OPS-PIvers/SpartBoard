@@ -73,6 +73,7 @@ import {
   districtMetaFields,
   isDistrictLinkedCopy,
 } from '@/utils/districtLibraryOrigin';
+import { librarySharePath } from '@/utils/shareRoutes';
 
 const QUIZZES_COLLECTION = 'quizzes';
 
@@ -204,7 +205,7 @@ export interface UseQuizResult {
 }
 
 export const useQuiz = (userId: string | undefined): UseQuizResult => {
-  const { googleAccessToken } = useAuth();
+  const { googleAccessToken, refreshGoogleToken } = useAuth();
   const { isConnected } = useGoogleDrive();
   const [quizzes, setQuizzes] = useState<QuizMetadata[]>([]);
   const [loading, setLoading] = useState(!!userId);
@@ -273,9 +274,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           )
         );
       }
-      return new QuizDriveService(accessToken);
+      return new QuizDriveService(accessToken, refreshGoogleToken);
     },
-    [googleAccessToken, userId]
+    [googleAccessToken, refreshGoogleToken, userId]
   );
 
   const saveQuiz = useCallback(
@@ -965,7 +966,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         originalAuthor: userId,
         sharedAt: Date.now(),
       });
-      return `${window.location.origin}/share/quiz/${shareRef.id}`;
+      return `${window.location.origin}${librarySharePath('quiz', shareRef.id)}`;
     },
     [userId, getDriveService]
   );

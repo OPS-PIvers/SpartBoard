@@ -1,8 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search } from 'lucide-react';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { BackgroundType } from './backgroundsHelpers';
+import { SearchField } from '@/components/common/SearchField';
 
 interface BackgroundsFilterBarProps {
   search: string;
@@ -48,22 +48,14 @@ export const BackgroundsFilterBar: React.FC<BackgroundsFilterBarProps> = ({
 
   return (
     <div className="sticky top-0 z-10 bg-white border-b border-slate-100 px-4 py-3 flex flex-col gap-2">
-      <div className="relative">
-        <Search
-          size={14}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-        />
-        <input
-          {...tourAttr('backgrounds.search')}
-          type="search"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={t('backgrounds.searchPlaceholder', {
-            defaultValue: 'Search backgrounds…',
-          })}
-          className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-hidden focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20"
-        />
-      </div>
+      <SearchField
+        value={search}
+        onChange={onSearchChange}
+        placeholder={t('backgrounds.searchPlaceholder', {
+          defaultValue: 'Search backgrounds…',
+        })}
+        anchor={tourAttr('backgrounds.search')}
+      />
 
       {availableTypes.length > 1 && (
         <div className="flex flex-wrap gap-1.5">

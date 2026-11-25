@@ -1,18 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import {
-  Check,
-  ChevronDown,
-  Copy,
-  Pencil,
-  Settings2,
-  Trash2,
-} from 'lucide-react';
-import {
-  Btn,
-  CellPopover,
-} from '@/components/admin/Organization/components/primitives';
-import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
+import React, { useState } from 'react';
+import { Copy, Pencil, Settings2, Trash2 } from 'lucide-react';
+import { Btn } from '@/components/admin/Organization/components/primitives';
+import { ChecklistSelect } from '@/components/common/ChecklistSelect';
+import { Modal } from '@/components/common/Modal';
 import { useUndoToast, type UndoEntry } from './useUndoToast';
 import { useAuth } from '@/context/useAuth';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
@@ -85,8 +75,6 @@ export const GradebookSettingsModalView: React.FC<
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [applyOpen, setApplyOpen] = useState(false);
   const { notify, fail } = useUndoToast('GradebookSettings');
-  const applyRef = useRef<HTMLButtonElement>(null);
-  const backdrop = useBackdropDismiss(onClose);
 
   const personal = entries.filter((e) => e.source === 'personal');
   const fallback =
@@ -103,17 +91,6 @@ export const GradebookSettingsModalView: React.FC<
   const explicitUsers = classes.filter(
     (c) => classRefs.has(c.id) && configForClass(c.id).key === shown.key
   );
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || applyOpen || renaming) return;
-      e.stopImmediatePropagation();
-      onClose();
-    };
-    window.addEventListener('keydown', onKey, { capture: true });
-    return () =>
-      window.removeEventListener('keydown', onKey, { capture: true });
-  }, [onClose, applyOpen, renaming]);
 
   const pushUndo = (undo: UndoEntry, message: string) => notify(message, undo);
 
@@ -201,292 +178,253 @@ export const GradebookSettingsModalView: React.FC<
     },
   ];
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-[rgba(29,42,93,0.45)] font-sans"
-      {...backdrop}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="gb-settings-title"
-        className="w-full max-w-[600px] max-h-[92vh] overflow-y-auto rounded-2xl bg-slate-50 shadow-xl flex flex-col gap-4 px-6 pb-6"
-        onClick={(e) => e.stopPropagation()}
+  return (
+    <>
+      <Modal
+        isOpen
+        onClose={onClose}
+        variant="bare"
+        maxWidth="max-w-[600px]"
+        captureEscape={!applyOpen && !renaming}
+        ariaLabelledby="gb-settings-title"
+        className="max-h-[92vh]! overflow-hidden rounded-2xl bg-slate-50 font-sans shadow-xl"
       >
-        <header className="sticky top-0 z-10 -mx-6 flex items-center gap-2.5 border-b border-slate-100 bg-white px-6 py-[18px]">
-          <h2
-            id="gb-settings-title"
-            className="text-lg font-bold text-slate-900"
-          >
-            Gradebook settings
-          </h2>
-          <span className="flex-1" />
-          <Btn
-            variant="primary"
-            size="sm"
-            className="h-[34px]! px-3.5! text-[13px]!"
-            {...tourAttr('gradebook.settings.done')}
-            onClick={onClose}
-          >
-            Done
-          </Btn>
-        </header>
+        <div className="flex flex-col gap-4 px-6 pb-6">
+          <header className="sticky top-0 z-10 -mx-6 flex items-center gap-2.5 border-b border-slate-100 bg-white px-6 py-[18px]">
+            <h2
+              id="gb-settings-title"
+              className="text-lg font-bold text-slate-900"
+            >
+              Gradebook settings
+            </h2>
+            <span className="flex-1" />
+            <Btn
+              variant="primary"
+              size="sm"
+              className="h-[34px]! px-3.5! text-[13px]!"
+              {...tourAttr('gradebook.settings.done')}
+              onClick={onClose}
+            >
+              Done
+            </Btn>
+          </header>
 
-        <section className={`${SECTION} gap-3.5`}>
-          <div className="flex items-center gap-3">
-            <label htmlFor="gb-cfg" className={ROW_LABEL}>
-              Configuration
-            </label>
-            {renaming ? (
-              <input
-                id="gb-cfg"
-                autoFocus
-                defaultValue={shown.name}
-                maxLength={80}
-                aria-label="Configuration name"
-                {...tourAttr('gradebook.settings.rename-input')}
-                className={`${FIELD} flex-1 min-w-0 max-w-[320px]`}
-                onFocus={(e) => e.currentTarget.select()}
-                onBlur={(e) => commitRename(e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur();
-                  if (e.key === 'Escape') {
-                    e.stopPropagation();
-                    setRenaming(false);
-                  }
-                }}
-              />
-            ) : (
-              <SelectBox
-                id="gb-cfg"
-                {...tourAttr('gradebook.settings.config')}
-                value={shown.key}
-                onChange={(e) => {
-                  setPickedKey(e.target.value);
-                  setConfirmDelete(false);
-                  setApplyOpen(false);
-                }}
-              >
-                {shown.source === 'builtin' && (
-                  <option value={BUILTIN_CONFIG_ENTRY.key} disabled>
-                    Default settings
-                  </option>
+          <section className={`${SECTION} gap-3.5`}>
+            <div className="flex items-center gap-3">
+              <label htmlFor="gb-cfg" className={ROW_LABEL}>
+                Configuration
+              </label>
+              {renaming ? (
+                <input
+                  id="gb-cfg"
+                  autoFocus
+                  defaultValue={shown.name}
+                  maxLength={80}
+                  aria-label="Configuration name"
+                  {...tourAttr('gradebook.settings.rename-input')}
+                  className={`${FIELD} flex-1 min-w-0 max-w-[320px]`}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onBlur={(e) => commitRename(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') {
+                      e.stopPropagation();
+                      setRenaming(false);
+                    }
+                  }}
+                />
+              ) : (
+                <SelectBox
+                  id="gb-cfg"
+                  {...tourAttr('gradebook.settings.config')}
+                  value={shown.key}
+                  onChange={(e) => {
+                    setPickedKey(e.target.value);
+                    setConfirmDelete(false);
+                    setApplyOpen(false);
+                  }}
+                >
+                  {shown.source === 'builtin' && (
+                    <option value={BUILTIN_CONFIG_ENTRY.key} disabled>
+                      Default settings
+                    </option>
+                  )}
+                  {groups.map((g) =>
+                    g.items.length ? (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.items.map((e) => (
+                          <option key={e.key} value={e.key}>
+                            {e.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ) : null
+                  )}
+                </SelectBox>
+              )}
+              <span className="flex gap-0.5">
+                {!ro && (
+                  <button
+                    type="button"
+                    className={ICON_BTN}
+                    title="Rename"
+                    aria-label="Rename configuration"
+                    {...tourAttr('gradebook.settings.rename')}
+                    onClick={() => setRenaming(true)}
+                  >
+                    <Pencil size={15} aria-hidden />
+                  </button>
                 )}
-                {groups.map((g) =>
-                  g.items.length ? (
-                    <optgroup key={g.label} label={g.label}>
-                      {g.items.map((e) => (
-                        <option key={e.key} value={e.key}>
-                          {e.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ) : null
-                )}
-              </SelectBox>
-            )}
-            <span className="flex gap-0.5">
-              {!ro && (
                 <button
                   type="button"
                   className={ICON_BTN}
-                  title="Rename"
-                  aria-label="Rename configuration"
-                  {...tourAttr('gradebook.settings.rename')}
-                  onClick={() => setRenaming(true)}
+                  title={
+                    shown.source === 'plc' || shown.source === 'district'
+                      ? 'Copy to my configurations'
+                      : 'Duplicate'
+                  }
+                  aria-label="Duplicate configuration"
+                  {...tourAttr('gradebook.settings.duplicate')}
+                  onClick={() =>
+                    createFrom(
+                      {
+                        ...cloneSettingsBody(shown.body),
+                        name: duplicateName(shown),
+                      },
+                      'Duplicated configuration'
+                    )
+                  }
                 >
-                  <Pencil size={15} aria-hidden />
+                  <Copy size={15} aria-hidden />
                 </button>
-              )}
-              <button
-                type="button"
-                className={ICON_BTN}
-                title={
-                  shown.source === 'plc' || shown.source === 'district'
-                    ? 'Copy to my configurations'
-                    : 'Duplicate'
-                }
-                aria-label="Duplicate configuration"
-                {...tourAttr('gradebook.settings.duplicate')}
+                {!ro && (
+                  <button
+                    type="button"
+                    className={`${ICON_BTN} hover:text-brand-red-primary`}
+                    title="Delete"
+                    aria-label="Delete configuration"
+                    {...tourAttr('gradebook.settings.delete')}
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    <Trash2 size={15} aria-hidden />
+                  </button>
+                )}
+              </span>
+              <Btn
+                size="sm"
+                {...tourAttr('gradebook.settings.new')}
                 onClick={() =>
                   createFrom(
-                    {
-                      ...cloneSettingsBody(shown.body),
-                      name: duplicateName(shown),
-                    },
-                    'Duplicated configuration'
+                    defaultSettingsBody('New configuration'),
+                    'Created configuration'
                   )
                 }
               >
-                <Copy size={15} aria-hidden />
-              </button>
-              {!ro && (
+                + New
+              </Btn>
+            </div>
+
+            {confirmDelete && (
+              <div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-[13px] leading-snug text-slate-700">
+                <span className="flex-1">
+                  Delete <b>{shown.name}</b>?
+                  {explicitUsers.length > 0 &&
+                    ` ${explicitUsers.length} class${explicitUsers.length === 1 ? ' goes' : 'es go'} back to the default settings.`}
+                </span>
+                <Btn
+                  variant="danger"
+                  size="sm"
+                  {...tourAttr('gradebook.settings.delete-confirm')}
+                  onClick={onDelete}
+                >
+                  Delete
+                </Btn>
+                <Btn
+                  size="sm"
+                  {...tourAttr('gradebook.settings.confirm-cancel')}
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  Cancel
+                </Btn>
+              </div>
+            )}
+
+            {shown.source === 'builtin' ? (
+              <p className="text-xs text-slate-500">
+                Classes with no configuration use these defaults. Create one
+                with + New to change them.
+              </p>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span id="gb-applies" className={ROW_LABEL}>
+                  Applies to
+                </span>
+                <ChecklistSelect
+                  label="Applies to"
+                  options={classes.map((c) => {
+                    const cur = configForClass(c.id);
+                    return {
+                      id: c.id,
+                      label: c.name,
+                      note: cur.source !== 'builtin' ? cur.name : undefined,
+                      anchor: tourFieldAttr(
+                        'gradebook.settings.applies-option',
+                        'gradebook-settings',
+                        c.id
+                      ),
+                    };
+                  })}
+                  selected={classesOnShown.map((c) => c.id)}
+                  onToggle={(id) => {
+                    const cls = classes.find((c) => c.id === id);
+                    if (cls) onApply(cls);
+                  }}
+                  emptyText="No classes"
+                  anchor={tourAttr('gradebook.settings.applies-to')}
+                  className="flex-1 max-w-[320px]"
+                  searchFrom={Infinity}
+                  onOpenChange={setApplyOpen}
+                />
+              </div>
+            )}
+
+            {shown.source === 'plc' && shown.ref?.source === 'plc' && (
+              <p className="text-xs text-slate-500">
+                Your PLC lead manages this configuration.{' '}
                 <button
                   type="button"
-                  className={`${ICON_BTN} hover:text-brand-red-primary`}
-                  title="Delete"
-                  aria-label="Delete configuration"
-                  {...tourAttr('gradebook.settings.delete')}
-                  onClick={() => setConfirmDelete(true)}
+                  {...tourAttr('gradebook.settings.open-plc')}
+                  className="font-semibold text-brand-blue-primary hover:underline"
+                  onClick={() => {
+                    if (shown.ref?.source === 'plc')
+                      spaNavigate(buildPlcPath(shown.ref.plcId, 'settings'));
+                  }}
                 >
-                  <Trash2 size={15} aria-hidden />
+                  Open in PLC
                 </button>
-              )}
-            </span>
-            <Btn
-              size="sm"
-              {...tourAttr('gradebook.settings.new')}
-              onClick={() =>
-                createFrom(
-                  defaultSettingsBody('New configuration'),
-                  'Created configuration'
-                )
-              }
-            >
-              + New
-            </Btn>
-          </div>
+              </p>
+            )}
+            {shown.source === 'district' && (
+              <p className="text-xs text-slate-500">
+                Your district manages this configuration for your building.
+              </p>
+            )}
+          </section>
 
-          {confirmDelete && (
-            <div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-[13px] leading-snug text-slate-700">
-              <span className="flex-1">
-                Delete <b>{shown.name}</b>?
-                {explicitUsers.length > 0 &&
-                  ` ${explicitUsers.length} class${explicitUsers.length === 1 ? ' goes' : 'es go'} back to the default settings.`}
-              </span>
-              <Btn
-                variant="danger"
-                size="sm"
-                {...tourAttr('gradebook.settings.delete-confirm')}
-                onClick={onDelete}
-              >
-                Delete
-              </Btn>
-              <Btn
-                size="sm"
-                {...tourAttr('gradebook.settings.confirm-cancel')}
-                onClick={() => setConfirmDelete(false)}
-              >
-                Cancel
-              </Btn>
-            </div>
-          )}
+          <GradebookSettingsEditor
+            body={shown.body}
+            readOnly={ro}
+            scaleOptions={scaleOptions}
+            onChange={onBodyChange}
+            onNotice={(m) => notify(m)}
+          />
 
-          {shown.source === 'builtin' ? (
-            <p className="text-xs text-slate-500">
-              Classes with no configuration use these defaults. Create one with
-              + New to change them.
-            </p>
-          ) : (
-            <div className="flex items-center gap-3">
-              <span id="gb-applies" className={ROW_LABEL}>
-                Applies to
-              </span>
-              <button
-                ref={applyRef}
-                type="button"
-                aria-labelledby="gb-applies"
-                {...tourAttr('gradebook.settings.applies-to')}
-                aria-haspopup="menu"
-                aria-expanded={applyOpen}
-                onClick={() => setApplyOpen((o) => !o)}
-                className={`${FIELD} flex flex-1 min-w-0 max-w-[320px] items-center gap-2 text-left`}
-              >
-                <span
-                  className={`flex-1 truncate ${classesOnShown.length ? '' : 'text-slate-400'}`}
-                >
-                  {classesOnShown.length
-                    ? classesOnShown.map((c) => c.name).join(', ')
-                    : 'No classes'}
-                </span>
-                <ChevronDown
-                  size={16}
-                  className={`shrink-0 text-slate-400 transition-transform ${applyOpen ? 'rotate-180' : ''}`}
-                  aria-hidden
-                />
-              </button>
-            </div>
-          )}
-
-          {shown.source === 'plc' && shown.ref?.source === 'plc' && (
-            <p className="text-xs text-slate-500">
-              Your PLC lead manages this configuration.{' '}
-              <button
-                type="button"
-                {...tourAttr('gradebook.settings.open-plc')}
-                className="font-semibold text-brand-blue-primary hover:underline"
-                onClick={() => {
-                  if (shown.ref?.source === 'plc')
-                    spaNavigate(buildPlcPath(shown.ref.plcId, 'settings'));
-                }}
-              >
-                Open in PLC
-              </button>
-            </p>
-          )}
-          {shown.source === 'district' && (
-            <p className="text-xs text-slate-500">
-              Your district manages this configuration for your building.
-            </p>
-          )}
-        </section>
-
-        <GradebookSettingsEditor
-          body={shown.body}
-          readOnly={ro}
-          scaleOptions={scaleOptions}
-          onChange={onBodyChange}
-          onNotice={(m) => notify(m)}
-        />
-
-        <p className="text-xs text-slate-500">
-          Grading periods come from your building (set by an admin).
-        </p>
-      </div>
-
-      <CellPopover
-        open={applyOpen}
-        onClose={() => setApplyOpen(false)}
-        anchorRef={applyRef}
-        className="max-h-[280px] overflow-y-auto"
-      >
-        <div role="menu" aria-label="Applies to" className="min-w-[312px]">
-          {classes.length === 0 && (
-            <p className="px-3 py-2 text-sm text-slate-500">No classes</p>
-          )}
-          {classes.map((c) => {
-            const on = configForClass(c.id).key === shown.key;
-            const cur = configForClass(c.id);
-            return (
-              <button
-                key={c.id}
-                type="button"
-                role="menuitemcheckbox"
-                aria-checked={on}
-                {...tourFieldAttr(
-                  'gradebook.settings.applies-option',
-                  'gradebook-settings',
-                  c.id
-                )}
-                onClick={() => onApply(c)}
-                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] leading-5 hover:bg-slate-50 focus:bg-slate-50 focus:outline-hidden ${on ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
-              >
-                <span className="w-4 shrink-0 text-brand-blue-primary">
-                  {on && <Check size={16} aria-hidden />}
-                </span>
-                <span className="flex-1 truncate">{c.name}</span>
-                {!on && cur.source !== 'builtin' && (
-                  <span className="text-[11px] font-normal text-slate-400">
-                    {cur.name}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+          <p className="text-xs text-slate-500">
+            Grading periods come from your building (set by an admin).
+          </p>
         </div>
-      </CellPopover>
-    </div>,
-    document.body
+      </Modal>
+    </>
   );
 };
 

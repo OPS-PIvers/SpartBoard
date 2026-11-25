@@ -56,6 +56,7 @@ import {
   type StepStatusRow,
   type TourStatus,
 } from './webTourStatus';
+import { copyText } from '@/utils/copyText';
 
 const rowBtnBase = `inline-flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-sm font-semibold disabled:opacity-50 ${focusRing}`;
 const rowBtn = `${rowBtnBase} text-brand-blue-primary hover:bg-brand-blue-lighter`;
@@ -223,15 +224,10 @@ const ShareMenu: React.FC<{
     };
   }, [open]);
 
-  const copyText = async (text: string): Promise<boolean> => {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch (err) {
-      logError('WebTourList share copy', err, { setId: set.id });
-      return false;
-    }
-  };
+  const copyShareText = (text: string): Promise<boolean> =>
+    copyText(text, (err) =>
+      logError('WebTourList share copy', err, { setId: set.id })
+    );
 
   const tourUrl = async () => {
     closeMenu();
@@ -261,10 +257,10 @@ const ShareMenu: React.FC<{
   const stepsUrl = async () => {
     closeMenu();
     if (publicLink.publicUrl) {
-      stepsCopied(await copyText(publicLink.publicUrl));
+      stepsCopied(await copyShareText(publicLink.publicUrl));
       return;
     }
-    publicLink.requestOn((url) => void copyText(url).then(stepsCopied));
+    publicLink.requestOn((url) => void copyShareText(url).then(stepsCopied));
   };
 
   const labels = useStepsLabels();

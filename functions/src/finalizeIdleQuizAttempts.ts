@@ -50,7 +50,6 @@ import { logger } from 'firebase-functions';
 import * as admin from './firebaseAdmin';
 import {
   isPeriodFrozen,
-  passActive,
   setTimeStart,
   PERIOD_WINDOW_GRACE_MS,
   withQuizSessionContent,
@@ -58,6 +57,7 @@ import {
 import { buildQuizFinalizeUpdate, sessionQuestionIds } from './quizFinalize';
 import { withServerTurnIn } from './quizTurnIn';
 import { safeErr } from './safeLog';
+import { staysOpenAtClose } from './staysOpenAtClose';
 import { runEndHeldQuizRuns } from './endHeldQuizRuns';
 
 export { resolveUnrespondedQuestionIds } from './quizFinalize';
@@ -239,11 +239,7 @@ function classClosedOver(
   now: number
 ): boolean {
   const r = d as Record<string, unknown>;
-  if (r.unlocked === true) return false;
-  const uid = typeof r.studentUid === 'string' ? r.studentUid : '';
-  if (passActive(gate, uid, now)) return false;
-  if (Array.isArray(gate.reopenedFor) && gate.reopenedFor.includes(uid))
-    return false;
+  if (staysOpenAtClose(gate, r, now, { blank: false })) return false;
   const rows = gate.periodAccess as
     Record<string, { state?: unknown; closedAt?: unknown }> | undefined;
   const row =

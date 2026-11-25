@@ -14,6 +14,7 @@ import {
 import { useDashboard } from '@/context/useDashboard';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useScreenRecord } from '@/hooks/useScreenRecord';
+import { uploadDriveAsset } from '@/utils/driveAssetUpload';
 import { convertToEmbedUrl } from '@/utils/urlHelpers';
 import { extractYouTubeId } from '@/utils/youtube';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
@@ -22,6 +23,7 @@ import { EmbedTab } from './types';
 import { EmbedConfig } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { ShortenUrlButton } from '@/components/admin/ShortenUrlButton';
+import { copyText } from '@/utils/copyText';
 
 export const EmbedConfigEditor: React.FC<{
   config: Partial<EmbedConfig>;
@@ -116,7 +118,7 @@ export const EmbedConfigEditor: React.FC<{
   };
 
   const copyToClipboard = (text: string) => {
-    void navigator.clipboard.writeText(text);
+    void copyText(text);
     setCopied(true);
     if (copiedTimerRef.current !== null) clearTimeout(copiedTimerRef.current);
     copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
@@ -134,12 +136,13 @@ export const EmbedConfigEditor: React.FC<{
         try {
           const fileName = `announcement-recording-${Date.now()}.webm`;
           if (driveService) {
-            const driveFile = await driveService.uploadFile(
+            const driveFile = await uploadDriveAsset(driveService, {
               blob,
-              fileName,
-              'Announcements'
-            );
-            await driveService.makePublic(driveFile.id, userDomain);
+              name: fileName,
+              folder: 'Announcements',
+              audience: 'domain',
+              domain: userDomain,
+            });
             const videoUrl =
               driveFile.webContentLink ?? driveFile.webViewLink ?? '';
             const html = `<video src="${videoUrl}" controls style="width:100%;height:100%;object-fit:contain;"></video>`;
@@ -162,12 +165,13 @@ export const EmbedConfigEditor: React.FC<{
     setUploadingVideo(true);
     try {
       if (driveService) {
-        const driveFile = await driveService.uploadFile(
-          file,
-          `announcement-${Date.now()}-${file.name}`,
-          'Announcements'
-        );
-        await driveService.makePublic(driveFile.id, userDomain);
+        const driveFile = await uploadDriveAsset(driveService, {
+          blob: file,
+          name: `announcement-${Date.now()}-${file.name}`,
+          folder: 'Announcements',
+          audience: 'domain',
+          domain: userDomain,
+        });
         const videoUrl =
           driveFile.webContentLink ?? driveFile.webViewLink ?? '';
         const html = `<video src="${videoUrl}" controls style="width:100%;height:100%;object-fit:contain;"></video>`;

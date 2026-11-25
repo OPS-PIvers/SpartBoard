@@ -17,6 +17,12 @@ import {
   type TourAnchorId,
 } from '@/config/tourAnchors';
 
+// A Modal marked data-widget-portal still takes Escape pressed inside itself.
+const isFromOwnPortal = (e: KeyboardEvent, root: HTMLElement | null) =>
+  e.target instanceof Element &&
+  root !== null &&
+  e.target.closest('[data-widget-portal]') === root;
+
 interface ModalProps {
   variant?: 'default' | 'bare';
   isOpen: boolean;
@@ -54,6 +60,16 @@ interface ModalProps {
   closeTourId?: TourAnchorId;
   /** Scopes `closeTourId` (e.g. the modal's title) when a bare shared id would be ambiguous. */
   tourScope?: string;
+  /** False makes Escape and the backdrop do nothing, so only the dialog's own buttons close it. */
+  dismissible?: boolean;
+  /** Fills the screen with no gutter or corners below the md breakpoint. */
+  fullBleedOnPhone?: boolean;
+  /** `sheet` sits at the bottom edge on phones and centers from sm up. */
+  placement?: 'center' | 'sheet';
+  /** Backdrop clicks close it; defaults to `dismissible`. */
+  closeOnBackdrop?: boolean;
+  /** Data attributes for the overlay root, e.g. `data-tour-ignore`. */
+  rootProps?: { [key: `data-${string}`]: string };
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -79,6 +95,11 @@ export const Modal: React.FC<ModalProps> = ({
   onFullscreenChange,
   closeTourId = 'modal.close',
   tourScope,
+  dismissible = true,
+  fullBleedOnPhone = false,
+  placement = 'center',
+  closeOnBackdrop = dismissible,
+  rootProps,
 }) => {
   const [fullscreenState, setFullscreenState] = useState(false);
   const isFullscreen = fullscreenProp ?? (allowFullscreen && fullscreenState);
@@ -87,7 +108,9 @@ export const Modal: React.FC<ModalProps> = ({
 
   // Dismiss only when the press and the release both land on the backdrop, so
   // a select-drag out of the panel doesn't read as a backdrop click.
-  const backdropProps = useBackdropDismiss(onClose);
+  const backdropProps = useBackdropDismiss(
+    closeOnBackdrop ? onClose : undefined
+  );
 
   // Store onClose in a ref so the effect never needs to list it as a dep.
   // Callers almost always pass an inline arrow function (e.g.
@@ -102,6 +125,10 @@ export const Modal: React.FC<ModalProps> = ({
   // Intentionally NOT in useEffect deps — see comment below.
   // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync to avoid stale-closure without re-subscribing the effect (CLAUDE.md pattern)
   onCloseRef.current = onClose;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const dismissibleRef = useRef(dismissible);
+  // eslint-disable-next-line react-hooks/refs -- same render-body ref sync as onCloseRef above
+  dismissibleRef.current = dismissible;
   // Escape leaves full screen before it closes the modal.
   const exitFullscreenRef = useRef<(() => void) | null>(null);
   // eslint-disable-next-line react-hooks/refs -- same render-body ref sync as onCloseRef above
@@ -117,12 +144,14 @@ export const Modal: React.FC<ModalProps> = ({
       if (!isTopModalLayer(layer)) return;
       // Guard first: if focus is inside a widget portal, let the portal's
       // own handler run (don't kill it with stopImmediatePropagation).
-      if (isEscapeFromWidgetInput(e)) return;
+      if (isEscapeFromWidgetInput(e) && !isFromOwnPortal(e, rootRef.current))
+        return;
       if (captureEscape) e.stopImmediatePropagation();
       if (exitFullscreenRef.current) {
         exitFullscreenRef.current();
         return;
       }
+      if (!dismissibleRef.current) return;
       // Read from ref so we always call the current onClose even though
       // onClose is not in the effect deps array.
       onCloseRef.current();
@@ -159,7 +188,9 @@ export const Modal: React.FC<ModalProps> = ({
 
   return createPortal(
     <div
-      className={`fixed inset-0 ${zIndex} flex items-center justify-center ${isFullscreen ? 'p-0' : 'p-4'} bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200`}
+      className={`fixed inset-0 ${zIndex} flex justify-center ${placement === 'sheet' ? 'items-end sm:items-center' : 'items-center'} ${isFullscreen ? 'p-0' : `${fullBleedOnPhone || placement === 'sheet' ? 'p-0' : 'p-4'} ${fullBleedOnPhone ? 'md:p-4' : placement === 'sheet' ? 'sm:p-4' : ''}`} bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200`}
+      ref={rootRef}
+      {...rootProps}
       {...backdropProps}
       role="dialog"
       aria-modal="true"
@@ -167,7 +198,7 @@ export const Modal: React.FC<ModalProps> = ({
       aria-labelledby={ariaLabelledby}
     >
       <div
-        className={`${overlay ? 'relative' : ''} w-full ${maxWidth} flex flex-col max-h-[90vh] ${variant === 'default' ? 'bg-white rounded-2xl shadow-2xl' : ''} ${className} ${isFullscreen ? 'h-full! max-h-none! max-w-none! rounded-none!' : ''} animate-in zoom-in-95 duration-200`}
+        className={`${overlay ? 'relative' : ''} w-full ${maxWidth} flex flex-col max-h-[90vh] ${variant === 'default' ? 'bg-white rounded-2xl shadow-2xl' : ''} ${className} ${isFullscreen ? 'h-full! max-h-none! max-w-none! rounded-none!' : ''} ${fullBleedOnPhone && !isFullscreen ? 'max-md:h-full! max-md:max-h-none! max-md:max-w-none! max-md:rounded-none!' : ''} ${placement === 'sheet' && !isFullscreen ? 'max-sm:rounded-b-none!' : ''} animate-in zoom-in-95 duration-200`}
         data-fullscreen={isFullscreen || undefined}
         onClick={(e) => e.stopPropagation()}
       >

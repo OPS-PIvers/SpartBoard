@@ -24,7 +24,6 @@ import {
   Puzzle,
   RotateCcw,
   School,
-  Search,
   Trash2,
   X,
 } from 'lucide-react';
@@ -66,6 +65,7 @@ import {
   formatGradeRange,
   getWidgetGradeLevels,
 } from '@/config/widgetGradeLevels';
+import { SearchField } from '@/components/common/SearchField';
 
 // O(1) Lookup Map for TOOLS optimization.
 // Extracted outside the component to prevent recreating the map on every mount.
@@ -681,18 +681,14 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
           </div>
           {/* Search + filters */}
           <div className="bg-white/40 px-6 py-3 border-b border-white/30 shrink-0 flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search widgets…"
-                {...tourAttr('library.search')}
-                aria-label="Search widgets"
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/80 border border-white/60 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary"
-              />
-            </div>
+            <SearchField
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search widgets…"
+              ariaLabel="Search widgets"
+              anchor={tourAttr('library.search')}
+              className="flex-1"
+            />
             <div className="flex gap-2">
               <select
                 value={categoryFilter}

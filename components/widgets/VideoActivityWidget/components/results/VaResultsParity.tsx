@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowLeft, ChevronRight, Loader2 } from 'lucide-react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
-import { SCORE_DISTRIBUTION_BANDS } from '@/utils/scoreColor';
+import { bucketScores } from '@/utils/scoreColor';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 const headerIcon = {
@@ -145,8 +145,7 @@ export const ParityOverview: React.FC<{
       <p className={sectionLabel} style={{ fontSize: 'min(10px, 3.5cqmin)' }}>
         Score distribution
       </p>
-      {SCORE_DISTRIBUTION_BANDS.map((b) => {
-        const count = scores.filter((s) => s >= b.min && s <= b.max).length;
+      {bucketScores(scores).map(({ band: b, count }) => {
         const pct =
           scores.length > 0 ? Math.round((count / scores.length) * 100) : 0;
         return (

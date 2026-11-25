@@ -470,13 +470,12 @@ const formatDate = (ms: number): string =>
  * Per-row hook host that renders the view-count chip inline as part of the
  * subtitle line for view-only Shared / Closed cards.
  *
- * Gated by `canSeeShareTracking()` (admin-only by default — see
- * `share-link-tracking` global permission). Non-admin users skip the
- * Firestore aggregation entirely; the subtitle stays date-only.
+ * Gated by the `share-link-tracking` flag (admin-only by default). Users
+ * without it skip the Firestore aggregation; the subtitle stays date-only.
  */
 const ViewCountSubtitle: React.FC<{ sessionId: string }> = ({ sessionId }) => {
-  const { canSeeShareTracking } = useAuth();
-  const trackingEnabled = canSeeShareTracking();
+  const { canAccessFeature } = useAuth();
+  const trackingEnabled = canAccessFeature('share-link-tracking');
   const { count } = useSessionViewCount(
     'guided_learning_sessions',
     sessionId,

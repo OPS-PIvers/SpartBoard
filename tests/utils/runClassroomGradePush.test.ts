@@ -246,3 +246,73 @@ describe('runClassroomGradePush (multi-course fan-out)', () => {
     expect(errArg).toMatchObject({ permissionDenied: true });
   });
 });
+
+describe('runClassroomGradePush (final scores, AB-389)', () => {
+  const fns = {} as unknown as Functions;
+  const attachments: ClassroomGradePushAttachment[] = [
+    { courseId: 'c1', itemId: 'i1', attachmentId: 'a1', maxPoints: 20 },
+  ];
+
+  beforeEach(() => {
+    pushMock.mockReset();
+  });
+
+  it('asks the server for final scores and never builds grades itself', async () => {
+    pushMock.mockResolvedValue({
+      results: [{ pseudonymUid: 'p', ok: true }],
+      pushed: 1,
+      skipped: 0,
+      failed: 0,
+      awaiting: 2,
+    });
+    const buildGrades = vi.fn(() => []);
+    let pushed: { awaiting?: number } | null = null;
+    await runClassroomGradePush({
+      functions: fns,
+      attachments,
+      buildGrades,
+      finalScores: { sessionId: 's1', kind: 'va' },
+      requestToken: () => Promise.resolve('tok'),
+      onStatus: (s) => {
+        if (s.phase === 'pushed') pushed = s.data;
+      },
+      onError: vi.fn(),
+      logTag: 'test',
+    });
+    expect(buildGrades).not.toHaveBeenCalled();
+    expect(pushMock.mock.calls[0][1]).toEqual({
+      courseId: 'c1',
+      itemId: 'i1',
+      attachmentId: 'a1',
+      accessToken: 'tok',
+      maxPoints: 20,
+      source: 'final-scores',
+      sessionId: 's1',
+      kind: 'va',
+    });
+    expect(pushed).toMatchObject({ pushed: 1, awaiting: 2 });
+  });
+
+  it('reports nothing to push when the server sends no grades', async () => {
+    pushMock.mockResolvedValue({
+      results: [],
+      pushed: 0,
+      skipped: 0,
+      failed: 0,
+      awaiting: 1,
+    });
+    const phases: ClassroomGradePushStatus['phase'][] = [];
+    await runClassroomGradePush({
+      functions: fns,
+      attachments,
+      buildGrades: () => [],
+      finalScores: { sessionId: 's1', kind: 'quiz' },
+      requestToken: () => Promise.resolve('tok'),
+      onStatus: (s) => phases.push(s.phase),
+      onError: vi.fn(),
+      logTag: 'test',
+    });
+    expect(phases).toContain('nothing-to-push');
+    expect(phases).not.toContain('pushed');
+  });
+});

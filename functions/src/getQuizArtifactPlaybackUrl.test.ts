@@ -318,6 +318,16 @@ describe('resolveArtifactPlayback', () => {
     ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
+  it('denies a score-on-submit student before the teacher publishes', async () => {
+    const docs = makeDocs({
+      session: { scoreVisibility: 'none', showScoreOnSubmit: true },
+      response: { status: 'completed', score: 80 },
+    });
+    await expect(
+      resolveArtifactPlayback(REQ, makeDeps(docs))
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
   it('serves a student whose results were shown to them alone', async () => {
     const docs = makeDocs({
       session: { scoreVisibility: undefined },

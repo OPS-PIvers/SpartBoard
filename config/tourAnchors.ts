@@ -467,11 +467,6 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     requires: 'widget-restored',
   },
-  'projects.status-popover': {
-    label: 'Projects step status menu',
-    perWidget: true,
-    panel: true,
-  },
   'profile.close': {
     label: 'Close button in Profile & Settings',
     panel: true,
@@ -6956,7 +6951,7 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
   },
   'library-shell.sort': {
-    label: 'Sort dropdown trigger in a library toolbar',
+    label: 'Sort select in a library toolbar',
     perWidgetType: true,
   },
   'library-shell.filter': {
@@ -7779,27 +7774,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     rows: true,
     rowList: 'plc-index-open-plc',
-  },
-  'plc-assign.teacher-name': {
-    label: 'Teacher name field in the PLC assign dialog',
-    panel: true,
-  },
-  'plc-assign.close': {
-    label: 'Close button in the PLC assign dialog',
-    panel: true,
-  },
-  'plc-assign.due-date': {
-    label: 'Due date field in the PLC assign dialog',
-    panel: true,
-  },
-  'plc-assign.cancel': {
-    label: 'Cancel button in the PLC assign dialog',
-    panel: true,
-  },
-  'plc-assign.submit': {
-    label: 'Submit button in the PLC assign dialog',
-    persists: true,
-    panel: true,
   },
   'plc-dashboard.home': {
     label: 'Home button in the PLC dashboard',
@@ -12571,11 +12545,6 @@ export const TOUR_ANCHORS = {
     destructive: true,
     persists: true,
   },
-  'projects.status-option': {
-    label: 'Step status choice in the Projects status menu',
-    perWidget: true,
-    panel: true,
-  },
   'projects.group-student-view': {
     label: 'Group student view button on the Projects board',
     perWidgetType: true,
@@ -14121,7 +14090,8 @@ export const TOUR_ANCHORS = {
     label: 'Play or pause button on an audio step in the player',
   },
   'gl-results.back': { label: 'Back button in the results header' },
-  'gl-results.export': { label: 'Export button in the results header' },
+  'gl-results.export': { label: 'Export to Sheets button in results' },
+  'gl-results.open-sheet': { label: 'Open Sheet link in results' },
   'gl-results.class-picker': { label: 'Class picker select in results' },
   'gl-results.period-start': {
     label: 'Start class button in results',
@@ -15494,11 +15464,6 @@ export const TOUR_ANCHORS = {
   'library-shell.sort-direction': {
     label: 'Sort direction button in a library toolbar',
     perWidgetType: true,
-  },
-  'library-shell.sort-option': {
-    label: 'Option in a library sort dropdown',
-    perField: true,
-    panel: true,
   },
   'library-shell.select-item': {
     label: 'Select checkbox on a library item card',
@@ -17160,13 +17125,6 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'random-class-group',
   },
-  'seating.class-group': {
-    label: 'Group row under a class in the Seating Chart class menu',
-    perField: true,
-    panel: true,
-    rows: true,
-    rowList: 'seating-class-group',
-  },
   'absent-students.clear-all': {
     label: 'Clear all button in the absent students dialog',
     panel: true,
@@ -18740,6 +18698,14 @@ export const TOUR_ANCHORS = {
   },
   'writing-results.grade': {
     label: 'Grade button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.export': {
+    label: 'Export to Sheets button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.open-sheet': {
+    label: 'Open Sheet link in Writing results',
     perWidgetType: true,
   },
   'writing-results.hide-names': {

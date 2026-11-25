@@ -1190,7 +1190,7 @@
       "noArchived": "No archived quizzes.",
       "folders": {
         "sidebarLabel": "Folders",
-        "moveToFolder": "Move to folder…",
+        "moveToFolder": "Move to folder",
         "noFolder": "No folder",
         "dragHandle": "Drag to move",
         "movedToast": "Moved to “{{folder}}”",

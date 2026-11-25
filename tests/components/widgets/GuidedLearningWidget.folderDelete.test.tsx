@@ -152,7 +152,7 @@ describe('GuidedLearningWidget folder delete', () => {
     render(<GuidedLearningWidget widget={widget} />);
     await waitFor(() => expect(captured.actions).toBeDefined());
     await expect(captured.actions?.deleteItems?.(['gl-idle'])).rejects.toThrow(
-      /check assignments/
+      /Still loading assignments/
     );
     expect(deleteSet).not.toHaveBeenCalled();
   });

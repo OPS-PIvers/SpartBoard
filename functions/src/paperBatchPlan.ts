@@ -16,6 +16,7 @@ import type {
   PaperPageMap,
   PaperRowGroup,
 } from './paperWrittenTypes';
+import { lastFirstOrUnnamed } from './studentName.gen';
 
 /** Mirrors `PaperColumns` in `types.ts`. */
 export type PaperColumns = 1 | 2;
@@ -1003,8 +1004,7 @@ export function planPaperPages(
   };
 }
 
-const studentLabel = (s: PaperBatchStudent): string =>
-  [s.lastName, s.firstName].filter(Boolean).join(', ') || 'Unnamed student';
+const studentLabel = (s: PaperBatchStudent): string => lastFirstOrUnnamed(s);
 
 /** Allocate seats and build the batch record. */
 export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {

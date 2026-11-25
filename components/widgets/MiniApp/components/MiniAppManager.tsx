@@ -102,10 +102,6 @@ import type {
 import { buildDuplicateAction } from '@/components/common/library/libraryDuplicate';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
-import {
-  LIBRARY_ITEM_NOUNS,
-  useLibraryDeleteConfirm,
-} from '@/components/common/library/useLibraryDeleteConfirm';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { pickedStudents } from '@/utils/assignedStudents';
 
@@ -136,7 +132,10 @@ export interface MiniAppManagerProps {
   onEdit: (app: MiniAppItem) => void;
   /** Status chips for a personal app's card, e.g. the Claude review mark. */
   badgesFor?: (app: MiniAppItem) => LibraryBadge[];
-  onDelete: (app: MiniAppItem) => void | Promise<void>;
+  /** Confirms and deletes one app (the widget's library delete policy). */
+  onDelete: (app: MiniAppItem) => unknown;
+  /** Confirms and deletes the selection; resolves true when a delete was attempted. */
+  onBulkDelete?: (apps: MiniAppItem[]) => Promise<boolean>;
   /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
   folderDeleteActions?: FolderDeleteActions;
   /**
@@ -326,10 +325,10 @@ const MiniAppArchiveRow: React.FC<{
   const isViewOnly = assignment.mode === 'view-only';
   // Admin-only by default — view-count display fires one Firestore
   // aggregation per visible card on every dashboard tab-focus, so we gate
-  // it behind the `share-link-tracking` global permission. Non-admins
+  // it behind the `share-link-tracking` global permission. Users without it
   // pass `enabled: false` to the hook → no Firestore read at all.
-  const { canSeeShareTracking } = useAuth();
-  const trackingEnabled = canSeeShareTracking();
+  const { canAccessFeature } = useAuth();
+  const trackingEnabled = canAccessFeature('share-link-tracking');
   const { count } = useSessionViewCount(
     'mini_app_sessions',
     assignment.sessionId,
@@ -409,6 +408,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   onEdit,
   badgesFor,
   onDelete,
+  onBulkDelete,
   folderDeleteActions,
   onDuplicate,
   isDuplicating,
@@ -678,15 +678,6 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     [moveAppToFolder, fileGlobalApp]
   );
 
-  const confirmDelete = useLibraryDeleteConfirm();
-  const confirmAndDelete = async (app: MiniAppItem): Promise<void> => {
-    const ok = await confirmDelete({
-      titles: [app.title],
-      noun: LIBRARY_ITEM_NOUNS.miniApp,
-    });
-    if (ok) await onDelete(app);
-  };
-
   /* ── Bulk handlers (Step 8) ──────────────────────────────────────────── */
   const handleBulkDelete = useCallback(async (): Promise<void> => {
     if (selection.count === 0) return;
@@ -700,31 +691,16 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       return app ? [app] : [];
     });
     if (targets.length === 0) return;
-    const ok = await confirmDelete({
-      titles: targets.map((a) => a.title),
-      noun: LIBRARY_ITEM_NOUNS.miniApp,
-    });
-    if (!ok) return;
     setBulkBusy(true);
     try {
-      const results = await Promise.allSettled(
-        targets.map(async (app) => onDelete(app))
-      );
-      results.forEach((result, idx) => {
-        if (result.status === 'rejected') {
-          console.error(
-            '[MiniAppManager] bulk delete failed for',
-            targets[idx]?.id,
-            result.reason
-          );
-        }
-      });
-      selection.clear();
-      setSelectionMode(false);
+      if (await onBulkDelete?.(targets)) {
+        selection.clear();
+        setSelectionMode(false);
+      }
     } finally {
       setBulkBusy(false);
     }
-  }, [selection, personalLibrary, onDelete, confirmDelete]);
+  }, [selection, personalLibrary, onBulkDelete]);
 
   const handleBulkMove = useCallback(
     async (folderId: string | null): Promise<void> => {
@@ -833,7 +809,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             id: 'delete',
             label: 'Delete',
             icon: Trash2,
-            onClick: () => void confirmAndDelete(app),
+            onClick: () => void onDelete(app),
             destructive: true,
           },
         ]
@@ -878,7 +854,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             id: 'delete',
             label: 'Delete',
             icon: Trash2,
-            onClick: () => void confirmAndDelete(app),
+            onClick: () => void onDelete(app),
             destructive: true,
           },
         ];

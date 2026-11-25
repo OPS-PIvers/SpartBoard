@@ -11,7 +11,6 @@ import {
   Save,
   X,
   Loader2,
-  Search,
 } from 'lucide-react';
 
 import { useShortLinks } from '@/hooks/useShortLinks';
@@ -24,6 +23,8 @@ import {
   validateDestination,
 } from '@/utils/shortLinkValidation';
 import { ShortLink } from '@/types';
+import { Modal } from '@/components/common/Modal';
+import { SearchField } from '@/components/common/SearchField';
 
 const formatDate = (epoch: number | null | undefined): string => {
   if (!epoch) return '—';
@@ -293,16 +294,17 @@ const EditModal: React.FC<EditModalProps> = ({ link, onClose, onSaved }) => {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-modal-nested bg-black/50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="edit-short-link-title"
+    <Modal
+      isOpen
+      onClose={saving ? () => undefined : onClose}
+      variant="bare"
+      zIndex="z-modal-nested"
+      maxWidth="max-w-lg"
+      dismissible={false}
+      ariaLabelledby="edit-short-link-title"
+      className="rounded-2xl bg-white shadow-xl"
     >
-      <form
-        onSubmit={handleSave}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 flex flex-col gap-4"
-      >
+      <form onSubmit={handleSave} className="flex flex-col gap-4 p-6">
         <div className="flex items-start justify-between">
           <div>
             <h3
@@ -389,7 +391,7 @@ const EditModal: React.FC<EditModalProps> = ({ link, onClose, onSaved }) => {
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 };
 
@@ -474,17 +476,13 @@ export const LinkShortenerManager: React.FC = () => {
               {links.length} {links.length === 1 ? 'link' : 'links'} total
             </p>
           </div>
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              {...tourAttr('admin.links.search')}
-              type="text"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search…"
-              className="pl-9 pr-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary w-64"
-            />
-          </div>
+          <SearchField
+            className="w-64"
+            value={search}
+            onChange={setSearch}
+            placeholder="Search…"
+            anchor={tourAttr('admin.links.search')}
+          />
         </div>
 
         {loading ? (

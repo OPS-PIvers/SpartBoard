@@ -17,10 +17,11 @@
 
 import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Search, Share2, X } from 'lucide-react';
+import { Loader2, Share2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { SearchField } from '@/components/common/SearchField';
 
 export interface PlcSharePickerItem {
   id: string;
@@ -141,22 +142,14 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
           </div>
         ) : (
           <>
-            <div className="relative">
-              <Search
-                className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                aria-hidden="true"
-              />
-              <input
-                {...tourAttr('plc-share.search')}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t('plcDashboard.sharePicker.searchPlaceholder', {
-                  defaultValue: 'Search…',
-                })}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary"
-              />
-            </div>
+            <SearchField
+              value={query}
+              onChange={setQuery}
+              placeholder={t('plcDashboard.sharePicker.searchPlaceholder', {
+                defaultValue: 'Search…',
+              })}
+              anchor={tourAttr('plc-share.search')}
+            />
 
             <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar -mx-1 px-1 pb-1">
               {filtered.length === 0 ? (

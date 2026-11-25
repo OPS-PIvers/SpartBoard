@@ -38,6 +38,7 @@ import {
   responseColorIndex,
   responseTeamId,
 } from './resolveDisplayName';
+import { lastFirst } from '@/utils/studentName';
 
 type QuizScoringSession =
   | Pick<QuizSession, 'speedBonusEnabled' | 'streakBonusEnabled'>
@@ -541,11 +542,7 @@ export function buildPinToExportNameMap(
   rosters: ClassRoster[],
   periodNames?: string[]
 ): Record<string, string> {
-  return buildRosterPinMap(rosters, periodNames, (s) =>
-    s.lastName && s.firstName
-      ? `${s.lastName}, ${s.firstName}`
-      : s.lastName || s.firstName
-  );
+  return buildRosterPinMap(rosters, periodNames, lastFirst);
 }
 
 /** Current PINs win; a replaced PIN (`formerPins`) names its student only on responses joined before it was replaced. */

@@ -14,7 +14,7 @@ import type { ClassRoster } from '@/types';
 import {
   OverflowMenu,
   type OverflowMenuItem,
-} from '@/components/common/sessionViews/OverflowMenu';
+} from '@/components/common/OverflowMenu';
 import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface SidebarClassRowProps {
@@ -71,7 +71,7 @@ export const SidebarClassRow: React.FC<SidebarClassRowProps> = ({
             }),
       icon: RefreshCw,
       onClick: onSyncClassLink,
-      tourAnchor: tourFieldAttr('classes.sync-classlink', 'classes', rowKey),
+      anchor: tourFieldAttr('classes.sync-classlink', 'classes', rowKey),
     });
   }
   if (classLinkEnabled) {
@@ -86,7 +86,7 @@ export const SidebarClassRow: React.FC<SidebarClassRowProps> = ({
           }),
       icon: GraduationCap,
       onClick: onLinkClassroom,
-      tourAnchor: tourFieldAttr('classes.link-classroom', 'classes', rowKey),
+      anchor: tourFieldAttr('classes.link-classroom', 'classes', rowKey),
     });
   }
   if (onViewStudentPage && !inCourse) {
@@ -97,7 +97,7 @@ export const SidebarClassRow: React.FC<SidebarClassRowProps> = ({
       }),
       icon: ScanEye,
       onClick: onViewStudentPage,
-      tourAnchor: tourFieldAttr('classes.view-student-page', 'classes', rowKey),
+      anchor: tourFieldAttr('classes.view-student-page', 'classes', rowKey),
     });
   }
   items.push({
@@ -106,7 +106,7 @@ export const SidebarClassRow: React.FC<SidebarClassRowProps> = ({
     icon: Trash2,
     destructive: true,
     onClick: onDelete,
-    tourAnchor: tourFieldAttr('classes.delete-roster', 'classes', rowKey),
+    anchor: tourFieldAttr('classes.delete-roster', 'classes', rowKey),
   });
 
   return (

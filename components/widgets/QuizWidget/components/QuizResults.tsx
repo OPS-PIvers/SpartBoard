@@ -224,6 +224,7 @@ import {
   type ClassroomGradeEntry,
 } from '@/utils/classroomGradePush';
 import {
+  awaitingSkippedNote,
   bucketLtiPushResults,
   formatLtiPushToast,
   ltiPushErrorMessage,
@@ -266,6 +267,7 @@ import { readLmsLink, schoologyLinkedTargets } from '@/utils/gradebook/lmsPush';
 import { buildToolColumnGrades } from '@/utils/schoologyToolColumns';
 import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { lastFirst } from '@/utils/studentName';
 
 /**
  * Export-error banner state. Generic errors render as a plain message; a
@@ -1451,10 +1453,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   );
   const printSortName = useCallback(
     (response: QuizResponse) => {
-      const sso = byStudentUid.get(response.studentUid);
-      if (sso && (sso.familyName || sso.givenName)) {
-        return `${sso.familyName} ${sso.givenName}`.trim();
-      }
+      const sso = lastFirst(byStudentUid.get(response.studentUid));
+      if (sso) return sso;
       const rosterName = response.pin
         ? resolvePinName(
             exportPinToName,
@@ -1691,7 +1691,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     if (!owningPlc) {
       throw exportErr;
     }
-    const svc = new QuizDriveService(token);
+    const svc = new QuizDriveService(token, refreshGoogleToken);
     await clearPlcSharedSheetUrl(owningPlc.id);
     const created = await svc.createPlcSheetAndShare({
       plcName: owningPlc.name,
@@ -1787,7 +1787,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     setExporting(true);
     setExportError(null);
     try {
-      const svc = new QuizDriveService(token);
+      const svc = new QuizDriveService(token, refreshGoogleToken);
       const exportOpts = {
         pinToName: exportPinToName,
         byStudentUid,
@@ -1925,7 +1925,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     }
     setExporting(true);
     try {
-      const svc = new QuizDriveService(token);
+      const svc = new QuizDriveService(token, refreshGoogleToken);
       const url = await svc.exportResultsToSheet(
         quiz.title,
         responses,
@@ -2024,7 +2024,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     setUpdatingSheet(true);
     setExportError(null);
     try {
-      const svc = new QuizDriveService(token);
+      const svc = new QuizDriveService(token, refreshGoogleToken);
       // Smart re-export: when there's an append-delta, append. When there
       // isn't, do a clear-and-rewrite ("regenerate") on the same sheet so
       // the teacher has a way to force a clean rebuild without abandoning
@@ -2186,6 +2186,9 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // userId. When the assignment is linked to multiple courses, the SAME payload
   // fans out to each (Item D multi-course).
   const classroomAttachments = getClassroomAttachments(session);
+  // AB-389: the server sends each student's gradebook final score.
+  const sendFinalScores =
+    canAccessFeature('lms-push-final-scores') && !!session?.id;
   const handlePushGrades = async () => {
     // Guard the grade scale FIRST (a malformed/stale attachment could carry
     // NaN/0 maxPoints, scaling every grade to 0/NaN), then the eligible list —
@@ -2246,6 +2249,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       })),
       requestToken: () =>
         requestClassroomTeacherToken(user?.email ?? undefined),
+      finalScores:
+        sendFinalScores && session?.id
+          ? { sessionId: session.id, kind: 'quiz' }
+          : null,
       buildGrades: () =>
         finalGrades ??
         buildQuizClassroomGradeEntries(
@@ -2325,7 +2332,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       ),
       maxPoints
     );
-    if (grades.length === 0) {
+    if (!sendFinalScores && grades.length === 0) {
       addToast('No completed responses to push yet.', 'info');
       return;
     }
@@ -2336,12 +2343,19 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         'ltiPushGradesForAssignmentV1',
         LTI_PUSH_GRADES_CALL_OPTS
       );
-      const { data } = await push({
-        sessionId: session.id,
-        kind: 'quiz',
-        maxPoints,
-        grades,
-      });
+      const { data } = await push(
+        sendFinalScores
+          ? { sessionId: session.id, kind: 'quiz', source: 'final-scores' }
+          : { sessionId: session.id, kind: 'quiz', maxPoints, grades }
+      );
+      if (data.total === 0) {
+        addToast(
+          'No completed responses to push yet.' +
+            awaitingSkippedNote(data.awaiting),
+          'info'
+        );
+        return;
+      }
       const bucket = bucketLtiPushResults(data);
       addToast(
         formatLtiPushToast(bucket),
@@ -2431,6 +2445,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       if (!session?.id) return null;
       return {
         maxPoints,
+        ...(sendFinalScores ? { finalScores: { includeMissing: true } } : {}),
         grades: await buildToolColumnGrades({
           kind: 'quiz',
           ownerUid: user?.uid,
