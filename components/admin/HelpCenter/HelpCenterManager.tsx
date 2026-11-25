@@ -99,6 +99,8 @@ export const HelpCenterManager: React.FC = () => {
   const isSuperAdmin = isSuperAdminActor(user?.email, roleId, orgId);
   const subsTours = canAccessFeature('subs-live-tours');
   const studentTours = canAccessFeature('student-live-tours');
+  const aiDetails =
+    canAccessFeature('gemini-functions') && canAccessFeature('help-center-ai');
   const audiences = useMemo(
     (): HelpAudience[] => [
       ...(subsTours ? (['subs'] as const) : []),
@@ -703,6 +705,7 @@ export const HelpCenterManager: React.FC = () => {
                 scopeOptions={scopeOptions}
                 onBack={() => setPhoneDetail(false)}
                 audiences={audiences}
+                canGenerate={aiDetails}
                 onPatch={(patch) => handlePatch(selected, patch)}
                 onScopeChange={(next) => handleScopeChange(selected, next)}
                 onEdit={() => void handleEdit(selected)}

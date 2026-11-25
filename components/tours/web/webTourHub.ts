@@ -115,7 +115,8 @@ export function buildHandoff(
   pictures: ReadonlyMap<string, LoadedPicture>,
   scored = false,
   withConditions = false,
-  withOpenUrls = false
+  withOpenUrls = false,
+  withPickAny = false
 ): WebTourStartTour {
   const encoded = new Map<string, WebTourPictureBytes>();
   pictures.forEach((pic, id) => {
@@ -135,7 +136,8 @@ export function buildHandoff(
     encoded,
     scored,
     withConditions,
-    withOpenUrls
+    withOpenUrls,
+    withPickAny
   );
 }
 

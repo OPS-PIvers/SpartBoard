@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ToolContext } from './activity';
 import {
+  helpItemUpdate,
   ADMIN_ONLY_TOOLS,
   applyStepText,
   assertPlays,
@@ -836,5 +837,61 @@ describe('web tours', () => {
     });
     await expect(healthOf(ctx, 't1')).resolves.toBeUndefined();
     await expect(healthOf(ctx, 't3')).resolves.toBeUndefined();
+  });
+});
+
+describe('helpItemUpdate', () => {
+  const base = {
+    categoryId: 'admin',
+    visible: true,
+    orgId: 'orono',
+    audience: 'students',
+  };
+
+  it('sets title and description, and moves the item to the end of a new category', () => {
+    expect(
+      helpItemUpdate(
+        base,
+        {
+          title: 'T',
+          description: 'D',
+          placement: { category_id: 'getting-started' },
+          order: 7,
+        },
+        5
+      )
+    ).toEqual({
+      updatedAt: 5,
+      title: 'T',
+      description: 'D',
+      categoryId: 'getting-started',
+      order: 7,
+    });
+  });
+
+  it('hides a published item leaving students', () => {
+    expect(
+      helpItemUpdate(base, { placement: { audience: 'teachers' } }, 1)
+    ).toEqual({ updatedAt: 1, audience: 'teachers', visible: false });
+  });
+
+  it('keeps a published item visible between teachers and subs', () => {
+    expect(
+      helpItemUpdate(
+        { ...base, audience: 'teachers' },
+        { placement: { audience: 'subs' } },
+        1
+      )
+    ).toEqual({ updatedAt: 1, audience: 'subs' });
+  });
+
+  it('changes the scope only when it differs', () => {
+    expect(helpItemUpdate(base, { orgId: 'orono' }, 1)).toEqual({
+      updatedAt: 1,
+    });
+    expect(helpItemUpdate(base, { orgId: null }, 1)).toEqual({
+      updatedAt: 1,
+      orgId: null,
+    });
   });
 });

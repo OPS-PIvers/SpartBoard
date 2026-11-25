@@ -9944,6 +9944,15 @@ export const TOUR_ANCHORS = {
     label: 'Back button on the Help Center item detail (phone)',
     panel: true,
   },
+  'admin.help-center.copy-for-claude': {
+    label: 'Copy for Claude button on the selected Live tour',
+    panel: true,
+  },
+  'admin.help-center.generate-details': {
+    label: 'Generate with AI button on the selected Live tour',
+    persists: true,
+    panel: true,
+  },
   'admin.help-center.detail-title': {
     label: 'Title box on the selected Help Center item',
     persists: true,
@@ -9961,7 +9970,7 @@ export const TOUR_ANCHORS = {
   },
   'admin.help-center.detail-audience': {
     label:
-      'Who sees it select (Teachers or Substitutes) on a selected live tour',
+      'Audience select (Teachers, Substitutes or Students) on a selected live tour',
     persists: true,
     panel: true,
   },
@@ -15550,6 +15559,11 @@ export const TOUR_ANCHORS = {
   'library-shell.folder-tree-item': {
     label: 'Folder row in the library folder panel',
     panel: true,
+    perField: true,
+    rows: true,
+    keyHint:
+      'folders#row-1 is the first folder row; folders#row-* lets the teacher pick',
+    rowList: 'library-folders',
   },
   'library-shell.folder-tree-expand': {
     label: 'Expand arrow on a library folder row',
@@ -15562,6 +15576,10 @@ export const TOUR_ANCHORS = {
   'library-shell.folder-menu': {
     label: 'Actions button on a library folder row',
     panel: true,
+    perField: true,
+    rows: true,
+    keyHint: 'folders#row-* opens the menu on the folder the teacher picks',
+    rowList: 'library-folders',
   },
   'library-shell.folder-menu-rename': {
     label: 'Rename item in the library folder menu',

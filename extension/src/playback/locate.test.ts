@@ -1,5 +1,12 @@
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
-import { accessibleName, locate, roleOf } from './locate';
+import {
+  accessibleName,
+  anyRowCss,
+  assessAll,
+  assessTarget,
+  locate,
+  roleOf,
+} from './locate';
 import { shareOwnRoot } from '../ownRoots';
 
 const rects = new WeakMap<Element, DOMRect>();
@@ -194,5 +201,64 @@ describe('see-through controls', () => {
     place(item, 10, 10);
     transparent(item);
     expect(locate(document, { role: 'button', name: 'Assignment' })).toBeNull();
+  });
+});
+
+describe('pick-any steps', () => {
+  it('finds every row like the recorded one, under the same heading', () => {
+    html(`<h2>Courses</h2><ul id="a">
+        <li><button>Math</button></li><li><button>Art</button></li></ul>
+      <h2>Archived</h2><ul id="b"><li><button>Old</button></li></ul>`);
+    for (const b of document.querySelectorAll('button')) place(b, 0, 0);
+    const all = assessAll(
+      {
+        role: 'button',
+        css: 'ul > li:nth-of-type(2) > button',
+        heading: 'Courses',
+        any: true,
+      },
+      [document]
+    );
+    expect(all.map((el) => el.textContent)).toEqual(['Math', 'Art']);
+    const out = assessTarget(document, {
+      css: 'ul > li:nth-of-type(2) > button',
+      name: 'Art',
+      any: true,
+    });
+    expect(out.kind === 'match' && out.match.all?.length).toBe(3);
+  });
+
+  it('skips hidden options and falls back to one match when none are like it', () => {
+    html(`<button id="x">Save</button><button id="y">Close</button>`);
+    place(document.getElementById('x'), 0, 0);
+    expect(assessAll({ css: 'div.row > a', any: true }, [document])).toEqual(
+      []
+    );
+    const out = assessTarget(document, {
+      role: 'button',
+      name: 'Save',
+      css: 'div.row > a',
+      any: true,
+    });
+    expect(out.kind === 'match' && out.match.el.id).toBe('x');
+    expect(out.kind === 'match' && out.match.all).toBeUndefined();
+  });
+
+  it('drops only the row position, never a role with no heading or the fallback once lit', () => {
+    expect(anyRowCss('div:nth-of-type(2) > ul > li:nth-of-type(3) > a')).toBe(
+      'div:nth-of-type(2) > ul > li > a'
+    );
+    html(`<button id="x">Save</button><button id="y">Close</button>`);
+    place(document.getElementById('x'), 0, 0);
+    place(document.getElementById('y'), 50, 0);
+    expect(assessAll({ role: 'button', any: true }, [document])).toEqual([]);
+    expect(
+      assessTarget(document, {
+        role: 'button',
+        name: 'Save',
+        any: true,
+        anyOnly: true,
+      }).kind
+    ).toBe('none');
   });
 });

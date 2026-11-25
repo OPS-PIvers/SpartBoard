@@ -38,7 +38,10 @@ export function toPlayback(
         hasPicture: false,
         message: true,
       };
-    const { frames = [], ...clues } = s.web.locator;
+    const { frames = [], ...locator } = s.web.locator;
+    const clues = msg.tour.pickAny?.includes(s.id)
+      ? { ...locator, any: true as const }
+      : locator;
     let hasPicture = false;
     // Past the store's room a step simply has no picture fallback.
     if (
