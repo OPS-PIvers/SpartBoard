@@ -954,6 +954,7 @@ const TeacherVideoActivityWidget: React.FC<{
       classroomFinalAttachments,
       classroomToken,
       schoologyMaxPoints: videoActivityMaxPoints(data.questions),
+      finalScores: canAccessFeature('lms-push-final-scores'),
       buildClassroomGrades: (responses) => {
         const mp = classroomFinalAttachments[0]?.maxPoints;
         return mp != null

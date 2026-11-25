@@ -99,6 +99,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'modification-fewer-questions',
   'student-set-time',
   'help-center-ai',
+  'lms-push-final-scores',
   'server-turn-in',
   'share-link-tracking',
   'video-activity-share-sync',
