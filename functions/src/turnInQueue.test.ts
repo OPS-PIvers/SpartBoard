@@ -895,6 +895,25 @@ describe('every kind', () => {
       expect(turnedIn()).toEqual(['a']);
     });
 
+    it('waits for the teacher to have the server turn-in preview', async () => {
+      store.docs.set(V, { teacherUid: 't1', status: 'ended' });
+      store.docs.set(A, { closedAt: CLOSED_AT });
+      expect(
+        await queueVideoRunTurnIn(
+          db as never,
+          'v1',
+          {},
+          { closedAt: CLOSED_AT },
+          CLOSED_AT,
+          () => Promise.resolve(false)
+        )
+      ).toBe(false);
+      vaResp('a', {});
+      const r = await runVideoClassTurnIns(db as never, NOW);
+      expect(r).toMatchObject({ turnedIn: 0 });
+      expect(turnedIn()).toEqual([]);
+    });
+
     it('leaves per-class, live and view-only runs to their own paths', async () => {
       store.docs.set(V, {
         teacherUid: 't1',

@@ -265,7 +265,8 @@ export async function queueSessionTurnIns(
   if (
     kind === 'videoActivity' &&
     passDiff &&
-    Object.keys(rowsOf(after)).length === 0
+    Object.keys(rowsOf(after)).length === 0 &&
+    (await granted())
   )
     await requeueVideoRun(db, sessionId, before, after, serverNow);
   const passChange =
@@ -325,7 +326,8 @@ export async function queueVideoRunTurnIn(
   sessionId: string,
   before: Doc | undefined,
   after: Doc | undefined,
-  serverNow: number
+  serverNow: number,
+  granted: GrantCheck = () => Promise.resolve(true)
 ): Promise<boolean> {
   const closedAt = after?.closedAt;
   if (typeof closedAt !== 'number' || closedAt === before?.closedAt)
@@ -336,7 +338,7 @@ export async function queueVideoRunTurnIn(
   ).data();
   if (!session || session.sessionMode === 'teacher') return false;
   if (Object.keys(rowsOf(session)).length > 0) return false;
-  // Like a Video Activity class Close, this backs up the tab's own turn-in with no preview.
+  if (!(await granted())) return false;
   await writeMarker(
     db,
     { kind: 'videoActivity', scope: 'run', sessionId, classKey: '', closedAt },
@@ -782,7 +784,8 @@ export const queueVideoRunTurnIns = onDocumentUpdated(
       event.params.assignmentId,
       event.data?.before.data(),
       event.data?.after.data(),
-      Date.parse(event.time) || Date.now()
+      Date.parse(event.time) || Date.now(),
+      teacherGrant(db, event.params.teacherUid)
     );
   }
 );

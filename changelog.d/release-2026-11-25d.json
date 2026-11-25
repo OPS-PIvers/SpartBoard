@@ -1,0 +1,60 @@
+{
+  "entries": [
+    {
+      "version": "2026.11.25.1",
+      "date": "2026-11-25",
+      "title": "Folders for boards and results in Google Sheets",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Writing",
+          "items": [
+            {
+              "text": "Writing results can go to a Google Sheet. The sheet lists each student and their word count."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Boards",
+          "items": [
+            {
+              "text": "Board collections are now called folders. They work like the folders in your quiz and video libraries."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Guided Learning",
+          "items": [
+            {
+              "text": "Guided Learning results go to a Google Sheet instead of a CSV download."
+            }
+          ]
+        }
+      ],
+      "details": []
+    }
+  ],
+  "widgetNotes": [
+    {
+      "id": "writing-results-sheet-2026-11-25",
+      "widget": "writing",
+      "date": "2026-11-25",
+      "text": "Writing results can go to a Google Sheet with each student and their word count."
+    },
+    {
+      "id": "guided-learning-results-sheet-2026-11-25",
+      "widget": "guided-learning",
+      "date": "2026-11-25",
+      "text": "Results now go to a Google Sheet instead of a CSV download."
+    },
+    {
+      "id": "quiz-paper-sheet-question-text-2026-11-25",
+      "widget": "quiz",
+      "date": "2026-11-25",
+      "text": "Printed response sheets always show the questions. True or false questions print two bubbles.",
+      "feature": "paper-answer-sheets"
+    }
+  ]
+}
