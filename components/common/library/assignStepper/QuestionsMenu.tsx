@@ -1,10 +1,11 @@
 // Questions rule for a modification group: which of the quiz's questions these students answer.
 import React, { useId, useState } from 'react';
-import { ChevronDown, ListChecks, Search } from 'lucide-react';
+import { ChevronDown, ListChecks } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import type { OverrideEditorQuestion } from '../OverrideEditorRow';
 import { randomQuestionPick } from './modificationGroups';
+import { SearchField } from '@/components/common/SearchField';
 
 const CountInput: React.FC<{
   value: number;
@@ -148,18 +149,13 @@ const QuestionsDialog: React.FC<{
             </button>
           </div>
         </div>
-        <div className="flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-2.5">
-          <Search className="h-4 w-4 text-slate-400" aria-hidden />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search questions"
-            aria-label="Search questions"
-            {...tourAttr('assign-mods.questions-search')}
-            className="min-w-0 flex-1 bg-transparent text-sm focus:outline-hidden"
-          />
-        </div>
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          placeholder="Search questions"
+          anchor={tourAttr('assign-mods.questions-search')}
+          className="flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-2.5"
+        />
       </div>
       <div className="divide-y divide-slate-100">
         {shown.map(({ question, number }) => (

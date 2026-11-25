@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Search, UserX } from 'lucide-react';
+import { ChevronDown, UserX } from 'lucide-react';
 import { tourAttr } from '@/config/tourAnchors';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { SearchField } from '@/components/common/SearchField';
 
 export interface RestrictionsPickerCandidate {
   id: string;
@@ -101,19 +102,16 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
           }}
           className="absolute top-full right-0 mt-1 w-72 max-h-80 flex flex-col z-popover rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-xl overflow-hidden origin-top-right animate-in fade-in zoom-in-95 duration-200"
         >
-          <div className="p-2 border-b border-slate-200 flex items-center gap-2">
-            <Search size={14} className="text-slate-400 shrink-0" />
-            <input
-              {...tourAttr('classes.restrictions-filter')}
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder={t('sidebar.classes.restrictionsFilter', {
-                defaultValue: 'Search classmates…',
-              })}
-              className="flex-1 min-w-0 text-sm text-slate-800 placeholder:text-slate-400 bg-transparent outline-hidden"
-              autoFocus
-            />
-          </div>
+          <SearchField
+            value={filter}
+            onChange={setFilter}
+            placeholder={t('sidebar.classes.restrictionsFilter', {
+              defaultValue: 'Search classmates…',
+            })}
+            anchor={tourAttr('classes.restrictions-filter')}
+            className="p-2 border-b border-slate-200 flex items-center gap-2"
+            autoFocus
+          />
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar py-1">
             {filtered.length === 0 ? (
               <div className="px-3 py-6 text-center text-xs italic text-slate-400">

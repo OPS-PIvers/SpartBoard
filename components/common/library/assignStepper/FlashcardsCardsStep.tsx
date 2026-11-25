@@ -1,6 +1,5 @@
 // Cards step for a Flashcards submission assignment: all, N random, or teacher-picked.
 import React, { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
 import type { FlashcardCard } from '@/types';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { tourAttr } from '@/config/tourAnchors';
@@ -10,6 +9,7 @@ import {
   pickedCardIds,
   type FlashcardsCardsValue,
 } from './flashcardsCardsValue';
+import { SearchField } from '@/components/common/SearchField';
 
 export interface FlashcardsCardsStepProps {
   value: FlashcardsCardsValue;
@@ -134,21 +134,13 @@ export const FlashcardsCardsStep: React.FC<FlashcardsCardsStepProps> = ({
       {value.mode === 'pick' && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search
-                aria-hidden="true"
-                className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
-              />
-              <input
-                type="search"
-                {...tourAttr('flashcards-cards.search')}
-                aria-label="Search cards"
-                placeholder="Search cards"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                className="h-8 w-full rounded-lg border border-slate-300 bg-white pl-7 pr-2 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-hidden"
-              />
-            </div>
+            <SearchField
+              value={query}
+              onChange={setQuery}
+              placeholder="Search cards"
+              anchor={tourAttr('flashcards-cards.search')}
+              className="flex-1"
+            />
             <span className="shrink-0 text-xs font-bold text-slate-500">
               {picked.size} of {cardCount}
             </span>

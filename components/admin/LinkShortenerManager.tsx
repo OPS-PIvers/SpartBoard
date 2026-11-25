@@ -11,7 +11,6 @@ import {
   Save,
   X,
   Loader2,
-  Search,
 } from 'lucide-react';
 
 import { useShortLinks } from '@/hooks/useShortLinks';
@@ -24,6 +23,7 @@ import {
   validateDestination,
 } from '@/utils/shortLinkValidation';
 import { ShortLink } from '@/types';
+import { SearchField } from '@/components/common/SearchField';
 
 const formatDate = (epoch: number | null | undefined): string => {
   if (!epoch) return '—';
@@ -474,17 +474,12 @@ export const LinkShortenerManager: React.FC = () => {
               {links.length} {links.length === 1 ? 'link' : 'links'} total
             </p>
           </div>
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              {...tourAttr('admin.links.search')}
-              type="text"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search…"
-              className="pl-9 pr-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary w-64"
-            />
-          </div>
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            placeholder="Search…"
+            anchor={tourAttr('admin.links.search')}
+          />
         </div>
 
         {loading ? (

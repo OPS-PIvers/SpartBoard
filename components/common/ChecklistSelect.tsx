@@ -6,9 +6,10 @@ import React, {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Search } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { SearchField } from '@/components/common/SearchField';
 
 export interface ChecklistOption {
   id: string;
@@ -262,20 +263,15 @@ export const ChecklistSelect: React.FC<ChecklistSelectProps> = ({
             className="z-popover flex max-w-[min(360px,calc(100vw-16px))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
           >
             {searchable && (
-              <div className="relative shrink-0 p-1">
-                <Search
-                  aria-hidden
-                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-                />
-                <input
+              <div className="shrink-0 p-1">
+                <SearchField
                   autoFocus
-                  type="search"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={setSearch}
                   placeholder={searchPlaceholder}
-                  aria-label={`Search ${label.toLowerCase()}`}
-                  {...searchAnchor}
-                  className={`${CHECKLIST_FIELD} w-full pl-8`}
+                  ariaLabel={`Search ${label.toLowerCase()}`}
+                  anchor={searchAnchor}
+                  size="sm"
                 />
               </div>
             )}

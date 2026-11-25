@@ -1,13 +1,8 @@
 import React from 'react';
-import {
-  Search,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  ChevronDown,
-} from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, ChevronDown } from 'lucide-react';
 import type { LibraryToolbarProps, LibrarySortDir } from './types';
 import { tourTypeAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { SearchField } from '@/components/common/SearchField';
 
 // Icons track the toolbar's text size so a small widget's controls stay in proportion.
 const ICON: React.CSSProperties = {
@@ -150,29 +145,15 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
       className="flex items-center flex-wrap"
       style={{ gap: 'min(8px, 2cqmin)' }}
     >
-      <div
-        className="relative flex-1 max-w-md"
+      <SearchField
+        value={search}
+        onChange={onSearchChange}
+        placeholder={searchPlaceholder}
+        anchor={tourTypeAttr('library-shell.search', widgetType)}
+        size="scaled"
+        className="flex-1 max-w-md"
         style={{ minWidth: 'min(192px, 48cqmin)' }}
-      >
-        <Search
-          style={{ ...ICON, left: 'min(12px, 3cqmin)' }}
-          className="absolute top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-        />
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={searchPlaceholder}
-          {...tourTypeAttr('library-shell.search', widgetType)}
-          className="w-full rounded-xl border border-slate-200 bg-white font-medium text-slate-700 placeholder:text-slate-400 shadow-xs focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30 focus:border-brand-blue-primary/40"
-          style={{
-            paddingLeft: 'min(36px, 9cqmin)',
-            paddingRight: 'min(12px, 3cqmin)',
-            paddingBlock: 'min(6px, 1.5cqmin)',
-            fontSize: 'min(14px, 5.5cqmin)',
-          }}
-        />
-      </div>
+      />
 
       <SortDropdown
         sort={sort}

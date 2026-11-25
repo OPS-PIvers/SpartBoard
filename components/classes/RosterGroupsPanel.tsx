@@ -1,7 +1,7 @@
 // Groups tab of Edit Class: a group list, then one page per group with its students and accommodations.
 import React, { useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronLeft, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { RosterGroup, Student, StudentOverride } from '@/types';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { summarizeOverride } from '@/utils/studentOverrideSummary';
@@ -31,6 +31,7 @@ import {
   formatReminderSummary,
   groupTint,
 } from '@/utils/groupReminders';
+import { SearchField } from '@/components/common/SearchField';
 
 /** Group reminders flag: symbol and schedule on each group, per-step gates. */
 export interface GroupRemindersOptions {
@@ -664,21 +665,12 @@ const MemberChecklist: React.FC<{
       <div className="flex flex-wrap items-center gap-2">
         {sorted.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search
-                size={14}
-                aria-hidden="true"
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                aria-label={searchLabel}
-                placeholder={searchLabel}
-                {...tourAttr('roster-groups.search')}
-                className="w-48 pl-8 pr-2 py-1.5 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
-              />
-            </div>
+            <SearchField
+              value={query}
+              onChange={setQuery}
+              placeholder={searchLabel}
+              anchor={tourAttr('roster-groups.search')}
+            />
             <button
               onClick={() =>
                 onChange([

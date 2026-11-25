@@ -1,6 +1,6 @@
 import React, { useId, useState } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
-import { ChevronDown, Search, User, Users } from 'lucide-react';
+import { ChevronDown, User, Users } from 'lucide-react';
 import type { ClassRoster, StudentTargetRef } from '@/types';
 import { studentTargetRefKey } from '@/utils/studentTargetRef';
 import {
@@ -17,6 +17,7 @@ import {
   type StudentRefFor,
 } from './useRosterStudentRows';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { SearchField } from '@/components/common/SearchField';
 
 const NO_SIGN_IN_TITLE = 'Individual assignment needs a school sign-in';
 
@@ -165,18 +166,13 @@ const StudentMenu: React.FC<{
       aria-label={roster.name}
       className="absolute right-0 top-full z-10 mt-1 w-72 rounded-xl border border-slate-200 bg-white p-1 shadow-xl"
     >
-      <div className="m-1 flex h-8 items-center gap-2 rounded-lg border border-slate-200 px-2">
-        <Search className="w-3.5 h-3.5 text-slate-400" aria-hidden />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search students"
-          aria-label="Search students"
-          {...tourAttr('assign-students.search')}
-          className="min-w-0 flex-1 bg-transparent text-sm focus:outline-hidden"
-        />
-      </div>
+      <SearchField
+        value={search}
+        onChange={setSearch}
+        placeholder="Search students"
+        anchor={tourAttr('assign-students.search')}
+        className="m-1 flex h-8 items-center gap-2 rounded-lg border border-slate-200 px-2"
+      />
       {groups.length > 0 && (
         <>
           <div className="px-2 pt-1.5 pb-0.5 text-xxs font-bold uppercase tracking-widest text-slate-400">

@@ -11,7 +11,6 @@ import {
   Upload,
   Camera,
   Layers,
-  Search,
 } from 'lucide-react';
 import { getLucideIconNames, useLucideIconMap } from '@/utils/lucideIconMap';
 import {
@@ -37,6 +36,7 @@ import { createBoardSnapshot } from '@/utils/widgetHelpers';
 import { useDialog } from '@/context/useDialog';
 import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { SearchField } from '@/components/common/SearchField';
 
 const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -822,21 +822,16 @@ export const CatalystConfigurationModal: React.FC<
                       Routine Icon
                     </label>
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3">
-                      <div className="relative">
-                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          {...tourFieldAttr(
-                            'admin.widget-config.field',
-                            'catalyst',
-                            'iconSearch'
-                          )}
-                          value={iconSearch}
-                          onChange={(e) => setIconSearch(e.target.value)}
-                          placeholder="Search icon names..."
-                          className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-400"
-                        />
-                      </div>
+                      <SearchField
+                        value={iconSearch}
+                        onChange={setIconSearch}
+                        placeholder="Search icon names..."
+                        anchor={tourFieldAttr(
+                          'admin.widget-config.field',
+                          'catalyst',
+                          'iconSearch'
+                        )}
+                      />
                       <div className="grid grid-cols-8 gap-2 max-h-44 overflow-y-auto custom-scrollbar">
                         {filteredIconNames.slice(0, 100).map((name) => {
                           const IconComp = iconMap[name];

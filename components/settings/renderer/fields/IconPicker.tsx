@@ -5,6 +5,7 @@ import { COMMON_INSTRUCTIONAL_ICONS } from '@/config/instructionalIcons';
 import { renderCatalystIcon } from '@/components/widgets/Catalyst/catalystHelpers';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { resolveLabel } from '../resolveLabel';
+import { SearchField } from '@/components/common/SearchField';
 
 // Search box + lucide icon grid (radiogroup), extracted from the Stations icon tab.
 export const IconPicker: React.FC<
@@ -28,14 +29,12 @@ export const IconPicker: React.FC<
       aria-describedby={describedBy}
       className="flex flex-col gap-1.5"
     >
-      <input // no-tour-anchor: covered by the settings.field row anchor
-        type="search"
+      <SearchField // no-tour-anchor: covered by the settings.field row anchor
         value={search}
         disabled={disabled}
-        onChange={(e) => setSearch(e.target.value)}
-        aria-label={t('searchIcons')}
+        onChange={setSearch}
         placeholder={t('searchIcons')}
-        className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 placeholder:text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary disabled:opacity-50"
+        size="sm"
       />
       <div
         role="radiogroup"
