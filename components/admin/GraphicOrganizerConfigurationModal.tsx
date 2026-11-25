@@ -31,6 +31,7 @@ import { Button } from '@/components/common/Button';
 import { useDialog } from '@/context/useDialog';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { HexColorField } from './HexColorField';
+import { Modal } from '@/components/common/Modal';
 
 interface GraphicOrganizerConfigurationModalProps {
   isOpen: boolean;
@@ -307,495 +308,498 @@ export const GraphicOrganizerConfigurationModal: React.FC<
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-modal-nested flex items-center justify-center bg-slate-900/50 p-4 font-sans backdrop-blur-xs">
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
-              <FileText className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-800">
-                Organizer Administration
-              </h2>
-              <p className="text-sm font-medium text-slate-500">
-                GLOBAL SETTINGS & BUILDING DEFAULTS
-              </p>
-            </div>
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      zIndex="z-modal-nested"
+      maxWidth="max-w-4xl"
+      dismissible={false}
+      className="overflow-hidden rounded-2xl bg-white font-sans shadow-xl [&>div]:flex [&>div]:flex-col [&>div]:overflow-hidden"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+            <FileText className="h-5 w-5" />
           </div>
-          <button
-            onClick={onClose}
-            {...tourTypeAttr('admin.widget-config.close', 'graphic-organizer')}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">
+              Organizer Administration
+            </h2>
+            <p className="text-sm font-medium text-slate-500">
+              GLOBAL SETTINGS & BUILDING DEFAULTS
+            </p>
+          </div>
         </div>
+        <button
+          onClick={onClose}
+          {...tourTypeAttr('admin.widget-config.close', 'graphic-organizer')}
+          className="rounded-lg p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
 
-        {/* Content */}
-        <div className="flex flex-1 overflow-hidden">
-          <div className="flex flex-1 flex-col overflow-y-auto bg-slate-50 p-6">
-            {/* Dock Defaults */}
-            <DockDefaultsPanel
-              config={{
-                dockDefaults: globalConfig.dockDefaults ?? {},
+      {/* Content */}
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-y-auto bg-slate-50 p-6">
+          {/* Dock Defaults */}
+          <DockDefaultsPanel
+            config={{
+              dockDefaults: globalConfig.dockDefaults ?? {},
+            }}
+            onChange={(d) =>
+              setGlobalConfig((prev) => ({
+                ...prev,
+                dockDefaults: d,
+              }))
+            }
+          />
+
+          <div className="mb-6 border-b border-slate-200">
+            <BuildingSelector
+              selectedId={selectedBuilding}
+              onSelect={(id) => {
+                if (id !== selectedBuilding) {
+                  setEditingTemplateId(null);
+                  setCurrentTemplateDraft(null);
+                }
+                setSelectedBuilding(id);
               }}
-              onChange={(d) =>
-                setGlobalConfig((prev) => ({
-                  ...prev,
-                  dockDefaults: d,
-                }))
-              }
             />
+          </div>
 
-            <div className="mb-6 border-b border-slate-200">
-              <BuildingSelector
-                selectedId={selectedBuilding}
-                onSelect={(id) => {
-                  if (id !== selectedBuilding) {
-                    setEditingTemplateId(null);
-                    setCurrentTemplateDraft(null);
-                  }
-                  setSelectedBuilding(id);
-                }}
-              />
-            </div>
-
-            {!editingTemplateId && (
-              <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
-                <h3 className="text-lg font-bold text-slate-800 mb-4">
-                  Appearance Defaults
-                </h3>
-                <p className="text-sm text-slate-500 mb-4">
-                  Pre-fill new Graphic Organizer widgets added by teachers in{' '}
-                  <b>
-                    {BUILDINGS.find((b) => b.id === selectedBuilding)?.name ??
-                      'this building'}
-                  </b>
-                  . Teachers can still override these per-instance from the
-                  widget&apos;s Appearance tab.
-                </p>
-                <div className="space-y-4 max-w-2xl">
-                  {/* Default Template */}
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">
-                      Default Template
-                    </label>
-                    <select
-                      value={currentAppearanceDefaults.templateType ?? ''}
-                      {...tourFieldAttr(
-                        'admin.widget-config.field',
-                        'graphic-organizer',
-                        'templateType'
-                      )}
-                      onChange={(e) => {
-                        const selected = e.target.value;
-                        updateAppearanceDefaults({
-                          // Empty = "no override"; persist as undefined so the
-                          // widget's own default (frayer) applies rather than
-                          // implying a stored value (mirrors the font sentinel).
-                          templateType:
-                            selected === ''
-                              ? undefined
-                              : (selected as GraphicOrganizerLayoutType),
-                        });
-                      }}
-                      className="w-full rounded-lg border-slate-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
-                    >
-                      <option value="">
-                        Widget default (no override — Frayer)
-                      </option>
-                      {LAYOUT_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Default Font Family */}
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">
-                      Default Font Family
-                    </label>
-                    <select
-                      value={currentAppearanceDefaults.fontFamily ?? 'global'}
-                      {...tourFieldAttr(
-                        'admin.widget-config.field',
-                        'graphic-organizer',
-                        'fontFamily'
-                      )}
-                      onChange={(e) => {
-                        const selected = e.target.value;
-                        updateAppearanceDefaults({
-                          // 'global' = inherit the dashboard font; persist as
-                          // undefined so saved configs only hold a concrete
-                          // FONTS id (mirrors TypographySettings behaviour).
-                          fontFamily:
-                            selected === 'global' ? undefined : selected,
-                        });
-                      }}
-                      className="w-full rounded-lg border-slate-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
-                    >
-                      {FONTS.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.id === 'global'
-                            ? 'Global (Dashboard default)'
-                            : `${f.label} (${f.icon})`}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Default Surface Colour */}
-                  <div
+          {!editingTemplateId && (
+            <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+              <h3 className="text-lg font-bold text-slate-800 mb-4">
+                Appearance Defaults
+              </h3>
+              <p className="text-sm text-slate-500 mb-4">
+                Pre-fill new Graphic Organizer widgets added by teachers in{' '}
+                <b>
+                  {BUILDINGS.find((b) => b.id === selectedBuilding)?.name ??
+                    'this building'}
+                </b>
+                . Teachers can still override these per-instance from the
+                widget&apos;s Appearance tab.
+              </p>
+              <div className="space-y-4 max-w-2xl">
+                {/* Default Template */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Default Template
+                  </label>
+                  <select
+                    value={currentAppearanceDefaults.templateType ?? ''}
                     {...tourFieldAttr(
                       'admin.widget-config.field',
                       'graphic-organizer',
-                      'cardColor'
+                      'templateType'
                     )}
+                    onChange={(e) => {
+                      const selected = e.target.value;
+                      updateAppearanceDefaults({
+                        // Empty = "no override"; persist as undefined so the
+                        // widget's own default (frayer) applies rather than
+                        // implying a stored value (mirrors the font sentinel).
+                        templateType:
+                          selected === ''
+                            ? undefined
+                            : (selected as GraphicOrganizerLayoutType),
+                      });
+                    }}
+                    className="w-full rounded-lg border-slate-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                   >
-                    <label className="block text-sm font-bold text-slate-700 mb-1">
-                      Default Surface Colour
-                    </label>
-                    <HexColorField
-                      anchors={{
-                        swatch: tourFieldAttr(
-                          'admin.widget-config.field',
-                          'graphic-organizer',
-                          'cardColorSwatch'
-                        ),
-                        input: tourFieldAttr(
-                          'admin.widget-config.field',
-                          'graphic-organizer',
-                          'cardColorInput'
-                        ),
-                      }}
-                      value={currentAppearanceDefaults.cardColor}
-                      onChange={(cardColor) =>
-                        updateAppearanceDefaults({ cardColor })
-                      }
-                      fallback="#ffffff"
-                      ariaLabel="Pick default Graphic Organizer surface colour"
-                    />
-                  </div>
+                    <option value="">
+                      Widget default (no override — Frayer)
+                    </option>
+                    {LAYOUT_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  {/* Default Surface Opacity */}
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">
-                      Default Surface Opacity (
-                      {Math.round(appearanceCardOpacity * 100)}%)
-                    </label>
-                    <input
-                      type="range"
+                {/* Default Font Family */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Default Font Family
+                  </label>
+                  <select
+                    value={currentAppearanceDefaults.fontFamily ?? 'global'}
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'graphic-organizer',
+                      'fontFamily'
+                    )}
+                    onChange={(e) => {
+                      const selected = e.target.value;
+                      updateAppearanceDefaults({
+                        // 'global' = inherit the dashboard font; persist as
+                        // undefined so saved configs only hold a concrete
+                        // FONTS id (mirrors TypographySettings behaviour).
+                        fontFamily:
+                          selected === 'global' ? undefined : selected,
+                      });
+                    }}
+                    className="w-full rounded-lg border-slate-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
+                  >
+                    {FONTS.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.id === 'global'
+                          ? 'Global (Dashboard default)'
+                          : `${f.label} (${f.icon})`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Default Surface Colour */}
+                <div
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'graphic-organizer',
+                    'cardColor'
+                  )}
+                >
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Default Surface Colour
+                  </label>
+                  <HexColorField
+                    anchors={{
+                      swatch: tourFieldAttr(
+                        'admin.widget-config.field',
+                        'graphic-organizer',
+                        'cardColorSwatch'
+                      ),
+                      input: tourFieldAttr(
+                        'admin.widget-config.field',
+                        'graphic-organizer',
+                        'cardColorInput'
+                      ),
+                    }}
+                    value={currentAppearanceDefaults.cardColor}
+                    onChange={(cardColor) =>
+                      updateAppearanceDefaults({ cardColor })
+                    }
+                    fallback="#ffffff"
+                    ariaLabel="Pick default Graphic Organizer surface colour"
+                  />
+                </div>
+
+                {/* Default Surface Opacity */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Default Surface Opacity (
+                    {Math.round(appearanceCardOpacity * 100)}%)
+                  </label>
+                  <input
+                    type="range"
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'graphic-organizer',
+                      'cardOpacity'
+                    )}
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={appearanceCardOpacity}
+                    onChange={(e) =>
+                      updateAppearanceDefaults({
+                        cardOpacity: parseFloat(e.target.value),
+                      })
+                    }
+                    className="w-full accent-indigo-500"
+                    aria-label="Default Graphic Organizer surface opacity"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            {!editingTemplateId ? (
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-slate-800">
+                    Custom Templates
+                  </h3>
+                  <Button
+                    size="sm"
+                    onClick={startNewTemplate}
+                    {...tourTypeAttr(
+                      'admin.widget-config.add',
+                      'graphic-organizer'
+                    )}
+                    className="gap-2"
+                  >
+                    <Plus className="h-4 w-4" /> Add Template
+                  </Button>
+                </div>
+
+                {currentTemplates.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+                    No custom templates for this building yet. Click &quot;Add
+                    Template&quot; to create one.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {currentTemplates.map((template) => (
+                      <div
+                        key={template.id}
+                        className="border border-slate-200 rounded-lg p-4 flex flex-col justify-between hover:border-indigo-300 transition-colors"
+                      >
+                        <div>
+                          <div className="font-bold text-slate-800">
+                            {template.name}
+                          </div>
+                          <div className="text-sm text-slate-500 mb-2">
+                            {
+                              LAYOUT_OPTIONS.find(
+                                (l) => l.value === template.layout
+                              )?.label
+                            }
+                          </div>
+                          <div className="text-xs font-mono bg-slate-100 p-1 rounded-sm inline-block text-slate-600 mb-4">
+                            {template.fontFamily}
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => editTemplate(template)}
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'graphic-organizer',
+                              `edit-${template.id}`
+                            )}
+                          >
+                            Edit
+                          </Button>
+                          <button
+                            onClick={() => deleteTemplate(template.id)}
+                            {...tourTypeAttr(
+                              'admin.widget-config.remove',
+                              'graphic-organizer'
+                            )}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete Template"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              currentTemplateDraft && (
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <div className="flex items-center gap-2 mb-6">
+                    <button
+                      onClick={cancelTemplateEdit}
                       {...tourFieldAttr(
                         'admin.widget-config.field',
                         'graphic-organizer',
-                        'cardOpacity'
+                        'backFromTemplate'
                       )}
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      value={appearanceCardOpacity}
-                      onChange={(e) =>
-                        updateAppearanceDefaults({
-                          cardOpacity: parseFloat(e.target.value),
-                        })
-                      }
-                      className="w-full accent-indigo-500"
-                      aria-label="Default Graphic Organizer surface opacity"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              {!editingTemplateId ? (
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-bold text-slate-800">
-                      Custom Templates
-                    </h3>
-                    <Button
-                      size="sm"
-                      onClick={startNewTemplate}
-                      {...tourTypeAttr(
-                        'admin.widget-config.add',
-                        'graphic-organizer'
-                      )}
-                      className="gap-2"
+                      className="p-1 hover:bg-slate-100 rounded-sm text-slate-500"
                     >
-                      <Plus className="h-4 w-4" /> Add Template
-                    </Button>
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <h3 className="text-lg font-bold text-slate-800">
+                      {currentTemplateDraft.id.startsWith('template-') &&
+                      !currentTemplates.find(
+                        (t) => t.id === currentTemplateDraft.id
+                      )
+                        ? 'Create Template'
+                        : 'Edit Template'}
+                    </h3>
                   </div>
 
-                  {currentTemplates.length === 0 ? (
-                    <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-300">
-                      No custom templates for this building yet. Click &quot;Add
-                      Template&quot; to create one.
+                  <div className="space-y-6 max-w-2xl">
+                    {/* Template Name */}
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">
+                        Template Name
+                      </label>
+                      <input
+                        type="text"
+                        value={currentTemplateDraft.name}
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'graphic-organizer',
+                          'templateName'
+                        )}
+                        onChange={(e) =>
+                          setCurrentTemplateDraft({
+                            ...currentTemplateDraft,
+                            name: e.target.value,
+                          })
+                        }
+                        className="w-full rounded-lg border-slate-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
+                        placeholder="e.g., Weekly Frayer Model"
+                      />
                     </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {currentTemplates.map((template) => (
-                        <div
-                          key={template.id}
-                          className="border border-slate-200 rounded-lg p-4 flex flex-col justify-between hover:border-indigo-300 transition-colors"
-                        >
-                          <div>
-                            <div className="font-bold text-slate-800">
-                              {template.name}
-                            </div>
-                            <div className="text-sm text-slate-500 mb-2">
-                              {
-                                LAYOUT_OPTIONS.find(
-                                  (l) => l.value === template.layout
-                                )?.label
-                              }
-                            </div>
-                            <div className="text-xs font-mono bg-slate-100 p-1 rounded-sm inline-block text-slate-600 mb-4">
-                              {template.fontFamily}
-                            </div>
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => editTemplate(template)}
-                              {...tourFieldAttr(
-                                'admin.widget-config.field',
-                                'graphic-organizer',
-                                `edit-${template.id}`
-                              )}
-                            >
-                              Edit
-                            </Button>
-                            <button
-                              onClick={() => deleteTemplate(template.id)}
-                              {...tourTypeAttr(
-                                'admin.widget-config.remove',
-                                'graphic-organizer'
-                              )}
-                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Delete Template"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+
+                    {/* Base Layout */}
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">
+                        Base Layout
+                      </label>
+                      <select
+                        value={currentTemplateDraft.layout}
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'graphic-organizer',
+                          'templateLayout'
+                        )}
+                        onChange={(e) =>
+                          handleLayoutChange(
+                            e.target.value as GraphicOrganizerLayoutType
+                          )
+                        }
+                        className="w-full rounded-lg border-slate-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
+                      >
+                        {LAYOUT_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  )}
-                </div>
-              ) : (
-                currentTemplateDraft && (
-                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-200">
-                    <div className="flex items-center gap-2 mb-6">
-                      <button
+
+                    {/* Font Family */}
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">
+                        Font Family
+                      </label>
+                      <select
+                        value={currentTemplateDraft.fontFamily ?? 'sans'}
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'graphic-organizer',
+                          'templateFontFamily'
+                        )}
+                        onChange={(e) =>
+                          setCurrentTemplateDraft({
+                            ...currentTemplateDraft,
+                            fontFamily: e.target.value as GlobalFontFamily,
+                          })
+                        }
+                        className="w-full rounded-lg border-slate-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
+                      >
+                        {FONT_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Node Default Labels */}
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">
+                        Default Node Labels
+                      </label>
+                      <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 grid grid-cols-2 gap-4">
+                        {Object.keys(currentTemplateDraft.defaultNodes).map(
+                          (nodeKey) => (
+                            <div key={nodeKey}>
+                              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                                {nodeKey}
+                              </label>
+                              <input
+                                type="text"
+                                {...tourFieldAttr(
+                                  'admin.widget-config.field',
+                                  'graphic-organizer',
+                                  `nodeLabel-${nodeKey}`
+                                )}
+                                value={
+                                  currentTemplateDraft.defaultNodes[nodeKey]
+                                }
+                                onChange={(e) =>
+                                  handleNodeLabelChange(nodeKey, e.target.value)
+                                }
+                                className="w-full rounded-md border-slate-300 shadow-xs text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                placeholder={`Enter ${nodeKey} text...`}
+                              />
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                      <Button
+                        variant="secondary"
                         onClick={cancelTemplateEdit}
                         {...tourFieldAttr(
                           'admin.widget-config.field',
                           'graphic-organizer',
-                          'backFromTemplate'
+                          'cancelTemplate'
                         )}
-                        className="p-1 hover:bg-slate-100 rounded-sm text-slate-500"
                       >
-                        <ChevronLeft className="h-5 w-5" />
-                      </button>
-                      <h3 className="text-lg font-bold text-slate-800">
-                        {currentTemplateDraft.id.startsWith('template-') &&
-                        !currentTemplates.find(
-                          (t) => t.id === currentTemplateDraft.id
-                        )
-                          ? 'Create Template'
-                          : 'Edit Template'}
-                      </h3>
-                    </div>
-
-                    <div className="space-y-6 max-w-2xl">
-                      {/* Template Name */}
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1">
-                          Template Name
-                        </label>
-                        <input
-                          type="text"
-                          value={currentTemplateDraft.name}
-                          {...tourFieldAttr(
-                            'admin.widget-config.field',
-                            'graphic-organizer',
-                            'templateName'
-                          )}
-                          onChange={(e) =>
-                            setCurrentTemplateDraft({
-                              ...currentTemplateDraft,
-                              name: e.target.value,
-                            })
-                          }
-                          className="w-full rounded-lg border-slate-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
-                          placeholder="e.g., Weekly Frayer Model"
-                        />
-                      </div>
-
-                      {/* Base Layout */}
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1">
-                          Base Layout
-                        </label>
-                        <select
-                          value={currentTemplateDraft.layout}
-                          {...tourFieldAttr(
-                            'admin.widget-config.field',
-                            'graphic-organizer',
-                            'templateLayout'
-                          )}
-                          onChange={(e) =>
-                            handleLayoutChange(
-                              e.target.value as GraphicOrganizerLayoutType
-                            )
-                          }
-                          className="w-full rounded-lg border-slate-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
-                        >
-                          {LAYOUT_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Font Family */}
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1">
-                          Font Family
-                        </label>
-                        <select
-                          value={currentTemplateDraft.fontFamily ?? 'sans'}
-                          {...tourFieldAttr(
-                            'admin.widget-config.field',
-                            'graphic-organizer',
-                            'templateFontFamily'
-                          )}
-                          onChange={(e) =>
-                            setCurrentTemplateDraft({
-                              ...currentTemplateDraft,
-                              fontFamily: e.target.value as GlobalFontFamily,
-                            })
-                          }
-                          className="w-full rounded-lg border-slate-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
-                        >
-                          {FONT_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Node Default Labels */}
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2">
-                          Default Node Labels
-                        </label>
-                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 grid grid-cols-2 gap-4">
-                          {Object.keys(currentTemplateDraft.defaultNodes).map(
-                            (nodeKey) => (
-                              <div key={nodeKey}>
-                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                                  {nodeKey}
-                                </label>
-                                <input
-                                  type="text"
-                                  {...tourFieldAttr(
-                                    'admin.widget-config.field',
-                                    'graphic-organizer',
-                                    `nodeLabel-${nodeKey}`
-                                  )}
-                                  value={
-                                    currentTemplateDraft.defaultNodes[nodeKey]
-                                  }
-                                  onChange={(e) =>
-                                    handleNodeLabelChange(
-                                      nodeKey,
-                                      e.target.value
-                                    )
-                                  }
-                                  className="w-full rounded-md border-slate-300 shadow-xs text-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                  placeholder={`Enter ${nodeKey} text...`}
-                                />
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                        <Button
-                          variant="secondary"
-                          onClick={cancelTemplateEdit}
-                          {...tourFieldAttr(
-                            'admin.widget-config.field',
-                            'graphic-organizer',
-                            'cancelTemplate'
-                          )}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          onClick={saveTemplateDraft}
-                          {...tourFieldAttr(
-                            'admin.widget-config.field',
-                            'graphic-organizer',
-                            'saveTemplate'
-                          )}
-                        >
-                          Save Template
-                        </Button>
-                      </div>
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={saveTemplateDraft}
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'graphic-organizer',
+                          'saveTemplate'
+                        )}
+                      >
+                        Save Template
+                      </Button>
                     </div>
                   </div>
-                )
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4">
-          <div className="text-sm font-bold text-slate-400">
-            {isSaving ? 'APPLYING...' : 'PENDING PARENT SAVE'}
-          </div>
-          <div className="flex gap-3">
-            <Button
-              variant="secondary"
-              onClick={onClose}
-              disabled={isSaving}
-              {...tourFieldAttr(
-                'admin.widget-config.field',
-                'graphic-organizer',
-                'cancel'
-              )}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              {...tourTypeAttr('admin.widget-config.save', 'graphic-organizer')}
-              disabled={isSaving || !!editingTemplateId}
-              className="gap-2"
-            >
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              Apply Configuration
-            </Button>
+                </div>
+              )
+            )}
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4">
+        <div className="text-sm font-bold text-slate-400">
+          {isSaving ? 'APPLYING...' : 'PENDING PARENT SAVE'}
+        </div>
+        <div className="flex gap-3">
+          <Button
+            variant="secondary"
+            onClick={onClose}
+            disabled={isSaving}
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'graphic-organizer',
+              'cancel'
+            )}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            {...tourTypeAttr('admin.widget-config.save', 'graphic-organizer')}
+            disabled={isSaving || !!editingTemplateId}
+            className="gap-2"
+          >
+            {isSaving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            Apply Configuration
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 };
