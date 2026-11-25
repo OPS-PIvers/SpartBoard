@@ -452,10 +452,6 @@ export const isClosedUnsubmittableRun = (
  * (rather than a closure inside the subscription effect) so the fan-out
  * hydration path (M17 C1) can build the same shape from a one-off `getDoc`.
  */
-const isNumberRecord = (v: unknown): v is Record<string, number> =>
-  typeof v === 'object' &&
-  v !== null &&
-  Object.values(v).every((n) => typeof n === 'number');
 
 /** Kinds whose rules refuse a student outside the run's classes; Flashcards and Writing admit pointer holders. */
 const CLASS_GATED_KINDS: ReadonlySet<SessionKind> = new Set([
