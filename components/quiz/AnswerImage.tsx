@@ -86,7 +86,7 @@ export const AnswerImageZoomButton: React.FC<{
         onPointerDown={(e) => e.stopPropagation()}
         aria-label={`Enlarge picture: ${label}`}
         title="Enlarge picture"
-        className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white/95 text-slate-700 shadow-xs transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary ${className}`}
+        className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white/95 text-slate-700 shadow-xs transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary ${className}`}
       >
         <ZoomIn className="h-4 w-4" aria-hidden="true" />
       </button>
