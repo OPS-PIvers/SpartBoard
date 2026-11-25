@@ -2,6 +2,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
+import { assertPaperSheetsEnabled } from './paperAnswerSheetsSettings';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { assertViewAsAllowed } from './viewAsGuard';
@@ -12,7 +13,6 @@ const MAX_QUESTIONS = 500;
 const MAX_CHOICES = 8;
 const MAX_ID_LENGTH = 128;
 const MAX_CHOICE_LENGTH = 5000;
-const PAPER_SETTINGS_PATH = 'admin_settings/paper_answer_sheets';
 // Ids that are safe as one segment of a dotted update path.
 const SAFE_FIELD_ID = /^[A-Za-z0-9_-]+$/;
 
@@ -235,13 +235,7 @@ export async function handlePaperRewordSync(
     throw new HttpsError('permission-denied', 'Teacher account required.');
   }
   const input = parsePaperRewordInput(raw);
-  const settings = await db.doc(PAPER_SETTINGS_PATH).get();
-  if (settings.data()?.enabled !== true) {
-    throw new HttpsError(
-      'failed-precondition',
-      'Paper response sheets are not enabled.'
-    );
-  }
+  await assertPaperSheetsEnabled(db);
   if (!(await granted())) {
     throw new HttpsError('permission-denied', 'This feature is not enabled.');
   }

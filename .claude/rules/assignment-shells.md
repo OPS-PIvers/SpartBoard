@@ -28,7 +28,7 @@ Paul's rule: every assignment widget (Quiz, Writing, Video Activity, Flashcards,
 | Grader              | `FreeResponseGrader`, `RubricScoringPanel`                                                               | `FreeResponseGrader`, `RubricScoringPanel`                                                  |
 | Print               | `ResultsPrintModal`                                                                                      | `ResultsPrintModal`                                                                         |
 
-Flashcards' `results/FlashcardMonitor.tsx` and `results/FlashcardCheckRoster.tsx` are the worked example of a non-quiz widget on these pieces (its other results files still have AB-260 to do). `ScorePill`, `SessionBadge`, `LaunchedBySubTag` and `OverflowMenu` from `components/common/sessionViews` are still shared; its `SessionRow`, `SessionViewHeader`, `StatTile`, `SegmentedTabs`, `ActionButton` and `PeriodAccessControls` are the old layout and are not used in new work.
+Flashcards' `results/FlashcardMonitor.tsx` and `results/FlashcardCheckRoster.tsx` are the worked example of a non-quiz widget on these pieces (its other results files still have AB-260 to do). `ScorePill`, `SessionBadge` and `LaunchedBySubTag` from `components/common/sessionViews` are still shared, and every ⋯ menu is `components/common/OverflowMenu`. The sessionViews `SessionRow`, `SessionViewHeader`, `StatTile`, `SegmentedTabs`, `ActionButton` and `PeriodAccessControls` are the old layout and are not used in new work.
 
 **The guard:** `tests/assignmentShells.static.test.ts` fails CI when:
 
