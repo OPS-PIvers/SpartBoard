@@ -207,7 +207,7 @@ describe('PaperImportModal kept pages', () => {
     expect(savePages).not.toHaveBeenCalled();
   });
 
-  it('switch off: the import behaves exactly as with the flag off', async () => {
+  it('switch off: the import sends no copies and covers no page', async () => {
     const off = setup(STACK());
     chooseFile();
     await confirmKeyAndImport(2);
@@ -228,7 +228,11 @@ describe('PaperImportModal kept pages', () => {
     chooseFile();
     await confirmKeyAndImport(2);
     await waitFor(() => expect(onImport).toHaveBeenCalledOnce());
-    expect(onImport.mock.calls[0]).toEqual(before);
+    expect(onImport.mock.calls[0].slice(0, 3)).toEqual(before.slice(0, 3));
+    // No copies are sent and no page is covered, so earlier kept pages stay.
+    expect(onImport.mock.calls[0][3]).toEqual({
+      coveredPages: { 1: [], 2: [] },
+    });
     expect(keepPage).not.toHaveBeenCalled();
     expect(onUploadCrop).not.toHaveBeenCalled();
   });
@@ -259,6 +263,7 @@ describe('PaperImportModal kept pages', () => {
     const extra: PaperImportRequestExtra = onImport.mock.calls[0][3];
     expect(extra).toEqual({
       scanId,
+      coveredPages: { 1: [1], 2: [1] },
       pages: [
         {
           seat: 1,
@@ -330,6 +335,7 @@ describe('PaperImportModal kept pages', () => {
         mimeType: 'image/png',
       },
     ]);
+    expect(extra.coveredPages).toEqual({ 1: [1], 2: [1] });
     expect(
       await screen.findByText(/Their answers imported/)
     ).toBeInTheDocument();
@@ -456,6 +462,7 @@ describe('PaperImportModal kept pages', () => {
     await waitFor(() => expect(onImport).toHaveBeenCalledOnce());
     expect(onImport.mock.calls[0][3]).toEqual({
       scanId: 'scanR',
+      coveredPages: { 1: [1] },
       pages: [
         {
           seat: 1,
