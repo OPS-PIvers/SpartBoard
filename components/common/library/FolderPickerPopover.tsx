@@ -24,6 +24,7 @@ import React, {
 import { createPortal } from 'react-dom';
 import { Folder as FolderIcon, Check, Inbox } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
+import { Modal } from '@/components/common/Modal';
 import type { LibraryFolder } from '@/types';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { isEscapeFromWidgetInput, scrollMovesAnchor } from '@/utils/domHelpers';
@@ -144,6 +145,7 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
   }, [isPortaledPopover, anchorRef]);
 
   useEffect(() => {
+    if (variant === 'dialog') return undefined;
     const handlePointer = (event: MouseEvent | TouchEvent): void => {
       const target = event.target as Node | null;
       if (!target) return;
@@ -175,7 +177,7 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
       document.removeEventListener('touchstart', handlePointer);
       document.removeEventListener('keydown', handleKey);
     };
-  }, [onClose, isPortaledPopover, anchorRef]);
+  }, [onClose, isPortaledPopover, anchorRef, variant]);
 
   useLayoutEffect(() => {
     if (!isPortaledPopover) return;
@@ -230,7 +232,7 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
 
   const cardClass =
     variant === 'dialog'
-      ? 'relative z-10 flex max-h-[80vh] w-80 flex-col rounded-xl border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-md'
+      ? 'relative flex max-h-[80vh] w-full flex-col rounded-xl border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-md'
       : isPortaledPopover
         ? 'flex max-h-72 flex-col rounded-xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-md'
         : 'absolute z-50 mt-1 flex max-h-72 w-64 flex-col rounded-xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-md';
@@ -249,9 +251,8 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
   const card = (
     <div
       ref={containerRef}
-      role="dialog"
-      aria-labelledby={headerId}
-      aria-modal={variant === 'dialog' ? true : undefined}
+      role={variant === 'dialog' ? undefined : 'dialog'}
+      aria-labelledby={variant === 'dialog' ? undefined : headerId}
       data-click-outside-ignore={isPortaledPopover ? 'true' : undefined}
       className={cardClass}
       style={cardStyle}
@@ -309,12 +310,17 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
 
   if (variant === 'dialog') {
     return (
-      <div
-        className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs"
-        role="presentation"
+      <Modal
+        isOpen
+        onClose={onClose}
+        variant="bare"
+        zIndex="z-modal-nested"
+        maxWidth="max-w-xs"
+        captureEscape
+        ariaLabelledby={headerId}
       >
         {card}
-      </div>
+      </Modal>
     );
   }
 

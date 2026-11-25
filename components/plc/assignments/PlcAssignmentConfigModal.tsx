@@ -71,6 +71,7 @@ import type {
 } from '@/types';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 import { tourAttr } from '@/config/tourAnchors';
+import { Modal } from '@/components/common/Modal';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -429,13 +430,17 @@ export const PlcAssignmentConfigModal: React.FC<
         });
 
   return (
-    <div
-      className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
+    <Modal
+      isOpen
+      onClose={onClose}
+      dismissible={false}
+      variant="bare"
+      zIndex="z-9999"
+      maxWidth="max-w-2xl"
+      ariaLabel={title}
+      className="bg-white rounded-2xl shadow-2xl overflow-hidden"
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="flex max-h-[90vh] min-h-0 flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
@@ -552,6 +557,6 @@ export const PlcAssignmentConfigModal: React.FC<
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };

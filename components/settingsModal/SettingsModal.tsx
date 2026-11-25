@@ -37,7 +37,7 @@ import { BehaviorSection } from './sections/BehaviorSection';
 import { LanguageSection } from './sections/LanguageSection';
 import { WidgetDefaultsSection } from './sections/WidgetDefaultsSection';
 import { ConnectedAppsSection } from './sections/ConnectedAppsSection';
-import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { Modal } from '@/components/common/Modal';
 import { tourAttr } from '@/config/tourAnchors';
 
 export type SettingsSectionId =
@@ -165,16 +165,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // rail is always visible on md+, so this flag is inert there.
   const [showMobileMenu, setShowMobileMenu] = useState(true);
 
-  React.useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (isEscapeFromWidgetInput(event)) return;
-      onClose();
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
-
   const label = (s: SectionConfig) =>
     t(s.labelKey, { defaultValue: s.fallback });
   const activeConfig = sections.find((s) => s.id === activeSection);
@@ -205,18 +195,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-modal flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="settings-modal-title"
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      fullBleedOnPhone
+      maxWidth="md:max-w-4xl"
+      ariaLabelledby="settings-modal-title"
+      className="md:h-[85vh] md:max-h-[680px] bg-white md:rounded-2xl shadow-2xl overflow-hidden"
     >
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-xs"
-        onClick={onClose}
-      />
-
-      <div className="relative w-full h-full md:h-[85vh] md:max-h-[680px] md:max-w-4xl bg-white md:rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+      <div className="flex h-full min-h-0 flex-col">
         {/* Header */}
         <div className="h-14 md:h-16 px-4 flex items-center justify-between border-b border-slate-200 shrink-0 bg-white">
           <div className="flex items-center gap-2 overflow-hidden min-w-0">
@@ -328,6 +316,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
