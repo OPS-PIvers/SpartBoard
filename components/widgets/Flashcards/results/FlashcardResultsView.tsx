@@ -402,6 +402,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
         results={visibleResults}
         tests={testsByStudent}
         nameFor={nameFor}
+        sortNameFor={(uid) => lastFirst(byStudentUid.get(uid)) || undefined}
         now={now}
         speakLanguage={speakLanguage}
         onBack={onBack}

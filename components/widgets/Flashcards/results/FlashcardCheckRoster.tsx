@@ -37,6 +37,8 @@ export const FlashcardCheckRoster: React.FC<{
   students: FlashcardRosterStudent[];
   session: FlashcardSession;
   nameFor: (studentUid: string) => string;
+  /** "Last, First" from the class list, for the last-name sort. */
+  sortNameFor?: (studentUid: string) => string | undefined;
   prefs: MonitorRosterPrefs;
   onUpdatePrefs: (updates: Partial<MonitorRosterPrefs>) => void;
   letInFor: (studentUid: string) => (() => void) | undefined;
@@ -54,6 +56,7 @@ export const FlashcardCheckRoster: React.FC<{
   students,
   session,
   nameFor,
+  sortNameFor,
   prefs,
   onUpdatePrefs,
   letInFor,
@@ -67,7 +70,13 @@ export const FlashcardCheckRoster: React.FC<{
   const showToolbar = bucket !== 'notStarted';
   const showScores = (prefs.monitorShowScores ?? false) && bucket === 'done';
   const showProf = (prefs.monitorShowProficiency ?? false) && bucket === 'done';
-  const rows = orderFlashcardRoster(students, nameFor, prefs, showToolbar);
+  const rows = orderFlashcardRoster(
+    students,
+    nameFor,
+    prefs,
+    showToolbar,
+    sortNameFor
+  );
   const testCount = session.lockedSettings?.testCount;
   const total =
     session.checkMode === 'test' && typeof testCount === 'number'
