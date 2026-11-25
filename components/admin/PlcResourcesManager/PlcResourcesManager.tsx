@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDialog } from '@/context/useDialog';
 import type { TFunction } from 'i18next';
 import { Pencil, Trash2, Plus, X, Check } from 'lucide-react';
 import {
@@ -43,6 +44,7 @@ type FormState = CreatePlcResourceInput & { editingId?: string };
  */
 export const PlcResourcesManager: React.FC = () => {
   const { t } = useTranslation();
+  const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
   const {
     resources,
@@ -132,11 +134,12 @@ export const PlcResourcesManager: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     if (
-      !window.confirm(
+      !(await showConfirm(
         t('plcDashboard.resources.confirmDelete', {
           defaultValue: 'Delete this resource? PLCs will no longer see it.',
-        })
-      )
+        }),
+        { variant: 'danger' }
+      ))
     ) {
       return;
     }

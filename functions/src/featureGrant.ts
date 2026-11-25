@@ -188,3 +188,20 @@ export async function isWidgetGranted(
     teacherUid
   );
 }
+
+/** Preview flag for every server turn-in beyond a Video Activity class Close, which shipped first. */
+export const SERVER_TURN_IN_FEATURE = 'server-turn-in';
+
+/** Whether a run's teacher has the server turn-in preview; false when the teacher can't be found. */
+export async function serverTurnInGranted(
+  db: Firestore,
+  teacherUid: unknown
+): Promise<boolean> {
+  if (typeof teacherUid !== 'string' || !teacherUid) return false;
+  const { auth } = await import('./firebaseAdmin');
+  const email = await auth()
+    .getUser(teacherUid)
+    .then((u) => u.email ?? null)
+    .catch(() => null);
+  return isGlobalFeatureGranted(db, SERVER_TURN_IN_FEATURE, email, teacherUid);
+}

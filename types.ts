@@ -11997,6 +11997,8 @@ export type GlobalFeature =
   | 'help-center-ai'
   /** Video Activity share links offer Synced or Make a copy, like quiz assignment links. */
   | 'video-activity-share-sync'
+  /** Class Close, End and sub End turn open work in from the server, with no teacher tab open (AB-388). */
+  | 'server-turn-in'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */

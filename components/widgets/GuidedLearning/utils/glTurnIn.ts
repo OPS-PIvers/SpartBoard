@@ -9,12 +9,20 @@ import {
 import { db } from '@/config/firebase';
 import type { GuidedLearningResponse, GuidedLearningSession } from '@/types';
 import { responseInClass } from '@/utils/assignedStatus';
-import { isLetIn } from '@/utils/periodAccess';
+import { staysOpenAtClose } from '@/utils/staysOpenAtClose';
 
 const SESSIONS = 'guided_learning_sessions';
 const RESPONSES = 'responses';
 
 type SessionGate = (s: GuidedLearningSession | undefined) => boolean;
+
+/** A join with no answer to an activity that asks questions has nothing to turn in; a walkthrough never writes answers. */
+const isBlank = (
+  r: GuidedLearningResponse,
+  s: GuidedLearningSession
+): boolean =>
+  (!Array.isArray(r.answers) || r.answers.length === 0) &&
+  (s.publicSteps ?? []).some((step) => !!step.question);
 
 /** Turns in one closed class's unfinished GL responses (ASSIGNED_TAB D6); `closedAt` is the Close that scheduled it. */
 export async function finalizeClassGuidedLearningResponses(
@@ -32,20 +40,19 @@ export async function finalizeClassGuidedLearningResponses(
     const label = s.periodAccess?.[classKey]?.label ?? '';
     return (
       responseInClass(r, classKey, label) &&
-      !(s.reopenedFor ?? []).includes(uid) &&
-      !isLetIn(s, uid, now)
+      !staysOpenAtClose(s, { studentUid: uid }, now, { blank: isBlank(r, s) })
     );
   });
 }
 
-/** Turns in every unfinished GL response once a whole-run End's `closeAt` still stands. */
+/** Turns in every unfinished GL response with answers once a whole-run End's `closeAt` still stands. */
 export async function finalizeOpenGuidedLearningResponses(
   sessionId: string,
   closeAt: number,
   now: number = Date.now()
 ): Promise<void> {
   const gate: SessionGate = (s) => s?.closeAt === closeAt;
-  await finalizeOpen(sessionId, now, gate, () => true);
+  await finalizeOpen(sessionId, now, gate, (r, _uid, s) => !isBlank(r, s));
 }
 
 async function finalizeOpen(

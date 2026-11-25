@@ -67,6 +67,7 @@ import type {
 } from '@/types';
 import { useSandboxedGuidedLearningAssignments } from './useTourSandboxed';
 import { audienceSessionFields } from '@/utils/staffAudience';
+import { endSessionPatch } from '@/utils/sessionLifecycle';
 
 const GL_ASSIGNMENTS_COLLECTION = 'guided_learning_assignments';
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
@@ -389,7 +390,8 @@ export const useGuidedLearningAssignments = (
         doc(db, 'users', userId, GL_ASSIGNMENTS_COLLECTION, assignmentId),
         rowPatch
       );
-      if (closeSession) batch.update(sessionRef, { closeAt: now });
+      if (closeSession)
+        batch.update(sessionRef, endSessionPatch('guidedLearning', now));
       await batch.commit();
     },
     [userId]
