@@ -96,7 +96,7 @@ export function lcShapeOk(d: Data): boolean {
   );
 }
 
-/** Mirrors the shared_boards self-join rule; returns the participant entry to write. */
+/** Gates a shared_boards join (clients can't write participants); returns the participant entry to write. */
 export function planBoardJoin(
   caller: Caller,
   share: Data,
@@ -117,7 +117,7 @@ export function planBoardJoin(
   return { role, joinedAt: now, ...(displayName ? { displayName } : {}) };
 }
 
-/** Mirrors the linked_collections self-join rule; returns the participant entry to write. */
+/** Gates a linked_collections join (clients can't write participants); returns the participant entry to write. */
 export function planCollectionJoin(
   caller: Caller,
   link: Data,

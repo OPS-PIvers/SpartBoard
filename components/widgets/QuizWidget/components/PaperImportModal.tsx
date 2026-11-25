@@ -978,11 +978,20 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         (p) =>
           uploaderRef.current?.status(keptPageKey(p.seat, p.page)) === 'done'
       );
+      const seen = new Map(importSheets.map((s) => [s.seat, s.pagesSeen]));
+      // No page set means nothing is replaced, so every seat covers no pages.
+      const coveredPages = Object.fromEntries(
+        chunk.map((s) => [s.seat, pageScan ? (seen.get(s.seat) ?? []) : []])
+      );
       const part = await onImport(
         batchId,
         targetAssignmentId,
         chunk,
-        pages.length > 0 ? { ...extra, pages, scanId: keptScanId } : extra
+        pageScan
+          ? { ...extra, pages, coveredPages, scanId: keptScanId }
+          : canKeepPages
+            ? { ...extra, coveredPages }
+            : extra
       );
       written.push(...part.written);
       collisions.push(...part.collisions);

@@ -1,0 +1,1 @@
+claude/backlog-ab-59-20261124 (AB-59: class gate on quiz media playback and paper crop/page callables)

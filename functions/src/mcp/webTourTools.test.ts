@@ -22,6 +22,7 @@ import { fixKey, runFixClues } from './webTourFixes';
 const h = vi.hoisted(() => ({
   flags: new Set(['claude-connector-guided-learning', 'web-tours']),
   files: new Map<string, { bytes: Buffer; contentType: string }>(),
+  del: { deleteField: true },
 }));
 
 vi.mock('../featureGrant', () => ({
@@ -45,7 +46,10 @@ vi.mock('../firebaseAdmin', () => ({
       }),
     }),
   }),
-  firestore: { Timestamp: { fromMillis: (ms: number) => ({ ms }) } },
+  firestore: {
+    Timestamp: { fromMillis: (ms: number) => ({ ms }) },
+    FieldValue: { delete: () => h.del },
+  },
 }));
 
 vi.mock('./miniAppTools', async (importActual) => ({
@@ -112,7 +116,10 @@ function fakeDb(seed: Record<string, Data>) {
               pre.lastUpdateTime === (versions.get(path) ?? 0)
           );
           staged.push(() => {
-            docs.set(path, { ...docs.get(path), ...data });
+            const next: Data = { ...docs.get(path), ...data };
+            for (const [k, v] of Object.entries(next))
+              if (v === h.del) delete next[k];
+            docs.set(path, next);
             versions.set(path, (versions.get(path) ?? 0) + 1);
           });
         },
@@ -1026,6 +1033,12 @@ describe('web tour connector tools', () => {
     expect(() =>
       writtenUrlPattern('Step 1', 'https://lms.example.com/a?tab=grades')
     ).toThrow('query values must be *');
+    for (const bad of [
+      'https://lms.example.com/a/**********z',
+      'https://lms.example.com/a*b*/x',
+      'https://lms.example.com/a?f=**',
+    ])
+      expect(() => writtenUrlPattern('Step 1', bad)).toThrow('at most one *');
     expect(() =>
       writtenUrlPattern('Step 1', 'https://lms.example.com:443/a')
     ).toThrow(':443');
@@ -1144,6 +1157,12 @@ describe('web tour connector tools', () => {
     expect(
       applyWebStepList(steps, [{ id: 'b', tip: '' }, { id: 'm' }]).steps[0].text
     ).toBe('');
+    expect(
+      applyWebStepList(steps, [
+        { id: 'a' },
+        { id: 'm', open_url: '', show_when: null, done_when: null },
+      ]).steps[1]
+    ).toEqual(steps[2]);
   });
 
   it('warns when no step points at a control any more', () => {
@@ -1177,6 +1196,317 @@ describe('web tour connector tools', () => {
       { path: 'p/again', until: 100 },
       { path: 'p/new', until: 100 },
     ]);
+  });
+
+  it('creates an empty draft the way New web tour does, owned by the admin', async () => {
+    const call = await connect(seed().db);
+    const out = await call('create_web_tour', { title: '  Send a form  ' });
+    expect(out).toMatchObject({
+      title: 'Send a form',
+      goal: null,
+      start_page: null,
+      publish_state: 'draft',
+      steps: [],
+      note: matching(/update_web_tour_steps/),
+    });
+    const id = String(out.set_id);
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(env.docs.get(`building_web_tours/${id}`)).toEqual({
+      id,
+      title: 'Send a form',
+      imageUrls: [],
+      steps: [],
+      mode: 'tour',
+      surface: 'web',
+      createdAt: expect.any(Number) as unknown,
+      updatedAt: expect.any(Number) as unknown,
+      authorUid: 'u1',
+      authorName: EMAIL,
+    });
+    expect(
+      [...env.docs.values()].some(
+        (d) =>
+          d.action === 'create' &&
+          d.itemType === 'guided_learning' &&
+          d.itemId === id
+      )
+    ).toBe(true);
+    const listed = (await call('list_web_tours', {})) as { web_tours: Data[] };
+    expect(listed.web_tours.map((t) => t.set_id)).toContain(id);
+    expect(await call('get_web_tour', { set_id: id })).toMatchObject({
+      title: 'Send a form',
+      publish_state: 'draft',
+      steps: [],
+    });
+  });
+
+  it('creates a draft with its goal, start page and first steps in one call', async () => {
+    const call = await connect(seed().db);
+    const out = (await call('create_web_tour', {
+      title: 'Send a Google Form to SpartBoard',
+      goal: 'Getting a Google Form onto a SpartBoard board',
+      start_page: ' https://docs.google.com/forms/ ',
+      steps: [
+        { new_message: true, title: 'Welcome', tip: 'Open any of your forms.' },
+        {
+          new_step: true,
+          url_pattern: 'https://docs.google.com/forms/d/*/edit',
+          action: 'click',
+          locator: { css: '#spartboard-send' },
+          title: 'Send it',
+          open_url: 'https://docs.google.com/forms/u/0/',
+          done_when: { kind: 'target' },
+        },
+      ],
+    })) as Data & { steps: Data[] };
+    expect(out).toMatchObject({
+      goal: 'Getting a Google Form onto a SpartBoard board',
+      start_page: 'https://docs.google.com/forms/',
+      note: matching(/Check tour/),
+    });
+    expect(out.steps.map((s) => s.kind)).toEqual(['message', 'recorded']);
+    expect(out.steps[1]).toMatchObject({
+      open_url: 'https://docs.google.com/forms/u/0/',
+      done_when: { kind: 'target' },
+    });
+    const saved = env.docs.get(
+      `building_web_tours/${String(out.set_id)}`
+    ) as Data & {
+      steps: (Data & { web?: Data })[];
+    };
+    expect(saved).toMatchObject({
+      webGoal: 'Getting a Google Form onto a SpartBoard board',
+      webStartUrl: 'https://docs.google.com/forms/',
+    });
+    expect(saved.steps[0]).toMatchObject({ message: true, label: 'Welcome' });
+    expect(saved.steps[1].web).toEqual({
+      urlPattern: 'https://docs.google.com/forms/d/*/edit',
+      action: 'click',
+      locator: { css: '#spartboard-send' },
+      openUrl: 'https://docs.google.com/forms/u/0/',
+      doneWhen: { kind: 'target' },
+    });
+  });
+
+  it('creates nothing when the title, goal, start page or a step is refused', async () => {
+    const call = await connect(seed().db);
+    const before = env.docs.size;
+    for (const args of [
+      { title: '' },
+      { title: 'Grades for jo@school.org' },
+      { title: 'Ok', goal: 'Student 123456 logs in' },
+      { title: 'Ok', start_page: 'http://docs.google.com/forms/' },
+      {
+        title: 'Ok',
+        start_page: 'https://app.schoology.com/course/*/materials',
+      },
+      { title: 'Ok', start_page: 'https://u:p@lms.example.com/' },
+      { title: 'Ok', start_page: 'https://lms.example.com/?u=jo%40school.org' },
+      { title: 'Ok', steps: [{ id: 'a' }] },
+      { title: 'Ok', steps: [] },
+      { title: 'Ok', steps: [{ new_message: true, tip: '' }] },
+      {
+        title: 'Ok',
+        steps: [
+          {
+            new_step: true,
+            url_pattern: 'https://lms.example.com/grades',
+            action: 'click',
+            locator: { text: 'Grades' },
+            open_url: 'https://lms.example.com/course/*',
+          },
+        ],
+      },
+    ])
+      expect(await call('create_web_tour', args)).toMatchObject({
+        error: expect.any(String) as unknown,
+      });
+    expect(env.docs.size).toBe(before);
+  });
+
+  it('warns when the start page opens one record every teacher would share', async () => {
+    const call = await connect(seed().db);
+    const out = await call('create_web_tour', {
+      title: 'Add to Schoology',
+      start_page: 'https://app.schoology.com/course/7712345678/materials',
+    });
+    expect(out.warnings).toEqual([matching(/one particular record/)]);
+  });
+
+  it('is for admins only, with the web-tours flag on, for create and settings', async () => {
+    let call = await connect(seed({}, false).db);
+    const before = env.docs.size;
+    expect(await call('create_web_tour', { title: 'New' })).toMatchObject({
+      error: matching(/admins/),
+    });
+    expect(
+      await call('update_web_tour_settings', { set_id: 't1', goal: 'x' })
+    ).toMatchObject({ error: matching(/admins/) });
+    expect(env.docs.size).toBe(before);
+    h.flags.delete('web-tours');
+    call = await connect(seed().db);
+    expect(await call('create_web_tour', { title: 'New' })).toMatchObject({
+      error: matching(/Web tours are not turned on/),
+    });
+  });
+
+  it('sets and clears the title, goal and start page, and a restore puts them back', async () => {
+    const call = await connect(seed().db);
+    const out = await call('update_web_tour_settings', {
+      set_id: 't1',
+      title: 'Grade in Schoology',
+      goal: 'Posting a grade',
+      start_page: 'https://app.schoology.com/home',
+    });
+    expect(out).toMatchObject({
+      title: 'Grade in Schoology',
+      goal: 'Posting a grade',
+      start_page: 'https://app.schoology.com/home',
+    });
+    let saved = env.docs.get('building_web_tours/t1') as Data;
+    expect(saved).toMatchObject({
+      title: 'Grade in Schoology',
+      webGoal: 'Posting a grade',
+      webStartUrl: 'https://app.schoology.com/home',
+      steps: tour().steps,
+    });
+    expect(await call('get_web_tour', { set_id: 't1' })).toMatchObject({
+      start_page: 'https://app.schoology.com/home',
+    });
+
+    const cleared = await call('update_web_tour_settings', {
+      set_id: 't1',
+      start_page: '',
+    });
+    expect(cleared).toMatchObject({
+      goal: 'Posting a grade',
+      start_page: null,
+    });
+    saved = env.docs.get('building_web_tours/t1') as Data;
+    expect(saved).not.toHaveProperty('webStartUrl');
+    expect(saved.webGoal).toBe('Posting a grade');
+
+    const rev = env.docs.get(
+      `users/u1/claude_revisions/${String(cleared.previous_version_revision_id)}`
+    ) as Data;
+    await restoreWebTourRevision(ctxFor(env.db), {
+      get: (k: string) => rev[k],
+    } as unknown as admin.firestore.DocumentSnapshot);
+    expect(env.docs.get('building_web_tours/t1')).toMatchObject({
+      webStartUrl: 'https://app.schoology.com/home',
+      webGoal: 'Posting a grade',
+    });
+    expect(
+      await call('update_web_tour_settings', { set_id: 't1' })
+    ).toMatchObject({ error: matching(/Pass a title/) });
+  });
+
+  it("sets, keeps and clears a step's page and conditions, and refuses them on a message", async () => {
+    const env = seed();
+    const call = await connect(env.db);
+    const out = (await call('update_web_tour_steps', {
+      set_id: 't1',
+      steps: [
+        {
+          id: 'a',
+          open_url: 'https://lms.example.com/courses',
+          show_when: { kind: 'target' },
+        },
+        {
+          id: 'b',
+          done_when: {
+            kind: 'url',
+            url_pattern: 'https://lms.example.com/grades/*',
+          },
+        },
+      ],
+    })) as { steps: Data[] };
+    expect(out.steps[0]).toMatchObject({
+      open_url: 'https://lms.example.com/courses',
+      show_when: { kind: 'target' },
+    });
+    expect(out.steps[1]).toMatchObject({
+      done_when: {
+        kind: 'url',
+        url_pattern: 'https://lms.example.com/grades/*',
+      },
+    });
+    let saved = env.docs.get('building_web_tours/t1') as Data & {
+      steps: (typeof STEP_A)[];
+    };
+    expect(saved.steps[0]).toEqual({
+      ...STEP_A,
+      web: {
+        ...STEP_A.web,
+        openUrl: 'https://lms.example.com/courses',
+        showWhen: { kind: 'target' },
+      },
+    });
+
+    await call('update_web_tour_steps', {
+      set_id: 't1',
+      steps: [{ id: 'a', tip: 'Kept' }, { id: 'b' }],
+    });
+    saved = env.docs.get('building_web_tours/t1') as typeof saved;
+    expect(saved.steps[0].web).toHaveProperty('openUrl');
+    expect(saved.steps[1].web).toHaveProperty('doneWhen');
+
+    await call('update_web_tour_steps', {
+      set_id: 't1',
+      steps: [
+        { id: 'a', open_url: '', show_when: null },
+        { id: 'b', done_when: null },
+      ],
+    });
+    saved = env.docs.get('building_web_tours/t1') as typeof saved;
+    expect(saved.steps[0]).toEqual({ ...STEP_A, text: 'Kept' });
+    expect(saved.steps[1]).toEqual(STEP_B);
+
+    const withMessage = (await call('update_web_tour_steps', {
+      set_id: 't1',
+      steps: [{ new_message: true, tip: 'Hi' }, { id: 'a' }, { id: 'b' }],
+    })) as { steps: Data[] };
+    const messageId = String(withMessage.steps[0].id);
+    for (const step of [
+      { id: messageId, open_url: 'https://lms.example.com/' },
+      {
+        id: 'a',
+        show_when: { kind: 'url', url_pattern: 'https://other.example.com/x' },
+      },
+      {
+        id: 'a',
+        done_when: {
+          kind: 'url',
+          url_pattern: 'https://lms.example.com/course/123456',
+        },
+      },
+      { id: 'a', done_when: { kind: 'gone' } },
+      { id: 'a', open_url: 'https://lms.example.com/*' },
+    ])
+      expect(
+        await call('update_web_tour_steps', {
+          set_id: 't1',
+          steps: [
+            step,
+            ...['a', 'b', messageId]
+              .filter((i) => i !== step.id)
+              .map((id) => ({ id })),
+          ],
+        })
+      ).toMatchObject({ error: expect.any(String) as unknown });
+  });
+
+  it('counts a changed start page as a change to the published tour', () => {
+    const published = { at: 10, set: tour() };
+    expect(
+      publishState(
+        { ...tour(), updatedAt: 30, webStartUrl: 'https://lms.example.com/' },
+        published
+      )
+    ).toBe('changed');
+    expect(publishState({ ...tour(), updatedAt: 30 }, published)).toBe(
+      'published'
+    );
   });
 
   it('matches hard and soft student data patterns', () => {

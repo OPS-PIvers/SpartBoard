@@ -427,6 +427,87 @@ describe('kept pages: recording', () => {
     });
   });
 
+  it('K12: a rescan covering only page 2 keeps page 1’s older copy', async () => {
+    const docs = baseDocs();
+    docs[RESP1] = {
+      paperBatchId: BATCH,
+      answers: [],
+      paperPages: [artifact(1, 1, 'scan-1'), artifact(2, 1, 'scan-1')],
+      artifactArchive: {
+        'pg_scan-1_1': { archiveStatus: 'awaiting-drive' },
+        'pg_scan-1_2': { archiveStatus: 'awaiting-drive' },
+      },
+    };
+    await importWith(docs, {
+      scanId: SCAN,
+      pages: [entry(1, 2)],
+      coveredPages: { 1: [2] },
+    });
+    expect(docs[RESP1].paperPages).toEqual([
+      artifact(1, 1, 'scan-1'),
+      artifact(2),
+    ]);
+    expect(docs[RESP1].artifactArchive).toEqual({
+      'pg_scan-1_1': { archiveStatus: 'awaiting-drive' },
+    });
+  });
+
+  it('K12: a covered page that came without a copy is cleared, an uncovered one stays', async () => {
+    const docs = baseDocs();
+    docs[RESP1] = {
+      paperBatchId: BATCH,
+      answers: [],
+      paperPages: [artifact(1, 1, 'scan-1'), artifact(2, 1, 'scan-1')],
+    };
+    await importWith(docs, {
+      scanId: SCAN,
+      pages: [],
+      coveredPages: { 1: [2] },
+    });
+    expect(docs[RESP1].paperPages).toEqual([artifact(1, 1, 'scan-1')]);
+  });
+
+  it('K12: coveredPages with no pages and no scan id leaves every older page', async () => {
+    const docs = baseDocs();
+    docs[RESP1] = priorPages();
+    await importWith(docs, { coveredPages: { 1: [] } });
+    expect(docs[RESP1].paperPages).toEqual([
+      artifact(1, 1, 'scan-1'),
+      artifact(2, 1, 'scan-1'),
+    ]);
+  });
+
+  it('K12: coveredPages with an invalid scan id still keeps uncovered pages', async () => {
+    const docs = baseDocs();
+    docs[RESP1] = priorPages();
+    await importWith(docs, {
+      scanId: 'bad id!',
+      pages: [entry(1, 1)],
+      coveredPages: { 1: [1] },
+    });
+    expect(docs[RESP1].paperPages).toEqual([artifact(2, 1, 'scan-1')]);
+  });
+
+  it('K12: a forged page entry whose id does not parse is dropped by a covered import', async () => {
+    const docs = baseDocs();
+    docs[RESP1] = {
+      ...priorPages(),
+      paperPages: [
+        { ...artifact(1, 1, 'scan-1'), id: 'forged' },
+        artifact(2, 1, 'scan-1'),
+      ],
+    };
+    await importWith(docs, {
+      scanId: SCAN,
+      pages: [entry(1, 1)],
+      coveredPages: { 1: [1] },
+    });
+    expect(docs[RESP1].paperPages).toEqual([
+      artifact(1),
+      artifact(2, 1, 'scan-1'),
+    ]);
+  });
+
   it('a replay of the same scan leaves an archived page’s bookkeeping alone', async () => {
     const docs = baseDocs();
     docs[RESP1] = {

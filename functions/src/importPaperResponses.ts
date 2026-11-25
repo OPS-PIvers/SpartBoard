@@ -40,6 +40,7 @@ import {
   PAPER_TRANSCRIPTION_JOBS,
   paperCropStoragePath,
   paperPageArtifactId,
+  paperPageNumberOf,
   paperPageStoragePath,
   paperTranscriptionJobId,
   type PaperPageMap,
@@ -113,6 +114,8 @@ export interface ImportPaperResponsesInput {
   scanId?: string;
   /** `paper-kept-pages` entries, unvalidated until the batch and caller are known; absent imports as before. */
   pages?: unknown[];
+  /** Page numbers each seat's sheet covered in this scan; only those pages are replaced. Absent replaces all (older clients). */
+  coveredPages?: Map<number, Set<number>>;
 }
 
 /** One kept page that passed `selectKeptPages`. */
@@ -291,7 +294,31 @@ export function parseImportPaperResponsesInput(
     sheets,
     ...(v2 ? { layoutVersion: 2 as const, scanId } : {}),
     ...(pages ? { pages, ...(scanId ? { scanId } : {}) } : {}),
+    ...(isRecord(data.coveredPages)
+      ? { coveredPages: parseCoveredPages(data.coveredPages) }
+      : {}),
   };
+}
+
+function parseCoveredPages(raw: Record<string, unknown>) {
+  const out = new Map<number, Set<number>>();
+  for (const [key, list] of Object.entries(raw).slice(0, MAX_SHEETS_PER_CALL)) {
+    const seat = Number(key);
+    if (!Number.isInteger(seat) || !Array.isArray(list)) continue;
+    out.set(
+      seat,
+      new Set(
+        list.filter(
+          (p): p is number =>
+            typeof p === 'number' &&
+            Number.isInteger(p) &&
+            p >= 1 &&
+            p <= MAX_PAGE
+        )
+      )
+    );
+  }
+  return out;
 }
 
 export interface KeptPageScope {
@@ -729,6 +756,9 @@ export async function handleImportPaperResponses(
         keptPages: keptPages
           ? (keptPages.bySeat.get(r.sheet.seat) ?? [])
           : null,
+        coveredPages: input.coveredPages
+          ? (input.coveredPages.get(r.sheet.seat) ?? new Set<number>())
+          : null,
         now,
       })
     )
@@ -823,6 +853,8 @@ interface SeatContext {
   transcribe: boolean;
   /** This seat's kept pages when they are on for this import; null clears any older scan's (K12). */
   keptPages: KeptPage[] | null;
+  /** Page numbers this seat's sheet covered; pages outside it survive (K12). Null replaces every older page. */
+  coveredPages: ReadonlySet<number> | null;
   now: number;
 }
 
@@ -894,11 +926,12 @@ const keepsArchiveEntry = (entry: Record<string, unknown>): boolean =>
   entry.archiveStatus === 'deleted' ||
   entry.archiveStatus === 'delete-failed';
 
-/** K12: every import leaves only this scan's pages; a superseded page's pending archive entry goes with it. */
+/** K12: an import replaces the pages its sheet covered and keeps the rest; a superseded page's pending archive entry goes with it. */
 async function keptPageFields(
   existing: admin.firestore.DocumentData | null,
   pages: readonly KeptPage[],
-  scanId: string | null
+  scanId: string | null,
+  covered: ReadonlySet<number> | null = null
 ): Promise<Record<string, unknown>> {
   const prior: Record<string, unknown>[] = Array.isArray(existing?.paperPages)
     ? (existing.paperPages as unknown[]).filter(isRecord)
@@ -906,7 +939,7 @@ async function keptPageFields(
   // Today's data has no pages: no fields, and no archive module load.
   if (prior.length === 0 && (pages.length === 0 || !scanId)) return {};
   // Recorded as a crop is: `uploaded` at import, whether or not the background upload has landed.
-  const next = scanId
+  const fresh = scanId
     ? pages.map((p) => ({
         id: paperPageArtifactId(scanId, p.page),
         slot: 'primary',
@@ -916,6 +949,16 @@ async function keptPageFields(
         uploadState: 'uploaded',
       }))
     : [];
+  const replaced = new Set([...(covered ?? []), ...pages.map((p) => p.page)]);
+  const kept = covered
+    ? prior.filter((a) => {
+        const n = typeof a.id === 'string' ? paperPageNumberOf(a.id) : null;
+        return n !== null && !replaced.has(n);
+      })
+    : [];
+  const pageOf = (a: Record<string, unknown>) =>
+    (typeof a.id === 'string' ? paperPageNumberOf(a.id) : null) ?? 0;
+  const next = [...kept, ...fresh].sort((a, b) => pageOf(a) - pageOf(b));
   const nextIds = new Set(next.map((a) => a.id));
   const archive: Record<string, Record<string, unknown>> = {};
   if (isRecord(existing?.artifactArchive)) {
@@ -1105,7 +1148,8 @@ async function importSeat(
   const pageFields = await keptPageFields(
     existing,
     ctx.keptPages ?? [],
-    ctx.keptPages ? scanId : null
+    ctx.keptPages ? scanId : null,
+    ctx.coveredPages
   );
   outcome.pagesRecorded = ctx.keptPages?.length ?? 0;
   tx.set(

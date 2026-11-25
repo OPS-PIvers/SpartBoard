@@ -742,10 +742,31 @@ export const RosterList: React.FC<RosterListProps> = ({
             onClick: () => onPrintCopy(s.key),
           });
         const canMark = !!onSetAbsent && !!s.rosterId && !!s.studentId;
+        const tourRowKey = `row-${rest.length + (absentTourOrder.get(s.key) ?? 0) + 1}`;
         return (
           <RosterRow key={s.key} name={s.name} muted>
             {setTime ? (
               <SetTimeText time={setTime} />
+            ) : s.absent && onSetTime && s.studentUid ? (
+              <button
+                type="button"
+                {...tourFieldAttr(
+                  'quiz-monitor.student-schedule',
+                  'quiz',
+                  tourRowKey
+                )}
+                onClick={() => s.studentUid && onSetTime(s.studentUid, s.name)}
+                aria-label={`Schedule ${s.name}`}
+                className="touch-target-expand relative inline-flex items-center rounded-md border border-brand-gray-lighter bg-white font-sans font-medium text-brand-blue-primary transition-colors hover:border-brand-blue-light"
+                style={{ ...fieldStyle, gap: 'min(3px, 0.8cqmin)' }}
+              >
+                <CalendarClock
+                  aria-hidden
+                  className="shrink-0"
+                  style={iconSize}
+                />
+                Schedule
+              </button>
             ) : (
               !s.absent && (
                 <span
@@ -764,7 +785,7 @@ export const RosterList: React.FC<RosterListProps> = ({
                 anchor={tourFieldAttr(
                   'quiz-monitor.student-mark-absent',
                   'quiz',
-                  `row-${rest.length + (absentTourOrder.get(s.key) ?? 0) + 1}`
+                  tourRowKey
                 )}
               />
             ) : (
@@ -782,7 +803,7 @@ export const RosterList: React.FC<RosterListProps> = ({
               triggerAnchor={tourFieldAttr(
                 'quiz-monitor.roster-row-actions',
                 'quiz',
-                `row-${rest.length + (absentTourOrder.get(s.key) ?? 0) + 1}`
+                tourRowKey
               )}
               items={items}
             />

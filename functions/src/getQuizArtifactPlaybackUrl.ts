@@ -13,7 +13,7 @@
  * marker, the teacher's publish state (`scoreVisibility`, re-read on every
  * call so an unpublish revokes playback with no cleanup step), and ownership
  * (`response.studentUid === request.auth.uid`, with a PIN token held to its
- * own session). Anything unresolvable denies.
+ * own session and a student token to the session's classes). Anything unresolvable denies.
  * A whiteboard take (picture, drawing log, or its audio) also needs the
  * fail-closed `quiz-whiteboard-response` record.
  */
@@ -31,7 +31,8 @@ import {
 } from './quizMediaArchive';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
-import { assertViewAsAllowed, LEGACY_PIN_TOKEN_GRACE_MS } from './viewAsGuard';
+import { assertViewAsAllowed } from './viewAsGuard';
+import { studentTokenReachesSession } from './studentSessionGate';
 import { resolveServerResultsVisibility } from './quizResultsVisibilityServer';
 import { safeErr } from './safeLog';
 
@@ -228,36 +229,6 @@ export function parsePlaybackRequest(raw: unknown): PlaybackRequest {
   return { sessionId, responseKey, questionId, slot: rawSlot, part: rawPart };
 }
 
-const nonEmptyIds = (v: unknown): string[] =>
-  Array.isArray(v)
-    ? v.filter((c): c is string => typeof c === 'string' && c.length > 0)
-    : [];
-
-/** A PIN token proves one session; a pre-scope one in grace, one targeted class (as getMyQuizAttempts). */
-export function pinTokenReachesSession(
-  claims: Record<string, unknown>,
-  sessionId: string,
-  session: Record<string, unknown>,
-  now: number
-): boolean {
-  if (claims.pinLogin !== true) return true;
-  if (claims.pinSessionId !== undefined) {
-    return claims.pinSessionId === sessionId;
-  }
-  if (
-    typeof claims.auth_time !== 'number' ||
-    now >= claims.auth_time * 1000 + LEGACY_PIN_TOKEN_GRACE_MS
-  ) {
-    return false;
-  }
-  const listed = nonEmptyIds(session.classIds);
-  const sessionClasses = listed.length
-    ? listed
-    : nonEmptyIds([session.classId]);
-  const tokenClasses = nonEmptyIds(claims.classIds);
-  return sessionClasses.some((c) => tokenClasses.includes(c));
-}
-
 // ── Default dependency implementations ─────────────────────────────────────
 
 export const DRIVE_DOWNLOAD_TIMEOUT_MS = 45_000;
@@ -336,7 +307,7 @@ export async function resolveArtifactPlayback(
   const session = sessionSnap.data() ?? {};
 
   if (
-    !pinTokenReachesSession(
+    !studentTokenReachesSession(
       input.callerClaims ?? {},
       sessionId,
       session,

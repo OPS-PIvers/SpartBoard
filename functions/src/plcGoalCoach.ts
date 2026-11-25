@@ -3,6 +3,7 @@ import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
+import { isLiveCaller } from './authz';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
   enforceAiFeatureAccess,
@@ -136,9 +137,12 @@ export async function runGoalCoach(
 ): Promise<GoalCoachResult> {
   if (!(await deps.isTeacher(token)))
     throw new HttpsError('permission-denied', 'Teacher account required.');
-  const snap = await deps.db.collection('plcs').doc(req.plcId).get();
+  const [snap, live] = await Promise.all([
+    deps.db.collection('plcs').doc(req.plcId).get(),
+    isLiveCaller(deps.db, token),
+  ]);
   const plc = snap.data();
-  if (!snap.exists || !plc || !isPlcMember(plc, uid)) {
+  if (!snap.exists || !plc || !live || !isPlcMember(plc, uid)) {
     throw new HttpsError(
       'permission-denied',
       'Only members of this team can use the goal coach.'

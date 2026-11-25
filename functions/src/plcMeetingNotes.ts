@@ -5,6 +5,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
+import { isLiveCaller } from './authz';
 import { ThinkingLevel } from '@google/genai';
 import * as fs from 'fs/promises';
 import * as os from 'os';
@@ -204,11 +205,15 @@ export function notesBlocker(
 async function loadEditablePlc(
   db: Firestore,
   plcId: string,
-  uid: string
+  uid: string,
+  token: unknown
 ): Promise<Data> {
-  const snap = await db.collection('plcs').doc(plcId).get();
+  const [snap, live] = await Promise.all([
+    db.collection('plcs').doc(plcId).get(),
+    isLiveCaller(db, token),
+  ]);
   const plc = snap.data();
-  if (!snap.exists || !plc || !canEditPlc(plc, uid)) {
+  if (!snap.exists || !plc || !live || !canEditPlc(plc, uid)) {
     throw new HttpsError(
       'permission-denied',
       'Only editors of this group can do that.'
@@ -261,7 +266,7 @@ export async function requestMeetingNotes(
 ): Promise<{ status: 'queued' }> {
   if (!(await deps.isTeacher(token)))
     throw new HttpsError('permission-denied', 'Teacher account required.');
-  await loadEditablePlc(deps.db, req.plcId, uid);
+  await loadEditablePlc(deps.db, req.plcId, uid, token);
   const pre = await recordingRef(deps.db, req.plcId, req.recordingId).get();
   const blocker = notesBlocker(pre.data(), req.mode, deps.now());
   if (blocker) throw new HttpsError('failed-precondition', blocker);
@@ -492,9 +497,10 @@ export async function runMeetingNotesJob(
 export async function resolveMeetingNotesDraft(
   req: ResolveRequest,
   uid: string,
+  token: unknown,
   deps: Pick<MeetingNotesDeps, 'db' | 'now'>
 ): Promise<{ ok: true }> {
-  await loadEditablePlc(deps.db, req.plcId, uid);
+  await loadEditablePlc(deps.db, req.plcId, uid, token);
   const ref = recordingRef(deps.db, req.plcId, req.recordingId);
   await deps.db.runTransaction(async (tx) => {
     const rec = (await tx.get(ref)).data();
@@ -738,10 +744,11 @@ export const resolvePlcMeetingNotesDraftV1 = onCall(
   },
   async (request) => {
     await assertViewAsAllowed(request);
-    const { uid } = requireAuth(request);
+    const { uid, token } = requireAuth(request);
     return resolveMeetingNotesDraft(
       parseResolveRequest(request.data),
       uid,
+      token,
       defaultDeps()
     );
   }

@@ -1,5 +1,5 @@
 // Rules for `/linked_collections/{linkId}` (docs/plans/shipped/COLLECTION_SHARING.md): reads, host,
-// collaborator, self-join (role pinned to the mode), self-leave, delete, and the link host ending board shares.
+// collaborator, denied client joins and leaves, delete, and the link host ending board shares.
 // Requires a running Firestore emulator: pnpm run test:rules
 
 import { readFileSync } from 'fs';
@@ -432,141 +432,22 @@ describe('collaborator updates', () => {
 });
 
 describe('client self-join and self-leave are denied (shareMembershipV1 does both)', () => {
-  it('a teacher cannot join a Synced link as collaborator', async () => {
-    await assertFails(
-      updateDoc(ref(asStranger(), SYNCED_ID), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'collaborator',
-          name: 'Stranger',
-          joinedAt: 2000,
-        },
-      })
-    );
-  });
-
-  it('a teacher cannot join a View-Only link as viewer', async () => {
-    await assertFails(
-      updateDoc(ref(asStranger(), VIEW_ID), {
-        [`participants.${STRANGER_UID}`]: { role: 'viewer', joinedAt: 2000 },
-      })
-    );
-  });
-
-  it('joining a View-Only link as collaborator is denied', async () => {
-    await assertFails(
-      updateDoc(ref(asStranger(), VIEW_ID), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'collaborator',
-          joinedAt: 2000,
-        },
-      })
-    );
-  });
-
-  it('joining with an extra field is denied', async () => {
-    await assertFails(
-      updateDoc(ref(asStranger(), SYNCED_ID), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'collaborator',
-          joinedAt: 2000,
-          admin: true,
-        },
-      })
-    );
-  });
-
-  it('joining with a name over 100 characters is denied', async () => {
-    await assertFails(
-      updateDoc(ref(asStranger(), SYNCED_ID), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'collaborator',
-          name: 'x'.repeat(101),
-          joinedAt: 2000,
-        },
-      })
-    );
-  });
-
-  it('joining with a non-string name is denied', async () => {
-    await assertFails(
-      updateDoc(ref(asStranger(), SYNCED_ID), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'collaborator',
-          name: 42,
-          joinedAt: 2000,
-        },
-      })
-    );
-  });
-
-  it('joining a link that already has 50 members is denied', async () => {
-    const participants = Object.fromEntries(
-      Array.from({ length: 50 }, (_, i) => [
-        `member-${i}`,
-        { role: 'collaborator', joinedAt: 1 },
-      ])
-    );
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await updateDoc(ref(ctx.firestore(), SYNCED_ID), { participants });
-    });
-    await assertFails(
-      updateDoc(ref(asStranger(), SYNCED_ID), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'collaborator',
-          joinedAt: 2000,
-        },
-      })
-    );
-  });
-
-  it('joining with a non-number joinedAt is denied', async () => {
-    await assertFails(
-      updateDoc(ref(asStranger(), SYNCED_ID), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'collaborator',
-          joinedAt: ['x'.repeat(1000)],
-        },
-      })
-    );
-  });
-
-  it('cannot add someone else', async () => {
-    await assertFails(
-      updateDoc(ref(asStranger(), SYNCED_ID), {
-        [`participants.other-uid`]: { role: 'collaborator', joinedAt: 2000 },
-      })
-    );
-  });
-
-  it('cannot change other fields while joining', async () => {
-    await assertFails(
-      updateDoc(ref(asStranger(), SYNCED_ID), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'collaborator',
-          joinedAt: 2000,
-        },
-        name: 'Hijacked',
-      })
-    );
-  });
-
-  it('cannot join an ended link', async () => {
-    await assertFails(
-      updateDoc(ref(asStranger(), ENDED_ID), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'collaborator',
-          joinedAt: 2000,
-        },
-      })
-    );
-  });
-
-  it('an anonymous user cannot join', async () => {
-    await assertFails(
-      updateDoc(ref(asAnon(), SYNCED_ID), {
-        [`participants.anon-uid`]: { role: 'collaborator', joinedAt: 2000 },
-      })
-    );
+  it('no client can add itself to participants, in any mode or role', async () => {
+    const attempts: [() => ReturnType<typeof asHost>, string, string][] = [
+      [asStranger, SYNCED_ID, 'collaborator'],
+      [asStranger, VIEW_ID, 'viewer'],
+      [asStranger, ENDED_ID, 'collaborator'],
+      [asAnon, SYNCED_ID, 'collaborator'],
+    ];
+    for (const [who, id, role] of attempts) {
+      const db = who();
+      const uid = who === asAnon ? 'anon-uid' : STRANGER_UID;
+      await assertFails(
+        updateDoc(ref(db, id), {
+          [`participants.${uid}`]: { role, joinedAt: 2000 },
+        })
+      );
+    }
   });
 
   it('a member cannot leave', async () => {

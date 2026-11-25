@@ -240,6 +240,27 @@ describe('requestMeetingNotes', () => {
     expect(deps.charge).not.toHaveBeenCalled();
   });
 
+  it('refuses a deactivated operator-org editor before charging', async () => {
+    const { fs, deps } = setup(ready());
+    fs.store.set('organizations/orono/members/pat@orono.k12.mn.us', {
+      status: 'deactivated',
+    });
+    for (const token of [
+      { email: 'Pat@orono.k12.mn.us' },
+      { deactivated: true },
+    ]) {
+      await expect(
+        requestMeetingNotes(
+          { plcId: PLC, recordingId: REC, mode: 'transcribe' },
+          EDITOR,
+          token,
+          deps
+        )
+      ).rejects.toThrow(/Only editors/);
+    }
+    expect(deps.charge).not.toHaveBeenCalled();
+  });
+
   it('refunds when the recording changed before queueing', async () => {
     const { fs, deps } = setup(ready());
     deps.charge = vi.fn(() => {
@@ -407,15 +428,36 @@ describe('resolveMeetingNotesDraft', () => {
       generatedAt: 42,
       action: 'inserted' as const,
     };
-    await resolveMeetingNotesDraft(req, EDITOR, deps);
+    await resolveMeetingNotesDraft(req, EDITOR, {}, deps);
     expect(fs.get(REC_PATH)).toMatchObject({
       draftResolvedAt: NOW,
       draftResolution: 'inserted',
       draftResolvedBy: EDITOR,
     });
     await expect(
-      resolveMeetingNotesDraft({ ...req, action: 'dismissed' }, 'u-sarah', deps)
+      resolveMeetingNotesDraft(
+        { ...req, action: 'dismissed' },
+        'u-sarah',
+        {},
+        deps
+      )
     ).rejects.toThrow(/already handled/);
+  });
+
+  it('refuses a deactivated operator-org editor', async () => {
+    const { fs, deps } = setup(withDraft());
+    fs.store.set('organizations/orono/members/pat@orono.k12.mn.us', {
+      status: 'deactivated',
+    });
+    await expect(
+      resolveMeetingNotesDraft(
+        { plcId: PLC, recordingId: REC, generatedAt: 42, action: 'inserted' },
+        EDITOR,
+        { email: 'pat@orono.k12.mn.us' },
+        deps
+      )
+    ).rejects.toThrow(/Only editors/);
+    expect(fs.get(REC_PATH)!.draftResolvedAt).toBeNull();
   });
 
   it('refuses a stale draft version and lets only the resolver reopen', async () => {
@@ -424,6 +466,7 @@ describe('resolveMeetingNotesDraft', () => {
       resolveMeetingNotesDraft(
         { plcId: PLC, recordingId: REC, generatedAt: 41, action: 'dismissed' },
         EDITOR,
+        {},
         deps
       )
     ).rejects.toThrow(/newer draft/);
@@ -431,12 +474,23 @@ describe('resolveMeetingNotesDraft', () => {
     await resolveMeetingNotesDraft(
       { ...req, action: 'inserted' },
       EDITOR,
+      {},
       deps
     );
     await expect(
-      resolveMeetingNotesDraft({ ...req, action: 'reopen' }, 'u-sarah', deps)
+      resolveMeetingNotesDraft(
+        { ...req, action: 'reopen' },
+        'u-sarah',
+        {},
+        deps
+      )
     ).rejects.toThrow(/Nothing to reopen/);
-    await resolveMeetingNotesDraft({ ...req, action: 'reopen' }, EDITOR, deps);
+    await resolveMeetingNotesDraft(
+      { ...req, action: 'reopen' },
+      EDITOR,
+      {},
+      deps
+    );
     expect(fs.get(REC_PATH)!.draftResolvedAt).toBeNull();
   });
 });
