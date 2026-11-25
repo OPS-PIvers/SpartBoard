@@ -118,4 +118,20 @@ describe('Hotspot Image base image field', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('10 MB');
     expect(mockUploadHotspotImage).not.toHaveBeenCalled();
   });
+
+  it('ignores a paste outside the picker so pins keep their image', () => {
+    render(
+      <div role="dialog">
+        <button type="button">elsewhere</button>
+        <HotspotImageBaseField ctx={makeCtx({})} />
+      </div>
+    );
+    const file = new File(['x'], 'shot.png', { type: 'image/png' });
+    const paste = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(paste, 'clipboardData', {
+      value: { files: [file], types: ['Files'] },
+    });
+    screen.getByRole('button', { name: 'elsewhere' }).dispatchEvent(paste);
+    expect(mockUploadHotspotImage).not.toHaveBeenCalled();
+  });
 });

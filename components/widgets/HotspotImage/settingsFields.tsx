@@ -187,6 +187,7 @@ const HotspotBaseImageField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
         <ImagePicker
           value={baseImageUrl}
           maxBytes={MAX_BYTES}
+          pasteScope="element"
           tourScope={{ type: ctx.widget.type, field: 'baseImageUrl' }}
           tourOverrides={{
             upload: tourAttr(
