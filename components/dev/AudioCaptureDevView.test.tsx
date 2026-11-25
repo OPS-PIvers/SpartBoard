@@ -22,7 +22,7 @@ const EXPECTED: Record<string, RegExp> = {
   recovered: /Your saved attempt/i,
   committing: /Listen back/i,
   'archive-failed': /Not yet submitted|didn.t send/i,
-  'take-limit': /^Turned in$/i,
+  'take-limit': /^Submitted$/i,
   'window-closed': /Recording time is over/i,
   'mic-unavailable': /microphone did not work/i,
 };
