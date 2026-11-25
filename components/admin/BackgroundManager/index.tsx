@@ -48,7 +48,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import { Toast } from '@/components/common/Toast';
+import { useDashboard } from '@/context/useDashboard';
 import { Button } from '@/components/common/Button';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useDialog } from '@/context/useDialog';
@@ -56,6 +56,7 @@ import { ListPresetRow } from './ListPresetRow';
 import { GridPresetCard } from './GridPresetCard';
 import { StockPhotoPicker, type StockPhotoSelection } from './StockPhotoPicker';
 import { isPexelsConfigured } from '@/utils/pexelsService';
+import { Modal } from '@/components/common/Modal';
 
 const DEFAULT_PRESETS = [
   {
@@ -118,10 +119,6 @@ export const BackgroundManager: React.FC = () => {
     current: number;
     total: number;
   } | null>(null);
-  const [message, setMessage] = useState<{
-    type: 'success' | 'error';
-    text: string;
-  } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
 
@@ -162,9 +159,11 @@ export const BackgroundManager: React.FC = () => {
   const [showDrivePicker, setShowDrivePicker] = useState(false);
   const [showStockPicker, setShowStockPicker] = useState(false);
 
-  const showMessage = useCallback((type: 'success' | 'error', text: string) => {
-    setMessage({ type, text });
-  }, []);
+  const { addToast } = useDashboard();
+  const showMessage = useCallback(
+    (type: 'success' | 'error', text: string) => addToast(text, type),
+    [addToast]
+  );
 
   const loadDriveImages = async () => {
     if (!driveService) return;
@@ -250,17 +249,6 @@ export const BackgroundManager: React.FC = () => {
       showMessage('error', 'Failed to add stock photo');
     }
   };
-
-  // Manage message timeout lifecycle
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => {
-        setMessage(null);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [message]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loading flag for the Firestore subscription
@@ -769,15 +757,6 @@ export const BackgroundManager: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full space-y-4">
-      {/* Message Toast */}
-      {message && (
-        <Toast
-          message={message.text}
-          type={message.type}
-          onClose={() => setMessage(null)}
-        />
-      )}
-
       <BoardBackgroundDefaultsPanel
         presets={presets}
         onError={(text) => showMessage('error', text)}
@@ -1132,62 +1111,68 @@ export const BackgroundManager: React.FC = () => {
 
       {/* Drive Picker Modal */}
       {showDrivePicker && (
-        <div className="fixed inset-0 z-modal-nested flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-slate-800">
-                Select Image from Google Drive
-              </h3>
-              <button
-                {...tourAttr('admin.backgrounds.drive-picker-close')}
-                onClick={() => setShowDrivePicker(false)}
-                className="p-2 hover:bg-slate-100 rounded-full transition-colors"
-              >
-                <X className="w-6 h-6 text-slate-400" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              {driveFiles.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {driveFiles.map((file) => (
-                    <button
-                      key={file.id}
-                      {...tourFieldAttr(
-                        'admin.backgrounds.drive-picker-file',
-                        'admin',
-                        file.id
-                      )}
-                      onClick={() => void handleDriveSelect(file)}
-                      className="group relative aspect-video bg-slate-100 rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-blue-primary transition-all text-left"
-                    >
-                      {file.thumbnailLink ? (
-                        <img
-                          src={file.thumbnailLink.replace('=s220', '=s400')}
-                          alt={file.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <ImageIcon className="w-8 h-8 text-slate-300" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
-                        <p className="text-white text-xs font-medium truncate">
-                          {file.name}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="h-64 flex flex-col items-center justify-center text-slate-400">
-                  <Database className="w-12 h-12 mb-2 opacity-50" />
-                  <p>No images found in your Google Drive</p>
-                </div>
-              )}
-            </div>
+        <Modal
+          isOpen
+          onClose={() => setShowDrivePicker(false)}
+          variant="bare"
+          zIndex="z-modal-nested"
+          maxWidth="max-w-2xl"
+          ariaLabel="Select Image from Google Drive"
+          className="max-h-[80vh]! overflow-hidden rounded-2xl bg-white shadow-2xl [&>div]:flex [&>div]:flex-col [&>div]:overflow-hidden"
+        >
+          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-xl font-bold text-slate-800">
+              Select Image from Google Drive
+            </h3>
+            <button
+              {...tourAttr('admin.backgrounds.drive-picker-close')}
+              onClick={() => setShowDrivePicker(false)}
+              className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+            >
+              <X className="w-6 h-6 text-slate-400" />
+            </button>
           </div>
-        </div>
+          <div className="flex-1 overflow-y-auto p-6">
+            {driveFiles.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {driveFiles.map((file) => (
+                  <button
+                    key={file.id}
+                    {...tourFieldAttr(
+                      'admin.backgrounds.drive-picker-file',
+                      'admin',
+                      file.id
+                    )}
+                    onClick={() => void handleDriveSelect(file)}
+                    className="group relative aspect-video bg-slate-100 rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-blue-primary transition-all text-left"
+                  >
+                    {file.thumbnailLink ? (
+                      <img
+                        src={file.thumbnailLink.replace('=s220', '=s400')}
+                        alt={file.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <ImageIcon className="w-8 h-8 text-slate-300" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
+                      <p className="text-white text-xs font-medium truncate">
+                        {file.name}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="h-64 flex flex-col items-center justify-center text-slate-400">
+                <Database className="w-12 h-12 mb-2 opacity-50" />
+                <p>No images found in your Google Drive</p>
+              </div>
+            )}
+          </div>
+        </Modal>
       )}
 
       {/* Stock Photo Picker */}

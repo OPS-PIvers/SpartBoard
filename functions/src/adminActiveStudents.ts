@@ -16,7 +16,7 @@ import {
   getOAuthHeaders,
   type ClassLinkStudent,
 } from './classlinkShared';
-import { isRevokedMemberStatus, isSiteWideAdmin } from './authz';
+import { isRevokedMemberStatus, isSiteSuperAdmin } from './authz';
 import { loadTeacherClassIds } from './studentIdentity';
 import { assertViewAsAllowed } from './viewAsGuard';
 
@@ -343,20 +343,11 @@ async function assertOrgWideAdmin(
   orgId: string,
   emailLower: string
 ): Promise<void> {
-  const [adminDoc, memberDoc] = await Promise.all([
-    db.collection('admins').doc(emailLower).get(),
+  const [siteAdmin, memberDoc] = await Promise.all([
+    isSiteSuperAdmin(db, emailLower),
     db.doc(`organizations/${orgId}/members/${emailLower}`).get(),
   ]);
-  if (
-    adminDoc.exists &&
-    (await isSiteWideAdmin(
-      db,
-      emailLower,
-      adminDoc.get('roleId'),
-      adminDoc.get('orgId')
-    ))
-  )
-    return;
+  if (siteAdmin) return;
   const roleId: unknown = memberDoc.exists ? memberDoc.get('roleId') : null;
   if (
     typeof roleId === 'string' &&

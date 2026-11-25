@@ -83,6 +83,7 @@ import {
   PaperBoxSize,
   QuestionBankMetadata,
   QuizWidgetKind,
+  PlcQuizEntry,
 } from '@/types';
 import type { BankSource } from '@/hooks/useBankSources';
 import type { StudentViewVersion } from '@/utils/quizStudentViewVersions';
@@ -105,7 +106,6 @@ import {
 } from '@/components/common/AssignClassPicker.helpers';
 import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
-import { findPoolGroupByTitle } from '@/utils/plcPooling';
 import {
   mapLegacyClassIdsToRosterIds,
   resolveAssignmentTargets,
@@ -141,8 +141,6 @@ import {
   type AssignmentStatusBadge,
   type LibraryBadgeTone,
   type LibrarySelectionApi,
-  LIBRARY_ITEM_NOUNS,
-  useLibraryDeleteConfirm,
 } from '@/components/common/library';
 import { earliestDueAt } from '@/utils/perClassDueDates';
 import { AssignmentClassNames } from '@/components/common/library/AssignmentClassNames';
@@ -204,8 +202,8 @@ export interface PlcOptions {
   periodNames?: string[];
   /** PLC whose assessments pool this assignment's results (when `plcMode`). */
   plcId?: string;
-  /** PLC library group with the same title, so runs of one quiz share a pool. */
-  plcPoolSyncGroupId?: string;
+  /** The PLC's quiz library, so runs of one quiz share a pool. */
+  plcLibrary?: PlcQuizEntry[];
 }
 
 /* ─── Assign-modal options shape (internal) ───────────────────────────────── */
@@ -438,9 +436,8 @@ interface QuizManagerProps {
    */
   onCreateViewOnlyShare?: (quiz: QuizMetadata) => Promise<string>;
   onResults: (quiz: QuizMetadata) => void;
-  onDelete: (quiz: QuizMetadata) => void | Promise<void>;
-  /** Extra consequence line for a quiz's one delete confirm. */
-  deleteDetail?: (quiz: QuizMetadata) => string | undefined;
+  /** Confirms and deletes one quiz (the widget's library delete policy). */
+  onDelete: (quiz: QuizMetadata) => unknown;
   /**
    * Phase 5 — duplicate kebab item. Owns the actual `duplicateQuiz` call
    * (the widget already has the hook). When omitted, the Duplicate entry
@@ -457,15 +454,7 @@ interface QuizManagerProps {
    * one teacher intent.
    */
   isDuplicating?: (quizId: string) => boolean;
-  /**
-   * Optional batch delete that bypasses the per-quiz confirmation/toasts
-   * fired by `onDelete` (see QuizWidget's `onDelete` wiring, which prompts
-   * per-quiz when archived assignments exist). Receives every selected
-   * quiz — implementers are responsible for their own aggregated confirms
-   * and summary toasts. Resolve to `true` when a delete was attempted
-   * (selection will be cleared) or `false` when the handler aborted or
-   * the user cancelled (selection will be preserved so they can retry).
-   */
+  /** Confirms and deletes the selected quizzes; resolves true when a delete was attempted (the selection clears). */
   onBulkDelete?: (quizzes: QuizMetadata[]) => Promise<boolean>;
   /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
   folderDeleteActions?: FolderDeleteActions;
@@ -523,7 +512,8 @@ interface QuizManagerProps {
   onOpenSchoologyInbox?: () => void;
   onEditBank?: (meta: QuestionBankMetadata) => void;
   onDuplicateBank?: (meta: QuestionBankMetadata) => void | Promise<void>;
-  onDeleteBank?: (meta: QuestionBankMetadata) => void | Promise<void>;
+  onDeleteBank?: (meta: QuestionBankMetadata) => unknown;
+  onBulkDeleteBanks?: (banks: QuestionBankMetadata[]) => Promise<boolean>;
   onReorderBanks?: (orderedIds: string[]) => Promise<void> | void;
   /** Files a bank in a Quiz folder once banks share the Quiz library's folders. */
   onMoveBankToLibraryFolder?: (
@@ -869,7 +859,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   skippedTargetsByAssignmentId,
   onResults,
   onDelete,
-  deleteDetail,
   onDuplicate,
   isDuplicating,
   onBulkDelete,
@@ -900,6 +889,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onEditBank,
   onDuplicateBank,
   onDeleteBank,
+  onBulkDeleteBanks,
   onReorderBanks,
   onMoveBankToLibraryFolder,
   onShareBankWithPlc,
@@ -976,7 +966,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
-  const confirmDelete = useLibraryDeleteConfirm();
   const claudeReview = useClaudeReview('quizzes');
 
   // ─── Assign stepper state ─────────────────────────────────────────────────
@@ -1656,14 +1645,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       label: 'Delete',
       icon: Trash2,
       destructive: true,
-      onClick: async () => {
-        const ok = await confirmDelete({
-          titles: [quiz.title],
-          noun: LIBRARY_ITEM_NOUNS.quiz,
-          detail: deleteDetail?.(quiz),
-        });
-        if (ok) await onDelete(quiz);
-      },
+      onClick: () => void onDelete(quiz),
     });
     return actions;
   };
@@ -2323,13 +2305,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       ? assignEffectivePlcId
       : null
   );
-  const assignPoolGroup = assignTarget
-    ? findPoolGroupByTitle(
-        assignPlcLibrary.filter((entry) => !entry.archived),
-        assignTarget.title
-      )
-    : undefined;
-
   const assignQuizContext = {
     questions: toOverrideEditorQuestions(assignQuizData),
     rubrics: assignRubrics,
@@ -2414,9 +2389,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       periodNames:
         effectivePeriodNames.length > 0 ? effectivePeriodNames : undefined,
       plcId: assignEffectivePlcId || undefined,
-      ...(assignOptions.plcMode && assignPoolGroup
-        ? { plcPoolSyncGroupId: assignPoolGroup.syncGroupId }
-        : {}),
+      ...(assignOptions.plcMode ? { plcLibrary: assignPlcLibrary } : {}),
     };
     const bellWindow = periodAccess?.bellWindow;
     const applied = applyWhen(
@@ -2550,35 +2523,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     if (targets.length === 0) return;
     setBulkBusy(true);
     try {
-      // `didAttempt` gates the selection clear: if the user cancelled a
-      // confirm or the widget-level handler aborted (e.g. assignments
-      // still loading), keep the selection so they can retry without
-      // re-selecting everything.
-      let didAttempt = false;
-      if (onBulkDelete) {
-        // Widget-level handler owns confirmation + summary toasts.
-        didAttempt = await onBulkDelete(targets);
-      } else {
-        const ok = await confirmDelete({
-          titles: targets.map((q) => q.title),
-          noun: LIBRARY_ITEM_NOUNS.quiz,
-        });
-        if (ok) {
-          const results = await Promise.allSettled(
-            targets.map(async (quiz) => onDelete(quiz))
-          );
-          results.forEach((result, idx) => {
-            if (result.status === 'rejected') {
-              console.error(
-                '[QuizManager] bulk delete failed for',
-                targets[idx]?.id,
-                result.reason
-              );
-            }
-          });
-          didAttempt = true;
-        }
-      }
+      // A cancelled confirm keeps the selection so the teacher can retry.
+      const didAttempt = (await onBulkDelete?.(targets)) ?? false;
       if (didAttempt) {
         selection.clear();
         setSelectionMode(false);
@@ -2586,7 +2532,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     } finally {
       setBulkBusy(false);
     }
-  }, [selection, quizzes, onDelete, onBulkDelete, confirmDelete]);
+  }, [selection, quizzes, onBulkDelete]);
 
   // Selected metas in selection order (Set preserves insertion order) —
   // merge assembles the new quiz's questions in this order.
@@ -3061,6 +3007,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onEditBank={onEditBank}
         onDuplicateBank={onDuplicateBank ?? noop}
         onDeleteBank={onDeleteBank ?? noop}
+        onBulkDeleteBanks={onBulkDeleteBanks}
         folderDeleteActions={bankFolderDeleteActions}
         onReorderBanks={onReorderBanks}
         onShareBankWithPlc={onShareBankWithPlc}
@@ -3974,8 +3921,8 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   // Admin-only by default — view-count display fires one Firestore
   // aggregation per visible card per dashboard tab-focus, gated behind the
   // `share-link-tracking` global permission.
-  const { canSeeShareTracking, canAccessFeature } = useAuth();
-  const trackingEnabled = canSeeShareTracking();
+  const { canAccessFeature } = useAuth();
+  const trackingEnabled = canAccessFeature('share-link-tracking');
   const showJoinCode =
     urlLive && !a.paper && canAccessFeature('anonymous-join');
   const { count } = useSessionViewCount(

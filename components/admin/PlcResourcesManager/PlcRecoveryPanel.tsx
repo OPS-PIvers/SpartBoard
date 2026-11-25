@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDialog } from '@/context/useDialog';
 import {
   ShieldAlert,
   Crown,
@@ -40,6 +41,7 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
  */
 export const PlcRecoveryPanel: React.FC = () => {
   const { t } = useTranslation();
+  const { showConfirm } = useDialog();
   const { isAdmin, orgId } = useAuth();
   const { addToast } = useDashboard();
   // Admin read mode: enumerate every PLC regardless of membership. The mutators
@@ -113,13 +115,14 @@ export const PlcRecoveryPanel: React.FC = () => {
   const handleRemoveMember = async (plc: Plc, member: PlcMember) => {
     const label = member.displayName || member.email || member.uid;
     if (
-      !window.confirm(
+      !(await showConfirm(
         t('admin.plc.recovery.confirmRemoveMember', {
           defaultValue: 'Remove {{member}} from “{{name}}”?',
           member: label,
           name: plc.name,
-        })
-      )
+        }),
+        { variant: 'danger' }
+      ))
     ) {
       return;
     }
@@ -165,14 +168,15 @@ export const PlcRecoveryPanel: React.FC = () => {
     if (!member) return;
     const memberLabel = member.displayName || member.email || member.uid;
     if (
-      !window.confirm(
+      !(await showConfirm(
         t('admin.plc.recovery.confirmReassign', {
           defaultValue:
             'Make {{member}} the lead of “{{name}}”? The current lead will be demoted to member.',
           member: memberLabel,
           name: plc.name,
-        })
-      )
+        }),
+        { variant: 'warning' }
+      ))
     ) {
       return;
     }
@@ -205,13 +209,14 @@ export const PlcRecoveryPanel: React.FC = () => {
 
   const handleDissolve = async (plc: Plc) => {
     if (
-      !window.confirm(
+      !(await showConfirm(
         t('admin.plc.recovery.confirmDissolve', {
           defaultValue:
             'Dissolve “{{name}}”? This permanently deletes the PLC for all members and cannot be undone.',
           name: plc.name,
-        })
-      )
+        }),
+        { variant: 'danger' }
+      ))
     ) {
       return;
     }

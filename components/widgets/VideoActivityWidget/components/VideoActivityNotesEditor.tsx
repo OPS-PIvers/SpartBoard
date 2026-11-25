@@ -4,7 +4,7 @@ import { ChevronDown, Plus, StickyNote, Trash2 } from 'lucide-react';
 import type { VideoActivityNote } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
 import { VideoActivityPictureField } from './VideoActivityPictureField';
-import { mmSsToSeconds, secondsToMmSs } from './useVideoActivityEditorState';
+import { mmSsToSeconds, secondsToMmSs } from '@/utils/videoTimestamp';
 
 interface VideoActivityNotesEditorProps {
   notes: VideoActivityNote[];

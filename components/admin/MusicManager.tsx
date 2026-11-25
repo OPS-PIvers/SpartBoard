@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import {
@@ -22,7 +28,7 @@ import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { canonicalizeBuildingIds } from '@/config/buildings';
 import { useAuth } from '@/context/useAuth';
 import { Button } from '@/components/common/Button';
-import { ConfirmDialog } from '@/components/widgets/InstructionalRoutines/ConfirmDialog';
+import { useDialog } from '@/context/useDialog';
 import { extractYouTubeId } from '@/utils/youtube';
 
 // ---------------------------------------------------------------------------
@@ -230,7 +236,12 @@ export const MusicManager: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<MusicStation>>({});
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const { showConfirm } = useDialog();
+  // Latest list for deletes confirmed after a snapshot update.
+  const stationsRef = useRef(stations);
+  useLayoutEffect(() => {
+    stationsRef.current = stations;
+  }, [stations]);
   const [isNewStation, setIsNewStation] = useState(false);
   const [isThumbnailUploading, setIsThumbnailUploading] = useState(false);
 
@@ -354,7 +365,7 @@ export const MusicManager: React.FC = () => {
   };
 
   const deleteStation = (id: string) => {
-    const updated = stations.filter((s) => s.id !== id);
+    const updated = stationsRef.current.filter((s) => s.id !== id);
     const reindexed = updated.map((s, i) => ({ ...s, order: i }));
     setStations(reindexed);
     void saveToFirestore(reindexed);
@@ -640,7 +651,17 @@ export const MusicManager: React.FC = () => {
                       )}
                       variant="ghost"
                       size="icon"
-                      onClick={() => setDeleteConfirmId(station.id)}
+                      onClick={async () => {
+                        const ok = await showConfirm(
+                          'Are you sure you want to delete this station? This cannot be undone.',
+                          {
+                            title: 'Delete Station',
+                            confirmLabel: 'Delete',
+                            variant: 'danger',
+                          }
+                        );
+                        if (ok) deleteStation(station.id);
+                      }}
                       title="Delete station"
                       className="text-slate-400 hover:text-red-600 hover:bg-red-50"
                     >
@@ -653,19 +674,6 @@ export const MusicManager: React.FC = () => {
           ))
         )}
       </div>
-      {deleteConfirmId && (
-        <ConfirmDialog
-          title="Delete Station"
-          message="Are you sure you want to delete this station? This cannot be undone."
-          confirmLabel="Delete"
-          cancelLabel="Cancel"
-          onConfirm={() => {
-            deleteStation(deleteConfirmId);
-            setDeleteConfirmId(null);
-          }}
-          onCancel={() => setDeleteConfirmId(null)}
-        />
-      )}
     </div>
   );
 };

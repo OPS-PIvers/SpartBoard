@@ -56,6 +56,7 @@ import {
 } from '@/types';
 import { useSeatedPeriodContent } from '@/hooks/useSeatedPeriodContent';
 import { useServerNow } from '@/hooks/useServerNow';
+import { useStudentWindow } from '@/hooks/useStudentWindow';
 import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
 import {
   isStaffAudience,
@@ -502,7 +503,7 @@ const AppViewer: React.FC<{
   session: MiniAppSession;
   /** The student's period is shut: cover the app and hold submissions. */
   paused?: boolean;
-}> = ({ session, paused = false }) => {
+}> = ({ session, paused: periodPaused = false }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   // The latest submission the app posted while paused, sent once it reopens.
   const heldPayloadRef = useRef<{ payload: unknown } | null>(null);
@@ -556,19 +557,29 @@ const AppViewer: React.FC<{
   const [timeMultiplier, setTimeMultiplier] = useState<
     number | 'unlimited' | undefined
   >(undefined);
+  // The student's own window off their pointer; undefined until the read settles.
+  const [pointerWindow, setPointerWindow] = useState<
+    { openAt?: number | null; closeAt?: number | null } | null | undefined
+  >(undefined);
   useEffect(() => {
     let cancelled = false;
+    const settle = (
+      next: { openAt?: number | null; closeAt?: number | null } | null
+    ) => {
+      if (!cancelled) setPointerWindow(next);
+    };
     const loadOverride = async () => {
       const currentUser = auth.currentUser;
       if (!currentUser) return;
       try {
         const tokenResult = await currentUser.getIdTokenResult();
-        if (tokenResult.claims?.studentRole !== true) return;
+        if (tokenResult.claims?.studentRole !== true) return settle(null);
         const pointerId = session.assignmentId ?? session.id;
         const snap = await getDoc(
           doc(db, 'student_assignments', currentUser.uid, 'items', pointerId)
         );
-        if (cancelled || !snap.exists()) return;
+        if (cancelled) return;
+        if (!snap.exists()) return settle(null);
         const pointer = snap.data() as StudentAssignmentPointer;
         if (
           isForeignPointer(pointer, {
@@ -577,7 +588,8 @@ const AppViewer: React.FC<{
             kind: 'mini-app',
           })
         )
-          return;
+          return settle(null);
+        settle({ openAt: pointer.openAt, closeAt: pointer.closeAt });
         dispatch({
           type: 'pointerLoaded',
           excluded: pointer.excluded === true,
@@ -586,6 +598,7 @@ const AppViewer: React.FC<{
         if (multiplier !== undefined) setTimeMultiplier(multiplier);
       } catch {
         // No pointer doc, or not entitled — treat as no accommodation.
+        settle(null);
       }
     };
     void loadOverride();
@@ -593,6 +606,16 @@ const AppViewer: React.FC<{
       cancelled = true;
     };
   }, [session.id, session.assignmentId, session.teacherUid, authedUid]);
+  // This student's own Opens and Closes, on sessions saved with them.
+  const studentWindow = useStudentWindow(
+    isViewOnly ? null : session,
+    pointerWindow ?? null
+  );
+  const windowHeld =
+    pointerWindow !== undefined &&
+    studentWindow.enforced &&
+    studentWindow.state !== 'open';
+  const paused = periodPaused || windowHeld;
 
   // View tracking — log each pageview of a view-only Share link as an
   // immutable doc in the session's `views/` subcollection. The teacher's
@@ -964,6 +987,16 @@ const AppViewer: React.FC<{
   if (view.kind === 'turnedIn') {
     return <TurnedInScreen appTitle={session.appTitle} />;
   }
+  if (windowHeld && studentWindow.state === 'upcoming') {
+    return (
+      <MiniAppPeriodLockedScreen
+        session={session}
+        periodKeys={[]}
+        now={studentWindow.now}
+        opensAt={studentWindow.window.openAt}
+      />
+    );
+  }
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-slate-900 flex flex-col">
@@ -977,7 +1010,9 @@ const AppViewer: React.FC<{
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
         onLoad={handleIframeLoad}
       />
-      {paused && <MiniAppPeriodPausedOverlay />}
+      {paused && (
+        <MiniAppPeriodPausedOverlay closed={windowHeld && !periodPaused} />
+      )}
       <SubmissionStatusOverlay
         status={status}
         onRetry={(payload) =>

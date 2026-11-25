@@ -58,6 +58,7 @@ import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
 import { AIGeneratorOverlay } from '@/components/common/AIGeneratorOverlay';
 import { AI_PROMPT_TEXTAREA_CLASS } from '@/components/common/aiPanelStyles';
 import { useAuth } from '@/context/useAuth';
+import { usePaperAnswerSheetsGate } from '@/hooks/usePaperAnswerSheetsGate';
 import {
   MatchingAnswerEditor,
   OrderingAnswerEditor,
@@ -856,6 +857,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   );
 
   const { user, canAccessQuizMediaResponse, canAccessFeature } = useAuth();
+  const paperSheetsOn = usePaperAnswerSheetsGate();
   // Fail-closed: no permission record means the controls never mount, so the
   // editor is pixel-identical to today for everyone else.
   const mediaResponseAllowed = canAccessQuizMediaResponse();
@@ -1000,7 +1002,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             slotId={selectedSlot.id}
             calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
             wordBankAvailable={canAccessFeature('quiz-word-bank')}
-            paperPlacement={canAccessFeature('paper-answer-sheets')}
+            paperPlacement={paperSheetsOn}
           />
         }
       />
@@ -1035,7 +1037,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       wordBankAvailable={canAccessFeature('quiz-word-bank')}
       pasteScopeRef={paneRef}
       metaList
-      paperPlacement={canAccessFeature('paper-answer-sheets')}
+      paperPlacement={paperSheetsOn}
     />
   );
   const targetsField = (
@@ -1098,7 +1100,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                     'quiz-calculator-stimulus'
                   )}
                   wordBankAvailable={canAccessFeature('quiz-word-bank')}
-                  paperPlacement={canAccessFeature('paper-answer-sheets')}
+                  paperPlacement={paperSheetsOn}
                 />
               ),
               hasPrompt: !!q.modifiedText || !!q.modifiedPromptAudio,

@@ -25,8 +25,6 @@ export const mockAuth: AuthContextType = {
   // Student view doesn't render assignment-creation UI; the default keeps
   // any consumers that read this returning the safe pre-feature default.
   getAssignmentMode: () => 'submissions',
-  // Student view never shows view-count badges; admin-only default.
-  canSeeShareTracking: () => false,
   canAccessQuizMediaResponse: () => false,
   signInWithGoogle: async () => {
     // No-op
@@ -348,29 +346,11 @@ export const mockDashboard: DashboardContextValue = {
   },
   isActiveBoardReadOnly: false,
   drawingWidgetsMigrating: new Set<string>(),
-  pendingRubricShareId: null,
-  clearPendingRubricShare: () => {
+  pendingLibraryShare: null,
+  setPendingLibraryShare: () => {
     // No-op
   },
-  pendingQuizShareId: null,
-  clearPendingQuizShare: () => {
-    // No-op
-  },
-  setPendingQuizShareId: () => {
-    // No-op
-  },
-  pendingAssignmentShareId: null,
-  setPendingAssignmentShareId: () => {
-    // No-op
-  },
-  clearPendingAssignmentShare: () => {
-    // No-op
-  },
-  pendingVideoActivityShareId: null,
-  setPendingVideoActivityShareId: () => {
-    // No-op
-  },
-  clearPendingVideoActivityShare: () => {
+  clearPendingLibraryShare: () => {
     // No-op
   },
   pendingAssignmentSetupId: null,

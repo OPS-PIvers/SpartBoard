@@ -18,6 +18,7 @@ interface DecodedToken {
 interface DocSnap {
   exists: boolean;
   data?: () => unknown;
+  get?: (field: string) => unknown;
 }
 
 const verifyIdTokenMock = vi.fn<(idToken: string) => Promise<DecodedToken>>();
@@ -133,7 +134,7 @@ describe('adminAnalytics — caller identity verification', () => {
       email: 'admin@school.org',
       email_verified: true,
     });
-    adminDocGetMock.mockResolvedValue({ exists: true });
+    adminDocGetMock.mockResolvedValue({ exists: true, get: () => undefined });
     readAnalyticsSnapshotMock.mockResolvedValue(null);
 
     const { res, out: state } = makeRes();
@@ -162,6 +163,8 @@ describe('adminAnalytics — caller identity verification', () => {
     adminDocGetMock.mockResolvedValue({
       exists: true,
       data: () => ({ roleId: 'building_admin' }),
+      get: (f: string) =>
+        (({ roleId: 'building_admin' }) as Record<string, unknown>)[f],
     });
     memberDocGetMock.mockResolvedValue({ exists: false });
 
@@ -186,6 +189,13 @@ describe('adminAnalytics — caller identity verification', () => {
     adminDocGetMock.mockResolvedValue({
       exists: true,
       data: () => ({ roleId: 'domain_admin', orgId: 'other-org' }),
+      get: (f: string) =>
+        (
+          ({ roleId: 'domain_admin', orgId: 'other-org' }) as Record<
+            string,
+            unknown
+          >
+        )[f],
     });
     memberDocGetMock.mockResolvedValue({ exists: false });
 

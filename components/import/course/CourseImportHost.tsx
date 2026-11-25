@@ -131,19 +131,7 @@ export const CourseImportHost: React.FC<{
       courseName,
       ...row.path.slice(1),
     ];
-    const uploader = driveStimulusUploader({
-      uploadFile: (blob, name, folder) => {
-        if (!driveService) throw new Error('Google Drive is not connected.');
-        return driveService.uploadFile(blob, name, folder);
-      },
-      makePublic: (id, domain) => {
-        if (!driveService) throw new Error('Google Drive is not connected.');
-        return driveService.makePublic(id, domain);
-      },
-      deleteFile: async (id) => {
-        await driveService?.deleteFile(id);
-      },
-    });
+    const uploader = driveStimulusUploader(driveService);
     const flashcardAdapter = (folderPath: readonly string[]) =>
       createFlashcardImportAdapter({
         loadSheet: () => Promise.resolve([]),

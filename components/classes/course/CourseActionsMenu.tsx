@@ -6,7 +6,7 @@ import type { ClassRoster } from '@/types';
 import {
   OverflowMenu,
   type OverflowMenuItem,
-} from '@/components/common/sessionViews/OverflowMenu';
+} from '@/components/common/OverflowMenu';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { useDashboard } from '@/context/useDashboard';
 import { classLinkService } from '@/utils/classlinkService';
@@ -121,11 +121,7 @@ export const CourseActionsMenu: React.FC<CourseActionsMenuProps> = ({
       loading: syncing,
       disabled: syncing,
       onClick: () => void sync(),
-      tourAnchor: tourFieldAttr(
-        'classes.course-sync-classlink',
-        'classes',
-        rowKey
-      ),
+      anchor: tourFieldAttr('classes.course-sync-classlink', 'classes', rowKey),
     });
   }
   if (onViewStudentPage) {
@@ -136,7 +132,7 @@ export const CourseActionsMenu: React.FC<CourseActionsMenuProps> = ({
       }),
       icon: ScanEye,
       onClick: onViewStudentPage,
-      tourAnchor: tourFieldAttr(
+      anchor: tourFieldAttr(
         'classes.course-view-student-page',
         'classes',
         rowKey

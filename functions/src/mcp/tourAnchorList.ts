@@ -2110,28 +2110,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "projects.status-popover",
-    "label": "Projects step status menu",
-    "scope": "widget",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "widgets.projects.status-popover",
-        "kind": "menu",
-        "widget_type": "projects",
-        "path": [
-          "library-shell.card-primary-action:projects#row-1",
-          "projects.step-cell:projects"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "profile.close",
     "label": "Close button in Profile & Settings",
     "scope": "board",
@@ -8597,60 +8575,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "row_wildcard": true,
     "row_list": "assign-periods-untagged",
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-periods.selector-close",
-    "label": "Close button in the Class Periods popup",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-periods.selector-period",
-    "label": "Class period checkbox in the Class Periods popup",
-    "scope": "field",
-    "panel": true,
-    "row_wildcard": true,
-    "row_list": "assign-periods-selector-period",
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-periods.selector-cancel",
-    "label": "Cancel button in the Class Periods popup",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-periods.selector-save",
-    "label": "Save button in the Class Periods popup",
-    "scope": "board",
-    "panel": true,
     "routes": [
       {
         "surface": "library.assign-modal",
@@ -21334,6 +21258,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-rubric.duplicate",
+    "label": "Duplicate rubric on the Quiz rubric builder",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-builder",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-rubric.share-link",
     "label": "Rubric share link field on the Quiz rubric builder",
     "scope": "widget type",
@@ -28420,7 +28360,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.sort",
-    "label": "Sort dropdown trigger in a library toolbar",
+    "label": "Sort select in a library toolbar",
     "scope": "widget type",
     "routes": [
       {
@@ -31291,67 +31231,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "page",
         "url": "/plc",
         "path": []
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.teacher-name",
-    "label": "Teacher name field in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.close",
-    "label": "Close button in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.due-date",
-    "label": "Due date field in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.cancel",
-    "label": "Cancel button in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.submit",
-    "label": "Submit button in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
       }
     ]
   },
@@ -53298,28 +53177,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "projects.status-option",
-    "label": "Step status choice in the Projects status menu",
-    "scope": "widget",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "widgets.projects.status-popover",
-        "kind": "menu",
-        "widget_type": "projects",
-        "path": [
-          "library-shell.card-primary-action:projects#row-1",
-          "projects.step-cell:projects"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "projects.group-student-view",
     "label": "Group student view button on the Projects board",
     "scope": "widget type",
@@ -61025,7 +60882,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "gl-results.export",
-    "label": "Export button in the results header",
+    "label": "Export to Sheets button in results",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.open-sheet",
+    "label": "Open Sheet link in results",
     "scope": "board",
     "routes": [
       {
@@ -65075,6 +64953,38 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "boards-modal.new-collection-input",
+    "label": "Name field on a new collection card",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-modal",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.collection-name-input",
+    "label": "Name field on a collection card being renamed",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-modal",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards"
+        ]
+      }
+    ]
+  },
+  {
     "id": "boards-modal.new-board",
     "label": "New Board button in the Manage Boards dialog",
     "scope": "board",
@@ -65593,37 +65503,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "boards-modal.move-close",
-    "label": "Close button in the move to collection dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.boards-move",
-        "kind": "menu",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.board-select",
-          "boards-modal.bulk-move"
-        ]
-      }
-    ]
-  },
-  {
     "id": "boards-modal.move-to-root",
     "label": "Root option in the move to collection dialog",
     "scope": "board",
     "panel": true,
     "routes": [
       {
-        "surface": "board.boards-move",
-        "kind": "menu",
+        "surface": "board.boards-modal",
+        "kind": "modal",
         "path": [
           "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.board-select",
-          "boards-modal.bulk-move"
+          "sidebar.boards"
         ]
       }
     ]
@@ -65635,94 +65525,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "board.boards-move",
-        "kind": "menu",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.board-select",
-          "boards-modal.bulk-move"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "boards-modal.color-close",
-    "label": "Close button in the collection color dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.boards-color",
+        "surface": "board.boards-modal",
         "kind": "modal",
         "path": [
           "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-edit",
-          "boards-modal.collection-menu-color"
-        ],
-        "needs": [
-          "library-item"
+          "sidebar.boards"
         ]
       }
     ]
   },
   {
     "id": "boards-modal.color-swatch",
-    "label": "Color swatch in the collection color dialog",
+    "label": "Color swatch in the collection card menu",
     "scope": "board",
     "panel": true,
     "routes": [
       {
-        "surface": "board.boards-color",
-        "kind": "modal",
+        "surface": "board.boards-collection-menu",
+        "kind": "menu",
         "path": [
           "sidebar.open-menu",
           "sidebar.boards",
-          "boards-modal.collection-edit",
-          "boards-modal.collection-menu-color"
-        ],
-        "needs": [
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "boards-modal.color-custom",
-    "label": "Custom color picker in the collection color dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.boards-color",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-edit",
-          "boards-modal.collection-menu-color"
-        ],
-        "needs": [
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "boards-modal.color-apply-custom",
-    "label": "Apply custom color button in the collection color dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.boards-color",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-edit",
-          "boards-modal.collection-menu-color"
+          "boards-modal.collection-edit"
         ],
         "needs": [
           "library-item"
@@ -65732,18 +65556,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "boards-modal.color-done",
-    "label": "Done button in the collection color dialog",
+    "label": "Color row in the collection card menu",
     "scope": "board",
     "panel": true,
     "routes": [
       {
-        "surface": "board.boards-color",
-        "kind": "modal",
+        "surface": "board.boards-collection-menu",
+        "kind": "menu",
         "path": [
           "sidebar.open-menu",
           "sidebar.boards",
-          "boards-modal.collection-edit",
-          "boards-modal.collection-menu-color"
+          "boards-modal.collection-edit"
         ],
         "needs": [
           "library-item"
@@ -67317,22 +67140,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "library-shell.sort-option",
-    "label": "Option in a library sort dropdown",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.shell",
-        "kind": "shared",
-        "path": [
-          "library-shell.sort"
-        ],
-        "reveal": "library-shell.sort"
-      }
-    ]
-  },
-  {
     "id": "library-shell.select-item",
     "label": "Select checkbox on a library item card",
     "scope": "field",
@@ -67594,10 +67401,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.folder-dialog-move-contents",
-    "label": "Move contents to parent button in the delete folder dialog",
+    "label": "Keep everything choice in the delete folder dialog",
     "scope": "board",
     "panel": true,
-    "persists": true,
     "routes": [
       {
         "surface": "library.shell",
@@ -67611,7 +67417,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.folder-dialog-delete-all",
-    "label": "Delete folder and subfolders button in the delete folder dialog",
+    "label": "Delete everything choice in the delete folder dialog",
     "scope": "board",
     "panel": true,
     "destructive": true,
@@ -67631,6 +67437,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the delete folder dialog",
     "scope": "board",
     "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.folder-menu-delete"
+        ],
+        "reveal": "library-shell.folder-menu-delete"
+      }
+    ]
+  },
+  {
+    "id": "library-shell.folder-dialog-confirm",
+    "label": "Delete button in the delete folder dialog",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
     "routes": [
       {
         "surface": "library.shell",
@@ -73833,25 +73657,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "seating.class-group",
-    "label": "Group row under a class in the Seating Chart class menu",
-    "scope": "field",
-    "panel": true,
-    "row_wildcard": true,
-    "row_list": "seating-class-group",
-    "routes": [
-      {
-        "surface": "widgets.seating-chart.face",
-        "kind": "widget",
-        "widget_type": "seating-chart",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "absent-students.clear-all",
     "label": "Clear all button in the absent students dialog",
     "scope": "board",
@@ -76855,18 +76660,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gradebook.settings"
         ],
         "reveal": "gradebook.settings",
-        "needs": [
-          "class"
-        ]
-      },
-      {
-        "surface": "guidedLearning.gradebook.settings",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.gradebook",
-          "gradebook.settings"
-        ],
         "needs": [
           "class"
         ]
@@ -80783,6 +80576,52 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "writing-results.grade",
     "label": "Grade button in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.export",
+    "label": "Export to Sheets button in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.open-sheet",
+    "label": "Open Sheet link in Writing results",
     "scope": "widget type",
     "keys": [
       "writing"
@@ -86751,26 +86590,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "boards-modal.collection-menu-move",
     "label": "Move to item in the collection card menu",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.boards-collection-menu",
-        "kind": "menu",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-edit"
-        ],
-        "needs": [
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "boards-modal.collection-menu-color",
-    "label": "Set color item in the collection card menu",
     "scope": "board",
     "panel": true,
     "routes": [

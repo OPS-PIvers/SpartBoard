@@ -1,13 +1,14 @@
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
-import type { FlashcardAssignment } from '@/types';
 import type { UseFlashcardAssignmentsResult } from '@/hooks/useFlashcardAssignments';
 import type {
   AssignmentClassCollections,
   AssignmentLifecycle,
 } from '@/hooks/useAssignmentClassActions';
 import type { UseSetAssignmentTargetsResult } from '@/hooks/useSetAssignmentTargets';
-import { hasStudentPointers } from '@/utils/studentTargetRef';
+import {
+  clearedWindowRule,
+  syncPointerWindows,
+  type StudentWindowsOption,
+} from '@/utils/pointerWindowSync';
 
 const ASSIGNMENTS = 'flashcard_assignments';
 
@@ -35,31 +36,24 @@ export function flashcardLifecycle(
     UseFlashcardAssignmentsResult,
     'endAssignment' | 'reopenAssignment'
   > &
-    Pick<UseSetAssignmentTargetsResult, 'setAssignmentTargets'>
+    Pick<UseSetAssignmentTargetsResult, 'setAssignmentTargets'> &
+    StudentWindowsOption
 ): FlashcardLifecycle {
   return {
     end: (id) => actions.endAssignment(id),
     reopen: (id) => actions.reopenAssignment(id),
-    async onWindowCleared(id, patch) {
-      const row = (
-        await getDoc(doc(db, 'users', uid, ASSIGNMENTS, id))
-      ).data() as FlashcardAssignment | undefined;
-      if (!row || !hasStudentPointers(row)) return;
-      // A failed pointer sync must not stop Open from letting the class in.
-      try {
-        await actions.setAssignmentTargets({
-          assignmentId: id,
+    onWindowCleared: (id, patch) =>
+      syncPointerWindows(
+        actions.setAssignmentTargets,
+        {
+          uid,
           kind: 'flashcards',
-          sessionId: row.sessionId,
-          targetMode: row.targetMode,
-          add: [],
-          remove: [],
-          overridesBySourcedId: {},
-          window: patch,
-        });
-      } catch (err) {
-        console.error('Pointer window sync failed', err);
-      }
-    },
+          assignmentCollection: ASSIGNMENTS,
+          assignmentId: id,
+          sessionIdOnRow: true,
+        },
+        patch,
+        actions.studentWindows ? clearedWindowRule(patch) : null
+      ),
   };
 }

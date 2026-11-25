@@ -55,7 +55,6 @@ export type { AssignPeriodAccessContext } from './AssignPeriodAccessSection';
 export { toOverrideEditorQuestions } from './toOverrideEditorQuestions';
 export { AssignmentArchiveCard } from './AssignmentArchiveCard';
 export { ViewCountBadge } from './ViewCountBadge';
-export { PeriodSelector } from './PeriodSelector';
 export { LibraryDndContext } from './LibraryDndContext';
 export {
   folderDroppableId,
@@ -85,6 +84,7 @@ export {
   suggestDuplicateTitle,
 } from './libraryDuplicate';
 export { useLibraryDuplicate } from './useLibraryDuplicate';
+export { useLibraryDelete } from './useLibraryDelete';
 export type {
   FolderPanelMode,
   LibraryFolderPanelContextValue,
@@ -119,7 +119,6 @@ export type {
   AssignmentArchiveCardProps,
   AssignModeOption,
   AssignModalProps,
-  PeriodSelectorProps,
   ImportSourceKind,
   ImportSourcePayload,
   ImportParseResult,

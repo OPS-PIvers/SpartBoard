@@ -4,8 +4,11 @@ import type { UseVideoActivityAssignmentsResult } from '@/hooks/useVideoActivity
 import { END_TURN_IN_DELAY_MS } from '@/utils/quizFinalizeOpenResponses';
 import { finalizeClassVideoResponses } from './videoClassTurnIn';
 import type { UseSetAssignmentTargetsResult } from '@/hooks/useSetAssignmentTargets';
-import type { VideoActivityAssignment } from '@/types';
-import { hasStudentPointers } from '@/utils/studentTargetRef';
+import {
+  clearedWindowRule,
+  syncPointerWindows,
+  type StudentWindowsOption,
+} from '@/utils/pointerWindowSync';
 
 /** Where Video Activity keeps its run docs, for the per-class actions hook. */
 export const VIDEO_ACTIVITY_RUN_COLLECTIONS = {
@@ -39,10 +42,10 @@ export interface VideoActivityLifecycle {
 }
 
 /** What `onWindowCleared` needs to rewrite targeted students' pointer windows. */
-export interface VideoActivityPointerSync extends Pick<
-  UseSetAssignmentTargetsResult,
-  'setAssignmentTargets'
-> {
+export interface VideoActivityPointerSync
+  extends
+    Pick<UseSetAssignmentTargetsResult, 'setAssignmentTargets'>,
+    StudentWindowsOption {
   uid: string;
 }
 
@@ -76,35 +79,22 @@ export function videoActivityLifecycle(
   return {
     ...(pointers
       ? {
-          async onWindowCleared(assignmentId, patch) {
-            // A failed pointer sync must not stop Open from letting the class in.
-            try {
-              const row = (
-                await getDoc(
-                  doc(
-                    db,
-                    'users',
-                    pointers.uid,
-                    VIDEO_ACTIVITY_RUN_COLLECTIONS.assignmentCollection,
-                    assignmentId
-                  )
-                )
-              ).data() as VideoActivityAssignment | undefined;
-              if (!row || !hasStudentPointers(row)) return;
-              await pointers.setAssignmentTargets({
-                assignmentId,
+          onWindowCleared: (
+            assignmentId: string,
+            patch: { openAt?: null; closeAt?: null }
+          ) =>
+            syncPointerWindows(
+              pointers.setAssignmentTargets,
+              {
+                uid: pointers.uid,
                 kind: 'video-activity',
-                sessionId: assignmentId,
-                targetMode: row.targetMode,
-                add: [],
-                remove: [],
-                overridesBySourcedId: {},
-                window: patch,
-              });
-            } catch (err) {
-              console.error('Pointer window sync failed', err);
-            }
-          },
+                assignmentCollection:
+                  VIDEO_ACTIVITY_RUN_COLLECTIONS.assignmentCollection,
+                assignmentId,
+              },
+              patch,
+              pointers.studentWindows ? clearedWindowRule(patch) : null
+            ),
         }
       : {}),
     pause: async (assignmentId) => {

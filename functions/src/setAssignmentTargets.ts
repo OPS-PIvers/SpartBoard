@@ -10,6 +10,7 @@ import {
 } from './secrets';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { isGlobalFeatureGranted } from './featureGrant';
 import {
   handleSetAssignmentTargets,
   loadTargetDirectory,
@@ -84,6 +85,13 @@ export const setAssignmentTargetsV1 = onCall(
         )
       ).ctx;
 
+    const studentWindows = await isGlobalFeatureGranted(
+      db,
+      'student-windows',
+      teacherEmail,
+      callerUid
+    ).catch(() => false);
+
     return handleSetAssignmentTargets(
       db,
       callerUid,
@@ -100,7 +108,8 @@ export const setAssignmentTargetsV1 = onCall(
           callerUid,
           translationLocales
         );
-      }
+      },
+      { studentWindows }
     );
   }
 );

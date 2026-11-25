@@ -5,6 +5,7 @@
  * as a sibling of the Manager library view.
  */
 
+import { copyLinkWithToast } from '@/hooks/useCopyShortLink';
 import React, {
   useState,
   useCallback,
@@ -103,6 +104,8 @@ import {
 } from './videoActivityLifecycle';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import { useLibraryDuplicate } from '@/components/common/library/useLibraryDuplicate';
+import { useLibraryDelete } from '@/components/common/library/useLibraryDelete';
+import { LIBRARY_ITEM_NOUNS } from '@/components/common/library/useLibraryDeleteConfirm';
 import { useFolders } from '@/hooks/useFolders';
 import { usePlcs } from '@/hooks/usePlcs';
 import {
@@ -163,16 +166,11 @@ async function copyUrlToClipboard(
     errorMessage: string;
   }
 ): Promise<void> {
-  if (typeof navigator === 'undefined' || !navigator.clipboard) {
-    addToast(errorMessage, 'info');
-    return;
-  }
-  try {
-    await navigator.clipboard.writeText(url);
-    addToast(successMessage, 'success');
-  } catch {
-    addToast(errorMessage, 'info');
-  }
+  await copyLinkWithToast(url, addToast, {
+    success: successMessage,
+    failure: errorMessage,
+    failureType: 'info',
+  });
 }
 
 const TeacherVideoActivityWidget: React.FC<{
@@ -259,6 +257,7 @@ const TeacherVideoActivityWidget: React.FC<{
   } = useVideoActivityAssignments(user?.uid);
   const { setAssignmentTargets } = useSetAssignmentTargets();
   const uid = user?.uid;
+  const studentWindows = canAccessFeature('student-windows');
   const assignedTabLifecycle = useMemo(
     () =>
       videoActivityLifecycle(
@@ -268,7 +267,7 @@ const TeacherVideoActivityWidget: React.FC<{
           deactivateAssignment,
           reactivateAssignment,
         },
-        uid ? { uid, setAssignmentTargets } : undefined
+        uid ? { uid, setAssignmentTargets, studentWindows } : undefined
       ),
     [
       pauseAssignment,
@@ -277,6 +276,7 @@ const TeacherVideoActivityWidget: React.FC<{
       reactivateAssignment,
       uid,
       setAssignmentTargets,
+      studentWindows,
     ]
   );
   // ASSIGNED_TAB.md D24: an End here is a Close, so the row keeps its grading hold (D5).
@@ -417,6 +417,13 @@ const TeacherVideoActivityWidget: React.FC<{
     else openingHandoffRef.current = null;
   }, [vaHandoff]);
 
+  // Video Activity doesn't block a delete while assigned (open question for Paul, AB-394).
+  const activityDelete = useLibraryDelete<VideoActivityMetadata>({
+    noun: LIBRARY_ITEM_NOUNS.videoActivity,
+    titleOf: (meta) => meta.title,
+    remove: (meta) => deleteActivity(meta.id, meta.driveFileId),
+    addToast,
+  });
   const activityDuplicate = useLibraryDuplicate({
     duplicate: duplicateActivity,
     addToast,
@@ -949,6 +956,7 @@ const TeacherVideoActivityWidget: React.FC<{
       classroomFinalAttachments,
       classroomToken,
       schoologyMaxPoints: videoActivityMaxPoints(data.questions),
+      finalScores: canAccessFeature('lms-push-final-scores'),
       buildClassroomGrades: (responses) => {
         const mp = classroomFinalAttachments[0]?.maxPoints;
         return mp != null
@@ -1320,26 +1328,9 @@ const TeacherVideoActivityWidget: React.FC<{
         lastRosterIdsByActivityId={config.lastRosterIdsByActivityId}
         lastClassIdsByActivityId={config.lastClassIdsByActivityId}
         lastClassIdByActivityId={config.lastClassIdByActivityId}
-        folderDeleteActions={{
-          deleteItems: async (ids) => {
-            const byId = new Map(activities.map((a) => [a.id, a]));
-            for (const id of ids) {
-              const meta = byId.get(id);
-              if (meta) await deleteActivity(meta.id, meta.driveFileId);
-            }
-          },
-        }}
-        onDelete={async (meta) => {
-          try {
-            await deleteActivity(meta.id, meta.driveFileId);
-            addToast('Activity deleted.', 'success');
-          } catch (err) {
-            addToast(
-              err instanceof Error ? err.message : 'Delete failed',
-              'error'
-            );
-          }
-        }}
+        folderDeleteActions={activityDelete.folderActions(activities)}
+        onDelete={activityDelete.deleteOne}
+        onBulkDelete={activityDelete.deleteMany}
         onDuplicate={(meta) => void activityDuplicate.duplicate(meta)}
         isDuplicating={activityDuplicate.isDuplicating}
         assignments={assignments}

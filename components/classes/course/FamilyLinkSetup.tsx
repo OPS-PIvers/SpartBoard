@@ -20,6 +20,7 @@ import {
   type FamilyLinkProblem,
 } from './familyLinkActions';
 import type { CourseGroupProps } from './types';
+import { copyText } from '@/utils/copyText';
 
 type Confirm = 'on' | 'off' | null;
 
@@ -72,11 +73,10 @@ export const FamilyLinkControl: React.FC<FamilyLinkControlProps> = ({
 
   const copy = async () => {
     if (!shareId) return;
-    try {
-      await navigator.clipboard.writeText(familyPageUrl(origin, shareId));
+    if (await copyText(familyPageUrl(origin, shareId))) {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
-    } catch {
+    } else {
       setCopied(false);
     }
   };

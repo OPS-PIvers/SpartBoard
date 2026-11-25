@@ -106,6 +106,7 @@ import {
   syncedPlayback,
   videoActivityPlayback,
 } from '@/utils/videoActivityClip';
+import { librarySharePath } from '@/utils/shareRoutes';
 
 /**
  * Map VA assignment status onto the PLC index's shared `QuizAssignmentStatus`
@@ -938,7 +939,7 @@ export const useVideoActivityAssignments = (
         }
         throw err;
       }
-      return `${window.location.origin}/share/video-activity/${ref.id}`;
+      return `${window.location.origin}${librarySharePath('videoActivity', ref.id)}`;
     },
     [userId]
   );

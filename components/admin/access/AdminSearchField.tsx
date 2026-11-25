@@ -1,6 +1,7 @@
 import React from 'react';
 import { tourFieldAttr } from '@/config/tourAnchors';
-import { ArrowRight, Search, X } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { SearchField } from '@/components/common/SearchField';
 import { useAccessSearch } from './accessSearchContext';
 import {
   ACCESS_TAB_LABELS,
@@ -16,33 +17,13 @@ export const AdminSearchField: React.FC<{
   const { query, setQuery } = useAccessSearch();
   return (
     <div className="sticky top-0 z-10 -mx-1 px-1 pb-2 bg-slate-50">
-      <div className="relative">
-        <Search
-          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
-          aria-hidden
-        />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={placeholder}
-          aria-label={placeholder}
-          data-testid={`access-search-${tab}`}
-          {...tourFieldAttr('admin.access.search', 'admin', tab)}
-          className="w-full pl-9 pr-9 py-2 [&::-webkit-search-cancel-button]:appearance-none bg-white border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
-        />
-        {query && (
-          <button
-            // no-tour-anchor: clear control inside the anchored search box
-            type="button"
-            onClick={() => setQuery('')}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-600"
-            aria-label="Clear search"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
+      <SearchField
+        value={query}
+        onChange={setQuery}
+        placeholder={placeholder}
+        testId={`access-search-${tab}`}
+        anchor={tourFieldAttr('admin.access.search', 'admin', tab)}
+      />
     </div>
   );
 };

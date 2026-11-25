@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
-import { Keyboard, LibraryBig, Search, X } from 'lucide-react';
+import { Keyboard, LibraryBig, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { HelpShortcutsTab } from './HelpShortcutsTab';
 import { HelpGuidesTab } from './HelpGuidesTab';
@@ -9,6 +9,7 @@ import type { WidgetType } from '@/types';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { Sparty } from '@/components/sparty/Sparty';
 import { useShowSparty } from '@/components/sparty/useShowSparty';
+import { SearchField } from '@/components/common/SearchField';
 
 interface HelpCenterModalProps {
   isOpen: boolean;
@@ -95,20 +96,14 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
       <h2 className="font-black text-lg text-white shrink-0">
         {t('helpCenter.title')}
       </h2>
-      <div className="relative flex-1 min-w-0 max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input
-          ref={searchRef}
-          type="text"
-          role="searchbox"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t('helpCenter.search')}
-          aria-label={t('helpCenter.search')}
-          className="w-full pl-9 pr-3 py-2 rounded-lg bg-white border border-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-white/60"
-          {...tourAttr('help-center.search')}
-        />
-      </div>
+      <SearchField
+        inputRef={searchRef}
+        value={query}
+        onChange={setQuery}
+        placeholder={t('helpCenter.search')}
+        anchor={tourAttr('help-center.search')}
+        className="flex-1 min-w-0 max-w-md"
+      />
       <button
         type="button"
         onClick={onClose}

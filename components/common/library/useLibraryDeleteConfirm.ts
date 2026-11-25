@@ -18,6 +18,7 @@ export const LIBRARY_ITEM_NOUNS = {
   flashcards: { one: 'flashcard set', other: 'flashcard sets' },
   project: { one: 'project', other: 'projects' },
   writing: { one: 'writing assignment', other: 'writing assignments' },
+  activityWall: { one: 'wall', other: 'walls' },
 } satisfies Record<string, LibraryItemNoun>;
 
 export interface LibraryDeleteConfirmRequest {

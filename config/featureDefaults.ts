@@ -2,6 +2,7 @@
 import type React from 'react';
 import {
   ClipboardList,
+  Copy,
   MonitorPlay,
   Camera,
   PenLine,
@@ -166,12 +167,6 @@ export interface FeatureDefault {
  * member that doesn't declare its defaults here. Keep this honest —
  * don't add features to the union without adding a corresponding
  * entry, even if the entry is just the "all public, all on" baseline.
- *
- * Note on `share-link-tracking`: `canAccessFeature('share-link-tracking')`
- * returns the usual default-public behavior. `canSeeShareTracking()`
- * is a separate gate that diverges to admin-only — see
- * `AuthContextValue.ts` for why the divergence is intentional. This
- * table covers the `canAccessFeature` path only.
  */
 export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
   'live-session': {
@@ -356,7 +351,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     category: 'sharing',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
-    missingDocPublic: true,
+    // Each card runs a view-count read, so teachers wait for an admin to open it.
+    missingDocPublic: false,
   },
   'personal-spotify': {
     label: 'Personal Spotify',
@@ -1344,6 +1340,28 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'video-activity-share-sync': {
+    label: 'Video Activity: Synced share links',
+    icon: Video,
+    description:
+      'A shared Video Activity link can import as Synced or as a copy.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'lms-push-final-scores': {
+    label: 'Grade push: Send final scores',
+    icon: Send,
+    description:
+      'Classroom and Schoology pushes send the score shown in the gradebook.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'embed-reload': {
     label: 'Embed: Reload button',
     icon: RefreshCw,
@@ -1856,6 +1874,39 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: CalendarClock,
     description:
       'The quiz monitor can schedule a quiz for one student. Their class can stay paused.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'student-windows': {
+    label: 'Opens and Closes for one student',
+    icon: CalendarClock,
+    description:
+      "A student's own Opens and Closes work in every assignment. One student's later close no longer keeps the class open.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'library-duplicate-more': {
+    label: 'Duplicate: Flashcards and Rubrics',
+    icon: Copy,
+    description: 'Flashcard sets and rubrics get a Duplicate button.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Server only: functions/src/turnInQueue.ts checks it when a run ends (AB-388).
+  'server-turn-in': {
+    label: 'Turn in work after End',
+    icon: ClipboardCheck,
+    description:
+      'Open work turns in after End or Close. The teacher tab can be closed.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

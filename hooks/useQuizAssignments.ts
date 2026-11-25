@@ -79,7 +79,6 @@ import type {
   QuizQuestion,
   QuizResponse,
   QuizSession,
-  QuizSessionBankSlot,
   QuizSessionMode,
   QuizSessionOptions,
   ResultsProtection,
@@ -96,7 +95,7 @@ import {
   type QuizSessionContent,
 } from '@/utils/quizSessionContent';
 import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
-import { quizHasBankSlots, resolveQuizAssignment } from '@/utils/questionBanks';
+import { quizHasBankSlots } from '@/utils/questionBanks';
 import {
   buildSharedQuizContent,
   restoreSharedQuizContent,
@@ -146,6 +145,7 @@ import {
 import {
   assignmentFrozenFileId,
   hasEveryCurrentAnswerKey,
+  resolveQuizAssignContent,
 } from '@/utils/quizAssignBankDraw';
 import {
   nextRemovedClasses,
@@ -161,7 +161,14 @@ import {
 } from '@/utils/syncedQuizContent';
 import { useSandboxedQuizAssignments } from './useTourSandboxed';
 import { useSetAssignmentTargets } from './useSetAssignmentTargets';
-import { hasStudentPointers } from '@/utils/studentTargetRef';
+import {
+  EMPTY_ASSIGN_TARGETING_VALUE,
+  hasStudentPointers,
+} from '@/utils/studentTargetRef';
+import {
+  buildAssignCreateOptions,
+  buildAssignQuizRef,
+} from '@/hooks/quizAssign/builders';
 import { QUIZ_WHITEBOARD_FEATURE_ID } from '@/utils/quizMediaAccess';
 import {
   deriveRunState,
@@ -255,6 +262,7 @@ export type {
   QuizTranslationsByLocale,
   ResponseGradingContext,
 } from './quizAssignments/publishGrading';
+import { librarySharePath } from '@/utils/shareRoutes';
 
 /** A pass for a student reopened after End runs until the teacher ends the quiz again. */
 const REOPEN_PASS_MS = 365 * 24 * 60 * 60 * 1000;
@@ -298,11 +306,14 @@ export const useQuizAssignments = (
   // provider-less caller denies instead of throwing.
   const authContext = useContext(AuthContext);
   const googleAccessToken = authContext?.googleAccessToken ?? null;
+  const refreshGoogleToken = authContext?.refreshGoogleToken;
   // Drive handle for publish-time sidecar reads; null when Drive isn't connected.
   const translationLoader = useCallback((): TranslationLoader | null => {
     if (isAuthBypass) return userId ? new MockQuizDriveService(userId) : null;
-    return googleAccessToken ? new QuizDriveService(googleAccessToken) : null;
-  }, [googleAccessToken, userId]);
+    return googleAccessToken
+      ? new QuizDriveService(googleAccessToken, refreshGoogleToken)
+      : null;
+  }, [googleAccessToken, refreshGoogleToken, userId]);
   const mediaResponseGranted =
     authContext?.canAccessQuizMediaResponse?.() === true;
   // Same two checks as canAccessQuizWhiteboardResponse, tolerant of a partial context.
@@ -1783,7 +1794,7 @@ export const useQuizAssignments = (
         collection(db, SHARED_ASSIGNMENTS_COLLECTION),
         payload
       );
-      return `${window.location.origin}/share/assignment/${ref.id}`;
+      return `${window.location.origin}${librarySharePath('assignment', ref.id)}`;
     },
     [userId]
   );
@@ -2029,53 +2040,58 @@ export const useQuizAssignments = (
       try {
         // Bank draws freeze into a pool with a Drive snapshot, the same way
         // the Assign flow does it, so the paused assignment isn't empty.
-        let assignQuestions = newQuiz.questions;
-        let assignStimuli = newQuiz.stimuli;
-        let assignDriveFileId = savedMeta.driveFileId;
-        let resolvedDriveFileId: string | undefined;
-        let sessionBankSlots: QuizSessionBankSlot[] | undefined;
-        if (
-          restored &&
+        const restoredBanks = restored?.banks;
+        const content =
+          restoredBanks &&
           quizHasBankSlots(newQuiz) &&
-          importedSettings.sessionMode === 'student' &&
+          (importedSettings.sessionMode === 'student' ||
+            importedSettings.sessionMode === 'game') &&
           options?.saveDriveSnapshot
-        ) {
-          const resolved = resolveQuizAssignment(newQuiz, restored.banks);
-          resolvedDriveFileId = await options.saveDriveSnapshot({
-            ...newQuiz,
-            questions: resolved.questions,
-            stimuli: resolved.stimuli,
-            bankSlots: undefined,
-            order: undefined,
-          });
-          assignQuestions = resolved.questions;
-          assignStimuli = resolved.stimuli;
-          assignDriveFileId = resolvedDriveFileId;
-          sessionBankSlots = resolved.sessionSlots;
-        }
+            ? await resolveQuizAssignContent(newQuiz, savedMeta.driveFileId, {
+                loadBankContentsForQuiz: () => Promise.resolve(restoredBanks),
+                saveDriveSnapshot: options.saveDriveSnapshot,
+              })
+            : {
+                questions: newQuiz.questions,
+                stimuli: newQuiz.stimuli,
+                driveFileId: savedMeta.driveFileId,
+              };
         created = await createAssignment(
-          {
-            id: savedMeta.id,
-            title: newQuiz.title,
-            driveFileId: assignDriveFileId,
-            questions: assignQuestions,
-            ...(assignStimuli ? { stimuli: assignStimuli } : {}),
-            ...(newQuiz.language ? { language: newQuiz.language } : {}),
-            ...(newQuiz.sections?.length
-              ? { order: newQuiz.order, sections: newQuiz.sections }
-              : {}),
-          },
+          buildAssignQuizRef({
+            meta: { id: savedMeta.id, title: newQuiz.title },
+            data: newQuiz,
+            driveFileId: content.driveFileId,
+            questions: content.questions,
+            stimuli: content.stimuli,
+          }),
           {
             ...importedSettings,
-            ...(resolvedDriveFileId ? { resolvedDriveFileId } : {}),
-          },
-          {
-            initialStatus: 'paused',
-            ...(assignmentSyncedFrom
-              ? { syncedFrom: assignmentSyncedFrom }
+            ...(content.resolvedDriveFileId
+              ? { resolvedDriveFileId: content.resolvedDriveFileId }
               : {}),
-            ...(sessionBankSlots ? { bankSlots: sessionBankSlots } : {}),
-          }
+          },
+          // The importer retargets on first launch, so no classes or window carry over.
+          buildAssignCreateOptions({
+            mode: importedSettings.sessionMode,
+            now: Date.now(),
+            stepper: undefined,
+            rosters: [],
+            rosterIds: [],
+            derived: { classIds: [], rosterIds: [], classPeriodByClassId: {} },
+            periodGate: undefined,
+            sessionPeriodAccess: null,
+            resolvedTargeting: EMPTY_ASSIGN_TARGETING_VALUE,
+            dueAt: null,
+            dueAtByRosterId: undefined,
+            sessionBankSlots: content.bankSlots,
+            paperWritten: null,
+            plcLinkage: undefined,
+            plcPoolSyncGroupId: undefined,
+            plcTemplateSyncGroupId: undefined,
+            districtCopy: false,
+            translationIndex: undefined,
+            syncedFrom: assignmentSyncedFrom ?? undefined,
+          })
         );
       } catch (err) {
         // Same rollback shape as the sync-join catch above: if we

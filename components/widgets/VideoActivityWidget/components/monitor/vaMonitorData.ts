@@ -27,6 +27,8 @@ export interface VaMonitorStudent {
   response: VideoActivityResponse;
   key: string;
   name: string;
+  /** "Last, First" from the class list, for the last-name sort. */
+  sortName?: string;
   bucket: BucketKey;
   /** One mark per keyed question, in question order. */
   marks: VaMark[];
@@ -57,7 +59,8 @@ export function buildVaStudent(
   r: VideoActivityResponse,
   questions: VideoActivityQuestion[],
   name: string,
-  live = false
+  live = false,
+  sortName?: string
 ): VaMonitorStudent {
   const answers = (live ? liveScoredResponse(r) : r).answers;
   const first = firstVaAnswers(answers);
@@ -74,6 +77,7 @@ export function buildVaStudent(
     response: r,
     key: r._responseKey ?? r.studentUid,
     name: staffResultsLabel(r) ?? name,
+    sortName,
     bucket,
     marks,
     score:
@@ -86,6 +90,7 @@ export function buildVaStudent(
 
 const sortable = (s: VaMonitorStudent): SortableStudent => ({
   name: s.name,
+  sortName: s.sortName,
   status:
     s.bucket === 'done'
       ? 'completed'

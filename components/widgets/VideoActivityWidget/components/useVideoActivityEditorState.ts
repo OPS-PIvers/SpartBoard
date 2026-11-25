@@ -1,4 +1,5 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { secondsToMmSs } from '@/utils/videoTimestamp';
 import {
   type VideoActivityClip,
   type VideoActivityNote,
@@ -19,23 +20,6 @@ const DEFAULT_AI_TYPE_COUNTS: Record<VideoQuestionGenType, number> = {
   FIB: 0,
   MA: 0,
 };
-
-/** Convert total seconds to MM:SS string. */
-export function secondsToMmSs(seconds: number): string {
-  const m = Math.floor(Math.max(0, seconds) / 60);
-  const s = Math.floor(Math.max(0, seconds) % 60);
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
-
-/** Convert MM:SS or M:SS string to total seconds. Returns NaN if invalid. */
-export function mmSsToSeconds(value: string): number {
-  const match = /^\s*(\d+)\s*:\s*(\d+)\s*$/.exec(value);
-  if (!match) return NaN;
-  const m = Number(match[1]);
-  const s = Number(match[2]);
-  if (s >= 60) return NaN;
-  return m * 60 + s;
-}
 
 const blankQuestion = (): VideoActivityQuestion => ({
   id: crypto.randomUUID(),

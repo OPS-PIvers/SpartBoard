@@ -787,13 +787,6 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'projects.group-student-view:projects',
     widgetType: 'projects',
   },
-  'widgets.projects.status-popover': {
-    label: 'Projects step status popover',
-    kind: 'menu',
-    files: ['components/widgets/Projects/components/board/StatusPopover.tsx'],
-    opensWith: 'projects.step-cell:projects',
-    widgetType: 'projects',
-  },
   'widgets.projects.editor': {
     label: 'Projects project editor',
     kind: 'modal',

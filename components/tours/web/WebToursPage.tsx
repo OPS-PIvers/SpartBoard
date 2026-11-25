@@ -11,7 +11,6 @@ import {
   AlertCircle,
   Loader2,
   Plus,
-  Search,
   Settings,
   Users,
 } from 'lucide-react';
@@ -37,6 +36,7 @@ import { webTourSite } from './tourLinks';
 import { webToursDevSeed } from './webToursDevSeed';
 import { useCanFreshservice, useCanFreshserviceSettings } from './freshservice';
 import { useFreshserviceArticles } from './freshserviceArticles';
+import { SearchField } from '@/components/common/SearchField';
 
 const TourAuthorsDialog = lazy(() =>
   import('./TourAuthorsDialog').then((m) => ({
@@ -402,21 +402,14 @@ export const WebToursPage: React.FC = () => {
           <div className="flex flex-col gap-3">
             {tours.length > 0 && (
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                <label className="relative min-w-0 flex-1 sm:min-w-64">
-                  <span className="sr-only">Search web tours</span>
-                  <Search
-                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-                    aria-hidden="true"
-                  />
-                  <input
-                    type="search"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search by name, website or author"
-                    className={`min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-500 ${focusRing}`}
-                    {...tourAttr('web-tours.search')}
-                  />
-                </label>
+                <SearchField
+                  value={query}
+                  onChange={setQuery}
+                  placeholder="Search by name, website or author"
+                  ariaLabel="Search web tours"
+                  anchor={tourAttr('web-tours.search')}
+                  className="min-w-0 flex-1 sm:min-w-64"
+                />
                 <label className="sm:w-48">
                   <span className="sr-only">Website</span>
                   <select

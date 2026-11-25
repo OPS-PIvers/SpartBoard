@@ -9,50 +9,43 @@
 
 import type { StimulusUploader } from './attachImages';
 import type { ExtractedImage } from './types';
+import {
+  driveViewUrl,
+  uploadDriveAsset,
+  type DriveAssetDrive,
+} from '../driveAssetUpload';
 
 /** Drive folder every quiz stimulus lands in, matching the editor's panel. */
 export const STIMULUS_FOLDER = 'Assets/QuizStimuli';
 
 /** What uploading a stimulus needs of `GoogleDriveService`. */
-export interface StimulusDrive {
-  uploadFile: (
-    file: File | Blob,
-    fileName: string,
-    folderPath?: string
-  ) => Promise<{ id: string }>;
-  makePublic: (fileId: string, domain?: string) => Promise<void>;
-  deleteFile: (fileId: string) => Promise<void>;
-}
+export type StimulusDrive = DriveAssetDrive<{ id: string }>;
 
-export function driveStimulusUploader(drive: StimulusDrive): StimulusUploader {
+// A missing Drive fails each upload, so a widget can build the uploader before sign-in finishes.
+export function driveStimulusUploader(
+  drive: StimulusDrive | null
+): StimulusUploader {
   return {
     upload: async (image: ExtractedImage) => {
+      if (!drive) throw new Error('Google Drive is not connected.');
       const safeName = image.name.replace(/[^\w.-]+/g, '_');
       const file = new File([image.blob], safeName, {
         type: image.contentType,
       });
-      const driveFile = await drive.uploadFile(
-        file,
-        `stimulus-${Date.now()}-${safeName}`,
-        STIMULUS_FOLDER
-      );
-      try {
-        // undefined domain forces type:'anyone' — students open stimuli
-        // without a Google identity a domain grant could match.
-        await drive.makePublic(driveFile.id, undefined);
-      } catch (error) {
-        // The caller never learns this id, so it has to be cleaned up here
-        // or the file is stranded in the teacher's Drive unshared.
-        await drive.deleteFile(driveFile.id).catch(() => undefined);
-        throw error;
-      }
+      // Anyone with the link: students open stimuli without a Google identity.
+      const driveFile = await uploadDriveAsset(drive, {
+        blob: file,
+        name: `stimulus-${Date.now()}-${safeName}`,
+        folder: STIMULUS_FOLDER,
+        audience: 'anyone',
+      });
       return {
         driveFileId: driveFile.id,
-        url: `https://drive.google.com/file/d/${driveFile.id}/view`,
+        url: driveViewUrl(driveFile.id),
       };
     },
     remove: async (driveFileId: string) => {
-      await drive.deleteFile(driveFileId);
+      await drive?.deleteFile(driveFileId);
     },
   };
 }

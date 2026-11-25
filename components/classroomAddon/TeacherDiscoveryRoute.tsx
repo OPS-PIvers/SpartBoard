@@ -23,7 +23,6 @@
  *        - Quiz → `/classroom-addon/student?code=<code>`
  *        - VA   → `/classroom-addon/student?kind=va&sessionId=<sessionId>`
  */
-import { withQuizAnswerChoices } from '@/components/common/library/assignStepper/modificationGroups';
 import React, {
   useCallback,
   useEffect,
@@ -42,6 +41,7 @@ import { useBankSources } from '@/hooks/useBankSources';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { usePlcs } from '@/hooks/usePlcs';
+import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
 import { useRosters } from '@/hooks/useRosters';
 import { useRubrics } from '@/hooks/useRubrics';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
@@ -64,8 +64,7 @@ import {
   payloadRequiresCall,
 } from '@/utils/studentTargetRef';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
-import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
-import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
+import { assignFromCourse } from '@/hooks/quizAssign/assignFromCourse';
 import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import { InlineAssignStepBodies } from '@/components/common/library/assignStepper/InlineAssignStepBodies';
@@ -80,8 +79,6 @@ import {
   type AssignWhenValue,
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
-import { quizMaxPoints } from '@/utils/quizMaxPoints';
-import { sessionSectionsFor } from '@/utils/quizSections';
 import { videoActivityMaxPoints } from '@/utils/videoActivityGrading';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { logError } from '@/utils/logError';
@@ -220,6 +217,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     quizzes,
     loadQuizData,
     saveDriveSnapshot,
+    attachSyncLinkage,
+    loadSyncedTranslations,
     loading: quizzesLoading,
   } = useQuiz(user?.uid);
   const { loadBankContentsForQuiz } = useBankSources(user?.uid);
@@ -270,6 +269,10 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // Quiz-only: opt into exporting results to a shared PLC sheet.
   const [plcShareEnabled, setPlcShareEnabled] = useState(false);
   const [selectedPlcId, setSelectedPlcId] = useState('');
+  // The PLC's library, so this run pools with teammates' runs of the same quiz.
+  const { quizzes: plcLibrary } = usePlcQuizzes(
+    plcShareEnabled && selectedPlcId ? selectedPlcId : null
+  );
 
   // Records the current step as the user-facing status message.
   const append = useCallback((line: string) => {
@@ -607,167 +610,41 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     const quizData =
       targetingQuizCacheRef.current.get(selectedQuiz.id) ??
       (await loadQuizData(selectedQuiz.driveFileId));
-
-    // M17 C3 F1 — the override editor's structured option ids
-    // (`{questionId}-correct` / `-incorrect-N`) must never reach a
-    // student-readable pointer doc. Resolve them to option TEXT here, where the
-    // full quiz body is in hand; the student side matches on text.
     const windowTargeting = resolveWindow();
-    const dueAt = windowOn ? (windowTargeting.dueAt ?? null) : null;
-    const hiddenOptions = translateHiddenOptionIdsToText(
-      Array.isArray(quizData?.questions) ? quizData.questions : [],
-      windowTargeting.overridesByKey
-    );
-    const expanded = expandClassTargeting(
-      {
-        ...windowTargeting,
-        overridesByKey: hiddenOptions.overridesByKey,
-      },
-      addonClassContext
-    );
-    for (const warning of hiddenOptions.warnings) {
-      append(`Note: ${warning}`);
-    }
-
     const targeting = await resolveClassTargeting();
 
-    // Assessment Mode always; options and attempt limit come from the quiz.
-    const { sessionMode, sessionOptions, attemptLimit } = splitAssignSettings;
-
-    const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
-
-    // Build the PLC linkage when the teacher opted into "Share with PLC" and
-    // picked a PLC — same shared builder the normal flow uses, so the linkage
-    // shape (optional sheet + name + member snapshot) is identical. A
-    // failed sheet auto-create keeps the link without a sheet and is logged.
-    const plcLinkage = resolvePlcLinkageForAttach();
-
-    // `sessionMode` + `sessionOptions` + `attemptLimit` now come from the
-    // quiz's configured behavior. `periodNames` rides on the settings object
-    // (that's where the quiz hook reads it from for both the assignment +
-    // session docs); `rosterIds`/`classPeriodByClassId` ride on the options
-    // bag. Both are only set when the course is linked to a roster.
-    const content = await resolveQuizAssignContent(
-      quizData,
-      selectedQuiz.driveFileId,
-      { loadBankContentsForQuiz, saveDriveSnapshot }
-    );
-    const resolvedTargeting: AssignTargetingValue = {
-      ...expanded,
-      overridesByKey: withQuizAnswerChoices(
-        expanded.overridesByKey,
-        content.questions
-      ),
-    };
-
-    // Classroom grade scale = the points a student can earn (e.g. 17/20), not a percentage.
-    const maxPoints = quizMaxPoints(
-      content.questions,
-      sessionSectionsFor(
-        { ...quizData, questions: content.questions },
-        content.bankSlots
-      ),
-      content.bankSlots
-    );
-
     append('Creating a class-targeted assignment…');
-    const { id: sessionId, code } = await createAssignment(
-      {
-        id: selectedQuiz.id,
-        title: selectedQuiz.title,
-        driveFileId: content.driveFileId,
-        questions: content.questions,
-        ...(content.stimuli ? { stimuli: content.stimuli } : {}),
-        ...(quizData.language ? { language: quizData.language } : {}),
-        ...(quizData.sections?.length
-          ? { order: quizData.order, sections: quizData.sections }
-          : {}),
+    const {
+      assignmentId: sessionId,
+      code,
+      maxPoints,
+    } = await assignFromCourse({
+      uid: user?.uid,
+      meta: selectedQuiz,
+      data: quizData,
+      behavior: splitAssignSettings,
+      targeting: windowTargeting,
+      dueAt: windowOn ? (windowTargeting.dueAt ?? null) : null,
+      rosters,
+      linkedRosterIds: addonSelectedRosterIds,
+      course: { className: 'Google Classroom', ...targeting },
+      teacherName: teacherName.trim() || defaultTeacherName,
+      plc: plcs.find((p) => p.id === resolvePlcLinkageForAttach()?.id),
+      plcLibrary,
+      deps: {
+        loadBankContentsForQuiz,
+        saveDriveSnapshot,
+        createAssignment,
+        setAssignmentTargets,
+        setAssignmentTargetSkippedCount,
+        attachSyncLinkage,
+        loadSyncedTranslations,
       },
-      {
-        className: 'Google Classroom',
-        sessionMode,
-        sessionOptions,
-        attemptLimit,
-        ...(effectiveTeacherName ? { teacherName: effectiveTeacherName } : {}),
-        ...(plcLinkage ? { plc: plcLinkage } : {}),
-        ...(targeting.periodNames.length > 0
-          ? { periodNames: targeting.periodNames }
-          : {}),
-        ...(dueAt != null ? { dueAt, dueAtHasTime: true } : {}),
-        ...(content.resolvedDriveFileId
-          ? { resolvedDriveFileId: content.resolvedDriveFileId }
-          : {}),
-      },
-      {
-        classIds: targeting.classIds,
-        ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
-        initialStatus: 'active',
-        ...(targeting.rosterIds.length > 0
-          ? { rosterIds: targeting.rosterIds }
-          : {}),
-        ...(Object.keys(targeting.classPeriodByClassId).length > 0
-          ? { classPeriodByClassId: targeting.classPeriodByClassId }
-          : {}),
-        // M17 targeting — `targetMode`/`targetStudents` are written only by
-        // `setAssignmentTargetsV1` below, never here.
-        targetGroupIds: resolvedTargeting.targetGroupIds,
-        overridesBySourcedId: resolvedTargeting.overridesByKey,
-        openAt: resolvedTargeting.openAt ?? null,
-        closeAt: resolvedTargeting.closeAt ?? null,
-        ...(selectedQuiz.translations
-          ? { translationIndex: selectedQuiz.translations }
-          : {}),
-      }
-    );
+      notify: (message) => append(message),
+      logScope: 'TeacherDiscoveryRoute',
+    });
     append(`Assignment created (join code ${code}).`);
     saveLastAssignSettings(splitAssignSettings);
-
-    // Individual targeting only (§3a-G): a class-wide attach never depends on
-    // the callable, so a Cloud Functions hiccup can't regress today's flow.
-    {
-      const payload = buildSetAssignmentTargetsPayload(
-        undefined,
-        resolvedTargeting
-      );
-      if (payloadRequiresCall(payload))
-        try {
-          const result = await setAssignmentTargets({
-            assignmentId: sessionId,
-            kind: 'quiz',
-            sessionId,
-            ...payload,
-          });
-          if (result.skipped.length > 0) {
-            append(
-              skippedTargetsToastMessage(
-                result.skipped.length,
-                result.skippedExclusions?.length ?? 0
-              )
-            );
-            try {
-              await setAssignmentTargetSkippedCount(
-                sessionId,
-                result.skipped.length
-              );
-            } catch (persistErr) {
-              logError(
-                'TeacherDiscoveryRoute.setAssignmentTargetSkippedCount',
-                persistErr,
-                { sessionId }
-              );
-            }
-          }
-        } catch (targetErr) {
-          // Non-fatal: the assignment exists and the class can still take it.
-          logError('TeacherDiscoveryRoute.setAssignmentTargets', targetErr, {
-            sessionId,
-          });
-          append(
-            'Note: individual student targeting failed to save. The assignment ' +
-              'is still available to the whole class.'
-          );
-        }
-    }
 
     // Pass the quiz total so the Classroom attachment's maxPoints matches the
     // quiz exactly — the grade scale pushed grades are later capped to.
@@ -824,7 +701,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       }
     }
   }, [
-    addonClassContext,
+    addonSelectedRosterIds,
+    rosters,
     append,
     selectedQuiz,
     googleAccessToken,
@@ -835,6 +713,10 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     createAssignment,
     createAttachment,
     resolvePlcLinkageForAttach,
+    plcs,
+    plcLibrary,
+    attachSyncLinkage,
+    loadSyncedTranslations,
     user,
     courseId,
     itemId,

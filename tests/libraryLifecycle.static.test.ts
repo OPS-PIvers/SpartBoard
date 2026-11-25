@@ -46,3 +46,44 @@ describe('library duplicate path', () => {
     expect(offenders, FIX).toEqual([]);
   });
 });
+
+describe('library delete path', () => {
+  // Writing's assigned-record delete is an assignment, not a library item.
+  const CONFIRM_CALLERS = new Set([
+    'components/common/library/useLibraryDelete.ts',
+    'components/widgets/Writing/components/WritingManager.tsx',
+  ]);
+
+  it('library items delete through useLibraryDelete', () => {
+    const offenders = sourceFiles()
+      .filter((file) => !CONFIRM_CALLERS.has(file))
+      .filter((file) =>
+        readFileSync(resolve(repoRoot, file), 'utf8').includes(
+          'useLibraryDeleteConfirm()'
+        )
+      );
+    expect(
+      offenders,
+      'Delete library items with useLibraryDelete (components/common/library/useLibraryDelete.ts): one policy per kind for single, bulk and folder deletes.'
+    ).toEqual([]);
+  });
+});
+
+describe('library share links', () => {
+  it('only utils/shareRoutes.ts spells the share routes', () => {
+    const offenders = sourceFiles()
+      .filter((file) => file !== 'utils/shareRoutes.ts')
+      .filter((file) =>
+        /['`/]share\/(?:quiz|assignment|video-activity|rubric)\//.test(
+          readFileSync(resolve(repoRoot, file), 'utf8')
+            .split('\n')
+            .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+            .join('\n')
+        )
+      );
+    expect(
+      offenders,
+      'Parse and build library share links with utils/shareRoutes.ts (parseLibraryShareLink, librarySharePath).'
+    ).toEqual([]);
+  });
+});

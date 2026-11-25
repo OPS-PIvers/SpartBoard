@@ -4,6 +4,13 @@ import { FeaturePermissionsManager } from './FeaturePermissionsManager';
 import type { FeaturePermission, ToolMetadata } from '@/types';
 
 const setDocMock = vi.fn();
+const dashboardStub = vi.hoisted(() => ({
+  addToast: () => undefined,
+  removeToast: () => undefined,
+}));
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => dashboardStub,
+}));
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   doc: vi.fn((_db: unknown, ...path: string[]) => ({ path: path.join('/') })),

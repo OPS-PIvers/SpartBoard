@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { WidgetBuildingToggle } from '@/components/common/WidgetBuildingToggle';
@@ -50,6 +50,7 @@ import {
   type DrawerPlacement,
 } from './drawerConstants';
 import { tourAttr } from '@/config/tourAnchors';
+import { SearchField } from '@/components/common/SearchField';
 
 export type SettingsDrawerProps = {
   widget: WidgetData;
@@ -603,33 +604,20 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
       </div>
 
       <div className="px-4 pt-3 shrink-0">
-        <div className="relative">
-          <Search
-            className="w-3.5 h-3.5 text-slate-600 absolute left-3 top-1/2 -translate-y-1/2"
-            aria-hidden="true"
-          />
-          <input
-            ref={filterRef}
-            type="text"
-            value={query}
-            onChange={(e) => setQueryAndTab(e.target.value)}
-            aria-label={t('widgetSettings.common.findSetting')}
-            {...tourAttr('settings.search', widget.id, widget.type)}
-            placeholder={t('widgetSettings.common.findSetting')}
-            className="w-full pl-8 pr-8 py-1.5 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
-          />
-          {query !== '' && (
-            <button
-              type="button"
-              onClick={() => setQueryAndTab('')}
-              aria-label={t('widgetSettings.common.clearFilter')}
-              {...tourAttr('settings.clear-filter', widget.id, widget.type)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-800"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+        <SearchField
+          inputRef={filterRef}
+          value={query}
+          onChange={setQueryAndTab}
+          placeholder={t('widgetSettings.common.findSetting')}
+          anchor={tourAttr('settings.search', widget.id, widget.type)}
+          clearAnchor={tourAttr(
+            'settings.clear-filter',
+            widget.id,
+            widget.type
           )}
-        </div>
+          clearLabel={t('widgetSettings.common.clearFilter')}
+          size="sm"
+        />
       </div>
 
       {readOnly && (

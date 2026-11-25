@@ -34,6 +34,7 @@ import { paperBoxSizeOf, paperBoxStyleOf } from './paperWritten';
 import { rowsFromQuestion } from './quizChoiceRows';
 import { multiAnswerOptions } from './quizMultiAnswer';
 import { fibBlankCount } from './quizFibBlanks';
+import { lastFirstOrUnnamed } from '@/utils/studentName';
 
 /** Small deterministic PRNG so an option set always shuffles the same way. */
 export function seededRandom(seed: string): () => number {
@@ -469,8 +470,7 @@ export interface PaperBatchPlan {
   sheets: PaperSheetPlan[];
 }
 
-const studentLabel = (s: Student): string =>
-  [s.lastName, s.firstName].filter(Boolean).join(', ') || 'Unnamed student';
+const studentLabel = (s: Student): string => lastFirstOrUnnamed(s);
 
 /**
  * Allocate seats and build the batch record.

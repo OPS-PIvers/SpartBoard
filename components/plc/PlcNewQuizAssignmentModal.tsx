@@ -30,7 +30,6 @@ import { useTranslation } from 'react-i18next';
 import type {
   AssignmentMode,
   Plc,
-  PlcLinkage,
   QuizBehaviorSettings,
   QuizMetadata,
   QuizSessionOptions,
@@ -41,13 +40,9 @@ import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useBankSources } from '@/hooks/useBankSources';
 import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
-import {
-  callLeaveSyncedQuizGroup,
-  createSyncedQuizGroup,
-} from '@/hooks/useSyncedQuizGroups';
-import { getPlcMemberEmails } from '@/utils/plc';
+import { buildAssignQuizRef } from '@/hooks/quizAssign/builders';
 import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
-import { resolvePlcPoolSyncGroupId } from '@/utils/plcPooling';
+import { resolveQuizPlcLinkageForAssign } from '@/hooks/quizAssign/plcLinkage';
 import { logError } from '@/utils/logError';
 import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
@@ -57,7 +52,6 @@ import {
 } from './PlcSharePickerModal';
 import { formatShortDate } from './newAssignmentHelpers';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
-import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 import { isDistrictLinkedCopy } from '@/utils/districtLibraryOrigin';
 import { toAssessmentBehavior } from '@/utils/quizBehavior';
 import type { AssignClassesValue } from '@/utils/assignTargets';
@@ -122,6 +116,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
     loadQuizData,
     saveDriveSnapshot,
     attachSyncLinkage,
+    loadSyncedTranslations,
     isDriveConnected,
   } = useQuiz(user?.uid);
   const { loadBankContentsForQuiz } = useBankSources(user?.uid);
@@ -213,7 +208,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
       submittingRef.current = true;
 
       let createdSyncGroupId: string | null = null;
-      let linkageAttached = false;
       try {
         // Load Drive content up front so a sync-group mint never lands
         // without questions, and so any Drive auth issue surfaces a toast
@@ -223,7 +217,8 @@ export const PlcNewQuizAssignmentModal: React.FC<
         const content = await resolveQuizAssignContent(
           data,
           pickedQuiz.driveFileId,
-          { loadBankContentsForQuiz, saveDriveSnapshot }
+          { loadBankContentsForQuiz, saveDriveSnapshot },
+          { freeze: true }
         );
 
         const stepperPlan = planPlcQuizStepperAssign({
@@ -234,118 +229,48 @@ export const PlcNewQuizAssignmentModal: React.FC<
           questions: content.questions,
           everyClass: canAccessFeature('student-set-time'),
         });
-        const fields = plcStepperCreateFields(stepperPlan, rosters);
-
-        // PLC link only — no sheet step; results pool server-side.
-        const plcLinkage: PlcLinkage = {
-          id: plc.id,
-          name: plc.name,
-          memberEmails: getPlcMemberEmails(plc),
-        };
-
-        // Promote-to-synced: if the source quiz has no `sync.groupId`,
-        // mint one with `plcId` set so peer importers landing on the PLC
-        // template can read the canonical group. Mirrors the QuizWidget
-        // `plcLinkage && !plcTemplateSyncGroupId` branch.
-        let plcTemplateSyncGroupId: string | undefined =
-          pickedQuiz.sync?.groupId;
-        if (!plcTemplateSyncGroupId) {
-          const newSyncGroupId = crypto.randomUUID();
-          try {
-            await createSyncedQuizGroup({
-              groupId: newSyncGroupId,
-              uid: user.uid,
-              title: data.title,
-              questions: data.questions,
-              ...syncedQuizContentFields(data),
-              plcId: plc.id,
-              behavior: pickedQuiz.behavior,
-            });
-            createdSyncGroupId = newSyncGroupId;
-            try {
-              await attachSyncLinkage(pickedQuiz.id, {
-                groupId: newSyncGroupId,
-                lastSyncedVersion: 1,
-              });
-              linkageAttached = true;
-              plcTemplateSyncGroupId = newSyncGroupId;
-            } catch (linkageErr) {
-              // Roll back the freshly-minted self-participant entry so we
-              // don't leak a phantom participant pointing at a local
-              // library that never recorded the linkage. The empty group
-              // doc itself stays (rules disallow client deletes).
-              try {
-                await callLeaveSyncedQuizGroup(newSyncGroupId);
-              } catch (leaveErr) {
-                logError(
-                  'PlcNewQuizAssignmentModal.promoteSync.rollbackLeave',
-                  leaveErr,
-                  { plcId: plc.id, syncGroupId: newSyncGroupId }
-                );
-              }
-              // We deliberately don't throw — without a sync group we skip
-              // the PLC template write, but the assignment still commits.
-              logError(
-                'PlcNewQuizAssignmentModal.promoteSync.attachLinkage',
-                linkageErr,
-                { plcId: plc.id, quizId: pickedQuiz.id }
-              );
-              plcTemplateSyncGroupId = undefined;
-            }
-          } catch (createErr) {
-            logError(
-              'PlcNewQuizAssignmentModal.promoteSync.create',
-              createErr,
-              {
-                plcId: plc.id,
-                quizId: pickedQuiz.id,
-              }
-            );
-            plcTemplateSyncGroupId = undefined;
-          }
-        }
+        // PLC link only, no sheet step: results pool server-side.
+        const {
+          plcLinkage,
+          plcPoolSyncGroupId,
+          plcTemplateSyncGroupId,
+          mintedSyncGroupId,
+        } = await resolveQuizPlcLinkageForAssign({
+          plc,
+          uid: user.uid,
+          meta: pickedQuiz,
+          data,
+          plcLibrary,
+          canPromote: true,
+          attachSyncLinkage,
+          loadSyncedTranslations,
+          logScope: 'PlcNewQuizAssignmentModal',
+        });
+        createdSyncGroupId = mintedSyncGroupId ?? null;
 
         const behavior = toAssessmentBehavior(splitAssignSettings);
         const sessionOptions: QuizSessionOptions = behavior.sessionOptions;
 
-        // Title-aware pooling (§8.1): prefer the PLC library group so every
-        // teacher's run of one quiz lands in a single assessment.
-        const plcPoolSyncGroupId = resolvePlcPoolSyncGroupId({
-          quizSyncGroupId: pickedQuiz.sync?.groupId,
-          quizTitle: pickedQuiz.title,
-          libraryEntries: plcLibrary.filter((entry) => !entry.archived),
+        const fields = plcStepperCreateFields(stepperPlan, rosters, {
+          behavior,
+          teacherName: (user.displayName ?? '').trim() || undefined,
+          content,
+          assignmentMode,
+          plcLinkage,
+          plcPoolSyncGroupId,
+          plcTemplateSyncGroupId,
+          translationIndex: pickedQuiz.translations,
         });
-
         const { id: assignmentId } = await createAssignment(
-          {
-            id: pickedQuiz.id,
-            title: pickedQuiz.title,
+          buildAssignQuizRef({
+            meta: pickedQuiz,
+            data,
             driveFileId: content.driveFileId,
             questions: content.questions,
-            ...(content.stimuli ? { stimuli: content.stimuli } : {}),
-            ...(data.language ? { language: data.language } : {}),
-            ...(data.sections?.length
-              ? { order: data.order, sections: data.sections }
-              : {}),
-          },
-          {
-            sessionMode: behavior.sessionMode,
-            sessionOptions,
-            attemptLimit: behavior.attemptLimit,
-            teacherName: (user.displayName ?? '').trim() || undefined,
-            ...fields.settings,
-            plc: plcLinkage,
-            ...(content.resolvedDriveFileId
-              ? { resolvedDriveFileId: content.resolvedDriveFileId }
-              : {}),
-          },
-          {
-            ...fields.options,
-            ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
-            mode: assignmentMode,
-            ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
-            ...(plcPoolSyncGroupId ? { plcPoolSyncGroupId } : {}),
-          }
+            stimuli: content.stimuli,
+          }),
+          fields.settings,
+          fields.options
         );
 
         saveLastAssignSettings({
@@ -369,8 +294,8 @@ export const PlcNewQuizAssignmentModal: React.FC<
           logScope: 'PlcNewQuizAssignmentModal',
         });
 
-        // Only a period gate creates it active; otherwise it starts paused.
-        const gated = !!stepperPlan.periodGate;
+        // A period gate or a later open time creates it active; otherwise it starts paused.
+        const gated = fields.options.initialStatus === 'active';
         const createdKey = gated ? 'StepperCreated' : 'Created';
         addToast(
           t(`plcDashboard.newAssignment.quiz.group${createdKey}`, {
@@ -389,7 +314,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
         // AFTER we've already minted a synced group + attached linkage. The
         // local quiz keeps the linkage; the PLC's template/index stay empty.
         // No `detachSyncLinkage` API exists today; we log + observe.
-        if (createdSyncGroupId && linkageAttached) {
+        if (createdSyncGroupId) {
           logError(
             'newPlcAssignment.orphanedGroup',
             err instanceof Error ? err : new Error(String(err)),
@@ -424,6 +349,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
       outward,
       assignmentMode,
       attachSyncLinkage,
+      loadSyncedTranslations,
       createAssignment,
       loadQuizData,
       loadBankContentsForQuiz,

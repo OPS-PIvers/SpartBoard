@@ -1,5 +1,6 @@
 // Team settings for a mentoring program (T29): facilitators tag mentors and mentees and set the pairs.
 
+import { useDialog } from '@/context/useDialog';
 import React, { useState } from 'react';
 import { Button } from '@/components/common/Button';
 import { useAuth } from '@/context/useAuth';
@@ -20,6 +21,7 @@ const HEADING = 'text-sm font-bold text-slate-800';
 
 export const MentoringPairingsSettings: React.FC<{ plc: Plc }> = ({ plc }) => {
   const { user } = useAuth();
+  const { showConfirm } = useDialog();
   const { items: workspaces } = useMentoringWorkspaces(
     plc.id,
     user?.uid ?? null,
@@ -110,10 +112,11 @@ export const MentoringPairingsSettings: React.FC<{ plc: Plc }> = ({ plc }) => {
                     'teams-mentoring',
                     ws.id
                   )}
-                  onClick={() => {
+                  onClick={async () => {
                     if (
-                      window.confirm(
-                        'Remove this pair? Their workspace is deleted.'
+                      await showConfirm(
+                        'Remove this pair? Their workspace is deleted.',
+                        { variant: 'danger' }
                       )
                     ) {
                       void run(() => removePairing(plc.id, ws.id), 'remove');

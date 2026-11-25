@@ -25,18 +25,3 @@ export function earliestDueAt(
   );
   return values.length > 0 ? Math.min(...values) : null;
 }
-
-/** The due date a student sees: the first of their classes with its own date, else the shared one. */
-export function resolveStudentDueAt(
-  sharedDueAt: number | undefined,
-  dueAtByClassId: Record<string, number> | undefined,
-  studentClassIds: readonly string[]
-): number | undefined {
-  if (dueAtByClassId) {
-    for (const id of studentClassIds) {
-      const due = dueAtByClassId[id];
-      if (typeof due === 'number') return due;
-    }
-  }
-  return sharedDueAt;
-}
