@@ -410,6 +410,15 @@ describe('makeHostLookup', () => {
     await expect(makeHostLookup(docs(admins))('h')).resolves.toMatchObject({
       staff: false,
     });
+    authUsers.set('h', {
+      email: teacher,
+      emailVerified: false,
+      displayName: 'Ann',
+      customClaims: {},
+    });
+    await expect(makeHostLookup(docs(admins))('h')).resolves.toMatchObject({
+      staff: false,
+    });
     user();
     await expect(
       makeHostLookup(

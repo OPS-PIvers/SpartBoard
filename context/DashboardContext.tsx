@@ -1568,8 +1568,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // escape from. With no building selected, the function falls back to
     // "show all accessible tools" and is safe to call immediately.
     if (
-      selectedBuildings.length > 0 &&
-      (featurePermissions ?? []).length === 0
+      (selectedBuildings.length > 0 &&
+        (featurePermissions ?? []).length === 0) ||
+      isAdmin === null
     ) {
       return;
     }
@@ -1593,6 +1594,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     dockItems.length,
     selectedBuildings,
     featurePermissions,
+    isAdmin,
     getDefaultDockTools,
   ]);
 
@@ -1680,9 +1682,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // before we can apply building-specific defaults.  When no building is
     // selected (empty array = "show all content") we can initialize immediately
     // using all accessible tools without waiting.
+    // Admin status decides admin-default widgets, so wait for it too.
     if (
-      selectedBuildings.length > 0 &&
-      (featurePermissions ?? []).length === 0
+      (selectedBuildings.length > 0 &&
+        (featurePermissions ?? []).length === 0) ||
+      isAdmin === null
     ) {
       // Still loading permissions for a specific building – keep the safety
       // timer running but allow the effect to be cleaned up if the component
@@ -1710,6 +1714,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setupCompleted,
     featurePermissions,
     selectedBuildings,
+    isAdmin,
     getDefaultDockTools,
   ]);
 
