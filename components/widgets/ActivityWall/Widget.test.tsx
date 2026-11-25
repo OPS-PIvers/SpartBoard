@@ -1268,7 +1268,7 @@ describe('ActivityWallWidget with the library on the widget', () => {
     expect(mockUpdateWidget).toHaveBeenCalledWith('widget-1', {
       config: expect.objectContaining({
         activeActivityId: 'wall-1',
-        view: 'wall',
+        libraryOverWallId: null,
       }) as object,
     });
   });
@@ -1280,7 +1280,7 @@ describe('ActivityWallWidget with the library on the widget', () => {
       await screen.findByRole('button', { name: 'Open wall library' })
     );
     expect(mockUpdateWidget).toHaveBeenCalledWith('widget-1', {
-      config: { view: 'library' },
+      config: { libraryOverWallId: 'wall-1' },
     });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -1290,7 +1290,7 @@ describe('ActivityWallWidget with the library on the widget', () => {
       <ActivityWallWidget
         widget={{
           ...baseWidget,
-          config: { activeActivityId: 'wall-1', view: 'library' },
+          config: { activeActivityId: 'wall-1', libraryOverWallId: 'wall-1' },
         }}
       />
     );
@@ -1299,6 +1299,41 @@ describe('ActivityWallWidget with the library on the widget', () => {
       await screen.findByRole('button', { name: /open on board/i })
     ).toBeInTheDocument();
     expect(screen.getByText('On board')).toBeInTheDocument();
+  });
+
+  it('shows a wall opened from somewhere else over the library', async () => {
+    mockLibraryEntries.current = [
+      makeEntry(),
+      makeEntry({ id: 'wall-2', title: 'Exit ticket' }),
+    ];
+    render(
+      <ActivityWallWidget
+        widget={{
+          ...baseWidget,
+          config: { activeActivityId: 'wall-2', libraryOverWallId: 'wall-1' },
+        }}
+      />
+    );
+
+    expect(await screen.findByText('Exit ticket')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'New wall' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps the library dialog on a View-Only board', async () => {
+    mockReadOnly.current = true;
+    render(<ActivityWallWidget widget={baseWidget} />);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Open wall library' })
+    );
+    expect(mockUpdateWidget).not.toHaveBeenCalledWith('widget-1', {
+      config: expect.objectContaining({
+        libraryOverWallId: 'wall-1',
+      }) as object,
+    });
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
   it('files a new wall in the open folder', async () => {

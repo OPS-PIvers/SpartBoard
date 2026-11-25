@@ -383,28 +383,32 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         config: {
           activeActivityId: entryId,
           activeActivityOwnerUid: entryId ? (user?.uid ?? null) : null,
-          ...(libraryOnFace
-            ? { view: entryId ? ('wall' as const) : ('library' as const) }
-            : {}),
+          ...(libraryOnFace ? { libraryOverWallId: null } : {}),
         },
       });
     },
     [libraryOnFace, updateWidget, user?.uid, widget.id]
   );
 
+  // A View-Only board can't save the widget, so it keeps the dialog.
+  const libraryDialog = !libraryOnFace || isActiveBoardReadOnly;
   const openLibrary = useCallback(() => {
-    if (libraryOnFace) {
-      updateWidget(widget.id, { config: { view: 'library' } });
-    } else {
+    if (libraryDialog) {
       setLibraryOpen(true);
+    } else {
+      updateWidget(widget.id, {
+        config: { libraryOverWallId: config.activeActivityId ?? null },
+      });
     }
-  }, [libraryOnFace, updateWidget, widget.id]);
+  }, [config.activeActivityId, libraryDialog, updateWidget, widget.id]);
 
   // The library is the widget face until a wall is opened, as in Quiz and Video Activity.
   const showLibraryFace =
     libraryOnFace &&
     !inShare &&
-    (config.view === 'library' ||
+    // Tied to the open wall, so a wall opened from anywhere else shows at once.
+    ((!!config.activeActivityId &&
+      config.libraryOverWallId === config.activeActivityId) ||
       (!foreignOwnerUid &&
         (!config.activeActivityId || (!libraryLoading && !activeEntry))));
 
@@ -1133,7 +1137,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         />
       )}
 
-      {!inShare && !libraryOnFace && (
+      {!inShare && libraryDialog && (
         <WallLibraryModal
           open={libraryOpen}
           onClose={() => setLibraryOpen(false)}

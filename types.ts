@@ -2769,8 +2769,8 @@ export interface ActivityWallConfig {
   activeActivityId?: string | null;
   /** Whose library the active wall is in, so other members of a shared board can find it. */
   activeActivityOwnerUid?: string | null;
-  /** Library on the widget face or the open wall; unset picks by whether a wall is open. */
-  view?: 'library' | 'wall';
+  /** The wall the library was opened over; the library shows while that wall stays open. */
+  libraryOverWallId?: string | null;
   libraryViewMode?: 'grid' | 'list';
   folderPanelMode?: 'auto' | 'full' | 'rail' | 'hidden';
   draftActivity?: ActivityWallActivity;
