@@ -2110,28 +2110,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "projects.status-popover",
-    "label": "Projects step status menu",
-    "scope": "widget",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "widgets.projects.status-popover",
-        "kind": "menu",
-        "widget_type": "projects",
-        "path": [
-          "library-shell.card-primary-action:projects#row-1",
-          "projects.step-cell:projects"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "profile.close",
     "label": "Close button in Profile & Settings",
     "scope": "board",
@@ -28382,7 +28360,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.sort",
-    "label": "Sort dropdown trigger in a library toolbar",
+    "label": "Sort select in a library toolbar",
     "scope": "widget type",
     "routes": [
       {
@@ -53199,28 +53177,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "projects.status-option",
-    "label": "Step status choice in the Projects status menu",
-    "scope": "widget",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "widgets.projects.status-popover",
-        "kind": "menu",
-        "widget_type": "projects",
-        "path": [
-          "library-shell.card-primary-action:projects#row-1",
-          "projects.step-cell:projects"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "projects.group-student-view",
     "label": "Group student view button on the Projects board",
     "scope": "widget type",
@@ -67218,22 +67174,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "library-shell.sort-option",
-    "label": "Option in a library sort dropdown",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.shell",
-        "kind": "shared",
-        "path": [
-          "library-shell.sort"
-        ],
-        "reveal": "library-shell.sort"
-      }
-    ]
-  },
-  {
     "id": "library-shell.select-item",
     "label": "Select checkbox on a library item card",
     "scope": "field",
@@ -73726,25 +73666,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "widgets.random.face",
         "kind": "widget",
         "widget_type": "random",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "seating.class-group",
-    "label": "Group row under a class in the Seating Chart class menu",
-    "scope": "field",
-    "panel": true,
-    "row_wildcard": true,
-    "row_list": "seating-class-group",
-    "routes": [
-      {
-        "surface": "widgets.seating-chart.face",
-        "kind": "widget",
-        "widget_type": "seating-chart",
         "path": [],
         "needs": [
           "widget-on-stage"

@@ -30,7 +30,8 @@ vi.mock('@/context/useAuth', () => ({
     orgId: null,
     // The grade-push button is additionally gated on the admin-managed
     // `google-classroom` feature doc; default-allow in this suite.
-    canAccessFeature: (id: string) => id !== 'gradebook',
+    canAccessFeature: (id: string) =>
+      id !== 'gradebook' && id !== 'lms-push-final-scores',
   }),
 }));
 // Auto-confirm the "Push grades?" dialog so the handler proceeds.

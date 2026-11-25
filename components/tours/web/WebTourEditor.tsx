@@ -117,6 +117,7 @@ import { useWebTourDraft } from './useWebTourDraft';
 import { useWebPictureTools } from './useWebPictureTools';
 import { changedPictureSteps } from './pictureChange';
 import { webTourEditorDevSeed } from './webEditorDevSeed';
+import { copyText } from '@/utils/copyText';
 
 const LINK_COPY: Record<RecorderLink, string> = {
   off: '',
@@ -593,11 +594,12 @@ const WebTourEditorBody: React.FC<{
 
   const copy = async () => {
     if (publicLink.publicUrl) {
-      try {
-        await navigator.clipboard.writeText(publicLink.publicUrl);
+      if (
+        await copyText(publicLink.publicUrl, (err) =>
+          logError('web tour public link copy', err, { setId: set.id })
+        )
+      ) {
         setStatus('Public link copied.');
-      } catch (err) {
-        logError('web tour public link copy', err, { setId: set.id });
       }
       return;
     }
@@ -614,14 +616,13 @@ const WebTourEditorBody: React.FC<{
       setStatus("Couldn't save. Nothing was copied.");
       return;
     }
-    try {
-      await navigator.clipboard.writeText(
+    setStatus(
+      (await copyText(
         buildWebTourPrompt(saved, stepId, { dev: isDevProject() })
-      );
-      setStatus('Saved. Prompt copied for Claude.');
-    } catch {
-      setStatus("Couldn't copy to the clipboard.");
-    }
+      ))
+        ? 'Saved. Prompt copied for Claude.'
+        : "Couldn't copy to the clipboard."
+    );
   };
 
   const seed = webTourEditorDevSeed();

@@ -79,7 +79,10 @@ describe('Group reminders on the group page', () => {
     );
     fireEvent.click(screen.getByLabelText('Carlson, Ben'));
 
-    await user.type(screen.getByRole('searchbox'), 'turt');
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search icons' }),
+      'turt'
+    );
     expect(screen.queryByRole('button', { name: 'heart' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'turtle' }));
 

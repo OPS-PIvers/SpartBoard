@@ -11995,6 +11995,10 @@ export type GlobalFeature =
   | 'plc-goal-coach'
   /** Generate with AI on a Help Center tour: fills its title, description, category, audience and widgets. */
   | 'help-center-ai'
+  /** Video Activity share links offer Synced or Make a copy, like quiz assignment links. */
+  | 'video-activity-share-sync'
+  /** Every Classroom and Schoology grade push sends the gradebook final score, built on the server (AB-389). */
+  | 'lms-push-final-scores'
   /** Class Close, End and sub End turn open work in from the server, with no teacher tab open (AB-388). */
   | 'server-turn-in'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */

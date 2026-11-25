@@ -1,18 +1,14 @@
 // Pure builders for grade index rows, one per activity kind (docs/plans/GRADEBOOK.md D10, D11, D15, D25).
-import { calcAttemptKey, withCalcValues } from '../quizCalculated';
+import { calcAttemptKey } from '../quizCalculated';
 import {
-  gradeGroupAnswer,
   parsePublicQuestion,
   parseSyncedQuestion,
   parseTargets,
-  selectRepresentativeAnswers,
   type GroupQuestion,
   type ManualGrade,
   type QuestionTargetSnapshot,
   type RawAnswer,
   capAnswer,
-  paperAnswerOwed,
-  trustedPaperTranscript,
 } from '../plcAssessmentMath';
 import {
   currentShortAnswerGrading,
@@ -21,8 +17,9 @@ import {
   parseManualGrades,
 } from '../recomputePlcAssessments';
 import type { FibExtras } from '../quizFibMatch';
-import { notChosenIds, parseChooseSections } from '../quizSectionsChosen';
+import { parseChooseSections } from '../quizSectionsChosen';
 import { isCompletionOnly, type TargetEvidence } from '../gradebookCore';
+import { scoreResponseTotal } from '../quizResponseTotal';
 import type {
   BuildState,
   GradeKind,
@@ -317,61 +314,36 @@ export interface QuestionScore {
 
 /** Points, max and per-target evidence for one attempt over its served questions. */
 export function scoreQuestions(input: QuestionScoreInput): QuestionScore {
-  const served = input.servedQuestionIds?.length
-    ? new Set(input.servedQuestionIds)
-    : new Set(input.questions.map((q) => q.id));
-  const notChosen = notChosenIds(
-    parseChooseSections(input.sectionsRaw),
-    input.answers,
-    input.servedQuestionIds?.length ? input.servedQuestionIds : undefined,
-    input.countedChoices
-  );
-  const representative = selectRepresentativeAnswers(input.answers);
+  const total = scoreResponseTotal({
+    questions: input.questions,
+    answers: input.answers,
+    servedQuestionIds: input.servedQuestionIds,
+    sections: parseChooseSections(input.sectionsRaw),
+    countedChoices: input.countedChoices,
+    manualGrades: input.manualGrades,
+    fibAnswersFor: (id) => input.fibAnswersByQuestion?.[id],
+    paperAttested: input.paperAttested,
+    paperWrittenQuestionIds: input.paperWrittenQuestionIds,
+    calcKey: input.responseKey,
+    modified: input.modified === true,
+  });
   const evidence = new Map<string, TargetEvidence>();
-  let earned = 0;
-  let max = 0;
-  let awaiting = false;
-  let noKey = false;
-  for (const q of input.questions) {
-    if (!served.has(q.id) || notChosen.has(q.id)) continue;
-    const answer = representative.get(q.id);
-    const g = gradeGroupAnswer(
-      withCalcValues(q, input.responseKey, input.modified === true),
-      answer?.answer ?? '',
-      input.manualGrades?.[q.id],
-      q.type === 'FIB' ? input.fibAnswersByQuestion?.[q.id] : undefined,
-      trustedPaperTranscript(q, input.paperAttested, answer)
-    );
-    const pointsEarned = g.pointsEarned;
-    let state: string = g.state;
-    const writtenOnPaper =
-      input.paperWrittenQuestionIds?.includes(q.id) ?? false;
-    // A paper answer not yet scanned or still untranscribed is owed a grade, never a 0.
-    if (
-      state === 'not-attempted' &&
-      ((input.paperAttested === true &&
-        (q.type === 'free-response' || writtenOnPaper) &&
-        paperAnswerOwed(answer?.paperTranscript)) ||
-        (writtenOnPaper && answer?.paperTranscript !== 'blank'))
-    )
-      state = 'awaiting-grade';
-    if (state === 'no-key') noKey = true;
-    if (state === 'awaiting-grade') {
-      awaiting = true;
-      max += q.points;
-      continue;
-    }
-    earned += pointsEarned;
-    max += q.points;
+  for (const t of total.questions) {
     // Evidence only from graded work; unanswered questions still count against the target.
-    if (state !== 'no-key')
-      addEvidence(evidence, q.targets, pointsEarned, q.points);
+    if (!t.counted || t.state === 'awaiting-grade' || t.state === 'no-key')
+      continue;
+    addEvidence(
+      evidence,
+      t.question.targets,
+      t.grade.pointsEarned,
+      t.question.points
+    );
   }
   return {
-    earned: round2(earned),
-    max: round2(max),
-    awaiting,
-    noKey,
+    earned: round2(total.earned),
+    max: round2(total.max),
+    awaiting: total.awaiting,
+    noKey: total.noKey,
     evidence: [...evidence.values()].sort((a, b) =>
       a.targetId < b.targetId ? -1 : a.targetId > b.targetId ? 1 : 0
     ),

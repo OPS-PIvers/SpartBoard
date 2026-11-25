@@ -19,7 +19,6 @@ import {
   Pencil,
   Plus,
   Printer,
-  Search,
   Users,
 } from 'lucide-react';
 import {
@@ -73,6 +72,7 @@ import {
 } from './assessmentListSelectors';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { SearchField } from '@/components/common/SearchField';
 
 interface PlcAssessmentListProps {
   plc: Plc;
@@ -1111,25 +1111,19 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
               );
             })}
           </div>
-          <label className="relative">
-            <Search
-              className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2"
-              aria-hidden="true"
-            />
-            <input
-              {...tourAttr('plc-assessments.search')}
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label={t('plcDashboard.assessmentList.searchLabel', {
-                defaultValue: 'Search assessments',
-              })}
-              placeholder={t('plcDashboard.assessmentList.searchPlaceholder', {
-                defaultValue: 'Search…',
-              })}
-              className="pl-8 pr-3 py-1.5 w-44 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
-            />
-          </label>
+          <SearchField
+            className="w-44"
+            value={search}
+            onChange={setSearch}
+            placeholder={t('plcDashboard.assessmentList.searchPlaceholder', {
+              defaultValue: 'Search…',
+            })}
+            ariaLabel={t('plcDashboard.assessmentList.searchLabel', {
+              defaultValue: 'Search assessments',
+            })}
+            anchor={tourAttr('plc-assessments.search')}
+            size="sm"
+          />
           {targetOptions.length > 0 && (
             <select
               {...tourAttr('plc-assessments.target-filter')}

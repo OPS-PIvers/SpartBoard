@@ -68,3 +68,22 @@ describe('library delete path', () => {
     ).toEqual([]);
   });
 });
+
+describe('library share links', () => {
+  it('only utils/shareRoutes.ts spells the share routes', () => {
+    const offenders = sourceFiles()
+      .filter((file) => file !== 'utils/shareRoutes.ts')
+      .filter((file) =>
+        /['`/]share\/(?:quiz|assignment|video-activity|rubric)\//.test(
+          readFileSync(resolve(repoRoot, file), 'utf8')
+            .split('\n')
+            .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+            .join('\n')
+        )
+      );
+    expect(
+      offenders,
+      'Parse and build library share links with utils/shareRoutes.ts (parseLibraryShareLink, librarySharePath).'
+    ).toEqual([]);
+  });
+});

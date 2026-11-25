@@ -233,10 +233,10 @@ describe('ProjectsWidget', () => {
   it('draws one cell per step, labelled with its state', () => {
     render(<ProjectsWidget widget={widget()} />);
     expect(
-      screen.getByRole('button', { name: 'Group 1, Research, Done' })
+      screen.getByRole('combobox', { name: 'Group 1, Research, Done' })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
+      screen.getByRole('combobox', { name: 'Group 1, Draft, Not started' })
     ).toBeInTheDocument();
   });
 
@@ -261,7 +261,9 @@ describe('ProjectsWidget', () => {
       'Ready for review',
       'Done',
     ]) {
-      expect(screen.getByText(label)).toBeInTheDocument();
+      expect(
+        screen.getByText(label, { ignore: 'option, script, style' })
+      ).toBeInTheDocument();
     }
   });
 
@@ -304,23 +306,17 @@ describe('ProjectsWidget', () => {
     expect(names).toEqual(['Group 1', 'Group 2']);
   });
 
-  it('sets the exact state from the status popover in one write (D34)', async () => {
+  it('sets the exact state from the status list in one write (D34)', async () => {
     render(<ProjectsWidget widget={widget()} />);
 
-    const cell = screen.getByRole('button', {
+    const cell = screen.getByRole('combobox', {
       name: 'Group 1, Draft, Not started',
     });
-    expect(cell).toHaveAttribute('aria-haspopup', 'menu');
-    fireEvent.click(cell);
+    expect(cell).toHaveValue('notStarted');
     expect(
-      await screen.findByRole('menu', { name: 'Group 1: Draft' })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('menuitemradio', { name: 'Not started' })
-    ).toHaveAttribute('aria-checked', 'true');
-    fireEvent.click(
-      screen.getByRole('menuitemradio', { name: 'Ready for review' })
-    );
+      screen.getAllByRole('option', { name: 'Ready for review' }).length
+    ).toBeGreaterThan(0);
+    fireEvent.change(cell, { target: { value: 'readyForReview' } });
     await waitFor(() =>
       expect(setStepState).toHaveBeenCalledWith(
         'g1',
@@ -330,26 +326,19 @@ describe('ProjectsWidget', () => {
       )
     );
     expect(setStepState).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
-  it('offers Done on an approval step and writes nothing for the current state', async () => {
+  it('offers Done on an approval step', async () => {
     mockRun({
       groups: [group({ stepStates: { 'step-2': 'readyForReview' } })],
     });
     render(<ProjectsWidget widget={widget()} />);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Group 1, Draft, Ready for review' })
+    fireEvent.change(
+      screen.getByRole('combobox', {
+        name: 'Group 1, Draft, Ready for review',
+      }),
+      { target: { value: 'done' } }
     );
-    fireEvent.click(
-      await screen.findByRole('menuitemradio', { name: 'Ready for review' })
-    );
-    expect(setStepState).not.toHaveBeenCalled();
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Group 1, Draft, Ready for review' })
-    );
-    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Done' }));
     await waitFor(() =>
       expect(setStepState).toHaveBeenCalledWith(
         'g1',
@@ -358,16 +347,6 @@ describe('ProjectsWidget', () => {
         'teacher'
       )
     );
-  });
-
-  it('closes the status popover on Escape', async () => {
-    render(<ProjectsWidget widget={widget()} />);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
-    );
-    const menu = await screen.findByRole('menu');
-    fireEvent.keyDown(menu, { key: 'Escape' });
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
   it('locks only the cell being written, not the whole board', async () => {
@@ -380,33 +359,33 @@ describe('ProjectsWidget', () => {
     });
     render(<ProjectsWidget widget={widget()} />);
 
-    const pick = async (name: string, state: string) => {
-      fireEvent.click(screen.getByRole('button', { name }));
-      fireEvent.click(
-        await screen.findByRole('menuitemradio', { name: state })
-      );
+    const pick = (name: string, state: string) => {
+      fireEvent.change(screen.getByRole('combobox', { name }), {
+        target: { value: state },
+      });
+      return Promise.resolve();
     };
 
-    await pick('Group 1, Draft, Not started', 'Working');
+    await pick('Group 1, Draft, Not started', 'inProgress');
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
+        screen.getByRole('combobox', { name: 'Group 1, Draft, Not started' })
       ).toBeDisabled()
     );
-    await pick('Group 2, Draft, Not started', 'Working');
+    await pick('Group 2, Draft, Not started', 'inProgress');
     await waitFor(() => expect(setStepState).toHaveBeenCalledTimes(2));
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: 'Group 2, Draft, Not started' })
+        screen.getByRole('combobox', { name: 'Group 2, Draft, Not started' })
       ).toBeEnabled()
     );
     expect(
-      screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
+      screen.getByRole('combobox', { name: 'Group 1, Draft, Not started' })
     ).toBeDisabled();
     release();
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
+        screen.getByRole('combobox', { name: 'Group 1, Draft, Not started' })
       ).toBeEnabled()
     );
   });
@@ -428,12 +407,9 @@ describe('ProjectsWidget', () => {
     render(<ProjectsWidget widget={widget({ boardCollapsed: true })} />);
     expect(screen.getByText('Research')).toBeInTheDocument();
     expect(screen.getByText('Draft')).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
-    );
     expect(
-      screen.getByRole('menu', { name: 'Group 1: Draft' })
-    ).toBeInTheDocument();
+      screen.getByRole('combobox', { name: 'Group 1, Draft, Not started' })
+    ).toBeEnabled();
   });
 
   it('writes boardCollapsed when collapsing the grid', () => {
@@ -463,7 +439,7 @@ describe('ProjectsWidget', () => {
     expect(screen.queryByText('Showing counts.')).not.toBeInTheDocument();
     expect(screen.getAllByRole('rowheader')).toHaveLength(12);
     expect(
-      screen.getByRole('button', { name: 'Group 11, Draft, Not started' })
+      screen.getByRole('combobox', { name: 'Group 11, Draft, Not started' })
     ).toBeInTheDocument();
   });
 
@@ -496,7 +472,9 @@ describe('ProjectsWidget', () => {
     render(<ProjectsWidget widget={widget()} />);
     expect(screen.getByText('Group 1')).toBeInTheDocument();
     expect(screen.getByText('Class 1')).toBeInTheDocument();
-    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('combobox', { name: /class/i })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText(NO_STUDENT_SIGN_IN_WARNING)
     ).not.toBeInTheDocument();
@@ -546,9 +524,13 @@ describe('ProjectsWidget', () => {
     fireEvent.click(
       screen.getByRole('button', { name: '2 waiting for review' })
     );
-    expect(
-      await screen.findByRole('menu', { name: 'Group 1: Research' })
-    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('combobox', {
+          name: 'Group 1, Research, Ready for review',
+        })
+      ).toHaveFocus()
+    );
   });
 
   it('dots a cell whose step has work tagged to it', () => {
@@ -561,7 +543,7 @@ describe('ProjectsWidget', () => {
     });
     render(<ProjectsWidget widget={widget()} />);
     expect(
-      screen.getByRole('button', {
+      screen.getByRole('combobox', {
         name: 'Group 1, Research, Done, work attached',
       })
     ).toBeInTheDocument();

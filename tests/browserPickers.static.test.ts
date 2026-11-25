@@ -20,7 +20,53 @@ const INSTALLS = [
   ['installSuggestionLists', 'utils/suggestionList', 'every <datalist>'],
 ] as const;
 
+// Checklist rows outside ChecklistSelect. This list only shrinks.
+const CHECKLIST_COPIES = [
+  // Inline rows inside a step's own popover, not a select-style menu.
+  'components/connections/StepParamPicker.tsx',
+  // Flag rows inside the gradebook cell popover.
+  'components/gradebook/popovers/popoverParts.tsx',
+  // Caps the picks at N and adds a reset row.
+  'components/widgets/QuizWidget/components/results/CountedChoicesPicker.tsx',
+];
+
+// Hand-rolled single-choice lists. Typeahead fields and FontSelect (shows each font) only.
+const LISTBOX_FILES = [
+  'components/classroomAddon/AddonShell.tsx',
+  'components/common/FontSelect.tsx',
+  'components/common/StaffEmailInput.tsx',
+  'components/plc/comments/PlcMentionPicker.tsx',
+  'components/plc/search/PlcSearchBox.tsx',
+  'components/tours/editor/TourAnchorList.tsx',
+];
+
+const gitGrep = (pattern: string) =>
+  execFileSync(
+    'git',
+    ['grep', '-l', pattern, '--', 'components/*.tsx', ':!*.test.*'],
+    { cwd: repoRoot, encoding: 'utf8' }
+  )
+    .split('\n')
+    .filter(Boolean)
+    .sort();
+
 describe('browser picker guard', () => {
+  it('builds every several-choice menu with ChecklistSelect', () => {
+    expect(
+      gitGrep('role="menuitemcheckbox"'),
+      'Several choices open a checklist menu. Use ChecklistSelect from components/common/ChecklistSelect.'
+    ).toEqual(
+      ['components/common/ChecklistSelect.tsx', ...CHECKLIST_COPIES].sort()
+    );
+  });
+
+  it('keeps single-choice dropdowns on a native <select>', () => {
+    expect(
+      gitGrep('role="listbox"'),
+      'One choice is a native <select>; the app opens its own list for it (utils/selectMenu).'
+    ).toEqual([...LISTBOX_FILES].sort());
+  });
+
   it('calls showPicker() only in the app panels and their fallbacks', () => {
     const files = execFileSync(
       'git',

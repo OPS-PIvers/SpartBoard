@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Zap, Search, X } from 'lucide-react';
+import { Zap, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useDashboard } from '@/context/useDashboard';
 import { TOOLS } from '@/config/tools';
 import type { WidgetType, InternalToolType } from '@/types';
 import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { SearchField } from '@/components/common/SearchField';
 
 const MAX_SLOTS = 2;
 
@@ -111,22 +112,14 @@ export const QuickAccessModal: React.FC<QuickAccessModalProps> = ({
       ariaLabelledby="quick-access-modal-title"
     >
       <div className="sticky top-0 z-10 bg-white border-b border-slate-100 p-4">
-        <div className="relative">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-          <input
-            {...tourAttr('quick-access.search')}
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('quickAccess.searchPlaceholder', {
-              defaultValue: 'Search widgets…',
-            })}
-            className="w-full pl-8 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-hidden focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20"
-          />
-        </div>
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          placeholder={t('quickAccess.searchPlaceholder', {
+            defaultValue: 'Search widgets…',
+          })}
+          anchor={tourAttr('quick-access.search')}
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4">

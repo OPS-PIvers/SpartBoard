@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal } from '@/components/common/Modal';
-import { ChevronLeft, Search, Shuffle, ListChecks, X } from 'lucide-react';
+import { ChevronLeft, Shuffle, ListChecks, X } from 'lucide-react';
 import type { QuizBankSlot, QuizQuestion, QuizStimulus } from '@/types';
 import type { BankSource } from '@/hooks/useBankSources';
 import {
@@ -13,6 +13,7 @@ import { BankTargetFilter } from './BankTargetFilter';
 import { BankDokFilter } from './BankDokFilter';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type { QuizEditorBankApi } from './QuizEditorModal';
+import { SearchField } from '@/components/common/SearchField';
 
 export interface BankPickerModalProps {
   bankApi: QuizEditorBankApi;
@@ -263,19 +264,14 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
         {!source ? (
           <>
             <div className="px-4 py-3 border-b border-slate-200">
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  autoFocus
-                  type="search"
-                  {...tourTypeAttr('quiz-banks.picker-search', 'quiz')}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search banks"
-                  aria-label="Search banks"
-                  className="w-full pl-8 pr-2 py-1.5 text-sm rounded-lg border border-slate-300 focus:border-brand-blue-primary focus:outline-hidden"
-                />
-              </div>
+              <SearchField
+                size="sm"
+                value={query}
+                onChange={setQuery}
+                placeholder="Search banks"
+                anchor={tourTypeAttr('quiz-banks.picker-search', 'quiz')}
+                autoFocus
+              />
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar px-2 py-2">
               {personal.length > 0 && (
@@ -373,21 +369,17 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
               {content && mode === 'pick' && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input
-                        type="search"
-                        {...tourTypeAttr(
-                          'quiz-banks.picker-question-search',
-                          'quiz'
-                        )}
-                        value={pickQuery}
-                        onChange={(e) => setPickQuery(e.target.value)}
-                        placeholder="Search questions"
-                        aria-label="Search questions"
-                        className="w-full pl-8 pr-2 py-1.5 text-sm rounded-lg border border-slate-300 focus:border-brand-blue-primary focus:outline-hidden"
-                      />
-                    </div>
+                    <SearchField
+                      size="sm"
+                      value={pickQuery}
+                      onChange={setPickQuery}
+                      placeholder="Search questions"
+                      anchor={tourTypeAttr(
+                        'quiz-banks.picker-question-search',
+                        'quiz'
+                      )}
+                      className="flex-1"
+                    />
                     <button
                       type="button"
                       {...tourTypeAttr('quiz-banks.picker-select-all', 'quiz')}

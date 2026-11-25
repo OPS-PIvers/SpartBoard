@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { csvDataRows, parseCsvRecords } from '@/utils/csv';
+import { csvDataRows, parseCsvLines, parseCsvRecords } from '@/utils/csv';
 
 describe('parseCsvRecords', () => {
   it('handles quoted commas, newlines and escaped quotes', () => {
@@ -7,6 +7,17 @@ describe('parseCsvRecords', () => {
       ['a', 'b, c', 'say "hi"\nthere'],
       ['1', '2', '3'],
     ]);
+  });
+
+  it('keeps a quote in the middle of a cell as text', () => {
+    expect(parseCsvRecords('5" ruler,12 inches\nCat,Gato')).toEqual([
+      ['5" ruler', '12 inches'],
+      ['Cat', 'Gato'],
+    ]);
+  });
+
+  it('opens a quoted cell after leading spaces', () => {
+    expect(parseCsvRecords('a, "b, c"')).toEqual([['a', 'b, c']]);
   });
 
   it('drops a leading byte-order mark', () => {
@@ -32,5 +43,13 @@ describe('csvDataRows', () => {
 
   it('drops blank rows', () => {
     expect(csvDataRows(' , \n', isNumber)).toEqual([]);
+  });
+});
+
+describe('parseCsvLines', () => {
+  it('reports the physical start line and raw text of each record', () => {
+    const lines = parseCsvLines('h1,h2\r\n"a\nb",c\n\nd,e');
+    expect(lines.map((l) => l.line)).toEqual([1, 2, 4, 5]);
+    expect(lines[1]).toMatchObject({ cells: ['a\nb', 'c'], raw: '"a\nb",c' });
   });
 });

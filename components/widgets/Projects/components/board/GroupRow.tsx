@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react';
 import type {
   ProjectGroup,
   ProjectStep,
+  ProjectStepState,
   SubShareProjectGroupView,
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
@@ -10,6 +11,7 @@ import { useProjectGroupWork } from '@/hooks/useProjectGroupWork';
 import { useProjectUploads } from '@/hooks/useProjectUploads';
 import {
   STEP_STATE_LABELS,
+  STEP_STATE_ORDER,
   completedStepCount,
   stepStateOf,
 } from '../../projectSteps';
@@ -23,6 +25,13 @@ import {
 } from '../../boardHelpers';
 import { GroupDetails } from './GroupDetails';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import { ChipSelect } from '@/components/common/ChipSelect';
+
+const stateOptions = STEP_STATE_ORDER.map((state) => (
+  <option key={state} value={state}>
+    {STEP_STATE_LABELS[state]}
+  </option>
+));
 
 export type BoardGroup = SubShareProjectGroupView &
   Partial<
@@ -60,8 +69,11 @@ interface GroupRowProps {
   /** Opens the group's student view; the chevron alone then toggles the details. */
   onOpenGroup: () => void;
   busyKeys: ReadonlySet<string>;
-  openCellKey: string | null;
-  onOpenCell: (groupId: string, stepId: string, anchor: HTMLElement) => void;
+  onPickState: (
+    groupId: string,
+    stepId: string,
+    state: ProjectStepState
+  ) => void;
   stickyStyle: React.CSSProperties;
   /** Submitted, Late or Missing on a run that takes submissions. */
   submitStatus?: ProjectSubmitStatus | null;
@@ -84,8 +96,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
   onToggleExpand,
   onOpenGroup,
   busyKeys,
-  openCellKey,
-  onOpenCell,
+  onPickState,
   stickyStyle,
   submitStatus = null,
   onReopen,
@@ -208,21 +219,22 @@ export const GroupRow: React.FC<GroupRowProps> = ({
                       className={`flex-1 ${STATE_STYLES[state].tone}`}
                     />
                   ) : (
-                    <button
+                    <ChipSelect
                       key={step.id}
-                      type="button"
-                      data-project-cell={key}
-                      {...tourTypeAttr('projects.step-cell', 'projects')}
-                      onClick={(e) =>
-                        onOpenCell(group.id, step.id, e.currentTarget)
+                      face={null}
+                      value={state}
+                      onChange={(next) =>
+                        onPickState(group.id, step.id, next as ProjectStepState)
                       }
+                      dataAttrs={{ 'data-project-cell': key }}
+                      anchor={tourTypeAttr('projects.step-cell', 'projects')}
                       disabled={busyKeys.has(key)}
-                      aria-label={label}
-                      aria-haspopup="menu"
-                      aria-expanded={openCellKey === key}
+                      ariaLabel={label}
                       title={`${step.title}: ${STEP_STATE_LABELS[state]}`}
-                      className={`flex-1 min-w-0 ${STATE_STYLES[state].tone} transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary disabled:opacity-50`}
-                    />
+                      className={`flex-1 min-w-0 ${STATE_STYLES[state].tone} transition-colors has-[select:disabled]:opacity-50`}
+                    >
+                      {stateOptions}
+                    </ChipSelect>
                   );
                 })}
               </span>
@@ -274,22 +286,21 @@ export const GroupRow: React.FC<GroupRowProps> = ({
                     {inner}
                   </span>
                 ) : (
-                  <button
-                    type="button"
-                    data-project-cell={key}
-                    {...tourTypeAttr('projects.step-cell', 'projects')}
-                    onClick={(e) =>
-                      onOpenCell(group.id, step.id, e.currentTarget)
+                  <ChipSelect
+                    face={inner}
+                    value={state}
+                    onChange={(next) =>
+                      onPickState(group.id, step.id, next as ProjectStepState)
                     }
+                    dataAttrs={{ 'data-project-cell': key }}
+                    anchor={tourTypeAttr('projects.step-cell', 'projects')}
                     disabled={busyKeys.has(key)}
-                    aria-label={label}
-                    aria-haspopup="menu"
-                    aria-expanded={openCellKey === key}
-                    className={`${cell} transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-50`}
+                    ariaLabel={label}
+                    className={`${cell} transition-colors has-[select:disabled]:opacity-50`}
                     style={{ height: cellHeight }}
                   >
-                    {inner}
-                  </button>
+                    {stateOptions}
+                  </ChipSelect>
                 )}
               </td>
             );

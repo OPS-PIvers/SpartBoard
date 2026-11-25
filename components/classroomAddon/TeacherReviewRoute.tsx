@@ -113,6 +113,7 @@ import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
 import { ltiSectionsKey } from '@/utils/ltiSectionsKey';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
 import {
+  awaitingSkippedNote,
   bucketLtiPushResults,
   formatLtiPushToast,
   ltiPushErrorMessage,
@@ -190,7 +191,10 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     quizGraderMode,
     quizGraderAutoAdvance,
     updateAccountPreferences,
+    canAccessFeature,
   } = useAuth();
+  // AB-389: the server sends each student's gradebook final score.
+  const sendFinalScores = canAccessFeature('lms-push-final-scores');
   const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
   const {
     assignments,
@@ -646,6 +650,8 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
       ],
       requestToken: () =>
         requestClassroomTeacherToken(user?.email ?? loginHint),
+      finalScores:
+        sendFinalScores && sessionId ? { sessionId, kind: 'quiz' } : null,
       buildGrades: () =>
         withFinalScores(
           buildQuizClassroomGradeEntries(
@@ -675,7 +681,10 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
             setStatusMsg('Pushing grades to Google Classroom…');
             break;
           case 'nothing-to-push':
-            setStatusMsg('No completed responses to push yet.');
+            setStatusMsg(
+              'No completed responses to push yet.' +
+                awaitingSkippedNote(status.awaiting)
+            );
             break;
           case 'pushed':
             setStatusMsg(
@@ -707,6 +716,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     loginHint,
     sessionId,
     withFinalScores,
+    sendFinalScores,
   ]);
 
   // Schoology (LTI AGS) push — same grade builder as the dashboard Results view.
@@ -727,7 +737,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
       ),
       maxPoints
     );
-    if (grades.length === 0) {
+    if (!sendFinalScores && grades.length === 0) {
       setStatusMsg('No completed responses to push yet.');
       return;
     }
@@ -740,12 +750,18 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
         'ltiPushGradesForAssignmentV1',
         LTI_PUSH_GRADES_CALL_OPTS
       );
-      const { data } = await push({
-        sessionId,
-        kind: 'quiz',
-        maxPoints,
-        grades,
-      });
+      const { data } = await push(
+        sendFinalScores
+          ? { sessionId, kind: 'quiz', source: 'final-scores' }
+          : { sessionId, kind: 'quiz', maxPoints, grades }
+      );
+      if (data.total === 0) {
+        setStatusMsg(
+          'No completed responses to push yet.' +
+            awaitingSkippedNote(data.awaiting)
+        );
+        return;
+      }
       const bucket = bucketLtiPushResults(data);
       if (bucket.failed > 0) {
         setStatusMsg(null);
@@ -773,6 +789,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     responses,
     fibGrading,
     withFinalScores,
+    sendFinalScores,
   ]);
 
   // ── Render ────────────────────────────────────────────────────────────────
