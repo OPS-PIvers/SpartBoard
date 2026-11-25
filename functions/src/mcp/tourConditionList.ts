@@ -167,6 +167,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'video-activity-ai',
   'video-activity-audio-transcription',
   'video-activity-live',
+  'video-activity-share-sync',
   'video-import-ai',
   'weather-details',
   'web-tours',

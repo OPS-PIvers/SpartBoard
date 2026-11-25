@@ -73,6 +73,7 @@ import {
   districtMetaFields,
   isDistrictLinkedCopy,
 } from '@/utils/districtLibraryOrigin';
+import { librarySharePath } from '@/utils/shareRoutes';
 
 const QUIZZES_COLLECTION = 'quizzes';
 
@@ -965,7 +966,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         originalAuthor: userId,
         sharedAt: Date.now(),
       });
-      return `${window.location.origin}/share/quiz/${shareRef.id}`;
+      return `${window.location.origin}${librarySharePath('quiz', shareRef.id)}`;
     },
     [userId, getDriveService]
   );
