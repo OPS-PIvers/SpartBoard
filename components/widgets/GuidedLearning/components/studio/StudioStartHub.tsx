@@ -205,13 +205,16 @@ export const StudioStartHub: React.FC<StudioStartHubProps> = ({
               tourScope={{ type: 'guided-learning', field: 'slides' }}
               tourOverrides={{ open: tourAttr('studio.hub-upload') }}
               buttonClassName={targetClass(false, true)}
-            >
-              <TargetBody
-                icon={Upload}
-                label={t('glStudio.hubUpload')}
-                description={t('glStudio.hubUploadDesc')}
-              />
-            </ImagePicker>
+              buttonContent={() => (
+                <>
+                  <TargetBody
+                    icon={Upload}
+                    label={t('glStudio.hubUpload')}
+                    description={t('glStudio.hubUploadDesc')}
+                  />
+                </>
+              )}
+            />
           ) : (
             <Target
               anchor={tourAttr('studio.hub-upload')}

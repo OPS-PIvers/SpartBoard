@@ -366,3 +366,21 @@ describe('ImagePicker', () => {
     row.remove();
   });
 });
+
+describe('ImagePicker button content', () => {
+  it('shows the caller content in place of the icon', () => {
+    render(
+      <ImagePicker
+        layout="button"
+        label="Upload"
+        tourScope={scope}
+        upload={vi.fn()}
+        onChange={vi.fn()}
+        buttonContent={(busy) => <span>{busy ? 'Wait' : 'Upload now'}</span>}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Upload' }).textContent).toBe(
+      'Upload now'
+    );
+  });
+});

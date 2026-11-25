@@ -578,10 +578,13 @@ const FilmstripBody = React.memo(function FilmstripBody({
               tourScope={{ type: 'guided-learning', field: 'slides' }}
               tourOverrides={{ open: tourAttr('studio.upload-slide') }}
               buttonClassName={addMediaClass}
-            >
-              <Upload className="h-4 w-4" aria-hidden="true" />
-              {t('glStudio.addMedia')}
-            </ImagePicker>
+              buttonContent={() => (
+                <>
+                  <Upload className="h-4 w-4" aria-hidden="true" />
+                  {t('glStudio.addMedia')}
+                </>
+              )}
+            />
             <ImagePicker
               layout="detached"
               handleRef={replacePickerRef}

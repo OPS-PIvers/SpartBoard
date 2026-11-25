@@ -36,8 +36,6 @@ interface ImagePickerOwnProps extends Omit<ImageSourcesBase, 'scopeRef'> {
   onRemove?: () => void;
   /** 'field' fills a settings row; 'button' opens the picker under a button; 'detached' opens it through handleRef. */
   layout?: 'field' | 'button' | 'detached';
-  /** The button's content in place of the icon. */
-  children?: React.ReactNode;
   handleRef?: React.Ref<ImagePickerHandle>;
   /** Names the button and the panel it opens. */
   label?: string;
@@ -48,6 +46,8 @@ interface ImagePickerOwnProps extends Omit<ImageSourcesBase, 'scopeRef'> {
   buttonClassName?: string;
   buttonStyle?: React.CSSProperties;
   iconStyle?: React.CSSProperties;
+  /** What the 'button' layout shows instead of its icon, such as an icon and a word. */
+  buttonContent?: (busy: boolean) => React.ReactNode;
 }
 
 export type ImagePickerProps = ImagePickerOwnProps & ImageDelivery;
@@ -325,7 +325,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
   buttonClassName,
   buttonStyle,
   iconStyle,
-  children,
+  buttonContent,
   handleRef,
   ...sourceOptions
 }) => {
@@ -413,17 +413,18 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
             style={buttonStyle}
             {...src.dropProps}
           >
-            {children ??
-              (src.busy ? (
-                <Loader2
-                  style={iconStyle}
-                  size={16}
-                  className="animate-spin"
-                  aria-hidden
-                />
-              ) : (
-                <ImagePlus style={iconStyle} size={16} aria-hidden />
-              ))}
+            {buttonContent ? (
+              buttonContent(src.busy)
+            ) : src.busy ? (
+              <Loader2
+                style={iconStyle}
+                size={16}
+                className="animate-spin"
+                aria-hidden
+              />
+            ) : (
+              <ImagePlus style={iconStyle} size={16} aria-hidden />
+            )}
           </button>
         )}
         {panel && (
