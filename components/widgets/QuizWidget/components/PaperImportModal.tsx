@@ -978,11 +978,15 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         (p) =>
           uploaderRef.current?.status(keptPageKey(p.seat, p.page)) === 'done'
       );
+      const seen = new Map(importSheets.map((s) => [s.seat, s.pagesSeen]));
+      const coveredPages = Object.fromEntries(
+        chunk.map((s) => [s.seat, seen.get(s.seat) ?? []])
+      );
       const part = await onImport(
         batchId,
         targetAssignmentId,
         chunk,
-        pages.length > 0 ? { ...extra, pages, scanId: keptScanId } : extra
+        pageScan ? { ...extra, pages, coveredPages, scanId: keptScanId } : extra
       );
       written.push(...part.written);
       collisions.push(...part.collisions);

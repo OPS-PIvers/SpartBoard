@@ -259,6 +259,7 @@ describe('PaperImportModal kept pages', () => {
     const extra: PaperImportRequestExtra = onImport.mock.calls[0][3];
     expect(extra).toEqual({
       scanId,
+      coveredPages: { 1: [1], 2: [1] },
       pages: [
         {
           seat: 1,
@@ -330,6 +331,7 @@ describe('PaperImportModal kept pages', () => {
         mimeType: 'image/png',
       },
     ]);
+    expect(extra.coveredPages).toEqual({ 1: [1], 2: [1] });
     expect(
       await screen.findByText(/Their answers imported/)
     ).toBeInTheDocument();
@@ -456,6 +458,7 @@ describe('PaperImportModal kept pages', () => {
     await waitFor(() => expect(onImport).toHaveBeenCalledOnce());
     expect(onImport.mock.calls[0][3]).toEqual({
       scanId: 'scanR',
+      coveredPages: { 1: [1] },
       pages: [
         {
           seat: 1,
