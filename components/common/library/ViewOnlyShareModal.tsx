@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { tourAttr } from '@/config/tourAnchors';
+import { copyText } from '@/utils/copyText';
 
 export interface ViewOnlyShareModalProps {
   /** The thing being shared (quiz title, set title, activity title). */
@@ -78,17 +79,10 @@ export const ViewOnlyShareModal: React.FC<ViewOnlyShareModalProps> = ({
 
   const handleCopy = useCallback(async () => {
     if (!createdLink) return;
-    try {
-      await navigator.clipboard.writeText(createdLink);
-      setCopied(true);
-      setCopyFailed(false);
-    } catch {
-      // Clipboard API can reject in non-secure contexts or when permission
-      // is denied. Surface a hint so teachers know to copy the link manually
-      // from the visible URL block above the button rather than thinking
-      // the copy succeeded silently.
-      setCopyFailed(true);
-    }
+    // A refused copy shows a hint to copy the visible link by hand.
+    const ok = await copyText(createdLink);
+    setCopied(ok);
+    setCopyFailed(!ok);
   }, [createdLink]);
 
   // Custom coloured header (emerald post-creation, brand-blue pre-creation)

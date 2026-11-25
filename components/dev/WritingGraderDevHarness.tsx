@@ -488,6 +488,19 @@ export const WritingGraderDevHarness: React.FC = () => {
                   error={false}
                   onBack={noop}
                   onGrade={noop}
+                  canExport
+                  sheet={{
+                    exporting: false,
+                    exportUrl:
+                      params.get('sheet') === 'open'
+                        ? 'https://docs.google.com/spreadsheets'
+                        : null,
+                    exportError: null,
+                    locked: false,
+                    lockedTitle: undefined,
+                    available: true,
+                    run: () => Promise.resolve(),
+                  }}
                 />
               </div>
             )}

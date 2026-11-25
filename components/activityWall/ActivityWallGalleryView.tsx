@@ -10,15 +10,9 @@
  * people's work only.
  */
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Image as ImageIcon } from 'lucide-react';
-import { signInAnonymously, type User } from 'firebase/auth';
+import type { User } from 'firebase/auth';
 import {
   collection,
   doc,
@@ -27,10 +21,9 @@ import {
   query,
   where,
 } from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
-import { dropPinLogin } from '@/utils/pinLoginScope';
+import { db } from '@/config/firebase';
 import { useStudentTokenFirstName } from './engagement/useStudentTokenFirstName';
-import { useResolvedFirebaseUser } from '@/hooks/useResolvedFirebaseUser';
+import { useGuestFirebaseUser } from '@/hooks/useGuestFirebaseUser';
 import {
   normalizeActivityWallSession,
   normalizeActivityWallSubmission,
@@ -123,28 +116,6 @@ const resolveEngagementFlags = (
   };
 };
 
-/**
- * Never signs in anonymously when a user already exists — waits for
- * Firebase Auth's first emission (`resolved`) before deciding, so a
- * signed-in teacher opening the gallery in the same tab keeps their
- * session instead of being silently swapped for an anonymous one.
- */
-const useAnonymousFirebaseUser = (): User | null => {
-  const { user, resolved } = useResolvedFirebaseUser();
-  // Only the user found at open is checked: a PIN sign-in made later belongs to a quiz in another tab.
-  const openChecked = useRef(false);
-  useEffect(() => {
-    if (!resolved) return;
-    const atOpen = !openChecked.current;
-    openChecked.current = true;
-    if (user && !atOpen) return;
-    void (user ? dropPinLogin(auth) : signInAnonymously(auth)).catch((err) => {
-      console.error('[ActivityWallGallery] Anonymous sign-in failed:', err);
-    });
-  }, [resolved, user]);
-  return user;
-};
-
 /** Raw snapshot doc kept unnormalized so normalization can rerun once the session lands. */
 interface RawSubmissionDoc {
   id: string;
@@ -160,7 +131,8 @@ const getShareIdFromPath = (): string | null => {
 
 export const ActivityWallGalleryView: React.FC = () => {
   const shareId = useMemo(() => getShareIdFromPath(), []);
-  const viewer = useAnonymousFirebaseUser();
+  // Waits for hydration, so a teacher opening the gallery keeps their own sign-in.
+  const viewer = useGuestFirebaseUser('ActivityWallGallery').user;
   const [state, setState] = useState<LoadState>(
     shareId ? { kind: 'loading' } : { kind: 'not-found' }
   );

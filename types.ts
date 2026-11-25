@@ -5642,6 +5642,8 @@ export interface PeriodAccess {
   closedAt?: number | null;
   /** Epoch ms the teacher last opened or resumed this class (ASSIGNED_TAB D11). */
   openedAt?: number | null;
+  /** Quiz: this class's closed pauses, which its students' time limit skips. */
+  pauseSpans?: PauseSpan[];
 }
 
 export type AccessMode = 'assessment' | 'assignment';
@@ -6768,6 +6770,8 @@ export type PaperPageItem =
       headTopMm?: number;
       /** With `headTopMm`: height of the stem's lines; the instruction prints under them. */
       stemMm?: number;
+      /** Question-text sheets: top of the section heading printed above this question. */
+      sectionTopMm?: number;
     }
   | {
       kind: 'written';
@@ -6782,6 +6786,8 @@ export type PaperPageItem =
       blanks?: number;
       /** A later page of a multi-page answer; its crop joins the first page's. */
       continued?: true;
+      /** Question-text sheets: top of the section heading printed above this question. */
+      sectionTopMm?: number;
     };
 
 /** How a matching, ordering or choose all question reads its bubbles: `all` fills several in one row, `match` one row per term, `order` one row per position (or per item, bubbling its position, when `across`). */
@@ -9427,6 +9433,8 @@ export interface WebTourBinding {
   doneWhen?: WebTourCondition;
   /** The https page Go and a start on this step open; absent = the address guessed from `urlPattern`. */
   openUrl?: string;
+  /** Lights every control like the recorded one, and the learner may pick any of them. */
+  pickAny?: true;
 }
 
 export interface WebTourStudentDataCheck {
@@ -11808,6 +11816,8 @@ export interface Toast {
   };
   /** Set while the toast eases out, just before it is removed. */
   leaving?: boolean;
+  /** A newer toast with the same key replaces this one. */
+  replaceKey?: string;
 }
 
 export type WidgetCategory =
@@ -11983,6 +11993,14 @@ export type GlobalFeature =
   | 'google-tasks-sync'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/shipped/TEAMS_REDESIGN.md T22). */
   | 'plc-goal-coach'
+  /** Generate with AI on a Help Center tour: fills its title, description, category, audience and widgets. */
+  | 'help-center-ai'
+  /** Video Activity share links offer Synced or Make a copy, like quiz assignment links. */
+  | 'video-activity-share-sync'
+  /** Every Classroom and Schoology grade push sends the gradebook final score, built on the server (AB-389). */
+  | 'lms-push-final-scores'
+  /** Class Close, End and sub End turn open work in from the server, with no teacher tab open (AB-388). */
+  | 'server-turn-in'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
@@ -12052,7 +12070,10 @@ export type GlobalFeature =
   | 'assign-open-check'
   | 'modification-fewer-questions'
   /** Quiz monitor "Set a time": one student's own window past a paused class. */
-  | 'student-set-time';
+  | 'student-set-time'
+  /** Per-student Opens and Closes hold in every student app, and a later close for one student no longer keeps the class open. */
+  | 'student-windows'
+  | 'library-duplicate-more';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {

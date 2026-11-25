@@ -2,7 +2,6 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { tourAttr } from '@/config/tourAnchors';
 import {
-  Search,
   Plus,
   FolderPlus,
   LayoutTemplate,
@@ -12,6 +11,7 @@ import {
   Pin,
   PinOff,
 } from 'lucide-react';
+import { SearchField } from '@/components/common/SearchField';
 
 interface BoardsModalHeaderProps {
   search: string;
@@ -105,19 +105,15 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
 
   return (
     <div className="h-14 px-4 border-b border-slate-200 bg-white flex items-center gap-3 shrink-0">
-      <div className="relative flex-1 max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-        <input
-          type="search"
-          {...tourAttr('boards-modal.search')}
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={t('boardsModal.searchPlaceholder', {
-            defaultValue: 'Search Boards & Collections',
-          })}
-          className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary"
-        />
-      </div>
+      <SearchField
+        value={search}
+        onChange={onSearchChange}
+        placeholder={t('boardsModal.searchPlaceholder', {
+          defaultValue: 'Search Boards & Folders',
+        })}
+        anchor={tourAttr('boards-modal.search')}
+        className="flex-1 max-w-md"
+      />
       <div className="flex items-center gap-2 ml-auto">
         {onCreateFromTemplate && (
           <button
@@ -138,7 +134,7 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
           className="flex items-center gap-1.5 px-3 py-2 text-xxs font-bold uppercase tracking-wider text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 transition"
         >
           <FolderPlus className="w-3.5 h-3.5" />
-          {t('boardsModal.newCollection', { defaultValue: 'New Collection' })}
+          {t('boardsModal.newCollection', { defaultValue: 'New Folder' })}
         </button>
         <button
           onClick={onCreateBoard}

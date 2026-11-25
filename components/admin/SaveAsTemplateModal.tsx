@@ -349,7 +349,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
       onClose={onClose}
       title={
         target?.kind === 'collection'
-          ? 'Save Collection as Template'
+          ? 'Save Folder as Template'
           : 'Save Board as Template'
       }
       maxWidth="max-w-lg"
@@ -378,7 +378,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
           </div>
           <p className="text-xs text-slate-500">
             {target?.kind === 'collection'
-              ? "Overwrite a template's board snapshots with the current Collection's boards."
+              ? "Overwrite a template's board snapshots with the current folder's boards."
               : "Overwrite a template's widgets and style with the current board."}{' '}
             Its name, access settings, and buildings are preserved.
           </p>

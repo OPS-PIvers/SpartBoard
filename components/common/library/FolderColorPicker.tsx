@@ -1,17 +1,24 @@
 import React from 'react';
 import { Check } from 'lucide-react';
 import type { LibraryFolderColor } from '@/types';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { FOLDER_COLORS } from './folderColors';
 
 interface FolderColorPickerProps {
   value: LibraryFolderColor | null | undefined;
   onChange: (color: LibraryFolderColor | null) => void;
+  /** Live-tour anchor put on every swatch. */
+  swatchAnchor?: TourAnchorAttrs;
+  /** Live-tour anchor on the whole colour row. */
+  groupAnchor?: TourAnchorAttrs;
 }
 
 /** Colour row for a folder's "…" menu: no colour, then the eight palette swatches. */
 export const FolderColorPicker: React.FC<FolderColorPickerProps> = ({
   value,
   onChange,
+  swatchAnchor,
+  groupAnchor,
 }) => {
   const current = value ?? null;
   const swatch = (
@@ -23,6 +30,7 @@ export const FolderColorPicker: React.FC<FolderColorPickerProps> = ({
     return (
       <button
         key={id ?? 'none'}
+        {...swatchAnchor}
         type="button"
         role="menuitemradio"
         aria-checked={selected}
@@ -50,6 +58,7 @@ export const FolderColorPicker: React.FC<FolderColorPickerProps> = ({
     <div className="px-2.5 pt-1.5 pb-2">
       <div className="text-xs text-slate-500 mb-1.5">Color</div>
       <div
+        {...groupAnchor}
         role="group"
         aria-label="Folder color"
         className="grid grid-cols-5 gap-1.5"

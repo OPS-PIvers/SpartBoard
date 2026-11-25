@@ -1167,7 +1167,7 @@ describe('useLinkedCollectionSync: Stop sharing, Leave and ended links', () => {
     expect(deps.setBoardLink).not.toHaveBeenCalledWith('solo', null);
     expect(deps.deleteBoard).not.toHaveBeenCalled();
     expect(deps.notify).toHaveBeenCalledWith(
-      'Host stopped sharing this collection.'
+      'Host stopped sharing this folder.'
     );
   });
 
@@ -1194,7 +1194,7 @@ describe('useLinkedCollectionSync: Stop sharing, Leave and ended links', () => {
     );
     expect(deps.deleteBoard).toHaveBeenCalledWith('linked-s1');
     expect(deps.notify).toHaveBeenCalledWith(
-      'The host stopped sharing this collection.'
+      'The host stopped sharing this folder.'
     );
   });
 

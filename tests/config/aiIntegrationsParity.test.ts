@@ -78,6 +78,7 @@ describe('AI integrations registry', () => {
       'webTourWriting.ts',
       'importConversionAi.ts',
       'speechToText.ts',
+      'helpCenterDetails.ts',
     ]
       .map(serverSource)
       .join('\n');

@@ -16,7 +16,6 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import {
   Camera,
   Circle,
@@ -27,10 +26,10 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { Z_INDEX } from '@/config/zIndex';
 import type { GuidedLearningMediaKind } from '@/utils/guidedLearningMedia';
 import { canCaptureDisplay, grabFrame } from '../utils/displayCapture';
 import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { Modal } from '@/components/common/Modal';
 
 export type CaptureMode = 'snap' | 'record' | 'video-file';
 
@@ -100,54 +99,6 @@ export const ScreenCaptureModal: React.FC<Props> = ({
       if (fileUrlRef.current) URL.revokeObjectURL(fileUrlRef.current);
     };
   }, []);
-
-  // `onClose` is typically an inline lambda (`() => setCaptureMode(null)`),
-  // so it gets a fresh identity on every parent render — including each
-  // uploadProgress tick while the modal is open. Mirror it into a ref and
-  // read that inside the handler so the keydown listener below stays stable
-  // instead of tearing down/re-adding on every update.
-  const onCloseRef = useRef(onClose);
-  // Keep the ref in sync with the prop in the render body (per repo convention)
-  // rather than in an effect, so the keydown handler never reads a stale closure.
-  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
-  onCloseRef.current = onClose;
-
-  // Ref to our own portal root div so the Escape guard below can distinguish
-  // "Escape from inside our modal" vs "Escape from a different [data-widget-portal]"
-  // (e.g. DraggableWindow title-edit input portaled to document.body).
-  const portalRootRef = useRef<HTMLDivElement | null>(null);
-
-  // Escape closes the modal (standard modal affordance). Skipped while a
-  // recording is in flight so a stray Escape can't silently discard it.
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || recording) return;
-      const t = e.target;
-      if (t instanceof Element) {
-        // If Escape came from a portaled zone that is NOT our own modal root,
-        // yield to that component. The canonical case: DraggableWindow's
-        // title-edit input is portaled to document.body with data-widget-portal=""
-        // on the input element itself, so t.closest('[data-draggable-window]') returns
-        // null — the draggable-window check below would miss it entirely.
-        const closestPortal = t.closest('[data-widget-portal]');
-        if (closestPortal && closestPortal !== portalRootRef.current) return;
-        // If Escape came from a text input inside a DraggableWindow (in the normal
-        // DOM tree), let DraggableWindow handle it (blur the input).
-        if (
-          (t.tagName === 'INPUT' ||
-            t.tagName === 'TEXTAREA' ||
-            t.tagName === 'SELECT' ||
-            !!(t as HTMLElement).isContentEditable) &&
-          t.closest('[data-draggable-window]')
-        )
-          return;
-      }
-      e.stopImmediatePropagation();
-      onCloseRef.current();
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [recording]);
 
   // Recording duration ticker.
   useEffect(() => {
@@ -283,20 +234,20 @@ export const ScreenCaptureModal: React.FC<Props> = ({
 
   const showPreview = sharing || videoFile !== null;
 
-  // SSR guard — matches the portal pattern used elsewhere in the editor.
-  if (typeof document === 'undefined') return null;
-
-  return createPortal(
-    <div
-      ref={portalRootRef}
-      data-widget-portal=""
-      className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4"
-      style={{ zIndex: Z_INDEX.modalNested }}
-      role="dialog"
-      aria-modal="true"
-      aria-label={MODE_TITLES[mode]}
+  return (
+    <Modal
+      isOpen
+      onClose={recording ? () => undefined : onClose}
+      closeOnBackdrop={false}
+      captureEscape
+      variant="bare"
+      zIndex="z-modal-nested"
+      maxWidth="max-w-2xl"
+      ariaLabel={MODE_TITLES[mode]}
+      rootProps={{ 'data-widget-portal': '' }}
+      className="bg-white rounded-2xl shadow-2xl overflow-hidden [&>div]:flex [&>div]:flex-col"
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-[90vh]">
+      <div className="flex flex-col min-h-0">
         {/* Header */}
         <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-200">
           <div className="min-w-0">
@@ -492,7 +443,6 @@ export const ScreenCaptureModal: React.FC<Props> = ({
           </div>
         </div>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 };

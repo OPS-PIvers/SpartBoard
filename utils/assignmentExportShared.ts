@@ -27,6 +27,7 @@ import type {
 } from '@/types';
 import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { logError } from '@/utils/logError';
+import { compareNameText, lastFirst } from '@/utils/studentName';
 import { hasStaffRows, staffDisplayName } from '@/utils/staffAudience';
 import { formatTabAwayTotal } from '@/utils/tabExits';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
@@ -35,11 +36,6 @@ import {
   describePictureLabels,
   imageOnlyPictures,
 } from '@/utils/quizAnswerImages';
-
-const exportNameCollator = new Intl.Collator(undefined, {
-  sensitivity: 'base',
-  numeric: true,
-});
 
 /** The fallback labels `buildResultsSheetData` writes when no name resolves. */
 const isUnnamedExportStudent = (name: string): boolean =>
@@ -51,18 +47,14 @@ export function compareExportRowsByStudent(a: string[], b: string[]): number {
   const bn = b[3] ?? '';
   return (
     Number(isUnnamedExportStudent(an)) - Number(isUnnamedExportStudent(bn)) ||
-    exportNameCollator.compare(an, bn)
+    compareNameText(an, bn)
   );
 }
 
 /** Gradebook order for exports: "Last, First", or whichever name exists. */
-export function lastFirstName(
+export const lastFirstName = (
   name: { givenName?: string; familyName?: string } | undefined
-): string {
-  const given = name?.givenName?.trim() ?? '';
-  const family = name?.familyName?.trim() ?? '';
-  return family && given ? `${family}, ${given}` : family || given;
-}
+): string => lastFirst(name);
 
 /**
  * Format a points value for export. Whole numbers stay as integers;

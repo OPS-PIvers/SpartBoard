@@ -891,10 +891,10 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
         hostName
           ? i18n.t('linkedCollection.hostStopped', {
               name: hostName,
-              defaultValue: '{{name}} stopped sharing this collection.',
+              defaultValue: '{{name}} stopped sharing this folder.',
             })
           : i18n.t('linkedCollection.hostStoppedNoName', {
-              defaultValue: 'The host stopped sharing this collection.',
+              defaultValue: 'The host stopped sharing this folder.',
             })
       );
     },

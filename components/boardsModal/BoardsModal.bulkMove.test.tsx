@@ -83,9 +83,9 @@ describe('BoardsModal bulk move', () => {
     render(<BoardsModal onClose={vi.fn()} />);
     fireEvent.click(screen.getAllByRole('button', { name: 'Select' })[0]);
     fireEvent.click(screen.getByRole('button', { name: /move/i }));
-    expect(screen.getByText('Move to Collection')).toBeInTheDocument();
+    expect(screen.getByText('Move to')).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Root \(no Collection\)/ })
+      screen.getByRole('button', { name: /All Boards/ })
     ).toBeInTheDocument();
   });
 });

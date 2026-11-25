@@ -53,6 +53,9 @@ export const SHEET_BLOCK_STYLES = `
   .sb-link { font-size: 10pt; margin: 0; overflow-wrap: anywhere; }
   .sb-use { font-size: 10pt; font-weight: 700; margin: 0; }
   .sb-item + .sb-use { margin-top: 1.5mm; }
+  .sh-title { font-size: 11pt; font-weight: 700; margin: 0; overflow-wrap: anywhere; }
+  .sh-text { font-size: 10pt; margin: 0.8mm 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .sh-choose { font-size: 10pt; font-style: italic; margin: 0.8mm 0 0; }
 `;
 
 const mm = (n: number): string => `${n.toFixed(2)}mm`;
@@ -203,6 +206,25 @@ export function sheetStimulusBlock(
       ? `<p class="sb-use">${escapeHtml(words.useResources(resources))}</p>`
       : '');
   return { html, heightMm: Math.ceil(measure(html, BLOCK_WIDTH_MM)) + 1 };
+}
+
+/** A section's title, directions and choose line, printed above its first question. */
+export function sheetSectionHeading(
+  section: { title: string; directions?: string; chooseLine?: string },
+  measure: BlockMeasure
+): SheetStimulusBlock {
+  const html =
+    `<p class="sh-title">${escapeHtml(section.title)}</p>` +
+    (section.directions
+      ? `<p class="sh-text">${escapeHtml(section.directions)}</p>`
+      : '') +
+    (section.chooseLine
+      ? `<p class="sh-choose">${escapeHtml(section.chooseLine)}</p>`
+      : '');
+  return {
+    html,
+    heightMm: Math.ceil(measure(html, BLOCK_WIDTH_MM)) + 2 * BLOCK_GAP_MM,
+  };
 }
 
 /** What a response sheet with question text prints for stimuli. */

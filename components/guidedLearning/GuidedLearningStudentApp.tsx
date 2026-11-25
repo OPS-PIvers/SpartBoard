@@ -12,7 +12,6 @@
 
 import { tourAttr } from '@/config/tourAnchors';
 import React, { useState, useEffect, useReducer, useRef } from 'react';
-import { signInAnonymously } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowRight,
@@ -28,9 +27,9 @@ import {
   onSnapshot,
   serverTimestamp,
 } from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
+import { db } from '@/config/firebase';
+import { useStudentAuthBootstrap } from '@/hooks/useStudentAuthBootstrap';
 import { logError } from '@/utils/logError';
-import { dropPinLogin } from '@/utils/pinLoginScope';
 import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import { useDialog } from '@/context/useDialog';
 import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSession';
@@ -42,6 +41,7 @@ import { isStaffAudience, staffResponseFields } from '@/utils/staffAudience';
 import { GuidedLearningResponse, GuidedLearningSession } from '@/types';
 import { GuidedLearningPlayer } from '@/components/widgets/GuidedLearning/components/GuidedLearningPlayer';
 import { useServerNow } from '@/hooks/useServerNow';
+import { useStudentWindow } from '@/hooks/useStudentWindow';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
 import { ResultsProtectionGate } from '@/components/student/ResultsProtectionGate';
@@ -88,56 +88,16 @@ const NAV_FOOTER_CLEARANCE_PX = 68;
 
 export const GuidedLearningStudentApp: React.FC = () => {
   const { t } = useTranslation();
-  const [authReady, setAuthReady] = useState(false);
-  const [authFailed, setAuthFailed] = useState(false);
-  const [anonymousUid, setAnonymousUid] = useState<string | null>(null);
-  // True iff `auth.currentUser` carries the `studentRole: true` custom claim
-  // minted by `studentLoginV1`. Anonymous/PIN joiners (the majority of GL
-  // traffic) stay `false` — they never hold this claim, so the pointer-doc
-  // read must be gated on it (see M17 C3-gl fix note below).
-  const [isStudentRole, setIsStudentRole] = useState(false);
-  // The signed-in student's class claims, which pick their period on a per-period session.
-  const [claimClassIds, setClaimClassIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    const init = async () => {
-      try {
-        // Await IndexedDB hydration before checking `auth.currentUser`,
-        // otherwise a full-page navigation from `/my-assignments` would
-        // race hydration and demote an SSO user to a fresh anonymous
-        // session. See QuizStudentApp for the same fix.
-        await auth.authStateReady();
-        await dropPinLogin(auth);
-        if (!auth.currentUser) {
-          const cred = await signInAnonymously(auth);
-          setAnonymousUid(cred.user.uid);
-        } else {
-          const user = auth.currentUser;
-          setAnonymousUid(user.uid);
-          if (!user.isAnonymous) {
-            // Probe custom claims once — stale is fine for this read-only
-            // gate; Firestore rules re-validate on every read regardless.
-            const tokenResult = await user.getIdTokenResult();
-            if (tokenResult.claims?.studentRole === true) {
-              setIsStudentRole(true);
-            }
-            const rawClaims: unknown = tokenResult.claims?.classIds;
-            if (Array.isArray(rawClaims)) {
-              setClaimClassIds(
-                rawClaims.filter((c): c is string => typeof c === 'string')
-              );
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('[GuidedLearningStudentApp] Anonymous auth failed:', err);
-        setAuthFailed(true);
-      } finally {
-        setAuthReady(true);
-      }
-    };
-    void init();
-  }, []);
+  const {
+    ready: authReady,
+    failed: authFailed,
+    uid: anonymousUid,
+    isStudentRole,
+    classIds: claimClassIds,
+  } = useStudentAuthBootstrap({
+    readClaims: true,
+    label: 'GuidedLearningStudentApp',
+  });
 
   if (!authReady) return <FullPageLoader />;
   if (authFailed) return <ErrorScreen message={t('glStudent.error.connect')} />;
@@ -296,12 +256,15 @@ const StudentExperience: React.FC<{
   // Per-period gate, re-checked as the clock passes a window edge.
   const perPeriod = hasPeriodAccess(session) && !isViewOnly;
   const periodNow = useServerNow(perPeriod ? 5000 : null);
-  const canEnter = studentCanEnter(
-    session,
-    periodKeys,
-    anonymousUid,
-    periodNow
-  );
+  // This student's own Opens and Closes, on sessions saved with them.
+  const studentWindow = useStudentWindow(session, pointer);
+  const windowGated = studentWindow.enforced && !isViewOnly;
+  const windowOpen = !windowGated || studentWindow.state === 'open';
+  const gated = perPeriod || windowGated;
+  const canEnter =
+    (!perPeriod ||
+      studentCanEnter(session, periodKeys, anonymousUid, periodNow)) &&
+    windowOpen;
   const gateKey = perPeriod
     ? JSON.stringify([
         periodKeys.map((k) => session?.periodAccess?.[k] ?? null),
@@ -311,17 +274,20 @@ const StudentExperience: React.FC<{
   // A write the server refused as frozen holds the pause until the gate fields change.
   const [frozenGate, setFrozenGate] = useState<string | null>(null);
   if (frozenGate !== null && frozenGate !== gateKey) setFrozenGate(null);
-  const periodPaused = perPeriod && (!canEnter || frozenGate === gateKey);
+  const periodPaused =
+    (perPeriod && frozenGate === gateKey) || (gated && !canEnter);
   // Once the player has shown, a later close pauses it in place rather than swapping screens.
   const [entered, setEntered] = useState(false);
-  if (!entered && perPeriod && started && canEnter && !contentPending) {
+  if (!entered && gated && started && canEnter && !contentPending) {
     setEntered(true);
   }
-  const periodHold = perPeriod && (periodPaused || !entered);
+  const periodHold = gated && (periodPaused || !entered);
   // Close now, Archive and a sub's End all set closeAt; past it the rules refuse student writes.
   const closeAt = session?.closeAt;
   const closeNow = useServerNow(typeof closeAt === 'number' ? 5000 : null);
-  const isClosed = typeof closeAt === 'number' && closeNow >= closeAt;
+  const isClosed = windowGated
+    ? studentWindow.state === 'closed'
+    : typeof closeAt === 'number' && closeNow >= closeAt;
   const [seatError, setSeatError] = useState<string | null>(null);
   const [seating, setSeating] = useState(false);
 
@@ -405,7 +371,7 @@ const StudentExperience: React.FC<{
     uid: anonymousUid,
     enabled: !!session && !pointer?.excluded,
     stepIds: session?.publicSteps.map((s) => s.id) ?? [],
-    ...(perPeriod ? { paused: periodHold } : {}),
+    ...(gated ? { paused: periodHold } : {}),
   });
 
   // Reached-end lives in memory; after a reload the progress doc stands in for it.
@@ -483,6 +449,7 @@ const StudentExperience: React.FC<{
     response: responseLoad,
     isClosed,
     perPeriod,
+    gated,
     assessmentMode: session?.accessMode === 'assessment',
     isStudentRole,
     entered,
@@ -584,7 +551,9 @@ const StudentExperience: React.FC<{
         <GuidedLearningPeriodLockedScreen
           session={session}
           periodKeys={periodKeys}
-          now={periodNow}
+          now={windowGated ? studentWindow.now : periodNow}
+          opensAt={windowGated ? studentWindow.window.openAt : undefined}
+          ownOpen={windowGated && studentWindow.state === 'upcoming'}
         />
       );
     case 'enteringPeriod':

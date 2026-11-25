@@ -39,7 +39,7 @@ export const SidebarBoardsActive: React.FC<SidebarBoardsActiveProps> = ({
         <FolderOpen className="w-3.5 h-3.5" />
         {activeCollectionId
           ? t('sidebar.boards.activeCollection', {
-              defaultValue: 'Active Collection',
+              defaultValue: 'Active Folder',
             })
           : t('sidebar.boards.rootBoards', { defaultValue: 'Boards' })}
       </div>

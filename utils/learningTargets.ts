@@ -1,3 +1,4 @@
+import { parseCsvRecords } from '@/utils/csv';
 import {
   LEARNING_TARGET_LIST_CAP,
   LearningTarget,
@@ -68,61 +69,6 @@ export function parsePastedTargets(
     out.push(code ? { code, label } : { label });
   }
   return out;
-}
-
-/** RFC 4180 parser: returns rows of fields, handling quoted commas/newlines and "" escapes. */
-export function parseCsvRecords(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = '';
-  let quoted = false;
-  let i = 0;
-  const src = text.startsWith('﻿') ? text.slice(1) : text;
-  while (i < src.length) {
-    const ch = src[i];
-    if (quoted) {
-      if (ch === '"') {
-        if (src[i + 1] === '"') {
-          field += '"';
-          i += 2;
-          continue;
-        }
-        quoted = false;
-        i += 1;
-        continue;
-      }
-      field += ch;
-      i += 1;
-      continue;
-    }
-    if (ch === '"') {
-      quoted = true;
-      i += 1;
-      continue;
-    }
-    if (ch === ',') {
-      row.push(field);
-      field = '';
-      i += 1;
-      continue;
-    }
-    if (ch === '\n' || ch === '\r') {
-      row.push(field);
-      rows.push(row);
-      row = [];
-      field = '';
-      if (ch === '\r' && src[i + 1] === '\n') i += 1;
-      i += 1;
-      continue;
-    }
-    field += ch;
-    i += 1;
-  }
-  if (field.length > 0 || row.length > 0) {
-    row.push(field);
-    rows.push(row);
-  }
-  return rows;
 }
 
 /** Downloadable starter file matching `parseTargetsCsv`. */

@@ -9,7 +9,7 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
-import { ExternalLink, Loader2, Plus, Search } from 'lucide-react';
+import { ExternalLink, Loader2, Plus } from 'lucide-react';
 import { db } from '@/config/firebase';
 import { GETTING_STARTED_SETTINGS_DOC } from '@/config/gettingStarted';
 import { useAuth } from '@/context/useAuth';
@@ -82,6 +82,7 @@ import {
   sortCategories,
   type HelpItemFieldPatch,
 } from './helpCenterAdmin';
+import { SearchField } from '@/components/common/SearchField';
 
 type ShowFilter = 'all' | 'hidden' | 'published' | 'attention' | 'unmapped';
 
@@ -99,6 +100,8 @@ export const HelpCenterManager: React.FC = () => {
   const isSuperAdmin = isSuperAdminActor(user?.email, roleId, orgId);
   const subsTours = canAccessFeature('subs-live-tours');
   const studentTours = canAccessFeature('student-live-tours');
+  const aiDetails =
+    canAccessFeature('gemini-functions') && canAccessFeature('help-center-ai');
   const audiences = useMemo(
     (): HelpAudience[] => [
       ...(subsTours ? (['subs'] as const) : []),
@@ -575,21 +578,14 @@ export const HelpCenterManager: React.FC = () => {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-48 flex-1">
-            <Search
-              className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"
-              aria-hidden="true"
-            />
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search"
-              aria-label="Search help items"
-              {...tourAttr('admin.help-center.search')}
-              className="h-11 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm focus:outline-hidden focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30"
-            />
-          </div>
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            placeholder="Search"
+            ariaLabel="Search help items"
+            anchor={tourAttr('admin.help-center.search')}
+            className="min-w-48 flex-1"
+          />
           <label className="flex items-center gap-2 text-sm text-slate-600">
             Show
             <Select
@@ -703,6 +699,7 @@ export const HelpCenterManager: React.FC = () => {
                 scopeOptions={scopeOptions}
                 onBack={() => setPhoneDetail(false)}
                 audiences={audiences}
+                canGenerate={aiDetails}
                 onPatch={(patch) => handlePatch(selected, patch)}
                 onScopeChange={(next) => handleScopeChange(selected, next)}
                 onEdit={() => void handleEdit(selected)}

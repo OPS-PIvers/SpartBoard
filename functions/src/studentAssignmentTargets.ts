@@ -76,6 +76,7 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { LANGUAGE_TAG_RE } from './languageTag';
 import { ttsLanguageForTranslationLocale } from './quizReadAloudVoices';
+import type { StudentWindowsMarker } from './studentWindow';
 import {
   MAX_STORED_TARGET_REFS,
   MAX_TARGET_REFS,
@@ -669,6 +670,30 @@ export function computeSessionCloseAt(
   return max;
 }
 
+/** The class close kept beside the session close it was written with (`utils/studentWindow.ts`). */
+export function studentWindowsMarker(
+  assignmentCloseAt: number | null,
+  sessionCloseAt: number | null
+): StudentWindowsMarker {
+  const classClose =
+    assignmentCloseAt === null || sessionCloseAt === null
+      ? sessionCloseAt
+      : Math.min(assignmentCloseAt, sessionCloseAt);
+  return { classCloseAt: classClose, closeAt: sessionCloseAt };
+}
+
+function sameStudentWindowsMarker(
+  stored: unknown,
+  next: StudentWindowsMarker
+): boolean {
+  if (typeof stored !== 'object' || stored === null) return false;
+  const s = stored as Record<string, unknown>;
+  return (
+    (s.classCloseAt ?? null) === next.classCloseAt &&
+    (s.closeAt ?? null) === next.closeAt
+  );
+}
+
 /** One pointer write (`payload`) or delete, applied only against what the transaction re-reads. */
 interface PointerOp {
   uid: string;
@@ -809,7 +834,9 @@ export async function handleSetAssignmentTargets(
   onReadAloudGained?: (
     sessionId: string,
     translationLocales: string[]
-  ) => Promise<void>
+  ) => Promise<void>,
+  /** Flag `student-windows`: keep the class close beside the widened session close. */
+  options: { studentWindows?: boolean } = {}
 ): Promise<SetAssignmentTargetsResult> {
   const assignmentRef = db
     .collection('users')
@@ -1137,6 +1164,15 @@ export async function handleSetAssignmentTargets(
       desiredSessionCloseAt === null
         ? admin.firestore.FieldValue.delete()
         : desiredSessionCloseAt;
+  }
+  if (options.studentWindows) {
+    const marker = studentWindowsMarker(
+      assignmentCloseAt,
+      writesSessionCloseAt ? desiredSessionCloseAt : sessionCloseAtNow
+    );
+    if (!sameStudentWindowsMarker(sessionSnap.get('studentWindows'), marker)) {
+      sessionUpdate.studentWindows = marker;
+    }
   }
   if (Object.keys(sessionUpdate).length > 0) {
     await sessionRef.set(sessionUpdate, { merge: true });

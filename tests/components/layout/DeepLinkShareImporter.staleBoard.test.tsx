@@ -19,7 +19,10 @@ const addToast = vi.fn();
 const importSharedQuiz = vi.fn();
 
 let widgets: WidgetData[] = [];
-let pendingQuizShareId: string | null = 'share-1';
+let pendingLibraryShare: { kind: 'quiz'; shareId: string } | null = {
+  kind: 'quiz',
+  shareId: 'share-1',
+};
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
@@ -36,16 +39,10 @@ vi.mock('@/context/useDashboard', () => ({
     bringToFront,
     addToast,
     setPendingAssignmentSetup: vi.fn(),
-    pendingQuizShareId,
-    clearPendingQuizShare: () => {
-      pendingQuizShareId = null;
+    pendingLibraryShare,
+    clearPendingLibraryShare: () => {
+      pendingLibraryShare = null;
     },
-    pendingAssignmentShareId: null,
-    clearPendingAssignmentShare: vi.fn(),
-    pendingVideoActivityShareId: null,
-    clearPendingVideoActivityShare: vi.fn(),
-    pendingRubricShareId: null,
-    clearPendingRubricShare: vi.fn(),
   }),
 }));
 
@@ -94,7 +91,7 @@ describe('DeepLinkShareImporter — stale board at import resolve', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     widgets = [];
-    pendingQuizShareId = 'share-1';
+    pendingLibraryShare = { kind: 'quiz', shareId: 'share-1' };
   });
 
   it('reuses a Quiz widget added while the import was in flight', async () => {

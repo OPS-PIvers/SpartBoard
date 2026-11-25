@@ -22,8 +22,7 @@ export const useConfirmLinkedBoardRemoval = () => {
       });
       return showConfirm(
         t('boardsModal.removeSharedBoardConfirm', {
-          defaultValue:
-            'Remove this board for everyone in the shared collection?',
+          defaultValue: 'Remove this board for everyone in the shared folder?',
         }),
         { title: label, variant: 'danger', confirmLabel: label }
       );
@@ -51,7 +50,7 @@ export const useConfirmLinkedCollectionMove = () => {
       return showConfirm(
         t('boardsModal.removeSharedCollectionConfirm', {
           defaultValue:
-            'Remove this collection and its boards for everyone in the shared collection?',
+            'Remove this folder and its boards for everyone in the shared folder?',
         }),
         { title: label, variant: 'danger', confirmLabel: label }
       );

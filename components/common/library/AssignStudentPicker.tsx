@@ -25,7 +25,7 @@ import {
   uncoveredLocalesForTargets,
 } from '@/utils/quizTranslationAdvisory';
 import { useTranslation } from 'react-i18next';
-import { AlertCircle, Search, SearchX, Users, X } from 'lucide-react';
+import { AlertCircle, SearchX, Users, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import type { ClassRoster, StudentOverride, StudentTargetRef } from '@/types';
@@ -41,6 +41,7 @@ import {
   type RosterStudentRow,
 } from './assignStepper/useRosterStudentRows';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { SearchField } from '@/components/common/SearchField';
 
 const MODAL_LABEL_ID = 'assign-student-picker-title';
 
@@ -519,19 +520,15 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
 
         <div className="flex-1 flex flex-col min-w-0">
           <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-100 shrink-0">
-            <div className="relative flex-1">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                {...tourAttr('assign-students-legacy.search')}
-                placeholder={t('assignStudentPicker.searchPlaceholder', {
-                  defaultValue: 'Search students…',
-                })}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
-              />
-            </div>
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder={t('assignStudentPicker.searchPlaceholder', {
+                defaultValue: 'Search students…',
+              })}
+              anchor={tourAttr('assign-students-legacy.search')}
+              className="flex-1"
+            />
             {activeRoster && targetableRows.length > 0 && (
               <label className="flex items-center gap-1.5 text-xxs font-bold text-slate-500 whitespace-nowrap cursor-pointer">
                 <input

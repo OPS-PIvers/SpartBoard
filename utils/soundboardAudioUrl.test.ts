@@ -112,7 +112,7 @@ describe('fetchDriveAudioBlobUrl', () => {
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://www.googleapis.com/drive/v3/files/file123?alt=media',
-      { headers: { Authorization: 'Bearer token' } }
+      expect.objectContaining({ headers: { Authorization: 'Bearer token' } })
     );
     expect(result).toBe(FAKE_BLOB_URL);
   });

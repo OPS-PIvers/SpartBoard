@@ -65,7 +65,7 @@ const CLOSED_AT = 5;
 const respond = (id: string, extra: Doc = {}) => {
   store.docs[`${S}/responses/${id}`] = {
     studentAnonymousId: id,
-    answers: [],
+    answers: [{ stepId: 's1', answer: 'x', isCorrect: null }],
     completedAt: null,
     ...extra,
   };
@@ -100,9 +100,33 @@ describe('finalizeClassGuidedLearningResponses', () => {
 
   it('turns in a row with no completedAt field at all', async () => {
     store.docs[S] = session({ state: 'closed', closedAt: CLOSED_AT });
-    store.docs[`${S}/responses/legacy`] = { classId: 'p1', answers: [] };
+    store.docs[`${S}/responses/legacy`] = {
+      classId: 'p1',
+      answers: [{ stepId: 's1', answer: 'x', isCorrect: null }],
+    };
     await finalizeClassGuidedLearningResponses('s1', 'p1', CLOSED_AT, NOW);
     expect(turnedIn()).toEqual(['legacy']);
+  });
+
+  it('leaves a blank join Not started when the activity asks questions', async () => {
+    store.docs[S] = session(
+      { state: 'closed', closedAt: CLOSED_AT },
+      { publicSteps: [{ id: 's1', question: { type: 'text', text: 'Q' } }] }
+    );
+    respond('blank', { classId: 'p1', answers: [] });
+    respond('a', { classId: 'p1' });
+    await finalizeClassGuidedLearningResponses('s1', 'p1', CLOSED_AT, NOW);
+    expect(turnedIn()).toEqual(['a']);
+  });
+
+  it('turns in a walkthrough join, which never writes answers', async () => {
+    store.docs[S] = session(
+      { state: 'closed', closedAt: CLOSED_AT },
+      { publicSteps: [{ id: 's1' }] }
+    );
+    respond('walk', { classId: 'p1', answers: [] });
+    await finalizeClassGuidedLearningResponses('s1', 'p1', CLOSED_AT, NOW);
+    expect(turnedIn()).toEqual(['walk']);
   });
 
   it('skips students let in or reopened for', async () => {

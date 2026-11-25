@@ -29,6 +29,23 @@ let sheetImages: {
   loading: boolean;
 } = { src: {}, failed: [], loading: false };
 
+/** Anything on the sheet sends the questions to a separate test paper. */
+const SHEET_GRAPH: PaperSheetStimulus = {
+  id: 'sheet-graph',
+  label: 'Unit 3 graph',
+  source: 'image',
+  driveFileId: 'drive-graph',
+  widthPx: 800,
+  heightPx: 600,
+};
+const withSheetImage = () => {
+  sheetImages = {
+    src: { 'sheet-graph': 'blob:graph' },
+    failed: [],
+    loading: false,
+  };
+};
+
 /** Nulled in the one test that checks what happens with no Drive connected. */
 let driveConnected = true;
 vi.mock('@/utils/quizDocumentImport/uploadIntake', async () => {
@@ -217,7 +234,6 @@ describe('PaperPrintModal', () => {
       const { print } = setup({
         quiz: quiz({ questions: [{ ...mc('q1'), text: 'Which is a cell?' }] }),
       });
-      fireEvent.click(screen.getByRole('switch', { name: /question text/i }));
       const preview = frame().srcdoc;
       expect(preview).toContain('Which is a cell?');
       fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
@@ -342,7 +358,10 @@ describe('PaperPrintModal', () => {
   });
 
   it('records the printed choice order and opens each packet with the matching test paper', async () => {
-    const { onSaveBatch, print, onClose } = setup();
+    withSheetImage();
+    const { onSaveBatch, print, onClose } = setup({
+      quiz: quiz({ paperSheetStimuli: [SHEET_GRAPH] }),
+    });
     fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
     await waitFor(() => expect(print).toHaveBeenCalled());
     const batch = onSaveBatch.mock.calls[0][0];
@@ -384,13 +403,83 @@ describe('PaperPrintModal', () => {
   it('locks an authored quiz to the bubble count its questions need', () => {
     setup({ quiz: quiz({ questions: [mc('q1', 1), mc('q2', 4)] }) });
     expect(screen.getByText('5 (A–E)')).toBeInTheDocument();
-    expect(
-      screen.getByText(/Question 1 has fewer than 5 choices/)
-    ).toBeInTheDocument();
+    // Each question-text row prints only its own bubbles, so there is nothing to leave blank.
+    expect(screen.queryByText(/fewer than 5 choices/)).toBeNull();
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
-  it('prints each question beside its bubbles when asked, on the tall-row layout', async () => {
+  it("prints a group's supports on pages after the question sheet", async () => {
+    const { print } = setup({
+      quiz: quiz({ questions: [mc('q1'), mc('q2')] }),
+      group: {
+        label: 'Group 1',
+        students: { r1: ['s1'] },
+        supports: [{ title: 'Word bank', body: 'nucleus, ribosome' }],
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    const job = print.mock.calls[0][0];
+    expect(job.columnsPerPage).toBe('questions');
+    expect(job.testPaper).toBeUndefined();
+    expect(job.resourcePages?.map((p) => p.title)).toEqual(['Supports']);
+    expect(job.resourcePages?.[0].html).toContain('nucleus, ribosome');
+  });
+
+  it('sends a very long section heading to a separate test paper', async () => {
+    const { print } = setup({
+      quiz: quiz({
+        questions: [mc('q1'), mc('q2')],
+        sections: [
+          {
+            id: 's1',
+            title: 'Part B',
+            directions: 'Read closely. '.repeat(200),
+          },
+        ],
+        order: [
+          { kind: 'question', id: 'q1' },
+          { kind: 'section', id: 's1' },
+          { kind: 'question', id: 'q2' },
+        ],
+      }),
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    const job = print.mock.calls[0][0];
+    expect(job.columnsPerPage).not.toBe('questions');
+    expect(job.testPaper).toContain('Part B');
+  });
+
+  it('prints a section heading above its first question on the sheet', async () => {
+    const { print } = setup({
+      quiz: quiz({
+        questions: [mc('q1'), mc('q2')],
+        sections: [{ id: 's1', title: 'Part B heading' }],
+        order: [
+          { kind: 'question', id: 'q1' },
+          { kind: 'section', id: 's1' },
+          { kind: 'question', id: 'q2' },
+        ],
+      }),
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    const job = print.mock.calls[0][0];
+    expect(job.columnsPerPage).toBe('questions');
+    expect(job.testPaper).toBeUndefined();
+    expect(Object.keys(job.sectionHeadings ?? {})).toEqual(['q2']);
+    const items = job.pageMaps?.flatMap((m) => m.items) ?? [];
+    expect(
+      items.find((i) => i.questionId === 'q2')?.sectionTopMm
+    ).toBeDefined();
+    expect(
+      items.find((i) => i.questionId === 'q1')?.sectionTopMm
+    ).toBeUndefined();
+    expect(buildPaperSheetsHtml(job)).toContain('Part B heading');
+  });
+
+  it('prints each question beside its bubbles on the tall-row layout', async () => {
     const tenQuestions = quiz({
       questions: Array.from({ length: 10 }, (_, i) => mc(`q${i}`)),
     });
@@ -398,10 +487,9 @@ describe('PaperPrintModal', () => {
     fireEvent.change(screen.getByLabelText(/Blank spare sheets/i), {
       target: { value: '0' },
     });
-    expect(screen.getByText(/2 sheets · 2 pages/)).toBeInTheDocument();
-    expect(screen.getByLabelText('Include question text')).not.toBeChecked();
-    fireEvent.click(screen.getByLabelText('Include question text'));
     expect(screen.getByText(/2 sheets · 4 pages/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Include question text')).toBeNull();
+    expect(screen.queryByText(/answer key/i)).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
     await waitFor(() => expect(print).toHaveBeenCalled());
@@ -458,16 +546,16 @@ describe('PaperPrintModal', () => {
       fireEvent.change(screen.getByLabelText(/Blank spare sheets/i), {
         target: { value: '0' },
       });
-      // 30 questions is one two-column page, and two once the band takes the
-      // right half of each (D1).
-      expect(screen.getByText(/2 sheets · 2 pages/)).toBeInTheDocument();
+      const withText = screen.getByText(/2 sheets · \d+ pages/).textContent;
 
       fireEvent.click(
         screen.getByRole('button', { name: /Add to the response sheet/ })
       );
       fireEvent.click(screen.getByRole('button', { name: 'From Drive' }));
       await screen.findByText('1 item');
+      // The band takes the right half, so the questions move to a test paper and 30 rows fill one column of two pages (D1).
       expect(screen.getByText(/2 sheets · 4 pages/)).toBeInTheDocument();
+      expect(withText).not.toMatch(/2 sheets · 4 pages/);
     });
 
     it('prints a single-column stack and records the layout on the batch', async () => {
@@ -492,14 +580,15 @@ describe('PaperPrintModal', () => {
       expect(job.stimulusImageSrc).toEqual({ 'stim-1': 'blob:graph' });
     });
 
-    it('leaves a sheet with nothing on it two-column, as it was', async () => {
+    it('prints the questions on a sheet with nothing else on it', async () => {
       const { print, onSaveBatch } = setup();
       fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
       await waitFor(() => expect(print).toHaveBeenCalled());
-      expect(onSaveBatch.mock.calls[0][0].columnsPerPage).toBeUndefined();
+      expect(onSaveBatch.mock.calls[0][0].sheetLayout).toBe('questions');
       const job = print.mock.calls[0][0];
-      expect(job.columnsPerPage).toBeUndefined();
+      expect(job.columnsPerPage).toBe('questions');
       expect(job.sheetStimuli).toBeUndefined();
+      expect(job.testPaper).toBeUndefined();
     });
 
     it('blocks the print, and the batch, on an image it could not fetch', () => {
@@ -956,9 +1045,10 @@ describe('PaperPrintModal with handwritten answers', () => {
   });
 
   it('offers a custom line count and prints it', async () => {
+    withSheetImage();
     const onSavePrintSetup = vi.fn().mockResolvedValue(undefined);
     const { onSaveBatch, print } = setup({
-      quiz: quiz({ questions: [fr('w1')] }),
+      quiz: quiz({ questions: [fr('w1')], paperSheetStimuli: [SHEET_GRAPH] }),
       onSavePrintSetup,
     });
     expect(screen.queryByLabelText('Question 1 box size, lines')).toBeNull();
@@ -970,7 +1060,7 @@ describe('PaperPrintModal with handwritten answers', () => {
     });
     await printIt(print);
     expect(onSavePrintSetup).toHaveBeenCalledWith({
-      stimuli: [],
+      stimuli: [SHEET_GRAPH],
       boxSizes: { w1: 15 },
       boxStyles: {},
     });
@@ -1020,10 +1110,12 @@ describe('PaperPrintModal with handwritten answers', () => {
   });
 
   it('prints the picked box size and saves only the sizes that changed', async () => {
+    withSheetImage();
     const onSavePrintSetup = vi.fn().mockResolvedValue(undefined);
     const { onSaveBatch, print } = setup({
       quiz: quiz({
         questions: [fr('w1', { paperBoxSize: 'L' }), fr('w2')],
+        paperSheetStimuli: [SHEET_GRAPH],
       }),
       onSavePrintSetup,
     });
@@ -1032,7 +1124,7 @@ describe('PaperPrintModal with handwritten answers', () => {
     });
     await printIt(print);
     expect(onSavePrintSetup).toHaveBeenCalledWith({
-      stimuli: [],
+      stimuli: [SHEET_GRAPH],
       boxSizes: { w2: 'S' },
       boxStyles: {},
     });
@@ -1127,8 +1219,11 @@ describe('PaperPrintModal with handwritten answers', () => {
     expect(onSavePrintSetup).not.toHaveBeenCalled();
   });
 
-  it('prints a quiz with no written questions exactly as before', async () => {
-    const { onSaveBatch, print } = setup();
+  it('prints a bubble-only quiz without page maps when the questions go on a test paper', async () => {
+    withSheetImage();
+    const { onSaveBatch, print } = setup({
+      quiz: quiz({ paperSheetStimuli: [SHEET_GRAPH] }),
+    });
     await printIt(print);
     const batch = onSaveBatch.mock.calls[0][0];
     expect(batch.layoutVersion).toBeUndefined();
@@ -1143,7 +1238,10 @@ describe('PaperPrintModal with handwritten answers', () => {
     });
     expect(screen.getByText(/1 question will not be on/)).toBeInTheDocument();
     await printIt(print);
-    expect(onSaveBatch.mock.calls[0][0].layoutVersion).toBeUndefined();
+    const written = onSaveBatch.mock.calls[0][0].pageMaps?.flatMap((m) =>
+      m.items.filter((i) => i.kind === 'written')
+    );
+    expect(written ?? []).toEqual([]);
   });
 
   it('lists a recording question as left off the sheet', () => {
@@ -1175,8 +1273,12 @@ describe('PaperPrintModal with handwritten answers', () => {
   });
 
   it('prints written questions in place on the test paper, numbered like the sheet', async () => {
+    withSheetImage();
     const { print } = setup({
-      quiz: quiz({ questions: [mc('q1'), fr('w1'), mc('q2')] }),
+      quiz: quiz({
+        questions: [mc('q1'), fr('w1'), mc('q2')],
+        paperSheetStimuli: [SHEET_GRAPH],
+      }),
     });
     await printIt(print);
     const paper = print.mock.calls[0][0].testPaper ?? '';
@@ -1187,8 +1289,12 @@ describe('PaperPrintModal with handwritten answers', () => {
   });
 
   it("prints a translated group's test paper words in its language", async () => {
+    withSheetImage();
     const { print } = setup({
-      quiz: quiz({ questions: [mc('q1'), fr('w1')] }),
+      quiz: quiz({
+        questions: [mc('q1'), fr('w1')],
+        paperSheetStimuli: [SHEET_GRAPH],
+      }),
       group: {
         label: 'Group 1 · Spanish',
         students: { r1: ['s1'] },

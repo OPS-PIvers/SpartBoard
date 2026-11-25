@@ -81,7 +81,10 @@ interface MockDocRef {
 // invocations within a single test. Without this every `collection('admins')`
 // call would build a fresh `vi.fn` and the count would always reset.
 const adminDocGet = vi.fn((id: string) =>
-  Promise.resolve({ exists: mockFirestoreState.admins.has(id) })
+  Promise.resolve({
+    exists: mockFirestoreState.admins.has(id),
+    get: () => undefined,
+  })
 );
 
 // Hoisted for the same reason — the `gemini-functions` config read is the
@@ -4043,6 +4046,7 @@ describe('index barrel — deployed export set', () => {
     'plcGoalCoachV1',
     'importConvertV1',
     'writeWebTourTextV1',
+    'generateHelpDetailsV1',
     'freshserviceV1',
     'webToursListV1',
     'webTourLoadV1',
@@ -4093,6 +4097,9 @@ describe('index barrel — deployed export set', () => {
     'finalizeIdleQuizAttempts',
     'finalizeExpiredQuizAttempts',
     'queueVideoClassTurnIns',
+    'queueQuizTurnIns',
+    'queueGuidedLearningTurnIns',
+    'queueVideoRunTurnIns',
     'sweepVideoClassTurnIns',
     // Google / Spotify OAuth
     'exchangeGoogleAuthCode',

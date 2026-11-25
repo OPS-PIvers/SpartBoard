@@ -262,7 +262,7 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
                     {isCollectionTemplate(tpl)
                       ? t('templatePicker.kindCollection', {
                           count: tpl.boardSnapshots.length,
-                          defaultValue: 'Collection · {{count}} board(s)',
+                          defaultValue: 'Folder · {{count}} board(s)',
                         })
                       : t('templatePicker.kindBoard', {
                           defaultValue: 'Board',

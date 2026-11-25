@@ -11,7 +11,7 @@ import {
 import { isPlcLeadOrCoLead } from '@/utils/plc';
 import { Btn } from '@/components/admin/Organization/components/primitives';
 import { GradebookSettingsEditor } from '@/components/gradebook/settings/GradebookSettingsEditor';
-import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
+import { ChecklistSelect } from '@/components/common/ChecklistSelect';
 import { useUndoToast } from '@/components/gradebook/settings/useUndoToast';
 import {
   resolveScale,
@@ -243,7 +243,7 @@ export const PlcGradebookSection: React.FC<{ plc: Plc }> = ({ plc }) => {
   const { user, orgId } = useAuth();
   const { organization } = useOrganization(orgId);
   const g = usePlcGradebookSettings(plc.id, plc.name);
-  const { notify, fail, toastNode } = useUndoToast('PlcGradebook');
+  const { notify, fail } = useUndoToast('PlcGradebook');
   return (
     <>
       <PlcGradebookSectionView
@@ -263,7 +263,6 @@ export const PlcGradebookSection: React.FC<{ plc: Plc }> = ({ plc }) => {
       >
         <UseInMyGradebook plcId={plc.id} notify={notify} fail={fail} />
       </PlcGradebookSectionView>
-      {toastNode}
     </>
   );
 };

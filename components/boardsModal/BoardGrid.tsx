@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Collection, Dashboard } from '@/types';
 import { BoardCard } from './BoardCard';
-import { CollectionCard } from './CollectionCard';
+import { CollectionCard, NewCollectionCard } from './CollectionCard';
 import { boardsInView, siblingCollections } from './dropIndicator';
 
 interface BoardGridProps {
@@ -34,6 +34,12 @@ interface BoardGridProps {
   isCollectionDuplicating: (id: string) => boolean;
   onShareBoard: (board: Dashboard) => void;
   onShareCollection: (collection: Collection) => void;
+  creatingCollection: boolean;
+  onCreateCollection: (name: string) => void;
+  onCancelCreateCollection: () => void;
+  renamingCollectionId: string | null;
+  onRenameCollection: (id: string, name: string) => void;
+  onCancelRenameCollection: () => void;
 }
 
 export const BoardGrid: React.FC<BoardGridProps> = ({
@@ -55,6 +61,12 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
   isCollectionDuplicating,
   onShareBoard,
   onShareCollection,
+  creatingCollection,
+  onCreateCollection,
+  onCancelCreateCollection,
+  renamingCollectionId,
+  onRenameCollection,
+  onCancelRenameCollection,
 }) => {
   const { t } = useTranslation();
 
@@ -100,7 +112,10 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
     return counts;
   }, [collections, boards]);
 
-  const isEmpty = subCollections.length === 0 && boardsHere.length === 0;
+  const isEmpty =
+    !creatingCollection &&
+    subCollections.length === 0 &&
+    boardsHere.length === 0;
 
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50">
@@ -108,19 +123,25 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
         <div className="flex flex-col items-center justify-center h-full text-slate-400 text-sm">
           {t('boardsModal.empty', {
             defaultValue:
-              'This Collection is empty. Drag Boards here or create one.',
+              'This folder is empty. Drag boards here or create one.',
           })}
         </div>
       ) : (
         <>
-          {subCollections.length > 0 && (
+          {(subCollections.length > 0 || creatingCollection) && (
             <div className="mb-6">
               <h3 className="text-xxs font-bold text-slate-500 uppercase tracking-widest mb-3">
                 {t('boardsModal.subCollections', {
-                  defaultValue: 'Collections',
+                  defaultValue: 'Folders',
                 })}
               </h3>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
+                {creatingCollection && (
+                  <NewCollectionCard
+                    onCommit={onCreateCollection}
+                    onCancel={onCancelCreateCollection}
+                  />
+                )}
                 {subCollections.map((c) => {
                   const counts = childCounts.get(c.id) ?? {
                     folders: 0,
@@ -145,6 +166,9 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
                       }
                       onDuplicate={() => onDuplicateCollection(c.id)}
                       onShare={() => onShareCollection(c)}
+                      isRenaming={renamingCollectionId === c.id}
+                      onRename={(name) => onRenameCollection(c.id, name)}
+                      onCancelRename={onCancelRenameCollection}
                     />
                   );
                 })}

@@ -20,7 +20,8 @@ import {
 import { InputSignalsBadge } from '@/components/common/InputSignalsPopover';
 import { useServerNow } from '@/hooks/useServerNow';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import { studentCanEnter, studentSetTime } from '@/utils/periodAccess';
+import { studentSetTime } from '@/utils/periodAccess';
+import { studentCanEnterAnyGate } from '@/utils/perClassConversion';
 import { formatStudentTime, formatStudentTimeStart } from './studentTimeFormat';
 import { canTeacherSubmit, isTabLockedOut } from '@/utils/quizTeacherSubmit';
 import { MonitorStudent } from './useMonitorData';
@@ -48,6 +49,7 @@ import {
 } from './RosterParts';
 import {
   QUIZ_TIME_LIMIT_WARN_MS,
+  classPauses,
   formatTimeLeft,
   resolveAttemptDeadline,
   timestampMillis,
@@ -209,7 +211,12 @@ const RowMenu: React.FC<{
     onLetIn &&
     r.studentUid &&
     r.status !== 'completed' &&
-    !studentCanEnter(session, r.classId ? [r.classId] : [], r.studentUid, now)
+    !studentCanEnterAnyGate(
+      session,
+      r.classId ? [r.classId] : [],
+      r.studentUid,
+      now
+    )
   )
     items.push({
       label: 'Let in now',
@@ -358,6 +365,7 @@ export const RosterList: React.FC<RosterListProps> = ({
     students.filter((s) => !handKeys.has(s.key)),
     (s) => ({
       name: s.name,
+      sortName: s.sortName,
       status: s.response.status,
       score: s.bandScore,
       tabWarnings: s.tabWarnings,
@@ -470,15 +478,16 @@ export const RosterList: React.FC<RosterListProps> = ({
           targetRefKeyByStudentUid
         );
         const refKey = targetRefKeyByStudentUid?.get(r.studentUid);
+        const pauses = classPauses(session, r.classId);
         const deadline =
-          session.sessionMode === 'student' && session.status !== 'paused'
+          session.sessionMode === 'student' && !pauses.paused
             ? resolveAttemptDeadline(
                 timestampMillis(r.attemptStartedAt),
                 session.timeLimitMinutes,
                 refKey
                   ? overridesBySourcedId?.[refKey]?.timeMultiplier
                   : undefined,
-                session.pauseSpans
+                pauses.pauseSpans
               )
             : null;
         const locked =
@@ -713,8 +722,12 @@ export const RosterList: React.FC<RosterListProps> = ({
         if (
           onLetIn &&
           s.studentUid &&
-          s.periodKey &&
-          !studentCanEnter(session, [s.periodKey], s.studentUid, now)
+          !studentCanEnterAnyGate(
+            session,
+            s.periodKey ? [s.periodKey] : [],
+            s.studentUid,
+            now
+          )
         ) {
           const uid = s.studentUid;
           items.push({

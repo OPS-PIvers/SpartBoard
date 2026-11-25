@@ -36,28 +36,28 @@ const MODE_COPY: Record<
 > = {
   synced: {
     title: 'Synced',
-    body: 'You both edit the same collection.',
+    body: 'You both edit the same folder.',
     Icon: Cloud,
-    primary: 'Import synced collection',
-    toast: 'Synced collection imported',
+    primary: 'Import synced folder',
+    toast: 'Synced folder imported',
   },
   'view-only': {
     title: 'View-Only',
     body: "You see the host's changes live but can't edit.",
     Icon: Eye,
-    primary: 'Open view-only collection',
-    toast: 'View-only collection imported',
+    primary: 'Open view-only folder',
+    toast: 'View-only folder imported',
   },
 };
 
 const NOT_FOUND =
-  'Shared Collection not found. The link may be wrong or the host may have deleted it.';
+  'Shared folder not found. The link may be wrong or the host may have deleted it.';
 const DENIED =
-  "You don't have permission to open this collection. Ask the host to share it again.";
+  "You don't have permission to open this folder. Ask the host to share it again.";
 const LOAD_ERROR =
-  'Could not load the shared Collection. Check your connection and try again.';
+  'Could not load the shared folder. Check your connection and try again.';
 const endedMessage = (hostName: string) =>
-  `${hostName} stopped sharing this collection.`;
+  `${hostName} stopped sharing this folder.`;
 
 export const ImportLinkedCollectionModal: React.FC<
   ImportLinkedCollectionModalProps
@@ -159,7 +159,7 @@ export const ImportLinkedCollectionModal: React.FC<
     <Modal
       isOpen
       onClose={onClose}
-      ariaLabel="Import shared collection"
+      ariaLabel="Import shared folder"
       maxWidth="max-w-md"
       contentClassName=""
       customHeader={
@@ -195,7 +195,7 @@ export const ImportLinkedCollectionModal: React.FC<
     >
       <div className="px-5 pb-5 pt-4 space-y-4">
         {view.kind === 'loading' && (
-          <p className="text-sm text-slate-500">Loading shared Collection…</p>
+          <p className="text-sm text-slate-500">Loading shared folder…</p>
         )}
         {message && (
           <p

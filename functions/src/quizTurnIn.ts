@@ -95,6 +95,47 @@ function openPauseMs(session: Doc, startedAt: number, at: number): number {
   return Math.max(0, at - Math.max(pausedAt, startedAt));
 }
 
+/** The whole quiz's pauses joined with the student's class pauses (utils/quizTimeLimit.ts classPauses). */
+export function withClassPauses(session: Doc, classId: unknown): Doc {
+  const pa = session.periodAccess as Record<string, Doc> | undefined;
+  const row =
+    typeof classId === 'string' && pa && typeof pa === 'object'
+      ? pa[classId]
+      : undefined;
+  if (!row || typeof row !== 'object') return session;
+  const spanList = (v: unknown): { from: number; to: number }[] =>
+    (Array.isArray(v) ? v : [])
+      .map((s) => ({
+        from: Number((s as Doc)?.from),
+        to: Number((s as Doc)?.to),
+      }))
+      .filter((s) => s.to > s.from);
+  const merged: { from: number; to: number }[] = [];
+  for (const s of [
+    ...spanList(session.pauseSpans),
+    ...spanList(row.pauseSpans),
+  ].sort((a, b) => a.from - b.from)) {
+    const last = merged[merged.length - 1];
+    if (last && s.from <= last.to) last.to = Math.max(last.to, s.to);
+    else merged.push({ ...s });
+  }
+  const openStart = (spans: unknown, at: unknown): number | null => {
+    const list = spanList(spans);
+    const lastTo = list.length ? list[list.length - 1].to : 0;
+    return typeof at === 'number' && at > lastTo ? at : null;
+  };
+  const opens = [
+    openStart(session.pauseSpans, session.pausedAt),
+    row.state !== 'open' ? openStart(row.pauseSpans, row.pausedAt) : null,
+  ].filter((t): t is number => t !== null);
+  const lastTo = merged.length ? merged[merged.length - 1].to : 0;
+  return {
+    ...session,
+    pauseSpans: merged,
+    pausedAt: opens.length ? Math.max(Math.min(...opens), lastTo + 1) : null,
+  };
+}
+
 /** Epoch ms the attempt runs out at for this multiplier (utils/quizTimeLimit.ts resolveAttemptDeadline); null for no limit. */
 export function quizAttemptDeadline(
   session: Doc,
@@ -108,11 +149,12 @@ export function quizAttemptDeadline(
   if (minutes === null || startedAt === null || multiplier === 'unlimited')
     return null;
   const scale = multiplier === 1.5 || multiplier === 2 ? multiplier : 1;
+  const paused = withClassPauses(session, response.classId);
   return (
     startedAt +
     minutes * 60_000 * scale +
-    pausedMsSince(startedAt, session.pauseSpans) +
-    (at === undefined ? 0 : openPauseMs(session, startedAt, at))
+    pausedMsSince(startedAt, paused.pauseSpans) +
+    (at === undefined ? 0 : openPauseMs(paused, startedAt, at))
   );
 }
 

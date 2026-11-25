@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { copyLinkWithToast } from '@/hooks/useCopyShortLink';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -608,14 +609,15 @@ const StudioSession: React.FC<
         addToast?.(t('glStudio.copyForClaudeFailed'), 'error');
         return;
       }
-      try {
-        await navigator.clipboard.writeText(
-          buildClaudePrompt(latest, target, { dev: isDevProject() })
-        );
-        addToast?.(t('glStudio.copiedForClaude'), 'success');
-      } catch {
-        addToast?.(t('glStudio.clipboardFailed'), 'error');
-      }
+      await copyLinkWithToast(
+        buildClaudePrompt(latest, target, { dev: isDevProject() }),
+        (message, type) => addToast?.(message, type),
+        {
+          success: t('glStudio.copiedForClaude'),
+          failure: t('glStudio.clipboardFailed'),
+          failureType: 'error',
+        }
+      );
     },
     [
       conflict,

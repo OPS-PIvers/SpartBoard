@@ -11,7 +11,6 @@ import {
   Upload,
   Camera,
   Layers,
-  Search,
 } from 'lucide-react';
 import { getLucideIconNames, useLucideIconMap } from '@/utils/lucideIconMap';
 import {
@@ -37,6 +36,8 @@ import { createBoardSnapshot } from '@/utils/widgetHelpers';
 import { useDialog } from '@/context/useDialog';
 import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { Modal } from '@/components/common/Modal';
+import { SearchField } from '@/components/common/SearchField';
 
 const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -450,349 +451,174 @@ export const CatalystConfigurationModal: React.FC<
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-modal-nested flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-          <div className="flex items-center gap-3">
-            {view === 'set-editor' && (
-              <button
-                {...tourFieldAttr(
-                  'admin.widget-config.field',
-                  'catalyst',
-                  'backToSets'
-                )}
-                onClick={() => {
-                  setView('sets-list');
-                  revokePreview();
-                }}
-                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      zIndex="z-modal-nested"
+      maxWidth="max-w-3xl"
+      dismissible={false}
+      className="overflow-hidden rounded-2xl bg-white shadow-2xl [&>div]:flex [&>div]:flex-col [&>div]:overflow-hidden"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+        <div className="flex items-center gap-3">
+          {view === 'set-editor' && (
+            <button
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'catalyst',
+                'backToSets'
+              )}
+              onClick={() => {
+                setView('sets-list');
+                revokePreview();
+              }}
+              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
+          {view === 'routine-editor' && (
+            <button
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'catalyst',
+                'backToSet'
+              )}
+              onClick={() => {
+                setView('set-editor');
+                revokePreview();
+              }}
+              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
+          <div className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-indigo-600" />
+            <h2 className="text-lg font-bold text-slate-800">
+              {view === 'sets-list' && 'Catalyst Sets'}
+              {view === 'set-editor' && 'Edit Set'}
+              {view === 'routine-editor' &&
+                (routineEditor.id ? 'Edit Routine' : 'New Routine')}
+            </h2>
+          </div>
+        </div>
+        <button
+          {...tourTypeAttr('admin.widget-config.close', 'catalyst')}
+          onClick={onClose}
+          className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-slate-400">
+            <Loader2 className="w-6 h-6 animate-spin mr-2" />
+            Loading…
+          </div>
+        ) : view === 'sets-list' ? (
+          <div className="p-6 space-y-6">
+            {onSave && (
+              <DockDefaultsPanel
+                config={{ dockDefaults: globalConfig.dockDefaults ?? {} }}
+                onChange={(d) =>
+                  setGlobalConfig((prev) => ({ ...prev, dockDefaults: d }))
+                }
+              />
             )}
-            {view === 'routine-editor' && (
-              <button
-                {...tourFieldAttr(
-                  'admin.widget-config.field',
-                  'catalyst',
-                  'backToSet'
-                )}
-                onClick={() => {
-                  setView('set-editor');
-                  revokePreview();
-                }}
-                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-            )}
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-indigo-600" />
-              <h2 className="text-lg font-bold text-slate-800">
-                {view === 'sets-list' && 'Catalyst Sets'}
-                {view === 'set-editor' && 'Edit Set'}
-                {view === 'routine-editor' &&
-                  (routineEditor.id ? 'Edit Routine' : 'New Routine')}
-              </h2>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">Up to 4 sets.</p>
+              {sets.length < 4 && (
+                <button
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'catalyst',
+                    'addSet'
+                  )}
+                  onClick={openNewSetEditor}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors shrink-0 ml-4"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Set
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {sets.map((set) => (
+                <button
+                  key={set.id}
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'catalyst',
+                    `set-${set.id}`
+                  )}
+                  onClick={() => openSetEditor(set)}
+                  className="relative rounded-xl overflow-hidden border border-slate-200 shadow-xs group hover:ring-2 focus:outline-hidden focus:ring-2 focus:ring-indigo-400 text-left"
+                  style={{ minHeight: 140 }}
+                >
+                  {set.imageUrl && isSafeIconUrl(set.imageUrl) ? (
+                    <img
+                      src={set.imageUrl}
+                      alt={set.title}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
+                      <Layers className="w-8 h-8 text-slate-300" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
+
+                  <div className="absolute bottom-0 left-0 right-0 px-4 py-3">
+                    <p className="text-white font-black uppercase tracking-widest text-sm truncate drop-shadow-sm">
+                      {set.title || `Unnamed Set`}
+                    </p>
+                    <p className="text-white/80 text-xs mt-0.5">
+                      {set.routines.length} routine
+                      {set.routines.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+
+                  <div className="absolute top-2 right-2 p-1.5 bg-white/20 backdrop-blur-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Edit2 className="w-4 h-4 text-white" />
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
-          <button
-            {...tourTypeAttr('admin.widget-config.close', 'catalyst')}
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {loading ? (
-            <div className="flex items-center justify-center py-12 text-slate-400">
-              <Loader2 className="w-6 h-6 animate-spin mr-2" />
-              Loading…
-            </div>
-          ) : view === 'sets-list' ? (
-            <div className="p-6 space-y-6">
-              {onSave && (
-                <DockDefaultsPanel
-                  config={{ dockDefaults: globalConfig.dockDefaults ?? {} }}
-                  onChange={(d) =>
-                    setGlobalConfig((prev) => ({ ...prev, dockDefaults: d }))
-                  }
-                />
-              )}
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-500">Up to 4 sets.</p>
-                {sets.length < 4 && (
-                  <button
-                    {...tourFieldAttr(
-                      'admin.widget-config.field',
-                      'catalyst',
-                      'addSet'
-                    )}
-                    onClick={openNewSetEditor}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors shrink-0 ml-4"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add Set
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                {sets.map((set) => (
-                  <button
-                    key={set.id}
-                    {...tourFieldAttr(
-                      'admin.widget-config.field',
-                      'catalyst',
-                      `set-${set.id}`
-                    )}
-                    onClick={() => openSetEditor(set)}
-                    className="relative rounded-xl overflow-hidden border border-slate-200 shadow-xs group hover:ring-2 focus:outline-hidden focus:ring-2 focus:ring-indigo-400 text-left"
-                    style={{ minHeight: 140 }}
-                  >
-                    {set.imageUrl && isSafeIconUrl(set.imageUrl) ? (
-                      <img
-                        src={set.imageUrl}
-                        alt={set.title}
-                        className="absolute inset-0 w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
-                        <Layers className="w-8 h-8 text-slate-300" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
-
-                    <div className="absolute bottom-0 left-0 right-0 px-4 py-3">
-                      <p className="text-white font-black uppercase tracking-widest text-sm truncate drop-shadow-sm">
-                        {set.title || `Unnamed Set`}
-                      </p>
-                      <p className="text-white/80 text-xs mt-0.5">
-                        {set.routines.length} routine
-                        {set.routines.length !== 1 ? 's' : ''}
-                      </p>
-                    </div>
-
-                    <div className="absolute top-2 right-2 p-1.5 bg-white/20 backdrop-blur-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Edit2 className="w-4 h-4 text-white" />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : view === 'set-editor' && setEditor ? (
-            <div className="p-6 space-y-8">
-              {/* Set Metadata */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest border-b border-slate-200 pb-2">
-                  Set Details
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                        Set Title
-                      </label>
-                      <input
-                        type="text"
-                        {...tourFieldAttr(
-                          'admin.widget-config.field',
-                          'catalyst',
-                          'setTitle'
-                        )}
-                        value={setEditor.title}
-                        onChange={(e) =>
-                          setSetEditor((p) =>
-                            p ? { ...p, title: e.target.value } : null
-                          )
-                        }
-                        placeholder="e.g. Morning Blocks"
-                        className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                        Description (Optional)
-                      </label>
-                      <textarea
-                        {...tourFieldAttr(
-                          'admin.widget-config.field',
-                          'catalyst',
-                          'setDescription'
-                        )}
-                        value={setEditor.description}
-                        onChange={(e) =>
-                          setSetEditor((p) =>
-                            p ? { ...p, description: e.target.value } : null
-                          )
-                        }
-                        placeholder="Brief description..."
-                        className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none h-20"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                      Set Image
-                    </label>
-                    <div
-                      className="relative border-2 border-dashed border-slate-300 rounded-xl overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors group"
-                      style={{ minHeight: 140 }}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      {setEditor.imagePreview ||
-                      (setEditor.imageUrl &&
-                        isSafeIconUrl(setEditor.imageUrl)) ? (
-                        <>
-                          <img
-                            src={setEditor.imagePreview ?? setEditor.imageUrl}
-                            alt="Preview"
-                            className="absolute inset-0 w-full h-full object-cover"
-                            referrerPolicy="no-referrer"
-                          />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <span className="text-white font-bold text-sm">
-                              Click to change
-                            </span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
-                          <Upload className="w-8 h-8" />
-                          <span className="text-xs font-medium">
-                            Upload image
-                          </span>
-                        </div>
-                      )}
-                      <input
-                        // no-tour-anchor: hidden file input opened by its upload button
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleImageChange(file, false);
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Routines in this Set */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                  <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">
-                    Routines
-                  </h3>
-                  <button
-                    {...tourFieldAttr(
-                      'admin.widget-config.field',
-                      'catalyst',
-                      'addRoutine'
-                    )}
-                    onClick={() => openRoutineEditor()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add Routine
-                  </button>
-                </div>
-
-                {setEditor.routines.length === 0 ? (
-                  <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-100 rounded-xl">
-                    <p className="font-medium">No routines in this set yet.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {setEditor.routines.map((routine) => (
-                      <div
-                        key={routine.id}
-                        className="relative bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col gap-2 group"
-                      >
-                        <div className="font-bold text-slate-700 text-sm truncate">
-                          {routine.title}
-                        </div>
-                        <div
-                          className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center"
-                          style={{
-                            backgroundColor:
-                              routine.buttonColor?.trim() ?? '#eef2ff',
-                            color: routine.iconColor?.trim() ?? '#4338ca',
-                          }}
-                        >
-                          {(() => {
-                            const IconComp = iconMap[routine.icon ?? 'Zap'];
-                            return IconComp ? (
-                              <IconComp size={14} />
-                            ) : (
-                              <Zap size={14} />
-                            );
-                          })()}
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          {routine.widgets.length} widget(s)
-                        </div>
-
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-slate-50 shadow-xs rounded-md border border-slate-200 p-0.5">
-                          <button
-                            {...tourFieldAttr(
-                              'admin.widget-config.field',
-                              'catalyst',
-                              `editRoutine-${routine.id}`
-                            )}
-                            onClick={() => openRoutineEditor(routine)}
-                            className="p-1 hover:bg-slate-200 rounded-sm text-slate-600"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            {...tourFieldAttr(
-                              'admin.widget-config.field',
-                              'catalyst',
-                              `removeRoutine-${routine.id}`
-                            )}
-                            onClick={() => void handleDeleteRoutine(routine.id)}
-                            className="p-1 hover:bg-red-100 rounded-sm text-red-600"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : view === 'routine-editor' ? (
-            <div className="p-6 space-y-6">
+        ) : view === 'set-editor' && setEditor ? (
+          <div className="p-6 space-y-8">
+            {/* Set Metadata */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest border-b border-slate-200 pb-2">
+                Set Details
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                      Routine Title
+                      Set Title
                     </label>
                     <input
                       type="text"
                       {...tourFieldAttr(
                         'admin.widget-config.field',
                         'catalyst',
-                        'routineTitle'
+                        'setTitle'
                       )}
-                      value={routineEditor.title}
+                      value={setEditor.title}
                       onChange={(e) =>
-                        setRoutineEditor((p) => ({
-                          ...p,
-                          title: e.target.value,
-                        }))
+                        setSetEditor((p) =>
+                          p ? { ...p, title: e.target.value } : null
+                        )
                       }
-                      placeholder="e.g. Brain Break"
+                      placeholder="e.g. Morning Blocks"
                       className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
                     />
                   </div>
@@ -804,133 +630,35 @@ export const CatalystConfigurationModal: React.FC<
                       {...tourFieldAttr(
                         'admin.widget-config.field',
                         'catalyst',
-                        'routineDescription'
+                        'setDescription'
                       )}
-                      value={routineEditor.description}
+                      value={setEditor.description}
                       onChange={(e) =>
-                        setRoutineEditor((p) => ({
-                          ...p,
-                          description: e.target.value,
-                        }))
+                        setSetEditor((p) =>
+                          p ? { ...p, description: e.target.value } : null
+                        )
                       }
                       placeholder="Brief description..."
                       className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none h-20"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                      Routine Icon
-                    </label>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3">
-                      <div className="relative">
-                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          {...tourFieldAttr(
-                            'admin.widget-config.field',
-                            'catalyst',
-                            'iconSearch'
-                          )}
-                          value={iconSearch}
-                          onChange={(e) => setIconSearch(e.target.value)}
-                          placeholder="Search icon names..."
-                          className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-400"
-                        />
-                      </div>
-                      <div className="grid grid-cols-8 gap-2 max-h-44 overflow-y-auto custom-scrollbar">
-                        {filteredIconNames.slice(0, 100).map((name) => {
-                          const IconComp = iconMap[name];
-                          if (!IconComp) return null;
-                          const isSelected = routineEditor.icon === name;
-                          return (
-                            <button
-                              key={name}
-                              {...tourFieldAttr(
-                                'admin.widget-config.field',
-                                'catalyst',
-                                `icon-${name}`
-                              )}
-                              onClick={() =>
-                                setRoutineEditor((prev) => ({
-                                  ...prev,
-                                  icon: name,
-                                }))
-                              }
-                              title={name}
-                              aria-label={name}
-                              type="button"
-                              className={`w-8 h-8 rounded-lg border transition-colors flex items-center justify-center ${
-                                isSelected
-                                  ? 'border-indigo-500 ring-2 ring-indigo-200'
-                                  : 'border-slate-200 hover:bg-slate-100'
-                              }`}
-                            >
-                              <IconComp size={14} />
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <label className="text-xs font-bold text-slate-600">
-                          Button Color
-                          <input
-                            type="color"
-                            {...tourFieldAttr(
-                              'admin.widget-config.field',
-                              'catalyst',
-                              'buttonColor'
-                            )}
-                            value={routineEditor.buttonColor}
-                            onChange={(e) =>
-                              setRoutineEditor((prev) => ({
-                                ...prev,
-                                buttonColor: e.target.value,
-                              }))
-                            }
-                            className="mt-1 h-9 w-full rounded-lg border border-slate-300 bg-white cursor-pointer"
-                          />
-                        </label>
-                        <label className="text-xs font-bold text-slate-600">
-                          Icon Color
-                          <input
-                            type="color"
-                            {...tourFieldAttr(
-                              'admin.widget-config.field',
-                              'catalyst',
-                              'iconColor'
-                            )}
-                            value={routineEditor.iconColor}
-                            onChange={(e) =>
-                              setRoutineEditor((prev) => ({
-                                ...prev,
-                                iconColor: e.target.value,
-                              }))
-                            }
-                            className="mt-1 h-9 w-full rounded-lg border border-slate-300 bg-white cursor-pointer"
-                          />
-                        </label>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                    Button Image
+                    Set Image
                   </label>
                   <div
                     className="relative border-2 border-dashed border-slate-300 rounded-xl overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors group"
                     style={{ minHeight: 140 }}
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    {routineEditor.imagePreview ||
-                    (routineEditor.imageUrl &&
-                      isSafeIconUrl(routineEditor.imageUrl)) ? (
+                    {setEditor.imagePreview ||
+                    (setEditor.imageUrl &&
+                      isSafeIconUrl(setEditor.imageUrl)) ? (
                       <>
                         <img
-                          src={
-                            routineEditor.imagePreview ?? routineEditor.imageUrl
-                          }
+                          src={setEditor.imagePreview ?? setEditor.imageUrl}
                           alt="Preview"
                           className="absolute inset-0 w-full h-full object-cover"
                           referrerPolicy="no-referrer"
@@ -957,167 +685,439 @@ export const CatalystConfigurationModal: React.FC<
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file) handleImageChange(file, true);
+                        if (file) handleImageChange(file, false);
                       }}
                     />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Routines in this Set */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">
+                  Routines
+                </h3>
+                <button
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'catalyst',
+                    'addRoutine'
+                  )}
+                  onClick={() => openRoutineEditor()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Routine
+                </button>
+              </div>
+
+              {setEditor.routines.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-100 rounded-xl">
+                  <p className="font-medium">No routines in this set yet.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {setEditor.routines.map((routine) => (
+                    <div
+                      key={routine.id}
+                      className="relative bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col gap-2 group"
+                    >
+                      <div className="font-bold text-slate-700 text-sm truncate">
+                        {routine.title}
+                      </div>
+                      <div
+                        className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center"
+                        style={{
+                          backgroundColor:
+                            routine.buttonColor?.trim() ?? '#eef2ff',
+                          color: routine.iconColor?.trim() ?? '#4338ca',
+                        }}
+                      >
+                        {(() => {
+                          const IconComp = iconMap[routine.icon ?? 'Zap'];
+                          return IconComp ? (
+                            <IconComp size={14} />
+                          ) : (
+                            <Zap size={14} />
+                          );
+                        })()}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {routine.widgets.length} widget(s)
+                      </div>
+
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-slate-50 shadow-xs rounded-md border border-slate-200 p-0.5">
+                        <button
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'catalyst',
+                            `editRoutine-${routine.id}`
+                          )}
+                          onClick={() => openRoutineEditor(routine)}
+                          className="p-1 hover:bg-slate-200 rounded-sm text-slate-600"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'catalyst',
+                            `removeRoutine-${routine.id}`
+                          )}
+                          onClick={() => void handleDeleteRoutine(routine.id)}
+                          className="p-1 hover:bg-red-100 rounded-sm text-red-600"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : view === 'routine-editor' ? (
+          <div className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                    Routine Title
+                  </label>
+                  <input
+                    type="text"
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'catalyst',
+                      'routineTitle'
+                    )}
+                    value={routineEditor.title}
+                    onChange={(e) =>
+                      setRoutineEditor((p) => ({
+                        ...p,
+                        title: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g. Brain Break"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'catalyst',
+                      'routineDescription'
+                    )}
+                    value={routineEditor.description}
+                    onChange={(e) =>
+                      setRoutineEditor((p) => ({
+                        ...p,
+                        description: e.target.value,
+                      }))
+                    }
+                    placeholder="Brief description..."
+                    className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none h-20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                    Routine Icon
+                  </label>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3">
+                    <SearchField
+                      value={iconSearch}
+                      onChange={setIconSearch}
+                      placeholder="Search icon names..."
+                      anchor={tourFieldAttr(
+                        'admin.widget-config.field',
+                        'catalyst',
+                        'iconSearch'
+                      )}
+                    />
+                    <div className="grid grid-cols-8 gap-2 max-h-44 overflow-y-auto custom-scrollbar">
+                      {filteredIconNames.slice(0, 100).map((name) => {
+                        const IconComp = iconMap[name];
+                        if (!IconComp) return null;
+                        const isSelected = routineEditor.icon === name;
+                        return (
+                          <button
+                            key={name}
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'catalyst',
+                              `icon-${name}`
+                            )}
+                            onClick={() =>
+                              setRoutineEditor((prev) => ({
+                                ...prev,
+                                icon: name,
+                              }))
+                            }
+                            title={name}
+                            aria-label={name}
+                            type="button"
+                            className={`w-8 h-8 rounded-lg border transition-colors flex items-center justify-center ${
+                              isSelected
+                                ? 'border-indigo-500 ring-2 ring-indigo-200'
+                                : 'border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            <IconComp size={14} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="text-xs font-bold text-slate-600">
+                        Button Color
+                        <input
+                          type="color"
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'catalyst',
+                            'buttonColor'
+                          )}
+                          value={routineEditor.buttonColor}
+                          onChange={(e) =>
+                            setRoutineEditor((prev) => ({
+                              ...prev,
+                              buttonColor: e.target.value,
+                            }))
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-300 bg-white cursor-pointer"
+                        />
+                      </label>
+                      <label className="text-xs font-bold text-slate-600">
+                        Icon Color
+                        <input
+                          type="color"
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'catalyst',
+                            'iconColor'
+                          )}
+                          value={routineEditor.iconColor}
+                          onChange={(e) =>
+                            setRoutineEditor((prev) => ({
+                              ...prev,
+                              iconColor: e.target.value,
+                            }))
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-300 bg-white cursor-pointer"
+                        />
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                  Widget Layout
+                  Button Image
                 </label>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-slate-700">
-                        {routineEditor.widgets.length > 0
-                          ? `${routineEditor.widgets.length} widget(s) captured`
-                          : 'No widgets captured yet'}
-                      </p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Set up your board, then click &ldquo;Capture&rdquo; to
-                        save that layout.
-                      </p>
-                    </div>
-                    <button
-                      {...tourFieldAttr(
-                        'admin.widget-config.field',
-                        'catalyst',
-                        'captureBoard'
-                      )}
-                      onClick={() => {
-                        const snapshot = createBoardSnapshot(
-                          (activeDashboard?.widgets ?? []).filter(
-                            (w) => !w.type.startsWith('catalyst')
-                          )
-                        );
-                        setRoutineEditor((p) => ({ ...p, widgets: snapshot }));
-                        showMessage(
-                          'success',
-                          `Captured ${snapshot.length} widget(s)`
-                        );
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors shrink-0"
-                    >
-                      <Camera className="w-4 h-4" />
-                      Capture Board
-                    </button>
-                  </div>
-
-                  {routineEditor.widgets.length > 0 && (
-                    <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-200">
-                      {routineEditor.widgets.map((w, i) => (
-                        <span
-                          key={i}
-                          className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600 shadow-xs"
-                        >
-                          {w.type}
+                <div
+                  className="relative border-2 border-dashed border-slate-300 rounded-xl overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors group"
+                  style={{ minHeight: 140 }}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {routineEditor.imagePreview ||
+                  (routineEditor.imageUrl &&
+                    isSafeIconUrl(routineEditor.imageUrl)) ? (
+                    <>
+                      <img
+                        src={
+                          routineEditor.imagePreview ?? routineEditor.imageUrl
+                        }
+                        alt="Preview"
+                        className="absolute inset-0 w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white font-bold text-sm">
+                          Click to change
                         </span>
-                      ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
+                      <Upload className="w-8 h-8" />
+                      <span className="text-xs font-medium">Upload image</span>
                     </div>
                   )}
+                  <input
+                    // no-tour-anchor: hidden file input opened by its upload button
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageChange(file, true);
+                    }}
+                  />
                 </div>
               </div>
             </div>
-          ) : null}
-        </div>
 
-        {/* Footer */}
-        {view === 'sets-list' && onSave && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
-            <button
-              {...tourTypeAttr('admin.widget-config.save', 'catalyst')}
-              onClick={() => {
-                onSave({
-                  config: globalConfig as unknown as Record<string, unknown>,
-                });
-                showMessage('success', 'Defaults saved');
-              }}
-              className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors"
-            >
-              <Save className="w-4 h-4" />
-              Save Defaults
-            </button>
-          </div>
-        )}
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                Widget Layout
+              </label>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">
+                      {routineEditor.widgets.length > 0
+                        ? `${routineEditor.widgets.length} widget(s) captured`
+                        : 'No widgets captured yet'}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Set up your board, then click &ldquo;Capture&rdquo; to
+                      save that layout.
+                    </p>
+                  </div>
+                  <button
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'catalyst',
+                      'captureBoard'
+                    )}
+                    onClick={() => {
+                      const snapshot = createBoardSnapshot(
+                        (activeDashboard?.widgets ?? []).filter(
+                          (w) => !w.type.startsWith('catalyst')
+                        )
+                      );
+                      setRoutineEditor((p) => ({ ...p, widgets: snapshot }));
+                      showMessage(
+                        'success',
+                        `Captured ${snapshot.length} widget(s)`
+                      );
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors shrink-0"
+                  >
+                    <Camera className="w-4 h-4" />
+                    Capture Board
+                  </button>
+                </div>
 
-        {view === 'set-editor' && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
-            {isAuthBypass && (
-              <p className="mr-auto text-xs font-medium text-amber-600">
-                Saving is disabled in demo mode.
-              </p>
-            )}
-            <button
-              {...tourFieldAttr(
-                'admin.widget-config.field',
-                'catalyst',
-                'cancelSet'
-              )}
-              onClick={() => {
-                setView('sets-list');
-                revokePreview();
-                setSetEditor(null);
-              }}
-              className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              {...tourTypeAttr('admin.widget-config.save', 'catalyst')}
-              onClick={() => void handleSaveSet()}
-              disabled={saving || uploading || isAuthBypass}
-              className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors disabled:opacity-60"
-            >
-              {saving ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              Save Set
-            </button>
+                {routineEditor.widgets.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-200">
+                    {routineEditor.widgets.map((w, i) => (
+                      <span
+                        key={i}
+                        className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600 shadow-xs"
+                      >
+                        {w.type}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        )}
-
-        {view === 'routine-editor' && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
-            <button
-              {...tourFieldAttr(
-                'admin.widget-config.field',
-                'catalyst',
-                'cancelRoutine'
-              )}
-              onClick={() => {
-                setView('set-editor');
-                revokePreview();
-                setRoutineEditor(EMPTY_ROUTINE_EDITOR);
-              }}
-              className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              {...tourFieldAttr(
-                'admin.widget-config.field',
-                'catalyst',
-                'applyRoutine'
-              )}
-              onClick={handleSaveRoutine}
-              disabled={saving || uploading}
-              className="flex items-center gap-2 px-5 py-2 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-900 transition-colors disabled:opacity-60"
-            >
-              {saving ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4" />
-              )}
-              Apply to Set
-            </button>
-          </div>
-        )}
+        ) : null}
       </div>
-    </div>
+
+      {/* Footer */}
+      {view === 'sets-list' && onSave && (
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
+          <button
+            {...tourTypeAttr('admin.widget-config.save', 'catalyst')}
+            onClick={() => {
+              onSave({
+                config: globalConfig as unknown as Record<string, unknown>,
+              });
+              showMessage('success', 'Defaults saved');
+            }}
+            className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors"
+          >
+            <Save className="w-4 h-4" />
+            Save Defaults
+          </button>
+        </div>
+      )}
+
+      {view === 'set-editor' && (
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
+          {isAuthBypass && (
+            <p className="mr-auto text-xs font-medium text-amber-600">
+              Saving is disabled in demo mode.
+            </p>
+          )}
+          <button
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'catalyst',
+              'cancelSet'
+            )}
+            onClick={() => {
+              setView('sets-list');
+              revokePreview();
+              setSetEditor(null);
+            }}
+            className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            {...tourTypeAttr('admin.widget-config.save', 'catalyst')}
+            onClick={() => void handleSaveSet()}
+            disabled={saving || uploading || isAuthBypass}
+            className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors disabled:opacity-60"
+          >
+            {saving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            Save Set
+          </button>
+        </div>
+      )}
+
+      {view === 'routine-editor' && (
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
+          <button
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'catalyst',
+              'cancelRoutine'
+            )}
+            onClick={() => {
+              setView('set-editor');
+              revokePreview();
+              setRoutineEditor(EMPTY_ROUTINE_EDITOR);
+            }}
+            className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'catalyst',
+              'applyRoutine'
+            )}
+            onClick={handleSaveRoutine}
+            disabled={saving || uploading}
+            className="flex items-center gap-2 px-5 py-2 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-900 transition-colors disabled:opacity-60"
+          >
+            {saving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4" />
+            )}
+            Apply to Set
+          </button>
+        </div>
+      )}
+    </Modal>
   );
 };

@@ -106,6 +106,8 @@ export interface PlanPaperPagesInput {
   promptRows?: Readonly<Record<string, number>>;
   /** Question-text sheets: height in mm of the stimuli a question prints between its stem and its answers. */
   stimulusMm?: Readonly<Record<string, number>>;
+  /** Question-text sheets: height in mm of the section heading printed above a question. */
+  headingMm?: Readonly<Record<string, number>>;
 }
 
 /** Room a stimulus block adds to a question-text row: the block and a gap on each side, less the gap the row had. */
@@ -580,12 +582,24 @@ function planQuestionTextPages(
     pages.push([]);
     y = QUESTION_GRID_TOP_MM;
   };
+  // A section heading rides above the entry's first row and moves to the next page with it.
+  let heading = 0;
+  let sectionTop: number | undefined;
   // Starts a page when `height` from `y` would pass the grid's bottom.
   const place = (height: number): number => {
-    if (y + height > QUESTION_GRID_BOTTOM_MM && current().length > 0) newPage();
-    const top = y;
+    const head = heading;
+    heading = 0;
+    if (y + head + height > QUESTION_GRID_BOTTOM_MM && current().length > 0)
+      newPage();
+    sectionTop = head ? y : undefined;
+    const top = y + head;
     y = top + height + QUESTION_ROW_GAP_MM;
     return top;
+  };
+  const sectionField = (): { sectionTopMm?: number } => {
+    const at = sectionTop;
+    sectionTop = undefined;
+    return at === undefined ? {} : { sectionTopMm: at };
   };
   const choicesH =
     QUESTION_CHOICE_TOP_MM +
@@ -593,6 +607,8 @@ function planQuestionTextPages(
     BUBBLE_DIAMETER_MM;
 
   for (const entry of entries) {
+    heading = input.headingMm?.[entry.questionId] ?? 0;
+    sectionTop = undefined;
     if (entry.kind === 'mc' && entry.group) {
       const lines = Math.min(
         Math.max(
@@ -634,6 +650,7 @@ function planQuestionTextPages(
           ...groupFields(entry, 0),
           headTopMm: top,
           stemMm,
+          ...sectionField(),
         });
         continue;
       }
@@ -655,7 +672,7 @@ function planQuestionTextPages(
           ...groupFields(entry, part),
           across: true,
           ...(wrap ? { wrap } : {}),
-          ...(part === 0 ? { headTopMm: top, stemMm } : {}),
+          ...(part === 0 ? { headTopMm: top, stemMm, ...sectionField() } : {}),
         });
       }
       y = rowY + partBody + QUESTION_ROW_GAP_MM;
@@ -681,6 +698,7 @@ function planQuestionTextPages(
         sheetRow: sheetRow++,
         label: entry.label,
         originMm: { x: COLUMN_X_MM[0], y: top - unused + room },
+        ...sectionField(),
       });
       continue;
     }
@@ -732,6 +750,7 @@ function planQuestionTextPages(
       },
       lines,
       ...styleOf(entry),
+      ...sectionField(),
     });
   }
 
