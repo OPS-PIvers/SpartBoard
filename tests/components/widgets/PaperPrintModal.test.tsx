@@ -426,6 +426,31 @@ describe('PaperPrintModal', () => {
     expect(job.resourcePages?.[0].html).toContain('nucleus, ribosome');
   });
 
+  it('sends a very long section heading to a separate test paper', async () => {
+    const { print } = setup({
+      quiz: quiz({
+        questions: [mc('q1'), mc('q2')],
+        sections: [
+          {
+            id: 's1',
+            title: 'Part B',
+            directions: 'Read closely. '.repeat(200),
+          },
+        ],
+        order: [
+          { kind: 'question', id: 'q1' },
+          { kind: 'section', id: 's1' },
+          { kind: 'question', id: 'q2' },
+        ],
+      }),
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    const job = print.mock.calls[0][0];
+    expect(job.columnsPerPage).not.toBe('questions');
+    expect(job.testPaper).toContain('Part B');
+  });
+
   it('prints a section heading above its first question on the sheet', async () => {
     const { print } = setup({
       quiz: quiz({

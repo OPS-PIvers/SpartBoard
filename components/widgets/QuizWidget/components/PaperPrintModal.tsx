@@ -120,11 +120,14 @@ import {
   estimateBlockMm,
   paginateStimuli,
   planSheetStimuli,
-  sheetSectionHeading,
   type BlockMeasure,
   type SheetStimulusBlock,
 } from '@/utils/paperSheetStimulusBlocks';
 import { paperPrintWords } from '@/utils/paperPrintWords';
+import {
+  MAX_SECTION_HEADING_MM,
+  sheetSectionHeadings,
+} from '@/utils/paperSheetSections';
 import {
   blockPromptRows,
   layoutSheetStimuli,
@@ -481,35 +484,31 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   // one column and the test spreads over twice as many pages (D1).
   const columnsPerPage = sheetStimuli.length > 0 ? 1 : 2;
   const sections = useMemo(() => sessionSectionsFor(quiz), [quiz]);
+  const blockMeasure = useMemo(
+    (): BlockMeasure => browserBlockMeasure() ?? estimateBlockMm,
+    []
+  );
   // Each section's heading, by the first printed question it sits above.
-  const sectionHeads = useMemo(() => {
-    const printedIds = analysis.entries.map((e) => e.questionId);
-    const out = new Map<
-      string,
-      { title: string; directions?: string; chooseLine?: string }
-    >();
-    const headed = new Set<string>();
-    for (const e of analysis.entries) {
-      const section = sectionOfQuestion(sections, e.questionId);
-      if (!section || headed.has(section.id)) continue;
-      headed.add(section.id);
-      const chooseLine = chooseLineFor(section, printedIds);
-      out.set(e.questionId, {
-        title: section.title,
-        ...(section.directions ? { directions: section.directions } : {}),
-        ...(chooseLine ? { chooseLine } : {}),
-      });
-    }
-    return out;
-  }, [analysis.entries, sections]);
-  // A heading has no room above a written box that prints on a page of its own, or across versions.
+  const sectionHeads = useMemo(
+    () =>
+      sheetSectionHeadings(
+        quiz,
+        analysis.entries.map((e) => e.questionId),
+        blockMeasure
+      ),
+    [quiz, analysis.entries, blockMeasure]
+  );
+  // A heading has no room above a written box that prints on a page of its own, across versions or when very long.
   const headingsNeedTestPaper =
-    sectionHeads.size > 0 &&
+    Object.keys(sectionHeads).length > 0 &&
     (!!versionPlan ||
+      Object.values(sectionHeads).some(
+        (b) => b.heightMm > MAX_SECTION_HEADING_MM
+      ) ||
       analysis.entries.some(
         (e) =>
           e.kind === 'written' &&
-          sectionHeads.has(e.questionId) &&
+          !!sectionHeads[e.questionId] &&
           (promptIds.has(e.questionId) ||
             paperBoxLines(e.size) >= PAPER_FULL_PAGE_LINES ||
             !!questionsById.get(e.questionId)?.stimulusIds?.length)
@@ -518,10 +517,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const questionTextLayout =
     sheetStimuli.length === 0 && !headingsNeedTestPaper;
   const grid = questionTextLayout ? 'questions' : columnsPerPage;
-  const blockMeasure = useMemo(
-    (): BlockMeasure => browserBlockMeasure() ?? estimateBlockMm,
-    []
-  );
   const printLanguage = group?.translation?.language;
   const printWords = useMemo(
     () => paperPrintWords(printLanguage),
@@ -588,15 +583,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   );
   const sectionHeadings = useMemo(
     (): Record<string, SheetStimulusBlock> =>
-      questionTextLayout
-        ? Object.fromEntries(
-            [...sectionHeads].map(([id, head]) => [
-              id,
-              sheetSectionHeading(head, blockMeasure),
-            ])
-          )
-        : {},
-    [questionTextLayout, sectionHeads, blockMeasure]
+      questionTextLayout ? sectionHeads : {},
+    [questionTextLayout, sectionHeads]
   );
   const headingMm = useMemo(
     () =>

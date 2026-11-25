@@ -398,7 +398,6 @@ function columnLegendsHtml(
   return parts.join('');
 }
 
-/** A stimulus block at its place on the sheet. */
 /** A section heading above its first question; its height already counts the gap below it. */
 function sectionHeadingHtml(block: SheetStimulusBlock, y: number): string {
   return `<div class="sb" style="left:${mm(QUESTION_STEM_X_MM)};top:${mm(y)};width:${mm(
@@ -406,6 +405,7 @@ function sectionHeadingHtml(block: SheetStimulusBlock, y: number): string {
   )};height:${mm(block.heightMm)}">${block.html}</div>`;
 }
 
+/** A stimulus block at its place on the sheet. */
 function blockHtml(block: SheetStimulusBlock, x: number, y: number): string {
   return `<div class="sb" style="left:${mm(x)};top:${mm(y)};width:${mm(
     QUESTION_STEM_W_MM
