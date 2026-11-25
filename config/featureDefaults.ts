@@ -1364,6 +1364,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'plc-update-shared-copy': {
+    label: 'Groups: Update the shared copy',
+    icon: RefreshCw,
+    description:
+      'Teachers can send their edits to a flashcard set or rubric they shared with a group.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'lms-push-final-scores': {
     label: 'Grade push: Send final scores',
     icon: Send,

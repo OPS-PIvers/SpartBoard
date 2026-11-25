@@ -12001,6 +12001,8 @@ export type GlobalFeature =
   | 'help-center-ai'
   /** Video Activity share links offer Synced or Make a copy, like quiz assignment links. */
   | 'video-activity-share-sync'
+  /** Flashcards and Rubrics shared with a group can push the teacher's edits to the shared copy. */
+  | 'plc-update-shared-copy'
   /** Every Classroom and Schoology grade push sends the gradebook final score, built on the server (AB-389). */
   | 'lms-push-final-scores'
   /** Class Close, End and sub End turn open work in from the server, with no teacher tab open (AB-388). */
