@@ -98,7 +98,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 - **AB-306 Cache Intl.DisplayNames in language labels** (S; release 2026.11.19c review of #6278). `utils/languageDisplayLabel.ts` builds a new `Intl.DisplayNames` on every call, and it runs per row in language lists and override summaries. Keep one instance per locale in a module Map. Done when `utils/languageDisplayLabel.test.ts` still passes and a test shows a second call reuses the instance.
 - **AB-56 Web tour list cost** (M). Unblocked: rules headroom is about 25 KB since #5637; measure `check:rules-size` before and after. Store each tour's start host and step count at publish so `webToursListV1` stops reading every step.
 - **AB-13 Session `classIds` migration** (M, MED). F2: `useStudentAssignments` runs two queries because some session docs only carry the legacy `classId`. Write the migration that adds `classIds`, run it on dev, and stop the legacy write paths. Done when: the script and dev run are merged, and a `PT-` item asks Paul to run it on prod. The single-query collapse is AB-58.
-- **AB-14 Bundle guard and image compression** (M, _re-verify_). P3: `manualChunks` plus a bundle-size CI guard (also check the DashboardView chunk against the 500 KB warning). P4: client-side image compression on upload paths.
+- **AB-14 Image compression on upload paths** (M, changes what teachers see?). P3 shipped (`manualChunks` was already the `codeSplitting` groups in `vite.config.ts`; `scripts/checkBundleSize.mjs` now guards first-load JS and the DashboardView chunk in CI). P4 left: client-side image compression on upload paths.
 
 ### Quiz, Video Activity and Guided Learning
 
