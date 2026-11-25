@@ -49,7 +49,8 @@ import {
 } from 'lucide-react';
 import { TextEditorOverlay } from './TextEditorOverlay';
 import { applyTextWrapOnResize } from './renderers/text';
-import { useImageInsertion } from './useImageInsertion';
+import { useImageInsertion, INSERT_MAX_BYTES } from './useImageInsertion';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 import { translateObject, useSelection } from './useSelection';
 import type { ShapeStyle } from './useDrawingCanvas';
 import { useCommandStack } from './useCommandStack';
@@ -196,6 +197,7 @@ export const DrawingWidget: React.FC<{
     arrowBothEnds = false,
   } = config;
   const proEnabled = !isStudentView && canAccessFeature('whiteboard-pro');
+  const unifiedPicker = canAccessFeature('unified-image-picker');
   // Without the flag a saved highlighter or laser falls back to the pen.
   const activeTool: ShapeTool =
     !proEnabled && PRO_TOOLS.has(storedTool) ? 'pen' : storedTool;
@@ -617,6 +619,7 @@ export const DrawingWidget: React.FC<{
     handleDrop,
     handleDragOver,
     isUploading: isUploadingImage,
+    pickerUpload,
   } = useImageInsertion({
     canvasRef,
     onImageReady: handleImageReady,
@@ -1591,21 +1594,39 @@ export const DrawingWidget: React.FC<{
         {/* I/O group — insert image + export. Both are one-shot actions;
             export still opens the existing portalled popover. */}
         <div className="flex items-center gap-0.5 shrink-0">
-          <button
-            type="button"
-            {...tourAttr('drawing.insert-image', widget.id, widget.type)}
-            onClick={openImagePicker}
-            disabled={isUploadingImage}
-            title="Insert image"
-            aria-label="Insert image"
-            className={actionBtnBase}
-          >
-            {isUploadingImage ? (
-              <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
-            ) : (
-              <ImagePlus className="w-4 h-4" />
-            )}
-          </button>
+          {unifiedPicker ? (
+            <ImagePicker
+              layout="button"
+              label="Insert image"
+              maxBytes={INSERT_MAX_BYTES}
+              linkAsFile
+              disabled={isUploadingImage}
+              tourScope={{ type: widget.type, field: 'insert-image' }}
+              tourOverrides={{
+                open: tourAttr('drawing.insert-image', widget.id, widget.type),
+              }}
+              buttonClassName={actionBtnBase}
+              iconStyle={{ width: 16, height: 16 }}
+              upload={pickerUpload}
+              onChange={() => undefined}
+            />
+          ) : (
+            <button
+              type="button"
+              {...tourAttr('drawing.insert-image', widget.id, widget.type)}
+              onClick={openImagePicker}
+              disabled={isUploadingImage}
+              title="Insert image"
+              aria-label="Insert image"
+              className={actionBtnBase}
+            >
+              {isUploadingImage ? (
+                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
+              ) : (
+                <ImagePlus className="w-4 h-4" />
+              )}
+            </button>
+          )}
 
           <div ref={exportMenuRef} className="relative">
             <button
@@ -2219,7 +2240,7 @@ export const DrawingWidget: React.FC<{
             </button>
           </div>
         )}
-        {!isStudentView && <input {...fileInputProps} />}
+        {!isStudentView && !unifiedPicker && <input {...fileInputProps} />}
       </div>
       {!isStudentView && (
         <div className="shrink-0 border-t border-white/10 bg-slate-900/70 backdrop-blur-md">
