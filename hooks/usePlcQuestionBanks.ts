@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '@/config/firebase';
 import type { PlcQuestionBankEntry } from '@/types';
-import { logError } from '@/utils/logError';
+import {
+  isLivePlcLibraryEntry,
+  usePlcLibraryEntries,
+  type PlcLibrarySpec,
+} from '@/hooks/usePlcLibraryEntries';
 import { BANKS_COLLECTION } from './useQuestionBanks';
 
 export interface UsePlcQuestionBankEntriesResult {
@@ -12,33 +13,29 @@ export interface UsePlcQuestionBankEntriesResult {
   error: Error | null;
 }
 
+function parsePlcQuestionBankHeader(
+  _id: string,
+  data: Record<string, unknown>
+): PlcQuestionBankEntry {
+  return data as unknown as PlcQuestionBankEntry;
+}
+
+// Headers are shared and removed by useQuestionBanks (synced doc + header), so only the listener is used here.
+const QUESTION_BANK_LIBRARY: PlcLibrarySpec<PlcQuestionBankEntry> = {
+  kind: 'questionBank',
+  subcollection: BANKS_COLLECTION,
+  parse: parsePlcQuestionBankHeader,
+  keep: isLivePlcLibraryEntry,
+  orderByUpdatedAt: false,
+  sort: (a, b) => b.sharedAt - a.sharedAt,
+};
+
 export function usePlcQuestionBankEntries(
   plcId: string
 ): UsePlcQuestionBankEntriesResult {
-  const [entries, setEntries] = useState<PlcQuestionBankEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    const unsub = onSnapshot(
-      collection(db, 'plcs', plcId, BANKS_COLLECTION),
-      (snap) => {
-        const next = snap.docs
-          .map((d) => d.data() as PlcQuestionBankEntry)
-          .filter((e) => !e.deletedAt)
-          .sort((a, b) => b.sharedAt - a.sharedAt);
-        setEntries(next);
-        setLoading(false);
-      },
-      (err) => {
-        logError('usePlcQuestionBankEntries.onSnapshot', err, { plcId });
-        setError(err);
-        setEntries([]);
-        setLoading(false);
-      }
-    );
-    return unsub;
-  }, [plcId]);
-
+  const { entries, loading, error } = usePlcLibraryEntries(
+    plcId,
+    QUESTION_BANK_LIBRARY
+  );
   return { entries, loading, error };
 }

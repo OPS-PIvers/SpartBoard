@@ -110,3 +110,57 @@ export function timestampMillis(value: unknown): number | null {
   }
   return null;
 }
+
+interface PauseSource {
+  status?: string;
+  pauseSpans?: readonly PauseSpan[];
+  pausedAt?: number;
+  periodAccess?: Record<
+    string,
+    { state?: string; pausedAt?: number; pauseSpans?: readonly PauseSpan[] }
+  >;
+}
+
+/** Overlapping spans joined into one, oldest first. */
+function unionSpans(spans: readonly PauseSpan[]): PauseSpan[] {
+  const out: PauseSpan[] = [];
+  for (const s of [...spans]
+    .filter((x) => x.to > x.from)
+    .sort((a, b) => a.from - b.from)) {
+    const last = out[out.length - 1];
+    if (last && s.from <= last.to) last.to = Math.max(last.to, s.to);
+    else out.push({ ...s });
+  }
+  return out;
+}
+
+/** The pauses one student's clock skips: the whole quiz's and their class's, and whether either holds it now. */
+export function classPauses(
+  session: PauseSource,
+  classId: unknown
+): { pauseSpans: PauseSpan[]; pausedAt?: number; paused: boolean } {
+  const row =
+    typeof classId === 'string' ? session.periodAccess?.[classId] : undefined;
+  const pauseSpans = unionSpans([
+    ...(session.pauseSpans ?? []),
+    ...(row?.pauseSpans ?? []),
+  ]);
+  const opens = [
+    hasOpenPause(session.pauseSpans, session.pausedAt)
+      ? session.pausedAt
+      : undefined,
+    row && row.state !== 'open' && hasOpenPause(row.pauseSpans, row.pausedAt)
+      ? row.pausedAt
+      : undefined,
+  ].filter((t): t is number => typeof t === 'number');
+  const lastTo = pauseSpans.length ? pauseSpans[pauseSpans.length - 1].to : 0;
+  const pausedAt =
+    opens.length > 0 ? Math.max(Math.min(...opens), lastTo + 1) : undefined;
+  const rowHeld =
+    !!row && row.state !== 'open' && typeof row.pausedAt === 'number';
+  return {
+    pauseSpans,
+    ...(pausedAt != null ? { pausedAt } : {}),
+    paused: session.status === 'paused' || rowHeld,
+  };
+}

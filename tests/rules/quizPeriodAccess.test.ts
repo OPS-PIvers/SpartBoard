@@ -529,88 +529,6 @@ describe('answer writes on a per-period session', () => {
   });
 });
 
-describe('Schedule for later on a whole-quiz session (no period access)', () => {
-  const S = 'legacy-scheduled';
-  const resp = (uid = STUDENT_UID) =>
-    doc(asStudent(uid), `quiz_sessions/${S}/responses/${uid}`);
-  const writeAnswer = (uid = STUDENT_UID) =>
-    updateDoc(resp(uid), { answers: [answer], status: 'in-progress' });
-  const passNow = {
-    studentAccess: { [STUDENT_UID]: FUTURE },
-    studentAccessFrom: { [STUDENT_UID]: PAST },
-  };
-
-  beforeEach(async () => {
-    for (const uid of [STUDENT_UID, OTHER_UID])
-      await seedResponse(S, uid, { studentUid: uid, status: 'in-progress' });
-  });
-
-  it('takes answers from a scheduled student while the quiz is paused, and only them', async () => {
-    await seedSession(S, { status: 'paused', ...passNow });
-    await assertSucceeds(writeAnswer());
-    await assertFails(writeAnswer(OTHER_UID));
-  });
-
-  it('takes answers from a scheduled student after the close time, and only them', async () => {
-    await seedSession(S, { closeAt: PAST, ...passNow });
-    await assertSucceeds(writeAnswer());
-    await assertFails(writeAnswer(OTHER_UID));
-  });
-
-  it('refuses a scheduled student before their time starts', async () => {
-    await seedSession(S, {
-      status: 'paused',
-      studentAccess: { [STUDENT_UID]: FUTURE + 1 },
-      studentAccessFrom: { [STUDENT_UID]: FUTURE },
-    });
-    await assertFails(writeAnswer());
-  });
-
-  it('refuses a scheduled student once the quiz is ended', async () => {
-    await seedSession(S, { status: 'ended', endedAt: PAST, ...passNow });
-    await assertFails(writeAnswer());
-  });
-
-  it('refuses a pass that has run out', async () => {
-    await seedSession(S, {
-      status: 'paused',
-      studentAccess: { [STUDENT_UID]: PAST },
-      studentAccessFrom: { [STUDENT_UID]: PAST - 1 },
-    });
-    await assertFails(writeAnswer());
-  });
-
-  it('takes the turn-in that lands just after the pass ends, inside the grace', async () => {
-    await seedSession(S, {
-      status: 'paused',
-      studentAccess: { [STUDENT_UID]: Date.now() - 30_000 },
-      studentAccessFrom: { [STUDENT_UID]: PAST },
-    });
-    await assertSucceeds(writeAnswer());
-  });
-
-  it('lets a scheduled student join after the close time, and only them', async () => {
-    await testEnv.clearFirestore();
-    await seedSession(S, { closeAt: PAST, ...passNow });
-    await assertSucceeds(setDoc(resp(), joinDoc(STUDENT_UID)));
-    await assertFails(setDoc(resp(OTHER_UID), joinDoc(OTHER_UID)));
-  });
-
-  it('lets a scheduled student join before the open time, but not after an End', async () => {
-    await testEnv.clearFirestore();
-    await seedSession(S, { openAt: FUTURE, ...passNow });
-    await assertSucceeds(setDoc(resp(), joinDoc(STUDENT_UID)));
-    await testEnv.clearFirestore();
-    await seedSession(S, { status: 'ended', endedAt: PAST, ...passNow });
-    await assertFails(setDoc(resp(), joinDoc(STUDENT_UID)));
-  });
-
-  it('lets the scheduled student read the session', async () => {
-    await seedSession(S, { status: 'paused', ...passNow });
-    await assertSucceeds(getDoc(doc(asStudent(), `quiz_sessions/${S}`)));
-  });
-});
-
 describe('content/questions', () => {
   const S = 'pa-content';
   const contentPath = `quiz_sessions/${S}/content/questions`;
@@ -984,5 +902,93 @@ describe('Close and Reopen a class (ASSIGNED_TAB D9, D24)', () => {
       updateDoc(doc(teacher, sessionPath), { attemptLimit: 2 })
     );
     await assertSucceeds(updateDoc(respRef(STUDENT_UID), retake));
+  });
+});
+
+describe('a whole-quiz session moved to class rows', () => {
+  const S = 'pa-converted';
+  const sessionRef = () => doc(asTeacher(), `quiz_sessions/${S}`);
+  const resp = () =>
+    doc(asStudent(), `quiz_sessions/${S}/responses/${STUDENT_UID}`);
+  const writeAnswer = () =>
+    updateDoc(resp(), { answers: [answer], status: 'in-progress' });
+
+  beforeEach(async () => {
+    await seedSession(S, {
+      status: 'paused',
+      pausedAt: PAST,
+      closeAt: PAST,
+      sessionMode: 'submissions',
+    });
+    await seedResponse(S, STUDENT_UID, {
+      studentUid: STUDENT_UID,
+      status: 'in-progress',
+    });
+  });
+
+  async function convert(state: Period['state']): Promise<void> {
+    const { deleteField } = await import('firebase/firestore');
+    await assertSucceeds(
+      updateDoc(sessionRef(), {
+        status: 'active',
+        accessMode: 'assignment',
+        periodAccess: {
+          [CLASS_A]: period({ state }),
+          [CLASS_B]: period({ state }),
+        },
+        openAt: deleteField(),
+        closeAt: deleteField(),
+      })
+    );
+    await assertSucceeds(
+      updateDoc(
+        doc(asTeacher(), `quiz_sessions/${S}/responses/${STUDENT_UID}`),
+        { classId: CLASS_A }
+      )
+    );
+  }
+
+  it('refuses answers before the move, while the whole quiz is paused and closed', async () => {
+    await assertFails(writeAnswer());
+  });
+
+  it('never lets a student move it or set their own class', async () => {
+    await assertFails(
+      updateDoc(doc(asStudent(), `quiz_sessions/${S}`), {
+        periodAccess: { [CLASS_A]: period() },
+      })
+    );
+    await assertFails(updateDoc(resp(), { classId: CLASS_A }));
+  });
+
+  it('lets the teacher fill in a missing class, never change one', async () => {
+    const teacherResp = () =>
+      doc(asTeacher(), `quiz_sessions/${S}/responses/${STUDENT_UID}`);
+    await assertSucceeds(updateDoc(teacherResp(), { classId: CLASS_A }));
+    await assertFails(updateDoc(teacherResp(), { classId: CLASS_B }));
+    await assertSucceeds(getDoc(teacherResp()));
+    await seedResponse(S, STUDENT_UID, {
+      studentUid: STUDENT_UID,
+      classId: '',
+    });
+    await assertSucceeds(updateDoc(teacherResp(), { classId: CLASS_B }));
+  });
+
+  it('takes answers once the student class row opens', async () => {
+    await convert('open');
+    await assertSucceeds(writeAnswer());
+    await assertSucceeds(getDoc(resp()));
+  });
+
+  it('keeps a paused class out except for a running pass', async () => {
+    await convert('paused');
+    await assertFails(writeAnswer());
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `quiz_sessions/${S}`), {
+        studentAccess: { [STUDENT_UID]: FUTURE },
+      });
+    });
+    await assertSucceeds(writeAnswer());
+    await assertSucceeds(getDoc(resp()));
   });
 });
