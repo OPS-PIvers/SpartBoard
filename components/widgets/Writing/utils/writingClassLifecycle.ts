@@ -1,6 +1,4 @@
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
-import type { PeriodAccess, WritingAssignmentRecord } from '@/types';
+import type { PeriodAccess } from '@/types';
 import type {
   AssignmentClassCollections,
   AssignmentLifecycle,
@@ -13,7 +11,11 @@ import {
   updateWritingSession,
   WRITING_RECORDS_COLLECTION,
 } from '@/hooks/useWritingAssignmentSessions';
-import { hasStudentPointers } from '@/utils/studentTargetRef';
+import {
+  clearedWindowRule,
+  syncPointerWindows,
+  type StudentWindowsOption,
+} from '@/utils/pointerWindowSync';
 
 /** No client writes a Writing session or its record, so every class action goes through `updateWritingSessionV1`. */
 export const WRITING_CLASS_WRITER: AssignmentWriter = {
@@ -56,7 +58,8 @@ export const WRITING_CLASS_COLLECTIONS = {
 /** Writing's whole-run writes: no run-wide pause, and drafts don't turn in on Close. */
 export function writingLifecycle(
   uid: string,
-  actions: Pick<UseSetAssignmentTargetsResult, 'setAssignmentTargets'>
+  actions: Pick<UseSetAssignmentTargetsResult, 'setAssignmentTargets'> &
+    StudentWindowsOption
 ): AssignmentLifecycle {
   return {
     end: (id) => updateWritingSession({ sessionId: id, end: true }),
@@ -64,26 +67,17 @@ export function writingLifecycle(
     reopen: (id) => updateWritingSession({ sessionId: id, reopen: true }),
     reopenClearsMarks: true,
     isEnded: (a: Pick<AssignmentRun, 'status'>) => a.status === 'ended',
-    async onWindowCleared(id, window) {
-      try {
-        const record = (
-          await getDoc(doc(db, 'users', uid, WRITING_RECORDS_COLLECTION, id))
-        ).data() as WritingAssignmentRecord | undefined;
-        if (!record || !hasStudentPointers(record)) return;
-        await actions.setAssignmentTargets({
-          assignmentId: id,
+    onWindowCleared: (id, window) =>
+      syncPointerWindows(
+        actions.setAssignmentTargets,
+        {
+          uid,
           kind: 'writing',
-          sessionId: id,
-          targetMode: record.targetMode,
-          add: [],
-          remove: [],
-          overridesBySourcedId: {},
-          window,
-        });
-      } catch (err) {
-        // A failed pointer sync must not stop Open from letting the class in.
-        console.error('[writingLifecycle] Pointer sync failed:', err);
-      }
-    },
+          assignmentCollection: WRITING_RECORDS_COLLECTION,
+          assignmentId: id,
+        },
+        window,
+        actions.studentWindows ? clearedWindowRule(window) : null
+      ),
   };
 }

@@ -12071,6 +12071,8 @@ export type GlobalFeature =
   | 'modification-fewer-questions'
   /** Quiz monitor "Set a time": one student's own window past a paused class. */
   | 'student-set-time'
+  /** Per-student Opens and Closes hold in every student app, and a later close for one student no longer keeps the class open. */
+  | 'student-windows'
   | 'library-duplicate-more';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */

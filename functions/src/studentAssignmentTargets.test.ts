@@ -60,6 +60,7 @@ import {
   MAX_TAUGHT_CLASSES,
   SESSION_COLLECTION_BY_KIND,
   computeSessionCloseAt,
+  studentWindowsMarker,
   handleSetAssignmentTargets,
   isTestClassAuthority,
   loadClassLinkMembership,
@@ -1818,6 +1819,85 @@ describe('handleSetAssignmentTargets — session close bound', () => {
     );
     expect(boundIndex).toBeGreaterThanOrEqual(0);
     expect(boundIndex).toBeLessThan(pointerIndex);
+  });
+});
+
+describe('handleSetAssignmentTargets — class close beside the widened bound', () => {
+  const session = () => state.docs.get(`quiz_sessions/${ASSIGNMENT_ID}`);
+  const runFlagged = (input: SetAssignmentTargetsInput, flag = true) =>
+    handleSetAssignmentTargets(
+      makeDb(state) as never,
+      TEACHER_UID,
+      HMAC,
+      input,
+      () => Promise.resolve(ctx()),
+      [],
+      undefined,
+      { studentWindows: flag }
+    );
+  const extended = baseInput({
+    window: { openAt: null, closeAt: 200, dueAt: null },
+    overridesBySourcedId: { [`classlink:${SOURCED_A}`]: { closeAt: 500 } },
+  });
+
+  it('keeps the class close when one student closes later', async () => {
+    await runFlagged(extended);
+    expect(session()?.closeAt).toBe(500);
+    expect(session()?.studentWindows).toEqual({
+      classCloseAt: 200,
+      closeAt: 500,
+    });
+  });
+
+  it('writes nothing new with the flag off', async () => {
+    await runFlagged(extended, false);
+    expect(session()?.closeAt).toBe(500);
+    expect(session()?.studentWindows).toBeUndefined();
+  });
+
+  it('matches the class close once the extension is cleared', async () => {
+    state.docs.set(assignmentPath(), { id: ASSIGNMENT_ID, closeAt: 200 });
+    await runFlagged(extended);
+    await runFlagged(
+      baseInput({
+        add: [],
+        window: {},
+        overridesBySourcedId: { [`classlink:${SOURCED_A}`]: null },
+      })
+    );
+    expect(session()?.studentWindows).toEqual({
+      classCloseAt: 200,
+      closeAt: 200,
+    });
+  });
+
+  it('marks an unbounded class as unbounded', async () => {
+    await runFlagged(
+      baseInput({
+        overridesBySourcedId: { [`classlink:${SOURCED_A}`]: { closeAt: 500 } },
+      })
+    );
+    expect(session()?.studentWindows).toEqual({
+      classCloseAt: null,
+      closeAt: null,
+    });
+  });
+});
+
+describe('studentWindowsMarker', () => {
+  it('never puts the class close after the session close', () => {
+    expect(studentWindowsMarker(200, 500)).toEqual({
+      classCloseAt: 200,
+      closeAt: 500,
+    });
+    expect(studentWindowsMarker(800, 500)).toEqual({
+      classCloseAt: 500,
+      closeAt: 500,
+    });
+    expect(studentWindowsMarker(null, 300)).toEqual({
+      classCloseAt: 300,
+      closeAt: 300,
+    });
   });
 });
 

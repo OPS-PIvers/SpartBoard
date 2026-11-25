@@ -817,6 +817,47 @@ describe('due dates and rows', () => {
   });
 });
 
+describe('per-student close', () => {
+  const widened = {
+    teacherUid: 't',
+    closeAt: 900,
+    studentWindows: { classCloseAt: 500, closeAt: 900 },
+  };
+  const row = (pointerCloseAt: number | null) =>
+    assembleRow({
+      meta: parseSessionMeta('video-activity', 's', widened),
+      studentUid: 'u',
+      score: {
+        classId: null,
+        published: false,
+        targetEvidence: [],
+        rawPct: null,
+        points: null,
+        max: 10,
+        state: 'not-attempted',
+        submittedAt: null,
+        attemptNumber: 1,
+      },
+      previousAttempts: [],
+      assigned: true,
+      pointerDueAt: null,
+      pointerCloseAt,
+      now: 1,
+    });
+
+  it('closes a student without an extension at the class close', () => {
+    expect(parseSessionMeta('quiz', 's', widened)).toMatchObject({
+      closeAt: 500,
+      studentWindows: true,
+    });
+    expect(row(null).closeAt).toBe(500);
+  });
+
+  it("uses the student's own close when they have one", () => {
+    expect(row(900).closeAt).toBe(900);
+  });
+});
+
 describe('retakes', () => {
   it('keeps showing the last submitted attempt while a retake is open', () => {
     const meta = parseSessionMeta('quiz', 's', { teacherUid: 't' });

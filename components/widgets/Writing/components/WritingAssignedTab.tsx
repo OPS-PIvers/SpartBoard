@@ -62,12 +62,13 @@ function useWritingLifecycle(): {
   uid: string;
   lifecycle: AssignmentLifecycle;
 } {
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { setAssignmentTargets } = useSetAssignmentTargets();
   const uid = user?.uid ?? '';
+  const studentWindows = canAccessFeature('student-windows');
   const lifecycle = useMemo(
-    () => writingLifecycle(uid, { setAssignmentTargets }),
-    [uid, setAssignmentTargets]
+    () => writingLifecycle(uid, { setAssignmentTargets, studentWindows }),
+    [uid, setAssignmentTargets, studentWindows]
   );
   return { uid, lifecycle };
 }

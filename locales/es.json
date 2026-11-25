@@ -4791,6 +4791,7 @@
     "locked": {
       "title": "Todavía no está abierta",
       "body": "Mantén esta pestaña abierta. La actividad aparecerá aquí en cuanto tu clase tenga acceso.",
+      "bodyOwn": "Mantén esta pestaña abierta. La actividad aparecerá aquí en cuanto se abra.",
       "paused": "En pausa",
       "closed": "Cerrada",
       "opens": "Se abre {{day}} {{time}}"

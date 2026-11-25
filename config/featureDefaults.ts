@@ -1880,6 +1880,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'student-windows': {
+    label: 'Opens and Closes for one student',
+    icon: CalendarClock,
+    description:
+      "A student's own Opens and Closes work in every assignment. One student's later close no longer keeps the class open.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'library-duplicate-more': {
     label: 'Duplicate: Flashcards and Rubrics',
     icon: Copy,

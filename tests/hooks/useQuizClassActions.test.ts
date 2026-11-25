@@ -9,10 +9,8 @@ import {
 } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { PeriodAccess, QuizAssignment, StudentTargetRef } from '@/types';
-import {
-  staleWindowOverrides,
-  useQuizClassActions,
-} from '@/hooks/useQuizClassActions';
+import { useQuizClassActions } from '@/hooks/useQuizClassActions';
+import { staleWindowOverrides } from '@/utils/pointerWindowSync';
 import { updateDoc } from 'firebase/firestore';
 import {
   END_TURN_IN_DELAY_MS,

@@ -161,6 +161,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'student-gradebook',
   'student-live-tours',
   'student-set-time',
+  'student-windows',
   'subs-live-tours',
   'substitute-sharing',
   'tab-away-timer',

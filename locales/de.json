@@ -4791,6 +4791,7 @@
     "locked": {
       "title": "Noch nicht geöffnet",
       "body": "Lass diesen Tab geöffnet. Die Aktivität erscheint hier, sobald deine Klasse freigeschaltet ist.",
+      "bodyOwn": "Lass diesen Tab geöffnet. Die Aktivität erscheint hier, sobald sie geöffnet ist.",
       "paused": "Pausiert",
       "closed": "Geschlossen",
       "opens": "Öffnet {{day}} {{time}}"
