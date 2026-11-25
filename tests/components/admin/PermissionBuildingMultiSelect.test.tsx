@@ -19,38 +19,41 @@ vi.mock('@/hooks/useAdminBuildings', () => ({
   })),
 }));
 
+const openMenu = () =>
+  fireEvent.click(screen.getByRole('button', { name: 'Buildings' }));
+const row = (name: RegExp) => screen.getByRole('menuitemcheckbox', { name });
+
 describe('PermissionBuildingMultiSelect', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders an "All buildings" pill when selection is empty', () => {
+  it('reads "All buildings" when nothing is picked', () => {
     render(
       <PermissionBuildingMultiSelect selectedIds={[]} onChange={vi.fn()} />
     );
-    expect(screen.getByText(/all buildings/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Buildings' })).toHaveTextContent(
+      'All buildings'
+    );
   });
 
-  it('marks selected buildings as pressed and unselected as not pressed', () => {
+  it('lists the picks on the button and checks them in the menu', () => {
     render(
       <PermissionBuildingMultiSelect
         selectedIds={['elem', 'high']}
         onChange={vi.fn()}
       />
     );
-    expect(
-      screen.getByRole('button', { name: /remove elementary/i })
-    ).toHaveAttribute('aria-pressed', 'true');
-    expect(
-      screen.getByRole('button', { name: /remove high school/i })
-    ).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: /add middle/i })).toHaveAttribute(
-      'aria-pressed',
-      'false'
+    expect(screen.getByRole('button', { name: 'Buildings' })).toHaveTextContent(
+      'Elementary, High School'
     );
+    openMenu();
+    expect(row(/elementary/i)).toHaveAttribute('aria-checked', 'true');
+    expect(row(/high school/i)).toHaveAttribute('aria-checked', 'true');
+    expect(row(/middle/i)).toHaveAttribute('aria-checked', 'false');
   });
 
-  it('calls onChange with the new selection when an unselected building is clicked', () => {
+  it('adds a building and stays open', () => {
     const onChange = vi.fn();
     render(
       <PermissionBuildingMultiSelect
@@ -58,11 +61,13 @@ describe('PermissionBuildingMultiSelect', () => {
         onChange={onChange}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: /add middle/i }));
+    openMenu();
+    fireEvent.click(row(/middle/i));
     expect(onChange).toHaveBeenCalledWith(['elem', 'mid']);
+    expect(screen.getByRole('menu')).toBeInTheDocument();
   });
 
-  it('calls onChange removing the building when a selected chip is clicked', () => {
+  it('removes a picked building', () => {
     const onChange = vi.fn();
     render(
       <PermissionBuildingMultiSelect
@@ -70,11 +75,12 @@ describe('PermissionBuildingMultiSelect', () => {
         onChange={onChange}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: /remove elementary/i }));
+    openMenu();
+    fireEvent.click(row(/elementary/i));
     expect(onChange).toHaveBeenCalledWith(['high']);
   });
 
-  it('renders orphan IDs as amber chips and removes them on click', () => {
+  it('lists a deleted building so it can be cleared', () => {
     const onChange = vi.fn();
     render(
       <PermissionBuildingMultiSelect
@@ -82,28 +88,23 @@ describe('PermissionBuildingMultiSelect', () => {
         onChange={onChange}
       />
     );
-    const orphanChip = screen.getByRole('button', {
-      name: /remove unknown building deleted-bldg-99/i,
-    });
-    expect(orphanChip).toBeInTheDocument();
-    expect(orphanChip).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(orphanChip);
+    openMenu();
+    const orphan = row(/unknown building \(deleted-bldg-99\)/i);
+    expect(orphan).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(orphan);
     expect(onChange).toHaveBeenCalledWith(['elem']);
   });
 
   it('treats a legacy building id as selected instead of an orphan', () => {
-    // 'orono-high-school' is a pre-migration alias for the canonical 'high'
-    // id (config/buildings.ts BUILDING_ID_ALIASES) — stored permission docs
-    // can still carry it.
+    // 'orono-high-school' is a pre-migration alias for the canonical 'high' id.
     render(
       <PermissionBuildingMultiSelect
         selectedIds={['orono-high-school']}
         onChange={vi.fn()}
       />
     );
-    expect(
-      screen.getByRole('button', { name: /remove high school/i })
-    ).toHaveAttribute('aria-pressed', 'true');
+    openMenu();
+    expect(row(/high school/i)).toHaveAttribute('aria-checked', 'true');
     expect(screen.queryByText(/unknown building/i)).not.toBeInTheDocument();
   });
 
@@ -115,14 +116,13 @@ describe('PermissionBuildingMultiSelect', () => {
         onChange={onChange}
       />
     );
-    fireEvent.click(
-      screen.getByRole('button', { name: /remove high school/i })
-    );
+    openMenu();
+    fireEvent.click(row(/high school/i));
     expect(onChange).toHaveBeenCalledWith([]);
   });
 
-  it('suppresses orphan chips while buildings are loading', () => {
-    vi.mocked(useAdminBuildingsState).mockReturnValueOnce({
+  it('hides unknown buildings while buildings are loading', () => {
+    vi.mocked(useAdminBuildingsState).mockReturnValue({
       buildings: [],
       isLoading: true,
     });
@@ -132,6 +132,7 @@ describe('PermissionBuildingMultiSelect', () => {
         onChange={vi.fn()}
       />
     );
+    openMenu();
     expect(screen.queryByText(/unknown building/i)).not.toBeInTheDocument();
   });
 });

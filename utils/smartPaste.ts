@@ -1,5 +1,6 @@
 import { WidgetType, WidgetConfig } from '@/types';
 import { convertToEmbedUrl } from './urlHelpers';
+import { parseLibraryShareLink, type LibraryShareLink } from './shareRoutes';
 
 export type PasteResult =
   | {
@@ -12,8 +13,7 @@ export type PasteResult =
   | { action: 'create-mini-app'; html: string; title?: string }
   | { action: 'prompt-text-or-checklist'; text: string }
   | { action: 'prompt-url-or-qr'; url: string }
-  | { action: 'import-quiz'; shareId: string }
-  | { action: 'import-assignment'; shareId: string }
+  | { action: 'import-library-share'; link: LibraryShareLink }
   | { action: 'import-notebook'; shareId: string };
 
 /**
@@ -29,8 +29,7 @@ export function detectWidgetType(text: string): PasteResult | null {
   if (!trimmed) return null;
 
   return (
-    tryParseAssignmentImport(trimmed) ??
-    tryParseQuizImport(trimmed) ??
+    tryParseLibraryShare(trimmed) ??
     tryParseNotebookImport(trimmed) ??
     tryParseBoardImport(trimmed) ??
     tryParseMiniApp(trimmed) ??
@@ -40,46 +39,9 @@ export function detectWidgetType(text: string): PasteResult | null {
   );
 }
 
-function tryParseAssignmentImport(text: string): PasteResult | null {
-  let candidate = text;
-  if (!/^(http|https):\/\//i.test(candidate)) {
-    const domainPattern = /^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:[/:?].*)?$/;
-    if (domainPattern.test(candidate)) {
-      candidate = `https://${candidate}`;
-    }
-  }
-
-  try {
-    const url = new URL(candidate, window.location.origin);
-    const match = url.pathname.match(/^\/share\/assignment\/([a-zA-Z0-9_-]+)$/);
-    if (match) {
-      return { action: 'import-assignment', shareId: match[1] };
-    }
-  } catch {
-    // Fall through
-  }
-  return null;
-}
-
-function tryParseQuizImport(text: string): PasteResult | null {
-  let candidate = text;
-  if (!/^(http|https):\/\//i.test(candidate)) {
-    const domainPattern = /^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:[/:?].*)?$/;
-    if (domainPattern.test(candidate)) {
-      candidate = `https://${candidate}`;
-    }
-  }
-
-  try {
-    const url = new URL(candidate, window.location.origin);
-    const match = url.pathname.match(/^\/share\/quiz\/([a-zA-Z0-9_-]+)$/);
-    if (match) {
-      return { action: 'import-quiz', shareId: match[1] };
-    }
-  } catch {
-    // Fall through
-  }
-  return null;
+function tryParseLibraryShare(text: string): PasteResult | null {
+  const link = parseLibraryShareLink(text);
+  return link ? { action: 'import-library-share', link } : null;
 }
 
 function tryParseNotebookImport(text: string): PasteResult | null {

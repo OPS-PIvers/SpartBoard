@@ -28,6 +28,7 @@ function renderWithHubEscapeHandler(onHubClose: () => void) {
       selected={[]}
       onChange={onChange}
       allLabel="All types"
+      multiple
     />
   );
 
@@ -42,11 +43,11 @@ describe('AssignmentFilterSelect — Escape dismissal', () => {
     try {
       // fireEvent.click never focuses in jsdom, matching real-browser click-doesn't-focus behavior.
       fireEvent.click(screen.getByRole('button', { name: 'Filter by type' }));
-      expect(screen.getByRole('listbox')).toBeInTheDocument();
+      expect(screen.getByRole('menu')).toBeInTheDocument();
 
       fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
 
-      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
       expect(onHubClose).not.toHaveBeenCalled();
     } finally {
       cleanupListener();

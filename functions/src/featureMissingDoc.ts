@@ -103,6 +103,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'lms-push-final-scores',
   'server-turn-in',
   'share-link-tracking',
+  'video-activity-share-sync',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

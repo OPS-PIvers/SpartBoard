@@ -1,6 +1,6 @@
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Loader2, ImageOff } from 'lucide-react';
+import { Loader2, ImageOff } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useDebounce } from '@/hooks/useDebounce';
 import {
@@ -8,6 +8,7 @@ import {
   getCuratedPhotos,
   type PexelsPhoto,
 } from '@/utils/pexelsService';
+import { SearchField } from '@/components/common/SearchField';
 
 export interface StockPhotoSelection {
   url: string;
@@ -104,20 +105,12 @@ export const StockPhotoPicker: React.FC<StockPhotoPickerProps> = ({
       <div className="flex flex-col" style={{ maxHeight: '70vh' }}>
         {/* Search bar */}
         <div className="px-6 pb-4">
-          <div className="relative">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            />
-            <input
-              type="text"
-              value={query}
-              {...tourAttr('admin.backgrounds.stock-search')}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search photos (e.g. classroom, nature, chalkboard)..."
-              className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-light focus:border-transparent"
-            />
-          </div>
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            placeholder="Search photos (e.g. classroom, nature, chalkboard)..."
+            anchor={tourAttr('admin.backgrounds.stock-search')}
+          />
         </div>
 
         {/* Photo grid */}

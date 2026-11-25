@@ -37,11 +37,14 @@ import {
   type NotJoinedStudent,
 } from './rosterNotJoined';
 import { getLocalIsoDate } from '@/utils/localDate';
+import { lastFirst } from '@/utils/studentName';
 
 export interface MonitorStudent {
   response: QuizResponse;
   key: string;
   name: string;
+  /** "Last, First" from the class list, for the last-name sort. */
+  sortName?: string;
   /** Percentage band score for tint/filter; null when not scoreable. */
   bandScore: number | null;
   /** Display score (pts when gamified, else percent); null when not scoreable. */
@@ -222,6 +225,7 @@ export function useMonitorData(
           response: r,
           key: responseDocKey(r),
           name: resolveResponseDisplayName(r, pinToName, byStudentUid),
+          sortName: lastFirst(byStudentUid.get(r.studentUid)) || undefined,
           bandScore,
           displayScore: scoreable
             ? getDisplayScore(r, quizData.questions, scoringConfig, fibGrading)

@@ -30,6 +30,7 @@ import { useRubricLevelOrder } from '@/hooks/useRubricLevelOrder';
 import { RubricTableModal } from './RubricTableModal';
 import { isScoringGuide } from '@/utils/rubricGuide';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import { librarySharePath, parseLibraryShareLink } from '@/utils/shareRoutes';
 
 export interface RubricBuilderPanelProps {
   questionId: string;
@@ -124,24 +125,13 @@ const validateRubric = (rubric: Rubric): string[] => {
   return errors;
 };
 
-// Accepts a bare share id or a pasted share URL (`/share/rubric/{id}`) and
-// returns the id, mirroring how quiz share links resolve to a doc id.
+// Accepts a bare share id or a pasted rubric share link.
 const extractShareId = (input: string): string => {
   const trimmed = input.trim();
-  if (!trimmed) return '';
-  try {
-    const url = new URL(trimmed);
-    const segments = url.pathname.split('/').filter(Boolean);
-    return segments[segments.length - 1] ?? '';
-  } catch {
-    // Scheme-less pastes (`spartboard.web.app/share/rubric/abc`) fail URL
-    // parsing — fall back to the last path segment; bare codes pass through.
-    if (trimmed.includes('/')) {
-      const segments = trimmed.split(/[?#]/)[0].split('/').filter(Boolean);
-      return segments[segments.length - 1] ?? '';
-    }
-    return trimmed;
-  }
+  const link = parseLibraryShareLink(trimmed);
+  if (link) return link.shareId;
+  const segments = trimmed.split(/[?#]/)[0].split('/').filter(Boolean);
+  return segments[segments.length - 1] ?? '';
 };
 
 export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
@@ -285,7 +275,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
     setCopied(false);
     try {
       const shareId = await shareRubric(savedInLibrary.id);
-      const url = `${window.location.origin}/share/rubric/${shareId}`;
+      const url = `${window.location.origin}${librarySharePath('rubric', shareId)}`;
       setShareUrl(url);
       // A refused copy still leaves the link shown below for manual copy.
       if (await copyText(url)) setCopied(true);

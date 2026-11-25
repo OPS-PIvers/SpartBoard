@@ -1,5 +1,7 @@
 import React, { useState, type ReactNode } from 'react';
-import { BarChart3, Download, Loader2 } from 'lucide-react';
+import { BarChart3, Loader2 } from 'lucide-react';
+import { ResultsSheetButton } from '@/components/widgets/QuizWidget/components/results/ResultsSheetButton';
+import type { ResultsSheetExport } from '@/hooks/useResultsSheetExport';
 import { MonitorHeader } from '@/components/widgets/QuizWidget/components/monitor/MonitorHeader';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import type { GuidedLearningPublicStep } from '@/types';
@@ -40,7 +42,7 @@ interface Props<R extends GlMonitorRow> {
   questionStats: GlQuestionStat[];
   /** Slide engagement, shown on the Question results screen. */
   engagement?: ReactNode;
-  onExport: () => void;
+  sheet: ResultsSheetExport;
   exportDisabled: boolean;
 }
 
@@ -66,7 +68,7 @@ export const GuidedLearningMonitor = <R extends GlMonitorRow>({
   renderActions,
   questionStats,
   engagement,
-  onExport,
+  sheet,
   exportDisabled,
 }: Props<R>): React.ReactElement => {
   const [screen, setScreen] = useState<'home' | 'questions'>('home');
@@ -273,21 +275,16 @@ export const GuidedLearningMonitor = <R extends GlMonitorRow>({
             />
             Question results
           </button>
-          <button
-            type="button"
-            onClick={onExport}
+          <ResultsSheetButton
+            sheet={sheet}
             disabled={exportDisabled}
-            {...tourAttr('gl-results.export')}
+            exportAnchor={tourAttr('gl-results.export')}
+            openAnchor={tourAttr('gl-results.open-sheet')}
             className={footerButton}
             style={footerButtonStyle}
-          >
-            <Download
-              className="text-brand-blue-primary"
-              style={icon}
-              aria-hidden
-            />
-            Download CSV
-          </button>
+            iconStyle={icon}
+            iconClassName="text-brand-blue-primary"
+          />
         </div>
       )}
     </div>

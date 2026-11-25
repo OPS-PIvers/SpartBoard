@@ -267,6 +267,7 @@ import { readLmsLink, schoologyLinkedTargets } from '@/utils/gradebook/lmsPush';
 import { buildToolColumnGrades } from '@/utils/schoologyToolColumns';
 import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { lastFirst } from '@/utils/studentName';
 
 /**
  * Export-error banner state. Generic errors render as a plain message; a
@@ -1452,10 +1453,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   );
   const printSortName = useCallback(
     (response: QuizResponse) => {
-      const sso = byStudentUid.get(response.studentUid);
-      if (sso && (sso.familyName || sso.givenName)) {
-        return `${sso.familyName} ${sso.givenName}`.trim();
-      }
+      const sso = lastFirst(byStudentUid.get(response.studentUid));
+      if (sso) return sso;
       const rosterName = response.pin
         ? resolvePinName(
             exportPinToName,

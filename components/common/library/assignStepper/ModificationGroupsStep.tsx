@@ -8,7 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Plus, Search, Trash2, User, Users } from 'lucide-react';
+import { ChevronDown, Plus, Trash2, User, Users } from 'lucide-react';
 import { AuthContext } from '@/context/AuthContextValue';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Toggle } from '@/components/common/Toggle';
@@ -45,6 +45,7 @@ import {
   type ModificationGroup,
   type TimeRule,
 } from './modificationGroups';
+import { SearchField } from '@/components/common/SearchField';
 
 export interface ModificationGroupsStepProps {
   groups: ModificationGroup[];
@@ -191,18 +192,14 @@ const StudentsMenu: React.FC<{
           aria-label="Students"
           className="absolute left-0 top-full z-10 mt-1 w-[min(20rem,calc(100vw-7rem))] sm:left-auto sm:right-0 rounded-xl border border-slate-200 bg-white p-1 shadow-xl"
         >
-          <div className="m-1 flex h-8 items-center gap-2 rounded-lg border border-slate-200 px-2">
-            <Search className="h-3.5 w-3.5 text-slate-400" aria-hidden />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search students"
-              aria-label="Search students"
-              {...tourAttr('assign-mods.students-search')}
-              className="min-w-0 flex-1 bg-transparent text-sm focus:outline-hidden"
-            />
-          </div>
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            placeholder="Search students"
+            anchor={tourAttr('assign-mods.students-search')}
+            size="sm"
+            className="m-1"
+          />
           <div className="custom-scrollbar max-h-64 overflow-y-auto pb-1">
             {shownGroups.length > 0 && (
               <>

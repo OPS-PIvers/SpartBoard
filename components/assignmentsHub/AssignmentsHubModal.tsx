@@ -11,7 +11,6 @@ import {
   Blocks,
   Layers3,
   NotebookPen,
-  Search,
   X,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
@@ -36,6 +35,7 @@ import {
   type UnifiedAssignmentRow,
   type UnifiedAssignmentStatus,
 } from './useUnifiedAssignments';
+import { SearchField } from '@/components/common/SearchField';
 
 interface AssignmentsHubModalProps {
   onClose: () => void;
@@ -418,33 +418,18 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
             className={`w-full ${assignedOn ? 'md:w-[500px]' : 'md:w-[380px]'} ${assignedOn && phoneDetail && selectedRow ? 'hidden md:flex' : 'flex'} shrink-0 border-r border-slate-200 flex-col min-h-0`}
           >
             <div className="relative z-10 p-3 border-b border-slate-100 flex flex-col gap-2">
-              <div className="relative">
-                <Search
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none"
-                  aria-hidden="true"
-                />
-                <input
-                  type="search"
-                  value={search}
-                  {...tourAttr('assignments-hub.search')}
-                  onChange={(e) => setSearch(e.target.value)}
-                  // Escape clears the box instead of bubbling to the hub's
-                  // document handler and closing the whole modal.
-                  onKeyDown={(e) => {
-                    if (e.key !== 'Escape' || search === '') return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setSearch('');
-                  }}
-                  aria-label={t('assignmentsHub.searchLabel', {
-                    defaultValue: 'Search assignments',
-                  })}
-                  placeholder={t('assignmentsHub.searchPlaceholder', {
-                    defaultValue: 'Search assignments…',
-                  })}
-                  className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2.5 text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:border-brand-blue-primary/40 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/20"
-                />
-              </div>
+              <SearchField
+                value={search}
+                onChange={setSearch}
+                size="sm"
+                anchor={tourAttr('assignments-hub.search')}
+                ariaLabel={t('assignmentsHub.searchLabel', {
+                  defaultValue: 'Search assignments',
+                })}
+                placeholder={t('assignmentsHub.searchPlaceholder', {
+                  defaultValue: 'Search assignments…',
+                })}
+              />
               <div
                 className={`grid gap-2 ${assignedOn ? 'grid-cols-1' : 'grid-cols-2'}`}
               >

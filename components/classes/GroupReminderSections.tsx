@@ -1,7 +1,7 @@
 // Symbol and Schedule sections of a class group page (Group reminders flag).
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Play, Plus, Search, X } from 'lucide-react';
+import { Play, Plus, X } from 'lucide-react';
 import type {
   RosterGroup,
   RosterGroupAlert,
@@ -25,6 +25,7 @@ import {
   formatReminderTime,
 } from '@/utils/groupReminders';
 import { playReminderSound } from '@/utils/reminderSounds';
+import { SearchField } from '@/components/common/SearchField';
 
 const WEEKDAYS = [1, 2, 3, 4, 5];
 
@@ -120,22 +121,13 @@ const SymbolStep: React.FC<{
     <div className="flex flex-col gap-5">
       <div className="flex items-start gap-10">
         <div className="flex-1 min-w-0 max-w-sm flex flex-col gap-4">
-          <div className="relative max-w-sm">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              aria-hidden="true"
-            />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={searchLabel}
-              aria-label={searchLabel}
-              {...tourAttr('group-wizard.icon-search')}
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
-            />
-          </div>
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            placeholder={searchLabel}
+            anchor={tourAttr('group-wizard.icon-search')}
+            className="max-w-sm"
+          />
         </div>
         {preview}
       </div>

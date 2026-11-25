@@ -29,6 +29,8 @@ import { useDashboard } from '@/context/useDashboard';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useServerNow } from '@/hooks/useServerNow';
 import { logError } from '@/utils/logError';
+import { useResultsSheetExport } from '@/hooks/useResultsSheetExport';
+import { exportGuidedLearningResults } from '@/utils/guidedLearningResultsExport';
 import { GuidedLearningEngagement } from './results/GuidedLearningEngagement';
 import { StudentProgressLine } from './results/StudentProgressLine';
 import { useGuidedLearningStudentProgress } from '@/hooks/useGuidedLearningStudentProgress';
@@ -124,7 +126,6 @@ export const GuidedLearningResults: React.FC<Props> = ({
     responses: rawResponses,
     responsesLoading,
     subscribeToResponses,
-    exportResponsesAsCSV,
   } = useGuidedLearningSessionTeacher(undefined);
   const [classTargets, setClassTargets] = useState('');
   const [sessionLoaded, setSessionLoaded] = useState(false);
@@ -293,7 +294,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
     viewOnly && playerV2
   );
 
-  const { orgId, canAccessFeature } = useAuth();
+  const { orgId, canAccessFeature, user } = useAuth();
   const showStudentProgress = !viewOnly;
   const progressByUid = useGuidedLearningStudentProgress(
     sessionId,
@@ -397,34 +398,26 @@ export const GuidedLearningResults: React.FC<Props> = ({
         )
       : null;
 
-  const handleExport = () => {
-    const csv = exportResponsesAsCSV(
-      responses,
-      {
-        ...set,
-        steps: questionSteps,
-      },
-      finalOverlay
-        ? (r) => {
-            const final = finalFor(r, Date.now());
-            return final
-              ? finalScoreLabel(
-                  final,
-                  (id) =>
-                    finalOverlay.flagDefs.find((f) => f.id === id)?.name ?? id
-                )
-              : '';
-          }
-        : undefined
-    );
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${set.title.replace(/[^a-z0-9]/gi, '_')}_results.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const sheet = useResultsSheetExport(
+    (token) =>
+      exportGuidedLearningResults(token, set.title, responses, questionSteps, {
+        byStudentUid,
+        teacherName: user?.displayName ?? undefined,
+        finalScore: finalOverlay
+          ? (r) => {
+              const final = finalFor(r, Date.now());
+              return final
+                ? finalScoreLabel(
+                    final,
+                    (id) =>
+                      finalOverlay.flagDefs.find((f) => f.id === id)?.name ?? id
+                  )
+                : '';
+            }
+          : undefined,
+      }),
+    'GuidedLearningResults.export'
+  );
 
   const periodAccess = perPeriod ? periodSession?.periodAccess : undefined;
   const classLabel = (classId: string): string =>
@@ -604,7 +597,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
             <GuidedLearningEngagement set={set} sessionId={sessionId} />
           ) : null
         }
-        onExport={handleExport}
+        sheet={sheet}
         exportDisabled={responses.length === 0}
         renderDetail={(row) => {
           const r = row.response;

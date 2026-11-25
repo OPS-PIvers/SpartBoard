@@ -21,7 +21,6 @@ vi.mock('@/hooks/useGuidedLearningSession', () => ({
     responses: mockResponses,
     responsesLoading: false,
     subscribeToResponses,
-    exportResponsesAsCSV: () => '',
   }),
   isAnswerCorrect: () => false,
 }));
@@ -93,7 +92,7 @@ describe('GuidedLearningResults engagement gating', () => {
     render(
       <GuidedLearningResults set={set} sessionId="s1" onClose={vi.fn()} />
     );
-    expect(await screen.findByText('Download CSV')).toBeInTheDocument();
+    expect(await screen.findByText('Export to Sheets')).toBeInTheDocument();
     await openBucket('Question results');
     expect(screen.getByText('ENGAGEMENT')).toBeInTheDocument();
   });

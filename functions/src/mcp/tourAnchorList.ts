@@ -2110,28 +2110,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "projects.status-popover",
-    "label": "Projects step status menu",
-    "scope": "widget",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "widgets.projects.status-popover",
-        "kind": "menu",
-        "widget_type": "projects",
-        "path": [
-          "library-shell.card-primary-action:projects#row-1",
-          "projects.step-cell:projects"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "profile.close",
     "label": "Close button in Profile & Settings",
     "scope": "board",
@@ -28366,7 +28344,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.sort",
-    "label": "Sort dropdown trigger in a library toolbar",
+    "label": "Sort select in a library toolbar",
     "scope": "widget type",
     "routes": [
       {
@@ -53183,28 +53161,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "projects.status-option",
-    "label": "Step status choice in the Projects status menu",
-    "scope": "widget",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "widgets.projects.status-popover",
-        "kind": "menu",
-        "widget_type": "projects",
-        "path": [
-          "library-shell.card-primary-action:projects#row-1",
-          "projects.step-cell:projects"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "projects.group-student-view",
     "label": "Group student view button on the Projects board",
     "scope": "widget type",
@@ -60910,7 +60866,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "gl-results.export",
-    "label": "Export button in the results header",
+    "label": "Export to Sheets button in results",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.open-sheet",
+    "label": "Open Sheet link in results",
     "scope": "board",
     "routes": [
       {
@@ -67198,22 +67175,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.shell",
         "kind": "shared",
         "path": []
-      }
-    ]
-  },
-  {
-    "id": "library-shell.sort-option",
-    "label": "Option in a library sort dropdown",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.shell",
-        "kind": "shared",
-        "path": [
-          "library-shell.sort"
-        ],
-        "reveal": "library-shell.sort"
       }
     ]
   },
@@ -73710,25 +73671,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "widgets.random.face",
         "kind": "widget",
         "widget_type": "random",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "seating.class-group",
-    "label": "Group row under a class in the Seating Chart class menu",
-    "scope": "field",
-    "panel": true,
-    "row_wildcard": true,
-    "row_list": "seating-class-group",
-    "routes": [
-      {
-        "surface": "widgets.seating-chart.face",
-        "kind": "widget",
-        "widget_type": "seating-chart",
         "path": [],
         "needs": [
           "widget-on-stage"
@@ -80656,6 +80598,52 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "writing-results.grade",
     "label": "Grade button in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.export",
+    "label": "Export to Sheets button in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.open-sheet",
+    "label": "Open Sheet link in Writing results",
     "scope": "widget type",
     "keys": [
       "writing"

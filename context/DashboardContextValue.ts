@@ -33,6 +33,7 @@ import type {
   CopyShareTree,
 } from '@/hooks/useSharedCollection';
 import type { SubShareBundle } from '@/utils/bundleSubShareContent';
+import type { LibraryShareLink } from '@/utils/shareRoutes';
 
 /**
  * Mode applied to a shared-board import. Substitute shares are intentionally
@@ -401,27 +402,10 @@ export interface DashboardContextValue {
    * widget switches to reading from the subcollection).
    */
   drawingWidgetsMigrating: ReadonlySet<string>;
-  pendingQuizShareId: string | null;
-  clearPendingQuizShare: () => void;
-  pendingAssignmentShareId: string | null;
-  setPendingAssignmentShareId: (shareId: string | null) => void;
-  clearPendingAssignmentShare: () => void;
-  /**
-   * Pending video-activity-assignment share id, parsed from
-   * `/share/video-activity/{shareId}`. Mirrors `pendingAssignmentShareId`;
-   * the VideoActivityWidget's URL-paste flow drives off this state.
-   */
-  pendingVideoActivityShareId: string | null;
-  setPendingVideoActivityShareId: (shareId: string | null) => void;
-  clearPendingVideoActivityShare: () => void;
-  /**
-   * Pending rubric share id, parsed from `/share/rubric/{shareId}`. Consumed
-   * by DeepLinkShareImporter, which imports the rubric into the teacher's
-   * library and toasts the result.
-   */
-  pendingRubricShareId: string | null;
-  clearPendingRubricShare: () => void;
-  setPendingQuizShareId: (shareId: string | null) => void;
+  /** The library share link (quiz, assignment, Video Activity, rubric) waiting to import, from the URL or a paste. */
+  pendingLibraryShare: LibraryShareLink | null;
+  setPendingLibraryShare: (link: LibraryShareLink | null) => void;
+  clearPendingLibraryShare: () => void;
   /**
    * Set after a successful `importSharedAssignment` to signal the QuizWidget
    * to open a "pick classes" prompt for the freshly-imported assignment.

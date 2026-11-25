@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Modal } from '@/components/common/Modal';
-import { Search, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { LearningTarget, QuestionTargetTag } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
 import { useAuth } from '@/context/useAuth';
@@ -23,6 +23,7 @@ import {
 } from '@/utils/standardsTree';
 import { StandardsTree } from './StandardsTree';
 import { TargetChips } from './TargetChips';
+import { SearchField } from '@/components/common/SearchField';
 
 const ALL_SUBJECTS = 'all';
 const ALL_GRADES_CHOICE = 'all';
@@ -241,18 +242,15 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
 
         <div className="px-4 py-3 border-b border-slate-200 space-y-2">
           <div className="flex flex-wrap gap-2">
-            <div className="relative flex-1 min-w-40">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                autoFocus
-                type="search"
-                {...tourAttr('target-picker.search')}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by code or text"
-                className="w-full pl-8 pr-2 py-1.5 text-sm rounded-lg border border-slate-300 focus:border-brand-blue-primary focus:outline-hidden"
-              />
-            </div>
+            <SearchField
+              size="sm"
+              value={query}
+              onChange={setQuery}
+              placeholder="Search by code or text"
+              anchor={tourAttr('target-picker.search')}
+              className="flex-1 min-w-40"
+              autoFocus
+            />
             {targetSources.length > 0 && (
               <select
                 value={activeTargetSource ? sourceChoice : STANDARDS_SOURCE}
