@@ -36,7 +36,6 @@ import { useReviewLaunch } from './useReviewLaunch';
 import { useLiveSessionQuiz } from './useLiveSessionQuiz';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
-import { quizDeleteDetail } from '@/utils/quizDeleteDetail';
 import {
   PAPER_HANDWRITING_AI_FEATURE,
   PAPER_HANDWRITTEN_FEATURE,
@@ -104,6 +103,8 @@ import { useQuizPlcShare } from '@/hooks/useQuizPlcShare';
 import { useQuizPublish } from '@/hooks/useQuizPublish';
 import { useQuizLinkShare } from '@/hooks/useQuizLinkShare';
 import { useLibraryDuplicate } from '@/components/common/library/useLibraryDuplicate';
+import { useLibraryDelete } from '@/components/common/library/useLibraryDelete';
+import { LIBRARY_ITEM_NOUNS } from '@/components/common/library/useLibraryDeleteConfirm';
 import { useFolders } from '@/hooks/useFolders';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { useQuizDocumentImportGate } from '@/hooks/useQuizDocumentImportGate';
@@ -944,6 +945,16 @@ const TeacherQuizWidget: React.FC<{
 
   const quizDuplicate = useLibraryDuplicate({
     duplicate: duplicateQuiz,
+    addToast,
+  });
+  const bankDelete = useLibraryDelete<QuestionBankMetadata>({
+    noun: LIBRARY_ITEM_NOUNS.bank,
+    titleOf: (meta) => meta.title,
+    detail: (metas) =>
+      metas.length === 1
+        ? 'Quizzes that draw from it will stop resolving.'
+        : 'Quizzes that draw from them will stop resolving.',
+    remove: (meta) => deleteBank(meta),
     addToast,
   });
   const bankDuplicate = useLibraryDuplicate({
@@ -2522,7 +2533,6 @@ const TeacherQuizWidget: React.FC<{
     assignmentsLoading,
     assignmentsError,
     addToast,
-    showConfirm,
     deleteQuiz,
   });
   const { publishTargets, closePublish, onConfirmPublish, onUnpublishScores } =
@@ -3696,24 +3706,8 @@ const TeacherQuizWidget: React.FC<{
         assignmentMode={quizAssignmentMode}
         onAddClassesToAssignment={addClassesToAssignment}
         quizzes={quizzes}
-        folderDeleteActions={{
-          isBlocked: (id) =>
-            assignments.some((a) => a.quizId === id && a.status !== 'inactive'),
-          blockedReason: (n) =>
-            n === 1
-              ? '1 quiz has a live assignment'
-              : `${n} quizzes have live assignments`,
-          deleteItems: quizDelete.folderDeleteItems,
-        }}
-        bankFolderDeleteActions={{
-          deleteItems: async (ids) => {
-            const byId = new Map(banks.map((b) => [b.id, b]));
-            for (const id of ids) {
-              const meta = byId.get(id);
-              if (meta) await deleteBank(meta);
-            }
-          },
-        }}
+        folderDeleteActions={quizDelete.folderDeleteActions}
+        bankFolderDeleteActions={bankDelete.folderActions(banks)}
         loading={quizzesLoading}
         error={quizzesError ?? dataError}
         onReorderQuizzes={user?.uid ? handleReorderQuizzes : undefined}
@@ -4404,7 +4398,6 @@ const TeacherQuizWidget: React.FC<{
         onBulkShareWithPlc={onBulkShareWithPlc}
         onMergeQuizzes={handleMergeQuizzes}
         onCreateViewOnlyShare={linkShare.onCreateViewOnlyShare}
-        deleteDetail={(meta) => quizDeleteDetail(assignments, meta.id)}
         onDelete={quizDelete.onDelete}
         onDuplicate={(meta) => void quizDuplicate.duplicate(meta)}
         isDuplicating={quizDuplicate.isDuplicating}
@@ -4456,17 +4449,8 @@ const TeacherQuizWidget: React.FC<{
           }
         }}
         onDuplicateBank={bankDuplicate.duplicate}
-        onDeleteBank={async (meta) => {
-          try {
-            await deleteBank(meta);
-            addToast(`Deleted "${meta.title}".`, 'success');
-          } catch (err) {
-            addToast(
-              err instanceof Error ? err.message : 'Failed to delete bank',
-              'error'
-            );
-          }
-        }}
+        onDeleteBank={bankDelete.deleteOne}
+        onBulkDeleteBanks={bankDelete.deleteMany}
         onReorderBanks={user?.uid ? reorderBanks : undefined}
         onMoveBankToLibraryFolder={
           user?.uid ? moveBankToLibraryFolder : undefined
