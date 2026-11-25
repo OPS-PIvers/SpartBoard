@@ -17,6 +17,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Library } from '@/components/widgets/SmartNotebook/components/Library';
 import { Viewer } from '@/components/widgets/SmartNotebook/components/Viewer';
+import { AuthProvider } from '@/context/AuthContext';
 import { PageEditorOverlay } from '@/components/widgets/SmartNotebook/components/PageEditorOverlay';
 import { NotebookItem } from '@/types';
 import {
@@ -78,42 +79,44 @@ export const NotebookViewsDevHarness: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-900 p-8 flex flex-col items-start gap-6">
-      <div className="flex flex-wrap items-center gap-2">
-        {STATES.map((s) => (
-          <button
-            key={s.key}
-            onClick={() => selectState(s.key)}
-            className={`px-3 py-2 rounded text-sm font-bold transition ${
-              state === s.key
-                ? 'bg-blue-500 text-white'
-                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-            }`}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
+    <AuthProvider>
+      <div className="min-h-screen w-full bg-slate-900 p-8 flex flex-col items-start gap-6">
+        <div className="flex flex-wrap items-center gap-2">
+          {STATES.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => selectState(s.key)}
+              className={`px-3 py-2 rounded text-sm font-bold transition ${
+                state === s.key
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
 
-      <div
-        className="relative rounded-2xl border border-slate-700 bg-slate-100 shadow-xl overflow-hidden"
-        style={{ width: 900, height: 640, containerType: 'size' }}
-      >
-        {!mock ? (
-          <div className="h-full w-full flex items-center justify-center text-slate-400">
-            Building mock notebook…
-          </div>
-        ) : (
-          <NotebookViewsState
-            state={state}
-            mock={mock}
-            hiddenPages={hiddenPages}
-            onToggleHiddenPage={toggleHiddenPage}
-            fileInputRef={fileInputRef}
-          />
-        )}
+        <div
+          className="relative rounded-2xl border border-slate-700 bg-slate-100 shadow-xl overflow-hidden"
+          style={{ width: 900, height: 640, containerType: 'size' }}
+        >
+          {!mock ? (
+            <div className="h-full w-full flex items-center justify-center text-slate-400">
+              Building mock notebook…
+            </div>
+          ) : (
+            <NotebookViewsState
+              state={state}
+              mock={mock}
+              hiddenPages={hiddenPages}
+              onToggleHiddenPage={toggleHiddenPage}
+              fileInputRef={fileInputRef}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </AuthProvider>
   );
 };
 
