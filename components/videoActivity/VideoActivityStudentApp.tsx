@@ -166,6 +166,7 @@ export const VideoActivityStudentApp: React.FC = () => {
   } = useStudentAuthBootstrap({
     enabled: !previewMode,
     keepPinLogin: true,
+    readClaims: true,
     label: 'VideoActivityStudentApp',
   });
   // Only a `studentRole` token's classes resolve the joining student's period.

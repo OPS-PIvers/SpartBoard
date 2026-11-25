@@ -50,7 +50,7 @@ describe('bootstrapStudentAuth', () => {
       studentRole: true,
       classIds: ['c1', '', 7, 'c2'],
     });
-    const r = await bootstrapStudentAuth({ label: 't' });
+    const r = await bootstrapStudentAuth({ label: 't', readClaims: true });
     expect(signInAnonymously).not.toHaveBeenCalled();
     expect(r).toMatchObject({
       ready: true,
@@ -83,9 +83,25 @@ describe('bootstrapStudentAuth', () => {
     await bootstrapStudentAuth({ label: 't' });
     expect(dropPinLogin).toHaveBeenCalledTimes(1);
     dropPinLogin.mockClear();
-    const kept = await bootstrapStudentAuth({ label: 't', keepPinLogin: true });
+    const kept = await bootstrapStudentAuth({
+      label: 't',
+      keepPinLogin: true,
+      readClaims: true,
+    });
     expect(dropPinLogin).not.toHaveBeenCalled();
     expect(kept.isPinLogin).toBe(true);
+  });
+
+  it('skips the claim read unless asked, so a token refresh failure cannot fail it', async () => {
+    const user = ssoUser({ studentRole: true });
+    user.getIdTokenResult = () => Promise.reject(new Error('refresh failed'));
+    mockAuth.currentUser = user;
+    const r = await bootstrapStudentAuth({ label: 't' });
+    expect(r).toMatchObject({
+      failed: false,
+      uid: 'sso-1',
+      isStudentRole: false,
+    });
   });
 
   it('fails on a hydration error by default', async () => {

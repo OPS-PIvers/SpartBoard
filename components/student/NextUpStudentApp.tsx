@@ -38,7 +38,7 @@ export const NextUpStudentApp: React.FC = () => {
       return;
     }
 
-    if (!authInitialized || authFailed) return;
+    if (!authInitialized) return;
 
     const sessionRef = doc(db, SESSIONS_COLLECTION, widgetId);
     return onSnapshot(
@@ -68,7 +68,7 @@ export const NextUpStudentApp: React.FC = () => {
         setLoading(false);
       }
     );
-  }, [widgetId, authInitialized, authFailed]);
+  }, [widgetId, authInitialized]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,9 +98,12 @@ export const NextUpStudentApp: React.FC = () => {
     }
   };
 
-  const shownError = authFailed
-    ? 'Authentication failed. Please refresh and try again.'
-    : error;
+  // A session snapshot after a failed sign-in still wins, as before.
+  const shownError =
+    error ??
+    (authFailed && !session
+      ? 'Authentication failed. Please refresh and try again.'
+      : null);
 
   if (!authInitialized || (loading && !shownError)) {
     return (

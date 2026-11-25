@@ -9,6 +9,8 @@ export interface StudentAuthBootstrapOptions {
   enabled?: boolean;
   /** Quiz and Video Activity keep a PIN-bridge token; every other app drops it. */
   keepPinLogin?: boolean;
+  /** Read studentRole, pinLogin and classIds; a failed read then fails the sign-in. */
+  readClaims?: boolean;
   /** /join still signs in anonymously when IndexedDB hydration fails. */
   continueOnHydrationError?: boolean;
   /** Tag for the error log when sign-in fails. */
@@ -56,7 +58,7 @@ export async function bootstrapStudentAuth(
       ready: true,
       uid: user.uid,
     };
-    if (existing && !existing.isAnonymous) {
+    if (options.readClaims && existing && !existing.isAnonymous) {
       const { claims } = await existing.getIdTokenResult();
       result.isStudentRole = claims?.studentRole === true;
       result.isPinLogin = claims?.pinLogin === true;
@@ -83,6 +85,7 @@ export async function bootstrapStudentAuth(
 export function useStudentAuthBootstrap({
   enabled = true,
   keepPinLogin = false,
+  readClaims = false,
   continueOnHydrationError = false,
   label,
 }: StudentAuthBootstrapOptions): StudentAuthBootstrap {
@@ -92,6 +95,7 @@ export function useStudentAuthBootstrap({
     let cancelled = false;
     void bootstrapStudentAuth({
       keepPinLogin,
+      readClaims,
       continueOnHydrationError,
       label,
     }).then((next) => {
@@ -100,6 +104,6 @@ export function useStudentAuthBootstrap({
     return () => {
       cancelled = true;
     };
-  }, [enabled, keepPinLogin, continueOnHydrationError, label]);
+  }, [enabled, keepPinLogin, readClaims, continueOnHydrationError, label]);
   return state;
 }

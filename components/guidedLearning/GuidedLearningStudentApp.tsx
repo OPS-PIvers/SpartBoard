@@ -93,7 +93,10 @@ export const GuidedLearningStudentApp: React.FC = () => {
     uid: anonymousUid,
     isStudentRole,
     classIds: claimClassIds,
-  } = useStudentAuthBootstrap({ label: 'GuidedLearningStudentApp' });
+  } = useStudentAuthBootstrap({
+    readClaims: true,
+    label: 'GuidedLearningStudentApp',
+  });
 
   if (!authReady) return <FullPageLoader />;
   if (authFailed) return <ErrorScreen message={t('glStudent.error.connect')} />;

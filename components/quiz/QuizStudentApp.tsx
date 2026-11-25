@@ -442,6 +442,7 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
   } = useStudentAuthBootstrap({
     enabled: !previewMode,
     keepPinLogin: true,
+    readClaims: true,
     label: 'QuizStudentApp',
   });
 
