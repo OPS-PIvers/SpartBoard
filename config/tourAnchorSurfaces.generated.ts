@@ -2169,6 +2169,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'admin.help-center.item-row': ['admin.help-center'],
     'admin.help-center.item-drag': ['admin.help-center'],
     'admin.help-center.detail-back': ['admin.help-center'],
+    'admin.help-center.copy-for-claude': ['admin.help-center'],
+    'admin.help-center.generate-details': ['admin.help-center'],
     'admin.help-center.detail-title': ['admin.help-center'],
     'admin.help-center.detail-description': ['admin.help-center'],
     'admin.help-center.detail-category': ['admin.help-center'],

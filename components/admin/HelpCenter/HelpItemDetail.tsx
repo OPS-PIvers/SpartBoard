@@ -1,6 +1,14 @@
 import React, { lazy, Suspense, useState } from 'react';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
-import { ArrowLeft, Loader2, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Check,
+  ClipboardCopy,
+  Loader2,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
+import { copyText } from '@/utils/copyText';
 import {
   Btn,
   Field,
@@ -23,6 +31,11 @@ import {
 import { tourStepsOf } from '@/components/tours/tourSession';
 import type { HelpRowInfo } from './HelpItemList';
 import { KIND_LABEL, type HelpItemFieldPatch } from './helpCenterAdmin';
+import {
+  buildClaudePrompt,
+  detailsPatch,
+  generateHelpDetails,
+} from './helpItemAi';
 
 const TourHealthPanel = lazy(() => import('./TourHealthPanel'));
 
@@ -41,6 +54,12 @@ const WIDGET_OPTIONS = TOOLS.filter(isWidgetTool).map((tool) => ({
   id: tool.type,
   label: tool.label,
 }));
+const WIDGET_LABELS: ReadonlyMap<string, string> = new Map(
+  WIDGET_OPTIONS.map((w) => [w.id, w.label])
+);
+const WIDGET_IDS: ReadonlySet<string> = new Set(
+  WIDGET_OPTIONS.map((w) => w.id)
+);
 
 export interface ScopeOption {
   /** '' is Everyone. */
@@ -73,6 +92,8 @@ interface HelpItemDetailProps {
   scopeOptions: ScopeOption[] | null;
   /** Audiences besides Teachers that this admin's flags allow. */
   audiences: readonly HelpAudience[];
+  /** Generate with AI is on for this admin. */
+  canGenerate?: boolean;
   onBack: () => void;
   onPatch: (patch: HelpItemFieldPatch) => Promise<void>;
   onScopeChange: (orgId: string | null) => Promise<void>;
@@ -95,6 +116,7 @@ export const HelpItemDetail: React.FC<HelpItemDetailProps> = ({
   scopeLabel,
   scopeOptions,
   audiences,
+  canGenerate = false,
   onBack,
   onPatch,
   onScopeChange,
@@ -107,6 +129,7 @@ export const HelpItemDetail: React.FC<HelpItemDetailProps> = ({
 }) => {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const isTour = info.kind === 'live-tour';
   const current = helpAudienceOf(item);
   const audienceOptions = AUDIENCE_ORDER.filter(
@@ -171,6 +194,42 @@ export const HelpItemDetail: React.FC<HelpItemDetailProps> = ({
     </Btn>
   );
 
+  const copyForClaude = async () => {
+    const ok = await copyText(
+      buildClaudePrompt({
+        item,
+        categories,
+        widgetLabels: WIDGET_LABELS,
+        scopeLabel,
+        canChangeScope: scopeOptions !== null,
+      })
+    );
+    if (!ok) {
+      setError("Couldn't copy. Try again.");
+      return;
+    }
+    setError(null);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2000);
+  };
+
+  const generate = () =>
+    run('generate', async () => {
+      const result = await generateHelpDetails({
+        itemId: item.id,
+        audiences: audienceOptions,
+        widgets: WIDGET_OPTIONS,
+      });
+      const patch = detailsPatch(item, result, {
+        categoryIds: categories.map((c) => c.id),
+        audiences: audienceOptions,
+        widgetIds: WIDGET_IDS,
+      });
+      if (Object.keys(patch).length > 0) await onPatch(patch);
+    });
+
+  const showAiRow = canWrite && isTour && Boolean(item.setId);
+
   return (
     <article aria-label={item.title} className="space-y-5">
       <button
@@ -182,6 +241,42 @@ export const HelpItemDetail: React.FC<HelpItemDetailProps> = ({
         <ArrowLeft className="w-4 h-4" aria-hidden="true" />
         Back
       </button>
+
+      {showAiRow && (
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <Btn
+            size="lg"
+            className="h-11! px-2! whitespace-nowrap sm:px-4!"
+            onClick={() => void copyForClaude()}
+            {...tourAttr('admin.help-center.copy-for-claude')}
+            icon={
+              copied ? (
+                <Check className="w-4 h-4" aria-hidden="true" />
+              ) : (
+                <ClipboardCopy className="w-4 h-4" aria-hidden="true" />
+              )
+            }
+          >
+            {copied ? 'Copied' : 'Copy for Claude'}
+          </Btn>
+          {canGenerate && (
+            <Btn
+              size="lg"
+              className="h-11! px-2! whitespace-nowrap sm:px-4!"
+              disabled={busy !== null}
+              onClick={() => void generate()}
+              {...tourAttr('admin.help-center.generate-details')}
+              icon={
+                spinner('generate') ?? (
+                  <Sparkles className="w-4 h-4" aria-hidden="true" />
+                )
+              }
+            >
+              {busy === 'generate' ? 'Generating' : 'Generate with AI'}
+            </Btn>
+          )}
+        </div>
+      )}
 
       {canWrite ? (
         <div className="space-y-3">
@@ -208,7 +303,7 @@ export const HelpItemDetail: React.FC<HelpItemDetailProps> = ({
             placeholder="Description"
             defaultValue={item.description}
             maxLength={1000}
-            rows={2}
+            rows={4}
             {...tourAttr('admin.help-center.detail-description')}
             onBlur={(e) => {
               const description = e.target.value.trim();
@@ -289,7 +384,7 @@ export const HelpItemDetail: React.FC<HelpItemDetailProps> = ({
             </Select>
           </Field>
           {isTour && audienceOptions.length > 1 && (
-            <Field label="Who sees it" htmlFor="help-detail-audience">
+            <Field label="Audience" htmlFor="help-detail-audience">
               <Select
                 id="help-detail-audience"
                 value={helpAudienceOf(item)}

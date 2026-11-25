@@ -167,6 +167,7 @@
       "fetchImportImage",
       "webTourCleanup",
       "writeWebTourTextV1",
+      "generateHelpDetailsV1",
       "freshserviceV1",
       "webToursListV1",
       "webTourLoadV1",

@@ -98,6 +98,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'assign-open-check',
   'modification-fewer-questions',
   'student-set-time',
+  'help-center-ai',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

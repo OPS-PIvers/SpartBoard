@@ -11983,6 +11983,8 @@ export type GlobalFeature =
   | 'google-tasks-sync'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/shipped/TEAMS_REDESIGN.md T22). */
   | 'plc-goal-coach'
+  /** Generate with AI on a Help Center tour: fills its title, description, category, audience and widgets. */
+  | 'help-center-ai'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
