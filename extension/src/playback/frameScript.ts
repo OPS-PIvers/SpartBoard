@@ -177,6 +177,9 @@ export function installFrameSeeker(
   let detach: (() => void) | null = null;
   let toldAmbiguous = false;
   let toldCandidate = '';
+  // A pick-any step: whether it has lit its options this seek, and whether nodes were added or removed since its last look.
+  let anyLit = false;
+  let listChanged = true;
   // Every open shadow root, and the extension's own closed ones, is searched and watched; kept up to date from mutation records instead of a full walk per search.
   let roots = new Set<Document | ShadowRoot>();
   let rootsAt = 0;
@@ -274,6 +277,7 @@ export function installFrameSeeker(
       for (const one of els)
         for (const name of events) one.removeEventListener(name, onAct, true);
     };
+    if (all?.length) anyLit = true;
     shared.target = { token, el, ...(all?.length ? { els: all } : {}) };
     shared.onTarget?.();
   };
@@ -285,6 +289,8 @@ export function installFrameSeeker(
     seek = step;
     toldAmbiguous = false;
     toldCandidate = '';
+    anyLit = false;
+    listChanged = true;
     benchMark('seek', { token: step.token });
     if (later) queue();
     else run();
@@ -347,7 +353,11 @@ export function installFrameSeeker(
     const began = performance.now();
     for (const r of roots)
       if (r instanceof ShadowRoot && !r.host.isConnected) roots.delete(r);
-    const out = assessTarget(doc, seek.clues, [...roots]);
+    const out = assessTarget(
+      doc,
+      anyLit ? { ...seek.clues, anyOnly: true } : seek.clues,
+      [...roots]
+    );
     lastEnd = performance.now();
     lastCost = lastEnd - began;
     if (out.kind !== 'match' && lastEnd - rootsAt > ROOTS_RESCAN_MS)
@@ -384,8 +394,11 @@ export function installFrameSeeker(
   /** A pick-any step already lit: options that come or go are lit too, and it is lost once none are left. */
   const refreshAll = (current: FrameTarget): boolean => {
     if (!seek) return true;
+    // Only added or removed nodes change which options there are.
+    if (!listChanged) return (current.els ?? []).some((el) => el.isConnected);
+    listChanged = false;
     const began = performance.now();
-    const out = assessTarget(doc, seek.clues, [...roots]);
+    const out = assessTarget(doc, { ...seek.clues, anyOnly: true }, [...roots]);
     lastEnd = performance.now();
     lastCost = lastEnd - began;
     const all = out.kind === 'match' ? (out.match.all ?? []) : [];
@@ -579,6 +592,7 @@ export function installFrameSeeker(
 
   const schedule = (records: MutationRecord[]) => {
     addedRoots(records);
+    if (records.some((r) => r.type === 'childList')) listChanged = true;
     domVersion += 1;
     // New elements may be a watched step's control arriving late: look again soon, not after the miss pause.
     if (

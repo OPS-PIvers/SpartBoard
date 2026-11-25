@@ -10,6 +10,8 @@ import { ownRootsIn } from '../ownRoots';
 export type WebLocatorClues = Omit<WebTourLocator, 'frames'> & {
   /** Every control like the target counts, so the learner can pick any of them. */
   any?: true;
+  /** Set once a pick-any step lit its options, so it never falls back to one control. */
+  anyOnly?: true;
 };
 
 export interface LocatorMatch {
@@ -605,19 +607,28 @@ export const SUGGEST_FLOOR = SCORE_FLOOR / 2;
 /** Most options a pick-any step lights. */
 export const MAX_ANY = 100;
 
-/** Every shown control like a pick-any step's target: its CSS path with row positions dropped (else its role), kept to its role and heading. */
+/** A CSS path with only its deepest row position dropped, so the levels above still pin the list. */
+export const anyRowCss = (css: string): string => {
+  const at = css.lastIndexOf(':nth-of-type(');
+  if (at < 0) return css.trim();
+  const end = css.indexOf(')', at);
+  return (css.slice(0, at) + css.slice(end + 1)).trim();
+};
+
+/** Every shown control like a pick-any step's target: its CSS path with the row position dropped (else its role under its heading), kept to its role and heading. */
 export function assessAll(
   clues: WebLocatorClues,
   roots: (Document | ShadowRoot)[]
 ): Element[] {
   const role = clues.role || undefined;
-  const css = clues.css?.replace(/:nth-of-type\(\d+\)/g, '').trim();
+  const css = clues.css ? anyRowCss(clues.css) : '';
+  const heading = clues.heading ? normalizeText(clues.heading) : '';
+  // A role alone would light every control of that kind on the page.
   const pool = css
     ? byCss(roots, css)
-    : role
+    : role && heading
       ? queryAll(roots, INTERACTIVE)
       : [];
-  const heading = clues.heading ? normalizeText(clues.heading) : '';
   const headingSim = heading ? similarityTo(heading) : null;
   const look = lookups();
   const hits = new Set(
@@ -645,11 +656,10 @@ export function assessTarget(
 ): LocateOutcome {
   if (clues.any) {
     const all = assessAll(clues, roots);
-    if (all.length > 0)
-      return {
-        kind: 'match',
-        match: { el: all[0], all, weak: false, score: 1 },
-      };
+    if (all.length > 0 || clues.anyOnly)
+      return all.length > 0
+        ? { kind: 'match', match: { el: all[0], all, weak: false, score: 1 } }
+        : { kind: 'none' };
   }
   const w = wantedOf(clues);
   if (w.total === 0) return { kind: 'none' };

@@ -148,7 +148,7 @@ export function useTargetRect(active: boolean): TrackedTarget {
         if (el) reveal(el);
       }
       if (current) token = current.token;
-      if (current?.el === el) els = current?.els ?? [];
+      els = current && current.el === el ? (current.els ?? []) : el ? els : [];
       const live = els.length > 1 ? boxOfAll(el, els) : boxOf(el);
       if (live) missingSince = 0;
       else if (!missingSince) missingSince = now;

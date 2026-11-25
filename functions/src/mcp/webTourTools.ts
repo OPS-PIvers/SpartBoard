@@ -628,8 +628,14 @@ export function withPlace(
       out.openUrl = openPage(`${at} open_url`, place.open_url, warnings);
     else delete out.openUrl;
   }
-  if (place.pick_any === true) out.pickAny = true;
-  else if (place.pick_any === false) delete out.pickAny;
+  if (place.pick_any === true) {
+    out.pickAny = true;
+    const loc = out.locator ?? {};
+    if (!str(loc.css) && !(str(loc.role) && str(loc.heading)))
+      warnings.push(
+        `${at} pick_any needs a css that matches every option, or a role with the list's heading. Without one it lights only the one control.`
+      );
+  } else if (place.pick_any === false) delete out.pickAny;
   for (const [key, field] of [
     ['show_when', 'showWhen'],
     ['done_when', 'doneWhen'],

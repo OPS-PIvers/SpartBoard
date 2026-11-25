@@ -1,6 +1,7 @@
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import {
   accessibleName,
+  anyRowCss,
   assessAll,
   assessTarget,
   locate,
@@ -241,5 +242,23 @@ describe('pick-any steps', () => {
     });
     expect(out.kind === 'match' && out.match.el.id).toBe('x');
     expect(out.kind === 'match' && out.match.all).toBeUndefined();
+  });
+
+  it('drops only the row position, never a role with no heading or the fallback once lit', () => {
+    expect(anyRowCss('div:nth-of-type(2) > ul > li:nth-of-type(3) > a')).toBe(
+      'div:nth-of-type(2) > ul > li > a'
+    );
+    html(`<button id="x">Save</button><button id="y">Close</button>`);
+    place(document.getElementById('x'), 0, 0);
+    place(document.getElementById('y'), 50, 0);
+    expect(assessAll({ role: 'button', any: true }, [document])).toEqual([]);
+    expect(
+      assessTarget(document, {
+        role: 'button',
+        name: 'Save',
+        any: true,
+        anyOnly: true,
+      }).kind
+    ).toBe('none');
   });
 });

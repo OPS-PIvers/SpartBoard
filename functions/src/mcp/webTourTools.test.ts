@@ -1180,6 +1180,9 @@ describe('web tour connector tools', () => {
       { id: 'b' },
     ]);
     expect(off.steps[0].web).not.toHaveProperty('pickAny');
+    expect(on.warnings.some((w) => w.includes('pick_any needs a css'))).toBe(
+      !steps[0].web?.locator?.css
+    );
   });
 
   it('warns when no step points at a control any more', () => {
