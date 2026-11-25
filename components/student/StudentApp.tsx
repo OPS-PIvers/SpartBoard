@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { signInAnonymously, signOut } from 'firebase/auth';
+import { signOut } from 'firebase/auth';
 import { auth } from '@/config/firebase';
-import { dropPinLogin } from '@/utils/pinLoginScope';
+import { useStudentAuthBootstrap } from '@/hooks/useStudentAuthBootstrap';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { StudentLobby } from './StudentLobby';
 import { TeacherPreviewBanner } from './TeacherPreviewBanner';
@@ -82,7 +82,6 @@ const StudentPreviewLobby: React.FC = () => (
 
 const StudentAppInner: React.FC = () => {
   const [joinedCode, setJoinedCode] = useState<string | null>(null);
-  const [authInitialized, setAuthInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [windowSize, setWindowSize] = useState({
@@ -105,61 +104,23 @@ const StudentAppInner: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Sign in anonymously when component mounts — but only if there's no
-  // existing user. An SSO-authenticated student who lands on `/join`
-  // (bookmark, stale link, etc.) must keep their custom-token session;
-  // unconditional `signInAnonymously` would silently demote them and then
-  // `RequireStudentAuth` would bounce them off `/my-assignments` on return.
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        // Wait for hydration so the `auth.currentUser` check below reflects
-        // the persisted IndexedDB state, not the synchronous null seen on a
-        // fresh page load. If hydration itself rejects (e.g. IndexedDB
-        // blocked in a private window), fall through and let the anonymous
-        // sign-in attempt run as a last resort — /join's pre-existing
-        // contract is that the lobby should always end up with *some* auth
-        // user for `useLiveSession` to attach to, and signInAnonymously is
-        // a better fallback than rendering the lobby with no auth at all.
-        try {
-          await auth.authStateReady();
-        } catch (hydrationErr) {
-          console.warn(
-            '[StudentApp] authStateReady failed; falling through to anonymous sign-in.',
-            hydrationErr
-          );
-        }
-        if (!auth.currentUser) {
-          await signInAnonymously(auth);
-        } else {
-          await dropPinLogin(auth);
-        }
-        setAuthInitialized(true);
-      } catch (error) {
-        // - This component treats anonymous-auth failures as non-fatal so the UI can still proceed.
-        // - Session join behavior (including any ID fallback) is handled within the useLiveSession hook.
-        // Because this failure is non-fatal for core functionality, we log a warning
-        // instead of an error, but include guidance for common misconfiguration issues.
-        console.warn(
-          'Anonymous auth failed. If this is a restricted operation error, please ensure "Anonymous" provider is enabled in Firebase Console -> Authentication -> Sign-in method.',
-          error
-        );
-        // We still mark auth as initialized so that downstream hooks can run their own fallback logic.
-        setAuthInitialized(true);
-      }
-    };
+  // /join keeps going on a failed sign-in so useLiveSession can run its own fallback.
+  const { ready: authInitialized } = useStudentAuthBootstrap({
+    continueOnHydrationError: true,
+    label: 'StudentApp',
+  });
 
-    void initAuth();
-
-    // Cleanup anonymous session on unmount
-    return () => {
+  // Anonymous /join visitors are signed out when they leave.
+  useEffect(
+    () => () => {
       if (auth.currentUser?.isAnonymous) {
         void signOut(auth).catch((err) =>
           console.error('Failed to sign out on unmount:', err)
         );
       }
-    };
-  }, []);
+    },
+    []
+  );
 
   // Hook usage for 'student' role
   const {

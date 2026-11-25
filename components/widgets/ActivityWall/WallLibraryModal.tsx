@@ -33,6 +33,8 @@ import { activityWallSessionId } from '@/utils/activityWallLinks';
 import { WallStillClosedError } from '@/utils/activityWallErrors';
 import { tourTypeAttr } from '@/config/tourAnchors';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
+import { useLibraryDelete } from '@/components/common/library/useLibraryDelete';
+import { LIBRARY_ITEM_NOUNS } from '@/components/common/library/useLibraryDeleteConfirm';
 
 interface WallLibraryModalProps {
   open: boolean;
@@ -172,32 +174,25 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
     [addToast, confirm, onClearPosts, uid]
   );
 
-  const handleDelete = useCallback(
-    async (entry: ActivityWallLibraryEntry) => {
-      if (!uid) return;
-      if (
-        !(await confirm(
-          `Delete "${entry.title || 'Untitled'}" and all of its posts? This cannot be undone.`
-        ))
-      ) {
-        return;
-      }
-      try {
-        const sessionId = activityWallSessionId(uid, entry.id);
-        await onDelete(entry.id);
-        await deleteDoc(doc(db, 'activity_wall_sessions', sessionId)).catch(
-          () => {
-            // Rules deny deleting the session doc; clearing posts + entry retires a wall.
-          }
-        );
-        addToast('Wall deleted.', 'info');
-      } catch (err) {
-        console.error('[ActivityWall] Failed to delete wall:', err);
-        addToast('Could not delete the wall.', 'error');
-      }
+  const wallDelete = useLibraryDelete<ActivityWallLibraryEntry>({
+    noun: LIBRARY_ITEM_NOUNS.activityWall,
+    titleOf: (entry) => entry.title || 'Untitled',
+    detail: () => 'Its posts are deleted with it.',
+    remove: async (entry) => {
+      if (!uid) throw new Error('Not signed in.');
+      await onDelete(entry.id);
+      await deleteDoc(
+        doc(db, 'activity_wall_sessions', activityWallSessionId(uid, entry.id))
+      ).catch(() => {
+        // Rules deny deleting the session doc; clearing posts + entry retires a wall.
+      });
     },
-    [addToast, confirm, onDelete, uid]
-  );
+    addToast,
+    onError: (err) =>
+      console.error('[ActivityWall] Failed to delete wall:', err),
+  });
+  const handleDelete = (entry: ActivityWallLibraryEntry) =>
+    wallDelete.deleteOne(entry);
 
   if (!open) return null;
 

@@ -10,7 +10,11 @@ import {
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import type { ClassRoster, PassHold, PeriodAccessSessionFields } from '@/types';
-import { closedRow, usePeriodAccess } from '@/hooks/usePeriodAccess';
+import {
+  closedRow,
+  usePeriodAccess,
+  type PeriodAccessPatch,
+} from '@/hooks/usePeriodAccess';
 import { isClassClosed, runStatus } from '@/utils/assignedStatus';
 import { effectivePeriodState, pendingPasses } from '@/utils/periodAccess';
 
@@ -38,6 +42,32 @@ export interface AssignmentClassCollections {
   assignmentCollection: string;
   /** False for kinds with no idle finalizer, as `usePeriodAccess` takes it. */
   refreshIdle?: boolean;
+  /** Set for a kind whose session only the server writes (Writing); every class-action write goes through it. */
+  writer?: AssignmentWriter;
+}
+
+/** The server writes for a kind no client may write; each takes the assignment id. */
+export interface AssignmentWriter {
+  /** Per-class rows and Let in passes, as `usePeriodAccess` commits them. */
+  commit: (assignmentId: string, patch: PeriodAccessPatch) => Promise<void>;
+  /** The assignment's closedAt and doneAt marks; writer kinds keep no openedAt. */
+  mark: (
+    assignmentId: string,
+    fields: Partial<Pick<AssignmentRun, 'closedAt' | 'doneAt'>>
+  ) => Promise<void>;
+  /** Clears a passed single-line window on the session and the assignment. */
+  clearWindow: (
+    assignmentId: string,
+    patch: { openAt?: null; closeAt?: null }
+  ) => Promise<void>;
+  /** Closes one class and, when it was the last one open, ends the run in the same write. */
+  closeClass: (
+    assignmentId: string,
+    key: string,
+    closedAt: number
+  ) => Promise<void>;
+  /** Puts back a run's classes, status and marks as they were before a Close or Move to Finished. */
+  restore: (prev: AssignmentRun, wasEnded: boolean) => Promise<void>;
 }
 
 /** A kind's whole-assignment writes, each taking the assignment id (not the session id); D21 drives them. */
@@ -91,7 +121,7 @@ export interface AssignmentClassActions {
   moveToDone: () => Promise<void>;
 }
 
-/** Class actions for any kind whose teacher writes its session directly (not Writing) that keep its status in step (D21). */
+/** Class actions for every kind that keep its status in step (D21); a `writer` routes the writes through the server. */
 export function useAssignmentClassActions(
   assignment: AssignmentRun | null,
   collections: AssignmentClassCollections,
@@ -103,7 +133,8 @@ export function useAssignmentClassActions(
   const pa = assignment?.periodAccess;
   const keys = useMemo(() => Object.keys(pa ?? {}), [pa]);
   const perClass = keys.length > 0;
-  const { sessionCollection, assignmentCollection, refreshIdle } = collections;
+  const { sessionCollection, assignmentCollection, refreshIdle, writer } =
+    collections;
   const id = assignment?.id ?? null;
   const sessionId = assignment ? (assignment.sessionId ?? assignment.id) : null;
   const periodSession = useMemo(
@@ -113,6 +144,13 @@ export function useAssignmentClassActions(
         : null,
     [perClass, assignment, sessionId]
   );
+  const commit = useMemo(
+    () =>
+      writer && id
+        ? (patch: PeriodAccessPatch) => writer.commit(id, patch)
+        : undefined,
+    [writer, id]
+  );
   const periods = usePeriodAccess(
     periodSession,
     {
@@ -120,6 +158,7 @@ export function useAssignmentClassActions(
       assignmentCollection,
       refreshIdle,
       ...(id ? { assignmentId: id } : {}),
+      ...(commit ? { commit } : {}),
     },
     rosters
   );
@@ -183,9 +222,17 @@ export function useAssignmentClassActions(
     async (
       fields: Partial<Pick<AssignmentRun, 'closedAt' | 'doneAt' | 'openedAt'>>
     ) => {
-      await updateDoc(owned().assignment, fields);
+      const ref = owned().assignment;
+      if (!writer) {
+        await updateDoc(ref, fields);
+        return;
+      }
+      const marks: Partial<Pick<AssignmentRun, 'closedAt' | 'doneAt'>> = {};
+      if ('closedAt' in fields) marks.closedAt = fields.closedAt;
+      if ('doneAt' in fields) marks.doneAt = fields.doneAt;
+      if (id && Object.keys(marks).length > 0) await writer.mark(id, marks);
     },
-    [owned]
+    [owned, writer, id]
   );
 
   // Turns a closed class's open attempts in once the write grace after its closedAt runs out.
@@ -215,15 +262,17 @@ export function useAssignmentClassActions(
         // An ended run's other classes were Closed (D20); stamp them, clock-closed ones too, so they stay closed.
         const now = Date.now();
         const stays: Array<[string, number]> = [];
+        const stamp: string[] = [];
         for (const [k, row] of Object.entries(a.periodAccess ?? {})) {
           if (k === opened) continue;
           if (row.state === 'closed' && row.closedAt != null) {
             stays.push([k, row.closedAt]);
           } else {
-            await periods.closePeriod(k, now);
+            stamp.push(k);
             stays.push([k, now]);
           }
         }
+        await periods.closePeriods(stamp, now);
         await reopen(id);
         // A Done or closed mark left on a reopened run would drop it into Done at the next End (D5).
         if (!reopenClearsMarks && (a.closedAt != null || a.doneAt != null))
@@ -261,13 +310,14 @@ export function useAssignmentClassActions(
   // Marks a fully closed run as waiting on passes on the session and assignment, for the sweep and the Assigned row.
   const writeHold = useCallback(
     async (hold: PassHold) => {
+      if (writer) throw new Error('This assignment cannot wait on passes.');
       const { session, assignment: assignmentRef } = owned();
       const batch = writeBatch(db);
       batch.update(session, { passHold: hold });
       batch.update(assignmentRef, { passHold: hold });
       await batch.commit();
     },
-    [owned]
+    [owned, writer]
   );
 
   // Every class is closed: end the run, unless students still hold passes.
@@ -287,19 +337,6 @@ export function useAssignmentClassActions(
     return null;
   }, [keepLiveForPasses, id, fresh, ended, owned, writeHold, endIfLive]);
 
-  // A single-line Close pauses the run instead of ending it while students still hold passes.
-  const holdSingle = useCallback(async (): Promise<PassHold | null> => {
-    if (!keepLiveForPasses || !id) return null;
-    const a = await fresh();
-    if (!a || ended(a)) return null;
-    const snap = await getDoc(owned().session);
-    const hold = pendingPasses(snap.data(), Date.now());
-    if (!hold) return null;
-    if (runStatus(a.status) !== 'paused' && pause) await pause(id);
-    await writeHold(hold);
-    return hold;
-  }, [keepLiveForPasses, id, fresh, ended, owned, pause, writeHold]);
-
   // A single line's own clock must not hold students out once the teacher opens it.
   const clearSingleGate = useCallback(async () => {
     const a = await fresh();
@@ -309,12 +346,15 @@ export function useAssignmentClassActions(
     if (a?.closeAt != null && a.closeAt <= now) patch.closeAt = null;
     if (Object.keys(patch).length === 0) return;
     const { session, assignment: assignmentRef } = owned();
-    const batch = writeBatch(db);
-    batch.update(session, patch);
-    batch.update(assignmentRef, patch);
-    await batch.commit();
+    if (writer && id) await writer.clearWindow(id, patch);
+    else {
+      const batch = writeBatch(db);
+      batch.update(session, patch);
+      batch.update(assignmentRef, patch);
+      await batch.commit();
+    }
     if (id && onWindowCleared) await onWindowCleared(id, patch);
-  }, [id, fresh, owned, onWindowCleared]);
+  }, [id, fresh, owned, writer, onWindowCleared]);
 
   const open = useCallback(
     async (key: string | null, isReopen: boolean): Promise<void> => {
@@ -354,6 +394,12 @@ export function useAssignmentClassActions(
       held: PassHold | null;
     } | null> => {
       const { session, assignment: assignmentRef } = owned();
+      if (writer && id) {
+        // The server ends the run in the same write when this was the last class.
+        const now = Date.now();
+        await writer.closeClass(id, key, now);
+        return { last: false, closedAt: now, held: null };
+      }
       return runTransaction(db, async (tx) => {
         const a = (await tx.get(assignmentRef)).data() as
           AssignmentRun | undefined;
@@ -385,7 +431,7 @@ export function useAssignmentClassActions(
         };
       });
     },
-    [owned, ended, keepLiveForPasses]
+    [owned, writer, id, ended, keepLiveForPasses]
   );
 
   const closeClass = useCallback(
@@ -395,9 +441,7 @@ export function useAssignmentClassActions(
       const k = classKey(key);
       if (k == null) {
         await mark({ closedAt: Date.now() });
-        const held = await holdSingle();
-        if (held) onHeld?.(held, null);
-        else await endIfLive();
+        await endIfLive();
         return;
       }
       const closed = await closeOne(k);
@@ -415,7 +459,6 @@ export function useAssignmentClassActions(
       owned,
       classKey,
       mark,
-      holdSingle,
       endIfLive,
       closeOne,
       end,
@@ -444,10 +487,7 @@ export function useAssignmentClassActions(
     else await mark({ closedAt: Date.now() });
     let held: PassHold | null = null;
     if (perClass) held = await endOrHold();
-    else {
-      held = await holdSingle();
-      if (!held) await endIfLive();
-    }
+    else await endIfLive();
     if (perClass) await turnInClosed(held != null);
     if (held) onHeld?.(held, null);
   }, [
@@ -457,7 +497,6 @@ export function useAssignmentClassActions(
     periods,
     mark,
     endOrHold,
-    holdSingle,
     endIfLive,
     turnInClosed,
     onHeld,
@@ -500,4 +539,50 @@ export function useAssignmentClassActions(
     closeAll,
     moveToDone,
   };
+}
+
+/** Puts back what Close for all classes or Move to Finished changed, for any kind (D10 Undo). */
+export async function restoreRun(
+  prev: AssignmentRun,
+  uid: string,
+  collections: AssignmentClassCollections,
+  lifecycle: AssignmentLifecycle
+): Promise<void> {
+  const wasEnded = lifecycle.isEnded
+    ? lifecycle.isEnded(prev)
+    : runStatus(prev.status) === 'inactive';
+  if (collections.writer) {
+    await collections.writer.restore(prev, wasEnded);
+    return;
+  }
+  const assignmentRef = doc(
+    db,
+    'users',
+    uid,
+    collections.assignmentCollection,
+    prev.id
+  );
+  if (!wasEnded) {
+    await lifecycle.reopen(prev.id);
+    if (runStatus(prev.status) === 'active' && lifecycle.resume)
+      await lifecycle.resume(prev.id);
+  }
+  // Every class row goes back exactly as it was, times and marks included.
+  const rows = Object.entries(prev.periodAccess ?? {});
+  if (rows.length > 0) {
+    const sessionRef = doc(
+      db,
+      collections.sessionCollection,
+      prev.sessionId ?? prev.id
+    );
+    const batch = writeBatch(db);
+    for (const ref of [sessionRef, assignmentRef])
+      for (const [key, row] of rows)
+        batch.update(ref, new FieldPath('periodAccess', key), row);
+    await batch.commit();
+  }
+  await updateDoc(assignmentRef, {
+    doneAt: prev.doneAt ?? null,
+    closedAt: prev.closedAt ?? null,
+  });
 }

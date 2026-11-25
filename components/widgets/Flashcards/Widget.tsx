@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { copyLinkWithToast } from '@/hooks/useCopyShortLink';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { Layers, LogIn } from 'lucide-react';
 import { deleteField, doc, setDoc, updateDoc } from 'firebase/firestore';
@@ -87,10 +88,8 @@ import {
   useImportHandoff,
 } from '@/components/import/importHandoff';
 import { attributionFor } from '@/components/import/attribution';
-import {
-  LIBRARY_ITEM_NOUNS,
-  useLibraryDeleteConfirm,
-} from '@/components/common/library/useLibraryDeleteConfirm';
+import { LIBRARY_ITEM_NOUNS } from '@/components/common/library/useLibraryDeleteConfirm';
+import { useLibraryDelete } from '@/components/common/library/useLibraryDelete';
 import { FlashcardSetEditorModal } from './FlashcardSetEditorModal';
 import { flashcardSetIncompleteReason } from './useFlashcardEditorState';
 import {
@@ -106,6 +105,7 @@ import {
   type FlashcardImportData,
 } from './adapters/flashcardImportAdapter';
 import { flashcardAssignmentUrl } from '@/utils/staffAudience';
+import { DriveSession } from '@/utils/driveRequest';
 import {
   FlashcardPlayer,
   FlashcardShareModal,
@@ -177,7 +177,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const { addToast, updateWidget, rosters, updateRoster } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
-  const confirmDelete = useLibraryDeleteConfirm();
   const { openPicker } = useGooglePicker();
   // A substitute can read neither the teacher's sets nor their assignments, so
   // in a share the presented set comes from the bundle and no listener opens.
@@ -348,7 +347,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         interactive: true,
       });
       if (!token) throw new Error('Google Drive access is required.');
-      const response = await fetch(
+      const response = await new DriveSession(token).request(
         `${SHEETS_API_URL}/${sheetId}/values/${encodeURIComponent('A:B')}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -438,48 +437,12 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
-  const handleDelete = async (set: FlashcardSet): Promise<void> => {
-    const confirmed = await confirmDelete({
-      titles: [set.title],
-      noun: LIBRARY_ITEM_NOUNS.flashcards,
-    });
-    if (!confirmed) return;
-    try {
-      await flashcardSets.deleteSet(set.id);
-      addToast(`“${set.title}” deleted.`, 'success');
-    } catch (error) {
-      addToast(
-        error instanceof Error
-          ? error.message
-          : 'Flashcard set could not be deleted.',
-        'error'
-      );
-    }
-  };
-
-  const handleBulkDelete = async (sets: FlashcardSet[]): Promise<boolean> => {
-    const confirmed = await confirmDelete({
-      titles: sets.map((set) => set.title),
-      noun: LIBRARY_ITEM_NOUNS.flashcards,
-    });
-    if (!confirmed) return false;
-    const results = await Promise.allSettled(
-      sets.map((set) => flashcardSets.deleteSet(set.id))
-    );
-    const failed = results.filter((r) => r.status === 'rejected').length;
-    const succeeded = results.length - failed;
-    if (succeeded > 0)
-      addToast(
-        `Deleted ${succeeded} set${succeeded === 1 ? '' : 's'}.`,
-        'success'
-      );
-    if (failed > 0)
-      addToast(
-        `${failed} set${failed === 1 ? '' : 's'} failed to delete.`,
-        'error'
-      );
-    return succeeded > 0;
-  };
+  const setDelete = useLibraryDelete<FlashcardSet>({
+    noun: LIBRARY_ITEM_NOUNS.flashcards,
+    titleOf: (set) => set.title,
+    remove: (set) => flashcardSets.deleteSet(set.id),
+    addToast,
+  });
 
   const handleAssign = (set: FlashcardSet): void => {
     if (set.cards.length === 0) {
@@ -586,15 +549,11 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       setAssigningSet(null);
 
       const url = flashcardAssignmentUrl(sessionId, input.audience);
-      try {
-        await navigator.clipboard.writeText(url);
-        addToast(
-          `“${set.title}” assigned. Link copied to clipboard.`,
-          'success'
-        );
-      } catch {
-        addToast(`“${set.title}” assigned.`, 'success');
-      }
+      await copyLinkWithToast(url, addToast, {
+        success: `“${set.title}” assigned. Link copied to clipboard.`,
+        failure: `“${set.title}” assigned.`,
+        failureType: 'success',
+      });
       if (
         sharePlc &&
         !(await plcSharing.shareNewAssignmentResults(
@@ -912,12 +871,10 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onPresent={showPresent}
                 onShare={setSharingSet}
                 onAssign={handleAssign}
-                onDelete={(set) => void handleDelete(set)}
-                folderDeleteActions={{
-                  deleteItems: async (ids) => {
-                    for (const id of ids) await flashcardSets.deleteSet(id);
-                  },
-                }}
+                onDelete={(set) => void setDelete.deleteOne(set)}
+                folderDeleteActions={setDelete.folderActions(
+                  flashcardSets.sets
+                )}
                 assignments={assignments}
                 assignmentsLoading={assignmentsLoading}
                 tab={config.libraryTab ?? 'library'}
@@ -932,7 +889,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onAssignmentResults={(a) => showResults(a, 'results')}
                 onAssignmentMonitor={(a) => showResults(a, 'monitor')}
                 onAssignmentSettings={setSettingsTarget}
-                onBulkDelete={handleBulkDelete}
+                onBulkDelete={setDelete.deleteMany}
                 classLifecycle={assignedOn ? classLifecycle : undefined}
                 rosters={rosters}
                 onAssignmentPublishScores={setPublishTarget}

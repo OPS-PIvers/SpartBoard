@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
+import { Modal } from '@/components/common/Modal';
 import { loadAdminSettings } from './adminSettingsLoader';
 import type { AdminSettingsTabRequest } from '@/components/admin/AdminSettings';
 
@@ -32,16 +33,13 @@ export const AdminSettingsSlot: React.FC<{
         updating ? (
           <Spinner label={loadingLabel} />
         ) : (
-          <div
-            role="alertdialog"
-            aria-label={t('sidebar.header.adminSettingsLoadFailed')}
-            className="fixed inset-0 z-modal flex items-center justify-center bg-slate-900/40"
-            onClick={onClose}
+          <Modal
+            isOpen
+            onClose={onClose}
+            variant="bare"
+            ariaLabel={t('sidebar.header.adminSettingsLoadFailed')}
           >
-            <div
-              className="flex flex-col items-center gap-4 rounded-xl bg-white px-6 py-5 text-slate-700 shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="mx-auto flex w-fit flex-col items-center gap-4 rounded-xl bg-white px-6 py-5 text-slate-700 shadow-xl">
               <p className="text-sm font-medium">
                 {t('sidebar.header.adminSettingsLoadFailed')}
               </p>
@@ -62,7 +60,7 @@ export const AdminSettingsSlot: React.FC<{
                 </button>
               </div>
             </div>
-          </div>
+          </Modal>
         )
       }
     >

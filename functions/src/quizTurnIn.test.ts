@@ -71,6 +71,32 @@ describe('quizAttemptDeadline', () => {
     ).toBe(T + 13 * MIN);
   });
 
+  it("skips the student's class pauses too, and holds while their class is paused", () => {
+    const pa = {
+      c1: {
+        state: 'open',
+        pauseSpans: [{ from: T + 2 * MIN, to: T + 5 * MIN }],
+      },
+      c2: { state: 'paused', pausedAt: T + 6 * MIN },
+    };
+    const session = {
+      ...timed,
+      pauseSpans: [{ from: T + MIN, to: T + 3 * MIN }],
+      periodAccess: pa,
+    };
+    expect(
+      quizAttemptDeadline(session, { attemptStartedAt: T, classId: 'c1' }, 1)
+    ).toBe(T + 14 * MIN);
+    expect(
+      quizAttemptDeadline(
+        session,
+        { attemptStartedAt: T, classId: 'c2' },
+        1,
+        T + 8 * MIN
+      )
+    ).toBe(T + 14 * MIN);
+  });
+
   it('has no deadline for teacher-paced, untimed or unstarted attempts', () => {
     const r = { attemptStartedAt: T };
     expect(

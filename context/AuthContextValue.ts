@@ -73,19 +73,6 @@ export interface AuthContextType {
    */
   getAssignmentMode: (widget: AssignmentWidgetKey) => AssignmentMode;
   /**
-   * Whether the current user may see view-count metadata on view-only Share
-   * cards. Gated separately from the underlying view-only feature itself
-   * because the display fires one Firestore aggregation query per visible
-   * card on every dashboard tab-focus — fine for an admin who's tracking
-   * engagement, wasteful when surfaced to teachers who never asked for it.
-   *
-   * Distinct from `canAccessFeature('share-link-tracking')` in one place:
-   * the missing-permission-doc default is **admin-only**, not public — so
-   * deploying this code without seeding the `global_permissions` doc
-   * leaves teachers unaffected (and unbilled).
-   */
-  canSeeShareTracking: () => boolean;
-  /**
    * Fail-closed gate for student audio responses. A missing
    * `global_permissions/quiz-media-response` record means DENIED — the
    * opposite of `canAccessFeature`'s default — so it mirrors the server gate

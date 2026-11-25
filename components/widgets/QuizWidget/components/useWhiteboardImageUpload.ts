@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type { WhiteboardStartingImage } from '@/types';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDialog } from '@/context/useDialog';
+import { driveViewUrl, uploadDriveAsset } from '@/utils/driveAssetUpload';
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 
@@ -39,18 +40,18 @@ export function useWhiteboardImageUpload() {
         const bitmap = await createImageBitmap(file);
         const { width, height } = bitmap;
         bitmap.close();
-        const driveFile = await driveService.uploadFile(
-          file,
-          driveName ??
+        const driveFile = await uploadDriveAsset(driveService, {
+          blob: file,
+          name:
+            driveName ??
             `stimulus-${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`,
-          'Assets/QuizStimuli',
-          undefined,
-          options
-        );
-        await driveService.makePublic(driveFile.id, undefined);
+          folder: 'Assets/QuizStimuli',
+          fixedTime: options?.fixedTime,
+          audience: 'anyone',
+        });
         return {
           driveFileId: driveFile.id,
-          url: `https://drive.google.com/file/d/${driveFile.id}/view`,
+          url: driveViewUrl(driveFile.id),
           mimeType: file.type,
           width,
           height,

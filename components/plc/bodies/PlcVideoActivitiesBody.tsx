@@ -55,11 +55,11 @@ import type {
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
-import { useDialog } from '@/context/useDialog';
 import {
   usePlcVideoActivities,
   writePlcVideoActivityEntry,
 } from '@/hooks/usePlcVideoActivities';
+import { usePlcLibraryActions } from '@/hooks/usePlcLibraryActions';
 import { usePlcSoftDelete } from '@/hooks/usePlcTrash';
 import {
   SyncedVideoActivityVersionConflictError,
@@ -121,7 +121,6 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addToast } = useDashboard();
-  const { showConfirm } = useDialog();
   const {
     videoActivities: plcEntries,
     loading,
@@ -737,100 +736,54 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
     ]
   );
 
-  const handleUnshare = useCallback(
-    async (plcVideoActivityId: string, title: string) => {
-      const confirmed = await showConfirm(
-        t('plcDashboard.videoActivities.groupUnshareConfirm', {
-          title,
-          defaultValue:
-            'Remove "{{title}}" from this group? Other teammates will lose access to the shared library entry. Their personal copies (if any) keep working.',
-        }),
-        {
-          title: t('plcDashboard.videoActivities.unshareTitle', {
-            defaultValue: 'Unshare video activity',
-          }),
-          variant: 'warning',
-          confirmLabel: t('plcDashboard.videoActivities.unshareAction', {
-            defaultValue: 'Unshare',
-          }),
-        }
-      );
-      if (!confirmed) return;
-      setBusyRowId(plcVideoActivityId);
-      try {
-        // Soft-delete with undo (Decision 3.1): tombstone the PLC entry, log
-        // `item_deleted`, and pop an Undo toast that restores it.
-        //
-        // Clean-detach (Decision 5.3): on unshare we ALSO remove the caller
-        // from the canonical synced group's `participants` map via the
-        // `detachPlcSyncLinkage` Cloud Function (a real server op — rules
-        // forbid client `participants` writes). Symmetric with undo: restore
-        // re-joins via the idempotent `joinPlcVideoActivitySyncGroup`.
-        await softDelete({
-          type: 'videoActivity',
-          id: plcVideoActivityId,
-          title,
-          runDelete: async () => {
-            await unshareVideoActivityFromPlc(plcVideoActivityId);
-            // Best-effort: a detach failure must not block the unshare.
-            // gcPlcOrphans is the backstop for unreachable participants.
-            try {
-              await callDetachPlcSyncLinkage(
-                plc.id,
-                'video-activity',
-                plcVideoActivityId
-              );
-            } catch (detachErr) {
-              logError('PlcVideoActivitiesBody.unshare.detach', detachErr, {
-                plcId: plc.id,
-                plcVideoActivityId,
-              });
-            }
-          },
-          runRestore: async () => {
-            await restoreVideoActivityInPlc(plcVideoActivityId);
-            // Re-attach the caller so the restored header is live-synced
-            // again. Idempotent on the server; failure is non-fatal.
-            try {
-              await callJoinPlcVideoActivitySyncGroup(
-                plc.id,
-                plcVideoActivityId
-              );
-            } catch (rejoinErr) {
-              logError('PlcVideoActivitiesBody.unshare.rejoin', rejoinErr, {
-                plcId: plc.id,
-                plcVideoActivityId,
-              });
-            }
-          },
-        });
-      } catch (err) {
-        logError('PlcVideoActivitiesBody.unshare', err, {
-          plcId: plc.id,
-          plcVideoActivityId,
-        });
-        addToast(
-          err instanceof Error
-            ? err.message
-            : t('plcDashboard.videoActivities.unshareFailed', {
-                defaultValue: 'Failed to unshare video activity.',
-              }),
-          'error'
-        );
-      } finally {
-        setBusyRowId(null);
-      }
+  // Soft delete with undo (Decision 3.1) plus clean-detach (Decision 5.3); restore re-joins.
+  const unshareWithUndo = useCallback(
+    async (plcVideoActivityId: string, title: string): Promise<void> => {
+      await softDelete({
+        type: 'videoActivity',
+        id: plcVideoActivityId,
+        title,
+        runDelete: async () => {
+          await unshareVideoActivityFromPlc(plcVideoActivityId);
+          // Best-effort: a detach failure must not block the unshare.
+          // gcPlcOrphans is the backstop for unreachable participants.
+          try {
+            await callDetachPlcSyncLinkage(
+              plc.id,
+              'video-activity',
+              plcVideoActivityId
+            );
+          } catch (detachErr) {
+            logError('PlcVideoActivitiesBody.unshare.detach', detachErr, {
+              plcId: plc.id,
+              plcVideoActivityId,
+            });
+          }
+        },
+        runRestore: async () => {
+          await restoreVideoActivityInPlc(plcVideoActivityId);
+          // Re-attach the caller so the restored header is live-synced
+          // again. Idempotent on the server; failure is non-fatal.
+          try {
+            await callJoinPlcVideoActivitySyncGroup(plc.id, plcVideoActivityId);
+          } catch (rejoinErr) {
+            logError('PlcVideoActivitiesBody.unshare.rejoin', rejoinErr, {
+              plcId: plc.id,
+              plcVideoActivityId,
+            });
+          }
+        },
+      });
     },
-    [
-      addToast,
-      plc.id,
-      showConfirm,
-      t,
-      softDelete,
-      unshareVideoActivityFromPlc,
-      restoreVideoActivityInPlc,
-    ]
+    [plc.id, softDelete, unshareVideoActivityFromPlc, restoreVideoActivityInPlc]
   );
+
+  const { unshare: handleUnshare, busyId: unshareBusyId } =
+    usePlcLibraryActions({
+      plcId: plc.id,
+      kind: 'videoActivity',
+      unshareFn: unshareWithUndo,
+    });
 
   if (loading) {
     return (
@@ -942,7 +895,8 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
               defaultValue: 'a teammate',
             });
           const inLibrary = personalBySyncGroup.has(activity.syncGroupId);
-          const isBusy = busyRowId === activity.id;
+          const isBusy =
+            busyRowId === activity.id || unshareBusyId === activity.id;
           return (
             <div
               key={activity.id}

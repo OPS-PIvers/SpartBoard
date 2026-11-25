@@ -27,6 +27,18 @@ import type {
   ExtractedQuestion,
   ExtractedQuiz,
 } from '@/utils/quizDocumentImport';
+import { DialogProvider } from '@/context/DialogContext';
+import { DialogContainer } from '@/components/common/DialogContainer';
+
+// The real dialog shows the AI cost prompt.
+vi.unmock('@/context/useDialog');
+
+const withDialogs = ({ children }: { children: React.ReactNode }) => (
+  <DialogProvider>
+    {children}
+    <DialogContainer />
+  </DialogProvider>
+);
 
 const stub: QuizData = buildPaperStubQuiz({
   quizId: 'quiz-1',
@@ -68,7 +80,8 @@ const setup = (
       rasterize={rasterizer(pagesText.length)}
       recognize={recognize}
       {...over}
-    />
+    />,
+    { wrapper: withDialogs }
   );
   return { recognize, onSave, onClose, onError };
 };
@@ -325,7 +338,9 @@ describe('PaperQuestionTextModal with the shared readers', () => {
         name: 'Not what you expected? Try again with AI',
       })
     );
-    const prompt = screen.getByRole('dialog', { name: 'Convert with AI?' });
+    const prompt = await screen.findByRole('dialog', {
+      name: 'Convert with AI?',
+    });
     expect(prompt).toHaveTextContent(/daily AI limit/);
     fireEvent.click(within(prompt).getByRole('button', { name: 'Use AI' }));
     await waitFor(() =>

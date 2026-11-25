@@ -269,7 +269,10 @@ describe('PlcRubricLibraryBody', () => {
       screen.getByRole('button', { name: /Unshare Lab Report Rubric/i })
     );
     await waitFor(() =>
-      expect(unshareRubricFromPlc).toHaveBeenCalledWith('rubric-plc-1')
+      expect(unshareRubricFromPlc).toHaveBeenCalledWith(
+        'rubric-plc-1',
+        'Lab Report Rubric'
+      )
     );
   });
 

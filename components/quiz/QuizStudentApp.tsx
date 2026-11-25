@@ -96,7 +96,7 @@ import {
   FileScan,
   Clock,
 } from 'lucide-react';
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import {
   addDoc,
   collection,
@@ -105,6 +105,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { useStudentAuthBootstrap } from '@/hooks/useStudentAuthBootstrap';
 import { QUIZ_SSO_REDIRECT_ENABLED } from '@/config/constants';
 import { AnonymousJoinBlockedScreen } from '@/components/common/AnonymousJoinBlockedScreen';
 import { shouldGateToSso } from '@/utils/studentJoinRouting';
@@ -114,16 +115,17 @@ import {
   studentPreviewBlocksWrite,
 } from '@/utils/viewAsTab';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
-import { resolveAttemptDeadline, timestampMillis } from '@/utils/quizTimeLimit';
+import {
+  classPauses,
+  resolveAttemptDeadline,
+  timestampMillis,
+} from '@/utils/quizTimeLimit';
 import { QuizTimeLimitClock } from './QuizTimeLimitClock';
 import { useServerNow } from '@/hooks/useServerNow';
 import {
-  closeWithPass,
   hasPeriodAccess,
   nextScheduledOpen,
-  runningPassUntil,
   studentCanEnter,
-  withStudentPass,
 } from '@/utils/periodAccess';
 import { QuizPeriodLockedScreen } from './QuizPeriodLockedScreen';
 import {
@@ -440,54 +442,17 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
   const previewMode = usePreviewMode();
   const { t } = useTranslation();
 
-  const [authReady, setAuthReady] = useState(false);
-  const [authFailed, setAuthFailed] = useState(false);
-  // True iff `auth.currentUser` carries the `studentRole: true` custom claim
-  // minted by `studentLoginV1`. Resolved at mount; used to drive the
-  // auto-join branch in `QuizJoinFlow`. Anonymous joiners stay `false`.
-  const [isStudentRole, setIsStudentRole] = useState(false);
-  // A PIN-proven token: signed in for one session only, so no paid Speech to text (D15).
-  const [isPinLogin, setIsPinLogin] = useState(false);
-
-  // Sign in anonymously on mount only when nobody is signed in yet — SSO
-  // students arriving from `/my-assignments` already have a custom-token
-  // user we must keep. This satisfies Firestore security rules
-  // (`request.auth != null`) for direct `/quiz?code=…` visitors.
-  useEffect(() => {
-    if (previewMode) return;
-    const init = async () => {
-      try {
-        // Wait for Firebase Auth to hydrate from IndexedDB before deciding
-        // whether to sign in anonymously. `/my-assignments` → `/quiz` is a
-        // full-page browser navigation, so on mount `auth.currentUser` is
-        // null for the first tick or two even when IndexedDB holds an SSO
-        // user. Without this await we'd race hydration: a synchronous null
-        // check sends us into the signInAnonymously branch and silently
-        // replaces the SSO user with a fresh anonymous one — breaking the
-        // auto-join effect below and forcing SSO students into the PIN
-        // form. See QuizStudentApp.ssoAutoJoin.test.tsx for the regression.
-        await auth.authStateReady();
-        if (!auth.currentUser) {
-          await signInAnonymously(auth);
-        }
-        const user = auth.currentUser;
-        if (user && !user.isAnonymous) {
-          // Probe custom claims once. We don't refresh here — `studentLoginV1`
-          // is what minted these, and a stale token is fine for read-only
-          // identity. The Firestore rules re-validate on every write.
-          const tokenResult = await user.getIdTokenResult();
-          setIsStudentRole(tokenResult.claims?.studentRole === true);
-          setIsPinLogin(tokenResult.claims?.pinLogin === true);
-        }
-      } catch (err) {
-        console.warn('[QuizStudentApp] Auth init failed:', err);
-        setAuthFailed(true);
-      } finally {
-        setAuthReady(true);
-      }
-    };
-    void init();
-  }, [previewMode]);
+  const {
+    ready: authReady,
+    failed: authFailed,
+    isStudentRole,
+    isPinLogin,
+  } = useStudentAuthBootstrap({
+    enabled: !previewMode,
+    keepPinLogin: true,
+    readClaims: true,
+    label: 'QuizStudentApp',
+  });
 
   if (previewMode) {
     return <QuizPreviewLobby />;
@@ -634,7 +599,7 @@ const QuizJoinFlow: React.FC<{
   const autoJoin = isStudentRole || staffGate.status === 'ok';
 
   const {
-    session: liveSession,
+    session,
     myResponse,
     loading,
     error,
@@ -664,22 +629,6 @@ const QuizJoinFlow: React.FC<{
     periodKeys,
     contentPending,
   } = useQuizSessionStudent();
-  // Subscribe to auth so the view-log effect re-runs when anon sign-in
-  // resolves; `auth.currentUser` alone is non-reactive.
-  const [authedUid, setAuthedUid] = useState<string | null>(
-    auth.currentUser?.uid ?? null
-  );
-  useEffect(() => {
-    return onAuthStateChanged(auth, (user) => setAuthedUid(user?.uid ?? null));
-  }, []);
-
-  // A running Schedule or Let in pass opens the quiz to this student past any pause or close.
-  const passNow = useServerNow(liveSession?.studentAccess ? 5000 : null);
-  const passUntil = runningPassUntil(liveSession, authedUid, passNow);
-  const session = useMemo(
-    () => (liveSession ? withStudentPass(liveSession, passUntil) : liveSession),
-    [liveSession, passUntil]
-  );
   useQuizScoreOnSubmit(session, myResponse);
   // A response seen once and then gone means the teacher removed this student.
   const [responseSeenFor, setResponseSeenFor] = useState<string | null>(null);
@@ -920,13 +869,7 @@ const QuizJoinFlow: React.FC<{
   useEphemeralAppLanguage(myOverride?.language);
   // M17 F2 — the pointer's top-level window IS this student's effective one
   // (the CF folds `override.openAt`/`closeAt` into it); it wins over the session.
-  const pointerWindow = resolveEffectiveWindow(session, myPointer);
-  const myEffectiveWindow =
-    passUntil == null
-      ? pointerWindow
-      : {
-          closeAt: closeWithPass(pointerWindow.closeAt, passUntil) ?? undefined,
-        };
+  const myEffectiveWindow = resolveEffectiveWindow(session, myPointer);
   // Push the live served subset into the session hook so submitAnswer can
   // snapshot it onto the response doc (publish-time scoring reads the
   // snapshot, surviving a later override removal). Ref write — render-safe.
@@ -1050,6 +993,15 @@ const QuizJoinFlow: React.FC<{
     servedQuestionIdList,
     session?.paperWrittenQuestionIds
   );
+
+  // Subscribe to auth so the view-log effect re-runs when anon sign-in
+  // resolves; `auth.currentUser` alone is non-reactive.
+  const [authedUid, setAuthedUid] = useState<string | null>(
+    auth.currentUser?.uid ?? null
+  );
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => setAuthedUid(user?.uid ?? null));
+  }, []);
 
   // Per-period gate, re-checked as the clock passes a window edge.
   const periodNow = useServerNow(hasPeriodAccess(session) ? 5000 : null);
@@ -2350,13 +2302,14 @@ export const ActiveQuiz: React.FC<{
   }, [closeAtForAttempt, myResponse?.status, reopened, attemptCloseAutoSubmit]);
 
   // Overall time limit: counts from the server-stamped attempt start, scaled by extended time.
+  const myPauses = classPauses(session, myResponse?.classId);
   const attemptDeadline =
-    session.sessionMode === 'student' && session.status !== 'paused'
+    session.sessionMode === 'student' && !myPauses.paused
       ? resolveAttemptDeadline(
           timestampMillis(myResponse?.attemptStartedAt),
           session.timeLimitMinutes,
           override?.timeMultiplier,
-          session.pauseSpans
+          myPauses.pauseSpans
         )
       : null;
   // Any open timed attempt without a clock (a limit added mid-assignment, or a row a paper scan created) starts it.

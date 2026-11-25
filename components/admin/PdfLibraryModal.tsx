@@ -35,6 +35,7 @@ import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
+import { Modal } from '@/components/common/Modal';
 
 interface PdfLibraryModalProps {
   onClose: () => void;
@@ -349,375 +350,381 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
 
   // --- Render ---
   return (
-    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-3xl h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="bg-red-100 text-red-600 p-1.5 rounded-lg">
-              <FileText className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-black text-sm text-slate-800 uppercase tracking-widest">
-                Global PDF Library
-              </h3>
-              <p className="text-xxs text-slate-400 font-medium">
-                {view === 'list'
-                  ? `${pdfs.length} PDF${pdfs.length !== 1 ? 's' : ''} published`
-                  : view === 'settings'
-                    ? 'Global PDF settings'
-                    : editingId
-                      ? 'Edit PDF'
-                      : 'New PDF'}
-              </p>
-            </div>
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      zIndex="z-modal-nested"
+      maxWidth="max-w-3xl"
+      dismissible={false}
+      className="h-[85vh] overflow-hidden rounded-2xl bg-white shadow-2xl [&>div]:flex [&>div]:flex-col [&>div]:overflow-hidden"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="bg-red-100 text-red-600 p-1.5 rounded-lg">
+            <FileText className="w-4 h-4" />
           </div>
-
-          <div className="flex items-center gap-2">
-            {view !== 'editor' && (
-              <div className="flex bg-slate-100 p-1 rounded-xl mr-2">
-                <button
-                  {...tourAttr('admin.pdf-library.tab-library')}
-                  onClick={() => setView('list')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all ${
-                    view === 'list'
-                      ? 'bg-white text-red-600 shadow-xs'
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  <Library className="w-3.5 h-3.5" />
-                  Library
-                </button>
-                <button
-                  {...tourAttr('admin.pdf-library.tab-settings')}
-                  onClick={() => setView('settings')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all ${
-                    view === 'settings'
-                      ? 'bg-white text-red-600 shadow-xs'
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                  Settings
-                </button>
-              </div>
-            )}
-            <button
-              {...tourAttr('admin.pdf-library.modal-close')}
-              onClick={onClose}
-              className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
+          <div>
+            <h3 className="font-black text-sm text-slate-800 uppercase tracking-widest">
+              Global PDF Library
+            </h3>
+            <p className="text-xxs text-slate-400 font-medium">
+              {view === 'list'
+                ? `${pdfs.length} PDF${pdfs.length !== 1 ? 's' : ''} published`
+                : view === 'settings'
+                  ? 'Global PDF settings'
+                  : editingId
+                    ? 'Edit PDF'
+                    : 'New PDF'}
+            </p>
           </div>
         </div>
 
-        {/* Body */}
-        {view === 'list' ? (
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
-            {loading ? (
-              <div className="flex items-center justify-center h-full text-slate-400 text-sm">
-                Loading…
-              </div>
-            ) : pdfs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400 py-16">
-                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
-                  <FileText className="w-10 h-10 stroke-slate-300" />
-                </div>
-                <div className="text-center">
-                  <p className="font-black text-sm uppercase tracking-widest mb-1">
-                    No PDFs yet
-                  </p>
-                  <p className="text-xs">
-                    Upload your first PDF to share it with teachers.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 space-y-2">
-                {pdfs.map((pdf, idx) => (
-                  <div
-                    key={pdf.id}
-                    className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-3 shadow-xs hover:shadow-md hover:border-red-200 transition-all"
-                  >
-                    {/* Reorder handle / index */}
-                    <div className="flex flex-col items-center gap-0.5 shrink-0">
-                      <button
-                        {...tourFieldAttr(
-                          'admin.pdf-library.move-up',
-                          'admin',
-                          pdf.id
-                        )}
-                        onClick={() => handleMoveUp(idx)}
-                        disabled={idx === 0}
-                        className="text-slate-300 hover:text-slate-500 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                        title="Move up"
-                      >
-                        <ChevronUp className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {/* Icon */}
-                    <div className="bg-red-50 text-red-600 rounded-lg flex items-center justify-center shrink-0 border border-red-100 w-9 h-9">
-                      <FileText className="w-5 h-5" />
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm text-slate-800 truncate">
-                        {pdf.name}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xxs text-slate-400 font-mono">
-                          {(pdf.size / 1024).toFixed(1)} KB
-                        </span>
-                        <span className="text-slate-200">•</span>
-                        <span
-                          className={`flex items-center gap-1 text-xxs font-bold ${
-                            !pdf.buildings || pdf.buildings.length === 0
-                              ? 'text-emerald-600'
-                              : 'text-red-600'
-                          }`}
-                        >
-                          {!pdf.buildings || pdf.buildings.length === 0 ? (
-                            <Globe className="w-3 h-3" />
-                          ) : (
-                            <Building2 className="w-3 h-3" />
-                          )}
-                          {buildingLabel(pdf.buildings)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        {...tourFieldAttr(
-                          'admin.pdf-library.edit',
-                          'admin',
-                          pdf.id
-                        )}
-                        onClick={() => openEditor(pdf)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        {...tourFieldAttr(
-                          'admin.pdf-library.delete',
-                          'admin',
-                          pdf.id
-                        )}
-                        onClick={() => handleDelete(pdf)}
-                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : view === 'settings' ? (
-          /* Settings View */
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
-            {configStatus === 'failed' && (
-              <div
-                role="alert"
-                className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700"
-              >
-                <p>Could not load the saved global settings.</p>
-                <button
-                  type="button"
-                  // no-tour-anchor: shown only when the load fails
-                  onClick={() => void fetchConfig()}
-                  className="font-bold text-brand-blue-primary"
-                >
-                  Try again
-                </button>
-              </div>
-            )}
-            <DockDefaultsPanel
-              config={{
-                dockDefaults: globalConfig.dockDefaults ?? {},
-              }}
-              onChange={(dockDefaults) =>
-                setGlobalConfig((prev) => ({ ...prev, dockDefaults }))
-              }
-            />
-            <div className="pt-2">
+        <div className="flex items-center gap-2">
+          {view !== 'editor' && (
+            <div className="flex bg-slate-100 p-1 rounded-xl mr-2">
               <button
-                {...tourAttr('admin.pdf-library.save-settings')}
-                onClick={handleSaveSettings}
-                disabled={isSavingSettings || configStatus !== 'ready'}
-                className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-red-100 transition-all active:scale-95"
+                {...tourAttr('admin.pdf-library.tab-library')}
+                onClick={() => setView('list')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all ${
+                  view === 'list'
+                    ? 'bg-white text-red-600 shadow-xs'
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}
               >
-                {isSavingSettings ? (
-                  'Saving Settings…'
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Save Global Settings
-                  </>
-                )}
+                <Library className="w-3.5 h-3.5" />
+                Library
+              </button>
+              <button
+                {...tourAttr('admin.pdf-library.tab-settings')}
+                onClick={() => setView('settings')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all ${
+                  view === 'settings'
+                    ? 'bg-white text-red-600 shadow-xs'
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <Settings className="w-3.5 h-3.5" />
+                Settings
               </button>
             </div>
-          </div>
-        ) : (
-          /* Editor View */
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-6">
-              {/* File Upload */}
-              <div>
-                <SettingsLabel as="span" id="pdf-file-label">
-                  PDF File
-                </SettingsLabel>
-                <div
-                  role="group"
-                  aria-labelledby="pdf-file-label"
-                  className="flex items-center gap-3"
-                >
-                  <button
-                    {...tourAttr('admin.pdf-library.upload-pdf')}
-                    onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider transition-colors flex items-center gap-2"
-                  >
-                    <Upload className="w-4 h-4" />
-                    {editFile || editExistingUrl ? 'Change PDF' : 'Upload PDF'}
-                  </button>
-                  <span className="text-xs font-medium text-slate-600 truncate">
-                    {editFile
-                      ? editFile.name
-                      : editExistingUrl
-                        ? 'Existing PDF loaded'
-                        : 'No file chosen'}
-                  </span>
-                </div>
-                <input
-                  // no-tour-anchor: hidden file input opened by its upload button
-                  type="file"
-                  ref={fileInputRef}
-                  accept="application/pdf"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-              </div>
+          )}
+          <button
+            {...tourAttr('admin.pdf-library.modal-close')}
+            onClick={onClose}
+            className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
 
-              {/* Title */}
-              <div>
-                <SettingsLabel htmlFor={pdfNameId}>PDF Name</SettingsLabel>
-                <input
-                  {...tourAttr('admin.pdf-library.title')}
-                  id={pdfNameId}
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  placeholder="e.g. District Policy"
-                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-red-500 shadow-xs"
-                />
+      {/* Body */}
+      {view === 'list' ? (
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {loading ? (
+            <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+              Loading…
+            </div>
+          ) : pdfs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400 py-16">
+              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                <FileText className="w-10 h-10 stroke-slate-300" />
               </div>
-
-              {/* Building Targeting */}
-              <div>
-                <SettingsLabel as="span" id="pdf-available-to-label">
-                  Available To
-                </SettingsLabel>
-                <p className="text-xs text-slate-500 mb-2">
-                  None selected means everyone.
+              <div className="text-center">
+                <p className="font-black text-sm uppercase tracking-widest mb-1">
+                  No PDFs yet
                 </p>
+                <p className="text-xs">
+                  Upload your first PDF to share it with teachers.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 space-y-2">
+              {pdfs.map((pdf, idx) => (
                 <div
-                  role="group"
-                  aria-labelledby="pdf-available-to-label"
-                  className="grid grid-cols-2 gap-1.5 mb-2"
+                  key={pdf.id}
+                  className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-3 shadow-xs hover:shadow-md hover:border-red-200 transition-all"
                 >
-                  {BUILDINGS.map((building) => {
-                    const isSelected = editBuildings.includes(building.id);
-                    return (
-                      <button
-                        {...tourFieldAttr(
-                          'admin.pdf-library.building',
-                          'admin',
-                          building.id
-                        )}
-                        key={building.id}
-                        type="button"
-                        onClick={() => toggleBuilding(building.id)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left text-xs font-bold transition-colors ${
-                          isSelected
-                            ? 'bg-red-600 text-white border-red-600 shadow-xs'
-                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  {/* Reorder handle / index */}
+                  <div className="flex flex-col items-center gap-0.5 shrink-0">
+                    <button
+                      {...tourFieldAttr(
+                        'admin.pdf-library.move-up',
+                        'admin',
+                        pdf.id
+                      )}
+                      onClick={() => handleMoveUp(idx)}
+                      disabled={idx === 0}
+                      className="text-slate-300 hover:text-slate-500 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                      title="Move up"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Icon */}
+                  <div className="bg-red-50 text-red-600 rounded-lg flex items-center justify-center shrink-0 border border-red-100 w-9 h-9">
+                    <FileText className="w-5 h-5" />
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-slate-800 truncate">
+                      {pdf.name}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xxs text-slate-400 font-mono">
+                        {(pdf.size / 1024).toFixed(1)} KB
+                      </span>
+                      <span className="text-slate-200">•</span>
+                      <span
+                        className={`flex items-center gap-1 text-xxs font-bold ${
+                          !pdf.buildings || pdf.buildings.length === 0
+                            ? 'text-emerald-600'
+                            : 'text-red-600'
                         }`}
                       >
-                        <Building2 className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate">{building.name}</span>
-                        <span
-                          className={`ml-auto text-xxs font-normal ${isSelected ? 'text-red-200' : 'text-slate-400'}`}
-                        >
-                          {building.gradeLabel}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {editBuildings.length === 0 && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-bold">
-                    <Globe className="w-4 h-4 shrink-0" />
-                    Visible to teachers in all buildings
+                        {!pdf.buildings || pdf.buildings.length === 0 ? (
+                          <Globe className="w-3 h-3" />
+                        ) : (
+                          <Building2 className="w-3 h-3" />
+                        )}
+                        {buildingLabel(pdf.buildings)}
+                      </span>
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
 
-            {/* Footer Actions */}
-            <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex gap-3">
-              <button
-                {...tourAttr('admin.pdf-library.cancel')}
-                onClick={cancelEditor}
-                className="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                {...tourAttr('admin.pdf-library.save')}
-                onClick={handleSave}
-                disabled={
-                  saving || !editTitle.trim() || (!editFile && !editExistingUrl)
-                }
-                className="flex-1 flex items-center justify-center gap-2 px-5 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-red-200 transition-all"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving…
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    {editingId ? 'Update PDF' : 'Publish PDF'}
-                  </>
-                )}
-              </button>
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      {...tourFieldAttr(
+                        'admin.pdf-library.edit',
+                        'admin',
+                        pdf.id
+                      )}
+                      onClick={() => openEditor(pdf)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Edit"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      {...tourFieldAttr(
+                        'admin.pdf-library.delete',
+                        'admin',
+                        pdf.id
+                      )}
+                      onClick={() => handleDelete(pdf)}
+                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        )}
-
-        {/* Footer (list view only) */}
-        {view === 'list' && (
-          <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex items-center justify-end">
-            <button
-              {...tourAttr('admin.pdf-library.new-pdf')}
-              onClick={() => openEditor()}
-              className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-red-200 transition-all"
+          )}
+        </div>
+      ) : view === 'settings' ? (
+        /* Settings View */
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+          {configStatus === 'failed' && (
+            <div
+              role="alert"
+              className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700"
             >
-              <Plus className="w-4 h-4" /> New PDF
+              <p>Could not load the saved global settings.</p>
+              <button
+                type="button"
+                // no-tour-anchor: shown only when the load fails
+                onClick={() => void fetchConfig()}
+                className="font-bold text-brand-blue-primary"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+          <DockDefaultsPanel
+            config={{
+              dockDefaults: globalConfig.dockDefaults ?? {},
+            }}
+            onChange={(dockDefaults) =>
+              setGlobalConfig((prev) => ({ ...prev, dockDefaults }))
+            }
+          />
+          <div className="pt-2">
+            <button
+              {...tourAttr('admin.pdf-library.save-settings')}
+              onClick={handleSaveSettings}
+              disabled={isSavingSettings || configStatus !== 'ready'}
+              className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-red-100 transition-all active:scale-95"
+            >
+              {isSavingSettings ? (
+                'Saving Settings…'
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Save Global Settings
+                </>
+              )}
             </button>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      ) : (
+        /* Editor View */
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-6">
+            {/* File Upload */}
+            <div>
+              <SettingsLabel as="span" id="pdf-file-label">
+                PDF File
+              </SettingsLabel>
+              <div
+                role="group"
+                aria-labelledby="pdf-file-label"
+                className="flex items-center gap-3"
+              >
+                <button
+                  {...tourAttr('admin.pdf-library.upload-pdf')}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider transition-colors flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  {editFile || editExistingUrl ? 'Change PDF' : 'Upload PDF'}
+                </button>
+                <span className="text-xs font-medium text-slate-600 truncate">
+                  {editFile
+                    ? editFile.name
+                    : editExistingUrl
+                      ? 'Existing PDF loaded'
+                      : 'No file chosen'}
+                </span>
+              </div>
+              <input
+                // no-tour-anchor: hidden file input opened by its upload button
+                type="file"
+                ref={fileInputRef}
+                accept="application/pdf"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </div>
+
+            {/* Title */}
+            <div>
+              <SettingsLabel htmlFor={pdfNameId}>PDF Name</SettingsLabel>
+              <input
+                {...tourAttr('admin.pdf-library.title')}
+                id={pdfNameId}
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="e.g. District Policy"
+                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-red-500 shadow-xs"
+              />
+            </div>
+
+            {/* Building Targeting */}
+            <div>
+              <SettingsLabel as="span" id="pdf-available-to-label">
+                Available To
+              </SettingsLabel>
+              <p className="text-xs text-slate-500 mb-2">
+                None selected means everyone.
+              </p>
+              <div
+                role="group"
+                aria-labelledby="pdf-available-to-label"
+                className="grid grid-cols-2 gap-1.5 mb-2"
+              >
+                {BUILDINGS.map((building) => {
+                  const isSelected = editBuildings.includes(building.id);
+                  return (
+                    <button
+                      {...tourFieldAttr(
+                        'admin.pdf-library.building',
+                        'admin',
+                        building.id
+                      )}
+                      key={building.id}
+                      type="button"
+                      onClick={() => toggleBuilding(building.id)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left text-xs font-bold transition-colors ${
+                        isSelected
+                          ? 'bg-red-600 text-white border-red-600 shadow-xs'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Building2 className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{building.name}</span>
+                      <span
+                        className={`ml-auto text-xxs font-normal ${isSelected ? 'text-red-200' : 'text-slate-400'}`}
+                      >
+                        {building.gradeLabel}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {editBuildings.length === 0 && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-bold">
+                  <Globe className="w-4 h-4 shrink-0" />
+                  Visible to teachers in all buildings
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Footer Actions */}
+          <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex gap-3">
+            <button
+              {...tourAttr('admin.pdf-library.cancel')}
+              onClick={cancelEditor}
+              className="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              {...tourAttr('admin.pdf-library.save')}
+              onClick={handleSave}
+              disabled={
+                saving || !editTitle.trim() || (!editFile && !editExistingUrl)
+              }
+              className="flex-1 flex items-center justify-center gap-2 px-5 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-red-200 transition-all"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  {editingId ? 'Update PDF' : 'Publish PDF'}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Footer (list view only) */}
+      {view === 'list' && (
+        <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex items-center justify-end">
+          <button
+            {...tourAttr('admin.pdf-library.new-pdf')}
+            onClick={() => openEditor()}
+            className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-red-200 transition-all"
+          >
+            <Plus className="w-4 h-4" /> New PDF
+          </button>
+        </div>
+      )}
+    </Modal>
   );
 };

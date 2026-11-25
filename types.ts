@@ -5642,6 +5642,8 @@ export interface PeriodAccess {
   closedAt?: number | null;
   /** Epoch ms the teacher last opened or resumed this class (ASSIGNED_TAB D11). */
   openedAt?: number | null;
+  /** Quiz: this class's closed pauses, which its students' time limit skips. */
+  pauseSpans?: PauseSpan[];
 }
 
 export type AccessMode = 'assessment' | 'assignment';
@@ -11814,6 +11816,8 @@ export interface Toast {
   };
   /** Set while the toast eases out, just before it is removed. */
   leaving?: boolean;
+  /** A newer toast with the same key replaces this one. */
+  replaceKey?: string;
 }
 
 export type WidgetCategory =
@@ -11991,6 +11995,8 @@ export type GlobalFeature =
   | 'plc-goal-coach'
   /** Generate with AI on a Help Center tour: fills its title, description, category, audience and widgets. */
   | 'help-center-ai'
+  /** Class Close, End and sub End turn open work in from the server, with no teacher tab open (AB-388). */
+  | 'server-turn-in'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */

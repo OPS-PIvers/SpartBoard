@@ -1,0 +1,1 @@
+claude/project-thread-o2704r (Confirm dialogs and modal shells on the shared path)

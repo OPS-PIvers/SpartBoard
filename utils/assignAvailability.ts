@@ -351,12 +351,19 @@ export function availabilityFromStored(
     stored.openAt ??
       (rowOpens.length > 0 ? Math.min(...rowOpens) : stored.createdAt)
   );
+  // Class rows that all close together stand in for the shared close they replace.
+  const rowCloses = new Set(
+    Object.values(stored.periodAccess ?? {}).map((r) => r.closeAt ?? null)
+  );
+  const storedClose =
+    stored.closeAt ??
+    (rowCloses.size === 1 ? ([...rowCloses][0] ?? null) : null);
   // A close one cushion past the due time is the class bell, so show the bell.
   const cushioned =
-    stored.closeAt != null &&
+    storedClose != null &&
     stored.dueAt != null &&
-    stored.closeAt - stored.dueAt === BELL_CLOSE_CUSHION_MS;
-  const closeMs = cushioned ? stored.dueAt : (stored.closeAt ?? stored.dueAt);
+    storedClose - stored.dueAt === BELL_CLOSE_CUSHION_MS;
+  const closeMs = cushioned ? stored.dueAt : (storedClose ?? stored.dueAt);
   const closes =
     closeMs != null ? pointAt(closeMs) : { day: opens.day, time: '23:59' };
   const perClass = stored.dueAtByRosterId ?? {};
@@ -381,7 +388,7 @@ export function availabilityFromStored(
           ),
         }
       : {}),
-    allowLate: stored.closeAt == null && stored.dueAt != null,
+    allowLate: storedClose == null && stored.dueAt != null,
   };
 }
 

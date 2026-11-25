@@ -42,13 +42,14 @@ import {
   LibraryShell,
   LibraryToolbar,
   buildDuplicateAction,
+  useLibraryDuplicate,
+  useLibraryDelete,
   buildMoveToFolderAction,
   countItemsByFolder,
   useLibrarySelection,
   useFolderLibraryView,
   useSortableReorder,
   LIBRARY_ITEM_NOUNS,
-  useLibraryDeleteConfirm,
 } from '@/components/common/library';
 import type {
   LibraryMenuAction,
@@ -145,7 +146,6 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
   const config = widget.config as ProjectsConfig;
   const { updateWidget, addToast, rosters } = useDashboard();
   const { user } = useAuth();
-  const confirmDelete = useLibraryDeleteConfirm();
   const userId = user?.uid;
 
   const {
@@ -158,6 +158,11 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
     duplicateProject,
     reorderProjects,
   } = useProjectLibrary(userId);
+  const libraryDuplicate = useLibraryDuplicate({
+    duplicate: duplicateProject,
+    addToast,
+    errorMessage: 'That project could not be duplicated.',
+  });
   const { runs, loading: runsLoading } = useProjectRuns(userId);
   const { rubrics } = useRubrics(userId);
   const folderState = useFolders(userId, 'projects');
@@ -193,6 +198,20 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
     for (const run of runs) map.set(run.projectId, run);
     return map;
   }, [runs]);
+
+  const projectDelete = useLibraryDelete<ProjectDefinition>({
+    noun: LIBRARY_ITEM_NOUNS.project,
+    titleOf: (project) => project.title,
+    detail: (targets) =>
+      targets.length === 1 && runByProjectId.has(targets[0].id)
+        ? 'Its groups keep their progress but you lose the library copy.'
+        : undefined,
+    remove: async (project) => {
+      await deleteProject(project.id);
+      if (config.projectId === project.id) update({ projectId: undefined });
+    },
+    addToast,
+  });
 
   const projectById = useMemo(() => {
     const map = new Map<string, ProjectDefinition>();
@@ -238,12 +257,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
     reorderSiblings: folderState.reorderSiblings,
     noun: { one: 'project', many: 'projects' },
     items: libraryProjects,
-    deleteItems: async (ids) => {
-      for (const id of ids) {
-        await deleteProject(id);
-        if (config.projectId === id) update({ projectId: undefined });
-      }
-    },
+    deleteItems: projectDelete.folderActions(libraryProjects).deleteItems,
   });
 
   const projectRecentAt = useCallback(
@@ -339,25 +353,6 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
     [addToast, runByProjectId, saveProject]
   );
 
-  const handleDelete = async (project: ProjectDefinition): Promise<void> => {
-    const run = runByProjectId.get(project.id);
-    const ok = await confirmDelete({
-      titles: [project.title],
-      noun: LIBRARY_ITEM_NOUNS.project,
-      detail: run
-        ? 'Its groups keep their progress but you lose the library copy.'
-        : undefined,
-    });
-    if (!ok) return;
-    try {
-      await deleteProject(project.id);
-      if (config.projectId === project.id) update({ projectId: undefined });
-      addToast('Project deleted.', 'success');
-    } catch {
-      addToast('That project could not be deleted.', 'error');
-    }
-  };
-
   const handleArchive = async (
     project: ProjectDefinition,
     archived: boolean
@@ -397,33 +392,13 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
 
   const handleBulkDelete = async (): Promise<void> => {
     if (selection.count === 0) return;
-    const ids = Array.from(selection.selectedIds);
-    const ok = await confirmDelete({
-      titles: ids.map((id) => projects.find((p) => p.id === id)?.title ?? ''),
-      noun: LIBRARY_ITEM_NOUNS.project,
-    });
-    if (!ok) return;
+    const targets = projects.filter((p) => selection.selectedIds.has(p.id));
     setBulkBusy(true);
     try {
-      const results = await Promise.allSettled(
-        ids.map((id) => deleteProject(id))
-      );
-      const failed = results.filter((r) => r.status === 'rejected').length;
-      const succeeded = ids.length - failed;
-      if (succeeded > 0) {
-        addToast(
-          `Deleted ${succeeded} project${succeeded === 1 ? '' : 's'}.`,
-          'success'
-        );
+      if (await projectDelete.deleteMany(targets)) {
+        selection.clear();
+        setSelectionMode(false);
       }
-      if (failed > 0) {
-        addToast(
-          `${failed} project${failed === 1 ? '' : 's'} failed to delete.`,
-          'error'
-        );
-      }
-      selection.clear();
-      setSelectionMode(false);
     } finally {
       setBulkBusy(false);
     }
@@ -457,13 +432,8 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
         icon: SquarePen,
         onClick: () => setEditingId(project.id),
       },
-      buildDuplicateAction(project, async () => {
-        try {
-          const copy = await duplicateProject(project);
-          addToast(`Duplicated as "${copy.title}".`, 'success');
-        } catch {
-          addToast('That project could not be duplicated.', 'error');
-        }
+      buildDuplicateAction(project, () => libraryDuplicate.duplicate(project), {
+        disabled: libraryDuplicate.isDuplicating(project.id),
       }),
       buildMoveToFolderAction({
         onOpenPicker: () => setFolderPickerTarget(project),
@@ -480,7 +450,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
         label: 'Delete',
         icon: Trash2,
         destructive: true,
-        onClick: () => void handleDelete(project),
+        onClick: () => void projectDelete.deleteOne(project),
       },
     ];
     if (run) {

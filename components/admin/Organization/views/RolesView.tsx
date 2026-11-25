@@ -25,6 +25,7 @@ import {
   Textarea,
   Confirm,
 } from '@/components/admin/Organization/components/primitives';
+import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 
 interface Props {
   roles: RoleRecord[];
@@ -115,7 +116,7 @@ export const RolesView: React.FC<Props> = ({
     const clone: RoleRecord = {
       ...src,
       id: newId,
-      name: `${src.name} (copy)`,
+      name: suggestDuplicateTitle(src.name),
       system: false,
     };
     setWorking((prev) => [...prev, clone]);

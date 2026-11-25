@@ -1,3 +1,4 @@
+import type { PeriodRoster } from '@/utils/periodPlan';
 import type {
   AccessMode,
   AssignmentMode,
@@ -208,7 +209,12 @@ export interface UseQuizAssignmentsResult {
   /** After `reopenAssignment`, opens the quiz for these students only: classes stay paused, `letInUids` get a pass until End. */
   reopenForStudents: (
     assignmentId: string,
-    picks: { uids: string[]; letInUids: string[] }
+    picks: {
+      uids: string[];
+      letInUids: string[];
+      /** Labels and bells for the class rows a whole-quiz session moves to. */
+      rosters?: readonly PeriodRoster[];
+    }
   ) => Promise<void>;
   /** Permanently delete assignment + session + all responses. */
   deleteAssignment: (assignmentId: string) => Promise<void>;

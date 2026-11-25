@@ -64,7 +64,6 @@ vi.mock('@/hooks/useLastVideoAssignPacing', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
-    canSeeShareTracking: vi.fn(() => false),
     canAccessQuizMediaResponse: vi.fn(() => false),
     canAccessFeature: (id: string) =>
       id === 'video-activity-live' ? liveFlag.enabled : true,

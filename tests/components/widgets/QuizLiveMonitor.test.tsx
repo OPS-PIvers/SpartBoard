@@ -683,7 +683,7 @@ describe('QuizLiveMonitor (rebuilt)', () => {
     expect(menus).toHaveLength(1);
     fireEvent.click(menus[0]);
     expect(
-      screen.getByRole('button', { name: 'Let in now' })
+      screen.getByRole('menuitem', { name: 'Let in now' })
     ).toBeInTheDocument();
   });
 

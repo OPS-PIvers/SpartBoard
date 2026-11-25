@@ -6,9 +6,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { createPortal } from 'react-dom';
 import { Loader2, Send, X } from 'lucide-react';
-import { Z_INDEX } from '@/config/zIndex';
+import { Modal } from '@/components/common/Modal';
 import type { ActivityWallSession, ActivityWallSubmission } from '@/types';
 import type { WallPlacement } from '@/components/activityWall/render';
 import { SubmissionTypePicker } from './SubmissionTypePicker';
@@ -146,15 +145,10 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
     return () => URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
 
-  // Escape closes; focus lands on the sheet so keyboard users start inside it.
+  // Focus lands on the sheet so keyboard users start inside it.
   useEffect(() => {
     panelRef.current?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   const patchDraft = (patch: Partial<PostDraft>) =>
     setDraft((prev) => ({ ...prev, ...patch }));
@@ -225,43 +219,40 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
       ? 'Add a word'
       : 'Add a post';
 
-  return createPortal(
-    <div
-      className="fixed inset-0 flex items-end justify-center sm:items-center"
-      style={{ zIndex: Z_INDEX.dialog }}
-    >
+  const header = (
+    <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+      <h2 id="aw-composer-title" className="text-lg font-black text-slate-900">
+        {heading}
+      </h2>
       <button
         type="button"
-        aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 bg-slate-900/60"
-      />
+        aria-label="Close composer"
+        {...tour(tourAttr('student.activity-wall.composer-close'))}
+        className="rounded-full p-1.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+      >
+        <X className="h-5 w-5" aria-hidden="true" />
+      </button>
+    </div>
+  );
+
+  return (
+    <Modal
+      isOpen
+      onClose={onClose}
+      customHeader={header}
+      placement="sheet"
+      zIndex="z-dialog"
+      maxWidth="max-w-xl"
+      ariaLabelledby="aw-composer-title"
+      className="max-h-[92vh]! overflow-hidden rounded-t-2xl outline-hidden sm:rounded-2xl"
+      contentClassName="flex min-h-0 flex-col"
+    >
       <div
         ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="aw-composer-title"
         tabIndex={-1}
-        className="relative flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl outline-hidden sm:rounded-2xl"
+        className="flex min-h-0 flex-1 flex-col outline-hidden"
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
-          <h2
-            id="aw-composer-title"
-            className="text-lg font-black text-slate-900"
-          >
-            {heading}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close composer"
-            {...tour(tourAttr('student.activity-wall.composer-close'))}
-            className="rounded-full p-1.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
-          >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
-        </div>
-
         <form
           className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5"
           onSubmit={submit}
@@ -379,7 +370,6 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
           </button>
         </form>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 };
