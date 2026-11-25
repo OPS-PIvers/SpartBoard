@@ -52,7 +52,9 @@ describe('shared dialogs', () => {
       (file) =>
         !BROWSER_DIALOG_ALLOWED.has(file) &&
         !file.startsWith('components/dev/') &&
-        /\bwindow\.(confirm|prompt|alert)\s*\(/.test(read(file))
+        /\b(window|globalThis)\.(confirm|prompt|alert)\s*(\?\.)?\(/.test(
+          read(file)
+        )
     );
     expect(
       offenders,

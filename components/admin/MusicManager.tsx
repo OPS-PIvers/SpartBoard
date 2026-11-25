@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import {
@@ -231,6 +237,11 @@ export const MusicManager: React.FC = () => {
   const [editForm, setEditForm] = useState<Partial<MusicStation>>({});
   const [validationError, setValidationError] = useState<string | null>(null);
   const { showConfirm } = useDialog();
+  // Latest list for deletes confirmed after a snapshot update.
+  const stationsRef = useRef(stations);
+  useLayoutEffect(() => {
+    stationsRef.current = stations;
+  }, [stations]);
   const [isNewStation, setIsNewStation] = useState(false);
   const [isThumbnailUploading, setIsThumbnailUploading] = useState(false);
 
@@ -354,7 +365,7 @@ export const MusicManager: React.FC = () => {
   };
 
   const deleteStation = (id: string) => {
-    const updated = stations.filter((s) => s.id !== id);
+    const updated = stationsRef.current.filter((s) => s.id !== id);
     const reindexed = updated.map((s, i) => ({ ...s, order: i }));
     setStations(reindexed);
     void saveToFirestore(reindexed);
