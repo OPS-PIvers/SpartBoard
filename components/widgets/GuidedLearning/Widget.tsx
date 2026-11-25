@@ -873,7 +873,7 @@ const TeacherGuidedLearningWidget: React.FC<{
     detail: (metas) => openAssignmentsDetail(metas.map((m) => m.id)),
     notReady: () =>
       assignmentsLoading
-        ? "Couldn't check assignments. Try again in a moment."
+        ? 'Still loading assignments. Try again in a moment.'
         : null,
     remove: (meta) =>
       deletePersonalSet(
