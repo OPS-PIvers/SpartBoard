@@ -1,7 +1,7 @@
 // Firestore security-rules regression for the `/shared_boards/{shareId}`
 // match block introduced with the live-share board picker. The rules carry
-// four separate update branches (host/admin, collaborator, self-join,
-// self-leave) each with its own immutability invariants. A single CEL edit
+// two update branches (host/admin, collaborator) each with its own
+// immutability invariants; joins and leaves go through shareMembershipV1. A single CEL edit
 // can silently relax any of them — most dangerously the
 // `originalAuthorName` immutability check that prevents a Synced
 // collaborator from spoofing the host display name shown in everyone's
@@ -85,7 +85,7 @@ const asStranger = () =>
     .authenticatedContext(STRANGER_UID, { email: 'stranger@example.com' })
     .firestore();
 
-// The same stranger signed in as a staff teacher, the only kind who may self-join.
+// The same stranger signed in as a staff teacher, the only kind shareMembershipV1 lets join.
 const STAFF_STRANGER_EMAIL = 'stranger@orono.k12.mn.us';
 const asStaffStranger = () =>
   testEnv
@@ -303,6 +303,27 @@ describe('shared_boards — host update', () => {
     );
   });
 
+  it('host can remove a participant', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {
+        [`participants.${VIEWER_UID}`]: deleteField(),
+      })
+    );
+  });
+
+  it('host CANNOT add a participant', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {
+        [`participants.${STRANGER_UID}`]: { role: 'viewer', joinedAt: 2000 },
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asAdmin(), `shared_boards/${SHARE_ID}`), {
+        participants: { [STRANGER_UID]: { role: 'viewer', joinedAt: 2000 } },
+      })
+    );
+  });
+
   it('host can rewrite the participants map (kick/promote)', async () => {
     await assertSucceeds(
       updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {
@@ -427,90 +448,21 @@ describe('shared_boards — viewer (read-only)', () => {
 });
 
 describe('shared_boards — client self-join is denied (shareMembershipV1 joins)', () => {
-  it('stranger CANNOT append themselves to participants (Synced join)', async () => {
-    await assertFails(
-      updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'collaborator',
-          joinedAt: 2000,
-        },
-      })
-    );
-  });
-
-  it('stranger CANNOT append themselves as viewer (View-Only join)', async () => {
-    await assertFails(
-      updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'viewer',
-          joinedAt: 2000,
-        },
-      })
-    );
-  });
-
-  it('a View-Only link CANNOT be joined as collaborator or viewer', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await updateDoc(doc(ctx.firestore(), `shared_boards/${SHARE_ID}`), {
-        intendedMode: 'view-only',
+  it('no client can add itself to participants, in any mode or role', async () => {
+    for (const mode of ['synced', 'view-only', 'copy']) {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), `shared_boards/${SHARE_ID}`), {
+          intendedMode: mode,
+        });
       });
-    });
-    await assertFails(
-      updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'collaborator',
-          joinedAt: 2000,
-        },
-      })
-    );
-    await assertFails(
-      updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
-        [`participants.${STRANGER_UID}`]: { role: 'viewer', joinedAt: 2000 },
-      })
-    );
-  });
-
-  it('a Copy link CANNOT be joined', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await updateDoc(doc(ctx.firestore(), `shared_boards/${SHARE_ID}`), {
-        intendedMode: 'copy',
-      });
-    });
-    await assertFails(
-      updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'collaborator',
-          joinedAt: 2000,
-        },
-      })
-    );
-  });
-
-  it('stranger CANNOT add ANOTHER user during self-join', async () => {
-    await assertFails(
-      updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'collaborator',
-          joinedAt: 2000,
-        },
-        [`participants.${'another-user'}`]: {
-          role: 'collaborator',
-          joinedAt: 2000,
-        },
-      })
-    );
-  });
-
-  it('stranger CANNOT change other fields during self-join', async () => {
-    await assertFails(
-      updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
-        [`participants.${STRANGER_UID}`]: {
-          role: 'collaborator',
-          joinedAt: 2000,
-        },
-        name: 'Hijacked while joining',
-      })
-    );
+      for (const role of ['collaborator', 'viewer']) {
+        await assertFails(
+          updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
+            [`participants.${STRANGER_UID}`]: { role, joinedAt: 2000 },
+          })
+        );
+      }
+    }
   });
 });
 

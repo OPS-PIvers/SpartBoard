@@ -1330,7 +1330,7 @@ service cloud.firestore {
       // Unscoped list stays admin-only. Expiry is NOT enforceable here, so an @orono
       // caller can list - never `get` - an expired sub share until the sweep reaps it.
       // email_verified is REQUIRED on the @orono branch, same reason as the GET rule above.
-      // Unscoped list is for site admins only: a synced building_admin listing every share could self-join its walls.
+      // Unscoped list is for site admins only: a building_admin listing every share could join any of them through shareMembershipV1 and read its walls.
       allow list: if signedIn() && (
         isSiteAdmin()
         || isOrigAuthor()
@@ -1417,6 +1417,8 @@ service cloud.firestore {
           || isAdmin()
           || plcMember(incoming().plcId)
         ) &&
+        // Members are only ever removed here (joins go through shareMembershipV1), like /linked_collections.
+        incoming().get('participants', {}).keys().hasOnly(existing().get('participants', {}).keys()) &&
         // subEmails cap on EVERY owner update (copy/PLC shares too, not just
         // substitute which pins it above) — bounds doc size. Matches create cap.
         (optListMax('subEmails', 20));
@@ -6099,7 +6101,7 @@ service cloud.firestore {
           && (sessionId.matches(sb.originalAuthor + '_.*')
               || sessionId.split('_')[0] in members);
       }
-      // Verified district accounts only (the /subs rule): Synced and View-Only links self-join.
+      // Verified district accounts only (the /subs rule): anyone with a Synced or View-Only link joins through shareMembershipV1.
       function awBoardMemberOk(mod) {
         let ids = get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)/boardAccess/boards).data.get('boardShareIds', []);
         return isDistrictStaff() && ids is list && ids.size() <= 3
