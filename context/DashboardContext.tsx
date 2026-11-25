@@ -258,6 +258,11 @@ import {
   type WidgetHistoryStack,
 } from '@/utils/widgetHistory';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
+import {
+  isLibrarySharePath,
+  parseLibrarySharePath,
+  type LibraryShareLink,
+} from '@/utils/shareRoutes';
 
 // Upper bound on the cloud dock read before the dock falls back to cache/defaults.
 const DOCK_HYDRATION_TIMEOUT_MS = 10000;
@@ -876,10 +881,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const path = window.location.pathname;
     // Skip quiz, assignment, and video-activity share URLs — those are
     // handled separately by their dedicated `pending*ShareId` states.
-    if (path.startsWith('/share/quiz/')) return null;
-    if (path.startsWith('/share/assignment/')) return null;
-    if (path.startsWith('/share/video-activity/')) return null;
-    if (path.startsWith('/share/rubric/')) return null;
+    if (isLibrarySharePath(path)) return null;
     if (path.startsWith(LINKED_COLLECTION_SHARE_PREFIX)) return null;
     if (path.startsWith('/share/')) {
       return path.split('/share/')[1] || null;
@@ -887,48 +889,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     return null;
   });
 
-  const [pendingQuizShareId, setPendingQuizShareId] = useState<string | null>(
-    () => {
-      if (typeof window === 'undefined') return null;
-      const path = window.location.pathname;
-      if (path.startsWith('/share/quiz/')) {
-        return path.split('/share/quiz/')[1] || null;
-      }
-      return null;
-    }
-  );
-
-  const [pendingAssignmentShareId, setPendingAssignmentShareId] = useState<
-    string | null
-  >(() => {
-    if (typeof window === 'undefined') return null;
-    const path = window.location.pathname;
-    if (path.startsWith('/share/assignment/')) {
-      return path.split('/share/assignment/')[1] || null;
-    }
-    return null;
-  });
-
-  const [pendingVideoActivityShareId, setPendingVideoActivityShareId] =
-    useState<string | null>(() => {
-      if (typeof window === 'undefined') return null;
-      const path = window.location.pathname;
-      if (path.startsWith('/share/video-activity/')) {
-        return path.split('/share/video-activity/')[1] || null;
-      }
-      return null;
-    });
-
-  const [pendingRubricShareId, setPendingRubricShareId] = useState<
-    string | null
-  >(() => {
-    if (typeof window === 'undefined') return null;
-    const path = window.location.pathname;
-    if (path.startsWith('/share/rubric/')) {
-      return path.split('/share/rubric/')[1] || null;
-    }
-    return null;
-  });
+  const [pendingLibraryShare, setPendingLibraryShare] =
+    useState<LibraryShareLink | null>(() =>
+      typeof window === 'undefined'
+        ? null
+        : parseLibrarySharePath(window.location.pathname)
+    );
 
   const clearPendingShare = useCallback(() => {
     setPendingShareId(null);
@@ -962,23 +928,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     window.history.replaceState(null, '', '/');
   }, []);
 
-  const clearPendingQuizShare = useCallback(() => {
-    setPendingQuizShareId(null);
-    window.history.replaceState(null, '', '/');
-  }, []);
-
-  const clearPendingAssignmentShare = useCallback(() => {
-    setPendingAssignmentShareId(null);
-    window.history.replaceState(null, '', '/');
-  }, []);
-
-  const clearPendingVideoActivityShare = useCallback(() => {
-    setPendingVideoActivityShareId(null);
-    window.history.replaceState(null, '', '/');
-  }, []);
-
-  const clearPendingRubricShare = useCallback(() => {
-    setPendingRubricShareId(null);
+  const clearPendingLibraryShare = useCallback(() => {
+    setPendingLibraryShare(null);
     window.history.replaceState(null, '', '/');
   }, []);
 
@@ -9410,17 +9361,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       stopSharingDashboard,
       isActiveBoardReadOnly,
       drawingWidgetsMigrating,
-      pendingQuizShareId,
-      clearPendingQuizShare,
-      setPendingQuizShareId,
-      pendingAssignmentShareId,
-      setPendingAssignmentShareId,
-      clearPendingAssignmentShare,
-      pendingVideoActivityShareId,
-      setPendingVideoActivityShareId,
-      clearPendingVideoActivityShare,
-      pendingRubricShareId,
-      clearPendingRubricShare,
+      pendingLibraryShare,
+      setPendingLibraryShare,
+      clearPendingLibraryShare,
       pendingAssignmentSetupId,
       setPendingAssignmentSetup,
       clearPendingAssignmentSetup,
@@ -9550,17 +9493,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       stopSharingDashboard,
       isActiveBoardReadOnly,
       drawingWidgetsMigrating,
-      pendingQuizShareId,
-      clearPendingQuizShare,
-      setPendingQuizShareId,
-      pendingAssignmentShareId,
-      setPendingAssignmentShareId,
-      clearPendingAssignmentShare,
-      pendingVideoActivityShareId,
-      setPendingVideoActivityShareId,
-      clearPendingVideoActivityShare,
-      pendingRubricShareId,
-      clearPendingRubricShare,
+      pendingLibraryShare,
+      setPendingLibraryShare,
+      clearPendingLibraryShare,
       pendingAssignmentSetupId,
       setPendingAssignmentSetup,
       clearPendingAssignmentSetup,

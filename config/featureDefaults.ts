@@ -1339,6 +1339,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'video-activity-share-sync': {
+    label: 'Video Activity: Synced share links',
+    icon: Video,
+    description:
+      'A shared Video Activity link can import as Synced or as a copy.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'embed-reload': {
     label: 'Embed: Reload button',
     icon: RefreshCw,

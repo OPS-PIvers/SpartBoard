@@ -9,7 +9,10 @@ import {
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useRubrics } from '@/hooks/useRubrics';
 import { useQuestionBanks } from '@/hooks/useQuestionBanks';
-import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
+import {
+  useVideoActivityAssignments,
+  type SharedVideoActivityImportMode,
+} from '@/hooks/useVideoActivityAssignments';
 import { usePlcs } from '@/hooks/usePlcs';
 import { QuizAssignmentImportModeModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportModeModal';
 import { logError } from '@/utils/logError';
@@ -22,6 +25,20 @@ import {
   type OrgSharer,
 } from '@/utils/shareImportPeek';
 import { ShareImportConfirmModal } from './ShareImportConfirmModal';
+import type { LibraryShareLink } from '@/utils/shareRoutes';
+import type { PlcLinkage } from '@/types';
+
+type AssignmentShareKind = 'assignment' | 'videoActivity';
+
+interface AssignmentSharePreview {
+  title: string;
+  originalAuthor: string;
+  syncGroupId?: string;
+  plc?: PlcLinkage;
+}
+
+const errorText = (err: unknown): string =>
+  err instanceof Error ? err.message : typeof err === 'string' ? err : '';
 
 /**
  * Deep-link share-import machinery, split out of DashboardView's synchronous
@@ -48,7 +65,7 @@ import { ShareImportConfirmModal } from './ShareImportConfirmModal';
  * avoid the triple-import race, and surface the same toasts / mode picker.
  */
 export const DeepLinkShareImporter: React.FC = () => {
-  const { user, orgId } = useAuth();
+  const { user, orgId, canAccessFeature } = useAuth();
   const {
     activeDashboard,
     addWidget,
@@ -56,14 +73,8 @@ export const DeepLinkShareImporter: React.FC = () => {
     bringToFront,
     addToast,
     setPendingAssignmentSetup,
-    pendingQuizShareId,
-    clearPendingQuizShare,
-    pendingAssignmentShareId,
-    clearPendingAssignmentShare,
-    pendingVideoActivityShareId,
-    clearPendingVideoActivityShare,
-    pendingRubricShareId,
-    clearPendingRubricShare,
+    pendingLibraryShare,
+    clearPendingLibraryShare,
   } = useDashboard();
 
   const {
@@ -82,8 +93,10 @@ export const DeepLinkShareImporter: React.FC = () => {
     saveActivity: saveVideoActivity,
     attachSyncLinkage: attachVideoActivitySyncLinkage,
   } = useVideoActivity(user?.uid);
-  const { importSharedAssignment: importSharedVideoActivityAssignment } =
-    useVideoActivityAssignments(user?.uid);
+  const {
+    importSharedAssignment: importSharedVideoActivityAssignment,
+    peekSharedAssignment: peekSharedVideoActivityAssignment,
+  } = useVideoActivityAssignments(user?.uid);
   // usePlcs's listener now starts when this importer first mounts rather than
   // at teacher mount. For a URL-parameter deep link (share id present at app
   // load) the listener and the import trigger start together, so the
@@ -101,6 +114,7 @@ export const DeepLinkShareImporter: React.FC = () => {
   // immediately without re-fetching, and so the actual import only fires
   // after the user picks a mode.
   const [importModePrompt, setImportModePrompt] = React.useState<{
+    kind: AssignmentShareKind;
     shareId: string;
     title: string;
     originalAuthor: string;
@@ -231,30 +245,15 @@ export const DeepLinkShareImporter: React.FC = () => {
     openVaRef.current = openVideoActivityWidgetToTab;
   });
 
-  // Handle pending quiz share import from URL/paste.
-  // After a successful import, surface the Quiz widget to the Library tab so
-  // the user actually sees where the new quiz landed (fixes the "nothing
-  // happened" paste UX).
-  useEffect(() => {
-    if (!pendingQuizShareId || !user) return;
-    // Sharer line needs the PLC rosters.
-    if (plcsLoading) return;
-    // Clear before awaiting so effect re-runs can't import the same share twice.
-    const shareId = pendingQuizShareId;
-    clearPendingQuizShare();
-    const run = (): void => {
+  const runQuizImport = React.useCallback(
+    (shareId: string) => {
       void importSharedQuiz(shareId, saveBank)
         .then(() => {
           addToast('Shared quiz imported to your library!', 'success');
           openQuizRef.current('library');
         })
         .catch((err: unknown) => {
-          const msg =
-            err instanceof Error
-              ? err.message
-              : typeof err === 'string'
-                ? err
-                : '';
+          const msg = errorText(err);
           addToast(
             msg
               ? `Failed to import shared quiz: ${msg}`
@@ -262,29 +261,13 @@ export const DeepLinkShareImporter: React.FC = () => {
             'error'
           );
         });
-    };
-    requestConfirm('quiz', 'shared_quizzes', shareId, run);
-  }, [
-    pendingQuizShareId,
-    user,
-    plcsLoading,
-    importSharedQuiz,
-    saveBank,
-    addToast,
-    clearPendingQuizShare,
-    requestConfirm,
-  ]);
+    },
+    [importSharedQuiz, saveBank, addToast]
+  );
 
-  // Pending rubric share import. Rubrics have no widget surface of their own,
-  // so a toast naming the imported rubric is the whole success affordance.
-  useEffect(() => {
-    if (!pendingRubricShareId || !user) return;
-    // Sharer line needs the PLC rosters.
-    if (plcsLoading) return;
-    // Cleared synchronously before awaiting — see the quiz effect above.
-    const shareId = pendingRubricShareId;
-    clearPendingRubricShare();
-    const run = (): void => {
+  // Rubrics have no widget surface of their own, so the toast is the whole success affordance.
+  const runRubricImport = React.useCallback(
+    (shareId: string) => {
       void importSharedRubric(shareId)
         .then((rubric) => {
           const title = rubric?.title?.trim();
@@ -299,12 +282,7 @@ export const DeepLinkShareImporter: React.FC = () => {
           logError('DeepLinkShareImporter.importSharedRubric', err, {
             shareId,
           });
-          const msg =
-            err instanceof Error
-              ? err.message
-              : typeof err === 'string'
-                ? err
-                : '';
+          const msg = errorText(err);
           addToast(
             msg
               ? `Failed to import shared rubric: ${msg}`
@@ -312,17 +290,9 @@ export const DeepLinkShareImporter: React.FC = () => {
             'error'
           );
         });
-    };
-    requestConfirm('rubric', 'shared_rubrics', shareId, run);
-  }, [
-    pendingRubricShareId,
-    user,
-    plcsLoading,
-    importSharedRubric,
-    clearPendingRubricShare,
-    addToast,
-    requestConfirm,
-  ]);
+    },
+    [importSharedRubric, addToast]
+  );
 
   // Stable callback: imports a shared assignment with the chosen mode and
   // surfaces success/failure toasts. Invoked from two places:
@@ -433,165 +403,41 @@ export const DeepLinkShareImporter: React.FC = () => {
     ]
   );
 
-  // Handle pending shared assignment import from URL/paste.
-  //
-  // Two-step flow:
-  //   1. Peek at the share doc to detect synced-mode capability.
-  //   2a. If syncGroupId is present → open QuizAssignmentImportModeModal
-  //       and let the teacher pick Sync or Copy. The modal's onPick
-  //       handler triggers runAssignmentImport with the chosen mode.
-  //   2b. If syncGroupId is absent (legacy share) → run the legacy
-  //       copy-mode import directly, no UI prompt.
-  //
-  // Imports copy the quiz into the user's library and create a paused
-  // assignment, then surface the Quiz widget to the Active tab — which
-  // shows live and paused assignments (Archive only shows inactive ones).
-  // Stable callback: peek the share doc and route to either the mode
-  // picker (synced share) or a direct copy import (legacy share).
-  // Extracted so the failure toast can offer Retry without re-running
-  // the whole effect — the effect synchronously clears
-  // pendingAssignmentShareId to prevent triple-import races, so a
-  // failed peek would otherwise leave the user with no recovery path
-  // short of pasting the URL again.
-  // Self-referential Retry: the recursive call is routed through a ref so the
-  // useCallback body doesn't reference its own binding before declaration
-  // (react-hooks/immutability). The ref is refreshed during render below.
-  const peekAndDispatchImportRef = React.useRef<(shareId: string) => void>(
-    () => undefined
-  );
-  const peekAndDispatchImport = React.useCallback(
-    (shareId: string) => {
-      void peekSharedAssignment(shareId)
-        .then(async (preview) => {
-          // Sync mode is only offered when the share is sync-enabled AND
-          // (the share has no PLC OR the importer is a member of that
-          // PLC). A non-PLC-member of a PLC-shared synced assignment
-          // shouldn't be able to silently join a synchronized peer group
-          // they have no relationship to — so we transparently fall
-          // through to copy-mode (the existing non-member nudge toast
-          // still fires from runAssignmentImport's plcHandling path).
-          const previewPlcId = preview.plc?.id;
-          const importerIsPlcMember =
-            !!previewPlcId &&
-            !!user &&
-            plcs.some(
-              (p) => p.id === previewPlcId && getPlcRole(p, user.uid) !== null
-            );
-          const canOfferSync =
-            !!preview.syncGroupId && (!preview.plc || importerIsPlcMember);
-          if (canOfferSync) {
-            // Defer the import to the modal's onPick handler.
-            setImportModePrompt({
-              shareId,
-              title: preview.title,
-              originalAuthor: preview.originalAuthor,
-              orgSharer: await resolveOrgSharer(preview.originalAuthor),
-            });
-            return;
-          }
-          setConfirmPrompt({
-            kindLabel: 'assignment',
-            title: preview.title,
-            originalAuthor: preview.originalAuthor,
-            orgSharer: await resolveOrgSharer(preview.originalAuthor),
-            run: () => runAssignmentImport(shareId, 'copy'),
-          });
-        })
-        .catch((err: unknown) => {
-          logError('DeepLinkShareImporter.peekAndDispatchImport', err, {
-            shareId,
-          });
-          const msg =
-            err instanceof Error
-              ? err.message
-              : typeof err === 'string'
-                ? err
-                : '';
-          addToast(
-            msg
-              ? `Failed to import shared assignment: ${msg}`
-              : 'Failed to import shared assignment.',
-            'error',
-            {
-              label: 'Retry',
-              onClick: () => peekAndDispatchImportRef.current(shareId),
-            }
-          );
-        });
-    },
-    [
-      peekSharedAssignment,
-      runAssignmentImport,
-      addToast,
-      plcs,
-      user,
-      resolveOrgSharer,
-    ]
+  const isPlcMember = React.useCallback(
+    (plcId: string) =>
+      !!user &&
+      plcs.some((p) => p.id === plcId && getPlcRole(p, user.uid) !== null),
+    [plcs, user]
   );
 
-  useEffect(() => {
-    if (!pendingAssignmentShareId || !user) return;
-    // Wait for /plcs to hydrate before evaluating membership. Without this
-    // gate, a deep-link import that fires before the listener populates
-    // `plcs` sees `[]`, the `isPlcMember` predicate returns false, and a
-    // legitimate member is silently demoted to non-member. Once
-    // plcsLoading flips to false the effect re-runs with the real list.
-    if (plcsLoading) return;
-    // Clear synchronously BEFORE awaiting — see the quiz-share effect above
-    // for the triple-import race rationale. The Retry action in the
-    // failure toast (wired via peekAndDispatchImport) restores the
-    // recovery path without reintroducing the race.
-    const shareId = pendingAssignmentShareId;
-    clearPendingAssignmentShare();
-    peekAndDispatchImport(shareId);
-  }, [
-    pendingAssignmentShareId,
-    user,
-    peekAndDispatchImport,
-    clearPendingAssignmentShare,
-    plcsLoading,
-  ]);
-
-  // Stable dispatcher for VA share imports — extracted so the failure
-  // toast's Retry action can re-invoke it without re-running the
-  // pending-id effect (which clears the id synchronously to avoid the
-  // triple-import race documented on the Quiz path above). Mirrors
-  // `peekAndDispatchImport` for the Quiz flow but skips the peek + mode
-  // picker — VA's sync-mode picker UI hasn't been ported and a synced
-  // share simply imports as a copy.
-  // Self-referential Retry — routed through a ref (see peekAndDispatchImport
-  // above for the react-hooks/immutability rationale).
-  const runVideoActivityImportRef = React.useRef<(shareId: string) => void>(
-    () => undefined
-  );
+  // The VA import hook rolls back its own Drive copy and group join, so failures only toast.
+  const runVideoActivityImportRef = React.useRef<
+    (shareId: string, mode: SharedVideoActivityImportMode) => void
+  >(() => undefined);
   const runVideoActivityImport = React.useCallback(
-    (shareId: string) => {
+    (shareId: string, mode: SharedVideoActivityImportMode) => {
       void importSharedVideoActivityAssignment(shareId, {
-        mode: 'copy',
+        mode,
         saveActivity: saveVideoActivity,
         attachSyncLinkage: attachVideoActivitySyncLinkage,
-        isPlcMember: (plcId) =>
-          !!user &&
-          plcs.some((p) => p.id === plcId && getPlcRole(p, user.uid) !== null),
+        isPlcMember,
         livePlcLinkage,
       })
         .then(() => {
-          addToast('Shared video activity imported!', 'success');
+          addToast(
+            mode === 'sync'
+              ? 'Synced video activity imported!'
+              : 'Shared video activity imported!',
+            'success'
+          );
           openVaRef.current('active');
         })
         .catch((err: unknown) => {
           logError('DeepLinkShareImporter.importSharedVideoActivity', err, {
             shareId,
+            mode,
           });
-          // The VA import hook handles its own rollback (Drive copy +
-          // sync-group leave) on failure paths, so the catch block is
-          // surface-only — no manual cleanup needed.
-          const msg =
-            err instanceof Error
-              ? err.message
-              : typeof err === 'string'
-                ? err
-                : '';
+          const msg = errorText(err);
           addToast(
             msg
               ? `Failed to import shared video activity: ${msg}`
@@ -599,7 +445,7 @@ export const DeepLinkShareImporter: React.FC = () => {
             'error',
             {
               label: 'Retry',
-              onClick: () => runVideoActivityImportRef.current(shareId),
+              onClick: () => runVideoActivityImportRef.current(shareId, mode),
             }
           );
         });
@@ -609,47 +455,130 @@ export const DeepLinkShareImporter: React.FC = () => {
       saveVideoActivity,
       attachVideoActivitySyncLinkage,
       addToast,
-      plcs,
+      isPlcMember,
       livePlcLinkage,
-      user,
     ]
   );
 
-  // Keep the self-reference refs current by assigning directly in the render
-  // body — the repo convention (CLAUDE.md: "assign refs directly in render
-  // body — no effect needed"). The refs are only dereferenced from deferred
-  // Retry onClicks, which always run well after this render commits, so they
-  // never observe a stale value. (react-hooks/refs v7 false-positives on
-  // render-body ref writes; disabled per the repo-wide convention.)
-  // eslint-disable-next-line react-hooks/refs
-  peekAndDispatchImportRef.current = peekAndDispatchImport;
-  // eslint-disable-next-line react-hooks/refs
-  runVideoActivityImportRef.current = runVideoActivityImport;
+  // Optional call: importer tests mock useAuth without it.
+  const vaShareSyncOn =
+    canAccessFeature?.('video-activity-share-sync') ?? false;
+  const assignmentAdapters: Record<
+    AssignmentShareKind,
+    {
+      kindLabel: string;
+      peek: (shareId: string) => Promise<AssignmentSharePreview>;
+      run: (shareId: string, mode: SharedAssignmentImportMode) => void;
+      offersSync: boolean;
+    }
+  > = {
+    assignment: {
+      kindLabel: 'assignment',
+      peek: peekSharedAssignment,
+      run: runAssignmentImport,
+      offersSync: true,
+    },
+    videoActivity: {
+      kindLabel: 'video activity',
+      peek: async (shareId) => {
+        const shared = await peekSharedVideoActivityAssignment(shareId);
+        if (!shared) throw new Error('Shared video activity not found.');
+        return shared;
+      },
+      run: runVideoActivityImport,
+      offersSync: vaShareSyncOn,
+    },
+  };
 
-  // PR3c — pending video-activity-assignment share import. Mirrors the
-  // quiz-assignment effect above: clears the pending id synchronously
-  // before dispatching to avoid the triple-import race; the dispatcher's
-  // failure toast carries Retry as the recovery path.
+  // Peeks the share, then opens Synced or Make a copy when the share can sync, else the plain confirm.
+  const peekAndDispatchImportRef = React.useRef<
+    (kind: AssignmentShareKind, shareId: string) => void
+  >(() => undefined);
+  const peekAndDispatchImport = (
+    kind: AssignmentShareKind,
+    shareId: string
+  ): void => {
+    const adapter = assignmentAdapters[kind];
+    void adapter
+      .peek(shareId)
+      .then(async (preview) => {
+        // A non-member of the share's PLC never joins its synced group.
+        const canOfferSync =
+          adapter.offersSync &&
+          !!preview.syncGroupId &&
+          (!preview.plc || isPlcMember(preview.plc.id));
+        const orgSharer = await resolveOrgSharer(preview.originalAuthor);
+        if (canOfferSync) {
+          setImportModePrompt({
+            kind,
+            shareId,
+            title: preview.title,
+            originalAuthor: preview.originalAuthor,
+            orgSharer,
+          });
+          return;
+        }
+        setConfirmPrompt({
+          kindLabel: adapter.kindLabel,
+          title: preview.title,
+          originalAuthor: preview.originalAuthor,
+          orgSharer,
+          run: () => adapter.run(shareId, 'copy'),
+        });
+      })
+      .catch((err: unknown) => {
+        logError('DeepLinkShareImporter.peekAndDispatchImport', err, {
+          kind,
+          shareId,
+        });
+        const msg = errorText(err);
+        addToast(
+          msg
+            ? `Failed to import shared ${adapter.kindLabel}: ${msg}`
+            : `Failed to import shared ${adapter.kindLabel}.`,
+          'error',
+          {
+            label: 'Retry',
+            onClick: () => peekAndDispatchImportRef.current(kind, shareId),
+          }
+        );
+      });
+  };
+  const dispatchShare = (link: LibraryShareLink): void => {
+    const { kind, shareId } = link;
+    switch (kind) {
+      case 'quiz':
+        requestConfirm('quiz', 'shared_quizzes', shareId, () =>
+          runQuizImport(shareId)
+        );
+        return;
+      case 'rubric':
+        requestConfirm('rubric', 'shared_rubrics', shareId, () =>
+          runRubricImport(shareId)
+        );
+        return;
+      case 'assignment':
+      case 'videoActivity':
+        peekAndDispatchImport(kind, shareId);
+        return;
+    }
+  };
+  // Deferred Retry clicks and the effect below read the latest dispatchers.
+  const dispatchShareRef = React.useRef(dispatchShare);
+  useLayoutEffect(() => {
+    peekAndDispatchImportRef.current = peekAndDispatchImport;
+    runVideoActivityImportRef.current = runVideoActivityImport;
+    dispatchShareRef.current = dispatchShare;
+  });
+
+  // One pending share at a time; cleared before any await so re-runs can't import it twice.
   useEffect(() => {
-    if (!pendingVideoActivityShareId || !user) return;
-    // PLC membership decides whether the import keeps its PLC linkage.
+    if (!pendingLibraryShare || !user) return;
+    // PLC membership decides the sharer line, sync offers and PLC linkage.
     if (plcsLoading) return;
-    const shareId = pendingVideoActivityShareId;
-    clearPendingVideoActivityShare();
-    requestConfirm(
-      'video activity',
-      'shared_video_activity_assignments',
-      shareId,
-      () => runVideoActivityImport(shareId)
-    );
-  }, [
-    pendingVideoActivityShareId,
-    user,
-    plcsLoading,
-    clearPendingVideoActivityShare,
-    runVideoActivityImport,
-    requestConfirm,
-  ]);
+    clearPendingLibraryShare();
+    dispatchShareRef.current(pendingLibraryShare);
+  }, [pendingLibraryShare, user, plcsLoading, clearPendingLibraryShare]);
 
   if (confirmPrompt && user) {
     const { run } = confirmPrompt;
@@ -688,16 +617,16 @@ export const DeepLinkShareImporter: React.FC = () => {
         true
       )}
       onPick={(mode) => {
-        const { shareId } = importModePrompt;
+        const { kind, shareId } = importModePrompt;
         setImportModePrompt(null);
-        runAssignmentImport(shareId, mode);
+        assignmentAdapters[kind].run(shareId, mode);
       }}
       onClose={() => {
         // Closing the picker without choosing drops the deep-link share
         // (it was cleared synchronously in the effect above to avoid
         // triple-import races). Surface a Retry toast so the teacher can
         // re-run the same import without re-pasting the URL.
-        const { shareId } = importModePrompt;
+        const { kind, shareId } = importModePrompt;
         setImportModePrompt(null);
         addToast('Import canceled.', 'info', {
           // Route through the ref (like the catch-path Retry) so a Retry
@@ -705,7 +634,7 @@ export const DeepLinkShareImporter: React.FC = () => {
           // i.e. the latest `plcs` membership snapshot, not the one captured
           // when this toast was created.
           label: 'Retry',
-          onClick: () => peekAndDispatchImportRef.current(shareId),
+          onClick: () => peekAndDispatchImportRef.current(kind, shareId),
         });
       }}
     />

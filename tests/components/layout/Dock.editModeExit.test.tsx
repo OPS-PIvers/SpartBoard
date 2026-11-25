@@ -189,8 +189,7 @@ function setupMocks() {
     activeDashboard: null,
     updateWidget: vi.fn(),
     addToast: vi.fn(),
-    setPendingQuizShareId: vi.fn(),
-    setPendingAssignmentShareId: vi.fn(),
+    setPendingLibraryShare: vi.fn(),
   } as unknown as ReturnType<typeof useDashboard>);
 
   vi.mocked(useToolVisibility).mockReturnValue({
