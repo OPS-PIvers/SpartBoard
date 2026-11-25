@@ -67,6 +67,7 @@ import {
   Users,
   UserCheck,
   CopyX,
+  Palette,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1368,6 +1369,16 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Send,
     description:
       'Classroom and Schoology pushes send the score shown in the gradebook.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'widget-colored-dialogs': {
+    label: 'Widget colors in dialogs',
+    icon: Palette,
+    description: 'Dialogs opened from a widget use its color.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

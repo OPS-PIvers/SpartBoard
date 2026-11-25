@@ -13,6 +13,10 @@ import {
   SETTINGS_DEFAULT_PRESET_KEY,
 } from '@/utils/widgetSettingsDefaults';
 import { useAuth } from '@/context/useAuth';
+import {
+  WidgetAccentContext,
+  widgetDialogAccent,
+} from '@/components/common/widgetAccentContext';
 import { useToolLabel } from '@/hooks/useToolLabel';
 import {
   useDashboardActions,
@@ -515,32 +519,36 @@ export const SettingsDrawerHost: React.FC = () => {
           ? t(placement.announcementKey)
           : ''}
       </div>
-      <SettingsDrawer
-        widget={widget}
-        title={getTitle(widget, permission)}
-        placement={placement.placement}
-        width={isSheet ? SHEET_DEFAULT_VH : drawerWidth}
-        onWidthCommit={handleWidthCommit}
-        onClose={handleClose}
-        updateWidget={updateWidget}
-        updateConfig={updateConfig}
-        globalStyle={globalStyle}
-        schema={schema}
-        legacySettingsContent={legacySettingsContent}
-        legacyStyleContent={legacyStyleContent}
-        readOnly={readOnly}
-        isAdmin={isAdmin === true}
-        profileLoaded={profileLoaded}
-        canAccessFeature={canAccessFeature}
-        selectedBuildings={selectedBuildings}
-        adminConfig={adminConfig}
-        canAccessWidget={canAccessWidget}
-        toolLabel={toolLabel}
-        followLeader={followLeader}
-        styleDefaults={styleDefaults}
-        settingsDefaults={settingsDefaults}
-        headingRef={headingRef}
-      />
+      <WidgetAccentContext
+        value={widgetDialogAccent(widget.type, canAccessFeature)}
+      >
+        <SettingsDrawer
+          widget={widget}
+          title={getTitle(widget, permission)}
+          placement={placement.placement}
+          width={isSheet ? SHEET_DEFAULT_VH : drawerWidth}
+          onWidthCommit={handleWidthCommit}
+          onClose={handleClose}
+          updateWidget={updateWidget}
+          updateConfig={updateConfig}
+          globalStyle={globalStyle}
+          schema={schema}
+          legacySettingsContent={legacySettingsContent}
+          legacyStyleContent={legacyStyleContent}
+          readOnly={readOnly}
+          isAdmin={isAdmin === true}
+          profileLoaded={profileLoaded}
+          canAccessFeature={canAccessFeature}
+          selectedBuildings={selectedBuildings}
+          adminConfig={adminConfig}
+          canAccessWidget={canAccessWidget}
+          toolLabel={toolLabel}
+          followLeader={followLeader}
+          styleDefaults={styleDefaults}
+          settingsDefaults={settingsDefaults}
+          headingRef={headingRef}
+        />
+      </WidgetAccentContext>
     </>
   );
 };

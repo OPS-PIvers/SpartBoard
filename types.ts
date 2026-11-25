@@ -12007,6 +12007,8 @@ export type GlobalFeature =
   | 'server-turn-in'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
+  /** Dialogs opened from a widget take its library color for the header and brand-blue buttons. */
+  | 'widget-colored-dialogs'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Fill in the blank: Dropdown and Drag blank types beside Typed (docs/plans/QUIZ_MCA_PRACTICE.md M6). */
