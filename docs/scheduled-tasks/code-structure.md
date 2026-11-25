@@ -145,6 +145,7 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 ### HIGH `DashboardContext.tsx` grew 1262 lines since May 13 extraction — now 5596 lines
 
 - **Detected:** 2026-05-22
+- **Updated:** 2026-11-25 — scheduled action agent skipped: `context/DashboardContext.tsx` was modified recently (`4bb32b15c`, `46e7fa9b3` are its two latest commits) and the BLOCKED status (supervised, runtime-verified refactor) is unchanged; file is now 9,649 lines. No source changes made.
 - **Updated:** 2026-10-16 — scheduled action agent skipped (BLOCKED, needs supervised runtime-verified refactor); picked the next-priority css-scaling LOW instead. No source changes made.
 - **Updated:** 2026-10-09 — scheduled action agent skipped again: `context/DashboardContext.tsx` still has `522dea02` and `3b5dcc3a` among its last 5 commits, and the BLOCKED status (supervised, runtime-verified refactor) is unchanged. No source changes made.
 - **Updated:** 2026-10-08 — scheduled action agent skipped this item: `context/DashboardContext.tsx` was modified within the last 5 branch commits (`522dea02` fix(tours), `3b5dcc3a` Embed token refresh), and the existing BLOCKED status (needs supervised, runtime-verified refactor) is unchanged. File is now 7,647 lines. No source changes made.
