@@ -20,15 +20,14 @@ import type {
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
-import { useDialog } from '@/context/useDialog';
 import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { useFlashcardSets } from '@/hooks/useFlashcardSets';
 import {
   toPersonalFlashcardSet,
   usePlcFlashcardResults,
   usePlcFlashcardSets,
-  writePlcFlashcardSetEntry,
 } from '@/hooks/usePlcFlashcards';
+import { usePlcLibraryActions } from '@/hooks/usePlcLibraryActions';
 import { getPlcMemberEmail } from '@/utils/plc';
 import { logError } from '@/utils/logError';
 import { PlcSharePickerModal } from '@/components/plc/PlcSharePickerModal';
@@ -257,10 +256,11 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addToast } = useDashboard();
-  const { showConfirm } = useDialog();
   const canEdit = useCanEditPlcContent();
   const { sets: personalSets, saveSet } = useFlashcardSets(user?.uid);
-  const { sets, loading, error, unshareSet } = usePlcFlashcardSets(plc.id);
+  const { sets, loading, error, shareSet, unshareSet } = usePlcFlashcardSets(
+    plc.id
+  );
   const {
     results,
     loading: resultsLoading,
@@ -290,7 +290,7 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
       const set = personalSets.find((s) => s.id === setId);
       if (!user || !set) return;
       try {
-        const outcome = await writePlcFlashcardSetEntry(plc.id, user.uid, {
+        const outcome = await shareSet({
           set,
           sharedByName: user.displayName ?? '',
           sharedByEmail:
@@ -320,7 +320,7 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
         );
       }
     },
-    [addToast, personalSets, plc, t, user]
+    [addToast, personalSets, plc, shareSet, t, user]
   );
 
   const handleImport = useCallback(
@@ -352,41 +352,12 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
     [addToast, plc.id, saveSet, sets, t]
   );
 
-  const handleUnshare = useCallback(
-    async (entryId: string, title: string) => {
-      const confirmed = await showConfirm(
-        t('plcDashboard.flashcards.groupUnshareConfirm', {
-          title,
-          defaultValue: 'Remove "{{title}}" from this group?',
-        }),
-        {
-          title: t('plcDashboard.flashcards.unshareTitle', {
-            defaultValue: 'Unshare set',
-          }),
-          variant: 'warning',
-          confirmLabel: t('plcDashboard.flashcards.unshare', {
-            defaultValue: 'Unshare',
-          }),
-        }
-      );
-      if (!confirmed) return;
-      setBusyId(entryId);
-      try {
-        await unshareSet(entryId);
-      } catch (err) {
-        logError('PlcFlashcardsBody.unshare', err, { plcId: plc.id, entryId });
-        addToast(
-          t('plcDashboard.flashcards.unshareFailed', {
-            defaultValue: 'Could not unshare the set.',
-          }),
-          'error'
-        );
-      } finally {
-        setBusyId(null);
-      }
-    },
-    [addToast, plc.id, showConfirm, t, unshareSet]
-  );
+  const { unshare: handleUnshare, busyId: unshareBusyId } =
+    usePlcLibraryActions({
+      plcId: plc.id,
+      kind: 'flashcards',
+      unshareFn: unshareSet,
+    });
 
   if (loading || resultsLoading) {
     return (
@@ -462,7 +433,7 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
               <PlcFlashcardSetRow
                 key={entry.id}
                 entry={entry}
-                busy={busyId === entry.id}
+                busy={busyId === entry.id || unshareBusyId === entry.id}
                 canEdit={canEdit}
                 onImport={() => void handleImport(entry.id)}
                 onUnshare={() => void handleUnshare(entry.id, entry.title)}
