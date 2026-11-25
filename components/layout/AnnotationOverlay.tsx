@@ -561,6 +561,16 @@ export const AnnotationOverlay: React.FC = () => {
     if (annotationState.activeTool !== 'select') return undefined;
     if (editingText) return undefined;
     const onKey = (e: KeyboardEvent) => {
+      // Typing in a field, like the image picker's link box, never edits the selection.
+      const t = e.target;
+      if (
+        t instanceof HTMLElement &&
+        (t.isContentEditable ||
+          t.tagName === 'INPUT' ||
+          t.tagName === 'TEXTAREA')
+      ) {
+        return;
+      }
       handleSelectKeyDown(e as unknown as React.KeyboardEvent);
     };
     window.addEventListener('keydown', onKey);

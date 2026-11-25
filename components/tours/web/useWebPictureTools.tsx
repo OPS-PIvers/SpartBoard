@@ -278,6 +278,7 @@ export function useWebPictureTools(ctx: Ctx) {
               return await savePictureFile(file);
             } catch (err) {
               logError('web tour replace picture', err, { setId: ctx.setId });
+              ctx.onStatus("The picture couldn't be replaced.");
               throw err;
             }
           }}
