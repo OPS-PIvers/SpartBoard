@@ -18,6 +18,8 @@ import {
 import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
 import { useLibraryDuplicate } from '@/components/common/library/useLibraryDuplicate';
+import { useLibraryDelete } from '@/components/common/library/useLibraryDelete';
+import { LIBRARY_ITEM_NOUNS } from '@/components/common/library/useLibraryDeleteConfirm';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import { miniAppLifecycle } from './utils/miniAppClassLifecycle';
 import {
@@ -1203,18 +1205,18 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     if (app) setEditingApp(withoutClaudeReview({ ...app }));
   });
 
-  const handleDelete = async (id: string) => {
-    if (!user) return;
-    try {
-      const app = library.find((a) => a.id === id);
-      if (!app || !sandboxMiniAppWrite(app, realLibrary, true))
-        await deleteDoc(doc(db, 'users', user.uid, 'miniapps', id));
-      addToast('App deleted', 'info');
-    } catch (err) {
-      console.error(err);
-      addToast('Delete failed', 'error');
-    }
+  const removeMiniApp = async (app: MiniAppItem) => {
+    if (!user) throw new Error('Not signed in.');
+    if (!sandboxMiniAppWrite(app, realLibrary, true))
+      await deleteDoc(doc(db, 'users', user.uid, 'miniapps', app.id));
   };
+  const appDelete = useLibraryDelete<MiniAppItem>({
+    noun: LIBRARY_ITEM_NOUNS.miniApp,
+    titleOf: (app) => app.title,
+    remove: (app) => removeMiniApp(app),
+    addToast,
+    onError: (err) => console.error(err),
+  });
 
   /**
    * Phase 5 — duplicate a mini-app. MiniApps are Firestore-only (no
@@ -2016,19 +2018,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               assignmentsLoading={assignmentsLoading}
               onCreate={handleCreate}
               onEdit={handleEdit}
-              onDelete={(app) => handleDelete(app.id)}
-              folderDeleteActions={{
-                deleteItems: async (ids) => {
-                  if (!user) throw new Error('Not signed in');
-                  for (const id of ids) {
-                    const app = library.find((a) => a.id === id);
-                    if (!app || !sandboxMiniAppWrite(app, realLibrary, true))
-                      await deleteDoc(
-                        doc(db, 'users', user.uid, 'miniapps', id)
-                      );
-                  }
-                },
-              }}
+              onDelete={appDelete.deleteOne}
+              onBulkDelete={appDelete.deleteMany}
+              folderDeleteActions={appDelete.folderActions(library)}
               onDuplicate={(app) => {
                 if (user) void appDuplicate.duplicate(app);
               }}

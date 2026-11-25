@@ -4,8 +4,6 @@ import type { Plc, QuestionBankMetadata } from '@/types';
 import {
   buildDuplicateAction,
   buildMoveToFolderAction,
-  LIBRARY_ITEM_NOUNS,
-  useLibraryDeleteConfirm,
   type LibraryMenuAction,
 } from '@/components/common/library';
 import { useDialog } from '@/context/useDialog';
@@ -15,7 +13,8 @@ export interface BankMenuActionsOptions {
   plcs: readonly Plc[];
   onEditBank: (meta: QuestionBankMetadata) => void;
   onDuplicateBank: (meta: QuestionBankMetadata) => void | Promise<void>;
-  onDeleteBank: (meta: QuestionBankMetadata) => void | Promise<void>;
+  /** Confirms and deletes one bank. */
+  onDeleteBank: (meta: QuestionBankMetadata) => unknown;
   onShareBankWithPlc?: (meta: QuestionBankMetadata) => void;
   onUnshareBankFromPlc?: (
     meta: QuestionBankMetadata,
@@ -40,7 +39,6 @@ export function useBankMenuActions({
   ) => LibraryMenuAction[];
 } {
   const { showConfirm } = useDialog();
-  const confirmDelete = useLibraryDeleteConfirm();
   const plcNameById = useMemo(
     () => new Map(plcs.map((p) => [p.id, p.name])),
     [plcs]
@@ -99,14 +97,7 @@ export function useBankMenuActions({
         label: 'Delete',
         icon: Trash2,
         destructive: true,
-        onClick: async () => {
-          const ok = await confirmDelete({
-            titles: [bank.title],
-            noun: LIBRARY_ITEM_NOUNS.bank,
-            detail: 'Quizzes that draw from it will stop resolving.',
-          });
-          if (ok) await onDeleteBank(bank);
-        },
+        onClick: () => void onDeleteBank(bank),
       });
       return actions;
     },
@@ -115,7 +106,6 @@ export function useBankMenuActions({
       plcs.length,
       plcNameById,
       showConfirm,
-      confirmDelete,
       onEditBank,
       onDuplicateBank,
       onDeleteBank,

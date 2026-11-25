@@ -91,10 +91,6 @@ import type {
   LibraryTab,
 } from '@/components/common/library/types';
 import { buildDuplicateAction } from '@/components/common/library/libraryDuplicate';
-import {
-  LIBRARY_ITEM_NOUNS,
-  useLibraryDeleteConfirm,
-} from '@/components/common/library/useLibraryDeleteConfirm';
 import type {
   AssignmentAudience,
   AssignmentMode,
@@ -157,7 +153,10 @@ export interface VideoActivityManagerProps {
   onNew: () => void;
   onImport: () => void;
   onEdit: (activity: VideoActivityMetadata) => void;
-  onDelete: (activity: VideoActivityMetadata) => void | Promise<void>;
+  /** Confirms and deletes one activity (the widget's library delete policy). */
+  onDelete: (activity: VideoActivityMetadata) => unknown;
+  /** Confirms and deletes the selection; resolves true when a delete was attempted. */
+  onBulkDelete?: (activities: VideoActivityMetadata[]) => Promise<boolean>;
   /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
   folderDeleteActions?: FolderDeleteActions;
   /**
@@ -540,6 +539,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onImport,
   onEdit,
   onDelete,
+  onBulkDelete,
   folderDeleteActions,
   onDuplicate,
   onShareWithPlc,
@@ -579,7 +579,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   classLifecycle,
 }) => {
   const { showConfirm } = useDialog();
-  const confirmDelete = useLibraryDeleteConfirm();
   const { canAccessFeature } = useAuth();
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   const openCheckOn = canAccessFeature('assign-open-check');
@@ -819,33 +818,17 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
 
   const handleBulkDelete = useCallback(async (): Promise<void> => {
     if (selection.count === 0) return;
-    const ids = Array.from(selection.selectedIds);
-    const targets = activities.filter((a) => ids.includes(a.id));
-    const ok = await confirmDelete({
-      titles: targets.map((a) => a.title),
-      noun: LIBRARY_ITEM_NOUNS.videoActivity,
-    });
-    if (!ok) return;
+    const targets = activities.filter((a) => selection.selectedIds.has(a.id));
     setBulkBusy(true);
     try {
-      const results = await Promise.allSettled(
-        targets.map(async (activity) => onDelete(activity))
-      );
-      results.forEach((result, idx) => {
-        if (result.status === 'rejected') {
-          console.error(
-            '[VideoActivityManager] bulk delete failed for',
-            targets[idx]?.id,
-            result.reason
-          );
-        }
-      });
-      selection.clear();
-      setSelectionMode(false);
+      if (await onBulkDelete?.(targets)) {
+        selection.clear();
+        setSelectionMode(false);
+      }
     } finally {
       setBulkBusy(false);
     }
-  }, [selection, activities, onDelete, confirmDelete]);
+  }, [selection, activities, onBulkDelete]);
 
   const handleReorderDrop = useCallback(
     async (nextOrderedIds: string[]): Promise<void> => {
@@ -1112,13 +1095,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
                 label: 'Delete',
                 icon: Trash2,
                 destructive: true,
-                onClick: async () => {
-                  const ok = await confirmDelete({
-                    titles: [activity.title],
-                    noun: LIBRARY_ITEM_NOUNS.videoActivity,
-                  });
-                  if (ok) await onDelete(activity);
-                },
+                onClick: () => void onDelete(activity),
               },
             ];
             return (

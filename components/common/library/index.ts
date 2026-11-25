@@ -85,6 +85,7 @@ export {
   suggestDuplicateTitle,
 } from './libraryDuplicate';
 export { useLibraryDuplicate } from './useLibraryDuplicate';
+export { useLibraryDelete } from './useLibraryDelete';
 export type {
   FolderPanelMode,
   LibraryFolderPanelContextValue,
