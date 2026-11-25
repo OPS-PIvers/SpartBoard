@@ -162,6 +162,8 @@ export interface PaperPrintJob {
   stimulusBlocks?: Readonly<Record<string, SheetStimulusBlock>>;
   /** Pages after each student's sheet with the stimuli several questions share. */
   resourcePages?: readonly SheetResourcePage[];
+  /** Question-text sheets: each section's heading, by the page map id of its first question. */
+  sectionHeadings?: Readonly<Record<string, SheetStimulusBlock>>;
   /** By page map id: stimulus pages printed just before that question's page. */
   pagesBefore?: Readonly<Record<string, readonly SheetResourcePage[]>>;
   /** A test paper copy printed at the front of each student's packet. */
@@ -394,6 +396,13 @@ function columnLegendsHtml(
     }
   }
   return parts.join('');
+}
+
+/** A section heading above its first question; its height already counts the gap below it. */
+function sectionHeadingHtml(block: SheetStimulusBlock, y: number): string {
+  return `<div class="sb" style="left:${mm(QUESTION_STEM_X_MM)};top:${mm(y)};width:${mm(
+    QUESTION_STEM_W_MM
+  )};height:${mm(block.heightMm)}">${block.html}</div>`;
 }
 
 /** A stimulus block at its place on the sheet. */
@@ -1208,6 +1217,12 @@ function mapPageBodyHtml(
   const parts = [mapLegendsHtml(map, choiceCount)];
   const slices = fill ? cropSlices(job.pageMaps) : undefined;
   for (const item of map.items) {
+    const heading =
+      item.sectionTopMm !== undefined
+        ? job.sectionHeadings?.[item.questionId]
+        : undefined;
+    if (heading && item.sectionTopMm !== undefined)
+      parts.push(sectionHeadingHtml(heading, item.sectionTopMm));
     if (item.kind === 'mc' && item.group) {
       parts.push(
         groupRowHtml(

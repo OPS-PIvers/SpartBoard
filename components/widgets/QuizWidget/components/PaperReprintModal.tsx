@@ -32,6 +32,7 @@ import type { PrintedTranslation } from '@/utils/paperPrintedVersions';
 import { writtenOnlyAnalysis } from '@/utils/paperWrittenHybrid';
 import { usePaperTestStimulusFiles } from '@/hooks/usePaperTestStimulusFiles';
 import { paperPrintWords } from '@/utils/paperPrintWords';
+import { sheetSectionHeadings } from '@/utils/paperSheetSections';
 import {
   browserBlockMeasure,
   estimateBlockMm,
@@ -360,6 +361,11 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
                   ...(stimulus ? { stimulus } : {}),
                 };
               }),
+              sectionHeadings: sheetSectionHeadings(
+                quiz,
+                analysis.entries.map((e) => e.questionId),
+                browserBlockMeasure() ?? estimateBlockMm
+              ),
             }
           : {}),
         ...(analysis.rows.some((r) => r.sourceLabel)
