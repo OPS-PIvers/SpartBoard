@@ -45,11 +45,7 @@ import {
   targetsFromKey,
 } from '@/utils/sessionClassFilter';
 import { dropPinLoginFromOtherSession } from '@/utils/pinLoginScope';
-import { tabAwaySessionFields } from '@/utils/tabAwayLimit';
-import {
-  PAGE_PROTECTIONS_FEATURE,
-  withPageProtectionGate,
-} from '@/utils/pageProtections';
+import { PAGE_PROTECTIONS_FEATURE } from '@/utils/pageProtections';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
   ANONYMOUS_JOIN_BLOCKED_MESSAGE,
@@ -61,19 +57,11 @@ import {
   AttemptLimitReachedError,
 } from '@/hooks/useQuizSession';
 import { normalizeVideoActivitySession } from '@/utils/videoActivityNormalize';
-import {
-  initialVideoActivityLiveState,
-  isLiveVideoActivitySession,
-} from '@/utils/videoActivityLive';
+import { isLiveVideoActivitySession } from '@/utils/videoActivityLive';
 import {
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
 } from '@/utils/quizSessionContent';
-import {
-  splitVideoActivitySessionQuestions,
-  VA_KEY_DOC_ID,
-  VA_KEY_SUBCOLLECTION,
-} from '@/utils/videoActivityPublicQuestions';
 import {
   hasPeriodAccess,
   nextScheduledOpen,
@@ -104,7 +92,6 @@ import {
 } from '@/types';
 import { useSandboxedVideoActivitySession } from './useTourSandboxed';
 import {
-  audienceSessionFields,
   isStaffAudience,
   readStaffIdentity,
   staffResponseFields,
@@ -115,8 +102,12 @@ import {
   rejoinOutcome,
   unlockPatch,
 } from '@/utils/videoActivityState';
-import { videoActivityPlayback } from '@/utils/videoActivityClip';
 import { currentShortAnswerGrading } from '@/utils/videoActivityGrading';
+import {
+  buildVideoActivitySessionDoc,
+  setVideoActivitySessionDocs,
+  type VideoActivitySessionWindow,
+} from '@/utils/videoActivitySessionDoc';
 
 const SESSIONS_COLLECTION = 'video_activity_sessions';
 const RESPONSES_SUBCOLLECTION = 'responses';
@@ -186,7 +177,9 @@ export interface UseVideoActivitySessionTeacherResult {
     /** 'teacher' opens a live session in the lobby; self-paced-only behaviors are forced off. */
     sessionMode?: VideoActivitySessionMode,
     /** Staff: the link needs district Google sign-in. */
-    audience?: AssignmentAudience
+    audience?: AssignmentAudience,
+    /** Opens, closes, due date and work kind, written with the session. */
+    window?: VideoActivitySessionWindow
   ) => Promise<string>;
   /** Sessions created by the current teacher for the selected activity. */
   sessions: VideoActivitySession[];
@@ -277,119 +270,42 @@ export const useVideoActivitySessionTeacher =
         sessionOptions?: VideoActivitySessionOptions,
         periodGate?: Pick<VideoActivitySession, 'accessMode' | 'periodAccess'>,
         sessionMode: VideoActivitySessionMode = 'student',
-        audience?: AssignmentAudience
+        audience?: AssignmentAudience,
+        window?: VideoActivitySessionWindow
       ): Promise<string> => {
         const sessionId = crypto.randomUUID();
         const trimmedAssignmentName = assignmentName?.trim();
-        const isLive = sessionMode === 'teacher';
-        // Live mode: one answer per question, no require-correct (D10).
-        const sessionSettings: VideoActivitySessionSettings = isLive
-          ? {
-              autoPlay: false,
-              requireCorrectAnswer: false,
-              allowSkipping: true,
-            }
-          : {
-              autoPlay: settings?.autoPlay ?? false,
-              requireCorrectAnswer: settings?.requireCorrectAnswer ?? true,
-              allowSkipping: settings?.allowSkipping ?? false,
-            };
-        const effectiveOptions: VideoActivitySessionOptions | undefined = isLive
-          ? {
-              ...sessionOptions,
-              rewindOnIncorrectSeconds: 0,
-              pointPenaltyOnIncorrect: 0,
-              attemptLimit: 1,
-            }
-          : sessionOptions;
-
-        // Dedupes, so a duplicated question id can't inflate "Question X of N".
-        const split = splitVideoActivitySessionQuestions(activity.questions);
-        // Per-period sessions hide the questions until each period opens.
-        const inContent = !!periodGate?.periodAccess;
-        const session: VideoActivitySession = {
-          id: sessionId,
-          activityId: activity.id,
-          activityTitle: activity.title,
+        const docs = buildVideoActivitySessionDoc({
+          sessionId,
+          activity,
+          teacherUid,
           assignmentName:
             trimmedAssignmentName && trimmedAssignmentName.length > 0
               ? trimmedAssignmentName
               : `${activity.title} ${new Date().toLocaleString()}`,
-          teacherUid,
-          youtubeUrl: activity.youtubeUrl,
-          ...videoActivityPlayback(activity),
-          ...split.sessionFields,
-          ...(inContent
-            ? {
-                publicQuestions: [],
-                questionsInContent: true,
-                accessMode: periodGate?.accessMode,
-                periodAccess: periodGate?.periodAccess,
-              }
-            : {}),
-          settings: sessionSettings,
-          status: isLive ? 'waiting' : 'active',
-          ...(isLive
-            ? {
-                sessionMode: 'teacher' as const,
-                live: initialVideoActivityLiveState(Date.now()),
-              }
-            : {}),
-          allowedPins,
-          allowAnonymousJoin,
-          createdAt: Date.now(),
-          // Phase 5A: multi-class ClassLink targeting + post-PIN period
-          // picker support. `classIds` is authoritative; `classId` is
-          // transitionally mirrored to `classIds[0]` so pre-Phase-5A
-          // Firestore rules keep gating correctly.
-          ...(classIds.length > 0 ? { classIds, classId: classIds[0] } : {}),
-          ...(periodNames.length > 0 ? { periodNames } : {}),
-          ...(rosterIds.length > 0 ? { rosterIds } : {}),
-          ...(classPeriodByClassId &&
-          Object.keys(classPeriodByClassId).length > 0
-            ? { classPeriodByClassId }
-            : {}),
-          ...(effectiveOptions || tabAwayTimerOn
-            ? {
-                sessionOptions: {
-                  ...withPageProtectionGate(
-                    pageProtectionsOn,
-                    effectiveOptions ?? {}
-                  ),
-                  ...tabAwaySessionFields(
-                    tabAwayTimerOn,
-                    effectiveOptions ?? {}
-                  ),
-                },
-              }
-            : {}),
+          settings: {
+            autoPlay: settings?.autoPlay ?? false,
+            requireCorrectAnswer: settings?.requireCorrectAnswer ?? true,
+            allowSkipping: settings?.allowSkipping ?? false,
+          },
+          sessionOptions,
+          status: 'active',
+          now: Date.now(),
+          gates: { tabAwayTimerOn, pageProtectionsOn, allowAnonymousJoin },
           mode,
-          ...audienceSessionFields(audience),
-        };
+          sessionMode,
+          allowedPins,
+          classIds,
+          periodNames,
+          rosterIds,
+          classPeriodByClassId,
+          periodGate,
+          audience,
+          window,
+        });
 
         const batch = writeBatch(db);
-        batch.set(doc(db, SESSIONS_COLLECTION, sessionId), session);
-        batch.set(
-          doc(
-            db,
-            SESSIONS_COLLECTION,
-            sessionId,
-            VA_KEY_SUBCOLLECTION,
-            VA_KEY_DOC_ID
-          ),
-          split.key
-        );
-        if (inContent)
-          batch.set(
-            doc(
-              db,
-              SESSIONS_COLLECTION,
-              sessionId,
-              QUIZ_CONTENT_COLLECTION,
-              QUIZ_CONTENT_DOC
-            ),
-            { publicQuestions: split.sessionFields.publicQuestions ?? [] }
-          );
+        setVideoActivitySessionDocs(batch, db, docs);
         await batch.commit();
 
         return sessionId;
