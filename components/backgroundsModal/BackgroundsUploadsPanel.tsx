@@ -7,8 +7,11 @@ import { useDriveReconnected } from '@/hooks/useDriveReconnected';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { logError } from '@/utils/logError';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 import { BackgroundThumbnail } from './BackgroundThumbnail';
 import type { BackgroundItem } from './backgroundsHelpers';
+
+const MAX_BYTES = 5 * 1024 * 1024;
 
 interface BackgroundsUploadsPanelProps {
   activeBackground?: string;
@@ -28,7 +31,9 @@ export const BackgroundsUploadsPanel: React.FC<
     favoriteBackgrounds,
     toggleFavoriteBackground,
     recordRecentBackground,
+    canAccessFeature,
   } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
 
   /**
    * Apply an upload and record it as a recent. Fire-and-forget on the
@@ -84,7 +89,7 @@ export const BackgroundsUploadsPanel: React.FC<
     try {
       const file = e.target.files?.[0];
       if (!file) return;
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > MAX_BYTES) {
         addToast('Image too large (Max 5MB)', 'error');
         return;
       }
@@ -117,6 +122,14 @@ export const BackgroundsUploadsPanel: React.FC<
     }
   };
 
+  // The picker shows its own errors; a saved file also joins the uploads grid.
+  const uploadToDrive = async (file: File): Promise<string> => {
+    const url = await uploadBackgroundToDrive(file);
+    setUserUploads((prev) => [url, ...prev]);
+    addToast('Custom background saved to your Drive', 'success');
+    return url;
+  };
+
   const handleToggleFavorite = (id: string) => {
     toggleFavoriteBackground(id).catch((err) => {
       logError('BackgroundsUploadsPanel.toggleFavorite', err);
@@ -141,47 +154,67 @@ export const BackgroundsUploadsPanel: React.FC<
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div>
-        {/* no-tour-anchor: hidden file input, the Upload button opens it */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileUpload}
-          className="hidden"
-        />
-        <button
-          {...tourAttr('backgrounds.upload')}
-          type="button"
-          aria-label={t('backgrounds.uploadCta', {
-            defaultValue: 'Upload an image (max 5MB)',
-          })}
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading || !isInitialized}
-          className="w-full flex items-center justify-center gap-2 p-3 bg-brand-blue-primary text-white rounded-lg font-bold text-sm hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
-        >
-          {uploading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {t('backgrounds.uploading', { defaultValue: 'Uploading…' })}
-            </>
-          ) : (
-            <>
-              <Upload className="w-4 h-4" />
-              {t('backgrounds.uploadCta', {
-                defaultValue: 'Upload an image (max 5MB)',
+      {unifiedPicker ? (
+        <div>
+          <ImagePicker
+            upload={uploadToDrive}
+            onChange={applyUpload}
+            maxBytes={MAX_BYTES}
+            disabled={!isInitialized}
+            tourScope={{ type: 'backgrounds', field: 'upload' }}
+            tourOverrides={{ upload: tourAttr('backgrounds.upload') }}
+          />
+          {!isInitialized && (
+            <p className="text-xxs text-slate-400 mt-2 text-center">
+              {t('backgrounds.driveNotConnected', {
+                defaultValue: 'Google Drive must be connected to upload.',
               })}
-            </>
+            </p>
           )}
-        </button>
-        {!isInitialized && (
-          <p className="text-xxs text-slate-400 mt-2 text-center">
-            {t('backgrounds.driveNotConnected', {
-              defaultValue: 'Google Drive must be connected to upload.',
+        </div>
+      ) : (
+        <div>
+          {/* no-tour-anchor: hidden file input, the Upload button opens it */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <button
+            {...tourAttr('backgrounds.upload')}
+            type="button"
+            aria-label={t('backgrounds.uploadCta', {
+              defaultValue: 'Upload an image (max 5MB)',
             })}
-          </p>
-        )}
-      </div>
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading || !isInitialized}
+            className="w-full flex items-center justify-center gap-2 p-3 bg-brand-blue-primary text-white rounded-lg font-bold text-sm hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {t('backgrounds.uploading', { defaultValue: 'Uploading…' })}
+              </>
+            ) : (
+              <>
+                <Upload className="w-4 h-4" />
+                {t('backgrounds.uploadCta', {
+                  defaultValue: 'Upload an image (max 5MB)',
+                })}
+              </>
+            )}
+          </button>
+          {!isInitialized && (
+            <p className="text-xxs text-slate-400 mt-2 text-center">
+              {t('backgrounds.driveNotConnected', {
+                defaultValue: 'Google Drive must be connected to upload.',
+              })}
+            </p>
+          )}
+        </div>
+      )}
 
       {loadingUploads ? (
         <div className="flex items-center justify-center py-8 text-slate-400 text-sm">

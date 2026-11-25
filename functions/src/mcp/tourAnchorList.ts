@@ -84029,20 +84029,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "student.quiz.period-confirm",
-    "label": "Continue after picking a class period",
-    "scope": "board",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "student-quiz.page",
-        "kind": "page",
-        "url": "/quiz",
-        "path": []
-      }
-    ]
-  },
-  {
     "id": "student.quiz.period-back",
     "label": "Go back on the class period step",
     "scope": "board",
@@ -87104,23 +87090,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "student.video-activity.period-option",
     "label": "Class option on the student Video Activity class picker",
     "scope": "board",
-    "routes": [
-      {
-        "surface": "student-video.page",
-        "kind": "page",
-        "url": "/activity/{sessionId}",
-        "path": [],
-        "needs": [
-          "live-session"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "student.video-activity.period-continue",
-    "label": "Continue button on the student Video Activity class picker",
-    "scope": "board",
-    "persists": true,
     "routes": [
       {
         "surface": "student-video.page",

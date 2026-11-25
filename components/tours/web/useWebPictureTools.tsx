@@ -267,12 +267,12 @@ export function useWebPictureTools(ctx: Ctx) {
           tourScope={{ type: 'web-tour-editor', field: 'picture' }}
           tourOverrides={{ open: tourAttr('web-tour-editor.picture-replace') }}
           buttonClassName={toolBtn}
-          buttonContent={
+          buttonContent={() => (
             <>
               <ImageUp className="h-4 w-4" aria-hidden="true" />
               Replace
             </>
-          }
+          )}
           upload={async (file) => {
             try {
               return await savePictureFile(file);
