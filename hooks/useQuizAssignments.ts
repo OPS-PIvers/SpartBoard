@@ -211,6 +211,7 @@ import {
   sessionOptionsToSessionPatch,
 } from './quizAssignments/sessionPatch';
 
+import { convertQuizToPerClass } from './quizAssignments/perClassConversion';
 import {
   allocateJoinCode,
   commitPaperWrittenPatches,
@@ -1195,13 +1196,17 @@ export const useQuizAssignments = (
   const reopenForStudents = useCallback<
     UseQuizAssignmentsResult['reopenForStudents']
   >(
-    async (assignmentId, { uids, letInUids }) => {
+    async (assignmentId, { uids, letInUids, rosters = [] }) => {
       if (!userId) throw new Error('Not authenticated');
       const live = assignmentsRef.current.find((a) => a.id === assignmentId);
+      // Passes only count on per-class rows, so a whole-quiz session moves to them first.
+      const periodAccess =
+        live?.periodAccess ??
+        (await convertQuizToPerClass(userId, assignmentId, rosters));
       const now = Date.now();
       const until = now + REOPEN_PASS_MS;
       const rows: unknown[] = [];
-      for (const key of Object.keys(live?.periodAccess ?? {}))
+      for (const key of Object.keys(periodAccess ?? {}))
         rows.push(
           new FieldPath('periodAccess', key, 'state'),
           'paused',

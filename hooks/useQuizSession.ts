@@ -4209,6 +4209,18 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     []
   );
 
+  // A whole-quiz session moved to class rows after this student joined follows their response's class.
+  const joinedClassId = myResponse?.classId;
+  const livePeriodKeys = useMemo(
+    () =>
+      periodKeys.length === 0 &&
+      typeof joinedClassId === 'string' &&
+      session?.periodAccess?.[joinedClassId]
+        ? [joinedClassId]
+        : periodKeys,
+    [periodKeys, joinedClassId, session?.periodAccess]
+  );
+
   return {
     session: mergedSession,
     myResponse,
@@ -4238,7 +4250,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     setServedQuestionIds,
     drawBankQuestions,
     warningCount,
-    periodKeys,
+    periodKeys: livePeriodKeys,
     contentPending: inContent && !content,
   };
 };

@@ -118,12 +118,9 @@ import { resolveAttemptDeadline, timestampMillis } from '@/utils/quizTimeLimit';
 import { QuizTimeLimitClock } from './QuizTimeLimitClock';
 import { useServerNow } from '@/hooks/useServerNow';
 import {
-  closeWithPass,
   hasPeriodAccess,
   nextScheduledOpen,
-  runningPassUntil,
   studentCanEnter,
-  withStudentPass,
 } from '@/utils/periodAccess';
 import { QuizPeriodLockedScreen } from './QuizPeriodLockedScreen';
 import {
@@ -627,7 +624,7 @@ const QuizJoinFlow: React.FC<{
   const autoJoin = isStudentRole || staffGate.status === 'ok';
 
   const {
-    session: liveSession,
+    session,
     myResponse,
     loading,
     error,
@@ -657,22 +654,6 @@ const QuizJoinFlow: React.FC<{
     periodKeys,
     contentPending,
   } = useQuizSessionStudent();
-  // Subscribe to auth so the view-log effect re-runs when anon sign-in
-  // resolves; `auth.currentUser` alone is non-reactive.
-  const [authedUid, setAuthedUid] = useState<string | null>(
-    auth.currentUser?.uid ?? null
-  );
-  useEffect(() => {
-    return onAuthStateChanged(auth, (user) => setAuthedUid(user?.uid ?? null));
-  }, []);
-
-  // A running Schedule or Let in pass opens the quiz to this student past any pause or close.
-  const passNow = useServerNow(liveSession?.studentAccess ? 5000 : null);
-  const passUntil = runningPassUntil(liveSession, authedUid, passNow);
-  const session = useMemo(
-    () => (liveSession ? withStudentPass(liveSession, passUntil) : liveSession),
-    [liveSession, passUntil]
-  );
   useQuizScoreOnSubmit(session, myResponse);
   // A response seen once and then gone means the teacher removed this student.
   const [responseSeenFor, setResponseSeenFor] = useState<string | null>(null);
@@ -913,13 +894,7 @@ const QuizJoinFlow: React.FC<{
   useEphemeralAppLanguage(myOverride?.language);
   // M17 F2 — the pointer's top-level window IS this student's effective one
   // (the CF folds `override.openAt`/`closeAt` into it); it wins over the session.
-  const pointerWindow = resolveEffectiveWindow(session, myPointer);
-  const myEffectiveWindow =
-    passUntil == null
-      ? pointerWindow
-      : {
-          closeAt: closeWithPass(pointerWindow.closeAt, passUntil) ?? undefined,
-        };
+  const myEffectiveWindow = resolveEffectiveWindow(session, myPointer);
   // Push the live served subset into the session hook so submitAnswer can
   // snapshot it onto the response doc (publish-time scoring reads the
   // snapshot, surviving a later override removal). Ref write — render-safe.
@@ -1043,6 +1018,15 @@ const QuizJoinFlow: React.FC<{
     servedQuestionIdList,
     session?.paperWrittenQuestionIds
   );
+
+  // Subscribe to auth so the view-log effect re-runs when anon sign-in
+  // resolves; `auth.currentUser` alone is non-reactive.
+  const [authedUid, setAuthedUid] = useState<string | null>(
+    auth.currentUser?.uid ?? null
+  );
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => setAuthedUid(user?.uid ?? null));
+  }, []);
 
   // Per-period gate, re-checked as the clock passes a window edge.
   const periodNow = useServerNow(hasPeriodAccess(session) ? 5000 : null);

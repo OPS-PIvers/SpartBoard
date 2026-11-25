@@ -46,6 +46,8 @@ export interface PeriodAccessCollections {
   assignmentId?: string;
   /** Kinds whose session no client writes (Writing) send the period and Let in patches through this instead. */
   commit?: (patch: PeriodAccessPatch) => Promise<void>;
+  /** Moves a whole-quiz session onto per-class rows before a pass is written; null when it can't. */
+  toPerClass?: () => Promise<Record<string, PeriodAccess> | null>;
 }
 
 /** Per-period field patches and Let in passes, for a kind that saves them through a callable. */
@@ -145,6 +147,7 @@ export function usePeriodAccess(
     refreshIdle = true,
     assignmentId,
     commit,
+    toPerClass,
   }: PeriodAccessCollections,
   rosters: readonly BellRoster[] | undefined
 ) {
@@ -311,11 +314,22 @@ export function usePeriodAccess(
     [refs, session?.passHold]
   );
 
+  // A pass is only honored by per-class rows, so a whole-quiz session moves to them first.
+  const perClassRows = useCallback(
+    async () => periodAccess ?? (toPerClass ? await toPerClass() : null),
+    [periodAccess, toPerClass]
+  );
+
   const letIn = useCallback(
     async (uid: string) => {
       if (!refs) return;
+      const rows = await perClassRows();
+      if (!rows) {
+        if (toPerClass) throw new Error('Cannot let in here');
+        return;
+      }
       const until = letInUntil(
-        periodAccess ?? {},
+        rows,
         rosters ?? [],
         featurePermissions,
         Date.now()
@@ -332,13 +346,23 @@ export function usePeriodAccess(
         );
       await refreshHold(uid, { from: null, until });
     },
-    [refs, periodAccess, rosters, featurePermissions, commit, refreshHold]
+    [
+      refs,
+      perClassRows,
+      toPerClass,
+      rosters,
+      featurePermissions,
+      commit,
+      refreshHold,
+    ]
   );
 
   /** "Set a time": one student's pass from `from` to `until`; null removes it. */
   const setStudentTime = useCallback(
     async (uid: string, time: { from: number; until: number } | null) => {
       if (!refs || commit) throw new Error('Cannot schedule here');
+      if (time && !(await perClassRows()))
+        throw new Error('Cannot schedule here');
       await updateDoc(
         refs.session,
         new FieldPath('studentAccess', uid),
@@ -348,7 +372,7 @@ export function usePeriodAccess(
       );
       await refreshHold(uid, time);
     },
-    [refs, commit, refreshHold]
+    [refs, commit, perClassRows, refreshHold]
   );
 
   const keys = useMemo(() => Object.keys(periodAccess ?? {}), [periodAccess]);
