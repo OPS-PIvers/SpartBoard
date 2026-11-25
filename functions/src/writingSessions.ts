@@ -529,7 +529,7 @@ async function callerFrom(
     (await isDistrictStaffToken(db, token)) ||
     (token.email_verified === true &&
       email.length > 0 &&
-      (await isLiveAdmin(db, email)));
+      (await isLiveAdmin(db, email, token)));
   return { uid: auth.uid, staff, ...(email ? { email } : {}) };
 }
 

@@ -184,5 +184,11 @@ describe('isLiveCaller and isLiveAdmin', () => {
     expect(await isLiveAdmin(db, 'gone@x.org')).toBe(false);
     expect(await isLiveAdmin(db, 'stranger@x.org')).toBe(false);
     expect(await isLiveAdmin(db, '')).toBe(false);
+    expect(await isLiveAdmin(db, 'live@x.org', { deactivated: true })).toBe(
+      false
+    );
+    expect(await isLiveAdmin(db, 'live@x.org', { email: 'live@x.org' })).toBe(
+      true
+    );
   });
 });

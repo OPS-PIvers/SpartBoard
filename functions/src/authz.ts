@@ -131,11 +131,13 @@ export async function isLiveCaller(
   );
 }
 
-/** As the rules' isAdmin() on the server: an /admins doc whose holder is not a deactivated operator-org member. */
+/** An /admins doc whose holder isn't a deactivated operator-org member; only with `token` does it also refuse the deactivation claim, as the rules' isAdmin() does. */
 export async function isLiveAdmin(
   db: admin.firestore.Firestore,
-  email: string
+  email: string,
+  token?: unknown
 ): Promise<boolean> {
+  if (token !== undefined && hasDeactivatedClaim(token)) return false;
   const lower = email.trim().toLowerCase();
   if (!lower || !(await db.collection('admins').doc(lower).get()).exists)
     return false;

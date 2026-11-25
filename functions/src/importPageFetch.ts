@@ -653,7 +653,7 @@ export const fetchImportPageV1 = onCall(
       (await isDistrictStaffToken(db, token)) ||
       (token.email_verified === true &&
         !!token.email &&
-        (await isLiveAdmin(db, token.email)));
+        (await isLiveAdmin(db, token.email, token)));
     const grants = (feature: string) =>
       isGlobalFeatureGranted(
         db,

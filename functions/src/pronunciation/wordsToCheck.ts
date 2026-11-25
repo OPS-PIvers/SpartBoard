@@ -92,7 +92,7 @@ export const listSpeakWordsToCheckV1 = onCall(
       throw new HttpsError('permission-denied', 'Admins only.');
     }
     const db = admin.firestore();
-    if (!(await isLiveAdmin(db, email))) {
+    if (!(await isLiveAdmin(db, email, auth.token))) {
       throw new HttpsError('permission-denied', 'Admins only.');
     }
     const { isGlobalFeatureGranted } = await import('../featureGrant');

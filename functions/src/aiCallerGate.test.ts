@@ -98,6 +98,20 @@ describe('isAiTeacherCaller', () => {
     expect(await isAiTeacherCaller(db, teacher)).toBe(false);
   });
 
+  it('refuses the deactivation claim for an admin, a staff member and a cached yes', async () => {
+    adminGet.mockResolvedValue({ exists: true });
+    isDistrictStaffToken.mockResolvedValue(true);
+    expect(await isAiTeacherCaller(db, teacher)).toBe(true);
+    expect(await isAiTeacherCaller(db, { ...teacher, deactivated: true })).toBe(
+      false
+    );
+    isDistrictStaffToken.mockResolvedValue(false);
+    __resetAiCallerGateCache();
+    expect(await isAiTeacherCaller(db, { ...teacher, deactivated: true })).toBe(
+      false
+    );
+  });
+
   it('refuses a verified account that is neither staff nor admin', async () => {
     isDistrictStaffToken.mockResolvedValue(false);
     expect(
