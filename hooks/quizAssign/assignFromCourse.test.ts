@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { QuizData, QuizQuestion } from '@/types';
+import type { QuizData, QuizMetadata, QuizQuestion } from '@/types';
 import { saveAttemptPolicy } from '@/hooks/gradebook/useGradebookColumnWrites';
 import { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
 import {
@@ -38,6 +38,10 @@ function makeDeps() {
       .mockResolvedValue({ id: 'assignment-1', code: 'ABC123' }),
     setAssignmentTargets: vi.fn(),
     setAssignmentTargetSkippedCount: vi.fn(),
+    attachSyncLinkage: vi.fn().mockResolvedValue(undefined),
+    loadSyncedTranslations: vi
+      .fn()
+      .mockResolvedValue({ translations: {}, complete: true }),
   } satisfies AssignFromCourseDeps;
   return deps;
 }
@@ -48,7 +52,13 @@ function run(
 ) {
   return assignFromCourse({
     uid: 'teacher-1',
-    meta: { id: 'quiz-1', title: 'Sums', driveFileId: 'live-file' },
+    meta: {
+      id: 'quiz-1',
+      title: 'Sums',
+      driveFileId: 'live-file',
+      createdAt: 0,
+      updatedAt: 0,
+    } as QuizMetadata,
     data,
     behavior,
     targeting: EMPTY_ASSIGN_TARGETING_VALUE,
@@ -63,8 +73,8 @@ function run(
       classPeriodByClassId: { 'schoology:sec-1': 'Period 2' },
     },
     teacherName: 'Ms. Lee',
-    plcLinkage: undefined,
-    plcPoolSyncGroupId: undefined,
+    plc: undefined,
+    plcLibrary: [],
     deps,
     notify: vi.fn(),
     logScope: 'test',

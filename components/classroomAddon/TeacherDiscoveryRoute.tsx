@@ -41,6 +41,7 @@ import { useBankSources } from '@/hooks/useBankSources';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { usePlcs } from '@/hooks/usePlcs';
+import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
 import { useRosters } from '@/hooks/useRosters';
 import { useRubrics } from '@/hooks/useRubrics';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
@@ -216,6 +217,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     quizzes,
     loadQuizData,
     saveDriveSnapshot,
+    attachSyncLinkage,
+    loadSyncedTranslations,
     loading: quizzesLoading,
   } = useQuiz(user?.uid);
   const { loadBankContentsForQuiz } = useBankSources(user?.uid);
@@ -266,6 +269,10 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // Quiz-only: opt into exporting results to a shared PLC sheet.
   const [plcShareEnabled, setPlcShareEnabled] = useState(false);
   const [selectedPlcId, setSelectedPlcId] = useState('');
+  // The PLC's library, so this run pools with teammates' runs of the same quiz.
+  const { quizzes: plcLibrary } = usePlcQuizzes(
+    plcShareEnabled && selectedPlcId ? selectedPlcId : null
+  );
 
   // Records the current step as the user-facing status message.
   const append = useCallback((line: string) => {
@@ -622,14 +629,16 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       linkedRosterIds: addonSelectedRosterIds,
       course: { className: 'Google Classroom', ...targeting },
       teacherName: teacherName.trim() || defaultTeacherName,
-      plcLinkage: resolvePlcLinkageForAttach(),
-      plcPoolSyncGroupId: undefined,
+      plc: plcs.find((p) => p.id === resolvePlcLinkageForAttach()?.id),
+      plcLibrary,
       deps: {
         loadBankContentsForQuiz,
         saveDriveSnapshot,
         createAssignment,
         setAssignmentTargets,
         setAssignmentTargetSkippedCount,
+        attachSyncLinkage,
+        loadSyncedTranslations,
       },
       notify: (message) => append(message),
       logScope: 'TeacherDiscoveryRoute',
@@ -704,6 +713,10 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     createAssignment,
     createAttachment,
     resolvePlcLinkageForAttach,
+    plcs,
+    plcLibrary,
+    attachSyncLinkage,
+    loadSyncedTranslations,
     user,
     courseId,
     itemId,

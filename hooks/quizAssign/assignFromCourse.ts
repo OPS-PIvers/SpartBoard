@@ -1,6 +1,7 @@
 import type {
   ClassRoster,
-  PlcLinkage,
+  Plc,
+  PlcQuizEntry,
   QuizBehaviorSettings,
   QuizData,
   QuizMetadata,
@@ -24,6 +25,8 @@ import {
   resolveAssignTargeting,
   saveAssignFinalScore,
 } from './builders';
+import { resolveQuizPlcLinkageForAssign } from './plcLinkage';
+import { isDistrictLinkedCopy } from '@/utils/districtLibraryOrigin';
 
 /** The course a Schoology or Classroom launch assigns to. */
 export interface AssignCourse {
@@ -48,6 +51,13 @@ export interface AssignFromCourseDeps {
     assignmentId: string,
     count: number
   ) => Promise<void>;
+  attachSyncLinkage: (
+    quizId: string,
+    linkage: { groupId: string; lastSyncedVersion: number }
+  ) => Promise<unknown>;
+  loadSyncedTranslations: Parameters<
+    typeof resolveQuizPlcLinkageForAssign
+  >[0]['loadSyncedTranslations'];
 }
 
 /** One quiz assign for a Schoology or Classroom launch: the Quiz widget's builders, open from the start. */
@@ -62,14 +72,14 @@ export async function assignFromCourse({
   linkedRosterIds,
   course,
   teacherName,
-  plcLinkage,
-  plcPoolSyncGroupId,
+  plc,
+  plcLibrary,
   deps,
   notify,
   logScope,
 }: {
   uid: string | undefined;
-  meta: Pick<QuizMetadata, 'id' | 'title' | 'driveFileId' | 'translations'>;
+  meta: QuizMetadata;
   data: QuizData;
   behavior: QuizBehaviorSettings;
   /** The modifications and window, with the When step already applied. */
@@ -80,13 +90,28 @@ export async function assignFromCourse({
   linkedRosterIds: string[];
   course: AssignCourse;
   teacherName: string | undefined;
-  plcLinkage: PlcLinkage | undefined;
-  plcPoolSyncGroupId: string | undefined;
+  /** The PLC the teacher shares results with, if any. */
+  plc: Plc | undefined;
+  plcLibrary: readonly PlcQuizEntry[];
   deps: AssignFromCourseDeps;
   notify: (message: string, type: 'warning' | 'error') => void;
   logScope: string;
 }): Promise<{ assignmentId: string; code: string; maxPoints: number }> {
   const { sessionMode: mode, sessionOptions, attemptLimit } = behavior;
+  // A District library copy is read-only, so it never becomes a PLC template.
+  const districtCopy = isDistrictLinkedCopy(meta);
+  const { plcLinkage, plcPoolSyncGroupId, plcTemplateSyncGroupId } =
+    await resolveQuizPlcLinkageForAssign({
+      plc: uid ? plc : undefined,
+      uid: uid ?? '',
+      meta,
+      data,
+      plcLibrary,
+      canPromote: !districtCopy,
+      attachSyncLinkage: deps.attachSyncLinkage,
+      loadSyncedTranslations: deps.loadSyncedTranslations,
+      logScope,
+    });
   const content = await resolveQuizAssignContent(data, meta.driveFileId, deps, {
     freeze: true,
   });
@@ -158,8 +183,8 @@ export async function assignFromCourse({
       paperWritten: null,
       plcLinkage,
       plcPoolSyncGroupId,
-      plcTemplateSyncGroupId: undefined,
-      districtCopy: false,
+      plcTemplateSyncGroupId,
+      districtCopy,
       translationIndex: meta.translations,
       startsActive: true,
     })
