@@ -125,7 +125,7 @@ const LinkRow: React.FC<{
         {...tag('linkAdd')}
         type="button"
         onClick={submit}
-        disabled={src.busy || !url.trim()}
+        disabled={src.busy || src.disabled || !url.trim()}
         className="min-h-9 shrink-0 rounded-lg bg-brand-blue-primary px-3 py-2 text-xs font-bold text-white hover:bg-brand-blue-dark disabled:opacity-50"
       >
         Add

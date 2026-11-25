@@ -827,6 +827,7 @@ export const BackgroundManager: React.FC = () => {
             upload={uploadPickedBackground}
             onChange={handlePickedBackground}
             multiple
+            pasteScope="element"
             maxBytes={5 * 1024 * 1024}
             disabled={!user}
             tourScope={{ type: 'admin', field: 'backgrounds' }}
