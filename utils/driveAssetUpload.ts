@@ -24,15 +24,15 @@ export type DriveAssetAudience =
 
 /** What uploading and sharing an asset needs of `GoogleDriveService`. */
 export interface DriveAssetDrive<F extends { id: string } = DriveFile> {
-  uploadFile(
+  uploadFile: (
     file: Blob,
     fileName: string,
     folderPath?: string,
     appProperties?: Record<string, string>,
     options?: { fixedTime?: string }
-  ): Promise<F>;
-  makePublic(fileId: string, domain?: string): Promise<void>;
-  deleteFile(fileId: string): Promise<void>;
+  ) => Promise<F>;
+  makePublic: (fileId: string, domain?: string) => Promise<void>;
+  deleteFile: (fileId: string) => Promise<void>;
 }
 
 export type UploadDriveAssetOptions = {
