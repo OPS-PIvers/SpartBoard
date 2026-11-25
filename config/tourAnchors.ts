@@ -14140,7 +14140,8 @@ export const TOUR_ANCHORS = {
     label: 'Play or pause button on an audio step in the player',
   },
   'gl-results.back': { label: 'Back button in the results header' },
-  'gl-results.export': { label: 'Export button in the results header' },
+  'gl-results.export': { label: 'Export to Sheets button in results' },
+  'gl-results.open-sheet': { label: 'Open Sheet link in results' },
   'gl-results.class-picker': { label: 'Class picker select in results' },
   'gl-results.period-start': {
     label: 'Start class button in results',
@@ -18762,6 +18763,14 @@ export const TOUR_ANCHORS = {
   },
   'writing-results.grade': {
     label: 'Grade button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.export': {
+    label: 'Export to Sheets button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.open-sheet': {
+    label: 'Open Sheet link in Writing results',
     perWidgetType: true,
   },
   'writing-results.hide-names': {
