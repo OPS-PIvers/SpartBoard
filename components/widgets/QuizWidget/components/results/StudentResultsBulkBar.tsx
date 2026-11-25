@@ -340,7 +340,7 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
           title={
             openKeys.length === 0
               ? 'All of the selected students have submitted'
-              : "Turn in these students' saved answers"
+              : 'Submit attempts for selected students?'
           }
           className={buttonCls}
           style={buttonStyle}

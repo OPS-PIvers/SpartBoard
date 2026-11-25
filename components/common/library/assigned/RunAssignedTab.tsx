@@ -535,7 +535,7 @@ function RunAssignedRowHost<A extends RunAssignment>({
             ...(turnsIn &&
             submitted > 0 &&
             status.classes.some((c) => c.status !== 'ready')
-              ? [`${submitted} turned in`]
+              ? [`${submitted} submitted`]
               : []),
             detailText(status, now, false),
           ]

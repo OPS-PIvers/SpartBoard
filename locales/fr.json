@@ -2621,7 +2621,7 @@
       "record": "Record",
       "stop": "Stop recording",
       "stopAndSubmit": "Stop and submit",
-      "commit": "Turn in",
+      "commit": "Rendre",
       "retryUpload": "Try again",
       "playPlayback": "Play your recording",
       "pausePlayback": "Pause your recording",
@@ -2631,7 +2631,7 @@
       "notSubmittedFailed": "Ton enregistrement n’a pas été envoyé. Choisis Réessayer.",
       "notSubmittedFailedFinal": "Ton enregistrement n’a pas été envoyé et ne peut pas l’être depuis cet appareil. Enregistre de nouveau pour envoyer une nouvelle prise.",
       "redo": "Redo",
-      "submittedLabel": "Turned in"
+      "submittedLabel": "Rendu"
     },
     "whiteboard": {
       "title": "Whiteboard answer",
@@ -2665,7 +2665,7 @@
       "expiryArmed": "Student presses Record",
       "takeLimitLabel": "Attempts allowed",
       "takeLimitUnlimited": "Unlimited",
-      "takeLimitHint": "How many times a student can record this answer. Each new recording replaces the last, and only the final one is turned in.",
+      "takeLimitHint": "How many times a student can record this answer. Each new recording replaces the previous attempt. The final recording is submitted.",
       "reviewLabel": "Students review before submitting",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",

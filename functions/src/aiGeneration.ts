@@ -965,7 +965,7 @@ Output requirements:
 
 Submission protocol (MANDATORY — every app must implement this exactly):
 
-A. Render a visible <button data-spart-submit> somewhere obvious (usually near the bottom of the main content). Its label should be meaningful for the activity ("Submit", "Done", "Turn In", etc.). Style it with Tailwind so it looks like a primary action.
+A. Render a visible <button data-spart-submit> somewhere obvious (usually near the bottom of the main content). Its label should be meaningful for the activity ("Submit", "Done", etc.). Style it with Tailwind so it looks like a primary action.
 
 B. On load, register a persistent listener for init messages from the parent and show/hide the submit button based on the latest message. The parent may re-send SPART_MINIAPP_INIT at any time (e.g. the teacher flips the Submissions toggle mid-session), so the handler MUST stay registered and re-apply state on every message — do NOT use { once: true } and do NOT remove the listener after the first message:
 

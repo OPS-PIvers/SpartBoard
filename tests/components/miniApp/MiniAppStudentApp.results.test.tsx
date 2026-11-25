@@ -240,7 +240,7 @@ describe('v2 sessions', () => {
       requestId: 'r1',
       payload: { items: [] },
     });
-    expect(await screen.findByText('Turned in')).toBeInTheDocument();
+    expect(await screen.findByText('Submitted')).toBeInTheDocument();
     expect(postMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'SPART_MINIAPP_SUBMIT_RESULT',
@@ -256,6 +256,6 @@ describe('v2 sessions', () => {
     h.session = session({ resultsVersion: 2, attemptLimit: 1 });
     h.summary = { studentUid: 'uid-1', attemptCount: 1, payload: {} };
     render(<MiniAppStudentApp />);
-    expect(await screen.findByText('Turned in')).toBeInTheDocument();
+    expect(await screen.findByText('Submitted')).toBeInTheDocument();
   });
 });
