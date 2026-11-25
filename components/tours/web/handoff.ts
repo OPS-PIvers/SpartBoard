@@ -33,6 +33,8 @@ export interface HandoffTargetStep {
     doneWhen?: WebTourCondition;
     /** The page Go and a start here open, set by the admin. */
     openUrl?: string;
+    /** Lights every control like the target, and any of them moves on. */
+    pickAny?: true;
     /** Only its markup is handed over; the picture itself travels as bytes. */
     picture?: { markup?: readonly TourMarkupShape[]; target?: unknown };
   };
@@ -238,6 +240,16 @@ export function handoffOpenUrls(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+/** Steps that light every control like their target, for an extension that does (PICK_ANY_PROTOCOL); undefined when there are none. */
+export function handoffPickAny(
+  steps: readonly HandoffStep[]
+): string[] | undefined {
+  const out = targetsOf(steps)
+    .filter((step) => step.web.pickAny === true)
+    .map((step) => step.id);
+  return out.length > 0 ? out : undefined;
+}
+
 /** The tour as the extension takes it, with pictures until the per-picture and total caps. */
 export function buildStartTour(
   setId: string,
@@ -249,7 +261,9 @@ export function buildStartTour(
   /** Only an extension at protocol 12 (CONDITIONS_PROTOCOL, MARKUP_PROTOCOL) accepts conditions and markup. */
   withConditions = false,
   /** Only an extension at OPEN_URL_PROTOCOL accepts set step pages. */
-  withOpenUrls = false
+  withOpenUrls = false,
+  /** Only an extension at PICK_ANY_PROTOCOL lights every control like a step's target. */
+  withPickAny = false
 ): WebTourStartTour {
   let total = 0;
   const sent = new Set<string>();
@@ -295,10 +309,14 @@ export function buildStartTour(
   const openUrls = withOpenUrls
     ? handoffOpenUrls(steps.slice(0, MAX_STEPS))
     : undefined;
+  const pickAny = withPickAny
+    ? handoffPickAny(steps.slice(0, MAX_STEPS))
+    : undefined;
   return {
     ...tour,
     ...(markup ? { markup } : {}),
     ...(targets ? { targets } : {}),
     ...(openUrls ? { openUrls } : {}),
+    ...(pickAny ? { pickAny } : {}),
   };
 }
