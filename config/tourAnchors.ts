@@ -15562,6 +15562,8 @@ export const TOUR_ANCHORS = {
     panel: true,
     perField: true,
     rows: true,
+    keyHint:
+      'folders#row-1 is the first folder row; folders#row-* lets the teacher pick',
     rowList: 'library-folders',
   },
   'library-shell.folder-tree-expand': {
@@ -15577,6 +15579,7 @@ export const TOUR_ANCHORS = {
     panel: true,
     perField: true,
     rows: true,
+    keyHint: 'folders#row-* opens the menu on the folder the teacher picks',
     rowList: 'library-folders',
   },
   'library-shell.folder-menu-rename': {

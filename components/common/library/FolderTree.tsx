@@ -515,7 +515,9 @@ const FolderRow: React.FC<FolderRowProps> = ({
                     ? 'opacity-0'
                     : 'group-hover:opacity-0 group-focus-within:opacity-0'
               }`}
-              data-tour-reveal-swap="library-shell.folder-menu"
+              data-tour-reveal-swap={
+                locked ? undefined : 'library-shell.folder-menu'
+              }
               style={{
                 paddingInline: 'min(6px, 1.5cqmin)',
                 fontSize: 'min(10px, 3cqmin)',
