@@ -84,6 +84,7 @@ export {
   buildDuplicateAction,
   suggestDuplicateTitle,
 } from './libraryDuplicate';
+export { useLibraryDuplicate } from './useLibraryDuplicate';
 export type {
   FolderPanelMode,
   LibraryFolderPanelContextValue,

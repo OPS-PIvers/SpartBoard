@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { type PollSessionDoc } from '@/types';
 import { normalizePollCode } from '@/utils/pollCode';
-import { dropPinLogin } from '@/utils/pinLoginScope';
+import { bootstrapStudentAuth } from '@/hooks/useStudentAuthBootstrap';
 import {
   MAX_POLL_TEXT,
   MAX_POLL_WORDS_TEXT,
@@ -125,13 +125,13 @@ export const PollVoteApp: React.FC = () => {
     let cancelled = false;
     void (async () => {
       try {
-        if (!auth.currentUser) {
-          await signInAnonymously(auth);
-        } else {
-          await dropPinLogin(auth);
-        }
+        const signIn = await bootstrapStudentAuth({ label: 'PollVoteApp' });
         if (cancelled) return;
-        setUid(auth.currentUser?.uid ?? '');
+        if (signIn.failed) {
+          dispatch({ type: 'lookupFailed' });
+          return;
+        }
+        setUid(signIn.uid ?? '');
         const found = await lookupPollSessionByCode(code);
         if (cancelled) return;
         if (!found) {

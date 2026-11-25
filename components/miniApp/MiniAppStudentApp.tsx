@@ -24,11 +24,7 @@ import React, {
   useMemo,
   useReducer,
 } from 'react';
-import {
-  signInAnonymously,
-  onAuthStateChanged,
-  type User,
-} from 'firebase/auth';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import {
   addDoc,
   collection,
@@ -50,7 +46,7 @@ import {
 import { auth, db, functions } from '@/config/firebase';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { logError } from '@/utils/logError';
-import { dropPinLogin } from '@/utils/pinLoginScope';
+import { useStudentAuthBootstrap } from '@/hooks/useStudentAuthBootstrap';
 import { isForeignPointer } from '@/utils/pointerOwnership';
 import {
   MiniAppSession,
@@ -114,35 +110,9 @@ const SESSIONS_COLLECTION = 'mini_app_sessions';
 // ─── Root ──────────────────────────────────────────────────────────────────────
 
 export const MiniAppStudentApp: React.FC = () => {
-  const [authReady, setAuthReady] = useState(false);
-  const [authFailed, setAuthFailed] = useState(false);
-
-  useEffect(() => {
-    const init = async () => {
-      try {
-        // Await IndexedDB hydration so the `auth.currentUser` check below
-        // reflects the persisted SSO session (if any) instead of the
-        // synchronous null seen on a fresh page load. Treating hydration
-        // failure as a hard auth error — rather than swallowing it and
-        // falling through to signInAnonymously — is what prevents the
-        // exact SSO-demotion bug this fix exists to address, since a
-        // rejected hydration with null currentUser would otherwise route
-        // an SSO student into a fresh anonymous session.
-        await auth.authStateReady();
-        if (!auth.currentUser) {
-          await signInAnonymously(auth);
-        } else {
-          await dropPinLogin(auth);
-        }
-      } catch (err) {
-        logError('MiniAppStudentApp.authInit', err);
-        setAuthFailed(true);
-      } finally {
-        setAuthReady(true);
-      }
-    };
-    void init();
-  }, []);
+  const { ready: authReady, failed: authFailed } = useStudentAuthBootstrap({
+    label: 'MiniAppStudentApp',
+  });
 
   if (!authReady) {
     return <FullPageLoader message="Loading…" />;

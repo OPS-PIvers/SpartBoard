@@ -45,6 +45,7 @@ import {
   LibraryShell,
   LibraryToolbar,
   buildDuplicateAction,
+  useLibraryDuplicate,
   buildMoveToFolderAction,
   countItemsByFolder,
   useLibrarySelection,
@@ -161,6 +162,11 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
     duplicateAssignment,
     reorderAssignments,
   } = useWritingAssignmentLibrary(userId);
+  const libraryDuplicate = useLibraryDuplicate({
+    duplicate: duplicateAssignment,
+    addToast,
+    errorMessage: 'That writing assignment could not be duplicated.',
+  });
   const folderState = useFolders(userId, 'writing');
   const sessions = useWritingAssignmentSessions(userId);
 
@@ -449,13 +455,8 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
         icon: SquarePen,
         onClick: () => setEditingId(item.id),
       },
-      buildDuplicateAction(item, async () => {
-        try {
-          const copy = await duplicateAssignment(item);
-          addToast(`Duplicated as "${copy.title}".`, 'success');
-        } catch {
-          addToast('That writing assignment could not be duplicated.', 'error');
-        }
+      buildDuplicateAction(item, () => libraryDuplicate.duplicate(item), {
+        disabled: libraryDuplicate.isDuplicating(item.id),
       }),
       buildMoveToFolderAction({
         onOpenPicker: () => setFolderPickerTarget(item),

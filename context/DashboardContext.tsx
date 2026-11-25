@@ -255,6 +255,7 @@ import {
   type WidgetHistoryEntry,
   type WidgetHistoryStack,
 } from '@/utils/widgetHistory';
+import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 
 // Upper bound on the cloud dock read before the dock falls back to cache/defaults.
 const DOCK_HYDRATION_TIMEOUT_MS = 10000;
@@ -6265,7 +6266,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const duplicated: Dashboard = {
         ...sanitizeBoardSnapshot(structuredClone(dashboard)),
         id: crypto.randomUUID(),
-        name: `${dashboard.name} (Copy)`,
+        name: suggestDuplicateTitle(dashboard.name),
         collectionId: dashboard.collectionId,
         // sanitizeBoardSnapshot strips isDefault; restore it explicitly to
         // false so the copy is never persisted as the default board (an
@@ -6312,7 +6313,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       let newCollectionId: string;
       try {
         newCollectionId = await collectionsApi.createCollection(
-          `${source.name} (Copy)`,
+          suggestDuplicateTitle(source.name),
           source.parentCollectionId ?? null,
           source.color ? { color: source.color } : undefined
         );

@@ -22,7 +22,7 @@ import React, {
   useReducer,
   useRef,
 } from 'react';
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import {
   PlayCircle,
   Loader2,
@@ -37,6 +37,7 @@ import {
 import { useDialog } from '@/context/useDialog';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { useStudentAuthBootstrap } from '@/hooks/useStudentAuthBootstrap';
 import { logError } from '@/utils/logError';
 import {
   getStudentPreview,
@@ -149,66 +150,27 @@ function resolveSsoClassPeriod(
 const LIVE_COMPLETE_MAX_RETRIES = 8;
 const LIVE_COMPLETE_RETRY_BASE_MS = 2000;
 
+const NO_CLASS_IDS: string[] = [];
+
 // ─── Root ──────────────────────────────────────────────────────────────────────
 
 export const VideoActivityStudentApp: React.FC = () => {
   // preview mode — see hooks/usePreviewMode
   const previewMode = usePreviewMode();
 
-  const [authReady, setAuthReady] = useState(false);
-  const [authFailed, setAuthFailed] = useState(false);
-  // True iff `auth.currentUser` carries the `studentRole: true` custom claim
-  // minted by `studentLoginV1`. Resolved at mount; drives the auto-join
-  // branch in `JoinAndPlay`. Anonymous joiners stay `false`.
-  const [isStudentRole, setIsStudentRole] = useState(false);
-  // ClassLink class-id list from the SSO custom claim. Used to resolve the
-  // joining student's period via `session.classPeriodByClassId`.
-  const [ssoClassIds, setSsoClassIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (previewMode) return;
-    const init = async () => {
-      try {
-        // Wait for Firebase Auth to hydrate from IndexedDB before deciding
-        // whether to sign in anonymously. On full-page navigations from
-        // `/my-assignments` (which uses an <a href> link), `auth.currentUser`
-        // is null for the first tick or two even when IndexedDB holds an SSO
-        // user — without this await we'd race hydration and silently replace
-        // the SSO user with a fresh anonymous one. See QuizStudentApp for
-        // the same fix and its regression test.
-        await auth.authStateReady();
-        // Sign in anonymously only when nobody is signed in — SSO students
-        // arrive with a custom-token user we must keep.
-        if (!auth.currentUser) {
-          await signInAnonymously(auth);
-        }
-        const user = auth.currentUser;
-        if (user && !user.isAnonymous) {
-          // Probe custom claims once. We don't refresh — `studentLoginV1`
-          // minted these and a stale token is fine for read-only identity;
-          // Firestore rules re-validate on every write.
-          const tokenResult = await user.getIdTokenResult();
-          if (tokenResult.claims?.studentRole === true) {
-            setIsStudentRole(true);
-            const claimedClassIds = tokenResult.claims.classIds;
-            if (Array.isArray(claimedClassIds)) {
-              setSsoClassIds(
-                claimedClassIds.filter(
-                  (id): id is string => typeof id === 'string' && id.length > 0
-                )
-              );
-            }
-          }
-        }
-      } catch (err) {
-        logError('VideoActivityStudentApp.authInit', err);
-        setAuthFailed(true);
-      } finally {
-        setAuthReady(true);
-      }
-    };
-    void init();
-  }, [previewMode]);
+  const {
+    ready: authReady,
+    failed: authFailed,
+    isStudentRole,
+    classIds,
+  } = useStudentAuthBootstrap({
+    enabled: !previewMode,
+    keepPinLogin: true,
+    readClaims: true,
+    label: 'VideoActivityStudentApp',
+  });
+  // Only a `studentRole` token's classes resolve the joining student's period.
+  const ssoClassIds = isStudentRole ? classIds : NO_CLASS_IDS;
 
   if (previewMode) {
     return <VideoActivityPreviewLobby />;
