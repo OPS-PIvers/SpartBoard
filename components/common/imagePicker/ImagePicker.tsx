@@ -1,6 +1,7 @@
 // The one image picker: upload, paste, drop, Google Drive or an image link, as a settings field or a small button.
 import React, {
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -15,8 +16,9 @@ import { scrollMovesAnchor } from '@/utils/domHelpers';
 import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import {
   useImageSources,
+  type ImageDelivery,
   type ImageSources,
-  type ImageSourcesOptions,
+  type ImageSourcesBase,
 } from './useImageSources';
 
 export type ImagePickerSlot =
@@ -24,15 +26,19 @@ export type ImagePickerSlot =
 
 type Anchors = Partial<Record<ImagePickerSlot, TourAnchorAttrs>>;
 
-export interface ImagePickerProps extends Omit<
-  ImageSourcesOptions,
-  'onChange' | 'scopeRef'
-> {
+/** Opens a 'detached' picker under any element, such as a menu's row. */
+export interface ImagePickerHandle {
+  openAt: (el: HTMLElement) => void;
+}
+
+interface ImagePickerOwnProps extends Omit<ImageSourcesBase, 'scopeRef'> {
   value?: string;
-  onChange: (url: string) => void;
   onRemove?: () => void;
-  /** 'field' fills a settings row; 'button' is a small icon button that opens the picker under it. */
-  layout?: 'field' | 'button';
+  /** 'field' fills a settings row; 'button' opens the picker under a button; 'detached' opens it through handleRef. */
+  layout?: 'field' | 'button' | 'detached';
+  /** The button's content in place of the icon. */
+  children?: React.ReactNode;
+  handleRef?: React.Ref<ImagePickerHandle>;
   /** Names the button and the panel it opens. */
   label?: string;
   /** Live-tour scope: the widget type (or area) and field key every control is tagged with. */
@@ -43,6 +49,8 @@ export interface ImagePickerProps extends Omit<
   buttonStyle?: React.CSSProperties;
   iconStyle?: React.CSSProperties;
 }
+
+export type ImagePickerProps = ImagePickerOwnProps & ImageDelivery;
 
 const SLOT_TAGS: Record<
   ImagePickerSlot,
@@ -302,9 +310,13 @@ const Panel: React.FC<{
   );
 };
 
+const noUpload = () => Promise.resolve(null);
+
 export const ImagePicker: React.FC<ImagePickerProps> = ({
   value,
+  upload,
   onChange,
+  takeFiles,
   onRemove,
   layout = 'field',
   label = 'Add image',
@@ -313,6 +325,8 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
   buttonClassName,
   buttonStyle,
   iconStyle,
+  children,
+  handleRef,
   ...sourceOptions
 }) => {
   const [panel, setPanel] = useState<PanelPos | null>(null);
@@ -322,19 +336,38 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
     else if (triggerRef.current) setPanel(panelPos(triggerRef.current));
   };
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const detachedAnchorRef = useRef<HTMLElement | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
-  const isButton = layout === 'button';
+  const isButton = layout !== 'field';
+  useImperativeHandle(handleRef, () => ({
+    openAt: (el) => {
+      detachedAnchorRef.current = el;
+      setPanel(panelPos(el));
+    },
+  }));
+  const delivery: ImageDelivery = takeFiles
+    ? {
+        takeFiles: async (files) => {
+          const added = await takeFiles(files);
+          if (added) setOpen(false);
+          return added;
+        },
+      }
+    : {
+        upload: upload ?? noUpload,
+        onChange: (url) => {
+          onChange?.(url);
+          setOpen(false);
+        },
+      };
   const src = useImageSources({
     ...sourceOptions,
+    ...delivery,
     // A small button takes a paste only while its panel is open.
     pasteScope:
       isButton && !open ? 'off' : (sourceOptions.pasteScope ?? 'dialog'),
     scopeRef: isButton ? panelRef : fieldRef,
-    onChange: (url) => {
-      onChange(url);
-      setOpen(false);
-    },
   });
   // The Google Picker must sit above the panel and any z-critical host while it is open.
   const pickFromDrive = async () => {
@@ -353,43 +386,46 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
     return (
       <>
         {src.fileInput}
-        <button
-          {...tag('open')}
-          ref={triggerRef}
-          type="button"
-          onClick={() => setOpen(!open)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape' && open) {
-              e.stopPropagation();
-              setOpen(false);
+        {layout === 'button' && (
+          <button
+            {...tag('open')}
+            ref={triggerRef}
+            type="button"
+            onClick={() => setOpen(!open)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && open) {
+                e.stopPropagation();
+                setOpen(false);
+              }
+            }}
+            disabled={src.busy || sourceOptions.disabled}
+            aria-label={label}
+            title={label}
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            className={
+              buttonClassName ??
+              'rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700'
             }
-          }}
-          disabled={src.busy || sourceOptions.disabled}
-          aria-label={label}
-          title={label}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          className={
-            buttonClassName ??
-            'rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700'
-          }
-          style={buttonStyle}
-          {...src.dropProps}
-        >
-          {src.busy ? (
-            <Loader2
-              style={iconStyle}
-              size={16}
-              className="animate-spin"
-              aria-hidden
-            />
-          ) : (
-            <ImagePlus style={iconStyle} size={16} aria-hidden />
-          )}
-        </button>
+            style={buttonStyle}
+            {...src.dropProps}
+          >
+            {children ??
+              (src.busy ? (
+                <Loader2
+                  style={iconStyle}
+                  size={16}
+                  className="animate-spin"
+                  aria-hidden
+                />
+              ) : (
+                <ImagePlus style={iconStyle} size={16} aria-hidden />
+              ))}
+          </button>
+        )}
         {panel && (
           <Panel
-            anchor={triggerRef}
+            anchor={layout === 'detached' ? detachedAnchorRef : triggerRef}
             pos={panel}
             panelRef={panelRef}
             label={label}

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ImagePlus, ImageUp, Loader2, Trash2 } from 'lucide-react';
 import {
@@ -9,6 +9,9 @@ import {
 } from './panelControls';
 import type { GuidedLearningEditorController } from '../useGuidedLearningEditorState';
 import { tourAttr } from '@/config/tourAnchors';
+import { useAuth } from '@/context/useAuth';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
+import { GL_MAX_IMAGE_BYTES } from '@/utils/guidedLearningMedia';
 
 type WelcomeState = Pick<
   GuidedLearningEditorController,
@@ -44,6 +47,11 @@ export const StudioWelcomePanel: React.FC<{ state: WelcomeState }> = ({
     welcomeImageUploading,
     imageError,
   } = state;
+  const { canAccessFeature } = useAuth();
+  const takeImage = useCallback(
+    ([file]: File[]) => setWelcomeImageFromFile(file),
+    [setWelcomeImageFromFile]
+  );
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -80,56 +88,77 @@ export const StudioWelcomePanel: React.FC<{ state: WelcomeState }> = ({
         <span className="text-xs font-bold text-slate-600">
           {t('glStudio.welcomeImage')}
         </span>
-        {/* no-tour-anchor: hidden file input opened by its visible upload button */}
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          data-testid="gl-studio-welcome-image-input"
-          onChange={onFile}
-        />
-        {welcomeImageUrl ? (
-          <img
-            src={welcomeImageUrl}
-            alt=""
-            draggable={false}
-            className="aspect-video w-full rounded-lg border border-slate-200 bg-slate-100 object-cover"
-          />
-        ) : null}
-        <div className="flex flex-wrap items-center gap-1">
-          <button
-            type="button"
-            {...tourAttr('studio.props-welcome-image')}
-            onClick={() => inputRef.current?.click()}
+        {canAccessFeature('unified-image-picker') ? (
+          <ImagePicker
+            value={welcomeImageUrl}
+            takeFiles={takeImage}
+            onRemove={removeWelcomeImage}
+            maxBytes={GL_MAX_IMAGE_BYTES}
+            linkAsFile
             disabled={welcomeImageUploading}
-            className={quietButtonClass}
-          >
-            {welcomeImageUploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : welcomeImageUrl ? (
-              <ImageUp className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <ImagePlus className="h-4 w-4" aria-hidden="true" />
-            )}
-            {welcomeImageUploading
-              ? t('glStudio.welcomeImageUploading')
-              : welcomeImageUrl
-                ? t('glStudio.replaceImage')
-                : t('glStudio.welcomeAddImage')}
-          </button>
-          {welcomeImageUrl && !welcomeImageUploading && (
-            <button
-              type="button"
-              {...tourAttr('studio.props-welcome-image-remove')}
-              onClick={removeWelcomeImage}
-              className={`${quietButtonClass} hover:text-red-700`}
-            >
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-              {t('glStudio.welcomeRemoveImage')}
-            </button>
-          )}
-        </div>
+            tourScope={{ type: 'guided-learning', field: 'welcomeImage' }}
+            tourOverrides={{
+              upload: tourAttr('studio.props-welcome-image'),
+              remove: tourAttr('studio.props-welcome-image-remove'),
+            }}
+          />
+        ) : (
+          <>
+            {/* no-tour-anchor: hidden file input opened by its visible upload button */}
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              data-testid="gl-studio-welcome-image-input"
+              onChange={onFile}
+            />
+            {welcomeImageUrl ? (
+              <img
+                src={welcomeImageUrl}
+                alt=""
+                draggable={false}
+                className="aspect-video w-full rounded-lg border border-slate-200 bg-slate-100 object-cover"
+              />
+            ) : null}
+            <div className="flex flex-wrap items-center gap-1">
+              <button
+                type="button"
+                {...tourAttr('studio.props-welcome-image')}
+                onClick={() => inputRef.current?.click()}
+                disabled={welcomeImageUploading}
+                className={quietButtonClass}
+              >
+                {welcomeImageUploading ? (
+                  <Loader2
+                    className="h-4 w-4 animate-spin"
+                    aria-hidden="true"
+                  />
+                ) : welcomeImageUrl ? (
+                  <ImageUp className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <ImagePlus className="h-4 w-4" aria-hidden="true" />
+                )}
+                {welcomeImageUploading
+                  ? t('glStudio.welcomeImageUploading')
+                  : welcomeImageUrl
+                    ? t('glStudio.replaceImage')
+                    : t('glStudio.welcomeAddImage')}
+              </button>
+              {welcomeImageUrl && !welcomeImageUploading && (
+                <button
+                  type="button"
+                  {...tourAttr('studio.props-welcome-image-remove')}
+                  onClick={removeWelcomeImage}
+                  className={`${quietButtonClass} hover:text-red-700`}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  {t('glStudio.welcomeRemoveImage')}
+                </button>
+              )}
+            </div>
+          </>
+        )}
         {imageError && (
           <p role="alert" className="text-xs text-red-700">
             {imageError}

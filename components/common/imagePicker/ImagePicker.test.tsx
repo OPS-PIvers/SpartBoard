@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { ImagePicker } from './ImagePicker';
+import {
+  act,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from '@testing-library/react';
+import { createRef } from 'react';
+import { ImagePicker, type ImagePickerHandle } from './ImagePicker';
 
 const openPicker = vi.fn();
 const getDriveFileAsBlob = vi.fn();
@@ -216,5 +223,77 @@ describe('ImagePicker', () => {
       screen.getByRole('dialog', { name: 'Add image to Term' })
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Google Drive' })).toBeTruthy();
+  });
+
+  it('hands several files to a caller that saves them itself', async () => {
+    const takeFiles = vi.fn().mockResolvedValue(true);
+    const video = new File(['v'], 'clip.mp4', { type: 'video/mp4' });
+    const { container } = render(
+      <ImagePicker
+        tourScope={scope}
+        takeFiles={takeFiles}
+        multiple
+        acceptFile={(f) => /^(image|video)\//.test(f.type)}
+      />
+    );
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    expect(input.multiple).toBe(true);
+    fireEvent.change(input, { target: { files: [png(), video] } });
+    await waitFor(() => expect(takeFiles).toHaveBeenCalledTimes(1));
+    expect((takeFiles.mock.calls[0][0] as File[]).map((f) => f.name)).toEqual([
+      'cat.png',
+      'clip.mp4',
+    ]);
+  });
+
+  it('fetches a link as a file for a caller that needs the bytes', async () => {
+    const takeFiles = vi.fn().mockResolvedValue(true);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: () => Promise.resolve(new Blob(['x'], { type: 'image/png' })),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      render(<ImagePicker tourScope={scope} takeFiles={takeFiles} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Image link' }));
+      fireEvent.change(screen.getByLabelText('Image link'), {
+        target: { value: 'https://example.org/a.png' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+      await waitFor(() => expect(takeFiles).toHaveBeenCalledTimes(1));
+      expect((takeFiles.mock.calls[0][0] as File[])[0].type).toBe('image/png');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('opens a detached picker under any element and closes once added', async () => {
+    const handle = createRef<ImagePickerHandle>();
+    const takeFiles = vi.fn().mockResolvedValue(true);
+    const { container } = render(
+      <ImagePicker
+        layout="detached"
+        handleRef={handle}
+        label="Replace image"
+        tourScope={scope}
+        takeFiles={takeFiles}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Replace image' })).toBeNull();
+    const row = document.createElement('div');
+    document.body.appendChild(row);
+    act(() => handle.current?.openAt(row));
+    expect(screen.getByRole('dialog', { name: 'Replace image' })).toBeTruthy();
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [png()] } });
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Replace image' })).toBeNull()
+    );
+    expect(takeFiles).toHaveBeenCalledTimes(1);
+    row.remove();
   });
 });

@@ -10,7 +10,13 @@ import {
   Upload,
   type LucideIcon,
 } from 'lucide-react';
-import { GL_MEDIA_ACCEPT } from '@/utils/guidedLearningMedia';
+import {
+  GL_MAX_VIDEO_BYTES,
+  GL_MEDIA_ACCEPT,
+  isSlideMediaFile,
+} from '@/utils/guidedLearningMedia';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
+import { useAuth } from '@/context/useAuth';
 import type { SlideUploadProgress } from '../useGuidedLearningEditorState';
 import { tourAttr } from '@/config/tourAnchors';
 
@@ -41,9 +47,50 @@ interface TargetProps {
   anchor?: Record<string, string>;
 }
 
+const targetClass = (disabled?: boolean, dashed?: boolean) =>
+  `flex min-h-[112px] items-start gap-3 rounded-xl border bg-white p-4 text-left transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed ${
+    dashed ? 'border-2 border-dashed' : ''
+  } ${
+    disabled
+      ? 'border-slate-200 bg-slate-50'
+      : 'border-slate-300 hover:border-slate-400 hover:shadow-xs'
+  }`;
+
+const TargetBody: React.FC<{
+  icon: LucideIcon;
+  label: string;
+  description: string;
+  descId?: string;
+  disabled?: boolean;
+}> = ({ icon: Icon, label, description, descId, disabled }) => (
+  <>
+    <span
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+        disabled
+          ? 'bg-slate-100 text-slate-400'
+          : 'bg-slate-100 text-brand-blue-primary'
+      }`}
+    >
+      <Icon className="h-5 w-5" aria-hidden="true" />
+    </span>
+    <span className="min-w-0">
+      <span
+        className={`block text-sm font-bold ${
+          disabled ? 'text-slate-500' : 'text-slate-800'
+        }`}
+      >
+        {label}
+      </span>
+      <span id={descId} className="mt-1 block text-xs text-slate-600">
+        {description}
+      </span>
+    </span>
+  </>
+);
+
 const Target: React.FC<TargetProps> = ({
   id,
-  icon: Icon,
+  icon,
   label,
   description,
   onClick,
@@ -60,35 +107,15 @@ const Target: React.FC<TargetProps> = ({
       onClick={onClick}
       disabled={disabled}
       aria-describedby={descId}
-      className={`flex min-h-[112px] items-start gap-3 rounded-xl border bg-white p-4 text-left transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed ${
-        dashed ? 'border-2 border-dashed' : ''
-      } ${
-        disabled
-          ? 'border-slate-200 bg-slate-50'
-          : 'border-slate-300 hover:border-slate-400 hover:shadow-xs'
-      }`}
+      className={targetClass(disabled, dashed)}
     >
-      <span
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-          disabled
-            ? 'bg-slate-100 text-slate-400'
-            : 'bg-slate-100 text-brand-blue-primary'
-        }`}
-      >
-        <Icon className="h-5 w-5" aria-hidden="true" />
-      </span>
-      <span className="min-w-0">
-        <span
-          className={`block text-sm font-bold ${
-            disabled ? 'text-slate-500' : 'text-slate-800'
-          }`}
-        >
-          {label}
-        </span>
-        <span id={descId} className="mt-1 block text-xs text-slate-600">
-          {description}
-        </span>
-      </span>
+      <TargetBody
+        icon={icon}
+        label={label}
+        description={description}
+        descId={descId}
+        disabled={disabled}
+      />
     </button>
   );
 };
@@ -106,6 +133,8 @@ export const StudioStartHub: React.FC<StudioStartHubProps> = ({
 }) => {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
 
   return (
     <section
@@ -141,30 +170,59 @@ export const StudioStartHub: React.FC<StudioStartHubProps> = ({
             </span>
           </p>
         )}
-        {/* no-tour-anchor: hidden file input opened by its visible upload button */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={GL_MEDIA_ACCEPT}
-          multiple
-          className="hidden"
-          data-testid="gl-studio-hub-file-input"
-          onChange={(e) => {
-            const files = Array.from(e.target.files ?? []);
-            e.target.value = '';
-            if (files.length > 0) onFiles(files);
-          }}
-        />
+        {!unifiedPicker && (
+          <>
+            {/* no-tour-anchor: hidden file input opened by its visible upload button */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={GL_MEDIA_ACCEPT}
+              multiple
+              className="hidden"
+              data-testid="gl-studio-hub-file-input"
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                e.target.value = '';
+                if (files.length > 0) onFiles(files);
+              }}
+            />
+          </>
+        )}
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <Target
-            anchor={tourAttr('studio.hub-upload')}
-            id="upload"
-            icon={Upload}
-            label={t('glStudio.hubUpload')}
-            description={t('glStudio.hubUploadDesc')}
-            onClick={() => fileInputRef.current?.click()}
-            dashed
-          />
+          {unifiedPicker ? (
+            <ImagePicker
+              layout="button"
+              label={t('glStudio.hubUpload')}
+              takeFiles={(files) => {
+                onFiles(files);
+                return Promise.resolve(true);
+              }}
+              acceptFile={isSlideMediaFile}
+              accept={GL_MEDIA_ACCEPT}
+              maxBytes={GL_MAX_VIDEO_BYTES}
+              multiple
+              linkAsFile
+              tourScope={{ type: 'guided-learning', field: 'slides' }}
+              tourOverrides={{ open: tourAttr('studio.hub-upload') }}
+              buttonClassName={targetClass(false, true)}
+            >
+              <TargetBody
+                icon={Upload}
+                label={t('glStudio.hubUpload')}
+                description={t('glStudio.hubUploadDesc')}
+              />
+            </ImagePicker>
+          ) : (
+            <Target
+              anchor={tourAttr('studio.hub-upload')}
+              id="upload"
+              icon={Upload}
+              label={t('glStudio.hubUpload')}
+              description={t('glStudio.hubUploadDesc')}
+              onClick={() => fileInputRef.current?.click()}
+              dashed
+            />
+          )}
           <Target
             anchor={tourAttr('studio.hub-paste')}
             id="paste"

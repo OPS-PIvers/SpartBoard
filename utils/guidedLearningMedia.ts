@@ -36,6 +36,10 @@ export type SlideFileIssue =
   | { code: 'unsupported' }
   | { code: 'tooLarge'; kind: GuidedLearningMediaKind; maxMb: number };
 
+/** Whether a file can be a slide: an image or a supported video. */
+export const isSlideMediaFile = (file: File): boolean =>
+  getMediaKind(file) !== null;
+
 export function slideFileIssue(file: File): SlideFileIssue | null {
   const kind = getMediaKind(file);
   if (!kind) return { code: 'unsupported' };

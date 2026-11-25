@@ -22,7 +22,13 @@ import {
 } from 'lucide-react';
 import { GuidedLearningStep } from '@/types';
 import { SortableList } from '@/components/common/SortableList';
-import { GL_MEDIA_ACCEPT } from '@/utils/guidedLearningMedia';
+import {
+  GL_MAX_VIDEO_BYTES,
+  GL_MEDIA_ACCEPT,
+  isSlideMediaFile,
+} from '@/utils/guidedLearningMedia';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
+import { useAuth } from '@/context/useAuth';
 import { GuidedLearningStepEditor } from './GuidedLearningStepEditor';
 import { ScreenCaptureModal, type CaptureMode } from './ScreenCaptureModal';
 import { SpotlightInteraction } from './interactions/SpotlightInteraction';
@@ -85,6 +91,8 @@ const glContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
 export const GuidedLearningEditorContextPane = React.memo(
   function GuidedLearningEditorContextPane({ state }: PaneProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { canAccessFeature } = useAuth();
+    const unifiedPicker = canAccessFeature('unified-image-picker');
     const imageContainerRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLImageElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -295,6 +303,8 @@ export const GuidedLearningEditorContextPane = React.memo(
       e.preventDefault();
     };
     const handleDrop = (e: React.DragEvent) => {
+      // The image picker already took a drop on it.
+      if (e.defaultPrevented) return;
       e.preventDefault();
       dragDepthRef.current = 0;
       setDragActive(false);
@@ -614,26 +624,52 @@ export const GuidedLearningEditorContextPane = React.memo(
             <p className="text-red-600 text-xs font-medium">{imageError}</p>
           )}
 
-          {/* no-tour-anchor: hidden file input opened by its visible upload button */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={GL_MEDIA_ACCEPT}
-            multiple
-            className="hidden"
-            onChange={handleFileSelect}
-          />
+          {!unifiedPicker && (
+            <>
+              {/* no-tour-anchor: hidden file input opened by its visible upload button */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={GL_MEDIA_ACCEPT}
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+            </>
+          )}
 
           {/* Action toolbar */}
           <div className="flex flex-wrap gap-2 shrink-0">
-            <button
-              {...tourAttr('gl-editor.upload')}
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-colors text-sm"
-            >
-              <Upload className="w-4 h-4" />
-              Add media
-            </button>
+            {unifiedPicker ? (
+              <ImagePicker
+                layout="button"
+                label="Add media"
+                takeFiles={async (files) => {
+                  await uploadFromFiles(files);
+                  return true;
+                }}
+                acceptFile={isSlideMediaFile}
+                accept={GL_MEDIA_ACCEPT}
+                maxBytes={GL_MAX_VIDEO_BYTES}
+                multiple
+                linkAsFile
+                tourScope={{ type: 'guided-learning', field: 'slides' }}
+                tourOverrides={{ open: tourAttr('gl-editor.upload') }}
+                buttonClassName="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-colors text-sm disabled:opacity-50"
+              >
+                <Upload className="w-4 h-4" />
+                Add media
+              </ImagePicker>
+            ) : (
+              <button
+                {...tourAttr('gl-editor.upload')}
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-colors text-sm"
+              >
+                <Upload className="w-4 h-4" />
+                Add media
+              </button>
+            )}
             <CaptureMenuButton
               onPick={setCaptureMode}
               anchor={tourAttr('gl-capture.menu')}

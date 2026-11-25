@@ -25,10 +25,18 @@ import {
   type SortableListDragHandleProps,
 } from '@/components/common/SortableList';
 import {
+  GL_MAX_IMAGE_BYTES,
+  GL_MAX_VIDEO_BYTES,
   GL_MEDIA_ACCEPT,
+  isSlideMediaFile,
   thumbnailUrl,
   type GuidedLearningMediaKind,
 } from '@/utils/guidedLearningMedia';
+import {
+  ImagePicker,
+  type ImagePickerHandle,
+} from '@/components/common/imagePicker/ImagePicker';
+import { useAuth } from '@/context/useAuth';
 import { CaptureMenuButton } from '../editorShared/CaptureMenuButton';
 import { ScreenCaptureModal, type CaptureMode } from '../ScreenCaptureModal';
 import type { GuidedLearningEditorController } from '../useGuidedLearningEditorState';
@@ -48,6 +56,9 @@ interface SlideItem {
 }
 
 const getSlideId = (s: SlideItem) => s.id;
+
+const addMediaClass =
+  'flex items-center justify-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-50';
 
 const CurrentSlideContext = React.createContext<{
   index: number;
@@ -84,7 +95,7 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
   const { t } = useTranslation();
   const n = slide.index + 1;
   return (
-    <div className="group relative">
+    <div className="group relative" data-slide-index={slide.index}>
       <button
         type="button"
         {...handle.attributes}
@@ -294,13 +305,35 @@ const FilmstripBody = React.memo(function FilmstripBody({
   onSelectWelcome,
 }: FilmstripBodyProps) {
   const { t } = useTranslation();
+  const { canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
+  const navRef = useRef<HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
+  const replacePickerRef = useRef<ImagePickerHandle>(null);
   const replaceIndexRef = useRef(0);
-  const onReplace = useCallback((index: number) => {
-    replaceIndexRef.current = index;
-    replaceInputRef.current?.click();
-  }, []);
+  const onReplace = useCallback(
+    (index: number) => {
+      replaceIndexRef.current = index;
+      const row = navRef.current?.querySelector<HTMLElement>(
+        `[data-slide-index="${index}"]`
+      );
+      if (unifiedPicker && row) replacePickerRef.current?.openAt(row);
+      else replaceInputRef.current?.click();
+    },
+    [unifiedPicker]
+  );
+  const takeSlides = useCallback(
+    async (files: File[]) => {
+      await uploadFromFiles(files);
+      return true;
+    },
+    [uploadFromFiles]
+  );
+  const takeReplacement = useCallback(
+    ([file]: File[]) => replaceSlideFromFile(replaceIndexRef.current, file),
+    [replaceSlideFromFile]
+  );
   const [captureMode, setCaptureMode] = useState<CaptureMode | null>(null);
   const drop = useFileDrop((files) => void uploadFromFiles(files));
 
@@ -371,6 +404,13 @@ const FilmstripBody = React.memo(function FilmstripBody({
       ) {
         return;
       }
+      // The Welcome image and pickers in other dialogs take their own paste.
+      if (unifiedPicker) {
+        const own = navRef.current?.closest('[role="dialog"]');
+        const dialog =
+          target instanceof Element ? target.closest('[role="dialog"]') : null;
+        if (welcomeSelected || (dialog && dialog !== own)) return;
+      }
       const files = Array.from(e.clipboardData?.files ?? []).filter((f) =>
         f.type.startsWith('image/')
       );
@@ -380,7 +420,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
     };
     window.addEventListener('paste', onPaste, true);
     return () => window.removeEventListener('paste', onPaste, true);
-  }, [uploadFromFiles]);
+  }, [uploadFromFiles, unifiedPicker, welcomeSelected]);
 
   const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -448,6 +488,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
 
   return (
     <nav
+      ref={navRef}
       aria-label={t('glStudio.slides')}
       data-testid="gl-studio-filmstrip"
       className="relative flex min-h-0 flex-col border-r border-slate-200 bg-white"
@@ -511,33 +552,65 @@ const FilmstripBody = React.memo(function FilmstripBody({
         )}
       </div>
       <div className="flex shrink-0 flex-col gap-1.5 border-t border-slate-200 p-3">
-        {/* no-tour-anchor: hidden file input opened by its visible upload button */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={GL_MEDIA_ACCEPT}
-          multiple
-          className="hidden"
-          onChange={handleFiles}
-        />
-        {/* no-tour-anchor: hidden file input opened by its visible upload button */}
-        <input
-          ref={replaceInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          data-testid="gl-studio-replace-input"
-          onChange={handleReplaceFile}
-        />
-        <button
-          type="button"
-          {...tourAttr('studio.upload-slide')}
-          onClick={() => fileInputRef.current?.click()}
-          className="flex items-center justify-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark"
-        >
-          <Upload className="h-4 w-4" aria-hidden="true" />
-          {t('glStudio.addMedia')}
-        </button>
+        {unifiedPicker ? (
+          <>
+            <ImagePicker
+              layout="button"
+              label={t('glStudio.addMedia')}
+              takeFiles={takeSlides}
+              acceptFile={isSlideMediaFile}
+              accept={GL_MEDIA_ACCEPT}
+              maxBytes={GL_MAX_VIDEO_BYTES}
+              multiple
+              linkAsFile
+              tourScope={{ type: 'guided-learning', field: 'slides' }}
+              tourOverrides={{ open: tourAttr('studio.upload-slide') }}
+              buttonClassName={addMediaClass}
+            >
+              <Upload className="h-4 w-4" aria-hidden="true" />
+              {t('glStudio.addMedia')}
+            </ImagePicker>
+            <ImagePicker
+              layout="detached"
+              handleRef={replacePickerRef}
+              label={t('glStudio.replaceImage')}
+              takeFiles={takeReplacement}
+              maxBytes={GL_MAX_IMAGE_BYTES}
+              linkAsFile
+              tourScope={{ type: 'guided-learning', field: 'slide-replace' }}
+            />
+          </>
+        ) : (
+          <>
+            {/* no-tour-anchor: hidden file input opened by its visible upload button */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={GL_MEDIA_ACCEPT}
+              multiple
+              className="hidden"
+              onChange={handleFiles}
+            />
+            {/* no-tour-anchor: hidden file input opened by its visible upload button */}
+            <input
+              ref={replaceInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              data-testid="gl-studio-replace-input"
+              onChange={handleReplaceFile}
+            />
+            <button
+              type="button"
+              {...tourAttr('studio.upload-slide')}
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark"
+            >
+              <Upload className="h-4 w-4" aria-hidden="true" />
+              {t('glStudio.addMedia')}
+            </button>
+          </>
+        )}
         <div className="flex [&_button]:w-full [&_button]:justify-center *:flex-1">
           <CaptureMenuButton
             onPick={setCaptureMode}

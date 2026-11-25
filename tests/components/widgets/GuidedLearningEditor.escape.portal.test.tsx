@@ -36,6 +36,11 @@ vi.mock('@/components/widgets/GuidedLearning/utils/imageUtils', () => ({
 }));
 vi.mock('@/utils/guidedLearningMedia', () => ({
   GL_MEDIA_ACCEPT: 'image/*,video/*',
+  GL_MAX_VIDEO_BYTES: 1,
+  isSlideMediaFile: () => true,
+}));
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
 }));
 
 import { GuidedLearningEditorContextPane } from '@/components/widgets/GuidedLearning/components/GuidedLearningEditor';
