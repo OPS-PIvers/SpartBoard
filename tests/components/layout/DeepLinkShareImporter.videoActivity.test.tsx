@@ -138,4 +138,23 @@ describe('DeepLinkShareImporter — video activity share link', () => {
       )
     );
   });
+
+  it('skips the choice for someone outside the share PLC', async () => {
+    flagOn = true;
+    peekVa.mockResolvedValue({
+      title: 'Volcanoes',
+      originalAuthor: 'author-uid',
+      syncGroupId: 'group-1',
+      assignmentSettings: { plc: { id: 'plc-9', name: 'Science PLC' } },
+    });
+    render(<DeepLinkShareImporter />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Import' }));
+    await waitFor(() =>
+      expect(importVa).toHaveBeenCalledWith(
+        'va-share',
+        expect.objectContaining({ mode: 'copy' })
+      )
+    );
+    expect(screen.queryByText('Synced')).toBeNull();
+  });
 });

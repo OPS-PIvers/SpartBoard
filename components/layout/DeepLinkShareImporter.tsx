@@ -483,7 +483,12 @@ export const DeepLinkShareImporter: React.FC = () => {
       peek: async (shareId) => {
         const shared = await peekSharedVideoActivityAssignment(shareId);
         if (!shared) throw new Error('Shared video activity not found.');
-        return shared;
+        return {
+          title: shared.title?.trim() || 'Untitled',
+          originalAuthor: shared.originalAuthor,
+          syncGroupId: shared.syncGroupId,
+          plc: shared.assignmentSettings?.plc,
+        };
       },
       run: runVideoActivityImport,
       offersSync: vaShareSyncOn,

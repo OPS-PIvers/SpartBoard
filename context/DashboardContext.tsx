@@ -901,14 +901,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     window.history.replaceState(null, '', '/');
   }, []);
 
-  // Detect malformed /share-collection/ URLs (present but no ID) so we can
+  // Detect malformed share-collection and library share URLs so we can
   // toast after mount, when addToast is available.
   const [hadEmptyShareCollectionUrl] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     const path = window.location.pathname;
     return (
-      path.startsWith('/share-collection/') &&
-      !path.split('/share-collection/')[1]
+      (path.startsWith('/share-collection/') &&
+        !path.split('/share-collection/')[1]) ||
+      (isLibrarySharePath(path) && !parseLibrarySharePath(path))
     );
   });
 
