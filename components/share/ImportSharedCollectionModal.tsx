@@ -71,6 +71,7 @@ export const ImportSharedCollectionModal: FC<
     <Modal
       isOpen
       onClose={busy ? () => undefined : onClose}
+      dismissible={false}
       variant="bare"
       ariaLabelledby={headingId}
       className="bg-white rounded-2xl shadow-2xl overflow-hidden"

@@ -186,6 +186,7 @@ export const GradebookSettingsModalView: React.FC<
         variant="bare"
         maxWidth="max-w-[600px]"
         captureEscape={!applyOpen && !renaming}
+        dismissible={!applyOpen && !renaming}
         ariaLabelledby="gb-settings-title"
         className="max-h-[92vh]! overflow-hidden rounded-2xl bg-slate-50 font-sans shadow-xl"
       >
