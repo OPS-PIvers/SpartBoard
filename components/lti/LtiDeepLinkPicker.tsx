@@ -39,7 +39,7 @@ import React, {
   useState,
 } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import {
   ClipboardList,
   Video,
@@ -764,34 +764,27 @@ const LtiDeepLinkFlow: React.FC = () => {
           },
           'active',
           [`schoology:${contextId}`],
-          periodNames
+          periodNames,
+          undefined,
+          undefined,
+          {
+            openAt: windowTargeting.openAt,
+            closeAt: windowTargeting.closeAt,
+            dueAt,
+          }
         );
-        // VA's createAssignment has no targeting/window channel, so the M17
-        // fields are written post-create — the same pattern the in-app VA
-        // assign path uses (session doc owns openAt/closeAt/dueAt; the
-        // teacher archive doc owns targetGroupIds/overridesBySourcedId).
-        if (
-          windowTargeting.openAt != null ||
-          windowTargeting.closeAt != null ||
-          dueAt != null
-        ) {
-          await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
-            ...(windowTargeting.openAt != null
-              ? { openAt: windowTargeting.openAt }
-              : {}),
-            ...(windowTargeting.closeAt != null
-              ? { closeAt: windowTargeting.closeAt }
-              : {}),
-            ...(dueAt != null ? { dueAt } : {}),
-          });
-        }
         // Expanded once: the archive doc and the CF payload must agree, or a
         // re-edit reads back overrides the fan-out never saw.
         const expandedTargeting = expandClassTargeting(
           windowTargeting,
           ltiClassContext
         );
-        if (user?.uid) {
+        // The window rode in on the create batch; only the targeting goes here.
+        if (
+          user?.uid &&
+          (expandedTargeting.targetGroupIds.length > 0 ||
+            Object.keys(expandedTargeting.overridesByKey).length > 0)
+        ) {
           await setDoc(
             doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
             {
@@ -801,13 +794,6 @@ const LtiDeepLinkFlow: React.FC = () => {
               ...(Object.keys(expandedTargeting.overridesByKey).length > 0
                 ? { overridesBySourcedId: expandedTargeting.overridesByKey }
                 : {}),
-              ...(windowTargeting.openAt != null
-                ? { openAt: windowTargeting.openAt }
-                : {}),
-              ...(windowTargeting.closeAt != null
-                ? { closeAt: windowTargeting.closeAt }
-                : {}),
-              ...(dueAt != null ? { dueAt } : {}),
             },
             { merge: true }
           );

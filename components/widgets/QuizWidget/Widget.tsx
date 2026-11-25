@@ -3547,6 +3547,7 @@ const TeacherQuizWidget: React.FC<{
                     reopenForStudents(reopenPickFor, {
                       uids,
                       letInUids: uids,
+                      rosters,
                     }),
                 }
               : null
@@ -4065,6 +4066,7 @@ const TeacherQuizWidget: React.FC<{
               sharedWindow: resolvedTargeting,
               bellWindow: assignPeriodCtx?.bellWindow,
               manualStart: stepper?.manualStart,
+              everyClass: canAccessFeature('student-set-time'),
             });
 
           // PLC link only (D2): results pool server-side, no sheet is

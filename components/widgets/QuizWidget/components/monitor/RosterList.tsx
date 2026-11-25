@@ -20,7 +20,8 @@ import {
 import { InputSignalsBadge } from '@/components/common/InputSignalsPopover';
 import { useServerNow } from '@/hooks/useServerNow';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import { studentCanEnterQuiz, studentSetTime } from '@/utils/periodAccess';
+import { studentSetTime } from '@/utils/periodAccess';
+import { studentCanEnterAnyGate } from '@/utils/perClassConversion';
 import { formatStudentTime, formatStudentTimeStart } from './studentTimeFormat';
 import { canTeacherSubmit, isTabLockedOut } from '@/utils/quizTeacherSubmit';
 import { MonitorStudent } from './useMonitorData';
@@ -48,6 +49,7 @@ import {
 } from './RosterParts';
 import {
   QUIZ_TIME_LIMIT_WARN_MS,
+  classPauses,
   formatTimeLeft,
   resolveAttemptDeadline,
   timestampMillis,
@@ -209,7 +211,7 @@ const RowMenu: React.FC<{
     onLetIn &&
     r.studentUid &&
     r.status !== 'completed' &&
-    !studentCanEnterQuiz(
+    !studentCanEnterAnyGate(
       session,
       r.classId ? [r.classId] : [],
       r.studentUid,
@@ -475,15 +477,16 @@ export const RosterList: React.FC<RosterListProps> = ({
           targetRefKeyByStudentUid
         );
         const refKey = targetRefKeyByStudentUid?.get(r.studentUid);
+        const pauses = classPauses(session, r.classId);
         const deadline =
-          session.sessionMode === 'student' && session.status !== 'paused'
+          session.sessionMode === 'student' && !pauses.paused
             ? resolveAttemptDeadline(
                 timestampMillis(r.attemptStartedAt),
                 session.timeLimitMinutes,
                 refKey
                   ? overridesBySourcedId?.[refKey]?.timeMultiplier
                   : undefined,
-                session.pauseSpans
+                pauses.pauseSpans
               )
             : null;
         const locked =
@@ -718,7 +721,7 @@ export const RosterList: React.FC<RosterListProps> = ({
         if (
           onLetIn &&
           s.studentUid &&
-          !studentCanEnterQuiz(
+          !studentCanEnterAnyGate(
             session,
             s.periodKey ? [s.periodKey] : [],
             s.studentUid,
