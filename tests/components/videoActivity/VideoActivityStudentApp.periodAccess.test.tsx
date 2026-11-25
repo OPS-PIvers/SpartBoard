@@ -237,7 +237,7 @@ describe('VideoActivityStudentApp — per-period access', () => {
       expect(screen.getByTestId('va-player').dataset.paused).toBe('true')
     );
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Your answers are saved'
+      'Keep this tab open to keep your answers.'
     );
 
     hookState.session = perPeriod({});

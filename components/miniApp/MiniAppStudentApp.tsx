@@ -47,6 +47,7 @@ import { auth, db, functions } from '@/config/firebase';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { logError } from '@/utils/logError';
 import { useStudentAuthBootstrap } from '@/hooks/useStudentAuthBootstrap';
+import { usePeriodGate } from '@/hooks/usePeriodGate';
 import { isForeignPointer } from '@/utils/pointerOwnership';
 import {
   MiniAppSession,
@@ -55,7 +56,6 @@ import {
   StudentAssignmentPointer,
 } from '@/types';
 import { useSeatedPeriodContent } from '@/hooks/useSeatedPeriodContent';
-import { useServerNow } from '@/hooks/useServerNow';
 import { useStudentWindow } from '@/hooks/useStudentWindow';
 import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
 import {
@@ -63,20 +63,18 @@ import {
   readStaffIdentity,
   staffResponseFields,
 } from '@/utils/staffAudience';
-import {
-  hasPeriodAccess,
-  studentCanEnter,
-  studentPeriodKeys,
-} from '@/utils/periodAccess';
+import { hasPeriodAccess, studentPeriodKeys } from '@/utils/periodAccess';
 import {
   MA_CONTENT_DOC,
   mergeMiniAppSessionContent,
   type MiniAppSessionContent,
 } from '@/utils/miniAppSessionContent';
 import {
-  MiniAppPeriodLockedScreen,
-  MiniAppPeriodPausedOverlay,
-} from './MiniAppPeriodLockedScreen';
+  StudentPeriodLockedScreen,
+  StudentPeriodPicker,
+} from '@/components/student/StudentPeriodScreens';
+import { periodLockState } from '@/components/student/periodLockState';
+import { StudentPeriodPausedOverlay } from '@/components/student/StudentPeriodPausedOverlay';
 import { MiniAppPublishedResults } from './MiniAppPublishedResults';
 import {
   MSG_BLOCK_CONTEXT_MENU,
@@ -288,8 +286,7 @@ const PeriodGatedAppViewer: React.FC<{ session: MiniAppSession }> = ({
     classIds: string[];
   } | null>(null);
   const [seat, setSeat] = useState<SeatState>({ kind: 'claims' });
-  const now = useServerNow(5000);
-  const canEnter = studentCanEnter(session, periodKeys, uid, now);
+  const [pickedLabel, setPickedLabel] = useState<string | null>(null);
 
   const seatIn = useCallback(
     async (keys: string[]) => {
@@ -340,10 +337,12 @@ const PeriodGatedAppViewer: React.FC<{ session: MiniAppSession }> = ({
   }, [session, seatIn]);
 
   // Once the app has shown, a later close pauses it in place rather than swapping screens.
-  const [entered, setEntered] = useState(false);
-  if (!entered && seat.kind === 'seated' && canEnter && !contentPending) {
-    setEntered(true);
-  }
+  const { now, canEnter, entered } = usePeriodGate({
+    session,
+    periodKeys,
+    uid,
+    readyToEnter: seat.kind === 'seated' && !contentPending,
+  });
 
   // Assessment mode refuses a join without a school sign-in, whose self-picked period no rule can check.
   if (claims && !claims.studentRole && session.accessMode === 'assessment') {
@@ -352,11 +351,16 @@ const PeriodGatedAppViewer: React.FC<{ session: MiniAppSession }> = ({
     );
   }
   if (seat.kind === 'error') return <ErrorScreen message={seat.message} />;
-  if (seat.kind === 'pick') {
+  if (seat.kind === 'pick' || (seat.kind === 'seating' && pickedLabel)) {
     return (
-      <PeriodPicker
-        session={session}
-        onPick={(label) => void seatIn(studentPeriodKeys(session, [], label))}
+      <StudentPeriodPicker
+        title={session.appTitle}
+        periods={periodLabels(session)}
+        pendingPeriod={seat.kind === 'seating' ? pickedLabel : null}
+        onPick={(label) => {
+          setPickedLabel(label);
+          void seatIn(studentPeriodKeys(session, [], label));
+        }}
       />
     );
   }
@@ -366,10 +370,9 @@ const PeriodGatedAppViewer: React.FC<{ session: MiniAppSession }> = ({
   if (!entered) {
     if (!canEnter) {
       return (
-        <MiniAppPeriodLockedScreen
-          session={session}
-          periodKeys={periodKeys}
-          now={now}
+        <StudentPeriodLockedScreen
+          title={session.appTitle}
+          lock={periodLockState(session, periodKeys, now, uid)}
         />
       );
     }
@@ -383,38 +386,11 @@ const PeriodGatedAppViewer: React.FC<{ session: MiniAppSession }> = ({
   );
 };
 
-const PeriodPicker: React.FC<{
-  session: MiniAppSession;
-  onPick: (label: string) => void;
-}> = ({ session, onPick }) => {
-  const labels = [
+/** The session's class names, in roster order. */
+const periodLabels = (session: MiniAppSession): string[] =>
+  [
     ...new Set(Object.values(session.periodAccess ?? {}).map((p) => p.label)),
   ].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  return (
-    <div className="h-screen h-dvh overflow-y-auto bg-slate-900 flex items-center items-center-safe justify-center p-6">
-      <div className="bg-slate-800 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-        <p className="text-slate-300 text-sm font-semibold truncate mb-2">
-          {session.appTitle}
-        </p>
-        <h1 className="text-white font-bold text-xl mb-6">
-          Which class are you in?
-        </h1>
-        <div className="flex flex-col gap-2">
-          {labels.map((label) => (
-            <button
-              key={label}
-              type="button"
-              onClick={() => onPick(label)}
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // ─── Submission doc-ID resolution ──────────────────────────────────────────────
 //
@@ -989,11 +965,15 @@ const AppViewer: React.FC<{
   }
   if (windowHeld && studentWindow.state === 'upcoming') {
     return (
-      <MiniAppPeriodLockedScreen
-        session={session}
-        periodKeys={[]}
-        now={studentWindow.now}
-        opensAt={studentWindow.window.openAt}
+      <StudentPeriodLockedScreen
+        title={session.appTitle}
+        lock={periodLockState(
+          session,
+          [],
+          studentWindow.now,
+          null,
+          studentWindow
+        )}
       />
     );
   }
@@ -1011,7 +991,7 @@ const AppViewer: React.FC<{
         onLoad={handleIframeLoad}
       />
       {paused && (
-        <MiniAppPeriodPausedOverlay closed={windowHeld && !periodPaused} />
+        <StudentPeriodPausedOverlay closed={windowHeld && !periodPaused} />
       )}
       <SubmissionStatusOverlay
         status={status}

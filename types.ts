@@ -12001,6 +12001,8 @@ export type GlobalFeature =
   | 'help-center-ai'
   /** Video Activity share links offer Synced or Make a copy, like quiz assignment links. */
   | 'video-activity-share-sync'
+  /** Flashcards and Rubrics shared with a group can push the teacher's edits to the shared copy. */
+  | 'plc-update-shared-copy'
   /** Every Classroom and Schoology grade push sends the gradebook final score, built on the server (AB-389). */
   | 'lms-push-final-scores'
   /** Class Close, End and sub End turn open work in from the server, with no teacher tab open (AB-388). */
@@ -12009,6 +12011,8 @@ export type GlobalFeature =
   | 'embed-reload'
   /** Dialogs opened from a widget take its library color for the header and brand-blue buttons. */
   | 'widget-colored-dialogs'
+  /** One shared image picker everywhere an image is added: upload, paste, drop, Google Drive or an image link. */
+  | 'unified-image-picker'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Fill in the blank: Dropdown and Drag blank types beside Typed (docs/plans/QUIZ_MCA_PRACTICE.md M6). */

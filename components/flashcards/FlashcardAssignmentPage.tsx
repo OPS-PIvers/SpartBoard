@@ -32,13 +32,11 @@ import type {
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { useSeatedPeriodContent } from '@/hooks/useSeatedPeriodContent';
-import { useServerNow } from '@/hooks/useServerNow';
-import {
-  hasPeriodAccess,
-  nextScheduledOpen,
-  studentCanEnter,
-  studentPeriodKeys,
-} from '@/utils/periodAccess';
+import { usePeriodGate } from '@/hooks/usePeriodGate';
+import { StudentPeriodLockedScreen } from '@/components/student/StudentPeriodScreens';
+import { periodLockState } from '@/components/student/periodLockState';
+import { STUDENT_TEXT_BUTTON } from '@/components/student/StudentScreenShell';
+import { hasPeriodAccess, studentPeriodKeys } from '@/utils/periodAccess';
 import {
   FC_CONTENT_DOC,
   type FlashcardSessionContent,
@@ -571,13 +569,12 @@ export const FlashcardAssignmentPage: React.FC<{
       contentDoc: FC_CONTENT_DOC,
       uid: pseudonymUid,
     });
-  const periodNow = useServerNow(perPeriod ? 5000 : null);
-  const canEnter = studentCanEnter(
-    rawSession,
+  // The seat reducer below owns entering; the gate gives the clock and the open check.
+  const { now: periodNow, canEnter } = usePeriodGate({
+    session: rawSession,
     periodKeys,
-    pseudonymUid,
-    periodNow
-  );
+    uid: pseudonymUid,
+  });
   const [seat, dispatchSeat] = useReducer(seatReducer, initialSeat);
   // Seat the student in their period once the session and pointer are known.
   const seatStarted = useRef(false);
@@ -819,23 +816,22 @@ export const FlashcardAssignmentPage: React.FC<{
           />
         );
       break;
-    case 'periodLocked': {
-      const opensAt = nextScheduledOpen(session, periodKeys, periodNow);
-      body = (
-        <PageMessage
-          icon={Lock}
-          title={t('flashcards.assignment.opensTitle')}
-          body={
-            opensAt != null
-              ? t('flashcards.assignment.opensBody', {
-                  date: new Date(opensAt).toLocaleString(),
-                })
-              : t('flashcards.assignment.periodClosedBody')
+    case 'periodLocked':
+      return (
+        <StudentPeriodLockedScreen
+          title={session.title}
+          lock={periodLockState(session, periodKeys, periodNow, pseudonymUid)}
+          footer={
+            // no-tour-anchor: student back link on a locked screen
+            <a
+              href="/my-assignments"
+              className={`block ${STUDENT_TEXT_BUTTON}`}
+            >
+              {t('flashcards.assignment.back')}
+            </a>
           }
         />
       );
-      break;
-    }
     case 'tracked':
       body = (
         <TrackedPlayer

@@ -34,10 +34,13 @@ export interface ShareRubricWithPlcInput {
   sharedByName: string;
   /** Lowercased email snapshot for display. */
   sharedByEmail: string;
+  /** Overwrite a live shared copy's content instead of reporting already-shared. */
+  update?: boolean;
 }
 
 /** What a share attempt did — re-sharing an unshared rubric revives its tombstone. */
-export type ShareRubricOutcome = 'created' | 'restored' | 'already-shared';
+export type ShareRubricOutcome =
+  'created' | 'restored' | 'already-shared' | 'updated';
 
 interface UsePlcRubricsResult {
   rubrics: PlcRubricEntry[];
@@ -213,9 +216,9 @@ export async function writePlcRubricEntry(
   const existing = await getDoc(ref);
 
   if (existing.exists()) {
-    const deletedAt = (existing.data() as Record<string, unknown>).deletedAt;
-    if (deletedAt == null) return 'already-shared';
-    // Content-only revive; original attribution stands (PLC-owned model).
+    const live = (existing.data() as Record<string, unknown>).deletedAt == null;
+    if (live && !input.update) return 'already-shared';
+    // Content-only revive or update; original attribution stands (PLC-owned model).
     await updateDoc(ref, {
       title: rubric.title,
       criteria: rubric.criteria,
@@ -223,7 +226,7 @@ export async function writePlcRubricEntry(
       updatedAt: now,
       deletedAt: deleteField(),
     });
-    return 'restored';
+    return live ? 'updated' : 'restored';
   }
 
   const entry: PlcRubricEntry = {

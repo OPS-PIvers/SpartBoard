@@ -69172,6 +69172,97 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "image-picker.open",
+    "label": "Add image button that opens the image picker",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.shared-image-picker",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "image-picker.upload",
+    "label": "Upload button in the image picker",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.shared-image-picker",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "image-picker.drive",
+    "label": "Google Drive button in the image picker",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.shared-image-picker",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "image-picker.link",
+    "label": "Image link button in the image picker",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.shared-image-picker",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "image-picker.link-input",
+    "label": "Image link field in the image picker",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.shared-image-picker",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "image-picker.link-add",
+    "label": "Add button for an image link in the image picker",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.shared-image-picker",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "image-picker.remove",
+    "label": "Remove image button in the image picker",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.shared-image-picker",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "url.upload-image",
     "label": "Upload image button in the link picker",
     "scope": "field",
@@ -83938,20 +84029,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "student.quiz.period-confirm",
-    "label": "Continue after picking a class period",
-    "scope": "board",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "student-quiz.page",
-        "kind": "page",
-        "url": "/quiz",
-        "path": []
-      }
-    ]
-  },
-  {
     "id": "student.quiz.period-back",
     "label": "Go back on the class period step",
     "scope": "board",
@@ -87013,23 +87090,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "student.video-activity.period-option",
     "label": "Class option on the student Video Activity class picker",
     "scope": "board",
-    "routes": [
-      {
-        "surface": "student-video.page",
-        "kind": "page",
-        "url": "/activity/{sessionId}",
-        "path": [],
-        "needs": [
-          "live-session"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "student.video-activity.period-continue",
-    "label": "Continue button on the student Video Activity class picker",
-    "scope": "board",
-    "persists": true,
     "routes": [
       {
         "surface": "student-video.page",
