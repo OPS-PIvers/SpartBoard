@@ -2,6 +2,7 @@
 import type React from 'react';
 import {
   ClipboardList,
+  Copy,
   MonitorPlay,
   Camera,
   PenLine,
@@ -1884,6 +1885,16 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: CalendarClock,
     description:
       "A student's own Opens and Closes work in every assignment. One student's later close no longer keeps the class open.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'library-duplicate-more': {
+    label: 'Duplicate: Flashcards and Rubrics',
+    icon: Copy,
+    description: 'Flashcard sets and rubrics get a Duplicate button.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

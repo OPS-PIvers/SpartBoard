@@ -5263,6 +5263,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-rubric.duplicate': {
+    label: 'Duplicate rubric on the Quiz rubric builder',
+    perWidgetType: true,
+    creates: true,
+    panel: true,
+  },
   'quiz-rubric.share-link': {
     label: 'Rubric share link field on the Quiz rubric builder',
     perWidgetType: true,

@@ -89,6 +89,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'import-video-activity',
   'input-signals',
   'instructional-routine',
+  'library-duplicate-more',
   'live-session',
   'live-tour-editing-v2',
   'lms-push-final-scores',
