@@ -2288,19 +2288,15 @@
     "join": {
       "joining": "Entrando al quiz…",
       "unableToConnect": "No se pudo conectar. Actualiza la página e inténtalo de nuevo.",
-      "studentQuiz": "Quiz para estudiantes",
       "title": "Unirse al quiz",
       "intro": "Escribe el código y el PIN que te dio tu maestro.",
       "codePlaceholder": "Código del quiz (XXXXXX)",
       "pinPlaceholder": "Tu PIN",
-      "periodTitle": "Elige tu clase",
-      "periodIntro": "¿En qué período de clase estás?",
       "goBack": "Volver",
       "signInTitle": "Inicia sesión para unirte",
       "signInIntro": "Usa tu cuenta de Google de la escuela.",
       "usePin": "¿No puedes iniciar sesión? Usa un PIN",
       "join": "Unirme",
-      "continue": "Continuar",
       "signInGoogle": "Iniciar sesión con Google",
       "closed": "Este quiz está cerrado.",
       "loadFailed": "No pudimos cargar tu quiz. Actualiza la página e inténtalo de nuevo."
@@ -2319,10 +2315,6 @@
       "title": "En pausa. Ojos al frente.",
       "saved": "Tus respuestas están guardadas.",
       "keepOpen": "Deja esta pestaña abierta."
-    },
-    "locked": {
-      "opensSoon": "Se abre cuando tu maestro lo empiece.",
-      "keepOpen": "Deja esta pestaña abierta. El quiz aparece aquí en cuanto tu clase pueda entrar."
     },
     "errors": {
       "saveAnswer": "No se pudo guardar tu respuesta. Toca para intentar de nuevo.",
@@ -3899,7 +3891,6 @@
       "correctOf": "{{correct}} de {{total}} correctas",
       "answersTitle": "Tus respuestas",
       "noResponse": "Sin respuesta",
-      "periodClosedBody": "Mantén esta pestaña abierta. El conjunto aparecerá aquí en cuanto tu docente dé acceso a tu clase.",
       "periodPausedTitle": "En pausa para tu clase",
       "periodPausedBody": "Tu progreso se queda en esta página. Mantén esta pestaña abierta.",
       "notInPeriod": "No estás en ninguna clase a la que se haya asignado este conjunto. Pregúntale a tu docente.",
@@ -4740,7 +4731,6 @@
     "start": {
       "selectClass": "Selecciona tu clase",
       "whichPeriod": "¿En qué periodo de clase estás?",
-      "pickOne": "Elige uno para continuar. Podrás escribir tu PIN después de este paso.",
       "steps_one": "{{count}} paso",
       "steps_other": "{{count}} pasos",
       "class": "Clase",
@@ -4770,7 +4760,7 @@
     },
     "locked": {
       "title": "Todavía no está abierta",
-      "body": "Mantén esta pestaña abierta. La actividad aparecerá aquí en cuanto tu clase tenga acceso.",
+      "body": "Mantén esta pestaña abierta. La actividad aparecerá aquí en cuanto tu maestro la abra.",
       "bodyOwn": "Mantén esta pestaña abierta. La actividad aparecerá aquí en cuanto se abra.",
       "paused": "En pausa",
       "closed": "Cerrada",
@@ -5116,6 +5106,13 @@
     "help": "Ayuda",
     "menuLabel": "Ayuda",
     "record": "Grabar un recorrido"
+  },
+  "studentJoin": {
+    "title": "Unirse a la actividad",
+    "pinIntro": "Escribe el PIN que te dio tu maestro.",
+    "liveTitle": "Clase en vivo",
+    "liveIntro": "Únete a la sesión de tu maestro",
+    "roomCode": "ID del maestro / código de sala"
   },
   "studentTab": {
     "title": "Saliste de la página",

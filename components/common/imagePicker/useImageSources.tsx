@@ -13,10 +13,10 @@ export interface ImageSourcesOptions {
   accept?: string;
   maxBytes?: number;
   disabled?: boolean;
+  /** Takes several files at once from upload, drop or paste; each one saves and calls onChange. */
+  multiple?: boolean;
   /** Paste reaches the picker anywhere in its dialog, or only inside the picker. */
   pasteScope?: 'dialog' | 'element' | 'off';
-  /** Upload, drop and paste take several images; onChange runs once per image. */
-  multiple?: boolean;
   /** The element paste is scoped to. */
   scopeRef: React.RefObject<HTMLElement | null>;
 }
@@ -53,8 +53,8 @@ export function useImageSources({
   accept = 'image/*',
   maxBytes = DEFAULT_MAX,
   disabled = false,
-  pasteScope = 'dialog',
   multiple = false,
+  pasteScope = 'dialog',
   scopeRef,
 }: ImageSourcesOptions) {
   const [busy, setBusy] = useState(false);
@@ -108,29 +108,37 @@ export function useImageSources({
     [run, save]
   );
 
-  // Adds each image in turn; one that fails doesn't stop the rest, and the first failure shows.
+  // Saves each file in turn; the first problem stays on screen after the rest finish.
   const addFiles = useCallback(
-    (files: File[]) => {
+    async (files: File[]) => {
       if (!multiple || files.length < 2) {
-        return files[0]
-          ? addFile(files[0])
-          : Promise.resolve<RunResult>('skipped');
+        if (files[0]) await addFile(files[0]);
+        return;
       }
-      return run(async () => {
-        let failure: Error | null = null;
+      if (inFlight.current || disabled) return;
+      inFlight.current = true;
+      setBusy(true);
+      setError(null);
+      let firstError: string | null = null;
+      try {
         for (const file of files) {
           try {
             const url = await save(file);
             if (url) onChange(url);
           } catch (err) {
-            failure ??= err instanceof Error ? err : new Error(String(err));
+            firstError ??=
+              err instanceof PickerError
+                ? err.message
+                : "The image didn't add.";
           }
         }
-        if (failure) throw failure;
-        return null;
-      });
+      } finally {
+        setError(firstError);
+        inFlight.current = false;
+        setBusy(false);
+      }
     },
-    [multiple, addFile, run, save, onChange]
+    [multiple, addFile, disabled, save, onChange]
   );
 
   const openFile = useCallback(() => inputRef.current?.click(), []);
@@ -179,9 +187,7 @@ export function useImageSources({
   );
 
   const onPasted = useCallback(
-    (files: File[]) => {
-      void addFiles(files);
-    },
+    (files: File[]) => void addFiles(files),
     [addFiles]
   );
   usePasteFiles(
@@ -209,8 +215,7 @@ export function useImageSources({
       if (!hasFiles(e)) return;
       e.preventDefault();
       setDragging(false);
-      const files = Array.from(e.dataTransfer.files).filter(isImageFile);
-      void addFiles(files);
+      void addFiles(Array.from(e.dataTransfer.files).filter(isImageFile));
     },
   };
 
@@ -234,6 +239,7 @@ export function useImageSources({
 
   return {
     busy,
+    disabled,
     error,
     setError,
     dragging,
