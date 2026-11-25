@@ -15,6 +15,7 @@ vi.mock('firebase/firestore', () => ({
 
 vi.mock('@/hooks/useAdminBuildings', () => ({
   useAdminBuildings: () => [],
+  useAdminBuildingsState: () => ({ buildings: [], isLoading: false }),
 }));
 
 vi.mock('@/hooks/useStorage', () => ({

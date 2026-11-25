@@ -4,6 +4,7 @@ import {
   type WebTourStableAttrs,
 } from '@/types';
 import { headingsUnder, nearestHeading, stableAttrsOf } from './clues';
+import { ownRootsIn } from '../ownRoots';
 
 /** The clues a frame searches with; frames are matched by the service worker. */
 export type WebLocatorClues = Omit<WebTourLocator, 'frames'>;
@@ -105,7 +106,7 @@ export function isShown(el: Element): boolean {
 export const INTERACTIVE =
   'a[href],button,input,select,textarea,summary,[role],[tabindex],[onclick],[contenteditable="true"]';
 
-/** The document and every open shadow root inside it, found in one walk. */
+/** The document, every open shadow root inside it and the extension's own closed ones, found in one walk. */
 export function rootsOf(doc: Document): (Document | ShadowRoot)[] {
   const out: (Document | ShadowRoot)[] = [];
   const visit = (node: Document | ShadowRoot) => {
@@ -115,6 +116,7 @@ export function rootsOf(doc: Document): (Document | ShadowRoot)[] {
     }
   };
   visit(doc);
+  for (const root of ownRootsIn(doc)) visit(root);
   return out;
 }
 
