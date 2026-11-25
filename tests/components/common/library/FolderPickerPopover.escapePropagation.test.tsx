@@ -58,4 +58,36 @@ describe('FolderPickerPopover — Escape does not leak to window-level handlers'
       window.removeEventListener('keydown', windowKeydownSpy);
     }
   });
+
+  // The Boards window registers its own document Escape handler before this picker opens; the picker must win.
+  it('wins over an outer document Escape listener registered before it mounts', () => {
+    const outerClose = vi.fn();
+    const outerHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') outerClose();
+    };
+    document.addEventListener('keydown', outerHandler);
+    const onClose = vi.fn();
+    render(
+      <FolderPickerPopover
+        folders={[]}
+        selectedFolderId={null}
+        onSelect={vi.fn()}
+        onClose={onClose}
+        variant="dialog"
+      />
+    );
+    try {
+      document.body.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Escape',
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(outerClose).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener('keydown', outerHandler);
+    }
+  });
 });

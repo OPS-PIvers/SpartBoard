@@ -28,11 +28,13 @@ import { Modal } from '@/components/common/Modal';
 import type { LibraryFolder } from '@/types';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { isEscapeFromWidgetInput, scrollMovesAnchor } from '@/utils/domHelpers';
+import { flattenTree } from '@/utils/folderTree';
+import { folderColorSwatch } from './folderColors';
 
 export interface FolderPickerPopoverProps {
   folders: LibraryFolder[];
-  /** Currently-selected folder id (`null` = root / "All items"). */
-  selectedFolderId: string | null;
+  /** Currently-selected folder id (`null` = root / "All items"); undefined checks nothing. */
+  selectedFolderId: string | null | undefined;
   onSelect: (folderId: string | null) => void;
   /** Called when the user dismisses the popover (click outside, Esc). */
   onClose: () => void;
@@ -58,56 +60,6 @@ export interface FolderPickerPopoverProps {
   /** Label for the null choice; defaults to "All items (no folder)". */
   rootLabel?: string;
 }
-
-interface FlatNode {
-  id: string;
-  name: string;
-  depth: number;
-}
-
-/**
- * Flatten the folder tree into a depth-ordered list so we can render a
- * single scrollable column with indentation. Orphans (parent not in set)
- * are treated as root-level so they remain reachable.
- */
-const flattenFolders = (folders: LibraryFolder[]): FlatNode[] => {
-  const byParent = new Map<string | null, LibraryFolder[]>();
-  for (const f of folders) {
-    const bucket = byParent.get(f.parentId) ?? [];
-    bucket.push(f);
-    byParent.set(f.parentId, bucket);
-  }
-  // Stable order — already ordered by `order` from Firestore.
-  for (const [key, bucket] of byParent) {
-    bucket.sort((a, b) => a.order - b.order);
-    byParent.set(key, bucket);
-  }
-
-  const knownIds = new Set(folders.map((f) => f.id));
-  const out: FlatNode[] = [];
-  const visited = new Set<string>();
-  const walk = (parentId: string | null, depth: number): void => {
-    const children = byParent.get(parentId) ?? [];
-    for (const child of children) {
-      if (visited.has(child.id)) continue;
-      visited.add(child.id);
-      out.push({ id: child.id, name: child.name, depth });
-      walk(child.id, depth + 1);
-    }
-  };
-  walk(null, 0);
-
-  // Surface orphan folders (parent id not in our set) and their subtree at the root, instead of hiding them.
-  for (const f of folders) {
-    if (f.parentId != null && !knownIds.has(f.parentId) && !visited.has(f.id)) {
-      visited.add(f.id);
-      out.push({ id: f.id, name: f.name, depth: 0 });
-      walk(f.id, 1);
-    }
-  }
-
-  return out;
-};
 
 const POPOVER_WIDTH = 256;
 const POPOVER_GAP = 4;
@@ -162,20 +114,18 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
     const handleKey = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return;
       if (isEscapeFromWidgetInput(event)) return;
-      // Portalled to <body>, outside any `.widget` ancestor — without
-      // stopping propagation an Escape here also bubbles up to
-      // DashboardView's global window-level Escape handler, which falls
-      // back to minimizing the topmost widget (see #2266 pattern).
-      event.stopPropagation();
+      // Capture phase + stopImmediatePropagation: wins over the host's own document or window Escape handler (Boards window close, widget minimize #2266).
+      event.preventDefault();
+      event.stopImmediatePropagation();
       onClose();
     };
     document.addEventListener('mousedown', handlePointer);
     document.addEventListener('touchstart', handlePointer);
-    document.addEventListener('keydown', handleKey);
+    document.addEventListener('keydown', handleKey, true);
     return () => {
       document.removeEventListener('mousedown', handlePointer);
       document.removeEventListener('touchstart', handlePointer);
-      document.removeEventListener('keydown', handleKey);
+      document.removeEventListener('keydown', handleKey, true);
     };
   }, [onClose, isPortaledPopover, anchorRef, variant]);
 
@@ -193,7 +143,10 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
     };
   }, [isPortaledPopover, onClose, anchorRef]);
 
-  const flat = useMemo(() => flattenFolders(folders), [folders]);
+  const flat = useMemo(
+    () => flattenTree(folders, (f) => f.parentId),
+    [folders]
+  );
 
   const renderRow = (
     id: string | null,
@@ -295,12 +248,15 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
             No folders yet. Create one from the sidebar.
           </p>
         ) : (
-          flat.map((node) =>
+          flat.map(({ node, depth }) =>
             renderRow(
               node.id,
               node.name,
-              node.depth,
-              <FolderIcon className="h-4 w-4" aria-hidden="true" />
+              depth,
+              <FolderIcon
+                className={`h-4 w-4 ${folderColorSwatch(node.color)?.icon ?? ''}`}
+                aria-hidden="true"
+              />
             )
           )
         )}

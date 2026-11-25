@@ -118,7 +118,7 @@ export const ShareCollectionLinkCreatorModal: FC<
           err instanceof Error
             ? err.message
             : t('shareCollection.createFailed', {
-                defaultValue: 'Failed to create Collection share',
+                defaultValue: 'Failed to create folder share',
               });
         addToast(message, 'error');
         return;
@@ -160,7 +160,7 @@ export const ShareCollectionLinkCreatorModal: FC<
           />
           <h2 id={headingId} className="text-lg font-bold text-slate-800">
             {t('shareCollection.title', {
-              defaultValue: 'Share Collection',
+              defaultValue: 'Share Folder',
             })}
             : <span className="font-normal">{collection.name}</span>
           </h2>
@@ -171,8 +171,7 @@ export const ShareCollectionLinkCreatorModal: FC<
             <p className="text-sm text-slate-600">
               {t('shareCollection.subtitle', {
                 count: boards.length,
-                defaultValue:
-                  'Sharing {{count}} board(s) from this Collection.',
+                defaultValue: 'Sharing {{count}} board(s) from this folder.',
               })}
             </p>
             {existingLiveUrl && (
@@ -188,7 +187,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                   {...tourAttr('share-collection.url')}
                   value={existingLiveUrl}
                   aria-label={t('shareCollection.urlLabel', {
-                    defaultValue: 'Share collection URL',
+                    defaultValue: 'Share folder URL',
                   })}
                   className="w-full px-2 py-1.5 text-xs font-mono bg-slate-50 border border-slate-200 rounded-sm select-all"
                   onFocus={(e) => e.currentTarget.select()}
@@ -203,7 +202,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                     defaultValue: 'Synced',
                   })}
                   body={t('shareCollection.modeSyncedHint', {
-                    defaultValue: 'You both edit the same collection.',
+                    defaultValue: 'You both edit the same folder.',
                   })}
                   Icon={Cloud}
                   onPick={() => setMode('synced')}
@@ -340,7 +339,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                 {...tourAttr('share-collection.url')}
                 value={shareUrl}
                 aria-label={t('shareCollection.urlLabel', {
-                  defaultValue: 'Share collection URL',
+                  defaultValue: 'Share folder URL',
                 })}
                 className="flex-1 px-2 py-1.5 text-xs font-mono bg-slate-50 border border-slate-200 rounded-sm select-all"
                 onFocus={(e) => e.currentTarget.select()}

@@ -99,11 +99,6 @@ const BOARDS_MODAL_TRANSLATED_KEYS: [string[], string][] = [
     en.boardsModal.menu.saveAsTemplate,
   ],
   [['boardsModal', 'menu', 'setDefault'], en.boardsModal.menu.setDefault],
-  [['boardsModal', 'colorPicker', 'title'], en.boardsModal.colorPicker.title],
-  [
-    ['boardsModal', 'colorPicker', 'swatches'],
-    en.boardsModal.colorPicker.swatches,
-  ],
   [['boardsModal', 'dndFailed'], en.boardsModal.dndFailed],
   [['boardsModal', 'bulkAllFailed'], en.boardsModal.bulkAllFailed],
 ];

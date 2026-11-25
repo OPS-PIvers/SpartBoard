@@ -6,6 +6,7 @@ import { tourAttr } from '@/config/tourAnchors';
 import type { Collection } from '@/types';
 import { hexToRgba, collectionTextColor } from '@/utils/collectionColor';
 import { DropInsertionBar } from './DropInsertionBar';
+import { FolderNameInput } from '@/components/common/library/FolderNameInput';
 import { useDropMode } from './dropIndicator';
 
 interface CollectionCardProps {
@@ -25,6 +26,9 @@ interface CollectionCardProps {
   onEdit: (anchor: HTMLElement) => void;
   onDuplicate: () => void;
   onShare: () => void;
+  isRenaming?: boolean;
+  onRename?: (name: string) => void;
+  onCancelRename?: () => void;
 }
 
 export const CollectionCard: React.FC<CollectionCardProps> = ({
@@ -40,6 +44,9 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
   onEdit,
   onDuplicate,
   onShare,
+  isRenaming = false,
+  onRename,
+  onCancelRename,
 }) => {
   const { t } = useTranslation();
 
@@ -151,12 +158,23 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
             : undefined
         }
       />
-      <div
-        className={`text-sm font-bold truncate mb-1 pr-7 ${textColor ? '' : 'text-slate-800'}`}
-        style={textColor ? { color: textColor } : undefined}
-      >
-        {collection.name}
-      </div>
+      {isRenaming && onRename && onCancelRename ? (
+        <div className="mb-1 pr-7 flex">
+          <FolderNameInput
+            initial={collection.name}
+            onCommit={onRename}
+            onCancel={onCancelRename}
+            anchor={tourAttr('boards-modal.collection-name-input')}
+          />
+        </div>
+      ) : (
+        <div
+          className={`text-sm font-bold truncate mb-1 pr-7 ${textColor ? '' : 'text-slate-800'}`}
+          style={textColor ? { color: textColor } : undefined}
+        >
+          {collection.name}
+        </div>
+      )}
       <div
         className={`text-xxs pr-20 ${textColor ? '' : 'text-slate-400'}`}
         style={textColor ? { color: textColor, opacity: 0.6 } : undefined}
@@ -180,10 +198,10 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
           }}
           onPointerDown={(e) => e.stopPropagation()}
           aria-label={t('boardsModal.editCollection', {
-            defaultValue: 'Edit Collection',
+            defaultValue: 'Edit Folder',
           })}
           title={t('boardsModal.editCollection', {
-            defaultValue: 'Edit Collection',
+            defaultValue: 'Edit Folder',
           })}
           aria-haspopup="menu"
           {...tourAttr('boards-modal.collection-edit')}
@@ -202,7 +220,7 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
             }}
             onPointerDown={(e) => e.stopPropagation()}
             aria-label={t('collectionMenu.share', {
-              defaultValue: 'Share Collection',
+              defaultValue: 'Share folder',
             })}
             {...tourAttr('boards-modal.collection-share')}
             className={`p-1 rounded hover:text-brand-blue-primary hover:bg-brand-blue-lighter transition ${
@@ -223,7 +241,7 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
           disabled={isDuplicating}
           aria-busy={isDuplicating}
           aria-label={t('collectionMenu.duplicate', {
-            defaultValue: 'Duplicate Collection',
+            defaultValue: 'Duplicate Folder',
           })}
           {...tourAttr('boards-modal.collection-duplicate')}
           className={`p-1 rounded hover:text-slate-700 hover:bg-slate-100 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${
@@ -278,6 +296,30 @@ export const CollectionCardDragPreview: React.FC<{
         style={textColor ? { color: textColor } : undefined}
       >
         {collection.name}
+      </div>
+    </div>
+  );
+};
+
+/** The card a new collection is named on, first in the grid. */
+export const NewCollectionCard: React.FC<{
+  onCommit: (name: string) => void;
+  onCancel: () => void;
+}> = ({ onCommit, onCancel }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="rounded-xl border border-dashed border-brand-blue-primary/50 bg-white p-4">
+      <Folder className="w-7 h-7 mb-2 text-slate-400" aria-hidden="true" />
+      <div className="flex">
+        <FolderNameInput
+          initial=""
+          placeholder={t('boardsModal.newCollectionPlaceholder', {
+            defaultValue: 'New folder name',
+          })}
+          onCommit={onCommit}
+          onCancel={onCancel}
+          anchor={tourAttr('boards-modal.new-collection-input')}
+        />
       </div>
     </div>
   );

@@ -12,7 +12,6 @@
  * recursive rendering + expand/collapse behavior in isolation.
  */
 
-import { isImeComposing } from '@/utils/imeComposing';
 import React, {
   createContext,
   useContext,
@@ -40,6 +39,7 @@ import { folderDroppableId, type FolderDropData } from './folderDropTargets';
 import { useFolderPanelMode } from './LibraryFolderPanelContext';
 import { folderColorSwatch } from './folderColors';
 import { FolderColorPicker } from './FolderColorPicker';
+import { FolderNameInput } from './FolderNameInput';
 import { isSourceFolderId } from './sourceFolders';
 import {
   buildFolderIndex,
@@ -106,70 +106,6 @@ interface FolderDragState {
 
 // Owned by the top-level tree so nested subtrees share one drag.
 const FolderDragContext = createContext<FolderDragState | null>(null);
-
-/**
- * Inline rename input — one ref per render, auto-focused + selected on mount.
- */
-const RenameInput: React.FC<{
-  initial: string;
-  onCommit: (next: string) => void;
-  onCancel: () => void;
-}> = ({ initial, onCommit, onCancel }) => {
-  const ref = useRef<HTMLInputElement>(null);
-  // Set to true synchronously before calling onCancel() so that the
-  // synchronous blur event fired by unmounting the focused input (which
-  // carries a stale onBlur closure still holding the typed text) does not
-  // accidentally call onCommit with the cancelled value. Same pattern as
-  // DraggableWindow's isCancellingTitleRef (Bug #1965).
-  const isCancellingRef = useRef(false);
-
-  useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
-
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    // Pressing Enter commits and unmounts this input; the browser then fires a
-    // synchronous blur during DOM removal. Bail out if the input is no longer
-    // connected so onCommit() can't fire a second time (duplicate commit).
-    if (!e.currentTarget?.isConnected) return;
-    if (isCancellingRef.current) {
-      isCancellingRef.current = false;
-      return;
-    }
-    const v = ref.current?.value ?? '';
-    const trimmed = v.trim();
-    if (trimmed && trimmed !== initial) onCommit(trimmed);
-    else onCancel();
-  };
-
-  return (
-    <input
-      ref={ref}
-      type="text"
-      defaultValue={initial}
-      onBlur={handleBlur}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          if (isImeComposing(e)) return e.stopPropagation();
-          const v = (e.target as HTMLInputElement).value.trim();
-          if (v) onCommit(v);
-          else onCancel();
-        } else if (e.key === 'Escape') {
-          // Set the cancellation flag BEFORE calling onCancel() — onCancel()
-          // unmounts this input, which synchronously fires blur with the stale
-          // onBlur closure. The flag is read in handleBlur to skip the write.
-          isCancellingRef.current = true;
-          onCancel();
-        }
-        e.stopPropagation();
-      }}
-      onClick={(e) => e.stopPropagation()}
-      {...tourAttr('library-shell.folder-rename-input')}
-      className="flex-1 min-w-0 bg-white border border-brand-blue-primary/40 rounded-sm px-1.5 py-0.5 text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
-    />
-  );
-};
 
 interface FolderRowProps {
   folder: LibraryFolder;
@@ -443,10 +379,11 @@ const FolderRow: React.FC<FolderRowProps> = ({
               <Folder size={14} />
             )}
           </span>
-          <RenameInput
+          <FolderNameInput
             initial={folder.name}
             onCommit={(next) => onCommitRename(folder.id, next)}
             onCancel={onCancelRename}
+            anchor={tourAttr('library-shell.folder-rename-input')}
           />
         </span>
       ) : (

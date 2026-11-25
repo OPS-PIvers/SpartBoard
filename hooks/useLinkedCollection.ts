@@ -121,7 +121,7 @@ const assertWithinCaps = (patch: LinkedCollectionPatch): void => {
     );
   }
   if (patch.name !== undefined && !patch.name.trim()) {
-    throw new Error('Collection name is required');
+    throw new Error('Folder name is required');
   }
 };
 

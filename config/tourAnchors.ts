@@ -14930,6 +14930,14 @@ export const TOUR_ANCHORS = {
     label: 'New Collection button in the Manage Boards dialog',
     panel: true,
   },
+  'boards-modal.new-collection-input': {
+    label: 'Name field on a new collection card',
+    panel: true,
+  },
+  'boards-modal.collection-name-input': {
+    label: 'Name field on a collection card being renamed',
+    panel: true,
+  },
   'boards-modal.new-board': {
     label: 'New Board button in the Manage Boards dialog',
     panel: true,
@@ -15074,10 +15082,6 @@ export const TOUR_ANCHORS = {
     panel: true,
     creates: true,
   },
-  'boards-modal.move-close': {
-    label: 'Close button in the move to collection dialog',
-    panel: true,
-  },
   'boards-modal.move-to-root': {
     label: 'Root option in the move to collection dialog',
     panel: true,
@@ -15086,24 +15090,12 @@ export const TOUR_ANCHORS = {
     label: 'Collection option in the move to collection dialog',
     panel: true,
   },
-  'boards-modal.color-close': {
-    label: 'Close button in the collection color dialog',
-    panel: true,
-  },
   'boards-modal.color-swatch': {
-    label: 'Color swatch in the collection color dialog',
-    panel: true,
-  },
-  'boards-modal.color-custom': {
-    label: 'Custom color picker in the collection color dialog',
-    panel: true,
-  },
-  'boards-modal.color-apply-custom': {
-    label: 'Apply custom color button in the collection color dialog',
+    label: 'Color swatch in the collection card menu',
     panel: true,
   },
   'boards-modal.color-done': {
-    label: 'Done button in the collection color dialog',
+    label: 'Color row in the collection card menu',
     panel: true,
   },
   'board-actions.zoom-slider': {
@@ -15563,18 +15555,23 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'library-shell.folder-dialog-move-contents': {
-    label: 'Move contents to parent button in the delete folder dialog',
+    label: 'Keep everything choice in the delete folder dialog',
     panel: true,
-    persists: true,
   },
   'library-shell.folder-dialog-delete-all': {
-    label: 'Delete folder and subfolders button in the delete folder dialog',
+    label: 'Delete everything choice in the delete folder dialog',
     panel: true,
     destructive: true,
   },
   'library-shell.folder-dialog-cancel': {
     label: 'Cancel button in the delete folder dialog',
     panel: true,
+  },
+  'library-shell.folder-dialog-confirm': {
+    label: 'Delete button in the delete folder dialog',
+    panel: true,
+    destructive: true,
+    persists: true,
   },
   'library-shell.folder-crumb': {
     label: 'Folder path link above the library list',
@@ -20267,10 +20264,6 @@ export const TOUR_ANCHORS = {
   },
   'boards-modal.collection-menu-move': {
     label: 'Move to item in the collection card menu',
-    panel: true,
-  },
-  'boards-modal.collection-menu-color': {
-    label: 'Set color item in the collection card menu',
     panel: true,
   },
   'boards-modal.collection-menu-stop-sharing': {

@@ -109,7 +109,7 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
         value={search}
         onChange={onSearchChange}
         placeholder={t('boardsModal.searchPlaceholder', {
-          defaultValue: 'Search Boards & Collections',
+          defaultValue: 'Search Boards & Folders',
         })}
         anchor={tourAttr('boards-modal.search')}
         className="flex-1 max-w-md"
@@ -134,7 +134,7 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
           className="flex items-center gap-1.5 px-3 py-2 text-xxs font-bold uppercase tracking-wider text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 transition"
         >
           <FolderPlus className="w-3.5 h-3.5" />
-          {t('boardsModal.newCollection', { defaultValue: 'New Collection' })}
+          {t('boardsModal.newCollection', { defaultValue: 'New Folder' })}
         </button>
         <button
           onClick={onCreateBoard}

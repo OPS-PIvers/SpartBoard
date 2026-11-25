@@ -5562,13 +5562,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     }): Promise<string> => {
       if (!user) throw new Error('Not authenticated');
       if (input.boards.some((b) => b.linkedShareId && !b.linkedShareEnded)) {
-        throw new Error('A board in this collection is already shared live');
+        throw new Error('A board in this folder is already shared live');
       }
       if (
         input.boards.length > LINKED_COLLECTION_MAX_BOARDS ||
         input.tree.sections.length - 1 > LINKED_COLLECTION_MAX_SECTIONS
       ) {
-        throw new Error('This collection is too big to share live');
+        throw new Error('This folder is too big to share live');
       }
       // Stamped on each board share before the link doc exists, so no recipient sees a half-made link.
       const linkId = crypto.randomUUID();
@@ -5970,12 +5970,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!result.ok) {
         const message =
           result.reason === 'not-found'
-            ? 'Shared Collection not found.'
+            ? 'Shared folder not found.'
             : result.reason === 'expired'
-              ? 'This shared Collection has expired.'
+              ? 'This shared folder has expired.'
               : result.reason === 'unauthorized'
-                ? "You don't have permission to view this Collection. Reconnect your Google account or ask the host to re-share."
-                : 'Could not load the shared Collection. Check your connection and try again.';
+                ? "You don't have permission to view this folder. Reconnect your Google account or ask the host to re-share."
+                : 'Could not load the shared folder. Check your connection and try again.';
         addToast(message, 'error');
         return null;
       }
@@ -5992,7 +5992,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         meta.boardIds
       );
       if (boards.length === 0) {
-        addToast('Shared Collection is empty', 'error');
+        addToast('Shared folder is empty', 'error');
         return null;
       }
       // Warn if the share was partially available (some board docs missing).
@@ -6140,7 +6140,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           shareId,
           boardCount: boards.length,
         });
-        addToast('Failed to import shared Collection', 'error');
+        addToast('Failed to import shared folder', 'error');
         return null;
       }
     },
@@ -6295,7 +6295,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       } catch (err) {
         logError('DashboardContext.duplicateCollection', err, { id });
-        addToast('Failed to duplicate collection', 'error');
+        addToast('Failed to duplicate folder', 'error');
         return;
       }
 
@@ -6746,7 +6746,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         });
         addToast(
           i18n.t('linkedCollection.leaveFailed', {
-            defaultValue: 'Failed to leave shared collection',
+            defaultValue: 'Failed to leave shared folder',
           }),
           'error'
         );
@@ -6754,7 +6754,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       addToast(
         i18n.t('linkedCollection.left', {
-          defaultValue: 'Left shared collection',
+          defaultValue: 'Left shared folder',
         }),
         'success'
       );
@@ -7071,12 +7071,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         addToast(
           name
             ? `“${name}” has no boards yet — add one to switch to it.`
-            : 'This Collection has no boards yet — add one to switch to it.',
+            : 'This folder has no boards yet. Add one to switch to it.',
           'info'
         );
         logError(
           'DashboardContext.setActiveCollectionId.noBoardsInCollection',
-          new Error('Target Collection has no resolvable Board'),
+          new Error('This folder has no board to open'),
           { collectionId: nextCollectionId }
         );
         return;
