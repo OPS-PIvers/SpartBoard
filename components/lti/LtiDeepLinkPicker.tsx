@@ -56,6 +56,7 @@ import { useBankSources } from '@/hooks/useBankSources';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { usePlcs } from '@/hooks/usePlcs';
+import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
 import { useRosters } from '@/hooks/useRosters';
 import { useRubrics } from '@/hooks/useRubrics';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
@@ -322,6 +323,8 @@ const LtiDeepLinkFlow: React.FC = () => {
     quizzes,
     loadQuizData,
     saveDriveSnapshot,
+    attachSyncLinkage,
+    loadSyncedTranslations,
     loading: quizzesLoading,
   } = useQuiz(libraryUid);
   const { loadBankContentsForQuiz } = useBankSources(libraryUid);
@@ -364,6 +367,10 @@ const LtiDeepLinkFlow: React.FC = () => {
   const [teacherName, setTeacherName] = useState('');
   const [plcShareEnabled, setPlcShareEnabled] = useState(false);
   const [selectedPlcId, setSelectedPlcId] = useState('');
+  // The PLC's library, so this run pools with teammates' runs of the same quiz.
+  const { quizzes: plcLibrary } = usePlcQuizzes(
+    plcShareEnabled && selectedPlcId ? selectedPlcId : null
+  );
   // M17 individual targeting + Availability & Due Date.
   const [assignTargeting, setAssignTargeting] = useState<AssignTargetingValue>(
     EMPTY_ASSIGN_TARGETING_VALUE
@@ -650,14 +657,16 @@ const LtiDeepLinkFlow: React.FC = () => {
                 : {},
           },
           teacherName: teacherName.trim() || defaultTeacherName,
-          plcLinkage: resolvePlcLinkage(),
-          plcPoolSyncGroupId: undefined,
+          plc: plcs.find((p) => p.id === resolvePlcLinkage()?.id),
+          plcLibrary,
           deps: {
             loadBankContentsForQuiz,
             saveDriveSnapshot,
             createAssignment,
             setAssignmentTargets,
             setAssignmentTargetSkippedCount,
+            attachSyncLinkage,
+            loadSyncedTranslations,
           },
           notify: (message) => notices.push(message),
           logScope: 'LtiDeepLinkFlow',
@@ -690,6 +699,10 @@ const LtiDeepLinkFlow: React.FC = () => {
       signAndReturn,
       setAssignmentTargets,
       setAssignmentTargetSkippedCount,
+      plcs,
+      plcLibrary,
+      attachSyncLinkage,
+      loadSyncedTranslations,
     ]
   );
 
