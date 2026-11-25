@@ -102,6 +102,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'student-set-time',
   'student-windows',
   'library-duplicate-more',
+  'activity-wall-library-face',
   'help-center-ai',
   'lms-push-final-scores',
   'server-turn-in',

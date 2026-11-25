@@ -272,6 +272,7 @@ describe('SYNCED_USER_COLLECTIONS folders', () => {
       'projects_folders',
       'flashcard_folders',
       'writing_folders',
+      'activity_wall_folders',
     ]) {
       expect(SYNCED_USER_COLLECTIONS).toContain(name);
     }

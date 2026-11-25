@@ -27,6 +27,7 @@ import {
   query,
   setDoc,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { ActivityWallLibraryEntry } from '@/types';
@@ -51,6 +52,8 @@ export interface UseActivityWallLibraryResult {
   deleteActivity: (activityId: string) => Promise<void>;
   /** Close the wall, delete every post, then reopen it if it was open. */
   clearActivityPosts: (activityId: string) => Promise<void>;
+  /** Writes the manual library order. */
+  reorderActivities: (orderedIds: string[]) => Promise<void>;
 }
 
 export const useActivityWallLibrary = (
@@ -177,6 +180,21 @@ export const useActivityWallLibrary = (
     [clearThenRun]
   );
 
+  const reorderActivities = useCallback(
+    async (orderedIds: string[]) => {
+      if (!userId) throw new Error('Not signed in');
+      // No updatedAt bump: reordering is a display choice, not an edit.
+      const batch = writeBatch(db);
+      orderedIds.forEach((activityId, index) => {
+        batch.update(doc(db, 'users', userId, COLLECTION, activityId), {
+          order: index,
+        });
+      });
+      await batch.commit();
+    },
+    [userId]
+  );
+
   return useSandboxedActivityWalls({
     activities,
     loading,
@@ -184,5 +202,6 @@ export const useActivityWallLibrary = (
     saveActivity,
     deleteActivity: removeActivity,
     clearActivityPosts,
+    reorderActivities,
   });
 };
