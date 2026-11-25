@@ -765,9 +765,12 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const submitForTab = useCallback(async () => {
     try {
       await completeActivity();
+      return true;
     } catch (err) {
       if (!perPeriod || !isFrozenWriteError(err)) throw err;
+      // The class is closed: nothing was submitted, so no notice.
       freezeForPeriod();
+      return false;
     }
   }, [completeActivity, perPeriod, freezeForPeriod]);
   const tabSubmitNotice = useTabSubmitNotice();

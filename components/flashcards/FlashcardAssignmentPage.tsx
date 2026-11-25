@@ -67,6 +67,7 @@ import {
   useTabStrikePolicy,
 } from '@/hooks/useTabStrikePolicy';
 import { isHandedOff } from '@/utils/attemptHandOff';
+import { logError } from '@/utils/logError';
 import { isFramedWindow } from './speak/micAccess';
 import {
   FlashcardPlayer,
@@ -330,10 +331,15 @@ export const TrackedPlayer: React.FC<{
     serverCount: progress?.tabSwitchWarnings ?? 0,
     // A teacher reset starts the count over.
     resetKey: resetCount,
-    countStrike: async (current) => {
+    // The warning shows at once; the count saves behind it, even offline.
+    countStrike: (current) => {
       const next = current + 1;
-      await adapter.writeAttemptFields({ tabSwitchWarnings: next });
-      return next;
+      adapter
+        .writeAttemptFields({ tabSwitchWarnings: next })
+        .catch((err: unknown) =>
+          logError('FlashcardAssignmentPage.tabSwitchWarnings', err)
+        );
+      return Promise.resolve(next);
     },
     submit: () => {
       submitForced('tab');

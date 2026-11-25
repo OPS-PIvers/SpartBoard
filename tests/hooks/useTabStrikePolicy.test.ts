@@ -168,6 +168,36 @@ describe('useTabStrikePolicy', () => {
     expect(onSubmitted).not.toHaveBeenCalled();
   });
 
+  it('shows no notice when nothing was submitted', async () => {
+    const submit = vi.fn(() => Promise.resolve(false));
+    const { onSubmitted } = setup({
+      rules: { threshold: 1, rule: null },
+      submit,
+    });
+    leave();
+    await flush();
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    await flush();
+    expect(submit).toHaveBeenCalled();
+    expect(onSubmitted).not.toHaveBeenCalled();
+  });
+
+  it('re-arms detection when a reset closes an open warning', async () => {
+    const { hook, base, countStrike } = setup({ resetKey: 0 });
+    leave();
+    await flush();
+    comeBack();
+    hook.rerender({ ...base, resetKey: 1 });
+    act(() => {
+      vi.advanceTimersByTime(2_000);
+    });
+    leave();
+    await flush();
+    expect(countStrike).toHaveBeenCalledTimes(2);
+  });
+
   it('submits an unlocked attempt on the next exit with no warning', async () => {
     const { hook, submit } = setup({ oneExitLeft: true });
     leave();

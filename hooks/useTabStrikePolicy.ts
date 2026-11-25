@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   useTabAwayTracker,
   type TabAwayState,
@@ -69,8 +69,8 @@ export interface UseTabStrikePolicyArgs extends Omit<
   countStrike: (current: number) => Promise<number>;
   /** A teacher-unlocked attempt: the next exit submits with no warning. */
   oneExitLeft?: boolean;
-  /** Submits the work; rejects when it fails. */
-  submit: (reason: TabAutoSubmitReason) => Promise<void>;
+  /** Submits the work; rejects when it fails, resolves false when nothing was submitted. */
+  submit: (reason: TabAutoSubmitReason) => Promise<boolean | void>;
   /** After a successful auto-submit. */
   onSubmitted?: (reason: TabAutoSubmitReason) => void | Promise<void>;
 }
@@ -116,7 +116,9 @@ export function useTabStrikePolicy(
   const runSubmit = useCallback(
     (reason: TabAutoSubmitReason, after?: () => void) =>
       submit(reason)
-        .then(() => onSubmitted?.(reason))
+        .then((submitted) => {
+          if (submitted !== false) return onSubmitted?.(reason);
+        })
         .catch((err: unknown) =>
           logError('useTabStrikePolicy.submit', err, { reason })
         )
@@ -163,7 +165,11 @@ export function useTabStrikePolicy(
     },
   });
 
-  const { resume } = tracker;
+  const { resume, release } = tracker;
+  // A reset closes the warning without its dismiss, so re-arm detection here.
+  useEffect(() => {
+    release();
+  }, [resetKey, release]);
   const dismiss = useCallback(() => {
     setWarningOpen(false);
     resume();
