@@ -165,6 +165,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'subs-live-tours',
   'substitute-sharing',
   'tab-away-timer',
+  'unified-image-picker',
   'universal-import',
   'va-student-tab-rules',
   'video-activity-ai',

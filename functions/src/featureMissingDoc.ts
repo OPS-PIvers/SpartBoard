@@ -51,6 +51,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'google-tasks-sync',
   'plc-goal-coach',
   'embed-reload',
+  'unified-image-picker',
   'mini-app-results',
   'quiz-stimulus-quotes',
   'quiz-cross-out',
