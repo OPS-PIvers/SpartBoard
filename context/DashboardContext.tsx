@@ -220,7 +220,8 @@ import {
 } from '@/utils/widgetSettingsDefaults';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
 import { seedMaterialsConfig } from '@/utils/materialsPreferences';
-import { isBetaUser, isExcludedUser } from '@/utils/betaAccess';
+import { isBetaUser } from '@/utils/betaAccess';
+import { resolveWidgetAccess } from '@/utils/widgetAccess';
 import { AnnotationState } from './DashboardContextValue';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import { closeWallsToBoard } from '@/utils/activityWallBoardAccess';
@@ -243,6 +244,7 @@ import { STANDARD_COLORS } from '@/config/colors';
 import { IS_DEV_PROJECT } from '@/config/devProject';
 import { DevProdDriveWriteError } from '@/utils/devDriveWriteGuard';
 import type { GoogleDriveService } from '@/utils/googleDriveService';
+import { uploadDriveAsset } from '@/utils/driveAssetUpload';
 import { tourDemoConfig } from '@/config/tourDemoContent';
 import {
   createWidgetHistoryStack,
@@ -826,6 +828,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     canAccessFeature,
     roleId,
     userRoles,
+    userTier,
     isStudentRole,
     roleResolved,
     refreshGoogleToken,
@@ -1472,18 +1475,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const getDefaultDockTools = useCallback((): (
     WidgetType | InternalToolType
   )[] => {
-    // Checks whether a FeaturePermission is accessible to the current user; beta check delegates to the shared isBetaUser helper.
-    const isPermAccessible = (perm: FeaturePermission): boolean => {
-      const isEnabled =
-        perm.enabled !== false &&
-        !isExcludedUser(perm.excludedUsers, user?.email);
-      const isAccessibleByRole =
-        perm.accessLevel !== 'admin' || isAdmin === true;
-      const isBetaAccessible =
-        perm.accessLevel !== 'beta' ||
-        isBetaUser(perm.betaUsers, user?.email, userRoles, roleId);
-      return isEnabled && isAccessibleByRole && isBetaAccessible;
+    // Same decision canAccessWidget makes: tiers, buildings and admin-default widgets included.
+    const accessCtx = {
+      isAdmin,
+      email: user?.email,
+      isBetaUser: (betaUsers: string[], email: string | null | undefined) =>
+        isBetaUser(betaUsers, email, userRoles, roleId),
+      userTier,
+      selectedBuildings,
     };
+    const isPermAccessible = (
+      type: WidgetType | InternalToolType,
+      perm: FeaturePermission | undefined
+    ): boolean => resolveWidgetAccess(type, perm, accessCtx);
 
     // Build a Map for O(1) permission look-ups when iterating over TOOLS.
     const permByType = new Map<string, FeaturePermission>(
@@ -1494,10 +1498,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // convention: empty selectedBuildings = no building-based filtering).
     if (selectedBuildings.length === 0) {
       return TOOLS.filter((tool) => {
-        const perm = permByType.get(tool.type);
-        // No permission record → public by default
-        if (!perm) return true;
-        return isPermAccessible(perm);
+        return isPermAccessible(tool.type, permByType.get(tool.type));
       }).map((tool) => tool.type);
     }
 
@@ -1529,7 +1530,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Only include tools that the current user can actually access,
       // mirroring the same checks performed by canAccessWidget / the dock.
-      if (isPermAccessible(perm)) {
+      if (isPermAccessible(perm.widgetType, perm)) {
         tools.push(perm.widgetType);
       }
     });
@@ -1539,7 +1540,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     return tools;
-  }, [featurePermissions, selectedBuildings, isAdmin, user, userRoles, roleId]);
+  }, [
+    featurePermissions,
+    selectedBuildings,
+    isAdmin,
+    user,
+    userRoles,
+    roleId,
+    userTier,
+  ]);
 
   // Empty-dock recovery: whenever the dock is empty after hydration,
   // refill it with building-aware defaults. Earlier iterations of this
@@ -1570,8 +1579,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // escape from. With no building selected, the function falls back to
     // "show all accessible tools" and is safe to call immediately.
     if (
-      selectedBuildings.length > 0 &&
-      (featurePermissions ?? []).length === 0
+      (selectedBuildings.length > 0 &&
+        (featurePermissions ?? []).length === 0) ||
+      isAdmin === null
     ) {
       return;
     }
@@ -1595,6 +1605,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     dockItems.length,
     selectedBuildings,
     featurePermissions,
+    isAdmin,
     getDefaultDockTools,
   ]);
 
@@ -1682,9 +1693,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // before we can apply building-specific defaults.  When no building is
     // selected (empty array = "show all content") we can initialize immediately
     // using all accessible tools without waiting.
+    // Admin status decides admin-default widgets, so wait for it too.
     if (
-      selectedBuildings.length > 0 &&
-      (featurePermissions ?? []).length === 0
+      (selectedBuildings.length > 0 &&
+        (featurePermissions ?? []).length === 0) ||
+      isAdmin === null
     ) {
       // Still loading permissions for a specific building – keep the safety
       // timer running but allow the effect to be cleaned up if the component
@@ -1712,6 +1725,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setupCompleted,
     featurePermissions,
     selectedBuildings,
+    isAdmin,
     getDefaultDockTools,
   ]);
 
@@ -2427,14 +2441,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           // A separate scrubbed copy: the board's own backup file keeps student names and live-syncs.
           const { driveFileId: _backupId, ...shareCopy } =
             scrubDashboardPII(dashboard);
-          const file = await driveService.uploadFile(
-            new Blob([JSON.stringify(shareCopy, null, 2)], {
+          const file = await uploadDriveAsset(driveService, {
+            blob: new Blob([JSON.stringify(shareCopy, null, 2)], {
               type: 'application/json',
             }),
-            `${dashboard.name}.spart`,
-            'Shared Boards'
-          );
-          await driveService.makePublic(file.id, userDomain);
+            name: `${dashboard.name}.spart`,
+            folder: 'Shared Boards',
+            audience: 'domain',
+            domain: userDomain,
+          });
           return `drive-${file.id}`;
         } catch (e) {
           console.error('Drive sharing failed, falling back to Firestore:', e);

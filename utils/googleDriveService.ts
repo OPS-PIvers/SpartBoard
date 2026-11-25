@@ -3,6 +3,13 @@ import { Dashboard } from '@/types';
 import { authError } from './driveAuthErrors';
 import { isInAppFolder, type DriveParentMeta } from './driveAppFolder';
 import { migrateBoardWidgets } from './migration';
+import {
+  DRIVE_API_URL,
+  DRIVE_UPLOAD_API_URL as UPLOAD_API_URL,
+  DriveSession,
+  driveQueryEscape,
+  type DriveTokenRefresher,
+} from './driveRequest';
 
 // Re-export so existing imports of `isDriveAuthError` from this module keep
 // working — the canonical home is now `./driveAuthErrors`.
@@ -14,8 +21,6 @@ const GOOGLE_DOC_MIME_TYPE = 'application/vnd.google-apps.document';
 const DOCX_MIME_TYPE =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
-const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
 const DEFAULT_TIMEOUT = 15000; // 15 seconds
 // Uploading or exporting a whole slide deck can take minutes on school Wi-Fi.
 const UPLOAD_TIMEOUT = 5 * 60 * 1000;
@@ -62,11 +67,6 @@ interface DriveFileCreateResponse {
   name: string;
 }
 
-/** Escape backslash then single quote for Drive q-string literals. */
-function driveQueryEscape(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-}
-
 // Board backups already checked for domain/anyone grants this page load.
 const privateBackupIds = new Set<string>();
 // Backups whose broad grant Drive won't let this account remove (inherited); skipped for the rest of the page load.
@@ -76,15 +76,14 @@ const stuckSharedBackupIds = new Set<string>();
 class DrivePermissionForbiddenError extends Error {}
 
 export class GoogleDriveService {
-  private accessToken: string;
-  private onTokenExpire: (() => Promise<string | null>) | undefined;
+  private session: DriveSession;
 
-  constructor(
-    accessToken: string,
-    onTokenExpire?: () => Promise<string | null>
-  ) {
-    this.accessToken = accessToken;
-    this.onTokenExpire = onTokenExpire;
+  constructor(accessToken: string, onTokenExpire?: DriveTokenRefresher) {
+    this.session = new DriveSession(accessToken, onTokenExpire);
+  }
+
+  private get accessToken(): string {
+    return this.session.accessToken;
   }
 
   private get headers() {
@@ -94,61 +93,12 @@ export class GoogleDriveService {
     };
   }
 
-  /**
-   * Enhanced fetch with timeout to prevent indefinite hangs.
-   */
-  private async fetchWithTimeout(
+  private fetchWithRetry(
     url: string,
     options: RequestInit = {},
     timeoutMs = DEFAULT_TIMEOUT
   ): Promise<Response> {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-      });
-      clearTimeout(id);
-      return response;
-    } catch (error) {
-      clearTimeout(id);
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(
-          'Google Drive request timed out. Please check your connection.'
-        );
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Fetch with timeout + one automatic retry after a silent token refresh on 401.
-   * Falls back to returning the 401 response as-is when no onTokenExpire is set.
-   */
-  private async fetchWithRetry(
-    url: string,
-    options: RequestInit = {},
-    timeoutMs = DEFAULT_TIMEOUT
-  ): Promise<Response> {
-    const response = await this.fetchWithTimeout(url, options, timeoutMs);
-
-    if (response.status === 401 && this.onTokenExpire) {
-      const newToken = await this.onTokenExpire();
-      if (newToken) {
-        this.accessToken = newToken;
-        const newHeaders = new Headers(options.headers);
-        newHeaders.set('Authorization', `Bearer ${newToken}`);
-        return this.fetchWithTimeout(
-          url,
-          { ...options, headers: newHeaders },
-          timeoutMs
-        );
-      }
-    }
-
-    return response;
+    return this.session.request(url, options, { timeoutMs });
   }
 
   /**
@@ -196,12 +146,7 @@ export class GoogleDriveService {
     folderName: string,
     parentId?: string
   ): Promise<string | null> {
-    let query = `name = '${driveQueryEscape(folderName)}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-    if (parentId) {
-      query += ` and '${driveQueryEscape(parentId)}' in parents`;
-    }
-    const folders = await this.listFiles(query);
-    return folders.length > 0 ? folders[0].id : null;
+    return this.session.findFolder(folderName, parentId);
   }
 
   /**
@@ -242,42 +187,8 @@ export class GoogleDriveService {
   /**
    * Search for a folder by name within a parent folder.
    */
-  async getOrCreateFolder(
-    folderName: string,
-    parentId?: string
-  ): Promise<string> {
-    let query = `name = '${driveQueryEscape(folderName)}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-    if (parentId) {
-      query += ` and '${driveQueryEscape(parentId)}' in parents`;
-    }
-
-    const folders = await this.listFiles(query);
-
-    if (folders.length > 0) {
-      return folders[0].id;
-    }
-
-    // Create folder
-    const body: { name: string; mimeType: string; parents?: string[] } = {
-      name: folderName,
-      mimeType: 'application/vnd.google-apps.folder',
-    };
-    if (parentId) {
-      body.parents = [parentId];
-    }
-
-    const response = await this.fetchWithRetry(`${DRIVE_API_URL}/files`, {
-      method: 'POST',
-      headers: this.headers,
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to create folder ${folderName} in Drive`);
-    }
-
-    const folder = (await response.json()) as DriveFileCreateResponse;
-    return folder.id;
+  getOrCreateFolder(folderName: string, parentId?: string): Promise<string> {
+    return this.session.getOrCreateFolder(folderName, parentId);
   }
 
   /**
@@ -354,15 +265,11 @@ export class GoogleDriveService {
   /**
    * Get a specific subfolder path (e.g., "Assets/Backgrounds")
    */
-  async getFolderPath(path: string): Promise<string> {
-    const parts = path.split('/').filter(Boolean);
-    let parentId = await this.getAppFolder();
-
-    for (const part of parts) {
-      parentId = await this.getOrCreateFolder(part, parentId);
-    }
-
-    return parentId;
+  getFolderPath(path: string): Promise<string> {
+    return this.session.getOrCreateFolderPath(
+      DRIVE_APP_FOLDER,
+      path.split('/').filter(Boolean)
+    );
   }
 
   /**
@@ -563,6 +470,8 @@ export class GoogleDriveService {
       createResponse = await createFile(metadata);
 
     if (!createResponse.ok) {
+      // A stale cached folder (deleted by the teacher) is looked up again next time.
+      this.session.forgetFolders();
       throw new Error('Failed to create file metadata in Drive');
     }
 
@@ -936,6 +845,7 @@ export class GoogleDriveService {
       }
     );
     if (!response.ok) {
+      this.session.forgetFolders();
       throw new Error(`Failed to copy file: ${response.status}`);
     }
     return (await response.json()) as DriveFile;

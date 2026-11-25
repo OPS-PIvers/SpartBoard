@@ -74,7 +74,8 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
   view = 'results',
   onClose,
 }) => {
-  const { user, orgId, ensureGoogleScope, isExternalUser } = useAuth();
+  const { user, orgId, ensureGoogleScope, refreshGoogleToken, isExternalUser } =
+    useAuth();
   const { rosters } = useDashboard();
   // No Let in now here: a student shows up only once they submit.
   const perPeriod = hasPeriodAccess(session) && session.status === 'active';
@@ -268,7 +269,8 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
                       staffName: s.staffName,
                     })),
                     session.manifest?.questions ?? [],
-                    byAssignmentPseudonym
+                    byAssignmentPseudonym,
+                    refreshGoogleToken
                   );
                 }
           }

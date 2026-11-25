@@ -17,6 +17,11 @@
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
+import {
+  PAPER_SETTINGS_PATH,
+  isPaperSheetsEnabled,
+  paperSheetsOff,
+} from './paperAnswerSheetsSettings';
 import axios from 'axios';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
@@ -44,7 +49,7 @@ const OFFLINE_GRANT_SECRETS = [
 ];
 
 /** Admin kill switches; both must be on. Mirrors `config/*` on the client. */
-export const PAPER_SETTINGS_PATH = 'admin_settings/paper_answer_sheets';
+export { PAPER_SETTINGS_PATH };
 export const DELEGATED_PRINTING_SETTINGS_PATH =
   'admin_settings/plc_delegated_printing';
 
@@ -378,11 +383,7 @@ export async function authorizeDelegatedPrint(
     db.doc(PAPER_SETTINGS_PATH).get(),
     db.doc(DELEGATED_PRINTING_SETTINGS_PATH).get(),
   ]);
-  if (paperSettings.data()?.enabled !== true)
-    throw new HttpsError(
-      'failed-precondition',
-      'Paper response sheets are not enabled.'
-    );
+  if (!isPaperSheetsEnabled(paperSettings)) throw paperSheetsOff();
   if (delegatedSettings.data()?.enabled !== true)
     throw new HttpsError(
       'failed-precondition',

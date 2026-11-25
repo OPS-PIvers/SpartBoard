@@ -58,6 +58,7 @@ interface PendingCopiesArgs {
   uid: string | null | undefined;
   /** This session's live Drive token; absent means Drive is not connected. */
   googleAccessToken: string | null | undefined;
+  refreshGoogleToken?: () => Promise<string | null>;
   /** Called once per copy this sweep added, so the teacher is not surprised. */
   onCopyAdded?: (result: PendingQuizCopyResult) => void;
 }
@@ -68,7 +69,8 @@ interface PendingCopiesArgs {
  */
 async function loadQuizReplicaWriter(
   uid: string,
-  googleAccessToken: string | null | undefined
+  googleAccessToken: string | null | undefined,
+  refreshGoogleToken?: () => Promise<string | null>
 ): Promise<QuizReplicaWriter | null> {
   if (isAuthBypass) {
     const { MockQuizDriveService } =
@@ -77,12 +79,13 @@ async function loadQuizReplicaWriter(
   }
   if (!googleAccessToken) return null;
   const { QuizDriveService } = await import('@/utils/quizDriveService');
-  return new QuizDriveService(googleAccessToken);
+  return new QuizDriveService(googleAccessToken, refreshGoogleToken);
 }
 
 export function usePendingTeammateQuizCopies({
   uid,
   googleAccessToken,
+  refreshGoogleToken,
   onCopyAdded,
 }: PendingCopiesArgs): void {
   const didRunRef = useRef(false);
@@ -114,7 +117,11 @@ export function usePendingTeammateQuizCopies({
     void (async () => {
       const batches = await listPendingQuizCopyBatches(uid);
       if (batches.length > 0) {
-        const drive = await loadQuizReplicaWriter(uid, googleAccessToken);
+        const drive = await loadQuizReplicaWriter(
+          uid,
+          googleAccessToken,
+          refreshGoogleToken
+        );
         if (!drive) return;
         await reconcilePendingQuizCopies(uid, drive, batches, (result) =>
           onCopyAddedRef.current?.(result)
@@ -130,7 +137,7 @@ export function usePendingTeammateQuizCopies({
     })().catch((err) => {
       logError('usePendingTeammateQuizCopies.sweep', err, { uid });
     });
-  }, [uid, googleAccessToken]);
+  }, [uid, googleAccessToken, refreshGoogleToken]);
 }
 
 export async function reconcilePendingQuizCopies(
