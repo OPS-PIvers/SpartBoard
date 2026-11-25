@@ -172,8 +172,8 @@ export function scoreAttempt(
     score: total.max === 0 ? 0 : Math.round((total.earned / total.max) * 100),
     answers: graded,
     points: {
-      earned: total.earned,
-      possible: total.max,
+      earned: Math.round(total.earned * 100) / 100,
+      possible: Math.round(total.max * 100) / 100,
       attempt:
         typeof response.completedAttempts === 'number'
           ? response.completedAttempts

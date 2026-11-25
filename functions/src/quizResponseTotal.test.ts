@@ -176,7 +176,6 @@ describe('PLC aggregate matches the cases', () => {
 // Totals come from scoreResponseTotal only; these call the per-question grader for verdicts, not totals.
 const GRADER_CALLERS = new Set([
   'quizResponseTotal.ts',
-  'plcAssessmentMath.ts',
   'getMyQuizAttempts.ts',
   'checkQuizGameAnswer.ts',
 ]);
@@ -192,7 +191,14 @@ const sourceFiles = (dir: string): string[] =>
 describe('one response-total path', () => {
   it('no new server file grades questions on its own', () => {
     const offenders = sourceFiles(__dirname)
-      .filter((path) => /\bgradeGroupAnswer\(/.test(readFileSync(path, 'utf8')))
+      .filter((path) =>
+        /\bgradeGroupAnswer\b/.test(
+          readFileSync(path, 'utf8').replace(
+            'export function gradeGroupAnswer(',
+            ''
+          )
+        )
+      )
       .map((path) => relative(__dirname, path))
       .filter((path) => !GRADER_CALLERS.has(path));
     expect(offenders).toEqual([]);
