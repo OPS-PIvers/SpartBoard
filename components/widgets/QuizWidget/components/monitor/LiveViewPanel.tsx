@@ -32,6 +32,7 @@ import { NUDGE_NOTE_IDS, NUDGE_NOTE_TEXT } from '@/utils/quizNudgeNotes';
 import { useDashboard } from '@/context/useDashboard';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { uploadDriveAsset } from '@/utils/driveAssetUpload';
 import { useQuizLiveViewAlwaysNotify } from '@/hooks/useQuizHandRaiseMode';
 import { useServerNow } from '@/hooks/useServerNow';
 import { ActiveQuiz } from '@/components/quiz/QuizStudentApp';
@@ -560,12 +561,12 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
         fontEmbedCSS: await snapshotFontEmbedCss(document),
       });
       if (!blob) throw new Error('Empty screenshot');
-      // Private to the teacher: uploaded with no sharing step.
-      const file = await driveService.uploadFile(
+      const file = await uploadDriveAsset(driveService, {
         blob,
-        `Live view - ${student.name} - ${new Date(at).toISOString().slice(0, 19).replace('T', ' ')}.png`,
-        SCREENSHOT_FOLDER
-      );
+        name: `Live view - ${student.name} - ${new Date(at).toISOString().slice(0, 19).replace('T', ' ')}.png`,
+        folder: SCREENSHOT_FOLDER,
+        audience: 'private',
+      });
       await record({ kind: 'screenshot', driveFileId: file.id, ...place() });
       addToast('Screenshot saved to your Drive.', 'success');
     } catch (err) {
