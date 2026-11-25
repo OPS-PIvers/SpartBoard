@@ -1339,6 +1339,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'lms-push-final-scores': {
+    label: 'Grade push: Send final scores',
+    icon: Send,
+    description:
+      'Classroom and Schoology pushes send the score shown in the gradebook.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'embed-reload': {
     label: 'Embed: Reload button',
     icon: RefreshCw,
