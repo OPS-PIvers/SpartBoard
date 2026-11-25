@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   canEditPlc,
+  deleteAudioAsEditor,
+  finalizeAsRecorder,
+  type RecordingDeps,
   classifyListing,
   decodeSegmentIndex,
   encodeSegmentIndex,
@@ -19,6 +22,7 @@ import {
   FINALIZE_LEASE_MS,
   MAX_RECORDING_WALL_MS,
 } from './plcRecordingCore';
+import { makeStubFirestore } from './testing/stubFirestore';
 
 const NOW = 1_800_000_000_000;
 const buf = (s: string) => Buffer.from(s, 'utf8');
@@ -303,5 +307,43 @@ describe('request parsing and roles', () => {
     expect(canEditPlc(plc, 'legacy')).toBe(true);
     expect(canEditPlc(plc, 'stranger')).toBe(false);
     expect(canEditPlc(undefined, 'lead')).toBe(false);
+  });
+});
+
+describe('callable gates refuse a deactivated operator-org member', () => {
+  const MEMBER_PATH = 'organizations/orono/members/pat@orono.k12.mn.us';
+  const depsWith = (status: string) =>
+    ({
+      db: makeStubFirestore({
+        'plcs/p1': { memberUids: ['pat'], members: { pat: { role: 'lead' } } },
+        'plcs/p1/recordings/r1': { recorderUid: 'pat', status: 'ready' },
+        [MEMBER_PATH]: { status },
+      }).db,
+      bucket: {},
+      now: () => NOW,
+      newId: () => 'id',
+    }) as unknown as RecordingDeps;
+  const tokens = [{ email: 'Pat@orono.k12.mn.us' }, { deactivated: true }];
+
+  it('finalizeAsRecorder', async () => {
+    for (const token of tokens) {
+      await expect(
+        finalizeAsRecorder(depsWith('deactivated'), 'pat', token, 'p1', 'r1')
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+    }
+    expect(
+      await finalizeAsRecorder(depsWith('active'), 'pat', tokens[0], 'p1', 'r1')
+    ).toEqual({ status: 'ready', stopped: false });
+  });
+
+  it('deleteAudioAsEditor', async () => {
+    for (const token of tokens) {
+      await expect(
+        deleteAudioAsEditor(depsWith('deactivated'), 'pat', token, 'p1', 'r1')
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+    }
+    await expect(
+      deleteAudioAsEditor(depsWith('active'), 'pat', tokens[0], 'p1', 'r2')
+    ).rejects.toMatchObject({ code: 'not-found' });
   });
 });

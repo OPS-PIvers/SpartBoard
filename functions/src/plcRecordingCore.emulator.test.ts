@@ -109,8 +109,10 @@ describe.skipIf(!RUN)('meeting recording against the emulators', () => {
     await put(segmentPath(plcId, 'r1', 0, 1), 'B');
     await put(segmentPath(plcId, 'r1', 1, 0), 'X');
 
-    await expect(finalizeAsRecorder(deps, 'ed', plcId, 'r1')).rejects.toThrow();
-    expect(await finalizeAsRecorder(deps, 'rec', plcId, 'r1')).toEqual({
+    await expect(
+      finalizeAsRecorder(deps, 'ed', {}, plcId, 'r1')
+    ).rejects.toThrow();
+    expect(await finalizeAsRecorder(deps, 'rec', {}, plcId, 'r1')).toEqual({
       status: 'ready',
       stopped: true,
     });
@@ -123,7 +125,7 @@ describe.skipIf(!RUN)('meeting recording against the emulators', () => {
     expect(after?.durationMs).toBe(90_000);
     expect(after?.interruptedAtMs).toBeUndefined();
     // Calling again is a no-op that reports the current state.
-    expect(await finalizeAsRecorder(deps, 'rec', plcId, 'r1')).toEqual({
+    expect(await finalizeAsRecorder(deps, 'rec', {}, plcId, 'r1')).toEqual({
       status: 'ready',
       stopped: false,
     });
@@ -133,7 +135,7 @@ describe.skipIf(!RUN)('meeting recording against the emulators', () => {
     await seed('r2', { parts: [{ segmentCount: 3, durationMs: 90_000 }] });
     await put(segmentPath(plcId, 'r2', 0, 0), 'A');
     await put(segmentPath(plcId, 'r2', 0, 2), 'C');
-    await finalizeAsRecorder(deps, 'rec', plcId, 'r2');
+    await finalizeAsRecorder(deps, 'rec', {}, plcId, 'r2');
     expect(await text(partPath(plcId, 'r2', 0))).toBe('AC');
 
     await put(segmentPath(plcId, 'r2', 0, 1), 'B');
@@ -182,7 +184,7 @@ describe.skipIf(!RUN)('meeting recording against the emulators', () => {
   it('drops late segments of audio an editor deleted', async () => {
     await seed('r5', { status: 'ready' });
     await put(partPath(plcId, 'r5', 0), 'AB');
-    await deleteAudioAsEditor(deps, 'ed', plcId, 'r5');
+    await deleteAudioAsEditor(deps, 'ed', {}, plcId, 'r5');
     await put(segmentPath(plcId, 'r5', 0, 9), 'late');
     await handleLateSegments(deps, plcId, 'r5');
     expect(await names('r5')).toEqual([]);
@@ -199,12 +201,12 @@ describe.skipIf(!RUN)('meeting recording against the emulators', () => {
     await put(segmentPath(plcId, 'live', 0, 0), 'L');
 
     await expect(
-      deleteAudioAsEditor(deps, 'view', plcId, 'r6')
+      deleteAudioAsEditor(deps, 'view', {}, plcId, 'r6')
     ).rejects.toThrow('Only editors');
     await expect(
-      deleteAudioAsEditor(deps, 'ed', plcId, 'live')
+      deleteAudioAsEditor(deps, 'ed', {}, plcId, 'live')
     ).rejects.toThrow('Stop the recording');
-    expect(await deleteAudioAsEditor(deps, 'ed', plcId, 'r6')).toEqual({
+    expect(await deleteAudioAsEditor(deps, 'ed', {}, plcId, 'r6')).toEqual({
       deleted: true,
     });
 
@@ -215,7 +217,7 @@ describe.skipIf(!RUN)('meeting recording against the emulators', () => {
     expect(after?.audioDeletedReason).toBe('manual');
     expect(after?.audioDeletedAt).toBeTruthy();
     expect(after?.audioExpiresAt).toBeUndefined();
-    expect(await deleteAudioAsEditor(deps, 'ed', plcId, 'r6')).toEqual({
+    expect(await deleteAudioAsEditor(deps, 'ed', {}, plcId, 'r6')).toEqual({
       deleted: false,
     });
   });
@@ -224,7 +226,7 @@ describe.skipIf(!RUN)('meeting recording against the emulators', () => {
     await deps.db.collection('ai_usage').doc('u-q1').set({ count: 1 });
     await seed('q1', { status: 'queued', quotaCharge: { docIds: ['u-q1'] } });
     await put(partPath(plcId, 'q1', 0), 'Q');
-    expect(await deleteAudioAsEditor(deps, 'ed', plcId, 'q1')).toEqual({
+    expect(await deleteAudioAsEditor(deps, 'ed', {}, plcId, 'q1')).toEqual({
       deleted: true,
     });
     const after = await rec('q1');

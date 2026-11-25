@@ -101,3 +101,43 @@ export function hasDeactivatedClaim(token: unknown): boolean {
     (token as Record<string, unknown>)[DEACTIVATED_CLAIM] === true
   );
 }
+
+/** As the rules' notDeactivated() for an email: true only for an operator-org member doc whose status revokes access. */
+export async function isDeactivatedOperatorMember(
+  db: admin.firestore.Firestore,
+  email: string
+): Promise<boolean> {
+  const member = await db
+    .collection(`organizations/${OPERATOR_ORG_ID}/members`)
+    .doc(email.toLowerCase())
+    .get();
+  return member.exists && isRevokedMemberStatus(member.get('status'));
+}
+
+/** As the rules' notDeactivated() for a caller: no deactivation claim and no revoked operator-org member doc. */
+export async function isLiveCaller(
+  db: admin.firestore.Firestore,
+  token: unknown
+): Promise<boolean> {
+  if (hasDeactivatedClaim(token)) return false;
+  const email =
+    token && typeof token === 'object'
+      ? (token as Record<string, unknown>).email
+      : undefined;
+  return (
+    typeof email !== 'string' ||
+    email.trim() === '' ||
+    !(await isDeactivatedOperatorMember(db, email.trim()))
+  );
+}
+
+/** As the rules' isAdmin() on the server: an /admins doc whose holder is not a deactivated operator-org member. */
+export async function isLiveAdmin(
+  db: admin.firestore.Firestore,
+  email: string
+): Promise<boolean> {
+  const lower = email.trim().toLowerCase();
+  if (!lower || !(await db.collection('admins').doc(lower).get()).exists)
+    return false;
+  return !(await isDeactivatedOperatorMember(db, lower));
+}

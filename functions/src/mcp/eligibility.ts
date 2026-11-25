@@ -5,7 +5,7 @@ import {
   resolveOrgIdForDomain,
 } from '../classlinkShared';
 import { CONNECTOR_FEATURE_ID } from './config';
-import { OPERATOR_ORG_ID, isRevokedMemberStatus } from '../authz';
+import { isDeactivatedOperatorMember } from '../authz';
 import { isStaffMemberData } from '../districtStaff';
 
 type Firestore = admin.firestore.Firestore;
@@ -18,16 +18,8 @@ export interface Eligibility {
   orgId?: string | null;
 }
 
-/** As the rules' notDeactivated(): true only for an operator-org member doc whose status revokes access. */
-export async function isDeactivatedOperatorMember(
-  db: Firestore,
-  email: string
-): Promise<boolean> {
-  const member = await db
-    .doc(`organizations/${OPERATOR_ORG_ID}/members/${email.toLowerCase()}`)
-    .get();
-  return member.exists && isRevokedMemberStatus(member.get('status'));
-}
+// Re-exported so callers and their test mocks keep one import site.
+export { isDeactivatedOperatorMember };
 
 /** Active staff member via the email's verified domain, or a SpartBoard admin who is not deactivated. */
 export async function isActiveOrgMemberOrAdmin(

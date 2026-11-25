@@ -1,4 +1,5 @@
 // Server fetch of a pasted public URL for Import (plan D17): SSRF-guarded, obeys the Send block list.
+import { isLiveAdmin } from './authz';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import axios from 'axios';
@@ -652,7 +653,7 @@ export const fetchImportPageV1 = onCall(
       (await isDistrictStaffToken(db, token)) ||
       (token.email_verified === true &&
         !!token.email &&
-        (await db.collection('admins').doc(token.email).get()).exists);
+        (await isLiveAdmin(db, token.email)));
     const grants = (feature: string) =>
       isGlobalFeatureGranted(
         db,

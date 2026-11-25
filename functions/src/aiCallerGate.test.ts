@@ -25,9 +25,18 @@ import {
 
 const adminGet =
   vi.fn<(name: string, id: string) => Promise<{ exists: boolean }>>();
+const memberStatus = new Map<string, string>();
 const db = {
   collection: (name: string) => ({
-    doc: (id: string) => ({ get: () => adminGet(name, id) }),
+    doc: (id: string) => ({
+      get: () =>
+        name === 'admins'
+          ? adminGet(name, id)
+          : Promise.resolve({
+              exists: memberStatus.has(`${name}/${id}`),
+              get: () => memberStatus.get(`${name}/${id}`),
+            }),
+    }),
   }),
 } as never;
 
@@ -42,6 +51,7 @@ beforeEach(() => {
   isDistrictStaffToken.mockReset();
   adminGet.mockReset();
   adminGet.mockResolvedValue({ exists: false });
+  memberStatus.clear();
 });
 
 describe('isTeacherShapedToken', () => {
@@ -76,6 +86,16 @@ describe('isAiTeacherCaller', () => {
     adminGet.mockResolvedValue({ exists: true });
     expect(await isAiTeacherCaller(db, teacher)).toBe(true);
     expect(adminGet).toHaveBeenCalledWith('admins', 'teacher@orono.k12.mn.us');
+  });
+
+  it('refuses an admin doc held by a deactivated operator-org member', async () => {
+    isDistrictStaffToken.mockResolvedValue(false);
+    adminGet.mockResolvedValue({ exists: true });
+    memberStatus.set(
+      'organizations/orono/members/teacher@orono.k12.mn.us',
+      'deactivated'
+    );
+    expect(await isAiTeacherCaller(db, teacher)).toBe(false);
   });
 
   it('refuses a verified account that is neither staff nor admin', async () => {

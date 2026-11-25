@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isLiveAdmin,
+  isLiveCaller,
   isRevokedMemberStatus,
   isSiteWideAdmin,
   isStrictSuperAdmin,
   isSuperAdminRoleId,
 } from './authz';
+import { makeStubFirestore } from './testing/stubFirestore';
 
 describe('isSuperAdminRoleId', () => {
   it('treats a legacy doc with no roleId as site-wide', () => {
@@ -153,5 +156,33 @@ describe('isSiteWideAdmin', () => {
         'other-org'
       )
     ).toBe(false);
+  });
+});
+
+describe('isLiveCaller and isLiveAdmin', () => {
+  const db = makeStubFirestore({
+    'admins/live@x.org': {},
+    'admins/gone@x.org': {},
+    'admins/invited@x.org': {},
+    'organizations/orono/members/live@x.org': { status: 'active' },
+    'organizations/orono/members/gone@x.org': { status: 'deactivated' },
+    'organizations/orono/members/invited@x.org': { status: 'invited' },
+  }).db as never;
+
+  it('refuses the deactivation claim and a revoked operator-org member doc', async () => {
+    expect(await isLiveCaller(db, { deactivated: true })).toBe(false);
+    expect(await isLiveCaller(db, { email: 'Gone@x.org' })).toBe(false);
+    expect(await isLiveCaller(db, { email: 'live@x.org' })).toBe(true);
+    expect(await isLiveCaller(db, { email: 'nomember@x.org' })).toBe(true);
+    expect(await isLiveCaller(db, {})).toBe(true);
+    expect(await isLiveCaller(db, undefined)).toBe(true);
+  });
+
+  it('admits an /admins doc only while its holder is not deactivated', async () => {
+    expect(await isLiveAdmin(db, 'Live@x.org')).toBe(true);
+    expect(await isLiveAdmin(db, 'invited@x.org')).toBe(true);
+    expect(await isLiveAdmin(db, 'gone@x.org')).toBe(false);
+    expect(await isLiveAdmin(db, 'stranger@x.org')).toBe(false);
+    expect(await isLiveAdmin(db, '')).toBe(false);
   });
 });
