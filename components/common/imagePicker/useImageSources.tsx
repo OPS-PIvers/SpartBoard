@@ -213,7 +213,9 @@ export function useImageSources({
     },
     onDrop: (e: React.DragEvent) => {
       if (!hasFiles(e)) return;
+      // A file dropped on the picker is the picker's, never the board's too.
       e.preventDefault();
+      e.stopPropagation();
       setDragging(false);
       void addFiles(Array.from(e.dataTransfer.files).filter(isImageFile));
     },
