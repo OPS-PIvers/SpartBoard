@@ -41050,14 +41050,40 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "admin.help-center.copy-for-claude",
     "label": "Copy for Claude button on the selected Live tour",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.help-center.generate-details",
     "label": "Generate with AI button on the selected Live tour",
     "scope": "board",
     "panel": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.help-center.detail-title",
