@@ -160,6 +160,20 @@ export interface RosterMenuItem {
 }
 
 /** A student row's vertical-dots menu; renders nothing without items. */
+/** Scrolls only the nearest scrolling ancestor, never the board around the widget. */
+function revealInScroller(el: HTMLElement): void {
+  let scroller = el.parentElement;
+  while (scroller) {
+    const { overflowY } = getComputedStyle(scroller);
+    if (overflowY === 'auto' || overflowY === 'scroll') break;
+    scroller = scroller.parentElement;
+  }
+  if (!scroller) return;
+  const overBy =
+    el.getBoundingClientRect().bottom - scroller.getBoundingClientRect().bottom;
+  if (overBy > 0) scroller.scrollTop += overBy;
+}
+
 export const RosterRowMenu: React.FC<{
   ariaLabel: string;
   triggerAnchor: TourAnchorAttrs;
@@ -174,7 +188,7 @@ export const RosterRowMenu: React.FC<{
   });
   // Bottom rows (absent students sort last) would open the menu out of view.
   const revealMenu = useCallback((el: HTMLDivElement | null) => {
-    el?.scrollIntoView?.({ block: 'nearest' });
+    if (el) revealInScroller(el);
   }, []);
   if (items.length === 0) return null;
 

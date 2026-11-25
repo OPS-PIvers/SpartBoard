@@ -756,7 +756,8 @@ export const RosterList: React.FC<RosterListProps> = ({
                   tourRowKey
                 )}
                 onClick={() => s.studentUid && onSetTime(s.studentUid, s.name)}
-                className="inline-flex items-center rounded-md border border-brand-gray-lighter bg-white font-sans font-medium text-brand-blue-primary transition-colors hover:border-brand-blue-light"
+                aria-label={`Schedule ${s.name}`}
+                className="touch-target-expand relative inline-flex items-center rounded-md border border-brand-gray-lighter bg-white font-sans font-medium text-brand-blue-primary transition-colors hover:border-brand-blue-light"
                 style={{ ...fieldStyle, gap: 'min(3px, 0.8cqmin)' }}
               >
                 <CalendarClock

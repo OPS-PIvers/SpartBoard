@@ -46,14 +46,14 @@ describe('RosterList absent students', () => {
   it('puts a one-tap Schedule button on an absent row', () => {
     const onSetTime = vi.fn();
     renderRow(true, onSetTime);
-    fireEvent.click(screen.getByRole('button', { name: 'Schedule' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Schedule Casey Kid' }));
     expect(onSetTime).toHaveBeenCalledWith('uid-9', 'Casey Kid');
   });
 
   it('keeps the row button off a student who is not absent', () => {
     renderRow(false);
     expect(
-      screen.queryByRole('button', { name: 'Schedule' })
+      screen.queryByRole('button', { name: 'Schedule Casey Kid' })
     ).not.toBeInTheDocument();
   });
 
