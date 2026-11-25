@@ -86,4 +86,43 @@ describe('Stations IconOrImageInput image tab', () => {
     expect(screen.getByText('Upload or paste image')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Google Drive' })).toBeNull();
   });
+
+  it('gives a paste to the station it lands in, not the first one in the drawer', async () => {
+    uploadSticker.mockResolvedValue('https://lh3.googleusercontent.com/d/new');
+    const first = vi.fn();
+    const second = vi.fn();
+    render(
+      <div role="dialog">
+        <IconOrImageInput
+          {...props}
+          fieldKey="s1"
+          imageUrl="https://lh3.googleusercontent.com/d/one"
+          onChange={first}
+        />
+        <IconOrImageInput
+          {...props}
+          fieldKey="s2"
+          imageUrl="https://lh3.googleusercontent.com/d/two"
+          onChange={second}
+        />
+      </div>
+    );
+    const target = screen.getAllByRole('button', { name: 'Upload' })[1];
+    const event = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', {
+      value: { files: [png()], types: ['Files'] },
+    });
+    target.dispatchEvent(event);
+    await waitFor(() => expect(second).toHaveBeenCalled());
+    expect(first).not.toHaveBeenCalled();
+    expect(uploadSticker).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(deleteFile).toHaveBeenCalledWith(
+        'https://lh3.googleusercontent.com/d/two'
+      )
+    );
+    expect(deleteFile).not.toHaveBeenCalledWith(
+      'https://lh3.googleusercontent.com/d/one'
+    );
+  });
 });

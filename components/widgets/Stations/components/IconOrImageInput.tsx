@@ -282,6 +282,8 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
           <ImagePicker
             value={imageUrl}
             maxBytes={MAX_BYTES}
+            // Every station editor is open in one drawer; a paste belongs to the one it lands in.
+            pasteScope="element"
             tourScope={{ type: widgetType, field: fieldKey }}
             tourOverrides={{
               upload: {

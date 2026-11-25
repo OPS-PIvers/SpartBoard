@@ -1,4 +1,10 @@
-import React, { useCallback, useRef, useEffect, useState } from 'react';
+import React, {
+  useCallback,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { Z_INDEX } from '@/config/zIndex';
@@ -49,6 +55,9 @@ const DEFAULT_STICKERS = [
 ];
 
 import { WidgetLayout } from '../WidgetLayout';
+
+// Stickers never had a size limit; this only stops runaway files.
+const STICKER_MAX_BYTES = 50 * 1024 * 1024;
 
 const SortableSticker: React.FC<{
   sticker: { id: string; url: string; type: 'default' | 'global' | 'custom' };
@@ -297,16 +306,22 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
     });
   };
 
+  // Two uploads can finish out of order, so each adds to the latest list.
+  const latestConfig = useRef(config);
+  useLayoutEffect(() => {
+    latestConfig.current = config;
+  });
   const addCustomSticker = useCallback(
     (url: string) => {
-      updateWidget(widget.id, {
-        config: {
-          ...config,
-          uploadedUrls: [...customStickers, url],
-        },
-      });
+      const current = latestConfig.current;
+      const next = {
+        ...current,
+        uploadedUrls: [...(current.uploadedUrls ?? []), url],
+      };
+      latestConfig.current = next;
+      updateWidget(widget.id, { config: next });
     },
-    [config, customStickers, updateWidget, widget.id]
+    [updateWidget, widget.id]
   );
 
   const processFile = useCallback(
@@ -611,6 +626,9 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
                 label={t('common.upload')}
                 upload={uploadForPicker}
                 onChange={addCustomSticker}
+                linkAsFile
+                maxBytes={STICKER_MAX_BYTES}
+                disabled={uploading}
                 tourScope={{ type: 'stickers', field: 'upload' }}
                 tourOverrides={{
                   open: tourAttr('stickers.upload', widget.id, widget.type),
@@ -695,6 +713,9 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
               label={t('widgets.stickers.dropOrPaste')}
               upload={uploadForPicker}
               onChange={addCustomSticker}
+              linkAsFile
+              maxBytes={STICKER_MAX_BYTES}
+              disabled={uploading}
               tourScope={{ type: 'stickers', field: 'upload-zone' }}
               tourOverrides={{
                 open: tourAttr('stickers.upload-zone', widget.id, widget.type),

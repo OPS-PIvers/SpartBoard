@@ -118,4 +118,29 @@ describe('Sticker Book upload', () => {
       container.querySelector('[data-tour="stickers.upload-zone"]')?.tagName
     ).toBe('DIV');
   });
+
+  it('keeps both stickers when two uploads finish out of order', async () => {
+    let finishFirst: (url: string) => void = vi.fn();
+    processAndUploadImage
+      .mockImplementationOnce(
+        () => new Promise<string>((r) => (finishFirst = r))
+      )
+      .mockResolvedValueOnce('https://saved/b');
+    const { container } = render(<StickerBookWidget widget={widget} />);
+    const inputs = container.querySelectorAll('input[type="file"]');
+    fireEvent.change(inputs[0], { target: { files: [png()] } });
+    fireEvent.change(inputs[1], { target: { files: [png()] } });
+    await waitFor(() => expect(updateWidget).toHaveBeenCalledTimes(1));
+    finishFirst('https://saved/a');
+    await waitFor(() => expect(updateWidget).toHaveBeenCalledTimes(2));
+    expect(updateWidget).toHaveBeenLastCalledWith('sb1', {
+      config: {
+        uploadedUrls: [
+          'https://saved/old',
+          'https://saved/b',
+          'https://saved/a',
+        ],
+      },
+    });
+  });
 });
