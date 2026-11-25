@@ -52,6 +52,7 @@ export function planPlcQuizStepperAssign({
   rosters,
   bellWindow,
   questions,
+  everyClass = false,
 }: {
   classes: AssignClassesValue;
   when: AssignWhenValue;
@@ -59,6 +60,8 @@ export function planPlcQuizStepperAssign({
   bellWindow: BellWindowFn | undefined;
   /** The quiz's questions, so class answer choices become hidden options. */
   questions?: QuizQuestion[];
+  /** Gives every class its own Start and Pause, one class included. */
+  everyClass?: boolean;
 }): PlcQuizStepperPlan {
   const picked = rosters.filter(
     (r) => !r.loadError && classes.classIds.includes(r.id)
@@ -87,6 +90,7 @@ export function planPlcQuizStepperAssign({
     sharedWindow: mixed.targeting,
     bellWindow,
     manualStart: when.mode === 'manual',
+    everyClass,
   });
   const perClassDue = applied.dueAtByRosterId;
   return {

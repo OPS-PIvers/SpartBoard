@@ -129,6 +129,8 @@ export interface RawAnswer {
   paperTranscript?: 'pending' | 'blank' | 'done' | 'image';
   /** Server-written scan id; students can't add it once a paper batch is stamped. */
   paperScanId?: string;
+  /** Upload states only; a recording counts toward a choose-N section. */
+  artifacts?: { uploadState?: string }[];
 }
 
 export interface CompletedResponse {
