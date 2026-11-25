@@ -10,7 +10,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const FIX =
   'Run Duplicate through useLibraryDuplicate (components/common/library/useLibraryDuplicate.ts) and title the copy with suggestDuplicateTitle.';
 
-const SCANNED = ['components/widgets', 'components/common/library', 'hooks'];
+const SCANNED = ['components', 'hooks', 'utils', 'context'];
 const RUNNER = 'components/common/library/useLibraryDuplicate.ts';
 const TITLER = 'components/common/library/libraryDuplicate.ts';
 

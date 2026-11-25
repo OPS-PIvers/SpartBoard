@@ -2029,7 +2029,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                   }
                 },
               }}
-              onDuplicate={(app) => void appDuplicate.duplicate(app)}
+              onDuplicate={(app) => {
+                if (user) void appDuplicate.duplicate(app);
+              }}
               isDuplicating={appDuplicate.isDuplicating}
               onRun={handleRun}
               onAssign={handleOpenAssign}
