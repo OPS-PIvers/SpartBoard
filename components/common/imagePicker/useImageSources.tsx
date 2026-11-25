@@ -15,6 +15,8 @@ export interface ImageSourcesOptions {
   disabled?: boolean;
   /** Takes several files at once from upload, drop or paste; each one saves and calls onChange. */
   multiple?: boolean;
+  /** With multiple, gets each batch's counts and replaces the picker's own error line. */
+  onBatchDone?: (result: BatchResult) => void;
   /** Paste reaches the picker anywhere in its dialog, or only inside the picker. */
   pasteScope?: 'dialog' | 'element' | 'off';
   /** The element paste is scoped to. */
@@ -25,6 +27,13 @@ const DEFAULT_MAX = 10 * 1024 * 1024;
 
 /** A message the picker shows as written; anything else shows the generic line. */
 class PickerError extends Error {}
+class TooLargeError extends PickerError {}
+
+export interface BatchResult {
+  added: number;
+  failed: number;
+  tooLarge: number;
+}
 
 export type RunResult = 'added' | 'skipped' | 'failed';
 
@@ -54,6 +63,7 @@ export function useImageSources({
   maxBytes = DEFAULT_MAX,
   disabled = false,
   multiple = false,
+  onBatchDone,
   pasteScope = 'dialog',
   scopeRef,
 }: ImageSourcesOptions) {
@@ -94,7 +104,7 @@ export function useImageSources({
     (file: File) => {
       if (!isImageFile(file)) throw new PickerError('Select an image file.');
       if (file.size > maxBytes) {
-        throw new PickerError(
+        throw new TooLargeError(
           `That image is too large. The limit is ${Math.round(maxBytes / 1048576)} MB.`
         );
       }
@@ -111,21 +121,27 @@ export function useImageSources({
   // Saves each file in turn; the first problem stays on screen after the rest finish.
   const addFiles = useCallback(
     async (files: File[]) => {
-      if (!multiple || files.length < 2) {
+      if (!multiple || (files.length < 2 && !onBatchDone)) {
         if (files[0]) await addFile(files[0]);
         return;
       }
-      if (inFlight.current || disabled) return;
+      if (files.length === 0 || inFlight.current || disabled) return;
       inFlight.current = true;
       setBusy(true);
       setError(null);
       let firstError: string | null = null;
+      const result: BatchResult = { added: 0, failed: 0, tooLarge: 0 };
       try {
         for (const file of files) {
           try {
             const url = await save(file);
-            if (url) onChange(url);
+            if (url) {
+              onChange(url);
+              result.added++;
+            }
           } catch (err) {
+            if (err instanceof TooLargeError) result.tooLarge++;
+            else result.failed++;
             firstError ??=
               err instanceof PickerError
                 ? err.message
@@ -133,12 +149,13 @@ export function useImageSources({
           }
         }
       } finally {
-        setError(firstError);
+        if (onBatchDone) onBatchDone(result);
+        else setError(firstError);
         inFlight.current = false;
         setBusy(false);
       }
     },
-    [multiple, addFile, disabled, save, onChange]
+    [multiple, onBatchDone, addFile, disabled, save, onChange]
   );
 
   const openFile = useCallback(() => inputRef.current?.click(), []);

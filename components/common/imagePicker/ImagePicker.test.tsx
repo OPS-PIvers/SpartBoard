@@ -96,6 +96,63 @@ describe('ImagePicker', () => {
     );
   });
 
+  it('reports batch counts instead of an error line when asked', async () => {
+    const upload = vi
+      .fn()
+      .mockResolvedValueOnce('https://saved/a')
+      .mockRejectedValueOnce(new Error('network'));
+    const onBatchDone = vi.fn();
+    const { container } = render(
+      <ImagePicker
+        tourScope={scope}
+        upload={upload}
+        onChange={vi.fn()}
+        multiple
+        onBatchDone={onBatchDone}
+        maxBytes={5}
+      />
+    );
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    const big = new File(['123456789'], 'big.png', { type: 'image/png' });
+    fireEvent.change(input, {
+      target: { files: [png('a.png'), big, png('c.png')] },
+    });
+    await waitFor(() =>
+      expect(onBatchDone).toHaveBeenCalledWith({
+        added: 1,
+        failed: 1,
+        tooLarge: 1,
+      })
+    );
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('reports a single file as a batch too', async () => {
+    const onBatchDone = vi.fn();
+    const { container } = render(
+      <ImagePicker
+        tourScope={scope}
+        upload={vi.fn().mockResolvedValue('https://saved/a')}
+        onChange={vi.fn()}
+        multiple
+        onBatchDone={onBatchDone}
+      />
+    );
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [png()] } });
+    await waitFor(() =>
+      expect(onBatchDone).toHaveBeenCalledWith({
+        added: 1,
+        failed: 0,
+        tooLarge: 0,
+      })
+    );
+  });
+
   it('takes only the first file without multiple', async () => {
     const upload = vi.fn().mockResolvedValue('https://saved/1');
     const { container } = render(

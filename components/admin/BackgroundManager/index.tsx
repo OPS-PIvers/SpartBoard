@@ -58,6 +58,7 @@ import { StockPhotoPicker, type StockPhotoSelection } from './StockPhotoPicker';
 import { isPexelsConfigured } from '@/utils/pexelsService';
 import { Modal } from '@/components/common/Modal';
 import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
+import type { BatchResult } from '@/components/common/imagePicker/useImageSources';
 
 const DEFAULT_PRESETS = [
   {
@@ -341,6 +342,22 @@ export const BackgroundManager: React.FC = () => {
     }
   };
 
+  const showUploadSummary = ({ added, failed, tooLarge }: BatchResult) => {
+    if (added === 0 && failed === 0 && tooLarge > 0) {
+      showMessage('error', 'All files exceeded 5MB limit');
+      return;
+    }
+    if (added + failed + tooLarge === 0) return;
+    const parts: string[] = [];
+    if (added > 0) parts.push(`${added} uploaded`);
+    if (failed > 0) parts.push(`${failed} failed`);
+    if (tooLarge > 0) parts.push(`${tooLarge} skipped (too large)`);
+    showMessage(
+      failed === 0 && tooLarge === 0 ? 'success' : 'error',
+      parts.join(', ')
+    );
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0 || !user) return;
@@ -403,14 +420,11 @@ export const BackgroundManager: React.FC = () => {
       }
     }
 
-    const parts: string[] = [];
-    if (successCount > 0) parts.push(`${successCount} uploaded`);
-    if (failCount > 0) parts.push(`${failCount} failed`);
-    if (skipped.length > 0) parts.push(`${skipped.length} skipped (too large)`);
-    showMessage(
-      failCount === 0 && skipped.length === 0 ? 'success' : 'error',
-      parts.join(', ')
-    );
+    showUploadSummary({
+      added: successCount,
+      failed: failCount,
+      tooLarge: skipped.length,
+    });
 
     setUploading(false);
     setUploadProgress(null);
@@ -827,6 +841,7 @@ export const BackgroundManager: React.FC = () => {
             upload={uploadPickedBackground}
             onChange={handlePickedBackground}
             multiple
+            onBatchDone={showUploadSummary}
             pasteScope="element"
             maxBytes={5 * 1024 * 1024}
             disabled={!user}
