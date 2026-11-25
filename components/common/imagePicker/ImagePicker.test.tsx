@@ -240,7 +240,15 @@ describe('ImagePicker', () => {
       'input[type="file"]'
     ) as HTMLInputElement;
     expect(input.multiple).toBe(true);
-    fireEvent.change(input, { target: { files: [png(), video] } });
+    fireEvent.change(input, {
+      target: {
+        files: [
+          png(),
+          new File(['x'], 'a.pdf', { type: 'application/pdf' }),
+          video,
+        ],
+      },
+    });
     await waitFor(() => expect(takeFiles).toHaveBeenCalledTimes(1));
     expect((takeFiles.mock.calls[0][0] as File[]).map((f) => f.name)).toEqual([
       'cat.png',

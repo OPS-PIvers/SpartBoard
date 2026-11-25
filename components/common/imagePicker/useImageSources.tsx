@@ -105,8 +105,12 @@ export function useImageSources({
 
   // Every source goes through the same type and size check before it saves.
   const save = useCallback(
-    async (files: File[]): Promise<boolean> => {
-      for (const file of files) {
+    async (picked: File[]): Promise<boolean> => {
+      // A caller taking several files skips the ones it can't use and checks sizes itself.
+      const batch = takeFiles && multiple;
+      const files = batch ? picked.filter(acceptFile) : picked;
+      if (files.length === 0) throw new PickerError('Select an image file.');
+      for (const file of batch ? [] : files) {
         if (!acceptFile(file)) throw new PickerError('Select an image file.');
         if (file.size > maxBytes) {
           throw new PickerError(
@@ -121,7 +125,7 @@ export function useImageSources({
       onChange(url);
       return true;
     },
-    [acceptFile, maxBytes, takeFiles, upload, onChange]
+    [acceptFile, maxBytes, takeFiles, multiple, upload, onChange]
   );
 
   const addFiles = useCallback(
@@ -209,10 +213,12 @@ export function useImageSources({
     },
     onDrop: (e: React.DragEvent) => {
       if (!hasFiles(e)) return;
-      e.preventDefault();
       setDragging(false);
       const files = Array.from(e.dataTransfer.files).filter(acceptFile);
-      if (files.length > 0) void addFiles(files);
+      // A drop the picker can't use passes on to the zone around it.
+      if (files.length === 0 || disabled) return;
+      e.preventDefault();
+      void addFiles(files);
     },
   };
 

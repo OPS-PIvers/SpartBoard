@@ -331,9 +331,12 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
 }) => {
   const [panel, setPanel] = useState<PanelPos | null>(null);
   const open = panel !== null;
+  const anchorEl = (): HTMLElement | null =>
+    layout === 'detached' ? detachedAnchorRef.current : triggerRef.current;
   const setOpen = (next: boolean) => {
+    const el = anchorEl();
     if (!next) setPanel(null);
-    else if (triggerRef.current) setPanel(panelPos(triggerRef.current));
+    else if (el) setPanel(panelPos(el));
   };
   const triggerRef = useRef<HTMLButtonElement>(null);
   const detachedAnchorRef = useRef<HTMLElement | null>(null);
@@ -371,7 +374,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
   });
   // The Google Picker must sit above the panel and any z-critical host while it is open.
   const pickFromDrive = async () => {
-    const host = isButton ? triggerRef.current : fieldRef.current;
+    const host = isButton ? anchorEl() : fieldRef.current;
     if (isButton) setOpen(false);
     const restore = belowGooglePicker(host);
     const result = await src.openDrive().finally(restore);

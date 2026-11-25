@@ -207,6 +207,11 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
   const [fileContext, setFileContext] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  // Focus starts inside so Ctrl+V reaches this dialog's image picker.
+  useEffect(() => {
+    if (unifiedPicker) overlayRef.current?.focus();
+  }, [unifiedPicker]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -435,7 +440,9 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
       role="dialog"
       aria-modal="true"
       aria-label="Draft with AI"
-      className="absolute inset-0 z-widget-internal-overlay bg-white/95 backdrop-blur-xs flex flex-col"
+      ref={overlayRef}
+      tabIndex={-1}
+      className="absolute inset-0 z-widget-internal-overlay bg-white/95 backdrop-blur-xs flex flex-col focus:outline-hidden"
       style={{ padding: 'min(24px, 5cqmin)' }}
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}

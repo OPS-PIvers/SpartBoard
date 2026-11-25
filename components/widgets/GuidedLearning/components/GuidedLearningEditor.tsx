@@ -93,6 +93,7 @@ export const GuidedLearningEditorContextPane = React.memo(
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { canAccessFeature } = useAuth();
     const unifiedPicker = canAccessFeature('unified-image-picker');
+    const toolbarRef = useRef<HTMLDivElement>(null);
     const imageContainerRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLImageElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -269,6 +270,12 @@ export const GuidedLearningEditorContextPane = React.memo(
         ) {
           return;
         }
+        // A picker in another dialog, such as Draft with AI, takes its own paste.
+        if (unifiedPicker) {
+          const own = toolbarRef.current?.closest('[role="dialog"]');
+          const dialog = target?.closest('[role="dialog"]');
+          if (own && dialog && dialog !== own) return;
+        }
         const files = Array.from(e.clipboardData?.files ?? []).filter((f) =>
           f.type.startsWith('image/')
         );
@@ -282,7 +289,7 @@ export const GuidedLearningEditorContextPane = React.memo(
       };
       window.addEventListener('paste', onPaste, true);
       return () => window.removeEventListener('paste', onPaste, true);
-    }, [uploadFromFiles]);
+    }, [uploadFromFiles, unifiedPicker]);
 
     // Drag-and-drop — the entire canvas column is a drop target. The counter
     // ref avoids flicker from dragenter/dragleave firing on child elements.
@@ -639,7 +646,7 @@ export const GuidedLearningEditorContextPane = React.memo(
           )}
 
           {/* Action toolbar */}
-          <div className="flex flex-wrap gap-2 shrink-0">
+          <div ref={toolbarRef} className="flex flex-wrap gap-2 shrink-0">
             {unifiedPicker ? (
               <ImagePicker
                 layout="button"

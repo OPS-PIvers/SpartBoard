@@ -312,16 +312,21 @@ const FilmstripBody = React.memo(function FilmstripBody({
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const replacePickerRef = useRef<ImagePickerHandle>(null);
   const replaceIndexRef = useRef(0);
+  const replaceUrlRef = useRef('');
   const onReplace = useCallback(
     (index: number) => {
       replaceIndexRef.current = index;
       const row = navRef.current?.querySelector<HTMLElement>(
         `[data-slide-index="${index}"]`
       );
-      if (unifiedPicker && row) replacePickerRef.current?.openAt(row);
-      else replaceInputRef.current?.click();
+      replaceUrlRef.current = imageUrls[index] ?? '';
+      if (unifiedPicker && row) {
+        replacePickerRef.current?.openAt(
+          row.querySelector<HTMLElement>('button') ?? row
+        );
+      } else replaceInputRef.current?.click();
     },
-    [unifiedPicker]
+    [unifiedPicker, imageUrls]
   );
   const takeSlides = useCallback(
     async (files: File[]) => {
@@ -331,8 +336,15 @@ const FilmstripBody = React.memo(function FilmstripBody({
     [uploadFromFiles]
   );
   const takeReplacement = useCallback(
-    ([file]: File[]) => replaceSlideFromFile(replaceIndexRef.current, file),
-    [replaceSlideFromFile]
+    ([file]: File[]) => {
+      // The slide may have moved while the picker was open.
+      const at = replaceIndexRef.current;
+      const url = replaceUrlRef.current;
+      const index = imageUrls[at] === url ? at : imageUrls.indexOf(url);
+      if (index < 0) return Promise.resolve(false);
+      return replaceSlideFromFile(index, file);
+    },
+    [replaceSlideFromFile, imageUrls]
   );
   const [captureMode, setCaptureMode] = useState<CaptureMode | null>(null);
   const drop = useFileDrop((files) => void uploadFromFiles(files));
