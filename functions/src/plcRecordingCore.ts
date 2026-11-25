@@ -5,6 +5,7 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { withDuration } from './webmDuration';
 import { refundAiUsage } from './aiGeneration';
+import { isLiveCaller } from './authz';
 
 type Firestore = admin.firestore.Firestore;
 type DocRef = admin.firestore.DocumentReference;
@@ -827,15 +828,22 @@ async function refundQuietly(
 export async function finalizeAsRecorder(
   deps: RecordingDeps,
   uid: string,
+  token: unknown,
   plcId: string,
   recordingId: string
 ): Promise<{ status: RecordingStatus; stopped: boolean }> {
-  const [plcSnap, recSnap] = await Promise.all([
+  const [plcSnap, recSnap, live] = await Promise.all([
     deps.db.collection('plcs').doc(plcId).get(),
     recordingRef(deps.db, plcId, recordingId).get(),
+    isLiveCaller(deps.db, token),
   ]);
   const rec = recSnap.data();
-  if (!rec || !isPlcMember(plcSnap.data(), uid) || rec.recorderUid !== uid) {
+  if (
+    !rec ||
+    !live ||
+    !isPlcMember(plcSnap.data(), uid) ||
+    rec.recorderUid !== uid
+  ) {
     throw new HttpsError(
       'permission-denied',
       'Only the person recording can stop it.'
@@ -867,15 +875,17 @@ const BLOCKS_EARLY_DELETE = new Set([
 export async function deleteAudioAsEditor(
   deps: RecordingDeps,
   uid: string,
+  token: unknown,
   plcId: string,
   recordingId: string
 ): Promise<{ deleted: boolean }> {
   const ref = recordingRef(deps.db, plcId, recordingId);
-  const [plcSnap, recSnap] = await Promise.all([
+  const [plcSnap, recSnap, live] = await Promise.all([
     deps.db.collection('plcs').doc(plcId).get(),
     ref.get(),
+    isLiveCaller(deps.db, token),
   ]);
-  if (!canEditPlc(plcSnap.data(), uid)) {
+  if (!live || !canEditPlc(plcSnap.data(), uid)) {
     throw new HttpsError('permission-denied', 'Only editors can do this.');
   }
   const rec = recSnap.data();

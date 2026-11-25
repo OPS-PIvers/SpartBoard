@@ -476,6 +476,7 @@ service firebase.storage {
         && notDeactivated();
     }
     match /plc_meeting_audio/{plcId}/{recordingId}/{partIndex}/{fileName} {
+      // liveToken() only: the recording and PLC reads use both Firestore docs, so no member-doc read fits.
       allow create: if request.auth != null && viewAsWriteOk() && liveToken()
         && partIndex.matches('[0-9]{1,4}')
         && fileName.matches('[0-9]{1,5}[.]webm')

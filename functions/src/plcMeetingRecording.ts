@@ -38,6 +38,7 @@ export const finalizePlcRecordingV1 = onCall(
     const result = await finalizeAsRecorder(
       defaultRecordingDeps(),
       uid,
+      request.auth?.token,
       plcId,
       recordingId
     );
@@ -59,7 +60,13 @@ export const deletePlcRecordingAudioV1 = onCall(
     await assertViewAsAllowed(request);
     const uid = requireUid(request);
     const { plcId, recordingId } = parseRecordingRequest(request.data);
-    return deleteAudioAsEditor(defaultRecordingDeps(), uid, plcId, recordingId);
+    return deleteAudioAsEditor(
+      defaultRecordingDeps(),
+      uid,
+      request.auth?.token,
+      plcId,
+      recordingId
+    );
   }
 );
 

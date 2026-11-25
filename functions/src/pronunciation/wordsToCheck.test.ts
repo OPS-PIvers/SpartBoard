@@ -61,6 +61,11 @@ vi.mock('../firebaseAdmin', () => {
           }),
         };
       }
+      if (name === 'organizations/orono/members') {
+        return {
+          doc: () => ({ get: () => Promise.resolve({ exists: false }) }),
+        };
+      }
       return {
         where: (...args: unknown[]) => {
           state.sessionQuery = args;
