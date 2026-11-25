@@ -1,33 +1,12 @@
-/**
- * usePlcLibraryActions — shared confirm/toast/busy plumbing for "unshare
- * from PLC" row actions across the Quiz Library and Video Activities
- * tiles.
- *
- * `PlcVideoActivitiesBody` still owns its unshare flow inline because its
- * handlers coexist with the heavier import/edit flows. The Overview bento tiles
- * want the same unshare UX (i18n'd confirm + toast + busy spinner) but
- * without dragging the editor handlers in. That's what this hook is for —
- * a deliberately small surface so the tile doesn't have to re-derive the
- * dialog/toast strings, and the two tiles' kebabs share a single
- * implementation.
- *
- * The hook does NOT subscribe to anything Firestore-side. It takes a
- * pre-bound `unshareFn` (from whichever PLC subcollection hook the caller
- * already uses for the row list) and layers the confirm/toast/busy
- * coordination on top.
- *
- * `kind` selects the i18n key prefix so the dialog and toast strings
- * match the existing copy on the corresponding body (quiz vs video
- * activity). Keep the prefixes in sync if either body's keys change.
- */
-
+// Confirm, busy row and error toast for unsharing any PLC library row; the caller passes the kind's unshare.
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { logError } from '@/utils/logError';
+import type { PlcLibraryKind } from '@/hooks/usePlcLibraryEntries';
 
-export type PlcLibraryActionKind = 'quiz' | 'videoActivity';
+export type PlcLibraryActionKind = PlcLibraryKind;
 
 interface I18nKeySet {
   /** Confirm-dialog body (contains the {{title}} interpolation). */
@@ -39,12 +18,14 @@ interface I18nKeySet {
   /** Confirm button label (no interpolation). */
   action: string;
   actionDefault: string;
-  /** Success toast (contains {{title}}). */
-  success: string;
-  successDefault: string;
+  /** Success toast (contains {{title}}); omitted when the caller's flow toasts itself. */
+  success?: string;
+  successDefault?: string;
   /** Generic failure toast (no interpolation). */
   failure: string;
   failureDefault: string;
+  /** Show the thrown error's message instead of the generic failure. */
+  errorMessageFirst?: boolean;
 }
 
 const I18N_KEYS: Record<PlcLibraryActionKind, I18nKeySet> = {
@@ -60,19 +41,51 @@ const I18N_KEYS: Record<PlcLibraryActionKind, I18nKeySet> = {
     successDefault: '"{{title}}" removed from this PLC.',
     failure: 'plcDashboard.quizLibrary.unshareFailed',
     failureDefault: 'Failed to unshare quiz.',
+    errorMessageFirst: true,
   },
   videoActivity: {
-    confirm: 'plcDashboard.videoActivities.unshareConfirm',
+    confirm: 'plcDashboard.videoActivities.groupUnshareConfirm',
     confirmDefault:
-      'Remove "{{title}}" from this PLC? Other teammates will lose access to the shared library entry. Their personal copies (if any) keep working.',
+      'Remove "{{title}}" from this group? Other teammates will lose access to the shared library entry. Their personal copies (if any) keep working.',
     title: 'plcDashboard.videoActivities.unshareTitle',
     titleDefault: 'Unshare video activity',
     action: 'plcDashboard.videoActivities.unshareAction',
     actionDefault: 'Unshare',
-    success: 'plcDashboard.videoActivities.unshared',
-    successDefault: '"{{title}}" removed from this PLC.',
     failure: 'plcDashboard.videoActivities.unshareFailed',
     failureDefault: 'Failed to unshare video activity.',
+    errorMessageFirst: true,
+  },
+  rubric: {
+    confirm: 'plcDashboard.rubricLibrary.groupUnshareConfirm',
+    confirmDefault:
+      'Remove "{{title}}" from this group? Teammates lose access to the shared entry; copies already in their libraries keep working.',
+    title: 'plcDashboard.rubricLibrary.unshareTitle',
+    titleDefault: 'Unshare rubric',
+    action: 'plcDashboard.rubricLibrary.unshareAction',
+    actionDefault: 'Unshare',
+    failure: 'plcDashboard.rubricLibrary.unshareFailed',
+    failureDefault: 'Failed to unshare rubric.',
+  },
+  flashcards: {
+    confirm: 'plcDashboard.flashcards.groupUnshareConfirm',
+    confirmDefault: 'Remove "{{title}}" from this group?',
+    title: 'plcDashboard.flashcards.unshareTitle',
+    titleDefault: 'Unshare set',
+    action: 'plcDashboard.flashcards.unshare',
+    actionDefault: 'Unshare',
+    failure: 'plcDashboard.flashcards.unshareFailed',
+    failureDefault: 'Could not unshare the set.',
+  },
+  questionBank: {
+    confirm: 'plcDashboard.bankLibrary.groupUnshareConfirm',
+    confirmDefault:
+      'Stop sharing "{{title}}" with this group? Teammates’ quizzes that draw from it will stop resolving; copies in their libraries keep working.',
+    title: 'plcDashboard.bankLibrary.unshareTitle',
+    titleDefault: 'Stop sharing bank',
+    action: 'plcDashboard.bankLibrary.unshareAction',
+    actionDefault: 'Stop sharing',
+    failure: 'plcDashboard.bankLibrary.unshareFailed',
+    failureDefault: 'Failed to stop sharing question bank.',
   },
 };
 
@@ -81,12 +94,8 @@ export interface UsePlcLibraryActionsParams {
   plcId: string;
   /** Selects the i18n prefix for confirm/toast strings. */
   kind: PlcLibraryActionKind;
-  /**
-   * Pre-bound unshare function from `usePlcQuizzes` /
-   * `usePlcVideoActivities`. The hook treats this as opaque — it does not
-   * re-subscribe to the source list.
-   */
-  unshareFn: (itemId: string) => Promise<void>;
+  /** The kind's unshare (usually `usePlcLibraryEntries().unshare`, or a flow wrapping it). */
+  unshareFn: (itemId: string, title: string) => Promise<void>;
 }
 
 export interface UsePlcLibraryActionsResult {
@@ -120,18 +129,20 @@ export function usePlcLibraryActions({
       if (!confirmed) return;
       setBusyId(itemId);
       try {
-        await unshareFn(itemId);
-        addToast(
-          t(keys.success, { title, defaultValue: keys.successDefault }),
-          'success'
-        );
+        await unshareFn(itemId, title);
+        if (keys.success) {
+          addToast(
+            t(keys.success, { title, defaultValue: keys.successDefault }),
+            'success'
+          );
+        }
       } catch (err) {
         logError(`usePlcLibraryActions.unshare.${kind}`, err, {
           plcId,
           itemId,
         });
         addToast(
-          err instanceof Error
+          keys.errorMessageFirst && err instanceof Error
             ? err.message
             : t(keys.failure, { defaultValue: keys.failureDefault }),
           'error'

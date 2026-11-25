@@ -1,20 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   collection,
   doc,
   getDocs,
-  onSnapshot,
-  orderBy,
   query,
   setDoc,
   updateDoc,
   where,
 } from 'firebase/firestore';
-import { db, isAuthBypass } from '@/config/firebase';
+import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcQuizEntry, QuizSessionMode, QuizSessionOptions } from '@/types';
 import { logError } from '@/utils/logError';
-import { usePlcSubcollection } from '@/context/usePlcContext';
+import {
+  isLivePlcLibraryEntry,
+  usePlcLibraryEntries,
+  type PlcLibrarySpec,
+} from '@/hooks/usePlcLibraryEntries';
 
 const PLCS_COLLECTION = 'plcs';
 const QUIZZES_SUBCOLLECTION = 'quizzes';
@@ -256,87 +258,21 @@ export function parsePlcQuizEntry(
   return entry;
 }
 
-/**
- * Live subscription to a single PLC's quiz library. Returns entries
- * sorted newest-edit-first by `updatedAt`. Pass `null` for `plcId` to
- * disable the listener (e.g. while the dashboard is closed).
- *
- * Mirrors `usePlcAssignmentIndex.ts` — same parser-drops-malformed
- * defense, same render-time `prevPlcId` reset so the UI never flashes
- * the previous PLC's entries while the new snapshot is in flight.
- */
+const QUIZ_LIBRARY: PlcLibrarySpec<PlcQuizEntry, ShareQuizWithPlcInput> = {
+  kind: 'quiz',
+  subcollection: QUIZZES_SUBCOLLECTION,
+  parse: parsePlcQuizEntry,
+  keep: isLivePlcLibraryEntry,
+  orderByUpdatedAt: true,
+  fromProvider: (s) => s.quizzes,
+  share: writePlcQuizEntry,
+};
+
+/** Live PLC quiz library, newest edit first; `null` plcId disables the listener. */
 export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
   const { user } = useAuth();
-  // Back-compat (Decision 1.4): read from a mounted PlcProvider when present.
-  const fromProvider = usePlcSubcollection(plcId, (s) => s.quizzes);
-  const [quizzes, setQuizzes] = useState<PlcQuizEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  const [prevPlcId, setPrevPlcId] = useState(plcId);
-  if (plcId !== prevPlcId) {
-    setPrevPlcId(plcId);
-    setQuizzes([]);
-    setLoading(true);
-    setError(null);
-  }
-
-  useEffect(() => {
-    if (fromProvider) return;
-    if (!plcId || !user || isAuthBypass) {
-      const t = setTimeout(() => {
-        setQuizzes([]);
-        setLoading(false);
-      }, 0);
-      return () => clearTimeout(t);
-    }
-    const ref = collection(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION);
-    const unsub = onSnapshot(
-      query(ref, orderBy('updatedAt', 'desc')),
-      (snap) => {
-        const list: PlcQuizEntry[] = [];
-        snap.forEach((d) => {
-          const parsed = parsePlcQuizEntry(d.id, d.data());
-          // Soft-deleted (unshared) entries drop out of the live library — they
-          // live in Trash until restored or GC'd (Decision 3.1).
-          if (parsed && parsed.deletedAt == null) list.push(parsed);
-        });
-        setQuizzes(list);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        logError('usePlcQuizzes.snapshot', err, { plcId });
-        setLoading(false);
-        setError(err instanceof Error ? err : new Error(String(err)));
-      }
-    );
-    return () => unsub();
-  }, [plcId, user, fromProvider]);
-
-  const shareQuizWithPlc = useCallback(
-    async (input: ShareQuizWithPlcInput): Promise<void> => {
-      if (!plcId || !user) throw new Error('Not signed in');
-      const now = Date.now();
-      const entry: PlcQuizEntry = {
-        id: input.plcQuizId,
-        title: input.title,
-        questionCount: input.questionCount,
-        syncGroupId: input.syncGroupId,
-        sharedBy: user.uid,
-        sharedByEmail: input.sharedByEmail,
-        sharedByName: input.sharedByName,
-        sharedAt: now,
-        updatedAt: now,
-        ...runSettingsFields(input),
-      };
-      await setDoc(
-        doc(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION, input.plcQuizId),
-        entry
-      );
-    },
-    [plcId, user]
-  );
+  const { entries, loading, error, share, unshare, restore } =
+    usePlcLibraryEntries(plcId, QUIZ_LIBRARY);
 
   const mirrorPlcQuizHeader = useCallback(
     async (plcQuizId: string, patch: PlcQuizHeaderPatch): Promise<void> => {
@@ -347,70 +283,25 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
           headerPatchFields(patch)
         );
       } catch (err) {
-        // Mirror writes are best-effort — never reject so callers' primary
-        // action (e.g. `publishSyncedQuiz`) returns cleanly. A
-        // `not-found` from `updateDoc` here means a teammate unshared the
-        // PLC entry between our snapshot read and this mirror write —
-        // the entry is already gone, the canonical sync group still has
-        // the new content, and the next snapshot tick will reflect both.
-        // No remediation needed; logging is sufficient.
+        // Best-effort: `not-found` means a teammate unshared it meanwhile.
         logError('usePlcQuizzes.mirrorHeader', err, { plcId, plcQuizId });
       }
     },
     [plcId, user]
   );
 
-  // Soft-delete (Decision 3.1): write a `deletedAt` tombstone (+ bump
-  // updatedAt) instead of hard-deleting. The post-merge doc still passes the
-  // rule's widened `keys().hasOnly([...])` + `plcSubDeletedAtOk()`; identity +
-  // attribution fields stay untouched.
-  const unshareQuizFromPlc = useCallback(
-    async (plcQuizId: string): Promise<void> => {
-      if (!plcId || !user) throw new Error('Not signed in');
-      await updateDoc(
-        doc(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION, plcQuizId),
-        { deletedAt: Date.now(), updatedAt: Date.now() }
-      );
-    },
-    [plcId, user]
-  );
-
-  const restoreQuizInPlc = useCallback(
-    async (plcQuizId: string): Promise<void> => {
-      if (!plcId || !user) throw new Error('Not signed in');
-      await updateDoc(
-        doc(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION, plcQuizId),
-        { deletedAt: null, updatedAt: Date.now() }
-      );
-    },
-    [plcId, user]
-  );
-
-  return useMemo(() => {
-    const resolved = fromProvider
-      ? {
-          quizzes: fromProvider.data,
-          loading: fromProvider.loading,
-          error: fromProvider.error,
-        }
-      : { quizzes, loading, error };
-    return {
-      ...resolved,
-      shareQuizWithPlc,
+  return useMemo(
+    () => ({
+      quizzes: entries,
+      loading,
+      error,
+      shareQuizWithPlc: share,
       mirrorPlcQuizHeader,
-      unshareQuizFromPlc,
-      restoreQuizInPlc,
-    };
-  }, [
-    fromProvider,
-    quizzes,
-    loading,
-    error,
-    shareQuizWithPlc,
-    mirrorPlcQuizHeader,
-    unshareQuizFromPlc,
-    restoreQuizInPlc,
-  ]);
+      unshareQuizFromPlc: unshare,
+      restoreQuizInPlc: restore,
+    }),
+    [entries, loading, error, share, mirrorPlcQuizHeader, unshare, restore]
+  );
 };
 
 /**

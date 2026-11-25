@@ -24,7 +24,7 @@ import { ClipboardList, X } from 'lucide-react';
 import type { ClassRoster, QuizAssignment } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { tourTypeAttr } from '@/config/tourAnchors';
-import { AssignClassPicker } from '@/components/common/AssignClassPicker';
+import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import {
   makeEmptyPickerValue,
   type AssignClassPickerValue,
@@ -213,10 +213,10 @@ export const QuizAssignmentImportSetupModal: React.FC<
                 defaultValue: 'Pick the classes taking this quiz.',
               })}
             </p>
-            <AssignClassPicker
+            <ClassChecklist
               rosters={rosters}
-              value={pickerValue}
-              onChange={setPickerValue}
+              value={{ classIds: pickerValue.rosterIds, studentsByClass: {} }}
+              onChange={(v) => setPickerValue({ rosterIds: v.classIds })}
               disabled={saving}
             />
           </>

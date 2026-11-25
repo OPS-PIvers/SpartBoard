@@ -28,6 +28,8 @@ export interface QuizAssignContent {
   /** Set only for bank-draw quizzes. */
   resolvedDriveFileId?: string;
   bankSlots?: QuizSessionBankSlot[];
+  /** A copy of a fixed quiz as assigned, so a later edit can't re-score it. */
+  frozenDriveFileId?: string;
 }
 
 /** Bank slots resolve to their pools and freeze into a Drive copy, as the Quiz widget's assign does. */
@@ -39,13 +41,24 @@ export async function resolveQuizAssignContent(
       quiz: Pick<QuizData, 'bankSlots'>
     ) => Promise<Map<string, BankContent>>;
     saveDriveSnapshot: (quiz: QuizData) => Promise<string>;
-  }
+  },
+  { freeze = false }: { freeze?: boolean } = {}
 ): Promise<QuizAssignContent> {
   if (!quizHasBankSlots(data)) {
+    let frozenDriveFileId: string | undefined;
+    if (freeze) {
+      try {
+        frozenDriveFileId = await deps.saveDriveSnapshot(data);
+      } catch (err) {
+        // Assigning still works; it grades against the live quiz.
+        logError('resolveQuizAssignContent.freeze', err, { quizId: data.id });
+      }
+    }
     return {
       questions: Array.isArray(data.questions) ? data.questions : [],
       ...(data.stimuli ? { stimuli: data.stimuli } : {}),
       driveFileId,
+      ...(frozenDriveFileId ? { frozenDriveFileId } : {}),
     };
   }
   const resolved = resolveQuizAssignment(

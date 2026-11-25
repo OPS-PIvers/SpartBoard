@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Check,
   ChevronDown,
@@ -12,6 +12,7 @@ import {
   CellPopover,
 } from '@/components/admin/Organization/components/primitives';
 import { Modal } from '@/components/common/Modal';
+import { useUndoToast, type UndoEntry } from './useUndoToast';
 import { useAuth } from '@/context/useAuth';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
@@ -59,16 +60,6 @@ export interface GradebookSettingsModalViewProps extends Omit<
   actions: GradebookSettingsActions;
 }
 
-interface UndoEntry {
-  run: () => Promise<void>;
-}
-
-interface ToastState {
-  id: number;
-  message: string;
-  canUndo: boolean;
-}
-
 const ICON_BTN =
   'h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30';
 const FIELD =
@@ -92,9 +83,7 @@ export const GradebookSettingsModalView: React.FC<
   const [renaming, setRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [applyOpen, setApplyOpen] = useState(false);
-  const [toast, setToast] = useState<ToastState | null>(null);
-  const undoStack = useRef<UndoEntry[]>([]);
-  const toastSeq = useRef(0);
+  const { notify, fail } = useUndoToast('GradebookSettings');
   const applyRef = useRef<HTMLButtonElement>(null);
 
   const personal = entries.filter((e) => e.source === 'personal');
@@ -113,28 +102,7 @@ export const GradebookSettingsModalView: React.FC<
     (c) => classRefs.has(c.id) && configForClass(c.id).key === shown.key
   );
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast(null), 4500);
-    return () => window.clearTimeout(t);
-  }, [toast]);
-
-  const notify = (message: string, undo?: UndoEntry) => {
-    if (undo) undoStack.current = [...undoStack.current.slice(-39), undo];
-    toastSeq.current += 1;
-    setToast({ id: toastSeq.current, message, canUndo: !!undo });
-  };
-  const fail = (err: unknown) => {
-    console.error('[GradebookSettings]', err);
-    notify('Could not save. Check your connection and try again.');
-  };
   const pushUndo = (undo: UndoEntry, message: string) => notify(message, undo);
-
-  const doUndo = () => {
-    const u = undoStack.current.pop();
-    setToast(null);
-    if (u) void u.run().catch(fail);
-  };
 
   const configId = (e: GradebookConfigEntry) =>
     e.ref?.source === 'personal' ? e.ref.configId : null;
@@ -505,27 +473,6 @@ export const GradebookSettingsModalView: React.FC<
           })}
         </div>
       </CellPopover>
-
-      {toast && (
-        <div
-          key={toast.id}
-          role="status"
-          className="fixed bottom-6 left-1/2 z-toast flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-3.5 rounded-lg bg-brand-blue-dark px-4 py-2.5 text-[13px] text-white shadow-lg"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span>{toast.message}</span>
-          {toast.canUndo && (
-            <button
-              type="button"
-              {...tourAttr('gradebook.undo-toast.undo')}
-              className="font-bold underline"
-              onClick={doUndo}
-            >
-              Undo
-            </button>
-          )}
-        </div>
-      )}
     </>
   );
 };
