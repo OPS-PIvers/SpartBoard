@@ -9,7 +9,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
 - **Release review findings.** Fix small (S) findings inside the release as `release fix:` PRs. File an item here only for work that is M or larger, needs a flag or rules design, or can't ship in that release.
 - **Agent-only means agent-only.** An item in Ready needs nothing from Paul. When an item needs new wording, the agent builds it and asks Paul with a screenshot and a decision card in its thread; when it needs a real decision, it goes to PAUL_TODO.md and the item moves to Blocked.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-401**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-402**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -92,6 +92,8 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 ### One path (duplicate-path audit, 2026-11-25)
 
 From the [One Path Audit](https://claude.ai/artifact/KLgtqQcpLr6FLTjP7mtPvF): places where two or more code paths do the same job and teachers or students get different results. Each item names the path that becomes the only one. Student-visible behaviour changes ship behind a flag per CLAUDE.md. Assignment widgets keep reusing the Quiz shells (`.claude/rules/assignment-shells.md`).
+
+- **AB-401 Escape on a confirm inside a captureEscape Modal closes the outer modal** (S, admin-only today). Release 2026.11.25d review: in `components/admin/InstructionalRoutinesManager.tsx` the outer `<Modal captureEscape>` handles Escape before `DialogContainer`, so Escape on the routine delete confirm closes the whole manager and leaves the confirm open (Cancel and Delete still work). Fix in the shared pieces: let `DialogContainer` own Escape while a dialog is open (or have `Modal` skip capture when a dialog layer is on top), with a test. Any future `captureEscape` Modal that calls `showConfirm` has the same bug.
 
 ### Performance and cost
 

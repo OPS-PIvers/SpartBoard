@@ -269,29 +269,32 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
           buttonClassName="p-1.5 hover:bg-slate-100 rounded-lg border border-transparent hover:border-slate-200 transition-colors disabled:opacity-40"
           upload={(file) => pickerUpload(file, index, type)}
           onChange={(next) => setStepImage(index, type, next)}
-        >
-          {url ? (
-            <img
-              src={url}
-              alt={type === 'sticker' ? 'Sticker' : 'Display'}
-              className={
-                type === 'sticker'
-                  ? 'w-6 h-6 object-contain'
-                  : 'w-6 h-6 object-cover rounded-sm'
-              }
-            />
-          ) : type === 'sticker' ? (
-            <Sparkles
-              size={16}
-              className="text-slate-400 group-hover/upload:text-blue-500"
-            />
-          ) : (
-            <ImageIcon
-              size={16}
-              className="text-slate-400 group-hover/upload:text-blue-500"
-            />
-          )}
-        </ImagePicker>
+          buttonContent={(busy) =>
+            busy ? (
+              <Loader2 size={16} className="animate-spin text-blue-500" />
+            ) : url ? (
+              <img
+                src={url}
+                alt={type === 'sticker' ? 'Sticker' : 'Display'}
+                className={
+                  type === 'sticker'
+                    ? 'w-6 h-6 object-contain'
+                    : 'w-6 h-6 object-cover rounded-sm'
+                }
+              />
+            ) : type === 'sticker' ? (
+              <Sparkles
+                size={16}
+                className="text-slate-400 group-hover/upload:text-blue-500"
+              />
+            ) : (
+              <ImageIcon
+                size={16}
+                className="text-slate-400 group-hover/upload:text-blue-500"
+              />
+            )
+          }
+        />
         {url && !anyUploading && (
           <button
             type="button"
