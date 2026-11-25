@@ -21,6 +21,7 @@ import { sanitizeQuizResponse } from '@/utils/security';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { PEER_STUDENT_STRINGS } from './peerReview/peerStrings';
 import { StudentPageShell } from '../StudentPageShell';
+import { StudentOfflineBanner } from '@/components/common/StudentOfflineBanner';
 
 export type WritingShellSession = Pick<
   WritingAssignmentSession,
@@ -41,7 +42,6 @@ export interface WritingShellPiece {
   unsent: UnsentWriting[];
   notice: WritingNotice | null;
   busy: 'turn-in' | 'take-back' | null;
-  online: boolean;
   /** D4/D22: the right-click menu stays on only for spelling help. */
   contextMenuOff: boolean;
   onStart: () => void;
@@ -97,8 +97,6 @@ const WRITING_STRINGS = {
     "Your writing isn't saved yet. Keep this tab open, or copy your text somewhere safe.",
   notSavedNotice:
     "Your writing didn't save. Check your connection and try again.",
-  offline:
-    "You're offline. Keep this tab open and your writing will save when you reconnect.",
   takenOverTitle: 'This writing is open in another tab',
   takenOverBody: 'Keep writing there, or continue here.',
   continueHere: 'Continue here',
@@ -511,14 +509,7 @@ export const WritingStudentShell: React.FC<{
           <p className="text-sm text-slate-700">{S.returned}</p>
         )}
         {piece?.feedback}
-        {view.mode === 'writing' && piece && !piece.online && (
-          <div
-            role="status"
-            className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900"
-          >
-            {S.offline}
-          </div>
-        )}
+        <StudentOfflineBanner hidden={view.mode !== 'writing' || !piece} />
 
         {showEditor && (
           <div

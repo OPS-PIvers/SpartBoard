@@ -3578,12 +3578,6 @@
       "opensSoon": "Opens when your teacher starts it.",
       "keepOpen": "Keep this tab open. The quiz appears here as soon as your class is let in."
     },
-    "autoSubmit": {
-      "unlocked": "Your unlocked attempt has been submitted.",
-      "strikes": "You left the page too many times. Your assignment has been submitted. Ask your teacher if you believe this happened by mistake.",
-      "title": "Quiz Auto-Submitted",
-      "awayTooLong": "You were away from the quiz too long, so it was submitted."
-    },
     "errors": {
       "saveAnswer": "Couldn't save your answer. Tap to try again.",
       "submitQuiz": "Couldn't submit your quiz. Tap to try again.",
@@ -3620,13 +3614,6 @@
     "closed": {
       "submitted": "This assignment closed. Your answers were submitted.",
       "submitFailed": "Couldn't submit. Check your connection and try again, or ask your teacher for an extension."
-    },
-    "tabWarning": {
-      "title": "TAB SWITCH DETECTED",
-      "body": "You navigated away from the quiz. This incident has been logged.",
-      "warningN": "Warning {{n}}.",
-      "autoSubmit": "Repeated tab switches will automatically submit your quiz.",
-      "dismiss": "I Understand, Return to Quiz"
     },
     "timer": {
       "secondsLeft_one": "{{count}} second left",
@@ -3720,7 +3707,6 @@
     "allItemsPlaced": "All items placed."
   },
   "quizSubmit": {
-    "offline": "You're offline. Keep this tab open and your answers will save when you reconnect.",
     "undo": "Undo",
     "confirmTitle": "Submit your quiz?",
     "confirmBody": "You can't change your answers after this.",
@@ -5234,19 +5220,13 @@
       "periodPausedBody": "Your progress stays on this page. Keep this tab open.",
       "notInPeriod": "You're not in a class this set was assigned to. Ask your teacher.",
       "seatError": "Couldn't join your class. Refresh the page to try again.",
-      "tabTitle": "You left the page",
-      "tabBody": "Your teacher can see this.",
-      "tabWarning": "Warning {{count}}.",
-      "tabSubmits": "After {{limit}} warnings, your assignment is submitted.",
-      "tabReturn": "Back to my assignment",
       "raiseHand": "Raise hand",
       "handRaised": "Hand raised",
       "timeUpTitle": "Time's up",
       "tabSubmitTitle": "You left the page too many times",
       "submittingAnswers": "Submitting your answers…",
       "forcedTab": "You left the page too many times. Your assignment has been submitted. Ask your teacher if you think this was a mistake.",
-      "tryAgainError": "Couldn't start a new attempt. Try again.",
-      "tabWarningOf": "Warning {{count}} of {{limit}}."
+      "tryAgainError": "Couldn't start a new attempt. Try again."
     },
     "speak": {
       "player": {
@@ -6580,5 +6560,20 @@
     "help": "Help",
     "menuLabel": "Help",
     "record": "Record a tour"
+  },
+  "studentTab": {
+    "title": "You left the page",
+    "body": "Your teacher can see this.",
+    "warning": "Warning {{count}}.",
+    "warningOf": "Warning {{count}} of {{limit}}.",
+    "submits": "After {{limit}} warnings, your assignment is submitted.",
+    "return": "Back to my assignment",
+    "submittedTitle": "Assignment submitted",
+    "strikes": "You left the page too many times. Your assignment has been submitted. Ask your teacher if you believe this happened by mistake.",
+    "unlocked": "Your unlocked attempt has been submitted.",
+    "awayTooLong": "You were away too long. Your assignment has been submitted."
+  },
+  "studentOffline": {
+    "banner": "You're offline. Keep this tab open until you reconnect."
   }
 }

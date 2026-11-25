@@ -166,6 +166,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'substitute-sharing',
   'tab-away-timer',
   'universal-import',
+  'va-student-tab-rules',
   'video-activity-ai',
   'video-activity-audio-transcription',
   'video-activity-live',

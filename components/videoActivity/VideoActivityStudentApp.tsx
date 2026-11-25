@@ -34,7 +34,6 @@ import {
   Unlock as UnlockIcon,
   ShieldAlert,
 } from 'lucide-react';
-import { useDialog } from '@/context/useDialog';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { useStudentAuthBootstrap } from '@/hooks/useStudentAuthBootstrap';
@@ -75,13 +74,14 @@ import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner'
 import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
 import { isStaffAudience } from '@/utils/staffAudience';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
-import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
-import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
 import {
-  getEffectiveTabWarningThreshold,
-  hasReachedTabWarningThreshold,
-} from '@/utils/tabWarningThreshold';
-import { TabAwayClock } from '@/components/common/TabAwayClock';
+  resolveTabStrikeRules,
+  useTabStrikePolicy,
+} from '@/hooks/useTabStrikePolicy';
+import { useTabSubmitNotice } from '@/hooks/useTabSubmitNotice';
+import { hasReachedTabWarningThreshold } from '@/utils/tabWarningThreshold';
+import { TabStrikeWarning } from '@/components/common/TabWarningModal';
+import { StudentOfflineBanner } from '@/components/common/StudentOfflineBanner';
 import { useServerNow } from '@/hooks/useServerNow';
 import { useStudentWindow } from '@/hooks/useStudentWindow';
 import { syncServerTime } from '@/utils/serverTime';
@@ -672,11 +672,6 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   }, [completeActivity, isViewOnly, perPeriod, freezeForPeriod, sessionId]);
 
   // ── Tab-switch warning system (mirrors QuizStudentApp) ──────────────────
-  const { showAlert } = useDialog();
-  const [showCheatWarning, setShowCheatWarning] = useState(false);
-  const [warningCount, setWarningCount] = useState(
-    () => myResponse?.tabSwitchWarnings ?? 0
-  );
   const [showResumeModal, setShowResumeModal] = useState(
     () => !!myResponse?.unlocked
   );
@@ -725,17 +720,6 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     }
   }, [answeredQuestionIds, sortedQuestions, isLive, previewKey, myResponse]);
 
-  // Track the previous `tabSwitchWarnings` value via state-during-render
-  // so we can sync the local counter without an extra effect pass.
-  const serverWarnings = myResponse?.tabSwitchWarnings ?? 0;
-  const [prevServerWarnings, setPrevServerWarnings] = useState(serverWarnings);
-  if (prevServerWarnings !== serverWarnings) {
-    setPrevServerWarnings(serverWarnings);
-    if (serverWarnings > warningCount) {
-      setWarningCount(serverWarnings);
-    }
-  }
-
   // Same render-time pattern for the unlock-edge detector: when the
   // teacher flips `unlocked` from false → true (e.g. the student was
   // sitting on the post-submit screen when unlock fired) re-open the
@@ -749,48 +733,38 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     }
   }
 
-  const handleAutoSubmit = useCallback(
-    async (reason: 'three-strikes' | 'post-unlock' = 'three-strikes') => {
-      const message =
-        reason === 'post-unlock'
-          ? 'Your unlocked attempt is being submitted now.'
-          : 'You have left the activity too many times. Your activity is being auto-submitted.';
-      await showAlert(message, {
-        title: 'Activity Auto-Submitted',
-        variant: 'warning',
-      });
-      try {
-        await completeActivity();
-      } catch (err) {
-        if (!perPeriod || !isFrozenWriteError(err)) throw err;
-        freezeForPeriod();
-      }
-    },
-    [showAlert, completeActivity, perPeriod, freezeForPeriod]
-  );
+  const submitForTab = useCallback(async () => {
+    try {
+      await completeActivity();
+      return true;
+    } catch (err) {
+      if (!perPeriod || !isFrozenWriteError(err)) throw err;
+      // The class is closed: nothing was submitted, so no notice.
+      freezeForPeriod();
+      return false;
+    }
+  }, [completeActivity, perPeriod, freezeForPeriod]);
+  const tabSubmitNotice = useTabSubmitNotice();
 
-  const tabWarningsEnabled =
-    session?.sessionOptions?.tabWarningsEnabled !== false;
-  // Live sessions log warnings but never submit a student's work.
-  const tabWarningThreshold = isLive
-    ? 'off'
-    : getEffectiveTabWarningThreshold(
-        session?.sessionOptions?.tabWarningThreshold
-      );
-  // Null unless the teacher assigned with the tab-away-timer flag.
-  const sessionAwayRule = getEffectiveTabAwayRule(
-    session?.sessionOptions ?? {}
-  );
-  const tabAwayRule =
-    isLive && sessionAwayRule
-      ? { ...sessionAwayRule, autoSubmit: false }
-      : sessionAwayRule;
-
-  // The tab-away tracker counts each exit, logs it to `tabExits`, and closes
-  // it when the student comes back.
-  const tabTracker = useTabAwayTracker({
+  // Warning counts and auto-submit rules shared with every student app; live sessions never submit.
+  const tabPolicy = useTabStrikePolicy({
+    rules: resolveTabStrikeRules({
+      settings: session?.sessionOptions ?? {},
+      // Students' own accommodations apply only on sessions stamped with the flag.
+      override: session?.sessionOptions?.studentTabRules
+        ? pointer?.override
+        : undefined,
+      live: isLive,
+    }),
+    warn: session?.sessionOptions?.tabWarningsEnabled !== false,
+    serverCount: myResponse?.tabSwitchWarnings ?? 0,
+    countStrike: () => reportTabSwitch(),
+    // Teacher-unlocked attempts skip the warning: the next exit submits.
+    oneExitLeft: !!myResponse?.unlocked && !isLive,
+    submit: submitForTab,
+    onSubmitted: tabSubmitNotice,
     enabled:
-      tabWarningsEnabled &&
+      session?.sessionOptions?.tabWarningsEnabled !== false &&
       joinStatus === 'joined' &&
       session?.status === 'active' &&
       !isViewOnly &&
@@ -801,58 +775,13 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     serverExits: myResponse?.tabExits,
     attempt: myResponse?.completedAttempts ?? 0,
     getPosition: () => ({ videoTime: Math.round(playheadRef.current) }),
-    onLeave: async () => {
-      let newTotal: number;
-      try {
-        newTotal = await reportTabSwitch();
-      } catch (err) {
-        logError('VideoActivityStudentApp.reportTabSwitch', err, {
-          sessionId,
-        });
-        setShowCheatWarning(true);
-        return false;
-      }
-      setWarningCount(newTotal);
-      // Teacher-unlocked attempts skip the warning modal — any further
-      // strike finalizes the attempt instantly.
-      if (myResponse?.unlocked && !isLive) {
-        setShowCheatWarning(false);
-        // A failed submit (Firestore offline) must not leave detection armed-off.
-        void handleAutoSubmit('post-unlock').finally(tabTracker.release);
-        return true;
-      }
-      setShowCheatWarning(true);
-      if (hasReachedTabWarningThreshold(newTotal, tabWarningThreshold)) {
-        setTimeout(() => void handleAutoSubmit(), 100);
-        return true;
-      }
-      return false;
-    },
     saveExits: saveTabExits,
-    limitMs: tabAwayRule?.limitMs ?? null,
-    autoSubmit: tabAwayRule?.autoSubmit ?? false,
-    onAwayTooLong: () => {
-      // Submit first: the tab may be hidden, where a blocking alert would wait.
-      setShowCheatWarning(true);
-      void completeActivity()
-        .then(() =>
-          showAlert(
-            'You were away from the activity too long, so it was submitted.',
-            { title: 'Activity Auto-Submitted', variant: 'warning' }
-          )
-        )
-        .catch((err: unknown) =>
-          logError('VideoActivityStudentApp.awayAutoSubmit', err, {
-            sessionId,
-          })
-        )
-        .finally(tabTracker.release);
-    },
     fullscreenRequired: effectivePageProtections(
       session?.sessionOptions ?? {},
       pointer?.override
     ).fullscreen,
   });
+  const tabWarningThreshold = tabPolicy.rules.threshold;
 
   // ── Invalid / missing session ID ──────────────────────────────────────────
 
@@ -1323,50 +1252,12 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         </div>
       )}
 
-      {/* Tab-switch warning modal — same red full-screen style as the
-          Quiz cheat warning. Hidden for teacher-unlocked attempts, which
-          finalize on the next strike instead. */}
-      {showCheatWarning && (
-        <div className="absolute inset-0 z-overlay bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
-          <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
-          <h2 className="text-4xl font-black text-white mb-4">
-            TAB SWITCH DETECTED
-          </h2>
-          {tabAwayRule && tabTracker.away && (
-            <TabAwayClock
-              away={tabTracker.away}
-              limitMs={tabAwayRule.limitMs}
-              autoSubmit={tabAwayRule.autoSubmit}
-            />
-          )}
-          <p className="text-red-200 text-lg max-w-md mb-8">
-            You navigated away from the activity. This incident has been logged.
-            <br />
-            <br />
-            {tabWarningThreshold === 'off' ? (
-              <strong>Warning {warningCount}.</strong>
-            ) : (
-              <>
-                <strong>
-                  Warning {warningCount} of {tabWarningThreshold}.
-                </strong>{' '}
-                If you reach {tabWarningThreshold} warnings, your activity will
-                automatically submit.
-              </>
-            )}
-          </p>
-          <button
-            {...tourAttr('student.video-activity.tab-warning-return')}
-            onClick={() => {
-              setShowCheatWarning(false);
-              tabTracker.resume();
-            }}
-            className="px-8 py-4 bg-white text-red-900 font-bold rounded-xl active:scale-95 transition-transform"
-          >
-            I Understand, Return to Activity
-          </button>
-        </div>
-      )}
+      <StudentOfflineBanner />
+      <TabStrikeWarning
+        policy={tabPolicy}
+        layer="panel"
+        dismissAttrs={tourAttr('student.video-activity.tab-warning-return')}
+      />
 
       {/* Persistent "one strike and you're out" banner for unlocked
           attempts. Sits above the top bar so it's visible alongside the

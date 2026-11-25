@@ -2324,12 +2324,6 @@
       "opensSoon": "S'ouvre quand ton enseignant le lance.",
       "keepOpen": "Garde cet onglet ouvert. Le quiz apparaît ici dès que ta classe peut commencer."
     },
-    "autoSubmit": {
-      "unlocked": "Ta tentative déverrouillée a été envoyée.",
-      "strikes": "Tu as quitté la page trop de fois. Ton devoir a été envoyé. Demande à ton enseignant si tu penses que c'est une erreur.",
-      "title": "Quiz envoyé automatiquement",
-      "awayTooLong": "Tu es resté trop longtemps loin du quiz, il a donc été envoyé."
-    },
     "errors": {
       "saveAnswer": "Impossible d'enregistrer ta réponse. Touche pour réessayer.",
       "submitQuiz": "Impossible d'envoyer ton quiz. Touche pour réessayer.",
@@ -2366,13 +2360,6 @@
     "closed": {
       "submitted": "Ce devoir est fermé. Tes réponses ont été envoyées.",
       "submitFailed": "Envoi impossible. Vérifie ta connexion et réessaie, ou demande plus de temps à ton enseignant."
-    },
-    "tabWarning": {
-      "title": "CHANGEMENT D'ONGLET DÉTECTÉ",
-      "body": "Tu as quitté le quiz. Cela a été noté.",
-      "warningN": "Avertissement {{n}}.",
-      "autoSubmit": "Si tu changes d'onglet trop souvent, ton quiz sera rendu automatiquement.",
-      "dismiss": "J'ai compris, retourner au quiz"
     },
     "timer": {
       "secondsLeft_one": "{{count}} seconde restante",
@@ -2466,7 +2453,6 @@
     "allItemsPlaced": "Tous les éléments sont placés."
   },
   "quizSubmit": {
-    "offline": "Tu es hors ligne. Garde cet onglet ouvert et tes réponses seront enregistrées à la reconnexion.",
     "undo": "Annuler",
     "confirmTitle": "Remettre ton quiz ?",
     "confirmBody": "Tu ne pourras plus modifier tes réponses après cela.",
@@ -3918,19 +3904,13 @@
       "periodPausedBody": "Ta progression reste sur cette page. Garde cet onglet ouvert.",
       "notInPeriod": "Tu n’es dans aucune classe à laquelle cette série a été attribuée. Demande à ton enseignant.",
       "seatError": "Impossible de rejoindre ta classe. Recharge la page pour réessayer.",
-      "tabTitle": "Tu as quitté la page",
-      "tabBody": "Ton enseignant peut le voir.",
-      "tabWarning": "Avertissement {{count}}.",
-      "tabSubmits": "Après {{limit}} avertissements, ton devoir est remis.",
-      "tabReturn": "Retour à mon devoir",
       "raiseHand": "Lever la main",
       "handRaised": "Main levée",
       "timeUpTitle": "Le temps est écoulé",
       "tabSubmitTitle": "Tu as quitté la page trop de fois",
       "submittingAnswers": "Envoi de tes réponses…",
       "forcedTab": "Tu as quitté la page trop de fois. Ton devoir a été remis. Parle à ton enseignant si tu penses que c'est une erreur.",
-      "tryAgainError": "Impossible de commencer une nouvelle tentative. Réessaie.",
-      "tabWarningOf": "Avertissement {{count}} sur {{limit}}."
+      "tryAgainError": "Impossible de commencer une nouvelle tentative. Réessaie."
     },
     "speak": {
       "player": {
@@ -5136,5 +5116,20 @@
     "help": "Aide",
     "menuLabel": "Aide",
     "record": "Enregistrer une visite"
+  },
+  "studentTab": {
+    "title": "Tu as quitté la page",
+    "body": "Ton enseignant peut le voir.",
+    "warning": "Avertissement {{count}}.",
+    "warningOf": "Avertissement {{count}} sur {{limit}}.",
+    "submits": "Après {{limit}} avertissements, ton devoir est remis.",
+    "return": "Retour à mon devoir",
+    "submittedTitle": "Devoir remis",
+    "strikes": "Tu as quitté la page trop de fois. Ton devoir a été envoyé. Demande à ton enseignant si tu penses que c'est une erreur.",
+    "unlocked": "Ta tentative déverrouillée a été envoyée.",
+    "awayTooLong": "Tu es resté loin trop longtemps. Ton devoir a été remis."
+  },
+  "studentOffline": {
+    "banner": "Tu es hors ligne. Garde cet onglet ouvert jusqu'à la reconnexion."
   }
 }
