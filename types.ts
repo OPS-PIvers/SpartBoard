@@ -2722,6 +2722,10 @@ export interface ActivityWallLibraryEntry {
   allowLikes?: boolean;
   allowComments?: boolean;
   allowCommentResponses?: boolean;
+  /** Library folder; absent or null at the top level. */
+  folderId?: string | null;
+  /** Manual library order. */
+  order?: number;
 }
 
 export interface ActivityWallBuildingConfig {
@@ -2765,6 +2769,10 @@ export interface ActivityWallConfig {
   activeActivityId?: string | null;
   /** Whose library the active wall is in, so other members of a shared board can find it. */
   activeActivityOwnerUid?: string | null;
+  /** Library on the widget face or the open wall; unset picks by whether a wall is open. */
+  view?: 'library' | 'wall';
+  libraryViewMode?: 'grid' | 'list';
+  folderPanelMode?: 'auto' | 'full' | 'rail' | 'hidden';
   draftActivity?: ActivityWallActivity;
   /** Photo size on the widget face. */
   imageSize?: 'small' | 'medium' | 'large';
@@ -12081,7 +12089,8 @@ export type GlobalFeature =
   | 'student-set-time'
   /** Per-student Opens and Closes hold in every student app, and a later close for one student no longer keeps the class open. */
   | 'student-windows'
-  | 'library-duplicate-more';
+  | 'library-duplicate-more'
+  | 'activity-wall-library-face';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {
@@ -13321,7 +13330,8 @@ export type LibraryFolderWidget =
   | 'miniapp'
   | 'flashcards'
   | 'projects'
-  | 'writing';
+  | 'writing'
+  | 'activity_wall';
 
 /**
  * A folder record stored at

@@ -35,6 +35,7 @@ const FOLDER_COLLECTIONS = [
   'flashcard_folders',
   'projects_folders',
   'writing_folders',
+  'activity_wall_folders',
 ];
 
 let testEnv: RulesTestEnvironment;

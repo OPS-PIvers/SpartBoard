@@ -41,6 +41,8 @@ export const folderCollectionName = (widget: LibraryFolderWidget): string => {
       return 'projects_folders';
     case 'writing':
       return 'writing_folders';
+    case 'activity_wall':
+      return 'activity_wall_folders';
   }
 };
 
@@ -67,6 +69,8 @@ const itemCollectionName = (widget: LibraryFolderWidget): string => {
       return 'projects';
     case 'writing':
       return 'writing_assignments';
+    case 'activity_wall':
+      return 'activity_wall_activities';
   }
 };
 
