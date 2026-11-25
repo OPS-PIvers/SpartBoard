@@ -5406,6 +5406,12 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-monitor.student-schedule': {
+    label: 'Schedule button on an absent student, in the Quiz monitor roster',
+    perField: true,
+    rows: true,
+    rowList: 'quiz-monitor-roster',
+  },
   'quiz-monitor.student-mark-absent': {
     label:
       'Absent button on a student who has not joined, in the Quiz monitor roster',

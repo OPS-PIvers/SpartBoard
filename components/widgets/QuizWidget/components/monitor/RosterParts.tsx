@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Clock, MoreVertical } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { tourTypeAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
@@ -172,6 +172,10 @@ export const RosterRowMenu: React.FC<{
     setOpen(false);
     setConfirming(null);
   });
+  // Bottom rows (absent students sort last) would open the menu out of view.
+  const revealMenu = useCallback((el: HTMLDivElement | null) => {
+    el?.scrollIntoView?.({ block: 'nearest' });
+  }, []);
   if (items.length === 0) return null;
 
   return (
@@ -192,6 +196,7 @@ export const RosterRowMenu: React.FC<{
       </button>
       {open && (
         <div
+          ref={revealMenu}
           className="absolute right-0 top-full z-30 bg-white border border-brand-gray-lighter rounded-lg shadow-lg overflow-hidden"
           style={{
             marginTop: 'min(4px, 1cqmin)',
