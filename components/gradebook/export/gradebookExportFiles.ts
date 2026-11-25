@@ -1,6 +1,7 @@
 import { downloadCsv } from '@/utils/quizResultsCsv';
 import { quoteCsvCell } from '@/utils/quizTargetStats';
 import type { ExportCell } from './gradebookExport';
+import { DriveSession } from '@/utils/driveRequest';
 
 const SHEETS_API_URL = 'https://sheets.googleapis.com/v4/spreadsheets';
 
@@ -23,7 +24,7 @@ export async function createGradebookSheet(
   rows: ExportCell[][],
   title: string
 ): Promise<string> {
-  const res = await fetch(SHEETS_API_URL, {
+  const res = await new DriveSession(accessToken).request(SHEETS_API_URL, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,

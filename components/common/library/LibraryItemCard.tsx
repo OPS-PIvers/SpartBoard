@@ -32,7 +32,8 @@ import {
 import { useLibraryFolderView } from './LibraryFolderViewContext';
 import { useLibraryDrag } from './LibraryDragContext';
 import { itemMergeDroppableId } from './folderDropTargets';
-import { OverflowMenu } from './LibraryOverflowMenu';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
+import { libraryMenuProps } from './libraryMenuProps';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import type {
   LibraryBadge,
@@ -568,9 +569,11 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
         )}
         {secondaryActions && secondaryActions.length > 0 && (
           <OverflowMenu
-            actions={secondaryActions}
-            rowKey={tourRowKey}
-            widgetType={tourWidgetTypeResolved}
+            items={secondaryActions}
+            {...libraryMenuProps({
+              rowKey: tourRowKey,
+              widgetType: tourWidgetTypeResolved,
+            })}
           />
         )}
       </div>

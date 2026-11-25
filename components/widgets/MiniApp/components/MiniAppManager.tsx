@@ -326,10 +326,10 @@ const MiniAppArchiveRow: React.FC<{
   const isViewOnly = assignment.mode === 'view-only';
   // Admin-only by default — view-count display fires one Firestore
   // aggregation per visible card on every dashboard tab-focus, so we gate
-  // it behind the `share-link-tracking` global permission. Non-admins
+  // it behind the `share-link-tracking` global permission. Users without it
   // pass `enabled: false` to the hook → no Firestore read at all.
-  const { canSeeShareTracking } = useAuth();
-  const trackingEnabled = canSeeShareTracking();
+  const { canAccessFeature } = useAuth();
+  const trackingEnabled = canAccessFeature('share-link-tracking');
   const { count } = useSessionViewCount(
     'mini_app_sessions',
     assignment.sessionId,

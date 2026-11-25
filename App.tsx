@@ -831,6 +831,7 @@ const AppContent: React.FC = () => {
     isStudentRole,
     roleResolved,
     googleAccessToken,
+    refreshGoogleToken,
     signOut,
     canAccessFeature,
     globalPermissionsLoaded,
@@ -860,6 +861,7 @@ const AppContent: React.FC = () => {
   usePendingTeammateQuizCopies({
     uid: user?.uid ?? null,
     googleAccessToken,
+    refreshGoogleToken,
     onCopyAdded: ({ title, requestedByName }) => {
       addToast(
         `${requestedByName} printed response sheets for "${title}", so it has been added to your quiz library.`,

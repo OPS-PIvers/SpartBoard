@@ -42,7 +42,7 @@ import {
   STUCK_ARCHIVE_AGE_MS,
 } from './quizMediaArchive';
 import { ALLOWED_ORIGINS } from './classlinkShared';
-import { isRevokedMemberStatus, isSiteWideAdmin } from './authz';
+import { isRevokedMemberStatus, isSiteSuperAdmin } from './authz';
 import './functionsInit';
 import { withQuizSessionContent } from './quizSessionContent';
 import {
@@ -541,17 +541,7 @@ export async function assertOrgMediaAdmin(
       'Not authorized for this organization.'
     );
   }
-  const adminSnap = await db.collection('admins').doc(callerEmailLower).get();
-  if (
-    adminSnap.exists &&
-    (await isSiteWideAdmin(
-      db,
-      callerEmailLower,
-      adminSnap.get('roleId'),
-      adminSnap.get('orgId')
-    ))
-  )
-    return;
+  if (await isSiteSuperAdmin(db, callerEmailLower)) return;
   const memberSnap = await db
     .doc(`organizations/${orgId}/members/${callerEmailLower}`)
     .get();

@@ -506,25 +506,23 @@ describe('PlcAssessmentList', () => {
     const row = rowByTitle('Ratios warm-up');
     openKebab(row);
     fireEvent.click(
-      within(row).getByRole('menuitem', { name: 'Add to my library' })
+      screen.getByRole('menuitem', { name: 'Add to my library' })
     );
     expect(importQuiz).toHaveBeenCalledWith(
       expect.objectContaining({ plcQuizId: 'lib-1', syncGroupId: 'g-lib' })
     );
 
     openKebab(row);
-    fireEvent.click(within(row).getByRole('menuitem', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
     expect(editQuiz).toHaveBeenCalled();
 
     openKebab(row);
-    fireEvent.click(
-      within(row).getByRole('menuitem', { name: 'Version history' })
-    );
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Version history' }));
     expect(openVersionHistory).toHaveBeenCalled();
 
     // No live assessment yet, so there is nothing to rename.
     openKebab(row);
-    expect(within(row).queryByRole('menuitem', { name: 'Rename' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Rename' })).toBeNull();
   });
 
   const printMenuItem = 'Print response sheets for a teammate';
@@ -533,7 +531,7 @@ describe('PlcAssessmentList', () => {
     render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
     const row = rowByTitle('Ratios warm-up');
     openKebab(row);
-    fireEvent.click(within(row).getByRole('menuitem', { name: printMenuItem }));
+    fireEvent.click(screen.getByRole('menuitem', { name: printMenuItem }));
     expect(screen.getByTestId('teammate-print-modal')).toBeInTheDocument();
     const props = teammatePrintProps.mock.calls[0][0] as {
       plcQuizId: string;
@@ -551,7 +549,7 @@ describe('PlcAssessmentList', () => {
       );
       const row = rowByTitle('Ratios warm-up');
       openKebab(row);
-      const item = within(row).queryByRole('menuitem', { name: printMenuItem });
+      const item = screen.queryByRole('menuitem', { name: printMenuItem });
       unmount();
       return item === null;
     };
@@ -575,9 +573,7 @@ describe('PlcAssessmentList', () => {
     );
     const row = rowByTitle('Ratios warm-up');
     openKebab(row);
-    expect(
-      within(row).queryByRole('menuitem', { name: printMenuItem })
-    ).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: printMenuItem })).toBeNull();
     unmount();
   });
 
@@ -597,7 +593,7 @@ describe('PlcAssessmentList', () => {
     render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
     const row = rowByTitle('Fractions CFA');
     openKebab(row);
-    fireEvent.click(within(row).getByRole('menuitem', { name: 'Rename' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }));
     await vi.waitFor(() =>
       expect(updateAssessment).toHaveBeenCalledWith('a-scored', {
         title: 'Renamed CFA',
@@ -609,7 +605,7 @@ describe('PlcAssessmentList', () => {
     render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
     const row = rowByTitle('Fractions CFA');
     openKebab(row);
-    fireEvent.click(within(row).getByRole('menuitem', { name: 'Archive' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Archive' }));
     await vi.waitFor(() =>
       expect(archiveQuiz).toHaveBeenCalledWith({
         plcQuizId: 'lib-2',
@@ -631,8 +627,8 @@ describe('PlcAssessmentList', () => {
       within(row).queryByRole('button', { name: 'Assign to my classes' })
     ).toBeNull();
     openKebab(row);
-    expect(within(row).queryByRole('menuitem', { name: 'Archive' })).toBeNull();
-    fireEvent.click(within(row).getByRole('menuitem', { name: 'Restore' }));
+    expect(screen.queryByRole('menuitem', { name: 'Archive' })).toBeNull();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Restore' }));
     await vi.waitFor(() =>
       expect(restoreQuiz).toHaveBeenCalledWith({
         plcQuizId: null,

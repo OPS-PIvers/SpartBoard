@@ -161,15 +161,15 @@ describe('FlashcardResultsView — per-period access', () => {
 
     bucket('Done');
     openMenu('done-1');
-    expect(screen.queryByRole('button', { name: 'Let in now' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Let in now' })).toBeNull();
     openMenu('done-1');
     bucket('Not started');
     openMenu('working-3');
-    expect(screen.queryByRole('button', { name: 'Let in now' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Let in now' })).toBeNull();
     openMenu('working-3');
 
     openMenu('waiting-1');
-    fireEvent.click(screen.getByRole('button', { name: 'Let in now' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Let in now' }));
     await waitFor(() => expect(h.updateDoc).toHaveBeenCalledTimes(1));
     const [ref, field] = h.updateDoc.mock.calls[0] as [
       string,
