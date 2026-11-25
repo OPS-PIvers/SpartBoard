@@ -32,7 +32,7 @@ const answerCases: { name: string; answer: Answer }[] = [
   },
   {
     name: 'unresponded with text',
-    answer: { questionId: 'q', answer: 'x', unresponded: true },
+    answer: { questionId: 'q', answer: 'x', unresponded: 'passed' },
   },
   {
     name: 'recording only',
@@ -64,7 +64,7 @@ const answerCases: { name: string; answer: Answer }[] = [
       questionId: 'q',
       answer: '',
       artifacts: [artifact('uploaded')],
-      unresponded: true,
+      unresponded: 'passed',
     },
   },
   {
