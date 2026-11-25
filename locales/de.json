@@ -4780,7 +4780,7 @@
     },
     "locked": {
       "title": "Noch nicht geöffnet",
-      "body": "Lass diesen Tab geöffnet. Die Aktivität erscheint hier, sobald deine Klasse freigeschaltet ist.",
+      "body": "Lass diesen Tab geöffnet. Die Aktivität erscheint hier, sobald deine Lehrkraft sie öffnet.",
       "bodyOwn": "Lass diesen Tab geöffnet. Die Aktivität erscheint hier, sobald sie geöffnet ist.",
       "paused": "Pausiert",
       "closed": "Geschlossen",

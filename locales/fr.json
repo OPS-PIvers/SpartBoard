@@ -4780,7 +4780,7 @@
     },
     "locked": {
       "title": "Pas encore ouverte",
-      "body": "Garde cet onglet ouvert. L’activité apparaîtra ici dès que ta classe y aura accès.",
+      "body": "Garde cet onglet ouvert. L’activité apparaîtra ici dès que ton enseignant l’ouvrira.",
       "bodyOwn": "Garde cet onglet ouvert. L’activité apparaîtra ici dès qu’elle sera ouverte.",
       "paused": "En pause",
       "closed": "Fermée",

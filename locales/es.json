@@ -4780,7 +4780,7 @@
     },
     "locked": {
       "title": "Todavía no está abierta",
-      "body": "Mantén esta pestaña abierta. La actividad aparecerá aquí en cuanto tu clase tenga acceso.",
+      "body": "Mantén esta pestaña abierta. La actividad aparecerá aquí en cuanto tu maestro la abra.",
       "bodyOwn": "Mantén esta pestaña abierta. La actividad aparecerá aquí en cuanto se abra.",
       "paused": "En pausa",
       "closed": "Cerrada",

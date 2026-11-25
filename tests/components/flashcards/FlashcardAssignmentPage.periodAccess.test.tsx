@@ -144,7 +144,7 @@ describe('FlashcardAssignmentPage — per-period access', () => {
     });
     render(<FlashcardAssignmentPage />);
     expect(
-      await screen.findByText(/as soon as your class is let in/)
+      await screen.findByText(/as soon as your teacher opens it/)
     ).toBeInTheDocument();
     expect(seatWrites()).toEqual([
       ['flashcard_sessions/fc-1/seats/ps-1', { classId: 'A' }],
