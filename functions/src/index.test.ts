@@ -4097,6 +4097,9 @@ describe('index barrel — deployed export set', () => {
     'finalizeIdleQuizAttempts',
     'finalizeExpiredQuizAttempts',
     'queueVideoClassTurnIns',
+    'queueQuizTurnIns',
+    'queueGuidedLearningTurnIns',
+    'queueVideoRunTurnIns',
     'sweepVideoClassTurnIns',
     // Google / Spotify OAuth
     'exchangeGoogleAuthCode',

@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check } from 'lucide-react';
-import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
+import { Modal } from '@/components/common/Modal';
 import {
   tourAttr,
   tourFieldAttr,
@@ -712,19 +712,17 @@ const ConfirmInner: React.FC<ConfirmProps> = ({
 }) => {
   const [typed, setTyped] = useState('');
   const typingOk = !requireTyping || typed === requireTyping;
-  const backdropProps = useBackdropDismiss(busy ? undefined : onCancel);
   return (
-    <div
-      className="fixed inset-0 z-modal-deep flex items-center justify-center p-4 bg-[rgba(29,42,93,0.45)] animate-in fade-in duration-200"
-      {...backdropProps}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
+    <Modal
+      isOpen
+      onClose={busy ? () => undefined : onCancel}
+      variant="bare"
+      zIndex="z-modal-deep"
+      captureEscape
+      ariaLabel={title}
+      className="rounded-2xl bg-white shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)]"
     >
-      <div
-        className="bg-white rounded-2xl shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] w-full max-w-md animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div>
         <div className="p-6">
           <h3 className="text-lg font-bold text-slate-900">{title}</h3>
           <div className="mt-2 text-sm text-slate-600">{message}</div>
@@ -760,7 +758,7 @@ const ConfirmInner: React.FC<ConfirmProps> = ({
           </Btn>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 
@@ -775,56 +773,51 @@ export const LocalModal: React.FC<{
   footer?: React.ReactNode;
   size?: 'md' | 'lg' | 'xl';
 }> = ({ isOpen, onClose, title, icon, children, footer, size = 'md' }) => {
-  useCaptureEscape(isOpen, onClose);
-  const backdropProps = useBackdropDismiss(onClose);
-  if (!isOpen) return null;
   const widthClass =
     size === 'xl' ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-lg';
   return (
-    <div
-      className="fixed inset-0 z-modal-nested flex items-center justify-center p-4 bg-[rgba(29,42,93,0.45)] animate-in fade-in duration-200"
-      {...backdropProps}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      variant="bare"
+      zIndex="z-modal-nested"
+      maxWidth={widthClass}
+      captureEscape
+      ariaLabel={title}
+      className="max-h-[92vh]! rounded-2xl bg-white shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] [&>div]:flex [&>div]:flex-col [&>div]:overflow-hidden"
     >
-      <div
-        className={`bg-white rounded-2xl w-full ${widthClass} max-h-[92vh] flex flex-col shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] animate-in zoom-in-95 duration-200`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start gap-3 px-6 py-5 border-b border-slate-100 shrink-0">
-          {icon && (
-            <div className="h-10 w-10 rounded-xl bg-brand-blue-lighter text-brand-blue-dark flex items-center justify-center shrink-0">
-              {icon}
-            </div>
-          )}
-          <div className="flex-1">
-            <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            {...tourAttr('admin.org.modal-close')}
-            aria-label="Close"
-            className="h-8 w-8 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-100"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
-              <path
-                d="M3 3l10 10M13 3L3 13"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6">{children}</div>
-        {footer && (
-          <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2 shrink-0">
-            {footer}
+      <div className="flex items-start gap-3 px-6 py-5 border-b border-slate-100 shrink-0">
+        {icon && (
+          <div className="h-10 w-10 rounded-xl bg-brand-blue-lighter text-brand-blue-dark flex items-center justify-center shrink-0">
+            {icon}
           </div>
         )}
+        <div className="flex-1">
+          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          {...tourAttr('admin.org.modal-close')}
+          aria-label="Close"
+          className="h-8 w-8 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-100"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
+            <path
+              d="M3 3l10 10M13 3L3 13"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
       </div>
-    </div>
+      <div className="flex-1 overflow-y-auto p-6">{children}</div>
+      {footer && (
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2 shrink-0">
+          {footer}
+        </div>
+      )}
+    </Modal>
   );
 };

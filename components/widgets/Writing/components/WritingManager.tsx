@@ -46,6 +46,7 @@ import {
   LibraryToolbar,
   buildDuplicateAction,
   useLibraryDuplicate,
+  useLibraryDelete,
   buildMoveToFolderAction,
   countItemsByFolder,
   useLibrarySelection,
@@ -167,6 +168,12 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
     addToast,
     errorMessage: 'That writing assignment could not be duplicated.',
   });
+  const libraryDelete = useLibraryDelete<Item>({
+    noun: NOUN,
+    titleOf: (item) => item.title,
+    remove: (item) => deleteAssignment(item.id),
+    addToast,
+  });
   const folderState = useFolders(userId, 'writing');
   const sessions = useWritingAssignmentSessions(userId);
 
@@ -230,9 +237,7 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
     reorderSiblings: folderState.reorderSiblings,
     noun: { one: NOUN.one, many: NOUN.other },
     items: libraryItems,
-    deleteItems: async (ids) => {
-      for (const id of ids) await deleteAssignment(id);
-    },
+    deleteItems: libraryDelete.folderActions(libraryItems).deleteItems,
   });
 
   const view = useFolderLibraryView<Item>({
@@ -316,16 +321,6 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
     },
     [addToast, saveAssignment]
   );
-
-  const handleDelete = async (item: Item): Promise<void> => {
-    const ok = await confirmDelete({ titles: [item.title], noun: NOUN });
-    if (!ok) return;
-    try {
-      await deleteAssignment(item.id);
-    } catch {
-      addToast('That writing assignment could not be deleted.', 'error');
-    }
-  };
 
   const performAssign = async ({
     input,
@@ -422,18 +417,13 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
 
   const handleBulkDelete = async (): Promise<void> => {
     if (selection.count === 0) return;
-    const ids = Array.from(selection.selectedIds);
-    const ok = await confirmDelete({
-      titles: ids.map((id) => byId.get(id)?.title ?? ''),
-      noun: NOUN,
+    const targets = Array.from(selection.selectedIds).flatMap((id) => {
+      const item = byId.get(id);
+      return item ? [item] : [];
     });
-    if (!ok) return;
     setBulkBusy(true);
     try {
-      const results = await Promise.allSettled(ids.map(deleteAssignment));
-      const failed = results.filter((r) => r.status === 'rejected').length;
-      if (failed > 0) addToast(`${plural(failed)} failed to delete.`, 'error');
-      exitSelection();
+      if (await libraryDelete.deleteMany(targets)) exitSelection();
     } finally {
       setBulkBusy(false);
     }
@@ -467,7 +457,7 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
         label: 'Delete',
         icon: Trash2,
         destructive: true,
-        onClick: () => void handleDelete(item),
+        onClick: () => void libraryDelete.deleteOne(item),
       },
     ];
     return (

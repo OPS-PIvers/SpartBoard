@@ -1,10 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useMemo, useState } from 'react';
+import { Modal } from '@/components/common/Modal';
 import { X } from 'lucide-react';
 import type { LearningTarget, QuestionTargetTag } from '@/types';
-import { Z_INDEX } from '@/config/zIndex';
 import { tourAttr } from '@/config/tourAnchors';
-import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { useAuth } from '@/context/useAuth';
 import { useStandardsCatalog } from '@/hooks/useStandardsCatalog';
 import {
@@ -117,17 +115,6 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
     () => new Map(initial.map((t) => [t.id, t]))
   );
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || isEscapeFromWidgetInput(event)) return;
-      event.stopPropagation();
-      onClose();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [open, onClose]);
-
   const tree = useMemo(() => buildStandardsTree(benchmarks), [benchmarks]);
   const catalogSubjects = useMemo(() => treeSubjectIds(tree), [tree]);
   const catalogById = useMemo(
@@ -228,19 +215,18 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
     return rows.length ? rows : empty('No matching targets.');
   };
 
-  return createPortal(
-    <div
-      className="fixed inset-0 flex items-center justify-center bg-black/40 p-4"
-      style={{ zIndex: Z_INDEX.modalNestedContent }}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+  return (
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      zIndex="z-modal-deep"
+      maxWidth="max-w-3xl"
+      captureEscape
+      ariaLabel={title}
+      className="h-[min(80vh,40rem)] rounded-xl bg-white shadow-2xl border border-slate-200"
     >
-      <div
-        role="dialog"
-        aria-label={title}
-        className="w-full max-w-3xl h-[min(80vh,40rem)] flex flex-col rounded-xl bg-white shadow-2xl border border-slate-200"
-      >
+      <div className="flex h-full min-h-0 flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
           <h4 className="text-sm font-bold text-slate-900">{title}</h4>
           <button
@@ -387,7 +373,6 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
           </button>
         </div>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 };

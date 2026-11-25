@@ -643,7 +643,7 @@ describe('ActivityWallStudentApp', () => {
       });
 
       await openSheetViaButton(user);
-      await user.click(screen.getByRole('button', { name: /^close$/i }));
+      await user.click(screen.getByRole('dialog'));
       await waitFor(() => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       });

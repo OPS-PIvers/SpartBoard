@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { Modal } from '@/components/common/Modal';
 import { ChevronLeft, Shuffle, ListChecks, X } from 'lucide-react';
 import type { QuizBankSlot, QuizQuestion, QuizStimulus } from '@/types';
 import type { BankSource } from '@/hooks/useBankSources';
-import { Z_INDEX } from '@/config/zIndex';
-import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import {
   copyBankQuestions,
   eligibleBankQuestions,
@@ -75,16 +73,6 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
       setRemovingKey(null);
     }
   };
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || isEscapeFromWidgetInput(event)) return;
-      event.stopPropagation();
-      onClose();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [onClose]);
 
   // Bank content lives in Drive / Firestore; fetch when a bank is chosen.
   const sourceKey = source?.key ?? null;
@@ -235,19 +223,18 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
     </button>
   );
 
-  return createPortal(
-    <div
-      className="fixed inset-0 flex items-center justify-center bg-black/40 p-4"
-      style={{ zIndex: Z_INDEX.modalNestedContent }}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+  return (
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      zIndex="z-modal-deep"
+      maxWidth="max-w-2xl"
+      captureEscape
+      ariaLabel="Add from question bank"
+      className="max-h-[85vh]! rounded-xl bg-white shadow-2xl border border-slate-200"
     >
-      <div
-        role="dialog"
-        aria-label="Add from question bank"
-        className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-xl bg-white shadow-2xl border border-slate-200"
-      >
+      <div className="flex max-h-[85vh] min-h-0 flex-col">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200">
           {source && (
             <button
@@ -551,7 +538,6 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
           </>
         )}
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 };

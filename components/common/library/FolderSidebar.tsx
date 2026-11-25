@@ -48,6 +48,7 @@ import {
   sameLocation,
   type LibraryLocation,
 } from './folderView';
+import { Modal } from '@/components/common/Modal';
 import { SOURCE_LABELS, SOURCE_ORDER, isSourceFolderId } from './sourceFolders';
 import type { PlacedItem } from './useSourceFolders';
 
@@ -814,8 +815,16 @@ const DeleteFolderModal: React.FC<{
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full m-4 p-5">
+    <Modal
+      isOpen
+      onClose={onCancel}
+      variant="bare"
+      zIndex="z-dialog"
+      maxWidth="max-w-sm"
+      ariaLabel={`Delete “${folder.name}”?`}
+      className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-5"
+    >
+      <div>
         <header className="flex items-start gap-3 mb-3">
           <div className="bg-amber-100 text-amber-600 rounded-full p-2 shrink-0">
             <AlertTriangle className="w-5 h-5" />
@@ -876,7 +885,7 @@ const DeleteFolderModal: React.FC<{
           </button>
         </footer>
       </div>
-    </div>
+    </Modal>
   );
 };
 

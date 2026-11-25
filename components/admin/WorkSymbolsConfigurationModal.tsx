@@ -21,6 +21,7 @@ import { Button } from '@/components/common/Button';
 import { Card } from '@/components/common/Card';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { WorkSymbolsConfigurationPanel } from './WorkSymbolsConfigurationPanel';
+import { Modal } from '@/components/common/Modal';
 
 interface WorkSymbolsConfigurationModalProps {
   isOpen: boolean;
@@ -200,239 +201,243 @@ export const WorkSymbolsConfigurationModal: React.FC<
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-3xl h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-200">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
-              <ImageIcon className="w-5 h-5 text-violet-600" />
-            </div>
-            <h2 className="text-lg font-bold text-slate-900">Work Symbols</h2>
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      zIndex="z-modal-nested"
+      maxWidth="max-w-3xl"
+      dismissible={false}
+      className="h-[85vh] overflow-hidden rounded-2xl bg-white shadow-2xl [&>div]:flex [&>div]:flex-col [&>div]:overflow-hidden"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-slate-200">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
+            <ImageIcon className="w-5 h-5 text-violet-600" />
           </div>
-          <button
-            onClick={handleClose}
-            {...tourTypeAttr('admin.widget-config.close', 'work-symbols')}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-slate-500" />
-          </button>
+          <h2 className="text-lg font-bold text-slate-900">Work Symbols</h2>
+        </div>
+        <button
+          onClick={handleClose}
+          {...tourTypeAttr('admin.widget-config.close', 'work-symbols')}
+          className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+        >
+          <X className="w-5 h-5 text-slate-500" />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+        {/* Upload Zone */}
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all p-8 gap-3 ${
+            isDragging
+              ? 'border-violet-400 bg-violet-50'
+              : 'border-slate-300 bg-white hover:border-violet-300 hover:bg-violet-50/30'
+          } ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+        >
+          {uploading ? (
+            <>
+              <Loader2 className="w-8 h-8 text-violet-500 animate-spin" />
+              <p className="text-sm font-bold text-slate-500">Uploading...</p>
+            </>
+          ) : (
+            <>
+              <div className="p-3 bg-slate-100 rounded-xl">
+                <Upload className="w-6 h-6 text-slate-400" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-black text-slate-600 uppercase tracking-tight">
+                  Drop images here or click to upload
+                </p>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+                  PNG, JPG, or WebP
+                </p>
+              </div>
+            </>
+          )}
+          <input
+            // no-tour-anchor: hidden file input opened by its upload button
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileInput}
+            disabled={uploading}
+          />
         </div>
 
-        {/* Content */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-          {/* Upload Zone */}
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all p-8 gap-3 ${
-              isDragging
-                ? 'border-violet-400 bg-violet-50'
-                : 'border-slate-300 bg-white hover:border-violet-300 hover:bg-violet-50/30'
-            } ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
-          >
-            {uploading ? (
-              <>
-                <Loader2 className="w-8 h-8 text-violet-500 animate-spin" />
-                <p className="text-sm font-bold text-slate-500">Uploading...</p>
-              </>
-            ) : (
-              <>
-                <div className="p-3 bg-slate-100 rounded-xl">
-                  <Upload className="w-6 h-6 text-slate-400" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-black text-slate-600 uppercase tracking-tight">
-                    Drop images here or click to upload
-                  </p>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                    PNG, JPG, or WebP
-                  </p>
-                </div>
-              </>
-            )}
-            <input
-              // no-tour-anchor: hidden file input opened by its upload button
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleFileInput}
-              disabled={uploading}
-            />
+        {/* Symbol Grid */}
+        {globalConfig.symbols.length === 0 ? (
+          <div className="py-12 flex flex-col items-center justify-center bg-white border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">
+            <ImageIcon className="w-12 h-12 mb-4 opacity-20" />
+            <p className="font-black uppercase tracking-widest text-xs">
+              No work symbols yet
+            </p>
+            <p className="text-xs mt-1">
+              Upload images above to create work symbols.
+            </p>
           </div>
-
-          {/* Symbol Grid */}
-          {globalConfig.symbols.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center bg-white border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">
-              <ImageIcon className="w-12 h-12 mb-4 opacity-20" />
-              <p className="font-black uppercase tracking-widest text-xs">
-                No work symbols yet
-              </p>
-              <p className="text-xs mt-1">
-                Upload images above to create work symbols.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {globalConfig.symbols.map((symbol) => (
-                <Card
-                  key={symbol.id}
-                  padding="sm"
-                  hoverable
-                  className="flex flex-col gap-3 group"
-                >
-                  {/* Image preview */}
-                  <div className="relative aspect-square bg-slate-50 rounded-xl flex items-center justify-center overflow-hidden">
-                    <img
-                      src={symbol.imageUrl}
-                      alt={symbol.title}
-                      className="w-full h-full object-contain p-4"
-                      loading="lazy"
-                    />
-                    <button
-                      onClick={() => removeSymbol(symbol)}
-                      {...tourFieldAttr(
-                        'admin.widget-config.field',
-                        'work-symbols',
-                        `remove-${symbol.id}`
-                      )}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-600 p-1.5 z-10"
-                      title="Remove symbol"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Title input */}
-                  <input
-                    type="text"
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {globalConfig.symbols.map((symbol) => (
+              <Card
+                key={symbol.id}
+                padding="sm"
+                hoverable
+                className="flex flex-col gap-3 group"
+              >
+                {/* Image preview */}
+                <div className="relative aspect-square bg-slate-50 rounded-xl flex items-center justify-center overflow-hidden">
+                  <img
+                    src={symbol.imageUrl}
+                    alt={symbol.title}
+                    className="w-full h-full object-contain p-4"
+                    loading="lazy"
+                  />
+                  <button
+                    onClick={() => removeSymbol(symbol)}
                     {...tourFieldAttr(
                       'admin.widget-config.field',
                       'work-symbols',
-                      `title-${symbol.id}`
+                      `remove-${symbol.id}`
                     )}
-                    value={symbol.title}
-                    onChange={(e) =>
-                      updateSymbolTitle(symbol.id, e.target.value)
-                    }
-                    className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-violet-400 focus:outline-hidden"
-                    placeholder="Symbol title..."
-                  />
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-600 p-1.5 z-10"
+                    title="Remove symbol"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
 
-                  {/* Building toggles */}
-                  {BUILDINGS.length > 1 && (
-                    <div className="space-y-1.5">
-                      <SettingsLabel
-                        as="span"
-                        id={`work-symbols-buildings-${symbol.id}`}
-                        className="px-1"
-                      >
-                        Buildings
-                      </SettingsLabel>
-                      <div
-                        role="group"
-                        aria-labelledby={`work-symbols-buildings-${symbol.id}`}
-                        className="flex flex-wrap gap-1.5"
-                      >
-                        {BUILDINGS.map((b) => {
-                          const isAssigned =
-                            symbol.buildings.length === 0 ||
-                            symbol.buildings.includes(b.id);
-                          const isExplicit = symbol.buildings.includes(b.id);
-                          const isAllBuildings = symbol.buildings.length === 0;
-                          return (
-                            <button
-                              key={b.id}
-                              {...tourFieldAttr(
-                                'admin.widget-config.field',
-                                'work-symbols',
-                                `building-${symbol.id}-${b.id}`
-                              )}
-                              onClick={() => {
-                                if (isAllBuildings) {
-                                  // Switching from "all" to explicit: set all except this one
-                                  const allExcept = BUILDINGS.map(
-                                    (x) => x.id
-                                  ).filter((id) => id !== b.id);
-                                  setSymbols((prev) =>
-                                    prev.map((s) =>
-                                      s.id === symbol.id
-                                        ? { ...s, buildings: allExcept }
-                                        : s
-                                    )
-                                  );
-                                } else {
-                                  toggleBuilding(symbol.id, b.id);
-                                }
-                              }}
-                              className={`px-2 py-1 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
-                                isAssigned
-                                  ? isExplicit || isAllBuildings
-                                    ? 'bg-violet-500 text-white border-violet-500 shadow-xs'
-                                    : 'bg-violet-100 text-violet-600 border-violet-200'
-                                  : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200 hover:text-slate-500'
-                              }`}
-                              title={
-                                isAllBuildings
-                                  ? 'Available to all buildings (click to remove)'
-                                  : isExplicit
-                                    ? 'Click to remove from this building'
-                                    : 'Click to add to this building'
-                              }
-                            >
-                              {b.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {symbol.buildings.length === 0 && (
-                        <p className="text-xxs text-slate-400 px-1">
-                          Available to all buildings
-                        </p>
-                      )}
-                    </div>
+                {/* Title input */}
+                <input
+                  type="text"
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'work-symbols',
+                    `title-${symbol.id}`
                   )}
-                </Card>
-              ))}
-            </div>
-          )}
+                  value={symbol.title}
+                  onChange={(e) => updateSymbolTitle(symbol.id, e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-violet-400 focus:outline-hidden"
+                  placeholder="Symbol title..."
+                />
 
-          {/* Building appearance defaults */}
-          <div className="pt-4 border-t border-slate-200">
-            <WorkSymbolsConfigurationPanel
-              config={globalConfig}
-              onChange={setGlobalConfig}
-            />
+                {/* Building toggles */}
+                {BUILDINGS.length > 1 && (
+                  <div className="space-y-1.5">
+                    <SettingsLabel
+                      as="span"
+                      id={`work-symbols-buildings-${symbol.id}`}
+                      className="px-1"
+                    >
+                      Buildings
+                    </SettingsLabel>
+                    <div
+                      role="group"
+                      aria-labelledby={`work-symbols-buildings-${symbol.id}`}
+                      className="flex flex-wrap gap-1.5"
+                    >
+                      {BUILDINGS.map((b) => {
+                        const isAssigned =
+                          symbol.buildings.length === 0 ||
+                          symbol.buildings.includes(b.id);
+                        const isExplicit = symbol.buildings.includes(b.id);
+                        const isAllBuildings = symbol.buildings.length === 0;
+                        return (
+                          <button
+                            key={b.id}
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'work-symbols',
+                              `building-${symbol.id}-${b.id}`
+                            )}
+                            onClick={() => {
+                              if (isAllBuildings) {
+                                // Switching from "all" to explicit: set all except this one
+                                const allExcept = BUILDINGS.map(
+                                  (x) => x.id
+                                ).filter((id) => id !== b.id);
+                                setSymbols((prev) =>
+                                  prev.map((s) =>
+                                    s.id === symbol.id
+                                      ? { ...s, buildings: allExcept }
+                                      : s
+                                  )
+                                );
+                              } else {
+                                toggleBuilding(symbol.id, b.id);
+                              }
+                            }}
+                            className={`px-2 py-1 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
+                              isAssigned
+                                ? isExplicit || isAllBuildings
+                                  ? 'bg-violet-500 text-white border-violet-500 shadow-xs'
+                                  : 'bg-violet-100 text-violet-600 border-violet-200'
+                                : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200 hover:text-slate-500'
+                            }`}
+                            title={
+                              isAllBuildings
+                                ? 'Available to all buildings (click to remove)'
+                                : isExplicit
+                                  ? 'Click to remove from this building'
+                                  : 'Click to add to this building'
+                            }
+                          >
+                            {b.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {symbol.buildings.length === 0 && (
+                      <p className="text-xxs text-slate-400 px-1">
+                        Available to all buildings
+                      </p>
+                    )}
+                  </div>
+                )}
+              </Card>
+            ))}
           </div>
-        </div>
+        )}
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-200">
-          <Button
-            variant="ghost"
-            onClick={handleClose}
-            {...tourTypeAttr('admin.widget-config.close', 'work-symbols')}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleSave}
-            {...tourTypeAttr('admin.widget-config.save', 'work-symbols')}
-            isLoading={isSaving}
-            icon={<Save className="w-4 h-4" />}
-          >
-            Save
-          </Button>
+        {/* Building appearance defaults */}
+        <div className="pt-4 border-t border-slate-200">
+          <WorkSymbolsConfigurationPanel
+            config={globalConfig}
+            onChange={setGlobalConfig}
+          />
         </div>
       </div>
-    </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-200">
+        <Button
+          variant="ghost"
+          onClick={handleClose}
+          {...tourTypeAttr('admin.widget-config.close', 'work-symbols')}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="primary"
+          onClick={handleSave}
+          {...tourTypeAttr('admin.widget-config.save', 'work-symbols')}
+          isLoading={isSaving}
+          icon={<Save className="w-4 h-4" />}
+        >
+          Save
+        </Button>
+      </div>
+    </Modal>
   );
 };

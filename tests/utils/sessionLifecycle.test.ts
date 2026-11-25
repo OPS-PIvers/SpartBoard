@@ -345,6 +345,19 @@ describe('assignmentLifecyclePatches', () => {
 });
 
 describe('the sub control function writes the same patches', () => {
+  it("end writes each kind's own session end", () => {
+    for (const kind of [
+      'quiz',
+      'videoActivity',
+      'guidedLearning',
+      'flashcards',
+    ] as const) {
+      expect(controlPatches(kind, 'end', NOW).session).toEqual(
+        endSessionPatch(kind, NOW)
+      );
+    }
+  });
+
   it('end', () => {
     for (const kind of ['quiz', 'videoActivity'] as const) {
       const server = controlPatches(kind, 'end', NOW);
