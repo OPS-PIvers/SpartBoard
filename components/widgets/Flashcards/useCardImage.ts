@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { imageFileFrom } from '@/utils/flashcardImageUrls';
 
 /** Uploads a picked, pasted or dropped image; resolves to its URL, or null when it can't be used. */
@@ -10,6 +10,8 @@ export interface CardImageState {
   failed: boolean;
   pick: (file: File | null | undefined) => void;
   clearFailed: () => void;
+  /** Runs a picker upload; a paste or drop on the side waits until it ends and a failure marks the side. */
+  track: (work: Promise<string | null>) => Promise<string | null>;
   /** Spread on the side's wrapper: paste or drop an image anywhere in it. */
   targetProps: Pick<
     React.HTMLAttributes<HTMLDivElement>,
@@ -23,9 +25,10 @@ export const useCardImage = (
 ): CardImageState => {
   const [uploading, setUploading] = useState(false);
   const [failed, setFailed] = useState(false);
+  const pickerBusy = useRef(false);
 
   const pick = (file: File | null | undefined): void => {
-    if (!upload || !file || uploading) return;
+    if (!upload || !file || uploading || pickerBusy.current) return;
     setUploading(true);
     setFailed(false);
     void upload(file)
@@ -50,6 +53,19 @@ export const useCardImage = (
     failed,
     pick,
     clearFailed: () => setFailed(false),
+    track: async (work) => {
+      pickerBusy.current = true;
+      try {
+        const url = await work;
+        if (!url) setFailed(true);
+        return url;
+      } catch (err) {
+        setFailed(true);
+        throw err;
+      } finally {
+        pickerBusy.current = false;
+      }
+    },
     targetProps: upload
       ? {
           onPaste: (event) => {

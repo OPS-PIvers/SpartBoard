@@ -101,6 +101,46 @@ describe('CardImageButton', () => {
     expect(onUrl).not.toHaveBeenCalled();
   });
 
+  it('saves a pasted image link through the Drive upload', async () => {
+    const upload = vi.fn().mockResolvedValue('https://drive/3');
+    const onUrl = vi.fn();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        blob: () => Promise.resolve(new Blob(['x'], { type: 'image/png' })),
+      })
+    );
+    render(<Side upload={upload} onUrl={onUrl} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add image to Term 1' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Image link' }));
+    fireEvent.change(screen.getByLabelText('Image link'), {
+      target: { value: 'https://example.com/cat.png' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(onUrl).toHaveBeenCalledWith('https://drive/3'));
+    expect(upload).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+
+  it('marks the button when a dropped image cannot be used', async () => {
+    const upload = vi.fn().mockResolvedValue(null);
+    render(<Side upload={upload} onUrl={vi.fn()} />);
+    const open = screen.getByRole('button', { name: 'Add image to Term 1' });
+    fireEvent.drop(open, {
+      dataTransfer: { types: ['Files'], files: [png()] },
+    });
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole('button', { name: 'Add image to Term 1' })
+          .className.includes('text-rose-600')
+      ).toBe(true)
+    );
+  });
+
   it('keeps the old button with the flag off', () => {
     flagOn = false;
     render(<Side upload={vi.fn()} onUrl={vi.fn()} />);

@@ -104,8 +104,9 @@ export const CardImageButton: React.FC<ButtonProps> = ({
         buttonClassName={buttonClassName}
         buttonStyle={{ padding: 'min(5px, 1.2cqmin)' }}
         iconStyle={ICON}
+        linkAsFile
         upload={async (file) => {
-          const url = await upload(file);
+          const url = await image.track(upload(file));
           if (!url) throw new Error("Image didn't upload");
           return url;
         }}
