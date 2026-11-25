@@ -4,7 +4,7 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDialog } from '@/context/useDialog';
 import { driveViewUrl, uploadDriveAsset } from '@/utils/driveAssetUpload';
 
-const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 
 /** Uploads a starting-page image the same way a quiz image stimulus is uploaded (D6). */
 export function useWhiteboardImageUpload() {

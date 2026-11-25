@@ -1,6 +1,11 @@
 import React from 'react';
 import { ImagePlus, Loader2, X } from 'lucide-react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
+import { MAX_IMAGE_BYTES } from './useWhiteboardImageUpload';
+
+const ADD_CLASS =
+  'relative flex items-center justify-center w-9 h-9 shrink-0 rounded-lg text-slate-500 hover:text-brand-blue-primary hover:bg-slate-100 transition-colors disabled:opacity-40 touch-target-expand';
 
 /** Add button, or the thumbnail with a remove button once an answer has a picture. */
 export const AnswerImageControl: React.FC<{
@@ -13,6 +18,8 @@ export const AnswerImageControl: React.FC<{
   name: string;
   addAttrs: TourAnchorAttrs;
   removeAttrs: TourAnchorAttrs;
+  /** Set when the shared picker is on; the add button then opens it. */
+  upload?: (file: File) => Promise<string | null>;
 }> = ({
   image,
   uploading,
@@ -22,6 +29,7 @@ export const AnswerImageControl: React.FC<{
   name,
   addAttrs,
   removeAttrs,
+  upload,
 }) =>
   image ? (
     <div className="relative shrink-0">
@@ -42,13 +50,32 @@ export const AnswerImageControl: React.FC<{
         <X className="w-3 h-3" />
       </button>
     </div>
+  ) : upload ? (
+    <ImagePicker
+      layout="button"
+      label={`Add image to ${name}`}
+      upload={upload}
+      linkAsFile
+      maxBytes={MAX_IMAGE_BYTES}
+      // The answer's queue already saved the picture.
+      onChange={() => undefined}
+      disabled={disabled}
+      tourScope={{
+        type: addAttrs['data-tour-widget-type'] ?? 'quiz',
+        field: [addAttrs['data-tour'], addAttrs['data-tour-field']]
+          .filter(Boolean)
+          .join('-'),
+      }}
+      tourOverrides={{ open: addAttrs }}
+      buttonClassName={ADD_CLASS}
+    />
   ) : (
     <button
       // no-tour-anchor: anchor comes from the caller in addAttrs
       type="button"
       onClick={onPick}
       disabled={disabled}
-      className="relative flex items-center justify-center w-9 h-9 shrink-0 rounded-lg text-slate-500 hover:text-brand-blue-primary hover:bg-slate-100 transition-colors disabled:opacity-40 touch-target-expand"
+      className={ADD_CLASS}
       aria-label={`Add image to ${name}`}
       title="Add image, or paste one into the text box"
       {...addAttrs}

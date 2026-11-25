@@ -8,7 +8,9 @@
  */
 
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
+import { useUnifiedImagePicker } from '@/components/common/imagePicker/useUnifiedImagePicker';
 import {
   ArrowDown,
   ArrowUp,
@@ -297,6 +299,25 @@ export const PaperSheetStimuliSection: React.FC<
   const add = (stimulus: PaperSheetStimulus | null) => {
     if (stimulus) onChange([...stimuli, stimulus]);
   };
+  const unified = useUnifiedImagePicker();
+  // The picker hands back a key; the uploaded stimulus waits here until it is added.
+  const stimuliRef = useRef(stimuli);
+  const pendingRef = useRef(new Map<string, PaperSheetStimulus>());
+  useLayoutEffect(() => {
+    stimuliRef.current = stimuli;
+  });
+  const uploadForPicker = async (file: File): Promise<string | null> => {
+    const stimulus = await onUploadFile(file);
+    if (!stimulus) return null;
+    const key = crypto.randomUUID();
+    pendingRef.current.set(key, stimulus);
+    return key;
+  };
+  const addFromPicker = (key: string) => {
+    const stimulus = pendingRef.current.get(key);
+    pendingRef.current.delete(key);
+    if (stimulus) onChange([...stimuliRef.current, stimulus]);
+  };
 
   const update = (id: string, patch: Partial<PaperSheetStimulus>) => {
     onChange(stimuli.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -314,7 +335,8 @@ export const PaperSheetStimuliSection: React.FC<
   // capture-phase pattern the Guided Learning editor uses so the Dock's
   // global smart-paste handler does not also fire.
   useEffect(() => {
-    if (!open || disabled) return;
+    // The shared picker takes the paste when it is on.
+    if (!open || disabled || unified) return;
     const onPaste = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (
@@ -336,7 +358,7 @@ export const PaperSheetStimuliSection: React.FC<
     return () => window.removeEventListener('paste', onPaste, true);
     // `add` closes over the current list, which is what a paste should append to.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, disabled, onUploadFile, stimuli]);
+  }, [open, disabled, onUploadFile, stimuli, unified]);
 
   const offTheEnd = stimuliOffTheEnd(stimuli, pageCount);
   const overCap = Array.from({ length: pageCount }, (_, i) =>
@@ -374,39 +396,57 @@ export const PaperSheetStimuliSection: React.FC<
             Adding anything here drops the sheet to 25 questions a page.
           </p>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* no-tour-anchor: hidden file input opened by its visible upload button */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/gif,image/webp,application/pdf"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = '';
-                if (file) void onUploadFile(file).then(add);
+          {unified && (
+            <ImagePicker
+              upload={uploadForPicker}
+              onChange={addFromPicker}
+              allowPdf
+              linkAsFile
+              disabled={busy || disabled}
+              tourScope={{ type: 'quiz', field: 'sheet-stimuli' }}
+              tourOverrides={{
+                upload: tourTypeAttr('quiz-print.sheet-stimuli-upload', 'quiz'),
+                drive: tourTypeAttr('quiz-print.sheet-stimuli-drive', 'quiz'),
               }}
             />
-            <button
-              type="button"
-              disabled={busy || disabled}
-              onClick={() => fileInputRef.current?.click()}
-              {...tourTypeAttr('quiz-print.sheet-stimuli-upload', 'quiz')}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
-            >
-              <Upload className="h-3.5 w-3.5" />
-              Upload or PDF
-            </button>
-            <button
-              type="button"
-              disabled={busy || disabled}
-              onClick={() => void onPickFromDrive().then(add)}
-              {...tourTypeAttr('quiz-print.sheet-stimuli-drive', 'quiz')}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
-            >
-              <ImagePlus className="h-3.5 w-3.5" />
-              From Drive
-            </button>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {!unified && (
+              <>
+                {/* no-tour-anchor: hidden file input opened by its visible upload button */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp,application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (file) void onUploadFile(file).then(add);
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={busy || disabled}
+                  onClick={() => fileInputRef.current?.click()}
+                  {...tourTypeAttr('quiz-print.sheet-stimuli-upload', 'quiz')}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  Upload or PDF
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || disabled}
+                  onClick={() => void onPickFromDrive().then(add)}
+                  {...tourTypeAttr('quiz-print.sheet-stimuli-drive', 'quiz')}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                >
+                  <ImagePlus className="h-3.5 w-3.5" />
+                  From Drive
+                </button>
+              </>
+            )}
             {quizImageStimuli.length > 0 && (
               <button
                 type="button"
@@ -430,11 +470,13 @@ export const PaperSheetStimuliSection: React.FC<
               <Grid3x3 className="h-3.5 w-3.5" />
               Grid or lines
             </button>
-            <span className="text-xs text-slate-500">
-              or paste an image with{' '}
-              {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}
-              +V
-            </span>
+            {!unified && (
+              <span className="text-xs text-slate-500">
+                or paste an image with{' '}
+                {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}
+                +V
+              </span>
+            )}
           </div>
 
           {showTemplatePicker && (

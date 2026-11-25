@@ -36,7 +36,6 @@ const NOT_YET_MIGRATED: Record<string, number> = {
   'components/widgets/GuidedLearning/components/studio/StudioWelcomePanel.tsx': 1,
   'components/widgets/HotspotImage/settingsFields.tsx': 1,
   'components/widgets/InstructionalRoutines/LibraryManager.tsx': 2,
-  'components/widgets/QuizWidget/components/PaperQuestionTextModal.tsx': 1,
   'components/widgets/QuizWidget/components/PaperSheetStimuliSection.tsx': 1,
   'components/widgets/QuizWidget/components/WhiteboardInsertImageModal.tsx': 1,
   'components/widgets/QuizWidget/components/useAnswerImagePicker.tsx': 1,
@@ -54,6 +53,7 @@ const NOT_A_PICKER: Record<string, number> = {
   // Scans of paper answer sheets and test pages to read, not an image to show.
   'components/widgets/QuizWidget/components/PaperImportModal.tsx': 1,
   'components/widgets/QuizWidget/components/PaperPrintModal.tsx': 1,
+  'components/widgets/QuizWidget/components/PaperQuestionTextModal.tsx': 1,
   // Phone camera capture for the remote.
   'components/remote/controls/RemoteWebcamControl.tsx': 1,
   // Any-file adds (image, audio, video, PDF) through the shared FileAddSources.

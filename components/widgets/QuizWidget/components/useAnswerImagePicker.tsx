@@ -1,5 +1,6 @@
 import React from 'react';
 import { pastedImage } from '@/utils/quizAnswerImages';
+import { useUnifiedImagePicker } from '@/components/common/imagePicker/useUnifiedImagePicker';
 
 export type UploadAnswerImage = (file: File) => Promise<string | null>;
 
@@ -8,6 +9,7 @@ export function useAnswerImagePicker(
   upload: UploadAnswerImage | undefined,
   onUploaded: (key: string, url: string) => void
 ) {
+  const unified = useUnifiedImagePicker();
   const [uploadingKey, setUploadingKey] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const pickKeyRef = React.useRef<string | null>(null);
@@ -26,20 +28,32 @@ export function useAnswerImagePicker(
   }, []);
 
   // One at a time, so each share prompt stays tied to its own picture.
-  const send = (key: string, file: File) => {
-    if (!upload) return;
-    queueRef.current = queueRef.current.then(async () => {
-      if (!mountedRef.current) return;
+  const send = (key: string, file: File): Promise<string | null> => {
+    if (!upload) return Promise.resolve(null);
+    const done = queueRef.current.then(async () => {
+      if (!mountedRef.current) return null;
       setUploadingKey(key);
       try {
         const url = await upload(file);
         // A gone editor could write stale answers over a retyped question.
         if (url && mountedRef.current) onUploadedRef.current(key, url);
+        return url;
       } finally {
         setUploadingKey(null);
       }
     });
+    queueRef.current = done.then(
+      () => undefined,
+      () => undefined
+    );
+    return done;
   };
+
+  /** The shared picker's upload for one answer; the queue saves the picture itself. */
+  const uploadFor =
+    upload && unified
+      ? (key: string) => (file: File) => send(key, file)
+      : undefined;
 
   const pick = (key: string) => {
     pickKeyRef.current = key;
@@ -53,7 +67,7 @@ export function useAnswerImagePicker(
       const file = pastedImage(e.clipboardData);
       if (!file) return;
       e.preventDefault();
-      send(key, file);
+      void send(key, file);
     };
 
   const fileInput = upload ? (
@@ -68,10 +82,10 @@ export function useAnswerImagePicker(
         const key = pickKeyRef.current;
         e.target.value = '';
         pickKeyRef.current = null;
-        if (file && key) send(key, file);
+        if (file && key) void send(key, file);
       }}
     />
   ) : null;
 
-  return { uploadingKey, pick, pasteInto, fileInput };
+  return { uploadingKey, pick, pasteInto, fileInput, uploadFor };
 }

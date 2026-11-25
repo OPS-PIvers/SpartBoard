@@ -11,6 +11,10 @@ export interface ImageSourcesOptions {
   /** Image links are kept as links unless the caller needs the file itself. */
   linkAsFile?: boolean;
   accept?: string;
+  /** Also takes a PDF from every source; the caller's upload handles it. */
+  allowPdf?: boolean;
+  /** Takes several files from upload, paste and drop, saved one at a time. */
+  multiple?: boolean;
   maxBytes?: number;
   disabled?: boolean;
   /** Paste reaches the picker anywhere in its dialog, or only inside the picker. */
@@ -20,6 +24,8 @@ export interface ImageSourcesOptions {
 }
 
 const DEFAULT_MAX = 10 * 1024 * 1024;
+
+const isPdfFile = (f: File | Blob): boolean => f.type === 'application/pdf';
 
 /** A message the picker shows as written; anything else shows the generic line. */
 class PickerError extends Error {}
@@ -48,7 +54,9 @@ export function useImageSources({
   upload,
   onChange,
   linkAsFile = false,
-  accept = 'image/*',
+  accept,
+  allowPdf = false,
+  multiple = false,
   maxBytes = DEFAULT_MAX,
   disabled = false,
   pasteScope = 'dialog',
@@ -61,6 +69,10 @@ export function useImageSources({
   const inFlight = useRef(false);
   const { openPicker } = useGooglePicker();
   const { getDriveFileAsBlob } = useGoogleDrive();
+  const takes = useCallback(
+    (f: File) => isImageFile(f) || (allowPdf && isPdfFile(f)),
+    [allowPdf]
+  );
 
   const run = useCallback(
     async (work: () => Promise<string | null>): Promise<RunResult> => {
@@ -89,7 +101,7 @@ export function useImageSources({
   // Every source goes through the same type and size check before it saves.
   const save = useCallback(
     (file: File) => {
-      if (!isImageFile(file)) throw new PickerError('Select an image file.');
+      if (!takes(file)) throw new PickerError('Select an image file.');
       if (file.size > maxBytes) {
         throw new PickerError(
           `That image is too large. The limit is ${Math.round(maxBytes / 1048576)} MB.`
@@ -97,7 +109,7 @@ export function useImageSources({
       }
       return upload(file);
     },
-    [upload, maxBytes]
+    [upload, maxBytes, takes]
   );
 
   const addFile = useCallback(
@@ -105,24 +117,33 @@ export function useImageSources({
     [run, save]
   );
 
+  const addFiles = useCallback(
+    async (files: File[]) => {
+      for (const file of multiple ? files : files.slice(0, 1)) {
+        if ((await addFile(file)) === 'failed') return;
+      }
+    },
+    [addFile, multiple]
+  );
+
   const openFile = useCallback(() => inputRef.current?.click(), []);
 
   const openDrive = useCallback(
     () =>
       run(async () => {
-        const picked = await openPicker({ mode: 'images' }).catch(
-          (err: unknown) => {
-            throw new PickerError(
-              err instanceof Error ? err.message : "Google Drive didn't open."
-            );
-          }
-        );
+        const picked = await openPicker({
+          mode: allowPdf ? 'images-pdf' : 'images',
+        }).catch((err: unknown) => {
+          throw new PickerError(
+            err instanceof Error ? err.message : "Google Drive didn't open."
+          );
+        });
         if (!picked) return null;
         const got = await getDriveFileAsBlob(picked.id);
         if (!got) throw new PickerError("That Drive image didn't open.");
         return save(new File([got.blob], got.name, { type: got.mimeType }));
       }),
-    [run, openPicker, getDriveFileAsBlob, save]
+    [run, openPicker, getDriveFileAsBlob, save, allowPdf]
   );
 
   const addLink = useCallback(
@@ -140,27 +161,28 @@ export function useImageSources({
         if (!linkAsFile) return link;
         const res = await fetch(link).catch(() => null);
         const blob = res?.ok ? await res.blob() : null;
-        if (!blob || !blob.type.startsWith('image/')) {
+        if (
+          !blob ||
+          !(blob.type.startsWith('image/') || (allowPdf && isPdfFile(blob)))
+        ) {
           throw new PickerError(
             "That link can't be used here. Download the image and upload it."
           );
         }
         return save(new File([blob], 'linked-image', { type: blob.type }));
       }),
-    [run, linkAsFile, save]
+    [run, linkAsFile, save, allowPdf]
   );
 
   const onPasted = useCallback(
-    (files: File[]) => {
-      if (files[0]) void addFile(files[0]);
-    },
-    [addFile]
+    (files: File[]) => void addFiles(files),
+    [addFiles]
   );
   usePasteFiles(
     onPasted,
     disabled || pasteScope === 'off',
     scopeRef,
-    isImageFile,
+    takes,
     pasteScope === 'element' ? 'element' : 'dialog'
   );
 
@@ -181,8 +203,7 @@ export function useImageSources({
       if (!hasFiles(e)) return;
       e.preventDefault();
       setDragging(false);
-      const file = Array.from(e.dataTransfer.files).find(isImageFile);
-      if (file) void addFile(file);
+      void addFiles(Array.from(e.dataTransfer.files).filter(takes));
     },
   };
 
@@ -191,14 +212,15 @@ export function useImageSources({
     <input
       ref={inputRef}
       type="file"
-      accept={accept}
+      accept={accept ?? (allowPdf ? 'image/*,application/pdf' : 'image/*')}
+      multiple={multiple}
       className="hidden"
       tabIndex={-1}
       aria-hidden
       onChange={(e) => {
-        const file = e.target.files?.[0];
+        const files = Array.from(e.target.files ?? []);
         e.target.value = '';
-        if (file) void addFile(file);
+        void addFiles(files);
       }}
     />
   );

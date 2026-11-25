@@ -163,6 +163,43 @@ describe('ImagePicker', () => {
     expect((upload.mock.calls[0][0] as File).name).toBe('pic.png');
   });
 
+  it('takes a PDF from Drive when the caller allows one', async () => {
+    openPicker.mockResolvedValue({ id: 'd3' });
+    getDriveFileAsBlob.mockResolvedValue({
+      blob: new Blob(['%PDF'], { type: 'application/pdf' }),
+      mimeType: 'application/pdf',
+      name: 'test.pdf',
+    });
+    const upload = vi.fn().mockResolvedValue('https://saved/5');
+    render(
+      <ImagePicker
+        tourScope={scope}
+        upload={upload}
+        onChange={vi.fn()}
+        allowPdf
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Google Drive' }));
+    await waitFor(() => expect(upload).toHaveBeenCalled());
+    expect(openPicker).toHaveBeenCalledWith({ mode: 'images-pdf' });
+    expect((upload.mock.calls[0][0] as File).type).toBe('application/pdf');
+  });
+
+  it('takes only the first dropped file unless it allows several', async () => {
+    const upload = vi.fn().mockResolvedValue('https://saved/6');
+    const onChange = vi.fn();
+    render(
+      <ImagePicker tourScope={scope} upload={upload} onChange={onChange} />
+    );
+    const zone = screen.getByText('Drop or paste an image')
+      .parentElement as HTMLElement;
+    fireEvent.drop(zone, {
+      dataTransfer: { types: ['Files'], files: [png('a.png'), png('b.png')] },
+    });
+    await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+    expect(upload).toHaveBeenCalledTimes(1);
+  });
+
   it('holds a Drive pick to the size limit', async () => {
     openPicker.mockResolvedValue({ id: 'd2' });
     getDriveFileAsBlob.mockResolvedValue({

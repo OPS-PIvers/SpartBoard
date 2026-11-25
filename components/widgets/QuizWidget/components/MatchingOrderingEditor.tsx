@@ -530,6 +530,7 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
         uploading={images.uploadingKey === key}
         disabled={images.uploadingKey !== null}
         onPick={() => images.pick(key)}
+        upload={images.uploadFor?.(key)}
         onRemove={() => setImage(key, '')}
         name={name}
         addAttrs={addAttrs}
@@ -1015,6 +1016,7 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
                           uploading={images.uploadingKey === row.id}
                           disabled={images.uploadingKey !== null}
                           onPick={() => images.pick(row.id)}
+                          upload={images.uploadFor?.(row.id)}
                           onRemove={() => setRowImage(row.id, '')}
                           name={`item ${i + 1}`}
                           addAttrs={tourFieldAttr(

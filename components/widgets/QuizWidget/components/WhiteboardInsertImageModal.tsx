@@ -1,4 +1,10 @@
-import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { ImagePlus, Loader2, X } from 'lucide-react';
 import type { WhiteboardPlacedImage, WhiteboardStartingImage } from '@/types';
@@ -7,7 +13,10 @@ import { tourTypeAttr } from '@/config/tourAnchors';
 import { WHITEBOARD_STARTING_IMAGES_MAX } from '@/config/quizRecordingDefaults';
 import { startingImageSrc } from '@/utils/whiteboard/startingPage';
 import { defaultImagePlacement } from './whiteboardStartingPageEdit';
+import { MAX_IMAGE_BYTES } from './useWhiteboardImageUpload';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
+import { useUnifiedImagePicker } from '@/components/common/imagePicker/useUnifiedImagePicker';
 
 const imageFiles = (files: FileList | File[] | undefined | null) =>
   Array.from(files ?? []).filter((f) => f.type.startsWith('image/'));
@@ -31,6 +40,30 @@ export const WhiteboardInsertImageModal: React.FC<
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
   const full = images.length >= WHITEBOARD_STARTING_IMAGES_MAX;
+  const unified = useUnifiedImagePicker();
+  // The picker hands back a key; the uploaded image waits here until it is placed.
+  const placedRef = useRef(images);
+  const pendingRef = useRef(new Map<string, WhiteboardStartingImage>());
+  useLayoutEffect(() => {
+    placedRef.current = images;
+  });
+  const uploadOne = async (file: File): Promise<string | null> => {
+    if (placedRef.current.length >= WHITEBOARD_STARTING_IMAGES_MAX) return null;
+    const uploaded = await onUploadImage(file);
+    if (!uploaded) return null;
+    const key = crypto.randomUUID();
+    pendingRef.current.set(key, uploaded);
+    return key;
+  };
+  const placeOne = (key: string) => {
+    const uploaded = pendingRef.current.get(key);
+    pendingRef.current.delete(key);
+    const current = placedRef.current;
+    if (!uploaded || current.length >= WHITEBOARD_STARTING_IMAGES_MAX) return;
+    const next = [...current, defaultImagePlacement(uploaded, current.length)];
+    placedRef.current = next;
+    onChange(next);
+  };
 
   const upload = async (files: File[]) => {
     if (files.length === 0 || uploading) return;
@@ -53,6 +86,8 @@ export const WhiteboardInsertImageModal: React.FC<
   });
 
   useEffect(() => {
+    // The shared picker takes the paste when it is on.
+    if (unified) return;
     const onPaste = (e: ClipboardEvent) => {
       const files = imageFiles(e.clipboardData?.files);
       if (files.length === 0) return;
@@ -61,7 +96,7 @@ export const WhiteboardInsertImageModal: React.FC<
     };
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
-  }, []);
+  }, [unified]);
 
   return (
     <Modal
@@ -73,58 +108,81 @@ export const WhiteboardInsertImageModal: React.FC<
       zIndex="z-modal-deep"
     >
       <div className="space-y-3">
-        <div
-          onDragOver={(e) => {
-            e.preventDefault();
-            if (!full) setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragging(false);
-            if (!full) void upload(imageFiles(e.dataTransfer.files));
-          }}
-          className={`flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-10 text-center transition ${
-            dragging
-              ? 'border-brand-blue-primary bg-brand-blue-lighter/30'
-              : 'border-slate-300'
-          }`}
-        >
-          {uploading ? (
-            <Loader2
-              className="h-8 w-8 animate-spin text-slate-500"
-              aria-hidden
-            />
-          ) : (
-            <ImagePlus className="h-8 w-8 text-slate-500" aria-hidden />
-          )}
-          <p className="text-sm text-slate-600">
-            {full
-              ? tk('imageLimit', { max: WHITEBOARD_STARTING_IMAGES_MAX })
-              : tk('insertImageDrop')}
+        {unified && full && (
+          <p className="text-center text-sm text-slate-600">
+            {tk('imageLimit', { max: WHITEBOARD_STARTING_IMAGES_MAX })}
           </p>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
+        )}
+        {unified && !full && (
+          <ImagePicker
+            upload={uploadOne}
+            onChange={placeOne}
             multiple
-            className="hidden"
-            // no-tour-anchor: hidden input opened by the Choose files button
-            onChange={(e) => {
-              void upload(imageFiles(e.target.files));
-              e.target.value = '';
+            linkAsFile
+            maxBytes={MAX_IMAGE_BYTES}
+            tourScope={{ type: 'quiz', field: 'whiteboard-image' }}
+            tourOverrides={{
+              upload: tourTypeAttr(
+                'quiz-editor.whiteboard-image-choose',
+                'quiz'
+              ),
             }}
           />
-          <button
-            type="button"
-            disabled={uploading || full}
-            onClick={() => fileRef.current?.click()}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-bold text-brand-blue-primary hover:bg-slate-50 disabled:opacity-60"
-            {...tourTypeAttr('quiz-editor.whiteboard-image-choose', 'quiz')}
+        )}
+        {!unified && (
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (!full) setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              if (!full) void upload(imageFiles(e.dataTransfer.files));
+            }}
+            className={`flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-10 text-center transition ${
+              dragging
+                ? 'border-brand-blue-primary bg-brand-blue-lighter/30'
+                : 'border-slate-300'
+            }`}
           >
-            {tk('chooseFiles')}
-          </button>
-        </div>
+            {uploading ? (
+              <Loader2
+                className="h-8 w-8 animate-spin text-slate-500"
+                aria-hidden
+              />
+            ) : (
+              <ImagePlus className="h-8 w-8 text-slate-500" aria-hidden />
+            )}
+            <p className="text-sm text-slate-600">
+              {full
+                ? tk('imageLimit', { max: WHITEBOARD_STARTING_IMAGES_MAX })
+                : tk('insertImageDrop')}
+            </p>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              // no-tour-anchor: hidden input opened by the Choose files button
+              onChange={(e) => {
+                void upload(imageFiles(e.target.files));
+                e.target.value = '';
+              }}
+            />
+            <button
+              type="button"
+              disabled={uploading || full}
+              onClick={() => fileRef.current?.click()}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-bold text-brand-blue-primary hover:bg-slate-50 disabled:opacity-60"
+              {...tourTypeAttr('quiz-editor.whiteboard-image-choose', 'quiz')}
+            >
+              {tk('chooseFiles')}
+            </button>
+          </div>
+        )}
 
         {images.length > 0 && (
           <ul className="flex flex-wrap gap-3">

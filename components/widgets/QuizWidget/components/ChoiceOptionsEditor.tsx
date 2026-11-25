@@ -347,6 +347,7 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
                       uploading={images.uploadingKey === row.id}
                       disabled={images.uploadingKey !== null}
                       onPick={() => images.pick(row.id)}
+                      upload={images.uploadFor?.(row.id)}
                       onRemove={() => setRowImage(row.id, '')}
                       name={`option ${letter}`}
                       addAttrs={tourFieldAttr(
