@@ -1461,11 +1461,10 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       const svgEl = svgRef.current;
       if (!svgEl) return;
       // A dialog over the page, like Page background, takes its own paste.
-      const dialog =
-        e.target instanceof Element
-          ? e.target.closest('[role="dialog"][aria-modal="true"]')
-          : null;
-      if (dialog && !dialog.contains(svgEl)) return;
+      const dialogs = document.querySelectorAll(
+        '[role="dialog"][aria-modal="true"]'
+      );
+      if (Array.from(dialogs).some((d) => !d.contains(svgEl))) return;
       // In-app clipboard wins. Cross-page object copy/paste is the dominant
       // editor workflow; falling through to the OS clipboard first meant a
       // stale screenshot in the OS clipboard would silently override the

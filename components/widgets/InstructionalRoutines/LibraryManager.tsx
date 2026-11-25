@@ -177,6 +177,8 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
     url: string | undefined
   ) => {
     const current = routineRef.current;
+    // The step was deleted while its image uploaded.
+    if (!current.steps[index]) return;
     const nextSteps = [...current.steps];
     nextSteps[index] = {
       ...nextSteps[index],

@@ -1209,6 +1209,11 @@ const BackgroundPicker: React.FC<{
   const { canAccessFeature } = useAuth();
   const unifiedPicker = canAccessFeature('unified-image-picker');
 
+  // Focus stays in the dialog so a paste reaches the image picker.
+  useEffect(() => {
+    panelRef.current?.focus({ preventScroll: true });
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -1264,7 +1269,8 @@ const BackgroundPicker: React.FC<{
     >
       <div
         ref={panelRef}
-        className="bg-white border border-slate-200 rounded-2xl shadow-2xl flex flex-col"
+        tabIndex={-1}
+        className="bg-white border border-slate-200 rounded-2xl shadow-2xl flex flex-col outline-hidden"
         style={{
           width: 'min(440px, 92cqmin)',
           maxHeight: 'min(560px, 86cqmin)',
