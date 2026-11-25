@@ -24,5 +24,6 @@ export const AI_FEATURE_LABELS: Record<string, string> = {
   'plc-goal-coach': 'PLC goal coach',
   'quiz-document-ai-reader': 'Quiz import from a document',
   'web-tour-writing': 'Web tour writing',
+  'help-center-ai': 'Help Center details',
   'universal-import': 'Imports',
 };

@@ -41047,6 +41047,45 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.help-center.copy-for-claude",
+    "label": "Copy for Claude button on the selected Live tour",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.generate-details",
+    "label": "Generate with AI button on the selected Live tour",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.help-center.detail-title",
     "label": "Title box on the selected Help Center item",
     "scope": "board",
@@ -41108,7 +41147,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.help-center.detail-audience",
-    "label": "Who sees it select (Teachers or Substitutes) on a selected live tour",
+    "label": "Audience select (Teachers, Substitutes or Students) on a selected live tour",
     "scope": "board",
     "panel": true,
     "persists": true,

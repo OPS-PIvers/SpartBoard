@@ -70,6 +70,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'group-settings',
   'group-symbols',
   'guided-learning-ai',
+  'help-center-ai',
   'import-activity-wall',
   'import-board-drop',
   'import-embed',

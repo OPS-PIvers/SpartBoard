@@ -1332,6 +1332,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Server also requires gemini-functions; its daily limit applies to admins too (helpCenterDetails.ts).
+  'help-center-ai': {
+    label: 'Help Center: Generate with AI',
+    icon: Sparkles,
+    description: 'Fills in a tour item from its steps.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'ai',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'embed-reload': {
     label: 'Embed: Reload button',
     icon: RefreshCw,

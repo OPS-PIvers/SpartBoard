@@ -9954,6 +9954,15 @@ export const TOUR_ANCHORS = {
     label: 'Back button on the Help Center item detail (phone)',
     panel: true,
   },
+  'admin.help-center.copy-for-claude': {
+    label: 'Copy for Claude button on the selected Live tour',
+    panel: true,
+  },
+  'admin.help-center.generate-details': {
+    label: 'Generate with AI button on the selected Live tour',
+    persists: true,
+    panel: true,
+  },
   'admin.help-center.detail-title': {
     label: 'Title box on the selected Help Center item',
     persists: true,
@@ -9971,7 +9980,7 @@ export const TOUR_ANCHORS = {
   },
   'admin.help-center.detail-audience': {
     label:
-      'Who sees it select (Teachers or Substitutes) on a selected live tour',
+      'Audience select (Teachers, Substitutes or Students) on a selected live tour',
     persists: true,
     panel: true,
   },
