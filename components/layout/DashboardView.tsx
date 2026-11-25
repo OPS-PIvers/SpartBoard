@@ -86,6 +86,7 @@ import {
   toggleBoxSelected,
 } from '@/components/common/boxSelectionStore';
 import { ToastContainer } from '@/components/common/ToastContainer';
+import { ViewAsSaveNotice } from '@/components/viewAs/ViewAsSaveNotice';
 import {
   DEFAULT_GLOBAL_STYLE,
   LiveStudent,
@@ -1904,6 +1905,7 @@ export const DashboardView: React.FC = () => {
       </LazyChunkErrorBoundary>
       <AnnotationOverlay />
       <ToastContainer />
+      <ViewAsSaveNotice />
       <AnnouncementOverlay />
       {canAccessFeature('group-reminders') &&
         canAccessFeature('group-schedules') && <GroupReminderHost />}

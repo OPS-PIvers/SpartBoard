@@ -4,6 +4,13 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
+const dashboardStub = vi.hoisted(() => ({
+  addToast: () => undefined,
+  removeToast: () => undefined,
+}));
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => dashboardStub,
+}));
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: vi.fn().mockResolvedValue(true) }),
 }));

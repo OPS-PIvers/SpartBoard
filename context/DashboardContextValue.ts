@@ -162,9 +162,10 @@ export interface DashboardContextValue {
     message: string,
     type?: Toast['type'],
     action?: Toast['action'],
-    /** `replaceKey` swaps out a showing toast with the same key instead of stacking. */
-    options?: { replaceKey?: string }
+    /** `replaceKey` swaps out a showing toast with the same key; `persist` keeps it until removed. */
+    options?: { replaceKey?: string; persist?: boolean }
   ) => void;
+  /** Removes a toast by id, or every toast with that replaceKey. */
   removeToast: (id: string) => void;
   createNewDashboard: (
     name: string,

@@ -33,7 +33,6 @@ import {
 } from './utils/viewAsTab';
 import { ViewAsGate } from './context/ViewAsContext';
 import { ViewAsBanner } from './components/viewAs/ViewAsBanner';
-import { ViewAsSaveToast } from './components/viewAs/ViewAsSaveToast';
 import { StudentPreviewGate } from './components/viewAs/StudentPreviewGate';
 import { StudentTours } from './components/student/tours/StudentTours';
 
@@ -1043,7 +1042,6 @@ const App: React.FC = () => {
         <DialogProvider>
           <AuthProvider>
             <ViewAsBanner />
-            <ViewAsSaveToast />
             <AuthenticatedApp />
           </AuthProvider>
           <DialogContainer />

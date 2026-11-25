@@ -1,7 +1,7 @@
 // CSV import/export for M12 written-response rubrics (see docs/plans/shipped/specs/M12-written-response-rubrics-spec.md §7).
-// The RFC-4180 tokenizer below is duplicated from utils/csvImport.ts on purpose — see the cross-reference comment there.
 
 import type { Rubric, RubricCriterion, RubricLevel } from '@/types';
+import { parseCsvLines } from '@/utils/csv';
 
 export interface ParseRubricResult {
   rubric: Omit<Rubric, 'id' | 'createdAt' | 'updatedAt'> | null;
@@ -12,73 +12,7 @@ export interface ParseRubricResult {
 const MAX_LEVELS = 6;
 const MIN_LEVELS = 2;
 
-// ---------------------------------------------------------------------------
-// RFC 4180 line/cell tokenization (duplicated from utils/csvImport.ts).
-// ---------------------------------------------------------------------------
-
-function splitLogicalRows(
-  source: string
-): Array<{ text: string; line: number }> {
-  const rows: Array<{ text: string; line: number }> = [];
-  let current = '';
-  let line = 1;
-  let startLine = 1;
-  let inQuotes = false;
-  for (let i = 0; i < source.length; i++) {
-    const ch = source[i];
-    if (ch === '"') {
-      inQuotes = !inQuotes;
-      current += ch;
-      continue;
-    }
-    if (!inQuotes && (ch === '\n' || ch === '\r')) {
-      if (ch === '\r' && source[i + 1] === '\n') i++;
-      rows.push({ text: current, line: startLine });
-      current = '';
-      line++;
-      startLine = line;
-      continue;
-    }
-    if (ch === '\n') line++;
-    current += ch;
-  }
-  if (current.length > 0) rows.push({ text: current, line: startLine });
-  return rows;
-}
-
-function parseRow(row: string): string[] {
-  const cells: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  for (let i = 0; i < row.length; i++) {
-    const ch = row[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (row[i + 1] === '"') {
-          current += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        current += ch;
-      }
-      continue;
-    }
-    if (ch === '"') {
-      inQuotes = true;
-      continue;
-    }
-    if (ch === ',') {
-      cells.push(current.trim());
-      current = '';
-      continue;
-    }
-    current += ch;
-  }
-  cells.push(current.trim());
-  return cells;
-}
+const trimmed = (cells: string[]) => cells.map((c) => c.trim());
 
 /** Quote a cell if it has a comma, quote or newline; defuse formula-leading text with a `'`. */
 function quoteCell(value: string): string {
@@ -163,7 +97,7 @@ export function parseRubricCsv(text: string): ParseRubricResult {
     };
   }
 
-  const logicalRows = splitLogicalRows(text);
+  const logicalRows = parseCsvLines(text);
   if (logicalRows.length === 0) {
     return {
       rubric: null,
@@ -172,7 +106,7 @@ export function parseRubricCsv(text: string): ParseRubricResult {
     };
   }
 
-  const headerCells = parseRow(logicalRows[0].text);
+  const headerCells = trimmed(logicalRows[0].cells);
   const { criterionIdx, descriptionIdx, levelGroups, hasExtraLevelColumns } =
     buildColumnIndex(headerCells);
 
@@ -195,9 +129,9 @@ export function parseRubricCsv(text: string): ParseRubricResult {
   const criteria: RubricCriterion[] = [];
 
   for (let i = 1; i < logicalRows.length; i++) {
-    const { text: raw, line } = logicalRows[i];
+    const { raw, line } = logicalRows[i];
     if (!raw.trim()) continue;
-    const cells = parseRow(raw);
+    const cells = trimmed(logicalRows[i].cells);
 
     const name = unguardCell(cells[criterionIdx]).trim();
     if (!name) {
