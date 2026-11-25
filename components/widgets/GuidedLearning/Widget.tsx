@@ -67,10 +67,10 @@ import { guidedLearningLifecycle } from './utils/glClassLifecycle';
 import { useFolders } from '@/hooks/useFolders';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useLibraryDuplicate } from '@/components/common/library/useLibraryDuplicate';
+import { useLibraryDelete } from '@/components/common/library/useLibraryDelete';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import {
   LIBRARY_ITEM_NOUNS,
-  useLibraryDeleteConfirm,
   ViewOnlyShareModal,
   type AssignTargetingValue,
 } from '@/components/common/library';
@@ -272,7 +272,6 @@ const TeacherGuidedLearningWidget: React.FC<{
   const { t } = useTranslation();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
-  const confirmLibraryDelete = useLibraryDeleteConfirm();
   const {
     user,
     isAdmin,
@@ -786,15 +785,15 @@ const TeacherGuidedLearningWidget: React.FC<{
     assignments
       .filter((a) => a.setId === setId && a.status === 'active')
       .map((a) => a.id);
-  const confirmSetDelete = (titles: string[], openCount: number) =>
-    confirmLibraryDelete({
-      titles,
-      noun: LIBRARY_ITEM_NOUNS.guidedLearning,
-      detail:
-        openCount > 0
-          ? t('glData.deleteWithOpenAssignments', { count: openCount })
-          : undefined,
-    });
+  const openAssignmentsDetail = (setIds: string[]) => {
+    const openCount = setIds.reduce(
+      (sum, id) => sum + openAssignmentIdsFor(id).length,
+      0
+    );
+    return openCount > 0
+      ? t('glData.deleteWithOpenAssignments', { count: openCount })
+      : undefined;
+  };
 
   const deletePersonalSet = async (
     setId: string,
@@ -803,19 +802,6 @@ const TeacherGuidedLearningWidget: React.FC<{
   ) => {
     prefetchCacheRef.current.invalidate(setId);
     await deleteSet(setId, driveFileId, openIds);
-  };
-
-  const handleDelete = async (setId: string, driveFileId: string) => {
-    const openIds = openAssignmentIdsFor(setId);
-    const title = sets.find((s) => s.id === setId)?.title ?? '';
-    if (!(await confirmSetDelete([title], openIds.length))) return;
-    try {
-      await deletePersonalSet(setId, driveFileId, openIds);
-      addToast('Set deleted.', 'success');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete';
-      addToast(msg, 'error');
-    }
   };
 
   const helpAuthor = () =>
@@ -882,57 +868,32 @@ const TeacherGuidedLearningWidget: React.FC<{
     if (pendingMoveKey) finishPendingMoves();
   }, [pendingMoveKey]);
 
-  const handleBulkDeletePersonal = async (
-    targets: { setId: string; driveFileId: string }[]
-  ): Promise<boolean> => {
-    const openIdsBySet = new Map(
-      targets.map(({ setId }) => [setId, openAssignmentIdsFor(setId)])
-    );
-    const openCount = [...openIdsBySet.values()].reduce(
-      (sum, ids) => sum + ids.length,
-      0
-    );
-    const titles = targets.map(
-      ({ setId }) => sets.find((s) => s.id === setId)?.title ?? ''
-    );
-    if (!(await confirmSetDelete(titles, openCount))) return false;
-    const results = await Promise.allSettled(
-      targets.map(({ setId, driveFileId }) =>
-        deletePersonalSet(setId, driveFileId, openIdsBySet.get(setId) ?? [])
-      )
-    );
-    const failed = results.filter((r) => r.status === 'rejected').length;
-    const deleted = targets.length - failed;
-    if (deleted > 0) {
-      addToast(
-        deleted === 1 ? 'Set deleted.' : `Deleted ${deleted} sets.`,
-        'success'
-      );
-    }
-    if (failed > 0) {
-      addToast(
-        failed === 1
-          ? '1 set failed to delete.'
-          : `${failed} sets failed to delete.`,
-        'error'
-      );
-    }
-    return true;
-  };
-
-  const handleDeleteBuilding = async (setId: string) => {
-    const title = buildingSets.find((s) => s.id === setId)?.title ?? '';
-    const openCount = openAssignmentIdsFor(setId).length;
-    if (!(await confirmSetDelete([title], openCount))) return;
-    prefetchCacheRef.current.invalidate(setId);
-    try {
-      await deleteBuildingSet(setId);
-      addToast('Building set deleted.', 'success');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete';
-      addToast(msg, 'error');
-    }
-  };
+  const personalDelete = useLibraryDelete<GuidedLearningSetMetadata>({
+    noun: LIBRARY_ITEM_NOUNS.guidedLearning,
+    titleOf: (meta) => meta.title,
+    addToast,
+    detail: (metas) => openAssignmentsDetail(metas.map((m) => m.id)),
+    notReady: () =>
+      assignmentsLoading
+        ? 'Still loading assignments. Try again in a moment.'
+        : null,
+    remove: (meta) =>
+      deletePersonalSet(
+        meta.id,
+        meta.driveFileId,
+        openAssignmentIdsFor(meta.id)
+      ),
+  });
+  const buildingDelete = useLibraryDelete<GuidedLearningBuildingSetIndex>({
+    noun: { one: 'building set', other: 'building sets' },
+    titleOf: (entry) => entry.title,
+    addToast,
+    detail: (entries) => openAssignmentsDetail(entries.map((e) => e.id)),
+    remove: async (entry) => {
+      prefetchCacheRef.current.invalidate(entry.id);
+      await deleteBuildingSet(entry.id);
+    },
+  });
 
   // Actually create the session + matching assignment doc. Shared between
   // the classic direct-assign path (no ClassLink/rosters), the picker
@@ -1725,36 +1686,25 @@ const TeacherGuidedLearningWidget: React.FC<{
                     if (meta) claudeReview.whenReviewed(meta, go);
                     else go();
                   }}
-                  folderDeleteActions={{
-                    isBlocked: (id) => openAssignmentIdsFor(id).length > 0,
+                  folderDeleteActions={personalDelete.folderActions(sets, {
+                    isBlocked: (meta) =>
+                      openAssignmentIdsFor(meta.id).length > 0,
                     blockedReason: (n) =>
                       n === 1
                         ? '1 set has an open assignment'
                         : `${n} sets have open assignments`,
-                    deleteItems: async (ids) => {
-                      // The open-assignment check above is only trustworthy once assignments have loaded.
-                      if (assignmentsLoading) {
-                        throw new Error(
-                          "Couldn't check assignments. Try again in a moment."
-                        );
-                      }
-                      const byId = new Map(sets.map((x) => [x.id, x]));
-                      for (const id of ids) {
-                        const meta = byId.get(id);
-                        if (!meta) continue;
-                        prefetchCacheRef.current.invalidate(id);
-                        await deleteSet(
-                          id,
-                          meta.driveFileId,
-                          openAssignmentIdsFor(id)
-                        );
-                      }
-                    },
+                  })}
+                  onDeletePersonal={(setId) => {
+                    const meta = sets.find((x) => x.id === setId);
+                    if (meta) void personalDelete.deleteOne(meta);
                   }}
-                  onDeletePersonal={(setId, driveFileId) => {
-                    void handleDelete(setId, driveFileId);
-                  }}
-                  onBulkDeletePersonal={handleBulkDeletePersonal}
+                  onBulkDeletePersonal={(targets) =>
+                    personalDelete.deleteMany(
+                      sets.filter((x) =>
+                        targets.some((tg) => tg.setId === x.id)
+                      )
+                    )
+                  }
                   onDuplicatePersonal={(setId) => {
                     const source = sets.find((s) => s.id === setId);
                     if (source) void personalDuplicate.duplicate(source);
@@ -1822,7 +1772,8 @@ const TeacherGuidedLearningWidget: React.FC<{
                   }
                   isConvertingToLiveTour={tourConvertBusy.isBusy}
                   onDeleteBuilding={(setId) => {
-                    void handleDeleteBuilding(setId);
+                    const entry = buildingSets.find((x) => x.id === setId);
+                    if (entry) void buildingDelete.deleteOne(entry);
                   }}
                   onMoveToHelpCenter={
                     isAdmin
