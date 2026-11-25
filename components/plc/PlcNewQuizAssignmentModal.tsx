@@ -41,6 +41,7 @@ import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useBankSources } from '@/hooks/useBankSources';
 import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
+import { buildAssignQuizRef } from '@/hooks/quizAssign/builders';
 import {
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
@@ -223,7 +224,8 @@ export const PlcNewQuizAssignmentModal: React.FC<
         const content = await resolveQuizAssignContent(
           data,
           pickedQuiz.driveFileId,
-          { loadBankContentsForQuiz, saveDriveSnapshot }
+          { loadBankContentsForQuiz, saveDriveSnapshot },
+          { freeze: true }
         );
 
         const stepperPlan = planPlcQuizStepperAssign({
@@ -233,8 +235,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
           bellWindow: periodAccess?.bellWindow,
           questions: content.questions,
         });
-        const fields = plcStepperCreateFields(stepperPlan, rosters);
-
         // PLC link only — no sheet step; results pool server-side.
         const plcLinkage: PlcLinkage = {
           id: plc.id,
@@ -315,36 +315,26 @@ export const PlcNewQuizAssignmentModal: React.FC<
           libraryEntries: plcLibrary.filter((entry) => !entry.archived),
         });
 
+        const fields = plcStepperCreateFields(stepperPlan, rosters, {
+          behavior,
+          teacherName: (user.displayName ?? '').trim() || undefined,
+          content,
+          assignmentMode,
+          plcLinkage,
+          plcPoolSyncGroupId,
+          plcTemplateSyncGroupId,
+          translationIndex: pickedQuiz.translations,
+        });
         const { id: assignmentId } = await createAssignment(
-          {
-            id: pickedQuiz.id,
-            title: pickedQuiz.title,
+          buildAssignQuizRef({
+            meta: pickedQuiz,
+            data,
             driveFileId: content.driveFileId,
             questions: content.questions,
-            ...(content.stimuli ? { stimuli: content.stimuli } : {}),
-            ...(data.language ? { language: data.language } : {}),
-            ...(data.sections?.length
-              ? { order: data.order, sections: data.sections }
-              : {}),
-          },
-          {
-            sessionMode: behavior.sessionMode,
-            sessionOptions,
-            attemptLimit: behavior.attemptLimit,
-            teacherName: (user.displayName ?? '').trim() || undefined,
-            ...fields.settings,
-            plc: plcLinkage,
-            ...(content.resolvedDriveFileId
-              ? { resolvedDriveFileId: content.resolvedDriveFileId }
-              : {}),
-          },
-          {
-            ...fields.options,
-            ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
-            mode: assignmentMode,
-            ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
-            ...(plcPoolSyncGroupId ? { plcPoolSyncGroupId } : {}),
-          }
+            stimuli: content.stimuli,
+          }),
+          fields.settings,
+          fields.options
         );
 
         saveLastAssignSettings({
@@ -368,8 +358,8 @@ export const PlcNewQuizAssignmentModal: React.FC<
           logScope: 'PlcNewQuizAssignmentModal',
         });
 
-        // Only a period gate creates it active; otherwise it starts paused.
-        const gated = !!stepperPlan.periodGate;
+        // A period gate or a later open time creates it active; otherwise it starts paused.
+        const gated = fields.options.initialStatus === 'active';
         const createdKey = gated ? 'StepperCreated' : 'Created';
         addToast(
           t(`plcDashboard.newAssignment.quiz.group${createdKey}`, {

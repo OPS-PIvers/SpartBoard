@@ -27,6 +27,7 @@ import { logError } from '@/utils/logError';
 import { canEditPlcContent, getPlcMemberEmail } from '@/utils/plc';
 import { quizServedQuestionCount } from '@/utils/questionBanks';
 import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
+import { buildAssignQuizRef } from '@/hooks/quizAssign/builders';
 import { pinPlcBankSlots, useBankSources } from '@/hooks/useBankSources';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { getQuizAssignPrefill, getQuizBehavior } from '@/utils/quizBehavior';
@@ -471,44 +472,33 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
           ...plan,
           mixed: withPlanAnswerChoices(plan.mixed, content.questions),
         };
-        const fields = plcStepperCreateFields(quizPlan, rosters);
+        const fields = plcStepperCreateFields(quizPlan, rosters, {
+          behavior: behavior,
+          teacherName: (user.displayName ?? '').trim() || undefined,
+          content,
+          assignmentMode: getAssignmentMode('quiz'),
+          // PLC linkage so this pickup registers on the In-progress tab alongside the originator's run.
+          plcLinkage: plcLinkage,
+          skipPlcTemplateWrite: true,
+          ...(mode === 'sync' && liveVersion !== undefined
+            ? {
+                syncedFrom: {
+                  groupId: target.syncGroupId,
+                  syncedVersion: liveVersion,
+                },
+              }
+            : {}),
+        });
         const created = await createAssignment(
-          {
-            id: savedMeta.id,
-            title: savedMeta.title,
+          buildAssignQuizRef({
+            meta: savedMeta,
+            data: { ...fresh, language: canonical.language },
             driveFileId: content.driveFileId,
             questions: content.questions,
-            ...(content.stimuli?.length ? { stimuli: content.stimuli } : {}),
-            ...(canonical.language ? { language: canonical.language } : {}),
-            ...(fresh.sections?.length
-              ? { order: fresh.order, sections: fresh.sections }
-              : {}),
-          },
-          {
-            sessionMode: behavior.sessionMode,
-            sessionOptions: behavior.sessionOptions,
-            attemptLimit: behavior.attemptLimit,
-            teacherName: (user.displayName ?? '').trim() || undefined,
-            ...fields.settings,
-            ...(plcLinkage ? { plc: plcLinkage } : {}),
-            ...(content.resolvedDriveFileId
-              ? { resolvedDriveFileId: content.resolvedDriveFileId }
-              : {}),
-          },
-          {
-            ...fields.options,
-            mode: getAssignmentMode('quiz'),
-            skipPlcTemplateWrite: true,
-            ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
-            ...(mode === 'sync' && liveVersion !== undefined
-              ? {
-                  syncedFrom: {
-                    groupId: target.syncGroupId,
-                    syncedVersion: liveVersion,
-                  },
-                }
-              : {}),
-          }
+            stimuli: content.stimuli?.length ? content.stimuli : undefined,
+          }),
+          fields.settings,
+          fields.options
         );
 
         savePlcStepperFinalScore({

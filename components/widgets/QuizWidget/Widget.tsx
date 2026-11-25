@@ -204,7 +204,6 @@ import {
   CLASSROOM_ASSIGN_ENABLED,
   CLASSROOM_ASSIGN_ADMIN_ONLY,
 } from '@/config/constants';
-import { saveAttemptPolicy } from '@/hooks/gradebook/useGradebookColumnWrites';
 import {
   fibGradingFromAssignment,
   type FibGradingContext,
@@ -321,7 +320,6 @@ import {
   useSetAssignmentTargets,
   type SkipReason,
 } from '@/hooks/useSetAssignmentTargets';
-import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 import {
   expandMixedTargeting,
@@ -335,6 +333,8 @@ import {
   buildAssignSettings,
   buildAssignTargetsCall,
   resolveAssignTargeting,
+  applyAssignTargetsCall,
+  saveAssignFinalScore,
 } from '@/hooks/quizAssign/builders';
 import type { QuizStepperAssign } from './components/QuizManager';
 import type { StudentTargetRef } from '@/types';
@@ -4376,19 +4376,13 @@ const TeacherQuizWidget: React.FC<{
                 console.warn('[QuizWidget] printed groups not queued:', err)
               );
             }
-            const finalScore = behavior.finalScore ?? 'latest';
-            if (finalScore !== 'latest' && attemptLimit !== 1 && user?.uid) {
-              saveAttemptPolicy(
-                user.uid,
+            if (user?.uid)
+              saveAssignFinalScore({
+                uid: user.uid,
                 assignmentId,
-                'quiz',
-                finalScore
-              ).catch((err: unknown) =>
-                logError('QuizWidget.assignment.finalScore', err, {
-                  assignmentId,
-                })
-              );
-            }
+                behavior: { finalScore: behavior.finalScore, attemptLimit },
+                logScope: 'QuizWidget.assignment',
+              });
             if (assessmentAssign) {
               saveLastAssignSettings({
                 sessionMode: mode,
@@ -4402,56 +4396,22 @@ const TeacherQuizWidget: React.FC<{
             // today. Individual targeting fans the pick-list out to
             // `/student_assignments` pointer docs; skipped refs are surfaced,
             // never silently dropped.
-            const targetsCall = buildAssignTargetsCall({
-              assignmentId,
-              mixedTargeting,
-              resolvedTargeting,
+            const targetsResult = await applyAssignTargetsCall({
+              targetsCall: buildAssignTargetsCall({
+                assignmentId,
+                mixedTargeting,
+                resolvedTargeting,
+              }),
+              setAssignmentTargets,
+              setAssignmentTargetSkippedCount,
+              notify: addToast,
+              logScope: 'QuizWidget.assignment',
             });
-            if (targetsCall) {
-              try {
-                const result = await setAssignmentTargets(targetsCall);
-                if (result.skipped.length > 0) {
-                  setAssignSkippedByAssignmentId((prev) => ({
-                    ...prev,
-                    [assignmentId]: result.skipped,
-                  }));
-                  addToast(
-                    skippedTargetsToastMessage(
-                      result.skipped.length,
-                      result.skippedExclusions?.length ?? 0
-                    ),
-                    'warning'
-                  );
-                  // Skipped-ref durability (canonical rule) — persist the
-                  // PII-free count onto the assignment doc so the "N
-                  // skipped" list-row marker survives a reload; the toast
-                  // with names above is ephemeral only. Best-effort: a
-                  // failure here doesn't affect the already-created
-                  // assignment or the in-session toast/marker.
-                  try {
-                    await setAssignmentTargetSkippedCount(
-                      assignmentId,
-                      result.skipped.length
-                    );
-                  } catch (persistErr) {
-                    logError(
-                      'QuizWidget.assignment.setAssignmentTargetSkippedCount',
-                      persistErr,
-                      { assignmentId }
-                    );
-                  }
-                }
-              } catch (targetErr) {
-                logError(
-                  'QuizWidget.assignment.setAssignmentTargets',
-                  targetErr,
-                  { assignmentId }
-                );
-                addToast(
-                  'Assigned to the class, but individual student targeting failed to save. Reopen Settings to retry.',
-                  'error'
-                );
-              }
+            if (targetsResult && targetsResult.skipped.length > 0) {
+              setAssignSkippedByAssignmentId((prev) => ({
+                ...prev,
+                [assignmentId]: targetsResult.skipped,
+              }));
             }
 
             // Persist the teacher's last-used rosters per quiz so

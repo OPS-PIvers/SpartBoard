@@ -1,14 +1,24 @@
 // What the assign stepper adds to a PLC quiz assign (D21): classes, student picks and When.
 import type {
   AccessMode,
+  AssignmentMode,
   ClassRoster,
   PeriodAccess,
+  PlcLinkage,
   QuizAssignmentSettings,
   QuizBehaviorSettings,
   QuizQuestion,
+  QuizTranslationIndexEntry,
 } from '@/types';
 import { withQuizAnswerChoices } from '@/components/common/library/assignStepper/modificationGroups';
-import { saveAttemptPolicy } from '@/hooks/gradebook/useGradebookColumnWrites';
+import {
+  applyAssignTargetsCall,
+  buildAssignCreateOptions,
+  buildAssignSettings,
+  buildAssignTargetsCall,
+  saveAssignFinalScore,
+} from '@/hooks/quizAssign/builders';
+import type { QuizAssignContent } from '@/utils/quizAssignBankDraw';
 import { applyWhen, type BellWindowFn } from '@/utils/assignAvailability';
 import {
   expandMixedTargeting,
@@ -16,27 +26,20 @@ import {
   type MixedTargeting,
 } from '@/utils/assignTargets';
 import { buildPeriodGate } from '@/utils/periodPlan';
-import {
-  dueAtByClassIdFromRosters,
-  earliestDueAt,
-} from '@/utils/perClassDueDates';
-import {
-  EMPTY_ASSIGN_TARGETING_VALUE,
-  payloadRequiresCall,
-} from '@/utils/studentTargetRef';
-import { buildMixedTargetsPayload } from '@/utils/assignTargets';
+import { earliestDueAt } from '@/utils/perClassDueDates';
+import { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
-import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
-import { logError } from '@/utils/logError';
 import type {
   SetAssignmentTargetsCallInput,
   SetAssignmentTargetsCallResult,
 } from '@/hooks/useSetAssignmentTargets';
-import type { CreateAssignmentOptions } from '@/hooks/useQuizAssignments';
+import type { CreateAssignmentOptions } from '@/hooks/quizAssignments/types';
 import type { AssignWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
 
 export interface PlcQuizStepperPlan {
   rosters: ClassRoster[];
+  /** Manual When: it starts when the teacher presses Start. */
+  manualStart: boolean;
   dueAt: number | null;
   dueAtByRosterId?: Record<string, number>;
   mixed: MixedTargeting;
@@ -91,6 +94,7 @@ export function planPlcQuizStepperAssign({
   const perClassDue = applied.dueAtByRosterId;
   return {
     rosters: picked,
+    manualStart: when.mode === 'manual',
     dueAt: perClassDue
       ? earliestDueAt(perClassDue)
       : (applied.targeting.dueAt ?? null),
@@ -100,7 +104,6 @@ export function planPlcQuizStepperAssign({
   };
 }
 
-/** The createAssignment settings and options a stepper plan sets: classes, dates and the period gate. */
 /** Turns class answer choices into this quiz's hidden options, once the questions are loaded. */
 export function withPlanAnswerChoices(
   mixed: MixedTargeting,
@@ -119,71 +122,90 @@ export function withPlanAnswerChoices(
   };
 }
 
+/** The createAssignment settings and options for a PLC stepper assign, from the Quiz widget's builders. */
 export function plcStepperCreateFields(
   plan: PlcQuizStepperPlan,
-  rosters: ClassRoster[]
+  rosters: ClassRoster[],
+  {
+    behavior,
+    teacherName,
+    content,
+    assignmentMode,
+    plcLinkage,
+    plcPoolSyncGroupId,
+    plcTemplateSyncGroupId,
+    skipPlcTemplateWrite,
+    syncedFrom,
+    translationIndex,
+  }: {
+    behavior: Pick<
+      QuizBehaviorSettings,
+      'sessionMode' | 'sessionOptions' | 'attemptLimit'
+    >;
+    teacherName: string | undefined;
+    content: QuizAssignContent;
+    assignmentMode: AssignmentMode;
+    plcLinkage: PlcLinkage | undefined;
+    plcPoolSyncGroupId?: string;
+    plcTemplateSyncGroupId?: string;
+    skipPlcTemplateWrite?: boolean;
+    syncedFrom?: CreateAssignmentOptions['syncedFrom'];
+    translationIndex?: Record<string, QuizTranslationIndexEntry>;
+  }
 ): {
-  settings: Pick<
-    QuizAssignmentSettings,
-    'periodName' | 'periodNames' | 'dueAt' | 'dueAtHasTime' | 'dueAtByRosterId'
-  >;
+  settings: QuizAssignmentSettings;
   options: CreateAssignmentOptions;
 } {
   const derived = deriveSessionTargetsFromRosters(plan.rosters);
-  const targeting = plan.mixed.targeting;
+  const rosterIds = plan.rosters.map((r) => r.id);
+  const plcOptions = {
+    plcMode: !!plcLinkage,
+    teacherName,
+    periodNames: derived.periodNames,
+  };
   return {
-    settings: {
-      periodName: derived.periodNames[0],
-      periodNames: derived.periodNames,
-      ...(plan.dueAt != null ? { dueAt: plan.dueAt, dueAtHasTime: true } : {}),
-      ...(plan.dueAtByRosterId
-        ? { dueAtByRosterId: plan.dueAtByRosterId }
-        : {}),
-    },
-    options: {
-      // A per-period session is gated by its periods, not a global pause.
-      initialStatus: plan.periodGate ? 'active' : 'paused',
-      ...(plan.periodGate ?? {}),
-      classIds: derived.classIds,
-      rosterIds: derived.rosterIds,
-      classPeriodByClassId: derived.classPeriodByClassId,
-      ...(plan.dueAtByRosterId
-        ? {
-            dueAtByClassId: dueAtByClassIdFromRosters(
-              plan.dueAtByRosterId,
-              rosters
-            ),
-          }
-        : {}),
-      ...(targeting
-        ? {
-            targetGroupIds: targeting.targetGroupIds,
-            overridesBySourcedId: targeting.overridesByKey,
-            openAt: targeting.openAt ?? null,
-            closeAt: targeting.closeAt ?? null,
-          }
-        : {}),
-    },
+    settings: buildAssignSettings({
+      mode: behavior.sessionMode,
+      sessionOptions: behavior.sessionOptions,
+      attemptLimit: behavior.attemptLimit,
+      dueAt: plan.dueAt,
+      dueAtByRosterId: plan.dueAtByRosterId,
+      plcOptions,
+      plcLinkage,
+      resolvedDriveFileId: content.resolvedDriveFileId,
+      frozenDriveFileId: content.frozenDriveFileId,
+    }),
+    options: buildAssignCreateOptions({
+      assignmentMode,
+      mode: behavior.sessionMode,
+      now: Date.now(),
+      stepper: { manualStart: plan.manualStart },
+      rosters,
+      rosterIds,
+      derived,
+      periodGate: plan.periodGate,
+      sessionPeriodAccess: plan.periodGate?.periodAccess ?? null,
+      resolvedTargeting: plan.mixed.targeting ?? EMPTY_ASSIGN_TARGETING_VALUE,
+      dueAt: plan.dueAt,
+      dueAtByRosterId: plan.dueAtByRosterId,
+      sessionBankSlots: content.bankSlots,
+      paperWritten: null,
+      plcLinkage,
+      plcPoolSyncGroupId,
+      plcTemplateSyncGroupId,
+      districtCopy: false,
+      translationIndex,
+      skipPlcTemplateWrite,
+      syncedFrom,
+    }),
   };
 }
 
 /** Saves the picked Final score to the gradebook column, as the Quiz widget's assign does. */
-export function savePlcStepperFinalScore({
-  uid,
-  assignmentId,
-  behavior,
-  logScope,
-}: {
-  uid: string;
-  assignmentId: string;
-  behavior: QuizBehaviorSettings;
-  logScope: string;
-}): void {
-  const finalScore = behavior.finalScore ?? 'latest';
-  if (finalScore === 'latest' || behavior.attemptLimit === 1) return;
-  saveAttemptPolicy(uid, assignmentId, 'quiz', finalScore).catch(
-    (err: unknown) => logError(`${logScope}.finalScore`, err, { assignmentId })
-  );
+export function savePlcStepperFinalScore(
+  args: Parameters<typeof saveAssignFinalScore>[0]
+): void {
+  saveAssignFinalScore(args);
 }
 
 /** Fans out the stepper's student picks after create, like the Quiz widget's stepper assign (D5b). */
@@ -207,49 +229,15 @@ export async function applyPlcStepperStudentPicks({
   addToast: (message: string, type: 'warning' | 'error') => void;
   logScope: string;
 }): Promise<void> {
-  const payload = buildMixedTargetsPayload(undefined, plan.mixed);
-  if (!payloadRequiresCall(payload)) return;
-  try {
-    const result = await setAssignmentTargets({
+  await applyAssignTargetsCall({
+    targetsCall: buildAssignTargetsCall({
       assignmentId,
-      kind: 'quiz',
-      sessionId: assignmentId,
-      targetMode: payload.targetMode,
-      add: payload.add,
-      remove: payload.remove,
-      overridesBySourcedId: payload.overridesBySourcedId,
-      ...(payload.excludedTargets
-        ? { excludedTargets: payload.excludedTargets }
-        : {}),
-      ...(payload.studentTargetClassIds
-        ? { studentTargetClassIds: payload.studentTargetClassIds }
-        : {}),
-      window: payload.window,
-    });
-    if (result.skipped.length > 0) {
-      addToast(
-        skippedTargetsToastMessage(
-          result.skipped.length,
-          result.skippedExclusions?.length ?? 0
-        ),
-        'warning'
-      );
-      try {
-        await setAssignmentTargetSkippedCount(
-          assignmentId,
-          result.skipped.length
-        );
-      } catch (persistErr) {
-        logError(`${logScope}.setAssignmentTargetSkippedCount`, persistErr, {
-          assignmentId,
-        });
-      }
-    }
-  } catch (targetErr) {
-    logError(`${logScope}.setAssignmentTargets`, targetErr, { assignmentId });
-    addToast(
-      'Assigned to the class, but individual student targeting failed to save. Reopen Settings to retry.',
-      'error'
-    );
-  }
+      mixedTargeting: plan.mixed,
+      resolvedTargeting: plan.mixed.targeting,
+    }),
+    setAssignmentTargets,
+    setAssignmentTargetSkippedCount,
+    notify: addToast,
+    logScope,
+  });
 }

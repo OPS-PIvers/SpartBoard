@@ -1,6 +1,7 @@
 import type {
   AssignmentMode,
   ClassRoster,
+  QuizBehaviorSettings,
   PlcLinkage,
   QuizAssignmentSettings,
   QuizConfig,
@@ -18,7 +19,13 @@ import type {
   AssignmentQuizRef,
   CreateAssignmentOptions,
 } from '@/hooks/quizAssignments/types';
-import type { SetAssignmentTargetsCallInput } from '@/hooks/useSetAssignmentTargets';
+import type {
+  SetAssignmentTargetsCallInput,
+  SetAssignmentTargetsCallResult,
+} from '@/hooks/useSetAssignmentTargets';
+import { saveAttemptPolicy } from '@/hooks/gradebook/useGradebookColumnWrites';
+import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
+import { logError } from '@/utils/logError';
 import { withQuizAnswerChoices } from '@/components/common/library/assignStepper/modificationGroups';
 import {
   buildMixedTargetsPayload,
@@ -247,9 +254,15 @@ export function buildAssignCreateOptions({
   plcTemplateSyncGroupId,
   districtCopy,
   translationIndex,
+  startsActive,
+  skipPlcTemplateWrite,
+  syncedFrom,
+  gameDurationMs,
 }: {
-  widgetKind: QuizWidgetKind;
-  assignmentMode: AssignmentMode;
+  /** Omitted for an assign outside a widget; the session then reads as a Quiz. */
+  widgetKind?: QuizWidgetKind;
+  /** Omitted keeps the hook's default, Submissions. */
+  assignmentMode?: AssignmentMode;
   mode: QuizSessionMode;
   now: number;
   /** The stepper's start and audience picks; undefined for an assign outside the stepper. */
@@ -275,19 +288,27 @@ export function buildAssignCreateOptions({
   /** A District library copy: teammates can't join its canonical, so no PLC template. */
   districtCopy: boolean;
   translationIndex: Record<string, QuizTranslationIndexEntry> | undefined;
+  /** A launch with no Start step (Schoology, Classroom, a Review game) is open from the start. */
+  startsActive?: boolean;
+  /** A pickup of a teammate's PLC run, which already has its template. */
+  skipPlcTemplateWrite?: boolean;
+  syncedFrom?: CreateAssignmentOptions['syncedFrom'];
+  gameDurationMs?: number;
 }): CreateAssignmentOptions {
   return {
-    widgetKind,
+    ...(widgetKind ? { widgetKind } : {}),
     // A per-period session is gated by its periods, a later Scheduled start by its open time.
-    initialStatus: initialAssignStatus({
-      gated: !!sessionPeriodAccess,
-      opensLater:
-        !!stepper &&
-        !stepper.manualStart &&
-        mode === 'student' &&
-        rosterIds.length > 0 &&
-        (resolvedTargeting.openAt ?? 0) > now,
-    }),
+    initialStatus: startsActive
+      ? 'active'
+      : initialAssignStatus({
+          gated: !!sessionPeriodAccess,
+          opensLater:
+            !!stepper &&
+            !stepper.manualStart &&
+            mode === 'student' &&
+            rosterIds.length > 0 &&
+            (resolvedTargeting.openAt ?? 0) > now,
+        }),
     ...(sessionPeriodAccess
       ? {
           accessMode: periodGate?.accessMode,
@@ -305,9 +326,13 @@ export function buildAssignCreateOptions({
           dueAtByClassId: dueAtByClassIdFromRosters(dueAtByRosterId, rosters),
         }
       : {}),
-    mode: assignmentMode,
+    ...(assignmentMode ? { mode: assignmentMode } : {}),
     ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
-    ...(districtCopy ? { skipPlcTemplateWrite: true } : {}),
+    ...(districtCopy || skipPlcTemplateWrite
+      ? { skipPlcTemplateWrite: true }
+      : {}),
+    ...(syncedFrom ? { syncedFrom } : {}),
+    ...(gameDurationMs != null ? { gameDurationMs } : {}),
     ...(plcLinkage && plcPoolSyncGroupId ? { plcPoolSyncGroupId } : {}),
     // `targetMode` and `targetStudents` are written by `setAssignmentTargetsV1`, never here.
     targetGroupIds: resolvedTargeting.targetGroupIds,
@@ -357,6 +382,81 @@ export function buildAssignTargetsCall({
       : {}),
     window: payload.window,
   };
+}
+
+/** Saves the picked Final score as the gradebook column's attempt policy. */
+export function saveAssignFinalScore({
+  uid,
+  assignmentId,
+  behavior,
+  logScope,
+}: {
+  uid: string;
+  assignmentId: string;
+  behavior: Pick<QuizBehaviorSettings, 'finalScore' | 'attemptLimit'>;
+  logScope: string;
+}): void {
+  const finalScore = behavior.finalScore ?? 'latest';
+  if (finalScore === 'latest' || behavior.attemptLimit === 1) return;
+  saveAttemptPolicy(uid, assignmentId, 'quiz', finalScore).catch(
+    (err: unknown) => logError(`${logScope}.finalScore`, err, { assignmentId })
+  );
+}
+
+export const ASSIGN_TARGETS_FAILED_MESSAGE =
+  'Assigned to the class, but individual student targeting failed to save. Reopen Settings to retry.';
+
+/** Fans out individual student picks after create; a class-wide assign makes no call. */
+export async function applyAssignTargetsCall({
+  targetsCall,
+  setAssignmentTargets,
+  setAssignmentTargetSkippedCount,
+  notify,
+  logScope,
+  failedMessage = ASSIGN_TARGETS_FAILED_MESSAGE,
+}: {
+  targetsCall: SetAssignmentTargetsCallInput | null;
+  setAssignmentTargets: (
+    input: SetAssignmentTargetsCallInput
+  ) => Promise<SetAssignmentTargetsCallResult>;
+  setAssignmentTargetSkippedCount: (
+    assignmentId: string,
+    count: number
+  ) => Promise<void>;
+  notify: (message: string, type: 'warning' | 'error') => void;
+  logScope: string;
+  failedMessage?: string;
+}): Promise<SetAssignmentTargetsCallResult | null> {
+  if (!targetsCall) return null;
+  const { assignmentId } = targetsCall;
+  try {
+    const result = await setAssignmentTargets(targetsCall);
+    if (result.skipped.length > 0) {
+      notify(
+        skippedTargetsToastMessage(
+          result.skipped.length,
+          result.skippedExclusions?.length ?? 0
+        ),
+        'warning'
+      );
+      // The count survives a reload; the names in the toast do not.
+      try {
+        await setAssignmentTargetSkippedCount(
+          assignmentId,
+          result.skipped.length
+        );
+      } catch (persistErr) {
+        logError(`${logScope}.setAssignmentTargetSkippedCount`, persistErr, {
+          assignmentId,
+        });
+      }
+    }
+    return result;
+  } catch (targetErr) {
+    logError(`${logScope}.setAssignmentTargets`, targetErr, { assignmentId });
+    notify(failedMessage, 'error');
+    return null;
+  }
 }
 
 /** The widget config after an assign: the Assigned tab, with this quiz's last-used classes remembered. */
