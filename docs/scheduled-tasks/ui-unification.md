@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-11-18_
+_Last audited: 2026-11-25_
 _Last action: 2026-09-25 — MEDIUM dead appearance fields: removed `cardColor`/`cardOpacity`/`fontFamily`/`fontColor` from `StickerBookConfig` and `fontFamily`/`fontColor` from `TalkingToolConfig` (types.ts) — none were read by their widgets, matching the `CarRiderProConfig` precedent. `pnpm run type-check` exit 0; 88 targeted tests passed. Moved to Completed. PR opened to dev-paul._
+
+_2026-11-25: Weekly audit (Wednesday, light pass). Still 47 `*ConfigurationPanel.tsx` files with 40 hardcoded 6-digit hex literals (unchanged), and no widget `Settings.tsx` files remain. `Toast` is defined only in `components/common/`. 11 non-common files still hand-roll `role="switch"`, which the existing toggle items cover. 0 new issues._
 
 _2026-11-18: Weekly audit (Wednesday, light pass). 47 `*ConfigurationPanel.tsx` files, 40 hardcoded 6-digit hex literals in them (unchanged); no widget `Settings.tsx` files remain. 0 new issues._
 

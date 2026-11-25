@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-11-18_
+_Last audited: 2026-11-25_
 _Last action: 2026-09-23 — MEDIUM `FeaturePermissionsManager.tsx` grid/list card-body duplication resolved: extracted a shared `WidgetPermissionCardBody` component (`variant: 'grid' | 'list'`) consumed by both view modes, shrinking the file from 1,078 to 738 lines. Moved to Completed._
+
+_2026-11-25: Weekly audit (Wednesday, light pass). 367 non-test files over 500 lines (345 last week) and 97 over 1000. Largest: `DashboardContext.tsx` 9649, `QuizStudentApp.tsx` 8104, `QuizWidget/Widget.tsx` 5628, `QuizResults.tsx` 5508, `useQuizSession.ts` 4244, `QuizManager.tsx` 4194, `AuthContext.tsx` 3867, `DraggableWindow.tsx` 3751. Existing items cover all of these. No `../../../` imports, no `firebase-functions/v1` imports; `functions/src/index.ts` is 511 lines. 0 new issues._
 
 _2026-11-18: Weekly audit (Wednesday, light pass). 345 non-test files over 500 lines; largest: `DashboardContext.tsx` 9357, `QuizStudentApp.tsx` 7829, `QuizWidget/Widget.tsx` 5845, `QuizResults.tsx` 5373, `useQuizSession.ts` 4557, `useQuizAssignments.ts` 4402 (covered by existing items). No `../../../` imports, no `functionsV1`. 0 new issues._
 

@@ -3,9 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-11-24_
+_Last audited: 2026-11-25_
 _Last action: 2026-10-07 — LOW `projects` scaling base updated to 620×560 to match its spawn size. Prior: 2026-09-26 — LOW `WIDGET_DEFAULTS` `as XConfig` trio resolved for `specialist-schedule`/`graphic-organizer`/`reveal-grid`: changed all three from `as` to `satisfies` per the skill's Step 5 guidance, with no field changes needed since every required field was already present. Moved to Completed._
 
+_2026-11-25: Daily audit (Wednesday) at f1a81384d. 71 `WidgetType` members. `WIDGET_COMPONENTS` 70/71 (only `sticker`, documented). `WIDGET_SETTINGS_SCHEMAS` 68/71 (`blooms-detail`, `onboarding`, `sticker` absent, documented). `WIDGET_SETTINGS_COMPONENTS` and `WIDGET_APPEARANCE_COMPONENTS` are empty by design (schema-driven drawer). `WIDGET_SCALING_CONFIG` and `WIDGET_DEFAULTS` 71/71; `widgetGradeLevels` has no orphans; `tools.ts` is missing only the 7 documented exclusions plus the `record`/`magic`/`remote` internal tools. All 68 `lazyNamed()` export names resolve (the 3 Catalyst ones via `export *` barrel). 0 new issues._
 
 _2026-11-23: Daily audit (Monday). Merged `origin/dev-paul`. `WidgetType` 71; `WIDGET_DEFAULTS` 71/71; `WIDGET_COMPONENTS` 70/71 (only `sticker`, documented); `WIDGET_GRADE_LEVELS` 71 plus `magic`/`record`/`remote`; `tools.ts` gaps are the 7 documented exclusions; settings/appearance maps intentionally empty; `pnpm type-check` exit 0. 0 new issues._
 
