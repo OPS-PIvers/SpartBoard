@@ -52,6 +52,8 @@ import { LinkTargetPicker } from './LinkTargetPicker';
 import { ReorderPageControl } from './ReorderPageControl';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { useAuth } from '@/context/useAuth';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 
 interface PageEditorOverlayProps {
   title: string;
@@ -1182,6 +1184,17 @@ const BACKGROUND_COLORS = [
   '#1f2937',
 ];
 
+const readAsDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () =>
+      typeof reader.result === 'string'
+        ? resolve(reader.result)
+        : reject(new Error('Read failed'));
+    reader.onerror = () => reject(reader.error ?? new Error('Read failed'));
+    reader.readAsDataURL(file);
+  });
+
 const BackgroundPicker: React.FC<{
   onApply: (change: PageBackgroundChange) => void;
   onClose: () => void;
@@ -1193,6 +1206,8 @@ const BackgroundPicker: React.FC<{
   const [pattern, setPattern] = useState<'lines' | 'grid' | 'dots'>('grid');
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1429,7 +1444,23 @@ const BackgroundPicker: React.FC<{
               </div>
             </div>
           )}
-          {mode === 'image' && (
+          {mode === 'image' && unifiedPicker && (
+            <ImagePicker
+              value={imageDataUrl ?? undefined}
+              linkAsFile
+              tourScope={{ type: 'smartNotebook', field: 'background' }}
+              tourOverrides={{
+                upload: tourTypeAttr(
+                  'smart-notebook.background-image',
+                  'smartNotebook'
+                ),
+              }}
+              upload={readAsDataUrl}
+              onChange={setImageDataUrl}
+              onRemove={() => setImageDataUrl(null)}
+            />
+          )}
+          {mode === 'image' && !unifiedPicker && (
             <div className="flex flex-col items-center">
               {/* no-tour-anchor: hidden file input; the background image button opens it */}
               <input

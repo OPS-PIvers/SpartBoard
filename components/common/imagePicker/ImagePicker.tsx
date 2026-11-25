@@ -42,6 +42,8 @@ export interface ImagePickerProps extends Omit<
   buttonClassName?: string;
   buttonStyle?: React.CSSProperties;
   iconStyle?: React.CSSProperties;
+  /** Shown in the small button instead of the add-image icon, such as the current picture. */
+  children?: React.ReactNode;
 }
 
 const SLOT_TAGS: Record<
@@ -313,6 +315,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
   buttonClassName,
   buttonStyle,
   iconStyle,
+  children,
   ...sourceOptions
 }) => {
   const [panel, setPanel] = useState<PanelPos | null>(null);
@@ -384,7 +387,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
               aria-hidden
             />
           ) : (
-            <ImagePlus style={iconStyle} size={16} aria-hidden />
+            (children ?? <ImagePlus style={iconStyle} size={16} aria-hidden />)
           )}
         </button>
         {panel && (

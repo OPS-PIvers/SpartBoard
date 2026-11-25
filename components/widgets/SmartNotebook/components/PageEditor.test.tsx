@@ -515,6 +515,39 @@ describe('PageEditor — only claims Ctrl+V while the teacher is working in it',
     expect(onChange).toHaveBeenCalled();
   });
 
+  it('leaves the paste to a dialog open over the page', async () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <PageEditor svg={TEST_SVG} onChange={onChange} />
+    );
+    await tick();
+    const editorDiv = container.querySelector(
+      '[data-no-drag="true"] div'
+    ) as HTMLElement;
+    act(() => {
+      editorDiv.dispatchEvent(
+        new Event('pointerdown', { bubbles: true, cancelable: true })
+      );
+    });
+
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    const inside = document.createElement('button');
+    dialog.appendChild(inside);
+    document.body.appendChild(dialog);
+    const ev = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(ev, 'clipboardData', {
+      value: { items: [], getData: () => 'Lesson objective' },
+    });
+    Object.defineProperty(ev, 'target', { value: inside });
+    window.dispatchEvent(ev);
+    dialog.remove();
+
+    expect(ev.defaultPrevented).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it('takes the paste when the canvas is reached by keyboard', async () => {
     const onChange = vi.fn();
     const { container } = render(

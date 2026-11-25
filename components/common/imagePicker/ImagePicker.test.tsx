@@ -217,4 +217,20 @@ describe('ImagePicker', () => {
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Google Drive' })).toBeTruthy();
   });
+
+  it('shows the caller content in the small button', () => {
+    render(
+      <ImagePicker
+        layout="button"
+        label="Upload display image"
+        tourScope={scope}
+        upload={vi.fn()}
+        onChange={vi.fn()}
+      >
+        <img src="https://example.com/a.png" alt="Display" />
+      </ImagePicker>
+    );
+    const button = screen.getByRole('button', { name: 'Upload display image' });
+    expect(button.querySelector('img')?.getAttribute('alt')).toBe('Display');
+  });
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Save,
@@ -31,6 +31,7 @@ import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 import { Card } from '@/components/common/Card';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 
 const PROCESSING_TOAST = 'ir-library-processing';
 
@@ -44,6 +45,8 @@ const WIDGET_TYPES: WidgetType[] = TOOLS.filter(
 ).map((tool) => tool.type as WidgetType);
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+
+type StepImageType = 'sticker' | 'display';
 
 interface LibraryManagerProps {
   routine: InstructionalRoutine;
@@ -59,8 +62,14 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
   onCancel,
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
   const { uploadSticker, uploadDisplayImage } = useStorage();
+  // Uploads finish after later edits; they write onto the latest routine.
+  const routineRef = useRef(routine);
+  useLayoutEffect(() => {
+    routineRef.current = routine;
+  });
   const [uploadingStickerIndex, setUploadingStickerIndex] = useState<
     number | null
   >(null);
@@ -116,10 +125,70 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
     }
   };
 
+  /** Cleans up a sticker's background, then saves it as a district asset; resolves to its URL. */
+  const uploadStepFile = async (
+    file: File,
+    type: StepImageType
+  ): Promise<string> => {
+    if (!user) throw new Error('Not signed in');
+    showProcessing(
+      type === 'sticker'
+        ? 'Processing sticker... This may take a few seconds for large images.'
+        : 'Uploading display image...'
+    );
+    let finalFile = file;
+
+    if (type === 'sticker') {
+      const reader = new FileReader();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error ?? new Error('Read failed'));
+        reader.readAsDataURL(file);
+      });
+
+      const noBg = await removeBackground(dataUrl);
+      const trimmed = await trimImageWhitespace(noBg);
+
+      showProcessing('Uploading sticker...');
+      const response = await fetch(trimmed);
+      const blob = await response.blob();
+      finalFile = new File(
+        [blob],
+        file.name.replace(/\.[^/.]+$/, '') + '.png',
+        {
+          type: 'image/png',
+        }
+      );
+    }
+
+    const url =
+      type === 'sticker'
+        ? await uploadSticker(user.uid, finalFile, { districtAsset: true })
+        : await uploadDisplayImage(user.uid, finalFile, {
+            districtAsset: true,
+          });
+    removeToast(PROCESSING_TOAST);
+    return url;
+  };
+
+  const setStepImage = (
+    index: number,
+    type: StepImageType,
+    url: string | undefined
+  ) => {
+    const current = routineRef.current;
+    const nextSteps = [...current.steps];
+    nextSteps[index] = {
+      ...nextSteps[index],
+      [type === 'sticker' ? 'stickerUrl' : 'imageUrl']: url,
+    };
+    onChange({ ...current, steps: nextSteps });
+  };
+
   const handleImageUpload = async (
     file: File,
     index: number,
-    type: 'sticker' | 'display'
+    type: StepImageType
   ) => {
     if (!user || !file) return;
 
@@ -134,53 +203,8 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
       type === 'sticker' ? setUploadingStickerIndex : setUploadingImageIndex;
     setUploading(index);
 
-    showProcessing(
-      type === 'sticker'
-        ? 'Processing sticker... This may take a few seconds for large images.'
-        : 'Uploading display image...'
-    );
-
     try {
-      let finalFile = file;
-
-      if (type === 'sticker') {
-        const reader = new FileReader();
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () =>
-            reject(reader.error ?? new Error('Read failed'));
-          reader.readAsDataURL(file);
-        });
-
-        const noBg = await removeBackground(dataUrl);
-        const trimmed = await trimImageWhitespace(noBg);
-
-        showProcessing('Uploading sticker...');
-        const response = await fetch(trimmed);
-        const blob = await response.blob();
-        finalFile = new File(
-          [blob],
-          file.name.replace(/\.[^/.]+$/, '') + '.png',
-          {
-            type: 'image/png',
-          }
-        );
-      }
-
-      const url =
-        type === 'sticker'
-          ? await uploadSticker(user.uid, finalFile, { districtAsset: true })
-          : await uploadDisplayImage(user.uid, finalFile, {
-              districtAsset: true,
-            });
-
-      const nextSteps = [...routine.steps];
-      nextSteps[index] = {
-        ...nextSteps[index],
-        [type === 'sticker' ? 'stickerUrl' : 'imageUrl']: url,
-      };
-      onChange({ ...routine, steps: nextSteps });
-      removeToast(PROCESSING_TOAST);
+      setStepImage(index, type, await uploadStepFile(file, type));
     } catch (e) {
       console.error(`${type} upload failed:`, e);
       showError(
@@ -189,6 +213,102 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
     } finally {
       setUploading(null);
     }
+  };
+
+  // The picker shows its own error line, so a failure only clears the progress toast.
+  const pickerUpload = async (
+    file: File,
+    index: number,
+    type: StepImageType
+  ): Promise<string> => {
+    const setUploading =
+      type === 'sticker' ? setUploadingStickerIndex : setUploadingImageIndex;
+    setUploading(index);
+    try {
+      return await uploadStepFile(file, type);
+    } catch (e) {
+      console.error(`${type} upload failed:`, e);
+      removeToast(PROCESSING_TOAST);
+      throw e;
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const anyUploading =
+    uploadingStickerIndex !== null || uploadingImageIndex !== null;
+
+  /** One step's sticker or display image: the picker button showing the current picture, with remove beside it. */
+  const stepImagePicker = (index: number, type: StepImageType) => {
+    const step = routine.steps[index];
+    const url = type === 'sticker' ? step.stickerUrl : step.imageUrl;
+    const field = `step-${index + 1}`;
+    return (
+      <div className="relative group/upload">
+        <ImagePicker
+          layout="button"
+          label={
+            type === 'sticker'
+              ? 'Upload custom sticker (transparent background)'
+              : 'Upload display image'
+          }
+          maxBytes={MAX_IMAGE_SIZE_BYTES}
+          disabled={anyUploading}
+          tourScope={{ type: 'admin', field: `${field}-${type}` }}
+          tourOverrides={{
+            open: tourFieldAttr(
+              type === 'sticker'
+                ? 'admin.routines.editor-step-sticker'
+                : 'admin.routines.editor-step-image',
+              'admin',
+              field
+            ),
+          }}
+          buttonClassName="p-1.5 hover:bg-slate-100 rounded-lg border border-transparent hover:border-slate-200 transition-colors disabled:opacity-40"
+          upload={(file) => pickerUpload(file, index, type)}
+          onChange={(next) => setStepImage(index, type, next)}
+        >
+          {url ? (
+            <img
+              src={url}
+              alt={type === 'sticker' ? 'Sticker' : 'Display'}
+              className={
+                type === 'sticker'
+                  ? 'w-6 h-6 object-contain'
+                  : 'w-6 h-6 object-cover rounded-sm'
+              }
+            />
+          ) : type === 'sticker' ? (
+            <Sparkles
+              size={16}
+              className="text-slate-400 group-hover/upload:text-blue-500"
+            />
+          ) : (
+            <ImageIcon
+              size={16}
+              className="text-slate-400 group-hover/upload:text-blue-500"
+            />
+          )}
+        </ImagePicker>
+        {url && !anyUploading && (
+          <button
+            type="button"
+            onClick={() => setStepImage(index, type, undefined)}
+            aria-label="Remove image"
+            className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/upload:opacity-100 focus-visible:opacity-100 touch:opacity-100 transition-opacity"
+            {...tourFieldAttr(
+              type === 'sticker'
+                ? 'admin.routines.editor-step-sticker-remove'
+                : 'admin.routines.editor-step-image-remove',
+              'admin',
+              field
+            )}
+          >
+            <X size={10} />
+          </button>
+        )}
+      </div>
+    );
   };
 
   const handleStickerUpload = (file: File, index: number) =>
@@ -434,127 +554,142 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                     }}
                   />
                   <div className="flex items-center gap-1">
-                    <label
-                      className="cursor-pointer p-1.5 hover:bg-slate-100 rounded-lg border border-transparent hover:border-slate-200 transition-colors relative group/upload"
-                      title="Upload custom sticker (transparent background)"
-                      {...tourFieldAttr(
-                        'admin.routines.editor-step-sticker',
-                        'admin',
-                        `step-${i + 1}`
-                      )}
-                    >
-                      {uploadingStickerIndex === i ? (
-                        <Loader2
-                          size={16}
-                          className="animate-spin text-blue-500"
-                        />
-                      ) : step.stickerUrl ? (
-                        <div className="relative">
-                          <img
-                            src={step.stickerUrl}
-                            alt="Sticker"
-                            className="w-6 h-6 object-contain"
-                          />
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              const next = [...routine.steps];
-                              next[i] = { ...next[i], stickerUrl: undefined };
-                              onChange({ ...routine, steps: next });
+                    {unifiedPicker ? (
+                      <>
+                        {stepImagePicker(i, 'sticker')}
+                        {stepImagePicker(i, 'display')}
+                      </>
+                    ) : (
+                      <>
+                        <label
+                          className="cursor-pointer p-1.5 hover:bg-slate-100 rounded-lg border border-transparent hover:border-slate-200 transition-colors relative group/upload"
+                          title="Upload custom sticker (transparent background)"
+                          {...tourFieldAttr(
+                            'admin.routines.editor-step-sticker',
+                            'admin',
+                            `step-${i + 1}`
+                          )}
+                        >
+                          {uploadingStickerIndex === i ? (
+                            <Loader2
+                              size={16}
+                              className="animate-spin text-blue-500"
+                            />
+                          ) : step.stickerUrl ? (
+                            <div className="relative">
+                              <img
+                                src={step.stickerUrl}
+                                alt="Sticker"
+                                className="w-6 h-6 object-contain"
+                              />
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const next = [...routine.steps];
+                                  next[i] = {
+                                    ...next[i],
+                                    stickerUrl: undefined,
+                                  };
+                                  onChange({ ...routine, steps: next });
+                                }}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/upload:opacity-100 transition-opacity"
+                                {...tourFieldAttr(
+                                  'admin.routines.editor-step-sticker-remove',
+                                  'admin',
+                                  `step-${i + 1}`
+                                )}
+                              >
+                                <X size={10} />
+                              </button>
+                            </div>
+                          ) : (
+                            <Sparkles
+                              size={16}
+                              className="text-slate-400 group-hover/upload:text-blue-500"
+                            />
+                          )}
+                          {/* no-tour-anchor: hidden file input opened by its visible upload tile */}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files?.[0])
+                                void handleStickerUpload(e.target.files[0], i);
                             }}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/upload:opacity-100 transition-opacity"
-                            {...tourFieldAttr(
-                              'admin.routines.editor-step-sticker-remove',
-                              'admin',
-                              `step-${i + 1}`
-                            )}
-                          >
-                            <X size={10} />
-                          </button>
-                        </div>
-                      ) : (
-                        <Sparkles
-                          size={16}
-                          className="text-slate-400 group-hover/upload:text-blue-500"
-                        />
-                      )}
-                      {/* no-tour-anchor: hidden file input opened by its visible upload tile */}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          if (e.target.files?.[0])
-                            void handleStickerUpload(e.target.files[0], i);
-                        }}
-                        disabled={
-                          uploadingStickerIndex !== null ||
-                          uploadingImageIndex !== null
-                        }
-                      />
-                    </label>
+                            disabled={
+                              uploadingStickerIndex !== null ||
+                              uploadingImageIndex !== null
+                            }
+                          />
+                        </label>
 
-                    <label
-                      className="cursor-pointer p-1.5 hover:bg-slate-100 rounded-lg border border-transparent hover:border-slate-200 transition-colors relative group/upload-img"
-                      title="Upload display image"
-                      {...tourFieldAttr(
-                        'admin.routines.editor-step-image',
-                        'admin',
-                        `step-${i + 1}`
-                      )}
-                    >
-                      {uploadingImageIndex === i ? (
-                        <Loader2
-                          size={16}
-                          className="animate-spin text-blue-500"
-                        />
-                      ) : step.imageUrl ? (
-                        <div className="relative">
-                          <img
-                            src={step.imageUrl}
-                            alt="Display"
-                            className="w-6 h-6 object-cover rounded-sm"
-                          />
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              const next = [...routine.steps];
-                              next[i] = { ...next[i], imageUrl: undefined };
-                              onChange({ ...routine, steps: next });
+                        <label
+                          className="cursor-pointer p-1.5 hover:bg-slate-100 rounded-lg border border-transparent hover:border-slate-200 transition-colors relative group/upload-img"
+                          title="Upload display image"
+                          {...tourFieldAttr(
+                            'admin.routines.editor-step-image',
+                            'admin',
+                            `step-${i + 1}`
+                          )}
+                        >
+                          {uploadingImageIndex === i ? (
+                            <Loader2
+                              size={16}
+                              className="animate-spin text-blue-500"
+                            />
+                          ) : step.imageUrl ? (
+                            <div className="relative">
+                              <img
+                                src={step.imageUrl}
+                                alt="Display"
+                                className="w-6 h-6 object-cover rounded-sm"
+                              />
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const next = [...routine.steps];
+                                  next[i] = { ...next[i], imageUrl: undefined };
+                                  onChange({ ...routine, steps: next });
+                                }}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/upload-img:opacity-100 transition-opacity"
+                                {...tourFieldAttr(
+                                  'admin.routines.editor-step-image-remove',
+                                  'admin',
+                                  `step-${i + 1}`
+                                )}
+                              >
+                                <X size={10} />
+                              </button>
+                            </div>
+                          ) : (
+                            <ImageIcon
+                              size={16}
+                              className="text-slate-400 group-hover/upload-img:text-blue-500"
+                            />
+                          )}
+                          {/* no-tour-anchor: hidden file input opened by its visible upload tile */}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files?.[0])
+                                void handleDisplayImageUpload(
+                                  e.target.files[0],
+                                  i
+                                );
                             }}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/upload-img:opacity-100 transition-opacity"
-                            {...tourFieldAttr(
-                              'admin.routines.editor-step-image-remove',
-                              'admin',
-                              `step-${i + 1}`
-                            )}
-                          >
-                            <X size={10} />
-                          </button>
-                        </div>
-                      ) : (
-                        <ImageIcon
-                          size={16}
-                          className="text-slate-400 group-hover/upload-img:text-blue-500"
-                        />
-                      )}
-                      {/* no-tour-anchor: hidden file input opened by its visible upload tile */}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          if (e.target.files?.[0])
-                            void handleDisplayImageUpload(e.target.files[0], i);
-                        }}
-                        disabled={
-                          uploadingStickerIndex !== null ||
-                          uploadingImageIndex !== null
-                        }
-                      />
-                    </label>
+                            disabled={
+                              uploadingStickerIndex !== null ||
+                              uploadingImageIndex !== null
+                            }
+                          />
+                        </label>
+                      </>
+                    )}
                   </div>
                   <input
                     type="text"
