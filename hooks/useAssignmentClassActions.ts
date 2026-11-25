@@ -337,19 +337,6 @@ export function useAssignmentClassActions(
     return null;
   }, [keepLiveForPasses, id, fresh, ended, owned, writeHold, endIfLive]);
 
-  // A single-line Close pauses the run instead of ending it while students still hold passes.
-  const holdSingle = useCallback(async (): Promise<PassHold | null> => {
-    if (!keepLiveForPasses || !id) return null;
-    const a = await fresh();
-    if (!a || ended(a)) return null;
-    const snap = await getDoc(owned().session);
-    const hold = pendingPasses(snap.data(), Date.now());
-    if (!hold) return null;
-    if (runStatus(a.status) !== 'paused' && pause) await pause(id);
-    await writeHold(hold);
-    return hold;
-  }, [keepLiveForPasses, id, fresh, ended, owned, pause, writeHold]);
-
   // A single line's own clock must not hold students out once the teacher opens it.
   const clearSingleGate = useCallback(async () => {
     const a = await fresh();
@@ -454,9 +441,7 @@ export function useAssignmentClassActions(
       const k = classKey(key);
       if (k == null) {
         await mark({ closedAt: Date.now() });
-        const held = await holdSingle();
-        if (held) onHeld?.(held, null);
-        else await endIfLive();
+        await endIfLive();
         return;
       }
       const closed = await closeOne(k);
@@ -474,7 +459,6 @@ export function useAssignmentClassActions(
       owned,
       classKey,
       mark,
-      holdSingle,
       endIfLive,
       closeOne,
       end,
@@ -503,10 +487,7 @@ export function useAssignmentClassActions(
     else await mark({ closedAt: Date.now() });
     let held: PassHold | null = null;
     if (perClass) held = await endOrHold();
-    else {
-      held = await holdSingle();
-      if (!held) await endIfLive();
-    }
+    else await endIfLive();
     if (perClass) await turnInClosed(held != null);
     if (held) onHeld?.(held, null);
   }, [
@@ -516,7 +497,6 @@ export function useAssignmentClassActions(
     periods,
     mark,
     endOrHold,
-    holdSingle,
     endIfLive,
     turnInClosed,
     onHeld,

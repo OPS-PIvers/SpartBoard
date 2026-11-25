@@ -59,6 +59,17 @@ function parseAnswer(raw: unknown): RawAnswer | null {
     ...(typeof r.paperScanId === 'string'
       ? { paperScanId: r.paperScanId }
       : {}),
+    ...(Array.isArray(r.artifacts) && r.artifacts.length > 0
+      ? {
+          artifacts: r.artifacts.map((x: unknown) => {
+            const state =
+              typeof x === 'object' && x !== null
+                ? (x as { uploadState?: unknown }).uploadState
+                : undefined;
+            return typeof state === 'string' ? { uploadState: state } : {};
+          }),
+        }
+      : {}),
   };
 }
 
