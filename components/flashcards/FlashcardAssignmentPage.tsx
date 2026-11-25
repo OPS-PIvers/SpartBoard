@@ -49,7 +49,8 @@ import {
   sanitizeFlashcardStudyState,
 } from './adapters';
 import { FlashcardCheckResults } from './FlashcardCheckResults';
-import { CheckTabWarning } from './CheckTabWarning';
+import { TabStrikeWarning } from '@/components/common/TabWarningModal';
+import { StudentOfflineBanner } from '@/components/common/StudentOfflineBanner';
 import {
   canTryAgain,
   checkDeadline,
@@ -61,12 +62,10 @@ import {
 import { QuizTimeLimitClock } from '@/components/quiz/QuizTimeLimitClock';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import { effectivePageProtections } from '@/utils/pageProtections';
-import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
 import {
-  getEffectiveTabWarningThreshold,
-  hasReachedTabWarningThreshold,
-} from '@/utils/tabWarningThreshold';
-import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+  resolveTabStrikeRules,
+  useTabStrikePolicy,
+} from '@/hooks/useTabStrikePolicy';
 import { isHandedOff } from '@/utils/attemptHandOff';
 import { isFramedWindow } from './speak/micAccess';
 import {
@@ -321,54 +320,40 @@ export const TrackedPlayer: React.FC<{
   }, [forcedFailed]);
 
   const tabOn = options?.tabWarningsEnabled === true;
-  const tabThreshold = getEffectiveTabWarningThreshold(
-    options?.tabWarningThreshold,
-    override?.tabWarningThreshold
-  );
-  const tabRule = options
-    ? getEffectiveTabAwayRule(options, override?.tabAwayLimit)
-    : null;
-  const [tabWarnings, setTabWarnings] = useState(
-    progress?.tabSwitchWarnings ?? 0
-  );
-  const [warningOpen, setWarningOpen] = useState(false);
-  // A teacher reset starts the attempt over.
-  const [seenReset, setSeenReset] = useState(resetCount);
-  if (seenReset !== resetCount) {
-    setSeenReset(resetCount);
-    setTabWarnings(0);
-    setWarningOpen(false);
-    setForced(null);
-  }
   const protections = options
     ? effectivePageProtections(options, override)
     : null;
-  const tabTracker = useTabAwayTracker({
+  // Warning counts and auto-submit rules shared with every student app.
+  const tabPolicy = useTabStrikePolicy({
+    rules: resolveTabStrikeRules({ settings: options, override }),
+    warn: true,
+    serverCount: progress?.tabSwitchWarnings ?? 0,
+    // A teacher reset starts the count over.
+    resetKey: resetCount,
+    countStrike: async (current) => {
+      const next = current + 1;
+      await adapter.writeAttemptFields({ tabSwitchWarnings: next });
+      return next;
+    },
+    submit: () => {
+      submitForced('tab');
+      return Promise.resolve();
+    },
     enabled: tabOn && !paused && forced === null,
     sessionActive: session.status === 'active',
     ready: true,
     serverExits: undefined,
     attempt: progress?.completedAttempts ?? 0,
     getPosition: () => ({}),
-    onLeave: async () => {
-      // Another tab or device may have counted more.
-      const next = Math.max(tabWarnings, progress?.tabSwitchWarnings ?? 0) + 1;
-      setTabWarnings(next);
-      setWarningOpen(true);
-      await adapter.writeAttemptFields({ tabSwitchWarnings: next });
-      if (!hasReachedTabWarningThreshold(next, tabThreshold)) return false;
-      submitForced('tab');
-      return true;
-    },
     saveExits: undefined,
-    limitMs: tabRule?.limitMs ?? null,
-    autoSubmit: tabRule?.autoSubmit ?? false,
-    onAwayTooLong: () => {
-      setWarningOpen(true);
-      submitForced('tab');
-    },
     fullscreenRequired: protections?.fullscreen === true,
   });
+  // A teacher reset starts the attempt over.
+  const [seenReset, setSeenReset] = useState(resetCount);
+  if (seenReset !== resetCount) {
+    setSeenReset(resetCount);
+    setForced(null);
+  }
 
   const handOn = options?.handRaiseEnabled === true;
   const [handPending, setHandPending] = useState<boolean | null>(null);
@@ -427,6 +412,7 @@ export const TrackedPlayer: React.FC<{
   );
   return (
     <div className="relative flex h-full flex-col">
+      <StudentOfflineBanner />
       {(deadline !== null || handOn) && (
         <div className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2">
           {deadline !== null && (
@@ -458,18 +444,7 @@ export const TrackedPlayer: React.FC<{
       {protections && (
         <PageProtectionGuards protections={protections} wholePage />
       )}
-      {warningOpen && forced === null && (
-        <CheckTabWarning
-          count={tabWarnings}
-          limit={tabThreshold === 'off' ? null : tabThreshold}
-          away={tabTracker.away}
-          rule={tabRule}
-          onDismiss={() => {
-            setWarningOpen(false);
-            tabTracker.resume();
-          }}
-        />
-      )}
+      {forced === null && <TabStrikeWarning policy={tabPolicy} />}
       {forced !== null && (
         <div
           role="status"

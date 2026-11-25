@@ -38,7 +38,6 @@ const ALLOWED_LOW_OVERLAYS = new Set([
   'components/layout/AnnotationOverlay.tsx:annotationChrome', // pointer-events-none annotation chrome
   'components/connections/WidgetConnectionControls.tsx:toolMenu', // click-catcher for its own menu
   'components/common/library/FolderPickerPopover.tsx:100', // dialog variant renders inline, not portalled
-  'components/flashcards/CheckTabWarning.tsx:overlay', // student app, no widgets
   'components/student/StudentApp.tsx:overlay', // student app, no widgets
   'components/widgets/QuizWidget/components/FreeResponseGrader.tsx:overlay', // inside the widget window
 ]);

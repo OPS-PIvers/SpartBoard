@@ -285,12 +285,19 @@ import {
   myAttemptAsResponse,
   useMyQuizAttempts,
 } from '@/hooks/useQuizResponseAttempts';
-import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+import {
+  resolveTabStrikeRules,
+  useTabStrikePolicy,
+  type TabAutoSubmitReason,
+} from '@/hooks/useTabStrikePolicy';
+import { useTabSubmitNotice } from '@/hooks/useTabSubmitNotice';
 import { useInputSignals } from '@/hooks/useInputSignals';
 import { useLiveViewReport } from '@/hooks/useLiveViewReport';
 import { isHandedOff } from '@/utils/attemptHandOff';
-import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
-import { TabAwayClock } from '@/components/common/TabAwayClock';
+import {
+  TabStrikeWarning,
+  TabWarningModal,
+} from '@/components/common/TabWarningModal';
 import {
   getEffectiveTabWarningThreshold,
   hasReachedTabWarningThreshold,
@@ -329,7 +336,7 @@ import {
 import { FibDictateMic, FibMultiBlankInput } from './FibMultiBlankInput';
 import { FIB_ROW_ATTR } from '@/utils/speechToText/blankPhrase';
 import { QuestionPrompt } from './QuestionPrompt';
-import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { StudentOfflineBanner } from '@/components/common/StudentOfflineBanner';
 import { FibChoiceBlanksInput } from './FibChoiceBlanksInput';
 import { hasChoiceBlanks } from '@/utils/quizBlankTypes';
 import { fillWordBankChoice } from '@/utils/quizWordBank';
@@ -2180,13 +2187,12 @@ export const ActiveQuiz: React.FC<{
   onReportLivePosition,
 }) => {
   const watching = watchQuestionId !== undefined;
-  const { showAlert, showConfirm } = useDialog();
+  const { showConfirm } = useDialog();
   const { t } = useTranslation();
   const tRef = useRef(t);
   useLayoutEffect(() => {
     tRef.current = t;
   }, [t]);
-  const [showCheatWarning, setShowCheatWarning] = useState(false);
   // Review before submit: this tab's sessionStorage only, so teachers never see marks.
   const reviewStoreKey = reviewStateKey(
     session.id,
@@ -2272,34 +2278,16 @@ export const ActiveQuiz: React.FC<{
     }
   }
 
-  const handleAutoSubmit = useCallback(
-    async (reason: 'three-strikes' | 'post-unlock' = 'three-strikes') => {
-      const message =
-        reason === 'post-unlock'
-          ? t('quizStudent.autoSubmit.unlocked')
-          : t('quizStudent.autoSubmit.strikes');
-      // Ask the inner question view to flush any pending written-response
-      // autosave before we mark the response complete. Listened for in
-      // `StudentQuestionView`'s flush handler. Without this, a strike-3
-      // auto-submit fired within 500 ms of the student's last keystroke
-      // could finalize the response with the previous (already-written)
-      // draft and silently drop the most recent edits.
+  const submitForTab = useCallback(
+    async (_reason: TabAutoSubmitReason) => {
+      // Flush a pending written-response autosave first (`StudentQuestionView` listens), so the last edits land.
       document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
       await commitActiveTake();
-      // Submit first: the alert waits for a tap, and a reload would leave the attempt open.
-      try {
-        await onComplete();
-      } catch (err: unknown) {
-        console.error('[QuizStudentApp] auto-submit failed:', err);
-        return;
-      }
-      await showAlert(message, {
-        title: t('quizStudent.autoSubmit.title'),
-        variant: 'warning',
-      });
+      await onComplete();
     },
-    [showAlert, onComplete, t]
+    [onComplete]
   );
+  const tabSubmitNotice = useTabSubmitNotice();
 
   // M17 C2 (§3a-D) — mid-attempt window close: when `closeAt` passes while
   // the student has an attempt open, auto-submit what's answered with a
@@ -2425,11 +2413,6 @@ export const ActiveQuiz: React.FC<{
 
   // The Visibility Tracker — only active when tabWarningsEnabled
   const tabWarningsEnabled = session.tabWarningsEnabled !== false;
-  // Effective auto-submit threshold (M17 B4): per-student override > session > default 3.
-  const effectiveTabWarningThreshold = getEffectiveTabWarningThreshold(
-    session.tabWarningThreshold,
-    pointerTabWarningThreshold
-  );
 
   // Test integrity: when the teacher enabled "Block Copy & Paste", suppress
   // copy/cut/paste — and drag-and-drop, the other channel for importing text
@@ -2471,11 +2454,22 @@ export const ActiveQuiz: React.FC<{
     ? localIndex
     : session.currentQuestionIndex;
 
-  // Null unless the teacher assigned with the tab-away-timer flag.
-  const tabAwayRule = getEffectiveTabAwayRule(session, override?.tabAwayLimit);
-  // The tab-away tracker counts each exit, logs it to `tabExits`, and closes
-  // it when the student comes back.
-  const tabTracker = useTabAwayTracker({
+  // Warning counts and auto-submit rules shared with every student app.
+  const tabPolicy = useTabStrikePolicy({
+    rules: resolveTabStrikeRules({
+      settings: session,
+      override: {
+        tabWarningThreshold: pointerTabWarningThreshold,
+        tabAwayLimit: override?.tabAwayLimit,
+      },
+    }),
+    warn: true,
+    serverCount: warningCount,
+    countStrike: () => reportTabSwitch(),
+    // Teacher-unlocked attempts skip the warning; a teacher reopen has no such rule.
+    oneExitLeft: unlockedOneExit,
+    submit: submitForTab,
+    onSubmitted: tabSubmitNotice,
     enabled:
       tabWarningsEnabled &&
       session.status === 'active' &&
@@ -2485,54 +2479,7 @@ export const ActiveQuiz: React.FC<{
     serverExits: myResponse?.tabExits,
     attempt: myResponse?.completedAttempts ?? 0,
     getPosition: () => ({ questionIndex: currentIndex }),
-    onLeave: async () => {
-      let newTotal: number;
-      try {
-        newTotal = await reportTabSwitch();
-      } catch (err) {
-        console.error('Failed to report tab switch:', err);
-        // Still show the UI warning even if Firestore update fails
-        setShowCheatWarning(true);
-        return false;
-      }
-      // Teacher-unlocked attempts skip the warning: the student was told the
-      // next exit submits their work. A teacher reopen has no such rule.
-      if (unlockedOneExit) {
-        setShowCheatWarning(false);
-        // A failed submit (e.g. offline) must not leave detection armed-off.
-        void handleAutoSubmit('post-unlock').finally(tabTracker.release);
-        return true;
-      }
-      setShowCheatWarning(true);
-      if (
-        hasReachedTabWarningThreshold(newTotal, effectiveTabWarningThreshold)
-      ) {
-        // Use a slight delay so the UI can update before the dialog
-        setTimeout(() => void handleAutoSubmit(), 100);
-        return true;
-      }
-      return false;
-    },
     saveExits: saveTabExits,
-    limitMs: tabAwayRule?.limitMs ?? null,
-    autoSubmit: tabAwayRule?.autoSubmit ?? false,
-    onAwayTooLong: () => {
-      // Submit first: the tab may be hidden, where a blocking alert would wait.
-      setShowCheatWarning(true);
-      document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
-      void commitActiveTake()
-        .then(() => onComplete())
-        .then(() =>
-          showAlert(t('quizStudent.autoSubmit.awayTooLong'), {
-            title: t('quizStudent.autoSubmit.title'),
-            variant: 'warning',
-          })
-        )
-        .catch((err: unknown) =>
-          console.error('[QuizStudentApp] away auto-submit failed:', err)
-        )
-        .finally(tabTracker.release);
-    },
     fullscreenRequired,
   });
 
@@ -2709,7 +2656,7 @@ export const ActiveQuiz: React.FC<{
   useLiveViewReport({
     until: liveViewUntil,
     questionId: currentQuestion?.id,
-    warning: showCheatWarning,
+    warning: tabPolicy.warningOpen,
     report: onReportLivePosition,
   });
   // Unusual-input counters; stamped on the session only with the input-signals flag.
@@ -3143,7 +3090,6 @@ export const ActiveQuiz: React.FC<{
   // same commit (visibility flush, structured input change) would see
   // the previous render's value.
   const currentQuestionRef = useRef(currentQuestion);
-  const online = useOnlineStatus();
   const promptWrapRef = useRef<HTMLDivElement | null>(null);
   const promptFocusSkippedRef = useRef(false);
   const currentQuestionId = currentQuestion?.id;
@@ -4532,41 +4478,21 @@ export const ActiveQuiz: React.FC<{
           </div>
         )}
 
-        {/* 🔴 The Cheating Warning Modal */}
-        {(watching ? watchTabWarning === true : showCheatWarning) && (
-          <div className="fixed inset-0 z-quiz-lock bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
-            <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
-            <h2 className="text-4xl font-black text-white mb-4">
-              {t('quizStudent.tabWarning.title')}
-            </h2>
-            {tabAwayRule && tabTracker.away && (
-              <TabAwayClock
-                away={tabTracker.away}
-                limitMs={tabAwayRule.limitMs}
-                autoSubmit={tabAwayRule.autoSubmit}
-              />
-            )}
-            <p className="text-red-200 text-lg max-w-md mb-8">
-              {t('quizStudent.tabWarning.body')}
-              <br />
-              <br />
-              <strong>
-                {t('quizStudent.tabWarning.warningN', { n: warningCount })}
-              </strong>{' '}
-              {effectiveTabWarningThreshold !== 'off' &&
-                t('quizStudent.tabWarning.autoSubmit')}
-            </p>
-            <button
-              {...tourAttr('student.quiz.tab-warning-dismiss')}
-              onClick={() => {
-                setShowCheatWarning(false);
-                tabTracker.resume();
-              }}
-              className="px-8 py-4 bg-white text-red-900 font-bold rounded-xl active:scale-95 transition-transform"
-            >
-              {t('quizStudent.tabWarning.dismiss')}
-            </button>
-          </div>
+        {watching ? (
+          watchTabWarning === true && (
+            <TabWarningModal
+              count={warningCount}
+              threshold={tabPolicy.rules.threshold}
+              rule={null}
+              away={null}
+              onDismiss={() => undefined}
+            />
+          )
+        ) : (
+          <TabStrikeWarning
+            policy={tabPolicy}
+            dismissAttrs={tourAttr('student.quiz.tab-warning-dismiss')}
+          />
         )}
 
         {/* Progress bar */}
@@ -4737,18 +4663,7 @@ export const ActiveQuiz: React.FC<{
                       : 'max-w-2xl'
             }`}
           >
-            {!online && !isAttemptSubmitted(myResponse) && (
-              <div
-                role="status"
-                className={`mb-4 rounded-xl border px-4 py-3 text-sm font-semibold ${
-                  light
-                    ? 'border-amber-300 bg-amber-50 text-amber-900'
-                    : 'border-amber-400/40 bg-amber-500/10 text-amber-200'
-                }`}
-              >
-                {t('quizSubmit.offline')}
-              </div>
-            )}
+            <StudentOfflineBanner hidden={isAttemptSubmitted(myResponse)} />
             {/* Header */}
             <div
               className={`flex min-h-11 items-center justify-between ${whiteboardConfig ? 'mb-3' : 'mb-6'}`}

@@ -2329,12 +2329,6 @@
       "opensSoon": "Öffnet sich, wenn deine Lehrkraft es startet.",
       "keepOpen": "Lass diesen Tab offen. Das Quiz erscheint hier, sobald deine Klasse hineindarf."
     },
-    "autoSubmit": {
-      "unlocked": "Dein entsperrter Versuch wurde abgegeben.",
-      "strikes": "Du hast die Seite zu oft verlassen. Deine Aufgabe wurde abgegeben. Frag deine Lehrkraft, falls das ein Versehen war.",
-      "title": "Quiz automatisch abgegeben",
-      "awayTooLong": "Du warst zu lange weg vom Quiz, deshalb wurde es abgegeben."
-    },
     "errors": {
       "saveAnswer": "Deine Antwort konnte nicht gespeichert werden. Tippe, um es noch einmal zu versuchen.",
       "submitQuiz": "Dein Quiz konnte nicht abgegeben werden. Tippe, um es noch einmal zu versuchen.",
@@ -2371,13 +2365,6 @@
     "closed": {
       "submitted": "Diese Aufgabe ist beendet. Deine Antworten wurden abgegeben.",
       "submitFailed": "Abgabe nicht möglich. Prüfe deine Verbindung und versuche es noch einmal, oder bitte deine Lehrkraft um mehr Zeit."
-    },
-    "tabWarning": {
-      "title": "TAB-WECHSEL ERKANNT",
-      "body": "Du hast das Quiz verlassen. Das wurde festgehalten.",
-      "warningN": "Warnung {{n}}.",
-      "autoSubmit": "Bei zu vielen Tab-Wechseln wird dein Quiz automatisch abgegeben.",
-      "dismiss": "Verstanden, zurück zum Quiz"
     },
     "timer": {
       "secondsLeft_one": "Noch {{count}} Sekunde",
@@ -2471,7 +2458,6 @@
     "allItemsPlaced": "Alle Elemente platziert."
   },
   "quizSubmit": {
-    "offline": "Du bist offline. Lass diesen Tab offen, dann werden deine Antworten gespeichert, sobald du wieder verbunden bist.",
     "undo": "Rückgängig",
     "confirmTitle": "Quiz abgeben?",
     "confirmBody": "Danach kannst du deine Antworten nicht mehr ändern.",
@@ -3923,19 +3909,13 @@
       "periodPausedBody": "Dein Fortschritt bleibt auf dieser Seite. Lass diesen Tab offen.",
       "notInPeriod": "Du bist in keiner Klasse, der dieses Set zugewiesen wurde. Frage deine Lehrkraft.",
       "seatError": "Du konntest deiner Klasse nicht beitreten. Lade die Seite neu, um es noch einmal zu versuchen.",
-      "tabTitle": "Du hast die Seite verlassen",
-      "tabBody": "Deine Lehrkraft kann das sehen.",
-      "tabWarning": "Warnung {{count}}.",
-      "tabSubmits": "Nach {{limit}} Warnungen wird deine Aufgabe abgegeben.",
-      "tabReturn": "Zurück zu meiner Aufgabe",
       "raiseHand": "Hand heben",
       "handRaised": "Hand gehoben",
       "timeUpTitle": "Die Zeit ist um",
       "tabSubmitTitle": "Du hast die Seite zu oft verlassen",
       "submittingAnswers": "Deine Antworten werden abgegeben…",
       "forcedTab": "Du hast die Seite zu oft verlassen. Deine Aufgabe wurde abgegeben. Sprich mit deiner Lehrkraft, wenn du denkst, dass das ein Fehler war.",
-      "tryAgainError": "Ein neuer Versuch konnte nicht gestartet werden. Versuche es erneut.",
-      "tabWarningOf": "Warnung {{count}} von {{limit}}."
+      "tryAgainError": "Ein neuer Versuch konnte nicht gestartet werden. Versuche es erneut."
     },
     "speak": {
       "player": {
@@ -5140,5 +5120,20 @@
     "help": "Hilfe",
     "menuLabel": "Hilfe",
     "record": "Tour aufnehmen"
+  },
+  "studentTab": {
+    "title": "Du hast die Seite verlassen",
+    "body": "Deine Lehrkraft kann das sehen.",
+    "warning": "Warnung {{count}}.",
+    "warningOf": "Warnung {{count}} von {{limit}}.",
+    "submits": "Nach {{limit}} Warnungen wird deine Aufgabe abgegeben.",
+    "return": "Zurück zu meiner Aufgabe",
+    "submittedTitle": "Aufgabe abgegeben",
+    "strikes": "Du hast die Seite zu oft verlassen. Deine Aufgabe wurde abgegeben. Frag deine Lehrkraft, falls das ein Versehen war.",
+    "unlocked": "Dein entsperrter Versuch wurde abgegeben.",
+    "awayTooLong": "Du warst zu lange weg. Deine Aufgabe wurde abgegeben."
+  },
+  "studentOffline": {
+    "banner": "Du bist offline. Lass diesen Tab offen, bis du wieder verbunden bist."
   }
 }
