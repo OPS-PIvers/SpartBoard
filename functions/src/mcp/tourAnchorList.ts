@@ -31295,67 +31295,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "plc-assign.teacher-name",
-    "label": "Teacher name field in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.close",
-    "label": "Close button in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.due-date",
-    "label": "Due date field in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.cancel",
-    "label": "Cancel button in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.submit",
-    "label": "Submit button in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
-      }
-    ]
-  },
-  {
     "id": "plc-dashboard.home",
     "label": "Home button in the PLC dashboard",
     "scope": "board",

@@ -83,6 +83,7 @@ import {
   PaperBoxSize,
   QuestionBankMetadata,
   QuizWidgetKind,
+  PlcQuizEntry,
 } from '@/types';
 import type { BankSource } from '@/hooks/useBankSources';
 import type { StudentViewVersion } from '@/utils/quizStudentViewVersions';
@@ -105,7 +106,6 @@ import {
 } from '@/components/common/AssignClassPicker.helpers';
 import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
-import { findPoolGroupByTitle } from '@/utils/plcPooling';
 import {
   mapLegacyClassIdsToRosterIds,
   resolveAssignmentTargets,
@@ -204,8 +204,8 @@ export interface PlcOptions {
   periodNames?: string[];
   /** PLC whose assessments pool this assignment's results (when `plcMode`). */
   plcId?: string;
-  /** PLC library group with the same title, so runs of one quiz share a pool. */
-  plcPoolSyncGroupId?: string;
+  /** The PLC's quiz library, so runs of one quiz share a pool. */
+  plcLibrary?: PlcQuizEntry[];
 }
 
 /* ─── Assign-modal options shape (internal) ───────────────────────────────── */
@@ -2323,13 +2323,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       ? assignEffectivePlcId
       : null
   );
-  const assignPoolGroup = assignTarget
-    ? findPoolGroupByTitle(
-        assignPlcLibrary.filter((entry) => !entry.archived),
-        assignTarget.title
-      )
-    : undefined;
-
   const assignQuizContext = {
     questions: toOverrideEditorQuestions(assignQuizData),
     rubrics: assignRubrics,
@@ -2414,9 +2407,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       periodNames:
         effectivePeriodNames.length > 0 ? effectivePeriodNames : undefined,
       plcId: assignEffectivePlcId || undefined,
-      ...(assignOptions.plcMode && assignPoolGroup
-        ? { plcPoolSyncGroupId: assignPoolGroup.syncGroupId }
-        : {}),
+      ...(assignOptions.plcMode ? { plcLibrary: assignPlcLibrary } : {}),
     };
     const bellWindow = periodAccess?.bellWindow;
     const applied = applyWhen(
