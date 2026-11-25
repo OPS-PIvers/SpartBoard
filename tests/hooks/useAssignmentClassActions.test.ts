@@ -18,7 +18,7 @@ const periods = vi.hoisted(() => ({
   startPeriod: vi.fn(() => Promise.resolve([])),
   reopenPeriod: vi.fn(() => Promise.resolve([])),
   pausePeriod: vi.fn(() => Promise.resolve()),
-  closePeriod: vi.fn(() => Promise.resolve()),
+  closePeriod: vi.fn((_key: string, _at?: number) => Promise.resolve()),
   closeAllPeriods: vi.fn(() => Promise.resolve()),
   closePeriods: vi.fn(),
 }));
