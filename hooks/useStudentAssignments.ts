@@ -130,6 +130,11 @@ export interface AssignmentSummary {
   outsideClasses?: true;
   /** Per-period sessions: the gate fields plus this student's periods, for the card's lock. */
   periodGate?: PeriodAccessSessionFields & { periodKeys: string[] };
+  /** Quiz Schedule and Let in passes, on every quiz whatever its gate. */
+  passes?: Pick<
+    PeriodAccessSessionFields,
+    'studentAccess' | 'studentAccessFrom'
+  >;
 }
 
 export type LoadState = 'loading' | 'ready';
@@ -555,6 +560,15 @@ export function buildAssignmentSummary(
       candidates.length > 0 &&
       intersected.length === 0
         ? true
+        : undefined,
+    passes:
+      kind === 'quiz' && isNumberRecord(record.studentAccess)
+        ? {
+            studentAccess: record.studentAccess,
+            studentAccessFrom: isNumberRecord(record.studentAccessFrom)
+              ? record.studentAccessFrom
+              : undefined,
+          }
         : undefined,
     periodGate: hasPeriodAccess(record)
       ? {

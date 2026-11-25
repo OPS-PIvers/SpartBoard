@@ -313,9 +313,9 @@ export function usePeriodAccess(
 
   const letIn = useCallback(
     async (uid: string) => {
-      if (!refs || !periodAccess) return;
+      if (!refs) return;
       const until = letInUntil(
-        periodAccess,
+        periodAccess ?? {},
         rosters ?? [],
         featurePermissions,
         Date.now()
@@ -338,8 +338,7 @@ export function usePeriodAccess(
   /** "Set a time": one student's pass from `from` to `until`; null removes it. */
   const setStudentTime = useCallback(
     async (uid: string, time: { from: number; until: number } | null) => {
-      if (!refs || !periodAccess || commit)
-        throw new Error('Cannot schedule here');
+      if (!refs || commit) throw new Error('Cannot schedule here');
       await updateDoc(
         refs.session,
         new FieldPath('studentAccess', uid),
@@ -349,7 +348,7 @@ export function usePeriodAccess(
       );
       await refreshHold(uid, time);
     },
-    [refs, periodAccess, commit, refreshHold]
+    [refs, commit, refreshHold]
   );
 
   const keys = useMemo(() => Object.keys(periodAccess ?? {}), [periodAccess]);

@@ -39,6 +39,46 @@ export function isLetIn(
   return typeof from !== 'number' || from <= nowMs;
 }
 
+/** When this student's running Let in or Schedule pass ends, or null with none running. */
+export function runningPassUntil(
+  session: PeriodAccessSessionFields | null | undefined,
+  uid: string | null | undefined,
+  nowMs: number
+): number | null {
+  return uid && isLetIn(session, uid, nowMs)
+    ? (session?.studentAccess?.[uid] ?? null)
+    : null;
+}
+
+/** A close the running pass outlasts moves to the pass end; no close stays no close. */
+export function closeWithPass(
+  closeAt: number | null | undefined,
+  passUntil: number | null
+): number | null | undefined {
+  if (passUntil == null || closeAt == null) return closeAt;
+  return Math.max(closeAt, passUntil);
+}
+
+/** The quiz as one student sees it while their pass runs: open now, past any whole-quiz pause, open time or close. */
+export function withStudentPass<
+  T extends PeriodAccessSessionFields & {
+    status?: string;
+    openAt?: number | null;
+    closeAt?: number | null;
+  },
+>(session: T, passUntil: number | null): T {
+  if (passUntil == null || session.status === 'ended') return session;
+  return {
+    ...session,
+    status:
+      session.status === 'paused' || session.status === 'waiting'
+        ? 'active'
+        : session.status,
+    openAt: null,
+    closeAt: closeWithPass(session.closeAt, passUntil),
+  };
+}
+
 /** Let in and Schedule passes that still have time left, or null when none do. */
 export function pendingPasses(
   session: PeriodAccessSessionFields | null | undefined,
@@ -98,6 +138,25 @@ export function studentCanEnter(
     const access = session.periodAccess[k];
     return !!access && effectivePeriodState(access, nowMs) === 'open';
   });
+}
+
+/** Whether a student can work now on any quiz: per-class gates, else the whole-quiz pause and window, with their pass. */
+export function studentCanEnterQuiz(
+  session: PeriodAccessSessionFields & {
+    status?: string;
+    openAt?: number | null;
+    closeAt?: number | null;
+  },
+  periodKeys: readonly string[],
+  uid: string | null | undefined,
+  nowMs: number
+): boolean {
+  if (hasPeriodAccess(session))
+    return studentCanEnter(session, periodKeys, uid, nowMs);
+  if (isLetIn(session, uid, nowMs)) return true;
+  if (session.status === 'paused' || session.status === 'waiting') return false;
+  if (session.openAt != null && nowMs < session.openAt) return false;
+  return session.closeAt == null || nowMs < session.closeAt;
 }
 
 /** Of the student's periods, the one to write as `classId`: an open one first. */
