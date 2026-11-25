@@ -24,6 +24,7 @@ import {
   validateDestination,
 } from '@/utils/shortLinkValidation';
 import { ShortLink } from '@/types';
+import { Modal } from '@/components/common/Modal';
 
 const formatDate = (epoch: number | null | undefined): string => {
   if (!epoch) return '—';
@@ -293,16 +294,17 @@ const EditModal: React.FC<EditModalProps> = ({ link, onClose, onSaved }) => {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-modal-nested bg-black/50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="edit-short-link-title"
+    <Modal
+      isOpen
+      onClose={saving ? () => undefined : onClose}
+      variant="bare"
+      zIndex="z-modal-nested"
+      maxWidth="max-w-lg"
+      dismissible={false}
+      ariaLabelledby="edit-short-link-title"
+      className="rounded-2xl bg-white shadow-xl"
     >
-      <form
-        onSubmit={handleSave}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 flex flex-col gap-4"
-      >
+      <form onSubmit={handleSave} className="flex flex-col gap-4 p-6">
         <div className="flex items-start justify-between">
           <div>
             <h3
@@ -389,7 +391,7 @@ const EditModal: React.FC<EditModalProps> = ({ link, onClose, onSaved }) => {
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 };
 

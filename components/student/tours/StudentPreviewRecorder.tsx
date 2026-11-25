@@ -1,6 +1,5 @@
+import { Modal } from '@/components/common/Modal';
 import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Z_INDEX } from '@/config/zIndex';
 import { TourRecorder } from '@/components/widgets/GuidedLearning/components/recorder/TourRecorder';
 import {
   STUDENT_TOUR_PROBE,
@@ -64,36 +63,37 @@ export const StudentPreviewRecorder: React.FC = () => {
   return (
     <>
       <StudentHelpButton items={[]} onRecord={() => setPhase('recording')} />
-      {(phase === 'sent' || phase === 'lost') &&
-        createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="student-recording-sent"
-            data-tour-ignore=""
-            className="fixed inset-0 flex items-center justify-center bg-slate-950/60 p-4"
-            style={{ zIndex: Z_INDEX.dialog }}
-          >
-            <div className="flex w-full max-w-sm flex-col gap-4 rounded-2xl bg-white p-5 text-center shadow-2xl">
-              <p
-                id="student-recording-sent"
-                className="text-sm font-semibold text-slate-800"
-              >
-                {phase === 'sent'
-                  ? 'Finish in your SpartBoard tab. Review the pictures and save there.'
-                  : "This recording couldn't be saved. Keep your SpartBoard tab open and record again."}
-              </p>
-              <button
-                type="button"
-                onClick={() => setPhase('idle')}
-                className="self-center rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark"
-              >
-                OK
-              </button>
-            </div>
-          </div>,
-          document.body
-        )}
+      {(phase === 'sent' || phase === 'lost') && (
+        <Modal
+          isOpen
+          onClose={() => setPhase('idle')}
+          dismissible={false}
+          variant="bare"
+          zIndex="z-dialog"
+          maxWidth="max-w-sm"
+          ariaLabelledby="student-recording-sent"
+          rootProps={{ 'data-tour-ignore': '' }}
+          className="rounded-2xl bg-white shadow-2xl"
+        >
+          <div className="flex flex-col gap-4 p-5 text-center">
+            <p
+              id="student-recording-sent"
+              className="text-sm font-semibold text-slate-800"
+            >
+              {phase === 'sent'
+                ? 'Finish in your SpartBoard tab. Review the pictures and save there.'
+                : "This recording couldn't be saved. Keep your SpartBoard tab open and record again."}
+            </p>
+            <button
+              type="button"
+              onClick={() => setPhase('idle')}
+              className="self-center rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark"
+            >
+              OK
+            </button>
+          </div>
+        </Modal>
+      )}
     </>
   );
 };

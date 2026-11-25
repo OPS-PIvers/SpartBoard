@@ -1,3 +1,4 @@
+import { useDialog } from '@/context/useDialog';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -93,6 +94,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
   markup,
 }) => {
   const { t } = useTranslation();
+  const { showConfirm } = useDialog();
   const tp = (key: string, params?: Record<string, unknown>) =>
     t(`quizMediaResponse.grading.paper.${key}`, params);
 
@@ -226,7 +228,11 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
 
   const saveEdit = async () => {
     if (!actions) return;
-    if (hasSnapshot && !window.confirm(tp('confirmRewrite'))) return;
+    if (
+      hasSnapshot &&
+      !(await showConfirm(tp('confirmRewrite'), { variant: 'warning' }))
+    )
+      return;
     let confirmed = hasSnapshot;
     setBusy('save');
     setError(null);
@@ -242,7 +248,8 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
         await send();
       } catch (err) {
         if (!needsSnapshotConfirm(err) || confirmed) throw err;
-        if (!window.confirm(tp('confirmRewrite'))) return;
+        if (!(await showConfirm(tp('confirmRewrite'), { variant: 'warning' })))
+          return;
         confirmed = true;
         await send();
       }
@@ -261,7 +268,11 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
 
   const applyNewScan = async () => {
     if (!actions) return;
-    if (hasSnapshot && !window.confirm(tp('confirmRewrite'))) return;
+    if (
+      hasSnapshot &&
+      !(await showConfirm(tp('confirmRewrite'), { variant: 'warning' }))
+    )
+      return;
     if (await run('newScan', () => actions.applyNewerScan(ref)))
       onAnswerChanged?.();
   };

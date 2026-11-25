@@ -100,6 +100,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'student-set-time',
   'student-windows',
   'help-center-ai',
+  'lms-push-final-scores',
   'server-turn-in',
   'share-link-tracking',
 ];
