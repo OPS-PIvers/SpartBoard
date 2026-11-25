@@ -13,6 +13,8 @@ export interface ImageSourcesOptions {
   accept?: string;
   maxBytes?: number;
   disabled?: boolean;
+  /** Takes several files at once from upload, drop or paste; each one saves and calls onChange. */
+  multiple?: boolean;
   /** Paste reaches the picker anywhere in its dialog, or only inside the picker. */
   pasteScope?: 'dialog' | 'element' | 'off';
   /** The element paste is scoped to. */
@@ -51,6 +53,7 @@ export function useImageSources({
   accept = 'image/*',
   maxBytes = DEFAULT_MAX,
   disabled = false,
+  multiple = false,
   pasteScope = 'dialog',
   scopeRef,
 }: ImageSourcesOptions) {
@@ -105,6 +108,39 @@ export function useImageSources({
     [run, save]
   );
 
+  // Saves each file in turn; the first problem stays on screen after the rest finish.
+  const addFiles = useCallback(
+    async (files: File[]) => {
+      if (!multiple || files.length < 2) {
+        if (files[0]) await addFile(files[0]);
+        return;
+      }
+      if (inFlight.current || disabled) return;
+      inFlight.current = true;
+      setBusy(true);
+      setError(null);
+      let firstError: string | null = null;
+      try {
+        for (const file of files) {
+          try {
+            const url = await save(file);
+            if (url) onChange(url);
+          } catch (err) {
+            firstError ??=
+              err instanceof PickerError
+                ? err.message
+                : "The image didn't add.";
+          }
+        }
+      } finally {
+        setError(firstError);
+        inFlight.current = false;
+        setBusy(false);
+      }
+    },
+    [multiple, addFile, disabled, save, onChange]
+  );
+
   const openFile = useCallback(() => inputRef.current?.click(), []);
 
   const openDrive = useCallback(
@@ -151,10 +187,8 @@ export function useImageSources({
   );
 
   const onPasted = useCallback(
-    (files: File[]) => {
-      if (files[0]) void addFile(files[0]);
-    },
-    [addFile]
+    (files: File[]) => void addFiles(files),
+    [addFiles]
   );
   usePasteFiles(
     onPasted,
@@ -181,8 +215,7 @@ export function useImageSources({
       if (!hasFiles(e)) return;
       e.preventDefault();
       setDragging(false);
-      const file = Array.from(e.dataTransfer.files).find(isImageFile);
-      if (file) void addFile(file);
+      void addFiles(Array.from(e.dataTransfer.files).filter(isImageFile));
     },
   };
 
@@ -192,19 +225,21 @@ export function useImageSources({
       ref={inputRef}
       type="file"
       accept={accept}
+      multiple={multiple}
       className="hidden"
       tabIndex={-1}
       aria-hidden
       onChange={(e) => {
-        const file = e.target.files?.[0];
+        const files = Array.from(e.target.files ?? []);
         e.target.value = '';
-        if (file) void addFile(file);
+        void addFiles(files);
       }}
     />
   );
 
   return {
     busy,
+    disabled,
     error,
     setError,
     dragging,

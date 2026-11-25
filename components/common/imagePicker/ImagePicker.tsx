@@ -119,7 +119,7 @@ const LinkRow: React.FC<{
         placeholder="Paste an image link"
         aria-label="Image link"
         className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
-        disabled={src.busy}
+        disabled={src.busy || src.disabled}
       />
       <button
         {...tag('linkAdd')}
@@ -162,7 +162,7 @@ const SourceButtons: React.FC<{
         {...tag('upload')}
         type="button"
         onClick={src.openFile}
-        disabled={src.busy}
+        disabled={src.busy || src.disabled}
         className={`${btn} ${grow}`}
       >
         <Monitor size={14} aria-hidden />
@@ -172,7 +172,7 @@ const SourceButtons: React.FC<{
         {...tag('drive')}
         type="button"
         onClick={() => void src.openDrive()}
-        disabled={src.busy}
+        disabled={src.busy || src.disabled}
         className={`${btn} ${grow}`}
       >
         <GoogleDriveIcon className="h-3.5 w-3.5 shrink-0" />
@@ -182,7 +182,7 @@ const SourceButtons: React.FC<{
         {...tag('link')}
         type="button"
         onClick={() => setLinking(true)}
-        disabled={src.busy}
+        disabled={src.busy || src.disabled}
         className={`${btn} ${grow}`}
       >
         <Link2 size={14} aria-hidden />
@@ -433,7 +433,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
                 {...tag('remove')}
                 type="button"
                 onClick={onRemove}
-                disabled={src.busy}
+                disabled={src.busy || src.disabled}
                 aria-label="Remove image"
                 title="Remove image"
                 className={`${iconBtn} hover:text-brand-red-primary`}
