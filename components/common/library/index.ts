@@ -55,7 +55,6 @@ export type { AssignPeriodAccessContext } from './AssignPeriodAccessSection';
 export { toOverrideEditorQuestions } from './toOverrideEditorQuestions';
 export { AssignmentArchiveCard } from './AssignmentArchiveCard';
 export { ViewCountBadge } from './ViewCountBadge';
-export { PeriodSelector } from './PeriodSelector';
 export { LibraryDndContext } from './LibraryDndContext';
 export {
   folderDroppableId,
@@ -118,7 +117,6 @@ export type {
   AssignmentArchiveCardProps,
   AssignModeOption,
   AssignModalProps,
-  PeriodSelectorProps,
   ImportSourceKind,
   ImportSourcePayload,
   ImportParseResult,

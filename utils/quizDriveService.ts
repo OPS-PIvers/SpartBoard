@@ -9,6 +9,7 @@
  * - Exporting quiz results to a new Google Sheet
  */
 
+import { csvDataRows, withoutHeaderRow } from '@/utils/csv';
 import { questionForResponse } from '@/utils/quizCalcResponse';
 import { plainMathText, plainPromptText } from '@/utils/promptMath';
 import {
@@ -92,6 +93,13 @@ const COL_QUESTION_TYPE = 2;
 const COL_CORRECT_ANSWER = 3;
 const COL_INCORRECT_1 = 4;
 const COL_INCORRECT_4 = 7;
+
+const QUESTION_TYPE_CODES = ['MC', 'FIB', 'MATCHING', 'ORDERING', 'MA'];
+/** A first row whose column C isn't a question type is a header. */
+const isQuestionRow = (row: string[]): boolean =>
+  QUESTION_TYPE_CODES.includes(
+    (row[COL_QUESTION_TYPE] ?? '').toUpperCase().trim()
+  );
 
 const QUIZ_FOLDER_NAME = 'Quizzes';
 
@@ -533,18 +541,8 @@ export class QuizDriveService {
     const data = (await res.json()) as SheetsValueRange;
     const rows = data.values ?? [];
 
-    // Skip header row if present (detect by checking if row 0 col C is not a valid question type)
-    let startRow = 0;
-    if (rows.length > 0) {
-      const firstCell = (rows[0][COL_QUESTION_TYPE] ?? '').toUpperCase().trim();
-      if (!['MC', 'FIB', 'MATCHING', 'ORDERING', 'MA'].includes(firstCell)) {
-        startRow = 1;
-      }
-    }
-
     const questions: QuizQuestion[] = [];
-    for (let i = startRow; i < rows.length; i++) {
-      const row = rows[i];
+    for (const row of withoutHeaderRow(rows, isQuestionRow)) {
       if (!row || row.length < 3) continue;
 
       const timeLimitRaw = (row[COL_TIME_LIMIT] ?? '').trim();
@@ -598,56 +596,7 @@ export class QuizDriveService {
    * Matches the Google Sheet column layout (A=Time, B=Text, C=Type, D=Correct, E-H=Incorrect).
    */
   static parseCSVQuestions(csvContent: string): QuizQuestion[] {
-    const rows: string[][] = [];
-    let currentRow: string[] = [];
-    let currentCell = '';
-    let inQuotes = false;
-
-    // Simple robust CSV parser that handles quoted strings and newlines within quotes
-    for (let i = 0; i < csvContent.length; i++) {
-      const char = csvContent[i];
-      const nextChar = csvContent[i + 1];
-
-      if (inQuotes) {
-        if (char === '"' && nextChar === '"') {
-          currentCell += '"';
-          i++;
-        } else if (char === '"') {
-          inQuotes = false;
-        } else {
-          currentCell += char;
-        }
-      } else {
-        if (char === '"') {
-          inQuotes = true;
-        } else if (char === ',') {
-          currentRow.push(currentCell.trim());
-          currentCell = '';
-        } else if (char === '\n' || char === '\r') {
-          if (char === '\r' && nextChar === '\n') i++;
-          currentRow.push(currentCell.trim());
-          if (currentRow.some((c) => c)) rows.push(currentRow);
-          currentRow = [];
-          currentCell = '';
-        } else {
-          currentCell += char;
-        }
-      }
-    }
-    if (currentCell || currentRow.length > 0) {
-      currentRow.push(currentCell.trim());
-      if (currentRow.some((c) => c)) rows.push(currentRow);
-    }
-
-    // Skip header row if present (detect by checking if row 0 col C is not a valid question type)
-    let startRow = 0;
-    if (rows.length > 0) {
-      const typeMap = ['MC', 'FIB', 'MATCHING', 'ORDERING', 'MA'];
-      const firstCell = (rows[0][COL_QUESTION_TYPE] ?? '').toUpperCase().trim();
-      if (!typeMap.includes(firstCell)) {
-        startRow = 1;
-      }
-    }
+    const rows = csvDataRows(csvContent, isQuestionRow).map((r) => r.cells);
 
     const questions: QuizQuestion[] = [];
     const questionTypeMap: Record<string, QuizQuestionType> = {
@@ -658,8 +607,7 @@ export class QuizDriveService {
       MA: 'MA',
     };
 
-    for (let i = startRow; i < rows.length; i++) {
-      const row = rows[i];
+    for (const row of rows) {
       if (!row || row.length < 3) continue;
 
       const timeLimitRaw = (row[COL_TIME_LIMIT] ?? '').trim();

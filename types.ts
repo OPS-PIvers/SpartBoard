@@ -11814,6 +11814,8 @@ export interface Toast {
   };
   /** Set while the toast eases out, just before it is removed. */
   leaving?: boolean;
+  /** A newer toast with the same key replaces this one. */
+  replaceKey?: string;
 }
 
 export type WidgetCategory =

@@ -50,11 +50,8 @@ import {
 import { VideoActivityClipFields } from './VideoActivityClipFields';
 import { VideoActivityNotesEditor } from './VideoActivityNotesEditor';
 import { Timeline, type TimelineHandle } from './Timeline';
-import {
-  mmSsToSeconds,
-  secondsToMmSs,
-  type VideoActivityEditorController,
-} from './useVideoActivityEditorState';
+import { type VideoActivityEditorController } from './useVideoActivityEditorState';
+import { mmSsToSeconds, secondsToMmSs } from '@/utils/videoTimestamp';
 
 interface PaneProps {
   state: VideoActivityEditorController;

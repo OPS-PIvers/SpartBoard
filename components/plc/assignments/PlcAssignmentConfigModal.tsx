@@ -25,7 +25,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Calendar, X } from 'lucide-react';
-import { AssignClassPicker } from '@/components/common/AssignClassPicker';
+import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import {
   makeEmptyPickerValue,
   type AssignClassPickerValue,
@@ -515,10 +515,10 @@ export const PlcAssignmentConfigModal: React.FC<
                 defaultValue: 'Class periods',
               })}
             </p>
-            <AssignClassPicker
+            <ClassChecklist
               rosters={rosters}
-              value={picker}
-              onChange={setPicker}
+              value={{ classIds: picker.rosterIds, studentsByClass: {} }}
+              onChange={(v) => setPicker({ rosterIds: v.classIds })}
             />
           </div>
         </div>
