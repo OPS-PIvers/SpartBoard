@@ -1918,7 +1918,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Submit work after End',
     icon: ClipboardCheck,
     description:
-      "When you end or close a class, students' work is submitted within a few minutes.",
+      'A Quiz, Video Activity or Guided Learning activity is submitted when it ends.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
