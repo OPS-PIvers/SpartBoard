@@ -90,7 +90,7 @@ export const SearchField: React.FC<SearchFieldProps> = ({
           scaled ? { ...SCALED_ICON, left: 'min(12px, 3cqmin)' } : undefined
         }
       />
-      <input
+      <input // no-tour-anchor: each caller passes its own anchor
         ref={inputRef}
         id={id}
         type="search"
