@@ -461,6 +461,14 @@ describe('useAssignmentClassActions with a server writer (Writing)', () => {
     );
   });
 
+  it('refuses anyone but the assigning teacher', async () => {
+    const x = setupWriter(run({ teacherUid: 'other' }), writingLifecycle());
+    await expect(x.current.closeAll()).rejects.toThrow(
+      'Only the assigning teacher'
+    );
+    expect(sent).toEqual([]);
+  });
+
   it('Undo goes through the writer', async () => {
     const prev = run({ status: 'ended', periodAccess: { c1: row() } });
     await restoreRun(prev, 't1', WRITER_COLLECTIONS, writingLifecycle());
