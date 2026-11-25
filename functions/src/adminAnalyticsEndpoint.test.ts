@@ -18,6 +18,7 @@ interface DecodedToken {
 interface DocSnap {
   exists: boolean;
   data?: () => unknown;
+  get?: (field: string) => unknown;
 }
 
 const verifyIdTokenMock = vi.fn<(idToken: string) => Promise<DecodedToken>>();
