@@ -6,6 +6,8 @@ import {
 } from '@/hooks/useAssignmentPseudonyms';
 import { useAuth } from '@/context/useAuth';
 import { formatStudentTime } from '@/components/widgets/QuizWidget/components/monitor/studentTimeFormat';
+import { UNKNOWN_STUDENT_LABEL } from '@/components/widgets/QuizWidget/utils/resolveDisplayName';
+import { compareLastFirst, lastFirst } from '@/utils/studentName';
 
 /** The line a held student's time reads as: their scheduled window, or a Let in running now. */
 export function heldTimeText(s: Pick<HeldStudent, 'from' | 'until'>): string {
@@ -18,24 +20,20 @@ export function heldTimeText(s: Pick<HeldStudent, 'from' | 'until'>): string {
   return `Let in until ${until}`;
 }
 
-const lastFirst = (n: StudentName | undefined): string | null => {
-  if (!n) return null;
-  const parts = [n.familyName.trim(), n.givenName.trim()].filter(Boolean);
-  return parts.length > 0 ? parts.join(', ') : null;
-};
-
 /** Held students as "Last, First" with their time, sorted by last name. */
 export function heldRows(
   students: readonly HeldStudent[],
   names: ReadonlyMap<string, StudentName> | null
 ): { uid: string; name: string; time: string }[] {
   return students
-    .map((s) => ({
+    .map((s) => ({ s, name: names?.get(s.uid) }))
+    .sort((a, b) => compareLastFirst(a.name, b.name))
+    .map(({ s, name }) => ({
       uid: s.uid,
-      name: lastFirst(names?.get(s.uid)) ?? 'Student',
+      // A name still loading shows the live-list label.
+      name: lastFirst(name) || UNKNOWN_STUDENT_LABEL,
       time: heldTimeText(s),
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    }));
 }
 
 /** Dev harness names, standing in for the lookup. */

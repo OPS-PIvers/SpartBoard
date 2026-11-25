@@ -26,6 +26,7 @@ import {
   writingCallerFrom,
   type WritingCaller,
 } from './writingResponses';
+import { lastFirst } from './studentName.gen';
 
 type Data = Record<string, unknown>;
 
@@ -111,12 +112,7 @@ const recordRef = (db: Firestore, teacherUid: string, sid: string) =>
     .doc(sid);
 
 /** "Last, First", or the first name alone when there is no last name (test classes). */
-export const displayName = (n: PeerName | undefined): string =>
-  !n
-    ? ''
-    : n.familyName && n.givenName
-      ? `${n.familyName}, ${n.givenName}`
-      : n.familyName || n.givenName;
+export const displayName = (n: PeerName | undefined): string => lastFirst(n);
 
 /** Each student in a group reviews the next one; a pair reviews each other. */
 export function peerEdges(

@@ -353,6 +353,7 @@ import {
 } from '@/hooks/useDistrictLibrary';
 import { DistrictLibraryModal } from './components/DistrictLibraryModal';
 import { useDistrictFolders } from '@/hooks/useDistrictLibraryFolders';
+import { lastFirst } from '@/utils/studentName';
 
 const QuizStudentView = lazy(() =>
   import('@/components/quiz/QuizStudentView').then((m) => ({
@@ -1309,9 +1310,7 @@ const TeacherQuizWidget: React.FC<{
     const student = rosters
       .find((r) => r.id === seat.rosterId)
       ?.students.find((st) => st.id === seat.studentId);
-    const name = student
-      ? [student.lastName, student.firstName].filter(Boolean).join(', ')
-      : seat.name;
+    const name = student ? lastFirst(student) : seat.name;
     await queuePrintedGroups(
       assignment.id,
       data,

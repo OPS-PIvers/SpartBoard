@@ -33,6 +33,7 @@ import { canTryAgain } from '@/components/flashcards/checkAttempt';
 import { FlashcardMonitor } from './FlashcardMonitor';
 import { FlashcardResultsScreen } from './FlashcardResultsScreen';
 import { useSyncPlcFlashcardResult } from './useSyncPlcFlashcardResult';
+import { lastFirst } from '@/utils/studentName';
 
 interface FlashcardResultsViewProps {
   assignment: FlashcardAssignment;
@@ -172,10 +173,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
   const sortNameFor = useMemo(
     () =>
       (studentUid: string): string => {
-        const name = byStudentUid.get(studentUid);
-        return name && (name.familyName || name.givenName)
-          ? `${name.familyName} ${name.givenName}`.trim()
-          : nameFor(studentUid);
+        return lastFirst(byStudentUid.get(studentUid)) || nameFor(studentUid);
       },
     [byStudentUid, nameFor]
   );

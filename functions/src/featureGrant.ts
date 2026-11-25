@@ -3,19 +3,10 @@ import { canonicalizeBuildingIdsServer } from './buildingIds';
 import { normalizeEmailDomain, resolveOrgIdForDomain } from './classlinkShared';
 import { missingDocAccess } from './featureMissingDoc';
 import { isExcludedFrom } from './permissionExclusion';
+import { INTERNAL_TIER_DOMAINS, TIER_RANK } from './userTierServer';
 
 // Feature gates kept apart from quizMediaArchive so callers don't load quiz media to check a flag.
 type Firestore = admin.firestore.Firestore;
-
-/** Mirrors `INTERNAL_TIER_DOMAINS` in `utils/userTier.ts`. */
-const INTERNAL_TIER_DOMAINS: readonly string[] = ['orono.k12.mn.us'];
-
-/** Mirrors the `free < org < internal` ordering in `utils/userTier.ts`. */
-const TIER_RANK: Readonly<Record<string, number>> = {
-  free: 0,
-  org: 1,
-  internal: 2,
-};
 
 /** Server twin of `meetsMinTier` — an unset floor imposes no restriction. */
 export function meetsMinTierServer(tier: string, minTier: unknown): boolean {
