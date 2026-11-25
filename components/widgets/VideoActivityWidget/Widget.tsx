@@ -14,7 +14,7 @@ import React, {
   useRef,
   useMemo,
 } from 'react';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import {
@@ -1090,6 +1090,8 @@ const TeacherVideoActivityWidget: React.FC<{
             manualStart: extras?.manualStart,
           });
           const plcLinkage = buildPlcLinkage(extras?.plc ?? undefined);
+          // `dueAt` also goes top-level: /my-assignments reads it off the session doc.
+          const sessionDueAt = dueAt ?? targeting.dueAt ?? null;
           const sessionId = await createSession(
             data,
             user.uid,
@@ -1104,39 +1106,17 @@ const TeacherVideoActivityWidget: React.FC<{
             sessionOptions,
             periodGate,
             sessionMode,
-            extras?.audience
+            extras?.audience,
+            {
+              openAt: targeting.openAt,
+              closeAt: targeting.closeAt,
+              dueAt: sessionDueAt,
+              workKind: targeting.workKind,
+            }
           );
           // A tour's sandbox hands back a made-up session with no docs behind it.
           const sandboxed = isSandboxId(sessionId);
-
-          // M17 §5 B3 — write the new window fields onto the session doc
-          // (`setAssignmentTargetsV1` only owns the pointer-doc windows /
-          // `individualTargeting`, never the session's own openAt/closeAt)
-          // and create the matching teacher-owned assignment archive doc —
-          // required by `setAssignmentTargetsV1`'s ownership check
-          // (`not-found` if absent) and, as a side benefit, populates the
-          // Archive tab for every assignment, not just PLC imports.
-          // `dueAt` rides along: /my-assignments reads it top-level off the
-          // session doc, where VA previously only carried it under
-          // `sessionOptions`.
-          const sessionDueAt = dueAt ?? targeting.dueAt ?? null;
-          // Per-period sessions carry each period's window instead of a shared one.
-          const sessionOpenAt = periodGate ? null : targeting.openAt;
-          const sessionCloseAt = periodGate ? null : targeting.closeAt;
-          if (
-            !sandboxed &&
-            (sessionOpenAt != null ||
-              sessionCloseAt != null ||
-              sessionDueAt != null ||
-              targeting.workKind)
-          ) {
-            await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
-              ...(sessionOpenAt != null ? { openAt: sessionOpenAt } : {}),
-              ...(sessionCloseAt != null ? { closeAt: sessionCloseAt } : {}),
-              ...(sessionDueAt != null ? { dueAt: sessionDueAt } : {}),
-              ...(targeting.workKind ? { workKind: targeting.workKind } : {}),
-            });
-          }
+          // The archive doc is required by `setAssignmentTargetsV1`'s ownership check.
           const nowTs = Date.now();
           const assignmentDoc: VideoActivityAssignment = {
             id: sessionId,
