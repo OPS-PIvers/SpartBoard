@@ -65,6 +65,67 @@ describe('ImagePicker', () => {
     );
   });
 
+  it('saves every file when multiple is on and keeps the first problem', async () => {
+    const upload = vi
+      .fn()
+      .mockResolvedValueOnce('https://saved/a')
+      .mockResolvedValueOnce('https://saved/c');
+    const onChange = vi.fn();
+    const { container } = render(
+      <ImagePicker
+        tourScope={scope}
+        upload={upload}
+        onChange={onChange}
+        multiple
+        maxBytes={5}
+      />
+    );
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    expect(input.multiple).toBe(true);
+    const big = new File(['123456789'], 'big.png', { type: 'image/png' });
+    fireEvent.change(input, {
+      target: { files: [png('a.png'), big, png('c.png')] },
+    });
+    await waitFor(() => expect(onChange).toHaveBeenCalledTimes(2));
+    expect(onChange).toHaveBeenNthCalledWith(1, 'https://saved/a');
+    expect(onChange).toHaveBeenNthCalledWith(2, 'https://saved/c');
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'too large'
+    );
+  });
+
+  it('takes only the first file without multiple', async () => {
+    const upload = vi.fn().mockResolvedValue('https://saved/1');
+    const { container } = render(
+      <ImagePicker tourScope={scope} upload={upload} onChange={vi.fn()} />
+    );
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { files: [png('a.png'), png('b.png')] },
+    });
+    await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
+  });
+
+  it('disables every source while disabled', () => {
+    render(
+      <ImagePicker
+        tourScope={scope}
+        upload={vi.fn()}
+        onChange={vi.fn()}
+        disabled
+      />
+    );
+    for (const name of ['Upload', 'Google Drive', 'Image link']) {
+      expect(
+        screen.getByRole<HTMLButtonElement>('button', { name }).disabled
+      ).toBe(true);
+    }
+  });
+
   it('refuses a file that is not an image', async () => {
     const upload = vi.fn();
     const { container } = render(
