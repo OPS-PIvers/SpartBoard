@@ -153,9 +153,11 @@ const SourceButtons: React.FC<{
   if (linking) {
     return <LinkRow src={src} tag={tag} onCancel={() => setLinking(false)} />;
   }
-  const grow = stretch ? '@sm:flex-1 @sm:basis-0' : '';
+  const grow = stretch
+    ? '[@container(min-width:24rem)]:flex-1 [@container(min-width:24rem)]:basis-0'
+    : '';
   return (
-    <div className="flex w-full flex-col justify-center gap-2 @sm:flex-row">
+    <div className="flex w-full flex-col justify-center gap-2 [@container(min-width:24rem)]:flex-row">
       <button
         {...tag('upload')}
         type="button"
@@ -292,7 +294,7 @@ const Panel: React.FC<{
         width: 'min(360px, calc(100vw - 16px))',
         zIndex: pos.z,
       }}
-      className="@container flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl"
+      className="flex flex-col gap-2 rounded-2xl [container-type:inline-size] border border-slate-200 bg-white p-3 shadow-xl"
     >
       {children}
     </div>,
@@ -402,7 +404,10 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
   }
 
   return (
-    <div ref={fieldRef} className="@container flex flex-col gap-2">
+    <div
+      ref={fieldRef}
+      className="flex flex-col gap-2 [container-type:inline-size]"
+    >
       {src.fileInput}
       {value ? (
         <>
