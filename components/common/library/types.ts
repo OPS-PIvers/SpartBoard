@@ -18,6 +18,7 @@
  */
 
 import type React from 'react';
+import type { OverflowMenuItem } from '@/components/common/OverflowMenu';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import type { LucideIcon } from 'lucide-react';
 import type { ClassRoster, WidgetType } from '@/types';
@@ -66,22 +67,8 @@ export type ImportSourceKind =
 /* ─── Generic value objects ───────────────────────────────────────────────── */
 
 /** A clickable menu entry — used in overflow menus, secondary action lists. */
-export interface LibraryMenuAction {
+export interface LibraryMenuAction extends OverflowMenuItem {
   id: string;
-  label: string;
-  icon?: React.ComponentType<{
-    size?: number;
-    className?: string;
-    style?: React.CSSProperties;
-  }>;
-  onClick: () => void;
-  /** Renders with danger styling and (optionally) moves to the bottom. */
-  destructive?: boolean;
-  disabled?: boolean;
-  /** Tooltip when hover-disabled. */
-  disabledReason?: string;
-  /** Live-tour anchor; replaces the positional row tag. */
-  anchor?: TourAnchorAttrs;
   /** Opens these rows in a side menu instead of running `onClick`. */
   submenu?: LibraryMenuAction[];
   /** Assigned tab: moves the item out of the ⋯ menu into the row's status or publish chip. */

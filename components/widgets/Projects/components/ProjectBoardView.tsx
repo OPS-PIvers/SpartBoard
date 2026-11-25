@@ -24,7 +24,7 @@ import {
 } from '@/utils/sharedBoardItems';
 import { projectShareView } from '@/utils/bundleSubShareContent';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
-import { OverflowMenu } from '@/components/common/sessionViews/OverflowMenu';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
 import { getFontClass, hexToRgba } from '@/utils/styles';
 import {
   NO_STUDENT_SIGN_IN_WARNING,
@@ -598,7 +598,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
               </div>
               <OverflowMenu
                 ariaLabel="Project actions"
-                triggerProps={tourAttr(
+                triggerAnchor={tourAttr(
                   'projects.actions-menu',
                   widget.id,
                   'projects'

@@ -2,7 +2,7 @@
 
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   CloudOff,
   Copy,
@@ -10,7 +10,6 @@ import {
   Image as ImageIcon,
   LayoutGrid,
   LibraryBig,
-  MoreHorizontal,
   Pencil,
   QrCode,
   Share2,
@@ -52,7 +51,7 @@ import {
 } from '@/hooks/useLinkedShareHost';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
-import { useClickOutside } from '@/hooks/useClickOutside';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
 import { getFontClass, hexToRgba } from '@/utils/styles';
 import { pickReadableForeground } from '@/utils/collectionColor';
 import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
@@ -268,7 +267,6 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const [moderationOpen, setModerationOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [connectingDrive, setConnectingDrive] = useState(false);
-  const [toolbarMenuOpen, setToolbarMenuOpen] = useState(false);
   const [composer, setComposer] = useState<
     | { kind: 'create'; placement: WallPlacement }
     | { kind: 'edit'; post: ActivityWallSubmission }
@@ -277,8 +275,6 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const [composerBusy, setComposerBusy] = useState(false);
   const [composerProgress, setComposerProgress] = useState<number | null>(null);
   const [composerError, setComposerError] = useState<string | null>(null);
-  const toolbarMenuRef = useRef<HTMLDivElement>(null);
-  useClickOutside(toolbarMenuRef, () => setToolbarMenuOpen(false));
 
   const clearLegacyActivities = useCallback(
     (widgetId: string) =>
@@ -793,64 +789,25 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           {moderateButton}
 
           {compactToolbar ? (
-            <div className="relative" ref={toolbarMenuRef}>
-              <button
-                type="button"
-                {...tourAttr(
-                  'activity-wall.more-actions',
-                  widget.id,
-                  widget.type
-                )}
-                onClick={() => setToolbarMenuOpen((open) => !open)}
-                aria-label="More wall actions"
-                aria-expanded={toolbarMenuOpen}
-                aria-haspopup="menu"
-                className={toolbarButtonClass}
-                style={iconButtonSize}
-              >
-                <MoreHorizontal style={{ width: '55%', height: '55%' }} />
-              </button>
-              {toolbarMenuOpen && (
-                <div
-                  role="menu"
-                  className="absolute right-0 top-full z-20 overflow-hidden rounded-xl border border-white/15 bg-slate-900/95 shadow-xl backdrop-blur-md"
-                  style={{
-                    minWidth: 'min(176px, 55cqw)',
-                    marginTop: 'min(4px, 1cqmin)',
-                    paddingBlock: 'min(4px, 1cqmin)',
-                  }}
-                >
-                  {secondaryActions.map((action) => (
-                    <button
-                      key={action.label}
-                      type="button"
-                      role="menuitem"
-                      {...action.tourAttrs}
-                      disabled={action.disabled}
-                      onClick={() => {
-                        setToolbarMenuOpen(false);
-                        action.run();
-                      }}
-                      className="flex w-full items-center text-left font-semibold text-slate-200 transition-colors hover:bg-white/10 focus:outline-hidden focus-visible:bg-white/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 disabled:opacity-40"
-                      style={{
-                        gap: 'min(8px, 2cqmin)',
-                        padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                        fontSize: 'min(14px, 5.5cqmin)',
-                      }}
-                    >
-                      <action.icon
-                        aria-hidden="true"
-                        style={{
-                          width: 'min(16px, 5cqmin)',
-                          height: 'min(16px, 5cqmin)',
-                        }}
-                      />
-                      {action.label}
-                    </button>
-                  ))}
-                </div>
+            <OverflowMenu
+              items={secondaryActions.map((action) => ({
+                label: action.label,
+                icon: action.icon,
+                disabled: action.disabled,
+                onClick: action.run,
+                anchor: action.tourAttrs,
+              }))}
+              ariaLabel="More wall actions"
+              triggerAnchor={tourAttr(
+                'activity-wall.more-actions',
+                widget.id,
+                widget.type
               )}
-            </div>
+              triggerClassName={toolbarButtonClass}
+              triggerStyle={iconButtonSize}
+              iconStyle={{ width: '55%', height: '55%' }}
+              destructiveLast={false}
+            />
           ) : (
             secondaryActions.map((action) => (
               <button

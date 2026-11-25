@@ -1,6 +1,6 @@
 // One row per quiz shared with this PLC: status badge, row actions, folders and search.
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Archive,
@@ -42,7 +42,10 @@ import {
 import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
 import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettings';
 import { usePlcDelegatedPrintingSettings } from '@/hooks/usePlcDelegatedPrintingSettings';
-import { useClickOutside } from '@/hooks/useClickOutside';
+import {
+  OverflowMenu,
+  type OverflowMenuItem,
+} from '@/components/common/OverflowMenu';
 import { usePlcFolders } from '@/hooks/usePlcFolders';
 import {
   usePlcQuizActions,
@@ -208,9 +211,6 @@ const InLibraryChip: React.FC = () => {
   );
 };
 
-const menuItemClass =
-  'flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50';
-
 const AssessmentRow: React.FC<RowProps> = ({
   row,
   canEdit,
@@ -231,13 +231,6 @@ const AssessmentRow: React.FC<RowProps> = ({
   onShowInQuiz,
 }) => {
   const { t, i18n } = useTranslation();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [moveSubmenuOpen, setMoveSubmenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  useClickOutside(menuRef, () => {
-    setMenuOpen(false);
-    setMoveSubmenuOpen(false);
-  });
   const {
     attributes,
     listeners,
@@ -255,6 +248,133 @@ const AssessmentRow: React.FC<RowProps> = ({
     t('plcDashboard.assessmentList.untitled', {
       defaultValue: 'Untitled assessment',
     });
+  const canUseLibraryActions = canEdit && row.plcQuizId !== null;
+  const menuItems: OverflowMenuItem[] = [];
+  if (row.archived) {
+    menuItems.push({
+      id: 'restore',
+      label: t('plcDashboard.assessmentList.restore', {
+        defaultValue: 'Restore',
+      }),
+      icon: ArchiveRestore,
+      onClick: () => onRestore(row),
+      anchor: tourFieldAttr('plc-assessments.menu-item', 'plc', 'restore'),
+    });
+  } else {
+    if (canUseLibraryActions) {
+      menuItems.push(
+        {
+          id: 'import',
+          label: inLibrary
+            ? t('plcDashboard.quizLibrary.reimport', {
+                defaultValue: 'Re-import',
+              })
+            : t('plcDashboard.quizLibrary.addToMyLibrary', {
+                defaultValue: 'Add to my library',
+              }),
+          icon: Download,
+          onClick: () => onImport(row),
+          anchor: tourFieldAttr('plc-assessments.menu-item', 'plc', 'import'),
+        },
+        {
+          id: 'edit',
+          label: t('plcDashboard.quizLibrary.editAction', {
+            defaultValue: 'Edit',
+          }),
+          icon: Pencil,
+          onClick: () => onEdit(row),
+          anchor: tourFieldAttr('plc-assessments.menu-item', 'plc', 'edit'),
+        },
+        {
+          id: 'version-history',
+          label: t('plcDashboard.versions.open', {
+            defaultValue: 'Version history',
+          }),
+          icon: History,
+          onClick: () => onVersionHistory(row),
+          anchor: tourFieldAttr(
+            'plc-assessments.menu-item',
+            'plc',
+            'version-history'
+          ),
+        }
+      );
+      if (canPrintForTeammate)
+        menuItems.push({
+          id: 'print-teammate',
+          label: t('plcDashboard.teammatePrint.rowAction', {
+            defaultValue: 'Print response sheets for a teammate',
+          }),
+          icon: Printer,
+          onClick: () => onPrintForTeammate(row),
+          anchor: tourFieldAttr(
+            'plc-assessments.menu-item',
+            'plc',
+            'print-teammate'
+          ),
+        });
+    }
+    if (row.assessmentId)
+      menuItems.push({
+        id: 'rename',
+        label: t('plcDashboard.assessmentList.rename', {
+          defaultValue: 'Rename',
+        }),
+        icon: Pencil,
+        onClick: () => onRename(row),
+        anchor: tourFieldAttr('plc-assessments.menu-item', 'plc', 'rename'),
+      });
+    menuItems.push(
+      {
+        id: 'move-to-folder',
+        label: t('plcDashboard.assessmentList.folders.moveToFolder', {
+          defaultValue: 'Move to folder',
+        }),
+        icon: FolderInput,
+        onClick: () => undefined,
+        anchor: tourFieldAttr(
+          'plc-assessments.menu-item',
+          'plc',
+          'move-to-folder'
+        ),
+        submenu: [
+          {
+            id: 'no-folder',
+            label: t('plcDashboard.assessmentList.folders.noFolder', {
+              defaultValue: 'No folder',
+            }),
+            checked: row.folderId === null,
+            onClick: () => onMoveToFolder(row, null),
+            anchor: tourFieldAttr(
+              'plc-assessments.menu-item',
+              'plc',
+              'no-folder'
+            ),
+          },
+          ...folders.map((folder) => ({
+            id: folder.id,
+            label: folder.name,
+            checked: row.folderId === folder.id,
+            onClick: () => onMoveToFolder(row, folder.id),
+            anchor: tourFieldAttr(
+              'plc-assessments.menu-folder',
+              'plc',
+              folder.id
+            ),
+          })),
+        ],
+      },
+      {
+        id: 'archive',
+        label: t('plcDashboard.assessmentList.archive', {
+          defaultValue: 'Archive',
+        }),
+        icon: Archive,
+        onClick: () => onArchive(row),
+        anchor: tourFieldAttr('plc-assessments.menu-archive', 'plc', row.id),
+      }
+    );
+  }
   const hasResults = row.assessmentId !== null;
   const meta: string[] = [];
   if (hasResults) {
@@ -389,8 +509,6 @@ const AssessmentRow: React.FC<RowProps> = ({
     </>
   );
 
-  const canUseLibraryActions = canEdit && row.plcQuizId !== null;
-
   return (
     <li
       ref={setNodeRef}
@@ -461,254 +579,19 @@ const AssessmentRow: React.FC<RowProps> = ({
       )}
 
       {canEdit && (
-        <div
-          ref={menuRef}
-          className={`relative shrink-0 ${onShowInQuiz ? (menuOpen ? 'z-20' : 'z-10') : ''}`}
-        >
-          <button
-            {...tourFieldAttr('plc-assessments.menu', 'plc', row.id)}
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            aria-label={t('plcDashboard.assessmentList.moreActions', {
+        <div className={`shrink-0 ${onShowInQuiz ? 'relative z-10' : ''}`}>
+          <OverflowMenu
+            items={menuItems}
+            ariaLabel={t('plcDashboard.assessmentList.moreActions', {
               defaultValue: 'More actions for {{title}}',
               title,
             })}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
-          >
-            <MoreVertical className="w-4 h-4" aria-hidden="true" />
-          </button>
-          {menuOpen && (
-            <div
-              role="menu"
-              className="absolute right-0 top-full mt-1 z-10 min-w-40 bg-white border border-slate-200 rounded-xl shadow-lg py-1"
-            >
-              {row.archived ? (
-                <button
-                  {...tourFieldAttr(
-                    'plc-assessments.menu-item',
-                    'plc',
-                    'restore'
-                  )}
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onRestore(row);
-                  }}
-                  className={menuItemClass}
-                >
-                  <ArchiveRestore className="w-3.5 h-3.5" aria-hidden="true" />
-                  {t('plcDashboard.assessmentList.restore', {
-                    defaultValue: 'Restore',
-                  })}
-                </button>
-              ) : (
-                <>
-                  {canUseLibraryActions && (
-                    <>
-                      <button
-                        {...tourFieldAttr(
-                          'plc-assessments.menu-item',
-                          'plc',
-                          'import'
-                        )}
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          onImport(row);
-                        }}
-                        className={menuItemClass}
-                      >
-                        <Download className="w-3.5 h-3.5" aria-hidden="true" />
-                        {inLibrary
-                          ? t('plcDashboard.quizLibrary.reimport', {
-                              defaultValue: 'Re-import',
-                            })
-                          : t('plcDashboard.quizLibrary.addToMyLibrary', {
-                              defaultValue: 'Add to my library',
-                            })}
-                      </button>
-                      <button
-                        {...tourFieldAttr(
-                          'plc-assessments.menu-item',
-                          'plc',
-                          'edit'
-                        )}
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          onEdit(row);
-                        }}
-                        className={menuItemClass}
-                      >
-                        <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-                        {t('plcDashboard.quizLibrary.editAction', {
-                          defaultValue: 'Edit',
-                        })}
-                      </button>
-                      <button
-                        {...tourFieldAttr(
-                          'plc-assessments.menu-item',
-                          'plc',
-                          'version-history'
-                        )}
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          onVersionHistory(row);
-                        }}
-                        className={menuItemClass}
-                      >
-                        <History className="w-3.5 h-3.5" aria-hidden="true" />
-                        {t('plcDashboard.versions.open', {
-                          defaultValue: 'Version history',
-                        })}
-                      </button>
-                      {canPrintForTeammate && (
-                        <button
-                          {...tourFieldAttr(
-                            'plc-assessments.menu-item',
-                            'plc',
-                            'print-teammate'
-                          )}
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            setMenuOpen(false);
-                            onPrintForTeammate(row);
-                          }}
-                          className={menuItemClass}
-                        >
-                          <Printer className="w-3.5 h-3.5" aria-hidden="true" />
-                          {t('plcDashboard.teammatePrint.rowAction', {
-                            defaultValue:
-                              'Print response sheets for a teammate',
-                          })}
-                        </button>
-                      )}
-                    </>
-                  )}
-                  {row.assessmentId && (
-                    <button
-                      {...tourFieldAttr(
-                        'plc-assessments.menu-item',
-                        'plc',
-                        'rename'
-                      )}
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        onRename(row);
-                      }}
-                      className={menuItemClass}
-                    >
-                      <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-                      {t('plcDashboard.assessmentList.rename', {
-                        defaultValue: 'Rename',
-                      })}
-                    </button>
-                  )}
-                  <div className="relative">
-                    <button
-                      {...tourFieldAttr(
-                        'plc-assessments.menu-item',
-                        'plc',
-                        'move-to-folder'
-                      )}
-                      type="button"
-                      role="menuitem"
-                      aria-haspopup="menu"
-                      aria-expanded={moveSubmenuOpen}
-                      onClick={() => setMoveSubmenuOpen((v) => !v)}
-                      className={menuItemClass}
-                    >
-                      <FolderInput className="w-3.5 h-3.5" aria-hidden="true" />
-                      {t('plcDashboard.assessmentList.folders.moveToFolder', {
-                        defaultValue: 'Move to folder…',
-                      })}
-                    </button>
-                    {moveSubmenuOpen && (
-                      <div
-                        role="menu"
-                        className="absolute left-full top-0 ml-1 z-20 min-w-40 max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg py-1"
-                      >
-                        <button
-                          {...tourFieldAttr(
-                            'plc-assessments.menu-item',
-                            'plc',
-                            'no-folder'
-                          )}
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            setMenuOpen(false);
-                            setMoveSubmenuOpen(false);
-                            onMoveToFolder(row, null);
-                          }}
-                          className="flex items-center justify-between gap-2 w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                        >
-                          {t('plcDashboard.assessmentList.folders.noFolder', {
-                            defaultValue: 'No folder',
-                          })}
-                          {row.folderId === null && (
-                            <span aria-hidden="true">✓</span>
-                          )}
-                        </button>
-                        {folders.map((folder) => (
-                          <button
-                            {...tourFieldAttr(
-                              'plc-assessments.menu-folder',
-                              'plc',
-                              folder.id
-                            )}
-                            key={folder.id}
-                            type="button"
-                            role="menuitem"
-                            onClick={() => {
-                              setMenuOpen(false);
-                              setMoveSubmenuOpen(false);
-                              onMoveToFolder(row, folder.id);
-                            }}
-                            className="flex items-center justify-between gap-2 w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                          >
-                            <span className="truncate">{folder.name}</span>
-                            {row.folderId === folder.id && (
-                              <span aria-hidden="true">✓</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    {...tourFieldAttr(
-                      'plc-assessments.menu-archive',
-                      'plc',
-                      row.id
-                    )}
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onArchive(row);
-                    }}
-                    className={menuItemClass}
-                  >
-                    <Archive className="w-3.5 h-3.5" aria-hidden="true" />
-                    {t('plcDashboard.assessmentList.archive', {
-                      defaultValue: 'Archive',
-                    })}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
+            triggerIcon={MoreVertical}
+            triggerAnchor={tourFieldAttr('plc-assessments.menu', 'plc', row.id)}
+            triggerClassName="rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+            triggerStyle={{ width: 28, height: 28 }}
+            iconStyle={{ width: 16, height: 16 }}
+          />
         </div>
       )}
     </li>
