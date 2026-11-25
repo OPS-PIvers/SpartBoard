@@ -5,18 +5,16 @@ import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
   fibExtrasFor,
-  gradeGroupAnswer,
   parseSyncedQuestion,
   type GroupQuestion,
+  type RawAnswer,
 } from './plcAssessmentMath';
 import { fibExtrasParts, type FibExtras } from './quizFibMatch';
-import {
-  notChosenIds,
-  parseChooseSections,
-  parseCountedChoices,
-} from './quizSectionsChosen';
+import { parseChooseSections, parseCountedChoices } from './quizSectionsChosen';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { calcAttemptKey, withCalcValues } from './quizCalculated';
+import { scoreResponseTotal } from './quizResponseTotal';
+import { parsePaperWrittenQuestionIds } from './recomputePlcAssessments';
+import { calcAttemptKey } from './quizCalculated';
 import {
   resolveServerResultsVisibility,
   visibilityIncludesResponses,
@@ -49,6 +47,8 @@ export interface ScoreContext {
   fibAnswersByQuestion: Record<string, FibExtras>;
   /** The student gets the modified version; a typed-number answer on the key grades them. */
   modified?: boolean;
+  /** Hybrid paper quiz: written questions wait for the teacher. */
+  paperWrittenQuestionIds?: string[];
 }
 
 const isId = (value: unknown): value is string =>
@@ -127,68 +127,53 @@ export function scoreAttempt(
       a !== null &&
       typeof (a as ScoreOnSubmitAnswer).questionId === 'string'
   );
-  const byId = new Map(ctx.questions.map((q) => [q.id, q]));
+  // The shared total reads plain answers; this maps each back to the student's entry.
+  const raw = answers.map((a): RawAnswer => ({
+    ...a,
+    answer: typeof a.answer === 'string' ? a.answer : '',
+  }));
+  const entryOf = new Map(raw.map((r, i) => [r, i]));
   const snapshot = asStringList(response.servedQuestionIds);
   const subset =
     snapshot.length > 0 ? snapshot : (ctx.overrideQuestionIds ?? []);
-  const baseServed = subset.length > 0 ? subset : [...byId.keys()];
-  const notChosen = notChosenIds(
-    ctx.sections,
-    answers,
-    subset.length > 0 ? subset : undefined,
-    parseCountedChoices(response)
-  );
-  const served = new Set(baseServed.filter((id) => !notChosen.has(id)));
-  for (const id of served) {
-    const q = byId.get(id);
-    // A served question missing from the key (stale key) can't be vouched for.
-    if (!q || q.manual || q.correctAnswer === null) return null;
-    if (q.calc && !responseKey) return null;
-  }
-
-  const representative = representativeAnswers(answers);
-  const baseSet = new Set(baseServed);
-  let earned = 0;
-  let max = 0;
-  const graded = answers.map((a) => {
-    const q = byId.get(a.questionId);
-    if (!q) {
-      const { isCorrect: _stale, ...rest } = a;
-      void _stale;
-      return rest;
-    }
-    const result = gradeGroupAnswer(
-      withCalcValues(
-        q,
-        responseKey ? calcAttemptKey(responseKey, response) : undefined,
-        ctx.modified === true
-      ),
-      typeof a.answer === 'string' ? a.answer : '',
-      undefined,
-      q.type === 'FIB' ? ctx.fibAnswersByQuestion[q.id] : undefined
-    );
-    if (representative.get(a.questionId) !== a || !baseSet.has(a.questionId)) {
-      // Only the graded answer per served question gets a verdict, so extra entries can't probe the key.
-      const { isCorrect: _extra, ...rest } = a;
-      void _extra;
-      return rest;
-    }
-    if (served.has(a.questionId)) {
-      earned += result.pointsEarned;
-      max += result.pointsMax;
-    }
-    return { ...a, isCorrect: result.isCorrect };
+  const total = scoreResponseTotal({
+    questions: ctx.questions,
+    answers: raw,
+    servedQuestionIds: subset,
+    sections: ctx.sections,
+    countedChoices: parseCountedChoices(response),
+    fibAnswersFor: (id) => ctx.fibAnswersByQuestion[id],
+    paperWrittenQuestionIds: ctx.paperWrittenQuestionIds,
+    calcKey: responseKey ? calcAttemptKey(responseKey, response) : undefined,
+    modified: ctx.modified === true,
   });
-  const answered = new Set(answers.map((a) => a.questionId));
-  for (const [id, q] of byId) {
-    if (served.has(id) && !answered.has(id)) max += q.points;
+  // A served question missing from the key (stale key) can't be vouched for.
+  if (total.unknownServed.length > 0 || total.noKey || total.awaiting)
+    return null;
+  const manual = new Set(
+    ctx.questions.filter((q) => q.manual).map((q) => q.id)
+  );
+  if (total.questions.some((t) => t.counted && manual.has(t.question.id)))
+    return null;
+
+  // Only the graded answer per served question gets a verdict, so extra entries can't probe the key.
+  const verdicts = new Map<number, boolean>();
+  for (const t of total.questions) {
+    const i = t.answer ? entryOf.get(t.answer) : undefined;
+    if (i !== undefined) verdicts.set(i, t.grade.isCorrect);
   }
+  const graded = answers.map((a, i) => {
+    const { isCorrect: _stale, ...rest } = a;
+    void _stale;
+    const verdict = verdicts.get(i);
+    return verdict === undefined ? rest : { ...rest, isCorrect: verdict };
+  });
   return {
-    score: max === 0 ? 0 : Math.round((earned / max) * 100),
+    score: total.max === 0 ? 0 : Math.round((total.earned / total.max) * 100),
     answers: graded,
     points: {
-      earned,
-      possible: max,
+      earned: total.earned,
+      possible: total.max,
       attempt:
         typeof response.completedAttempts === 'number'
           ? response.completedAttempts
@@ -274,6 +259,9 @@ export async function handleScoreQuizOnSubmit(
         .questionIds
     ),
     fibAnswersByQuestion: servedFibAnswers(assignment, callerUid),
+    paperWrittenQuestionIds: parsePaperWrittenQuestionIds(
+      session.paperWrittenQuestionIds
+    ),
     // Only a student-paced session shows the modified prompt.
     modified:
       session.sessionMode === 'student' &&

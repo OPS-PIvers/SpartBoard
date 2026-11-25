@@ -1,0 +1,508 @@
+[
+  {
+    "name": "auto-graded, one wrong",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      },
+      {
+        "id": "q2",
+        "type": "FIB",
+        "text": "b",
+        "correctAnswer": "4",
+        "points": 2
+      },
+      {
+        "id": "q3",
+        "type": "MC",
+        "text": "c",
+        "correctAnswer": "C",
+        "incorrectAnswers": ["D"]
+      }
+    ],
+    "answers": [
+      { "questionId": "q1", "answer": "A" },
+      { "questionId": "q2", "answer": "5" },
+      { "questionId": "q3", "answer": "C" }
+    ],
+    "expect": {
+      "earned": 2,
+      "max": 4,
+      "gradedMax": 4,
+      "awaiting": false,
+      "noKey": false,
+      "unknownServed": [],
+      "notCounted": []
+    },
+    "onSubmit": 50,
+    "plc": 50
+  },
+  {
+    "name": "an unanswered question counts as 0",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      },
+      {
+        "id": "q2",
+        "type": "FIB",
+        "text": "b",
+        "correctAnswer": "4",
+        "points": 2
+      }
+    ],
+    "answers": [{ "questionId": "q1", "answer": "A" }],
+    "expect": {
+      "earned": 1,
+      "max": 3,
+      "gradedMax": 3,
+      "awaiting": false,
+      "noKey": false,
+      "unknownServed": [],
+      "notCounted": []
+    },
+    "onSubmit": 33,
+    "plc": 33
+  },
+  {
+    "name": "an ungraded written answer waits for the teacher",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      },
+      { "id": "q3", "type": "free-response", "text": "Explain.", "points": 5 }
+    ],
+    "answers": [
+      { "questionId": "q1", "answer": "A" },
+      { "questionId": "q3", "answer": "Because." }
+    ],
+    "expect": {
+      "earned": 1,
+      "max": 6,
+      "gradedMax": 1,
+      "awaiting": true,
+      "noKey": false,
+      "unknownServed": [],
+      "notCounted": []
+    },
+    "onSubmit": null,
+    "plc": null
+  },
+  {
+    "name": "a graded written answer counts its points",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      },
+      { "id": "q3", "type": "free-response", "text": "Explain.", "points": 5 }
+    ],
+    "answers": [
+      { "questionId": "q1", "answer": "A" },
+      { "questionId": "q3", "answer": "Because." }
+    ],
+    "manualGrades": { "q3": { "pointsAwarded": 3, "scoredCriterionIds": [] } },
+    "expect": {
+      "earned": 4,
+      "max": 6,
+      "gradedMax": 6,
+      "awaiting": false,
+      "noKey": false,
+      "unknownServed": [],
+      "notCounted": []
+    },
+    "plc": 67
+  },
+  {
+    "name": "choose 1 of 2 counts the answered question",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      },
+      {
+        "id": "q2",
+        "type": "MC",
+        "text": "b",
+        "correctAnswer": "B",
+        "incorrectAnswers": ["A"]
+      },
+      {
+        "id": "q3",
+        "type": "MC",
+        "text": "c",
+        "correctAnswer": "C",
+        "incorrectAnswers": ["D"]
+      }
+    ],
+    "sections": [{ "id": "s", "chooseCount": 1, "questionIds": ["q2", "q3"] }],
+    "answers": [
+      { "questionId": "q1", "answer": "A" },
+      { "questionId": "q3", "answer": "C" }
+    ],
+    "expect": {
+      "earned": 2,
+      "max": 2,
+      "gradedMax": 2,
+      "awaiting": false,
+      "noKey": false,
+      "unknownServed": [],
+      "notCounted": ["q2"]
+    },
+    "onSubmit": 100,
+    "plc": 100
+  },
+  {
+    "name": "a teacher pick decides which choose-N answer counts",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      },
+      {
+        "id": "q2",
+        "type": "MC",
+        "text": "b",
+        "correctAnswer": "B",
+        "incorrectAnswers": ["A"]
+      },
+      {
+        "id": "q3",
+        "type": "MC",
+        "text": "c",
+        "correctAnswer": "C",
+        "incorrectAnswers": ["D"]
+      }
+    ],
+    "sections": [{ "id": "s", "chooseCount": 1, "questionIds": ["q2", "q3"] }],
+    "countedChoices": { "s": ["q3"] },
+    "answers": [
+      { "questionId": "q1", "answer": "A" },
+      { "questionId": "q2", "answer": "B" },
+      { "questionId": "q3", "answer": "D" }
+    ],
+    "expect": {
+      "earned": 1,
+      "max": 2,
+      "gradedMax": 2,
+      "awaiting": false,
+      "noKey": false,
+      "unknownServed": [],
+      "notCounted": ["q2"]
+    },
+    "onSubmit": 50,
+    "plc": 50
+  },
+  {
+    "name": "a draft answer is not an answer",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      },
+      {
+        "id": "q2",
+        "type": "MC",
+        "text": "b",
+        "correctAnswer": "B",
+        "incorrectAnswers": ["A"]
+      }
+    ],
+    "answers": [
+      { "questionId": "q1", "answer": "A", "status": "draft" },
+      { "questionId": "q2", "answer": "B" }
+    ],
+    "expect": {
+      "earned": 1,
+      "max": 2,
+      "gradedMax": 2,
+      "awaiting": false,
+      "noKey": false,
+      "unknownServed": [],
+      "notCounted": []
+    },
+    "onSubmit": 50,
+    "plc": 50
+  },
+  {
+    "name": "the latest take wins",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      }
+    ],
+    "answers": [
+      { "questionId": "q1", "answer": "B", "takeIndex": 0 },
+      { "questionId": "q1", "answer": "A", "takeIndex": 1 }
+    ],
+    "expect": {
+      "earned": 1,
+      "max": 1,
+      "gradedMax": 1,
+      "awaiting": false,
+      "noKey": false,
+      "unknownServed": [],
+      "notCounted": []
+    },
+    "onSubmit": 100,
+    "plc": 100
+  },
+  {
+    "name": "a question with no key blocks a score",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      },
+      {
+        "id": "q2",
+        "type": "MC",
+        "text": "b",
+        "correctAnswer": "",
+        "incorrectAnswers": ["A"]
+      }
+    ],
+    "answers": [
+      { "questionId": "q1", "answer": "A" },
+      { "questionId": "q2", "answer": "A" }
+    ],
+    "expect": {
+      "earned": 1,
+      "max": 2,
+      "gradedMax": 1,
+      "awaiting": false,
+      "noKey": true,
+      "unknownServed": [],
+      "notCounted": []
+    },
+    "onSubmit": null,
+    "plc": null
+  },
+  {
+    "name": "only served questions count",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      },
+      {
+        "id": "q2",
+        "type": "MC",
+        "text": "b",
+        "correctAnswer": "B",
+        "incorrectAnswers": ["A"]
+      },
+      {
+        "id": "q3",
+        "type": "MC",
+        "text": "c",
+        "correctAnswer": "C",
+        "incorrectAnswers": ["D"]
+      }
+    ],
+    "servedQuestionIds": ["q1", "q3"],
+    "answers": [{ "questionId": "q1", "answer": "A" }],
+    "expect": {
+      "earned": 1,
+      "max": 2,
+      "gradedMax": 2,
+      "awaiting": false,
+      "noKey": false,
+      "unknownServed": [],
+      "notCounted": []
+    },
+    "onSubmit": 50,
+    "plc": 50
+  },
+  {
+    "name": "a served question missing from the key blocks a score",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      }
+    ],
+    "servedQuestionIds": ["q1", "qx"],
+    "answers": [{ "questionId": "q1", "answer": "A" }],
+    "expect": {
+      "earned": 1,
+      "max": 1,
+      "gradedMax": 1,
+      "awaiting": false,
+      "noKey": false,
+      "unknownServed": ["qx"],
+      "notCounted": []
+    },
+    "onSubmit": null,
+    "plc": null
+  },
+  {
+    "name": "a question that appears twice in the key counts once",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      },
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      },
+      {
+        "id": "q2",
+        "type": "MC",
+        "text": "b",
+        "correctAnswer": "B",
+        "incorrectAnswers": ["A"]
+      }
+    ],
+    "answers": [{ "questionId": "q1", "answer": "A" }],
+    "expect": {
+      "earned": 1,
+      "max": 2,
+      "gradedMax": 2,
+      "awaiting": false,
+      "noKey": false,
+      "unknownServed": [],
+      "notCounted": []
+    },
+    "onSubmit": 50
+  },
+  {
+    "name": "an unscanned paper-written answer waits",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      },
+      {
+        "id": "q2",
+        "type": "FIB",
+        "text": "b",
+        "correctAnswer": "4",
+        "points": 2
+      }
+    ],
+    "paperWrittenQuestionIds": ["q2"],
+    "answers": [{ "questionId": "q1", "answer": "A" }],
+    "expect": {
+      "earned": 1,
+      "max": 3,
+      "gradedMax": 1,
+      "awaiting": true,
+      "noKey": false,
+      "unknownServed": [],
+      "notCounted": []
+    },
+    "onSubmit": null,
+    "plc": null
+  },
+  {
+    "name": "a blank paper-written box scores 0",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      },
+      {
+        "id": "q2",
+        "type": "FIB",
+        "text": "b",
+        "correctAnswer": "4",
+        "points": 2
+      }
+    ],
+    "paperWrittenQuestionIds": ["q2"],
+    "answers": [
+      { "questionId": "q1", "answer": "A" },
+      { "questionId": "q2", "answer": "", "paperTranscript": "blank" }
+    ],
+    "expect": {
+      "earned": 1,
+      "max": 3,
+      "gradedMax": 3,
+      "awaiting": false,
+      "noKey": false,
+      "unknownServed": [],
+      "notCounted": []
+    },
+    "onSubmit": 33,
+    "plc": 33
+  },
+  {
+    "name": "an untranscribed paper written answer waits",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "MC",
+        "text": "a",
+        "correctAnswer": "A",
+        "incorrectAnswers": ["B"]
+      },
+      { "id": "q3", "type": "free-response", "text": "Explain.", "points": 5 }
+    ],
+    "paperAttested": true,
+    "answers": [
+      { "questionId": "q1", "answer": "A" },
+      { "questionId": "q3", "answer": "", "paperTranscript": "pending" }
+    ],
+    "expect": {
+      "earned": 1,
+      "max": 6,
+      "gradedMax": 1,
+      "awaiting": true,
+      "noKey": false,
+      "unknownServed": [],
+      "notCounted": []
+    },
+    "plc": null
+  }
+]
