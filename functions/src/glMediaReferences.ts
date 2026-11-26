@@ -142,9 +142,15 @@ const REVISION_KEEP_MS = 30 * 24 * 60 * 60 * 1000;
 async function addRevisionReferences(
   db: Firestore,
   into: Set<string>,
-  now: number
+  now: number,
+  only?: IgnoredPersonalSet
 ): Promise<void> {
-  await scan(db.collectionGroup(REVISIONS_COLLECTION), (doc) => {
+  const query = only
+    ? db
+        .collection(`users/${only.uid}/${REVISIONS_COLLECTION}`)
+        .where('itemId', '==', only.setId)
+    : db.collectionGroup(REVISIONS_COLLECTION);
+  await scan(query, (doc) => {
     const createdAt: unknown = doc.get('createdAt');
     if (typeof createdAt !== 'number' || createdAt < now - REVISION_KEEP_MS)
       return;
@@ -156,9 +162,11 @@ export interface ReferenceScanOptions {
   /** A building set whose own listing does not count (its editor just removed the file). */
   ignoreBuildingSetId?: string;
   now?: number;
+  /** Also scan Claude revisions: every one, or only those of one personal set. */
+  revisions?: 'all' | IgnoredPersonalSet;
 }
 
-/** Building and Help Center sets, published tours, sessions, sub-share keys and open tombstones (revisions are left to the weekly sweep). */
+/** Building and Help Center sets, published tours, sessions, sub-share keys, open tombstones and, when asked, recent Claude revisions. */
 export async function loadSharedReferences(
   db: Firestore,
   opts: ReferenceScanOptions = {}
@@ -176,22 +184,27 @@ export async function loadSharedReferences(
     addSessionReferences(db, refs),
     addSubShareReferences(db, refs),
     addTombstoneHolds(db, refs),
+    ...(opts.revisions
+      ? [
+          addRevisionReferences(
+            db,
+            refs,
+            opts.now ?? Date.now(),
+            opts.revisions === 'all' ? undefined : opts.revisions
+          ),
+        ]
+      : []),
   ]);
   return refs;
 }
 
-/** Everything `loadSharedReferences` covers plus recent Claude revisions and every personal set's metadata. */
+/** Everything `loadSharedReferences` covers plus every personal set's metadata. */
 export async function loadAllReferences(
   db: Firestore,
   now?: number
 ): Promise<Set<string>> {
-  const [shared, revisions, personal] = await Promise.all([
-    loadSharedReferences(db, { now }),
-    (async () => {
-      const refs = new Set<string>();
-      await addRevisionReferences(db, refs, now ?? Date.now());
-      return refs;
-    })(),
+  const [shared, personal] = await Promise.all([
+    loadSharedReferences(db, { now, revisions: 'all' }),
     (async () => {
       const refs = new Set<string>();
       await scan(db.collectionGroup(PERSONAL_COLLECTION), (doc) =>
@@ -200,7 +213,6 @@ export async function loadAllReferences(
       return refs;
     })(),
   ]);
-  for (const ref of revisions) shared.add(ref);
   for (const ref of personal) shared.add(ref);
   return shared;
 }
