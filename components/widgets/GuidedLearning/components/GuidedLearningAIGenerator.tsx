@@ -478,7 +478,6 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
             <ImagePicker
               takeFiles={takeImages}
               multiple
-              linkAsFile
               maxBytes={MAX_FILE_BYTES}
               disabled={busy}
               tourScope={{ type: 'guided-learning', field: 'ai-images' }}

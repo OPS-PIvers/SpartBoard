@@ -173,6 +173,7 @@ const ThumbnailInput: React.FC<ThumbnailInputProps> = ({
             remove: tourAttr('admin.music.thumbnail-remove'),
           }}
           upload={saveThumbnail}
+          keepLinks
           onChange={onChange}
           onRemove={() => onChange('')}
         />

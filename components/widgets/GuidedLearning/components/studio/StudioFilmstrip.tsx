@@ -574,7 +574,6 @@ const FilmstripBody = React.memo(function FilmstripBody({
               accept={GL_MEDIA_ACCEPT}
               maxBytes={GL_MAX_VIDEO_BYTES}
               multiple
-              linkAsFile
               tourScope={{ type: 'guided-learning', field: 'slides' }}
               tourOverrides={{ open: tourAttr('studio.upload-slide') }}
               buttonClassName={addMediaClass}
@@ -591,7 +590,6 @@ const FilmstripBody = React.memo(function FilmstripBody({
               label={t('glStudio.replaceImage')}
               takeFiles={takeReplacement}
               maxBytes={GL_MAX_IMAGE_BYTES}
-              linkAsFile
               tourScope={{ type: 'guided-learning', field: 'slide-replace' }}
             />
           </>

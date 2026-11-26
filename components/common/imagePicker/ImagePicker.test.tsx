@@ -255,11 +255,16 @@ describe('ImagePicker', () => {
     expect(upload).not.toHaveBeenCalled();
   });
 
-  it('keeps an https image link as a link', async () => {
+  it('keeps an https image link as a link for a caller that takes links', async () => {
     const upload = vi.fn();
     const onChange = vi.fn();
     render(
-      <ImagePicker tourScope={scope} upload={upload} onChange={onChange} />
+      <ImagePicker
+        tourScope={scope}
+        upload={upload}
+        onChange={onChange}
+        keepLinks
+      />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Image link' }));
     fireEvent.change(screen.getByLabelText('Image link'), {
@@ -270,6 +275,87 @@ describe('ImagePicker', () => {
       expect(onChange).toHaveBeenCalledWith('https://example.org/a.png')
     );
     expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('saves a linked image through the caller upload by default', async () => {
+    const upload = vi.fn().mockResolvedValue('https://saved.example/a.png');
+    const onChange = vi.fn();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        blob: () => Promise.resolve(new Blob(['x'], { type: 'image/png' })),
+      })
+    );
+    try {
+      render(
+        <ImagePicker tourScope={scope} upload={upload} onChange={onChange} />
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Image link' }));
+      fireEvent.change(screen.getByLabelText('Image link'), {
+        target: { value: 'https://example.org/a.png' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+      await waitFor(() =>
+        expect(onChange).toHaveBeenCalledWith('https://saved.example/a.png')
+      );
+      expect((upload.mock.calls[0][0] as File).type).toBe('image/png');
+      expect((upload.mock.calls[0][0] as File).name).toBe('a.png');
+      expect(onChange).not.toHaveBeenCalledWith('https://example.org/a.png');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('refuses a link to a web page instead of saving it', async () => {
+    const upload = vi.fn();
+    const onChange = vi.fn();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        blob: () =>
+          Promise.resolve(new Blob(['<html>'], { type: 'text/html' })),
+      })
+    );
+    try {
+      render(
+        <ImagePicker tourScope={scope} upload={upload} onChange={onChange} />
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Image link' }));
+      fireEvent.change(screen.getByLabelText('Image link'), {
+        target: { value: 'https://example.org/page' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+      expect((await screen.findByRole('alert')).textContent).toMatch(
+        /can't be used here/
+      );
+      expect(upload).not.toHaveBeenCalled();
+      expect(onChange).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('refuses a link the browser cannot fetch', async () => {
+    const onChange = vi.fn();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('cors')));
+    try {
+      render(
+        <ImagePicker tourScope={scope} upload={vi.fn()} onChange={onChange} />
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Image link' }));
+      fireEvent.change(screen.getByLabelText('Image link'), {
+        target: { value: 'https://example.org/a.png' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+      expect((await screen.findByRole('alert')).textContent).toMatch(
+        /can't be used here/
+      );
+      expect(onChange).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('refuses a link that is not https', async () => {

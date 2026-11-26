@@ -118,7 +118,6 @@ export const WhiteboardInsertImageModal: React.FC<
             upload={uploadOne}
             onChange={placeOne}
             multiple
-            linkAsFile
             maxBytes={MAX_IMAGE_BYTES}
             tourScope={{ type: 'quiz', field: 'whiteboard-image' }}
             tourOverrides={{

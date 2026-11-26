@@ -55,7 +55,6 @@ export const AnswerImageControl: React.FC<{
       layout="button"
       label={`Add image to ${name}`}
       upload={upload}
-      linkAsFile
       maxBytes={MAX_IMAGE_BYTES}
       // The answer's queue already saved the picture.
       onChange={() => undefined}
