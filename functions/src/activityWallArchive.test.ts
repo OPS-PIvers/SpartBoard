@@ -215,6 +215,7 @@ function makeDeps(
     uploadFileToDrive: vi.fn(() => Promise.resolve({ id: 'drive-big' })),
     discardTempFile: vi.fn(() => Promise.resolve()),
     setDrivePermission: vi.fn(() => Promise.resolve()),
+    deleteDriveFile: vi.fn(() => Promise.resolve()),
     now: () => NOW,
     ...overrides,
   };
@@ -656,6 +657,20 @@ describe('archiveActivityWallMediaCore', () => {
     expect(result).toEqual({ archiveStatus: 'skipped' });
     expect(writes.some((w) => w.archiveStatus === 'archived')).toBe(false);
     expect(deps.deleteObject).toHaveBeenCalledWith(GOOD_PATH);
+    expect(deps.deleteDriveFile).toHaveBeenCalledWith('token', 'drive-1');
+  });
+
+  it('still skips when deleting the orphaned Drive file fails', async () => {
+    const { db, deleteSubmission } = makeStubDb(baseSeed());
+    const deps = makeDeps(db, {
+      uploadToDrive: vi.fn(() => {
+        deleteSubmission();
+        return Promise.resolve({ id: 'drive-1' });
+      }),
+      deleteDriveFile: vi.fn(() => Promise.reject(new Error('drive 500'))),
+    });
+    expect(await call(deps)).toEqual({ archiveStatus: 'skipped' });
+    expect(deps.deleteDriveFile).toHaveBeenCalled();
   });
 
   it('does not recreate a deleted submission when the upload fails', async () => {

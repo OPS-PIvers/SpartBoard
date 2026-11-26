@@ -133,6 +133,7 @@ export interface WallArchiveDeps {
     fileId: string,
     permission: DrivePermission
   ) => Promise<void>;
+  deleteDriveFile: (accessToken: string, fileId: string) => Promise<void>;
   now: () => number;
 }
 
@@ -649,6 +650,19 @@ export async function setDriveFilePermission(
   }
 }
 
+export async function deleteDriveFile(
+  accessToken: string,
+  fileId: string
+): Promise<void> {
+  const response = await fetch(
+    `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}`,
+    { method: 'DELETE', headers: getDriveHeaders(accessToken) }
+  );
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`Failed to delete file in Drive (${response.status})`);
+  }
+}
+
 export function buildDefaultWallArchiveDeps(): WallArchiveDeps {
   const bucket = () => admin.storage().bucket();
   return {
@@ -699,6 +713,7 @@ export function buildDefaultWallArchiveDeps(): WallArchiveDeps {
         .catch(() => undefined);
     },
     setDrivePermission: setDriveFilePermission,
+    deleteDriveFile,
     now: () => Date.now(),
   };
 }
@@ -805,6 +820,7 @@ export async function archiveActivityWallMediaCore(
   };
 
   let type: ArchivableType = 'photo';
+  let accessToken = '';
   try {
     if (!hasActivityWallStoragePrefix(storagePath, sessionId, submissionId)) {
       unrecoverable = true;
@@ -851,7 +867,7 @@ export async function archiveActivityWallMediaCore(
       teacherEmail
     );
     drivePermissionValue = resolved.value;
-    const accessToken = await deps.getAccessToken(teacherUid);
+    accessToken = await deps.getAccessToken(teacherUid);
 
     if (!driveFileId) {
       const wallTitle =
@@ -920,6 +936,7 @@ export async function archiveActivityWallMediaCore(
       storagePath,
       now: deps.now(),
       deleteObject: deps.deleteObject,
+      deleteDriveFile: (fileId) => deps.deleteDriveFile(accessToken, fileId),
     });
   } catch (error: unknown) {
     throw toArchiveFailure(error, await writeFailure(error));
@@ -941,6 +958,7 @@ export async function finalizeResumedSubmission(
     storagePath: string;
     now: number;
     deleteObject: (path: string) => Promise<void>;
+    deleteDriveFile?: (fileId: string) => Promise<void>;
     extraFields?: Record<string, unknown>;
   }
 ): Promise<
@@ -982,7 +1000,11 @@ export async function finalizeResumedSubmission(
       await enqueueStorageCleanup(submissionRef);
     }
   }
-  if (!written) return { archiveStatus: 'skipped' };
+  if (!written) {
+    // The Drive copy is now unreferenced, so remove it (best effort).
+    await input.deleteDriveFile?.(input.driveFileId).catch(() => undefined);
+    return { archiveStatus: 'skipped' };
+  }
   return { archiveStatus: 'archived', driveFileId: input.driveFileId };
 }
 
