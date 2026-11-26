@@ -132,6 +132,16 @@ describe('gcOrphanedSlidePaths', () => {
     expect(await gcOrphanedSlidePaths([P1, P2])).toEqual([]);
   });
 
+  it('does not scan Claude revisions on a set delete', async () => {
+    setup({
+      'users/t1/claude_revisions/r1': {
+        createdAt: Date.now(),
+        data: { imagePaths: [P1] },
+      },
+    });
+    expect(await gcOrphanedSlidePaths([P1])).toEqual([P1]);
+  });
+
   it('keeps a path a sub-share bundle copied', async () => {
     setup({
       'shared_collections/sh1/keys/guidedLearning_x': {

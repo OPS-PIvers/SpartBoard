@@ -158,7 +158,7 @@ export interface ReferenceScanOptions {
   now?: number;
 }
 
-/** Building and Help Center sets, published tours, sessions, sub-share keys, recent Claude revisions and open tombstones. */
+/** Building and Help Center sets, published tours, sessions, sub-share keys and open tombstones (revisions are left to the weekly sweep). */
 export async function loadSharedReferences(
   db: Firestore,
   opts: ReferenceScanOptions = {}
@@ -175,19 +175,23 @@ export async function loadSharedReferences(
     ),
     addSessionReferences(db, refs),
     addSubShareReferences(db, refs),
-    addRevisionReferences(db, refs, opts.now ?? Date.now()),
     addTombstoneHolds(db, refs),
   ]);
   return refs;
 }
 
-/** Everything `loadSharedReferences` covers plus every personal set's metadata. */
+/** Everything `loadSharedReferences` covers plus recent Claude revisions and every personal set's metadata. */
 export async function loadAllReferences(
   db: Firestore,
   now?: number
 ): Promise<Set<string>> {
-  const [shared, personal] = await Promise.all([
+  const [shared, revisions, personal] = await Promise.all([
     loadSharedReferences(db, { now }),
+    (async () => {
+      const refs = new Set<string>();
+      await addRevisionReferences(db, refs, now ?? Date.now());
+      return refs;
+    })(),
     (async () => {
       const refs = new Set<string>();
       await scan(db.collectionGroup(PERSONAL_COLLECTION), (doc) =>
@@ -196,6 +200,7 @@ export async function loadAllReferences(
       return refs;
     })(),
   ]);
+  for (const ref of revisions) shared.add(ref);
   for (const ref of personal) shared.add(ref);
   return shared;
 }
