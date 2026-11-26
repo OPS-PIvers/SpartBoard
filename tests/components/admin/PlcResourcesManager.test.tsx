@@ -3,6 +3,18 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PlcResourcesManager } from '@/components/admin/PlcResourcesManager/PlcResourcesManager';
 import { usePlcResources } from '@/hooks/usePlcResources';
 
+const { mockShowConfirm, mockShowPrompt } = vi.hoisted(() => ({
+  mockShowConfirm: vi.fn<(...args: unknown[]) => Promise<boolean>>(),
+  mockShowPrompt: vi.fn<(...args: unknown[]) => Promise<string | null>>(),
+}));
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showConfirm: mockShowConfirm,
+    showPrompt: mockShowPrompt,
+    showAlert: vi.fn(),
+  }),
+}));
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     // kindBadge.* labels get a distinguishable [translated] wrapper so a
@@ -243,7 +255,7 @@ describe('PlcResourcesManager', () => {
       deleteResource: mockDeleteResource,
     });
     mockDeleteResource.mockRejectedValueOnce(new Error('Permission denied'));
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirmSpy = mockShowConfirm.mockResolvedValue(true);
 
     try {
       render(<PlcResourcesManager />);

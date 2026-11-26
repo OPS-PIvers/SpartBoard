@@ -40,7 +40,6 @@ vi.mock('@/hooks/useSessionViewCount', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
-    canSeeShareTracking: vi.fn(() => false),
     canAccessQuizMediaResponse: vi.fn(() => false),
     canAccessFeature: vi.fn(() => false),
   }),
@@ -65,7 +64,7 @@ const QUIZ: QuizMetadata = {
 const asg = (id: string, status: string, quizId = 'quiz-1') =>
   ({ id, quizId, status }) as unknown as QuizAssignment;
 
-function renderLibrary(assignments: QuizAssignment[]) {
+function renderLibrary() {
   const onDelete = vi.fn();
   render(
     <QuizManager
@@ -80,7 +79,6 @@ function renderLibrary(assignments: QuizAssignment[]) {
       onAssign={vi.fn()}
       onResults={vi.fn()}
       onDelete={onDelete}
-      deleteDetail={(q) => quizDeleteDetail(assignments, q.id)}
       onShare={vi.fn()}
       rosters={[]}
       config={CONFIG}
@@ -100,44 +98,14 @@ const clickDelete = () => {
   fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
 };
 
-describe('deleting a quiz asks once', () => {
-  beforeEach(() => {
-    showConfirm.mockReset();
-    showConfirm.mockResolvedValue(true);
-  });
+describe('the Delete menu item', () => {
+  beforeEach(() => showConfirm.mockReset());
 
-  it('with no archived assignments, one confirm with no warning', async () => {
-    const { onDelete } = renderLibrary([]);
+  it('hands the quiz to the widget delete policy, which owns the confirm', async () => {
+    const { onDelete } = renderLibrary();
     clickDelete();
-    await waitFor(() => expect(onDelete).toHaveBeenCalledTimes(1));
-    expect(showConfirm).toHaveBeenCalledTimes(1);
-    expect(showConfirm).toHaveBeenCalledWith(
-      'This cannot be undone.',
-      expect.objectContaining({ title: 'Delete "Chapter 5 Review"?' })
-    );
-  });
-
-  it('with archived assignments, one confirm that carries the warning', async () => {
-    const { onDelete } = renderLibrary([
-      asg('a1', 'inactive'),
-      asg('a2', 'inactive'),
-      asg('other', 'active', 'quiz-2'),
-    ]);
-    clickDelete();
-    await waitFor(() => expect(onDelete).toHaveBeenCalledTimes(1));
-    expect(showConfirm).toHaveBeenCalledTimes(1);
-    expect(showConfirm).toHaveBeenCalledWith(
-      'This quiz has 2 archived assignments. Deleting it prevents viewing their monitor and results. This cannot be undone.',
-      expect.objectContaining({ title: 'Delete "Chapter 5 Review"?' })
-    );
-  });
-
-  it('does not delete when the teacher cancels', async () => {
-    showConfirm.mockResolvedValue(false);
-    const { onDelete } = renderLibrary([asg('a1', 'inactive')]);
-    clickDelete();
-    await waitFor(() => expect(showConfirm).toHaveBeenCalledTimes(1));
-    expect(onDelete).not.toHaveBeenCalled();
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith(QUIZ));
+    expect(showConfirm).not.toHaveBeenCalled();
   });
 });
 
@@ -156,6 +124,17 @@ describe('quizDeleteDetail', () => {
     expect(
       quizDeleteDetail([asg('a', 'inactive'), asg('b', 'inactive')], 'quiz-1')
     ).toContain('2 archived assignments.');
+  });
+
+  it('counts quizzes with archived assignments for a bulk delete', () => {
+    expect(
+      quizDeleteDetail(
+        [asg('a', 'inactive'), asg('b', 'inactive', 'quiz-2')],
+        ['quiz-1', 'quiz-2', 'quiz-3']
+      )
+    ).toBe(
+      '2 quizzes have archived assignments. Deleting prevents viewing their monitor and results.'
+    );
   });
 
   it('leaves live assignments to the existing block', () => {

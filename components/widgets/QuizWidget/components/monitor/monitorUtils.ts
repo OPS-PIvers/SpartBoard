@@ -3,6 +3,7 @@
 
 import { GlobalFeaturePermission, QuizResponse } from '@/types';
 import { canonicalizeBuildingIds } from '@/config/buildings';
+import { compareNameText } from '@/utils/studentName';
 
 /** In-progress students with no answer write for this long count as stuck. */
 export const STUCK_THRESHOLD_MS = 120_000;
@@ -49,6 +50,8 @@ export function studentFlags(r: QuizResponse, now: number): StudentFlags {
 
 export interface SortableStudent {
   name: string;
+  /** "Last, First" from the class list; without it the last word of `name` stands in. */
+  sortName?: string;
   status: QuizResponse['status'];
   score: number | null;
   tabWarnings: number;
@@ -60,9 +63,11 @@ const STATUS_ORDER: Record<QuizResponse['status'], number> = {
   completed: 2,
 };
 
-function lastNameKey(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  return (parts[parts.length - 1] ?? name).toLowerCase();
+function lastNameKey(s: SortableStudent): string {
+  if (s.sortName) return s.sortName;
+  const parts = s.name.trim().split(/\s+/);
+  const last = parts.pop() ?? '';
+  return parts.length > 0 ? `${last}, ${parts.join(' ')}` : last;
 }
 
 export function compareStudents(
@@ -72,7 +77,7 @@ export function compareStudents(
 ): number {
   switch (sortBy) {
     case 'last': {
-      const cmp = lastNameKey(a.name).localeCompare(lastNameKey(b.name));
+      const cmp = compareNameText(lastNameKey(a), lastNameKey(b));
       return cmp !== 0 ? cmp : a.name.localeCompare(b.name);
     }
     case 'status': {

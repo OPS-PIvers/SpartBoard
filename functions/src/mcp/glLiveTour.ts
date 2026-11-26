@@ -69,8 +69,9 @@ import {
   unnarratedIds,
 } from './tourNarration';
 import { safeErr } from '../safeLog';
+import { parseCategories } from '../helpCategories';
 
-export { readyAnchorRef };
+export { readyAnchorRef, parseCategories };
 
 export const HELP_RESOURCES = 'help_resources';
 export const ADMIN_ONLY_TOOLS: ReadonlySet<string> = new Set([
@@ -85,36 +86,6 @@ export const ADMIN_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'list_tour_anchor_requests',
 ]);
 export const GL_TOURS = 'building_guided_learning_tours';
-
-// Mirrors DEFAULT_HELP_CATEGORIES in types/helpCenter.ts, which the app shows until help_center/config is saved.
-const DEFAULT_CATEGORIES = [
-  { id: 'getting-started', name: 'Getting started', order: 0 },
-  { id: 'boards-widgets', name: 'Boards & widgets', order: 1 },
-  { id: 'quizzes-activities', name: 'Quizzes & activities', order: 2 },
-  { id: 'sharing-classes', name: 'Sharing & classes', order: 3 },
-  { id: 'admin', name: 'Admin', order: 4 },
-];
-
-interface Category {
-  id: string;
-  name: string;
-  order: number;
-}
-
-export function parseCategories(data: Record<string, unknown> | undefined) {
-  const raw = data?.categories;
-  const list = Array.isArray(raw)
-    ? raw.filter(
-        (c): c is Category =>
-          !!c &&
-          typeof (c as Category).id === 'string' &&
-          typeof (c as Category).name === 'string'
-      )
-    : [];
-  return (list.length > 0 ? list : DEFAULT_CATEGORIES)
-    .map(({ id, name, order }) => ({ id, name, order: order ?? 0 }))
-    .sort((a, b) => a.order - b.order);
-}
 
 async function loadCategories(ctx: ToolContext) {
   const snap = await ctx.db.doc('help_center/config').get();
@@ -142,9 +113,33 @@ export async function helpCenterScope(
   );
 }
 
+/** The orgId a Help Center item goes to: the caller's own scope, or the passed one for a super admin. */
+export async function resolveHelpScope(
+  ctx: ToolContext,
+  scope: string | undefined
+): Promise<{ orgId: string | null; label: string }> {
+  const own = await helpCenterScope(ctx);
+  if (scope === undefined) return own;
+  const wanted = scope === 'everyone' ? null : scope;
+  if (wanted === own.orgId) return own;
+  if (own.orgId !== null)
+    throw new ToolError(
+      'help_center.scope: only super admins can change who a Help Center item is shown to.'
+    );
+  if (wanted === null) return { orgId: null, label: 'Everyone' };
+  if (
+    wanted.includes('/') ||
+    !(await ctx.db.doc(`organizations/${wanted}`).get()).exists
+  )
+    throw new ToolError(
+      `help_center.scope "${scope}" is not an organization. Use "everyone" or an id from list_help_center_categories.`
+    );
+  return { orgId: wanted, label: wanted };
+}
+
 /** The help_resources doc for a new tour, hidden until an admin publishes it; fields match the rules' allowlist. */
 export function buildHelpItem(
-  placement: HelpCenterPlacement,
+  placement: HelpCenterPlacement & { category_id: string },
   set: { id: string; title: string; description?: unknown },
   ids: {
     id: string;
@@ -173,6 +168,7 @@ export function buildHelpItem(
     createdByEmail: ids.email,
     createdAt: ids.now,
     updatedAt: ids.now,
+    ...(placement.audience ? { audience: placement.audience } : {}),
   };
 }
 
@@ -664,19 +660,54 @@ const setupInputs = {
     ),
 };
 
+const helpCenterFields = {
+  widget_types: z
+    .array(z.string().max(60))
+    .max(12)
+    .optional()
+    .describe('Widgets whose ? button offers this tour, e.g. "clock".'),
+  audience: z
+    .enum(['teachers', 'subs', 'students'])
+    .optional()
+    .describe(
+      'Who it is for: teachers (default), subs (the substitute portal) or students.'
+    ),
+  scope: z
+    .string()
+    .min(1)
+    .max(100)
+    .optional()
+    .describe(
+      'Super admins only: "everyone" or an organization id from list_help_center_categories scope_options.'
+    ),
+};
+
 const helpCenterInput = z
-  .object({
-    category_id: z.string().min(1).max(100),
-    widget_types: z
-      .array(z.string().max(60))
-      .max(12)
-      .optional()
-      .describe('Widgets whose ? button offers this tour, e.g. "clock".'),
-  })
+  .object({ category_id: z.string().min(1).max(100), ...helpCenterFields })
   .strict()
   .optional()
   .describe(
     'File it in the Help Center under a category from list_help_center_categories, hidden until an admin shows it.'
+  );
+
+const helpCenterUpdateInput = z
+  .object({
+    category_id: z.string().min(1).max(100).optional(),
+    ...helpCenterFields,
+  })
+  .strict()
+  .optional()
+  .describe(
+    'Change its Help Center item; only passed fields change. category_id is needed when the tour is not in the Help Center yet.'
+  );
+
+const descriptionInput = z
+  .string()
+  .trim()
+  .min(1)
+  .max(1000)
+  .describe(
+    'The Help Center card teachers read: two to four short plain sentences on what they will do, what they get and when it helps. See "Title and description" in get_live_tour_guide.'
   );
 
 const dryRunInput = z
@@ -794,51 +825,166 @@ export function assertPlays(report: DryRunReport): void {
   );
 }
 
+async function assertCategory(ctx: ToolContext, categoryId: string) {
+  const categories = await loadCategories(ctx);
+  if (!categories.some((c) => c.id === categoryId))
+    throw new ToolError(
+      `help_center.category_id "${categoryId}" is not a Help Center category. Use one of: ${categories.map((c) => c.id).join(', ')}.`
+    );
+}
+
 /** Checks the category and works out who a new Help Center item is shown to and where it goes. */
-async function helpPlacement(ctx: ToolContext, placement: HelpCenterPlacement) {
-  const [categories, scope, order] = await Promise.all([
-    loadCategories(ctx),
-    helpCenterScope(ctx),
+async function helpPlacement(
+  ctx: ToolContext,
+  placement: HelpCenterPlacement & { category_id: string }
+) {
+  const [, scope, order] = await Promise.all([
+    assertCategory(ctx, placement.category_id),
+    resolveHelpScope(ctx, placement.scope),
     nextOrder(ctx.db, placement.category_id),
   ]);
-  if (!categories.some((c) => c.id === placement.category_id))
-    throw new ToolError(
-      `help_center.category_id "${placement.category_id}" is not a Help Center category. Use one of: ${categories.map((c) => c.id).join(', ')}.`
-    );
   return { ...scope, order };
 }
 
-/** Moves the tour's Help Center item to the new placement, or adds a hidden one. */
+const crossesStudents = (from: unknown, to: string) =>
+  from !== to && (from === 'students' || to === 'students');
+
+/** The changes to an existing item, applying the manager's rules: a moved item goes last, a published one leaving or joining students is hidden. */
+export function helpItemUpdate(
+  item: Record<string, unknown>,
+  change: {
+    placement?: HelpCenterPlacement;
+    title?: string;
+    description?: string;
+    orgId?: string | null;
+    order?: number;
+  },
+  now: number
+): Record<string, unknown> {
+  const { placement = {} } = change;
+  const out: Record<string, unknown> = { updatedAt: now };
+  if (change.title !== undefined) out.title = change.title;
+  if (change.description !== undefined) out.description = change.description;
+  if (
+    placement.category_id !== undefined &&
+    placement.category_id !== item.categoryId
+  ) {
+    out.categoryId = placement.category_id;
+    if (change.order !== undefined) out.order = change.order;
+  }
+  if (placement.widget_types)
+    out.widgetTypes = [...new Set(placement.widget_types)];
+  if (placement.audience !== undefined) {
+    const was = item.audience ?? 'teachers';
+    out.audience = placement.audience;
+    if (item.visible === true && crossesStudents(was, placement.audience))
+      out.visible = false;
+  }
+  if (change.orgId !== undefined && change.orgId !== (item.orgId ?? null))
+    out.orgId = change.orgId;
+  return out;
+}
+
+/** The tour's Help Center items this caller may change: all of them for a super admin, else their own org's. */
+async function writableHelpItems(ctx: ToolContext, setId: string) {
+  let scope: { orgId: string | null };
+  try {
+    scope = await helpCenterScope(ctx);
+  } catch {
+    return [];
+  }
+  let query = ctx.db.collection(HELP_RESOURCES).where('setId', '==', setId);
+  if (scope.orgId !== null) query = query.where('orgId', '==', scope.orgId);
+  return (await query.get()).docs;
+}
+
+const AUDIENCE_FLAGS: Record<string, string> = {
+  subs: 'subs-live-tours',
+  students: 'student-live-tours',
+};
+
+/** Refuses an audience whose flag this admin doesn't have, as the manager only offers granted ones. */
+async function assertAudienceAllowed(ctx: ToolContext, audience?: string) {
+  const flag = audience ? AUDIENCE_FLAGS[audience] : undefined;
+  if (!flag) return;
+  const { isGlobalFeatureGranted } = await import('../featureGrant');
+  if (!(await isGlobalFeatureGranted(ctx.db, flag, ctx.email, ctx.uid)))
+    throw new ToolError(
+      `help_center.audience "${audience}" is not turned on for this account.`
+    );
+}
+
+/** Updates the tour's Help Center item (title and description follow the tour), or adds a hidden one when a category is given. */
 async function helpItemWrite(
   ctx: ToolContext,
   set: GlSet,
-  placement: HelpCenterPlacement
-): Promise<(batch: admin.firestore.WriteBatch, saved: GlSet) => void> {
-  const help = await helpPlacement(ctx, placement);
-  const found = await ctx.db
-    .collection(HELP_RESOURCES)
-    .where('setId', '==', set.id)
-    .limit(1)
-    .get();
+  placement: HelpCenterPlacement | undefined,
+  text: { title?: string; description?: string }
+): Promise<
+  ((batch: admin.firestore.WriteBatch, saved: GlSet) => void) | undefined
+> {
+  const docs = await writableHelpItems(ctx, set.id);
   const now = Date.now();
-  if (!found.empty) {
-    const ref = found.docs[0].ref;
-    const moved = found.docs[0].get('categoryId') !== placement.category_id;
-    return (batch) =>
-      batch.update(ref, {
-        categoryId: placement.category_id,
-        ...(placement.widget_types
-          ? { widgetTypes: [...new Set(placement.widget_types)] }
-          : {}),
-        ...(moved ? { order: help.order } : {}),
-        updatedAt: now,
-      });
+  // A text-only edit just keeps any item the caller can change in step; it never refuses the save.
+  if (!placement)
+    return docs.length
+      ? (batch) => {
+          for (const d of docs)
+            batch.update(d.ref, helpItemUpdate(d.data(), text, now));
+        }
+      : undefined;
+  await assertAudienceAllowed(ctx, placement.audience);
+  if (docs.length > 1)
+    throw new ToolError(
+      'This tour is in the Help Center more than once. Change its settings in Admin Settings > Help Center.'
+    );
+  if (docs.length === 1) {
+    const doc = docs[0];
+    const item = doc.data();
+    if (placement.category_id) await assertCategory(ctx, placement.category_id);
+    const scope =
+      placement.scope !== undefined
+        ? await resolveHelpScope(ctx, placement.scope)
+        : undefined;
+    const order =
+      placement.category_id && placement.category_id !== item.categoryId
+        ? await nextOrder(ctx.db, placement.category_id)
+        : undefined;
+    const update = helpItemUpdate(
+      item,
+      { placement, ...text, orgId: scope?.orgId, order },
+      now
+    );
+    const leavesStudents =
+      update.audience !== undefined &&
+      (item.audience ?? 'teachers') === 'students' &&
+      update.audience !== 'students';
+    const snapshot = ctx.db.doc(`${GL_TOURS}/${set.id}`);
+    // Mirrors clearStudentTourMarker: only a published snapshot marked for students changes.
+    const clearMarker =
+      leavesStudents && (await snapshot.get()).get('audience') === 'students';
+    return (batch) => {
+      batch.update(doc.ref, update);
+      if (clearMarker)
+        batch.update(snapshot, {
+          audience: admin.firestore.FieldValue.delete(),
+        });
+    };
   }
+  const categoryId = placement.category_id;
+  if (!categoryId)
+    throw new ToolError(
+      'help_center.category_id is needed to add this tour to the Help Center. Pick one from list_help_center_categories.'
+    );
+  const help = await helpPlacement(ctx, {
+    ...placement,
+    category_id: categoryId,
+  });
   const id = randomUUID();
   return (batch, saved) =>
     batch.create(
       ctx.db.doc(`${HELP_RESOURCES}/${id}`),
-      buildHelpItem(placement, saved, {
+      buildHelpItem({ ...placement, category_id: categoryId }, saved, {
         id,
         uid: ctx.uid,
         email: ctx.email,
@@ -847,6 +993,25 @@ async function helpItemWrite(
         now,
       })
     );
+}
+
+/** The tour's Help Center item as Claude sees it, or null when it has none this caller can change. */
+async function helpItemView(ctx: ToolContext, setId: string) {
+  const docs = await writableHelpItems(ctx, setId);
+  if (docs.length === 0) return null;
+  const d = docs[0].data();
+  return {
+    id: docs[0].id,
+    title: typeof d.title === 'string' ? d.title : '',
+    description: typeof d.description === 'string' ? d.description : '',
+    category_id: typeof d.categoryId === 'string' ? d.categoryId : '',
+    audience: (d.audience === 'subs' || d.audience === 'students'
+      ? d.audience
+      : 'teachers') as string,
+    widget_types: Array.isArray(d.widgetTypes) ? d.widgetTypes : [],
+    scope: typeof d.orgId === 'string' ? d.orgId : 'everyone',
+    published: d.visible === true,
+  };
 }
 
 const narrationNote = (failed: readonly string[]) =>
@@ -893,7 +1058,7 @@ export function registerLiveTourTools(
     {
       title: 'List Help Center categories',
       description:
-        'Admins only. Lists the Help Center categories a live tour can be filed under, and who a new item would be shown to.',
+        'Admins only. Lists the Help Center categories a live tour can be filed under, and who a new item would be shown to. For super admins, scope_options lists the scopes help_center.scope accepts.',
       inputSchema: {},
       annotations: READ_ONLY,
     },
@@ -904,7 +1069,21 @@ export function registerLiveTourTools(
           loadCategories(ctx),
           helpCenterScope(ctx),
         ]);
-        return { categories, new_items_shown_to: scope.label };
+        if (scope.orgId !== null)
+          return { categories, new_items_shown_to: scope.label };
+        const orgs = await ctx.db.collection('organizations').get();
+        const scopeOptions = [
+          { id: 'everyone', name: 'Everyone' },
+          ...orgs.docs.map((d) => ({
+            id: d.id,
+            name: String(d.get('shortName') || d.get('name') || d.id),
+          })),
+        ];
+        return {
+          categories,
+          new_items_shown_to: scope.label,
+          scope_options: scopeOptions,
+        };
       })
   );
 
@@ -916,7 +1095,7 @@ export function registerLiveTourTools(
         'Admins only. Creates a live tour that walks a teacher through the real SpartBoard board, one step per control. Read get_live_tour_guide first. Every step needs a tour binding (list_tour_anchors). The first step observes "board.whole" and the last is an observe. The Dock starts collapsed: a tour into it gets an Open Tools step first unless one clicks "dock.open-tools", and inserted_steps lists it. The tour is checked the way playback will meet it: problems that would break it refuse the save, others come back as warnings; pass dry_run to check without saving. Saved as an unpublished draft: pass help_center to also add it to the Help Center, hidden until an admin test-runs it and presses Publish on the item in Admin Settings > Help Center. Without help_center, an admin files it from Admin Settings > Help Center > New > Move from library.',
       inputSchema: {
         title: z.string().trim().min(1).max(200),
-        description: z.string().max(1000).optional(),
+        description: descriptionInput,
         welcome_enabled: z.boolean().optional(),
         welcome_message: z.string().max(300).optional(),
         ...setupInputs,
@@ -954,6 +1133,7 @@ export function registerLiveTourTools(
         } | null = null;
         if (placement) {
           await assertAccess(ctx, 'help_center');
+          await assertAudienceAllowed(ctx, placement.audience);
           help = await helpPlacement(ctx, placement);
         }
         const materials = input.materials
@@ -1045,16 +1225,22 @@ export function registerLiveTourTools(
             return undefined;
           }),
         ]);
-        const ready = await readyAnchors(ctx, loaded.set.steps);
-        return liveTourView(
-          loaded.set,
-          published?.at ?? null,
-          ready,
-          for_browser_run === true,
-          health,
-          review,
-          published?.set
-        );
+        const [ready, helpItem] = await Promise.all([
+          readyAnchors(ctx, loaded.set.steps),
+          helpItemView(ctx, set_id),
+        ]);
+        return {
+          ...liveTourView(
+            loaded.set,
+            published?.at ?? null,
+            ready,
+            for_browser_run === true,
+            health,
+            review,
+            published?.set
+          ),
+          help_item: helpItem,
+        };
       })
   );
 
@@ -1063,15 +1249,15 @@ export function registerLiveTourTools(
     {
       title: 'Edit a live tour',
       description:
-        'Admins only. Edits a live tour; only passed fields change. To change only wording, pass step_text, which leaves every other step and field as stored. `steps` replaces the whole list in play order: send every step to keep, with its id, as get_live_tour returned it; use it to add, remove, reorder or rebind steps. The result is checked like create_live_tour, including the Open Tools step; the opening and closing step rule refuses the save only if the stored tour already met it. Problems that would break playback refuse the save, others come back as warnings; dry_run checks without saving. Thumbnails, narration and notes are kept; resolved_notes clears the notes this save deals with. Saves the draft only: teachers keep the published tour until an admin opens the tour in SpartBoard and publishes the changes.',
+        "Admins only. Edits a live tour; only passed fields change. To change only wording, pass step_text, which leaves every other step and field as stored. `steps` replaces the whole list in play order: send every step to keep, with its id, as get_live_tour returned it; use it to add, remove, reorder or rebind steps. The result is checked like create_live_tour, including the Open Tools step; the opening and closing step rule refuses the save only if the stored tour already met it. Problems that would break playback refuse the save, others come back as warnings; dry_run checks without saving. Thumbnails, narration and notes are kept; resolved_notes clears the notes this save deals with. Saves the draft only: teachers keep the published tour until an admin opens the tour in SpartBoard and publishes the changes. A new title or description also changes the tour's Help Center item right away, and help_center changes its category, widgets, audience or scope.",
       inputSchema: {
         set_id: z.string().min(1),
         title: z.string().trim().min(1).max(200).optional(),
-        description: z.string().max(1000).optional(),
+        description: descriptionInput.optional(),
         welcome_enabled: z.boolean().optional(),
         welcome_message: z.string().max(300).optional(),
         ...setupInputs,
-        help_center: helpCenterInput,
+        help_center: helpCenterUpdateInput,
         steps: z.array(editStep).min(1).max(MAX_STEPS).optional(),
         step_text: z
           .array(
@@ -1167,10 +1353,20 @@ export function registerLiveTourTools(
         let stageHelp:
           | ((batch: admin.firestore.WriteBatch, saved: GlSet) => void)
           | undefined;
-        if (placement) {
+        const text = {
+          ...(input.title !== undefined ? { title: next.title } : {}),
+          ...(input.description !== undefined
+            ? { description: input.description }
+            : {}),
+        };
+        if (
+          placement ||
+          text.title !== undefined ||
+          text.description !== undefined
+        ) {
           await assertAccess(ctx, 'help_center');
-          stageHelp = await helpItemWrite(ctx, set, placement);
-          next.helpCenter = true;
+          stageHelp = await helpItemWrite(ctx, set, placement, text);
+          if (stageHelp) next.helpCenter = true;
         }
         await reserveWrite(ctx);
         const voiced = await narrate(ctx, next.steps);

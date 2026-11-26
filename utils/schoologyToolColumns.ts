@@ -15,6 +15,7 @@ import {
 import { db } from '@/config/firebase';
 import type { StudentTargetRef } from '@/types';
 import { studentTargetRefKey } from '@/utils/studentTargetRef';
+import { awaitingSkippedNote } from '@/utils/ltiGradePush';
 
 export type ToolColumnKind = 'quiz' | 'va';
 
@@ -64,6 +65,8 @@ export interface ToolColumnPushData {
   results: ToolColumnPushResult[];
   pushed: number;
   total: number;
+  /** Final-score pushes only: students left out while a grade is owed. */
+  awaiting?: number;
   sections: {
     contextId: string;
     title: string | null;
@@ -78,6 +81,16 @@ export interface ToolColumnPushRequest {
   kind: ToolColumnKind;
   maxPoints: number;
   grades: ToolColumnGradeEntry[];
+  /** AB-389: the server sends the gradebook final scores and ignores `grades` and `maxPoints`. */
+  source?: 'final-scores';
+  /** Final scores only: also send Missing for students flagged Missing. */
+  includeMissing?: boolean;
+  /** Final scores only: roster students the client saw with no work, sent as Missing. */
+  missingWithoutWork?: string[];
+  /** Final scores only: a Retry resends just these students. */
+  onlyUids?: string[];
+  /** Final scores only: limit the push to one class's students, as the gradebook shows them. */
+  scopeUids?: string[];
   /** Only an explicit "Push to Schoology" creates the column. */
   create: boolean;
   /** Picked category per section id. */
@@ -343,7 +356,15 @@ export function formatToolColumnPushToast(data: ToolColumnPushData): {
   if (failed > 0) {
     parts.push(`${failed} not sent.`);
   }
-  return { message: parts.join(' '), failed, retryUids };
+  const head =
+    data.total === 0 && data.results.length === 0
+      ? 'No scores to push yet.'
+      : parts.join(' ');
+  return {
+    message: head + awaitingSkippedNote(data.awaiting),
+    failed,
+    retryUids,
+  };
 }
 
 /** True when SpartBoard made a Schoology column for this session; read before the session is deleted. */

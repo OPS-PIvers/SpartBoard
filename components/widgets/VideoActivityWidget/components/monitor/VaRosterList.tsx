@@ -1,15 +1,13 @@
-import React, { useRef, useState } from 'react';
+import React from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
   Circle,
   Lock,
-  MoreVertical,
   Unlock,
   XCircle,
 } from 'lucide-react';
 import type { VideoActivitySession } from '@/types';
-import { useClickOutside } from '@/hooks/useClickOutside';
 import { useServerNow } from '@/hooks/useServerNow';
 import {
   AwayNowChip,
@@ -26,6 +24,10 @@ import type {
   MonitorFilterBy,
   MonitorSortBy,
 } from '@/components/widgets/QuizWidget/components/monitor/monitorUtils';
+import {
+  RosterRowMenu,
+  type RosterMenuItem,
+} from '@/components/widgets/QuizWidget/components/monitor/RosterParts';
 import { VaMonitorStudent, vaRosterRows } from './vaMonitorData';
 
 const TYPE = 'video-activity';
@@ -83,71 +85,32 @@ const RowMenu: React.FC<{
   onUnlock?: (key: string, name: string) => void;
   onLetIn?: (studentUid: string) => void;
 }> = ({ student, locked, canLetIn, onUnlock, onLetIn }) => {
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  useClickOutside(menuRef, () => setOpen(false));
   const uid = student.response.studentUid;
-  const items: {
-    label: string;
-    tour: ReturnType<typeof tourFieldAttr>;
-    onClick: () => void;
-  }[] = [];
+  const items: RosterMenuItem[] = [];
   if (canLetIn && onLetIn)
     items.push({
       label: 'Let in now',
       tour: tourFieldAttr('video-activity.monitor-let-in', TYPE, uid),
+      closes: true,
       onClick: () => onLetIn(uid),
     });
   if (locked && onUnlock)
     items.push({
       label: 'Unlock attempt',
       tour: tourFieldAttr('video-activity.monitor-unlock', TYPE, uid),
+      closes: true,
       onClick: () => onUnlock(student.key, student.name),
     });
-  if (items.length === 0) return null;
-
   return (
-    <div ref={menuRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label={`Actions for ${student.name}`}
-        aria-expanded={open}
-        {...tourFieldAttr('video-activity.monitor-row-actions', TYPE, uid)}
-        className="rounded-md text-brand-gray-primary hover:bg-brand-gray-lightest hover:text-brand-blue-dark transition-colors"
-        style={{ padding: 'min(4px, 1cqmin)' }}
-      >
-        <MoreVertical style={markSize} />
-      </button>
-      {open && (
-        <div
-          className="absolute right-0 top-full z-30 bg-white border border-brand-gray-lighter rounded-lg shadow-lg overflow-hidden"
-          style={{
-            marginTop: 'min(4px, 1cqmin)',
-            minWidth: 'min(160px, 55cqw)',
-          }}
-        >
-          {items.map((item) => (
-            <button
-              type="button"
-              key={item.label}
-              {...item.tour}
-              onClick={() => {
-                setOpen(false);
-                item.onClick();
-              }}
-              className="block w-full text-left font-sans text-brand-gray-dark hover:bg-brand-blue-lighter transition-colors"
-              style={{
-                fontSize: 'min(12px, 4cqmin)',
-                padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+    <RosterRowMenu
+      ariaLabel={`Actions for ${student.name}`}
+      triggerAnchor={tourFieldAttr(
+        'video-activity.monitor-row-actions',
+        TYPE,
+        uid
       )}
-    </div>
+      items={items}
+    />
   );
 };
 

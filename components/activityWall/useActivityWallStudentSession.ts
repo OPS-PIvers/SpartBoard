@@ -1,11 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import { signInAnonymously } from 'firebase/auth';
+import { useEffect, useState } from 'react';
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
-import { dropPinLogin } from '@/utils/pinLoginScope';
+import { db } from '@/config/firebase';
 import { ANONYMOUS_PARTICIPANT_LABEL } from './engagement/participantLabel';
 import { STUDENT_FIRST_NAME_KEY } from '@/context/StudentAuthContextValue';
-import { useResolvedFirebaseUser } from '@/hooks/useResolvedFirebaseUser';
+import { useGuestFirebaseUser } from '@/hooks/useGuestFirebaseUser';
 import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import {
   normalizeActivityWallSession,
@@ -100,7 +98,7 @@ export const mergeWallPosts = (
 export function useActivityWallStudentSession(
   sessionId: string | null
 ): ActivityWallStudentSessionState {
-  const { user, resolved } = useResolvedFirebaseUser();
+  const { user } = useGuestFirebaseUser('ActivityWallStudentApp');
   const [session, setSession] = useState<ActivityWallSession | null>(null);
   const [sessionMissing, setSessionMissing] = useState(false);
   const [claims, setClaims] = useState<{
@@ -114,21 +112,6 @@ export function useActivityWallStudentSession(
   );
 
   const uid = user?.uid ?? null;
-
-  // The session doc requires auth to read, so guests get an anonymous identity first.
-  // Only the user found at open is checked: a PIN sign-in made later belongs to a quiz in another tab.
-  const openChecked = useRef(false);
-  useEffect(() => {
-    if (!resolved) return;
-    const atOpen = !openChecked.current;
-    openChecked.current = true;
-    if (user && !atOpen) return;
-    void (user ? dropPinLogin(auth) : signInAnonymously(auth)).catch(
-      (error) => {
-        console.error('[ActivityWallStudentApp] Guest sign-in failed:', error);
-      }
-    );
-  }, [resolved, user]);
 
   useEffect(() => {
     if (!sessionId || !uid) return;

@@ -29,6 +29,7 @@ import { canonicalizeBuildingIds } from '@/config/buildings';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
+import { Modal } from '@/components/common/Modal';
 
 interface MiniAppLibraryModalProps {
   onClose: () => void;
@@ -217,275 +218,281 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
 
   // --- Render ---
   return (
-    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-3xl h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="bg-violet-100 text-violet-600 p-1.5 rounded-lg">
-              <AppWindow className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-black text-sm text-slate-800 uppercase tracking-widest">
-                Global Mini App Library
-              </h3>
-              <p className="text-xxs text-slate-400 font-medium">
-                {view === 'list'
-                  ? `${apps.length} app${apps.length !== 1 ? 's' : ''} published`
-                  : editingId
-                    ? 'Edit app'
-                    : 'New app'}
-              </p>
-            </div>
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      zIndex="z-modal-nested"
+      maxWidth="max-w-3xl"
+      dismissible={false}
+      className="h-[85vh] overflow-hidden rounded-2xl bg-white shadow-2xl [&>div]:flex [&>div]:flex-col [&>div]:overflow-hidden"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="bg-violet-100 text-violet-600 p-1.5 rounded-lg">
+            <AppWindow className="w-4 h-4" />
           </div>
-
-          <button
-            {...tourAttr('admin.mini-app-library.modal-close')}
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div>
+            <h3 className="font-black text-sm text-slate-800 uppercase tracking-widest">
+              Global Mini App Library
+            </h3>
+            <p className="text-xxs text-slate-400 font-medium">
+              {view === 'list'
+                ? `${apps.length} app${apps.length !== 1 ? 's' : ''} published`
+                : editingId
+                  ? 'Edit app'
+                  : 'New app'}
+            </p>
+          </div>
         </div>
 
-        {/* Body */}
-        {view === 'list' ? (
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
-            {loading ? (
-              <div className="flex items-center justify-center h-full text-slate-400 text-sm">
-                Loading…
-              </div>
-            ) : apps.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400 py-16">
-                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
-                  <AppWindow className="w-10 h-10 stroke-slate-300" />
-                </div>
-                <div className="text-center">
-                  <p className="font-black text-sm uppercase tracking-widest mb-1">
-                    No apps yet
-                  </p>
-                  <p className="text-xs">
-                    Create your first app to share it with teachers.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 space-y-2">
-                {apps.map((app, idx) => (
-                  <div
-                    key={app.id}
-                    className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-3 shadow-xs hover:shadow-md hover:border-violet-200 transition-all"
-                  >
-                    {/* Reorder handle / index */}
-                    <div className="flex flex-col items-center gap-0.5 shrink-0">
-                      <button
-                        {...tourFieldAttr(
-                          'admin.mini-app-library.move-up',
-                          'admin',
-                          app.id
-                        )}
-                        onClick={() => handleMoveUp(idx)}
-                        disabled={idx === 0}
-                        className="text-slate-300 hover:text-slate-500 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                        title="Move up"
-                      >
-                        <ChevronUp className="w-4 h-4" />
-                      </button>
-                    </div>
+        <button
+          {...tourAttr('admin.mini-app-library.modal-close')}
+          onClick={onClose}
+          className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-                    {/* Icon */}
-                    <div className="bg-violet-50 text-violet-600 rounded-lg flex items-center justify-center shrink-0 border border-violet-100 w-9 h-9 text-xxs font-black">
-                      HTML
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm text-slate-800 truncate">
-                        {app.title}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xxs text-slate-400 font-mono">
-                          {(app.html.length / 1024).toFixed(1)} KB
-                        </span>
-                        <span className="text-slate-200">•</span>
-                        <span
-                          className={`flex items-center gap-1 text-xxs font-bold ${
-                            !app.buildings || app.buildings.length === 0
-                              ? 'text-emerald-600'
-                              : 'text-violet-600'
-                          }`}
-                        >
-                          {!app.buildings || app.buildings.length === 0 ? (
-                            <Globe className="w-3 h-3" />
-                          ) : (
-                            <Building2 className="w-3 h-3" />
-                          )}
-                          {buildingLabel(app.buildings)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        {...tourFieldAttr(
-                          'admin.mini-app-library.edit',
-                          'admin',
-                          app.id
-                        )}
-                        onClick={() => openEditor(app)}
-                        className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        {...tourFieldAttr(
-                          'admin.mini-app-library.delete',
-                          'admin',
-                          app.id
-                        )}
-                        onClick={() => handleDelete(app)}
-                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+      {/* Body */}
+      {view === 'list' ? (
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {loading ? (
+            <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+              Loading…
+            </div>
+          ) : apps.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400 py-16">
+              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                <AppWindow className="w-10 h-10 stroke-slate-300" />
               </div>
-            )}
-          </div>
-        ) : (
-          /* Editor View */
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-4">
-              {/* Title */}
-              <div>
-                <SettingsLabel htmlFor={titleInputId}>App Title</SettingsLabel>
-                <input
-                  {...tourAttr('admin.mini-app-library.title')}
-                  id={titleInputId}
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  placeholder="e.g. Vocabulary Flashcards"
-                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-violet-500 shadow-xs"
-                />
-              </div>
-
-              {/* Building Targeting */}
-              <div>
-                <SettingsLabel as="span" id="miniapp-available-to-label">
-                  Available To
-                </SettingsLabel>
-                <p className="text-xs text-slate-500 mb-2">
-                  None selected means everyone.
+              <div className="text-center">
+                <p className="font-black text-sm uppercase tracking-widest mb-1">
+                  No apps yet
                 </p>
+                <p className="text-xs">
+                  Create your first app to share it with teachers.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 space-y-2">
+              {apps.map((app, idx) => (
                 <div
-                  role="group"
-                  aria-labelledby="miniapp-available-to-label"
-                  className="grid grid-cols-2 gap-1.5 mb-2"
+                  key={app.id}
+                  className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-3 shadow-xs hover:shadow-md hover:border-violet-200 transition-all"
                 >
-                  {BUILDINGS.map((building) => {
-                    const isSelected = editBuildings.includes(building.id);
-                    return (
-                      <button
-                        {...tourFieldAttr(
-                          'admin.mini-app-library.building',
-                          'admin',
-                          building.id
-                        )}
-                        key={building.id}
-                        type="button"
-                        onClick={() => toggleBuilding(building.id)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left text-xs font-bold transition-colors ${
-                          isSelected
-                            ? 'bg-violet-600 text-white border-violet-600 shadow-xs'
-                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  {/* Reorder handle / index */}
+                  <div className="flex flex-col items-center gap-0.5 shrink-0">
+                    <button
+                      {...tourFieldAttr(
+                        'admin.mini-app-library.move-up',
+                        'admin',
+                        app.id
+                      )}
+                      onClick={() => handleMoveUp(idx)}
+                      disabled={idx === 0}
+                      className="text-slate-300 hover:text-slate-500 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                      title="Move up"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Icon */}
+                  <div className="bg-violet-50 text-violet-600 rounded-lg flex items-center justify-center shrink-0 border border-violet-100 w-9 h-9 text-xxs font-black">
+                    HTML
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-slate-800 truncate">
+                      {app.title}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xxs text-slate-400 font-mono">
+                        {(app.html.length / 1024).toFixed(1)} KB
+                      </span>
+                      <span className="text-slate-200">•</span>
+                      <span
+                        className={`flex items-center gap-1 text-xxs font-bold ${
+                          !app.buildings || app.buildings.length === 0
+                            ? 'text-emerald-600'
+                            : 'text-violet-600'
                         }`}
                       >
-                        <Building2 className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate">{building.name}</span>
-                        <span
-                          className={`ml-auto text-xxs font-normal ${isSelected ? 'text-violet-200' : 'text-slate-400'}`}
-                        >
-                          {building.gradeLabel}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {editBuildings.length === 0 && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-bold">
-                    <Globe className="w-4 h-4 shrink-0" />
-                    Visible to teachers in all buildings
+                        {!app.buildings || app.buildings.length === 0 ? (
+                          <Globe className="w-3 h-3" />
+                        ) : (
+                          <Building2 className="w-3 h-3" />
+                        )}
+                        {buildingLabel(app.buildings)}
+                      </span>
+                    </div>
                   </div>
-                )}
-              </div>
 
-              {/* Code Editor */}
-              <div className="flex flex-col" style={{ minHeight: 240 }}>
-                <SettingsLabel htmlFor={htmlCodeId}>
-                  <Code2 className="w-3.5 h-3.5 inline-block mr-1 align-text-bottom" />
-                  HTML Code
-                </SettingsLabel>
-                <textarea
-                  {...tourAttr('admin.mini-app-library.html-code')}
-                  id={htmlCodeId}
-                  value={editCode}
-                  onChange={(e) => setEditCode(e.target.value)}
-                  className="flex-1 w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-hidden focus:ring-2 focus:ring-violet-500 resize-none leading-relaxed custom-scrollbar shadow-inner"
-                  style={{ minHeight: 240 }}
-                  spellCheck={false}
-                  placeholder="Paste your HTML, CSS, and JS here…"
-                />
-              </div>
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      {...tourFieldAttr(
+                        'admin.mini-app-library.edit',
+                        'admin',
+                        app.id
+                      )}
+                      onClick={() => openEditor(app)}
+                      className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                      title="Edit"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      {...tourFieldAttr(
+                        'admin.mini-app-library.delete',
+                        'admin',
+                        app.id
+                      )}
+                      onClick={() => handleDelete(app)}
+                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Editor View */
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-4">
+            {/* Title */}
+            <div>
+              <SettingsLabel htmlFor={titleInputId}>App Title</SettingsLabel>
+              <input
+                {...tourAttr('admin.mini-app-library.title')}
+                id={titleInputId}
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="e.g. Vocabulary Flashcards"
+                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-violet-500 shadow-xs"
+              />
             </div>
 
-            {/* Footer Actions */}
-            <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex gap-3">
-              <button
-                {...tourAttr('admin.mini-app-library.cancel')}
-                onClick={cancelEditor}
-                className="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors"
+            {/* Building Targeting */}
+            <div>
+              <SettingsLabel as="span" id="miniapp-available-to-label">
+                Available To
+              </SettingsLabel>
+              <p className="text-xs text-slate-500 mb-2">
+                None selected means everyone.
+              </p>
+              <div
+                role="group"
+                aria-labelledby="miniapp-available-to-label"
+                className="grid grid-cols-2 gap-1.5 mb-2"
               >
-                Cancel
-              </button>
-              <button
-                {...tourAttr('admin.mini-app-library.save')}
-                onClick={handleSave}
-                disabled={saving || !editTitle.trim() || !editCode.trim()}
-                className="flex-1 flex items-center justify-center gap-2 px-5 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-violet-200 transition-all"
-              >
-                {saving ? (
-                  'Saving…'
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    {editingId ? 'Update App' : 'Publish App'}
-                  </>
-                )}
-              </button>
+                {BUILDINGS.map((building) => {
+                  const isSelected = editBuildings.includes(building.id);
+                  return (
+                    <button
+                      {...tourFieldAttr(
+                        'admin.mini-app-library.building',
+                        'admin',
+                        building.id
+                      )}
+                      key={building.id}
+                      type="button"
+                      onClick={() => toggleBuilding(building.id)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left text-xs font-bold transition-colors ${
+                        isSelected
+                          ? 'bg-violet-600 text-white border-violet-600 shadow-xs'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Building2 className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{building.name}</span>
+                      <span
+                        className={`ml-auto text-xxs font-normal ${isSelected ? 'text-violet-200' : 'text-slate-400'}`}
+                      >
+                        {building.gradeLabel}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {editBuildings.length === 0 && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-bold">
+                  <Globe className="w-4 h-4 shrink-0" />
+                  Visible to teachers in all buildings
+                </div>
+              )}
+            </div>
+
+            {/* Code Editor */}
+            <div className="flex flex-col" style={{ minHeight: 240 }}>
+              <SettingsLabel htmlFor={htmlCodeId}>
+                <Code2 className="w-3.5 h-3.5 inline-block mr-1 align-text-bottom" />
+                HTML Code
+              </SettingsLabel>
+              <textarea
+                {...tourAttr('admin.mini-app-library.html-code')}
+                id={htmlCodeId}
+                value={editCode}
+                onChange={(e) => setEditCode(e.target.value)}
+                className="flex-1 w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-hidden focus:ring-2 focus:ring-violet-500 resize-none leading-relaxed custom-scrollbar shadow-inner"
+                style={{ minHeight: 240 }}
+                spellCheck={false}
+                placeholder="Paste your HTML, CSS, and JS here…"
+              />
             </div>
           </div>
-        )}
 
-        {/* Footer (list view only) */}
-        {view === 'list' && (
-          <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex items-center justify-end">
+          {/* Footer Actions */}
+          <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex gap-3">
             <button
-              {...tourAttr('admin.mini-app-library.new-app')}
-              onClick={() => openEditor()}
-              className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-violet-200 transition-all"
+              {...tourAttr('admin.mini-app-library.cancel')}
+              onClick={cancelEditor}
+              className="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors"
             >
-              <Plus className="w-4 h-4" /> New App
+              Cancel
+            </button>
+            <button
+              {...tourAttr('admin.mini-app-library.save')}
+              onClick={handleSave}
+              disabled={saving || !editTitle.trim() || !editCode.trim()}
+              className="flex-1 flex items-center justify-center gap-2 px-5 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-violet-200 transition-all"
+            >
+              {saving ? (
+                'Saving…'
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  {editingId ? 'Update App' : 'Publish App'}
+                </>
+              )}
             </button>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+
+      {/* Footer (list view only) */}
+      {view === 'list' && (
+        <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex items-center justify-end">
+          <button
+            {...tourAttr('admin.mini-app-library.new-app')}
+            onClick={() => openEditor()}
+            className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-violet-200 transition-all"
+          >
+            <Plus className="w-4 h-4" /> New App
+          </button>
+        </div>
+      )}
+    </Modal>
   );
 };

@@ -51,7 +51,7 @@ const AFFECTED_KEYS: Array<{ path: string; expectedDe: string }> = [
   { path: 'widgets.clock.fonts.inherit', expectedDe: 'Von der Tafel' },
   {
     path: 'shareCollection.subtitle',
-    expectedDe: '{{count}} Tafel(n) aus dieser Sammlung werden geteilt.',
+    expectedDe: '{{count}} Tafel(n) aus diesem Ordner werden geteilt.',
   },
   { path: 'subCollections.openBoard', expectedDe: 'Diese Tafel öffnen' },
   {

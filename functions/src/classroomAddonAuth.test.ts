@@ -198,6 +198,19 @@ vi.mock('firebase-functions/params', () => ({
   defineSecret: () => ({ value: () => 'test-hmac-secret' }),
 }));
 
+// AB-389 final-score pushes: the plan and session read are stubbed; the request parsing is real.
+const finalPlanMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
+const ownedSessionMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
+vi.mock('./gradebook/finalScorePush', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('./gradebook/finalScorePush')>();
+  return {
+    ...actual,
+    finalScorePushPlan: (...args: unknown[]) => finalPlanMock(...args),
+    readOwnedPushSession: (...args: unknown[]) => ownedSessionMock(...args),
+  };
+});
+
 // Imported AFTER the mocks so the module picks them up.
 import {
   classroomAddonLoginV1,
@@ -3099,5 +3112,119 @@ describe('verifyClassroomTeacherV1', () => {
     await expect(callVerify({ data })).rejects.toMatchObject({
       code: 'unauthenticated',
     });
+  });
+});
+
+describe('final-score pushes (AB-389)', () => {
+  const finalData = {
+    courseId: 'C1',
+    itemId: 'I1',
+    attachmentId: 'ATT1',
+    accessToken: 'teacher-token',
+    source: 'final-scores',
+    sessionId: 'S1',
+    kind: 'quiz',
+    // A client's own grades and scale are ignored on this path.
+    grades: [{ pseudonymUid: 'pseudo-A', pointsEarned: 99 }],
+    maxPoints: 1000,
+  };
+  const linkedSession = {
+    teacherUid: 'teacher-123',
+    classroomAttachments: [
+      { courseId: 'C1', itemId: 'I1', attachmentId: 'ATT1', maxPoints: 20 },
+    ],
+  };
+
+  beforeEach(() => {
+    finalPlanMock.mockReset();
+    ownedSessionMock.mockReset();
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'SUB-A',
+    });
+  });
+
+  it('pushes the server plan on the session attachment scale', async () => {
+    ownedSessionMock.mockResolvedValue(linkedSession);
+    finalPlanMock.mockResolvedValue({
+      plan: {
+        entries: [{ pseudonymUid: 'pseudo-A', pointsEarned: 15 }],
+        missing: [],
+        awaiting: 2,
+        excluded: 0,
+      },
+      maxPoints: 20,
+      studentUids: ['pseudo-A'],
+    });
+    const patchSpy = vi
+      .spyOn(classroomAddonNet, 'patchStudentSubmissionGrade')
+      .mockResolvedValue({ ok: true, status: 200 });
+
+    const res = (await callPushBatch({
+      data: finalData,
+      auth: { uid: 'teacher-123' },
+    })) as Awaited<ReturnType<typeof callPushBatch>> & { awaiting?: number };
+
+    expect(ownedSessionMock).toHaveBeenCalledWith(
+      expect.anything(),
+      'quiz',
+      'S1',
+      'teacher-123'
+    );
+    expect(finalPlanMock.mock.calls[0][1]).toMatchObject({
+      kind: 'quiz',
+      sessionId: 'S1',
+      ownerUid: 'teacher-123',
+      maxPoints: 20,
+    });
+    expect(patchSpy).toHaveBeenCalledWith(
+      'teacher-token',
+      'C1',
+      'I1',
+      'ATT1',
+      'SUB-A',
+      15
+    );
+    expect(res).toMatchObject({ pushed: 1, awaiting: 2 });
+  });
+
+  it("refuses a session the caller doesn't own", async () => {
+    ownedSessionMock.mockResolvedValue(null);
+    const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
+    await expect(
+      callPushBatch({ data: finalData, auth: { uid: 'teacher-123' } })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(finalPlanMock).not.toHaveBeenCalled();
+    expect(patchSpy).not.toHaveBeenCalled();
+  });
+
+  it('refuses an attachment the session is not linked to', async () => {
+    ownedSessionMock.mockResolvedValue({
+      ...linkedSession,
+      classroomAttachments: [
+        { courseId: 'C1', itemId: 'I1', attachmentId: 'OTHER', maxPoints: 20 },
+      ],
+    });
+    await expect(
+      callPushBatch({ data: finalData, auth: { uid: 'teacher-123' } })
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(finalPlanMock).not.toHaveBeenCalled();
+  });
+
+  it('sends final grades on the Publish path with the session scale', async () => {
+    ownedSessionMock.mockResolvedValue(linkedSession);
+    finalPlanMock.mockResolvedValue({
+      plan: { entries: [], missing: [], awaiting: 1, excluded: 0 },
+      maxPoints: 20,
+      studentUids: [],
+    });
+    const res = (await callPushFinalBatch({
+      data: { ...finalData, maxPoints: undefined },
+      auth: { uid: 'teacher-123' },
+    })) as { pushed: number; results: unknown[]; awaiting?: number };
+    expect(res).toMatchObject({ pushed: 0, results: [], awaiting: 1 });
   });
 });

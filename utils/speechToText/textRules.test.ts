@@ -101,6 +101,14 @@ describe('applyTextRules: spoken punctuation (English)', () => {
     expect(text('in first period we read')).toBe('In first period we read');
   });
 
+  it('keeps "colon" and "comma" as words after a determiner', () => {
+    expect(text('the colon absorbs water period')).toBe(
+      'The colon absorbs water.'
+    );
+    expect(text('a comma butterfly landed')).toBe('A comma butterfly landed');
+    expect(text('list colon apples comma pears')).toBe('List: apples, pears');
+  });
+
   it('leaves spoken marks alone when the engine punctuates', () => {
     expect(text('the comma is a mark.', '', 'en', true)).toBe(
       'The comma is a mark.'
@@ -128,6 +136,16 @@ describe('applyTextRules: Spanish and Russian', () => {
       'Uno\nDos\n\nTres'
     );
     expect(text('fin punto y aparte otra', '', 'es')).toBe('Fin.\nOtra');
+  });
+
+  it('keeps "punto" and "coma" as words after a determiner', () => {
+    expect(text('llegó a las tres en punto punto', '', 'es')).toBe(
+      'Llegó a las tres en punto.'
+    );
+    expect(text('es un punto clave coma sí', '', 'es')).toBe(
+      'Es un punto clave, sí'
+    );
+    expect(text('estuvo en coma punto', '', 'es')).toBe('Estuvo en coma.');
   });
 
   it('does not apply English marks in Spanish', () => {

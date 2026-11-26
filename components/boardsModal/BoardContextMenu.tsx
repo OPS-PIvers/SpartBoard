@@ -90,7 +90,7 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
     },
     {
       label: t('boardsModal.menu.setDefault', {
-        defaultValue: 'Set as default in this Collection',
+        defaultValue: 'Set as default in this folder',
       }),
       icon: Star,
       action: onSetDefault,

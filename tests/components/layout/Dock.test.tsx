@@ -280,8 +280,7 @@ function setupMocks({
     activeDashboard,
     updateWidget: vi.fn(),
     addToast: vi.fn(),
-    setPendingQuizShareId: vi.fn(),
-    setPendingAssignmentShareId: vi.fn(),
+    setPendingLibraryShare: vi.fn(),
     annotationActive,
     annotationState: { activeTool: annotationTool },
   } as unknown as ReturnType<typeof useDashboard>);
@@ -803,8 +802,7 @@ describe('Dock smart-paste – SELECT element is excluded from paste interceptio
       moveItemOutOfFolder: vi.fn(),
       reorderFolderItems: vi.fn(),
       addToast: addToastSpy,
-      setPendingQuizShareId: vi.fn(),
-      setPendingAssignmentShareId: vi.fn(),
+      setPendingLibraryShare: vi.fn(),
     } as unknown as ReturnType<typeof useDashboard>);
 
     render(<Dock />);

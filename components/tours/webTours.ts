@@ -31,6 +31,7 @@ import { logError } from '@/utils/logError';
 import { buildTourContent, GL_TOURS_COLLECTION } from './tourSnapshot';
 import { newWebTour } from './web/recordedSteps';
 import { firstTargetedIndex } from './web/tourSequence';
+import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 
 // Web tour storage (docs/plans/CHROME_EXTENSION.md T6): admin-only drafts, staff-only snapshots and pictures.
 export const WEB_TOURS_COLLECTION = 'building_web_tours';
@@ -302,7 +303,7 @@ export async function duplicateWebTourDraft(
 ): Promise<GuidedLearningSet> {
   const copy: GuidedLearningSet = {
     ...newWebTour(),
-    title: `${set.title} (Copy)`,
+    title: suggestDuplicateTitle(set.title),
     helpCenter: set.helpCenter,
     ...(set.webGoal ? { webGoal: set.webGoal } : {}),
     ...(set.webStartUrl ? { webStartUrl: set.webStartUrl } : {}),

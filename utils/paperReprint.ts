@@ -1,6 +1,7 @@
 // Print response sheets again: the same seats from a saved stack, so a lost sheet imports as its student.
 import type { ClassRoster, PaperBatch, Student } from '@/types';
 import type { PaperQuizAnalysis, PaperSheetPlan } from './paperSheetPlan';
+import { lastFirstOrUnnamed } from '@/utils/studentName';
 
 export interface ReprintSeat {
   seat: number;
@@ -15,8 +16,7 @@ export interface ReprintClass {
 /** Why a stack can't print again, or null when it can. */
 export type ReprintBlocker = 'versions' | 'changed' | null;
 
-const studentLabel = (s: Student): string =>
-  [s.lastName, s.firstName].filter(Boolean).join(', ') || 'Unnamed student';
+const studentLabel = (s: Student): string => lastFirstOrUnnamed(s);
 
 /** The stack's student seats by class, in the order they printed; students no longer on a roster are left out. */
 export function reprintClasses(

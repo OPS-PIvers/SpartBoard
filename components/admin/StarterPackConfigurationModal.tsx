@@ -49,6 +49,7 @@ import {
 } from '@/utils/lucideIconMap';
 import { SNAP_LAYOUTS } from '@/config/snapLayouts';
 import { calculateSnapBounds } from '@/utils/layoutMath';
+import { DraftNumberField } from './DraftNumberField';
 
 interface StarterPackConfigurationModalProps {
   isOpen: boolean;
@@ -1103,18 +1104,14 @@ export const StarterPackConfigurationModal: React.FC<
                                   <span className="font-bold text-slate-400 uppercase">
                                     {label}
                                   </span>
-                                  <input
-                                    type="number"
+                                  <DraftNumberField
                                     {...tourFieldAttr(
                                       'admin.widget-config.field',
                                       'starter-pack',
                                       `widget-${index}-${field}`
                                     )}
                                     value={widget[field]}
-                                    onChange={(e) => {
-                                      const next =
-                                        e.currentTarget.valueAsNumber;
-                                      if (!Number.isFinite(next)) return;
+                                    onCommit={(next) => {
                                       handleUpdateWidget(index, field, next);
                                       setWidgetSnapKeys((prev) => {
                                         if (!prev[index]) return prev;
@@ -1303,17 +1300,14 @@ export const StarterPackConfigurationModal: React.FC<
                               ? 'Width'
                               : 'Height'}
                         </label>
-                        <input
-                          type="number"
+                        <DraftNumberField
                           {...tourFieldAttr(
                             'admin.widget-config.field',
                             'starter-pack',
                             `newWidget-${label}`
                           )}
                           value={val}
-                          onChange={(e) => {
-                            const next = e.currentTarget.valueAsNumber;
-                            if (!Number.isFinite(next)) return;
+                          onCommit={(next) => {
                             setter(next);
                             setNewWidgetSnapKey(null);
                           }}

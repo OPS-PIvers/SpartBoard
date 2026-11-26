@@ -11,7 +11,6 @@ import {
   ListChecks,
   Loader2,
   Plus,
-  Search,
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
@@ -28,6 +27,7 @@ import {
 } from '@/utils/districtLibraryFolders';
 import type { DistrictLibraryItem } from '@/types/districtLibrary';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
+import { SearchField } from '@/components/common/SearchField';
 
 /** Each distinct source credited in an item's question notes, with how many questions it covers. */
 function itemSources(
@@ -283,21 +283,12 @@ export const DistrictLibraryModal: React.FC<DistrictLibraryModalProps> = ({
     });
 
   const searchBox = (
-    <div className="relative">
-      <Search
-        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-        aria-hidden
-      />
-      <input
-        type="search"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search the district library"
-        aria-label="Search the district library"
-        {...tourAttr('quiz.district-library.search')}
-        className="w-full rounded-xl border border-slate-200 bg-white py-1.5 pl-9 pr-3 text-sm font-medium text-slate-700 shadow-xs placeholder:text-slate-400"
-      />
-    </div>
+    <SearchField
+      value={search}
+      onChange={setSearch}
+      placeholder="Search the district library"
+      anchor={tourAttr('quiz.district-library.search')}
+    />
   );
 
   let body: React.ReactNode;

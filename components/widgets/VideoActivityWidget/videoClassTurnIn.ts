@@ -10,13 +10,17 @@ import {
 import { db } from '@/config/firebase';
 import type { VideoActivityResponse, VideoActivitySession } from '@/types';
 import { responseInClass } from '@/utils/assignedStatus';
-import { isLetIn } from '@/utils/periodAccess';
+import { staysOpenAtClose } from '@/utils/staysOpenAtClose';
 import { completionPatch } from '@/utils/videoActivityState';
 
 const SESSIONS = 'video_activity_sessions';
 const RESPONSES = 'responses';
 
 type Gate = (s: VideoActivitySession | undefined) => boolean;
+
+/** A blank join stays Not started: turning it in would spend an attempt on nothing. */
+const isBlank = (r: VideoActivityResponse): boolean =>
+  !Array.isArray(r.answers) || r.answers.length === 0;
 
 /** Turns in one closed class's unfinished video attempts (ASSIGNED_TAB D6); `closedAt` is the Close that scheduled it. */
 export async function finalizeClassVideoResponses(
@@ -40,16 +44,11 @@ export async function finalizeClassVideoResponses(
   const open = await getDocs(
     query(collection(sessionRef, RESPONSES), where('completedAt', '==', null))
   );
-  // A blank join stays Not started: turning it in would spend an attempt on nothing.
   const picked = open.docs.filter((d) => {
     const r = d.data() as VideoActivityResponse;
     return (
       responseInClass(r, classKey, label) &&
-      r.unlocked !== true &&
-      !(session.reopenedFor ?? []).includes(r.studentUid) &&
-      !isLetIn(session, r.studentUid, now) &&
-      Array.isArray(r.answers) &&
-      r.answers.length > 0
+      !staysOpenAtClose(session, r, now, { blank: isBlank(r) })
     );
   });
 
@@ -100,15 +99,9 @@ export async function finalizeRunVideoResponses(
   const open = await getDocs(
     query(collection(sessionRef, RESPONSES), where('completedAt', '==', null))
   );
-  // A blank join stays Not started: turning it in would spend an attempt on nothing.
   const picked = open.docs.filter((d) => {
     const r = d.data() as VideoActivityResponse;
-    return (
-      r.unlocked !== true &&
-      !(session.reopenedFor ?? []).includes(r.studentUid) &&
-      Array.isArray(r.answers) &&
-      r.answers.length > 0
-    );
+    return !staysOpenAtClose(session, r, now, { blank: isBlank(r) });
   });
   const results = await Promise.allSettled(
     picked.map((d) =>

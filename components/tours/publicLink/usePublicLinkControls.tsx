@@ -23,6 +23,7 @@ import {
   PublicLinkConfirm,
   type PublicLinkConfirmation,
 } from './PublicLinkConfirm';
+import { copyText } from '@/utils/copyText';
 
 export interface PublicLinkControls {
   /** The ⋯ menu's footer; null when the steps-view flag is off, so nothing new shows. */
@@ -131,11 +132,12 @@ export function usePublicLinkControls({
 
   const copy = async () => {
     if (status.kind !== 'on') return;
-    try {
-      await navigator.clipboard.writeText(status.url);
+    if (
+      await copyText(status.url, (err) =>
+        logError('publicLink.copy', err, { setId })
+      )
+    ) {
       setMessage(t('tourPublicLink.copied'));
-    } catch (err) {
-      logError('publicLink.copy', err, { setId });
     }
   };
 

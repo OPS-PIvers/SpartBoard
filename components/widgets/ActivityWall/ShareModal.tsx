@@ -21,6 +21,8 @@ import type { ActivityWallLibraryEntry, SharedActivityWall } from '@/types';
 import { isSandboxed } from '@/utils/tourSandbox';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
+import { copyText } from '@/utils/copyText';
+import { copyLinkWithToast } from '@/hooks/useCopyShortLink';
 
 type ShareTab = 'student' | 'gallery';
 
@@ -149,15 +151,15 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
   if (!isOpen) return null;
 
   const copyLink = async (url: string, key: string, successText: string) => {
-    try {
-      await navigator.clipboard.writeText(url);
+    if (
+      await copyLinkWithToast(url, addToast, {
+        success: successText,
+        failure:
+          'Could not copy automatically — select the link to copy manually.',
+        failureType: 'error',
+      })
+    ) {
       setCopiedKey(key);
-      addToast(successText, 'success');
-    } catch {
-      addToast(
-        'Could not copy automatically — select the link to copy manually.',
-        'error'
-      );
     }
   };
 
@@ -246,12 +248,8 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
 
       const primary = code ? buildShortLinkUrl(origin, code) : gallery;
       setCreatedUrl(primary);
-      try {
-        await navigator.clipboard.writeText(primary);
-        setCopiedKey('created');
-      } catch {
-        // Clipboard may be blocked — the link is selectable below.
-      }
+      // A blocked copy leaves the link selectable below.
+      if (await copyText(primary)) setCopiedKey('created');
     } catch (err) {
       console.error('[ActivityWallShareModal] Failed to create share:', err);
       setError('Could not create the gallery link. Please try again.');

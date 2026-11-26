@@ -117,11 +117,11 @@ interface WidgetWhatsNewProps {
   zIndex: number;
 }
 
-/** A widget's what's-new button below its window; teacher boards only (the subs portal has no AuthProvider). */
+/** A widget's what's-new button for users without What's New; teacher boards only (the subs portal has no AuthProvider). */
 export const WidgetWhatsNew: React.FC<WidgetWhatsNewProps> = (props) => {
   const auth = useContext(AuthContext);
-  // With the list in What's New, notes no longer float under each widget.
-  if (!auth || auth.canAccessFeature('widget-notes-in-whats-new')) return null;
+  // Notes live in What's New, which only org members have.
+  if (!auth?.isExternalUser) return null;
   return <WidgetWhatsNewNotice {...props} />;
 };
 

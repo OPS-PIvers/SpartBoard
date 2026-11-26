@@ -179,8 +179,7 @@ function setupMocks(dockItems: MockDockItem[]) {
     activeDashboard: null,
     updateWidget: vi.fn(),
     addToast: vi.fn(),
-    setPendingQuizShareId: vi.fn(),
-    setPendingAssignmentShareId: vi.fn(),
+    setPendingLibraryShare: vi.fn(),
     annotationActive: false,
     annotationState: { activeTool: 'pen' },
   } as unknown as ReturnType<typeof useDashboard>);

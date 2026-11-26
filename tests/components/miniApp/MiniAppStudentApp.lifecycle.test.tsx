@@ -367,7 +367,7 @@ describe('saves', () => {
     h.summary = { attemptCount: 5, payload: {} };
     const { container } = await mountFrame();
     expect(container.querySelector('iframe')).not.toBeNull();
-    expect(screen.queryByText('Turned in')).toBeNull();
+    expect(screen.queryByText('Submitted')).toBeNull();
   });
 });
 
@@ -398,6 +398,6 @@ describe('turn-in and exclusion', () => {
     await settle();
     expect(screen.getByRole('status')).toBeInTheDocument();
     expect(view.container.querySelector('iframe')).toBeNull();
-    expect(screen.queryByText('Turned in')).toBeNull();
+    expect(screen.queryByText('Submitted')).toBeNull();
   });
 });

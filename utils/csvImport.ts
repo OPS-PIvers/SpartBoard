@@ -6,14 +6,9 @@
 // call — this parser is the pure, network-free front-end piece that turns
 // raw text into a structured payload plus per-row errors.
 //
-// Intentionally dependency-free: a small RFC-4180-aware parser is inlined
-// below rather than pulling in papaparse/csv-parse, because the surface we
-// need (header-based lookup, quoted cells, CRLF) is tiny and the bulk-invite
-// path is load-bearing enough that we want it fully traceable here.
-//
-// `utils/rubricCsv.ts` duplicates this tokenizer for the rubric CSV import/
-// export flow rather than sharing it — keep both in sync if the RFC-4180
-// handling here changes.
+// Rows come from the shared RFC 4180 parser in `utils/csv.ts`.
+
+import { parseCsvLines } from '@/utils/csv';
 
 /** A single resolved invitation payload ready to send to `createOrganizationInvites`. */
 export interface InviteIntent {
@@ -55,88 +50,7 @@ export interface CsvParseOptions {
 const EMAIL_REGEX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const KNOWN_COLUMNS = new Set(['name', 'email', 'role', 'building']);
 
-// ---------------------------------------------------------------------------
-// RFC 4180 line/cell tokenization
-// ---------------------------------------------------------------------------
-
-/**
- * Split a CSV document into logical rows, honoring quoted fields that contain
- * embedded newlines. Both `\r\n` and `\n` are accepted as row terminators;
- * `\r` alone is treated as part of the line (rare in practice).
- *
- * Returned rows preserve their raw text (minus the terminator) so we can
- * echo them back in `CsvParseError.raw` for UI display.
- */
-function splitLogicalRows(
-  source: string
-): Array<{ text: string; line: number }> {
-  const rows: Array<{ text: string; line: number }> = [];
-  let current = '';
-  let line = 1;
-  let startLine = 1;
-  let inQuotes = false;
-  for (let i = 0; i < source.length; i++) {
-    const ch = source[i];
-    if (ch === '"') {
-      inQuotes = !inQuotes;
-      current += ch;
-      continue;
-    }
-    if (!inQuotes && (ch === '\n' || ch === '\r')) {
-      // Consume a paired \r\n as a single terminator.
-      if (ch === '\r' && source[i + 1] === '\n') i++;
-      rows.push({ text: current, line: startLine });
-      current = '';
-      line++;
-      startLine = line;
-      continue;
-    }
-    if (ch === '\n') line++;
-    current += ch;
-  }
-  if (current.length > 0) rows.push({ text: current, line: startLine });
-  return rows;
-}
-
-/**
- * Parse one CSV row into its individual cells, handling RFC 4180 quoting:
- * - Fields may be wrapped in double quotes; quotes inside a quoted field are
- *   escaped by doubling them (`""` → `"`).
- * - Cells are trimmed of surrounding whitespace after unquoting.
- */
-function parseRow(row: string): string[] {
-  const cells: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  for (let i = 0; i < row.length; i++) {
-    const ch = row[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (row[i + 1] === '"') {
-          current += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        current += ch;
-      }
-      continue;
-    }
-    if (ch === '"') {
-      inQuotes = true;
-      continue;
-    }
-    if (ch === ',') {
-      cells.push(current.trim());
-      current = '';
-      continue;
-    }
-    current += ch;
-  }
-  cells.push(current.trim());
-  return cells;
-}
+const trimmed = (cells: string[]) => cells.map((c) => c.trim());
 
 // ---------------------------------------------------------------------------
 // Resolution helpers
@@ -211,7 +125,7 @@ export function parseInvitesCsv(
     };
   }
 
-  const logicalRows = splitLogicalRows(source);
+  const logicalRows = parseCsvLines(source);
   if (logicalRows.length === 0) {
     return {
       valid: [],
@@ -220,8 +134,8 @@ export function parseInvitesCsv(
   }
 
   // Header row — lowercase, trim, build a column index.
-  const headerRaw = logicalRows[0].text;
-  const headerCells = parseRow(headerRaw).map((c) => c.toLowerCase());
+  const headerRaw = logicalRows[0].raw;
+  const headerCells = trimmed(logicalRows[0].cells).map((c) => c.toLowerCase());
   const columnIndex: Record<string, number> = {};
   headerCells.forEach((name, idx) => {
     if (KNOWN_COLUMNS.has(name) && !(name in columnIndex)) {
@@ -247,9 +161,9 @@ export function parseInvitesCsv(
   type DataRow = { line: number; raw: string; cells: string[] };
   const dataRows: DataRow[] = [];
   for (let i = 1; i < logicalRows.length; i++) {
-    const { text: raw, line } = logicalRows[i];
+    const { raw, line, cells } = logicalRows[i];
     if (!raw.trim()) continue;
-    dataRows.push({ line, raw, cells: parseRow(raw) });
+    dataRows.push({ line, raw, cells: trimmed(cells) });
   }
 
   if (dataRows.length === 0) {

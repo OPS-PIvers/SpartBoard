@@ -99,7 +99,7 @@ describe('AudioResponseCapture — closed recording window', () => {
 
     expect(screen.getByText(/Recording time is over/i)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Record/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /^Turn in$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Submit$/i })).toBeNull();
     expect(screen.queryByText(/Before you record/i)).toBeNull();
   });
 
@@ -271,7 +271,7 @@ describe('AudioResponseCapture — used-up budget', () => {
       takesCommitted: 1,
       latestArtifact: undefined,
     });
-    expect(screen.getByText('Turned in')).toBeTruthy();
+    expect(screen.getByText('Submitted')).toBeTruthy();
     expect(screen.queryByRole('button', { name: RECORD })).toBeNull();
   });
 
@@ -327,7 +327,7 @@ describe('AudioResponseCapture — cutoffs commit first (D16)', () => {
     fireEvent.click(
       await screen.findByRole('button', { name: /Stop recording/i })
     );
-    await screen.findByRole('button', { name: /^Turn in$/i });
+    await screen.findByRole('button', { name: /^Submit$/i });
 
     await commitActiveTake();
 
@@ -362,7 +362,7 @@ describe('AudioResponseCapture — cutoffs commit first (D16)', () => {
     fireEvent.click(
       await screen.findByRole('button', { name: /Stop recording/i })
     );
-    fireEvent.click(await screen.findByRole('button', { name: /^Turn in$/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Submit$/i }));
 
     let cutoffDone = false;
     const cutoff = commitActiveTake().then(() => {
@@ -422,7 +422,7 @@ describe('AudioResponseCapture — review setting', () => {
     expect(onCommit).toHaveBeenCalledWith(
       expect.objectContaining({ durationMs: 12_000 })
     );
-    expect(screen.queryByRole('button', { name: /^Turn in$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Submit$/i })).toBeNull();
     expect(screen.queryByRole('progressbar')).toBeNull();
   });
 
@@ -464,7 +464,7 @@ describe('AudioResponseCapture — review setting', () => {
       await screen.findByRole('button', { name: /Stop recording/i })
     );
     expect(
-      await screen.findByRole('button', { name: /^Turn in$/i })
+      await screen.findByRole('button', { name: /^Submit$/i })
     ).toBeTruthy();
     expect(onCommit).not.toHaveBeenCalled();
   });
@@ -529,7 +529,7 @@ describe('AudioResponseCapture — crash recovery', () => {
     });
 
     expect(await screen.findByText('Your saved attempt')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /^Turn in$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Submit$/i }));
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
     const [take] = onCommit.mock.calls[0] as unknown as [
       { blob: Blob; durationMs: number },
@@ -643,7 +643,7 @@ describe('AudioResponseCapture — attempts are redos', () => {
     const stop = await screen.findByRole('button', { name: /Stop recording/i });
     clock.now += 5_000;
     fireEvent.click(stop);
-    await screen.findByRole('button', { name: /^Turn in$/i });
+    await screen.findByRole('button', { name: /^Submit$/i });
   }
 
   it('shows the turned-in recording and offers Redo while attempts remain', async () => {
@@ -654,9 +654,9 @@ describe('AudioResponseCapture — attempts are redos', () => {
     );
 
     await recordAndStop(clock, /^Record$/i);
-    fireEvent.click(screen.getByRole('button', { name: /^Turn in$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Submit$/i }));
 
-    expect(await screen.findByText('Turned in')).toBeTruthy();
+    expect(await screen.findByText('Submitted')).toBeTruthy();
     expect(onCommit).toHaveBeenCalledTimes(1);
     expect(container.querySelector('audio')?.getAttribute('src')).toBe(
       'blob:take'
@@ -677,8 +677,8 @@ describe('AudioResponseCapture — attempts are redos', () => {
     await recordAndStop(clock, /^Record$/i);
     expect(screen.queryByRole('button', { name: /^Redo$/i })).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: /^Turn in$/i }));
-    expect(await screen.findByText('Turned in')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Submit$/i }));
+    expect(await screen.findByText('Submitted')).toBeTruthy();
     expect(onCommit).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('button', { name: RECORD })).toBeNull();
   });

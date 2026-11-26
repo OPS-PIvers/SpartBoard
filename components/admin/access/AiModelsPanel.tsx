@@ -20,7 +20,7 @@ import {
   PROMPT_LIMITED_INTEGRATIONS,
   defaultInputChars,
 } from '@/config/aiLimits';
-import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
+import { ChecklistSelect } from '@/components/common/ChecklistSelect';
 import { useGlobalPermissionsEditor } from './useGlobalPermissionsEditor';
 import {
   USAGE_WINDOW_DAYS,

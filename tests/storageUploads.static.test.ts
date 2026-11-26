@@ -9,7 +9,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 const FIX = [
   "Teacher-uploaded files (images, PDFs, notebooks, any material) go in the teacher's Google Drive, never Firebase Storage or a Firestore blob: Drive is free and unlimited, Storage is billed.",
-  "Upload with GoogleDriveService.uploadFile(blob, name, 'Assets/<Kind>') then makePublic(), and save https://lh3.googleusercontent.com/d/<id> (see useStorage().uploadHotspotImage); add the folder to DRIVE_UPLOAD_FOLDERS in hooks/useStorage.ts.",
+  "Upload with uploadDriveAsset(driveService, { blob, name, folder: 'Assets/<Kind>', audience }) from utils/driveAssetUpload.ts, and save driveImageUrl(id) (see useStorage().uploadHotspotImage); add the folder to DRIVE_UPLOAD_FOLDERS there.",
   'Storage is only for student work, admin/district assets and files a Cloud Function processes. If this is one of those, add it to the allowlist in tests/storageUploads.static.test.ts with its reason and name it in the PR so Paul can OK it.',
 ].join('\n');
 
@@ -37,8 +37,6 @@ const CLIENT_SDK_WRITES: Record<string, number> = {
 
 // References to useStorage's raw Storage helpers and uploadParsedNotebook, in files that import them, per file.
 const STORAGE_HELPER_CALLS: Record<string, number> = {
-  // A Drive uploader's uploadFile property, not Storage.
-  'components/import/course/CourseImportHost.tsx': 1,
   // Smart Notebook import by dropping a file on the board.
   'components/layout/DashboardView.tsx': 4,
   // Guided Learning video and audio (lh3 Drive links can't stream) and district set images.
@@ -247,5 +245,50 @@ describe('Firebase Storage upload guard', () => {
         STORAGE_HELPER_CALL
       )
     ).toHaveLength(4);
+  });
+});
+
+// Every Drive and Sheets request goes through utils/driveRequest.ts; every shared upload through utils/driveAssetUpload.ts.
+const DRIVE_LAYER_FIX =
+  'Send Drive and Sheets requests through DriveSession.request (utils/driveRequest.ts) for retry, timeout and token refresh. Share an uploaded file with uploadDriveAsset or copyDriveAsset (utils/driveAssetUpload.ts), never a hand-written uploadFile + makePublic.';
+
+const GOOGLE_FILE_API =
+  /googleapis\.com\/(?:upload\/)?drive|sheets\.googleapis\.com/;
+const RAW_FETCH = /\bfetch\(/g;
+const MAKE_PUBLIC_CALL = /\.makePublic\(/g;
+
+const RAW_DRIVE_FETCHES: Record<string, number> = {
+  'utils/driveRequest.ts': 1,
+};
+
+const MAKE_PUBLIC_CALLS: Record<string, number> = {
+  // The one asset helper.
+  'utils/driveAssetUpload.ts': 1,
+  // getShareableLink shares the file it links to.
+  'utils/googleDriveService.ts': 1,
+  // Re-shares pictures already on a paper sheet; nothing is uploaded.
+  'hooks/usePaperSheetImageSharing.ts': 1,
+};
+
+const clientFiles = () =>
+  sourceFiles(['*.ts', '*.tsx']).filter(
+    (f) => !f.startsWith('functions/') && !f.startsWith('extension/')
+  );
+
+describe('Drive request layer guard', () => {
+  it('calls the Drive and Sheets APIs only through DriveSession', () => {
+    expect(
+      countPerFile(clientFiles(), RAW_FETCH, (text) =>
+        GOOGLE_FILE_API.test(text)
+      ),
+      `New raw fetch to a Drive or Sheets URL.\n${DRIVE_LAYER_FIX}`
+    ).toEqual(sorted(RAW_DRIVE_FETCHES));
+  });
+
+  it('shares Drive files only through the asset helper', () => {
+    expect(
+      countPerFile(clientFiles(), MAKE_PUBLIC_CALL),
+      `New makePublic call.\n${DRIVE_LAYER_FIX}`
+    ).toEqual(sorted(MAKE_PUBLIC_CALLS));
   });
 });

@@ -397,7 +397,8 @@ function mergeDriveGrants(
 }
 
 export const useSharedCollection = () => {
-  const { ensureGoogleScope, googleAccessToken, user } = useAuth();
+  const { ensureGoogleScope, googleAccessToken, refreshGoogleToken, user } =
+    useAuth();
   const hostUid = user?.uid;
 
   /**
@@ -428,12 +429,12 @@ export const useSharedCollection = () => {
         ? null
         : isAuthBypass
           ? new MockQuizDriveService(drive)
-          : new QuizDriveService(drive);
+          : new QuizDriveService(drive, refreshGoogleToken);
       const glDrive = !drive
         ? null
         : isAuthBypass
           ? new MockGuidedLearningDriveService(drive)
-          : new GuidedLearningDriveService(drive);
+          : new GuidedLearningDriveService(drive, refreshGoogleToken);
       return {
         ...(calendarToken
           ? {
@@ -474,7 +475,7 @@ export const useSharedCollection = () => {
           : {}),
       };
     },
-    [ensureGoogleScope, googleAccessToken, hostUid]
+    [ensureGoogleScope, googleAccessToken, refreshGoogleToken, hostUid]
   );
 
   /**

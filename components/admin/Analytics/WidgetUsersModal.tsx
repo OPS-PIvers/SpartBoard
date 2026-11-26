@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowDown, ArrowDownUp, ArrowUp, Search } from 'lucide-react';
+import { ArrowDown, ArrowDownUp, ArrowUp } from 'lucide-react';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { Modal } from '@/components/common/Modal';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { canonicalBuildingId } from '@/config/buildings';
 import { formatRelativeTime } from './overviewMetrics';
 import { formatChange, percentChange, type WidgetUsage } from './widgetUsage';
+import { SearchField } from '@/components/common/SearchField';
 
 const NUMBER_FORMATTER = new Intl.NumberFormat();
 const formatNumber = (value: number) => NUMBER_FORMATTER.format(value);
@@ -193,17 +194,13 @@ export const WidgetUsersModal: React.FC<{
         ) : (
           <>
             <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  {...tourAttr('admin.analytics.widget-users-search')}
-                  type="text"
-                  placeholder="Search by email…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
+              <SearchField
+                value={search}
+                onChange={setSearch}
+                placeholder="Search by email…"
+                anchor={tourAttr('admin.analytics.widget-users-search')}
+                className="flex-1"
+              />
               <select
                 {...tourAttr('admin.analytics.widget-users-building')}
                 value={buildingFilter}

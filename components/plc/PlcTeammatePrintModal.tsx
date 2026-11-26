@@ -25,6 +25,7 @@ import { usePaperSheetStimulusImages } from '@/hooks/usePaperSheetStimulusImages
 import { usePaperTestStimulusFiles } from '@/hooks/usePaperTestStimulusFiles';
 import {
   teammateTestPaper,
+  teammateBoxImages,
   teammateQuizStimuli,
 } from '@/utils/paperTestStimuli';
 import { useAuth } from '@/context/useAuth';
@@ -47,6 +48,7 @@ import {
   type TeammatePrintRoster,
 } from '@/hooks/usePlcTeammatePrintContext';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { lastFirst } from '@/utils/studentName';
 
 const MAX_SPARES = 20;
 
@@ -133,7 +135,21 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
     () => context?.quiz.paperSheetStimuli ?? [],
     [context?.quiz.paperSheetStimuli]
   );
-  const sheetImages = usePaperSheetStimulusImages(sheetStimuli, {
+  const boxImages = useMemo(
+    () => teammateBoxImages(context?.quiz),
+    [context?.quiz]
+  );
+  const imageStimuli = useMemo(() => {
+    const seen = new Set(sheetStimuli.map((s) => s.id));
+    const out = [...sheetStimuli];
+    for (const s of boxImages.values()) {
+      if (seen.has(s.id)) continue;
+      seen.add(s.id);
+      out.push(s);
+    }
+    return out;
+  }, [sheetStimuli, boxImages]);
+  const sheetImages = usePaperSheetStimulusImages(imageStimuli, {
     publicOnly: true,
   });
   // The owner's question stimuli, fetched only through their shared links (D6).
@@ -145,6 +161,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
     publicOnly: true,
   });
   const failedStimulusNames = sheetImages.failed
+    .filter((stimulus) => stimulus.label)
     .map((stimulus) => `“${stimulus.label}”`)
     .join(', ');
   const printableStimuli = sheetStimuli.filter(
@@ -198,6 +215,13 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
     if (!context || !targetUid) return;
     setPrinting(true);
     setPrintError(null);
+    // A box whose image the owner never shared keeps printing as lines.
+    const writtenImages = Object.fromEntries(
+      [...boxImages].flatMap(([id, image]) => {
+        const src = sheetImages.src[image.id];
+        return src ? [[id, src]] : [];
+      })
+    );
     let result: CreateTeammatePaperBatchResult;
     try {
       result = await createTeammatePaperBatch({
@@ -212,6 +236,9 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
         spareCount,
         written: writtenOn,
         groups: true,
+        ...(Object.keys(writtenImages).length > 0
+          ? { boxImageQuestionIds: Object.keys(writtenImages) }
+          : {}),
       });
     } catch (err) {
       logError('PlcTeammatePrintModal.create', err, {
@@ -250,6 +277,9 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
               ),
               ...(result.blankAnswers
                 ? { blankAnswers: result.blankAnswers }
+                : {}),
+              ...(Object.keys(writtenImages).length > 0
+                ? { writtenImages }
                 : {}),
             }
           : {}),
@@ -544,7 +574,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
                         onChange={() => toggleStudent(student.id)}
                         className="h-4 w-4 rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
                       />
-                      {`${student.lastName}, ${student.firstName}`.trim()}
+                      {lastFirst(student)}
                     </label>
                   </li>
                 ))}

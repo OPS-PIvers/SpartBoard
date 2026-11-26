@@ -1,10 +1,10 @@
 import type { Student } from '@/types';
+import { compareLastFirst, lastFirstOrUnnamed } from '@/utils/studentName';
 
-export const lastFirst = (s: Student) =>
-  [s.lastName.trim(), s.firstName.trim()].filter(Boolean).join(', ') || s.id;
+export const lastFirst = lastFirstOrUnnamed;
 
 export const sortByLastName = (students: Student[]) =>
-  [...students].sort((a, b) => lastFirst(a).localeCompare(lastFirst(b)));
+  [...students].sort(compareLastFirst);
 
 export const ROW_BUTTON =
   'shrink-0 flex items-center gap-1.5 min-h-9 px-3 text-sm font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors';

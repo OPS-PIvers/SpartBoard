@@ -28,7 +28,10 @@ let sessionDoc: PollSessionDoc;
 
 vi.mock('@/config/firebase', () => ({
   db: {},
-  auth: { currentUser: { uid: 'voter-1' } },
+  auth: {
+    currentUser: { uid: 'voter-1', isAnonymous: true },
+    authStateReady: () => Promise.resolve(),
+  },
 }));
 vi.mock('firebase/auth', () => ({ signInAnonymously: mockSignInAnonymously }));
 vi.mock('firebase/firestore', () => ({

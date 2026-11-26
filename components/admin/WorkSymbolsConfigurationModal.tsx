@@ -21,6 +21,9 @@ import { Button } from '@/components/common/Button';
 import { Card } from '@/components/common/Card';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { WorkSymbolsConfigurationPanel } from './WorkSymbolsConfigurationPanel';
+import { Modal } from '@/components/common/Modal';
+import { useAuth } from '@/context/useAuth';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 
 interface WorkSymbolsConfigurationModalProps {
   isOpen: boolean;
@@ -59,6 +62,10 @@ export const WorkSymbolsConfigurationModal: React.FC<
   const uploadedThisSessionRef = useRef<Set<string>>(new Set());
 
   const { uploadAdminWorkSymbol, deleteFile } = useStorage();
+  const { canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
+  // File names of picked uploads, so each new symbol starts with its name as the title.
+  const pickedNamesRef = useRef<Map<string, string>>(new Map());
 
   // Sync state if permission.config changes externally
   const [prevConfig, setPrevConfig] = useState(permission.config);
@@ -126,6 +133,32 @@ export const WorkSymbolsConfigurationModal: React.FC<
     [addToast, setSymbols, uploadAdminWorkSymbol]
   );
 
+  const uploadPicked = async (file: File) => {
+    const url = await uploadAdminWorkSymbol(file);
+    uploadedThisSessionRef.current.add(url);
+    pickedNamesRef.current.set(url, file.name);
+    return url;
+  };
+
+  const addPickedSymbol = (url: string) => {
+    let name = pickedNamesRef.current.get(url);
+    pickedNamesRef.current.delete(url);
+    if (name === undefined) {
+      try {
+        name = decodeURIComponent(new URL(url).pathname.split('/').pop() ?? '');
+      } catch {
+        name = '';
+      }
+    }
+    const symbol: WorkSymbol = {
+      id: crypto.randomUUID(),
+      title: name.replace(/\.[^.]+$/, ''),
+      imageUrl: url,
+      buildings: [],
+    };
+    setSymbols((prev) => [...prev, symbol]);
+  };
+
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) {
       void handleFiles(e.target.files);
@@ -142,7 +175,9 @@ export const WorkSymbolsConfigurationModal: React.FC<
   const removeSymbol = (symbol: WorkSymbol) => {
     if (uploadedThisSessionRef.current.has(symbol.imageUrl)) {
       uploadedThisSessionRef.current.delete(symbol.imageUrl);
-      void deleteFile(symbol.imageUrl);
+      deleteFile(symbol.imageUrl).catch((err: unknown) =>
+        console.warn('[WorkSymbols] Failed to delete removed image', err)
+      );
     }
     setSymbols((prev) => prev.filter((s) => s.id !== symbol.id));
   };
@@ -191,7 +226,9 @@ export const WorkSymbolsConfigurationModal: React.FC<
 
   const handleClose = () => {
     for (const url of uploadedThisSessionRef.current) {
-      void deleteFile(url);
+      deleteFile(url).catch((err: unknown) =>
+        console.warn('[WorkSymbols] Failed to delete unsaved image', err)
+      );
     }
     uploadedThisSessionRef.current.clear();
     onClose();
@@ -200,28 +237,46 @@ export const WorkSymbolsConfigurationModal: React.FC<
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-3xl h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-200">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
-              <ImageIcon className="w-5 h-5 text-violet-600" />
-            </div>
-            <h2 className="text-lg font-bold text-slate-900">Work Symbols</h2>
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      zIndex="z-modal-nested"
+      maxWidth="max-w-3xl"
+      dismissible={false}
+      className="h-[85vh] overflow-hidden rounded-2xl bg-white shadow-2xl [&>div]:flex [&>div]:flex-col [&>div]:overflow-hidden"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-slate-200">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
+            <ImageIcon className="w-5 h-5 text-violet-600" />
           </div>
-          <button
-            onClick={handleClose}
-            {...tourTypeAttr('admin.widget-config.close', 'work-symbols')}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-slate-500" />
-          </button>
+          <h2 className="text-lg font-bold text-slate-900">Work Symbols</h2>
         </div>
+        <button
+          onClick={handleClose}
+          {...tourTypeAttr('admin.widget-config.close', 'work-symbols')}
+          className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+        >
+          <X className="w-5 h-5 text-slate-500" />
+        </button>
+      </div>
 
-        {/* Content */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-          {/* Upload Zone */}
+      {/* Content */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+        {unifiedPicker && (
+          <ImagePicker
+            multiple
+            maxBytes={MAX_FILE_SIZE}
+            tourScope={{ type: 'work-symbols', field: 'symbols' }}
+            upload={uploadPicked}
+            onChange={addPickedSymbol}
+          />
+        )}
+
+        {/* Upload Zone */}
+        {!unifiedPicker && (
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -267,172 +322,170 @@ export const WorkSymbolsConfigurationModal: React.FC<
               disabled={uploading}
             />
           </div>
+        )}
 
-          {/* Symbol Grid */}
-          {globalConfig.symbols.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center bg-white border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">
-              <ImageIcon className="w-12 h-12 mb-4 opacity-20" />
-              <p className="font-black uppercase tracking-widest text-xs">
-                No work symbols yet
-              </p>
-              <p className="text-xs mt-1">
-                Upload images above to create work symbols.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {globalConfig.symbols.map((symbol) => (
-                <Card
-                  key={symbol.id}
-                  padding="sm"
-                  hoverable
-                  className="flex flex-col gap-3 group"
-                >
-                  {/* Image preview */}
-                  <div className="relative aspect-square bg-slate-50 rounded-xl flex items-center justify-center overflow-hidden">
-                    <img
-                      src={symbol.imageUrl}
-                      alt={symbol.title}
-                      className="w-full h-full object-contain p-4"
-                      loading="lazy"
-                    />
-                    <button
-                      onClick={() => removeSymbol(symbol)}
-                      {...tourFieldAttr(
-                        'admin.widget-config.field',
-                        'work-symbols',
-                        `remove-${symbol.id}`
-                      )}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-600 p-1.5 z-10"
-                      title="Remove symbol"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Title input */}
-                  <input
-                    type="text"
+        {/* Symbol Grid */}
+        {globalConfig.symbols.length === 0 ? (
+          <div className="py-12 flex flex-col items-center justify-center bg-white border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">
+            <ImageIcon className="w-12 h-12 mb-4 opacity-20" />
+            <p className="font-black uppercase tracking-widest text-xs">
+              No work symbols yet
+            </p>
+            <p className="text-xs mt-1">
+              Upload images above to create work symbols.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {globalConfig.symbols.map((symbol) => (
+              <Card
+                key={symbol.id}
+                padding="sm"
+                hoverable
+                className="flex flex-col gap-3 group"
+              >
+                {/* Image preview */}
+                <div className="relative aspect-square bg-slate-50 rounded-xl flex items-center justify-center overflow-hidden">
+                  <img
+                    src={symbol.imageUrl}
+                    alt={symbol.title}
+                    className="w-full h-full object-contain p-4"
+                    loading="lazy"
+                  />
+                  <button
+                    onClick={() => removeSymbol(symbol)}
                     {...tourFieldAttr(
                       'admin.widget-config.field',
                       'work-symbols',
-                      `title-${symbol.id}`
+                      `remove-${symbol.id}`
                     )}
-                    value={symbol.title}
-                    onChange={(e) =>
-                      updateSymbolTitle(symbol.id, e.target.value)
-                    }
-                    className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-violet-400 focus:outline-hidden"
-                    placeholder="Symbol title..."
-                  />
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-600 p-1.5 z-10"
+                    title="Remove symbol"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
 
-                  {/* Building toggles */}
-                  {BUILDINGS.length > 1 && (
-                    <div className="space-y-1.5">
-                      <SettingsLabel
-                        as="span"
-                        id={`work-symbols-buildings-${symbol.id}`}
-                        className="px-1"
-                      >
-                        Buildings
-                      </SettingsLabel>
-                      <div
-                        role="group"
-                        aria-labelledby={`work-symbols-buildings-${symbol.id}`}
-                        className="flex flex-wrap gap-1.5"
-                      >
-                        {BUILDINGS.map((b) => {
-                          const isAssigned =
-                            symbol.buildings.length === 0 ||
-                            symbol.buildings.includes(b.id);
-                          const isExplicit = symbol.buildings.includes(b.id);
-                          const isAllBuildings = symbol.buildings.length === 0;
-                          return (
-                            <button
-                              key={b.id}
-                              {...tourFieldAttr(
-                                'admin.widget-config.field',
-                                'work-symbols',
-                                `building-${symbol.id}-${b.id}`
-                              )}
-                              onClick={() => {
-                                if (isAllBuildings) {
-                                  // Switching from "all" to explicit: set all except this one
-                                  const allExcept = BUILDINGS.map(
-                                    (x) => x.id
-                                  ).filter((id) => id !== b.id);
-                                  setSymbols((prev) =>
-                                    prev.map((s) =>
-                                      s.id === symbol.id
-                                        ? { ...s, buildings: allExcept }
-                                        : s
-                                    )
-                                  );
-                                } else {
-                                  toggleBuilding(symbol.id, b.id);
-                                }
-                              }}
-                              className={`px-2 py-1 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
-                                isAssigned
-                                  ? isExplicit || isAllBuildings
-                                    ? 'bg-violet-500 text-white border-violet-500 shadow-xs'
-                                    : 'bg-violet-100 text-violet-600 border-violet-200'
-                                  : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200 hover:text-slate-500'
-                              }`}
-                              title={
-                                isAllBuildings
-                                  ? 'Available to all buildings (click to remove)'
-                                  : isExplicit
-                                    ? 'Click to remove from this building'
-                                    : 'Click to add to this building'
-                              }
-                            >
-                              {b.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {symbol.buildings.length === 0 && (
-                        <p className="text-xxs text-slate-400 px-1">
-                          Available to all buildings
-                        </p>
-                      )}
-                    </div>
+                {/* Title input */}
+                <input
+                  type="text"
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'work-symbols',
+                    `title-${symbol.id}`
                   )}
-                </Card>
-              ))}
-            </div>
-          )}
+                  value={symbol.title}
+                  onChange={(e) => updateSymbolTitle(symbol.id, e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-violet-400 focus:outline-hidden"
+                  placeholder="Symbol title..."
+                />
 
-          {/* Building appearance defaults */}
-          <div className="pt-4 border-t border-slate-200">
-            <WorkSymbolsConfigurationPanel
-              config={globalConfig}
-              onChange={setGlobalConfig}
-            />
+                {/* Building toggles */}
+                {BUILDINGS.length > 1 && (
+                  <div className="space-y-1.5">
+                    <SettingsLabel
+                      as="span"
+                      id={`work-symbols-buildings-${symbol.id}`}
+                      className="px-1"
+                    >
+                      Buildings
+                    </SettingsLabel>
+                    <div
+                      role="group"
+                      aria-labelledby={`work-symbols-buildings-${symbol.id}`}
+                      className="flex flex-wrap gap-1.5"
+                    >
+                      {BUILDINGS.map((b) => {
+                        const isAssigned =
+                          symbol.buildings.length === 0 ||
+                          symbol.buildings.includes(b.id);
+                        const isExplicit = symbol.buildings.includes(b.id);
+                        const isAllBuildings = symbol.buildings.length === 0;
+                        return (
+                          <button
+                            key={b.id}
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'work-symbols',
+                              `building-${symbol.id}-${b.id}`
+                            )}
+                            onClick={() => {
+                              if (isAllBuildings) {
+                                // Switching from "all" to explicit: set all except this one
+                                const allExcept = BUILDINGS.map(
+                                  (x) => x.id
+                                ).filter((id) => id !== b.id);
+                                setSymbols((prev) =>
+                                  prev.map((s) =>
+                                    s.id === symbol.id
+                                      ? { ...s, buildings: allExcept }
+                                      : s
+                                  )
+                                );
+                              } else {
+                                toggleBuilding(symbol.id, b.id);
+                              }
+                            }}
+                            className={`px-2 py-1 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
+                              isAssigned
+                                ? isExplicit || isAllBuildings
+                                  ? 'bg-violet-500 text-white border-violet-500 shadow-xs'
+                                  : 'bg-violet-100 text-violet-600 border-violet-200'
+                                : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200 hover:text-slate-500'
+                            }`}
+                            title={
+                              isAllBuildings
+                                ? 'Available to all buildings (click to remove)'
+                                : isExplicit
+                                  ? 'Click to remove from this building'
+                                  : 'Click to add to this building'
+                            }
+                          >
+                            {b.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {symbol.buildings.length === 0 && (
+                      <p className="text-xxs text-slate-400 px-1">
+                        Available to all buildings
+                      </p>
+                    )}
+                  </div>
+                )}
+              </Card>
+            ))}
           </div>
-        </div>
+        )}
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-200">
-          <Button
-            variant="ghost"
-            onClick={handleClose}
-            {...tourTypeAttr('admin.widget-config.close', 'work-symbols')}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleSave}
-            {...tourTypeAttr('admin.widget-config.save', 'work-symbols')}
-            isLoading={isSaving}
-            icon={<Save className="w-4 h-4" />}
-          >
-            Save
-          </Button>
+        {/* Building appearance defaults */}
+        <div className="pt-4 border-t border-slate-200">
+          <WorkSymbolsConfigurationPanel
+            config={globalConfig}
+            onChange={setGlobalConfig}
+          />
         </div>
       </div>
-    </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-200">
+        <Button
+          variant="ghost"
+          onClick={handleClose}
+          {...tourTypeAttr('admin.widget-config.close', 'work-symbols')}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="primary"
+          onClick={handleSave}
+          {...tourTypeAttr('admin.widget-config.save', 'work-symbols')}
+          isLoading={isSaving}
+          icon={<Save className="w-4 h-4" />}
+        >
+          Save
+        </Button>
+      </div>
+    </Modal>
   );
 };

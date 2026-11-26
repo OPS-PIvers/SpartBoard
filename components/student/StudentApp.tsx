@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { signInAnonymously, signOut } from 'firebase/auth';
+import { signOut } from 'firebase/auth';
 import { auth } from '@/config/firebase';
-import { dropPinLogin } from '@/utils/pinLoginScope';
+import { useStudentAuthBootstrap } from '@/hooks/useStudentAuthBootstrap';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { StudentLobby } from './StudentLobby';
-import { TeacherPreviewBanner } from './TeacherPreviewBanner';
 import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
-import { Cast, Snowflake, Radio } from 'lucide-react';
+import { Snowflake, Radio } from 'lucide-react';
 import { WidgetData, DEFAULT_GLOBAL_STYLE, LiveSession } from '@/types';
 import { getDefaultWidgetConfig } from '@/utils/widgetHelpers';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
@@ -35,54 +34,13 @@ export const StudentApp = () => {
   return <StudentAppInner />;
 };
 
-/** Static read-only preview of the live-session join lobby for teachers.
- * Mirrors the visual structure of `StudentLobby` but with inert inputs and
- * a disabled button so a curious user can't enter a code/PIN that silently
- * goes nowhere. */
+/** The live-session join card for teachers, inert, under the preview banner. */
 const StudentPreviewLobby: React.FC = () => (
-  <div className="h-screen h-dvh overflow-y-auto bg-slate-900 flex flex-col">
-    <TeacherPreviewBanner />
-    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-200">
-      <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mb-6 shadow-xl ring-1 ring-slate-700">
-        <Cast className="text-indigo-500 w-8 h-8" />
-      </div>
-      <h1 className="text-3xl font-black text-white mb-2 tracking-tight">
-        Classroom Live
-      </h1>
-      <p className="text-slate-400 text-sm mb-8">
-        Join your teacher&apos;s session
-      </p>
-      <div className="w-full max-w-sm space-y-4" aria-hidden="true">
-        <input
-          type="text"
-          readOnly
-          tabIndex={-1}
-          placeholder="Teacher ID / Room Code"
-          className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-hidden font-mono text-center tracking-widest uppercase cursor-default"
-        />
-        <input
-          type="text"
-          readOnly
-          tabIndex={-1}
-          placeholder="Your PIN"
-          className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-hidden text-center font-mono tracking-widest cursor-default"
-        />
-        <button
-          type="button"
-          disabled
-          tabIndex={-1}
-          className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-indigo-900/50 disabled:opacity-50 cursor-not-allowed mt-4"
-        >
-          Join Session
-        </button>
-      </div>
-    </div>
-  </div>
+  <StudentLobby preview onJoin={() => undefined} isLoading={false} />
 );
 
 const StudentAppInner: React.FC = () => {
   const [joinedCode, setJoinedCode] = useState<string | null>(null);
-  const [authInitialized, setAuthInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [windowSize, setWindowSize] = useState({
@@ -105,61 +63,23 @@ const StudentAppInner: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Sign in anonymously when component mounts — but only if there's no
-  // existing user. An SSO-authenticated student who lands on `/join`
-  // (bookmark, stale link, etc.) must keep their custom-token session;
-  // unconditional `signInAnonymously` would silently demote them and then
-  // `RequireStudentAuth` would bounce them off `/my-assignments` on return.
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        // Wait for hydration so the `auth.currentUser` check below reflects
-        // the persisted IndexedDB state, not the synchronous null seen on a
-        // fresh page load. If hydration itself rejects (e.g. IndexedDB
-        // blocked in a private window), fall through and let the anonymous
-        // sign-in attempt run as a last resort — /join's pre-existing
-        // contract is that the lobby should always end up with *some* auth
-        // user for `useLiveSession` to attach to, and signInAnonymously is
-        // a better fallback than rendering the lobby with no auth at all.
-        try {
-          await auth.authStateReady();
-        } catch (hydrationErr) {
-          console.warn(
-            '[StudentApp] authStateReady failed; falling through to anonymous sign-in.',
-            hydrationErr
-          );
-        }
-        if (!auth.currentUser) {
-          await signInAnonymously(auth);
-        } else {
-          await dropPinLogin(auth);
-        }
-        setAuthInitialized(true);
-      } catch (error) {
-        // - This component treats anonymous-auth failures as non-fatal so the UI can still proceed.
-        // - Session join behavior (including any ID fallback) is handled within the useLiveSession hook.
-        // Because this failure is non-fatal for core functionality, we log a warning
-        // instead of an error, but include guidance for common misconfiguration issues.
-        console.warn(
-          'Anonymous auth failed. If this is a restricted operation error, please ensure "Anonymous" provider is enabled in Firebase Console -> Authentication -> Sign-in method.',
-          error
-        );
-        // We still mark auth as initialized so that downstream hooks can run their own fallback logic.
-        setAuthInitialized(true);
-      }
-    };
+  // /join keeps going on a failed sign-in so useLiveSession can run its own fallback.
+  const { ready: authInitialized } = useStudentAuthBootstrap({
+    continueOnHydrationError: true,
+    label: 'StudentApp',
+  });
 
-    void initAuth();
-
-    // Cleanup anonymous session on unmount
-    return () => {
+  // Anonymous /join visitors are signed out when they leave.
+  useEffect(
+    () => () => {
       if (auth.currentUser?.isAnonymous) {
         void signOut(auth).catch((err) =>
           console.error('Failed to sign out on unmount:', err)
         );
       }
-    };
-  }, []);
+    },
+    []
+  );
 
   // Hook usage for 'student' role
   const {

@@ -256,6 +256,7 @@ const hasNoStudentKey = (kind: GradeKind, docId: string): boolean =>
 interface TargetingInfo {
   assigned: boolean;
   pointerDueAt: number | null;
+  pointerCloseAt: number | null;
 }
 
 /** D25: with individual targeting, only students holding a live pointer are assigned. */
@@ -264,7 +265,10 @@ async function targetingFor(
   meta: SessionMeta,
   studentUid: string
 ): Promise<TargetingInfo> {
-  if (!meta.individualTargeting) return { assigned: true, pointerDueAt: null };
+  const none = { pointerDueAt: null, pointerCloseAt: null };
+  // A class-wide session saved with per-student windows still reads the pointer for its close.
+  if (!meta.individualTargeting && !meta.studentWindows)
+    return { assigned: true, ...none };
   const pointer = await db
     .collection('student_assignments')
     .doc(studentUid)
@@ -272,17 +276,20 @@ async function targetingFor(
     .doc(meta.assignmentId)
     .get();
   const data = pointer.data();
-  if (
-    !pointer.exists ||
-    !data ||
-    data.excluded === true ||
-    isForeignPointer(data, {
+  const live =
+    pointer.exists &&
+    !!data &&
+    data.excluded !== true &&
+    !isForeignPointer(data, {
       sessionId: meta.sessionId,
       teacherUid: meta.ownerUid,
-    })
-  )
-    return { assigned: false, pointerDueAt: null };
-  return { assigned: true, pointerDueAt: toMillis(data.dueAt) };
+    });
+  if (!live || !data) return { assigned: !meta.individualTargeting, ...none };
+  return {
+    assigned: true,
+    pointerDueAt: toMillis(data.dueAt),
+    pointerCloseAt: meta.studentWindows ? toMillis(data.closeAt) : null,
+  };
 }
 
 async function buildRow(
@@ -303,6 +310,7 @@ async function buildRow(
       typeof previous?.createdAt === 'number' ? previous.createdAt : null,
     assigned: targeting.assigned,
     pointerDueAt: targeting.pointerDueAt,
+    pointerCloseAt: targeting.pointerCloseAt,
     now,
   });
 }

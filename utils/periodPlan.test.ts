@@ -164,6 +164,59 @@ describe('buildPeriodGate', () => {
     ).toBeUndefined();
   });
 
+  it('gates one class or no bell schedule on every class, open on the shared window', () => {
+    const one = buildPeriodGate({
+      plan: undefined,
+      rosters: [sso],
+      sharedWindow: { openAt: 5, closeAt: 9 },
+      bellWindow: undefined,
+      everyClass: true,
+    });
+    expect(one?.accessMode).toBe('assignment');
+    expect(one?.periodAccess['cl-1']).toMatchObject({
+      state: 'open',
+      openAt: 5,
+      closeAt: 9,
+    });
+    const many = buildPeriodGate({
+      plan: {
+        mode: 'assignment',
+        rows: { r2: { source: 'custom', openAt: 6, closeAt: 8 } },
+      },
+      rosters: [sso, test],
+      sharedWindow: { openAt: 5, closeAt: 9 },
+      bellWindow: undefined,
+      everyClass: true,
+    });
+    expect(many?.periodAccess['t-3']).toMatchObject({ openAt: 6, closeAt: 8 });
+    expect(many?.periodAccess['cl-1']).toMatchObject({ openAt: 5, closeAt: 9 });
+  });
+
+  it('keeps Manual closed until started with every class on', () => {
+    const gate = buildPeriodGate({
+      plan: undefined,
+      rosters: [sso],
+      sharedWindow: {},
+      bellWindow: undefined,
+      manualStart: true,
+      everyClass: true,
+    });
+    expect(gate?.accessMode).toBe('assessment');
+    expect(gate?.periodAccess['cl-1'].state).toBe('closed');
+  });
+
+  it('still needs a class with every class on', () => {
+    expect(
+      buildPeriodGate({
+        plan: undefined,
+        rosters: [],
+        sharedWindow: {},
+        bellWindow: undefined,
+        everyClass: true,
+      })
+    ).toBeUndefined();
+  });
+
   it('gates a single class for a manual start, closed until started', () => {
     const gate = buildPeriodGate({
       plan: { mode: 'assignment' },

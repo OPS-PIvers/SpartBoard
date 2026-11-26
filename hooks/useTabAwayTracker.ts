@@ -164,11 +164,11 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
     lastLeaveRef.current = now;
     guardRef.current = true;
 
-    // A prompt that held focus past its window counts from when focus left.
-    const open: OpenExit =
-      promptLoss && !isPermissionPromptOpen()
-        ? promptLoss
-        : { leftAt: now, leftAtPerf: performance.now() };
+    // A held focus loss counts from when focus left: past the prompt's window, or once the page hides.
+    const open: OpenExit = promptLoss ?? {
+      leftAt: now,
+      leftAtPerf: performance.now(),
+    };
     openRef.current = open;
     setAway({ leftAtPerf: open.leftAtPerf, durationMs: null, outcome: null });
     const exits = currentExits();

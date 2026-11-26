@@ -23,7 +23,10 @@ vi.mock('@/hooks/useStorage', () => ({
 }));
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { email: 'admin@test.com' } }),
+  useAuth: () => ({
+    user: { email: 'admin@test.com' },
+    canAccessFeature: () => false,
+  }),
 }));
 
 vi.mock('@/context/useDialog', () => ({

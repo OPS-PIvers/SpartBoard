@@ -3,6 +3,7 @@ import type * as admin from '../firebaseAdmin';
 import {
   buildWidgetConfig,
   canUseWidget,
+  loadWidgetAccessContext,
   widgetConfigSources,
   type WidgetAccessContext,
 } from './boardConfig';
@@ -10,6 +11,7 @@ import { checkWidgetSettings } from './widgetConfigValidator';
 import { WIDGET_CONFIG_RUNTIME } from './widgetConfigRuntime.gen';
 import { WIDGET_CONFIG_SCHEMAS } from './widgetConfigSchemas.gen';
 import { WIDGET_TYPE_LIST } from './widgetTypeList';
+import { makeStubFirestore } from '../testing/stubFirestore';
 
 const archive = vi.hoisted(() => ({
   featureGranted: true,
@@ -402,5 +404,27 @@ describe('canUseWidget', () => {
       }
     );
     expect((await canUseWidget(ctx({ isAdmin: true }), 'nope')).ok).toBe(false);
+  });
+});
+
+describe('loadWidgetAccessContext', () => {
+  const EMAIL = 'boss@orono.k12.mn.us';
+  const load = (seed: Record<string, Record<string, unknown>>) =>
+    loadWidgetAccessContext(
+      makeStubFirestore(seed).db as unknown as admin.firestore.Firestore,
+      'u1',
+      'Boss@Orono.k12.mn.us'
+    );
+
+  it('marks a live admin as an admin', async () => {
+    expect((await load({ [`admins/${EMAIL}`]: {} })).isAdmin).toBe(true);
+  });
+
+  it('SECURITY: does not mark a deactivated admin as an admin', async () => {
+    const ctx = await load({
+      [`admins/${EMAIL}`]: {},
+      [`organizations/orono/members/${EMAIL}`]: { status: 'deactivated' },
+    });
+    expect(ctx.isAdmin).toBe(false);
   });
 });

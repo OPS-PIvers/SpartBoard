@@ -1,21 +1,13 @@
 import type * as admin from './firebaseAdmin';
+import { isLiveAdmin } from './authz';
 import { canonicalizeBuildingIdsServer } from './buildingIds';
 import { normalizeEmailDomain, resolveOrgIdForDomain } from './classlinkShared';
 import { missingDocAccess } from './featureMissingDoc';
 import { isExcludedFrom } from './permissionExclusion';
+import { INTERNAL_TIER_DOMAINS, TIER_RANK } from './userTierServer';
 
 // Feature gates kept apart from quizMediaArchive so callers don't load quiz media to check a flag.
 type Firestore = admin.firestore.Firestore;
-
-/** Mirrors `INTERNAL_TIER_DOMAINS` in `utils/userTier.ts`. */
-const INTERNAL_TIER_DOMAINS: readonly string[] = ['orono.k12.mn.us'];
-
-/** Mirrors the `free < org < internal` ordering in `utils/userTier.ts`. */
-const TIER_RANK: Readonly<Record<string, number>> = {
-  free: 0,
-  org: 1,
-  internal: 2,
-};
 
 /** Server twin of `meetsMinTier` — an unset floor imposes no restriction. */
 export function meetsMinTierServer(tier: string, minTier: unknown): boolean {
@@ -94,7 +86,7 @@ export async function isGlobalFeatureGranted(
   const snap = await db.collection('global_permissions').doc(featureId).get();
   const email = (teacherEmail ?? '').toLowerCase();
   const isAdmin = async (): Promise<boolean> =>
-    !!email && (await db.collection('admins').doc(email).get()).exists;
+    !!email && (await isLiveAdmin(db, email));
   if (!snap.exists) {
     const access = missingDocAccess(featureId);
     if (access.audience === 'nobody') return false;
@@ -156,11 +148,10 @@ export async function isWidgetGranted(
   teacherUid: string
 ): Promise<boolean> {
   const email = (teacherEmail ?? '').toLowerCase();
-  const [snap, adminDoc] = await Promise.all([
+  const [snap, isAdmin] = await Promise.all([
     db.collection('feature_permissions').doc(widgetType).get(),
-    email ? db.collection('admins').doc(email).get() : null,
+    email ? isLiveAdmin(db, email) : false,
   ]);
-  const isAdmin = !!adminDoc?.exists;
   if (!snap.exists) {
     if (isAdmin) return true;
     // Lazy: only a widget with no permission doc needs the generated defaults.
@@ -187,4 +178,21 @@ export async function isWidgetGranted(
     email,
     teacherUid
   );
+}
+
+/** Preview flag for every server turn-in beyond a Video Activity class Close, which shipped first. */
+export const SERVER_TURN_IN_FEATURE = 'server-turn-in';
+
+/** Whether a run's teacher has the server turn-in preview; false when the teacher can't be found. */
+export async function serverTurnInGranted(
+  db: Firestore,
+  teacherUid: unknown
+): Promise<boolean> {
+  if (typeof teacherUid !== 'string' || !teacherUid) return false;
+  const { auth } = await import('./firebaseAdmin');
+  const email = await auth()
+    .getUser(teacherUid)
+    .then((u) => u.email ?? null)
+    .catch(() => null);
+  return isGlobalFeatureGranted(db, SERVER_TURN_IN_FEATURE, email, teacherUid);
 }

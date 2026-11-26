@@ -84,7 +84,7 @@ export function createFakeDb(docs: Record<string, Data>) {
       query(() =>
         list().filter((d) => {
           const arr = d.get(field);
-          return Array.isArray(arr) && arr.includes(value);
+          return Array.isArray(arr) ? arr.includes(value) : arr === value;
         })
       ),
     limit: (n) => query(() => list().slice(0, n)),

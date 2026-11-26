@@ -6,7 +6,6 @@ import type { MiniAppAssignment } from '@/types';
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
-    canSeeShareTracking: () => false,
     canAccessFeature: () => true,
   }),
 }));

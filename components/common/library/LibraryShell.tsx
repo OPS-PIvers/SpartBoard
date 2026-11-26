@@ -7,7 +7,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react';
-import { OverflowMenu } from '@/components/common/sessionViews/OverflowMenu';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
 import { tourAttr, tourTypeAttr, tourFieldAttr } from '@/config/tourAnchors';
 import type {
   LibraryShellProps,
@@ -359,7 +359,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                     items={action.menuItems}
                     ariaLabel={action.label}
                     triggerTitle={labelsHidden ? action.label : undefined}
-                    triggerProps={anchor}
+                    triggerAnchor={anchor}
                     tourId="library-shell.secondary-menu-item"
                     tourScope={widgetType ?? 'library'}
                     triggerClassName="gap-1.5 rounded-xl font-bold shadow-xs active:scale-95 bg-white/15 hover:bg-white/25 text-white border border-white/30"
@@ -407,7 +407,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                     triggerTitle={
                       labelsHidden ? primaryAction.label : undefined
                     }
-                    triggerProps={
+                    triggerAnchor={
                       widgetType
                         ? tourTypeAttr('library-shell.new', widgetType)
                         : tourAttr('library-shell.new')

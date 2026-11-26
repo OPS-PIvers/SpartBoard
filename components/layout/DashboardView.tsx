@@ -86,6 +86,7 @@ import {
   toggleBoxSelected,
 } from '@/components/common/boxSelectionStore';
 import { ToastContainer } from '@/components/common/ToastContainer';
+import { ViewAsSaveNotice } from '@/components/viewAs/ViewAsSaveNotice';
 import {
   DEFAULT_GLOBAL_STYLE,
   LiveStudent,
@@ -235,10 +236,7 @@ export const DashboardView: React.FC = () => {
     setZoom,
     // Pending share ids — read here only to decide whether to mount the
     // lazy DeepLinkShareImporter (which owns the clear*/import machinery).
-    pendingQuizShareId,
-    pendingAssignmentShareId,
-    pendingVideoActivityShareId,
-    pendingRubricShareId,
+    pendingLibraryShare,
     pendingSharedCollectionId,
     clearPendingSharedCollection,
     // Widget grouping
@@ -293,13 +291,7 @@ export const DashboardView: React.FC = () => {
   // 5 Firestore listeners. Adjusting state during render (rather than in an
   // effect) mounts the child in the same pass, with the pending id still set.
   const [mountShareImporter, setMountShareImporter] = React.useState(false);
-  if (
-    !mountShareImporter &&
-    (pendingQuizShareId ||
-      pendingAssignmentShareId ||
-      pendingVideoActivityShareId ||
-      pendingRubricShareId)
-  ) {
+  if (!mountShareImporter && pendingLibraryShare) {
     setMountShareImporter(true);
   }
 
@@ -1904,6 +1896,7 @@ export const DashboardView: React.FC = () => {
       </LazyChunkErrorBoundary>
       <AnnotationOverlay />
       <ToastContainer />
+      <ViewAsSaveNotice />
       <AnnouncementOverlay />
       {canAccessFeature('group-reminders') &&
         canAccessFeature('group-schedules') && <GroupReminderHost />}

@@ -3,20 +3,20 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import type { ClassRoster, QuizAssignment } from '@/types';
 
-// Stub AssignClassPicker to a controlled checkbox list. The real
-// component pulls in ClassLink helpers and visual chrome we don't need
+// Stub ClassChecklist to a controlled checkbox list. The real
+// component pulls in Courses and visual chrome we don't need
 // for this behavioral test — focus on the modal's own contracts: which
 // roster ids it gathers, what it derives, what it forwards to onSave.
-vi.mock('@/components/common/AssignClassPicker', () => ({
-  AssignClassPicker: ({
+vi.mock('@/components/common/library/assignStepper/ClassChecklist', () => ({
+  ClassChecklist: ({
     rosters,
     value,
     onChange,
     disabled,
   }: {
     rosters: ClassRoster[];
-    value: { rosterIds: string[] };
-    onChange: (next: { rosterIds: string[] }) => void;
+    value: { classIds: string[] };
+    onChange: (next: { classIds: string[]; studentsByClass: object }) => void;
     disabled?: boolean;
   }) => (
     <div data-testid="picker">
@@ -26,12 +26,13 @@ vi.mock('@/components/common/AssignClassPicker', () => ({
             type="checkbox"
             data-testid={`roster-${r.id}`}
             disabled={disabled}
-            checked={value.rosterIds.includes(r.id)}
+            checked={value.classIds.includes(r.id)}
             onChange={(e) =>
               onChange({
-                rosterIds: e.target.checked
-                  ? [...value.rosterIds, r.id]
-                  : value.rosterIds.filter((id) => id !== r.id),
+                classIds: e.target.checked
+                  ? [...value.classIds, r.id]
+                  : value.classIds.filter((id) => id !== r.id),
+                studentsByClass: {},
               })
             }
           />

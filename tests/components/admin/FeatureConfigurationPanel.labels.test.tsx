@@ -11,6 +11,10 @@ vi.mock('@/hooks/useAdminBuildings', () => ({
 
 import { FeatureConfigurationPanel } from '@/components/admin/FeatureConfigurationPanel';
 
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
+
 afterEach(cleanup);
 
 const tool: ToolMetadata = {

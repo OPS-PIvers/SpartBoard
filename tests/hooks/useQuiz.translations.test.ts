@@ -334,3 +334,39 @@ describe('duplicateQuiz — sidecars copied, index rebuilt', () => {
     expect(payloads[payloads.length - 1]).not.toHaveProperty('translations');
   });
 });
+
+describe('deleteQuiz — sidecars go with the quiz', () => {
+  it('deletes every translation sidecar in the index', async () => {
+    const key = `mock_quiz_drive:${UID}:seed-del-es`;
+    localStorage.setItem(key, JSON.stringify({ locale: 'es' }));
+    (firestore.getDoc as unknown as Mock).mockResolvedValue({
+      exists: () => true,
+      data: () =>
+        metaWith(
+          {},
+          {
+            translations: { es: { ...entry({}), driveFileId: 'seed-del-es' } },
+          }
+        ),
+    });
+    const { result } = renderHook(() => useQuiz(UID));
+
+    await act(async () => {
+      await result.current.deleteQuiz(QUIZ_DATA.id, 'drive-file-tr');
+    });
+
+    expect(firestore.deleteDoc).toHaveBeenCalled();
+    expect(localStorage.getItem(key)).toBeNull();
+  });
+
+  it('still deletes the quiz when the index cannot be read', async () => {
+    (firestore.getDoc as unknown as Mock).mockRejectedValue(new Error('x'));
+    const { result } = renderHook(() => useQuiz(UID));
+
+    await act(async () => {
+      await result.current.deleteQuiz(QUIZ_DATA.id, 'drive-file-tr');
+    });
+
+    expect(firestore.deleteDoc).toHaveBeenCalled();
+  });
+});

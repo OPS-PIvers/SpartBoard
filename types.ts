@@ -2722,6 +2722,10 @@ export interface ActivityWallLibraryEntry {
   allowLikes?: boolean;
   allowComments?: boolean;
   allowCommentResponses?: boolean;
+  /** Library folder; absent or null at the top level. */
+  folderId?: string | null;
+  /** Manual library order. */
+  order?: number;
 }
 
 export interface ActivityWallBuildingConfig {
@@ -2765,6 +2769,10 @@ export interface ActivityWallConfig {
   activeActivityId?: string | null;
   /** Whose library the active wall is in, so other members of a shared board can find it. */
   activeActivityOwnerUid?: string | null;
+  /** The wall the library was opened over; the library shows while that wall stays open. */
+  libraryOverWallId?: string | null;
+  libraryViewMode?: 'grid' | 'list';
+  folderPanelMode?: 'auto' | 'full' | 'rail' | 'hidden';
   draftActivity?: ActivityWallActivity;
   /** Photo size on the widget face. */
   imageSize?: 'small' | 'medium' | 'large';
@@ -5642,6 +5650,8 @@ export interface PeriodAccess {
   closedAt?: number | null;
   /** Epoch ms the teacher last opened or resumed this class (ASSIGNED_TAB D11). */
   openedAt?: number | null;
+  /** Quiz: this class's closed pauses, which its students' time limit skips. */
+  pauseSpans?: PauseSpan[];
 }
 
 export type AccessMode = 'assessment' | 'assignment';
@@ -6768,6 +6778,8 @@ export type PaperPageItem =
       headTopMm?: number;
       /** With `headTopMm`: height of the stem's lines; the instruction prints under them. */
       stemMm?: number;
+      /** Question-text sheets: top of the section heading printed above this question. */
+      sectionTopMm?: number;
     }
   | {
       kind: 'written';
@@ -6782,6 +6794,8 @@ export type PaperPageItem =
       blanks?: number;
       /** A later page of a multi-page answer; its crop joins the first page's. */
       continued?: true;
+      /** Question-text sheets: top of the section heading printed above this question. */
+      sectionTopMm?: number;
     };
 
 /** How a matching, ordering or choose all question reads its bubbles: `all` fills several in one row, `match` one row per term, `order` one row per position (or per item, bubbling its position, when `across`). */
@@ -8291,6 +8305,8 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
   dueAtHasTime?: boolean;
   /** Stamped by assigns that carry their own rules; only then does the player honor shuffle, right/wrong and reveal answer. */
   answerRulesSet?: boolean;
+  /** Stamped with the va-student-tab-rules flag: each student's tab accommodations apply. */
+  studentTabRules?: boolean;
 }
 
 /** VA counterpart of QuizBehaviorSettings. */
@@ -9427,6 +9443,8 @@ export interface WebTourBinding {
   doneWhen?: WebTourCondition;
   /** The https page Go and a start on this step open; absent = the address guessed from `urlPattern`. */
   openUrl?: string;
+  /** Lights every control like the recorded one, and the learner may pick any of them. */
+  pickAny?: true;
 }
 
 export interface WebTourStudentDataCheck {
@@ -11808,6 +11826,8 @@ export interface Toast {
   };
   /** Set while the toast eases out, just before it is removed. */
   leaving?: boolean;
+  /** A newer toast with the same key replaces this one. */
+  replaceKey?: string;
 }
 
 export type WidgetCategory =
@@ -11893,6 +11913,8 @@ export type GlobalFeature =
   | 'freshservice-sync'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
+  /** Video Activity honors each student's tab-warning and away-limit accommodations. */
+  | 'va-student-tab-rules'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
   | 'quiz-stimulus-quotes'
   /** Students cross out multiple-choice options while they work; display only, never graded. */
@@ -11983,8 +12005,22 @@ export type GlobalFeature =
   | 'google-tasks-sync'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/shipped/TEAMS_REDESIGN.md T22). */
   | 'plc-goal-coach'
+  /** Generate with AI on a Help Center tour: fills its title, description, category, audience and widgets. */
+  | 'help-center-ai'
+  /** Video Activity share links offer Synced or Make a copy, like quiz assignment links. */
+  | 'video-activity-share-sync'
+  /** Flashcards and Rubrics shared with a group can push the teacher's edits to the shared copy. */
+  | 'plc-update-shared-copy'
+  /** Every Classroom and Schoology grade push sends the gradebook final score, built on the server (AB-389). */
+  | 'lms-push-final-scores'
+  /** Class Close, End and sub End turn open work in from the server, with no teacher tab open (AB-388). */
+  | 'server-turn-in'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
+  /** Dialogs opened from a widget take its library color for the header and brand-blue buttons. */
+  | 'widget-colored-dialogs'
+  /** One shared image picker everywhere an image is added: upload, paste, drop, Google Drive or an image link. */
+  | 'unified-image-picker'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Fill in the blank: Dropdown and Drag blank types beside Typed (docs/plans/QUIZ_MCA_PRACTICE.md M6). */
@@ -12046,15 +12082,17 @@ export type GlobalFeature =
   /** Teachers record their voice for a quiz question prompt. */
   | 'quiz-question-audio'
   | 'quiz-random-numbers'
-  /** Widget update notes listed in the sidebar What's New instead of a button under each widget. */
-  | 'widget-notes-in-whats-new'
   /** Live tours on the /subs portal: the help button subs see and the Substitutes audience. */
   | 'subs-live-tours'
   | 'student-live-tours'
   | 'assign-open-check'
   | 'modification-fewer-questions'
   /** Quiz monitor "Set a time": one student's own window past a paused class. */
-  | 'student-set-time';
+  | 'student-set-time'
+  /** Per-student Opens and Closes hold in every student app, and a later close for one student no longer keeps the class open. */
+  | 'student-windows'
+  | 'library-duplicate-more'
+  | 'activity-wall-library-face';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {
@@ -13294,7 +13332,8 @@ export type LibraryFolderWidget =
   | 'miniapp'
   | 'flashcards'
   | 'projects'
-  | 'writing';
+  | 'writing'
+  | 'activity_wall';
 
 /**
  * A folder record stored at

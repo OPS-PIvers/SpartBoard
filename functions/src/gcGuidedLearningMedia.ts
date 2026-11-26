@@ -60,6 +60,12 @@ export async function gcOrphanedSlidePaths(
   try {
     shared = await loadSharedReferences(db, {
       ignoreBuildingSetId: opts.ignoreBuildingSetId,
+      // Only the releasing set's own restorable revisions; building sets are rare, so scan all.
+      revisions: opts.ignorePersonal
+        ? opts.ignorePersonal
+        : opts.ignoreBuildingSetId
+          ? 'all'
+          : undefined,
     });
   } catch (err) {
     // Without a full reference picture nothing is provably unused.

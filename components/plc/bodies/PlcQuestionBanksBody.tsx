@@ -13,10 +13,10 @@ import {
 import type { Plc, PlcQuestionBankEntry } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
-import { useDialog } from '@/context/useDialog';
 import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { useQuestionBanks } from '@/hooks/useQuestionBanks';
 import { usePlcQuestionBankEntries } from '@/hooks/usePlcQuestionBanks';
+import { usePlcLibraryActions } from '@/hooks/usePlcLibraryActions';
 import { usePlcLearningTargets } from '@/hooks/useLearningTargets';
 import { loadSyncedBankContent } from '@/hooks/useBankSources';
 import { logError } from '@/utils/logError';
@@ -46,7 +46,6 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addToast } = useDashboard();
-  const { showConfirm } = useDialog();
   const canEdit = useCanEditPlcContent();
   const {
     banks,
@@ -151,10 +150,26 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
     [addToast, plc.id, saveBank, t]
   );
 
+  const unshareBank = useCallback(
+    async (entryId: string): Promise<void> => {
+      const entry = entries.find((e) => e.id === entryId);
+      const meta = banks.find((b) => b.sync?.groupId === entry?.syncGroupId);
+      if (!meta) throw new Error('Question bank not loaded');
+      await unshareBankFromPlc(meta, plc.id);
+    },
+    [banks, entries, plc.id, unshareBankFromPlc]
+  );
+
+  const { unshare: confirmUnshare, busyId: unshareBusyId } =
+    usePlcLibraryActions({
+      plcId: plc.id,
+      kind: 'questionBank',
+      unshareFn: unshareBank,
+    });
+
   const handleUnshare = useCallback(
     async (entry: PlcQuestionBankEntry) => {
-      const meta = banks.find((b) => b.sync?.groupId === entry.syncGroupId);
-      if (!meta) {
+      if (!banks.some((b) => b.sync?.groupId === entry.syncGroupId)) {
         addToast(
           t('plcDashboard.bankLibrary.unshareNotReady', {
             defaultValue:
@@ -164,42 +179,9 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
         );
         return;
       }
-      const confirmed = await showConfirm(
-        t('plcDashboard.bankLibrary.groupUnshareConfirm', {
-          title: entry.title,
-          defaultValue:
-            'Stop sharing "{{title}}" with this group? Teammates’ quizzes that draw from it will stop resolving; copies in their libraries keep working.',
-        }),
-        {
-          title: t('plcDashboard.bankLibrary.unshareTitle', {
-            defaultValue: 'Stop sharing bank',
-          }),
-          variant: 'warning',
-          confirmLabel: t('plcDashboard.bankLibrary.unshareAction', {
-            defaultValue: 'Stop sharing',
-          }),
-        }
-      );
-      if (!confirmed) return;
-      setBusyRowId(entry.id);
-      try {
-        await unshareBankFromPlc(meta, plc.id);
-      } catch (err) {
-        logError('PlcQuestionBanksBody.unshare', err, {
-          plcId: plc.id,
-          entryId: entry.id,
-        });
-        addToast(
-          t('plcDashboard.bankLibrary.unshareFailed', {
-            defaultValue: 'Failed to stop sharing question bank.',
-          }),
-          'error'
-        );
-      } finally {
-        setBusyRowId(null);
-      }
+      await confirmUnshare(entry.id, entry.title);
     },
-    [addToast, banks, plc.id, showConfirm, t, unshareBankFromPlc]
+    [addToast, banks, confirmUnshare, t]
   );
 
   if (loading) {
@@ -298,7 +280,7 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
               t('plcDashboard.bankLibrary.unknownSharer', {
                 defaultValue: 'a teammate',
               });
-            const isBusy = busyRowId === entry.id;
+            const isBusy = busyRowId === entry.id || unshareBusyId === entry.id;
             const isOwner = !!user && entry.sharedBy === user.uid;
             const targets = entry.targetIds
               .map((id) => targetById.get(id))

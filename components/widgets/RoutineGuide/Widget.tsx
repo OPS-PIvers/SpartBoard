@@ -7,7 +7,6 @@ import {
   List,
   RectangleHorizontal,
   Rocket,
-  Search,
   Star,
 } from 'lucide-react';
 import {
@@ -39,6 +38,7 @@ import {
   GROUP_FILTER_PREFIX,
   useRoutineGuideGroups,
 } from './useRoutineGuideGroups';
+import { SearchField } from '@/components/common/SearchField';
 
 // Keeps corner controls clear of DraggableWindow's 24px corner resize handles.
 const CORNER_CLEARANCE = 'max(26px, 3cqmin)';
@@ -150,25 +150,15 @@ const RoutineLibrary: React.FC<{
           padding: `min(8px, 2cqmin) ${CORNER_CLEARANCE}`,
         }}
       >
-        <label
-          className="flex-1 min-w-0 flex items-center rounded-lg border border-slate-300 bg-white"
-          style={{
-            gap: 'min(6px, 1.5cqmin)',
-            padding: 'min(5px, 1.25cqmin) min(8px, 2cqmin)',
-          }}
-        >
-          <Search className="shrink-0 text-slate-400" style={smallIcon} />
-          <input
-            type="search"
-            aria-label="Search routines"
-            {...tourTypeAttr('routine-guide.search', 'routineGuide')}
-            placeholder="Search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 min-w-0 bg-transparent outline-hidden text-slate-800"
-            style={{ fontSize: 'min(14px, 4.25cqmin)' }}
-          />
-        </label>
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          placeholder="Search"
+          ariaLabel="Search routines"
+          anchor={tourTypeAttr('routine-guide.search', 'routineGuide')}
+          size="scaled"
+          className="flex-1 min-w-0"
+        />
         <select
           aria-label="Show"
           {...tourTypeAttr('routine-guide.filter', 'routineGuide')}

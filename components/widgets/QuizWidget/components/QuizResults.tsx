@@ -76,7 +76,9 @@ import {
   buildReviewRanking,
   type ReviewRankRow,
   canShowResultsScore,
+  classAverage,
   classFirstTryAccuracy,
+  classStatResponses,
   gameFirstTry,
   isGameSession,
   isResultsFinished,
@@ -224,6 +226,7 @@ import {
   type ClassroomGradeEntry,
 } from '@/utils/classroomGradePush';
 import {
+  awaitingSkippedNote,
   bucketLtiPushResults,
   formatLtiPushToast,
   ltiPushErrorMessage,
@@ -266,6 +269,7 @@ import { readLmsLink, schoologyLinkedTargets } from '@/utils/gradebook/lmsPush';
 import { buildToolColumnGrades } from '@/utils/schoologyToolColumns';
 import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { lastFirst } from '@/utils/studentName';
 
 /**
  * Export-error banner state. Generic errors render as a plain message; a
@@ -1150,28 +1154,28 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       ),
     [filteredCompleted, quiz.questions, session]
   );
-  const filteredAvgScore =
-    filteredScoreable.length > 0
-      ? Math.round(
-          filteredScoreable.reduce(
-            (sum, r) =>
-              sum + resultsDisplayScore(r, quiz.questions, session, fibGrading),
-            0
-          ) / filteredScoreable.length
-        )
-      : null;
-  // Any ungraded written response in the averaged set makes the average
-  // provisional — the ungraded slot counts as 0 until the teacher grades it.
-  const avgIsProvisional = useMemo(
+  // With final scores on, students awaiting a grade sit out, like the gradebook and PLC (AB-389).
+  const skipAwaitingInStats = canAccessFeature('lms-push-final-scores');
+  const {
+    average: filteredAvgScore,
+    provisional: avgIsProvisional,
+    skipped: avgSkippedAwaiting,
+  } = useMemo(
     () =>
-      filteredScoreable.some((r) =>
-        isResponseAwaitingGrade(
-          r,
-          quiz.questions,
-          session?.paperWrittenQuestionIds
-        )
+      classAverage(
+        filteredScoreable,
+        quiz.questions,
+        session,
+        fibGrading,
+        skipAwaitingInStats
       ),
-    [filteredScoreable, quiz.questions, session?.paperWrittenQuestionIds]
+    [
+      filteredScoreable,
+      quiz.questions,
+      session,
+      fibGrading,
+      skipAwaitingInStats,
+    ]
   );
   const firstTryAccuracy = useMemo(
     () => (isGame ? classFirstTryAccuracy(filteredCompleted) : null),
@@ -1368,7 +1372,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     if (open.length === 0) return false;
     const label = `${open.length} student${open.length === 1 ? '' : 's'}`;
     const ok = await showConfirm(
-      `Turn in the quiz for ${label} with the answers saved so far? Reopen it if they need to keep working.`,
+      `Submit the quiz for ${label}? Responses may be incomplete.`,
       { title: 'Submit for selected students', confirmLabel: 'Submit' }
     );
     if (!ok) return false;
@@ -1451,10 +1455,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   );
   const printSortName = useCallback(
     (response: QuizResponse) => {
-      const sso = byStudentUid.get(response.studentUid);
-      if (sso && (sso.familyName || sso.givenName)) {
-        return `${sso.familyName} ${sso.givenName}`.trim();
-      }
+      const sso = lastFirst(byStudentUid.get(response.studentUid));
+      if (sso) return sso;
       const rosterName = response.pin
         ? resolvePinName(
             exportPinToName,
@@ -1691,7 +1693,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     if (!owningPlc) {
       throw exportErr;
     }
-    const svc = new QuizDriveService(token);
+    const svc = new QuizDriveService(token, refreshGoogleToken);
     await clearPlcSharedSheetUrl(owningPlc.id);
     const created = await svc.createPlcSheetAndShare({
       plcName: owningPlc.name,
@@ -1787,7 +1789,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     setExporting(true);
     setExportError(null);
     try {
-      const svc = new QuizDriveService(token);
+      const svc = new QuizDriveService(token, refreshGoogleToken);
       const exportOpts = {
         pinToName: exportPinToName,
         byStudentUid,
@@ -1925,7 +1927,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     }
     setExporting(true);
     try {
-      const svc = new QuizDriveService(token);
+      const svc = new QuizDriveService(token, refreshGoogleToken);
       const url = await svc.exportResultsToSheet(
         quiz.title,
         responses,
@@ -2024,7 +2026,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     setUpdatingSheet(true);
     setExportError(null);
     try {
-      const svc = new QuizDriveService(token);
+      const svc = new QuizDriveService(token, refreshGoogleToken);
       // Smart re-export: when there's an append-delta, append. When there
       // isn't, do a clear-and-rewrite ("regenerate") on the same sheet so
       // the teacher has a way to force a clean rebuild without abandoning
@@ -2186,6 +2188,9 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // userId. When the assignment is linked to multiple courses, the SAME payload
   // fans out to each (Item D multi-course).
   const classroomAttachments = getClassroomAttachments(session);
+  // AB-389: the server sends each student's gradebook final score.
+  const sendFinalScores =
+    canAccessFeature('lms-push-final-scores') && !!session?.id;
   const handlePushGrades = async () => {
     // Guard the grade scale FIRST (a malformed/stale attachment could carry
     // NaN/0 maxPoints, scaling every grade to 0/NaN), then the eligible list —
@@ -2246,6 +2251,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       })),
       requestToken: () =>
         requestClassroomTeacherToken(user?.email ?? undefined),
+      finalScores:
+        sendFinalScores && session?.id
+          ? { sessionId: session.id, kind: 'quiz' }
+          : null,
       buildGrades: () =>
         finalGrades ??
         buildQuizClassroomGradeEntries(
@@ -2325,7 +2334,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       ),
       maxPoints
     );
-    if (grades.length === 0) {
+    if (!sendFinalScores && grades.length === 0) {
       addToast('No completed responses to push yet.', 'info');
       return;
     }
@@ -2336,12 +2345,19 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         'ltiPushGradesForAssignmentV1',
         LTI_PUSH_GRADES_CALL_OPTS
       );
-      const { data } = await push({
-        sessionId: session.id,
-        kind: 'quiz',
-        maxPoints,
-        grades,
-      });
+      const { data } = await push(
+        sendFinalScores
+          ? { sessionId: session.id, kind: 'quiz', source: 'final-scores' }
+          : { sessionId: session.id, kind: 'quiz', maxPoints, grades }
+      );
+      if (data.total === 0) {
+        addToast(
+          'No completed responses to push yet.' +
+            awaitingSkippedNote(data.awaiting),
+          'info'
+        );
+        return;
+      }
       const bucket = bucketLtiPushResults(data);
       addToast(
         formatLtiPushToast(bucket),
@@ -2431,6 +2447,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       if (!session?.id) return null;
       return {
         maxPoints,
+        ...(sendFinalScores ? { finalScores: { includeMissing: true } } : {}),
         grades: await buildToolColumnGrades({
           kind: 'quiz',
           ownerUid: user?.uid,
@@ -2702,12 +2719,15 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                     : `${filteredCompleted.length} of ${filteredResponses.length} students finished`
                 }
                 note={
-                  filteredAvgScore !== null && avgIsProvisional ? (
+                  (filteredAvgScore !== null && avgIsProvisional) ||
+                  avgSkippedAwaiting > 0 ? (
                     <p
                       className="font-sans font-semibold text-amber-800"
                       style={{ fontSize: 'min(11px, 3.8cqmin)' }}
                     >
-                      Provisional. Written answers need grading.
+                      {avgIsProvisional
+                        ? 'Provisional. Written answers need grading.'
+                        : 'Written answers need grading.'}
                     </p>
                   ) : undefined
                 }
@@ -2719,6 +2739,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   questions={quiz.questions}
                   session={session}
                   fibGrading={fibGrading}
+                  skipAwaiting={skipAwaitingInStats}
                 />
               )}
 
@@ -3266,17 +3287,22 @@ const ScoreDistribution: React.FC<{
   questions: QuizQuestion[];
   session?: import('@/types').QuizSession | null;
   fibGrading?: FibGradingContext | null;
-}> = ({ completed, questions, session, fibGrading }) => {
+  /** Leave out students awaiting a grade, like the class average. */
+  skipAwaiting: boolean;
+}> = ({ completed, questions, session, fibGrading, skipAwaiting }) => {
   // ⚡ Bolt: Pre-calculate scores for all completed responses once
   // This avoids calculating `getResponseScore` inside the `buckets.map` filter
   // which was O(B*R*Q), changing it to O(R*Q + B*R).
   // Distribution chart always uses percentage scores for meaningful bucketing,
   // even when gamification is active (points would not fit 0-100% buckets).
   const completedScores = React.useMemo(() => {
-    return completed
-      .filter((r) => canScoreResponse(r, questions))
-      .map((r) => getResponseScore(r, questions, session, fibGrading));
-  }, [completed, questions, session, fibGrading]);
+    return classStatResponses(
+      completed.filter((r) => canScoreResponse(r, questions)),
+      questions,
+      session,
+      skipAwaiting
+    ).map((r) => getResponseScore(r, questions, session, fibGrading));
+  }, [completed, questions, session, fibGrading, skipAwaiting]);
 
   // Denominator is the scoreable population, so unscoreable responses can't make the buckets under-sum.
   return <ScoreDistributionBars scores={completedScores} />;

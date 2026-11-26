@@ -86,24 +86,28 @@ describe('BoardsModal collection menu failures', () => {
   });
 
   it('toasts an error when renaming a collection fails', async () => {
-    showPrompt.mockResolvedValue('New name');
     renameCollection.mockRejectedValue(new Error('offline'));
     openCollectionMenu();
     fireEvent.click(await screen.findByRole('menuitem', { name: /rename/i }));
+    const input = await screen.findByDisplayValue('Period 1');
+    fireEvent.change(input, { target: { value: 'New name' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(renameCollection).toHaveBeenCalled());
     await waitFor(() =>
       expect(addToast).toHaveBeenCalledWith(expect.any(String), 'error')
     );
   });
 
-  it('toasts an error when deleting a collection fails', async () => {
-    showConfirm.mockResolvedValue(true);
+  it('shows an error in the delete dialog when deleting a collection fails', async () => {
     deleteCollection.mockRejectedValue(new Error('offline'));
     openCollectionMenu();
     fireEvent.click(await screen.findByRole('menuitem', { name: /delete/i }));
-    await waitFor(() => expect(deleteCollection).toHaveBeenCalled());
+    fireEvent.click(await screen.findByRole('button', { name: /^delete/i }));
     await waitFor(() =>
-      expect(addToast).toHaveBeenCalledWith(expect.any(String), 'error')
+      expect(deleteCollection).toHaveBeenCalledWith('c1', 'move-to-parent')
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Failed to delete folder'
     );
   });
 });

@@ -98,6 +98,7 @@ export default {
         'tool-menu': Z_INDEX.toolMenu.toString(),
         tooltip: Z_INDEX.tooltip.toString(),
         toast: Z_INDEX.toast.toString(),
+        tour: Z_INDEX.tour.toString(),
         dialog: Z_INDEX.dialog.toString(),
         critical: Z_INDEX.critical.toString(),
         'quiz-lock': Z_INDEX.quizLockOverlay.toString(),
@@ -134,10 +135,11 @@ export default {
       colors: {
         brand: {
           blue: {
-            primary: '#2d3f89',
-            dark: '#1d2a5d',
-            light: '#4356a0',
-            lighter: '#eaecf5',
+            // Variables so a widget's dialogs can swap in its accent (widgetAccentContext.ts).
+            primary: 'var(--brand-blue-primary, #2d3f89)',
+            dark: 'var(--brand-blue-dark, #1d2a5d)',
+            light: 'var(--brand-blue-light, #4356a0)',
+            lighter: 'var(--brand-blue-lighter, #eaecf5)',
           },
           red: {
             // Bare `brand-red` classes (admin danger buttons, error text) need this.

@@ -16,6 +16,7 @@ import { usePlcDocs } from '@/hooks/usePlcDocs';
 import { useDashboard } from '@/context/useDashboard';
 import { logError } from '@/utils/logError';
 import { tourAttr } from '@/config/tourAnchors';
+import { Modal } from '@/components/common/Modal';
 
 interface PlcAddDocModalProps {
   plc: Plc;
@@ -84,13 +85,16 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={modalTitle}
+    <Modal
+      isOpen
+      onClose={submitting ? () => undefined : onClose}
+      closeOnBackdrop={false}
+      variant="bare"
+      zIndex="z-modal-nested"
+      ariaLabel={modalTitle}
+      className="overflow-hidden rounded-2xl bg-white shadow-2xl"
     >
-      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div className="flex items-center gap-2.5">
@@ -205,6 +209,6 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };

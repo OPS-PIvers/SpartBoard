@@ -12,7 +12,11 @@ import { countAnsweredQuestions } from '@/utils/quizCompleteness';
 import { serveQuestionSubset } from '@/utils/quizOverrideServing';
 import { shuffleWithinSections } from '@/utils/quizSections';
 import { shufflePublicQuestions } from '@/utils/quizShuffle';
-import { resolveAttemptDeadline, timestampMillis } from '@/utils/quizTimeLimit';
+import {
+  classPauses,
+  resolveAttemptDeadline,
+  timestampMillis,
+} from '@/utils/quizTimeLimit';
 import { describeTabExit, totalAwayMs } from '@/utils/tabExits';
 
 export const QUIZ_LIVE_VIEW_FEATURE = 'quiz-live-view' as const;
@@ -175,17 +179,17 @@ export function liveViewStats(
   const exits = (response.tabExits ?? []).filter((e) => e.attempt === attempt);
   const startedAt =
     timestampMillis(response.attemptStartedAt) ?? response.joinedAt;
+  const pauses = classPauses(session, response.classId);
   return {
     startedAt,
-    deadline:
-      session.status === 'paused'
-        ? null
-        : resolveAttemptDeadline(
-            timestampMillis(response.attemptStartedAt),
-            session.timeLimitMinutes,
-            override?.timeMultiplier,
-            session.pauseSpans
-          ),
+    deadline: pauses.paused
+      ? null
+      : resolveAttemptDeadline(
+          timestampMillis(response.attemptStartedAt),
+          session.timeLimitMinutes,
+          override?.timeMultiplier,
+          pauses.pauseSpans
+        ),
     questionNumber,
     questionCount,
     answeredCount: countAnsweredQuestions(

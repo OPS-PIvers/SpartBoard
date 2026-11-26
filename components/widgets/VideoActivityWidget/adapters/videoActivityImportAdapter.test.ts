@@ -9,8 +9,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   createVideoActivityImportAdapter,
-  mmSsToSeconds,
-  secondsToMmSs,
   validateVideoActivityData,
 } from './videoActivityImportAdapter';
 import type { VideoActivityData, VideoActivityQuestion } from '@/types';
@@ -48,38 +46,6 @@ function makeData(
 }
 
 describe('videoActivityImportAdapter', () => {
-  describe('mmSsToSeconds', () => {
-    it('converts MM:SS to seconds', () => {
-      expect(mmSsToSeconds('01:30')).toBe(90);
-      expect(mmSsToSeconds('10:05')).toBe(605);
-      expect(mmSsToSeconds('0:30')).toBe(30);
-      expect(mmSsToSeconds('00:00')).toBe(0);
-    });
-
-    it('returns NaN for malformed input', () => {
-      expect(Number.isNaN(mmSsToSeconds('bad'))).toBe(true);
-      expect(Number.isNaN(mmSsToSeconds('1:2:3'))).toBe(true);
-      // 60 seconds is invalid — must roll to next minute
-      expect(Number.isNaN(mmSsToSeconds('01:60'))).toBe(true);
-    });
-
-    it('returns 0 for empty string', () => {
-      expect(mmSsToSeconds('')).toBe(0);
-    });
-  });
-
-  describe('secondsToMmSs', () => {
-    it('pads minutes and seconds to two digits', () => {
-      expect(secondsToMmSs(90)).toBe('01:30');
-      expect(secondsToMmSs(0)).toBe('00:00');
-      expect(secondsToMmSs(605)).toBe('10:05');
-    });
-
-    it('clamps negative values to 00:00', () => {
-      expect(secondsToMmSs(-10)).toBe('00:00');
-    });
-  });
-
   describe('validateVideoActivityData', () => {
     it('passes for a valid dataset', () => {
       const result = validateVideoActivityData(makeData());
@@ -170,6 +136,25 @@ describe('videoActivityImportAdapter', () => {
       const result = await adapter.parse({ kind: 'csv', text: csv });
       const ids = new Set(result.data.questions.map((q) => q.id));
       expect(ids.size).toBe(2);
+    });
+
+    it('skips a header row', async () => {
+      const adapter = createVideoActivityImportAdapter(baseOptions());
+      const csv = [
+        'Timestamp,Question,Correct,Wrong 1',
+        '00:30,"Q1, with a comma","A","B"',
+      ].join('\n');
+      const result = await adapter.parse({ kind: 'csv', text: csv });
+      expect(result.data.questions).toHaveLength(1);
+      expect(result.data.questions[0]?.text).toBe('Q1, with a comma');
+    });
+
+    it('counts the header in error line numbers', async () => {
+      const adapter = createVideoActivityImportAdapter(baseOptions());
+      const csv = 'Time (MM:SS),Question,Correct\n00:30,,A';
+      await expect(adapter.parse({ kind: 'csv', text: csv })).rejects.toThrow(
+        /line 2/i
+      );
     });
 
     it('rejects invalid timestamp rows with a line-number error', async () => {

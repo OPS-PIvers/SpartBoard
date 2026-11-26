@@ -18,7 +18,7 @@ import {
 } from '@/utils/quizSessionContent';
 import { buildTeacherSubmitUpdate } from '@/utils/quizTeacherSubmit';
 import { responseInClass } from '@/utils/assignedStatus';
-import { isLetIn, studentSetTime } from '@/utils/periodAccess';
+import { staysOpenAtClose } from '@/utils/staysOpenAtClose';
 
 /** End waits out the students' 120 s write grace (`runOpen` in firestore.rules) before turning work in. */
 export const END_TURN_IN_DELAY_MS = 125_000;
@@ -50,11 +50,7 @@ export async function finalizeClassQuizResponses(
     const label = s.periodAccess?.[classKey]?.label ?? '';
     return (
       responseInClass(r, classKey, label) &&
-      r.unlocked !== true &&
-      !(s.reopenedFor ?? []).includes(r.studentUid) &&
-      !isLetIn(s, r.studentUid, now) &&
-      // A student scheduled for later keeps their attempt for that time.
-      (studentSetTime(s, r.studentUid)?.until ?? 0) <= now
+      !staysOpenAtClose(s, r, now, { blank: false })
     );
   });
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  classPauses,
   appendPauseSpan,
   attemptClockRanOut,
   clampQuizTimeLimitMinutes,
@@ -137,5 +138,50 @@ describe('attemptClockRanOut', () => {
     expect(
       attemptClockRanOut(undefined, start, 30, start + 90 * 60_000, spans)
     ).toBe(true);
+  });
+});
+
+describe('classPauses', () => {
+  it('joins the whole quiz pauses with the student class pauses', () => {
+    const out = classPauses(
+      {
+        pauseSpans: [{ from: 10, to: 20 }],
+        periodAccess: {
+          a: {
+            state: 'open',
+            pauseSpans: [
+              { from: 15, to: 30 },
+              { from: 40, to: 50 },
+            ],
+          },
+        },
+      },
+      'a'
+    );
+    expect(out.pauseSpans).toEqual([
+      { from: 10, to: 30 },
+      { from: 40, to: 50 },
+    ]);
+    expect(out.paused).toBe(false);
+    expect(out.pausedAt).toBeUndefined();
+  });
+  it('holds the clock while the student class is paused', () => {
+    const out = classPauses(
+      {
+        status: 'active',
+        periodAccess: { a: { state: 'paused', pausedAt: 60 } },
+      },
+      'a'
+    );
+    expect(out.paused).toBe(true);
+    expect(out.pausedAt).toBe(60);
+    expect(
+      resolveAttemptDeadline(0, 1, undefined, [{ from: 10, to: 30 }])
+    ).toBe(60_000 + 20);
+  });
+  it('ignores another class and a missing class', () => {
+    const s = { periodAccess: { b: { state: 'paused', pausedAt: 60 } } };
+    expect(classPauses(s, 'a').paused).toBe(false);
+    expect(classPauses(s, undefined).paused).toBe(false);
   });
 });

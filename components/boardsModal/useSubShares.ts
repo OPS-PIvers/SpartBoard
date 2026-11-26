@@ -18,6 +18,7 @@ import {
   singleBoardTree,
 } from '@/utils/subShareSnapshot';
 import type { Collection, SharedCollection } from '@/types';
+import { copyText } from '@/utils/copyText';
 
 const HOUR_MS = 60 * 60 * 1000;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -103,22 +104,18 @@ export function useSubShares(enabled: boolean): SubSharesApi {
     (share: SharedCollection) => {
       const url = `${window.location.origin}/subs/s/${share.shareId}`;
       void (async () => {
-        try {
-          await navigator.clipboard.writeText(url);
-          addToast(
-            t('subShare.panel.copied', { defaultValue: 'Link copied' }),
-            'success'
-          );
-        } catch (err) {
-          logError('useSubShares.copyLink', err, { shareId: share.shareId });
-          addToast(
-            t('subShare.panel.copyFailed', {
-              url,
-              defaultValue: 'Copy this link by hand: {{url}}',
-            }),
-            'error'
-          );
-        }
+        const copied = await copyText(url, (err) =>
+          logError('useSubShares.copyLink', err, { shareId: share.shareId })
+        );
+        addToast(
+          copied
+            ? t('subShare.panel.copied', { defaultValue: 'Link copied' })
+            : t('subShare.panel.copyFailed', {
+                url,
+                defaultValue: 'Copy this link by hand: {{url}}',
+              }),
+          copied ? 'success' : 'error'
+        );
       })();
     },
     [addToast, t]
@@ -158,7 +155,7 @@ export function useSubShares(enabled: boolean): SubSharesApi {
           addToast(
             t('subShare.panel.nowEmpty', {
               defaultValue:
-                'This collection has no boards left to share. End the share instead.',
+                'This folder has no boards left to share. End the share instead.',
             }),
             'error'
           );

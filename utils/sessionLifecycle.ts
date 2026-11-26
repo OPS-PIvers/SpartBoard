@@ -1,6 +1,9 @@
-// Run lifecycle shared by Quiz and Video Activity sessions, derived from the fields already stored.
+// Run lifecycle shared by Quiz and Video Activity sessions, derived from the fields already stored; End covers every kind a sub can control.
 
 export type LifecycleKind = 'quiz' | 'videoActivity';
+
+/** Every kind whose run a teacher or sub can End; functions/src/subControlPatches.ts is tested against it. */
+export type EndKind = LifecycleKind | 'guidedLearning' | 'flashcards';
 
 export type AssignmentRunStatus = 'active' | 'paused' | 'inactive';
 
@@ -100,12 +103,20 @@ export function transition(
 
 /** The session fields every end writes; callers add their own extras. */
 export function endSessionPatch(
-  kind: LifecycleKind,
+  kind: EndKind,
   now: number
 ): Record<string, unknown> {
-  return kind === 'quiz'
-    ? { status: 'ended', endedAt: now, autoProgressAt: null }
-    : { status: 'ended', endedAt: now };
+  switch (kind) {
+    case 'quiz':
+      return { status: 'ended', endedAt: now, autoProgressAt: null };
+    case 'videoActivity':
+      return { status: 'ended', endedAt: now };
+    case 'guidedLearning':
+      // A guided session has no status: students are gated on the close time.
+      return { closeAt: now };
+    case 'flashcards':
+      return { status: 'ended', endedAt: now, updatedAt: now };
+  }
 }
 
 export interface AssignmentLifecyclePatches {

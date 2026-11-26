@@ -6,7 +6,5 @@ export { SessionBadge } from './SessionBadge';
 export type { SessionTone } from './SessionBadge';
 export { ScorePill } from './ScorePill';
 export { SessionRow } from './SessionRow';
-export { OverflowMenu } from './OverflowMenu';
-export type { OverflowMenuItem } from './OverflowMenu';
 export { ActionButton } from './ActionButton';
 export { LaunchedBySubTag } from './LaunchedBySubTag';

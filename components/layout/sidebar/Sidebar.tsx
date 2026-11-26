@@ -293,7 +293,7 @@ export const Sidebar: React.FC = () => {
   const { updateAvailable, reloadApp } = useAppVersion();
   const firstRun = useFirstRun();
   const widgetNotes = useWidgetNotesList();
-  const widgetNotesInMenu = canAccessFeature('widget-notes-in-whats-new');
+  const widgetNotesInMenu = !isExternalUser;
   // Quiet start holds the badge (D7).
   const hasUnreadWhatsNew =
     !firstRun.quiet &&

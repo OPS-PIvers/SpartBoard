@@ -32,13 +32,11 @@ import type {
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { useSeatedPeriodContent } from '@/hooks/useSeatedPeriodContent';
-import { useServerNow } from '@/hooks/useServerNow';
-import {
-  hasPeriodAccess,
-  nextScheduledOpen,
-  studentCanEnter,
-  studentPeriodKeys,
-} from '@/utils/periodAccess';
+import { usePeriodGate } from '@/hooks/usePeriodGate';
+import { StudentPeriodLockedScreen } from '@/components/student/StudentPeriodScreens';
+import { periodLockState } from '@/components/student/periodLockState';
+import { STUDENT_TEXT_BUTTON } from '@/components/student/StudentScreenShell';
+import { hasPeriodAccess, studentPeriodKeys } from '@/utils/periodAccess';
 import {
   FC_CONTENT_DOC,
   type FlashcardSessionContent,
@@ -49,7 +47,8 @@ import {
   sanitizeFlashcardStudyState,
 } from './adapters';
 import { FlashcardCheckResults } from './FlashcardCheckResults';
-import { CheckTabWarning } from './CheckTabWarning';
+import { TabStrikeWarning } from '@/components/common/TabWarningModal';
+import { StudentOfflineBanner } from '@/components/common/StudentOfflineBanner';
 import {
   canTryAgain,
   checkDeadline,
@@ -61,13 +60,12 @@ import {
 import { QuizTimeLimitClock } from '@/components/quiz/QuizTimeLimitClock';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import { effectivePageProtections } from '@/utils/pageProtections';
-import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
 import {
-  getEffectiveTabWarningThreshold,
-  hasReachedTabWarningThreshold,
-} from '@/utils/tabWarningThreshold';
-import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+  resolveTabStrikeRules,
+  useTabStrikePolicy,
+} from '@/hooks/useTabStrikePolicy';
 import { isHandedOff } from '@/utils/attemptHandOff';
+import { logError } from '@/utils/logError';
 import { isFramedWindow } from './speak/micAccess';
 import {
   FlashcardPlayer,
@@ -321,54 +319,45 @@ export const TrackedPlayer: React.FC<{
   }, [forcedFailed]);
 
   const tabOn = options?.tabWarningsEnabled === true;
-  const tabThreshold = getEffectiveTabWarningThreshold(
-    options?.tabWarningThreshold,
-    override?.tabWarningThreshold
-  );
-  const tabRule = options
-    ? getEffectiveTabAwayRule(options, override?.tabAwayLimit)
-    : null;
-  const [tabWarnings, setTabWarnings] = useState(
-    progress?.tabSwitchWarnings ?? 0
-  );
-  const [warningOpen, setWarningOpen] = useState(false);
-  // A teacher reset starts the attempt over.
-  const [seenReset, setSeenReset] = useState(resetCount);
-  if (seenReset !== resetCount) {
-    setSeenReset(resetCount);
-    setTabWarnings(0);
-    setWarningOpen(false);
-    setForced(null);
-  }
   const protections = options
     ? effectivePageProtections(options, override)
     : null;
-  const tabTracker = useTabAwayTracker({
+  // Warning counts and auto-submit rules shared with every student app.
+  const tabPolicy = useTabStrikePolicy({
+    rules: resolveTabStrikeRules({ settings: options, override }),
+    warn: true,
+    serverCount: progress?.tabSwitchWarnings ?? 0,
+    // A teacher reset starts the count over.
+    resetKey: resetCount,
+    // The warning shows at once; the count saves behind it, even offline.
+    countStrike: (current) => {
+      const next = current + 1;
+      adapter
+        .writeAttemptFields({ tabSwitchWarnings: next })
+        .catch((err: unknown) =>
+          logError('FlashcardAssignmentPage.tabSwitchWarnings', err)
+        );
+      return Promise.resolve(next);
+    },
+    submit: () => {
+      submitForced('tab');
+      return Promise.resolve();
+    },
     enabled: tabOn && !paused && forced === null,
     sessionActive: session.status === 'active',
     ready: true,
     serverExits: undefined,
     attempt: progress?.completedAttempts ?? 0,
     getPosition: () => ({}),
-    onLeave: async () => {
-      // Another tab or device may have counted more.
-      const next = Math.max(tabWarnings, progress?.tabSwitchWarnings ?? 0) + 1;
-      setTabWarnings(next);
-      setWarningOpen(true);
-      await adapter.writeAttemptFields({ tabSwitchWarnings: next });
-      if (!hasReachedTabWarningThreshold(next, tabThreshold)) return false;
-      submitForced('tab');
-      return true;
-    },
     saveExits: undefined,
-    limitMs: tabRule?.limitMs ?? null,
-    autoSubmit: tabRule?.autoSubmit ?? false,
-    onAwayTooLong: () => {
-      setWarningOpen(true);
-      submitForced('tab');
-    },
     fullscreenRequired: protections?.fullscreen === true,
   });
+  // A teacher reset starts the attempt over.
+  const [seenReset, setSeenReset] = useState(resetCount);
+  if (seenReset !== resetCount) {
+    setSeenReset(resetCount);
+    setForced(null);
+  }
 
   const handOn = options?.handRaiseEnabled === true;
   const [handPending, setHandPending] = useState<boolean | null>(null);
@@ -427,6 +416,7 @@ export const TrackedPlayer: React.FC<{
   );
   return (
     <div className="relative flex h-full flex-col">
+      <StudentOfflineBanner />
       {(deadline !== null || handOn) && (
         <div className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2">
           {deadline !== null && (
@@ -458,18 +448,7 @@ export const TrackedPlayer: React.FC<{
       {protections && (
         <PageProtectionGuards protections={protections} wholePage />
       )}
-      {warningOpen && forced === null && (
-        <CheckTabWarning
-          count={tabWarnings}
-          limit={tabThreshold === 'off' ? null : tabThreshold}
-          away={tabTracker.away}
-          rule={tabRule}
-          onDismiss={() => {
-            setWarningOpen(false);
-            tabTracker.resume();
-          }}
-        />
-      )}
+      {forced === null && <TabStrikeWarning policy={tabPolicy} />}
       {forced !== null && (
         <div
           role="status"
@@ -590,13 +569,12 @@ export const FlashcardAssignmentPage: React.FC<{
       contentDoc: FC_CONTENT_DOC,
       uid: pseudonymUid,
     });
-  const periodNow = useServerNow(perPeriod ? 5000 : null);
-  const canEnter = studentCanEnter(
-    rawSession,
+  // The seat reducer below owns entering; the gate gives the clock and the open check.
+  const { now: periodNow, canEnter } = usePeriodGate({
+    session: rawSession,
     periodKeys,
-    pseudonymUid,
-    periodNow
-  );
+    uid: pseudonymUid,
+  });
   const [seat, dispatchSeat] = useReducer(seatReducer, initialSeat);
   // Seat the student in their period once the session and pointer are known.
   const seatStarted = useRef(false);
@@ -838,23 +816,22 @@ export const FlashcardAssignmentPage: React.FC<{
           />
         );
       break;
-    case 'periodLocked': {
-      const opensAt = nextScheduledOpen(session, periodKeys, periodNow);
-      body = (
-        <PageMessage
-          icon={Lock}
-          title={t('flashcards.assignment.opensTitle')}
-          body={
-            opensAt != null
-              ? t('flashcards.assignment.opensBody', {
-                  date: new Date(opensAt).toLocaleString(),
-                })
-              : t('flashcards.assignment.periodClosedBody')
+    case 'periodLocked':
+      return (
+        <StudentPeriodLockedScreen
+          title={session.title}
+          lock={periodLockState(session, periodKeys, periodNow, pseudonymUid)}
+          footer={
+            // no-tour-anchor: student back link on a locked screen
+            <a
+              href="/my-assignments"
+              className={`block ${STUDENT_TEXT_BUTTON}`}
+            >
+              {t('flashcards.assignment.back')}
+            </a>
           }
         />
       );
-      break;
-    }
     case 'tracked':
       body = (
         <TrackedPlayer

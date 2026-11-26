@@ -70,15 +70,13 @@ describe('VideoActivityStudentApp — anonymous join gate', () => {
     expect(
       screen.getByRole('button', { name: /sign in/i })
     ).toBeInTheDocument();
-    expect(screen.queryByPlaceholderText('Ask your teacher')).toBeNull();
+    expect(screen.queryByPlaceholderText('Your PIN')).toBeNull();
   });
 
   it('shows the PIN form when the session is unstamped', async () => {
     mockLookupSession.mockResolvedValue({ periodNames: [] });
     render(<VideoActivityStudentApp />);
-    expect(
-      await screen.findByPlaceholderText('Ask your teacher')
-    ).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText('Your PIN')).toBeInTheDocument();
   });
 
   it('keeps the PIN form for a view-only share stamped false', async () => {
@@ -87,8 +85,6 @@ describe('VideoActivityStudentApp — anonymous join gate', () => {
       mode: 'view-only',
     });
     render(<VideoActivityStudentApp />);
-    expect(
-      await screen.findByPlaceholderText('Ask your teacher')
-    ).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText('Your PIN')).toBeInTheDocument();
   });
 });

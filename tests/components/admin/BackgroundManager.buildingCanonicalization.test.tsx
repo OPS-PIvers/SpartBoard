@@ -21,6 +21,13 @@ const mockBuildings = [
   { id: 'high', name: 'Orono High School', gradeLabel: '9-12' },
 ];
 
+const dashboardStub = vi.hoisted(() => ({
+  addToast: () => undefined,
+  removeToast: () => undefined,
+}));
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => dashboardStub,
+}));
 vi.mock(
   '@/components/admin/BackgroundManager/BoardBackgroundDefaultsPanel',
   () => ({
@@ -32,7 +39,7 @@ vi.mock('@/context/useDialog', () => ({
 }));
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: mockUser }),
+  useAuth: () => ({ user: mockUser, canAccessFeature: () => false }),
 }));
 
 vi.mock('@/hooks/useStorage', () => ({

@@ -199,7 +199,7 @@ test('a teacher assigns, runs, ends, reopens and deletes a quiz', async ({
     const confirm = page.getByRole('dialog', { name: `Delete "${QUIZ}"?` });
     await expect(confirm.getByText('This cannot be undone.')).toBeVisible();
     await confirm.getByRole('button', { name: 'Delete' }).click();
-    await expectToast(page, 'Quiz deleted.');
+    await expectToast(page, `"${QUIZ}" deleted.`);
     await expect(row.getByText('No Quizzes Yet')).toBeVisible();
   });
 });

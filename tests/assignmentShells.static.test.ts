@@ -80,12 +80,7 @@ const NOT_YET_ADOPTED: Record<string, Piece[]> = {
   // AB-261
   writing: ['StudentResultsControl'],
   // AB-257
-  'video-activity': [
-    'FreeResponseGrader',
-    'QuestionResults',
-    'ResultsHome',
-    'Roster',
-  ],
+  'video-activity': ['FreeResponseGrader', 'QuestionResults', 'ResultsHome'],
   // AB-258
   'guided-learning': ['QuestionResults', 'ResultsHome', 'Roster'],
   // AB-259
@@ -147,7 +142,7 @@ const CLONES: { name: RegExp; use: string; wrapper?: RegExp; via?: RegExp }[] =
     },
   ];
 
-// Old sessionViews pieces the Quiz layout replaced; ScorePill, SessionBadge, LaunchedBySubTag and OverflowMenu are still shared.
+// Old sessionViews pieces the Quiz layout replaced; ScorePill, SessionBadge and LaunchedBySubTag are still shared.
 const LEGACY_IMPORT =
   /import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+'(?:@\/|(?:\.\.?\/)+)[\w/]*sessionViews(?:\/\w+)?'/g;
 const LEGACY_NAMES =
@@ -184,7 +179,7 @@ const KNOWN_COPIES: Record<string, string[]> = {
   'components/widgets/VideoActivityWidget/components/VideoActivityLivePlayer.tsx':
     ['ActionButton', 'SessionViewHeader'],
   'components/widgets/VideoActivityWidget/components/monitor/VaRosterList.tsx':
-    ['RowMenu', 'VaRosterList'],
+    ['RowMenu'],
   'components/widgets/VideoActivityWidget/components/monitor/VideoActivityMonitor.tsx':
     ['QuestionDetail'],
   'components/widgets/VideoActivityWidget/components/results/VaResultsParity.tsx':

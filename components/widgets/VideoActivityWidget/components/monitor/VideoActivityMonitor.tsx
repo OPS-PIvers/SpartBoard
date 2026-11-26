@@ -53,6 +53,7 @@ import {
   vaResponsePeriod,
   type VaMonitorStudent,
 } from './vaMonitorData';
+import { lastFirst } from '@/utils/studentName';
 
 const TYPE = 'video-activity';
 
@@ -213,7 +214,8 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
           r,
           questions,
           pickDisplayLabel(r, byStudentUid),
-          isLiveVideoActivitySession(session)
+          isLiveVideoActivitySession(session),
+          lastFirst(byStudentUid.get(r.studentUid)) || undefined
         )
       ),
     [filteredResponses, questions, byStudentUid, session]

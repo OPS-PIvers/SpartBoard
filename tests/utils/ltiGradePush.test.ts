@@ -25,14 +25,14 @@ describe('bucketLtiPushResults', () => {
         1
       )
     );
-    expect(b).toEqual({ pushed: 1, skipped: 1, failed: 2 });
+    expect(b).toEqual({ pushed: 1, skipped: 1, failed: 2, awaiting: 0 });
   });
 
   it('does not mislabel a real failure as a skip', () => {
     const b = bucketLtiPushResults(
       data([{ pseudonymUid: 'a', ok: false, reason: 'invalid entry' }], 0)
     );
-    expect(b).toEqual({ pushed: 0, skipped: 0, failed: 1 });
+    expect(b).toEqual({ pushed: 0, skipped: 0, failed: 1, awaiting: 0 });
   });
 });
 

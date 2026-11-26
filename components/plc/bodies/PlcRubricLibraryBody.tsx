@@ -27,10 +27,13 @@ import {
 import type { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
-import { useDialog } from '@/context/useDialog';
 import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { useRubrics } from '@/hooks/useRubrics';
 import { usePlcRubrics, toPortableRubric } from '@/hooks/usePlcRubrics';
+import {
+  usePlcLibraryActions,
+  usePlcSharedCopyUpdate,
+} from '@/hooks/usePlcLibraryActions';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import { getPlcMemberEmail } from '@/utils/plc';
 import { logError } from '@/utils/logError';
@@ -58,10 +61,11 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
   plc,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { addToast } = useDashboard();
-  const { showConfirm } = useDialog();
   const canEdit = useCanEditPlcContent();
+  const canUpdateShared = canAccessFeature('plc-update-shared-copy');
+  const updateSharedCopy = usePlcSharedCopyUpdate();
   const { rubrics: personalRubrics, saveRubric } = useRubrics(user?.uid);
   const {
     rubrics: plcRubrics,
@@ -93,8 +97,9 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
           defaultValue: '{{criteria}} criteria · {{points}} pts',
         }),
         alreadyShared: sharedIds.has(r.id),
+        updatable: canUpdateShared,
       })),
-    [personalRubrics, sharedIds, t]
+    [canUpdateShared, personalRubrics, sharedIds, t]
   );
 
   const handleShare = useCallback(
@@ -102,15 +107,22 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
       if (!user) return;
       const rubric = personalRubrics.find((r) => r.id === rubricId);
       if (!rubric) return;
-      try {
-        const ownerEmailLower =
+      const input = {
+        rubric,
+        sharedByName: user.displayName ?? '',
+        sharedByEmail:
           getPlcMemberEmail(plc, user.uid) ??
-          (user.email ? user.email.toLowerCase() : '');
-        const outcome = await shareRubricWithPlc({
-          rubric,
-          sharedByName: user.displayName ?? '',
-          sharedByEmail: ownerEmailLower,
-        });
+          (user.email ? user.email.toLowerCase() : ''),
+      };
+      if (canUpdateShared && sharedIds.has(rubricId)) {
+        const updated = await updateSharedCopy(rubric.title, () =>
+          shareRubricWithPlc({ ...input, update: true })
+        );
+        if (updated) setSharePickerOpen(false);
+        return;
+      }
+      try {
+        const outcome = await shareRubricWithPlc(input);
         if (outcome === 'already-shared') {
           addToast(
             t('plcDashboard.rubricLibrary.groupAlreadySharedToast', {
@@ -147,7 +159,17 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
         );
       }
     },
-    [addToast, personalRubrics, plc, shareRubricWithPlc, t, user]
+    [
+      addToast,
+      canUpdateShared,
+      personalRubrics,
+      plc,
+      shareRubricWithPlc,
+      sharedIds,
+      t,
+      updateSharedCopy,
+      user,
+    ]
   );
 
   const handleImport = useCallback(
@@ -188,45 +210,12 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
     [addToast, plc.id, plcRubrics, saveRubric, t]
   );
 
-  const handleUnshare = useCallback(
-    async (entryId: string, title: string) => {
-      const confirmed = await showConfirm(
-        t('plcDashboard.rubricLibrary.groupUnshareConfirm', {
-          title,
-          defaultValue:
-            'Remove "{{title}}" from this group? Teammates lose access to the shared entry; copies already in their libraries keep working.',
-        }),
-        {
-          title: t('plcDashboard.rubricLibrary.unshareTitle', {
-            defaultValue: 'Unshare rubric',
-          }),
-          variant: 'warning',
-          confirmLabel: t('plcDashboard.rubricLibrary.unshareAction', {
-            defaultValue: 'Unshare',
-          }),
-        }
-      );
-      if (!confirmed) return;
-      setBusyRowId(entryId);
-      try {
-        await unshareRubricFromPlc(entryId);
-      } catch (err) {
-        logError('PlcRubricLibraryBody.unshare', err, {
-          plcId: plc.id,
-          entryId,
-        });
-        addToast(
-          t('plcDashboard.rubricLibrary.unshareFailed', {
-            defaultValue: 'Failed to unshare rubric.',
-          }),
-          'error'
-        );
-      } finally {
-        setBusyRowId(null);
-      }
-    },
-    [addToast, plc.id, showConfirm, t, unshareRubricFromPlc]
-  );
+  const { unshare: handleUnshare, busyId: unshareBusyId } =
+    usePlcLibraryActions({
+      plcId: plc.id,
+      kind: 'rubric',
+      unshareFn: unshareRubricFromPlc,
+    });
 
   if (loading) {
     return (
@@ -315,7 +304,7 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
               t('plcDashboard.rubricLibrary.unknownSharer', {
                 defaultValue: 'a teammate',
               });
-            const isBusy = busyRowId === entry.id;
+            const isBusy = busyRowId === entry.id || unshareBusyId === entry.id;
             return (
               <div
                 key={entry.id}

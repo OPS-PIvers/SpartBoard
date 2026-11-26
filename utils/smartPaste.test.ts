@@ -268,61 +268,32 @@ describe('detectWidgetType (Smart Paste)', () => {
     }
   });
 
-  it('detects quiz share URLs', () => {
-    const input = 'https://spartboard.web.app/share/quiz/abc123';
-    const result = detectWidgetType(input);
-
-    expect(result).not.toBeNull();
-    if (result?.action === 'import-quiz') {
-      expect(result.shareId).toBe('abc123');
-    } else {
-      throw new Error('Expected import-quiz action');
-    }
+  it.each([
+    ['https://spartboard.web.app/share/quiz/abc123', 'quiz', 'abc123'],
+    ['spartboard.web.app/share/quiz/xyz789', 'quiz', 'xyz789'],
+    [
+      'https://spartboard.web.app/share/assignment/abc123',
+      'assignment',
+      'abc123',
+    ],
+    ['spartboard.web.app/share/assignment/xyz789', 'assignment', 'xyz789'],
+    [
+      'https://spartboard.web.app/share/video-activity/va_1',
+      'videoActivity',
+      'va_1',
+    ],
+    ['spartboard.web.app/share/rubric/r-9', 'rubric', 'r-9'],
+  ])('detects the library share link %s', (input, kind, shareId) => {
+    expect(detectWidgetType(input)).toEqual({
+      action: 'import-library-share',
+      link: { kind, shareId },
+    });
   });
 
-  it('detects quiz share URLs with bare domain', () => {
-    const input = 'spartboard.web.app/share/quiz/xyz789';
-    const result = detectWidgetType(input);
-
-    expect(result).not.toBeNull();
-    if (result?.action === 'import-quiz') {
-      expect(result.shareId).toBe('xyz789');
-    } else {
-      throw new Error('Expected import-quiz action');
-    }
-  });
-
-  it('detects assignment share URLs', () => {
-    const input = 'https://spartboard.web.app/share/assignment/abc123';
-    const result = detectWidgetType(input);
-
-    expect(result).not.toBeNull();
-    if (result?.action === 'import-assignment') {
-      expect(result.shareId).toBe('abc123');
-    } else {
-      throw new Error('Expected import-assignment action');
-    }
-  });
-
-  it('detects assignment share URLs with bare domain', () => {
-    const input = 'spartboard.web.app/share/assignment/xyz789';
-    const result = detectWidgetType(input);
-
-    expect(result).not.toBeNull();
-    if (result?.action === 'import-assignment') {
-      expect(result.shareId).toBe('xyz789');
-    } else {
-      throw new Error('Expected import-assignment action');
-    }
-  });
-
-  it('does not treat quiz share URLs as board imports', () => {
-    const input = 'https://spartboard.web.app/share/quiz/abc123';
-    const result = detectWidgetType(input);
-
-    expect(result).not.toBeNull();
-    expect(result?.action).toBe('import-quiz');
-    expect(result?.action).not.toBe('import-board');
+  it('does not treat library share URLs as board imports', () => {
+    expect(
+      detectWidgetType('https://spartboard.web.app/share/quiz/abc123')?.action
+    ).toBe('import-library-share');
   });
 
   it('detects notebook share URLs', () => {

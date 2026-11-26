@@ -361,17 +361,22 @@ describe('readShareHost', () => {
 });
 
 describe('makeHostLookup', () => {
-  const docs = (seed: Record<string, StubData>) =>
-    ({
-      doc: (path: string) => ({
-        get: () =>
-          Promise.resolve({
-            exists: path in seed,
-            data: () => seed[path],
-            get: (field: string) => seed[path]?.[field],
-          }),
+  const docs = (seed: Record<string, StubData>) => {
+    const doc = (path: string) => ({
+      get: () =>
+        Promise.resolve({
+          exists: path in seed,
+          data: () => seed[path],
+          get: (field: string) => seed[path]?.[field],
+        }),
+    });
+    return {
+      doc,
+      collection: (name: string) => ({
+        doc: (id: string) => doc(`${name}/${id}`),
       }),
-    }) as unknown as admin.firestore.Firestore;
+    } as unknown as admin.firestore.Firestore;
+  };
   const teacher = 'ann@orono.k12.mn.us';
   const member = `organizations/orono/members/${teacher}`;
   const user = (claims: Record<string, unknown> = {}) =>
@@ -402,6 +407,15 @@ describe('makeHostLookup', () => {
       staff: true,
     });
     user({ deactivated: true });
+    await expect(makeHostLookup(docs(admins))('h')).resolves.toMatchObject({
+      staff: false,
+    });
+    authUsers.set('h', {
+      email: teacher,
+      emailVerified: false,
+      displayName: 'Ann',
+      customClaims: {},
+    });
     await expect(makeHostLookup(docs(admins))('h')).resolves.toMatchObject({
       staff: false,
     });

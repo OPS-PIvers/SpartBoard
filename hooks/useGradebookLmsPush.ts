@@ -17,6 +17,7 @@ import {
 } from '@/utils/runClassroomGradePush';
 import { formatGradePushToast } from '@/utils/classroomGradePush';
 import {
+  awaitingSkippedNote,
   bucketLtiPushResults,
   formatLtiPushToast,
   ltiPushErrorMessage,
@@ -71,6 +72,13 @@ export function useGradebookLmsPush(
     [rosters]
   );
   const pushable = isGradebookPushKind(column.kind);
+  // AB-389: the server builds the grades from the same final scores this column shows.
+  const sendFinalScores = canAccessFeature('lms-push-final-scores');
+  const pushKind = column.kind === 'video-activity' ? 'va' : 'quiz';
+  const note = (p: GradebookPushPlan): string =>
+    sendFinalScores ? '' : skippedNote(p);
+  // The grid shows one class, so the server pushes only its students.
+  const scopeUids = cells.map((c) => c.student.uid);
   const [loaded, setLoaded] = useState<{
     sessionId: string;
     link: GradebookLmsLink;
@@ -124,7 +132,7 @@ export function useGradebookLmsPush(
 
   const toolColumn = useSchoologyToolColumnPush({
     sessionId: column.sessionId,
-    kind: column.kind === 'video-activity' ? 'va' : 'quiz',
+    kind: pushKind,
     title: column.title,
     closeAt: column.closeAt,
     dueAt: column.dueAt,
@@ -133,6 +141,9 @@ export function useGradebookLmsPush(
         plan && maxPoints !== null
           ? {
               maxPoints,
+              ...(sendFinalScores
+                ? { finalScores: { includeMissing: true, scopeUids } }
+                : {}),
               grades: [
                 ...plan.entries,
                 ...plan.missing.map((uid) => ({
@@ -176,16 +187,33 @@ export function useGradebookLmsPush(
           'ltiPushGradesForAssignmentV1',
           LTI_PUSH_GRADES_CALL_OPTS
         );
-        const { data } = await call({
-          sessionId: column.sessionId,
-          kind: column.kind === 'video-activity' ? 'va' : 'quiz',
-          maxPoints,
-          grades: plan.entries,
-        });
+        const { data } = await call(
+          sendFinalScores
+            ? {
+                sessionId: column.sessionId,
+                kind: pushKind,
+                source: 'final-scores',
+                scopeUids,
+              }
+            : {
+                sessionId: column.sessionId,
+                kind: pushKind,
+                maxPoints,
+                grades: plan.entries,
+              }
+        );
+        if (data.total === 0) {
+          return {
+            ok: true,
+            message:
+              'No final scores to push yet.' +
+              awaitingSkippedNote(data.awaiting),
+          };
+        }
         const bucket = bucketLtiPushResults(data);
         return {
           ok: bucket.failed === 0,
-          message: formatLtiPushToast(bucket) + skippedNote(plan),
+          message: formatLtiPushToast(bucket) + note(plan),
         };
       } catch (err) {
         logError('gradebook.pushSchoology', err, {
@@ -206,6 +234,9 @@ export function useGradebookLmsPush(
       requestToken: () =>
         requestClassroomTeacherToken(user?.email ?? undefined),
       buildGrades: () => plan.entries,
+      finalScores: sendFinalScores
+        ? { sessionId: column.sessionId, kind: pushKind, scopeUids }
+        : null,
       distinctTokenCancel: true,
       logTag: 'gradebook.pushClassroom',
       logContext: { sessionId: column.sessionId },
@@ -221,10 +252,15 @@ export function useGradebookLmsPush(
               (unreachable > 0
                 ? ` Couldn't push to ${unreachable} course${unreachable === 1 ? '' : 's'}. Try again.`
                 : '') +
-              skippedNote(plan),
+              note(plan),
           };
         } else if (status.phase === 'nothing-to-push') {
-          outcome = { ok: true, message: 'No final scores to push yet.' };
+          outcome = {
+            ok: true,
+            message:
+              'No final scores to push yet.' +
+              awaitingSkippedNote(status.awaiting),
+          };
         }
       },
       onError: ({ permissionDenied }) => {

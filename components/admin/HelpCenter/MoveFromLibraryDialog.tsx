@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import {
   Btn,
@@ -19,6 +19,7 @@ import {
   type MoveSource,
 } from '@/utils/helpCenterItems';
 import { helpCenterSetIdsOf } from '@/components/widgets/GuidedLearning/utils/helpCenterSets';
+import { SearchField } from '@/components/common/SearchField';
 
 type Owner = 'mine' | 'building';
 type TypeFilter = 'all' | HelpItemKind;
@@ -182,21 +183,12 @@ export const MoveFromLibraryDialog: React.FC<MoveFromLibraryDialogProps> = ({
       }
     >
       <div className="space-y-3">
-        <div className="relative">
-          <Search
-            className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"
-            aria-hidden="true"
-          />
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search guides"
-            aria-label="Search guides"
-            {...tourAttr('admin.help-center.move-search')}
-            className="h-11 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm focus:outline-hidden focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30"
-          />
-        </div>
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          placeholder="Search guides"
+          anchor={tourAttr('admin.help-center.move-search')}
+        />
         <div className="grid grid-cols-2 gap-2">
           <label className="space-y-1 text-xs font-semibold text-slate-600">
             Type

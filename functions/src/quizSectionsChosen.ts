@@ -13,10 +13,12 @@ export interface ChooseSection {
   questionIds: string[];
 }
 
-interface SectionAnswer {
+export interface SectionAnswer {
   questionId: string;
   answer?: string;
   unresponded?: unknown;
+  paperTranscript?: unknown;
+  artifacts?: unknown;
 }
 
 /** Tolerant parse of `session.sections`; absent or malformed yields nothing. */
@@ -46,9 +48,23 @@ export function parseChooseSections(raw: unknown): ChooseSection[] {
   });
 }
 
-// Unlike the client mirror, recordings don't count: PLC math drops `artifacts` and never scores media.
-const hasContent = (a: SectionAnswer): boolean =>
-  !a.unresponded && stripTags(a.answer ?? '').trim().length > 0;
+// Mirrors the client's `hasContent`; tests/utils/quizSectionsChosenParity.test.ts keeps them equal.
+export const hasContent = (a: SectionAnswer): boolean => {
+  if (a.unresponded) return false;
+  // A paper box the scan found empty still carries its crop.
+  if (a.paperTranscript === 'blank') return false;
+  if (
+    Array.isArray(a.artifacts) &&
+    a.artifacts.some(
+      (x: unknown) =>
+        (typeof x === 'object' && x !== null
+          ? (x as { uploadState?: unknown }).uploadState
+          : undefined) !== 'failed'
+    )
+  )
+    return true;
+  return stripTags(a.answer ?? '').trim().length > 0;
+};
 
 // Repeats until stable so a tag split by another tag can't survive one pass.
 function stripTags(html: string): string {

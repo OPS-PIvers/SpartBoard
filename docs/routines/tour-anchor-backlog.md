@@ -24,7 +24,6 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | File:line | Control | Why |
 | --------- | ------- | --- |
 | components/widgets/Checklist/settingsFields.tsx:117 | Paste tasks textarea | A real control inside a custom settings field; unclear whether a tour would target it or the field row. |
-| components/widgets/InstructionalRoutines/ConfirmDialog.tsx:77 | Cancel and Confirm buttons | Shared confirm dialog used from the board and the admin library; one fixed id would mean different things. |
 | components/widgets/InstructionalRoutines/PromptDialog.tsx:86 | Prompt textarea, Cancel and Submit buttons | Shared prompt dialog; same reason as ConfirmDialog. |
 | components/widgets/InstructionalRoutines/IconPicker.tsx:40 | Close and icon option buttons | Shared picker used by the template editor and settings; needs a caller-supplied anchor. |
 | components/widgets/LiveControl.tsx:156 | Live toggle, student count, menu close, Freeze All | Shared by several widgets; needs a caller-supplied widget type and anchor ids. |

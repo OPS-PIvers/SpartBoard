@@ -133,6 +133,8 @@ import {
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { isReviewGame } from '@/utils/quizWidgetKind';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
+import { convertQuizToPerClass } from '@/hooks/quizAssignments/perClassConversion';
+import { canConvertToPerClass } from '@/utils/perClassConversion';
 
 export interface QuizLiveMonitorProps {
   /** This widget instance's id, for live-tour anchor scoping. */
@@ -438,11 +440,16 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   );
   const chipsFilter =
     showStrip && data.periodNames.every((p) => chipNames.has(p));
+  const ownsSession =
+    !!session.teacherUid && authContext?.user?.uid === session.teacherUid;
   const periodActions = usePeriodAccess(
-    perPeriod ? session : null,
+    session,
     {
       sessionCollection: 'quiz_sessions',
       assignmentCollection: 'quiz_assignments',
+      toPerClass: ownsSession
+        ? () => convertQuizToPerClass(session.teacherUid, session.id, rosters)
+        : undefined,
     },
     rosters
   );
@@ -461,10 +468,11 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     logError('QuizLiveMonitor.openPart', err);
     addToast('Could not open the part. Try again.', 'error');
   };
-  // "Schedule": one student's own window while their class stays as it is.
+  // "Schedule": one student's own window on any quiz; a whole-quiz gate moves to per-class rows on first use.
   const canSetTime =
-    perPeriod &&
+    session.sessionMode === 'student' &&
     session.status !== 'ended' &&
+    (perPeriod || (ownsSession && canConvertToPerClass(session))) &&
     authContext?.canAccessFeature?.('student-set-time') === true;
   const runPeriod = async (fn: () => Promise<void>) => {
     try {
@@ -594,8 +602,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const confirmClose = (name: string | null) =>
     showConfirm(
       name
-        ? `Students in ${name} lose access. Open attempts are turned in.`
-        : 'Students lose access. Open attempts are turned in.',
+        ? `Students in ${name} will no longer be able to access this quiz. Open attempts will be submitted.`
+        : 'Students will no longer be able to access this quiz. Open attempts will be submitted.',
       {
         title: name ? `Close ${name}` : 'Close',
         variant: 'warning',
@@ -1058,7 +1066,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const handleSubmitForStudent = useCallback(
     async (key: string) => {
       const ok = await showConfirm(
-        "Turn in this student's quiz with the answers saved so far? Reopen it if they need to keep working.",
+        "Submit this student's quiz? Responses may be incomplete.",
         { title: 'Submit for student?', confirmLabel: 'Submit' }
       );
       if (!ok) return;
@@ -1553,7 +1561,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 }
                 onClearHand={onClearHand ? handleClearHand : undefined}
                 onLetIn={
-                  perPeriod && session.status !== 'ended'
+                  (perPeriod || canSetTime) && session.status !== 'ended'
                     ? (uid) => void runPeriod(() => periodActions.letIn(uid))
                     : undefined
                 }

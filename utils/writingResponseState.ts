@@ -1,4 +1,5 @@
 // Writing response lifecycle (docs/plans/WRITING_ASSIGNMENT.md D7, D12, D25). Mirrored byte-for-byte below the marker in functions/src/writingResponseState.ts.
+import { studentCloseAt, studentDueAt } from './studentWindow';
 // ---- shared body ----
 
 /** Where a student's piece stands (D12); `draft` and `revising` are the unlocked states. */
@@ -182,17 +183,17 @@ export function writingEventAllowed(
   );
 }
 
-/** The close for one student: their pointer's or the session's, brought forward to the teacher's end. */
+/** The close for one student: their pointer's or their class's, brought forward to the teacher's end. */
 export function resolveWritingCloseAt(
-  session: { closeAt?: unknown; status?: unknown; endedAt?: unknown },
+  session: {
+    closeAt?: unknown;
+    studentWindows?: unknown;
+    status?: unknown;
+    endedAt?: unknown;
+  },
   pointerCloseAt?: unknown
 ): number | null {
-  const close =
-    typeof pointerCloseAt === 'number'
-      ? pointerCloseAt
-      : typeof session.closeAt === 'number'
-        ? session.closeAt
-        : null;
+  const close = studentCloseAt(session, pointerCloseAt);
   if (session.status !== 'ended') return close;
   const ended = typeof session.endedAt === 'number' ? session.endedAt : 0;
   return close === null ? ended : Math.min(close, ended);
@@ -204,13 +205,7 @@ export function resolveWritingDueAt(
   classId: string | null,
   pointerDueAt?: unknown
 ): number | null {
-  if (typeof pointerDueAt === 'number') return pointerDueAt;
-  const byClass = session.dueAtByClassId;
-  if (classId && typeof byClass === 'object' && byClass !== null) {
-    const v = (byClass as Record<string, unknown>)[classId];
-    if (typeof v === 'number') return v;
-  }
-  return typeof session.dueAt === 'number' ? session.dueAt : null;
+  return studentDueAt(session, classId, pointerDueAt);
 }
 
 /** D7 with D22's extra time: the clock's end, or null when unlimited. */

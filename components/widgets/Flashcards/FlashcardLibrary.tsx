@@ -33,6 +33,7 @@ import {
   LibrarySelectToggle,
   LibraryShell,
   LibraryToolbar,
+  buildDuplicateAction,
   buildMoveToFolderAction,
   countItemsByFolder,
   latestAssignedAt,
@@ -69,6 +70,9 @@ interface FlashcardLibraryProps {
   onShare: (set: FlashcardSet) => void;
   onAssign: (set: FlashcardSet) => void;
   onDelete: (set: FlashcardSet) => void;
+  /** Given only when the library-duplicate-more flag is on. */
+  onDuplicate?: (set: FlashcardSet) => void;
+  isDuplicating?: (id: string) => boolean;
   /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
   folderDeleteActions?: FolderDeleteActions;
   /** Status chips for a set's card, e.g. the Claude review mark. */
@@ -139,6 +143,8 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onShare,
   onAssign,
   onDelete,
+  onDuplicate,
+  isDuplicating,
   folderDeleteActions,
   badgesFor,
   onAssignmentResults,
@@ -515,6 +521,13 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
           icon: MonitorPlay,
           onClick: () => onPresent(set),
         },
+        ...(onDuplicate
+          ? [
+              buildDuplicateAction(set, () => onDuplicate(set), {
+                disabled: isDuplicating?.(set.id),
+              }),
+            ]
+          : []),
         onShareWithPlc
           ? {
               id: 'share',

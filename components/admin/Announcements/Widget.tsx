@@ -55,6 +55,7 @@ import { AnnouncementFormData } from './types';
 import { TextConfigEditor } from './TextConfigEditor';
 import { EmbedConfigEditor } from './EmbedConfigEditor';
 import { DraftNumberField } from '@/components/admin/DraftNumberField';
+import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 
 // Widget types that make practical sense as announcements
 const ANNOUNCEMENT_WIDGET_TYPES: WidgetType[] = [
@@ -933,7 +934,7 @@ export const AnnouncementsManager: React.FC = () => {
       const payload: Announcement = {
         ...rest,
         id: newId,
-        name: `${a.name} (Copy)`,
+        name: suggestDuplicateTitle(a.name),
         isActive: false,
         activatedAt: null,
         createdAt: now,

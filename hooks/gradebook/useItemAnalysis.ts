@@ -102,7 +102,9 @@ export function useItemAnalysis(
   teacherUid: string | undefined,
   studentUids: string[]
 ): ItemAnalysisRow[] | null | 'none' {
-  const googleAccessToken = useContext(AuthContext)?.googleAccessToken ?? null;
+  const authContext = useContext(AuthContext);
+  const googleAccessToken = authContext?.googleAccessToken ?? null;
+  const refreshGoogleToken = authContext?.refreshGoogleToken;
   const [va, setVa] = useState<{
     key: string;
     session: VideoActivitySession;
@@ -137,7 +139,9 @@ export function useItemAnalysis(
           assignmentFrozenFileId(assignment) ?? assignment?.quizDriveFileId;
         if (!fileId || !googleAccessToken || isAuthBypass) return done('none');
         const [quiz, snap] = await Promise.all([
-          new QuizDriveService(googleAccessToken).loadQuiz(fileId),
+          new QuizDriveService(googleAccessToken, refreshGoogleToken).loadQuiz(
+            fileId
+          ),
           getDocs(collection(db, 'quiz_sessions', sessionId, 'responses')),
         ]);
         const responses = snap.docs
@@ -172,7 +176,15 @@ export function useItemAnalysis(
     return () => {
       cancelled = true;
     };
-  }, [key, kind, sessionId, teacherUid, uidKey, googleAccessToken]);
+  }, [
+    key,
+    kind,
+    sessionId,
+    teacherUid,
+    uidKey,
+    googleAccessToken,
+    refreshGoogleToken,
+  ]);
 
   const vaRows = useMemo(() => {
     if (kind !== 'video-activity' || !vaSession || !vaResponses) return null;

@@ -68,6 +68,8 @@ export type FrameReport =
 export interface FrameTarget {
   token: string;
   el: Element;
+  /** A pick-any step's every option, `el` first; the learner may act on any. */
+  els?: Element[];
 }
 
 declare global {
@@ -175,6 +177,9 @@ export function installFrameSeeker(
   let detach: (() => void) | null = null;
   let toldAmbiguous = false;
   let toldCandidate = '';
+  // A pick-any step: whether it has lit its options this seek, and whether nodes were added or removed since its last look.
+  let anyLit = false;
+  let listChanged = true;
   // Every open shadow root, and the extension's own closed ones, is searched and watched; kept up to date from mutation records instead of a full walk per search.
   let roots = new Set<Document | ShadowRoot>();
   let rootsAt = 0;
@@ -194,6 +199,8 @@ export function installFrameSeeker(
     {
       stepId: string;
       el: Element | null;
+      /** A pick-any step's every option. */
+      all?: Element[];
       at: number;
       misses: number;
       retryAt: number;
@@ -236,7 +243,12 @@ export function installFrameSeeker(
     shared.target = null;
   };
 
-  const attach = (el: Element, token: string, action: WebStepAction) => {
+  const attach = (
+    el: Element,
+    token: string,
+    action: WebStepAction,
+    all?: Element[]
+  ) => {
     let settle: ReturnType<typeof setTimeout> | null = null;
     let pressedAt = -Infinity;
     const onAct = (e: Event) => {
@@ -257,12 +269,16 @@ export function installFrameSeeker(
       }, INPUT_SETTLE_MS);
     };
     const events = ACT_EVENTS[action];
-    for (const name of events) el.addEventListener(name, onAct, true);
+    const els = all?.length ? all : [el];
+    for (const one of els)
+      for (const name of events) one.addEventListener(name, onAct, true);
     detach = () => {
       if (settle) clearTimeout(settle);
-      for (const name of events) el.removeEventListener(name, onAct, true);
+      for (const one of els)
+        for (const name of events) one.removeEventListener(name, onAct, true);
     };
-    shared.target = { token, el };
+    if (all?.length) anyLit = true;
+    shared.target = { token, el, ...(all?.length ? { els: all } : {}) };
     shared.onTarget?.();
   };
 
@@ -273,6 +289,8 @@ export function installFrameSeeker(
     seek = step;
     toldAmbiguous = false;
     toldCandidate = '';
+    anyLit = false;
+    listChanged = true;
     benchMark('seek', { token: step.token });
     if (later) queue();
     else run();
@@ -328,14 +346,18 @@ export function installFrameSeeker(
     if (!seek) return;
     const current = shared.target;
     if (current && current.token === seek.token) {
-      if (current.el.isConnected) return;
+      if (current.els ? refreshAll(current) : current.el.isConnected) return;
       clearTarget();
       send({ type: 'wt:lost', token: seek.token });
     }
     const began = performance.now();
     for (const r of roots)
       if (r instanceof ShadowRoot && !r.host.isConnected) roots.delete(r);
-    const out = assessTarget(doc, seek.clues, [...roots]);
+    const out = assessTarget(
+      doc,
+      anyLit ? { ...seek.clues, anyOnly: true } : seek.clues,
+      [...roots]
+    );
     lastEnd = performance.now();
     lastCost = lastEnd - began;
     if (out.kind !== 'match' && lastEnd - rootsAt > ROOTS_RESCAN_MS)
@@ -358,7 +380,7 @@ export function installFrameSeeker(
     if (out.kind !== 'match') return;
     const hit = out.match;
     benchMark('match', { token: seek.token });
-    attach(hit.el, seek.token, seek.action);
+    attach(hit.el, seek.token, seek.action, hit.all);
     send({
       type: 'wt:found',
       token: seek.token,
@@ -367,6 +389,26 @@ export function installFrameSeeker(
       url: doc.location?.href ?? '',
       ...(hit.weak ? { fix: cluesOf(hit.el) } : {}),
     });
+  };
+
+  /** A pick-any step already lit: options that come or go are lit too, and it is lost once none are left. */
+  const refreshAll = (current: FrameTarget): boolean => {
+    if (!seek) return true;
+    // Only added or removed nodes change which options there are.
+    if (!listChanged) return (current.els ?? []).some((el) => el.isConnected);
+    listChanged = false;
+    const began = performance.now();
+    const out = assessTarget(doc, { ...seek.clues, anyOnly: true }, [...roots]);
+    lastEnd = performance.now();
+    lastCost = lastEnd - began;
+    const all = out.kind === 'match' ? (out.match.all ?? []) : [];
+    if (all.length === 0) return false;
+    const had = current.els ?? [];
+    if (all.length === had.length && all.every((el, i) => el === had[i]))
+      return true;
+    detach?.();
+    attach(all[0], seek.token, seek.action, all);
+    return true;
   };
 
   /** The next watched step whose element is unknown, gone, or not looked for since the page last changed. */
@@ -428,6 +470,7 @@ export function installFrameSeeker(
     aheadEls.set(step.index, {
       stepId: step.stepId,
       el: out.kind === 'match' ? out.match.el : null,
+      ...(out.kind === 'match' && out.match.all ? { all: out.match.all } : {}),
       at: domVersion,
       misses,
       retryAt:
@@ -484,7 +527,11 @@ export function installFrameSeeker(
       if (same) return;
     }
     const current = shared.target?.token === seek.token ? shared.target : null;
-    if (current && path.includes(current.el)) return;
+    if (
+      current &&
+      (current.els ?? [current.el]).some((el) => path.includes(el))
+    )
+      return;
     const watched: AheadStep[] = [
       ...(seek.index !== undefined && seek.stepId !== undefined && !current
         ? [
@@ -506,8 +553,11 @@ export function installFrameSeeker(
       (step) => {
         if (!kinds.includes(step.action)) return false;
         const c = aheadEls.get(step.index);
-        const el = c?.stepId === step.stepId ? c.el : null;
-        if (!el?.isConnected || !path.includes(el)) return false;
+        if (c?.stepId !== step.stepId) return false;
+        const el = (c.all ?? (c.el ? [c.el] : [])).find(
+          (one) => one.isConnected && path.includes(one)
+        );
+        if (!el) return false;
         found.el = el;
         return true;
       },
@@ -542,6 +592,7 @@ export function installFrameSeeker(
 
   const schedule = (records: MutationRecord[]) => {
     addedRoots(records);
+    if (records.some((r) => r.type === 'childList')) listChanged = true;
     domVersion += 1;
     // New elements may be a watched step's control arriving late: look again soon, not after the miss pause.
     if (

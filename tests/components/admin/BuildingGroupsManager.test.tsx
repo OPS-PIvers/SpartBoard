@@ -2,6 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BuildingGroupsManager } from '@/components/admin/PlcResourcesManager/BuildingGroupsManager';
 
+const { mockShowConfirm, mockShowPrompt } = vi.hoisted(() => ({
+  mockShowConfirm: vi.fn<(...args: unknown[]) => Promise<boolean>>(),
+  mockShowPrompt: vi.fn<(...args: unknown[]) => Promise<string | null>>(),
+}));
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showConfirm: mockShowConfirm,
+    showPrompt: mockShowPrompt,
+    showAlert: vi.fn(),
+  }),
+}));
+
 const interpolate = (s: string, o?: Record<string, unknown>) =>
   s.replace(/\{\{(\w+)\}\}/g, (_m, k: string) => {
     const v = o?.[k];
@@ -74,16 +86,17 @@ beforeEach(() => {
 
 describe('BuildingGroupsManager row actions', () => {
   it('deletes a group after confirming', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    mockShowConfirm.mockResolvedValue(true);
     render(<BuildingGroupsManager />);
     fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
     await waitFor(() => expect(mockDeletePlc).toHaveBeenCalledWith('g1'));
   });
 
-  it('does not delete when the confirm is cancelled', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('does not delete when the confirm is cancelled', async () => {
+    mockShowConfirm.mockResolvedValue(false);
     render(<BuildingGroupsManager />);
     fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalled());
     expect(mockDeletePlc).not.toHaveBeenCalled();
   });
 
@@ -100,7 +113,7 @@ describe('BuildingGroupsManager row actions', () => {
   });
 
   it('opens the member editor and removes a member', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    mockShowConfirm.mockResolvedValue(true);
     render(<BuildingGroupsManager />);
     fireEvent.click(screen.getByRole('button', { name: /Members/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove t1' }));

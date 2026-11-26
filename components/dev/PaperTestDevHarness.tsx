@@ -527,6 +527,14 @@ const GROUPS_QUIZ: QuizData = {
       incorrectAnswers: ['Vacuole', 'Nucleus', 'Cell wall'],
     },
     {
+      id: 'g0',
+      timeLimit: 0,
+      text: 'Plant cells have a cell wall.',
+      type: 'MC',
+      correctAnswer: 'True',
+      incorrectAnswers: ['False'],
+    },
+    {
       id: 'g2',
       timeLimit: 0,
       text: 'Which of these are found in plant cells?',
@@ -584,6 +592,42 @@ const VIEWS = {
         initialSharing: { plcMode: false, plcId: '' },
         onCreateAssignment: () => Promise.resolve(),
       }}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
+  // A section heading and a group's supports on the question-text sheet.
+  'sheet-extras': () => (
+    <PaperPrintModal
+      quiz={{
+        ...GROUPS_QUIZ,
+        sections: [
+          {
+            id: 's1',
+            title: 'Part B: Cell parts',
+            directions: 'Use the diagram from class.',
+            chooseCount: 2,
+          },
+        ],
+        order: [
+          { kind: 'question', id: 'g1' },
+          { kind: 'question', id: 'g0' },
+          { kind: 'section', id: 's1' },
+          { kind: 'question', id: 'g2' },
+          { kind: 'question', id: 'g3' },
+          { kind: 'question', id: 'g4' },
+          { kind: 'question', id: 'g5' },
+        ],
+      }}
+      group={{
+        label: 'Group 1',
+        students: { r1: ['r1-s0', 'r1-s3'] },
+        supports: [
+          { title: 'Word bank', body: 'nucleus, ribosome, vacuole, cell wall' },
+        ],
+      }}
+      rosters={ROSTERS}
       onSaveBatch={() => Promise.resolve()}
       onClose={noop}
       onError={noop}

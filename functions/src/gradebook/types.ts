@@ -59,9 +59,12 @@ export interface SessionMeta {
   classIds: string[];
   openAt: number | null;
   dueAt: number | null;
+  /** The class's close, not the bound widened for one student's extension. */
   closeAt: number | null;
   createdAt: number | null;
   individualTargeting: boolean;
+  /** Saved with per-student windows, so each student's pointer holds their own close. */
+  studentWindows?: boolean;
   /** `classId → rosterId` from `periodAccess`, for per-class due dates. */
   rosterIdByClassId: Record<string, string>;
   /** Per-class due dates (quiz `dueAtByRosterId`, mini-app `dueAtByClassId`). */

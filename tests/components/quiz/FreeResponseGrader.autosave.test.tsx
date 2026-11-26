@@ -4,8 +4,13 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: vi.fn() }),
 }));
+const { showConfirm } = vi.hoisted(() => ({
+  showConfirm: vi.fn<(message: string) => Promise<boolean>>(() =>
+    Promise.resolve(true)
+  ),
+}));
 vi.mock('@/context/useDialog', () => ({
-  useDialog: () => ({ showConfirm: vi.fn().mockResolvedValue(true) }),
+  useDialog: () => ({ showConfirm }),
 }));
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 
@@ -235,7 +240,7 @@ describe('FreeResponseGrader — auto-save', () => {
   it('asks before closing while a write is parked as failed, and closes on yes', async () => {
     const onSave = vi.fn<SaveFn>().mockRejectedValue(new Error('offline'));
     const onClose = vi.fn();
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    showConfirm.mockClear();
     try {
       renderGrader(onSave, onClose);
       fireEvent.click(
@@ -248,11 +253,12 @@ describe('FreeResponseGrader — auto-save', () => {
       fireEvent.click(screen.getAllByRole('button', { name: /^Close$/ })[0]);
       await flush();
       await flush();
-      expect(confirmSpy).toHaveBeenCalledTimes(1);
-      expect(confirmSpy.mock.calls[0][0]).toMatch(/Ada/);
+      expect(
+        showConfirm.mock.calls.filter(([message]) => /Ada/.test(message))
+      ).toHaveLength(1);
       expect(onClose).toHaveBeenCalledTimes(1);
     } finally {
-      confirmSpy.mockRestore();
+      showConfirm.mockClear();
     }
   });
 });

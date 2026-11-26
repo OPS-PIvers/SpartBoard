@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { PeriodAccess } from '@/types';
 import {
+  restoreRun,
   useAssignmentClassActions,
   type AssignmentLifecycle,
   type AssignmentRun,
@@ -17,9 +18,15 @@ const periods = vi.hoisted(() => ({
   startPeriod: vi.fn(() => Promise.resolve([])),
   reopenPeriod: vi.fn(() => Promise.resolve([])),
   pausePeriod: vi.fn(() => Promise.resolve()),
-  closePeriod: vi.fn(() => Promise.resolve()),
+  closePeriod: vi.fn((_key: string, _at?: number) => Promise.resolve()),
   closeAllPeriods: vi.fn(() => Promise.resolve()),
+  closePeriods: vi.fn(),
 }));
+periods.closePeriods.mockImplementation(
+  async (keys: readonly string[], at?: number) => {
+    for (const k of keys) await periods.closePeriod(k, at);
+  }
+);
 vi.mock('@/hooks/usePeriodAccess', () => ({
   usePeriodAccess: (...args: unknown[]) => {
     store.periodArgs = args;
@@ -330,5 +337,142 @@ describe('useAssignmentClassActions', () => {
       ['a1', 'c1'],
       ['a1', 'c2'],
     ]);
+  });
+});
+
+describe('useAssignmentClassActions with a server writer (Writing)', () => {
+  const sent: Array<[string, unknown]> = [];
+  const writer = {
+    commit: vi.fn((id: string, patch: unknown) => {
+      sent.push(['commit', patch]);
+      return Promise.resolve();
+    }),
+    mark: vi.fn((id: string, marks: unknown) => {
+      sent.push(['mark', marks]);
+      return Promise.resolve();
+    }),
+    clearWindow: vi.fn((id: string, patch: unknown) => {
+      sent.push(['clearWindow', patch]);
+      return Promise.resolve();
+    }),
+    closeClass: vi.fn((id: string, key: string) => {
+      sent.push(['closeClass', key]);
+      return Promise.resolve();
+    }),
+    restore: vi.fn(() => Promise.resolve()),
+  };
+  const WRITER_COLLECTIONS = {
+    sessionCollection: 'writing_assignment_sessions',
+    assignmentCollection: 'writing_assignment_records',
+    refreshIdle: false,
+    writer,
+  };
+  const writingLifecycle = () =>
+    lifecycleOf({
+      isEnded: (a) => a.status === 'ended',
+      reopenClearsMarks: true,
+      turnInClass: undefined,
+      end: vi.fn((): Promise<void> => {
+        sent.push(['end', null]);
+        if (store.doc) store.doc.status = 'ended';
+        return Promise.resolve();
+      }),
+      reopen: vi.fn((): Promise<void> => {
+        sent.push(['reopen', null]);
+        if (store.doc) store.doc.status = 'active';
+        return Promise.resolve();
+      }),
+    });
+  const setupWriter = (r: AssignmentRun, lifecycle: AssignmentLifecycle) => {
+    store.doc = structuredClone(r) as unknown as Record<string, unknown>;
+    return renderHook(() =>
+      useAssignmentClassActions(r, WRITER_COLLECTIONS, lifecycle, [])
+    ).result;
+  };
+  const noDirectWrites = () => expect(store.writes).toEqual([]);
+
+  beforeEach(() => {
+    sent.length = 0;
+  });
+
+  it('sends period rows through the writer', () => {
+    setupWriter(run({ periodAccess: { c1: row() } }), writingLifecycle());
+    const opts = store.periodArgs[1] as {
+      commit?: (p: unknown) => Promise<void>;
+    };
+    expect(typeof opts.commit).toBe('function');
+    void opts.commit?.({ periodAccess: { c1: { state: 'paused' } } });
+    expect(writer.commit).toHaveBeenCalledWith('a1', {
+      periodAccess: { c1: { state: 'paused' } },
+    });
+  });
+
+  it('closes one class through the writer, which ends the run on the last one', async () => {
+    const lifecycle = writingLifecycle();
+    const x = setupWriter(
+      run({ periodAccess: { c1: row(), c2: row({ state: 'closed' }) } }),
+      lifecycle
+    );
+    await act(() => x.current.closeClass('c1'));
+    expect(sent).toEqual([['closeClass', 'c1']]);
+    expect(lifecycle.end).not.toHaveBeenCalled();
+    noDirectWrites();
+  });
+
+  it('a single line Close marks and ends; Open clears a passed close', async () => {
+    const onWindowCleared = vi.fn(() => Promise.resolve());
+    const x = setupWriter(run({ closeAt: 10 }), {
+      ...writingLifecycle(),
+      onWindowCleared,
+    });
+    await act(() => x.current.closeClass(null));
+    expect(sent).toEqual([
+      ['mark', { closedAt: expect.any(Number) }],
+      ['end', null],
+    ]);
+    sent.length = 0;
+    await act(() => x.current.openClass(null));
+    expect(sent).toEqual([
+      ['clearWindow', { closeAt: null }],
+      ['reopen', null],
+    ]);
+    expect(onWindowCleared).toHaveBeenCalledWith('a1', { closeAt: null });
+    noDirectWrites();
+  });
+
+  it('Move to Finished closes the classes, marks Done and ends', async () => {
+    const x = setupWriter(
+      run({ periodAccess: { c1: row(), c2: row({ closedAt: 3 }) } }),
+      writingLifecycle()
+    );
+    await act(() => x.current.moveToDone());
+    expect(periods.closeAllPeriods).toHaveBeenCalled();
+    expect(sent).toEqual([
+      ['mark', { doneAt: expect.any(Number) }],
+      ['end', null],
+    ]);
+    noDirectWrites();
+  });
+
+  it('a single line cannot be paused', async () => {
+    const x = setupWriter(run(), writingLifecycle());
+    await expect(x.current.pauseClass(null)).rejects.toThrow(
+      'cannot be paused'
+    );
+  });
+
+  it('refuses anyone but the assigning teacher', async () => {
+    const x = setupWriter(run({ teacherUid: 'other' }), writingLifecycle());
+    await expect(x.current.closeAll()).rejects.toThrow(
+      'Only the assigning teacher'
+    );
+    expect(sent).toEqual([]);
+  });
+
+  it('Undo goes through the writer', async () => {
+    const prev = run({ status: 'ended', periodAccess: { c1: row() } });
+    await restoreRun(prev, 't1', WRITER_COLLECTIONS, writingLifecycle());
+    expect(writer.restore).toHaveBeenCalledWith(prev, true);
+    noDirectWrites();
   });
 });

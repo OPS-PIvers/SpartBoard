@@ -18,7 +18,8 @@
 
 import React from 'react';
 import { tourFieldAttr } from '@/config/tourAnchors';
-import { OverflowMenu } from './LibraryOverflowMenu';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
+import { libraryMenuProps } from './libraryMenuProps';
 import type { AssignmentArchiveCardProps, LibraryBadgeTone } from './types';
 
 /* ─── Tone → styling ──────────────────────────────────────────────────────── */
@@ -246,10 +247,12 @@ export function AssignmentArchiveCard<TAssignment>({
             with sibling rows that do. */}
         {secondaryActions && secondaryActions.length > 0 ? (
           <OverflowMenu
-            actions={secondaryActions}
-            rowKey={tourRowKey}
-            widgetType={tourWidgetTypeResolved}
-            archive
+            items={secondaryActions}
+            {...libraryMenuProps({
+              rowKey: tourRowKey,
+              widgetType: tourWidgetTypeResolved,
+              archive: true,
+            })}
           />
         ) : (
           <div

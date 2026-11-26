@@ -12,7 +12,6 @@
  * recursive rendering + expand/collapse behavior in isolation.
  */
 
-import { isImeComposing } from '@/utils/imeComposing';
 import React, {
   createContext,
   useContext,
@@ -21,7 +20,10 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+
+// Folder rows share one pseudo type so a tour step can follow the folder picked earlier.
+const FOLDER_TOUR_TYPE = 'folders';
 import {
   Folder,
   FolderOpen,
@@ -37,6 +39,7 @@ import { folderDroppableId, type FolderDropData } from './folderDropTargets';
 import { useFolderPanelMode } from './LibraryFolderPanelContext';
 import { folderColorSwatch } from './folderColors';
 import { FolderColorPicker } from './FolderColorPicker';
+import { FolderNameInput } from './FolderNameInput';
 import { isSourceFolderId } from './sourceFolders';
 import {
   buildFolderIndex,
@@ -103,70 +106,6 @@ interface FolderDragState {
 
 // Owned by the top-level tree so nested subtrees share one drag.
 const FolderDragContext = createContext<FolderDragState | null>(null);
-
-/**
- * Inline rename input — one ref per render, auto-focused + selected on mount.
- */
-const RenameInput: React.FC<{
-  initial: string;
-  onCommit: (next: string) => void;
-  onCancel: () => void;
-}> = ({ initial, onCommit, onCancel }) => {
-  const ref = useRef<HTMLInputElement>(null);
-  // Set to true synchronously before calling onCancel() so that the
-  // synchronous blur event fired by unmounting the focused input (which
-  // carries a stale onBlur closure still holding the typed text) does not
-  // accidentally call onCommit with the cancelled value. Same pattern as
-  // DraggableWindow's isCancellingTitleRef (Bug #1965).
-  const isCancellingRef = useRef(false);
-
-  useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
-
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    // Pressing Enter commits and unmounts this input; the browser then fires a
-    // synchronous blur during DOM removal. Bail out if the input is no longer
-    // connected so onCommit() can't fire a second time (duplicate commit).
-    if (!e.currentTarget?.isConnected) return;
-    if (isCancellingRef.current) {
-      isCancellingRef.current = false;
-      return;
-    }
-    const v = ref.current?.value ?? '';
-    const trimmed = v.trim();
-    if (trimmed && trimmed !== initial) onCommit(trimmed);
-    else onCancel();
-  };
-
-  return (
-    <input
-      ref={ref}
-      type="text"
-      defaultValue={initial}
-      onBlur={handleBlur}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          if (isImeComposing(e)) return e.stopPropagation();
-          const v = (e.target as HTMLInputElement).value.trim();
-          if (v) onCommit(v);
-          else onCancel();
-        } else if (e.key === 'Escape') {
-          // Set the cancellation flag BEFORE calling onCancel() — onCancel()
-          // unmounts this input, which synchronously fires blur with the stale
-          // onBlur closure. The flag is read in handleBlur to skip the write.
-          isCancellingRef.current = true;
-          onCancel();
-        }
-        e.stopPropagation();
-      }}
-      onClick={(e) => e.stopPropagation()}
-      {...tourAttr('library-shell.folder-rename-input')}
-      className="flex-1 min-w-0 bg-white border border-brand-blue-primary/40 rounded-sm px-1.5 py-0.5 text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
-    />
-  );
-};
 
 interface FolderRowProps {
   folder: LibraryFolder;
@@ -348,7 +287,11 @@ const FolderRow: React.FC<FolderRowProps> = ({
           onClick={() => onSelectFolder(folder.id)}
           title={`${folder.name}${count > 0 ? ` (${count})` : ''}`}
           aria-label={`${folder.name}, ${count} items`}
-          {...tourAttr('library-shell.folder-tree-item')}
+          {...tourFieldAttr(
+            'library-shell.folder-tree-item',
+            FOLDER_TOUR_TYPE,
+            folder.id
+          )}
           className="flex items-center justify-center"
           style={{
             width: 'min(32px, 9cqmin)',
@@ -436,10 +379,11 @@ const FolderRow: React.FC<FolderRowProps> = ({
               <Folder size={14} />
             )}
           </span>
-          <RenameInput
+          <FolderNameInput
             initial={folder.name}
             onCommit={(next) => onCommitRename(folder.id, next)}
             onCancel={onCancelRename}
+            anchor={tourAttr('library-shell.folder-rename-input')}
           />
         </span>
       ) : (
@@ -461,7 +405,11 @@ const FolderRow: React.FC<FolderRowProps> = ({
           className="flex-1 min-w-0 flex items-center gap-1 py-1 text-left cursor-pointer"
           aria-label={`${folder.name}, ${count} items`}
           aria-pressed={isSelected}
-          {...tourAttr('library-shell.folder-tree-item')}
+          {...tourFieldAttr(
+            'library-shell.folder-tree-item',
+            FOLDER_TOUR_TYPE,
+            folder.id
+          )}
         >
           <span
             className={`shrink-0 ${iconTint ?? 'text-brand-blue-primary/80'}`}
@@ -478,7 +426,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
 
       {/* Trailing slot — count badge and overflow trigger SHARE one
           fixed-width slot instead of sitting side by side. At rest the
-          count shows; on hover/focus it cross-fades to the kebab. This
+          count shows; on hover/focus/selection it cross-fades to the kebab. This
           reclaims ~22px of name width per row (the old kebab was
           opacity-0 but still occupied layout) without any layout jump. */}
       {!isRenaming && (
@@ -500,10 +448,13 @@ const FolderRow: React.FC<FolderRowProps> = ({
               } ${
                 locked
                   ? ''
-                  : isMenuOpen
+                  : isMenuOpen || isSelected
                     ? 'opacity-0'
                     : 'group-hover:opacity-0 group-focus-within:opacity-0'
               }`}
+              data-tour-reveal-swap={
+                locked ? undefined : 'library-shell.folder-menu'
+              }
               style={{
                 paddingInline: 'min(6px, 1.5cqmin)',
                 fontSize: 'min(10px, 3cqmin)',
@@ -523,9 +474,13 @@ const FolderRow: React.FC<FolderRowProps> = ({
               aria-label={`Actions for ${folder.name}`}
               aria-haspopup="menu"
               aria-expanded={isMenuOpen}
-              {...tourAttr('library-shell.folder-menu')}
+              {...tourFieldAttr(
+                'library-shell.folder-menu',
+                FOLDER_TOUR_TYPE,
+                folder.id
+              )}
               className={`absolute inset-0 flex items-center justify-center rounded-md text-slate-400 hover:text-brand-blue-dark hover:bg-white/60 transition-opacity ${
-                isMenuOpen
+                isMenuOpen || isSelected
                   ? 'opacity-100'
                   : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
               }`}

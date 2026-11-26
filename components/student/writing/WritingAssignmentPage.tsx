@@ -1,18 +1,15 @@
 // `/writing/{sessionId}`: the student's Writing assignment, read live from the session and their own response.
-import React, {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useStudentAuth } from '@/context/useStudentAuth';
 import type { WritingAssignmentSession } from '@/types';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
-import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+import {
+  useTabStrikePolicy,
+  type TabStrikeRules,
+} from '@/hooks/useTabStrikePolicy';
 import { useWritingPiece } from '@/hooks/useWritingPiece';
 import { dictationLanguages } from '@/utils/speechToText/languages';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
@@ -41,6 +38,8 @@ type View =
   | { kind: 'loading' }
   | { kind: 'missing' }
   | { kind: 'ready'; session: WritingAssignmentSession };
+
+const NO_TAB_STRIKES: TabStrikeRules = { threshold: 'off', rule: null };
 
 const goBack = () => {
   window.location.href = '/my-assignments';
@@ -107,27 +106,22 @@ const WritingPiecePage: React.FC<{
   const writing = view.mode === 'writing';
   // Time away from the tab goes into the summary (D9), once per return, past the exit log's cap too.
   const recordAway = piece.recordAway;
-  const releaseRef = useRef<() => void>(() => undefined);
-  const tracker = useTabAwayTracker({
+  // Writing has no warnings or auto-submit: exits are only timed.
+  useTabStrikePolicy({
+    rules: NO_TAB_STRIKES,
+    warn: false,
+    serverCount: 0,
+    countStrike: () => Promise.resolve(0),
+    submit: () => Promise.resolve(),
     enabled: writing,
     sessionActive: session.status === 'active',
     ready: true,
     serverExits: undefined,
     attempt: 0,
     getPosition: () => ({}),
-    onLeave: () => Promise.resolve(false),
     saveExits: undefined,
-    onExitClosed: (_outcome, ms) => {
-      recordAway(ms);
-      releaseRef.current();
-    },
-    limitMs: null,
-    autoSubmit: false,
-    onAwayTooLong: () => undefined,
+    onExitClosed: (_outcome, ms) => recordAway(ms),
     fullscreenRequired: protections.fullscreen && writing,
-  });
-  useLayoutEffect(() => {
-    releaseRef.current = tracker.release;
   });
 
   // Speech to text: only a student whose override grants it gets Dictate.
@@ -231,7 +225,6 @@ const WritingPiecePage: React.FC<{
           unsent: piece.unsent,
           notice: piece.notice,
           busy: piece.busy,
-          online: piece.online,
           contextMenuOff: override?.spellingHelp !== true,
           onStart: () => void piece.start(),
           onTurnIn: () => void piece.turnIn(),

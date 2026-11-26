@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '@/context/AuthContextValue';
+import { DRIVE_API_URL, DriveSession } from '@/utils/driveRequest';
 
-const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const LH3_DRIVE_URL =
   /^https:\/\/lh3\.googleusercontent\.com\/d\/([\w-]+)(?:=[\w-]*)?$/;
 
@@ -18,10 +18,10 @@ const downloadAsBlobUrl = (
 ): Promise<string | null> => {
   const cached = blobUrls.get(fileId);
   if (cached) return cached;
-  const pending = fetch(
-    `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}?alt=media`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  )
+  const pending = new DriveSession(token)
+    .request(`${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
     .then(async (res) => {
       if (!res.ok) throw new Error(`Drive image fetch ${res.status}`);
       const blob = await res.blob();

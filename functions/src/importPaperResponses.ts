@@ -23,7 +23,12 @@
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { isLiveAdmin } from './authz';
 import * as admin from './firebaseAdmin';
+import {
+  PAPER_SETTINGS_PATH,
+  assertPaperSheetsEnabled,
+} from './paperAnswerSheetsSettings';
 import './functionsInit';
 import {
   ALLOWED_ORIGINS,
@@ -56,8 +61,7 @@ import {
 } from './paperHandwritingQuota';
 import { assertViewAsAllowed } from './viewAsGuard';
 
-/** Admin kill switch; mirrors `config/paperAnswerSheets.ts`. Absent == off. */
-export const PAPER_SETTINGS_PATH = 'admin_settings/paper_answer_sheets';
+export { PAPER_SETTINGS_PATH };
 
 const MAX_ID_LENGTH = 128;
 const MAX_SHEETS_PER_CALL = 200;
@@ -519,12 +523,7 @@ export async function handleImportPaperResponses(
     throw new HttpsError('permission-denied', 'Teacher account required.');
   const input = parseImportPaperResponsesInput(raw);
 
-  const settings = await db.doc(PAPER_SETTINGS_PATH).get();
-  if (settings.data()?.enabled !== true)
-    throw new HttpsError(
-      'failed-precondition',
-      'Paper response sheets are not enabled.'
-    );
+  await assertPaperSheetsEnabled(db);
 
   const userRef = db.collection('users').doc(caller.uid);
   const [assignmentSnap, sessionSnap, batchSnap] = await Promise.all([
@@ -723,9 +722,7 @@ export async function handleImportPaperResponses(
   const allowedPages = new Set<string>();
   const transcribe = inkPages.length > 0 && (await transcriptionGranted());
   if (transcribe) {
-    const isAdmin = caller.email
-      ? (await db.collection('admins').doc(caller.email).get()).exists
-      : false;
+    const isAdmin = caller.email ? await isLiveAdmin(db, caller.email) : false;
     const quota = await readPaperHandwritingQuota(db, {
       uid: caller.uid,
       email: caller.email,
@@ -1287,12 +1284,7 @@ export async function handlePublishPaperResults(
   const data = isRecord(raw) ? raw : {};
   const assignmentId = parseId(data.assignmentId, 'assignmentId');
 
-  const settings = await db.doc(PAPER_SETTINGS_PATH).get();
-  if (settings.data()?.enabled !== true)
-    throw new HttpsError(
-      'failed-precondition',
-      'Paper response sheets are not enabled.'
-    );
+  await assertPaperSheetsEnabled(db);
 
   const userRef = db.collection('users').doc(caller.uid);
   const [assignmentSnap, sessionSnap] = await Promise.all([

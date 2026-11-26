@@ -7,7 +7,6 @@ import {
   ArrowDownUp,
   ArrowUp,
   Loader2,
-  Search,
 } from 'lucide-react';
 import { functions } from '@/config/firebase';
 import { Modal } from '@/components/common/Modal';
@@ -18,6 +17,7 @@ import {
   type ActiveStudentsResponse,
   type StudentKpiCategory,
 } from './activeStudents';
+import { SearchField } from '@/components/common/SearchField';
 
 const TITLES: Record<StudentKpiCategory, string> = {
   monthlyStudents: 'Monthly Active Students',
@@ -144,17 +144,12 @@ export const ActiveStudentsModal: React.FC<{
           </p>
         ) : (
           <>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                {...tourAttr('admin.analytics.active-students-search')}
-                type="text"
-                placeholder="Search by student or teacher…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder="Search by student or teacher…"
+              anchor={tourAttr('admin.analytics.active-students-search')}
+            />
 
             <p className="text-xs text-slate-500">
               Showing {displayRows.length.toLocaleString()} of{' '}

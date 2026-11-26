@@ -3,7 +3,7 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { Trash2 } from 'lucide-react';
 import { Btn } from '@/components/admin/Organization/components/primitives';
 import { SECTION } from '@/components/gradebook/settings/GradebookSettingsEditor';
-import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
+import { ChecklistSelect } from '@/components/common/ChecklistSelect';
 import type { UndoEntry } from '@/components/gradebook/settings/useUndoToast';
 import { canonicalizeBuildingIds } from '@/config/buildings';
 import type { GradingPeriod } from '@/utils/gradebook/gradebookCore';

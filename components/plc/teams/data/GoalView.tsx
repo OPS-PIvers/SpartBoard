@@ -2,13 +2,11 @@
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, MoreHorizontal, Pin, Wand2 } from 'lucide-react';
-import { IconButton } from '@/components/common/IconButton';
+import { Loader2, Pin, Wand2 } from 'lucide-react';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
 import type { PlcGoal } from '@/types';
 import type { GoalCoachDraft, GoalCoachResult } from '@/config/goalCoachRubric';
 import {
-  MENU_ITEM,
-  MENU_PANEL,
   META,
   SectionHead,
   StatusLabel,
@@ -71,7 +69,6 @@ export const GoalView: React.FC<GoalViewProps> = ({
   initialResult = null,
 }) => {
   const { t } = useTranslation();
-  const [menu, setMenu] = useState(false);
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<GoalCoachResult | null>(initialResult);
   const [failed, setFailed] = useState(false);
@@ -110,54 +107,39 @@ export const GoalView: React.FC<GoalViewProps> = ({
         as={hero ? 'h2' : 'h3'}
       >
         {menuItems && (
-          <span className="relative">
-            <IconButton
-              icon={<MoreHorizontal className="h-4 w-4" />}
-              label={t('plcDataOverview.goalOptions', {
-                defaultValue: 'Goal options',
-              })}
-              size="sm"
-              aria-haspopup="menu"
-              aria-expanded={menu}
-              {...tourAttr('teams.goal.options')}
-              onClick={() => setMenu((v) => !v)}
-            />
-            {menu && (
-              <div
-                role="menu"
-                className={`${MENU_PANEL} absolute right-0 top-full z-20 mt-1 w-44`}
-              >
-                {goal && onEdit && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={MENU_ITEM}
-                    {...tourAttr('teams.goal.edit')}
-                    onClick={() => {
-                      setMenu(false);
-                      onEdit(goal);
-                    }}
-                  >
-                    {t('plcDashboard.comments.edit', { defaultValue: 'Edit' })}
-                  </button>
-                )}
-                {onAdd && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={MENU_ITEM}
-                    {...tourAttr('teams.goal.add')}
-                    onClick={() => {
-                      setMenu(false);
-                      onAdd();
-                    }}
-                  >
-                    {t('plcGoals.add', { defaultValue: 'Add goal' })}
-                  </button>
-                )}
-              </div>
-            )}
-          </span>
+          <OverflowMenu
+            items={[
+              ...(goal && onEdit
+                ? [
+                    {
+                      id: 'edit',
+                      label: t('plcDashboard.comments.edit', {
+                        defaultValue: 'Edit',
+                      }),
+                      onClick: () => onEdit(goal),
+                      anchor: tourAttr('teams.goal.edit'),
+                    },
+                  ]
+                : []),
+              ...(onAdd
+                ? [
+                    {
+                      id: 'add',
+                      label: t('plcGoals.add', { defaultValue: 'Add goal' }),
+                      onClick: onAdd,
+                      anchor: tourAttr('teams.goal.add'),
+                    },
+                  ]
+                : []),
+            ]}
+            ariaLabel={t('plcDataOverview.goalOptions', {
+              defaultValue: 'Goal options',
+            })}
+            triggerAnchor={tourAttr('teams.goal.options')}
+            triggerClassName="rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+            triggerStyle={{ width: 28, height: 28 }}
+            iconStyle={{ width: 16, height: 16 }}
+          />
         )}
       </SectionHead>
       {!goal ? (

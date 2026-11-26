@@ -24,6 +24,7 @@ import {
   RequireStudentAuth,
 } from './context/StudentAuthContext';
 import { StudentIdleTimeoutGuard } from './components/student/StudentIdleTimeoutGuard';
+import { StudentOfflineBanner } from './components/common/StudentOfflineBanner';
 import {
   getStudentPreview,
   getViewAsTabState,
@@ -33,7 +34,6 @@ import {
 } from './utils/viewAsTab';
 import { ViewAsGate } from './context/ViewAsContext';
 import { ViewAsBanner } from './components/viewAs/ViewAsBanner';
-import { ViewAsSaveToast } from './components/viewAs/ViewAsSaveToast';
 import { StudentPreviewGate } from './components/viewAs/StudentPreviewGate';
 import { StudentTours } from './components/student/tours/StudentTours';
 
@@ -451,6 +451,14 @@ const SidebarListsDevHarness =
         }))
       )
     : null;
+const BoardsFoldersDevHarness =
+  import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
+    ? lazy(() =>
+        import('./components/dev/BoardsFoldersDevHarness').then((module) => ({
+          default: module.BoardsFoldersDevHarness,
+        }))
+      )
+    : null;
 // Also built into auth-bypass (E2E) builds for the widget grader.
 const WidgetGraderHarness =
   import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
@@ -500,6 +508,14 @@ const ClassStudentPageDevHarness = import.meta.env.DEV
       }))
     )
   : null;
+// DEV-ONLY: the shared student join, class and locked screens on fixtures.
+const StudentScreensDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/StudentScreensDevHarness').then((m) => ({
+        default: m.StudentScreensDevHarness,
+      }))
+    )
+  : null;
 // Also built into auth-bypass (E2E) builds for the student page end-padding guard.
 const StudentLandingDevHarness =
   import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
@@ -543,6 +559,13 @@ const PromptFormattingDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/PromptFormattingDevHarness').then((module) => ({
         default: module.PromptFormattingDevHarness,
+      }))
+    )
+  : null;
+const StudentWindowsDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/StudentWindowsDevHarness').then((module) => ({
+        default: module.StudentWindowsDevHarness,
       }))
     )
   : null;
@@ -824,6 +847,7 @@ const AppContent: React.FC = () => {
     isStudentRole,
     roleResolved,
     googleAccessToken,
+    refreshGoogleToken,
     signOut,
     canAccessFeature,
     globalPermissionsLoaded,
@@ -853,6 +877,7 @@ const AppContent: React.FC = () => {
   usePendingTeammateQuizCopies({
     uid: user?.uid ?? null,
     googleAccessToken,
+    refreshGoogleToken,
     onCopyAdded: ({ title, requestedByName }) => {
       addToast(
         `${requestedByName} printed response sheets for "${title}", so it has been added to your quiz library.`,
@@ -1041,7 +1066,6 @@ const App: React.FC = () => {
         <DialogProvider>
           <AuthProvider>
             <ViewAsBanner />
-            <ViewAsSaveToast />
             <AuthenticatedApp />
           </AuthProvider>
           <DialogContainer />
@@ -1589,6 +1613,19 @@ const App: React.FC = () => {
     );
   }
 
+  // Boards window on fixture boards and collections; auth-bypass only, so never on a deployed site.
+  if (
+    BoardsFoldersDevHarness &&
+    isAuthBypass &&
+    pathname === '/boards-folders-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <BoardsFoldersDevHarness />
+      </Suspense>
+    );
+  }
+
   // One widget on fixtures for the widget grader; auth-bypass only, so never on a deployed site.
   if (
     WidgetGraderHarness &&
@@ -1624,6 +1661,14 @@ const App: React.FC = () => {
         </Suspense>
         <DialogContainer />
       </DialogProvider>
+    );
+  }
+
+  if (StudentScreensDevHarness && pathname === '/student-screens-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <StudentScreensDevHarness />
+      </Suspense>
     );
   }
 
@@ -1667,7 +1712,10 @@ const App: React.FC = () => {
   ) {
     return (
       <Suspense fallback={<FullPageLoader />}>
-        <ImportConversionDevHarness />
+        <DialogProvider>
+          <ImportConversionDevHarness />
+          <DialogContainer />
+        </DialogProvider>
       </Suspense>
     );
   }
@@ -1720,6 +1768,18 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <PromptFormattingDevHarness />
+      </Suspense>
+    );
+  }
+
+  if (
+    import.meta.env.DEV &&
+    StudentWindowsDevHarness &&
+    pathname === '/student-windows-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <StudentWindowsDevHarness />
       </Suspense>
     );
   }
@@ -1855,7 +1915,10 @@ const App: React.FC = () => {
   ) {
     return (
       <Suspense fallback={<FullPageLoader />}>
-        <QuizVersionImportDevHarness />
+        <DialogProvider>
+          <QuizVersionImportDevHarness />
+          <DialogContainer />
+        </DialogProvider>
       </Suspense>
     );
   }
@@ -1964,6 +2027,7 @@ const App: React.FC = () => {
     return (
       <DialogProvider>
         <StudentIdleTimeoutGuard />
+        <StudentOfflineBanner />
         <Suspense fallback={<FullPageLoader />}>
           <MiniAppStudentApp />
         </Suspense>
@@ -2075,6 +2139,7 @@ const App: React.FC = () => {
     return (
       <DialogProvider>
         <StudentIdleTimeoutGuard />
+        <StudentOfflineBanner />
         <Suspense fallback={<FullPageLoader />}>
           <ActivityWallStudentApp />
         </Suspense>
@@ -2092,6 +2157,7 @@ const App: React.FC = () => {
     return (
       <DialogProvider>
         <StudentIdleTimeoutGuard />
+        <StudentOfflineBanner />
         <Suspense fallback={<FullPageLoader />}>
           <PollVoteApp />
         </Suspense>
@@ -2107,6 +2173,7 @@ const App: React.FC = () => {
     return (
       <DialogProvider>
         <StudentIdleTimeoutGuard />
+        <StudentOfflineBanner />
         <Suspense fallback={<FullPageLoader />}>
           <GuidedLearningStudentApp />
         </Suspense>
@@ -2155,6 +2222,7 @@ const App: React.FC = () => {
       <DialogProvider>
         <StudentAuthProvider>
           <RequireStudentAuth>
+            <StudentOfflineBanner />
             <Suspense fallback={<FullPageLoader />}>
               <ProjectStudentPage />
             </Suspense>

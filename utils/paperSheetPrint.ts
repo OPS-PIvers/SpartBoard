@@ -162,6 +162,8 @@ export interface PaperPrintJob {
   stimulusBlocks?: Readonly<Record<string, SheetStimulusBlock>>;
   /** Pages after each student's sheet with the stimuli several questions share. */
   resourcePages?: readonly SheetResourcePage[];
+  /** Question-text sheets: each section's heading, by the page map id of its first question. */
+  sectionHeadings?: Readonly<Record<string, SheetStimulusBlock>>;
   /** By page map id: stimulus pages printed just before that question's page. */
   pagesBefore?: Readonly<Record<string, readonly SheetResourcePage[]>>;
   /** A test paper copy printed at the front of each student's packet. */
@@ -396,6 +398,13 @@ function columnLegendsHtml(
   return parts.join('');
 }
 
+/** A section heading above its first question; its height already counts the gap below it. */
+function sectionHeadingHtml(block: SheetStimulusBlock, y: number): string {
+  return `<div class="sb" style="left:${mm(QUESTION_STEM_X_MM)};top:${mm(y)};width:${mm(
+    QUESTION_STEM_W_MM
+  )};height:${mm(block.heightMm)}">${block.html}</div>`;
+}
+
 /** A stimulus block at its place on the sheet. */
 function blockHtml(block: SheetStimulusBlock, x: number, y: number): string {
   return `<div class="sb" style="left:${mm(x)};top:${mm(y)};width:${mm(
@@ -569,12 +578,6 @@ function groupRowHtml(
           );
         });
       }
-      for (let c = 0; c < Math.min(choices, item.wrap ?? choices); c += 1) {
-        const r = itemBubbleRectMm(item, c, grid);
-        parts.push(
-          `<div class="legend" style="left:${mm(r.x)};top:${mm(rowsTop - GROUP_LEGEND_MM + 0.8)};width:${mm(r.w)}">${labelOf(c)}</div>`
-        );
-      }
     }
   }
 
@@ -622,6 +625,21 @@ function mcRowHtml(
       label ? ' labelled' : ''
     }" style="${style}">${numberHtml}</div>`;
   const text = questionTexts?.[index];
+  // A question-text row prints one bubble per printed choice, plus any bubble an older sheet's student filled.
+  const bubbles =
+    columnsPerPage === 'questions' &&
+    text &&
+    text.choices.length >= 2 &&
+    !isPlaceholderLetterChoices(text.choices)
+      ? Math.min(
+          choiceCount,
+          Math.max(
+            text.choices.length,
+            (fill?.filled[index] ?? -1) + 1,
+            (fill?.key[index] ?? -1) + 1
+          )
+        )
+      : choiceCount;
   if (columnsPerPage === 'questions' && text) {
     parts.push(questionTextHtml(origin, text, numberDiv));
   } else {
@@ -631,7 +649,7 @@ function mcRowHtml(
       )
     );
   }
-  for (let choice = 0; choice < choiceCount; choice += 1) {
+  for (let choice = 0; choice < bubbles; choice += 1) {
     const r = bubbleRectAtOriginMm(origin, choice, columnsPerPage);
     const cls = fill
       ? `bub${fill.filled[index] === choice ? ' filled' : ''}${
@@ -646,7 +664,7 @@ function mcRowHtml(
   }
   const mark = fill?.marks[index];
   if (mark) {
-    const r = bubbleRectAtOriginMm(origin, choiceCount - 1, columnsPerPage);
+    const r = bubbleRectAtOriginMm(origin, bubbles - 1, columnsPerPage);
     // Beside the number on the question-text grid, where choice text fills the row.
     const left =
       columnsPerPage === 'questions'
@@ -1199,6 +1217,12 @@ function mapPageBodyHtml(
   const parts = [mapLegendsHtml(map, choiceCount)];
   const slices = fill ? cropSlices(job.pageMaps) : undefined;
   for (const item of map.items) {
+    const heading =
+      item.sectionTopMm !== undefined
+        ? job.sectionHeadings?.[item.questionId]
+        : undefined;
+    if (heading && item.sectionTopMm !== undefined)
+      parts.push(sectionHeadingHtml(heading, item.sectionTopMm));
     if (item.kind === 'mc' && item.group) {
       parts.push(
         groupRowHtml(

@@ -7,10 +7,17 @@ import { headingsUnder, nearestHeading, stableAttrsOf } from './clues';
 import { ownRootsIn } from '../ownRoots';
 
 /** The clues a frame searches with; frames are matched by the service worker. */
-export type WebLocatorClues = Omit<WebTourLocator, 'frames'>;
+export type WebLocatorClues = Omit<WebTourLocator, 'frames'> & {
+  /** Every control like the target counts, so the learner can pick any of them. */
+  any?: true;
+  /** Set once a pick-any step lit its options, so it never falls back to one control. */
+  anyOnly?: true;
+};
 
 export interface LocatorMatch {
   el: Element;
+  /** A pick-any step's every option on the page, `el` first. */
+  all?: Element[];
   /** Cleared the floor but not the margin over the runner-up (C2). */
   weak: boolean;
   /** 0-1, the share of the locator's clue weight this element matched. */
@@ -597,12 +604,63 @@ export type LocateOutcome =
 /** Below the floor, an identified element scoring at least this is still worth suggesting. */
 export const SUGGEST_FLOOR = SCORE_FLOOR / 2;
 
+/** Most options a pick-any step lights. */
+export const MAX_ANY = 100;
+
+/** A CSS path with only its deepest row position dropped, so the levels above still pin the list. */
+export const anyRowCss = (css: string): string => {
+  const at = css.lastIndexOf(':nth-of-type(');
+  if (at < 0) return css.trim();
+  const end = css.indexOf(')', at);
+  return (css.slice(0, at) + css.slice(end + 1)).trim();
+};
+
+/** Every shown control like a pick-any step's target: its CSS path with the row position dropped (else its role under its heading), kept to its role and heading. */
+export function assessAll(
+  clues: WebLocatorClues,
+  roots: (Document | ShadowRoot)[]
+): Element[] {
+  const role = clues.role || undefined;
+  const css = clues.css ? anyRowCss(clues.css) : '';
+  const heading = clues.heading ? normalizeText(clues.heading) : '';
+  // A role alone would light every control of that kind on the page.
+  const pool = css
+    ? byCss(roots, css)
+    : role && heading
+      ? queryAll(roots, INTERACTIVE)
+      : [];
+  const headingSim = heading ? similarityTo(heading) : null;
+  const look = lookups();
+  const hits = new Set(
+    pool.filter(
+      (el) =>
+        (!role || roleOf(el) === role) &&
+        isShown(el) &&
+        (!headingSim || headingSim(normalizeText(look.heading(el))) >= SIMILAR)
+    )
+  );
+  // A hit inside another hit is the same option.
+  const out = [...hits].filter((el) => {
+    for (let up = el.parentElement; up; up = up.parentElement)
+      if (hits.has(up)) return false;
+    return true;
+  });
+  return out.slice(0, MAX_ANY);
+}
+
 /** Scores every candidate on every recorded clue; the best plays above the floor, and is clear only by the margin (C1, C2). */
 export function assessTarget(
   doc: Document,
   clues: WebLocatorClues,
   roots: (Document | ShadowRoot)[] = rootsOf(doc)
 ): LocateOutcome {
+  if (clues.any) {
+    const all = assessAll(clues, roots);
+    if (all.length > 0 || clues.anyOnly)
+      return all.length > 0
+        ? { kind: 'match', match: { el: all[0], all, weak: false, score: 1 } }
+        : { kind: 'none' };
+  }
   const w = wantedOf(clues);
   if (w.total === 0) return { kind: 'none' };
   const look = lookups();

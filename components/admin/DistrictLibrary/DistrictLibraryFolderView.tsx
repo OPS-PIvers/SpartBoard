@@ -19,7 +19,8 @@ import {
 } from 'lucide-react';
 import { useDialog } from '@/context/useDialog';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
-import { OverflowMenu } from '@/components/common/library/LibraryOverflowMenu';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
+import { libraryMenuProps } from '@/components/common/library/libraryMenuProps';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { BulkActionBar } from '@/components/common/library/BulkActionBar';
 import { useLibrarySelection } from '@/components/common/library/useLibrarySelection';
@@ -538,13 +539,15 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
               Access
             </button>
             <OverflowMenu
-              actions={itemActions(item)}
-              widgetType="admin"
-              anchor={tourFieldAttr(
-                'admin.district-library.row-menu',
-                'admin',
-                item.id
-              )}
+              items={itemActions(item)}
+              {...libraryMenuProps({
+                widgetType: 'admin',
+                anchor: tourFieldAttr(
+                  'admin.district-library.row-menu',
+                  'admin',
+                  item.id
+                ),
+              })}
             />
           </div>
         </div>
@@ -775,13 +778,15 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
               Access
             </button>
             <OverflowMenu
-              actions={folderActions(folderId)}
-              widgetType="admin"
-              anchor={tourFieldAttr(
-                'admin.district-library.folder-menu',
-                'admin',
-                folderId
-              )}
+              items={folderActions(folderId)}
+              {...libraryMenuProps({
+                widgetType: 'admin',
+                anchor: tourFieldAttr(
+                  'admin.district-library.folder-menu',
+                  'admin',
+                  folderId
+                ),
+              })}
             />
           </div>
         </div>

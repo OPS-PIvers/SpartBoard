@@ -53,6 +53,30 @@ function boxOf(el: Element | null): OverlayRect | null {
   return { x: r.x, y: r.y, width: r.width, height: r.height };
 }
 
+/** A pick-any step's options in the window, as one box around them all; the first option's own box when none are. */
+function boxOfAll(
+  el: Element | null,
+  els: readonly Element[]
+): OverlayRect | null {
+  const view = el?.ownerDocument.defaultView;
+  const boxes = els.flatMap((one) => {
+    const b = boxOf(one);
+    if (!b || !view) return [];
+    const seen =
+      b.y + b.height > 0 &&
+      b.y < view.innerHeight &&
+      b.x + b.width > 0 &&
+      b.x < view.innerWidth;
+    return seen ? [b] : [];
+  });
+  if (boxes.length === 0) return boxOf(el);
+  const left = Math.min(...boxes.map((b) => b.x));
+  const top = Math.min(...boxes.map((b) => b.y));
+  const right = Math.max(...boxes.map((b) => b.x + b.width));
+  const bottom = Math.max(...boxes.map((b) => b.y + b.height));
+  return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
 /** Whether the element sits fully inside the window and every scrolling box around it. */
 export function inView(el: Element): boolean {
   const view = el.ownerDocument.defaultView;
@@ -110,6 +134,7 @@ export function useTargetRect(active: boolean): TrackedTarget {
     if (!active) return;
     let raf = 0;
     let el: Element | null = null;
+    let els: readonly Element[] = [];
     let token: string | null = null;
     let from: OverlayRect | null = null;
     let start = 0;
@@ -123,7 +148,8 @@ export function useTargetRect(active: boolean): TrackedTarget {
         if (el) reveal(el);
       }
       if (current) token = current.token;
-      const live = boxOf(el);
+      els = current && current.el === el ? (current.els ?? []) : el ? els : [];
+      const live = els.length > 1 ? boxOfAll(el, els) : boxOf(el);
       if (live) missingSince = 0;
       else if (!missingSince) missingSince = now;
       const held = now - missingSince < HOLD_MS;

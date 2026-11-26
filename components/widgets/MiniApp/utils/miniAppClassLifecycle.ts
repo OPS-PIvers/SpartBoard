@@ -1,6 +1,3 @@
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
-import type { MiniAppAssignment } from '@/types';
 import type { UseMiniAppAssignmentsResult } from '@/hooks/useMiniAppAssignments';
 import type {
   AssignmentClassCollections,
@@ -8,7 +5,11 @@ import type {
   AssignmentRun,
 } from '@/hooks/useAssignmentClassActions';
 import type { UseSetAssignmentTargetsResult } from '@/hooks/useSetAssignmentTargets';
-import { hasStudentPointers } from '@/utils/studentTargetRef';
+import {
+  clearedWindowRule,
+  syncPointerWindows,
+  type StudentWindowsOption,
+} from '@/utils/pointerWindowSync';
 
 const ASSIGNMENTS = 'miniapp_assignments';
 
@@ -38,32 +39,25 @@ export function miniAppLifecycle(
     UseMiniAppAssignmentsResult,
     'endAssignment' | 'reactivateAssignment'
   > &
-    Pick<UseSetAssignmentTargetsResult, 'setAssignmentTargets'>
+    Pick<UseSetAssignmentTargetsResult, 'setAssignmentTargets'> &
+    StudentWindowsOption
 ): MiniAppLifecycle {
   return {
     end: (id) => actions.endAssignment(id),
     reopen: (id) => actions.reactivateAssignment(id),
     isEnded: (a) => a.status === 'inactive',
-    async onWindowCleared(id, patch) {
-      const row = (
-        await getDoc(doc(db, 'users', uid, ASSIGNMENTS, id))
-      ).data() as MiniAppAssignment | undefined;
-      if (!row || !hasStudentPointers(row)) return;
-      try {
-        await actions.setAssignmentTargets({
-          assignmentId: id,
+    onWindowCleared: (id, patch) =>
+      syncPointerWindows(
+        actions.setAssignmentTargets,
+        {
+          uid,
           kind: 'mini-app',
-          sessionId: row.sessionId,
-          targetMode: row.targetMode,
-          add: [],
-          remove: [],
-          overridesBySourcedId: {},
-          window: patch,
-        });
-      } catch (err) {
-        // A failed pointer sync must not stop Open.
-        console.error('[miniAppLifecycle] Pointer sync failed:', err);
-      }
-    },
+          assignmentCollection: ASSIGNMENTS,
+          assignmentId: id,
+          sessionIdOnRow: true,
+        },
+        patch,
+        actions.studentWindows ? clearedWindowRule(patch) : null
+      ),
   };
 }

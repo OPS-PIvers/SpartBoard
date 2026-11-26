@@ -28,6 +28,7 @@ export const AI_INTEGRATIONS = {
   'web-tour-writing': { tier: 'advanced', inputs: ['image'] },
   'flashcards-import': { tier: 'standard', inputs: ['text'] },
   'activity-wall-import': { tier: 'standard', inputs: ['text'] },
+  'help-center-details': { tier: 'standard', inputs: ['text'] },
 } as const satisfies Record<
   string,
   { tier: AiTier; inputs: readonly AiInputKind[] }
@@ -40,6 +41,7 @@ export const AI_INTEGRATION_DEFAULT_MODELS: Partial<
   Record<AiIntegrationId, string>
 > = {
   'web-tour-writing': 'claude-sonnet-5-5',
+  'help-center-details': 'claude-sonnet-5-5',
 };
 
 // Never switched to Gemini on their own: no fallback, and no tier model unless the AI tab picks one. Mirrored in config/aiIntegrations.ts.

@@ -276,12 +276,12 @@ describe('RunAssignedTab', () => {
     renderTab([a], {
       a1: miniAppRowResponses(a, [{}, {}, {}]),
     });
-    expect(screen.getByText('3 turned in · 1 class to go')).toBeTruthy();
+    expect(screen.getByText('3 submitted · 1 class to go')).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: /Details for/ }));
     const p1 = screen.getAllByText('P1').find((el) => el.tagName !== 'OPTION')
       ?.parentElement as HTMLElement;
     expect(within(p1).getByText('Open')).toBeTruthy();
-    expect(screen.queryByText(/of \d+ turned in|0 turned in/)).toBeNull();
+    expect(screen.queryByText(/of \d+ submitted|0 submitted/)).toBeNull();
   });
 
   it('a view-only share keeps Copy link and lands in Finished once closed', async () => {
@@ -312,7 +312,7 @@ describe('RunAssignedTab', () => {
       },
     });
     renderTab([a], { a1: miniAppRowResponses(a, [{}]) });
-    expect(screen.getByText('1 turned in')).toBeTruthy();
+    expect(screen.getByText('1 submitted')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Finished/ })).toBeNull();
   });
 

@@ -6,6 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { WidgetAccentScope } from '@/components/common/WidgetAccentScope';
 import { useTranslation } from 'react-i18next';
 import { Z_INDEX } from '@/config/zIndex';
 import { isImeComposing } from '@/utils/imeComposing';
@@ -154,54 +155,56 @@ export const StaffEmailInput: React.FC<StaffEmailInputProps> = ({
       {showList &&
         anchor &&
         createPortal(
-          <ul
-            id={listId}
-            role="listbox"
-            aria-label={t('staffEmailInput.listLabel', {
-              defaultValue: 'Staff emails',
-            })}
-            style={{
-              position: 'fixed',
-              top: anchor.top,
-              left: anchor.left,
-              width: anchor.width,
-              zIndex: Z_INDEX.modalNestedContent,
-            }}
-            className="max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg py-1 text-left"
-          >
-            {matches.map((entry, index) => (
-              <li
-                key={entry.email}
-                id={`${listId}-opt-${index}`}
-                role="option"
-                aria-selected={index === active}
-                // mousedown keeps focus in the input so blur doesn't close the list first.
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  pick(entry.email);
-                }}
-                onMouseEnter={() => setActiveIndex(index)}
-                className={`cursor-pointer px-3 py-1.5 ${
-                  index === active ? 'bg-brand-blue-primary/10' : ''
-                }`}
-              >
-                {entry.name && (
-                  <div className="text-sm font-semibold text-slate-800 wrap-break-word">
-                    {entry.name}
-                  </div>
-                )}
-                <div
-                  className={
-                    entry.name
-                      ? 'text-xs text-slate-500 break-all'
-                      : 'text-sm text-slate-800 break-all'
-                  }
+          <WidgetAccentScope>
+            <ul
+              id={listId}
+              role="listbox"
+              aria-label={t('staffEmailInput.listLabel', {
+                defaultValue: 'Staff emails',
+              })}
+              style={{
+                position: 'fixed',
+                top: anchor.top,
+                left: anchor.left,
+                width: anchor.width,
+                zIndex: Z_INDEX.modalNestedContent,
+              }}
+              className="max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg py-1 text-left"
+            >
+              {matches.map((entry, index) => (
+                <li
+                  key={entry.email}
+                  id={`${listId}-opt-${index}`}
+                  role="option"
+                  aria-selected={index === active}
+                  // mousedown keeps focus in the input so blur doesn't close the list first.
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    pick(entry.email);
+                  }}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  className={`cursor-pointer px-3 py-1.5 ${
+                    index === active ? 'bg-brand-blue-primary/10' : ''
+                  }`}
                 >
-                  {entry.email}
-                </div>
-              </li>
-            ))}
-          </ul>,
+                  {entry.name && (
+                    <div className="text-sm font-semibold text-slate-800 wrap-break-word">
+                      {entry.name}
+                    </div>
+                  )}
+                  <div
+                    className={
+                      entry.name
+                        ? 'text-xs text-slate-500 break-all'
+                        : 'text-sm text-slate-800 break-all'
+                    }
+                  >
+                    {entry.email}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </WidgetAccentScope>,
           document.body
         )}
     </div>

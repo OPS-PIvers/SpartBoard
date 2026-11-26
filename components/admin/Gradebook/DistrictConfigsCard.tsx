@@ -7,7 +7,7 @@ import {
   GradebookSettingsEditor,
   SECTION,
 } from '@/components/gradebook/settings/GradebookSettingsEditor';
-import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
+import { ChecklistSelect } from '@/components/common/ChecklistSelect';
 import type { UndoEntry } from '@/components/gradebook/settings/useUndoToast';
 import type { GradebookScaleOption } from '@/hooks/useGradebookSettings';
 import { canonicalizeBuildingIds } from '@/config/buildings';

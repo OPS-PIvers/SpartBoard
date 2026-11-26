@@ -5,6 +5,7 @@ import {
   formatOpensLabel,
   isResourceAvailable,
   resolveEffectiveWindow,
+  laterOpen,
 } from './assignmentWindow';
 
 describe('getWindowState', () => {
@@ -65,11 +66,34 @@ describe('resolveEffectiveWindow', () => {
     ).toBe(150);
   });
 
+  it('closes a student without a pointer at the class close, not the widened bound', () => {
+    const session = {
+      openAt: 100,
+      closeAt: 900,
+      studentWindows: { classCloseAt: 500, closeAt: 900 },
+    };
+    expect(resolveEffectiveWindow(session, null)).toEqual({
+      openAt: 100,
+      closeAt: 500,
+    });
+    expect(resolveEffectiveWindow(session, { closeAt: 900 }).closeAt).toBe(900);
+  });
+
   it('returns undefined fields when neither side has a window', () => {
     expect(resolveEffectiveWindow(null, null)).toEqual({
       openAt: undefined,
       closeAt: undefined,
     });
+  });
+});
+
+describe('laterOpen', () => {
+  it('takes the later of two open times', () => {
+    expect(laterOpen(100, 200)).toBe(200);
+    expect(laterOpen(300, 200)).toBe(300);
+    expect(laterOpen(null, 200)).toBe(200);
+    expect(laterOpen(100, undefined)).toBe(100);
+    expect(laterOpen(null, null)).toBeNull();
   });
 });
 

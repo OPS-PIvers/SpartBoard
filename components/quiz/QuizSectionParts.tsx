@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { BookOpen, Lock } from 'lucide-react';
 import type { SectionProgress } from '@/utils/quizSections';
 import { tourAttr } from '@/config/tourAnchors';
+import { Modal } from '@/components/common/Modal';
 
 const chooseLine = (
   t: ReturnType<typeof useTranslation>['t'],
@@ -28,17 +29,18 @@ export const SectionIntroDialog: React.FC<{
   const { section } = progress;
   const choose = chooseLine(t, progress);
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="quiz-section-title"
+    <Modal
+      isOpen
+      onClose={onClose}
+      dismissible={false}
+      variant="bare"
+      maxWidth="max-w-lg"
+      ariaLabelledby="quiz-section-title"
+      className={`rounded-2xl p-6 shadow-xl ${
+        light ? 'bg-white text-slate-800' : 'bg-slate-800 text-slate-100'
+      }`}
     >
-      <div
-        className={`w-full max-w-lg rounded-2xl p-6 shadow-xl ${
-          light ? 'bg-white text-slate-800' : 'bg-slate-800 text-slate-100'
-        }`}
-      >
+      <div>
         <h2 id="quiz-section-title" className="text-xl font-bold">
           {section.title}
         </h2>
@@ -58,7 +60,7 @@ export const SectionIntroDialog: React.FC<{
           {t('quizSections.start', 'Start')}
         </button>
       </div>
-    </div>
+    </Modal>
   );
 };
 

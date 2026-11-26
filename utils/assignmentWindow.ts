@@ -4,6 +4,8 @@
  * always classify as 'open': `openAt ?? -Infinity`, `closeAt ?? Infinity`.
  */
 
+import { studentCloseAt } from './studentWindow';
+
 export type AssignmentWindowState = 'open' | 'upcoming' | 'closed';
 
 export interface WindowFields {
@@ -31,20 +33,26 @@ export function getWindowState(
 /**
  * The student's effective window (M17 F2). `setAssignmentTargetsV1` writes the
  * per-student shift onto the pointer doc's TOP-LEVEL `openAt`/`closeAt`, so a
- * present pointer value already IS the effective one and wins over the
- * session-level window.
+ * present pointer value already IS the effective one. Without one, the close is
+ * the class's, not the session bound the server widened for another student.
  */
 export function resolveEffectiveWindow(
-  session: NullableWindowFields | null | undefined,
+  session:
+    (NullableWindowFields & { studentWindows?: unknown }) | null | undefined,
   pointer: NullableWindowFields | null | undefined
 ): WindowFields {
-  const pick = (field: 'openAt' | 'closeAt') => {
-    const shift = pointer?.[field];
-    if (typeof shift === 'number') return shift;
-    const base = session?.[field];
-    return typeof base === 'number' ? base : undefined;
-  };
-  return { openAt: pick('openAt'), closeAt: pick('closeAt') };
+  const openAt =
+    typeof pointer?.openAt === 'number'
+      ? pointer.openAt
+      : typeof session?.openAt === 'number'
+        ? session.openAt
+        : undefined;
+  const closeAt = session
+    ? studentCloseAt(session, pointer?.closeAt)
+    : typeof pointer?.closeAt === 'number'
+      ? pointer.closeAt
+      : null;
+  return { openAt, closeAt: closeAt ?? undefined };
 }
 
 /** "Opens {day time}" label for an upcoming-window card. */
@@ -86,4 +94,16 @@ export function isResourceAvailable(
   nowMs: number
 ): boolean {
   return a.endedAt === undefined && getWindowState(a, nowMs) !== 'closed';
+}
+
+/** The later of a class's next open and the student's own, either of which may be missing. */
+export function laterOpen(
+  classOpensAt: number | null | undefined,
+  ownOpensAt: number | null | undefined
+): number | null {
+  const a = classOpensAt ?? null;
+  const b = ownOpensAt ?? null;
+  if (a === null) return b;
+  if (b === null) return a;
+  return Math.max(a, b);
 }

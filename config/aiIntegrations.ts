@@ -141,6 +141,16 @@ export const AI_INTEGRATIONS: readonly AiIntegration[] = [
     noFallback: true,
   },
   {
+    id: 'help-center-details',
+    label: 'Help Center details',
+    description:
+      'Writes the title, description and settings for a tour in Admin Settings > Help Center.',
+    group: 'Guided Learning',
+    tier: 'standard',
+    inputs: ['text'],
+    defaultModel: 'claude-sonnet-5-5',
+  },
+  {
     id: 'plc-meeting-transcribe',
     label: 'PLC meeting transcription',
     description:

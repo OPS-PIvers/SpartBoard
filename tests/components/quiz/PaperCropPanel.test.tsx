@@ -6,6 +6,18 @@ import type { PaperPrivateAnswer, QuizResponseAnswer } from '@/types';
 import type { PaperWrittenActions } from '@/utils/paperCropFetch';
 import { PaperCropUnavailableError } from '@/utils/paperCropFetch';
 
+const { mockShowConfirm, mockShowPrompt } = vi.hoisted(() => ({
+  mockShowConfirm: vi.fn<(...args: unknown[]) => Promise<boolean>>(),
+  mockShowPrompt: vi.fn<(...args: unknown[]) => Promise<string | null>>(),
+}));
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showConfirm: mockShowConfirm,
+    showPrompt: mockShowPrompt,
+    showAlert: vi.fn(),
+  }),
+}));
+
 let enhancedCount = 0;
 vi.mock('@/utils/scanContrast', () => ({
   enhancedScanUrl: vi.fn(() =>
@@ -80,6 +92,7 @@ const setup = (
 
 afterEach(() => {
   vi.restoreAllMocks();
+  mockShowConfirm.mockReset();
   enhancedCount = 0;
 });
 
@@ -237,7 +250,7 @@ describe('PaperCropPanel', () => {
   });
 
   it('saves an edit without a warning when no snapshot exists', async () => {
-    const confirm = vi.spyOn(window, 'confirm');
+    const confirm = mockShowConfirm;
     const { actions: a } = setup();
     fireEvent.click(screen.getByRole('button', { name: 'Edit transcript' }));
     const box = screen.getByRole('textbox', { name: 'Transcript' });
@@ -257,7 +270,7 @@ describe('PaperCropPanel', () => {
   });
 
   it('warns before an edit that clears highlights', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirm = mockShowConfirm.mockResolvedValue(true);
     const { actions: a } = setup({ hasSnapshot: true });
     fireEvent.click(screen.getByRole('button', { name: 'Edit transcript' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save transcript' }));
@@ -269,16 +282,17 @@ describe('PaperCropPanel', () => {
     expect(confirm).toHaveBeenCalledOnce();
   });
 
-  it('does not save when the teacher cancels the warning', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('does not save when the teacher cancels the warning', async () => {
+    mockShowConfirm.mockResolvedValue(false);
     const { actions: a } = setup({ hasSnapshot: true });
     fireEvent.click(screen.getByRole('button', { name: 'Edit transcript' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save transcript' }));
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalled());
     expect(a.updateTranscript).not.toHaveBeenCalled();
   });
 
   it('asks again when the server finds a snapshot the grader had not seen', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirm = mockShowConfirm.mockResolvedValue(true);
     const a = actions();
     (a.updateTranscript as ReturnType<typeof vi.fn>)
       .mockRejectedValueOnce({

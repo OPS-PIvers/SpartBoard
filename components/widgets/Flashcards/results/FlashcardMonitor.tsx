@@ -68,6 +68,8 @@ interface FlashcardMonitorProps {
   results: FlashcardResultRecord[];
   tests: Record<string, { at: number; count: number; score: number }[]>;
   nameFor: (studentUid: string) => string;
+  /** "Last, First" from the class list, for the last-name sort. */
+  sortNameFor?: (studentUid: string) => string | undefined;
   now: number;
   speakLanguage: SpeakLanguage | null;
   onBack: () => void;
@@ -169,6 +171,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
   results,
   tests,
   nameFor,
+  sortNameFor,
   now,
   speakLanguage,
   onBack,
@@ -512,7 +515,8 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
           })),
           nameFor,
           prefs,
-          openBucket !== 'notStarted'
+          openBucket !== 'notStarted',
+          sortNameFor
         )
       : [];
 
@@ -587,6 +591,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
                 students={checkRoster[openBucket]}
                 session={session}
                 nameFor={nameFor}
+                sortNameFor={sortNameFor}
                 prefs={prefs}
                 onUpdatePrefs={onUpdatePrefs}
                 letInFor={letInFor}

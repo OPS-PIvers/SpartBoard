@@ -41,6 +41,7 @@ import {
 import {
   CONDITIONS_PROTOCOL,
   OPEN_URL_PROTOCOL,
+  PICK_ANY_PROTOCOL,
   SCORED_MATCH_PROTOCOL,
 } from './extensionProtocol';
 import {
@@ -536,7 +537,8 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
       pictures ?? new Map(),
       extensionProtocol >= SCORED_MATCH_PROTOCOL,
       extensionProtocol >= CONDITIONS_PROTOCOL,
-      extensionProtocol >= OPEN_URL_PROTOCOL
+      extensionProtocol >= OPEN_URL_PROTOCOL,
+      extensionProtocol >= PICK_ANY_PROTOCOL
     );
     const result = await startWebTour(handoff, url, stepIndex);
     if (!result.ok) {

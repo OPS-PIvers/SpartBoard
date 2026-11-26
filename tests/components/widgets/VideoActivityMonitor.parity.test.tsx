@@ -287,7 +287,7 @@ describe('VideoActivityLiveMonitor — Quiz monitor layout', () => {
     expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
     fireEvent.click(bucket('Not started'));
     fireEvent.click(screen.getByRole('button', { name: 'Actions for 1111' }));
-    const menuItem = screen.getByRole('button', { name: 'Let in now' });
+    const menuItem = screen.getByRole('menuitem', { name: 'Let in now' });
     fireEvent.click(menuItem);
     await waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
     const [ref, path] = (updateDoc as unknown as ReturnType<typeof vi.fn>).mock

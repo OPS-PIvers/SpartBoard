@@ -359,7 +359,7 @@ export function useSubstituteCollectionBoard(
             share: null,
             navSource: null,
             contentVersion: null,
-            error: 'This Collection could not be found.',
+            error: 'This folder could not be found.',
           });
           return;
         }
@@ -370,7 +370,7 @@ export function useSubstituteCollectionBoard(
             share: null,
             navSource: null,
             contentVersion: null,
-            error: 'Not a substitute Collection share.',
+            error: 'Not a substitute folder share.',
           });
           return;
         }
@@ -393,7 +393,7 @@ export function useSubstituteCollectionBoard(
             share: null,
             navSource: null,
             contentVersion: null,
-            error: 'This board is not part of the shared Collection.',
+            error: 'This board is not part of the shared folder.',
           });
           return;
         }
@@ -432,7 +432,7 @@ export function useSubstituteCollectionBoard(
             share: null,
             navSource: null,
             contentVersion: null,
-            error: 'This board could not be found in the Collection.',
+            error: 'This board could not be found in the folder.',
           });
           return;
         }

@@ -204,6 +204,8 @@ export const targetsSignature = (
           ...(s.web?.showWhen || s.web?.doneWhen
             ? [s.web.showWhen ?? null, s.web.doneWhen ?? null]
             : []),
+          // Only a pick-any step adds it, for the same reason.
+          ...(s.web?.pickAny ? ['any'] : []),
         ]),
       sortedKeys
     )

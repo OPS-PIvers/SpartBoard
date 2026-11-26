@@ -104,10 +104,11 @@ describe('QuizAssignmentSettingsModal — behavior editable on a live assignment
     fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
-    expect(patch).toHaveProperty('className');
+    expect(patch).not.toHaveProperty('className');
     expect(patch).not.toHaveProperty('periodNames');
     expect(patch).not.toHaveProperty('sessionMode');
     expect(patch).not.toHaveProperty('sessionOptions');
+    expect(patch).not.toHaveProperty('sessionOptionEdits');
     expect(patch).not.toHaveProperty('attemptLimit');
   });
 
@@ -138,7 +139,8 @@ describe('QuizAssignmentSettingsModal — behavior editable on a live assignment
     fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
-    expect(patch.sessionOptions).toEqual({ shuffleAnswerOptions: false });
+    expect(patch.sessionOptionEdits).toEqual({ shuffleAnswerOptions: false });
+    expect(patch).not.toHaveProperty('sessionOptions');
     expect(patch).not.toHaveProperty('sessionMode');
     expect(patch).not.toHaveProperty('attemptLimit');
   });

@@ -56,7 +56,7 @@ export function planCopyImportTree(share: {
       name:
         typeof section.name === 'string' && section.name.trim()
           ? section.name
-          : 'Collection',
+          : 'Folder',
       ...(typeof section.color === 'string' && { color: section.color }),
       parentId,
     });

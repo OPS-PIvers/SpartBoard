@@ -101,6 +101,11 @@ function withOpenUrl(step: HandoffTargetStep, raw: unknown): HandoffTargetStep {
   return openUrl ? { ...step, web: { ...step.web, openUrl } } : step;
 }
 
+/** The step marked to light every control like its target, when the server named it. */
+function withPickAny(step: HandoffTargetStep, on: boolean): HandoffTargetStep {
+  return on ? { ...step, web: { ...step.web, pickAny: true } } : step;
+}
+
 /** Each step's own clues by id, so a run's suggested fixes keep only the site's clues (C15). */
 export type StepLocators = Record<string, WebTourLocator>;
 
@@ -112,6 +117,11 @@ export function openedTour(
   if (!isObj(raw) || !Array.isArray(raw.steps)) return null;
   const conditions = isObj(raw.conditions) ? raw.conditions : {};
   const openUrls = isObj(raw.openUrls) ? raw.openUrls : {};
+  const pickAny = new Set(
+    Array.isArray(raw.pickAny)
+      ? raw.pickAny.filter((id): id is string => typeof id === 'string')
+      : []
+  );
   // The server sends a picture's markup with the picture (webTourLoadV1).
   const pictureMarkup = (id: string): unknown =>
     isObj(raw.pictures) ? raw.pictures[id] : undefined;
@@ -125,9 +135,12 @@ export function openedTour(
   const steps = kept
     .filter((s): s is HandoffTargetStep => !isMessageOf(s))
     .map((s) =>
-      withOpenUrl(
-        withMarkup(withConditions(s, conditions[s.id]), pictureMarkup(s.id)),
-        openUrls[s.id]
+      withPickAny(
+        withOpenUrl(
+          withMarkup(withConditions(s, conditions[s.id]), pictureMarkup(s.id)),
+          openUrls[s.id]
+        ),
+        pickAny.has(s.id)
       )
     );
   const pictures = new Map<string, WebTourPictureBytes>();
@@ -151,6 +164,7 @@ export function openedTour(
       typeof raw.title === 'string' ? raw.title : '',
       steps,
       pictures,
+      true,
       true,
       true,
       true

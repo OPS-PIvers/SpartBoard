@@ -9,10 +9,8 @@ import {
 } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { PeriodAccess, QuizAssignment, StudentTargetRef } from '@/types';
-import {
-  staleWindowOverrides,
-  useQuizClassActions,
-} from '@/hooks/useQuizClassActions';
+import { useQuizClassActions } from '@/hooks/useQuizClassActions';
+import { staleWindowOverrides } from '@/utils/pointerWindowSync';
 import { updateDoc } from 'firebase/firestore';
 import {
   END_TURN_IN_DELAY_MS,
@@ -50,7 +48,13 @@ const periods = vi.hoisted(() => ({
   pausePeriod: vi.fn(),
   closePeriod: vi.fn(),
   closeAllPeriods: vi.fn(),
+  closePeriods: vi.fn(),
 }));
+periods.closePeriods.mockImplementation(
+  async (keys: readonly string[], at?: number) => {
+    for (const k of keys) await periods.closePeriod(k, at);
+  }
+);
 vi.mock('@/hooks/usePeriodAccess', () => ({
   usePeriodAccess: () => periods,
   closedRow: (now: number) => ({

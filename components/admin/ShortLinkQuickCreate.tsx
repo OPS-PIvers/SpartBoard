@@ -3,8 +3,7 @@ import { tourAttr } from '@/config/tourAnchors';
 import { X, Link2 } from 'lucide-react';
 
 import { ShortLinkCreateForm } from './LinkShortenerManager';
-import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
-import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
+import { Modal } from '@/components/common/Modal';
 
 interface ShortLinkQuickCreateProps {
   onClose: () => void;
@@ -18,29 +17,17 @@ interface ShortLinkQuickCreateProps {
 export const ShortLinkQuickCreate: React.FC<ShortLinkQuickCreateProps> = ({
   onClose,
 }) => {
-  React.useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (isEscapeFromWidgetInput(event)) return;
-      // Stop propagation so DashboardView's window-level Escape handler doesn't also act on the widget underneath.
-      event.stopPropagation();
-      onClose();
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
-
-  const backdropProps = useBackdropDismiss(onClose);
-
   return (
-    <div
-      className="fixed inset-0 z-modal bg-black/50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="short-link-quick-create-title"
-      {...backdropProps}
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      maxWidth="max-w-lg"
+      captureEscape
+      ariaLabelledby="short-link-quick-create-title"
+      className="rounded-2xl bg-white shadow-xl"
     >
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 flex flex-col gap-4">
+      <div className="flex flex-col gap-4 p-6">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
             <div className="bg-brand-blue-lighter text-brand-blue-primary p-2 rounded-lg">
@@ -66,6 +53,6 @@ export const ShortLinkQuickCreate: React.FC<ShortLinkQuickCreateProps> = ({
 
         <ShortLinkCreateForm compact />
       </div>
-    </div>
+    </Modal>
   );
 };

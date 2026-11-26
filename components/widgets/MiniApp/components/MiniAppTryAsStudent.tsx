@@ -7,6 +7,7 @@ import React, {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { WidgetAccentScope } from '@/components/common/WidgetAccentScope';
 import { AlertTriangle, RotateCcw, X } from 'lucide-react';
 import { StudentAnswerLine } from '@/components/widgets/QuizWidget/components/results/StudentAnswerLine';
 import type { StudentQuestionLine } from '@/utils/quizStudentDrilldown';
@@ -147,112 +148,117 @@ export const MiniAppTryAsStudent: React.FC<{
       : [];
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-modal-nested flex flex-col bg-slate-900/60 backdrop-blur-xs p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Try ${title} as a student`}
-    >
-      <div className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-slate-800">
-              Try as student
-            </p>
-            <p className="text-xs text-slate-500">Nothing is saved.</p>
+    <WidgetAccentScope>
+      <div
+        className="fixed inset-0 z-modal-nested flex flex-col bg-slate-900/60 backdrop-blur-xs p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Try ${title} as a student`}
+      >
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-slate-800">
+                Try as student
+              </p>
+              <p className="text-xs text-slate-500">Nothing is saved.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setRun((n) => n + 1);
+                setOutcome(null);
+                setAttempts(0);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:border-brand-blue-light"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Start over
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setRun((n) => n + 1);
-              setOutcome(null);
-              setAttempts(0);
-            }}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:border-brand-blue-light"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Start over
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="flex flex-1 min-h-0">
-          <iframe
-            key={run}
-            ref={frameRef}
-            srcDoc={srcDoc}
-            title={title}
-            sandbox="allow-scripts allow-forms allow-modals"
-            className="flex-1 min-w-0 border-0 bg-slate-900"
-            onLoad={handleLoad}
-          />
-          <aside
-            className="flex w-[360px] shrink-0 flex-col border-l border-slate-200"
-            style={{ containerType: 'size' }}
-            aria-label="What SpartBoard received"
-          >
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 pb-6">
-              {!outcome ? (
-                <p className="text-sm text-slate-500">
-                  Submit in the app to see how it is scored.
-                </p>
-              ) : (
-                <>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-brand-blue-primary">
-                    Attempt {outcome.attempt}
+          <div className="flex flex-1 min-h-0">
+            <iframe
+              key={run}
+              ref={frameRef}
+              srcDoc={srcDoc}
+              title={title}
+              sandbox="allow-scripts allow-forms allow-modals"
+              className="flex-1 min-w-0 border-0 bg-slate-900"
+              onLoad={handleLoad}
+            />
+            <aside
+              className="flex w-[360px] shrink-0 flex-col border-l border-slate-200"
+              style={{ containerType: 'size' }}
+              aria-label="What SpartBoard received"
+            >
+              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 pb-6">
+                {!outcome ? (
+                  <p className="text-sm text-slate-500">
+                    Submit in the app to see how it is scored.
                   </p>
-                  {outcome.kind === 'graded' &&
-                    outcome.grade.score !== null && (
-                      <p className="mt-1 text-2xl font-bold text-brand-blue-dark tabular-nums">
-                        {outcome.grade.score}/{outcome.grade.maxScore}
-                        {outcome.grade.gradedBy === 'app' && (
-                          <span className="ml-2 text-xs font-normal text-slate-500">
-                            from app
-                          </span>
-                        )}
+                ) : (
+                  <>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-brand-blue-primary">
+                      Attempt {outcome.attempt}
+                    </p>
+                    {outcome.kind === 'graded' &&
+                      outcome.grade.score !== null && (
+                        <p className="mt-1 text-2xl font-bold text-brand-blue-dark tabular-nums">
+                          {outcome.grade.score}/{outcome.grade.maxScore}
+                          {outcome.grade.gradedBy === 'app' && (
+                            <span className="ml-2 text-xs font-normal text-slate-500">
+                              from app
+                            </span>
+                          )}
+                        </p>
+                      )}
+                    {outcome.kind === 'error' && (
+                      <p className="mt-2 flex items-start gap-1.5 text-sm text-brand-red-dark">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                        {outcome.message}
                       </p>
                     )}
-                  {outcome.kind === 'error' && (
-                    <p className="mt-2 flex items-start gap-1.5 text-sm text-brand-red-dark">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                      {outcome.message}
-                    </p>
-                  )}
-                  {outcome.kind === 'legacy' && (
-                    <p className="mt-2 flex items-start gap-1.5 text-sm text-amber-800">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                      This app uses the older result format, so it will not be
-                      scored.
-                    </p>
-                  )}
-                  {lines.length > 0 && (
-                    <ol className="mt-3 flex flex-col gap-2">
-                      {lines.map((line) => (
-                        <StudentAnswerLine key={line.questionId} line={line} />
-                      ))}
-                    </ol>
-                  )}
-                  <details className="mt-4">
-                    <summary className="cursor-pointer text-xs font-semibold text-slate-600">
-                      What the app sent
-                    </summary>
-                    <div className="mt-2 max-h-60 overflow-auto">
-                      <SubmissionDetails value={outcome.sent} />
-                    </div>
-                  </details>
-                </>
-              )}
-            </div>
-          </aside>
+                    {outcome.kind === 'legacy' && (
+                      <p className="mt-2 flex items-start gap-1.5 text-sm text-amber-800">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                        This app uses the older result format, so it will not be
+                        scored.
+                      </p>
+                    )}
+                    {lines.length > 0 && (
+                      <ol className="mt-3 flex flex-col gap-2">
+                        {lines.map((line) => (
+                          <StudentAnswerLine
+                            key={line.questionId}
+                            line={line}
+                          />
+                        ))}
+                      </ol>
+                    )}
+                    <details className="mt-4">
+                      <summary className="cursor-pointer text-xs font-semibold text-slate-600">
+                        What the app sent
+                      </summary>
+                      <div className="mt-2 max-h-60 overflow-auto">
+                        <SubmissionDetails value={outcome.sent} />
+                      </div>
+                    </details>
+                  </>
+                )}
+              </div>
+            </aside>
+          </div>
         </div>
       </div>
-    </div>,
+    </WidgetAccentScope>,
     document.body
   );
 };

@@ -20,15 +20,17 @@ import type {
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
-import { useDialog } from '@/context/useDialog';
 import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { useFlashcardSets } from '@/hooks/useFlashcardSets';
 import {
   toPersonalFlashcardSet,
   usePlcFlashcardResults,
   usePlcFlashcardSets,
-  writePlcFlashcardSetEntry,
 } from '@/hooks/usePlcFlashcards';
+import {
+  usePlcLibraryActions,
+  usePlcSharedCopyUpdate,
+} from '@/hooks/usePlcLibraryActions';
 import { getPlcMemberEmail } from '@/utils/plc';
 import { logError } from '@/utils/logError';
 import { PlcSharePickerModal } from '@/components/plc/PlcSharePickerModal';
@@ -255,12 +257,15 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
   plc,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { addToast } = useDashboard();
-  const { showConfirm } = useDialog();
   const canEdit = useCanEditPlcContent();
+  const canUpdateShared = canAccessFeature('plc-update-shared-copy');
+  const updateSharedCopy = usePlcSharedCopyUpdate();
   const { sets: personalSets, saveSet } = useFlashcardSets(user?.uid);
-  const { sets, loading, error, unshareSet } = usePlcFlashcardSets(plc.id);
+  const { sets, loading, error, shareSet, unshareSet } = usePlcFlashcardSets(
+    plc.id
+  );
   const {
     results,
     loading: resultsLoading,
@@ -281,22 +286,31 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
           defaultValue_other: '{{count}} cards',
         }),
         alreadyShared: sharedIds.has(set.id),
+        updatable: canUpdateShared,
       })),
-    [personalSets, sharedIds, t]
+    [canUpdateShared, personalSets, sharedIds, t]
   );
 
   const handleShare = useCallback(
     async (setId: string) => {
       const set = personalSets.find((s) => s.id === setId);
       if (!user || !set) return;
+      const input = {
+        set,
+        sharedByName: user.displayName ?? '',
+        sharedByEmail:
+          getPlcMemberEmail(plc, user.uid) ??
+          (user.email ? user.email.toLowerCase() : ''),
+      };
+      if (canUpdateShared && sharedIds.has(setId)) {
+        const updated = await updateSharedCopy(set.title, () =>
+          shareSet({ ...input, update: true })
+        );
+        if (updated) setPickerOpen(false);
+        return;
+      }
       try {
-        const outcome = await writePlcFlashcardSetEntry(plc.id, user.uid, {
-          set,
-          sharedByName: user.displayName ?? '',
-          sharedByEmail:
-            getPlcMemberEmail(plc, user.uid) ??
-            (user.email ? user.email.toLowerCase() : ''),
-        });
+        const outcome = await shareSet(input);
         addToast(
           outcome === 'already-shared'
             ? t('plcDashboard.flashcards.alreadyShared', {
@@ -320,7 +334,17 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
         );
       }
     },
-    [addToast, personalSets, plc, t, user]
+    [
+      addToast,
+      canUpdateShared,
+      personalSets,
+      plc,
+      shareSet,
+      sharedIds,
+      t,
+      updateSharedCopy,
+      user,
+    ]
   );
 
   const handleImport = useCallback(
@@ -352,41 +376,12 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
     [addToast, plc.id, saveSet, sets, t]
   );
 
-  const handleUnshare = useCallback(
-    async (entryId: string, title: string) => {
-      const confirmed = await showConfirm(
-        t('plcDashboard.flashcards.groupUnshareConfirm', {
-          title,
-          defaultValue: 'Remove "{{title}}" from this group?',
-        }),
-        {
-          title: t('plcDashboard.flashcards.unshareTitle', {
-            defaultValue: 'Unshare set',
-          }),
-          variant: 'warning',
-          confirmLabel: t('plcDashboard.flashcards.unshare', {
-            defaultValue: 'Unshare',
-          }),
-        }
-      );
-      if (!confirmed) return;
-      setBusyId(entryId);
-      try {
-        await unshareSet(entryId);
-      } catch (err) {
-        logError('PlcFlashcardsBody.unshare', err, { plcId: plc.id, entryId });
-        addToast(
-          t('plcDashboard.flashcards.unshareFailed', {
-            defaultValue: 'Could not unshare the set.',
-          }),
-          'error'
-        );
-      } finally {
-        setBusyId(null);
-      }
-    },
-    [addToast, plc.id, showConfirm, t, unshareSet]
-  );
+  const { unshare: handleUnshare, busyId: unshareBusyId } =
+    usePlcLibraryActions({
+      plcId: plc.id,
+      kind: 'flashcards',
+      unshareFn: unshareSet,
+    });
 
   if (loading || resultsLoading) {
     return (
@@ -462,7 +457,7 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
               <PlcFlashcardSetRow
                 key={entry.id}
                 entry={entry}
-                busy={busyId === entry.id}
+                busy={busyId === entry.id || unshareBusyId === entry.id}
                 canEdit={canEdit}
                 onImport={() => void handleImport(entry.id)}
                 onUnshare={() => void handleUnshare(entry.id, entry.title)}
@@ -493,6 +488,7 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
 
       {pickerOpen && (
         <PlcSharePickerModal
+          widgetType="flashcards"
           title={t('plcDashboard.flashcards.pickerTitle', {
             defaultValue: 'Share a flashcard set',
           })}

@@ -30,7 +30,9 @@ const {
   editorProps,
   mockUpdateDashboard,
   mockCanvas,
+  mockFlags,
 } = vi.hoisted(() => ({
+  mockFlags: { libraryFace: false },
   mockUpdateDashboard: vi.fn(),
   mockCanvas: {
     current: {
@@ -66,7 +68,8 @@ const lastRouterProps = () => routerProps.current;
 let snapshotDocs: Record<string, unknown>[] = [];
 let sessionDocData: Record<string, Record<string, unknown>> = {};
 
-vi.mock('@/context/dashboardCanvasStore', () => ({
+vi.mock('@/context/dashboardCanvasStore', async () => ({
+  DashboardActionsContext: (await import('react')).createContext(null),
   useDashboardActions: () => ({
     addWidget: mockAddWidget,
     addToast: mockAddToast,
@@ -94,7 +97,23 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1', email: 't@example.com' },
     featurePermissions: [],
     selectedBuildings: [],
-    canAccessFeature: () => true,
+    canAccessFeature: (id: string) =>
+      id === 'activity-wall-library-face' ? mockFlags.libraryFace : true,
+  }),
+}));
+
+vi.mock('@/hooks/useFolders', () => ({
+  useFolders: () => ({
+    folders: [],
+    loading: false,
+    error: null,
+    createFolder: vi.fn(),
+    renameFolder: vi.fn(),
+    moveFolder: vi.fn(),
+    deleteFolder: vi.fn(),
+    setFolderColor: vi.fn(),
+    reorderSiblings: vi.fn(),
+    moveItem: vi.fn(),
   }),
 }));
 
@@ -106,6 +125,7 @@ vi.mock('@/hooks/useActivityWallLibrary', () => ({
     saveActivity: mockSaveActivity,
     deleteActivity: mockDeleteActivity,
     clearActivityPosts: vi.fn(),
+    reorderActivities: vi.fn(),
   }),
 }));
 
@@ -153,7 +173,12 @@ vi.mock('./sharedWallEdit', async (importOriginal) => ({
   saveSharedActivityWall: mockSaveSharedWall,
 }));
 
-vi.mock('@/config/firebase', () => ({ db: {}, functions: {}, storage: {} }));
+vi.mock('@/config/firebase', () => ({
+  db: {},
+  functions: {},
+  storage: {},
+  isAuthBypass: false,
+}));
 
 vi.mock('firebase/firestore', () => ({
   arrayRemove: vi.fn((...ids: unknown[]) => ({ __arrayRemove: ids })),
@@ -212,6 +237,7 @@ beforeEach(() => {
   snapshotDocs = [];
   sessionDocData = {};
   mockLibraryEntries.current = [makeEntry()];
+  mockFlags.libraryFace = false;
   mockLinkedShareId.current = null;
   mockRecordedHost.current = null;
   mockReadOnly.current = false;
@@ -346,7 +372,7 @@ describe('ActivityWallWidget', () => {
     await waitFor(() => {
       const copy = mockSaveActivity.mock.calls
         .map((call) => call[0] as ActivityWallLibraryEntry)
-        .find((entry) => entry.title.includes('(copy)'));
+        .find((entry) => entry.title.includes('(Copy)'));
       expect(copy).toBeDefined();
       expect(copy?.id).not.toBe('wall-1');
     });
@@ -1206,5 +1232,124 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
       expect.anything(),
       expect.anything()
     );
+  });
+});
+
+describe('ActivityWallWidget with the library on the widget', () => {
+  beforeEach(() => {
+    mockFlags.libraryFace = true;
+  });
+
+  it('shows the library on the widget when no wall is open', async () => {
+    render(
+      <ActivityWallWidget
+        widget={{ ...baseWidget, config: { activeActivityId: null } }}
+      />
+    );
+
+    expect(await screen.findByText('Warm Up')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'New wall' })
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Choose a wall')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('opens a wall on the board from the library', async () => {
+    render(
+      <ActivityWallWidget
+        widget={{ ...baseWidget, config: { activeActivityId: null } }}
+      />
+    );
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /open on board/i })
+    );
+    expect(mockUpdateWidget).toHaveBeenCalledWith('widget-1', {
+      config: expect.objectContaining({
+        activeActivityId: 'wall-1',
+        libraryOverWallId: null,
+      }) as object,
+    });
+  });
+
+  it('shows the open wall until the teacher goes back to the library', async () => {
+    render(<ActivityWallWidget widget={baseWidget} />);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Open wall library' })
+    );
+    expect(mockUpdateWidget).toHaveBeenCalledWith('widget-1', {
+      config: { libraryOverWallId: 'wall-1' },
+    });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows the library when the widget is set to it', async () => {
+    render(
+      <ActivityWallWidget
+        widget={{
+          ...baseWidget,
+          config: { activeActivityId: 'wall-1', libraryOverWallId: 'wall-1' },
+        }}
+      />
+    );
+
+    expect(
+      await screen.findByRole('button', { name: /open on board/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText('On board')).toBeInTheDocument();
+  });
+
+  it('shows a wall opened from somewhere else over the library', async () => {
+    mockLibraryEntries.current = [
+      makeEntry(),
+      makeEntry({ id: 'wall-2', title: 'Exit ticket' }),
+    ];
+    render(
+      <ActivityWallWidget
+        widget={{
+          ...baseWidget,
+          config: { activeActivityId: 'wall-2', libraryOverWallId: 'wall-1' },
+        }}
+      />
+    );
+
+    expect(await screen.findByText('Exit ticket')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'New wall' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps the library dialog on a View-Only board', async () => {
+    mockReadOnly.current = true;
+    render(<ActivityWallWidget widget={baseWidget} />);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Open wall library' })
+    );
+    expect(mockUpdateWidget).not.toHaveBeenCalledWith('widget-1', {
+      config: expect.objectContaining({
+        libraryOverWallId: 'wall-1',
+      }) as object,
+    });
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('files a new wall in the open folder', async () => {
+    render(
+      <ActivityWallWidget
+        widget={{ ...baseWidget, config: { activeActivityId: null } }}
+      />
+    );
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'New wall' })
+    );
+    expect(await screen.findByTestId('wall-editor')).toBeInTheDocument();
+    expect(editorProps.current).toMatchObject({
+      entry: null,
+      newFolderId: null,
+    });
   });
 });

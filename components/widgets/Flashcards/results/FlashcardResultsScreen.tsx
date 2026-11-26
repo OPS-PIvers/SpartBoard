@@ -200,7 +200,8 @@ const FlashcardResultsBody: React.FC<FlashcardResultsScreenProps> = ({
   classVisibility = 'none',
   onUnlockResults,
 }) => {
-  const { ensureGoogleScope, isExternalUser, user } = useAuth();
+  const { ensureGoogleScope, refreshGoogleToken, isExternalUser, user } =
+    useAuth();
   const selection = useStudentResultsSelection();
   const resultsActions = selection ? studentResultsActions : undefined;
   const outward = useViewAsOutward();
@@ -327,7 +328,7 @@ const FlashcardResultsBody: React.FC<FlashcardResultsScreenProps> = ({
     }
     setExporting(true);
     try {
-      const drive = new QuizDriveService(token);
+      const drive = new QuizDriveService(token, refreshGoogleToken);
       const url = await drive.exportResultsToSheet(
         title,
         responses,

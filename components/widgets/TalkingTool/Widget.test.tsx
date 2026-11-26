@@ -41,7 +41,6 @@ const mockAuthContext = (
   canAccessFeature: () => true,
   userTier: 'free',
   getAssignmentMode: () => 'submissions',
-  canSeeShareTracking: () => false,
   canAccessQuizMediaResponse: () => false,
   signInWithGoogle: async () => {
     /* mock */

@@ -68,6 +68,7 @@ import {
 } from './assignedKindFixtures';
 import { FlashcardAssignmentSettingsModal } from '@/components/widgets/Flashcards/FlashcardAssignmentSettingsModal';
 import { WallLibraryModal } from '@/components/widgets/ActivityWall/WallLibraryModal';
+import { ActivityWallManager } from '@/components/widgets/ActivityWall/ActivityWallManager';
 import type { LibraryTab } from '@/components/common/library/types';
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 import type {
@@ -89,6 +90,7 @@ import type {
   VideoActivityAssignment,
   VideoActivityMetadata,
   VideoActivitySessionSettings,
+  WidgetData,
 } from '@/types';
 
 const COUNT = 24;
@@ -373,6 +375,7 @@ const LIBRARY_HARNESS_VIEWS = [
   'mini-app',
   'flashcards',
   'activity-wall',
+  'activity-wall-face',
   'review',
 ] as const;
 type HarnessView = (typeof LIBRARY_HARNESS_VIEWS)[number];
@@ -1073,6 +1076,7 @@ const FlashcardsView: React.FC<{ assigned?: boolean }> = ({
         onEdit={noop}
         onPresent={noop}
         onShare={noop}
+        onDuplicate={noop}
         onAssign={noop}
         onDelete={noop}
         onAssignmentResults={noop}
@@ -1109,6 +1113,53 @@ const ActivityWallView: React.FC = () => (
     confirm={() => Promise.resolve(false)}
   />
 );
+
+const WALL_FACE_WIDGET = {
+  id: 'harness-wall',
+  type: 'activity-wall',
+  x: 0,
+  y: 0,
+  w: 960,
+  h: 560,
+  z: 1,
+  flipped: false,
+  config: {},
+} as WidgetData;
+
+const ActivityWallFaceView: React.FC = () => {
+  const [walls, setWalls] = useState(() =>
+    WALLS.map((wall, i) => ({
+      ...wall,
+      folderId: FIXTURE_FOLDER_IDS[i] ?? null,
+    }))
+  );
+  const folders = useFixtureFolders((itemId, folderId) =>
+    setWalls((prev) =>
+      prev.map((wall) => (wall.id === itemId ? { ...wall, folderId } : wall))
+    )
+  );
+  return (
+    <ActivityWallManager
+      widget={WALL_FACE_WIDGET}
+      uid="mock-user-id"
+      entries={walls}
+      loading={false}
+      activeEntryId="wall-0"
+      readOnly={false}
+      onOpenOnBoard={noop}
+      onCreate={noop}
+      onEdit={noop}
+      onDuplicate={asyncNoop}
+      onDelete={asyncNoop}
+      onClearPosts={asyncNoop}
+      onReorder={asyncNoop}
+      onConfigChange={noop}
+      addToast={noop}
+      confirm={() => Promise.resolve(false)}
+      folders={folders}
+    />
+  );
+};
 
 const ReviewView: React.FC = () => <QuizView variant="review" />;
 // ?held-dialog shows the Close notice for the fixture's held students.
@@ -1217,6 +1268,7 @@ const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
   'mini-app': MiniAppView,
   flashcards: FlashcardsView,
   'activity-wall': ActivityWallView,
+  'activity-wall-face': ActivityWallFaceView,
   review: ReviewView,
   'quiz-assigned': QuizAssignedView,
   'assignments-hub': AssignmentsHubView,

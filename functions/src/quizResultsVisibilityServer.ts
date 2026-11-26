@@ -33,8 +33,15 @@ export function resolveServerResultsVisibility(
       override.mode === 'shown' ? asVisibility(override.visibility) : 'none';
     return { visibility, source: 'student' };
   }
+  const visibility = asVisibility(session?.scoreVisibility);
+  // Score on submit: the server graded this attempt, so the score shows before any publish.
+  const scoredOnSubmit =
+    visibility === 'none' &&
+    session?.showScoreOnSubmit === true &&
+    response?.status === 'completed' &&
+    typeof response.score === 'number';
   return {
-    visibility: asVisibility(session?.scoreVisibility),
+    visibility: scoredOnSubmit ? 'score-only' : visibility,
     source: 'class',
   };
 }

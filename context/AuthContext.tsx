@@ -88,9 +88,8 @@ import { usePageSpellCheck } from '@/hooks/usePageSpellCheck';
 import {
   FEATURE_DEFAULTS,
   isAdminPreviewFeature,
-  getWidgetDefaultAccessLevel,
-  WIDGET_DEFAULT_MIN_TIER,
 } from '@/config/featureDefaults';
+import { resolveWidgetAccess } from '@/utils/widgetAccess';
 import {
   canAccessQuizMediaResponse,
   QUIZ_MEDIA_FEATURE_ID,
@@ -3388,59 +3387,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (!user) return false;
 
-      const permission = featurePermissions.find(
-        (p: FeaturePermission) => p.widgetType === widgetType
+      return resolveWidgetAccess(
+        widgetType,
+        featurePermissions.find(
+          (p: FeaturePermission) => p.widgetType === widgetType
+        ),
+        {
+          isAdmin,
+          email: user.email,
+          isBetaUser,
+          userTier,
+          selectedBuildings,
+        }
       );
-
-      // Default behavior: If no permission record exists, allow public access
-      // This means new widgets are accessible to all authenticated users until
-      // an admin explicitly configures permissions.
-      //
-      // Exception: an in-code default tier floor for Google-API-backed widgets
-      // (docs/wide-distro-plan.md Phase 3). `WIDGET_DEFAULT_MIN_TIER[calendar]
-      // = 'org'` denies external/free-tier users the Calendar (Events) widget
-      // while org + internal pass — without an admin needing to author a
-      // permission doc. Admins bypass the floor (consistent with the
-      // accessLevel bypass below). Widgets with no entry have no floor, so the
-      // historical public-by-default behavior is unchanged. `meetsMinTier`
-      // treats an undefined floor as "allow".
-      if (!permission) {
-        if (isAdmin) return true;
-        if (getWidgetDefaultAccessLevel(widgetType) === 'admin') return false;
-        return meetsMinTier(userTier, WIDGET_DEFAULT_MIN_TIER[widgetType]);
-      }
-
-      // If the feature is disabled, no one can access it (including admins)
-      if (!permission.enabled) return false;
-      if (isExcludedUser(permission.excludedUsers, user.email)) return false;
-
-      // Admins can access everything (except disabled features)
-      if (isAdmin) return true;
-
-      // Check access level for non-admin users
-      switch (permission.accessLevel) {
-        case 'admin':
-          return false; // Only admins can access
-        case 'beta':
-          if (!isBetaUser(permission.betaUsers, user.email)) return false;
-          break;
-        case 'public':
-          break;
-        default:
-          return false;
-      }
-
-      // Tier gate (docs/wide-distro-plan.md Phase 3): an unset `minTier`
-      // imposes no restriction, so pre-tier docs behave exactly as before.
-      if (!meetsMinTier(userTier, permission.minTier)) return false;
-
-      // Dock defaults only seed a new dock; `buildings` is the per-building switch.
-      if (permission.buildings && permission.buildings.length > 0) {
-        const allowed = new Set(canonicalizeBuildingIds(permission.buildings));
-        if (!selectedBuildings.some((b) => allowed.has(b))) return false;
-      }
-
-      return true;
     },
     [user, featurePermissions, isAdmin, isBetaUser, selectedBuildings, userTier]
   );
@@ -3448,11 +3407,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   /**
    * Resolves an existing permission record + auth state to a boolean access
    * decision. Callers handle the missing-permission case themselves before
-   * delegating here, since that's where the two global-permission checks
-   * deliberately diverge — `canAccessFeature` defaults to public, while
-   * `canSeeShareTracking` defaults to admin-only. Once a record exists, the
-   * enabled-flag → admin-bypass → access-level decision tree is identical,
-   * so keep it in one place to avoid future drift.
+   * delegating here (`canAccessFeature` reads FEATURE_DEFAULTS). Once a record
+   * exists, the enabled-flag → admin-bypass → access-level decision tree is
+   * identical, so keep it in one place to avoid future drift.
    */
   const resolvePermissionAccess = useCallback(
     (
@@ -3553,23 +3510,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [globalPermissions, canAccessFeature]
   );
-
-  const canSeeShareTracking = useCallback((): boolean => {
-    if (isAuthBypass) return true;
-    if (!user) return false;
-
-    const permission = globalPermissions.find(
-      (p) => p.featureId === 'share-link-tracking'
-    );
-
-    // Admin-only default when no record exists. This is the OPPOSITE of
-    // canAccessFeature's default — view-count display fires one Firestore
-    // aggregation per visible card on every dashboard tab-focus, so we'd
-    // rather not surface it without explicit admin opt-in. The missing-
-    // doc default protects unseed deployments from accidental read bloat.
-    if (!permission) return isAdmin === true;
-    return resolvePermissionAccess(permission, user.email);
-  }, [user, globalPermissions, isAdmin, resolvePermissionAccess]);
 
   // Fail-closed on a missing record; everything else is the shared resolver,
   // so tier and buildings apply. Auth bypass is NOT granted here: this gate
@@ -3701,7 +3641,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       hasOrg,
       isExternalUser,
       getAssignmentMode,
-      canSeeShareTracking,
       canAccessQuizMediaResponse: canAccessQuizMediaResponseBound,
       signInWithGoogle,
       signOut,
@@ -3788,7 +3727,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       hasOrg,
       isExternalUser,
       getAssignmentMode,
-      canSeeShareTracking,
       canAccessQuizMediaResponseBound,
       signInWithGoogle,
       signOut,

@@ -4916,8 +4916,9 @@ service cloud.firestore {
           (authUid() == existing().studentUid && changedOnly(['inputSignals']) && signalsOk(sessionData())) ||
           // The dictated marker comes alone too.
           (authUid() == existing().studentUid && changedOnly(['dictated']) && dictatedOk()) ||
-          // The teacher can update any field but the student identity the gradebook keys on; another admin also can't touch the server-written archive, override and paper fields.
-          (liveUid(sessionTeacherUid()) && !changed(['studentUid', 'classId'])) ||
+          // The teacher can update any field but the student identity the gradebook keys on (a missing class may be filled in); another admin also can't touch the server-written archive, override and paper fields.
+          (liveUid(sessionTeacherUid()) && !changed(['studentUid']) &&
+           (!changed(['classId']) || existing().get('classId', null) in [null, ''])) ||
           (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations', 'liveView']))
         );
         allow delete: if signedIn() &&
@@ -4931,11 +4932,11 @@ service cloud.firestore {
           function parentStudentUid() {
             return dbGet4('quiz_sessions', sessionId, 'responses', responseKey).data.studentUid;
           }
-          // Read: teacher, admin, or the owning student.
+          // Read: teacher, admin, or the owning student (class-gated like the parent response).
           allow read: if signedIn() && (
             isSiteAdmin() ||
             liveUid(sessionTeacherUid()) ||
-            authUid() == parentStudentUid()
+            (authUid() == parentStudentUid() && passesStudentClassGateList(sessionClassIds()))
           );
           // Create: only the owning student of the parent response; strict shape;
           // snapshotAt == request.time forces server stamping.
@@ -6663,6 +6664,9 @@ service cloud.firestore {
       allow read, write: if ownsUser(userId);
     }
     match /users/{userId}/projects_folders/{folderId} {
+      allow read, write: if ownsUserTeacher(userId);
+    }
+    match /users/{userId}/activity_wall_folders/{folderId} {
       allow read, write: if ownsUserTeacher(userId);
     }
     // A teacher's private filing of items they don't own (LIBRARY_FOLDERS D22-D23),

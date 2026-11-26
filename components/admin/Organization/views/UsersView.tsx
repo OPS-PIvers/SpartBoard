@@ -4,7 +4,6 @@ import {
   Users,
   Plus,
   Upload,
-  Search,
   Mail,
   KeyRound,
   UserMinus,
@@ -47,6 +46,7 @@ import {
   canonicalBuildingId,
   canonicalizeBuildingIds,
 } from '@/config/buildings';
+import { SearchField } from '@/components/common/SearchField';
 
 interface Props {
   users: UserRecord[];
@@ -337,19 +337,13 @@ export const UsersView: React.FC<Props> = ({
       )}
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="relative w-full sm:w-80">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-          <Input
-            {...tourAttr('admin.org.user-search')}
-            value={search}
-            onChange={(e) => changeSearch(e.target.value)}
-            placeholder="Search by name or email"
-            className="pl-9"
-          />
-        </div>
+        <SearchField
+          value={search}
+          onChange={changeSearch}
+          placeholder="Search by name or email"
+          anchor={tourAttr('admin.org.user-search')}
+          className="w-full sm:w-80"
+        />
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <Select
             {...tourAttr('admin.org.user-role-filter')}

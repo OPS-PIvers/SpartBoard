@@ -31,9 +31,15 @@ import {
 import { todaysBell } from '@/hooks/usePeriodAccess';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import {
-  undoWritingClose,
-  useWritingClassActions,
-} from '@/hooks/useWritingClassActions';
+  restoreRun,
+  useAssignmentClassActions,
+  type AssignmentLifecycle,
+} from '@/hooks/useAssignmentClassActions';
+import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
+import {
+  WRITING_CLASS_COLLECTIONS,
+  writingLifecycle,
+} from '../utils/writingClassLifecycle';
 import { writingAssignedInput } from '@/utils/assignedAdapters';
 import {
   deriveAssignedStatus,
@@ -50,6 +56,22 @@ import {
 } from './writingAssignedFixture';
 
 type Grading = WritingGradingField;
+
+/** Writing's whole-run writes for the shared class actions, for the signed-in teacher. */
+function useWritingLifecycle(): {
+  uid: string;
+  lifecycle: AssignmentLifecycle;
+} {
+  const { user, canAccessFeature } = useAuth();
+  const { setAssignmentTargets } = useSetAssignmentTargets();
+  const uid = user?.uid ?? '';
+  const studentWindows = canAccessFeature('student-windows');
+  const lifecycle = useMemo(
+    () => writingLifecycle(uid, { setAssignmentTargets, studentWindows }),
+    [uid, setAssignmentTargets, studentWindows]
+  );
+  return { uid, lifecycle };
+}
 
 export interface WritingAssignedHandlers {
   onMonitor: (r: WritingAssignmentRecord) => void;
@@ -368,7 +390,13 @@ const WritingLeftOpenHost: React.FC<{
   onLeaveOpen: () => void;
 }> = ({ row, cls, index, rosters, onLeaveOpen }) => {
   const r = row.record;
-  const actions = useWritingClassActions(r, rosters);
+  const { lifecycle } = useWritingLifecycle();
+  const actions = useAssignmentClassActions(
+    r,
+    WRITING_CLASS_COLLECTIONS,
+    lifecycle,
+    rosters
+  );
   const run = usePeriodRunner('WritingAssignedTab.leftOpen');
   const [busy, setBusy] = useState(false);
   const single = row.status.singleLine;
@@ -408,7 +436,15 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
 }) => {
   const { record: r, status, needsGrading, bells, picked } = row;
   const { addToast } = useDashboard();
-  const actions = useWritingClassActions(r, rosters);
+  const { uid, lifecycle } = useWritingLifecycle();
+  const actions = useAssignmentClassActions(
+    r,
+    WRITING_CLASS_COLLECTIONS,
+    lifecycle,
+    rosters
+  );
+  const undo = (prev: WritingAssignmentRecord) =>
+    restoreRun(prev, uid, WRITING_CLASS_COLLECTIONS, lifecycle);
   const run = usePeriodRunner('WritingAssignedTab.class');
   const [busy, setBusy] = useState(false);
   const exec = async (fn: () => Promise<unknown>) => {
@@ -446,7 +482,7 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
       await act();
       addToast(message, 'success', {
         label: 'Undo',
-        onClick: () => void run(() => undoWritingClose(prev)),
+        onClick: () => void run(() => undo(prev)),
       });
     });
   };
@@ -459,14 +495,14 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
       : async () => {
           const prev = r;
           await actions.closeAll();
-          return () => undoWritingClose(prev);
+          return () => undo(prev);
         },
     moveToDone:
       status.bucket === 'active'
         ? async () => {
             const prev = r;
             await actions.moveToDone();
-            return () => undoWritingClose(prev);
+            return () => undo(prev);
           }
         : undefined,
   });

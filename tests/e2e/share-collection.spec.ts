@@ -22,13 +22,9 @@ test.describe('Collections — share + import (Copy mode)', () => {
       .click();
     const modal = page.getByRole('dialog', { name: /boards/i });
 
-    await modal.getByRole('button', { name: /new collection/i }).click();
-    const cPrompt = page.getByRole('dialog', { name: /new collection/i });
-    await cPrompt.getByRole('textbox').fill('Share Test Coll');
-    await cPrompt.getByRole('button', { name: /^create$/i }).click();
-    // BoardsModal auto-opens the CollectionColorPicker after create —
-    // dismiss it so the next click reaches the modal grid.
-    await page.keyboard.press('Escape');
+    await modal.getByRole('button', { name: /new folder/i }).click();
+    await modal.getByPlaceholder('New folder name').fill('Share Test Coll');
+    await modal.getByPlaceholder('New folder name').press('Enter');
     await modal.getByText('Share Test Coll').first().click();
 
     for (const name of ['Share-A', 'Share-B']) {
@@ -54,16 +50,16 @@ test.describe('Collections — share + import (Copy mode)', () => {
     await collCard.click({ button: 'right' });
     const ctxMenu = page.getByRole('menu');
     await expect(ctxMenu).toBeVisible({ timeout: 5000 });
-    await ctxMenu.getByRole('menuitem', { name: /share collection/i }).click();
+    await ctxMenu.getByRole('menuitem', { name: /share folder/i }).click();
 
     // 3. Share creator opens; the bypass admin sees the live modes, so pick Make a copy → Create link
-    const shareDialog = page.getByRole('dialog', { name: /share collection/i });
+    const shareDialog = page.getByRole('dialog', { name: /share folder/i });
     await expect(shareDialog).toBeVisible({ timeout: 5000 });
     await shareDialog.getByRole('button', { name: /^make a copy/i }).click();
     await shareDialog.getByRole('button', { name: /create link/i }).click();
 
     // 4. URL appears
-    const urlInput = shareDialog.getByLabel('Share collection URL');
+    const urlInput = shareDialog.getByLabel('Share folder URL');
     await expect(urlInput).toBeVisible({ timeout: 10000 });
     await expect(urlInput).toHaveValue(/\/share-collection\//);
     const shareUrl = await urlInput.inputValue();
@@ -73,14 +69,14 @@ test.describe('Collections — share + import (Copy mode)', () => {
     // 5. Visit the share URL → import modal appears
     await page.goto(shareUrl);
     const importDialog = page.getByRole('dialog', {
-      name: /import shared collection/i,
+      name: /import shared folder/i,
     });
     await expect(importDialog).toBeVisible({ timeout: 10000 });
     await expect(importDialog.getByText('Share Test Coll')).toBeVisible();
 
     // 6. Click Import
     await importDialog
-      .getByRole('button', { name: /^import collection$/i })
+      .getByRole('button', { name: /^import folder$/i })
       .click();
 
     // 7. Modal dismisses, user lands on imported Collection's first Board

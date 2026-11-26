@@ -1,5 +1,7 @@
+import type { PeriodRoster } from '@/utils/periodPlan';
 import type {
   AccessMode,
+  QuizSessionOptions,
   AssignmentMode,
   AudienceSessionFields,
   PeriodAccess,
@@ -162,6 +164,8 @@ export type QuizAssignmentSettingsPatch = Partial<QuizAssignmentSettings> &
     periodAccessEdits?: PeriodAccessWindowEdits;
     /** Whole per-period rows by key for a class change; null removes the row. */
     periodAccessRows?: Record<string, PeriodAccess | null>;
+    /** Only the edited session options, written as `sessionOptions.<key>` paths so a concurrent edit to another key survives. */
+    sessionOptionEdits?: Partial<Record<keyof QuizSessionOptions, unknown>>;
   };
 
 export interface UseQuizAssignmentsResult {
@@ -208,7 +212,12 @@ export interface UseQuizAssignmentsResult {
   /** After `reopenAssignment`, opens the quiz for these students only: classes stay paused, `letInUids` get a pass until End. */
   reopenForStudents: (
     assignmentId: string,
-    picks: { uids: string[]; letInUids: string[] }
+    picks: {
+      uids: string[];
+      letInUids: string[];
+      /** Labels and bells for the class rows a whole-quiz session moves to. */
+      rosters?: readonly PeriodRoster[];
+    }
   ) => Promise<void>;
   /** Permanently delete assignment + session + all responses. */
   deleteAssignment: (assignmentId: string) => Promise<void>;

@@ -4,6 +4,8 @@ import type {
   QuizConfig,
   QuizData,
   QuizMetadata,
+  QuizSessionBankSlot,
+  QuizSessionMode,
   ReviewConfig,
   ReviewLaunchSettings,
 } from '@/types';
@@ -26,6 +28,57 @@ import {
 } from '@/utils/reviewLaunch';
 import { logError } from '@/utils/logError';
 import { StartReviewModal } from './components/StartReviewModal';
+import {
+  buildAssignCreateOptions,
+  buildAssignQuizRef,
+  buildAssignSettings,
+} from '@/hooks/quizAssign/builders';
+import { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
+
+/** A Review launch has no stepper, window or PLC, so only its classes and pace vary. */
+function reviewCreateOptions({
+  mode,
+  rosters,
+  rosterIds,
+  derived,
+  sessionBankSlots,
+  translationIndex,
+  startsActive,
+  gameDurationMs,
+}: {
+  mode: QuizSessionMode;
+  rosters: ClassRoster[];
+  rosterIds: string[];
+  derived: ReturnType<typeof deriveSessionTargetsFromRosters>;
+  sessionBankSlots: QuizSessionBankSlot[] | undefined;
+  translationIndex: QuizMetadata['translations'];
+  startsActive: boolean;
+  gameDurationMs?: number;
+}) {
+  return buildAssignCreateOptions({
+    widgetKind: 'review',
+    mode,
+    now: Date.now(),
+    stepper: undefined,
+    rosters,
+    rosterIds,
+    derived,
+    periodGate: undefined,
+    sessionPeriodAccess: null,
+    resolvedTargeting: EMPTY_ASSIGN_TARGETING_VALUE,
+    dueAt: null,
+    dueAtByRosterId: undefined,
+    sessionBankSlots,
+    paperWritten: null,
+    plcLinkage: undefined,
+    plcPoolSyncGroupId: undefined,
+    plcTemplateSyncGroupId: undefined,
+    districtCopy: false,
+    translationIndex,
+    startsActive,
+    ...(gameDurationMs != null ? { gameDurationMs } : {}),
+  });
+}
 
 interface UseReviewLaunchArgs {
   config: QuizConfig;
@@ -130,45 +183,47 @@ export function useReviewLaunch({
       const derived = deriveSessionTargetsFromRosters(selected);
       const gameMinutes = clampGameMinutes(settings.gameMinutes);
       try {
+        const sessionOptions = {
+          ...settings.sessionOptions,
+          // D13: no score on submit; the game has no podium between questions.
+          showScoreOnSubmit: false,
+          showPodiumBetweenQuestions: false,
+        };
         const { id, code } = await createAssignment(
-          {
-            id: meta.id,
-            title: meta.title,
+          buildAssignQuizRef({
+            meta,
+            data,
             driveFileId: resolvedDriveFileId ?? meta.driveFileId,
             questions: prepared.questions,
-            ...(prepared.stimuli ? { stimuli: prepared.stimuli } : {}),
-            ...(data.language ? { language: data.language } : {}),
-            ...(data.sections?.length
-              ? { order: data.order, sections: data.sections }
-              : {}),
-          },
-          {
-            sessionMode: 'game',
-            // D13: no score on submit; the game has no podium between questions.
-            sessionOptions: {
-              ...settings.sessionOptions,
-              showScoreOnSubmit: false,
-              showPodiumBetweenQuestions: false,
-            },
+            stimuli: prepared.stimuli,
+          }),
+          buildAssignSettings({
+            mode: 'game',
+            sessionOptions,
             attemptLimit: null,
-            teacherName: config.teacherName,
-            periodNames: derived.periodNames,
-            ...(derived.periodNames[0]
-              ? { periodName: derived.periodNames[0] }
-              : {}),
-            ...(resolvedDriveFileId ? { resolvedDriveFileId } : {}),
-          },
-          {
-            widgetKind: 'review',
+            dueAt: null,
+            dueAtByRosterId: undefined,
+            plcOptions: {
+              plcMode: false,
+              teacherName: config.teacherName,
+              periodNames: derived.periodNames,
+            },
+            plcLinkage: undefined,
+            resolvedDriveFileId,
+            frozenDriveFileId: undefined,
+          }),
+          reviewCreateOptions({
+            mode: 'game',
+            rosters,
+            rosterIds,
+            derived,
+            sessionBankSlots: prepared.bankSlots,
+            translationIndex: prepared.bankSlots
+              ? undefined
+              : meta.translations,
+            startsActive: true,
             gameDurationMs: gameMinutes * 60_000,
-            ...(prepared.bankSlots ? { bankSlots: prepared.bankSlots } : {}),
-            classIds: derived.classIds,
-            rosterIds: derived.rosterIds,
-            classPeriodByClassId: derived.classPeriodByClassId,
-            ...(meta.translations && !prepared.bankSlots
-              ? { translationIndex: meta.translations }
-              : {}),
-          }
+          })
         );
         const preset: Partial<ReviewConfig> = {
           lastLaunch: { ...settings, gameMinutes },
@@ -258,44 +313,48 @@ export function useReviewLaunch({
       const selected = rosters.filter((r) => rosterIds.includes(r.id));
       const derived = deriveSessionTargetsFromRosters(selected);
       try {
+        const sessionOptions = {
+          ...settings.sessionOptions,
+          // D13: no score on submit and no question shuffle in paced play.
+          showScoreOnSubmit: false,
+          shuffleQuestions: false,
+        };
         const { id, code } = await createAssignment(
-          {
-            id: meta.id,
-            title: meta.title,
+          buildAssignQuizRef({
+            meta,
+            data: {
+              language: data.language,
+              order: prepared.order,
+              sections: prepared.sections,
+            },
             driveFileId: resolvedDriveFileId ?? meta.driveFileId,
             questions: prepared.questions,
-            ...(prepared.stimuli ? { stimuli: prepared.stimuli } : {}),
-            ...(data.language ? { language: data.language } : {}),
-            ...(prepared.sections?.length
-              ? { order: prepared.order, sections: prepared.sections }
-              : {}),
-          },
-          {
-            sessionMode: settings.sessionMode,
-            // D13: no score on submit and no question shuffle in paced play.
-            sessionOptions: {
-              ...settings.sessionOptions,
-              showScoreOnSubmit: false,
-              shuffleQuestions: false,
-            },
+            stimuli: prepared.stimuli,
+          }),
+          buildAssignSettings({
+            mode: settings.sessionMode,
+            sessionOptions,
             attemptLimit: null,
-            teacherName: config.teacherName,
-            periodNames: derived.periodNames,
-            ...(derived.periodNames[0]
-              ? { periodName: derived.periodNames[0] }
-              : {}),
-            ...(resolvedDriveFileId ? { resolvedDriveFileId } : {}),
-          },
-          {
-            widgetKind: 'review',
-            initialStatus: 'paused',
-            classIds: derived.classIds,
-            rosterIds: derived.rosterIds,
-            classPeriodByClassId: derived.classPeriodByClassId,
-            ...(meta.translations
-              ? { translationIndex: meta.translations }
-              : {}),
-          }
+            dueAt: null,
+            dueAtByRosterId: undefined,
+            plcOptions: {
+              plcMode: false,
+              teacherName: config.teacherName,
+              periodNames: derived.periodNames,
+            },
+            plcLinkage: undefined,
+            resolvedDriveFileId,
+            frozenDriveFileId: undefined,
+          }),
+          reviewCreateOptions({
+            mode: settings.sessionMode,
+            rosters,
+            rosterIds,
+            derived,
+            sessionBankSlots: undefined,
+            translationIndex: meta.translations,
+            startsActive: false,
+          })
         );
         const preset: Partial<ReviewConfig> = { lastLaunch: settings };
         saveWidgetPreset('review', preset);

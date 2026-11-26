@@ -14,23 +14,23 @@ import { DRIVE_APP_FOLDER } from '@/config/devProject';
 import { DevProdDriveWriteError } from '@/utils/devDriveWriteGuard';
 import { authError } from '@/utils/driveAuthErrors';
 import {
+  DRIVE_API_URL,
+  DRIVE_UPLOAD_API_URL as UPLOAD_API_URL,
+  DriveSession,
+  driveQueryEscape,
+  sanitizeDriveFileName,
+  resetDriveRequestStateForTests,
+  type DriveRequestOptions,
+  type DriveTokenRefresher,
+} from '@/utils/driveRequest';
+import {
   GL_SLIDE_APP_PROPERTY,
   isInAppFolder,
   type DriveParentMeta,
 } from '@/utils/driveAppFolder';
 
-const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
-const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
 const GL_FOLDER_NAME = 'Guided Learning';
 const GL_SLIDE_FOLDERS = ['Assets/HotspotImages'];
-
-function driveQueryEscape(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-}
-
-function sanitizeDriveFileName(title: string): string {
-  return title.replace(/[/\\:*?"<>|]/g, '_').trim() || 'untitled';
-}
 
 interface DriveFileCreateResponse {
   id: string;
@@ -41,110 +41,41 @@ interface DriveFileListResponse {
   files?: { id: string; name: string }[];
 }
 
-const MAX_ATTEMPTS = 3;
 const RECONNECT_MESSAGE =
   'Google Drive access expired. Reconnect Google Drive to keep saving.';
 
-// Guided Learning folder id per access token, so repeat saves skip two lookups.
-const glFolderIdByToken = new Map<string, Promise<string>>();
-
-const isRetryable = (status: number, serverErrors: boolean) =>
-  status === 429 || (serverErrors && status >= 500);
-
-interface DriveServiceOptions {
-  /** Base backoff delay; doubles per retry. */
-  retryBaseMs?: number;
-}
-
 export class GuidedLearningDriveService {
-  private accessToken: string;
-  private retryBaseMs: number;
+  private session: DriveSession;
 
-  constructor(accessToken: string, options: DriveServiceOptions = {}) {
-    this.accessToken = accessToken;
-    this.retryBaseMs = options.retryBaseMs ?? 500;
-  }
-
-  private get authHeaders() {
-    return { Authorization: `Bearer ${this.accessToken}` };
+  constructor(accessToken: string, refreshToken?: DriveTokenRefresher) {
+    this.session = new DriveSession(accessToken, refreshToken);
   }
 
   private get jsonHeaders() {
-    return {
-      Authorization: `Bearer ${this.accessToken}`,
-      'Content-Type': 'application/json',
-    };
+    return { 'Content-Type': 'application/json' };
   }
 
-  // Retries 429 (and 5xx unless the request could create a duplicate); 401 throws a reconnect error.
+  // A 401 the token refresh couldn't fix throws a reconnect error.
   private async request(
     url: string,
-    init: RequestInit,
-    { retryServerErrors = true }: { retryServerErrors?: boolean } = {}
+    init: RequestInit = {},
+    opts?: DriveRequestOptions
   ): Promise<Response> {
-    for (let attempt = 1; ; attempt++) {
-      const res = await fetch(url, init);
-      if (res.status === 401) throw authError(RECONNECT_MESSAGE, '401');
-      if (
-        res.ok ||
-        attempt >= MAX_ATTEMPTS ||
-        !isRetryable(res.status, retryServerErrors)
-      ) {
-        return res;
-      }
-      const delay = this.retryBaseMs * 2 ** (attempt - 1);
-      if (delay > 0) await new Promise((r) => setTimeout(r, delay));
-    }
-  }
-
-  private async getOrCreateFolder(
-    folderName: string,
-    parentId?: string
-  ): Promise<string> {
-    let q = `name = '${driveQueryEscape(folderName)}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-    if (parentId) q += ` and '${parentId}' in parents`;
-
-    const listRes = await this.request(
-      `${DRIVE_API_URL}/files?q=${encodeURIComponent(q)}&fields=files(id)`,
-      { headers: this.authHeaders }
-    );
-    if (!listRes.ok) throw new Error('Failed to list Drive folders');
-    const listData = (await listRes.json()) as DriveFileListResponse;
-    if (listData.files && listData.files.length > 0)
-      return listData.files[0].id;
-
-    const body: { name: string; mimeType: string; parents?: string[] } = {
-      name: folderName,
-      mimeType: 'application/vnd.google-apps.folder',
-    };
-    if (parentId) body.parents = [parentId];
-
-    const createRes = await this.request(
-      `${DRIVE_API_URL}/files`,
-      { method: 'POST', headers: this.jsonHeaders, body: JSON.stringify(body) },
-      { retryServerErrors: false }
-    );
-    if (!createRes.ok)
-      throw new Error(`Failed to create folder: ${folderName}`);
-    const created = (await createRes.json()) as DriveFileCreateResponse;
-    return created.id;
+    const res = await this.session.request(url, init, opts);
+    if (res.status === 401) throw authError(RECONNECT_MESSAGE, '401');
+    return res;
   }
 
   private getGLFolderId(): Promise<string> {
-    const cached = glFolderIdByToken.get(this.accessToken);
-    if (cached) return cached;
-    const lookup = this.getOrCreateFolder(DRIVE_APP_FOLDER).then(
-      (appFolderId) => this.getOrCreateFolder(GL_FOLDER_NAME, appFolderId)
-    );
-    glFolderIdByToken.set(this.accessToken, lookup);
-    lookup.catch(() => glFolderIdByToken.delete(this.accessToken));
-    return lookup;
+    return this.session.getOrCreateFolderPath(DRIVE_APP_FOLDER, [
+      GL_FOLDER_NAME,
+    ]);
   }
 
   private patchContent(fileId: string, content: string): Promise<Response> {
     return this.request(`${UPLOAD_API_URL}/files/${fileId}?uploadType=media`, {
       method: 'PATCH',
-      headers: { ...this.authHeaders, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: content,
     });
   }
@@ -183,7 +114,7 @@ export class GuidedLearningDriveService {
       `${DRIVE_API_URL}/files?q=${encodeURIComponent(
         `name = '${driveQueryEscape(fileName)}' and '${folderId}' in parents and trashed = false`
       )}&fields=files(id)`,
-      { headers: this.authHeaders }
+      {}
     );
     if (!existingRes.ok) {
       throw new Error('Failed to look up guided learning file in Drive');
@@ -196,22 +127,18 @@ export class GuidedLearningDriveService {
       throw new Error('Failed to save guided learning set to Drive');
     }
 
-    const metaRes = await this.request(
-      `${DRIVE_API_URL}/files`,
-      {
-        method: 'POST',
-        headers: this.jsonHeaders,
-        body: JSON.stringify({
-          name: fileName,
-          parents: [folderId],
-          mimeType: 'application/json',
-        }),
-      },
-      { retryServerErrors: false }
-    );
+    const metaRes = await this.request(`${DRIVE_API_URL}/files`, {
+      method: 'POST',
+      headers: this.jsonHeaders,
+      body: JSON.stringify({
+        name: fileName,
+        parents: [folderId],
+        mimeType: 'application/json',
+      }),
+    });
     if (!metaRes.ok) {
       // A stale cached folder (deleted by the teacher) is looked up again next save.
-      glFolderIdByToken.delete(this.accessToken);
+      this.session.forgetFolders();
       throw new Error('Failed to create guided learning file in Drive');
     }
     const meta = (await metaRes.json()) as DriveFileCreateResponse;
@@ -226,7 +153,7 @@ export class GuidedLearningDriveService {
   async loadSet(driveFileId: string): Promise<GuidedLearningSet> {
     const res = await this.request(
       `${DRIVE_API_URL}/files/${driveFileId}?alt=media`,
-      { headers: this.authHeaders }
+      {}
     );
     if (!res.ok)
       throw new Error('Failed to load guided learning set from Drive');
@@ -241,7 +168,7 @@ export class GuidedLearningDriveService {
       async (id) => {
         const res = await this.request(
           `${DRIVE_API_URL}/files/${id}?fields=name,parents,trashed,appProperties`,
-          { headers: this.authHeaders }
+          {}
         );
         return res.ok ? ((await res.json()) as DriveParentMeta) : null;
       },
@@ -254,7 +181,6 @@ export class GuidedLearningDriveService {
   async deleteSetFile(driveFileId: string): Promise<void> {
     const res = await this.request(`${DRIVE_API_URL}/files/${driveFileId}`, {
       method: 'DELETE',
-      headers: this.authHeaders,
     });
     if (!res.ok && res.status !== 404) {
       throw new Error('Failed to delete guided learning file from Drive');
@@ -264,5 +190,5 @@ export class GuidedLearningDriveService {
 
 // Test hook: forget cached folder ids.
 export const resetGuidedLearningDriveFolderCache = (): void => {
-  glFolderIdByToken.clear();
+  resetDriveRequestStateForTests();
 };

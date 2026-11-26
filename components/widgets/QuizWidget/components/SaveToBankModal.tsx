@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState } from 'react';
+import { Modal } from '@/components/common/Modal';
 import { X } from 'lucide-react';
 import type { QuestionBankMetadata, QuizQuestion, QuizStimulus } from '@/types';
-import { Z_INDEX } from '@/config/zIndex';
-import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { inputClass, labelClass } from './quizEditorFieldStyles';
 import { referencedStimuli } from './bankSlotHelpers';
 import type { QuizEditorBankApi } from './QuizEditorModal';
@@ -33,16 +31,6 @@ export const SaveToBankModal: React.FC<SaveToBankModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || isEscapeFromWidgetInput(event)) return;
-      event.stopPropagation();
-      onClose();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [onClose]);
-
   const isNew = choice === NEW_BANK;
   const canSave =
     questions.length > 0 && !saving && (!isNew || newTitle.trim().length > 0);
@@ -68,19 +56,18 @@ export const SaveToBankModal: React.FC<SaveToBankModalProps> = ({
 
   const n = questions.length;
 
-  return createPortal(
-    <div
-      className="fixed inset-0 flex items-center justify-center bg-black/40 p-4"
-      style={{ zIndex: Z_INDEX.modalNestedContent }}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+  return (
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      zIndex="z-modal-deep"
+      maxWidth="max-w-md"
+      captureEscape
+      ariaLabel="Save to question bank"
+      className="max-h-[85vh]! rounded-xl bg-white shadow-2xl border border-slate-200"
     >
-      <div
-        role="dialog"
-        aria-label="Save to question bank"
-        className="w-full max-w-md max-h-[85vh] flex flex-col rounded-xl bg-white shadow-2xl border border-slate-200"
-      >
+      <div className="flex max-h-[85vh] min-h-0 flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
           <h4 className="text-sm font-bold text-slate-900">
             Save {n} {n === 1 ? 'question' : 'questions'} to a bank
@@ -165,7 +152,6 @@ export const SaveToBankModal: React.FC<SaveToBankModalProps> = ({
           </button>
         </div>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 };

@@ -29,11 +29,9 @@ test.describe('Collections — save + instantiate via template (Plan 4)', () => 
     // 2. Create Collection "Plan 4 Test". BoardsModal auto-opens the
     //    CollectionColorPicker after each successful create — dismiss it
     //    with Escape so it doesn't block subsequent modal interactions.
-    await modal.getByRole('button', { name: /new collection/i }).click();
-    const cPrompt = page.getByRole('dialog', { name: /new collection/i });
-    await cPrompt.getByRole('textbox').fill('Plan 4 Test');
-    await cPrompt.getByRole('button', { name: /^create$/i }).click();
-    await page.keyboard.press('Escape');
+    await modal.getByRole('button', { name: /new folder/i }).click();
+    await modal.getByPlaceholder('New folder name').fill('Plan 4 Test');
+    await modal.getByPlaceholder('New folder name').press('Enter');
 
     // 3. Open the Collection and add 2 Boards
     await modal.getByText('Plan 4 Test').first().click();
@@ -65,7 +63,7 @@ test.describe('Collections — save + instantiate via template (Plan 4)', () => 
 
     // 6. Verify modal title
     const saveDialog = page.getByRole('dialog', {
-      name: /save collection as template/i,
+      name: /save folder as template/i,
     });
     await expect(saveDialog).toBeVisible({ timeout: 5000 });
 

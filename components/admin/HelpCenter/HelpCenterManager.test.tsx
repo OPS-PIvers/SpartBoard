@@ -389,13 +389,13 @@ describe('HelpCenterManager', () => {
     open.mockRestore();
   });
 
-  it('switches a Live tour to substitutes from Who sees it', async () => {
+  it('switches a Live tour to substitutes from Audience', async () => {
     glState.tourSetIds = new Set(['t1']);
     glState.sets.set('t1', pictureSet('t1'));
     helpState.items = [makeItem({ id: 'a', title: 'Tour', setId: 't1' })];
     writeHelpCenterSelection('a');
     render(<HelpCenterManager />);
-    fireEvent.change(await screen.findByLabelText('Who sees it'), {
+    fireEvent.change(await screen.findByLabelText('Audience'), {
       target: { value: 'subs' },
     });
     await waitFor(() => expect(firestoreMocks.updateDoc).toHaveBeenCalled());
@@ -413,7 +413,7 @@ describe('HelpCenterManager', () => {
     ];
     writeHelpCenterSelection('a');
     render(<HelpCenterManager />);
-    fireEvent.change(await screen.findByLabelText('Who sees it'), {
+    fireEvent.change(await screen.findByLabelText('Audience'), {
       target: { value: 'students' },
     });
     await waitFor(() => expect(firestoreMocks.updateDoc).toHaveBeenCalled());
@@ -431,7 +431,7 @@ describe('HelpCenterManager', () => {
     ];
     writeHelpCenterSelection('a');
     render(<HelpCenterManager />);
-    fireEvent.change(await screen.findByLabelText('Who sees it'), {
+    fireEvent.change(await screen.findByLabelText('Audience'), {
       target: { value: 'teachers' },
     });
     await waitFor(() => expect(clearMarker).toHaveBeenCalledWith('t1'));

@@ -94,7 +94,7 @@ document.getElementById('send').addEventListener('click', () => {
     { id: 'q1', answer: Number(a1.value) },
     { id: 'q2', answer: a2.value === 'true' }
   ]}).then((r) => {
-    msg.textContent = r.score === undefined ? 'Turned in.' : 'Score: ' + r.score + '/' + r.maxScore;
+    msg.textContent = r.score === undefined ? 'Submitted.' : 'Score: ' + r.score + '/' + r.maxScore;
   }).catch((e) => { msg.textContent = e.code === 'attempts-exhausted' ? 'No attempts left.' : 'Not saved. Try again.'; });
 });
 </script></body></html>

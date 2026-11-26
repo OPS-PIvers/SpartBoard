@@ -96,7 +96,7 @@ import {
   FileScan,
   Clock,
 } from 'lucide-react';
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import {
   addDoc,
   collection,
@@ -105,6 +105,8 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { useStudentAuthBootstrap } from '@/hooks/useStudentAuthBootstrap';
+import { usePeriodGate } from '@/hooks/usePeriodGate';
 import { QUIZ_SSO_REDIRECT_ENABLED } from '@/config/constants';
 import { AnonymousJoinBlockedScreen } from '@/components/common/AnonymousJoinBlockedScreen';
 import { shouldGateToSso } from '@/utils/studentJoinRouting';
@@ -114,15 +116,25 @@ import {
   studentPreviewBlocksWrite,
 } from '@/utils/viewAsTab';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
-import { resolveAttemptDeadline, timestampMillis } from '@/utils/quizTimeLimit';
-import { QuizTimeLimitClock } from './QuizTimeLimitClock';
-import { useServerNow } from '@/hooks/useServerNow';
 import {
-  hasPeriodAccess,
-  nextScheduledOpen,
-  studentCanEnter,
-} from '@/utils/periodAccess';
-import { QuizPeriodLockedScreen } from './QuizPeriodLockedScreen';
+  classPauses,
+  resolveAttemptDeadline,
+  timestampMillis,
+} from '@/utils/quizTimeLimit';
+import { QuizTimeLimitClock } from './QuizTimeLimitClock';
+import {
+  StudentPeriodLockedScreen,
+  StudentPeriodPicker,
+} from '@/components/student/StudentPeriodScreens';
+import { periodLockState } from '@/components/student/periodLockState';
+import { StudentPinJoinCard } from '@/components/student/StudentPinJoinCard';
+import {
+  STUDENT_PRIMARY_BUTTON,
+  STUDENT_TEXT_BUTTON,
+  StudentScreenLogo,
+  StudentScreenShell,
+  StudentScreenTitle,
+} from '@/components/student/StudentScreenShell';
 import {
   useQuizSessionStudent,
   normalizeAnswer,
@@ -270,7 +282,6 @@ import {
   highlightClass,
   sameReadAloudPart,
 } from './readAloud/readAloudHighlight';
-import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
 import { isReviewGame } from '@/utils/quizWidgetKind';
@@ -282,12 +293,19 @@ import {
   myAttemptAsResponse,
   useMyQuizAttempts,
 } from '@/hooks/useQuizResponseAttempts';
-import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+import {
+  resolveTabStrikeRules,
+  useTabStrikePolicy,
+  type TabAutoSubmitReason,
+} from '@/hooks/useTabStrikePolicy';
+import { useTabSubmitNotice } from '@/hooks/useTabSubmitNotice';
 import { useInputSignals } from '@/hooks/useInputSignals';
 import { useLiveViewReport } from '@/hooks/useLiveViewReport';
 import { isHandedOff } from '@/utils/attemptHandOff';
-import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
-import { TabAwayClock } from '@/components/common/TabAwayClock';
+import {
+  TabStrikeWarning,
+  TabWarningModal,
+} from '@/components/common/TabWarningModal';
 import {
   getEffectiveTabWarningThreshold,
   hasReachedTabWarningThreshold,
@@ -326,7 +344,7 @@ import {
 import { FibDictateMic, FibMultiBlankInput } from './FibMultiBlankInput';
 import { FIB_ROW_ATTR } from '@/utils/speechToText/blankPhrase';
 import { QuestionPrompt } from './QuestionPrompt';
-import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { StudentOfflineBanner } from '@/components/common/StudentOfflineBanner';
 import { FibChoiceBlanksInput } from './FibChoiceBlanksInput';
 import { hasChoiceBlanks } from '@/utils/quizBlankTypes';
 import { fillWordBankChoice } from '@/utils/quizWordBank';
@@ -430,54 +448,17 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
   const previewMode = usePreviewMode();
   const { t } = useTranslation();
 
-  const [authReady, setAuthReady] = useState(false);
-  const [authFailed, setAuthFailed] = useState(false);
-  // True iff `auth.currentUser` carries the `studentRole: true` custom claim
-  // minted by `studentLoginV1`. Resolved at mount; used to drive the
-  // auto-join branch in `QuizJoinFlow`. Anonymous joiners stay `false`.
-  const [isStudentRole, setIsStudentRole] = useState(false);
-  // A PIN-proven token: signed in for one session only, so no paid Speech to text (D15).
-  const [isPinLogin, setIsPinLogin] = useState(false);
-
-  // Sign in anonymously on mount only when nobody is signed in yet — SSO
-  // students arriving from `/my-assignments` already have a custom-token
-  // user we must keep. This satisfies Firestore security rules
-  // (`request.auth != null`) for direct `/quiz?code=…` visitors.
-  useEffect(() => {
-    if (previewMode) return;
-    const init = async () => {
-      try {
-        // Wait for Firebase Auth to hydrate from IndexedDB before deciding
-        // whether to sign in anonymously. `/my-assignments` → `/quiz` is a
-        // full-page browser navigation, so on mount `auth.currentUser` is
-        // null for the first tick or two even when IndexedDB holds an SSO
-        // user. Without this await we'd race hydration: a synchronous null
-        // check sends us into the signInAnonymously branch and silently
-        // replaces the SSO user with a fresh anonymous one — breaking the
-        // auto-join effect below and forcing SSO students into the PIN
-        // form. See QuizStudentApp.ssoAutoJoin.test.tsx for the regression.
-        await auth.authStateReady();
-        if (!auth.currentUser) {
-          await signInAnonymously(auth);
-        }
-        const user = auth.currentUser;
-        if (user && !user.isAnonymous) {
-          // Probe custom claims once. We don't refresh here — `studentLoginV1`
-          // is what minted these, and a stale token is fine for read-only
-          // identity. The Firestore rules re-validate on every write.
-          const tokenResult = await user.getIdTokenResult();
-          setIsStudentRole(tokenResult.claims?.studentRole === true);
-          setIsPinLogin(tokenResult.claims?.pinLogin === true);
-        }
-      } catch (err) {
-        console.warn('[QuizStudentApp] Auth init failed:', err);
-        setAuthFailed(true);
-      } finally {
-        setAuthReady(true);
-      }
-    };
-    void init();
-  }, [previewMode]);
+  const {
+    ready: authReady,
+    failed: authFailed,
+    isStudentRole,
+    isPinLogin,
+  } = useStudentAuthBootstrap({
+    enabled: !previewMode,
+    keepPinLogin: true,
+    readClaims: true,
+    label: 'QuizStudentApp',
+  });
 
   if (previewMode) {
     return <QuizPreviewLobby />;
@@ -521,54 +502,25 @@ const QuizPreviewLobby: React.FC = () => {
     typeof window === 'undefined'
       ? ''
       : (new URLSearchParams(window.location.search).get('code') ?? '');
-
   return (
-    <div className="h-screen h-dvh overflow-y-auto bg-slate-900 flex flex-col">
-      <TeacherPreviewBanner />
-      <div className="flex-1 flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-sm">
-          <div className="flex items-center justify-center mb-8">
-            <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
-            <span className="text-sm text-slate-300 font-semibold">
-              {t('quizStudent.join.studentQuiz')}
-            </span>
-          </div>
-
-          <h1 className="text-2xl font-black text-white mb-2 text-center">
-            {t('quizStudent.join.title')}
-          </h1>
-          <p className="text-slate-400 text-sm text-center mb-6">
-            {t('quizStudent.join.intro')}
-          </p>
-
-          <div className="space-y-4" aria-hidden="true">
-            <input
-              type="text"
-              value={urlCode}
-              readOnly
-              tabIndex={-1}
-              placeholder={t('quizStudent.join.codePlaceholder')}
-              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center uppercase placeholder-slate-600 focus:outline-hidden cursor-default"
-            />
-            <input
-              type="text"
-              readOnly
-              tabIndex={-1}
-              placeholder={t('quizStudent.join.pinPlaceholder')}
-              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-hidden cursor-default"
-            />
-            <button
-              type="button"
-              disabled
-              tabIndex={-1}
-              className="w-full py-4 bg-violet-600 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
-            >
-              {t('quizStudent.join.join')} <ArrowRight className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <StudentPinJoinCard
+      preview
+      title={t('quizStudent.join.title')}
+      intro={t('quizStudent.join.intro')}
+      code={{
+        value: urlCode,
+        onChange: () => undefined,
+        placeholder: t('quizStudent.join.codePlaceholder'),
+        maxLength: 8,
+      }}
+      codeTourId="student.quiz.join-code"
+      pin=""
+      onPinChange={() => undefined}
+      pinTourId="student.quiz.join-pin"
+      onSubmit={() => undefined}
+      submitTourId="student.quiz.join"
+      busy={false}
+    />
   );
 };
 
@@ -697,15 +649,15 @@ const QuizJoinFlow: React.FC<{
     [lookupSession, joinQuizSession]
   );
 
-  const handlePeriodConfirm = useCallback(async () => {
-    if (!selectedPeriod) return;
-    // Only anonymous joiners reach the period picker (SSO students auto-join
-    // via the effect below and skip period selection entirely), so PIN is
-    // always populated here. The hook keys their response doc by
-    // `pin-{period}-{pin}`.
-    await joinQuizSession(code, pin, selectedPeriod);
-    dispatchFlow({ type: 'joined' });
-  }, [joinQuizSession, code, pin, selectedPeriod]);
+  // Only anonymous joiners pick a period, so the PIN is set; it keys `pin-{period}-{pin}`.
+  const handlePeriodPick = useCallback(
+    async (period: string) => {
+      dispatchFlow({ type: 'periodPicked', period });
+      await joinQuizSession(code, pin, period);
+      dispatchFlow({ type: 'joined' });
+    },
+    [joinQuizSession, code, pin]
+  );
 
   // SSO auto-join: bypass the PIN form AND the period picker entirely. SSO
   // students arrive with a stable identity (auth.uid via /student/login),
@@ -1029,11 +981,12 @@ const QuizJoinFlow: React.FC<{
   }, []);
 
   // Per-period gate, re-checked as the clock passes a window edge.
-  const periodNow = useServerNow(hasPeriodAccess(session) ? 5000 : null);
-  const periodLocked =
-    hasPeriodAccess(session) &&
-    session.status !== 'ended' &&
-    !studentCanEnter(session, periodKeys, authedUid, periodNow);
+  const { now: periodNow, paused: periodLocked } = usePeriodGate({
+    session,
+    periodKeys,
+    uid: authedUid,
+    active: session?.status !== 'ended',
+  });
 
   // M17 C2 (§3a-D) — clock-skew guard for the mid-attempt window-close
   // auto-submit below: window comparisons use server-offset time, not raw
@@ -1368,90 +1321,20 @@ const QuizJoinFlow: React.FC<{
   // any class periods. SSO joiners skip this and join via the auto-join effect.
   if (periodStep && !joined) {
     return (
-      // Outer wrapper owns the scroll: body has `overflow: hidden` globally
-      // (index.css), so a `min-h-screen` child can't trigger document scroll
-      // when the period list is taller than the viewport. We give the outer
-      // an explicit viewport height + `overflow-y-auto`, then let the inner
-      // grow past 100% via `min-h-full` — content centers when it fits and
-      // the outer scrolls when it doesn't (e.g. teacher with 8+ periods on
-      // a phone-sized viewport).
-      <div className="h-screen h-dvh overflow-y-auto bg-slate-900">
-        <div className="min-h-full flex flex-col items-center justify-center p-6">
-          <div className="w-full max-w-sm">
-            <div className="flex items-center justify-center mb-8">
-              <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
-              <span className="text-sm text-slate-300 font-semibold">
-                {t('quizStudent.join.studentQuiz')}
-              </span>
-            </div>
-
-            <h1 className="text-2xl font-black text-white mb-2 text-center">
-              {t('quizStudent.join.periodTitle')}
-            </h1>
-            <p className="text-slate-400 text-sm text-center mb-6">
-              {t('quizStudent.join.periodIntro')}
-            </p>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-xl text-red-300 text-sm flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                {error}
-              </div>
-            )}
-
-            <div className="space-y-2 mb-6">
-              {periodStep.map((period) => (
-                <button
-                  {...tourAttr('student.quiz.period')}
-                  key={period}
-                  onClick={() => dispatchFlow({ type: 'periodPicked', period })}
-                  className={`w-full px-4 py-4 rounded-xl text-lg font-bold transition-all ${
-                    selectedPeriod === period
-                      ? 'bg-violet-600 text-white ring-2 ring-violet-400'
-                      : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  {period}
-                </button>
-              ))}
-            </div>
-
-            <button
-              {...tourAttr('student.quiz.period-confirm')}
-              onClick={() => {
-                // joinQuizSession re-throws after populating `error` state for
-                // the UI. Catch here so the rejection isn't an unhandled
-                // promise — `void` would only silence the linter, not handle
-                // the rejection.
-                handlePeriodConfirm().catch((err: unknown) => {
-                  console.warn('[QuizStudentApp] Period confirm failed:', err);
-                });
-              }}
-              disabled={loading || !selectedPeriod}
-              className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  {t('quizStudent.join.continue')}{' '}
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
-
-            <button
-              {...tourAttr('student.quiz.period-back')}
-              onClick={() => {
-                dispatchFlow({ type: 'periodBack' });
-              }}
-              className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
-            >
-              {t('quizStudent.join.goBack')}
-            </button>
-          </div>
-        </div>
-      </div>
+      <StudentPeriodPicker
+        periods={periodStep}
+        pendingPeriod={loading ? selectedPeriod : null}
+        onPick={(period) => {
+          // joinQuizSession re-throws after setting `error`; catch so it isn't unhandled.
+          handlePeriodPick(period).catch((err: unknown) => {
+            console.warn('[QuizStudentApp] Period join failed:', err);
+          });
+        }}
+        error={error}
+        optionTourId="student.quiz.period"
+        onBack={() => dispatchFlow({ type: 'periodBack' })}
+        backTourId="student.quiz.period-back"
+      />
     );
   }
 
@@ -1507,121 +1390,62 @@ const QuizJoinFlow: React.FC<{
         urlCode
       )}`;
       return (
-        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6">
-          <div className="w-full max-w-sm">
-            <div className="flex items-center justify-center mb-8">
-              <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
-              <span className="text-sm text-slate-300 font-semibold">
-                {t('quizStudent.join.studentQuiz')}
-              </span>
-            </div>
-
-            <h1 className="text-2xl font-black text-white mb-2 text-center">
-              {t('quizStudent.join.signInTitle')}
-            </h1>
-            <p className="text-slate-400 text-sm text-center mb-6">
-              {t('quizStudent.join.signInIntro')}
-            </p>
-
-            <button
-              {...tourAttr('student.quiz.sign-in-google')}
-              onClick={() =>
-                window.location.assign(
-                  `/student/login?next=${encodeURIComponent(nextTarget)}`
-                )
-              }
-              className="w-full py-4 bg-violet-600 hover:bg-violet-500 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
-            >
-              {t('quizStudent.join.signInGoogle')}{' '}
-              <ArrowRight className="w-5 h-5" />
-            </button>
-
-            <button
-              {...tourAttr('student.quiz.use-pin')}
-              onClick={() => dispatchFlow({ type: 'usePin' })}
-              className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
-            >
-              {t('quizStudent.join.usePin')}
-            </button>
-          </div>
-        </div>
+        <StudentScreenShell>
+          <StudentScreenLogo />
+          <StudentScreenTitle>
+            {t('quizStudent.join.signInTitle')}
+          </StudentScreenTitle>
+          <p className="mt-2 text-sm text-slate-600">
+            {t('quizStudent.join.signInIntro')}
+          </p>
+          <button
+            {...tourAttr('student.quiz.sign-in-google')}
+            type="button"
+            onClick={() =>
+              window.location.assign(
+                `/student/login?next=${encodeURIComponent(nextTarget)}`
+              )
+            }
+            className={`mt-6 ${STUDENT_PRIMARY_BUTTON}`}
+          >
+            {t('quizStudent.join.signInGoogle')}
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </button>
+          <button
+            {...tourAttr('student.quiz.use-pin')}
+            type="button"
+            onClick={() => dispatchFlow({ type: 'usePin' })}
+            className={STUDENT_TEXT_BUTTON}
+          >
+            {t('quizStudent.join.usePin')}
+          </button>
+        </StudentScreenShell>
       );
     }
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-sm">
-          <div className="flex items-center justify-center mb-8">
-            <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
-            <span className="text-sm text-slate-300 font-semibold">
-              {t('quizStudent.join.studentQuiz')}
-            </span>
-          </div>
-
-          <h1 className="text-2xl font-black text-white mb-2 text-center">
-            {t('quizStudent.join.title')}
-          </h1>
-          <p className="text-slate-400 text-sm text-center mb-6">
-            {t('quizStudent.join.intro')}
-          </p>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-xl text-red-300 text-sm flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              {error}
-            </div>
-          )}
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              // joinQuizSession re-throws after populating `error` state for
-              // the UI. Catch here so the rejection isn't an unhandled
-              // promise — `void` would only silence the linter, not handle
-              // the rejection.
-              handleJoin(code, pin).catch((err: unknown) => {
-                console.warn('[QuizStudentApp] Join failed:', err);
-              });
-            }}
-            className="space-y-4"
-          >
-            <input
-              {...tourAttr('student.quiz.join-code')}
-              type="text"
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder={t('quizStudent.join.codePlaceholder')}
-              maxLength={8}
-              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center uppercase placeholder-slate-600 focus:outline-hidden focus:ring-2 focus:ring-violet-500"
-              required
-            />
-            <input
-              {...tourAttr('student.quiz.join-pin')}
-              type="text"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              placeholder={t('quizStudent.join.pinPlaceholder')}
-              maxLength={10}
-              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-hidden focus:ring-2 focus:ring-violet-500"
-              required
-            />
-            <button
-              {...tourAttr('student.quiz.join')}
-              type="submit"
-              disabled={loading || !code.trim() || !pin.trim()}
-              className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  {t('quizStudent.join.join')}{' '}
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
-          </form>
-        </div>
-      </div>
+      <StudentPinJoinCard
+        title={t('quizStudent.join.title')}
+        intro={t('quizStudent.join.intro')}
+        code={{
+          value: code,
+          onChange: (value) => setCode(value.toUpperCase()),
+          placeholder: t('quizStudent.join.codePlaceholder'),
+          maxLength: 8,
+        }}
+        codeTourId="student.quiz.join-code"
+        pin={pin}
+        onPinChange={setPin}
+        pinTourId="student.quiz.join-pin"
+        onSubmit={() => {
+          // joinQuizSession re-throws after setting `error`; catch so it isn't unhandled.
+          handleJoin(code, pin).catch((err: unknown) => {
+            console.warn('[QuizStudentApp] Join failed:', err);
+          });
+        }}
+        submitTourId="student.quiz.join"
+        busy={loading}
+        error={error}
+      />
     );
   }
 
@@ -1688,14 +1512,9 @@ const QuizJoinFlow: React.FC<{
         return screen.started ? (
           <QuizPausedPlaceholder session={session} pin={pin} periodClosed />
         ) : (
-          <QuizPeriodLockedScreen
-            session={session}
-            opensAt={nextScheduledOpen(
-              session,
-              periodKeys,
-              periodNow,
-              authedUid
-            )}
+          <StudentPeriodLockedScreen
+            title={session.quizTitle}
+            lock={periodLockState(session, periodKeys, periodNow, authedUid)}
             pin={pin}
           />
         );
@@ -2164,13 +1983,12 @@ export const ActiveQuiz: React.FC<{
   onReportLivePosition,
 }) => {
   const watching = watchQuestionId !== undefined;
-  const { showAlert, showConfirm } = useDialog();
+  const { showConfirm } = useDialog();
   const { t } = useTranslation();
   const tRef = useRef(t);
   useLayoutEffect(() => {
     tRef.current = t;
   }, [t]);
-  const [showCheatWarning, setShowCheatWarning] = useState(false);
   // Review before submit: this tab's sessionStorage only, so teachers never see marks.
   const reviewStoreKey = reviewStateKey(
     session.id,
@@ -2256,34 +2074,16 @@ export const ActiveQuiz: React.FC<{
     }
   }
 
-  const handleAutoSubmit = useCallback(
-    async (reason: 'three-strikes' | 'post-unlock' = 'three-strikes') => {
-      const message =
-        reason === 'post-unlock'
-          ? t('quizStudent.autoSubmit.unlocked')
-          : t('quizStudent.autoSubmit.strikes');
-      // Ask the inner question view to flush any pending written-response
-      // autosave before we mark the response complete. Listened for in
-      // `StudentQuestionView`'s flush handler. Without this, a strike-3
-      // auto-submit fired within 500 ms of the student's last keystroke
-      // could finalize the response with the previous (already-written)
-      // draft and silently drop the most recent edits.
+  const submitForTab = useCallback(
+    async (_reason: TabAutoSubmitReason) => {
+      // Flush a pending written-response autosave first (`StudentQuestionView` listens), so the last edits land.
       document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
       await commitActiveTake();
-      // Submit first: the alert waits for a tap, and a reload would leave the attempt open.
-      try {
-        await onComplete();
-      } catch (err: unknown) {
-        console.error('[QuizStudentApp] auto-submit failed:', err);
-        return;
-      }
-      await showAlert(message, {
-        title: t('quizStudent.autoSubmit.title'),
-        variant: 'warning',
-      });
+      await onComplete();
     },
-    [showAlert, onComplete, t]
+    [onComplete]
   );
+  const tabSubmitNotice = useTabSubmitNotice();
 
   // M17 C2 (§3a-D) — mid-attempt window close: when `closeAt` passes while
   // the student has an attempt open, auto-submit what's answered with a
@@ -2346,13 +2146,14 @@ export const ActiveQuiz: React.FC<{
   }, [closeAtForAttempt, myResponse?.status, reopened, attemptCloseAutoSubmit]);
 
   // Overall time limit: counts from the server-stamped attempt start, scaled by extended time.
+  const myPauses = classPauses(session, myResponse?.classId);
   const attemptDeadline =
-    session.sessionMode === 'student' && session.status !== 'paused'
+    session.sessionMode === 'student' && !myPauses.paused
       ? resolveAttemptDeadline(
           timestampMillis(myResponse?.attemptStartedAt),
           session.timeLimitMinutes,
           override?.timeMultiplier,
-          session.pauseSpans
+          myPauses.pauseSpans
         )
       : null;
   // Any open timed attempt without a clock (a limit added mid-assignment, or a row a paper scan created) starts it.
@@ -2409,11 +2210,6 @@ export const ActiveQuiz: React.FC<{
 
   // The Visibility Tracker — only active when tabWarningsEnabled
   const tabWarningsEnabled = session.tabWarningsEnabled !== false;
-  // Effective auto-submit threshold (M17 B4): per-student override > session > default 3.
-  const effectiveTabWarningThreshold = getEffectiveTabWarningThreshold(
-    session.tabWarningThreshold,
-    pointerTabWarningThreshold
-  );
 
   // Test integrity: when the teacher enabled "Block Copy & Paste", suppress
   // copy/cut/paste — and drag-and-drop, the other channel for importing text
@@ -2455,11 +2251,22 @@ export const ActiveQuiz: React.FC<{
     ? localIndex
     : session.currentQuestionIndex;
 
-  // Null unless the teacher assigned with the tab-away-timer flag.
-  const tabAwayRule = getEffectiveTabAwayRule(session, override?.tabAwayLimit);
-  // The tab-away tracker counts each exit, logs it to `tabExits`, and closes
-  // it when the student comes back.
-  const tabTracker = useTabAwayTracker({
+  // Warning counts and auto-submit rules shared with every student app.
+  const tabPolicy = useTabStrikePolicy({
+    rules: resolveTabStrikeRules({
+      settings: session,
+      override: {
+        tabWarningThreshold: pointerTabWarningThreshold,
+        tabAwayLimit: override?.tabAwayLimit,
+      },
+    }),
+    warn: true,
+    serverCount: warningCount,
+    countStrike: () => reportTabSwitch(),
+    // Teacher-unlocked attempts skip the warning; a teacher reopen has no such rule.
+    oneExitLeft: unlockedOneExit,
+    submit: submitForTab,
+    onSubmitted: tabSubmitNotice,
     enabled:
       tabWarningsEnabled &&
       session.status === 'active' &&
@@ -2469,54 +2276,7 @@ export const ActiveQuiz: React.FC<{
     serverExits: myResponse?.tabExits,
     attempt: myResponse?.completedAttempts ?? 0,
     getPosition: () => ({ questionIndex: currentIndex }),
-    onLeave: async () => {
-      let newTotal: number;
-      try {
-        newTotal = await reportTabSwitch();
-      } catch (err) {
-        console.error('Failed to report tab switch:', err);
-        // Still show the UI warning even if Firestore update fails
-        setShowCheatWarning(true);
-        return false;
-      }
-      // Teacher-unlocked attempts skip the warning: the student was told the
-      // next exit submits their work. A teacher reopen has no such rule.
-      if (unlockedOneExit) {
-        setShowCheatWarning(false);
-        // A failed submit (e.g. offline) must not leave detection armed-off.
-        void handleAutoSubmit('post-unlock').finally(tabTracker.release);
-        return true;
-      }
-      setShowCheatWarning(true);
-      if (
-        hasReachedTabWarningThreshold(newTotal, effectiveTabWarningThreshold)
-      ) {
-        // Use a slight delay so the UI can update before the dialog
-        setTimeout(() => void handleAutoSubmit(), 100);
-        return true;
-      }
-      return false;
-    },
     saveExits: saveTabExits,
-    limitMs: tabAwayRule?.limitMs ?? null,
-    autoSubmit: tabAwayRule?.autoSubmit ?? false,
-    onAwayTooLong: () => {
-      // Submit first: the tab may be hidden, where a blocking alert would wait.
-      setShowCheatWarning(true);
-      document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
-      void commitActiveTake()
-        .then(() => onComplete())
-        .then(() =>
-          showAlert(t('quizStudent.autoSubmit.awayTooLong'), {
-            title: t('quizStudent.autoSubmit.title'),
-            variant: 'warning',
-          })
-        )
-        .catch((err: unknown) =>
-          console.error('[QuizStudentApp] away auto-submit failed:', err)
-        )
-        .finally(tabTracker.release);
-    },
     fullscreenRequired,
   });
 
@@ -2693,7 +2453,7 @@ export const ActiveQuiz: React.FC<{
   useLiveViewReport({
     until: liveViewUntil,
     questionId: currentQuestion?.id,
-    warning: showCheatWarning,
+    warning: tabPolicy.warningOpen,
     report: onReportLivePosition,
   });
   // Unusual-input counters; stamped on the session only with the input-signals flag.
@@ -3127,7 +2887,6 @@ export const ActiveQuiz: React.FC<{
   // same commit (visibility flush, structured input change) would see
   // the previous render's value.
   const currentQuestionRef = useRef(currentQuestion);
-  const online = useOnlineStatus();
   const promptWrapRef = useRef<HTMLDivElement | null>(null);
   const promptFocusSkippedRef = useRef(false);
   const currentQuestionId = currentQuestion?.id;
@@ -4516,41 +4275,21 @@ export const ActiveQuiz: React.FC<{
           </div>
         )}
 
-        {/* 🔴 The Cheating Warning Modal */}
-        {(watching ? watchTabWarning === true : showCheatWarning) && (
-          <div className="fixed inset-0 z-quiz-lock bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
-            <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
-            <h2 className="text-4xl font-black text-white mb-4">
-              {t('quizStudent.tabWarning.title')}
-            </h2>
-            {tabAwayRule && tabTracker.away && (
-              <TabAwayClock
-                away={tabTracker.away}
-                limitMs={tabAwayRule.limitMs}
-                autoSubmit={tabAwayRule.autoSubmit}
-              />
-            )}
-            <p className="text-red-200 text-lg max-w-md mb-8">
-              {t('quizStudent.tabWarning.body')}
-              <br />
-              <br />
-              <strong>
-                {t('quizStudent.tabWarning.warningN', { n: warningCount })}
-              </strong>{' '}
-              {effectiveTabWarningThreshold !== 'off' &&
-                t('quizStudent.tabWarning.autoSubmit')}
-            </p>
-            <button
-              {...tourAttr('student.quiz.tab-warning-dismiss')}
-              onClick={() => {
-                setShowCheatWarning(false);
-                tabTracker.resume();
-              }}
-              className="px-8 py-4 bg-white text-red-900 font-bold rounded-xl active:scale-95 transition-transform"
-            >
-              {t('quizStudent.tabWarning.dismiss')}
-            </button>
-          </div>
+        {watching ? (
+          watchTabWarning === true && (
+            <TabWarningModal
+              count={warningCount}
+              threshold={tabPolicy.rules.threshold}
+              rule={null}
+              away={null}
+              onDismiss={() => undefined}
+            />
+          )
+        ) : (
+          <TabStrikeWarning
+            policy={tabPolicy}
+            dismissAttrs={tourAttr('student.quiz.tab-warning-dismiss')}
+          />
         )}
 
         {/* Progress bar */}
@@ -4721,18 +4460,7 @@ export const ActiveQuiz: React.FC<{
                       : 'max-w-2xl'
             }`}
           >
-            {!online && !isAttemptSubmitted(myResponse) && (
-              <div
-                role="status"
-                className={`mb-4 rounded-xl border px-4 py-3 text-sm font-semibold ${
-                  light
-                    ? 'border-amber-300 bg-amber-50 text-amber-900'
-                    : 'border-amber-400/40 bg-amber-500/10 text-amber-200'
-                }`}
-              >
-                {t('quizSubmit.offline')}
-              </div>
-            )}
+            <StudentOfflineBanner hidden={isAttemptSubmitted(myResponse)} />
             {/* Header */}
             <div
               className={`flex min-h-11 items-center justify-between ${whiteboardConfig ? 'mb-3' : 'mb-6'}`}

@@ -63,3 +63,21 @@ export const SCORE_DISTRIBUTION_BANDS: readonly ScoreDistributionBand[] = [
   { label: '60–79%', min: 60, max: 79, color: 'bg-amber-400' },
   { label: '0–59%', min: 0, max: 59, color: 'bg-brand-red-light' },
 ];
+
+/** The first band whose floor the score reaches; anything below every floor counts in the bottom band. */
+export function scoreBandOf(score: number): ScoreDistributionBand {
+  return (
+    SCORE_DISTRIBUTION_BANDS.find((b) => score >= b.min) ??
+    SCORE_DISTRIBUTION_BANDS[SCORE_DISTRIBUTION_BANDS.length - 1]
+  );
+}
+
+/** Student counts per band, in band order; the same rule as the server's `bucketScores`. */
+export function bucketScores(
+  scores: readonly number[]
+): { band: ScoreDistributionBand; count: number }[] {
+  return SCORE_DISTRIBUTION_BANDS.map((band) => ({
+    band,
+    count: scores.filter((s) => scoreBandOf(s) === band).length,
+  }));
+}

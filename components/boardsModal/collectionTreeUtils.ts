@@ -1,72 +1,19 @@
 import type { Collection } from '@/types';
+import { flattenTree } from '@/utils/folderTree';
 
-// Walks parent links from an unreachable collection to the member its chain loops back on, so only a cycle member is hoisted, never a branch hanging off one.
-export const cycleMemberOf = (
-  start: Collection,
-  byId: ReadonlyMap<string, Collection>
-): Collection => {
-  const seen = new Set<string>();
-  let c = start;
-  while (!seen.has(c.id)) {
-    seen.add(c.id);
-    const up =
-      c.parentCollectionId != null ? byId.get(c.parentCollectionId) : undefined;
-    if (!up) break;
-    c = up;
-  }
-  return c;
-};
-
-// Groups collections by parent for O(1) child lookup; orphans (parent id doesn't resolve) surface at root, mirroring boardNavMenu.ts's flattenCollections.
+// Groups collections by the parent they show under, from the shared flatten (orphans and cycle members at root).
 export const buildChildrenByParent = (
   collections: Collection[]
 ): Map<string | null, Collection[]> => {
   const m = new Map<string | null, Collection[]>();
-  for (const c of collections) {
-    const bucket = m.get(c.parentCollectionId) ?? [];
-    bucket.push(c);
-    m.set(c.parentCollectionId, bucket);
+  for (const { node, effectiveParentId } of flattenTree(
+    collections,
+    (c) => c.parentCollectionId
+  )) {
+    const bucket = m.get(effectiveParentId) ?? [];
+    bucket.push(node);
+    m.set(effectiveParentId, bucket);
   }
-
-  const knownIds = new Set(collections.map((c) => c.id));
-  for (const c of collections) {
-    if (c.parentCollectionId == null || knownIds.has(c.parentCollectionId)) {
-      continue;
-    }
-    const orphanBucket = m.get(c.parentCollectionId);
-    if (orphanBucket) {
-      const idx = orphanBucket.indexOf(c);
-      if (idx !== -1) orphanBucket.splice(idx, 1);
-    }
-    const rootBucket = m.get(null) ?? [];
-    rootBucket.push(c);
-    m.set(null, rootBucket);
-  }
-
-  // Parent cycles (two-tab races) are unreachable from root; hoist one member per cycle to root.
-  const reached = new Set<string>();
-  const markFrom = (parent: string | null) => {
-    for (const k of m.get(parent) ?? []) {
-      if (reached.has(k.id)) continue;
-      reached.add(k.id);
-      markFrom(k.id);
-    }
-  };
-  markFrom(null);
-  const byId = new Map(collections.map((c) => [c.id, c]));
-  for (const start of [...collections].sort((a, b) => a.order - b.order)) {
-    if (reached.has(start.id)) continue;
-    const c = cycleMemberOf(start, byId);
-    const bucket = m.get(c.parentCollectionId);
-    const idx = bucket ? bucket.indexOf(c) : -1;
-    if (idx !== -1) bucket?.splice(idx, 1);
-    const rootBucket = m.get(null) ?? [];
-    rootBucket.push(c);
-    m.set(null, rootBucket);
-    reached.add(c.id);
-    markFrom(c.id);
-  }
-
   for (const bucket of m.values()) {
     bucket.sort((a, b) => a.order - b.order);
   }

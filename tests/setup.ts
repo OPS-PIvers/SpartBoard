@@ -3,7 +3,7 @@
 // file because ESM import statements in this file would be hoisted above any
 // top-level TZ assignment here.
 import '@testing-library/jest-dom/vitest';
-import { vi } from 'vitest';
+import { beforeEach, vi } from 'vitest';
 import '@/i18n'; // Initialise i18next with English translations for all tests
 import { mockPointerEvent, mockCanvasGetContext } from './testHelpers/mocks';
 
@@ -72,4 +72,11 @@ vi.mock('@/config/firebase', () => {
       'https://www.googleapis.com/auth/calendar.readonly',
     googleProvider: {},
   };
+});
+
+// Drive folder ids are cached per token; each test starts cold and skips retry backoff.
+beforeEach(async () => {
+  const { resetDriveRequestStateForTests } =
+    await import('@/utils/driveRequest');
+  resetDriveRequestStateForTests();
 });

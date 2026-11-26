@@ -50,8 +50,7 @@ afterEach(() => {
   setDriveAuthErrorHandler(null);
 });
 
-const service = () =>
-  new GuidedLearningDriveService('token-1', { retryBaseMs: 0 });
+const service = () => new GuidedLearningDriveService('token-1');
 
 // Folder lookups find both folders; no file with the set's name exists yet.
 const driveWithFolders =

@@ -95,7 +95,7 @@ describe('ShareCollectionLinkCreatorModal', () => {
       />
     );
     expect(
-      screen.getByText(/Sharing 2 board\(s\) from this Collection/)
+      screen.getByText(/Sharing 2 board\(s\) from this folder/)
     ).toBeTruthy();
   });
 
@@ -117,7 +117,7 @@ describe('ShareCollectionLinkCreatorModal', () => {
       collection: expect.objectContaining({ id: 'c1' }),
       boards: [expect.objectContaining({ id: 'b1' })],
     });
-    const url = screen.getByLabelText<HTMLInputElement>('Share collection URL');
+    const url = screen.getByLabelText<HTMLInputElement>('Share folder URL');
     expect(url.value).toContain('/share-collection/coll-share-id');
     expect(writeText).toHaveBeenCalledWith(url.value);
   });
@@ -146,7 +146,7 @@ describe('ShareCollectionLinkCreatorModal', () => {
     await clickCreate();
 
     expect(addToast).toHaveBeenCalledWith('3 of 5 boards committed', 'error');
-    expect(screen.queryByLabelText('Share collection URL')).toBeNull();
+    expect(screen.queryByLabelText('Share folder URL')).toBeNull();
     // The button is usable again rather than stuck on "Creating…".
     expect(
       screen.getByRole('button', { name: /create link/i })
@@ -218,9 +218,7 @@ describe('ShareCollectionLinkCreatorModal', () => {
         expect.objectContaining({ mode: 'synced', tree })
       );
       expect(baseMockReturn.shareCollection).not.toHaveBeenCalled();
-      const url = screen.getByLabelText<HTMLInputElement>(
-        'Share collection URL'
-      );
+      const url = screen.getByLabelText<HTMLInputElement>('Share folder URL');
       expect(url.value).toContain('/share/collection/link-1');
     });
 
@@ -268,7 +266,7 @@ describe('ShareCollectionLinkCreatorModal', () => {
         expect.objectContaining({ tree })
       );
       expect(
-        screen.getByLabelText<HTMLInputElement>('Share collection URL').value
+        screen.getByLabelText<HTMLInputElement>('Share folder URL').value
       ).toContain('/share-collection/copy-1');
     });
 
@@ -360,7 +358,7 @@ describe('ShareCollectionLinkCreatorModal', () => {
         />
       );
       expect(
-        screen.getByLabelText<HTMLInputElement>('Share collection URL').value
+        screen.getByLabelText<HTMLInputElement>('Share folder URL').value
       ).toContain('/share/collection/link-7');
       expect(screen.queryByText('Synced')).toBeNull();
     });

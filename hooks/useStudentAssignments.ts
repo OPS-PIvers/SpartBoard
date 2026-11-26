@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { resolveStudentDueAt } from '@/utils/perClassDueDates';
+import { classCloseAt, studentDueAt } from '@/utils/studentWindow';
 import {
   collection,
   doc,
@@ -447,16 +447,6 @@ export const isClosedUnsubmittableRun = (
   a: Pick<AssignmentSummary, 'kind' | 'acceptingResponses' | 'studentSubmit'>
 ): boolean => isClosedProjectRun(a) && a.studentSubmit !== true;
 
-/**
- * Build an `AssignmentSummary` from a session doc. Hoisted to module scope
- * (rather than a closure inside the subscription effect) so the fan-out
- * hydration path (M17 C1) can build the same shape from a one-off `getDoc`.
- */
-const isNumberRecord = (v: unknown): v is Record<string, number> =>
-  typeof v === 'object' &&
-  v !== null &&
-  Object.values(v).every((n) => typeof n === 'number');
-
 /** Kinds whose rules refuse a student outside the run's classes; Flashcards and Writing admit pointer holders. */
 const CLASS_GATED_KINDS: ReadonlySet<SessionKind> = new Set([
   'quiz',
@@ -466,6 +456,11 @@ const CLASS_GATED_KINDS: ReadonlySet<SessionKind> = new Set([
   'projects',
 ]);
 
+/**
+ * Build an `AssignmentSummary` from a session doc. Hoisted to module scope
+ * (rather than a closure inside the subscription effect) so the fan-out
+ * hydration path (M17 C1) can build the same shape from a one-off `getDoc`.
+ */
 export function buildAssignmentSummary(
   kind: SessionKind,
   channel: AssignmentChannel,
@@ -520,15 +515,8 @@ export function buildAssignmentSummary(
         ? true
         : undefined,
     openAt: typeof record.openAt === 'number' ? record.openAt : undefined,
-    closeAt:
-      typeof record.closeAt === 'number'
-        ? record.closeAt
-        : dueLockClose(record, intersected),
-    dueAt: resolveStudentDueAt(
-      typeof record.dueAt === 'number' ? record.dueAt : undefined,
-      isNumberRecord(record.dueAtByClassId) ? record.dueAtByClassId : undefined,
-      intersected
-    ),
+    closeAt: classCloseAt(record) ?? dueLockClose(record, intersected),
+    dueAt: studentDueAt(record, intersected) ?? undefined,
     acceptingResponses: acceptingFlag(
       kind === 'projects' ? record.acceptingUpdates : record.acceptingResponses
     ),

@@ -55,7 +55,12 @@ describe('WidgetPermissionCardBody building restriction', () => {
   it('saves the picked buildings on the permission', () => {
     const update = renderRow(base);
     fireEvent.click(screen.getByRole('button', { expanded: false }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add High School' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Restrict to buildings' })
+    );
+    fireEvent.click(
+      screen.getByRole('menuitemcheckbox', { name: 'High School' })
+    );
     expect(update).toHaveBeenCalledWith({ buildings: ['high'] });
   });
 

@@ -34,19 +34,11 @@ test.describe('Collections feature', () => {
 
     // ── Create a Collection ──────────────────────────────────────────────────
 
-    // Click "New Collection" in the modal header
-    await modal.getByRole('button', { name: /new collection/i }).click();
-
-    // The showPrompt dialog appears — title "New Collection", input, "Create" button
-    const promptDialog = page.getByRole('dialog', { name: /new collection/i });
-    await expect(promptDialog).toBeVisible({ timeout: 5000 });
-
-    // Fill the name and confirm. The picker auto-opens after each
-    // successful create — dismiss it with Escape so it doesn't overlay
-    // the modal and block subsequent clicks.
-    await promptDialog.getByRole('textbox').fill('Math E2E');
-    await promptDialog.getByRole('button', { name: /^create$/i }).click();
-    await page.keyboard.press('Escape');
+    // "New Folder" opens an inline name field in the grid; Enter saves it.
+    await modal.getByRole('button', { name: /new folder/i }).click();
+    const nameInput = modal.getByPlaceholder('New folder name');
+    await nameInput.fill('Math E2E');
+    await nameInput.press('Enter');
 
     // The collection should now appear in the left-hand tree.
     // Use .first() since "Math E2E" may also appear in the grid as a CollectionCard.

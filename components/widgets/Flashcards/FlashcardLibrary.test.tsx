@@ -287,4 +287,18 @@ describe('FlashcardLibrary PLC sharing', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Get link' }));
     expect(onShare).toHaveBeenCalledWith(set);
   });
+
+  it('hides Duplicate without the handler', () => {
+    renderLibrary({ tab: 'library', sets: [set] });
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    expect(screen.queryByRole('menuitem', { name: 'Duplicate' })).toBeNull();
+  });
+
+  it('duplicates a set from its menu', () => {
+    const onDuplicate = vi.fn();
+    renderLibrary({ tab: 'library', sets: [set], onDuplicate });
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Duplicate' }));
+    expect(onDuplicate).toHaveBeenCalledWith(set);
+  });
 });

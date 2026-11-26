@@ -20,7 +20,15 @@ import { BoardsModalHeader } from './BoardsModalHeader';
 import { useMultiSelect } from './useMultiSelect';
 import { BoardContextMenu } from './BoardContextMenu';
 import { CollectionContextMenu } from './CollectionContextMenu';
-import { MoveToCollectionMenu } from './MoveToCollectionMenu';
+import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
+import { DeleteFolderDialog } from '@/components/common/library/DeleteFolderDialog';
+import { folderColorSwatch } from '@/components/common/library/folderColors';
+import { collectDescendantIds } from '@/utils/folderTree';
+import {
+  BOARD_NOUN,
+  collectionAsFolder,
+  collectionDeleteCounts,
+} from './collectionFolders';
 import { BoardCardDragPreview } from './BoardCard';
 import { CollectionCardDragPreview } from './CollectionCard';
 import { ShareLinkCreatorModal } from '@/components/share/ShareLinkCreatorModal';
@@ -37,21 +45,10 @@ import { SubSharesPanel } from './SubSharesPanel';
 import { useSubShares } from './useSubShares';
 import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
 import { CreateFromTemplateModal } from './CreateFromTemplateModal';
-import { CollectionColorPicker } from './CollectionColorPicker';
 import { parseDndId, useBoardsModalDnd } from './useBoardsModalDnd';
 import { DropIndicatorContext, boardsInView } from './dropIndicator';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import type { Collection, Dashboard } from '@/types';
-
-// Lightweight target shape for the color picker — covers both flows
-// (right-click on an existing Collection AND immediately-after-create) by
-// holding only the identifying fields the picker needs, decoupled from the
-// `collections` array which may not yet contain a freshly-created entry.
-interface ColorPickerTarget {
-  id: string;
-  name: string;
-  currentColor?: string;
-}
 
 interface BoardsModalProps {
   onClose: () => void;
@@ -183,8 +180,8 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     useState<Collection | null>(null);
   const [createFromTemplateOpen, setCreateFromTemplateOpen] = useState(false);
   const [moveMenuOpen, setMoveMenuOpen] = useState(false);
-  const [colorPickerTarget, setColorPickerTarget] =
-    useState<ColorPickerTarget | null>(null);
+  const [deleteCollectionTarget, setDeleteCollectionTarget] =
+    useState<Collection | null>(null);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -221,38 +218,46 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     }
   }, [showPrompt, t, createNewDashboard, selectedCollectionId]);
 
-  const handleCreateCollection = useCallback(async () => {
-    const name = await showPrompt(
-      t('boardsModal.newCollectionPrompt', { defaultValue: 'Collection name' }),
-      {
-        title: t('boardsModal.newCollection', {
-          defaultValue: 'New Collection',
-        }),
-        placeholder: 'Untitled',
-        confirmLabel: t('common.create', { defaultValue: 'Create' }),
+  // New and Rename name the collection inline on its card, like a library folder.
+  const [creatingCollection, setCreatingCollection] = useState(false);
+  const [renamingCollectionId, setRenamingCollectionId] = useState<
+    string | null
+  >(null);
+
+  const handleCreateCollection = useCallback(
+    async (name: string) => {
+      setCreatingCollection(false);
+      // createCollection re-throws on Firestore failure without toasting.
+      try {
+        await createCollection(name, selectedCollectionId);
+      } catch {
+        addToast(
+          t('boardsModal.createCollectionFailed', {
+            defaultValue: 'Failed to create folder',
+          }),
+          'error'
+        );
       }
-    );
-    if (!name?.trim()) return;
-    const trimmed = name.trim();
-    // createCollection re-throws on Firestore failure (the hook itself does
-    // not toast). Surface a user-facing toast here so the failure isn't an
-    // unhandled rejection in the console.
-    try {
-      const newId = await createCollection(trimmed, selectedCollectionId);
-      // Open the color picker for the freshly-created Collection. Decoupled
-      // from the `collections` array — Firestore hasn't necessarily echoed
-      // the new doc back through onSnapshot yet, so we pass id+name directly.
-      // User can dismiss without picking; the Collection stays color-less.
-      setColorPickerTarget({ id: newId, name: trimmed });
-    } catch {
-      addToast(
-        t('boardsModal.createCollectionFailed', {
-          defaultValue: 'Failed to create Collection',
-        }),
-        'error'
-      );
-    }
-  }, [showPrompt, t, createCollection, selectedCollectionId, addToast]);
+    },
+    [t, createCollection, selectedCollectionId, addToast]
+  );
+
+  const handleRenameCollection = useCallback(
+    async (id: string, name: string) => {
+      setRenamingCollectionId(null);
+      try {
+        await renameCollection(id, name);
+      } catch {
+        addToast(
+          t('boardsModal.renameCollectionFailed', {
+            defaultValue: 'Failed to rename folder',
+          }),
+          'error'
+        );
+      }
+    },
+    [t, renameCollection, addToast]
+  );
 
   const handleOpenBoard = useCallback(
     (id: string) => {
@@ -341,7 +346,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const toastNoBoardsInSelection = useCallback(() => {
     addToast(
       t('boardsModal.noBoardsInSelection', {
-        defaultValue: "No Boards in selection — Collections can't be used here",
+        defaultValue: "Select at least one board. Folders can't be used here.",
       }),
       'info'
     );
@@ -471,7 +476,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
           await moveCollection(id, destId);
           addToast(
             t('boardsModal.collectionMoved', {
-              defaultValue: 'Collection moved',
+              defaultValue: 'Folder moved',
             }),
             'success'
           );
@@ -484,7 +489,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
             err instanceof Error
               ? err.message
               : t('boardsModal.collectionMoveFailed', {
-                  defaultValue: 'Failed to move Collection',
+                  defaultValue: 'Failed to move folder',
                 }),
             'error'
           );
@@ -562,18 +567,38 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     ]
   );
 
-  // For the right-click single-board move flow, pre-exclude the board's
-  // current Collection from the destination picker — it's a no-op write
-  // and a confusing UX ("Moved" toast when nothing changed). For the
-  // single-Collection move flow, exclude the Collection itself so the
-  // user can't pick "move A into A" (descendant cycles are caught by
-  // moveCollection's runtime validation and toasted on failure).
-  const moveMenuExcludeId =
-    singleMoveCollectionId ??
-    (singleMoveTargetId
-      ? (dashboards.find((d) => d.id === singleMoveTargetId)?.collectionId ??
-        null)
-      : undefined); // bulk move: nothing excluded, Root stays available
+  // The current location shows checked and picking it is a no-op; a collection can't move into itself or below itself.
+  const movingCollection = singleMoveCollectionId
+    ? collections.find((c) => c.id === singleMoveCollectionId)
+    : undefined;
+  const movingBoard = singleMoveTargetId
+    ? dashboards.find((d) => d.id === singleMoveTargetId)
+    : undefined;
+  const moveMenuCurrentId: string | null | undefined = movingCollection
+    ? movingCollection.parentCollectionId
+    : movingBoard
+      ? (movingBoard.collectionId ?? null)
+      : undefined;
+  const moveBlocked = movingCollection
+    ? new Set([
+        movingCollection.id,
+        ...collectDescendantIds(
+          movingCollection.id,
+          collections,
+          (c) => c.parentCollectionId
+        ),
+      ])
+    : null;
+  const moveTargets = collections
+    .filter((c) => !moveBlocked?.has(c.id))
+    .map(collectionAsFolder);
+  const movingName = movingCollection?.name ?? movingBoard?.name;
+  const moveMenuTitle = movingName
+    ? t('boardsModal.moveNamedTitle', {
+        name: movingName,
+        defaultValue: 'Move “{{name}}” to',
+      })
+    : t('boardsModal.moveTitle', { defaultValue: 'Move to' });
 
   return (
     <div
@@ -598,7 +623,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
             <ArrowLeft className="w-5 h-5" aria-hidden />
           </button>
           <h2 id="boards-modal-title" className="text-lg font-bold">
-            {t('boardsModal.title', { defaultValue: 'Boards & Collections' })}
+            {t('boardsModal.title', { defaultValue: 'Boards & Folders' })}
           </h2>
         </div>
 
@@ -606,7 +631,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
           search={search}
           onSearchChange={setSearch}
           onCreateBoard={handleCreateBoard}
-          onCreateCollection={handleCreateCollection}
+          onCreateCollection={() => setCreatingCollection(true)}
           onCreateFromTemplate={() => setCreateFromTemplateOpen(true)}
           isSelectMode={multi.isSelectMode}
           selectedCount={multi.selectedIds.size}
@@ -669,6 +694,14 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
                 isCollectionDuplicating={collectionDuplicateBusy.isBusy}
                 onShareBoard={(b) => setShareTarget(b)}
                 onShareCollection={(c) => setShareCollectionTarget(c)}
+                creatingCollection={creatingCollection}
+                onCreateCollection={(name) => void handleCreateCollection(name)}
+                onCancelCreateCollection={() => setCreatingCollection(false)}
+                renamingCollectionId={renamingCollectionId}
+                onRenameCollection={(id, name) =>
+                  void handleRenameCollection(id, name)
+                }
+                onCancelRenameCollection={() => setRenamingCollectionId(null)}
               />
             </div>
           </DropIndicatorContext.Provider>
@@ -784,7 +817,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
                 const ok = await showConfirm(
                   t('collectionMenu.stopSharingConfirm', {
                     defaultValue:
-                      'Stop sharing this collection? Synced teachers keep their own copy. View-only teachers lose it.',
+                      'Stop sharing this folder? Synced teachers keep their own copy. View-only teachers lose it.',
                   }),
                   { title: label, variant: 'warning', confirmLabel: label }
                 );
@@ -792,17 +825,17 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               }}
               onLeaveShared={async () => {
                 const label = t('collectionMenu.leaveShared', {
-                  defaultValue: 'Leave shared collection',
+                  defaultValue: 'Leave shared folder',
                 });
                 const ok = await showConfirm(
                   c.linkedCollectionRole === 'viewer'
                     ? t('collectionMenu.leaveSharedViewerConfirm', {
                         defaultValue:
-                          'Leave this shared collection? It will be removed from your account.',
+                          'Leave this shared folder? It will be removed from your account.',
                       })
                     : t('collectionMenu.leaveSharedConfirm', {
                         defaultValue:
-                          'Leave this shared collection? You keep a copy of its boards, but they stop updating.',
+                          'Leave this shared folder? You keep a copy of its boards, but they stop updating.',
                       }),
                   { title: label, variant: 'warning', confirmLabel: label }
                 );
@@ -810,65 +843,83 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               }}
               canSaveAsTemplate={Boolean(isAdmin)}
               onSaveAsTemplate={() => setSaveAsCollectionTemplateTarget(c)}
-              onRename={async () => {
-                const next = await showPrompt('Rename Collection', {
-                  title: 'Rename',
-                  confirmLabel: 'Save',
-                  placeholder: c.name,
-                });
-                if (!next?.trim()) return;
-                try {
-                  await renameCollection(c.id, next.trim());
-                } catch {
-                  addToast(
-                    t('boardsModal.renameCollectionFailed', {
-                      defaultValue: 'Failed to rename Collection',
-                    }),
-                    'error'
-                  );
-                }
-              }}
+              onRename={() => setRenamingCollectionId(c.id)}
               onMove={() => {
                 setSingleMoveCollectionId(c.id);
                 setMoveMenuOpen(true);
               }}
-              onColor={() =>
-                setColorPickerTarget({
-                  id: c.id,
-                  name: c.name,
-                  currentColor: c.color,
-                })
-              }
-              onDelete={async () => {
-                const ok = await showConfirm(
-                  t('boardsModal.deleteCollectionConfirm', {
-                    defaultValue:
-                      'Delete this Collection? Boards inside will move to its parent.',
-                  }),
-                  { title: 'Delete', variant: 'danger', confirmLabel: 'Delete' }
-                );
-                if (!ok) return;
+              color={folderColorSwatch(c.color)?.id ?? null}
+              onColor={async (id) => {
                 try {
-                  await deleteCollection(c.id, 'move-to-parent');
+                  await setCollectionMetadata(c.id, {
+                    color: id ? (folderColorSwatch(id)?.hex ?? '') : '',
+                  });
                 } catch {
                   addToast(
-                    t('boardsModal.deleteCollectionFailed', {
-                      defaultValue: 'Failed to delete Collection',
+                    t('boardsModal.colorSaveFailed', {
+                      defaultValue: 'Failed to save color',
                     }),
                     'error'
                   );
                 }
               }}
+              onDelete={() => setDeleteCollectionTarget(c)}
             />
           );
         })()}
 
       {moveMenuOpen && (
-        <MoveToCollectionMenu
-          collections={collections}
-          excludeId={moveMenuExcludeId}
-          onMove={handleMoveDestinationPicked}
-          onClose={() => setMoveMenuOpen(false)}
+        <FolderPickerPopover
+          variant="dialog"
+          folders={moveTargets}
+          selectedFolderId={moveMenuCurrentId}
+          title={moveMenuTitle}
+          rootLabel={t('boardsModal.rootLabel', { defaultValue: 'All Boards' })}
+          rootAnchor={tourAttr('boards-modal.move-to-root')}
+          rowAnchor={() => tourAttr('boards-modal.move-target')}
+          onSelect={(destId) => {
+            if (destId === moveMenuCurrentId) return;
+            void handleMoveDestinationPicked(destId);
+          }}
+          onClose={() => {
+            setMoveMenuOpen(false);
+            setSingleMoveCollectionId(null);
+            setSingleMoveTargetId(null);
+          }}
+        />
+      )}
+      {deleteCollectionTarget && (
+        <DeleteFolderDialog
+          folder={collectionAsFolder(deleteCollectionTarget)}
+          parentName={
+            collections.find(
+              (p) => p.id === deleteCollectionTarget.parentCollectionId
+            )?.name ??
+            t('boardsModal.rootLabel', { defaultValue: 'All Boards' })
+          }
+          {...collectionDeleteCounts(
+            deleteCollectionTarget.id,
+            collections,
+            dashboards
+          )}
+          noun={BOARD_NOUN}
+          canDeleteItems={false}
+          onCancel={() => setDeleteCollectionTarget(null)}
+          onConfirm={async () => {
+            try {
+              await deleteCollection(
+                deleteCollectionTarget.id,
+                'move-to-parent'
+              );
+            } catch {
+              throw new Error(
+                t('boardsModal.deleteCollectionFailed', {
+                  defaultValue: 'Failed to delete folder',
+                })
+              );
+            }
+            setDeleteCollectionTarget(null);
+          }}
         />
       )}
 
@@ -952,35 +1003,6 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         isOpen={createFromTemplateOpen}
         onClose={() => setCreateFromTemplateOpen(false)}
       />
-      {colorPickerTarget && (
-        <CollectionColorPicker
-          collectionName={colorPickerTarget.name}
-          currentColor={colorPickerTarget.currentColor}
-          onSelect={async (color) => {
-            // Optimistically keep the picker open with the new color
-            // highlighted while the write resolves. setCollectionMetadata
-            // re-throws on failure without toasting itself — the catch
-            // below is the only user-facing failure surface, so don't
-            // remove it.
-            try {
-              await setCollectionMetadata(colorPickerTarget.id, { color });
-              setColorPickerTarget((prev) =>
-                prev && prev.id === colorPickerTarget.id
-                  ? { ...prev, currentColor: color }
-                  : prev
-              );
-            } catch {
-              addToast(
-                t('boardsModal.colorSaveFailed', {
-                  defaultValue: 'Failed to save color',
-                }),
-                'error'
-              );
-            }
-          }}
-          onClose={() => setColorPickerTarget(null)}
-        />
-      )}
     </div>
   );
 };

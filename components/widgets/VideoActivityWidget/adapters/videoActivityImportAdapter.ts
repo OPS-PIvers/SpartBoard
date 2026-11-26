@@ -27,63 +27,41 @@ import type {
   ImportValidationResult,
 } from '@/components/common/library/types';
 import type { VideoActivityData, VideoActivityQuestion } from '@/types';
+import { csvDataRows } from '@/utils/csv';
+import { mmSsToSeconds, secondsToMmSs } from '@/utils/videoTimestamp';
 
-/* ─── Parse helpers (lifted from legacy Importer.tsx) ─────────────────────── */
+/* ─── Parse helpers ───────────────────────────────────────────────────────── */
 
-/** Convert MM:SS or M:SS string to total seconds. Returns NaN if invalid. */
-export function mmSsToSeconds(value: string): number {
-  if (!value) return 0;
-  const match = /^\s*(\d+)\s*:\s*(\d+)\s*$/.exec(value);
-  if (!match) return NaN;
-  const m = Number(match[1]);
-  const s = Number(match[2]);
-  if (s >= 60) return NaN;
-  return m * 60 + s;
-}
+/** A first row with no digits in its timestamp cell is a header, e.g. "Time (MM:SS)". */
+const isQuestionRow = (cells: string[]): boolean =>
+  cells[0] === '' || /\d/.test(cells[0]);
 
-/** Format seconds as MM:SS (used in the preview list). */
-export function secondsToMmSs(seconds: number): string {
-  const m = Math.floor(Math.max(0, seconds) / 60);
-  const s = Math.floor(Math.max(0, seconds) % 60);
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
-
-/**
- * Lifted from the legacy Importer.tsx `parseCSV` helper. Same quoting rules,
- * same per-row error messages, same "MC" type default.
- */
+/** Same per-row error messages and "MC" type default as the legacy Importer. */
 function parseCsv(content: string): VideoActivityQuestion[] {
-  const lines = content.split(/\r?\n/).filter((line) => line.trim() !== '');
-  if (lines.length === 0) throw new Error('CSV is empty');
+  const rows = csvDataRows(content, isQuestionRow);
+  if (rows.length === 0) throw new Error('CSV is empty');
 
-  return lines.map((line, index) => {
-    // Simple CSV split (handles quotes roughly)
-    const parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-
-    const timestampStr = parts[0]?.replace(/^"|"$/g, '').trim() || '00:00';
-    const text = parts[1]?.replace(/^"|"$/g, '').trim() || '';
-    const correctAnswer = parts[2]?.replace(/^"|"$/g, '').trim() || '';
-    const incorrect1 = parts[3]?.replace(/^"|"$/g, '').trim() || '';
-    const incorrect2 = parts[4]?.replace(/^"|"$/g, '').trim() || '';
-    const incorrect3 = parts[5]?.replace(/^"|"$/g, '').trim() || '';
-    const timeLimit = parseInt(parts[6]?.replace(/^"|"$/g, '') || '30');
+  return rows.map(({ cells, line }) => {
+    const timestampStr = cells[0] || '00:00';
+    const text = cells[1] || '';
+    const correctAnswer = cells[2] || '';
+    const incorrectAnswers = [cells[3], cells[4], cells[5]].filter(
+      (a): a is string => !!a
+    );
+    const timeLimit = parseInt(cells[6] || '30');
 
     const timestamp = mmSsToSeconds(timestampStr);
     if (isNaN(timestamp)) {
       throw new Error(
-        `Invalid timestamp format on line ${index + 1}: ${timestampStr}. Use MM:SS.`
+        `Invalid timestamp format on line ${line}: ${timestampStr}. Use MM:SS.`
       );
     }
 
     if (!text || !correctAnswer) {
       throw new Error(
-        `Missing question text or correct answer on line ${index + 1}`
+        `Missing question text or correct answer on line ${line}`
       );
     }
-
-    const incorrectAnswers = [incorrect1, incorrect2, incorrect3].filter(
-      (a) => a !== ''
-    );
 
     return {
       id: crypto.randomUUID(),

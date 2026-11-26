@@ -11,6 +11,7 @@
 // as a written response with a note, which the teacher fixes in the review
 // table — an invented answer key would be marked wrong on a student's paper.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { isLiveAdmin } from './authz';
 import * as admin from './firebaseAdmin';
 import type { Firestore } from 'firebase-admin/firestore';
 import { Type, type Schema } from '@google/genai';
@@ -1391,9 +1392,7 @@ export async function chargeQuizQuota(
   nowMs: number
 ): Promise<void> {
   const today = new Date(nowMs).toISOString().slice(0, 10);
-  const isAdmin = email
-    ? (await db.collection('admins').doc(email.toLowerCase()).get()).exists
-    : false;
+  const isAdmin = email ? await isLiveAdmin(db, email) : false;
   const overallRef = db.collection('ai_usage').doc(`${uid}_${today}`);
   const specificRef = db
     .collection('ai_usage')

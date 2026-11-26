@@ -110,7 +110,6 @@ const renderLibrary = (isAdmin = true, extras: Extras = {}) =>
         {
           canAccessFeature: (id: string) =>
             extras.features?.includes(id) ?? false,
-          canSeeShareTracking: () => false,
         } as unknown as React.ContextType<typeof AuthContext>
       }
     >

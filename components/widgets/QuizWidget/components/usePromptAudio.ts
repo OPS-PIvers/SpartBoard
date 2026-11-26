@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { QuestionAudio } from '@/types';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDialog } from '@/context/useDialog';
+import { uploadDriveAsset } from '@/utils/driveAssetUpload';
 import {
   usePromptAudioRecorder,
   type PromptAudioTake,
@@ -34,12 +35,12 @@ export function usePromptAudio(
     setSaving(true);
     try {
       const ext = EXTENSION[take.mimeType] ?? 'webm';
-      const file = await driveService.uploadFile(
-        take.blob,
-        `question-audio-${Date.now()}.${ext}`,
-        QUIZ_AUDIO_FOLDER
-      );
-      await driveService.makePublic(file.id, undefined);
+      const file = await uploadDriveAsset(driveService, {
+        blob: take.blob,
+        name: `question-audio-${Date.now()}.${ext}`,
+        folder: QUIZ_AUDIO_FOLDER,
+        audience: 'anyone',
+      });
       onChange({
         driveFileId: file.id,
         durationSec: Math.round(take.durationSec * 10) / 10,

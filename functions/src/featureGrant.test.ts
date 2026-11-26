@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- in-memory store rows. */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeFirestore } from './writingTestFakes';
-import { isWidgetGranted } from './featureGrant';
+import { isGlobalFeatureGranted, isWidgetGranted } from './featureGrant';
 import { WIDGET_CONFIG_RUNTIME } from './mcp/widgetConfigRuntime.gen';
 
 const store = new Map<string, any>();
@@ -21,6 +21,14 @@ describe('isWidgetGranted with no permission doc', () => {
   it('lets an admin through an admin-first default', async () => {
     store.set('admins/t@orono.k12.mn.us', {});
     await expect(granted('writing')).resolves.toBe(true);
+  });
+
+  it('SECURITY: refuses a deactivated admin an admin-first default', async () => {
+    store.set('admins/t@orono.k12.mn.us', {});
+    store.set('organizations/orono/members/t@orono.k12.mn.us', {
+      status: 'deactivated',
+    });
+    await expect(granted('writing')).resolves.toBe(false);
   });
 });
 
@@ -69,5 +77,23 @@ describe('isWidgetGranted with a permission doc', () => {
     });
     store.set('admins/t@orono.k12.mn.us', {});
     await expect(granted('writing')).resolves.toBe(false);
+  });
+});
+
+describe('isGlobalFeatureGranted for an admin', () => {
+  const grantedFeature = () =>
+    isGlobalFeatureGranted(db, 'some-admin-flag', 't@orono.k12.mn.us', 't1');
+
+  it('SECURITY: lets a live admin through an admin-level flag but not a deactivated one', async () => {
+    store.set('global_permissions/some-admin-flag', {
+      enabled: true,
+      accessLevel: 'admin',
+    });
+    store.set('admins/t@orono.k12.mn.us', {});
+    await expect(grantedFeature()).resolves.toBe(true);
+    store.set('organizations/orono/members/t@orono.k12.mn.us', {
+      status: 'deactivated',
+    });
+    await expect(grantedFeature()).resolves.toBe(false);
   });
 });

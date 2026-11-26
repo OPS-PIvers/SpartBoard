@@ -1,18 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
-import { db, isAuthBypass } from '@/config/firebase';
+import { useCallback, useMemo } from 'react';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcVideoActivityEntry } from '@/types';
 import { logError } from '@/utils/logError';
-import { usePlcSubcollection } from '@/context/usePlcContext';
+import {
+  isLivePlcLibraryEntry,
+  usePlcLibraryEntries,
+  type PlcLibrarySpec,
+} from '@/hooks/usePlcLibraryEntries';
 
 const PLCS_COLLECTION = 'plcs';
 const VIDEO_ACTIVITIES_SUBCOLLECTION = 'video_activities';
@@ -121,102 +117,26 @@ export function parsePlcVideoActivityEntry(
   return entry;
 }
 
-/**
- * Live subscription to a single PLC's video activity library (Phase 4).
- * Returns entries sorted newest-edit-first by `updatedAt`. Pass `null`
- * for `plcId` to disable the listener (e.g. while the dashboard is closed).
- *
- * Mirrors `usePlcQuizzes.ts` exactly — same parser-drops-malformed
- * defense, same render-time `prevPlcId` reset so the UI never flashes
- * the previous PLC's entries while the new snapshot is in flight.
- */
+const VIDEO_ACTIVITY_LIBRARY: PlcLibrarySpec<
+  PlcVideoActivityEntry,
+  ShareVideoActivityWithPlcInput
+> = {
+  kind: 'videoActivity',
+  subcollection: VIDEO_ACTIVITIES_SUBCOLLECTION,
+  parse: parsePlcVideoActivityEntry,
+  keep: isLivePlcLibraryEntry,
+  orderByUpdatedAt: true,
+  fromProvider: (s) => s.videoActivities,
+  share: writePlcVideoActivityEntry,
+};
+
+/** Live PLC video activity library, newest edit first; `null` plcId disables it. */
 export const usePlcVideoActivities = (
   plcId: string | null
 ): UsePlcVideoActivitiesResult => {
   const { user } = useAuth();
-  // Back-compat (Decision 1.4): read from a mounted PlcProvider when present.
-  const fromProvider = usePlcSubcollection(plcId, (s) => s.videoActivities);
-  const [videoActivities, setVideoActivities] = useState<
-    PlcVideoActivityEntry[]
-  >([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  const [prevPlcId, setPrevPlcId] = useState(plcId);
-  if (plcId !== prevPlcId) {
-    setPrevPlcId(plcId);
-    setVideoActivities([]);
-    setLoading(true);
-    setError(null);
-  }
-
-  useEffect(() => {
-    if (fromProvider) return;
-    if (!plcId || !user || isAuthBypass) {
-      const t = setTimeout(() => {
-        setVideoActivities([]);
-        setLoading(false);
-      }, 0);
-      return () => clearTimeout(t);
-    }
-    const ref = collection(
-      db,
-      PLCS_COLLECTION,
-      plcId,
-      VIDEO_ACTIVITIES_SUBCOLLECTION
-    );
-    const unsub = onSnapshot(
-      query(ref, orderBy('updatedAt', 'desc')),
-      (snap) => {
-        const list: PlcVideoActivityEntry[] = [];
-        snap.forEach((d) => {
-          const parsed = parsePlcVideoActivityEntry(d.id, d.data());
-          // Soft-deleted (unshared) entries drop out of the live library — they
-          // live in Trash until restored or GC'd (Decision 3.1).
-          if (parsed && parsed.deletedAt == null) list.push(parsed);
-        });
-        setVideoActivities(list);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        logError('usePlcVideoActivities.snapshot', err, { plcId });
-        setLoading(false);
-        setError(err instanceof Error ? err : new Error(String(err)));
-      }
-    );
-    return () => unsub();
-  }, [plcId, user, fromProvider]);
-
-  const shareVideoActivityWithPlc = useCallback(
-    async (input: ShareVideoActivityWithPlcInput): Promise<void> => {
-      if (!plcId || !user) throw new Error('Not signed in');
-      const now = Date.now();
-      const entry: PlcVideoActivityEntry = {
-        id: input.plcVideoActivityId,
-        title: input.title,
-        youtubeUrl: input.youtubeUrl,
-        questionCount: input.questionCount,
-        syncGroupId: input.syncGroupId,
-        sharedBy: user.uid,
-        sharedByEmail: input.sharedByEmail,
-        sharedByName: input.sharedByName,
-        sharedAt: now,
-        updatedAt: now,
-      };
-      await setDoc(
-        doc(
-          db,
-          PLCS_COLLECTION,
-          plcId,
-          VIDEO_ACTIVITIES_SUBCOLLECTION,
-          input.plcVideoActivityId
-        ),
-        entry
-      );
-    },
-    [plcId, user]
-  );
+  const { entries, loading, error, share, unshare, restore } =
+    usePlcLibraryEntries(plcId, VIDEO_ACTIVITY_LIBRARY);
 
   const mirrorPlcVideoActivityHeader = useCallback(
     async (
@@ -252,68 +172,26 @@ export const usePlcVideoActivities = (
     [plcId, user]
   );
 
-  // Soft-delete (Decision 3.1): write a `deletedAt` tombstone (+ bump
-  // updatedAt) instead of hard-deleting. Identity + attribution fields stay
-  // untouched; the post-merge doc passes the widened `keys().hasOnly([...])`.
-  const unshareVideoActivityFromPlc = useCallback(
-    async (plcVideoActivityId: string): Promise<void> => {
-      if (!plcId || !user) throw new Error('Not signed in');
-      await updateDoc(
-        doc(
-          db,
-          PLCS_COLLECTION,
-          plcId,
-          VIDEO_ACTIVITIES_SUBCOLLECTION,
-          plcVideoActivityId
-        ),
-        { deletedAt: Date.now(), updatedAt: Date.now() }
-      );
-    },
-    [plcId, user]
-  );
-
-  const restoreVideoActivityInPlc = useCallback(
-    async (plcVideoActivityId: string): Promise<void> => {
-      if (!plcId || !user) throw new Error('Not signed in');
-      await updateDoc(
-        doc(
-          db,
-          PLCS_COLLECTION,
-          plcId,
-          VIDEO_ACTIVITIES_SUBCOLLECTION,
-          plcVideoActivityId
-        ),
-        { deletedAt: null, updatedAt: Date.now() }
-      );
-    },
-    [plcId, user]
-  );
-
-  return useMemo(() => {
-    const resolved = fromProvider
-      ? {
-          videoActivities: fromProvider.data,
-          loading: fromProvider.loading,
-          error: fromProvider.error,
-        }
-      : { videoActivities, loading, error };
-    return {
-      ...resolved,
-      shareVideoActivityWithPlc,
+  return useMemo(
+    () => ({
+      videoActivities: entries,
+      loading,
+      error,
+      shareVideoActivityWithPlc: share,
       mirrorPlcVideoActivityHeader,
-      unshareVideoActivityFromPlc,
-      restoreVideoActivityInPlc,
-    };
-  }, [
-    fromProvider,
-    videoActivities,
-    loading,
-    error,
-    shareVideoActivityWithPlc,
-    mirrorPlcVideoActivityHeader,
-    unshareVideoActivityFromPlc,
-    restoreVideoActivityInPlc,
-  ]);
+      unshareVideoActivityFromPlc: unshare,
+      restoreVideoActivityInPlc: restore,
+    }),
+    [
+      entries,
+      loading,
+      error,
+      share,
+      mirrorPlcVideoActivityHeader,
+      unshare,
+      restore,
+    ]
+  );
 };
 
 /**

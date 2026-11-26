@@ -29,6 +29,8 @@ interface MockDocInput {
 
 const mockFirestoreState = {
   admins: new Set<string>(),
+  // Operator-org member emails whose status is deactivated.
+  deactivatedMembers: new Set<string>(),
   users: [] as MockDocInput[],
   dashboards: [] as MockDocInput[],
   aiUsage: [] as MockDocInput[],
@@ -81,7 +83,10 @@ interface MockDocRef {
 // invocations within a single test. Without this every `collection('admins')`
 // call would build a fresh `vi.fn` and the count would always reset.
 const adminDocGet = vi.fn((id: string) =>
-  Promise.resolve({ exists: mockFirestoreState.admins.has(id) })
+  Promise.resolve({
+    exists: mockFirestoreState.admins.has(id),
+    get: () => undefined,
+  })
 );
 
 // Hoisted for the same reason — the `gemini-functions` config read is the
@@ -250,6 +255,14 @@ const mockFirestore = {
     // their member email, and `buildings` as their admin-assigned buildingIds.
     if (name.startsWith('organizations/') && name.endsWith('/members')) {
       return {
+        doc: (id: string) => ({
+          get: () =>
+            Promise.resolve(
+              mockFirestoreState.deactivatedMembers.has(id)
+                ? { exists: true, get: () => 'deactivated' }
+                : { exists: false, get: () => undefined }
+            ),
+        }),
         get: vi.fn(() =>
           Promise.resolve({
             docs: mockFirestoreState.users
@@ -3439,7 +3452,16 @@ describe('generateWithAI read caching', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFirestoreState.admins = new Set<string>();
+    mockFirestoreState.deactivatedMembers = new Set<string>();
     __resetGenerateWithAICaches();
+  });
+
+  it('SECURITY: a deactivated operator-org admin is not an admin', async () => {
+    const db = admin.firestore();
+    mockFirestoreState.admins.add('gone@school.org');
+    mockFirestoreState.deactivatedMembers.add('gone@school.org');
+
+    expect(await __getCachedAdminStatus(db, 'gone@school.org')).toBe(false);
   });
 
   it('caches admin status across warm-instance reads (same email = one Firestore read)', async () => {
@@ -3586,6 +3608,21 @@ describe('generateWithAI read caching', () => {
 
       expect(isAdmin).toBe(true);
       expect(adminDocGet).toHaveBeenCalledWith('admin@school.org');
+    });
+
+    it('SECURITY: denies admin status for a token with the deactivated claim', async () => {
+      const db = admin.firestore();
+      mockFirestoreState.admins.add('admin@school.org');
+
+      const token = {
+        email: 'admin@school.org',
+        email_verified: true,
+        deactivated: true,
+      };
+      const isAdmin = await __resolveCallerIsAdmin(db, token);
+
+      expect(isAdmin).toBe(false);
+      expect(adminDocGet).not.toHaveBeenCalled();
     });
 
     it('denies admin status for a verified non-admin email', async () => {
@@ -4043,6 +4080,7 @@ describe('index barrel — deployed export set', () => {
     'plcGoalCoachV1',
     'importConvertV1',
     'writeWebTourTextV1',
+    'generateHelpDetailsV1',
     'freshserviceV1',
     'webToursListV1',
     'webTourLoadV1',
@@ -4093,6 +4131,9 @@ describe('index barrel — deployed export set', () => {
     'finalizeIdleQuizAttempts',
     'finalizeExpiredQuizAttempts',
     'queueVideoClassTurnIns',
+    'queueQuizTurnIns',
+    'queueGuidedLearningTurnIns',
+    'queueVideoRunTurnIns',
     'sweepVideoClassTurnIns',
     // Google / Spotify OAuth
     'exchangeGoogleAuthCode',

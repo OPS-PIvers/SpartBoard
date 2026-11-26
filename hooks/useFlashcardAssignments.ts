@@ -35,6 +35,7 @@ import {
 import type { PeriodAccessWindowEdits } from '@/utils/assignAvailability';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import { audienceSessionFields } from '@/utils/staffAudience';
+import { endSessionPatch } from '@/utils/sessionLifecycle';
 import {
   FC_CONTENT_COLLECTION,
   FC_CONTENT_DOC,
@@ -383,7 +384,10 @@ export const useFlashcardAssignments = (
         ),
         patch
       );
-      batch.update(doc(db, FLASHCARD_SESSIONS_COLLECTION, assignmentId), patch);
+      batch.update(
+        doc(db, FLASHCARD_SESSIONS_COLLECTION, assignmentId),
+        endSessionPatch('flashcards', now)
+      );
       await batch.commit();
     },
     [userId]

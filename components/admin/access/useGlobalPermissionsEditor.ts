@@ -48,6 +48,7 @@ export const GEMINI_FEATURES: GlobalFeature[] = [
   'blooms-ai',
   'plc-meeting-ai-notes',
   'plc-goal-coach',
+  'help-center-ai',
   'quiz-translation',
   'dashboard-layout',
   'instructional-routine',
@@ -57,7 +58,10 @@ export const GEMINI_FEATURES: GlobalFeature[] = [
 ];
 
 /** Daily limits the server applies to admins too. */
-export const ADMIN_LIMITED_FEATURES: GlobalFeature[] = ['quiz-translation'];
+export const ADMIN_LIMITED_FEATURES: GlobalFeature[] = [
+  'quiz-translation',
+  'help-center-ai',
+];
 
 /** A second daily limit on a feature's row, saved beside `dailyLimit` in its config. */
 export interface ExtraDailyLimit {

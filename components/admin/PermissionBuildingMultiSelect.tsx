@@ -1,23 +1,12 @@
-/**
- * Generic building multi-select for global feature permissions.
- *
- * Empty `selectedIds` displays an "All buildings" pill — the feature
- * applies org-wide. Non-empty means the feature is restricted to users
- * whose `selectedBuildings` overlap this list.
- *
- * Mirrors the chip styling of `BuildingSelector.tsx` (single-select) so
- * the admin UI feels consistent. Unselected buildings render as
- * outlined chips with a "+" affordance; selected buildings render as
- * filled brand-blue chips with a "×" affordance.
- */
+// Building limit for a feature permission; nothing picked means every building.
 
 import React from 'react';
-import { Plus, X, Building2 } from 'lucide-react';
 import { useAdminBuildingsState } from '@/hooks/useAdminBuildings';
 import {
   canonicalBuildingId,
   canonicalizeBuildingIds,
 } from '@/config/buildings';
+import { ChecklistSelect } from '@/components/common/ChecklistSelect';
 
 interface Props {
   selectedIds: string[];
@@ -34,16 +23,10 @@ export const PermissionBuildingMultiSelect: React.FC<Props> = ({
   const { buildings, isLoading } = useAdminBuildingsState();
   // selectedIds may hold a legacy long-form id that would never match a canonical building id.
   const canonicalSelectedIds = canonicalizeBuildingIds(selectedIds);
-  const selectedSet = new Set(canonicalSelectedIds);
-
-  const toggle = (id: string): void => {
-    const canonicalId = canonicalBuildingId(id);
-    if (selectedSet.has(canonicalId)) {
-      onChange(canonicalSelectedIds.filter((b) => b !== canonicalId));
-    } else {
-      onChange([...canonicalSelectedIds, canonicalId]);
-    }
-  };
+  // Deleted buildings stay listed so admins can clear them; hidden while loading so valid ones never read as unknown.
+  const orphans = isLoading
+    ? []
+    : canonicalSelectedIds.filter((id) => !buildings.some((b) => b.id === id));
 
   return (
     <div className="space-y-1.5">
@@ -52,63 +35,28 @@ export const PermissionBuildingMultiSelect: React.FC<Props> = ({
           {label}
         </p>
       )}
-      {selectedIds.length === 0 && (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-semibold border border-slate-200">
-          <Building2 className="w-3 h-3" />
-          All buildings
-        </div>
-      )}
-      <div className="flex flex-wrap gap-1.5">
-        {buildings.map((building) => {
-          const isSelected = selectedSet.has(building.id);
-          return (
-            <button
-              key={building.id}
-              type="button"
-              onClick={() => toggle(building.id)}
-              aria-label={
-                isSelected ? `Remove ${building.name}` : `Add ${building.name}`
-              }
-              aria-pressed={isSelected}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
-                isSelected
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs hover:bg-brand-blue-dark'
-                  : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
-              }`}
-            >
-              {isSelected ? (
-                <X className="w-3 h-3" />
-              ) : (
-                <Plus className="w-3 h-3" />
-              )}
-              {building.name}
-            </button>
+      {/* no-tour-anchor: admin-only building limit, no teacher tour points here */}
+      <ChecklistSelect
+        label={label ?? 'Buildings'}
+        options={[
+          ...buildings.map((b) => ({ id: b.id, label: b.name })),
+          ...orphans.map((id) => ({
+            id,
+            label: `Unknown building (${id})`,
+          })),
+        ]}
+        selected={canonicalSelectedIds}
+        onToggle={(id, checked) => {
+          const canonicalId = canonicalBuildingId(id);
+          onChange(
+            checked
+              ? [...canonicalSelectedIds, canonicalId]
+              : canonicalSelectedIds.filter((b) => b !== canonicalId)
           );
-        })}
-        {/* Render orphan (deleted) building IDs so admins can clear them.
-            Suppressed while buildings are loading so a race between sign-in
-            and the first snapshot cannot render valid selections as "Unknown"
-            and prompt an anxious admin to delete them. */}
-        {!isLoading &&
-          canonicalSelectedIds
-            .filter((id) => !buildings.some((b) => b.id === id))
-            .map((id) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() =>
-                  onChange(canonicalSelectedIds.filter((b) => b !== id))
-                }
-                aria-label={`Remove unknown building ${id}`}
-                aria-pressed="true"
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border border-dashed border-amber-400 bg-amber-50 text-amber-800 transition-colors hover:bg-amber-100"
-                title={`Building "${id}" no longer exists. Click to remove.`}
-              >
-                <X className="w-3 h-3" />
-                Unknown building ({id})
-              </button>
-            ))}
-      </div>
+        }}
+        emptyText="All buildings"
+        className="w-full max-w-sm"
+      />
     </div>
   );
 };

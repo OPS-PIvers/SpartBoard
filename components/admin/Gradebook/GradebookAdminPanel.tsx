@@ -16,7 +16,7 @@ export const GradebookAdminPanel: React.FC = () => {
   const { organization } = useOrganization(orgId);
   const admin = useGradebookAdmin();
   const adminBuildings = useAdminBuildings();
-  const { notify, fail, toastNode } = useUndoToast('GradebookAdmin');
+  const { notify, fail } = useUndoToast('GradebookAdmin');
   const buildings = useMemo(
     () =>
       adminBuildings.map((b) => ({
@@ -64,7 +64,6 @@ export const GradebookAdminPanel: React.FC = () => {
         notify={notify}
         fail={fail}
       />
-      {toastNode}
     </div>
   );
 };

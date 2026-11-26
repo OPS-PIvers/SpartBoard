@@ -389,7 +389,7 @@ export const DashboardTemplatesManager: React.FC = () => {
                     : 'bg-white text-slate-600 border-slate-200 hover:border-brand-blue-primary'
                 }`}
               >
-                {k === 'all' ? 'All' : k === 'board' ? 'Boards' : 'Collections'}
+                {k === 'all' ? 'All' : k === 'board' ? 'Boards' : 'Folders'}
               </button>
             ))}
           </div>
@@ -401,8 +401,7 @@ export const DashboardTemplatesManager: React.FC = () => {
             });
             return visibleTemplates.length === 0 ? (
               <p className="text-sm text-slate-400 text-center py-8">
-                No {typeFilter === 'board' ? 'board' : 'collection'} templates
-                yet.
+                No {typeFilter === 'board' ? 'board' : 'folder'} templates yet.
               </p>
             ) : (
               visibleTemplates.map((template) => {
@@ -447,7 +446,7 @@ export const DashboardTemplatesManager: React.FC = () => {
                               }`}
                             >
                               {isCollectionTemplate(template)
-                                ? 'Collection'
+                                ? 'Folder'
                                 : 'Board'}
                             </span>
                           </div>

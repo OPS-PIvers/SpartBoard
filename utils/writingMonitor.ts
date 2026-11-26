@@ -6,6 +6,7 @@ import type {
 } from '@/types';
 import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
 import { deriveWritingStatus } from '@/utils/writingResponseState';
+import { lastFirst } from '@/utils/studentName';
 
 const SUMMARY_NUMBERS = [
   'wordCount',
@@ -99,7 +100,7 @@ const nameOf = (
   const name = `${n.givenName} ${n.familyName}`.trim() || 'Student';
   return {
     name,
-    sortName: `${n.familyName} ${n.givenName}`.trim().toLowerCase(),
+    sortName: lastFirst(n).toLowerCase(),
   };
 };
 

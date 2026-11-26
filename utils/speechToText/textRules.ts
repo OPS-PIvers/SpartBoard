@@ -64,8 +64,8 @@ const UNDO_COMMANDS: Readonly<Record<string, readonly string[]>> = {
   ru: ['отменить', 'отмени это'],
 };
 
-// "The class period" is a word, not a full stop.
-const PERIOD_AS_WORD_AFTER = new Set([
+// "The class period", "the colon", "un punto", "en coma": after these words a mark name is a word.
+const PERIOD_AS_WORD_AFTER = [
   'a',
   'an',
   'the',
@@ -91,7 +91,24 @@ const PERIOD_AS_WORD_AFTER = new Set([
   'short',
   'brief',
   'whole',
-]);
+];
+const EN_ARTICLES = ['a', 'an', 'the', 'this', 'that', 'each', 'every'];
+const EN_POSSESSIVES = ['my', 'your', 'his', 'her', 'its', 'our', 'their'];
+const ES_ARTICLES = ['el', 'un', 'este', 'ese', 'aquel', 'cada', 'al', 'del'];
+const ES_POSSESSIVES = ['mi', 'tu', 'su', 'nuestro'];
+const MARK_AS_WORD_AFTER: Readonly<
+  Record<string, Readonly<Record<string, ReadonlySet<string>>>>
+> = {
+  en: {
+    period: new Set(PERIOD_AS_WORD_AFTER),
+    colon: new Set([...EN_ARTICLES, ...EN_POSSESSIVES]),
+    comma: new Set(EN_ARTICLES),
+  },
+  es: {
+    punto: new Set([...ES_ARTICLES, ...ES_POSSESSIVES, 'en', 'buen', 'mismo']),
+    coma: new Set(['la', 'una', 'esta', 'esa', 'en', 'de']),
+  },
+};
 
 const NOT_WORD_BEFORE = "(?<![\\p{L}\\p{N}'’])";
 const NOT_WORD_AFTER = '(?![\\p{L}\\p{N}])';
@@ -130,11 +147,11 @@ function replaceSpokenMarks(text: string, language: string): string {
       .findIndex((group) => typeof group === 'string');
     const offset = args[marks.length + 1];
     if (index < 0) return match;
+    const guard = MARK_AS_WORD_AFTER[language]?.[match.toLowerCase()];
     if (
-      language === 'en' &&
-      match.toLowerCase() === 'period' &&
+      guard &&
       typeof offset === 'number' &&
-      PERIOD_AS_WORD_AFTER.has(lastWord(text.slice(0, offset)))
+      guard.has(lastWord(text.slice(0, offset)))
     )
       return match;
     return ` ${marks[index][1]} `;

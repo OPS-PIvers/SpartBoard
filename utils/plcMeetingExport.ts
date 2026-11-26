@@ -22,8 +22,8 @@ import type {
   PlcCommonAssessment,
   PlcMeeting,
 } from '@/types';
+import { DRIVE_API_URL, DriveSession } from '@/utils/driveRequest';
 
-const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const SHEETS_API_URL = 'https://sheets.googleapis.com/v4/spreadsheets';
 
 /** The export target: a shared Google Sheet, or that Sheet exported to PDF. */
@@ -269,7 +269,8 @@ export async function exportPlcMeeting(
 
   // Create the spreadsheet with the meeting rows in one call (mirrors
   // QuizDriveService.exportResultsToSheet's solo-mode create).
-  const createRes = await fetch(SHEETS_API_URL, {
+  const session = new DriveSession(accessToken);
+  const createRes = await session.request(SHEETS_API_URL, {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({
@@ -317,7 +318,7 @@ export async function exportPlcMeeting(
   if (format === 'pdf') {
     // Export the freshly-created Sheet to PDF via the Drive export endpoint
     // (same shape as googleDriveService.exportFileText, mimeType swapped).
-    const exportRes = await fetch(
+    const exportRes = await session.request(
       `${DRIVE_API_URL}/files/${sheet.spreadsheetId}/export?mimeType=application/pdf`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );

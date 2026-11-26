@@ -12,6 +12,7 @@ import {
 import { EXTEND_MS, type PeriodAccessActions } from '@/hooks/usePeriodAccess';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import { periodKeyForRoster } from '@/utils/periodPlan';
+import { compareLastFirst } from '@/utils/studentName';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { SubmissionDetails } from './SubmissionDetails';
 import { MonitorHeader } from '@/components/widgets/QuizWidget/components/monitor/MonitorHeader';
@@ -37,12 +38,6 @@ const ROW_STYLE = {
   padding: 'min(7px, 1.8cqmin) min(10px, 2.5cqmin)',
   gap: 'min(8px, 2cqmin)',
 } as const;
-
-const collator = new Intl.Collator(undefined, { sensitivity: 'base' });
-
-const byLastName = (a: StudentName, b: StudentName): number =>
-  collator.compare(a.familyName, b.familyName) ||
-  collator.compare(a.givenName, b.givenName);
 
 // LMS sections carry no ClassLink roster, so no names resolve for them.
 const resolvable = (key: string): boolean =>
@@ -158,7 +153,7 @@ export const MiniAppSubmissionsMonitor: React.FC<{
   const notStarted = knowRoster
     ? [...members]
         .filter(([id]) => !submitted.has(id))
-        .sort(([, a], [, b]) => byLastName(a, b))
+        .sort(([, a], [, b]) => compareLastFirst(a, b))
     : [];
   const counts = {
     notStarted: notStarted.length,

@@ -103,7 +103,12 @@ const hasContent = (answer: SectionAnswer): boolean => {
   if (answer.unresponded) return false;
   // A paper box the scan found empty still carries its crop.
   if (answer.paperTranscript === 'blank') return false;
-  if (answer.artifacts?.some((a) => a?.uploadState !== 'failed')) return true;
+  // Student-written, so a malformed value must not throw.
+  if (
+    Array.isArray(answer.artifacts) &&
+    answer.artifacts.some((a) => a?.uploadState !== 'failed')
+  )
+    return true;
   return stripTags(answer.answer ?? '').trim().length > 0;
 };
 

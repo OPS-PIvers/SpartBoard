@@ -19,6 +19,7 @@ vi.mock('./glTours', () => ({
 import * as firebaseAdmin from './firebaseAdmin';
 import {
   CROSS_SITE_PROTOCOL,
+  PICK_ANY_PROTOCOL,
   ExtensionCallError,
   MAX_PICTURE_TOTAL_CHARS,
   NEEDS_UPDATE_MESSAGE,
@@ -272,6 +273,17 @@ describe('loadTour', () => {
     );
     expect(plain.startPage).toBeUndefined();
     expect(plain.openUrls).toBeUndefined();
+  });
+
+  it('names pick-any steps beside the steps, only for an extension that lights them', async () => {
+    const a = step('a', 'https://lms.example.com/courses');
+    const b = step('b', 'https://lms.example.com/courses');
+    const snap = snapshot([{ ...a, web: { ...a.web, pickAny: true } }, b]);
+    const now = await loadTour('set1', snap, storeOf(3), PICK_ANY_PROTOCOL);
+    expect(now.pickAny).toEqual(['a']);
+    expect(JSON.stringify(now.steps)).not.toMatch(/pickAny/);
+    const old = await loadTour('set1', snap, storeOf(3), 15);
+    expect(old.pickAny).toBeUndefined();
   });
 
   it('drops private notes and questions and returns pictures by step', async () => {

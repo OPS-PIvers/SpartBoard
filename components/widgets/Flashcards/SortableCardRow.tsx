@@ -91,6 +91,13 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
           label={label}
           side={side}
           fieldKey={fieldKey}
+          upload={uploadImage}
+          onPick={(url) =>
+            onChange(
+              card.id,
+              isTerm ? { termImageUrl: url } : { definitionImageUrl: url }
+            )
+          }
           onRemove={() =>
             onChange(
               card.id,

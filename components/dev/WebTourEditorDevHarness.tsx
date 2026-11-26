@@ -1,11 +1,13 @@
 // The web tour editor on a seeded tour with drawn pictures, for screenshots. Dev builds with auth bypass only.
 import React, { useEffect, useState } from 'react';
 import type {
+  GlobalFeature,
   GuidedLearningSet,
   GuidedLearningStep,
   WebTourCheckResult,
 } from '@/types';
 import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
+import { getRuntimeFeatureOverrides } from '@/utils/authBypassFeatureOverrides';
 import { DialogProvider } from '@/context/DialogContext';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { WebTourEditor } from '@/components/tours/web/WebTourEditor';
@@ -484,7 +486,9 @@ const dashboard = {
 const auth = {
   user: { uid: 'mock-user-id', email: 'admin@example.com' },
   isAdmin: true,
-  canAccessFeature: () => true,
+  // localStorage authBypassFeatureOverrides can switch a feature off for screenshots.
+  canAccessFeature: (id: GlobalFeature) =>
+    getRuntimeFeatureOverrides(window.localStorage)[id] ?? true,
 } as unknown as AuthContextType;
 
 const PUBLIC_STATES = [

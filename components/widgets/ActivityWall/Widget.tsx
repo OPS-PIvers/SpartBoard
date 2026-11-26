@@ -2,7 +2,7 @@
 
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   CloudOff,
   Copy,
@@ -10,7 +10,6 @@ import {
   Image as ImageIcon,
   LayoutGrid,
   LibraryBig,
-  MoreHorizontal,
   Pencil,
   QrCode,
   Share2,
@@ -52,7 +51,7 @@ import {
 } from '@/hooks/useLinkedShareHost';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
-import { useClickOutside } from '@/hooks/useClickOutside';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
 import { getFontClass, hexToRgba } from '@/utils/styles';
 import { pickReadableForeground } from '@/utils/collectionColor';
 import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
@@ -73,6 +72,7 @@ import {
 import { WallEditorModal } from './editor/WallEditorModal';
 import { LAYOUT_OPTIONS } from './editor/layoutOptions';
 import { WallLibraryModal } from './WallLibraryModal';
+import { ActivityWallManager } from './ActivityWallManager';
 import { ModerationDrawer } from './ModerationDrawer';
 import { ActivityWallShareModal } from './ShareModal';
 import { useActivityWallSession } from './hooks/useActivityWallSession';
@@ -89,6 +89,8 @@ import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMig
 import { tourAttr } from '@/config/tourAnchors';
 import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 import { ImportWizard } from '@/components/common/library/importer';
+import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
+import { useLibraryDuplicate } from '@/components/common/library/useLibraryDuplicate';
 import {
   completeImportHandoff,
   takeImportHandoff,
@@ -146,6 +148,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const { showConfirm } = useDialog();
   const claudeReview = useClaudeReview('activity_wall_activities');
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
+  const libraryOnFace = canAccessFeature('activity-wall-library-face');
   const config = widget.config as ActivityWallConfig;
   const imageSize = isWallImageSize(config.imageSize)
     ? config.imageSize
@@ -177,6 +180,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     saveActivity,
     deleteActivity,
     clearActivityPosts,
+    reorderActivities,
   } = useActivityWallLibrary(inSubShare ? undefined : user?.uid);
 
   const ownEntry = useMemo(
@@ -255,6 +259,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const [editorEntry, setEditorEntry] = useState<
     ActivityWallLibraryEntry | null | undefined
   >(undefined);
+  const [newWallFolderId, setNewWallFolderId] = useState<string | null>(null);
+  const createWall = (folderId: string | null = null) => {
+    setNewWallFolderId(folderId);
+    setEditorEntry(null);
+  };
   const handleEditEntry = (entry: ActivityWallLibraryEntry) => {
     claudeReview.markReviewed(entry);
     setEditorEntry(entry);
@@ -268,7 +277,6 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const [moderationOpen, setModerationOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [connectingDrive, setConnectingDrive] = useState(false);
-  const [toolbarMenuOpen, setToolbarMenuOpen] = useState(false);
   const [composer, setComposer] = useState<
     | { kind: 'create'; placement: WallPlacement }
     | { kind: 'edit'; post: ActivityWallSubmission }
@@ -277,8 +285,6 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const [composerBusy, setComposerBusy] = useState(false);
   const [composerProgress, setComposerProgress] = useState<number | null>(null);
   const [composerError, setComposerError] = useState<string | null>(null);
-  const toolbarMenuRef = useRef<HTMLDivElement>(null);
-  useClickOutside(toolbarMenuRef, () => setToolbarMenuOpen(false));
 
   const clearLegacyActivities = useCallback(
     (widgetId: string) =>
@@ -377,11 +383,34 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         config: {
           activeActivityId: entryId,
           activeActivityOwnerUid: entryId ? (user?.uid ?? null) : null,
+          ...(libraryOnFace ? { libraryOverWallId: null } : {}),
         },
       });
     },
-    [updateWidget, user?.uid, widget.id]
+    [libraryOnFace, updateWidget, user?.uid, widget.id]
   );
+
+  // A View-Only board can't save the widget, so it keeps the dialog.
+  const libraryDialog = !libraryOnFace || isActiveBoardReadOnly;
+  const openLibrary = useCallback(() => {
+    if (libraryDialog) {
+      setLibraryOpen(true);
+    } else {
+      updateWidget(widget.id, {
+        config: { libraryOverWallId: config.activeActivityId ?? null },
+      });
+    }
+  }, [config.activeActivityId, libraryDialog, updateWidget, widget.id]);
+
+  // The library is the widget face until a wall is opened, as in Quiz and Video Activity.
+  const showLibraryFace =
+    libraryOnFace &&
+    !inShare &&
+    // Tied to the open wall, so a wall opened from anywhere else shows at once.
+    ((!!config.activeActivityId &&
+      config.libraryOverWallId === config.activeActivityId) ||
+      (!foreignOwnerUid &&
+        (!config.activeActivityId || (!libraryLoading && !activeEntry))));
 
   // Import's Activity Wall Conversion lands here: the wall is saved, then shown.
   const importHandoff = useImportHandoff(widget.id);
@@ -544,25 +573,24 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     widget.id,
   ]);
 
-  const duplicateWall = useCallback(
-    async (entry: ActivityWallLibraryEntry) => {
+  const wallDuplicate = useLibraryDuplicate({
+    duplicate: async (entry: ActivityWallLibraryEntry) => {
       const now = Date.now();
-      try {
-        await saveActivity({
-          ...entry,
-          id: crypto.randomUUID(),
-          title: `${entry.title || 'Untitled wall'} (copy)`,
-          createdAt: now,
-          updatedAt: now,
-        });
-        addToast('Wall duplicated.', 'success');
-      } catch (err) {
-        console.error('[ActivityWall] Failed to duplicate wall:', err);
-        addToast('Could not duplicate the wall.', 'error');
-      }
+      const copy = {
+        ...entry,
+        id: crypto.randomUUID(),
+        title: suggestDuplicateTitle(entry.title || 'Untitled wall'),
+        createdAt: now,
+        updatedAt: now,
+      };
+      await saveActivity(copy);
+      return copy;
     },
-    [addToast, saveActivity]
-  );
+    addToast,
+    errorMessage: 'Could not duplicate the wall.',
+    onError: (err) =>
+      console.error('[ActivityWall] Failed to duplicate wall:', err),
+  });
 
   const removeWall = useCallback(
     async (entryId: string) => {
@@ -571,6 +599,26 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     },
     [config.activeActivityId, deleteActivity, setActiveEntry]
   );
+
+  const openWallOnBoard = (entryId: string) => {
+    const open = () => {
+      setActiveEntry(entryId);
+      setLibraryOpen(false);
+    };
+    const entry = entries.find((e) => e.id === entryId);
+    if (entry) claudeReview.whenReviewed(entry, open, 'Open anyway');
+    else open();
+  };
+  const wallBadgesFor = (entry: ActivityWallLibraryEntry) => {
+    const review = claudeReview.badge(entry, () => handleEditEntry(entry));
+    return review ? [review] : [];
+  };
+  const confirmDelete = (message: string) =>
+    showConfirm(message, {
+      title: 'Delete',
+      variant: 'danger',
+      confirmLabel: 'Delete',
+    });
 
   const connectDrive = useCallback(async () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
@@ -671,7 +719,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     {
       label: 'Open wall library',
       icon: LibraryBig,
-      run: () => setLibraryOpen(true),
+      run: openLibrary,
       disabled: false,
       tourAttrs: tourAttr('activity-wall.library', widget.id, widget.type),
     },
@@ -793,64 +841,25 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           {moderateButton}
 
           {compactToolbar ? (
-            <div className="relative" ref={toolbarMenuRef}>
-              <button
-                type="button"
-                {...tourAttr(
-                  'activity-wall.more-actions',
-                  widget.id,
-                  widget.type
-                )}
-                onClick={() => setToolbarMenuOpen((open) => !open)}
-                aria-label="More wall actions"
-                aria-expanded={toolbarMenuOpen}
-                aria-haspopup="menu"
-                className={toolbarButtonClass}
-                style={iconButtonSize}
-              >
-                <MoreHorizontal style={{ width: '55%', height: '55%' }} />
-              </button>
-              {toolbarMenuOpen && (
-                <div
-                  role="menu"
-                  className="absolute right-0 top-full z-20 overflow-hidden rounded-xl border border-white/15 bg-slate-900/95 shadow-xl backdrop-blur-md"
-                  style={{
-                    minWidth: 'min(176px, 55cqw)',
-                    marginTop: 'min(4px, 1cqmin)',
-                    paddingBlock: 'min(4px, 1cqmin)',
-                  }}
-                >
-                  {secondaryActions.map((action) => (
-                    <button
-                      key={action.label}
-                      type="button"
-                      role="menuitem"
-                      {...action.tourAttrs}
-                      disabled={action.disabled}
-                      onClick={() => {
-                        setToolbarMenuOpen(false);
-                        action.run();
-                      }}
-                      className="flex w-full items-center text-left font-semibold text-slate-200 transition-colors hover:bg-white/10 focus:outline-hidden focus-visible:bg-white/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 disabled:opacity-40"
-                      style={{
-                        gap: 'min(8px, 2cqmin)',
-                        padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                        fontSize: 'min(14px, 5.5cqmin)',
-                      }}
-                    >
-                      <action.icon
-                        aria-hidden="true"
-                        style={{
-                          width: 'min(16px, 5cqmin)',
-                          height: 'min(16px, 5cqmin)',
-                        }}
-                      />
-                      {action.label}
-                    </button>
-                  ))}
-                </div>
+            <OverflowMenu
+              items={secondaryActions.map((action) => ({
+                label: action.label,
+                icon: action.icon,
+                disabled: action.disabled,
+                onClick: action.run,
+                anchor: action.tourAttrs,
+              }))}
+              ariaLabel="More wall actions"
+              triggerAnchor={tourAttr(
+                'activity-wall.more-actions',
+                widget.id,
+                widget.type
               )}
-            </div>
+              triggerClassName={toolbarButtonClass}
+              triggerStyle={iconButtonSize}
+              iconStyle={{ width: '55%', height: '55%' }}
+              destructiveLast={false}
+            />
           ) : (
             secondaryActions.map((action) => (
               <button
@@ -947,7 +956,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
               widget.id,
               widget.type
             )}
-            onClick={() => setLibraryOpen(true)}
+            onClick={openLibrary}
             className="rounded-lg bg-brand-blue-primary font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
             style={{
               padding: 'min(8px, 2cqmin) min(14px, 3.4cqmin)',
@@ -1044,16 +1053,46 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 
   return (
     <>
-      <WidgetLayout
-        padding="p-0"
-        content={
-          <div className="flex h-full w-full flex-col overflow-hidden">
-            {header}
-            {driveBanner}
-            <div className="min-h-0 flex-1">{body}</div>
-          </div>
-        }
-      />
+      {showLibraryFace ? (
+        <WidgetLayout
+          padding="p-0"
+          contentClassName="flex-1 min-h-0"
+          content={
+            <ActivityWallManager
+              widget={widget}
+              uid={user?.uid}
+              entries={entries}
+              loading={libraryLoading}
+              activeEntryId={config.activeActivityId ?? null}
+              readOnly={isActiveBoardReadOnly}
+              onOpenOnBoard={openWallOnBoard}
+              onCreate={createWall}
+              onEdit={handleEditEntry}
+              badgesFor={wallBadgesFor}
+              onDuplicate={wallDuplicate.duplicate}
+              onDelete={removeWall}
+              onClearPosts={clearActivityPosts}
+              onReorder={reorderActivities}
+              onConfigChange={(updates) =>
+                updateWidget(widget.id, { config: updates })
+              }
+              addToast={addToast}
+              confirm={confirmDelete}
+            />
+          }
+        />
+      ) : (
+        <WidgetLayout
+          padding="p-0"
+          content={
+            <div className="flex h-full w-full flex-col overflow-hidden">
+              {header}
+              {driveBanner}
+              <div className="min-h-0 flex-1">{body}</div>
+            </div>
+          }
+        />
+      )}
 
       {!inShare && importHandoff?.target === 'activityWall' && (
         <ImportWizard
@@ -1073,6 +1112,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         <WallEditorModal
           open
           entry={editorEntry}
+          newFolderId={newWallFolderId}
           widgetId={widget.id}
           widgetType={widget.type}
           onClose={() => setEditorEntry(undefined)}
@@ -1097,7 +1137,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         />
       )}
 
-      {!inShare && (
+      {!inShare && libraryDialog && (
         <WallLibraryModal
           open={libraryOpen}
           onClose={() => setLibraryOpen(false)}
@@ -1105,34 +1145,15 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           entries={entries}
           activeEntryId={config.activeActivityId ?? null}
           readOnly={isActiveBoardReadOnly}
-          onOpenOnBoard={(entryId) => {
-            const open = () => {
-              setActiveEntry(entryId);
-              setLibraryOpen(false);
-            };
-            const entry = entries.find((e) => e.id === entryId);
-            if (entry) claudeReview.whenReviewed(entry, open, 'Open anyway');
-            else open();
-          }}
-          onCreate={() => setEditorEntry(null)}
+          onOpenOnBoard={openWallOnBoard}
+          onCreate={() => createWall()}
           onEdit={handleEditEntry}
-          badgesFor={(entry) => {
-            const review = claudeReview.badge(entry, () =>
-              handleEditEntry(entry)
-            );
-            return review ? [review] : [];
-          }}
-          onDuplicate={duplicateWall}
+          badgesFor={wallBadgesFor}
+          onDuplicate={wallDuplicate.duplicate}
           onDelete={removeWall}
           onClearPosts={clearActivityPosts}
           addToast={addToast}
-          confirm={(message) =>
-            showConfirm(message, {
-              title: 'Delete',
-              variant: 'danger',
-              confirmLabel: 'Delete',
-            })
-          }
+          confirm={confirmDelete}
         />
       )}
 

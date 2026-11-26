@@ -62,7 +62,7 @@ describe('useDriveImageFallback', () => {
     );
     expect(fetchMock).toHaveBeenCalledWith(
       'https://www.googleapis.com/drive/v3/files/abc_DEF-123?alt=media',
-      { headers: { Authorization: 'Bearer tok' } }
+      expect.objectContaining({ headers: { Authorization: 'Bearer tok' } })
     );
     // A failing blob does not start another download.
     fireEvent.error(img);

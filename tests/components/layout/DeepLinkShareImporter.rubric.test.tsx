@@ -6,10 +6,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor, screen, fireEvent } from '@testing-library/react';
 
 const addToast = vi.fn();
-const clearPendingRubricShare = vi.fn();
+const clearPendingLibraryShare = vi.fn();
 const importSharedRubric = vi.fn();
 
-let pendingRubricShareId: string | null = 'share-abc';
+let pendingLibraryShare: { kind: 'rubric'; shareId: string } | null = {
+  kind: 'rubric',
+  shareId: 'share-abc',
+};
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
@@ -26,14 +29,8 @@ vi.mock('@/context/useDashboard', () => ({
     bringToFront: vi.fn(),
     addToast,
     setPendingAssignmentSetup: vi.fn(),
-    pendingQuizShareId: null,
-    clearPendingQuizShare: vi.fn(),
-    pendingAssignmentShareId: null,
-    clearPendingAssignmentShare: vi.fn(),
-    pendingVideoActivityShareId: null,
-    clearPendingVideoActivityShare: vi.fn(),
-    pendingRubricShareId,
-    clearPendingRubricShare,
+    pendingLibraryShare,
+    clearPendingLibraryShare,
   }),
 }));
 
@@ -98,9 +95,9 @@ import { DeepLinkShareImporter } from '@/components/layout/DeepLinkShareImporter
 describe('DeepLinkShareImporter — rubric deep link', () => {
   beforeEach(() => {
     addToast.mockReset();
-    clearPendingRubricShare.mockReset();
+    clearPendingLibraryShare.mockReset();
     importSharedRubric.mockReset();
-    pendingRubricShareId = 'share-abc';
+    pendingLibraryShare = { kind: 'rubric', shareId: 'share-abc' };
   });
 
   it('imports the pending rubric share and toasts its title', async () => {
@@ -113,7 +110,7 @@ describe('DeepLinkShareImporter — rubric deep link', () => {
     await waitFor(() =>
       expect(importSharedRubric).toHaveBeenCalledWith('share-abc')
     );
-    expect(clearPendingRubricShare).toHaveBeenCalled();
+    expect(clearPendingLibraryShare).toHaveBeenCalled();
     await waitFor(() =>
       expect(addToast).toHaveBeenCalledWith(
         'Rubric "Paragraph" imported to your library!',
@@ -136,7 +133,7 @@ describe('DeepLinkShareImporter — rubric deep link', () => {
   });
 
   it('does nothing when no rubric share is pending', () => {
-    pendingRubricShareId = null;
+    pendingLibraryShare = null;
     render(<DeepLinkShareImporter />);
 
     expect(importSharedRubric).not.toHaveBeenCalled();

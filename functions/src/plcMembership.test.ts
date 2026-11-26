@@ -564,6 +564,21 @@ describe('runMembershipAction', () => {
     expect(stub.get('plcs/p')?.memberUids).toEqual(['lead', 'co', 'mem']);
   });
 
+  it('a caller with the deactivation claim changes nothing', async () => {
+    const { stub, db } = setup();
+    expect(
+      await codeOf(
+        runMembershipAction(
+          db,
+          caller('mem', { deactivated: true }),
+          { action: 'leave', plcId: 'p' },
+          TS
+        )
+      )
+    ).toMatchObject({ code: 'permission-denied' });
+    expect(stub.get('plcs/p')?.memberUids).toEqual(['lead', 'co', 'mem']);
+  });
+
   it('admin actions need an admin doc, org membership and no View as', async () => {
     const act = {
       action: 'adminRemoveMember' as const,

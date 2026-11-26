@@ -39,7 +39,10 @@ vi.mock('./featureGrant', () => ({
   isGlobalFeatureGranted: vi.fn(() => Promise.resolve(true)),
 }));
 
+import * as admin from './firebaseAdmin';
+import { makeStubFirestore } from './testing/stubFirestore';
 import {
+  buildNarrationDeps,
   GL_NARRATION_MAX_CHARS,
   narrationTextHash,
   parseNarrationRequest,
@@ -252,5 +255,40 @@ describe('synthesizeGuidedLearningNarration', () => {
         deps
       )
     ).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+});
+
+describe('buildNarrationDeps().isCallerAdmin', () => {
+  const EMAIL = 'boss@orono.k12.mn.us';
+  const isAdminWith = (
+    seed: Record<string, Doc>,
+    extra: Record<string, unknown> = {}
+  ) => {
+    vi.mocked(admin.firestore).mockReturnValue(
+      makeStubFirestore(seed).db as unknown as ReturnType<
+        typeof admin.firestore
+      >
+    );
+    return buildNarrationDeps().isCallerAdmin({
+      email: EMAIL,
+      email_verified: true,
+      ...extra,
+    });
+  };
+
+  it('passes a live admin', async () => {
+    expect(await isAdminWith({ [`admins/${EMAIL}`]: {} })).toBe(true);
+  });
+
+  it('SECURITY: refuses a deactivated admin, by claim or member doc', async () => {
+    expect(
+      await isAdminWith({ [`admins/${EMAIL}`]: {} }, { deactivated: true })
+    ).toBe(false);
+    expect(
+      await isAdminWith({
+        [`admins/${EMAIL}`]: {},
+        [`organizations/orono/members/${EMAIL}`]: { status: 'deactivated' },
+      })
+    ).toBe(false);
   });
 });

@@ -21,24 +21,17 @@ import {
   GL_SLIDE_APP_PROPERTIES,
   GL_SLIDE_APP_PROPERTY,
 } from '@/utils/driveAppFolder';
+import {
+  DRIVE_UPLOAD_FOLDERS,
+  drivePreviewUrl,
+  driveImageUrl,
+  uploadDriveAsset,
+} from '@/utils/driveAssetUpload';
 
 export const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
 
 const GL_SLIDE_FOLDERS = ['Assets/HotspotImages'];
-// Folders the app uploads images, drawings and PDFs to; only these files are ever trashed by URL.
-export const DRIVE_UPLOAD_FOLDERS = [
-  'Assets/Backgrounds',
-  'Assets/DisplayImages',
-  'Assets/HotspotImages',
-  'Assets/PDFs',
-  'Assets/PaperSheetStimuli',
-  'Assets/QuizAudio',
-  'Assets/QuizStimuli',
-  'Assets/Screenshots',
-  'Assets/Stickers',
-  'Backgrounds',
-  'Drawings',
-];
+export { DRIVE_UPLOAD_FOLDERS };
 
 /** Personal sets keep slides on the teacher's Drive; district sets on Firebase Storage. */
 export type GuidedLearningMediaHome = 'drive' | 'storage';
@@ -95,13 +88,14 @@ export const useStorage = () => {
     if (driveService) {
       beginUpload();
       try {
-        const driveFile = await driveService.uploadFile(
-          file,
-          `background-${Date.now()}-${file.name}`,
-          'Assets/Backgrounds'
-        );
-        await driveService.makePublic(driveFile.id, userDomain);
-        return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
+        const driveFile = await uploadDriveAsset(driveService, {
+          blob: file,
+          name: `background-${Date.now()}-${file.name}`,
+          folder: 'Assets/Backgrounds',
+          audience: 'domain',
+          domain: userDomain,
+        });
+        return driveImageUrl(driveFile.id);
       } finally {
         endUpload();
       }
@@ -118,13 +112,14 @@ export const useStorage = () => {
     if (driveService) {
       beginUpload();
       try {
-        const driveFile = await driveService.uploadFile(
-          file,
-          `sticker-${Date.now()}-${file.name}`,
-          'Assets/Stickers'
-        );
-        await driveService.makePublic(driveFile.id, userDomain);
-        return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
+        const driveFile = await uploadDriveAsset(driveService, {
+          blob: file,
+          name: `sticker-${Date.now()}-${file.name}`,
+          folder: 'Assets/Stickers',
+          audience: 'domain',
+          domain: userDomain,
+        });
+        return driveImageUrl(driveFile.id);
       } finally {
         endUpload();
       }
@@ -146,13 +141,14 @@ export const useStorage = () => {
     if (driveService) {
       beginUpload();
       try {
-        const driveFile = await driveService.uploadFile(
-          file,
-          `display-${Date.now()}-${file.name}`,
-          'Assets/DisplayImages'
-        );
-        await driveService.makePublic(driveFile.id, userDomain);
-        return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
+        const driveFile = await uploadDriveAsset(driveService, {
+          blob: file,
+          name: `display-${Date.now()}-${file.name}`,
+          folder: 'Assets/DisplayImages',
+          audience: 'domain',
+          domain: userDomain,
+        });
+        return driveImageUrl(driveFile.id);
       } finally {
         endUpload();
       }
@@ -237,15 +233,15 @@ export const useStorage = () => {
     if (home === 'drive' && driveService) {
       beginUpload();
       try {
-        const driveFile = await driveService.uploadFile(
+        const driveFile = await uploadDriveAsset(driveService, {
           blob,
-          `hotspot-${Date.now()}-${fileName}`,
-          'Assets/HotspotImages',
-          GL_SLIDE_APP_PROPERTIES
-        );
-        await driveService.makePublic(driveFile.id, undefined);
+          name: `hotspot-${Date.now()}-${fileName}`,
+          folder: 'Assets/HotspotImages',
+          appProperties: GL_SLIDE_APP_PROPERTIES,
+          audience: 'anyone',
+        });
         return {
-          url: `https://lh3.googleusercontent.com/d/${driveFile.id}`,
+          url: driveImageUrl(driveFile.id),
           storagePath: '',
           driveFileId: driveFile.id,
         };
@@ -321,15 +317,13 @@ export const useStorage = () => {
     if (driveService) {
       beginUpload();
       try {
-        const driveFile = await driveService.uploadFile(
-          file,
-          `hotspot-${Date.now()}-${file.name}`,
-          'Assets/HotspotImages'
-        );
-        // Pass undefined to force type:'anyone' sharing so the image URL is
-        // publicly renderable in all contexts (matches uploadBackgroundToDrive).
-        await driveService.makePublic(driveFile.id, undefined);
-        return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
+        const driveFile = await uploadDriveAsset(driveService, {
+          blob: file,
+          name: `hotspot-${Date.now()}-${file.name}`,
+          folder: 'Assets/HotspotImages',
+          audience: 'anyone',
+        });
+        return driveImageUrl(driveFile.id);
       } finally {
         endUpload();
       }
@@ -345,13 +339,14 @@ export const useStorage = () => {
     if (driveService) {
       beginUpload();
       try {
-        const driveFile = await driveService.uploadFile(
+        const driveFile = await uploadDriveAsset(driveService, {
           blob,
-          `screenshot-${Date.now()}.jpg`,
-          'Assets/Screenshots'
-        );
-        await driveService.makePublic(driveFile.id, userDomain);
-        return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
+          name: `screenshot-${Date.now()}.jpg`,
+          folder: 'Assets/Screenshots',
+          audience: 'domain',
+          domain: userDomain,
+        });
+        return driveImageUrl(driveFile.id);
       } finally {
         endUpload();
       }
@@ -481,13 +476,14 @@ export const useStorage = () => {
     if (driveService) {
       beginUpload();
       try {
-        const driveFile = await driveService.uploadFile(
-          file,
-          `pdf-${Date.now()}-${file.name}`,
-          'Assets/PDFs'
-        );
-        await driveService.makePublic(driveFile.id, userDomain);
-        const previewUrl = `https://drive.google.com/file/d/${driveFile.id}/preview`;
+        const driveFile = await uploadDriveAsset(driveService, {
+          blob: file,
+          name: `pdf-${Date.now()}-${file.name}`,
+          folder: 'Assets/PDFs',
+          audience: 'domain',
+          domain: userDomain,
+        });
+        const previewUrl = drivePreviewUrl(driveFile.id);
         return {
           url: previewUrl,
           storagePath: driveFile.webViewLink ?? previewUrl,
@@ -506,13 +502,14 @@ export const useStorage = () => {
     if (driveService) {
       beginUpload();
       try {
-        const driveFile = await driveService.uploadFile(
-          file,
-          `pdf-${Date.now()}-${file.name}`,
-          'Assets/PDFs'
-        );
-        await driveService.makePublic(driveFile.id, userDomain);
-        const previewUrl = `https://drive.google.com/file/d/${driveFile.id}/preview`;
+        const driveFile = await uploadDriveAsset(driveService, {
+          blob: file,
+          name: `pdf-${Date.now()}-${file.name}`,
+          folder: 'Assets/PDFs',
+          audience: 'domain',
+          domain: userDomain,
+        });
+        const previewUrl = drivePreviewUrl(driveFile.id);
         return {
           url: previewUrl,
           storagePath: driveFile.webViewLink ?? previewUrl,

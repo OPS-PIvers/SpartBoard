@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Users2,
@@ -12,7 +12,7 @@ import {
 
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
-import { useClickOutside } from '@/hooks/useClickOutside';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
 import { usePlcUnread } from '@/hooks/usePlcUnread';
 import {
   Plc,
@@ -23,7 +23,6 @@ import {
 } from '@/types';
 import { groupTypeLabel } from '@/components/plc/groupTypes';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
-import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { PlcEditModal } from './PlcEditModal';
 import { PlcInvitesModal } from './PlcInvitesModal';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
@@ -82,40 +81,7 @@ const PlcRow: React.FC<PlcRowProps> = ({
   onLeave,
 }) => {
   const { t } = useTranslation();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const kebabRef = useRef<HTMLButtonElement>(null);
-
-  // "Since you were here" badge (Decision 2.2, §3.4) — count of activity events
-  // newer than this member's `plc_state/{plcId}.lastSeenAt` cursor. The hook
-  // self-subscribes (the sidebar is not under a PlcProvider); gate it to while
-  // the drawer is open so the listeners tear down when the sidebar closes.
   const { unreadCount } = usePlcUnread(plc.id, { enabled: unreadEnabled });
-
-  useClickOutside(menuRef, () => setMenuOpen(false), [kebabRef]);
-
-  // Escape closes the menu and restores focus to the kebab button.
-  // `aria-haspopup="menu"` on the kebab implies this contract per WAI-ARIA
-  // menu-button practices. Mounted only while the menu is open to avoid a
-  // global listener tax for every PLC row in the sidebar.
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (isEscapeFromWidgetInput(event)) return;
-      event.stopPropagation();
-      setMenuOpen(false);
-      kebabRef.current?.focus();
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [menuOpen]);
-
-  const handleMenuClick = (e: React.MouseEvent, action: () => void) => {
-    e.stopPropagation();
-    setMenuOpen(false);
-    action();
-  };
 
   const unreadBadge = unreadCount > 0 && (
     <span
@@ -134,73 +100,44 @@ const PlcRow: React.FC<PlcRowProps> = ({
   );
 
   const kebabMenu = (
-    <>
-      <button
-        ref={kebabRef}
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setMenuOpen((prev) => !prev);
-        }}
-        {...tourFieldAttr('plcs.actions-menu', 'plcs', rowKey)}
-        className="p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
-        aria-haspopup="menu"
-        aria-expanded={menuOpen}
-        aria-label={t('sidebar.plcs.actionsMenu', {
-          defaultValue: 'PLC actions',
-        })}
-        title={t('sidebar.plcs.actionsMenu', {
-          defaultValue: 'PLC actions',
-        })}
-      >
-        <MoreVertical className="w-4 h-4" />
-      </button>
-
-      {menuOpen && (
-        <div
-          ref={menuRef}
-          role="menu"
-          className="absolute right-0 top-full mt-1 z-20 min-w-[160px] bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
-          data-click-outside-ignore="true"
-        >
-          <button
-            type="button"
-            role="menuitem"
-            onClick={(e) => handleMenuClick(e, onEdit)}
-            {...tourFieldAttr('plcs.edit-plc', 'plcs', rowKey)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors text-left"
-          >
-            <Pencil className="w-3.5 h-3.5 text-slate-500" />
-            {isLead
-              ? t('sidebar.plcs.editPlc', { defaultValue: 'Edit PLC' })
-              : t('sidebar.plcs.viewPlc', { defaultValue: 'View PLC' })}
-          </button>
-          {isLead ? (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={(e) => handleMenuClick(e, onDelete)}
-              {...tourFieldAttr('plcs.delete-plc', 'plcs', rowKey)}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left border-t border-slate-100"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              {t('sidebar.plcs.deletePlc', { defaultValue: 'Delete PLC' })}
-            </button>
-          ) : (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={(e) => handleMenuClick(e, onLeave)}
-              {...tourFieldAttr('plcs.leave-plc', 'plcs', rowKey)}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left border-t border-slate-100"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              {t('sidebar.plcs.leavePlc', { defaultValue: 'Leave PLC' })}
-            </button>
-          )}
-        </div>
-      )}
-    </>
+    <OverflowMenu
+      items={[
+        {
+          id: 'edit',
+          label: isLead
+            ? t('sidebar.plcs.editPlc', { defaultValue: 'Edit PLC' })
+            : t('sidebar.plcs.viewPlc', { defaultValue: 'View PLC' }),
+          icon: Pencil,
+          onClick: onEdit,
+          anchor: tourFieldAttr('plcs.edit-plc', 'plcs', rowKey),
+        },
+        isLead
+          ? {
+              id: 'delete',
+              label: t('sidebar.plcs.deletePlc', {
+                defaultValue: 'Delete PLC',
+              }),
+              icon: Trash2,
+              destructive: true,
+              onClick: onDelete,
+              anchor: tourFieldAttr('plcs.delete-plc', 'plcs', rowKey),
+            }
+          : {
+              id: 'leave',
+              label: t('sidebar.plcs.leavePlc', { defaultValue: 'Leave PLC' }),
+              icon: LogOut,
+              destructive: true,
+              onClick: onLeave,
+              anchor: tourFieldAttr('plcs.leave-plc', 'plcs', rowKey),
+            },
+      ]}
+      ariaLabel={t('sidebar.plcs.actionsMenu', { defaultValue: 'PLC actions' })}
+      triggerIcon={MoreVertical}
+      triggerAnchor={tourFieldAttr('plcs.actions-menu', 'plcs', rowKey)}
+      triggerClassName="rounded-lg text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter"
+      triggerStyle={{ width: 28, height: 28 }}
+      iconStyle={{ width: 16, height: 16 }}
+    />
   );
 
   return (

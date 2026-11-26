@@ -8,10 +8,22 @@ const mocks = vi.hoisted(() => ({
   writeResult: vi.fn(() => Promise.resolve()),
   deleteResult: vi.fn(() => Promise.resolve()),
   loadSummary: vi.fn(() => Promise.resolve({})),
+  writeSet: vi.fn(),
+  updateShared: vi.fn((_title: string, run: () => Promise<unknown>) =>
+    run().then<boolean>(() => true)
+  ),
+  flagOn: false,
 }));
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'u1', displayName: 'T', email: 't@x.org' } }),
+  useAuth: () => ({
+    user: { uid: 'u1', displayName: 'T', email: 't@x.org' },
+    canAccessFeature: (id: string) =>
+      id === 'plc-update-shared-copy' && mocks.flagOn,
+  }),
+}));
+vi.mock('@/hooks/usePlcLibraryActions', () => ({
+  usePlcSharedCopyUpdate: () => mocks.updateShared,
 }));
 vi.mock('@/hooks/usePlcs', () => ({ usePlcs: () => ({ plcs: [plc] }) }));
 vi.mock('@/utils/plc', () => ({
@@ -22,7 +34,7 @@ vi.mock('@/hooks/usePlcFlashcards', () => ({
   deletePlcFlashcardResult: mocks.deleteResult,
   loadFlashcardResultSummary: mocks.loadSummary,
   writePlcFlashcardResult: mocks.writeResult,
-  writePlcFlashcardSetEntry: vi.fn(),
+  writePlcFlashcardSetEntry: mocks.writeSet,
 }));
 
 const assignment = (over: Partial<FlashcardAssignment>) =>
@@ -102,5 +114,45 @@ describe('useFlashcardPlcSharing', () => {
     });
     expect(linkCheck).not.toHaveBeenCalled();
     expect(mocks.deleteResult).toHaveBeenCalled();
+  });
+
+  const shareSetTo = async (
+    result: ReturnType<typeof setup>['result']
+  ): Promise<void> => {
+    act(() => {
+      result.current.shareSet({ id: 's1', title: 'Vocab' } as never);
+    });
+    const modal = result.current.modal as {
+      props: { onConfirm: (plcId: string) => Promise<void> };
+    };
+    await act(async () => {
+      await modal.props.onConfirm('plc1');
+    });
+  };
+
+  it('offers Update the shared copy for an already-shared set when the flag is on', async () => {
+    mocks.flagOn = true;
+    mocks.writeSet.mockResolvedValueOnce('already-shared');
+    mocks.writeSet.mockResolvedValueOnce('updated');
+    const { result } = setup();
+    await shareSetTo(result);
+    expect(mocks.updateShared).toHaveBeenCalledWith(
+      'Vocab',
+      expect.any(Function)
+    );
+    expect(mocks.writeSet).toHaveBeenLastCalledWith(
+      'plc1',
+      'u1',
+      expect.objectContaining({ update: true })
+    );
+  });
+
+  it('keeps the already-shared notice when the flag is off', async () => {
+    mocks.flagOn = false;
+    mocks.writeSet.mockResolvedValueOnce('already-shared');
+    const { result } = setup();
+    await shareSetTo(result);
+    expect(mocks.updateShared).not.toHaveBeenCalled();
+    expect(mocks.writeSet).toHaveBeenCalledTimes(1);
   });
 });

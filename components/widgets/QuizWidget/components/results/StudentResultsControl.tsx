@@ -8,8 +8,9 @@ import {
   MoreVertical,
   Users,
 } from 'lucide-react';
-import { OverflowMenu, SessionBadge } from '@/components/common/sessionViews';
-import type { OverflowMenuItem } from '@/components/common/sessionViews';
+import { SessionBadge } from '@/components/common/sessionViews';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
+import type { OverflowMenuItem } from '@/components/common/OverflowMenu';
 import { PUBLISH_LEVEL_OPTIONS } from '@/components/common/library/publishScoreLevels';
 import type {
   QuizResultsOverride,
@@ -220,13 +221,11 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           items={items}
           ariaLabel={`Results options for ${displayName}`}
           triggerIcon={MoreVertical}
-          triggerProps={tourFieldAttr(
-            'quiz-results.student-results-menu',
-            'quiz',
-            tourKey
-          )}
           triggerClassName={triggerClassName}
-          triggerAnchor={triggerAnchor}
+          triggerAnchor={
+            triggerAnchor ??
+            tourFieldAttr('quiz-results.student-results-menu', 'quiz', tourKey)
+          }
           tourId={tourId}
           tourScope={tourScope}
         />

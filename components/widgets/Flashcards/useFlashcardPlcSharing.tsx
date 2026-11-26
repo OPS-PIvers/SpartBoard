@@ -12,6 +12,7 @@ import {
 import { canEditPlcContent, getPlcMemberEmail } from '@/utils/plc';
 import { flashcardAssignmentClassLabel } from '@/utils/plcFlashcardResults';
 import { PlcShareTargetModal } from '@/components/plc/PlcShareTargetModal';
+import { usePlcSharedCopyUpdate } from '@/hooks/usePlcLibraryActions';
 
 type Target =
   | { kind: 'set'; set: FlashcardSet }
@@ -37,7 +38,8 @@ export const useFlashcardPlcSharing = ({
   setPlcShare,
   linkCheck,
 }: Options) => {
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const updateSharedCopy = usePlcSharedCopyUpdate();
   const { plcs } = usePlcs({ enabled });
   const [target, setTarget] = useState<Target | null>(null);
   const editablePlcs = user
@@ -123,10 +125,18 @@ export const useFlashcardPlcSharing = ({
     const plc = editablePlcs.find((p) => p.id === plcId);
     if (!user || !plc || !target) return;
     if (target.kind === 'set') {
-      const outcome = await writePlcFlashcardSetEntry(plcId, user.uid, {
-        set: target.set,
-        ...attribution(plc),
-      });
+      const input = { set: target.set, ...attribution(plc) };
+      const outcome = await writePlcFlashcardSetEntry(plcId, user.uid, input);
+      if (
+        outcome === 'already-shared' &&
+        canAccessFeature('plc-update-shared-copy')
+      ) {
+        setTarget(null);
+        await updateSharedCopy(target.set.title, () =>
+          writePlcFlashcardSetEntry(plcId, user.uid, { ...input, update: true })
+        );
+        return;
+      }
       addToast(
         outcome === 'already-shared'
           ? `“${target.set.title}” is already shared with ${plc.name}.`

@@ -6,6 +6,7 @@ import {
   useReturnFocusOnClose,
   useStudioFocusTrap,
 } from './useStudioFocusTrap';
+import { Modal } from '@/components/common/Modal';
 import { tourAttr } from '@/config/tourAnchors';
 
 interface ShortcutRow {
@@ -85,17 +86,17 @@ export const StudioShortcutSheet: React.FC<{ onClose: () => void }> = ({
   const groups = useShortcutGroups();
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      zIndex="z-modal-nested"
+      maxWidth="max-w-2xl"
+      ariaLabelledby="gl-studio-shortcuts-title"
+      className="max-h-full! overflow-hidden rounded-xl bg-white shadow-2xl"
     >
       <div
         ref={rootRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="gl-studio-shortcuts-title"
         tabIndex={-1}
         data-testid="gl-studio-shortcuts"
         onKeyDown={(e) => {
@@ -104,7 +105,7 @@ export const StudioShortcutSheet: React.FC<{ onClose: () => void }> = ({
           e.stopPropagation();
           onClose();
         }}
-        className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl focus:outline-hidden"
+        className="flex max-h-[90vh] flex-col overflow-hidden focus:outline-hidden"
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <h2
@@ -161,6 +162,6 @@ export const StudioShortcutSheet: React.FC<{ onClose: () => void }> = ({
           ))}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };

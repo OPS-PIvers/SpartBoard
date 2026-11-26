@@ -1,5 +1,5 @@
+import { Modal } from '@/components/common/Modal';
 import React, { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ChevronLeft,
@@ -12,7 +12,6 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { Z_INDEX } from '@/config/zIndex';
 import { formatUnmappedAnchors } from '@/components/tours/anchorQueue';
 import { redactImage, type RedactRect } from '../../utils/redactImage';
 import type { TourRecording } from './useTourCapture';
@@ -439,16 +438,19 @@ export const FrameReview: React.FC<FrameReviewProps> = ({
       .then(() => setCopiedAll(true));
   };
 
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="gl-frame-review-title"
-      data-tour-ignore=""
-      className="fixed inset-0 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs"
-      style={{ zIndex: Z_INDEX.tour }}
+  return (
+    <Modal
+      isOpen
+      onClose={onDiscard}
+      dismissible={false}
+      variant="bare"
+      zIndex="z-tour"
+      maxWidth="max-w-5xl"
+      ariaLabelledby="gl-frame-review-title"
+      rootProps={{ 'data-tour-ignore': '' }}
+      className="rounded-2xl bg-white shadow-2xl"
     >
-      <div className="flex max-h-full w-full max-w-5xl flex-col gap-3 overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
+      <div className="flex flex-col gap-3 p-5">
         <header className="flex items-start justify-between gap-4">
           <div>
             <h2
@@ -811,7 +813,6 @@ export const FrameReview: React.FC<FrameReviewProps> = ({
           </div>
         </footer>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 };

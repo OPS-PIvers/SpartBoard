@@ -20,12 +20,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import {
-  audienceSessionFields,
-  hasStaffRows,
-  STAFF_CSV_HEADERS,
-  staffCsvCells,
-} from '@/utils/staffAudience';
+import { audienceSessionFields } from '@/utils/staffAudience';
 import {
   AssignmentAudience,
   AssignmentMode,
@@ -57,103 +52,6 @@ import { useSandboxedGuidedLearningSession } from './useTourSandboxed';
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
 
 // ─── Public helpers ───────────────────────────────────────────────────────────
-
-/**
- * Build a CSV string for GL responses — pure function extracted from the hook
- * callback so it can be unit-tested without Firestore mocking overhead.
- *
- * Deduplicates `set.steps` by id before building the column list. Drive-sync
- * double-writes and Firestore arrayUnion races can write the same step id
- * twice into `set.steps`; without the guard `questionSteps` contains the
- * step twice, producing duplicate CSV column headers (e.g. "Q2: What is X?"
- * and "Q3: What is X?" for the same question) and misaligned data rows where
- * each student appears to have answered the same question twice.
- *
- * Mirrors the identical dedup fence in
- * `useGuidedLearningAssignments.publishAssignmentScores` (#1728–#1935).
- */
-const escapeCsvCell = (v: string) => {
-  // Prefix cells that start with formula-trigger characters (=, +, -, @, tab,
-  // CR) with a single-quote so spreadsheet apps treat them as plain text, not
-  // formulas.  RFC-4180 quoting still wraps the result.
-  const safe = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
-  return `"${safe.replace(/"/g, '""')}"`;
-};
-
-export function buildGLResponsesCSV(
-  responseList: GuidedLearningResponse[],
-  set: GuidedLearningSet,
-  /** Gradebook final score per student (D9); adds a Final score column when set. */
-  finalScore?: (response: GuidedLearningResponse) => string
-): string {
-  // Deduplicate question steps by id — keep first occurrence.
-  // Check interactionType first so non-question step IDs don't consume a slot
-  // in seenStepIds that would exclude a question step with the same id.
-  const seenStepIds = new Set<string>();
-  const questionSteps = set.steps.filter((s) => {
-    if (s.interactionType !== 'question' || !s.question) return false;
-    if (seenStepIds.has(s.id)) return false;
-    seenStepIds.add(s.id);
-    return true;
-  });
-
-  const staff = hasStaffRows(responseList);
-  const headers = [
-    ...(staff ? STAFF_CSV_HEADERS : []),
-    'Student ID',
-    'PIN',
-    'Started At',
-    'Completed At',
-    'Score (%)',
-    ...questionSteps.map((s, i) => `Q${i + 1}: ${s.question?.text ?? ''}`),
-    ...questionSteps.map((s, i) => `Q${i + 1} Correct`),
-    ...(finalScore ? ['Final score'] : []),
-  ];
-
-  const rows = responseList.map((r) => {
-    // stepId -> first-occurrence answer, matching publishAssignmentScores's dedup so the export can't contradict the published score.
-    const answersByStepId = new Map<
-      string,
-      GuidedLearningResponse['answers'][number]
-    >();
-    for (const a of r.answers) {
-      if (!answersByStepId.has(a.stepId)) {
-        answersByStepId.set(a.stepId, a);
-      }
-    }
-    const questionAnswers = questionSteps.map((s) => {
-      const ans = answersByStepId.get(s.id);
-      return ans ? String(ans.answer) : '';
-    });
-    const questionCorrect = questionSteps.map((s) => {
-      const ans = answersByStepId.get(s.id);
-      if (!ans) return '';
-      return isAnswerCorrect(s, ans.answer) ? 'Yes' : 'No';
-    });
-
-    return [
-      ...(staff ? staffCsvCells(r) : []),
-      r.studentAnonymousId,
-      r.pin ?? '',
-      // typeof guard (not truthiness) so a legitimate 0 epoch timestamp
-      // still renders an ISO date instead of an empty cell.
-      typeof r.startedAt === 'number'
-        ? new Date(r.startedAt).toISOString()
-        : '',
-      typeof r.completedAt === 'number'
-        ? new Date(r.completedAt).toISOString()
-        : '',
-      r.score !== null ? String(r.score) : '',
-      ...questionAnswers,
-      ...questionCorrect,
-      ...(finalScore ? [finalScore(r)] : []),
-    ];
-  });
-
-  return [headers, ...rows]
-    .map((row) => row.map(escapeCsvCell).join(','))
-    .join('\n');
-}
 
 /** Verify a stored answer against the teacher's answer key. */
 export function isAnswerCorrect(
@@ -339,12 +237,6 @@ export interface UseGuidedLearningSessionTeacherResult {
   ) => Promise<string>;
   /** Load responses for a given session ID */
   subscribeToResponses: (sessionId: string) => () => void;
-  /** Export responses as a CSV blob string */
-  exportResponsesAsCSV: (
-    responses: GuidedLearningResponse[],
-    set: GuidedLearningSet,
-    finalScore?: (response: GuidedLearningResponse) => string
-  ) => string;
 }
 
 export const useGuidedLearningSessionTeacher = (
@@ -515,14 +407,11 @@ export const useGuidedLearningSessionTeacher = (
     []
   );
 
-  const exportResponsesAsCSV = buildGLResponsesCSV;
-
   return useSandboxedGuidedLearningSession({
     responses,
     responsesLoading,
     createSession,
     subscribeToResponses,
-    exportResponsesAsCSV,
   });
 };
 

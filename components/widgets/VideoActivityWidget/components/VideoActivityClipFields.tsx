@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import type { VideoActivityClip } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
 import { normalizeClip } from '@/utils/videoActivityClip';
-import { mmSsToSeconds, secondsToMmSs } from './useVideoActivityEditorState';
+import { mmSsToSeconds, secondsToMmSs } from '@/utils/videoTimestamp';
 
 interface VideoActivityClipFieldsProps {
   clip: VideoActivityClip | undefined;

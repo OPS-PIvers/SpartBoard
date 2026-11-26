@@ -1,6 +1,6 @@
-import React, { useCallback, useState } from 'react';
+import React from 'react';
 import { Clock, MoreVertical } from 'lucide-react';
-import { useClickOutside } from '@/hooks/useClickOutside';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
 import { tourTypeAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import type { BucketKey } from './StatusBuckets';
 import type { MonitorFilterBy, MonitorSortBy } from './monitorUtils';
@@ -159,100 +159,33 @@ export interface RosterMenuItem {
   onClick: () => void;
 }
 
-/** Scrolls only the nearest scrolling ancestor, never the board around the widget. */
-function revealInScroller(el: HTMLElement): void {
-  let scroller = el.parentElement;
-  while (scroller) {
-    const { overflowY } = getComputedStyle(scroller);
-    if (overflowY === 'auto' || overflowY === 'scroll') break;
-    scroller = scroller.parentElement;
-  }
-  if (!scroller) return;
-  const overBy =
-    el.getBoundingClientRect().bottom - scroller.getBoundingClientRect().bottom;
-  if (overBy > 0) scroller.scrollTop += overBy;
-}
-
 /** A student row's vertical-dots menu; renders nothing without items. */
 export const RosterRowMenu: React.FC<{
   ariaLabel: string;
   triggerAnchor: TourAnchorAttrs;
   items: RosterMenuItem[];
-}> = ({ ariaLabel, triggerAnchor, items }) => {
-  const [open, setOpen] = useState(false);
-  const [confirming, setConfirming] = useState<string | null>(null);
-  const menuRef = React.useRef<HTMLDivElement | null>(null);
-  useClickOutside(menuRef, () => {
-    setOpen(false);
-    setConfirming(null);
-  });
-  // Bottom rows (absent students sort last) would open the menu out of view.
-  const revealMenu = useCallback((el: HTMLDivElement | null) => {
-    if (el) revealInScroller(el);
-  }, []);
-  if (items.length === 0) return null;
-
-  return (
-    <div ref={menuRef} className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-label={ariaLabel}
-        {...triggerAnchor}
-        className="rounded-md text-brand-gray-primary hover:bg-brand-gray-lightest hover:text-brand-blue-dark transition-colors"
-        style={{ padding: 'min(4px, 1cqmin)' }}
-      >
-        <MoreVertical
-          style={{
-            width: 'min(14px, 4.5cqmin)',
-            height: 'min(14px, 4.5cqmin)',
-          }}
-        />
-      </button>
-      {open && (
-        <div
-          ref={revealMenu}
-          className="absolute right-0 top-full z-30 bg-white border border-brand-gray-lighter rounded-lg shadow-lg overflow-hidden"
-          style={{
-            marginTop: 'min(4px, 1cqmin)',
-            minWidth: 'min(160px, 55cqw)',
-          }}
-        >
-          {items.map((item) => {
-            const asking = item.confirmLabel && confirming === item.label;
-            return (
-              <button
-                key={item.label}
-                onClick={() => {
-                  if (item.confirmLabel && !asking) {
-                    setConfirming(item.label);
-                    return;
-                  }
-                  item.onClick();
-                  if (item.closes || item.confirmLabel) {
-                    setOpen(false);
-                    setConfirming(null);
-                  }
-                }}
-                {...item.tour}
-                className={`block w-full text-left font-sans transition-colors ${
-                  item.danger
-                    ? 'text-brand-red-primary hover:bg-red-50'
-                    : 'text-brand-gray-dark hover:bg-brand-blue-lighter'
-                }`}
-                style={{
-                  fontSize: 'min(12px, 4cqmin)',
-                  padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                }}
-              >
-                {asking ? item.confirmLabel : item.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
+}> = ({ ariaLabel, triggerAnchor, items }) => (
+  <OverflowMenu
+    items={items.map((item) => ({
+      label: item.label,
+      destructive: item.danger,
+      confirmLabel: item.confirmLabel,
+      keepOpen: !item.closes,
+      anchor: item.tour,
+      onClick: item.onClick,
+    }))}
+    ariaLabel={ariaLabel}
+    triggerIcon={MoreVertical}
+    triggerAnchor={triggerAnchor}
+    triggerClassName="rounded-md text-brand-gray-primary hover:bg-brand-gray-lightest hover:text-brand-blue-dark"
+    triggerStyle={{
+      width: 'min(22px, 6.5cqmin)',
+      height: 'min(22px, 6.5cqmin)',
+    }}
+    iconStyle={{ width: 'min(14px, 4.5cqmin)', height: 'min(14px, 4.5cqmin)' }}
+    destructiveLast={false}
+  />
+);
 
 const rowPadding = {
   padding: 'min(7px, 1.8cqmin) min(10px, 2.5cqmin)',

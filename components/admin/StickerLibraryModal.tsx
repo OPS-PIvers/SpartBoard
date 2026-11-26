@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import {
@@ -16,6 +22,9 @@ import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { GlobalSticker, GradeLevel } from '@/types';
 import { ALL_GRADE_LEVELS } from '@/config/widgetGradeLevels';
 import { useDialog } from '@/context/useDialog';
+import { Modal } from '@/components/common/Modal';
+import { useAuth } from '@/context/useAuth';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 
 interface StickerLibraryModalProps {
   stickers: (string | GlobalSticker)[];
@@ -49,6 +58,13 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const { showConfirm } = useDialog();
+  const { canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
+  // Several picked images arrive one after another, before the parent re-renders.
+  const latestStickersRef = useRef(stickers);
+  useLayoutEffect(() => {
+    latestStickersRef.current = stickers;
+  });
 
   // Normalize stickers to GlobalSticker objects
   const normalizedStickers = React.useMemo(() => {
@@ -111,8 +127,18 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
     [stickers, onStickersChange, processAndUploadImage]
   );
 
+  const addPickedSticker = (url: string) => {
+    const next = [
+      ...latestStickersRef.current,
+      { url, gradeLevels: [...ALL_GRADE_LEVELS] },
+    ];
+    latestStickersRef.current = next;
+    onStickersChange(next);
+  };
+
   // Handle global paste events when this modal is mounted
   useEffect(() => {
+    if (unifiedPicker) return;
     const handlePaste = (e: ClipboardEvent) => {
       // Don't intercept if user is typing in an input or textarea
       const target = e.target as HTMLElement;
@@ -152,7 +178,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
     return () => {
       window.removeEventListener('paste', handlePaste, true);
     };
-  }, [handleFiles]);
+  }, [handleFiles, unifiedPicker]);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) {
@@ -172,7 +198,9 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
     // yet, so it's safe to delete the Storage object immediately.
     if (uploadedThisSessionRef.current.has(url)) {
       uploadedThisSessionRef.current.delete(url);
-      void deleteFile(url);
+      deleteFile(url).catch((err: unknown) =>
+        console.warn('[StickerLibrary] Failed to delete image', err)
+      );
     }
     onStickersChange(
       stickers.filter((s) =>
@@ -212,7 +240,9 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
       // never saved to Firestore (i.e. still in the current list but not in
       // the original baseline).
       for (const url of uploadedThisSessionRef.current) {
-        void deleteFile(url);
+        deleteFile(url).catch((err: unknown) =>
+          console.warn('[StickerLibrary] Failed to delete image', err)
+        );
       }
       uploadedThisSessionRef.current.clear();
       // Revert the parent's permission state to the pre-edit baseline so the
@@ -223,48 +253,73 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-3xl h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-200">
-          <h3 className="font-black text-sm uppercase tracking-widest text-slate-500">
-            {t('admin.stickers.title')}
-          </h3>
-          <div className="flex items-center gap-2">
-            <button
-              {...tourAttr('admin.stickers.save')}
-              onClick={() => void onSave()}
-              disabled={isSaving || !hasUnsavedChanges}
-              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                hasUnsavedChanges
-                  ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-xs'
-                  : 'bg-brand-blue-primary hover:bg-brand-blue-dark text-white'
-              }`}
-            >
-              <Save className="w-3.5 h-3.5" />
-              {isSaving
-                ? t('common.saving')
-                : hasUnsavedChanges
-                  ? t('admin.stickers.saveChanges')
-                  : t('common.saved')}
-            </button>
-            <button
-              {...tourAttr('admin.stickers.modal-close')}
-              onClick={handleClose}
-              className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
-            >
-              <X size={20} />
-            </button>
-          </div>
+    <Modal
+      isOpen
+      onClose={onClose}
+      variant="bare"
+      zIndex="z-modal-nested"
+      maxWidth="max-w-3xl"
+      dismissible={false}
+      className="h-[85vh] overflow-hidden rounded-2xl bg-white shadow-2xl [&>div]:flex [&>div]:flex-col [&>div]:overflow-hidden"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-slate-200">
+        <h3 className="font-black text-sm uppercase tracking-widest text-slate-500">
+          {t('admin.stickers.title')}
+        </h3>
+        <div className="flex items-center gap-2">
+          <button
+            {...tourAttr('admin.stickers.save')}
+            onClick={() => void onSave()}
+            disabled={isSaving || !hasUnsavedChanges}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+              hasUnsavedChanges
+                ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-xs'
+                : 'bg-brand-blue-primary hover:bg-brand-blue-dark text-white'
+            }`}
+          >
+            <Save className="w-3.5 h-3.5" />
+            {isSaving
+              ? t('common.saving')
+              : hasUnsavedChanges
+                ? t('admin.stickers.saveChanges')
+                : t('common.saved')}
+          </button>
+          <button
+            {...tourAttr('admin.stickers.modal-close')}
+            onClick={handleClose}
+            className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+          >
+            <X size={20} />
+          </button>
         </div>
+      </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50 custom-scrollbar">
-          <p className="text-sm text-slate-500 font-medium mb-4">
-            {t('admin.stickers.description')}
-          </p>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6 bg-slate-50 custom-scrollbar">
+        <p className="text-sm text-slate-500 font-medium mb-4">
+          {t('admin.stickers.description')}
+        </p>
 
-          {/* Upload zone */}
+        {unifiedPicker && (
+          <div className="mb-6">
+            <ImagePicker
+              multiple
+              tourScope={{ type: 'admin.stickers', field: 'stickers' }}
+              tourOverrides={{ upload: tourAttr('admin.stickers.upload') }}
+              upload={async (file) => {
+                const url = await processAndUploadImage(file);
+                if (!url) throw new Error('Sticker upload failed.');
+                uploadedThisSessionRef.current.add(url);
+                return url;
+              }}
+              onChange={addPickedSticker}
+            />
+          </div>
+        )}
+
+        {/* Upload zone */}
+        {!unifiedPicker && (
           <div
             {...tourAttr('admin.stickers.upload')}
             onDragOver={(e) => {
@@ -313,89 +368,89 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
               disabled={uploading}
             />
           </div>
+        )}
 
-          {/* Sticker grid */}
-          {normalizedStickers.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center bg-white border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">
-              <ImageIcon className="w-12 h-12 mb-4 opacity-20" />
-              <p className="font-black uppercase tracking-widest text-xs">
-                No global stickers yet
-              </p>
-              <p className="text-xs mt-1">
-                Upload stickers above to make them available to all users.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {normalizedStickers.map((sticker, index) => (
-                <Card
-                  key={sticker.url}
-                  padding="sm"
-                  hoverable
-                  className="flex flex-col gap-3 group"
-                >
-                  <div className="relative aspect-square bg-slate-50 rounded-xl flex items-center justify-center overflow-hidden">
-                    <img
-                      src={sticker.url}
-                      alt="Global sticker"
-                      className="w-full h-full object-contain p-4"
-                    />
-                    <button
-                      {...tourFieldAttr(
-                        'admin.stickers.remove',
-                        'admin',
-                        String(index)
-                      )}
-                      onClick={() => removeSticker(sticker.url)}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-600 p-1.5 z-10"
-                      title="Remove from global library"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+        {/* Sticker grid */}
+        {normalizedStickers.length === 0 ? (
+          <div className="py-12 flex flex-col items-center justify-center bg-white border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">
+            <ImageIcon className="w-12 h-12 mb-4 opacity-20" />
+            <p className="font-black uppercase tracking-widest text-xs">
+              No global stickers yet
+            </p>
+            <p className="text-xs mt-1">
+              Upload stickers above to make them available to all users.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {normalizedStickers.map((sticker, index) => (
+              <Card
+                key={sticker.url}
+                padding="sm"
+                hoverable
+                className="flex flex-col gap-3 group"
+              >
+                <div className="relative aspect-square bg-slate-50 rounded-xl flex items-center justify-center overflow-hidden">
+                  <img
+                    src={sticker.url}
+                    alt="Global sticker"
+                    className="w-full h-full object-contain p-4"
+                  />
+                  <button
+                    {...tourFieldAttr(
+                      'admin.stickers.remove',
+                      'admin',
+                      String(index)
+                    )}
+                    onClick={() => removeSticker(sticker.url)}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-600 p-1.5 z-10"
+                    title="Remove from global library"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
 
-                  <div className="space-y-2">
-                    <SettingsLabel
-                      as="span"
-                      id={`sticker-grade-levels-${index}`}
-                      className="px-1"
-                    >
-                      Grade Levels
-                    </SettingsLabel>
-                    <div
-                      role="group"
-                      aria-labelledby={`sticker-grade-levels-${index}`}
-                      className="grid grid-cols-2 gap-1.5"
-                    >
-                      {ALL_GRADE_LEVELS.map((level) => {
-                        const isSelected = sticker.gradeLevels?.includes(level);
-                        return (
-                          <button
-                            {...tourFieldAttr(
-                              'admin.stickers.grade-level',
-                              'admin',
-                              level
-                            )}
-                            key={level}
-                            onClick={() => toggleGradeLevel(sticker.url, level)}
-                            className={`px-2 py-1.5 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
-                              isSelected
-                                ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
-                                : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200 hover:text-slate-500'
-                            }`}
-                          >
-                            {level}
-                          </button>
-                        );
-                      })}
-                    </div>
+                <div className="space-y-2">
+                  <SettingsLabel
+                    as="span"
+                    id={`sticker-grade-levels-${index}`}
+                    className="px-1"
+                  >
+                    Grade Levels
+                  </SettingsLabel>
+                  <div
+                    role="group"
+                    aria-labelledby={`sticker-grade-levels-${index}`}
+                    className="grid grid-cols-2 gap-1.5"
+                  >
+                    {ALL_GRADE_LEVELS.map((level) => {
+                      const isSelected = sticker.gradeLevels?.includes(level);
+                      return (
+                        <button
+                          {...tourFieldAttr(
+                            'admin.stickers.grade-level',
+                            'admin',
+                            level
+                          )}
+                          key={level}
+                          onClick={() => toggleGradeLevel(sticker.url, level)}
+                          className={`px-2 py-1.5 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
+                            isSelected
+                              ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
+                              : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200 hover:text-slate-500'
+                          }`}
+                        >
+                          {level}
+                        </button>
+                      );
+                    })}
                   </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 };

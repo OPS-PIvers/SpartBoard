@@ -1,0 +1,4 @@
+nightly/widgets-2026-11-25 (#6706 calculator percent)
+nightly/admin-2026-11-25 (#6707 Starter Pack number fields)
+nightly/debugger-log-2026-11-25 (#6708 debugger log)
+claude/elegant-hypatia-vdz18e (#6709 safe deps 2026-11-25)

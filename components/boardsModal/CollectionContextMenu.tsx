@@ -2,11 +2,12 @@ import { tourAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCardMenu } from './useCardMenu';
+import type { LibraryFolderColor } from '@/types';
+import { FolderColorPicker } from '@/components/common/library/FolderColorPicker';
 import {
   ExternalLink,
   Pencil,
   FolderInput,
-  Palette,
   Share2,
   UserCheck,
   LayoutTemplate,
@@ -21,7 +22,9 @@ interface CollectionContextMenuProps {
   onOpen: () => void;
   onRename: () => void;
   onMove: () => void;
-  onColor: () => void;
+  /** The collection's colour as a palette id; null for none. */
+  color: LibraryFolderColor | null;
+  onColor: (color: LibraryFolderColor | null) => void;
   canShare: boolean;
   onShare: () => void;
   /** Omitted when substitute sharing is off. */
@@ -43,6 +46,7 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
   onOpen,
   onRename,
   onMove,
+  color,
   onColor,
   canShare,
   onShare,
@@ -85,17 +89,11 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
       action: onMove,
       anchor: tourAttr('boards-modal.collection-menu-move'),
     },
-    {
-      label: t('boardsModal.menu.color', { defaultValue: 'Set color' }),
-      icon: Palette,
-      action: onColor,
-      anchor: tourAttr('boards-modal.collection-menu-color'),
-    },
   ];
 
   if (canShare) {
     items.push({
-      label: t('collectionMenu.share', { defaultValue: 'Share Collection…' }),
+      label: t('collectionMenu.share', { defaultValue: 'Share folder' }),
       icon: Share2,
       action: onShare,
     });
@@ -120,7 +118,7 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
   } else if (liveShareRole === 'member' && onLeaveShared) {
     items.push({
       label: t('collectionMenu.leaveShared', {
-        defaultValue: 'Leave shared collection',
+        defaultValue: 'Leave shared folder',
       }),
       icon: LogOut,
       action: onLeaveShared,
@@ -139,12 +137,36 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
     });
   }
 
-  items.push({
+  const deleteItem: Item = {
     label: t('boardsModal.menu.delete', { defaultValue: 'Delete' }),
     icon: Trash2,
     action: onDelete,
     danger: true,
-  });
+  };
+
+  const renderItem = (item: Item, i: number) => {
+    const Icon = item.icon;
+    return (
+      <button
+        key={i}
+        onClick={() => {
+          item.action();
+          onClose();
+        }}
+        className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors focus-visible:outline-hidden ${
+          item.danger
+            ? 'text-brand-red-primary hover:bg-brand-red-primary/10 focus-visible:bg-brand-red-primary/10'
+            : 'text-slate-700 hover:bg-slate-100 focus-visible:bg-slate-100'
+        }`}
+        role="menuitem"
+        {...(item.anchor ??
+          (item.danger ? tourAttr('boards-modal.collection-delete') : {}))}
+      >
+        <Icon className="w-4 h-4" />
+        {item.label}
+      </button>
+    );
+  };
 
   return (
     <div
@@ -154,29 +176,18 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
       role="menu"
       onKeyDown={onKeyDown}
     >
-      {items.map((item, i) => {
-        const Icon = item.icon;
-        return (
-          <button
-            key={i}
-            onClick={() => {
-              item.action();
-              onClose();
-            }}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors focus-visible:outline-hidden ${
-              item.danger
-                ? 'text-brand-red-primary hover:bg-brand-red-primary/10 focus-visible:bg-brand-red-primary/10'
-                : 'text-slate-700 hover:bg-slate-100 focus-visible:bg-slate-100'
-            }`}
-            role="menuitem"
-            {...(item.anchor ??
-              (item.danger ? tourAttr('boards-modal.collection-delete') : {}))}
-          >
-            <Icon className="w-4 h-4" />
-            {item.label}
-          </button>
-        );
-      })}
+      {items.map(renderItem)}
+      <div className="my-1 border-t border-slate-100">
+        <FolderColorPicker
+          value={color}
+          onChange={onColor}
+          swatchAnchor={tourAttr('boards-modal.color-swatch')}
+          groupAnchor={tourAttr('boards-modal.color-done')}
+        />
+      </div>
+      <div className="border-t border-slate-100 pt-1">
+        {renderItem(deleteItem, items.length)}
+      </div>
       {subShareEndsAt !== undefined && subShareEndsAt !== null && (
         <p className="border-t border-slate-100 mt-1 px-3 pt-2 pb-1 text-[11px] text-slate-500">
           {t('subShare.menu.sharedUntil', {

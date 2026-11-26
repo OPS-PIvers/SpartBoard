@@ -25,6 +25,7 @@ import { usePlcs } from '@/hooks/usePlcs';
 import type { Dashboard } from '@/types';
 import type { SharedBoardImportMode } from '@/context/DashboardContextValue';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
+import { copyText } from '@/utils/copyText';
 
 interface ShareLinkCreatorModalProps {
   dashboard: Dashboard | null;
@@ -96,13 +97,8 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
       const shareId = await shareDashboard(dashboard, mode, plcId ?? undefined);
       const url = `${window.location.origin}/share/${shareId}`;
       setCreatedUrl(url);
-      try {
-        await navigator.clipboard.writeText(url);
-        setCopied(true);
-      } catch {
-        // Clipboard may fail under restrictive focus rules — user can still
-        // hit the manual Copy button in the success panel.
-      }
+      // A refused copy leaves the manual Copy button in the success panel.
+      if (await copyText(url)) setCopied(true);
     } catch (err) {
       console.error('Share failed:', err);
       addToast(
@@ -118,8 +114,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
 
   const handleCopy = async () => {
     if (!createdUrl) return;
-    try {
-      await navigator.clipboard.writeText(createdUrl);
+    if (await copyText(createdUrl)) {
       setCopied(true);
       addToast(
         t('shareLinkCreatorModal.toast.copied', {
@@ -127,7 +122,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
         }),
         'success'
       );
-    } catch {
+    } else {
       addToast(
         t('shareLinkCreatorModal.toast.copyFailed', {
           defaultValue:

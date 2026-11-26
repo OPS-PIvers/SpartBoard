@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { ActiveClassChip } from '@/components/common/ActiveClassChip';
 import { useDashboard } from '@/context/useDashboard';
 
@@ -52,220 +51,36 @@ describe('ActiveClassChip', () => {
     expect(screen.getByLabelText('Active class: Period 1')).toBeInTheDocument();
   });
 
-  it('renders an interactive button when multiple rosters exist', () => {
+  it('renders a select listing every class with its count', () => {
     const rosters = [
-      makeRoster('r1', 'Period 1'),
-      makeRoster('r2', 'Period 2'),
+      makeRoster('r1', 'Period 1', 24),
+      makeRoster('r2', 'Period 2', 27),
     ];
     mockUseDashboard({ rosters, activeRosterId: 'r1' });
 
     render(<ActiveClassChip />);
 
-    const button = screen.getByRole('button', {
+    const select = screen.getByRole('combobox', {
       name: /active class: period 1/i,
     });
-    expect(button).toHaveAttribute('aria-haspopup', 'menu');
-    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(select).toHaveValue('r1');
+    expect(
+      screen.getByRole('option', { name: 'Period 2 (27)' })
+    ).toBeInTheDocument();
   });
 
-  it('opens the menu on click and lists all rosters as menuitemradio', () => {
-    const rosters = [
-      makeRoster('r1', 'Period 1'),
-      makeRoster('r2', 'Period 2'),
-    ];
-    mockUseDashboard({ rosters, activeRosterId: 'r1' });
-
-    render(<ActiveClassChip />);
-
-    fireEvent.click(screen.getByRole('button', { name: /active class/i }));
-
-    const menu = screen.getByRole('menu', { name: 'Switch active class' });
-    expect(menu).toBeInTheDocument();
-
-    const items = screen.getAllByRole('menuitemradio');
-    expect(items).toHaveLength(2);
-    expect(items[0]).toHaveAttribute('aria-checked', 'true');
-    expect(items[1]).toHaveAttribute('aria-checked', 'false');
-  });
-
-  it('calls setActiveRoster when a non-active menu item is clicked', () => {
+  it('calls setActiveRoster when another class is picked', () => {
     const setActiveRoster = vi.fn();
-    const rosters = [
-      makeRoster('r1', 'Period 1'),
-      makeRoster('r2', 'Period 2'),
-    ];
-    mockUseDashboard({ rosters, activeRosterId: 'r1', setActiveRoster });
-
+    mockUseDashboard({
+      rosters: [makeRoster('r1', 'Period 1'), makeRoster('r2', 'Period 2')],
+      activeRosterId: 'r1',
+      setActiveRoster,
+    });
     render(<ActiveClassChip />);
-
-    fireEvent.click(screen.getByRole('button', { name: /active class/i }));
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /period 2/i }));
-
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'r2' } });
     expect(setActiveRoster).toHaveBeenCalledWith('r2');
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-  });
-
-  it('does not call setActiveRoster when the already-active item is clicked', () => {
-    const setActiveRoster = vi.fn();
-    const rosters = [
-      makeRoster('r1', 'Period 1'),
-      makeRoster('r2', 'Period 2'),
-    ];
-    mockUseDashboard({ rosters, activeRosterId: 'r1', setActiveRoster });
-
-    render(<ActiveClassChip />);
-
-    fireEvent.click(screen.getByRole('button', { name: /active class/i }));
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /period 1/i }));
-
-    expect(setActiveRoster).not.toHaveBeenCalled();
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-  });
-
-  it('closes the menu when Escape is pressed', () => {
-    const rosters = [
-      makeRoster('r1', 'Period 1'),
-      makeRoster('r2', 'Period 2'),
-    ];
-    mockUseDashboard({ rosters, activeRosterId: 'r1' });
-
-    render(<ActiveClassChip />);
-    fireEvent.click(screen.getByRole('button', { name: /active class/i }));
-    expect(screen.getByRole('menu')).toBeInTheDocument();
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-  });
-
-  it('closes the menu on outside pointerdown', () => {
-    const rosters = [
-      makeRoster('r1', 'Period 1'),
-      makeRoster('r2', 'Period 2'),
-    ];
-    mockUseDashboard({ rosters, activeRosterId: 'r1' });
-
-    render(
-      <div>
-        <ActiveClassChip />
-        <button type="button" data-testid="outside">
-          Outside
-        </button>
-      </div>
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /active class/i }));
-    expect(screen.getByRole('menu')).toBeInTheDocument();
-
-    fireEvent.pointerDown(screen.getByTestId('outside'));
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-  });
-
-  it('focuses the active roster when the menu opens', () => {
-    const rosters = [
-      makeRoster('r1', 'Period 1'),
-      makeRoster('r2', 'Period 2'),
-      makeRoster('r3', 'Period 3'),
-    ];
-    mockUseDashboard({ rosters, activeRosterId: 'r2' });
-
-    render(<ActiveClassChip />);
-    fireEvent.click(screen.getByRole('button', { name: /active class/i }));
-
-    expect(
-      screen.getByRole('menuitemradio', { name: /period 2/i })
-    ).toHaveFocus();
-  });
-
-  it('moves focus with ArrowDown / ArrowUp inside the menu', async () => {
-    const user = userEvent.setup();
-    const rosters = [
-      makeRoster('r1', 'Period 1'),
-      makeRoster('r2', 'Period 2'),
-      makeRoster('r3', 'Period 3'),
-    ];
-    mockUseDashboard({ rosters, activeRosterId: 'r1' });
-
-    render(<ActiveClassChip />);
-    fireEvent.click(screen.getByRole('button', { name: /active class/i }));
-
-    expect(
-      screen.getByRole('menuitemradio', { name: /period 1/i })
-    ).toHaveFocus();
-
-    await user.keyboard('{ArrowDown}');
-    expect(
-      screen.getByRole('menuitemradio', { name: /period 2/i })
-    ).toHaveFocus();
-
-    await user.keyboard('{ArrowDown}');
-    expect(
-      screen.getByRole('menuitemradio', { name: /period 3/i })
-    ).toHaveFocus();
-
-    // Wraps to first.
-    await user.keyboard('{ArrowDown}');
-    expect(
-      screen.getByRole('menuitemradio', { name: /period 1/i })
-    ).toHaveFocus();
-
-    // Wraps backward.
-    await user.keyboard('{ArrowUp}');
-    expect(
-      screen.getByRole('menuitemradio', { name: /period 3/i })
-    ).toHaveFocus();
-  });
-
-  it('returns focus to the trigger when the menu closes', () => {
-    const rosters = [
-      makeRoster('r1', 'Period 1'),
-      makeRoster('r2', 'Period 2'),
-    ];
-    mockUseDashboard({ rosters, activeRosterId: 'r1' });
-
-    render(<ActiveClassChip />);
-    const trigger = screen.getByRole('button', { name: /active class/i });
-    fireEvent.click(trigger);
-    expect(screen.getByRole('menu')).toBeInTheDocument();
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-    expect(trigger).toHaveFocus();
-  });
-
-  it('does not close the menu when Escape originates from inside a [data-widget-portal] element', () => {
-    const rosters = [
-      makeRoster('r1', 'Period 1'),
-      makeRoster('r2', 'Period 2'),
-    ];
-    mockUseDashboard({ rosters, activeRosterId: 'r1' });
-
-    render(<ActiveClassChip />);
-    fireEvent.click(screen.getByRole('button', { name: /active class/i }));
-    expect(screen.getByRole('menu')).toBeInTheDocument();
-
-    const portalRoot = document.createElement('div');
-    portalRoot.setAttribute('data-widget-portal', '');
-    const inner = document.createElement('button');
-    portalRoot.appendChild(inner);
-    document.body.appendChild(portalRoot);
-
-    try {
-      inner.dispatchEvent(
-        new KeyboardEvent('keydown', {
-          key: 'Escape',
-          bubbles: true,
-          cancelable: true,
-        })
-      );
-      // Guard must swallow the Escape — menu stays open.
-      expect(screen.getByRole('menu')).toBeInTheDocument();
-    } finally {
-      document.body.removeChild(portalRoot);
-    }
   });
 });
-
-// ─── Pool selection (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D8/D16) ──────────
 
 describe('ActiveClassChip — group submenu', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -289,28 +104,26 @@ describe('ActiveClassChip — group submenu', () => {
 
   it('stays a plain class switcher when no groupSelection is passed', () => {
     mockUseDashboard({ rosters: [rosterWithGroup()], activeRosterId: 'r1' });
-    const { container } = render(<ActiveClassChip />);
+    render(<ActiveClassChip />);
     // One roster and no group picker ⇒ the static, non-interactive chip.
-    expect(container.querySelector('button')).toBeNull();
+    expect(screen.queryByRole('combobox')).toBeNull();
   });
 
-  it('opens a menu listing the class and its groups', async () => {
+  it('lists the class and its groups under the class name', () => {
     mockUseDashboard({ rosters: [rosterWithGroup()], activeRosterId: 'r1' });
     render(
       <ActiveClassChip
         groupSelection={{ selectedGroupId: null, onSelectGroup: vi.fn() }}
       />
     );
-    await userEvent.click(screen.getByRole('button'));
+    expect(screen.getByRole('combobox')).toHaveValue('r1');
+    expect(screen.getByRole('group', { name: 'Sample 3' })).toBeInTheDocument();
     expect(
-      screen.getByRole('menuitemradio', { name: /Sample 3/ })
-    ).toBeChecked();
-    expect(
-      screen.getByRole('menuitemradio', { name: /Modified Assessments/ })
-    ).not.toBeChecked();
+      screen.getByRole('option', { name: 'Modified Assessments (5)' })
+    ).toBeInTheDocument();
   });
 
-  it('reports the picked group to the host', async () => {
+  it('reports the picked group to the host', () => {
     const onSelectGroup = vi.fn();
     mockUseDashboard({ rosters: [rosterWithGroup()], activeRosterId: 'r1' });
     render(
@@ -318,23 +131,23 @@ describe('ActiveClassChip — group submenu', () => {
         groupSelection={{ selectedGroupId: null, onSelectGroup }}
       />
     );
-    await userEvent.click(screen.getByRole('button'));
-    await userEvent.click(
-      screen.getByRole('menuitemradio', { name: /Modified Assessments/ })
-    );
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'r1|g1' },
+    });
     expect(onSelectGroup).toHaveBeenCalledWith('g1');
   });
 
   it('shows the group size on the front face, never the group name', () => {
     mockUseDashboard({ rosters: [rosterWithGroup()], activeRosterId: 'r1' });
-    render(
+    const { container } = render(
       <ActiveClassChip
         groupSelection={{ selectedGroupId: 'g1', onSelectGroup: vi.fn() }}
       />
     );
-    const trigger = screen.getByRole('button');
-    expect(trigger).toHaveTextContent('Sample 3 · 5 students');
-    expect(trigger).not.toHaveTextContent('Modified Assessments');
+    const face = container.querySelector('span.font-black');
+    expect(face).toHaveTextContent('Sample 3 · 5 students');
+    expect(face).not.toHaveTextContent('Modified Assessments');
+    expect(screen.getByRole('combobox')).toHaveValue('r1|g1');
   });
 
   it('counts only members still on the roster', () => {
@@ -346,9 +159,7 @@ describe('ActiveClassChip — group submenu', () => {
         groupSelection={{ selectedGroupId: 'g1', onSelectGroup: vi.fn() }}
       />
     );
-    expect(screen.getByRole('button')).toHaveTextContent(
-      'Sample 3 · 2 students'
-    );
+    expect(screen.getByText('Sample 3 · 2 students')).toBeInTheDocument();
   });
 
   it('falls back to the whole class when the selected group is gone', () => {
@@ -364,7 +175,7 @@ describe('ActiveClassChip — group submenu', () => {
     expect(screen.getByText('Sample 3')).toBeInTheDocument();
   });
 
-  it('clears the group when the teacher switches class', async () => {
+  it('clears the group when the teacher switches class', () => {
     const onSelectGroup = vi.fn();
     const setActiveRoster = vi.fn();
     mockUseDashboard({
@@ -377,10 +188,7 @@ describe('ActiveClassChip — group submenu', () => {
         groupSelection={{ selectedGroupId: 'g1', onSelectGroup }}
       />
     );
-    await userEvent.click(screen.getByRole('button'));
-    await userEvent.click(
-      screen.getByRole('menuitemradio', { name: /Period 4/ })
-    );
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'r2' } });
     expect(setActiveRoster).toHaveBeenCalledWith('r2');
     expect(onSelectGroup).toHaveBeenCalledWith(null);
   });

@@ -13,7 +13,7 @@ import {
 } from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 15;
+export const EXTENSION_PROTOCOL_VERSION = 16;
 
 /** Protocol 4: locators may carry `heading`, `pageTitle` and `attrs`, and steps report `score` matches. */
 export const SCORED_MATCH_PROTOCOL = 4;
@@ -56,6 +56,9 @@ export const CROSS_SITE_PROTOCOL = 14;
 
 /** Protocol 15: a tour may carry the page an admin set on a step (`openUrls`), which Go and a start there open; older extensions get none. */
 export const OPEN_URL_PROTOCOL = 15;
+
+/** Protocol 16: a tour may name steps that light every control like their target (`pickAny`); older extensions get none and light one. */
+export const PICK_ANY_PROTOCOL = 16;
 
 /** How Chrome got the extension: pushed by an admin policy, added by the user, or loaded unpacked. */
 export type ExtensionInstall = 'policy' | 'user' | 'dev';
@@ -124,6 +127,8 @@ export interface WebTourStartTour {
   targets?: Record<string, PictureTarget>;
   /** The page an admin set on a step, by step id; sent only to an extension at OPEN_URL_PROTOCOL or later. */
   openUrls?: Record<string, string>;
+  /** Steps that light every control like their target, by id; sent only to an extension at PICK_ANY_PROTOCOL or later. */
+  pickAny?: string[];
 }
 
 /** A control's place in its step picture, as 0-1 of the picture. */
@@ -506,6 +511,7 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
       'markup',
       'targets',
       'openUrls',
+      'pickAny',
     ])
   ) {
     return null;
@@ -580,6 +586,9 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
       ? undefined
       : parseStepOpenUrls(raw.openUrls, ids);
   if (openUrls === null) return null;
+  const pickAny =
+    raw.pickAny === undefined ? undefined : parseStepIds(raw.pickAny, ids);
+  if (pickAny === null) return null;
   return {
     setId,
     version,
@@ -589,7 +598,22 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
     ...(markup ? { markup } : {}),
     ...(targets ? { targets } : {}),
     ...(openUrls ? { openUrls } : {}),
+    ...(pickAny?.length ? { pickAny } : {}),
   };
+}
+
+/** Ids of targeted steps the tour has, each once; null when anything is off. */
+function parseStepIds(
+  v: unknown,
+  stepIds: ReadonlySet<string>
+): string[] | null {
+  if (!Array.isArray(v) || v.length > stepIds.size) return null;
+  const out = new Set<string>();
+  for (const id of v) {
+    if (typeof id !== 'string' || !stepIds.has(id) || out.has(id)) return null;
+    out.add(id);
+  }
+  return [...out];
 }
 
 /** Set step pages by id, each an openable page without a wildcard for a targeted step; null when anything is off. */

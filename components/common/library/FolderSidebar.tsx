@@ -10,13 +10,10 @@
  * Intended slot: `LibraryShellProps.filterSidebarSlot`.
  */
 
-import { isImeComposing } from '@/utils/imeComposing';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   FolderPlus,
   Inbox,
-  X,
-  AlertTriangle,
   Home,
   List,
   Clock,
@@ -39,6 +36,7 @@ import {
   type DeleteFolderChoice,
   type LibraryItemNoun,
 } from './DeleteFolderDialog';
+import { FolderNameInput } from './FolderNameInput';
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
 import { LIBRARY_ROOT_LABEL } from './FolderViewHeader';
 import {
@@ -186,7 +184,6 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   const [creatingUnder, setCreatingUnder] = useState<string | null | undefined>(
     undefined
   );
-  const [newName, setNewName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<LibraryFolder | null>(
     null
   );
@@ -231,18 +228,19 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
     return { itemCount, subfolderCount };
   }, [confirmDelete, folders, itemCounts]);
 
-  const handleCreate = async (parentId: string | null): Promise<void> => {
+  const newFolderAnchor = {
+    ...anchors?.newFolderInput,
+    ...tourAttr('library-shell.new-folder-input'),
+  };
+
+  const handleCreate = async (
+    parentId: string | null,
+    name: string
+  ): Promise<void> => {
     if (!onCreateFolder) return;
-    const trimmed = newName.trim();
-    if (!trimmed) {
-      setCreatingUnder(undefined);
-      setNewName('');
-      return;
-    }
     try {
-      await onCreateFolder(trimmed, parentId);
+      await onCreateFolder(name, parentId);
       setCreatingUnder(undefined);
-      setNewName('');
       setCommitError(null);
     } catch (err) {
       setCommitError(err instanceof Error ? err.message : String(err));
@@ -257,19 +255,6 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
     try {
       await onRenameFolder(folderId, nextName);
       setRenamingId(null);
-      setCommitError(null);
-    } catch (err) {
-      setCommitError(err instanceof Error ? err.message : String(err));
-    }
-  };
-
-  const handleConfirmDelete = async (mode: FolderDeleteMode): Promise<void> => {
-    if (!onDeleteFolder || !confirmDelete) return;
-    try {
-      await onDeleteFolder(confirmDelete.id, mode);
-      // If we deleted the selected folder, fall back to root.
-      if (selectedFolderId === confirmDelete.id) onSelectFolder(null);
-      setConfirmDelete(null);
       setCommitError(null);
     } catch (err) {
       setCommitError(err instanceof Error ? err.message : String(err));
@@ -425,7 +410,6 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
               type="button"
               onClick={() => {
                 setCreatingUnder(null);
-                setNewName('');
               }}
               className="p-1 rounded-lg hover:bg-white text-brand-blue-primary transition-colors"
               title="New folder"
@@ -463,15 +447,13 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
 
       {/* Inline new-folder at root */}
       {!isRail && creatingUnder === null && (
-        <NewFolderInput
-          anchor={anchors?.newFolderInput}
-          value={newName}
-          onChange={setNewName}
-          onCommit={() => handleCreate(null)}
-          onCancel={() => {
-            setCreatingUnder(undefined);
-            setNewName('');
-          }}
+        <FolderNameInput
+          initial=""
+          placeholder="New folder name"
+          anchor={newFolderAnchor}
+          className={NEW_FOLDER_INPUT_CLASS}
+          onCommit={(name) => void handleCreate(null, name)}
+          onCancel={() => setCreatingUnder(undefined)}
         />
       )}
 
@@ -521,7 +503,6 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         }
         onCreateChild={(parentId) => {
           setCreatingUnder(parentId);
-          setNewName('');
           // Make sure the new folder's parent is expanded so the input shows.
           setExpanded((prev) => ({ ...prev, [parentId]: true }));
         }}
@@ -567,15 +548,13 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
       {/* Inline new-folder rendered below the subtree it targets */}
       {!isRail && creatingUnder && creatingUnder !== null && (
         <div className="ml-6">
-          <NewFolderInput
-            anchor={anchors?.newFolderInput}
-            value={newName}
-            onChange={setNewName}
-            onCommit={() => handleCreate(creatingUnder)}
-            onCancel={() => {
-              setCreatingUnder(undefined);
-              setNewName('');
-            }}
+          <FolderNameInput
+            initial=""
+            placeholder="New folder name"
+            anchor={newFolderAnchor}
+            className={NEW_FOLDER_INPUT_CLASS}
+            onCommit={(name) => void handleCreate(creatingUnder, name)}
+            onCancel={() => setCreatingUnder(undefined)}
           />
         </div>
       )}
@@ -658,12 +637,21 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         />
       )}
       {confirmDelete && !folderDelete && (
-        <DeleteFolderModal
+        <DeleteFolderDialog
           folder={confirmDelete}
-          itemCount={deleteImpact.itemCount}
+          parentName={parentNameOf(confirmDelete)}
           subfolderCount={deleteImpact.subfolderCount}
+          itemCount={deleteImpact.itemCount}
+          noun={GENERIC_ITEM_NOUN}
+          canDeleteItems={false}
           onCancel={() => setConfirmDelete(null)}
-          onConfirm={handleConfirmDelete}
+          onConfirm={async () => {
+            if (!onDeleteFolder) return;
+            await onDeleteFolder(confirmDelete.id, 'move-to-parent');
+            if (selectedFolderId === confirmDelete.id) onSelectFolder(null);
+            setConfirmDelete(null);
+            setCommitError(null);
+          }}
         />
       )}
     </div>
@@ -742,142 +730,9 @@ const SidebarNavButton: React.FC<{
   </button>
 );
 
-const NewFolderInput: React.FC<{
-  value: string;
-  onChange: (v: string) => void;
-  onCommit: () => void;
-  onCancel: () => void;
-  anchor?: TourAnchorAttrs;
-}> = ({ value, onChange, onCommit, onCancel, anchor }) => {
-  // Set to true synchronously before calling onCancel() so that the
-  // synchronous blur event fired by unmounting the focused input (which
-  // carries a stale onBlur closure still holding the typed text) does not
-  // accidentally call onCommit with the cancelled value. Same pattern as
-  // DraggableWindow's isCancellingTitleRef (Bug #1965).
-  const isCancellingRef = useRef(false);
+const GENERIC_ITEM_NOUN = { one: 'item', many: 'items' };
 
-  return (
-    <input
-      {...anchor}
-      autoFocus
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onBlur={(e) => {
-        // Pressing Enter commits and unmounts this input; the browser then
-        // fires a synchronous blur during DOM removal. Bail out if the input
-        // is no longer connected so onCommit() can't fire a second time and
-        // create a duplicate folder.
-        if (!e.currentTarget?.isConnected) return;
-        if (isCancellingRef.current) {
-          isCancellingRef.current = false;
-          return;
-        }
-        onCommit();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          if (isImeComposing(e)) return;
-          e.preventDefault();
-          onCommit();
-        } else if (e.key === 'Escape') {
-          e.preventDefault();
-          // Set the cancellation flag BEFORE calling onCancel() — onCancel()
-          // unmounts this input, which synchronously fires blur with the stale
-          // onBlur closure. The flag is read in the onBlur handler to skip the write.
-          isCancellingRef.current = true;
-          onCancel();
-        }
-      }}
-      placeholder="New folder name"
-      {...tourAttr('library-shell.new-folder-input')}
-      className="w-full px-2 py-1.5 text-sm rounded-lg border border-brand-blue-primary/40 bg-white focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
-    />
-  );
-};
-
-const DeleteFolderModal: React.FC<{
-  folder: LibraryFolder;
-  itemCount: number;
-  subfolderCount: number;
-  onCancel: () => void;
-  onConfirm: (mode: FolderDeleteMode) => void;
-}> = ({ folder, itemCount, subfolderCount, onCancel, onConfirm }) => {
-  const summary: string[] = [];
-  if (itemCount > 0) {
-    summary.push(`${itemCount} item${itemCount === 1 ? '' : 's'}`);
-  }
-  if (subfolderCount > 0) {
-    summary.push(
-      `${subfolderCount} subfolder${subfolderCount === 1 ? '' : 's'}`
-    );
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full m-4 p-5">
-        <header className="flex items-start gap-3 mb-3">
-          <div className="bg-amber-100 text-amber-600 rounded-full p-2 shrink-0">
-            <AlertTriangle className="w-5 h-5" />
-          </div>
-          <div className="flex-1">
-            <h2 className="font-bold text-brand-blue-dark text-base">
-              Delete “{folder.name}”?
-            </h2>
-            <p className="text-sm text-slate-600 mt-0.5">
-              This folder contains {summary.join(' and ')}.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onCancel}
-            {...tourAttr('library-shell.folder-dialog-close')}
-            className="text-slate-400 hover:text-slate-600 p-1"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </header>
-
-        <div className="space-y-2 text-sm">
-          <p className="text-slate-600">What should happen to its contents?</p>
-          <button
-            type="button"
-            onClick={() => onConfirm('move-to-parent')}
-            {...tourAttr('library-shell.folder-dialog-move-contents')}
-            className="w-full text-left px-3 py-2.5 rounded-xl bg-brand-blue-lighter/40 hover:bg-brand-blue-lighter text-brand-blue-dark font-semibold transition-colors"
-          >
-            Move contents to parent folder
-            <span className="block text-xxs font-normal text-slate-500 mt-0.5">
-              Safe — no items deleted.
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onConfirm('delete-all')}
-            {...tourAttr('library-shell.folder-dialog-delete-all')}
-            className="w-full text-left px-3 py-2.5 rounded-xl text-brand-red-dark hover:bg-brand-red-lighter/60 font-semibold transition-colors"
-          >
-            Delete folder and subfolders
-            <span className="block text-xxs font-normal text-slate-500 mt-0.5">
-              Items inside move to the parent folder.
-            </span>
-          </button>
-        </div>
-
-        <footer className="flex items-center justify-end mt-4">
-          <button
-            type="button"
-            onClick={onCancel}
-            {...tourAttr('library-shell.folder-dialog-cancel')}
-            className="text-sm font-semibold text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-        </footer>
-      </div>
-    </div>
-  );
-};
+const NEW_FOLDER_INPUT_CLASS =
+  'w-full px-2 py-1.5 text-sm rounded-lg border border-brand-blue-primary/40 bg-white focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40';
 
 export default FolderSidebar;

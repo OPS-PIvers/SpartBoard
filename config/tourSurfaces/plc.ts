@@ -273,14 +273,6 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'shared',
     files: [`${P}norming/PlcNormingFlagControl.tsx`],
   },
-  'plc.assignment-config': {
-    label: 'PLC assignment config modal',
-    kind: 'modal',
-    files: [`${P}assignments/`],
-    openerMissing:
-      'Not mounted in the app: only components/plc/authoring/PlcAuthorQuizModal.tsx and PlcAuthorVideoActivityModal.tsx open it, and nothing mounts those',
-  },
-
   'plc.teams.shell': {
     label: 'Team workspace shell (Teams redesign)',
     kind: 'page',

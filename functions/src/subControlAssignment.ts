@@ -33,6 +33,7 @@ import {
   type ControlState,
 } from './subControlPatches';
 import { safeErr } from './safeLog';
+import { serverTurnInGranted } from './featureGrant';
 
 export { controlPatches };
 
@@ -78,9 +79,17 @@ export interface ControlSubAssignmentResult {
 
 export interface SubControlDeps {
   now: () => number;
+  /** Whether the run's teacher has the server turn-in preview. */
+  serverTurnIn: (
+    db: admin.firestore.Firestore,
+    teacherUid: string
+  ) => Promise<boolean>;
 }
 
-export const liveSubControlDeps: SubControlDeps = { now: () => Date.now() };
+export const liveSubControlDeps: SubControlDeps = {
+  now: () => Date.now(),
+  serverTurnIn: serverTurnInGranted,
+};
 
 /** Every response doc, paged by id so a large class is not cut off at one page. */
 async function listAllResponses(
@@ -285,7 +294,12 @@ export async function handleControlSubAssignment(
     throw err;
   }
 
-  if (kind === 'quiz' && action === 'end') {
+  // With the server turn-in preview the queue turns work in after the write grace, as for the teacher's End.
+  if (
+    kind === 'quiz' &&
+    action === 'end' &&
+    !(await deps.serverTurnIn(db, hostUid))
+  ) {
     await finalizeQuizResponses(db, sessionId, session, now);
   }
 

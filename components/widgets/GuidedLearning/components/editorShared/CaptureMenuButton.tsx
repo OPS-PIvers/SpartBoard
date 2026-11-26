@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { createPortal } from 'react-dom';
+import { WidgetAccentScope } from '@/components/common/WidgetAccentScope';
 import {
   Camera,
   ChevronDown,
@@ -79,53 +80,55 @@ export const CaptureMenuButton: React.FC<{
         pos &&
         typeof document !== 'undefined' &&
         createPortal(
-          <div
-            ref={popoverRef}
-            role="menu"
-            data-widget-portal=""
-            data-click-outside-ignore="true"
-            className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
-            style={{
-              position: 'fixed',
-              top: pos.top,
-              left: pos.left,
-              width: CAPTURE_MENU_WIDTH,
-              zIndex: Z_INDEX.modalContent,
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                e.nativeEvent.stopImmediatePropagation();
-                // Also stop React's synthetic bubble: this popover renders in
-                // the widget settings panel wrapped by DraggableWindow's
-                // onKeyDown, whose flipped-close branch would otherwise fire and
-                // close the whole settings panel along with this popover.
-                e.stopPropagation();
-                setOpen(false);
-              }
-            }}
-          >
-            {CAPTURE_OPTIONS.map((opt) => (
-              <button
-                {...itemAnchor?.(opt.value)}
-                key={opt.value}
-                role="menuitem"
-                type="button"
-                onClick={() => {
+          <WidgetAccentScope>
+            <div
+              ref={popoverRef}
+              role="menu"
+              data-widget-portal=""
+              data-click-outside-ignore="true"
+              className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
+              style={{
+                position: 'fixed',
+                top: pos.top,
+                left: pos.left,
+                width: CAPTURE_MENU_WIDTH,
+                zIndex: Z_INDEX.modalContent,
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.nativeEvent.stopImmediatePropagation();
+                  // Also stop React's synthetic bubble: this popover renders in
+                  // the widget settings panel wrapped by DraggableWindow's
+                  // onKeyDown, whose flipped-close branch would otherwise fire and
+                  // close the whole settings panel along with this popover.
+                  e.stopPropagation();
                   setOpen(false);
-                  onPick(opt.value);
-                }}
-                className="flex w-full items-start gap-2.5 px-3 py-2 text-left text-slate-700 transition-colors hover:bg-slate-100"
-              >
-                <opt.icon className="w-4 h-4 mt-0.5 shrink-0 text-brand-blue-primary" />
-                <span>
-                  <span className="block font-bold text-xs">{opt.label}</span>
-                  <span className="block text-xxs text-slate-500 leading-snug">
-                    {opt.desc}
+                }
+              }}
+            >
+              {CAPTURE_OPTIONS.map((opt) => (
+                <button
+                  {...itemAnchor?.(opt.value)}
+                  key={opt.value}
+                  role="menuitem"
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    onPick(opt.value);
+                  }}
+                  className="flex w-full items-start gap-2.5 px-3 py-2 text-left text-slate-700 transition-colors hover:bg-slate-100"
+                >
+                  <opt.icon className="w-4 h-4 mt-0.5 shrink-0 text-brand-blue-primary" />
+                  <span>
+                    <span className="block font-bold text-xs">{opt.label}</span>
+                    <span className="block text-xxs text-slate-500 leading-snug">
+                      {opt.desc}
+                    </span>
                   </span>
-                </span>
-              </button>
-            ))}
-          </div>,
+                </button>
+              ))}
+            </div>
+          </WidgetAccentScope>,
           document.body
         )}
     </div>

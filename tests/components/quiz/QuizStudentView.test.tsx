@@ -128,7 +128,7 @@ describe('QuizStudentView', () => {
     act(() => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
-    expect(await screen.findByText('TAB SWITCH DETECTED')).toBeInTheDocument();
+    expect(await screen.findByText('You left the page')).toBeInTheDocument();
     expect(firestoreWrites).not.toHaveBeenCalled();
     hasFocus.mockRestore();
   });
@@ -144,7 +144,7 @@ describe('QuizStudentView', () => {
     act(() => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
-    expect(screen.queryByText('TAB SWITCH DETECTED')).toBeNull();
+    expect(screen.queryByText('You left the page')).toBeNull();
     hasFocus.mockRestore();
   });
 

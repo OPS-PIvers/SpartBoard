@@ -380,6 +380,7 @@ export { importConvertV1 } from './importConversion';
 
 // Web tours: Claude writes step titles and tips (docs/plans/shipped/WEB_TOURS_CLAUDE.md C9).
 export { writeWebTourTextV1 } from './webTourWriting';
+export { generateHelpDetailsV1 } from './helpCenterDetails';
 
 // FreshService help articles from web tours, off until an admin saves the site, folder and key.
 export { freshserviceV1 } from './freshservice';
@@ -448,8 +449,11 @@ export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';
 export { finalizeExpiredQuizAttempts } from './finalizeExpiredQuizAttempts';
 export {
   queueVideoClassTurnIns,
+  queueQuizTurnIns,
+  queueGuidedLearningTurnIns,
+  queueVideoRunTurnIns,
   sweepVideoClassTurnIns,
-} from './videoClassTurnIn';
+} from './turnInQueue';
 export {
   exchangeGoogleAuthCode,
   refreshGoogleAccessToken,

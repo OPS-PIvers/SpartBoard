@@ -4,14 +4,7 @@ import {
   pickedStudents,
   type PickedStudents,
 } from '@/utils/assignedStudents';
-import {
-  collection,
-  doc,
-  FieldPath,
-  onSnapshot,
-  updateDoc,
-  writeBatch,
-} from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import { useAuth } from '@/context/useAuth';
@@ -24,7 +17,6 @@ import type {
   QuizMetadata,
   StudentTargetRef,
   VideoActivityResponse,
-  WritingAssignmentRecord,
   WritingResponse,
 } from '@/types';
 import {
@@ -45,6 +37,7 @@ import { todaysBell } from '@/hooks/usePeriodAccess';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import {
+  restoreRun,
   useAssignmentClassActions,
   type AssignmentClassCollections,
   type AssignmentLifecycle,
@@ -71,9 +64,9 @@ import {
   flashcardLifecycle,
 } from '@/components/widgets/Flashcards/utils/flashcardClassLifecycle';
 import {
-  undoWritingClose,
-  useWritingClassActions,
-} from '@/hooks/useWritingClassActions';
+  WRITING_CLASS_COLLECTIONS,
+  writingLifecycle,
+} from '@/components/widgets/Writing/utils/writingClassLifecycle';
 import {
   deriveAssignedStatus,
   runStatus,
@@ -130,8 +123,6 @@ interface OtherRowModel {
   title: string;
   status: AssignedStatus;
   run: OtherRun;
-  /** Set on Writing rows, whose class actions go through the server. */
-  writing?: WritingAssignmentRecord;
   picked: PickedStudents | null;
 }
 
@@ -271,7 +262,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
   onSelect,
   kindLabel,
 }) => {
-  const { user, featurePermissions } = useAuth();
+  const { user, featurePermissions, canAccessFeature } = useAuth();
   const showPicked = useShowPickedStudents();
   const uid = user?.uid;
   const fixture = useContext(UnifiedAssignmentsFixture);
@@ -294,7 +285,6 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
       kind: OtherKind;
       title: string;
       run: OtherRun;
-      writing?: WritingAssignmentRecord;
       adapt: (extras: AssignedExtras) => AssignedInput;
     }[] = [];
     for (const a of sources.videoActivity.assignments)
@@ -330,7 +320,6 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
         kind: 'writing',
         title: a.title,
         run: a,
-        writing: a,
         // Grading lives on the session, which the hub doesn't load, so a closed row stays Active.
         adapt: (x) => writingAssignedInput(a, null, x),
       });
@@ -354,7 +343,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
 
   const otherRows = useMemo<OtherRowModel[]>(
     () =>
-      runs.map(({ kind, title, run, writing, adapt }) => {
+      runs.map(({ kind, title, run, adapt }) => {
         const docs = wantsLiveData(run)
           ? (responsesByPath[pathOf(kind, run.sessionId ?? run.id)] ?? null)
           : [];
@@ -395,7 +384,6 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
           kind,
           title,
           run,
-          writing,
           status: deriveAssignedStatus(input, now),
           picked,
         };
@@ -436,8 +424,13 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
   );
   const { setAssignmentTargets } = useSetAssignmentTargets();
   const va = sources.videoActivity;
+  const studentWindows = canAccessFeature('student-windows');
   const vaLifecycle = useMemo(
-    () => videoActivityLifecycle(va),
+    () =>
+      videoActivityLifecycle(
+        va,
+        uid ? { uid, setAssignmentTargets, studentWindows } : undefined
+      ),
     // The hook's writes are stable callbacks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -445,6 +438,9 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
       va.resumeAssignment,
       va.deactivateAssignment,
       va.reactivateAssignment,
+      uid,
+      setAssignmentTargets,
+      studentWindows,
     ]
   );
   const { endAssignment, reactivateAssignment } = sources.miniApp;
@@ -474,6 +470,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
                 endAssignment,
                 reactivateAssignment,
                 setAssignmentTargets,
+                studentWindows,
               }),
             },
             'guided-learning': {
@@ -481,6 +478,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
               lifecycle: guidedLearningLifecycle(uid, {
                 archiveAssignment,
                 setAssignmentTargets,
+                studentWindows,
               }),
             },
             flashcards: {
@@ -489,6 +487,14 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
                 endAssignment: fc.endAssignment,
                 reopenAssignment: fc.reopenAssignment,
                 setAssignmentTargets,
+                studentWindows,
+              }),
+            },
+            writing: {
+              collections: WRITING_CLASS_COLLECTIONS,
+              lifecycle: writingLifecycle(uid, {
+                setAssignmentTargets,
+                studentWindows,
               }),
             },
           }
@@ -503,6 +509,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
       fc.endAssignment,
       fc.reopenAssignment,
       setAssignmentTargets,
+      studentWindows,
     ]
   );
 
@@ -560,49 +567,6 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
   );
 };
 
-/** Puts back what Move to Finished changed, as the Quiz tab's Undo does (D10). */
-async function undoMoveToDone(
-  prev: OtherRun,
-  uid: string,
-  actions: {
-    collections: AssignmentClassCollections;
-    lifecycle: AssignmentLifecycle;
-  }
-): Promise<void> {
-  const { collections, lifecycle } = actions;
-  const ended = lifecycle.isEnded
-    ? lifecycle.isEnded(prev)
-    : runStatus(prev.status) === 'inactive';
-  if (!ended) {
-    await lifecycle.reopen(prev.id);
-    if (runStatus(prev.status) === 'active') await lifecycle.resume?.(prev.id);
-  }
-  const assignmentRef = doc(
-    db,
-    'users',
-    uid,
-    collections.assignmentCollection,
-    prev.id
-  );
-  const rows = Object.entries(prev.periodAccess ?? {});
-  if (rows.length > 0) {
-    const sessionRef = doc(
-      db,
-      collections.sessionCollection,
-      prev.sessionId ?? prev.id
-    );
-    const batch = writeBatch(db);
-    for (const ref of [sessionRef, assignmentRef])
-      for (const [key, row] of rows)
-        batch.update(ref, new FieldPath('periodAccess', key), row);
-    await batch.commit();
-  }
-  await updateDoc(assignmentRef, {
-    doneAt: prev.doneAt ?? null,
-    closedAt: prev.closedAt ?? null,
-  });
-}
-
 const NO_COLLECTIONS: AssignmentClassCollections = {
   sessionCollection: '',
   assignmentCollection: '',
@@ -617,7 +581,7 @@ interface OtherRowHostProps {
   index: number;
   now: number;
   rosters: ClassRoster[];
-  /** Null for Writing, which brings its own actions, and where a kind has none: the row shows status only. */
+  /** Null where a kind has none: the row shows status only. */
   actions: {
     collections: AssignmentClassCollections;
     lifecycle: AssignmentLifecycle;
@@ -642,24 +606,24 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
   onMonitor,
   selectAnchor,
 }) => {
-  const { status, run, title, writing } = row;
+  const { status, run, title, kind } = row;
   const { addToast } = useDashboard();
   const { user } = useAuth();
   const uid = user?.uid;
-  const sharedActions = useAssignmentClassActions(
-    actions && !writing ? run : null,
+  const classActions = useAssignmentClassActions(
+    actions ? run : null,
     actions?.collections ?? NO_COLLECTIONS,
     actions?.lifecycle ?? NO_LIFECYCLE,
     rosters
   );
-  const writingActions = useWritingClassActions(writing ?? null, rosters);
-  const classActions = writing ? writingActions : sharedActions;
-  const hasActions = !!writing || actions != null;
+  const hasActions = actions != null;
   // Puts the row back as it was before a Close or Move to Finished.
   const undo = (prev: OtherRun, closeOnly: boolean): Promise<void> | void => {
-    if (writing) return undoWritingClose(writing);
-    if (closeOnly) return classActions.reopenClass(null).then(() => undefined);
-    if (uid && actions) return undoMoveToDone(prev, uid, actions);
+    // A Writing Close puts back its saved marks; other kinds just let the class back in.
+    if (closeOnly && kind !== 'writing')
+      return classActions.reopenClass(null).then(() => undefined);
+    if (uid && actions)
+      return restoreRun(prev, uid, actions.collections, actions.lifecycle);
   };
   const exec = usePeriodRunner('HubAssignedList.class');
   const [busy, setBusy] = useState(false);
@@ -693,7 +657,7 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
   const closeSingle = () =>
     void runBusy(async () => {
       const prev = run;
-      await (writing ? classActions.closeAll() : classActions.closeClass(null));
+      await classActions.closeClass(null);
       addToast(`${title} is closed.`, 'success', {
         label: 'Undo',
         onClick: () => void exec(async () => undo(prev, true)),

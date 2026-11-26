@@ -299,4 +299,23 @@ describe('writePlcRubricEntry', () => {
     expect(mockSetDoc).not.toHaveBeenCalled();
     expect(mockUpdateDoc).not.toHaveBeenCalled();
   });
+
+  it('updates a live entry content-only when asked', async () => {
+    mockGetDoc.mockResolvedValue(snapshot({ id: 'rubric-1', deletedAt: null }));
+    const outcome = await writePlcRubricEntry(PLC_ID, UID, {
+      ...input,
+      update: true,
+    });
+
+    expect(outcome).toBe('updated');
+    expect(mockSetDoc).not.toHaveBeenCalled();
+    const payload = mockUpdateDoc.mock.calls[0][1] as Record<string, unknown>;
+    expect(Object.keys(payload).sort()).toEqual([
+      'criteria',
+      'deletedAt',
+      'description',
+      'title',
+      'updatedAt',
+    ]);
+  });
 });

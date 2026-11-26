@@ -40,7 +40,7 @@ export const MoveBoardMenu: FC<MoveBoardMenuProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const flat = useMemo(() => flattenCollections(collections), [collections]);
   const rootLabel = t('collectionSwitcher.root', {
-    defaultValue: 'No Collection',
+    defaultValue: 'No Folder',
   });
 
   // Mount-time focus seed on the board's current Collection.
@@ -90,7 +90,7 @@ export const MoveBoardMenu: FC<MoveBoardMenuProps> = ({
     }`;
 
   const moveTitle = t('boardsModal.moveTitle', {
-    defaultValue: 'Move to Collection',
+    defaultValue: 'Move to',
   });
 
   return (
@@ -170,10 +170,10 @@ export const MoveBoardMenu: FC<MoveBoardMenuProps> = ({
         <InlineNameInput
           anchor={tourAttr('board-nav.name-input')}
           placeholder={t('boardsModal.newCollectionPrompt', {
-            defaultValue: 'Collection name',
+            defaultValue: 'Folder name',
           })}
           ariaLabel={t('boardsModal.newCollection', {
-            defaultValue: 'New Collection',
+            defaultValue: 'New Folder',
           })}
           commitOnBlur={false}
           onCommit={(name) => {
@@ -195,7 +195,7 @@ export const MoveBoardMenu: FC<MoveBoardMenuProps> = ({
           className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
         >
           <Plus className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-          {t('boardsModal.newCollection', { defaultValue: 'New Collection' })}
+          {t('boardsModal.newCollection', { defaultValue: 'New Folder' })}
         </button>
       )}
     </div>

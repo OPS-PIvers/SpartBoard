@@ -356,8 +356,9 @@ export async function resolveArtifactPlayback(
   }
 
   // The publish gate, re-read every call: a per-student override wins over the class publish.
+  // Score on submit shows the score only; recordings wait for a publish.
   const { visibility } = resolveServerResultsVisibility(
-    session,
+    { ...session, showScoreOnSubmit: false },
     response,
     Date.now()
   );

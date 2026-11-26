@@ -149,7 +149,7 @@ function stubDb(state: StubState = {}) {
   return { db: db as never, written };
 }
 
-const deps = { now: () => NOW };
+const deps = { now: () => NOW, serverTurnIn: () => Promise.resolve(false) };
 
 const input = (over: Partial<ControlSubAssignmentInput> = {}) => ({
   shareId: SHARE,
@@ -219,6 +219,17 @@ describe('handleControlSubAssignment — ending a quiz', () => {
     expect(finalized[0].data.unlocked).toBe(false);
     // A blank attempt uses no slot, as in the idle sweep and Submit for student.
     expect(finalized[0].data).not.toHaveProperty('completedAttempts');
+  });
+
+  it('leaves turn-in to the server queue for a teacher with the preview', async () => {
+    const { db, written } = stubDb({
+      responses: { a: { status: 'in-progress' } },
+    });
+    await handleControlSubAssignment(db, SUB, input(), {
+      now: () => NOW,
+      serverTurnIn: () => Promise.resolve(true),
+    });
+    expect(written.some((w) => w.path.includes('/responses/'))).toBe(false);
   });
 
   it('finalizes every unfinished response past the first page', async () => {

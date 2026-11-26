@@ -42,6 +42,7 @@ import type {
   ImportSourcePayload,
   ImportWizardProps,
 } from '../types';
+import { copyText } from '@/utils/copyText';
 
 type Step = 'source' | 'preview' | 'confirm';
 
@@ -490,9 +491,7 @@ export function ImportWizard<TData>({
     try {
       const { url } = await adapter.templateHelper.createTemplate();
       if (session !== sessionRef.current) return;
-      try {
-        await navigator.clipboard.writeText(url);
-      } catch {
+      if (!(await copyText(url))) {
         if (session !== sessionRef.current) return;
         setCopyState('idle');
         setParseError(

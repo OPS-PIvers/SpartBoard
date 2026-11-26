@@ -11,6 +11,7 @@ import type { UseQuizAssignmentsResult } from '@/hooks/useQuizAssignments';
 import type { QuizSessionOptions } from '@/hooks/useQuizSession';
 import { quizHasBankSlots, resolveQuizAssignment } from '@/utils/questionBanks';
 import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
+import { copyLinkWithToast } from '@/hooks/useCopyShortLink';
 
 // Every per-attempt option is off: a view-only share has no submissions.
 // Review's board size and the focus level never apply to a view-only share.
@@ -74,12 +75,11 @@ export const useQuizLinkShare = ({
       addToast(err instanceof Error ? err.message : 'Share failed', 'error');
       return;
     }
-    try {
-      await navigator.clipboard.writeText(url);
-      addToast('Share link copied to clipboard!', 'success');
-    } catch {
-      addToast(`Share link: ${url}`, 'info');
-    }
+    await copyLinkWithToast(url, addToast, {
+      success: 'Share link copied to clipboard!',
+      failure: `Share link: ${url}`,
+      failureType: 'info',
+    });
   };
 
   const onCreateViewOnlyShare = async (meta: QuizMetadata) => {
@@ -131,12 +131,11 @@ export const useQuizLinkShare = ({
         loadBankContentsForQuiz,
         meta.districtOrigin
       );
-      try {
-        await navigator.clipboard.writeText(url);
-        addToast('Assignment share link copied!', 'success');
-      } catch {
-        addToast(`Assignment share link: ${url}`, 'info');
-      }
+      await copyLinkWithToast(url, addToast, {
+        success: 'Assignment share link copied!',
+        failure: `Assignment share link: ${url}`,
+        failureType: 'info',
+      });
     } catch (err) {
       addToast(err instanceof Error ? err.message : 'Share failed', 'error');
     }

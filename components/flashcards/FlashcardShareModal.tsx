@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { copyLinkWithToast } from '@/hooks/useCopyShortLink';
 import { Code2, Copy, Link2, Loader2, ShieldOff } from 'lucide-react';
 import type { FlashcardSet } from '@/types';
 import { tourTypeAttr } from '@/config/tourAnchors';
@@ -50,15 +51,11 @@ export const FlashcardShareModal: React.FC<FlashcardShareModalProps> = ({
     : '';
 
   const copy = async (value: string, label: string): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(value);
-      onNotice(`${label} copied.`, 'success');
-    } catch {
-      onNotice(
-        'Could not copy automatically. Select the text and copy it.',
-        'error'
-      );
-    }
+    await copyLinkWithToast(value, onNotice, {
+      success: `${label} copied.`,
+      failure: 'Could not copy automatically. Select the text and copy it.',
+      failureType: 'error',
+    });
   };
 
   const publish = async (): Promise<void> => {

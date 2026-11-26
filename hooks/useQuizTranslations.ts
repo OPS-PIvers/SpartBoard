@@ -92,6 +92,7 @@ export function useQuizTranslations(
     true;
   const user = authContext?.user ?? null;
   const googleAccessToken = authContext?.googleAccessToken ?? null;
+  const refreshGoogleToken = authContext?.refreshGoogleToken;
   const [byLocale, setByLocale] = useState<
     Record<string, QuizTranslation | undefined>
   >({});
@@ -125,8 +126,8 @@ export function useQuizTranslations(
       throw new Error(
         'Not connected to Google Drive. Please sign in again to grant access.'
       );
-    return new QuizDriveService(googleAccessToken);
-  }, [googleAccessToken, userId]);
+    return new QuizDriveService(googleAccessToken, refreshGoogleToken);
+  }, [googleAccessToken, refreshGoogleToken, userId]);
 
   const questions = useMemo(() => quiz?.questions ?? [], [quiz]);
   // The translatable subset drives requests, hashing and counts.

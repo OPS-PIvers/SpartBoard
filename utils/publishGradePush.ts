@@ -98,6 +98,8 @@ export interface RunPublishGradePushOptions<R> {
   buildClassroomGrades: (responses: R[]) => ClassroomGradeEntry[];
   /** Build the Schoology payload (scaled to schoologyMaxPoints). */
   buildSchoologyGrades: (responses: R[]) => LtiGradeEntry[];
+  /** AB-389: the server builds every push from the gradebook final scores; the builders are not called. */
+  finalScores?: boolean;
 }
 
 /** The Firestore session collection a runner kind targets. */
@@ -119,6 +121,7 @@ export async function runPublishGradePush<R>({
   schoologyMaxPoints,
   buildClassroomGrades,
   buildSchoologyGrades,
+  finalScores = false,
 }: RunPublishGradePushOptions<R>): Promise<void> {
   // The attachments are pre-filtered to partner-first + flag-on, with a valid
   // grade scale (defensive re-check below). A student-initiated attachment is
@@ -161,6 +164,20 @@ export async function runPublishGradePush<R>({
 
   // Nothing to push → done.
   if (!needGcPush && !ltiLinked && !toolColumn) return;
+
+  if (finalScores) {
+    await runFinalScorePublishPush({
+      functions,
+      addToast,
+      kind,
+      sessionId,
+      gcAttachments: needGcPush ? gcAttachments : [],
+      classroomToken,
+      ltiLinked,
+      toolColumn,
+    });
+    return;
+  }
 
   // Fetch the assignment's responses ONCE; both pushes scale from the same set.
   let responses: R[] = [];
@@ -299,6 +316,128 @@ export async function runPublishGradePush<R>({
           grades,
           create: false,
         });
+        const { message, failed } = formatToolColumnPushToast(data);
+        addToast(message, failed > 0 ? 'error' : 'success');
+      }
+    } catch (err) {
+      logError('publishGradePush.schoologyToolColumn', err, { sessionId });
+      addToast(ltiPushErrorMessage(err), 'error');
+    }
+  }
+}
+
+/** AB-389 Publish = Push: each callable builds its grades from the gradebook final scores. */
+async function runFinalScorePublishPush({
+  functions,
+  addToast,
+  kind,
+  sessionId,
+  gcAttachments,
+  classroomToken,
+  ltiLinked,
+  toolColumn,
+}: {
+  functions: Functions;
+  addToast: (message: string, type: Toast['type']) => void;
+  kind: 'quiz' | 'va';
+  sessionId: string;
+  gcAttachments: ClassroomAttachmentLink[];
+  classroomToken: string | null;
+  ltiLinked: boolean;
+  toolColumn: boolean;
+}): Promise<void> {
+  if (gcAttachments.length > 0 && classroomToken) {
+    const agg = { pushed: 0, skipped: 0, failed: 0, awaiting: 0 };
+    let sent = 0;
+    let permissionDenied = false;
+    let unreachableCourses = 0;
+    for (const att of gcAttachments) {
+      try {
+        const data = await pushClassroomFinalGradesForAssignment(functions, {
+          courseId: att.courseId,
+          itemId: att.itemId,
+          attachmentId: att.attachmentId,
+          accessToken: classroomToken,
+          maxPoints: att.maxPoints,
+          source: 'final-scores',
+          sessionId,
+          kind,
+        });
+        sent = Math.max(sent, data.results.length);
+        agg.pushed += data.pushed;
+        agg.skipped += data.skipped;
+        agg.failed += data.failed;
+        agg.awaiting = data.awaiting ?? agg.awaiting;
+      } catch (err) {
+        logError('publishGradePush.classroom', err, {
+          sessionId,
+          courseId: att.courseId,
+        });
+        if (isPushPermissionDenied(err)) permissionDenied = true;
+        unreachableCourses += 1;
+      }
+    }
+    // Every course gets the same grades, so cross-course skips collapse to the payload size.
+    if (gcAttachments.length > 1) {
+      agg.skipped = Math.max(0, sent - agg.pushed - agg.failed);
+    }
+    if (agg.pushed === 0 && (permissionDenied || unreachableCourses > 0)) {
+      addToast(
+        permissionDenied
+          ? CLASSROOM_FINAL_PUSH_PERMISSION_DENIED
+          : GRADE_PUSH_GENERIC_ERROR_MESSAGE,
+        'error'
+      );
+    } else if (sent > 0) {
+      const suffix =
+        unreachableCourses > 0
+          ? ` Couldn’t push to ${unreachableCourses} course${unreachableCourses === 1 ? '' : 's'} — retry.`
+          : '';
+      addToast(
+        formatGradePushToast({ results: [], ...agg }) + suffix,
+        agg.failed > 0 || unreachableCourses > 0 ? 'error' : 'success'
+      );
+    }
+  }
+
+  if (ltiLinked) {
+    try {
+      const push = httpsCallable<LtiPushGradesRequest, LtiPushGradesData>(
+        functions,
+        'ltiPushGradesForAssignmentV1',
+        LTI_PUSH_GRADES_CALL_OPTS
+      );
+      const { data } = await push({
+        sessionId,
+        kind,
+        source: 'final-scores',
+      });
+      if (data.total > 0) {
+        const bucket = bucketLtiPushResults(data);
+        addToast(
+          formatLtiPushToast(bucket),
+          bucket.failed > 0 ? 'error' : 'success'
+        );
+      }
+    } catch (err) {
+      logError('publishGradePush.schoology', err, { sessionId });
+      addToast(ltiPushErrorMessage(err), 'error');
+    }
+  }
+
+  // Tool column: scores only; Missing is an explicit push (SCHOOLOGY_TOOL_COLUMNS.md D6).
+  if (toolColumn) {
+    try {
+      const data = await pushToolColumn(functions, {
+        sessionId,
+        kind,
+        maxPoints: 0,
+        grades: [],
+        source: 'final-scores',
+        includeMissing: false,
+        create: false,
+      });
+      if (data.total > 0) {
         const { message, failed } = formatToolColumnPushToast(data);
         addToast(message, failed > 0 ? 'error' : 'success');
       }

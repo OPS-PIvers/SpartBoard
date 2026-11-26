@@ -30,7 +30,6 @@
  *
  * UI reuses the Classroom add-on's light-theme AddonShell kit.
  */
-import { withQuizAnswerChoices } from '@/components/common/library/assignStepper/modificationGroups';
 import React, {
   useCallback,
   useEffect,
@@ -40,7 +39,7 @@ import React, {
   useState,
 } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import {
   ClipboardList,
   Video,
@@ -57,6 +56,7 @@ import { useBankSources } from '@/hooks/useBankSources';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { usePlcs } from '@/hooks/usePlcs';
+import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
 import { useRosters } from '@/hooks/useRosters';
 import { useRubrics } from '@/hooks/useRubrics';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
@@ -79,8 +79,7 @@ import {
   payloadRequiresCall,
 } from '@/utils/studentTargetRef';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
-import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
-import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
+import { assignFromCourse } from '@/hooks/quizAssign/assignFromCourse';
 import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import { InlineAssignStepBodies } from '@/components/common/library/assignStepper/InlineAssignStepBodies';
@@ -96,8 +95,6 @@ import {
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
-import { quizMaxPoints } from '@/utils/quizMaxPoints';
-import { sessionSectionsFor } from '@/utils/quizSections';
 import { videoActivityMaxPoints } from '@/utils/videoActivityGrading';
 import { logError } from '@/utils/logError';
 import { isGoogleSession } from '@/utils/googleSession';
@@ -326,6 +323,8 @@ const LtiDeepLinkFlow: React.FC = () => {
     quizzes,
     loadQuizData,
     saveDriveSnapshot,
+    attachSyncLinkage,
+    loadSyncedTranslations,
     loading: quizzesLoading,
   } = useQuiz(libraryUid);
   const { loadBankContentsForQuiz } = useBankSources(libraryUid);
@@ -368,6 +367,10 @@ const LtiDeepLinkFlow: React.FC = () => {
   const [teacherName, setTeacherName] = useState('');
   const [plcShareEnabled, setPlcShareEnabled] = useState(false);
   const [selectedPlcId, setSelectedPlcId] = useState('');
+  // The PLC's library, so this run pools with teammates' runs of the same quiz.
+  const { quizzes: plcLibrary } = usePlcQuizzes(
+    plcShareEnabled && selectedPlcId ? selectedPlcId : null
+  );
   // M17 individual targeting + Availability & Due Date.
   const [assignTargeting, setAssignTargeting] = useState<AssignTargetingValue>(
     EMPTY_ASSIGN_TARGETING_VALUE
@@ -629,168 +632,46 @@ const LtiDeepLinkFlow: React.FC = () => {
         const quizData =
           targetingQuizCacheRef.current.get(selectedQuiz.id) ??
           (await loadQuizData(selectedQuiz.driveFileId));
-
-        // M17 C3 F1 — the override editor's structured option ids
-        // (`{questionId}-correct` / `-incorrect-N`) must never reach a
-        // student-readable pointer doc. Resolve them to option TEXT here,
-        // where the full quiz body is in hand; the student side matches on text.
         const resolvedWindow = resolveWindow();
         const dueAt = resolvedWindow.dueAt;
-        const hiddenOptions = translateHiddenOptionIdsToText(
-          quizData.questions,
-          resolvedWindow.targeting.overridesByKey
-        );
-        const expanded = expandClassTargeting(
-          {
-            ...resolvedWindow.targeting,
-            overridesByKey: hiddenOptions.overridesByKey,
-          },
-          ltiClassContext
-        );
-        if (hiddenOptions.warnings.length > 0) {
-          setErrorMsg(`Note: ${hiddenOptions.warnings.join(' ')}`);
-        }
-
-        // Assessment Mode always; options and attempt limit come from the quiz.
-        const { sessionMode, sessionOptions, attemptLimit } =
-          splitAssignSettings;
-
-        const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
-        const plcLinkage = resolvePlcLinkage();
-
-        // Class-targeted session (join code) the student runner joins by —
-        // classIds scope it to this Schoology course so a studentRole token
-        // (classIds: ['schoology:<id>']) passes the Firestore class-gate.
-        //
-        // Connect the Schoology section to the assignment AT CREATION:
-        // `periodNames` (on settings — where the hook reads it for both the
-        // assignment + session docs) and `classPeriodByClassId` (on options —
-        // the post-PIN period snapshot). Both make the teacher's monitor show
-        // the Schoology section immediately, before any student launches. Only
-        // set when the section name is known.
-        const periodNames = contextTitle ? [contextTitle] : undefined;
-        const classPeriodByClassId =
-          contextTitle && contextId
-            ? { [`schoology:${contextId}`]: contextTitle }
-            : undefined;
-
-        const content = await resolveQuizAssignContent(
-          quizData,
-          selectedQuiz.driveFileId,
-          { loadBankContentsForQuiz, saveDriveSnapshot }
-        );
-        const resolvedTargeting: AssignTargetingValue = {
-          ...expanded,
-          overridesByKey: withQuizAnswerChoices(
-            expanded.overridesByKey,
-            content.questions
-          ),
-        };
-
-        // Gradebook scale = the points a student can earn, so a 17/20 quiz reads 17/20 in Schoology.
-        const maxPoints = quizMaxPoints(
-          content.questions,
-          sessionSectionsFor(
-            { ...quizData, questions: content.questions },
-            content.bankSlots
-          ),
-          content.bankSlots
-        );
-
-        const { id: assignmentId, code: quizCode } = await createAssignment(
-          {
-            id: selectedQuiz.id,
-            title: selectedQuiz.title,
-            driveFileId: content.driveFileId,
-            questions: content.questions,
-            ...(content.stimuli ? { stimuli: content.stimuli } : {}),
-            ...(quizData.language ? { language: quizData.language } : {}),
-            ...(quizData.sections?.length
-              ? { order: quizData.order, sections: quizData.sections }
-              : {}),
-          },
-          {
+        // The section shows on the teacher's monitor before any student launches.
+        const sectionName = contextTitle ?? '';
+        const notices: string[] = [];
+        const { code: quizCode, maxPoints } = await assignFromCourse({
+          uid: user?.uid,
+          meta: selectedQuiz,
+          data: quizData,
+          behavior: splitAssignSettings,
+          targeting: resolvedWindow.targeting,
+          dueAt,
+          rosters,
+          linkedRosterIds: ltiSelectedRosterIds,
+          course: {
             className: 'Schoology',
-            sessionMode,
-            sessionOptions,
-            attemptLimit,
-            ...(effectiveTeacherName
-              ? { teacherName: effectiveTeacherName }
-              : {}),
-            ...(plcLinkage ? { plc: plcLinkage } : {}),
-            ...(periodNames ? { periodNames } : {}),
-            // Persist the due date on the SpartBoard assignment too (quiz keeps
-            // it directly on settings), so the teacher's single entry drives
-            // both SpartBoard and the Schoology line item.
-            ...(dueAt ? { dueAt, dueAtHasTime: true } : {}),
-            ...(content.resolvedDriveFileId
-              ? { resolvedDriveFileId: content.resolvedDriveFileId }
-              : {}),
-          },
-          {
             classIds: [`schoology:${contextId}`],
-            ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
-            initialStatus: 'active',
-            ...(classPeriodByClassId ? { classPeriodByClassId } : {}),
-            // M17 targeting — `targetMode`/`targetStudents` are written only
-            // by `setAssignmentTargetsV1` below, never here.
-            targetGroupIds: resolvedTargeting.targetGroupIds,
-            overridesBySourcedId: resolvedTargeting.overridesByKey,
-            openAt: resolvedTargeting.openAt ?? null,
-            closeAt: resolvedTargeting.closeAt ?? null,
-            ...(selectedQuiz.translations
-              ? { translationIndex: selectedQuiz.translations }
-              : {}),
-          }
-        );
-
-        // Individual targeting only (§3a-G): a class-wide add never depends on
-        // the callable, so a Cloud Functions hiccup can't regress today's flow.
-        // Inside the once-only create block so a sign/POST retry can't re-fan.
-        {
-          const payload = buildSetAssignmentTargetsPayload(
-            undefined,
-            resolvedTargeting
-          );
-          if (payloadRequiresCall(payload))
-            try {
-              const result = await setAssignmentTargets({
-                assignmentId,
-                kind: 'quiz',
-                sessionId: assignmentId,
-                ...payload,
-              });
-              if (result.skipped.length > 0) {
-                setErrorMsg(
-                  skippedTargetsToastMessage(
-                    result.skipped.length,
-                    result.skippedExclusions?.length ?? 0
-                  )
-                );
-                try {
-                  await setAssignmentTargetSkippedCount(
-                    assignmentId,
-                    result.skipped.length
-                  );
-                } catch (persistErr) {
-                  logError(
-                    'LtiDeepLinkFlow.setAssignmentTargetSkippedCount',
-                    persistErr,
-                    { assignmentId }
-                  );
-                }
-              }
-            } catch (targetErr) {
-              // Non-fatal: the assignment exists and the class can still take it.
-              logError('LtiDeepLinkFlow.setAssignmentTargets', targetErr, {
-                assignmentId,
-              });
-              setErrorMsg(
-                'Added for the whole class, but individual student targeting ' +
-                  'failed to save. Adjust it from the SpartBoard assignment.'
-              );
-            }
-        }
+            rosterIds: [],
+            periodNames: sectionName ? [sectionName] : [],
+            classPeriodByClassId:
+              sectionName && contextId
+                ? { [`schoology:${contextId}`]: sectionName }
+                : {},
+          },
+          teacherName: teacherName.trim() || defaultTeacherName,
+          plc: plcs.find((p) => p.id === resolvePlcLinkage()?.id),
+          plcLibrary,
+          deps: {
+            loadBankContentsForQuiz,
+            saveDriveSnapshot,
+            createAssignment,
+            setAssignmentTargets,
+            setAssignmentTargetSkippedCount,
+            attachSyncLinkage,
+            loadSyncedTranslations,
+          },
+          notify: (message) => notices.push(message),
+          logScope: 'LtiDeepLinkFlow',
+        });
+        if (notices.length > 0) setErrorMsg(notices.join(' '));
         created = { kind: 'quiz', quizCode, maxPoints, dueAt };
         createdRef.current.set(cacheKey, created);
         saveLastAssignSettings(splitAssignSettings);
@@ -799,7 +680,9 @@ const LtiDeepLinkFlow: React.FC = () => {
       await signAndReturn(created, selectedQuiz.title, returnUrl);
     },
     [
-      ltiClassContext,
+      user,
+      rosters,
+      ltiSelectedRosterIds,
       selectedQuiz,
       saveLastAssignSettings,
       splitAssignSettings,
@@ -816,6 +699,10 @@ const LtiDeepLinkFlow: React.FC = () => {
       signAndReturn,
       setAssignmentTargets,
       setAssignmentTargetSkippedCount,
+      plcs,
+      plcLibrary,
+      attachSyncLinkage,
+      loadSyncedTranslations,
     ]
   );
 
@@ -890,34 +777,27 @@ const LtiDeepLinkFlow: React.FC = () => {
           },
           'active',
           [`schoology:${contextId}`],
-          periodNames
+          periodNames,
+          undefined,
+          undefined,
+          {
+            openAt: windowTargeting.openAt,
+            closeAt: windowTargeting.closeAt,
+            dueAt,
+          }
         );
-        // VA's createAssignment has no targeting/window channel, so the M17
-        // fields are written post-create — the same pattern the in-app VA
-        // assign path uses (session doc owns openAt/closeAt/dueAt; the
-        // teacher archive doc owns targetGroupIds/overridesBySourcedId).
-        if (
-          windowTargeting.openAt != null ||
-          windowTargeting.closeAt != null ||
-          dueAt != null
-        ) {
-          await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
-            ...(windowTargeting.openAt != null
-              ? { openAt: windowTargeting.openAt }
-              : {}),
-            ...(windowTargeting.closeAt != null
-              ? { closeAt: windowTargeting.closeAt }
-              : {}),
-            ...(dueAt != null ? { dueAt } : {}),
-          });
-        }
         // Expanded once: the archive doc and the CF payload must agree, or a
         // re-edit reads back overrides the fan-out never saw.
         const expandedTargeting = expandClassTargeting(
           windowTargeting,
           ltiClassContext
         );
-        if (user?.uid) {
+        // The window rode in on the create batch; only the targeting goes here.
+        if (
+          user?.uid &&
+          (expandedTargeting.targetGroupIds.length > 0 ||
+            Object.keys(expandedTargeting.overridesByKey).length > 0)
+        ) {
           await setDoc(
             doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
             {
@@ -927,13 +807,6 @@ const LtiDeepLinkFlow: React.FC = () => {
               ...(Object.keys(expandedTargeting.overridesByKey).length > 0
                 ? { overridesBySourcedId: expandedTargeting.overridesByKey }
                 : {}),
-              ...(windowTargeting.openAt != null
-                ? { openAt: windowTargeting.openAt }
-                : {}),
-              ...(windowTargeting.closeAt != null
-                ? { closeAt: windowTargeting.closeAt }
-                : {}),
-              ...(dueAt != null ? { dueAt } : {}),
             },
             { merge: true }
           );

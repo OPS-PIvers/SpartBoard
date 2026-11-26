@@ -7,7 +7,6 @@ import type {
   PaperSheetStimulus,
   QuizData,
   QuizQuestion,
-  Student,
 } from '@/types';
 import { plainPromptText } from './promptMath';
 import { paperBoxStyleOf } from './paperWritten';
@@ -21,6 +20,7 @@ import {
 import { planPaperPages } from './paperPageMap';
 import type { PaperPrintJob } from './paperSheetPrint';
 import { paperSelectedStudentIds } from './paperAssignClasses';
+import { compareLastFirst } from '@/utils/studentName';
 
 export const PAPER_WRITTEN_HYBRID_FEATURE = 'paper-written-hybrid';
 
@@ -71,9 +71,6 @@ export function paperWrittenBoxRows(quiz: QuizData): PaperWrittenBoxRow[] {
   });
 }
 
-const studentSort = (a: Student, b: Student): number =>
-  `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`);
-
 export type HybridBatchPlan =
   | {
       ok: true;
@@ -113,7 +110,7 @@ export function planHybridWrittenBatch(input: {
     .map((roster) => ({
       roster,
       students: [...roster.students]
-        .sort(studentSort)
+        .sort(compareLastFirst)
         .filter((s) => picked[roster.id].has(s.id)),
     }))
     .filter((s) => s.students.length > 0);

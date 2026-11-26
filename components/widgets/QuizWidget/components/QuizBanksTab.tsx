@@ -31,8 +31,6 @@ import {
   type LibraryMenuAction,
   type LibrarySortOption,
   type LibraryShellProps,
-  LIBRARY_ITEM_NOUNS,
-  useLibraryDeleteConfirm,
 } from '@/components/common/library';
 import { countItemsByFolder } from '@/components/common/library/folderFilters';
 import { useFolders, type UseFoldersResult } from '@/hooks/useFolders';
@@ -84,7 +82,10 @@ export interface QuizBanksTabProps {
   onImportBank?: () => void;
   onEditBank: (meta: QuestionBankMetadata) => void;
   onDuplicateBank: (meta: QuestionBankMetadata) => void | Promise<void>;
-  onDeleteBank: (meta: QuestionBankMetadata) => void | Promise<void>;
+  /** Confirms and deletes one bank. */
+  onDeleteBank: (meta: QuestionBankMetadata) => unknown;
+  /** Confirms and deletes the selection; resolves true when a delete was attempted. */
+  onBulkDeleteBanks?: (banks: QuestionBankMetadata[]) => Promise<boolean>;
   /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
   folderDeleteActions?: FolderDeleteActions;
   onReorderBanks?: (orderedIds: string[]) => Promise<void> | void;
@@ -163,6 +164,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   onEditBank,
   onDuplicateBank,
   onDeleteBank,
+  onBulkDeleteBanks,
   folderDeleteActions,
   onReorderBanks,
   onShareBankWithPlc,
@@ -171,7 +173,6 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   onError,
   libraryFolders,
 }) => {
-  const confirmDelete = useLibraryDeleteConfirm();
   const { plcNameById, buildActions } = useBankMenuActions({
     userId,
     plcs,
@@ -328,34 +329,16 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   const handleBulkDelete = useCallback(async (): Promise<void> => {
     const targets = banks.filter((b) => selection.selectedIds.has(b.id));
     if (targets.length === 0) return;
-    const ok = await confirmDelete({
-      titles: targets.map((b) => b.title),
-      noun: LIBRARY_ITEM_NOUNS.bank,
-      detail:
-        targets.length === 1
-          ? 'Quizzes that draw from it will stop resolving.'
-          : 'Quizzes that draw from them will stop resolving.',
-    });
-    if (!ok) return;
     setBulkBusy(true);
     try {
-      const results = await Promise.allSettled(
-        targets.map(async (b) => onDeleteBank(b))
-      );
-      results.forEach((r, i) => {
-        if (r.status === 'rejected')
-          console.error(
-            '[QuizBanksTab] bulk delete failed for',
-            targets[i]?.id,
-            r.reason
-          );
-      });
-      selection.clear();
-      setSelectionMode(false);
+      if (await onBulkDeleteBanks?.(targets)) {
+        selection.clear();
+        setSelectionMode(false);
+      }
     } finally {
       setBulkBusy(false);
     }
-  }, [banks, selection, confirmDelete, onDeleteBank]);
+  }, [banks, selection, onBulkDeleteBanks]);
 
   // ─── Card content ─────────────────────────────────────────────────────────
   const renderSubtitle = (bank: QuestionBankMetadata): React.ReactNode => (

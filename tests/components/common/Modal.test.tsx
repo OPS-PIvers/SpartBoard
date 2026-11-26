@@ -299,4 +299,22 @@ describe('Modal Component', () => {
     // and final unmount. Any entry here means the effect re-ran on a re-render.
     expect(midRenderWrites).toHaveLength(0);
   });
+
+  it('ignores Escape and the backdrop when not dismissible', () => {
+    const onClose = vi.fn();
+    render(<Modal {...defaultProps} onClose={onClose} dismissible={false} />);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    const backdrop = screen.getByRole('dialog');
+    fireEvent.pointerDown(backdrop);
+    fireEvent.pointerUp(backdrop);
+    fireEvent.click(backdrop);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('pins a sheet to the bottom edge on phones', () => {
+    render(<Modal {...defaultProps} placement="sheet" />);
+    expect(screen.getByRole('dialog').className).toMatch(
+      /items-end sm:items-center/
+    );
+  });
 });

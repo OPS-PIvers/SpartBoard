@@ -3,7 +3,7 @@
 import { plainPromptText } from '@/utils/promptMath';
 import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ExternalLink, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
+import { ExternalLink, Plus, Trash2 } from 'lucide-react';
 import type {
   LearningTarget,
   Plc,
@@ -15,7 +15,10 @@ import type {
   PlcNoteDecisionBlock,
   PlcRecording,
 } from '@/types';
-import { IconButton } from '@/components/common/IconButton';
+import {
+  OverflowMenu,
+  type OverflowMenuItem,
+} from '@/components/common/OverflowMenu';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import {
   MENU_ITEM,
@@ -283,54 +286,32 @@ export const OptionsMenu: React.FC<{
   items: {
     key: string;
     label: string;
-    icon: React.ReactNode;
+    icon: OverflowMenuItem['icon'];
     run: () => void;
   }[];
 }> = ({ items }) => {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, () => setOpen(false));
-  if (items.length === 0) return null;
   return (
-    <div ref={ref} className="relative">
-      <IconButton
-        icon={<MoreHorizontal className="h-4 w-4" />}
-        label={t('teams.notes.options', { defaultValue: 'Note options' })}
-        size="sm"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        {...tourAttr('teams.notes.options')}
-        onClick={() => setOpen((v) => !v)}
-      />
-      {open && (
-        <div
-          role="menu"
-          className={`absolute right-0 top-full z-20 mt-1 w-48 ${MENU_PANEL}`}
-        >
-          {items.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              role="menuitem"
-              {...(item.key === 'delete'
-                ? tourAttr('teams.notes.delete-note')
-                : item.key === 'docs'
-                  ? tourAttr('teams.notes.open-in-docs')
-                  : {})}
-              className={MENU_ITEM}
-              onClick={() => {
-                setOpen(false);
-                item.run();
-              }}
-            >
-              {item.icon}
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <OverflowMenu
+      items={items.map((item) => ({
+        id: item.key,
+        label: item.label,
+        icon: item.icon,
+        onClick: item.run,
+        anchor:
+          item.key === 'delete'
+            ? tourAttr('teams.notes.delete-note')
+            : item.key === 'docs'
+              ? tourAttr('teams.notes.open-in-docs')
+              : undefined,
+      }))}
+      ariaLabel={t('teams.notes.options', { defaultValue: 'Note options' })}
+      triggerAnchor={tourAttr('teams.notes.options')}
+      triggerClassName="rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+      triggerStyle={{ width: 28, height: 28 }}
+      iconStyle={{ width: 16, height: 16 }}
+      destructiveLast={false}
+    />
   );
 };
 
@@ -669,12 +650,7 @@ export const NoteEditorPane: React.FC<NoteEditorPaneProps> = ({
             label: t('plcDashboard.notes.googleDoc.open', {
               defaultValue: 'Open in Docs',
             }),
-            icon: (
-              <ExternalLink
-                className="h-4 w-4 text-slate-400"
-                aria-hidden="true"
-              />
-            ),
+            icon: ExternalLink,
             run: () =>
               onOpenInDocs({
                 title: draft.title,
@@ -691,9 +667,7 @@ export const NoteEditorPane: React.FC<NoteEditorPaneProps> = ({
             label: t('plcDashboard.notes.deleteNote', {
               defaultValue: 'Delete note',
             }),
-            icon: (
-              <Trash2 className="h-4 w-4 text-slate-400" aria-hidden="true" />
-            ),
+            icon: Trash2,
             run: onDelete,
           },
         ]

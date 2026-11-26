@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { tourAttr } from '@/config/tourAnchors';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
+import { SearchField } from '@/components/common/SearchField';
 
 export type ReopenStudentStatus =
   'not-started' | 'absent' | 'in-progress' | 'turned-in' | 'on-paper';
@@ -129,21 +129,13 @@ export const ReopenStudentsDialog: React.FC<ReopenStudentsDialogProps> = ({
         </div>
       }
     >
-      <label className="relative block shrink-0">
-        <Search
-          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
-          aria-hidden="true"
-        />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search students"
-          aria-label="Search students"
-          {...tourAttr('quiz-reopen-students.search')}
-          className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
-        />
-      </label>
+      <SearchField
+        value={query}
+        onChange={setQuery}
+        placeholder="Search students"
+        anchor={tourAttr('quiz-reopen-students.search')}
+        className="block shrink-0"
+      />
       <div className="mt-3 flex-1 min-h-0 overflow-y-auto pb-4">
         {groups.length === 0 && (
           <p className="py-8 text-center text-sm text-slate-500">

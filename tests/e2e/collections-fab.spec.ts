@@ -38,7 +38,7 @@ test.describe('Collections — FAB + Breadcrumb + app-open', () => {
     // its 3s display window; Playwright's auto-wait catches it.
     const chip = page
       .locator('button')
-      .filter({ hasText: /No Collection/i })
+      .filter({ hasText: /No Folder/i })
       .filter({ hasText: /Breadcrumb E2E/i });
     await expect(chip.first()).toBeVisible({ timeout: 10000 });
   });
@@ -64,18 +64,14 @@ test.describe('Collections — FAB + Breadcrumb + app-open', () => {
     // color in-flow — dismiss it with Escape before moving on. Without
     // this dismissal the picker overlays the modal and blocks every
     // subsequent click.
-    await modal.getByRole('button', { name: /new collection/i }).click();
-    let cPrompt = page.getByRole('dialog', { name: /new collection/i });
-    await cPrompt.getByRole('textbox').fill('Coll One');
-    await cPrompt.getByRole('button', { name: /^create$/i }).click();
-    await page.keyboard.press('Escape');
+    await modal.getByRole('button', { name: /new folder/i }).click();
+    await modal.getByPlaceholder('New folder name').fill('Coll One');
+    await modal.getByPlaceholder('New folder name').press('Enter');
 
     // Collection 2 — the [Collections] FAB button only shows at >= 2.
-    await modal.getByRole('button', { name: /new collection/i }).click();
-    cPrompt = page.getByRole('dialog', { name: /new collection/i });
-    await cPrompt.getByRole('textbox').fill('Coll Two');
-    await cPrompt.getByRole('button', { name: /^create$/i }).click();
-    await page.keyboard.press('Escape');
+    await modal.getByRole('button', { name: /new folder/i }).click();
+    await modal.getByPlaceholder('New folder name').fill('Coll Two');
+    await modal.getByPlaceholder('New folder name').press('Enter');
 
     // Open Coll Two and add 2 boards so we land inside it after closing.
     await modal.getByText('Coll Two').first().click();
@@ -91,11 +87,11 @@ test.describe('Collections — FAB + Breadcrumb + app-open', () => {
     await expect(modal).not.toBeVisible({ timeout: 5000 });
 
     // The FAB row should expose a dedicated Collections button (Folder icon).
-    await page.getByLabel('Select collection').click();
+    await page.getByLabel('Select folder').click();
 
     // Clicking it opens CollectionSwitcherMenu listing "No Collection" + both collections.
     await expect(
-      page.getByRole('menuitem', { name: /no collection/i })
+      page.getByRole('menuitem', { name: /no folder/i })
     ).toBeVisible({ timeout: 5000 });
     await expect(
       page.getByRole('menuitem', { name: 'Coll One' })

@@ -43,7 +43,8 @@
     "dragToReorder": "Zum Neuordnen ziehen (Alt+Pfeiltasten)",
     "movedTo": "Nach „{{name}}“ verschoben",
     "pinned": "Angeheftet",
-    "selectCollection": "Sammlung auswählen"
+    "selectCollection": "Ordner auswählen",
+    "moveBoard": "In Ordner verschieben"
   },
   "boardZoom": {
     "zoomLevel": "Zoom",
@@ -115,7 +116,7 @@
       "newBoardTitle": "Neue Tafel",
       "enterName": "Gib einen Namen für deine neue Tafel ein.",
       "boardName": "Tafelname",
-      "activeCollection": "Aktive Sammlung",
+      "activeCollection": "Aktiver Ordner",
       "rootBoards": "Tafeln",
       "manageAll": "Alle Tafeln verwalten",
       "create": "Erstellen",
@@ -1185,7 +1186,7 @@
       "noArchived": "Keine archivierten Quiz.",
       "folders": {
         "sidebarLabel": "Ordner",
-        "moveToFolder": "In Ordner verschieben…",
+        "moveToFolder": "In Ordner verschieben",
         "noFolder": "Kein Ordner",
         "dragHandle": "Zum Verschieben ziehen",
         "movedToast": "Nach „{{folder}}“ verschoben",
@@ -1619,63 +1620,57 @@
     }
   },
   "boardBreadcrumb": {
-    "root": "Keine Sammlung",
+    "root": "Kein Ordner",
     "openManager": "Tafeln verwalten"
   },
   "collectionSwitcher": {
-    "title": "Sammlung wechseln",
-    "root": "Keine Sammlung",
-    "renameCollection": "Sammlung umbenennen",
-    "renameFailed": "Sammlung konnte nicht umbenannt werden",
-    "reorderFailed": "Neue Reihenfolge der Sammlungen konnte nicht gespeichert werden"
+    "title": "Ordner wechseln",
+    "root": "Kein Ordner",
+    "renameCollection": "Ordner umbenennen",
+    "renameFailed": "Ordner konnte nicht umbenannt werden",
+    "reorderFailed": "Neue Reihenfolge der Ordner konnte nicht gespeichert werden"
   },
   "boardsModal": {
-    "title": "Tafeln & Sammlungen",
+    "title": "Tafeln & Ordner",
     "close": "Schließen",
     "backToBoard": "Zurück zur Tafel",
-    "searchPlaceholder": "Tafeln & Sammlungen suchen",
+    "searchPlaceholder": "Tafeln & Ordner suchen",
     "newBoard": "Neue Tafel",
     "newBoardPrompt": "Name der Tafel",
-    "newCollection": "Neue Sammlung",
-    "newCollectionPrompt": "Name der Sammlung",
+    "newCollection": "Neuer Ordner",
+    "newCollectionPrompt": "Name des Ordners",
     "manageAll": "Alle Tafeln verwalten",
     "pinned": "Angeheftet",
     "pinnedEmpty": "Hefte Tafeln an, um sie immer griffbereit zu haben",
     "allBoards": "Tafeln",
     "rootLabel": "Alle Tafeln (keine Sammlung)",
-    "subCollections": "Unter-Sammlungen",
+    "subCollections": "Ordner",
     "boards": "Tafeln",
-    "empty": "Diese Sammlung ist leer. Ziehe Tafeln hierher oder erstelle eine.",
+    "empty": "Dieser Ordner ist leer. Ziehe Tafeln hierher oder erstelle eine.",
     "selectedCount": "{{count}} ausgewählt",
     "clearSelection": "Auswahl aufheben",
     "pin": "Anheften",
     "unpin": "Lösen",
     "move": "Verschieben…",
-    "moveTitle": "In Sammlung verschieben",
-    "moveDestination": "Name der Ziel-Sammlung (oder leer lassen für Stammebene)",
-    "rootDestination": "Stammebene (keine Sammlung)",
+    "moveTitle": "Verschieben nach",
+    "moveDestination": "Name des Zielordners (oder leer lassen für die oberste Ebene)",
+    "rootDestination": "Oberste Ebene (kein Ordner)",
     "delete": "Löschen",
     "bulkDeleteConfirm": "{{count}} Element(e) löschen? Dies kann nicht rückgängig gemacht werden.",
     "deleteBoardConfirm": "Diese Tafel löschen?",
-    "removeSharedBoardConfirm": "Diese Tafel für alle in der geteilten Sammlung entfernen?",
+    "removeSharedBoardConfirm": "Diese Tafel für alle im geteilten Ordner entfernen?",
     "removeSharedBoardConfirmLabel": "Entfernen",
-    "removeSharedCollectionConfirm": "Diese Sammlung und ihre Tafeln für alle in der geteilten Sammlung entfernen?",
-    "deleteCollectionConfirm": "Diese Sammlung löschen? Enthaltene Tafeln werden zur übergeordneten Ebene verschoben.",
+    "removeSharedCollectionConfirm": "Diesen Ordner und seine Tafeln für alle im geteilten Ordner entfernen?",
+    "deleteCollectionConfirm": "Diesen Ordner löschen? Enthaltene Tafeln werden zur übergeordneten Ebene verschoben.",
     "unpinBoard": "Tafel lösen",
     "dragToMove": "Zum Verschieben ziehen",
     "select": "Auswählen",
     "deselect": "Abwählen",
     "editBoard": "Tafel bearbeiten",
-    "editCollection": "Sammlung bearbeiten",
+    "editCollection": "Ordner bearbeiten",
     "colorSaveFailed": "Farbe konnte nicht gespeichert werden",
-    "collectionMoved": "Sammlung verschoben",
-    "collectionMoveFailed": "Sammlung konnte nicht verschoben werden",
-    "colorPicker": {
-      "title": "Sammlungsfarbe",
-      "swatches": "Farbe wählen",
-      "custom": "Benutzerdefiniert",
-      "applyCustom": "Farbe übernehmen"
-    },
+    "collectionMoved": "Ordner verschoben",
+    "collectionMoveFailed": "Ordner konnte nicht verschoben werden",
     "dndFailed": "Verschieben fehlgeschlagen – bitte erneut versuchen",
     "bulkDeleteSuccess": "{{count}} Element(e) gelöscht",
     "bulkPinSuccess": "{{count}} Tafel(n) angeheftet",
@@ -1683,10 +1678,10 @@
     "bulkMoveSuccess": "{{count}} Tafel(n) verschoben",
     "bulkPartialFailure": "{{succeeded}} Element(e) aktualisiert – {{failed}} fehlgeschlagen",
     "bulkAllFailed": "Keine Elemente konnten aktualisiert werden – bitte erneut versuchen",
-    "noBoardsInSelection": "Keine Tafeln in der Auswahl – Sammlungen können hier nicht verwendet werden",
-    "createCollectionFailed": "Sammlung konnte nicht erstellt werden",
-    "renameCollectionFailed": "Sammlung konnte nicht umbenannt werden",
-    "deleteCollectionFailed": "Sammlung konnte nicht gelöscht werden",
+    "noBoardsInSelection": "Wähle mindestens eine Tafel aus. Ordner können hier nicht verwendet werden.",
+    "createCollectionFailed": "Ordner konnte nicht erstellt werden",
+    "renameCollectionFailed": "Ordner konnte nicht umbenannt werden",
+    "deleteCollectionFailed": "Ordner konnte nicht gelöscht werden",
     "header": {
       "createFromTemplate": "+ aus Vorlage"
     },
@@ -1695,7 +1690,7 @@
       "openCollection": "Öffnen",
       "rename": "Umbenennen",
       "duplicate": "Duplizieren (neu)",
-      "setDefault": "Als Standard in dieser Sammlung festlegen",
+      "setDefault": "Als Standard in diesem Ordner festlegen",
       "pin": "Anheften",
       "unpin": "Lösen",
       "move": "Verschieben nach…",
@@ -1706,8 +1701,8 @@
     }
   },
   "shareCollection": {
-    "title": "Sammlung teilen",
-    "subtitle": "{{count}} Tafel(n) aus dieser Sammlung werden geteilt.",
+    "title": "Ordner teilen",
+    "subtitle": "{{count}} Tafel(n) aus diesem Ordner werden geteilt.",
     "mode": "Freigabemodus",
     "copyMode": "Kopieren",
     "copyModeHint": "Sie erhalten eine eigene Kopie zum Bearbeiten.",
@@ -1720,52 +1715,52 @@
     "selectBuilding": "— Gebäude auswählen —",
     "createLink": "Link erstellen",
     "creating": "Wird erstellt…",
-    "createFailed": "Sammlungsfreigabe konnte nicht erstellt werden",
+    "createFailed": "Ordnerfreigabe konnte nicht erstellt werden",
     "linkReady": "Freigabelink bereit.",
     "linkCopied": "Freigabelink in die Zwischenablage kopiert.",
     "linkCopyFailed": "Kopiere den unten stehenden Link – der Zugriff auf die Zwischenablage wurde blockiert.",
     "copy": "Kopieren",
-    "urlLabel": "URL der geteilten Sammlung",
-    "imported": "Sammlung mit {{count}} Tafel(n) importiert",
+    "urlLabel": "URL des geteilten Ordners",
+    "imported": "Ordner mit {{count}} Tafel(n) importiert",
     "partialImport": "{{succeeded}} Tafel(n) importiert – {{failed}} fehlgeschlagen",
-    "importFailed": "Geteilte Sammlung konnte nicht importiert werden",
-    "notFound": "Geteilte Sammlung nicht gefunden oder abgelaufen",
-    "empty": "Geteilte Sammlung ist leer",
+    "importFailed": "Geteilter Ordner konnte nicht importiert werden",
+    "notFound": "Geteilter Ordner nicht gefunden oder abgelaufen",
+    "empty": "Geteilter Ordner ist leer",
     "invalidShareUrl": "Ungültiger Freigabelink – fehlende Freigabe-ID.",
     "substituteImportRejected": "Dieser Link ist für Vertretungen. Öffne ihn im Vertretungsportal.",
     "modeSynced": "Synchronisiert",
-    "modeSyncedHint": "Ihr bearbeitet beide dieselbe Sammlung.",
+    "modeSyncedHint": "Ihr bearbeitet beide denselben Ordner.",
     "modeViewOnly": "Nur ansehen",
     "modeViewOnlyHint": "Sie sehen deine Änderungen live, können aber nichts bearbeiten.",
     "modeCopyTitle": "Kopie erstellen",
     "boardAlreadyLive": "{{name}} wird bereits live geteilt. Beende zuerst das Teilen oder erstelle eine Kopie."
   },
   "importSharedCollection": {
-    "title": "Geteilte Sammlung importieren",
-    "loading": "Geteilte Sammlung wird geladen…",
-    "notFound": "Geteilte Sammlung nicht gefunden oder abgelaufen.",
+    "title": "Geteilten Ordner importieren",
+    "loading": "Geteilter Ordner wird geladen…",
+    "notFound": "Geteilter Ordner nicht gefunden oder abgelaufen.",
     "shared": "Geteilt von {{name}}",
     "boardCount": "{{count}} Tafel(n)",
     "importing": "Wird importiert…",
-    "import": "Sammlung importieren",
+    "import": "Ordner importieren",
     "substituteOnly": "Dieser Link ist für Vertretungen. Öffne ihn im Vertretungsportal."
   },
   "subCollections": {
-    "loading": "Geteilte Sammlungen werden geladen…",
-    "loadError": "Geteilte Sammlungen konnten nicht geladen werden. Lade die Seite neu.",
-    "heading": "Sammlungen",
+    "loading": "Geteilte Ordner werden geladen…",
+    "loadError": "Geteilte Ordner konnten nicht geladen werden. Lade die Seite neu.",
+    "heading": "Ordner",
     "boardCount": "{{count}} Tafel(n)",
     "boardPlaceholder": "Tafel …{{id}}",
     "openBoard": "Diese Tafel öffnen"
   },
   "collectionMenu": {
-    "share": "Sammlung teilen…",
+    "share": "Ordner teilen",
     "saveAsTemplate": "Als Vorlage speichern…",
     "stopSharing": "Teilen beenden",
-    "stopSharingConfirm": "Teilen dieser Sammlung beenden? Synchronisierte Lehrkräfte behalten ihre eigene Kopie. Lehrkräfte mit Leserechten verlieren sie.",
-    "leaveShared": "Geteilte Sammlung verlassen",
-    "leaveSharedConfirm": "Diese geteilte Sammlung verlassen? Du behältst eine Kopie ihrer Tafeln, aber sie werden nicht mehr aktualisiert.",
-    "leaveSharedViewerConfirm": "Diese geteilte Sammlung verlassen? Sie wird aus deinem Konto entfernt."
+    "stopSharingConfirm": "Teilen dieses Ordners beenden? Synchronisierte Lehrkräfte behalten ihre eigene Kopie. Lehrkräfte mit Leserechten verlieren sie.",
+    "leaveShared": "Geteilten Ordner verlassen",
+    "leaveSharedConfirm": "Diesen geteilten Ordner verlassen? Du behältst eine Kopie seiner Tafeln, aber sie werden nicht mehr aktualisiert.",
+    "leaveSharedViewerConfirm": "Diesen geteilten Ordner verlassen? Er wird aus deinem Konto entfernt."
   },
   "templatePicker": {
     "title": "Aus Vorlage erstellen",
@@ -1773,7 +1768,7 @@
     "loadError": "Vorlagen konnten nicht geladen werden. Lade die Seite neu.",
     "empty": "Noch keine Vorlagen verfügbar.",
     "kindBoard": "Tafel",
-    "kindCollection": "Sammlung · {{count}} Tafel(n)"
+    "kindCollection": "Ordner · {{count}} Tafel(n)"
   },
   "backgrounds": {
     "presets": "Voreinstellungen",
@@ -2293,19 +2288,15 @@
     "join": {
       "joining": "Quiz wird betreten…",
       "unableToConnect": "Verbindung nicht möglich. Lade die Seite neu und versuche es noch einmal.",
-      "studentQuiz": "Schüler-Quiz",
       "title": "Quiz beitreten",
       "intro": "Gib den Code und die PIN von deiner Lehrkraft ein.",
       "codePlaceholder": "Quiz-Code (XXXXXX)",
       "pinPlaceholder": "Deine PIN",
-      "periodTitle": "Wähle deine Klasse",
-      "periodIntro": "In welcher Klasse bist du?",
       "goBack": "Zurück",
       "signInTitle": "Melde dich an, um beizutreten",
       "signInIntro": "Nutze dein Google-Konto der Schule.",
       "usePin": "Anmeldung klappt nicht? Nutze eine PIN",
       "join": "Beitreten",
-      "continue": "Weiter",
       "signInGoogle": "Mit Google anmelden",
       "closed": "Dieses Quiz ist geschlossen.",
       "loadFailed": "Wir konnten dein Quiz nicht laden. Lade die Seite neu und versuche es noch einmal."
@@ -2324,16 +2315,6 @@
       "title": "Pause. Augen nach vorn.",
       "saved": "Deine Antworten sind gespeichert.",
       "keepOpen": "Lass diesen Tab offen."
-    },
-    "locked": {
-      "opensSoon": "Öffnet sich, wenn deine Lehrkraft es startet.",
-      "keepOpen": "Lass diesen Tab offen. Das Quiz erscheint hier, sobald deine Klasse hineindarf."
-    },
-    "autoSubmit": {
-      "unlocked": "Dein entsperrter Versuch wurde abgegeben.",
-      "strikes": "Du hast die Seite zu oft verlassen. Deine Aufgabe wurde abgegeben. Frag deine Lehrkraft, falls das ein Versehen war.",
-      "title": "Quiz automatisch abgegeben",
-      "awayTooLong": "Du warst zu lange weg vom Quiz, deshalb wurde es abgegeben."
     },
     "errors": {
       "saveAnswer": "Deine Antwort konnte nicht gespeichert werden. Tippe, um es noch einmal zu versuchen.",
@@ -2371,13 +2352,6 @@
     "closed": {
       "submitted": "Diese Aufgabe ist beendet. Deine Antworten wurden abgegeben.",
       "submitFailed": "Abgabe nicht möglich. Prüfe deine Verbindung und versuche es noch einmal, oder bitte deine Lehrkraft um mehr Zeit."
-    },
-    "tabWarning": {
-      "title": "TAB-WECHSEL ERKANNT",
-      "body": "Du hast das Quiz verlassen. Das wurde festgehalten.",
-      "warningN": "Warnung {{n}}.",
-      "autoSubmit": "Bei zu vielen Tab-Wechseln wird dein Quiz automatisch abgegeben.",
-      "dismiss": "Verstanden, zurück zum Quiz"
     },
     "timer": {
       "secondsLeft_one": "Noch {{count}} Sekunde",
@@ -2471,7 +2445,6 @@
     "allItemsPlaced": "Alle Elemente platziert."
   },
   "quizSubmit": {
-    "offline": "Du bist offline. Lass diesen Tab offen, dann werden deine Antworten gespeichert, sobald du wieder verbunden bist.",
     "undo": "Rückgängig",
     "confirmTitle": "Quiz abgeben?",
     "confirmBody": "Danach kannst du deine Antworten nicht mehr ändern.",
@@ -2648,7 +2621,7 @@
       "record": "Record",
       "stop": "Stop recording",
       "stopAndSubmit": "Stop and submit",
-      "commit": "Turn in",
+      "commit": "Abgeben",
       "retryUpload": "Try again",
       "playPlayback": "Play your recording",
       "pausePlayback": "Pause your recording",
@@ -2658,7 +2631,7 @@
       "notSubmittedFailed": "Deine Aufnahme wurde nicht gesendet. Wähle Erneut versuchen.",
       "notSubmittedFailedFinal": "Deine Aufnahme wurde nicht gesendet und kann von diesem Gerät nicht gesendet werden. Nimm erneut auf, um eine neue Aufnahme zu senden.",
       "redo": "Redo",
-      "submittedLabel": "Turned in"
+      "submittedLabel": "Abgegeben"
     },
     "whiteboard": {
       "title": "Whiteboard answer",
@@ -2692,7 +2665,7 @@
       "expiryArmed": "Student presses Record",
       "takeLimitLabel": "Attempts allowed",
       "takeLimitUnlimited": "Unlimited",
-      "takeLimitHint": "How many times a student can record this answer. Each new recording replaces the last, and only the final one is turned in.",
+      "takeLimitHint": "How many times a student can record this answer. Each new recording replaces the previous attempt. The final recording is submitted.",
       "reviewLabel": "Students review before submitting",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
@@ -3918,24 +3891,17 @@
       "correctOf": "{{correct}} von {{total}} richtig",
       "answersTitle": "Deine Antworten",
       "noResponse": "Keine Antwort",
-      "periodClosedBody": "Lass diesen Tab geöffnet. Das Set erscheint hier, sobald deine Lehrkraft deine Klasse freigibt.",
       "periodPausedTitle": "Für deine Klasse pausiert",
       "periodPausedBody": "Dein Fortschritt bleibt auf dieser Seite. Lass diesen Tab offen.",
       "notInPeriod": "Du bist in keiner Klasse, der dieses Set zugewiesen wurde. Frage deine Lehrkraft.",
       "seatError": "Du konntest deiner Klasse nicht beitreten. Lade die Seite neu, um es noch einmal zu versuchen.",
-      "tabTitle": "Du hast die Seite verlassen",
-      "tabBody": "Deine Lehrkraft kann das sehen.",
-      "tabWarning": "Warnung {{count}}.",
-      "tabSubmits": "Nach {{limit}} Warnungen wird deine Aufgabe abgegeben.",
-      "tabReturn": "Zurück zu meiner Aufgabe",
       "raiseHand": "Hand heben",
       "handRaised": "Hand gehoben",
       "timeUpTitle": "Die Zeit ist um",
       "tabSubmitTitle": "Du hast die Seite zu oft verlassen",
       "submittingAnswers": "Deine Antworten werden abgegeben…",
       "forcedTab": "Du hast die Seite zu oft verlassen. Deine Aufgabe wurde abgegeben. Sprich mit deiner Lehrkraft, wenn du denkst, dass das ein Fehler war.",
-      "tryAgainError": "Ein neuer Versuch konnte nicht gestartet werden. Versuche es erneut.",
-      "tabWarningOf": "Warnung {{count}} von {{limit}}."
+      "tryAgainError": "Ein neuer Versuch konnte nicht gestartet werden. Versuche es erneut."
     },
     "speak": {
       "player": {
@@ -4765,7 +4731,6 @@
     "start": {
       "selectClass": "Wähle deine Klasse",
       "whichPeriod": "In welcher Stunde bist du?",
-      "pickOne": "Wähle eine aus, um fortzufahren. Deine PIN kannst du danach eingeben.",
       "steps_one": "{{count}} Schritt",
       "steps_other": "{{count}} Schritte",
       "class": "Klasse",
@@ -4795,7 +4760,8 @@
     },
     "locked": {
       "title": "Noch nicht geöffnet",
-      "body": "Lass diesen Tab geöffnet. Die Aktivität erscheint hier, sobald deine Klasse freigeschaltet ist.",
+      "body": "Lass diesen Tab geöffnet. Die Aktivität erscheint hier, sobald deine Lehrkraft sie öffnet.",
+      "bodyOwn": "Lass diesen Tab geöffnet. Die Aktivität erscheint hier, sobald sie geöffnet ist.",
       "paused": "Pausiert",
       "closed": "Geschlossen",
       "opens": "Öffnet {{day}} {{time}}"
@@ -5026,10 +4992,10 @@
   },
   "linkedCollection": {
     "stopped": "Teilen beendet",
-    "left": "Geteilte Sammlung verlassen",
-    "leaveFailed": "Geteilte Sammlung konnte nicht verlassen werden",
-    "hostStopped": "{{name}} teilt diese Sammlung nicht mehr.",
-    "hostStoppedNoName": "Der Host teilt diese Sammlung nicht mehr."
+    "left": "Geteilten Ordner verlassen",
+    "leaveFailed": "Geteilter Ordner konnte nicht verlassen werden",
+    "hostStopped": "{{name}} teilt diesen Ordner nicht mehr.",
+    "hostStoppedNoName": "Der Host teilt diesen Ordner nicht mehr."
   },
   "tourSteps": {
     "viewLabel": "Ansicht",
@@ -5140,5 +5106,27 @@
     "help": "Hilfe",
     "menuLabel": "Hilfe",
     "record": "Tour aufnehmen"
+  },
+  "studentJoin": {
+    "title": "Aktivität beitreten",
+    "pinIntro": "Gib die PIN von deiner Lehrkraft ein.",
+    "liveTitle": "Unterricht live",
+    "liveIntro": "Tritt der Sitzung deiner Lehrkraft bei",
+    "roomCode": "Lehrkraft-ID / Raumcode"
+  },
+  "studentTab": {
+    "title": "Du hast die Seite verlassen",
+    "body": "Deine Lehrkraft kann das sehen.",
+    "warning": "Warnung {{count}}.",
+    "warningOf": "Warnung {{count}} von {{limit}}.",
+    "submits": "Nach {{limit}} Warnungen wird deine Aufgabe abgegeben.",
+    "return": "Zurück zu meiner Aufgabe",
+    "submittedTitle": "Aufgabe abgegeben",
+    "strikes": "Du hast die Seite zu oft verlassen. Deine Aufgabe wurde abgegeben. Frag deine Lehrkraft, falls das ein Versehen war.",
+    "unlocked": "Dein entsperrter Versuch wurde abgegeben.",
+    "awayTooLong": "Du warst zu lange weg. Deine Aufgabe wurde abgegeben."
+  },
+  "studentOffline": {
+    "banner": "Du bist offline. Lass diesen Tab offen, bis du wieder verbunden bist."
   }
 }

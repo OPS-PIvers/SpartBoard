@@ -743,6 +743,53 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
     ]);
   });
 
+  describe('custom image boxes', () => {
+    const imgQuiz = {
+      questions: [
+        QUESTIONS[0],
+        {
+          id: 'q-label',
+          type: 'free-response',
+          text: 'Label it',
+          correctAnswer: '',
+          paperBoxStyle: 'image',
+          paperBoxImage: {
+            id: 'img-1',
+            label: 'Cell',
+            source: 'image',
+            driveFileId: 'drive-1',
+          },
+        },
+      ],
+    };
+    const styleFor = async (extra: Record<string, unknown>) => {
+      const { run } = create(writtenState(imgQuiz), writtenDeps(), {
+        ...WRITTEN_INPUT,
+        ...extra,
+      });
+      const result = await run();
+      const items = result.batch.pageMaps?.[0].items ?? [];
+      const item = items.find((it) => it.questionId === 'q-label');
+      return item?.kind === 'written' ? item.style : undefined;
+    };
+
+    it('plans an image box where the client loaded the picture', async () => {
+      expect(await styleFor({ boxImageQuestionIds: ['q-label'] })).toBe(
+        'image'
+      );
+    });
+
+    it('plans lines for an image the client could not load', async () => {
+      expect(await styleFor({ boxImageQuestionIds: ['q-other'] })).not.toBe(
+        'image'
+      );
+    });
+
+    it('plans lines when an older client sends no list', async () => {
+      expect(await styleFor({})).not.toBe('image');
+    });
+  });
+
   it('prints fill in the blank as lettered write-in lines', async () => {
     const fibQuiz = {
       questions: [

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDialog } from '@/context/useDialog';
 import { Check, Pencil, Plus, RefreshCw, Trash2, Users, X } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
@@ -33,6 +34,7 @@ function errorText(err: unknown, fallback: string): string {
 /** Admin list and create form for whole-building groups. */
 export const BuildingGroupsManager: React.FC = () => {
   const { t } = useTranslation();
+  const { showConfirm } = useDialog();
   const { orgId } = useAuth();
   const { addToast } = useDashboard();
   const { plcs, loading, adminSetMember, adminRemoveMember, deletePlc } =
@@ -190,16 +192,17 @@ export const BuildingGroupsManager: React.FC = () => {
       })
     );
 
-  const handleRemoveMember = (g: Plc, member: PlcMember) => {
+  const handleRemoveMember = async (g: Plc, member: PlcMember) => {
     const label = member.displayName || member.email || member.uid;
     if (
-      !window.confirm(
+      !(await showConfirm(
         t('admin.buildingGroups.confirmRemoveMember', {
           defaultValue: 'Remove {{member}} from “{{name}}”?',
           member: label,
           name: g.name,
-        })
-      )
+        }),
+        { variant: 'danger' }
+      ))
     ) {
       return;
     }
@@ -213,16 +216,17 @@ export const BuildingGroupsManager: React.FC = () => {
     );
   };
 
-  const handleDelete = (g: Plc) => {
+  const handleDelete = async (g: Plc) => {
     if (
-      !window.confirm(
+      !(await showConfirm(
         t('admin.buildingGroups.confirmDelete', {
           defaultValue:
             'Delete “{{name}}”? It disappears for all {{count}} members and cannot be undone.',
           name: g.name,
           count: getPlcMembers(g).length,
-        })
-      )
+        }),
+        { variant: 'danger' }
+      ))
     ) {
       return;
     }
@@ -532,7 +536,7 @@ export const BuildingGroupsManager: React.FC = () => {
                     <button
                       {...tourFieldAttr('admin-plc.group-delete', 'plc', g.id)}
                       type="button"
-                      onClick={() => handleDelete(g)}
+                      onClick={() => void handleDelete(g)}
                       disabled={busy}
                       className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-40"
                     >
@@ -551,7 +555,9 @@ export const BuildingGroupsManager: React.FC = () => {
                     onSetMember={(target, role) =>
                       handleSetMember(g, target, role)
                     }
-                    onRemoveMember={(member) => handleRemoveMember(g, member)}
+                    onRemoveMember={(member) =>
+                      void handleRemoveMember(g, member)
+                    }
                   />
                 )}
               </li>

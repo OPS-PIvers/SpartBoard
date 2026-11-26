@@ -1,4 +1,4 @@
-// Rules tests: a session owner grades quiz and VA responses but can't move one to another student or class (the gradebook keys on both).
+// Rules tests: a session owner grades quiz and VA responses but can't move one to another student or class; a quiz owner may fill in a missing class.
 // Requires a running Firestore emulator (pnpm run test:rules).
 
 import { readFileSync } from 'fs';
@@ -10,7 +10,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-response-identity';
 const TEACHER_UID = 'teacher-uid-rid';
@@ -30,6 +30,15 @@ const asTeacher = () =>
   testEnv
     .authenticatedContext(TEACHER_UID, {
       email: 'teacher@school.edu',
+      email_verified: true,
+      firebase: { sign_in_provider: 'google.com' },
+    })
+    .firestore();
+
+const asOtherTeacher = () =>
+  testEnv
+    .authenticatedContext('other-teacher-rid', {
+      email: 'other@school.edu',
       email_verified: true,
       firebase: { sign_in_provider: 'google.com' },
     })
@@ -106,5 +115,67 @@ describe.each([
 
   it('cannot clear the class', async () => {
     await assertFails(updateDoc(doc(asTeacher(), path), { classId: null }));
+  });
+});
+
+describe('quiz response with no class, session owner', () => {
+  const NO_CLASS_PATH = `quiz_sessions/quiz-rid/responses/no-class-student`;
+  const seedNoClass = async (classId: string | null) => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), NO_CLASS_PATH), {
+        studentUid: 'no-class-student',
+        classId,
+        joinedAt: 1000,
+        completedAttempts: 0,
+        tabSwitchWarnings: 0,
+        answers: [],
+      });
+    });
+  };
+
+  it.each([[null], ['']])('can fill in a missing class (%j)', async (start) => {
+    await seedNoClass(start);
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), NO_CLASS_PATH), { classId: 'class-a' })
+    );
+  });
+
+  it('can still read the response', async () => {
+    await seedNoClass(null);
+    await assertSucceeds(getDoc(doc(asTeacher(), NO_CLASS_PATH)));
+  });
+
+  it('another teacher cannot fill in the class', async () => {
+    await seedNoClass(null);
+    await assertFails(
+      updateDoc(doc(asOtherTeacher(), NO_CLASS_PATH), { classId: 'class-a' })
+    );
+    await assertFails(getDoc(doc(asOtherTeacher(), NO_CLASS_PATH)));
+  });
+
+  it('cannot fill in the class and move the student together', async () => {
+    await seedNoClass(null);
+    await assertFails(
+      updateDoc(doc(asTeacher(), NO_CLASS_PATH), {
+        classId: 'class-a',
+        studentUid: VICTIM_UID,
+      })
+    );
+  });
+});
+
+describe('video activity response with no class, session owner', () => {
+  it('cannot fill in the class', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), VA_PATH), {
+        studentUid: STUDENT_UID,
+        classId: null,
+        joinedAt: 1000,
+        answers: [],
+      });
+    });
+    await assertFails(
+      updateDoc(doc(asTeacher(), VA_PATH), { classId: 'class-a' })
+    );
   });
 });

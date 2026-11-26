@@ -1,4 +1,5 @@
 import './functionsInit';
+import { hasDeactivatedClaim, isLiveAdmin } from './authz';
 import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { randomUUID } from 'crypto';
@@ -306,8 +307,7 @@ async function getCachedAdminStatus(
     // unique callers doesn't accumulate dead Map entries.
     cachedAdminStatus.delete(emailLower);
   }
-  const doc = await db.collection('admins').doc(emailLower).get();
-  const isAdmin = doc.exists;
+  const isAdmin = await isLiveAdmin(db, emailLower);
   cachedAdminStatus.set(emailLower, { isAdmin, cachedAt: now });
   return isAdmin;
 }
@@ -318,6 +318,7 @@ async function resolveCallerIsAdmin(
   token: { email?: string; email_verified?: boolean }
 ): Promise<boolean> {
   if (token.email_verified !== true || !token.email) return false;
+  if (hasDeactivatedClaim(token)) return false;
   return getCachedAdminStatus(db, token.email.toLowerCase());
 }
 
@@ -658,6 +659,8 @@ async function recordAiUsage(
   }
 }
 
+const REFUND_MARKER_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 /** Gives back one charge from {@link enforceAiFeatureAccess} when the run it paid for failed. */
 async function refundAiUsage(
   db: admin.firestore.Firestore,
@@ -677,6 +680,9 @@ async function refundAiUsage(
     if (markerRef)
       transaction.set(markerRef, {
         refundedAt: admin.firestore.FieldValue.serverTimestamp(),
+        expireAt: admin.firestore.Timestamp.fromMillis(
+          Date.now() + REFUND_MARKER_TTL_MS
+        ),
       });
     snaps.forEach((snap, i) => {
       const count = (snap.data()?.count as number) || 0;
@@ -965,7 +971,7 @@ Output requirements:
 
 Submission protocol (MANDATORY — every app must implement this exactly):
 
-A. Render a visible <button data-spart-submit> somewhere obvious (usually near the bottom of the main content). Its label should be meaningful for the activity ("Submit", "Done", "Turn In", etc.). Style it with Tailwind so it looks like a primary action.
+A. Render a visible <button data-spart-submit> somewhere obvious (usually near the bottom of the main content). Its label should be meaningful for the activity ("Submit", "Done", etc.). Style it with Tailwind so it looks like a primary action.
 
 B. On load, register a persistent listener for init messages from the parent and show/hide the submit button based on the latest message. The parent may re-send SPART_MINIAPP_INIT at any time (e.g. the teacher flips the Submissions toggle mid-session), so the handler MUST stay registered and re-apply state on every message — do NOT use { once: true } and do NOT remove the listener after the first message:
 

@@ -47,6 +47,11 @@ import {
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { isDistrictTeacher } from './teacherAuth';
 import { safeErr } from '../safeLog';
+import {
+  finalScorePushPlan,
+  parseScopeUids,
+  wantsFinalScores,
+} from '../gradebook/finalScorePush';
 
 /** The Firestore session collection a launch `kind` targets. */
 function sessionCollectionForKind(kind: LtiSessionKind): string {
@@ -201,11 +206,12 @@ export const ltiPushGradesForAssignmentV1 = onCall(
     };
     const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
     const kind: LtiSessionKind = data.kind === 'va' ? 'va' : 'quiz';
-    const maxPoints =
+    const fromFinal = wantsFinalScores(request.data);
+    const clientMaxPoints =
       typeof data.maxPoints === 'number' && data.maxPoints > 0
         ? data.maxPoints
         : 0;
-    if (!sessionId || !maxPoints) {
+    if (!sessionId || (!fromFinal && !clientMaxPoints)) {
       throw new HttpsError(
         'invalid-argument',
         'sessionId and a positive maxPoints are required.'
@@ -245,7 +251,31 @@ export const ltiPushGradesForAssignmentV1 = onCall(
       );
     }
 
-    const rawGrades = Array.isArray(data.grades) ? data.grades : [];
+    // AB-389: with `source: 'final-scores'` the grades and scale come from the gradebook, never the client.
+    const final = fromFinal
+      ? await finalScorePushPlan(db, {
+          kind,
+          sessionId,
+          ownerUid: sessTeacherUid,
+          maxPoints: null,
+          session: sess,
+          scopeUids: parseScopeUids(request.data),
+        })
+      : null;
+    const maxPoints = final ? (final.maxPoints ?? 0) : clientMaxPoints;
+    const rawGrades: unknown[] = final
+      ? final.plan.entries
+      : Array.isArray(data.grades)
+        ? data.grades
+        : [];
+    if (final && (rawGrades.length === 0 || !maxPoints)) {
+      return {
+        results: [],
+        pushed: 0,
+        total: 0,
+        awaiting: final.plan.awaiting,
+      };
+    }
     if (rawGrades.length === 0) {
       throw new HttpsError(
         'invalid-argument',
@@ -361,7 +391,12 @@ export const ltiPushGradesForAssignmentV1 = onCall(
     );
 
     const pushed = results.filter((r) => r.ok).length;
-    return { results, pushed, total: rawGrades.length };
+    return {
+      results,
+      pushed,
+      total: rawGrades.length,
+      ...(final ? { awaiting: final.plan.awaiting } : {}),
+    };
   }
 );
 

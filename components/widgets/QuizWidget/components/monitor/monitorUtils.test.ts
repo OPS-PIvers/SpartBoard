@@ -123,6 +123,19 @@ describe('compareStudents', () => {
     expect(compareStudents(a, b, 'last')).toBeGreaterThan(0);
   });
 
+  it('sorts a two-word last name by the class list, not the last word', () => {
+    const vanBuren = {
+      ...a,
+      name: 'Martin Van Buren',
+      sortName: 'Van Buren, Martin',
+    };
+    const carter = { ...a, name: 'Jimmy Carter', sortName: 'Carter, Jimmy' };
+    expect(compareStudents(carter, vanBuren, 'last')).toBeLessThan(0);
+    expect(
+      compareStudents({ ...vanBuren, sortName: undefined }, carter, 'last')
+    ).toBeLessThan(0);
+  });
+
   it('sorts in-progress before joined before completed for status', () => {
     expect(compareStudents(a, b, 'status')).toBeGreaterThan(0);
   });

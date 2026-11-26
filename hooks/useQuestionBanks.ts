@@ -116,7 +116,7 @@ function plcHeadersQuery(plcId: string, groupId: string) {
 export const useQuestionBanks = (
   userId: string | undefined
 ): UseQuestionBanksResult => {
-  const { user, googleAccessToken } = useAuth();
+  const { user, googleAccessToken, refreshGoogleToken } = useAuth();
   const { isConnected } = useGoogleDrive();
   const [banks, setBanks] = useState<QuestionBankMetadata[]>([]);
   const [loading, setLoading] = useState(!!userId);
@@ -167,8 +167,10 @@ export const useQuestionBanks = (
         )
       );
     }
-    return new BankDriveService(new QuizDriveService(googleAccessToken));
-  }, [googleAccessToken, userId]);
+    return new BankDriveService(
+      new QuizDriveService(googleAccessToken, refreshGoogleToken)
+    );
+  }, [googleAccessToken, refreshGoogleToken, userId]);
 
   const readMeta = useCallback(
     async (

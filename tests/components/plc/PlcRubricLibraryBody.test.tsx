@@ -21,9 +21,11 @@ vi.mock('@/context/useAuth', () => ({
       email: 'T@example.com',
       displayName: 'Ms. Teacher',
     },
-    canAccessFeature: () => false,
+    canAccessFeature: (id: string) =>
+      id === 'plc-update-shared-copy' && updateFlagOn,
   }),
 }));
+let updateFlagOn = false;
 
 const addToast = vi.fn();
 vi.mock('@/context/useDashboard', () => ({
@@ -129,6 +131,7 @@ beforeEach(() => {
   showConfirm.mockResolvedValue(true);
   shareRubricWithPlc.mockResolvedValue('created');
   canEdit = true;
+  updateFlagOn = false;
   personalRubrics = [personalRubric];
   plcRubrics = [plcEntry];
   plcLoading = false;
@@ -215,6 +218,42 @@ describe('PlcRubricLibraryBody', () => {
     ).toBeDisabled();
   });
 
+  it('updates the shared copy of an already-shared rubric when the flag is on', async () => {
+    updateFlagOn = true;
+    shareRubricWithPlc.mockResolvedValue('updated');
+    personalRubrics = [{ ...personalRubric, id: plcEntry.id }];
+    renderSubject();
+    fireEvent.click(screen.getByRole('button', { name: /Share a rubric/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^Update$/i, hidden: true })
+    );
+    await waitFor(() => expect(shareRubricWithPlc).toHaveBeenCalledTimes(1));
+    expect(showConfirm).toHaveBeenCalledWith(
+      expect.stringContaining(personalRubric.title),
+      expect.objectContaining({ title: 'Update the shared copy?' })
+    );
+    expect(shareRubricWithPlc).toHaveBeenCalledWith(
+      expect.objectContaining({ update: true })
+    );
+    expect(addToast).toHaveBeenCalledWith(
+      expect.stringContaining('Updated the shared copy'),
+      'success'
+    );
+  });
+
+  it('does not update the shared copy when the confirm is declined', async () => {
+    updateFlagOn = true;
+    showConfirm.mockResolvedValue(false);
+    personalRubrics = [{ ...personalRubric, id: plcEntry.id }];
+    renderSubject();
+    fireEvent.click(screen.getByRole('button', { name: /Share a rubric/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^Update$/i, hidden: true })
+    );
+    await waitFor(() => expect(showConfirm).toHaveBeenCalled());
+    expect(shareRubricWithPlc).not.toHaveBeenCalled();
+  });
+
   it('reports a revived tombstone as a re-share', async () => {
     shareRubricWithPlc.mockResolvedValue('restored');
     renderSubject();
@@ -269,7 +308,10 @@ describe('PlcRubricLibraryBody', () => {
       screen.getByRole('button', { name: /Unshare Lab Report Rubric/i })
     );
     await waitFor(() =>
-      expect(unshareRubricFromPlc).toHaveBeenCalledWith('rubric-plc-1')
+      expect(unshareRubricFromPlc).toHaveBeenCalledWith(
+        'rubric-plc-1',
+        'Lab Report Rubric'
+      )
     );
   });
 

@@ -22,7 +22,8 @@ export function exportMiniAppResults(
   title: string,
   rows: MiniAppExportRow[],
   questions: MiniAppManifestQuestion[],
-  names?: Map<string, { givenName: string; familyName: string }>
+  names?: Map<string, { givenName: string; familyName: string }>,
+  refreshToken?: () => Promise<string | null>
 ): Promise<string> {
   // An app with no question list gets one Score column out of 100.
   const scoreOnly = questions.length === 0;
@@ -61,7 +62,7 @@ export function exportMiniAppResults(
         text: q.prompt,
         points: q.points ?? 1,
       }))) as unknown as QuizQuestion[];
-  return new QuizDriveService(token).exportResultsToSheet(
+  return new QuizDriveService(token, refreshToken).exportResultsToSheet(
     title,
     responses,
     sheetQuestions,

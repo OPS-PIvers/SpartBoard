@@ -26,7 +26,7 @@ import {
 } from '@/config/widgetGradeLevels';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { Filter, ChevronDown } from 'lucide-react';
-import { Toast } from '@/components/common/Toast';
+import { useDashboard } from '@/context/useDashboard';
 
 import { GenericConfigurationModal } from '@/components/admin/GenericConfigurationModal';
 import { WidgetPermissionCardBody } from '@/components/admin/WidgetPermissionCardBody';
@@ -95,10 +95,6 @@ export const FeaturePermissionsManager: React.FC = () => {
   const [saving, setSaving] = useState<Set<WidgetType | InternalToolType>>(
     new Set()
   );
-  const [message, setMessage] = useState<{
-    type: 'success' | 'error';
-    text: string;
-  } | null>(null);
   const [unsavedChanges, setUnsavedChanges] = useState<
     Set<WidgetType | InternalToolType>
   >(new Set());
@@ -123,12 +119,11 @@ export const FeaturePermissionsManager: React.FC = () => {
   const { query } = useAccessSearch();
   const globalEditor = useGlobalPermissionsEditor();
 
-  const showMessage = useCallback((type: 'success' | 'error', text: string) => {
-    setMessage({ type, text });
-    const timeoutId = setTimeout(() => setMessage(null), 3000);
-    // Return cleanup function
-    return () => clearTimeout(timeoutId);
-  }, []);
+  const { addToast } = useDashboard();
+  const showMessage = useCallback(
+    (type: 'success' | 'error', text: string) => addToast(text, type),
+    [addToast]
+  );
 
   const getGlobalStickers = (): (string | GlobalSticker)[] => {
     const config = getPermission('stickers').config as
@@ -488,15 +483,6 @@ export const FeaturePermissionsManager: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Message Toast */}
-      {message && (
-        <Toast
-          message={message.text}
-          type={message.type}
-          onClose={() => setMessage(null)}
-        />
-      )}
-
       <AdminSearchField tab="widgets" placeholder="Search widgets" />
 
       {/* Filters */}

@@ -150,6 +150,8 @@ export interface GLStudentScreenInput {
   response: ResponseLoad;
   isClosed: boolean;
   perPeriod: boolean;
+  /** A period gate or the student's own window holds the player until it opens. */
+  gated?: boolean;
   assessmentMode: boolean;
   isStudentRole: boolean;
   entered: boolean;
@@ -192,7 +194,7 @@ export function deriveGLStudentScreen(
 
   if (flow.kind === 'notStarted') return { kind: 'start' };
 
-  if (input.perPeriod && !input.entered) {
+  if ((input.gated ?? input.perPeriod) && !input.entered) {
     return input.canEnter
       ? { kind: 'enteringPeriod' }
       : { kind: 'periodLocked' };

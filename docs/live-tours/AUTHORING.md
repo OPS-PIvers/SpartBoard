@@ -20,10 +20,32 @@ Don't agree an outline with the admin first. Build the tour, check it with `dry_
 3. **Follow the path.** Each anchor's `routes[].path` is the list of anchors to click, in order, from the board to where the anchor shows. Turn every path entry the tour hasn't already clicked into a `click` step, in that order. `reveal` is a tab or menu inside the surface. `needs` says what has to exist first: `widget-on-stage` (put the widget in `tour_widgets`), `library-item` (add a material), `class`, `plc`, `admin`, `live-session`, `student-data`.
 4. **Stage it.** Set `tour_widgets`, add `materials` when the tour opens, makes or assigns a library item, and decide `autopilot` (see below).
 5. **Dry-run it.** Call `create_live_tour` with `dry_run: true`. Fix every error; read every warning and fix it unless there's a reason not to.
-6. **Save.** Call it again without `dry_run`. Pass `help_center` with a `category_id` from `list_help_center_categories`, and `widget_types` for the widgets whose **?** button should offer the tour. Saving narrates every step whose text is new or changed; `narration_failed` lists any it couldn't, and saving again retries them.
+6. **Save.** Call it again without `dry_run`, with a `description` written as below. Pass `help_center` with a `category_id` from `list_help_center_categories`, and `widget_types` for the widgets whose **?** button should offer the tour. Saving narrates every step whose text is new or changed; `narration_failed` lists any it couldn't, and saving again retries them.
 7. **Play it (Claude Code only).** Run the browser run below, fix what fails, and let it upload the step pictures. Then hand back.
 
 To change an existing tour, `get_live_tour`, then `update_live_tour` with `steps` (the whole list, ids kept) or `step_text` (wording only). Update takes the same setup fields and `dry_run`.
+
+## Title and description
+
+Teachers pick a tour from its Help Center card, which shows the title and the description. Write both for a teacher who has never seen the feature.
+
+- **Title:** the task in the teacher's words, starting with a verb, such as "Make random groups". No widget ids or anchor names.
+- **Description:** two to four short sentences. Say what the teacher will do, what they get at the end, and when it helps in class. Name the widget and the buttons as the screen shows them. One idea per sentence. No em dashes, no "Tip:", no internal names.
+
+For example: "Make random groups from your class list in the Group Maker. You pick how many groups, and SpartBoard sorts the names for you. Use it to start partner work in a few seconds."
+
+`create_live_tour` needs a `description`. `update_live_tour` changes the title and description on the Help Center item too, so they always match.
+
+## Help Center settings
+
+`help_center` files the tour in the Help Center. Every field is optional on `update_live_tour`; the first time you add a tour, `category_id` is needed.
+
+- `category_id`: one id from `list_help_center_categories`.
+- `widget_types`: the widgets whose **?** button offers the tour. List every widget the tour stages or adds.
+- `audience`: `teachers` (the default), `subs` for the substitute portal, or `students`. Moving a published tour to or from `students` hides it until an admin publishes it again.
+- `scope`: who it is shown to. Super admins can pass `everyone` or an organization id from `list_help_center_categories` (`scope_options`). Other admins keep their own organization.
+
+`get_live_tour` returns the Help Center item as `help_item`, so you can see what is there before changing it.
 
 ## Where a tour starts
 
@@ -181,6 +203,7 @@ A tour that needs a real library item, a PLC or student work can't fully play on
 After saving, tell the admin in a few lines:
 
 - what the tour covers and how many steps it has
+- the title and description you gave it
 - where to find it (the save result says)
 - the warnings you left in, and why
 - any controls queued for an anchor: the save's `needs_anchors` lists those steps. Publishing isn't blocked, but those steps fail for teachers using another language, so recommend waiting until they're tagged and rebound

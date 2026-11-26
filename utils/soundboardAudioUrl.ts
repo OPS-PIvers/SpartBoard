@@ -1,8 +1,8 @@
 import { extractGoogleFileId } from './urlHelpers';
+import { DRIVE_API_URL, DriveSession } from './driveRequest';
 
 const DRIVE_HOST = 'drive.google.com';
 const DOCS_HOST = 'docs.google.com';
-const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 
 const toCanonicalDrivePlaybackUrl = (fileId: string): string =>
   `https://${DRIVE_HOST}/uc?id=${fileId}&export=download`;
@@ -32,9 +32,12 @@ export const fetchDriveAudioBlobUrl = async (
   fileId: string,
   accessToken: string
 ): Promise<string> => {
-  const response = await fetch(`${DRIVE_API_URL}/files/${fileId}?alt=media`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const response = await new DriveSession(accessToken).request(
+    `${DRIVE_API_URL}/files/${fileId}?alt=media`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
 
   if (!response.ok) {
     throw new Error(

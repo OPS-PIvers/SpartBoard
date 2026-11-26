@@ -4,6 +4,7 @@ import {
   HttpsError,
   type CallableRequest,
 } from 'firebase-functions/v2/https';
+import { isLiveAdmin } from './authz';
 import * as admin from './firebaseAdmin';
 import { GoogleAuth, Impersonated } from 'google-auth-library';
 import './functionsInit';
@@ -17,6 +18,7 @@ const PROD_DOCS = `https://firestore.googleapis.com/v1/projects/${PROD_PROJECT_I
 // The teacher's own materials and settings. OAuth tokens, assignments, PLC state and alert schedules (dev would email twice) stay out.
 export const SYNCED_USER_COLLECTIONS = [
   'activity_wall_activities',
+  'activity_wall_folders',
   'collections',
   'dashboards',
   'flashcard_folders',
@@ -303,7 +305,7 @@ async function assertDevAdmin(request: CallableRequest): Promise<{
     throw new HttpsError('unauthenticated', 'Sign in with Google first.');
   }
   const db = admin.firestore();
-  if (!(await db.doc(`admins/${email}`).get()).exists) {
+  if (!(await isLiveAdmin(db, email, request.auth.token))) {
     throw new HttpsError('permission-denied', 'Admins only.');
   }
   return { email, devUid: request.auth.uid, db };

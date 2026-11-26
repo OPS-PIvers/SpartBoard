@@ -30,18 +30,13 @@ const REQUIRED_BOARDS_MODAL_KEYS = [
   'colorSaveFailed',
   'collectionMoved',
   'collectionMoveFailed',
-  'colorPicker',
 ] as const;
 
 /** The old inline-prompt keys that were replaced by colorPicker.*  */
-const OBSOLETE_BOARDS_MODAL_KEYS = ['colorPrompt', 'colorInvalid'] as const;
-
-/** The nested keys that must exist under boardsModal.colorPicker. */
-const REQUIRED_COLOR_PICKER_KEYS = [
-  'title',
-  'swatches',
-  'custom',
-  'applyCustom',
+const OBSOLETE_BOARDS_MODAL_KEYS = [
+  'colorPrompt',
+  'colorInvalid',
+  'colorPicker',
 ] as const;
 
 type LocaleFile = typeof en;
@@ -51,15 +46,6 @@ describe('EN locale — boardsModal baseline', () => {
   it('has all required boardsModal keys', () => {
     for (const key of REQUIRED_BOARDS_MODAL_KEYS) {
       expect(en.boardsModal).toHaveProperty(key);
-    }
-  });
-
-  it('has all required colorPicker sub-keys', () => {
-    expect(en.boardsModal).toHaveProperty('colorPicker');
-    for (const key of REQUIRED_COLOR_PICKER_KEYS) {
-      expect(
-        (en.boardsModal as Record<string, unknown>).colorPicker
-      ).toHaveProperty(key);
     }
   });
 
@@ -80,16 +66,6 @@ describe.each([
       expect(
         locale.boardsModal,
         `${code}.boardsModal.${key} is missing`
-      ).toHaveProperty(key);
-    }
-  });
-
-  it(`${code}: has all required colorPicker sub-keys`, () => {
-    expect(locale.boardsModal).toHaveProperty('colorPicker');
-    for (const key of REQUIRED_COLOR_PICKER_KEYS) {
-      expect(
-        (locale.boardsModal as Record<string, unknown>).colorPicker,
-        `${code}.boardsModal.colorPicker.${key} is missing`
       ).toHaveProperty(key);
     }
   });

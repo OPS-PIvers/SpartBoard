@@ -43,6 +43,7 @@ import { prepareImageForUpload } from '@/utils/guidedLearningMedia';
 import { Z_INDEX } from '@/config/zIndex';
 import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 import { tourAttr } from '@/config/tourAnchors';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 
 interface Props {
   onClose: () => void;
@@ -196,6 +197,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
 }) => {
   const outward = useViewAsOutward();
   const { user, canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
   const { uploading, uploadGuidedLearningImage } = useStorage();
   const [images, setImages] = useState<GeneratorImage[]>([]);
   const [prompt, setPrompt] = useState('');
@@ -205,6 +207,11 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
   const [fileContext, setFileContext] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  // Focus starts inside so Ctrl+V reaches this dialog's image picker.
+  useEffect(() => {
+    if (unifiedPicker) overlayRef.current?.focus();
+  }, [unifiedPicker]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -288,9 +295,18 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
     if (files.length > 0) void addFiles(files);
   };
 
+  const takeImages = useCallback(
+    async (files: File[]) => {
+      await addFiles(files);
+      return true;
+    },
+    [addFiles]
+  );
+
   // Window-level paste listener — an onPaste on the overlay <div> only fires
   // when focus happens to be inside a child input, so it made Ctrl+V unreliable.
   useEffect(() => {
+    if (unifiedPicker) return;
     const onPaste = (e: ClipboardEvent) => {
       const items = e.clipboardData?.items;
       if (!items) return;
@@ -308,10 +324,12 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
     };
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
-  }, [addFiles]);
+  }, [addFiles, unifiedPicker]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
+      // The image picker already took a drop on it.
+      if (e.defaultPrevented) return;
       e.preventDefault();
       const files = Array.from(e.dataTransfer.files).filter((f) =>
         f.type.startsWith('image/')
@@ -422,7 +440,9 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
       role="dialog"
       aria-modal="true"
       aria-label="Draft with AI"
-      className="absolute inset-0 z-widget-internal-overlay bg-white/95 backdrop-blur-xs flex flex-col"
+      ref={overlayRef}
+      tabIndex={-1}
+      className="absolute inset-0 z-widget-internal-overlay bg-white/95 backdrop-blur-xs flex flex-col focus:outline-hidden"
       style={{ padding: 'min(24px, 5cqmin)' }}
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
@@ -454,55 +474,70 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         style={{ gap: 'min(12px, 3cqmin)' }}
       >
         <div className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
-          <button
-            type="button"
-            {...tourAttr('gl-ai.add-images')}
-            onClick={() => fileRef.current?.click()}
-            disabled={busy}
-            className="w-full border-2 border-dashed border-slate-300 rounded-xl text-center hover:border-brand-blue-light hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ padding: 'min(20px, 5cqmin) 0' }}
-          >
-            <Upload
-              className="text-slate-400 mx-auto"
-              style={{
-                width: 'min(24px, 6cqmin)',
-                height: 'min(24px, 6cqmin)',
-                marginBottom: 'min(4px, 1cqmin)',
-              }}
+          {unifiedPicker ? (
+            <ImagePicker
+              takeFiles={takeImages}
+              multiple
+              maxBytes={MAX_FILE_BYTES}
+              disabled={busy}
+              tourScope={{ type: 'guided-learning', field: 'ai-images' }}
+              tourOverrides={{ upload: tourAttr('gl-ai.add-images') }}
             />
-            <span
-              className="text-slate-700 font-medium block"
-              style={{ fontSize: 'min(11px, 4cqmin)' }}
-            >
-              Upload, drop or paste images
-            </span>
-            <span
-              className="text-slate-400 block"
-              style={{
-                fontSize: 'min(11px, 4cqmin)',
-                marginTop: 'min(2px, 0.5cqmin)',
-              }}
-            >
-              PNG, JPG or WebP
-            </span>
-          </button>
-          {/* no-tour-anchor: hidden file input opened by its visible upload button */}
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleFileInput}
-          />
+          ) : (
+            <>
+              <button
+                type="button"
+                {...tourAttr('gl-ai.add-images')}
+                onClick={() => fileRef.current?.click()}
+                disabled={busy}
+                className="w-full border-2 border-dashed border-slate-300 rounded-xl text-center hover:border-brand-blue-light hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ padding: 'min(20px, 5cqmin) 0' }}
+              >
+                <Upload
+                  className="text-slate-400 mx-auto"
+                  style={{
+                    width: 'min(24px, 6cqmin)',
+                    height: 'min(24px, 6cqmin)',
+                    marginBottom: 'min(4px, 1cqmin)',
+                  }}
+                />
+                <span
+                  className="text-slate-700 font-medium block"
+                  style={{ fontSize: 'min(11px, 4cqmin)' }}
+                >
+                  Upload, drop or paste images
+                </span>
+                <span
+                  className="text-slate-400 block"
+                  style={{
+                    fontSize: 'min(11px, 4cqmin)',
+                    marginTop: 'min(2px, 0.5cqmin)',
+                  }}
+                >
+                  PNG, JPG or WebP
+                </span>
+              </button>
+              {/* no-tour-anchor: hidden file input opened by its visible upload button */}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleFileInput}
+              />
+            </>
+          )}
 
           <div className="flex flex-wrap" style={{ gap: 'min(8px, 2cqmin)' }}>
-            <DriveImagePicker
-              onImageAdded={handleDriveImageAdded}
-              disabled={busy}
-              label="Add image from Drive"
-              upload={uploadDriveSlide}
-            />
+            {!unifiedPicker && (
+              <DriveImagePicker
+                onImageAdded={handleDriveImageAdded}
+                disabled={busy}
+                label="Add image from Drive"
+                upload={uploadDriveSlide}
+              />
+            )}
             {canAccessFeature('ai-file-context') && (
               <DriveFileAttachment
                 onFileContent={(content, name) => {

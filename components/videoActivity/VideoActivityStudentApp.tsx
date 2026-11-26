@@ -14,7 +14,6 @@
 
 import { tourAttr } from '@/config/tourAnchors';
 import React, {
-  useId,
   useMemo,
   useState,
   useCallback,
@@ -22,21 +21,21 @@ import React, {
   useReducer,
   useRef,
 } from 'react';
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import {
   PlayCircle,
   Loader2,
   AlertCircle,
-  ArrowRight,
   CheckCircle2,
-  ClipboardList,
   Trophy,
   Unlock as UnlockIcon,
   ShieldAlert,
 } from 'lucide-react';
-import { useDialog } from '@/context/useDialog';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
+import { usePeriodGate } from '@/hooks/usePeriodGate';
 import { auth, db } from '@/config/firebase';
+import { useStudentAuthBootstrap } from '@/hooks/useStudentAuthBootstrap';
 import { logError } from '@/utils/logError';
 import {
   getStudentPreview,
@@ -70,28 +69,30 @@ import {
 import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
 import { ResultsProtectionGate } from '@/components/student/ResultsProtectionGate';
 import { isQuestionClosedError } from '@/utils/videoActivityLiveStudent';
-import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
 import { isStaffAudience } from '@/utils/staffAudience';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
-import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
-import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
 import {
-  getEffectiveTabWarningThreshold,
-  hasReachedTabWarningThreshold,
-} from '@/utils/tabWarningThreshold';
-import { TabAwayClock } from '@/components/common/TabAwayClock';
-import { useServerNow } from '@/hooks/useServerNow';
+  resolveTabStrikeRules,
+  useTabStrikePolicy,
+} from '@/hooks/useTabStrikePolicy';
+import { useTabSubmitNotice } from '@/hooks/useTabSubmitNotice';
+import { hasReachedTabWarningThreshold } from '@/utils/tabWarningThreshold';
+import { TabStrikeWarning } from '@/components/common/TabWarningModal';
+import { StudentOfflineBanner } from '@/components/common/StudentOfflineBanner';
+import { useStudentWindow } from '@/hooks/useStudentWindow';
 import { syncServerTime } from '@/utils/serverTime';
-import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { isAnonymousJoinBlocked } from '@/utils/anonymousJoin';
 import { AnonymousJoinBlockedScreen } from '@/components/common/AnonymousJoinBlockedScreen';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import { effectivePageProtections } from '@/utils/pageProtections';
 import {
-  VideoActivityPeriodLockedScreen,
-  VideoActivityPeriodPausedOverlay,
-} from './VideoActivityPeriodLockedScreen';
+  StudentPeriodLockedScreen,
+  StudentPeriodPicker,
+} from '@/components/student/StudentPeriodScreens';
+import { periodLockState } from '@/components/student/periodLockState';
+import { StudentPeriodPausedOverlay } from '@/components/student/StudentPeriodPausedOverlay';
+import { StudentPinJoinCard } from '@/components/student/StudentPinJoinCard';
 
 function errorCode(err: unknown): unknown {
   return err && typeof err === 'object' && 'code' in err
@@ -149,66 +150,27 @@ function resolveSsoClassPeriod(
 const LIVE_COMPLETE_MAX_RETRIES = 8;
 const LIVE_COMPLETE_RETRY_BASE_MS = 2000;
 
+const NO_CLASS_IDS: string[] = [];
+
 // ─── Root ──────────────────────────────────────────────────────────────────────
 
 export const VideoActivityStudentApp: React.FC = () => {
   // preview mode — see hooks/usePreviewMode
   const previewMode = usePreviewMode();
 
-  const [authReady, setAuthReady] = useState(false);
-  const [authFailed, setAuthFailed] = useState(false);
-  // True iff `auth.currentUser` carries the `studentRole: true` custom claim
-  // minted by `studentLoginV1`. Resolved at mount; drives the auto-join
-  // branch in `JoinAndPlay`. Anonymous joiners stay `false`.
-  const [isStudentRole, setIsStudentRole] = useState(false);
-  // ClassLink class-id list from the SSO custom claim. Used to resolve the
-  // joining student's period via `session.classPeriodByClassId`.
-  const [ssoClassIds, setSsoClassIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (previewMode) return;
-    const init = async () => {
-      try {
-        // Wait for Firebase Auth to hydrate from IndexedDB before deciding
-        // whether to sign in anonymously. On full-page navigations from
-        // `/my-assignments` (which uses an <a href> link), `auth.currentUser`
-        // is null for the first tick or two even when IndexedDB holds an SSO
-        // user — without this await we'd race hydration and silently replace
-        // the SSO user with a fresh anonymous one. See QuizStudentApp for
-        // the same fix and its regression test.
-        await auth.authStateReady();
-        // Sign in anonymously only when nobody is signed in — SSO students
-        // arrive with a custom-token user we must keep.
-        if (!auth.currentUser) {
-          await signInAnonymously(auth);
-        }
-        const user = auth.currentUser;
-        if (user && !user.isAnonymous) {
-          // Probe custom claims once. We don't refresh — `studentLoginV1`
-          // minted these and a stale token is fine for read-only identity;
-          // Firestore rules re-validate on every write.
-          const tokenResult = await user.getIdTokenResult();
-          if (tokenResult.claims?.studentRole === true) {
-            setIsStudentRole(true);
-            const claimedClassIds = tokenResult.claims.classIds;
-            if (Array.isArray(claimedClassIds)) {
-              setSsoClassIds(
-                claimedClassIds.filter(
-                  (id): id is string => typeof id === 'string' && id.length > 0
-                )
-              );
-            }
-          }
-        }
-      } catch (err) {
-        logError('VideoActivityStudentApp.authInit', err);
-        setAuthFailed(true);
-      } finally {
-        setAuthReady(true);
-      }
-    };
-    void init();
-  }, [previewMode]);
+  const {
+    ready: authReady,
+    failed: authFailed,
+    isStudentRole,
+    classIds,
+  } = useStudentAuthBootstrap({
+    enabled: !previewMode,
+    keepPinLogin: true,
+    readClaims: true,
+    label: 'VideoActivityStudentApp',
+  });
+  // Only a `studentRole` token's classes resolve the joining student's period.
+  const ssoClassIds = isStudentRole ? classIds : NO_CLASS_IDS;
 
   if (previewMode) {
     return <VideoActivityPreviewLobby />;
@@ -238,44 +200,22 @@ export const VideoActivityStudentApp: React.FC = () => {
  * the lobby UI without mounting any hooks that would touch Firebase Auth or
  * Firestore — pasting the `?preview=1` URL into a tab is safe regardless of
  * what auth state that browser profile already carries. */
-const VideoActivityPreviewLobby: React.FC = () => (
-  <div className="h-screen h-dvh overflow-y-auto bg-linear-to-b from-white to-slate-100 flex flex-col">
-    <TeacherPreviewBanner />
-    <div className="flex-1 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <div className="flex items-center justify-center mb-8">
-          <PlayCircle className="w-5 h-5 text-brand-blue-primary mr-2" />
-          <span className="text-sm text-slate-700 font-semibold">
-            Video Activity
-          </span>
-        </div>
-        <h1 className="text-2xl font-black text-slate-900 mb-2 text-center">
-          Join Activity
-        </h1>
-        <p className="text-slate-500 text-sm text-center mb-6">
-          Enter your PIN from your teacher.
-        </p>
-        <div className="space-y-4" aria-hidden="true">
-          <input
-            type="text"
-            readOnly
-            tabIndex={-1}
-            placeholder="Your PIN"
-            className="w-full px-4 py-4 bg-white border border-slate-300 rounded-xl text-slate-900 text-xl font-black font-mono tracking-widest text-center placeholder-slate-400 focus:outline-hidden cursor-default"
-          />
-          <button
-            type="button"
-            disabled
-            tabIndex={-1}
-            className="w-full py-4 bg-brand-blue-primary disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
-          >
-            Join <ArrowRight className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-);
+const VideoActivityPreviewLobby: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <StudentPinJoinCard
+      preview
+      title={t('studentJoin.title')}
+      intro={t('studentJoin.pinIntro')}
+      pin=""
+      onPinChange={() => undefined}
+      pinTourId="student.video-activity.pin"
+      onSubmit={() => undefined}
+      submitTourId="student.video-activity.join"
+      busy={false}
+    />
+  );
+};
 
 // ─── Join + Play ───────────────────────────────────────────────────────────────
 
@@ -341,50 +281,6 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     syncServerTime(authedUid);
   }, [authedUid]);
 
-  // Per-period gate, re-checked as the clock passes a window edge.
-  const perPeriod = hasPeriodAccess(session) && session.status !== 'ended';
-  const periodNow = useServerNow(perPeriod ? 5000 : null);
-  const canEnter = studentCanEnter(session, periodKeys, authedUid, periodNow);
-  const gateKey = perPeriod
-    ? JSON.stringify([
-        periodKeys.map((k) => session?.periodAccess?.[k] ?? null),
-        authedUid ? (session?.studentAccess?.[authedUid] ?? null) : null,
-      ])
-    : '';
-  // A write the server refused as frozen holds the pause until the gate fields change.
-  const [frozenGate, setFrozenGate] = useState<string | null>(null);
-  if (frozenGate !== null && frozenGate !== gateKey) setFrozenGate(null);
-  const periodPaused = perPeriod && (!canEnter || frozenGate === gateKey);
-  // Once the player has shown, a later close pauses it in place rather than swapping screens.
-  const [entered, setEntered] = useState(false);
-  if (
-    !entered &&
-    perPeriod &&
-    canEnter &&
-    !contentPending &&
-    !retakePending &&
-    joinStatus === 'joined'
-  ) {
-    setEntered(true);
-  }
-  const periodHold = perPeriod && (periodPaused || !entered);
-  const checkFrozenRef = useRef(false);
-  const freezeForPeriod = useCallback(() => {
-    setFrozenGate(gateKey);
-    dispatchPlayer({ type: 'periodFrozen' });
-  }, [gateKey]);
-  const guardedCheckAnswer = useCallback(
-    async (questionId: string, answer: string) => {
-      try {
-        return await checkAnswer(questionId, answer);
-      } catch (err) {
-        if (perPeriod && isFrozenCheckError(err)) checkFrozenRef.current = true;
-        throw err;
-      }
-    },
-    [checkAnswer, perPeriod]
-  );
-
   // M17 C3-va: read the student's own pointer override (`timeMultiplier`
   // accommodation). VA has no timed elements in its player today (no
   // per-question countdown, no session time limit) — this is a documented
@@ -399,6 +295,48 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     sessionId || null,
     isStudentRole,
     { sessionId, teacherUid: session?.teacherUid, kind: 'video-activity' }
+  );
+
+  // Per-period gate, re-checked as the clock passes a window edge.
+  // This student's own Opens and Closes, on sessions saved with them.
+  const studentWindow = useStudentWindow(session, pointer);
+  const windowGated =
+    studentWindow.enforced && !isViewOnly && session?.status !== 'ended';
+  const {
+    perPeriod,
+    gated,
+    now: periodNow,
+    canEnter,
+    paused: periodPaused,
+    entered,
+    hold: periodHold,
+    freeze,
+  } = usePeriodGate({
+    session,
+    periodKeys,
+    uid: authedUid,
+    active: session?.status !== 'ended',
+    readyToEnter: !contentPending && !retakePending && joinStatus === 'joined',
+    ownWindow: {
+      enforced: windowGated,
+      open: studentWindow.state === 'open',
+    },
+  });
+  const checkFrozenRef = useRef(false);
+  const freezeForPeriod = useCallback(() => {
+    freeze();
+    dispatchPlayer({ type: 'periodFrozen' });
+  }, [freeze]);
+  const guardedCheckAnswer = useCallback(
+    async (questionId: string, answer: string) => {
+      try {
+        return await checkAnswer(questionId, answer);
+      } catch (err) {
+        if (perPeriod && isFrozenCheckError(err)) checkFrozenRef.current = true;
+        throw err;
+      }
+    },
+    [checkAnswer, perPeriod]
   );
 
   // View tracking — log each pageview of a view-only Share link as an
@@ -428,6 +366,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   // skip this step entirely.
   const [periodStep, setPeriodStep] = useState<string[] | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
+  const [periodTitle, setPeriodTitle] = useState('');
   // Local guard for the async `lookupSession` leg of `handleJoin` — the
   // hook's `joinStatus` only flips to `loading` once `joinSession` starts,
   // so without this the button would stay clickable during the lookup and
@@ -537,8 +476,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     [myResponse?.answers]
   );
 
-  const handleJoin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleJoin = async () => {
     if (!pin.trim() || !sessionId) return;
     if (lookingUp || joinStatus === 'loading') return;
     setLookingUp(true);
@@ -550,6 +488,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       // response doc. With a single period there's nothing for the
       // student to choose, so auto-pick to skip a friction tap.
       if (periodNames.length > 1) {
+        setPeriodTitle(sessionInfo?.activityTitle ?? '');
         setPeriodStep(periodNames);
         return;
       }
@@ -559,10 +498,14 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     }
   };
 
-  const handlePeriodConfirm = useCallback(async () => {
-    if (!selectedPeriod || !sessionId) return;
-    await joinSession(sessionId, pin.trim(), selectedPeriod);
-  }, [joinSession, sessionId, pin, selectedPeriod]);
+  const handlePeriodPick = useCallback(
+    async (period: string) => {
+      if (!sessionId) return;
+      setSelectedPeriod(period);
+      await joinSession(sessionId, pin.trim(), period);
+    },
+    [joinSession, sessionId, pin]
+  );
 
   const handleQuestionTrigger = useCallback(
     (question: VideoActivityPublicQuestion) => {
@@ -701,11 +644,6 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   }, [completeActivity, isViewOnly, perPeriod, freezeForPeriod, sessionId]);
 
   // ── Tab-switch warning system (mirrors QuizStudentApp) ──────────────────
-  const { showAlert } = useDialog();
-  const [showCheatWarning, setShowCheatWarning] = useState(false);
-  const [warningCount, setWarningCount] = useState(
-    () => myResponse?.tabSwitchWarnings ?? 0
-  );
   const [showResumeModal, setShowResumeModal] = useState(
     () => !!myResponse?.unlocked
   );
@@ -713,7 +651,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   // No player in live mode: tab exits log the board's last known position.
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   if (isLive) playheadRef.current = session?.live?.playheadSeconds ?? 0;
-  const pinInputId = useId();
+  const { t } = useTranslation();
 
   const resumeSeconds = useMemo(() => {
     if (
@@ -754,17 +692,6 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     }
   }, [answeredQuestionIds, sortedQuestions, isLive, previewKey, myResponse]);
 
-  // Track the previous `tabSwitchWarnings` value via state-during-render
-  // so we can sync the local counter without an extra effect pass.
-  const serverWarnings = myResponse?.tabSwitchWarnings ?? 0;
-  const [prevServerWarnings, setPrevServerWarnings] = useState(serverWarnings);
-  if (prevServerWarnings !== serverWarnings) {
-    setPrevServerWarnings(serverWarnings);
-    if (serverWarnings > warningCount) {
-      setWarningCount(serverWarnings);
-    }
-  }
-
   // Same render-time pattern for the unlock-edge detector: when the
   // teacher flips `unlocked` from false → true (e.g. the student was
   // sitting on the post-submit screen when unlock fired) re-open the
@@ -778,48 +705,38 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     }
   }
 
-  const handleAutoSubmit = useCallback(
-    async (reason: 'three-strikes' | 'post-unlock' = 'three-strikes') => {
-      const message =
-        reason === 'post-unlock'
-          ? 'Your unlocked attempt is being submitted now.'
-          : 'You have left the activity too many times. Your activity is being auto-submitted.';
-      await showAlert(message, {
-        title: 'Activity Auto-Submitted',
-        variant: 'warning',
-      });
-      try {
-        await completeActivity();
-      } catch (err) {
-        if (!perPeriod || !isFrozenWriteError(err)) throw err;
-        freezeForPeriod();
-      }
-    },
-    [showAlert, completeActivity, perPeriod, freezeForPeriod]
-  );
+  const submitForTab = useCallback(async () => {
+    try {
+      await completeActivity();
+      return true;
+    } catch (err) {
+      if (!perPeriod || !isFrozenWriteError(err)) throw err;
+      // The class is closed: nothing was submitted, so no notice.
+      freezeForPeriod();
+      return false;
+    }
+  }, [completeActivity, perPeriod, freezeForPeriod]);
+  const tabSubmitNotice = useTabSubmitNotice();
 
-  const tabWarningsEnabled =
-    session?.sessionOptions?.tabWarningsEnabled !== false;
-  // Live sessions log warnings but never submit a student's work.
-  const tabWarningThreshold = isLive
-    ? 'off'
-    : getEffectiveTabWarningThreshold(
-        session?.sessionOptions?.tabWarningThreshold
-      );
-  // Null unless the teacher assigned with the tab-away-timer flag.
-  const sessionAwayRule = getEffectiveTabAwayRule(
-    session?.sessionOptions ?? {}
-  );
-  const tabAwayRule =
-    isLive && sessionAwayRule
-      ? { ...sessionAwayRule, autoSubmit: false }
-      : sessionAwayRule;
-
-  // The tab-away tracker counts each exit, logs it to `tabExits`, and closes
-  // it when the student comes back.
-  const tabTracker = useTabAwayTracker({
+  // Warning counts and auto-submit rules shared with every student app; live sessions never submit.
+  const tabPolicy = useTabStrikePolicy({
+    rules: resolveTabStrikeRules({
+      settings: session?.sessionOptions ?? {},
+      // Students' own accommodations apply only on sessions stamped with the flag.
+      override: session?.sessionOptions?.studentTabRules
+        ? pointer?.override
+        : undefined,
+      live: isLive,
+    }),
+    warn: session?.sessionOptions?.tabWarningsEnabled !== false,
+    serverCount: myResponse?.tabSwitchWarnings ?? 0,
+    countStrike: () => reportTabSwitch(),
+    // Teacher-unlocked attempts skip the warning: the next exit submits.
+    oneExitLeft: !!myResponse?.unlocked && !isLive,
+    submit: submitForTab,
+    onSubmitted: tabSubmitNotice,
     enabled:
-      tabWarningsEnabled &&
+      session?.sessionOptions?.tabWarningsEnabled !== false &&
       joinStatus === 'joined' &&
       session?.status === 'active' &&
       !isViewOnly &&
@@ -830,58 +747,13 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     serverExits: myResponse?.tabExits,
     attempt: myResponse?.completedAttempts ?? 0,
     getPosition: () => ({ videoTime: Math.round(playheadRef.current) }),
-    onLeave: async () => {
-      let newTotal: number;
-      try {
-        newTotal = await reportTabSwitch();
-      } catch (err) {
-        logError('VideoActivityStudentApp.reportTabSwitch', err, {
-          sessionId,
-        });
-        setShowCheatWarning(true);
-        return false;
-      }
-      setWarningCount(newTotal);
-      // Teacher-unlocked attempts skip the warning modal — any further
-      // strike finalizes the attempt instantly.
-      if (myResponse?.unlocked && !isLive) {
-        setShowCheatWarning(false);
-        // A failed submit (Firestore offline) must not leave detection armed-off.
-        void handleAutoSubmit('post-unlock').finally(tabTracker.release);
-        return true;
-      }
-      setShowCheatWarning(true);
-      if (hasReachedTabWarningThreshold(newTotal, tabWarningThreshold)) {
-        setTimeout(() => void handleAutoSubmit(), 100);
-        return true;
-      }
-      return false;
-    },
     saveExits: saveTabExits,
-    limitMs: tabAwayRule?.limitMs ?? null,
-    autoSubmit: tabAwayRule?.autoSubmit ?? false,
-    onAwayTooLong: () => {
-      // Submit first: the tab may be hidden, where a blocking alert would wait.
-      setShowCheatWarning(true);
-      void completeActivity()
-        .then(() =>
-          showAlert(
-            'You were away from the activity too long, so it was submitted.',
-            { title: 'Activity Auto-Submitted', variant: 'warning' }
-          )
-        )
-        .catch((err: unknown) =>
-          logError('VideoActivityStudentApp.awayAutoSubmit', err, {
-            sessionId,
-          })
-        )
-        .finally(tabTracker.release);
-    },
     fullscreenRequired: effectivePageProtections(
       session?.sessionOptions ?? {},
       pointer?.override
     ).fullscreen,
   });
+  const tabWarningThreshold = tabPolicy.rules.threshold;
 
   // ── Invalid / missing session ID ──────────────────────────────────────────
 
@@ -900,75 +772,19 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
   if (periodStep && joinStatus !== 'joined') {
     return (
-      <div className="h-screen h-dvh overflow-y-auto bg-linear-to-b from-white to-slate-100">
-        <div className="min-h-full flex flex-col items-center justify-center p-6">
-          <div className="w-full max-w-sm">
-            <div className="flex items-center justify-center mb-8">
-              <ClipboardList className="w-5 h-5 text-brand-blue-primary mr-2" />
-              <span className="text-sm text-slate-700 font-semibold">
-                Video Activity
-              </span>
-            </div>
-
-            <h1 className="text-2xl font-black text-slate-900 mb-2 text-center">
-              Select Your Class
-            </h1>
-            <p className="text-slate-500 text-sm text-center mb-6">
-              Which class period are you in?
-            </p>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-                {error}
-              </div>
-            )}
-
-            <div className="space-y-2 mb-6">
-              {periodStep.map((period) => (
-                <button
-                  {...tourAttr('student.video-activity.period-option')}
-                  key={period}
-                  onClick={() => setSelectedPeriod(period)}
-                  className={`w-full px-4 py-4 rounded-xl text-lg font-bold transition-all ${
-                    selectedPeriod === period
-                      ? 'border border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary ring-2 ring-brand-blue-light'
-                      : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  {period}
-                </button>
-              ))}
-            </div>
-
-            <button
-              {...tourAttr('student.video-activity.period-continue')}
-              onClick={() => void handlePeriodConfirm()}
-              disabled={joinStatus === 'loading' || !selectedPeriod}
-              className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors shadow-xs shadow-brand-blue-primary/20"
-            >
-              {joinStatus === 'loading' ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  Continue <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
-
-            <button
-              {...tourAttr('student.video-activity.period-back')}
-              onClick={() => {
-                setPeriodStep(null);
-                setSelectedPeriod(null);
-              }}
-              className="w-full mt-3 py-2 text-slate-500 hover:text-slate-700 text-sm font-medium transition-colors"
-            >
-              Go Back
-            </button>
-          </div>
-        </div>
-      </div>
+      <StudentPeriodPicker
+        title={periodTitle}
+        periods={periodStep}
+        pendingPeriod={joinStatus === 'loading' ? selectedPeriod : null}
+        onPick={(period) => void handlePeriodPick(period)}
+        error={error}
+        optionTourId="student.video-activity.period-option"
+        onBack={() => {
+          setPeriodStep(null);
+          setSelectedPeriod(null);
+        }}
+        backTourId="student.video-activity.period-back"
+      />
     );
   }
 
@@ -1004,85 +820,17 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     }
 
     return (
-      <div className="h-screen h-dvh overflow-y-auto bg-linear-to-b from-white to-slate-100">
-        <div className="min-h-full flex flex-col items-center justify-center p-4">
-          <div className="w-full max-w-sm">
-            {/* Brand header */}
-            <div className="flex items-center justify-center gap-3 mb-8">
-              <div className="bg-brand-red-primary rounded-xl p-2.5">
-                <PlayCircle className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <p className="text-slate-900 font-black text-xl leading-none">
-                  SpartBoard
-                </p>
-                <p className="text-slate-500 text-xs font-medium mt-0.5">
-                  Video Activity
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-xs shadow-slate-900/5 border border-slate-200 overflow-hidden">
-              <div className="bg-brand-blue-primary px-5 py-4">
-                <h1 className="text-white font-black text-base uppercase tracking-wide">
-                  Join Activity
-                </h1>
-              </div>
-
-              <form onSubmit={handleJoin} className="p-5 flex flex-col gap-4">
-                <div>
-                  <label
-                    htmlFor={pinInputId}
-                    className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5"
-                  >
-                    Your PIN
-                  </label>
-                  <input
-                    {...tourAttr('student.video-activity.pin')}
-                    id={pinInputId}
-                    type="text"
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    placeholder="Ask your teacher"
-                    inputMode="numeric"
-                    autoFocus
-                    className="w-full bg-white border border-slate-300 focus:border-brand-blue-light focus:ring-2 focus:ring-brand-blue-light text-slate-900 placeholder-slate-400 rounded-xl px-3 py-2.5 text-base font-medium outline-hidden transition-colors"
-                    required
-                  />
-                </div>
-
-                {error && (
-                  <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
-                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                    <p className="text-red-700 text-sm">{error}</p>
-                  </div>
-                )}
-
-                <button
-                  {...tourAttr('student.video-activity.join')}
-                  type="submit"
-                  disabled={
-                    joinStatus === 'loading' || lookingUp || !pin.trim()
-                  }
-                  className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 flex items-center justify-center gap-2 shadow-xs shadow-brand-blue-primary/20"
-                >
-                  {joinStatus === 'loading' || lookingUp ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Joining…
-                    </>
-                  ) : (
-                    <>
-                      <PlayCircle className="w-4 h-4" />
-                      Join &amp; Watch
-                    </>
-                  )}
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
+      <StudentPinJoinCard
+        title={t('studentJoin.title')}
+        intro={t('studentJoin.pinIntro')}
+        pin={pin}
+        onPinChange={setPin}
+        pinTourId="student.video-activity.pin"
+        onSubmit={() => void handleJoin()}
+        submitTourId="student.video-activity.join"
+        busy={joinStatus === 'loading' || lookingUp}
+        error={error}
+      />
     );
   }
 
@@ -1101,7 +849,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const completedCount = myResponse?.completedAttempts ?? 0;
   const atCap = attemptLimit !== null && completedCount >= attemptLimit;
   // A retake waiting on a shut period shows the locked card; otherwise finished work always shows here.
-  const retakeWaiting = retakePending && perPeriod && !canEnter;
+  const retakeWaiting = retakePending && gated && !canEnter;
   if (
     (videoEnded ||
       (myResponse != null && isVaResponseCompleted(myResponse)) ||
@@ -1286,13 +1034,18 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
   // ── Per-period session not open for this student ─────────────────────────
 
-  if (perPeriod && session && !entered) {
+  if (gated && session && !entered) {
     if (!canEnter) {
       return (
-        <VideoActivityPeriodLockedScreen
-          session={session}
-          periodKeys={periodKeys}
-          now={periodNow}
+        <StudentPeriodLockedScreen
+          title={session.activityTitle}
+          lock={periodLockState(
+            session,
+            periodKeys,
+            windowGated ? studentWindow.now : periodNow,
+            authedUid,
+            windowGated ? studentWindow : null
+          )}
           started={!retakePending && (myResponse?.answers.length ?? 0) > 0}
         />
       );
@@ -1351,50 +1104,12 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         </div>
       )}
 
-      {/* Tab-switch warning modal — same red full-screen style as the
-          Quiz cheat warning. Hidden for teacher-unlocked attempts, which
-          finalize on the next strike instead. */}
-      {showCheatWarning && (
-        <div className="absolute inset-0 z-overlay bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
-          <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
-          <h2 className="text-4xl font-black text-white mb-4">
-            TAB SWITCH DETECTED
-          </h2>
-          {tabAwayRule && tabTracker.away && (
-            <TabAwayClock
-              away={tabTracker.away}
-              limitMs={tabAwayRule.limitMs}
-              autoSubmit={tabAwayRule.autoSubmit}
-            />
-          )}
-          <p className="text-red-200 text-lg max-w-md mb-8">
-            You navigated away from the activity. This incident has been logged.
-            <br />
-            <br />
-            {tabWarningThreshold === 'off' ? (
-              <strong>Warning {warningCount}.</strong>
-            ) : (
-              <>
-                <strong>
-                  Warning {warningCount} of {tabWarningThreshold}.
-                </strong>{' '}
-                If you reach {tabWarningThreshold} warnings, your activity will
-                automatically submit.
-              </>
-            )}
-          </p>
-          <button
-            {...tourAttr('student.video-activity.tab-warning-return')}
-            onClick={() => {
-              setShowCheatWarning(false);
-              tabTracker.resume();
-            }}
-            className="px-8 py-4 bg-white text-red-900 font-bold rounded-xl active:scale-95 transition-transform"
-          >
-            I Understand, Return to Activity
-          </button>
-        </div>
-      )}
+      <StudentOfflineBanner />
+      <TabStrikeWarning
+        policy={tabPolicy}
+        layer="panel"
+        dismissAttrs={tourAttr('student.video-activity.tab-warning-return')}
+      />
 
       {/* Persistent "one strike and you're out" banner for unlocked
           attempts. Sits above the top bar so it's visible alongside the
@@ -1474,7 +1189,11 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 onNoteTrigger={setActiveNote}
               />
 
-              {periodPaused && <VideoActivityPeriodPausedOverlay />}
+              {periodPaused && (
+                <StudentPeriodPausedOverlay
+                  closed={windowGated && studentWindow.state === 'closed'}
+                />
+              )}
 
               {finishPending && !periodPaused && (
                 <div className="absolute inset-0 z-30 bg-slate-900/80 flex flex-col items-center justify-center gap-4 p-6 text-center">

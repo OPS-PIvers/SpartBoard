@@ -11,7 +11,6 @@ import {
   archiveTarget,
   effectiveGrades,
   effectiveSubject,
-  parseCsvRecords,
   parsePastedTargets,
   parseTargetsCsv,
   setMasteryCutoffs,
@@ -50,15 +49,6 @@ describe('parsePastedTargets', () => {
 
   it('returns [] for blank input', () => {
     expect(parsePastedTargets('  \n\n')).toEqual([]);
-  });
-});
-
-describe('parseCsvRecords', () => {
-  it('handles quoted commas, newlines and escaped quotes', () => {
-    expect(parseCsvRecords('a,"b, c","say ""hi""\nthere"\r\n1,2,3')).toEqual([
-      ['a', 'b, c', 'say "hi"\nthere'],
-      ['1', '2', '3'],
-    ]);
   });
 });
 

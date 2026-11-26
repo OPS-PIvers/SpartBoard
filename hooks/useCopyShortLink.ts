@@ -3,6 +3,19 @@ import { useCreateShortLink } from '@/hooks/useShortLinks';
 import { resolveShortLink } from '@/utils/shortLinksApi';
 import { buildShortUrl } from '@/utils/shortLinkValidation';
 import { logError } from '@/utils/logError';
+import { copyText } from '@/utils/copyText';
+
+/** The one copy-link path: copies, then reports `success` or `failure` through the caller's toast. */
+export async function copyLinkWithToast<T extends 'success' | 'error' | 'info'>(
+  text: string,
+  notify: (message: string, type: 'success' | T) => void,
+  messages: { success: string; failure: string; failureType: T }
+): Promise<boolean> {
+  const ok = await copyText(text);
+  if (ok) notify(messages.success, 'success');
+  else notify(messages.failure, messages.failureType);
+  return ok;
+}
 
 export interface ShortLinkTarget {
   destination: string;
@@ -54,17 +67,18 @@ export function useCopyShortLink(logContext: string): {
   const copy = async (target: ShortLinkTarget) => {
     if (state === 'working') return;
     setState('working');
-    try {
-      await navigator.clipboard.writeText(await getShareUrl(target));
-      setState('done');
-      if (resetTimerRef.current !== null) {
-        window.clearTimeout(resetTimerRef.current);
-      }
-      resetTimerRef.current = window.setTimeout(() => setState('idle'), 1500);
-    } catch (err) {
-      logError(`${logContext}.clipboard`, err, { code: target.code });
+    const ok = await copyText(await getShareUrl(target), (err) =>
+      logError(`${logContext}.clipboard`, err, { code: target.code })
+    );
+    if (!ok) {
       setState('idle');
+      return;
     }
+    setState('done');
+    if (resetTimerRef.current !== null) {
+      window.clearTimeout(resetTimerRef.current);
+    }
+    resetTimerRef.current = window.setTimeout(() => setState('idle'), 1500);
   };
 
   return { state, copy };

@@ -182,9 +182,7 @@ describe('QuizStudentApp — per-period access', () => {
     hookState.myResponse = { ...buildResponse(), status: 'joined' };
     render(<QuizStudentApp />);
     await waitFor(() =>
-      expect(
-        screen.getByText('Opens when your teacher starts it.')
-      ).toBeInTheDocument()
+      expect(screen.getByText('Not open yet')).toBeInTheDocument()
     );
     expect(screen.queryByText('What is 2 + 2?')).toBeNull();
   });

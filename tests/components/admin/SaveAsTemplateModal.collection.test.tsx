@@ -123,9 +123,7 @@ describe('SaveAsTemplateModal — Collection target', () => {
         }}
       />
     );
-    expect(
-      screen.getByText(/Save Collection as Template/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Save Folder as Template/i)).toBeInTheDocument();
   });
 });
 

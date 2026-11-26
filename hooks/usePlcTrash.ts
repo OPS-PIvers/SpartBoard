@@ -52,6 +52,7 @@ import { parseDoc } from '@/hooks/usePlcDocs';
 import { parsePlcQuizEntry } from '@/hooks/usePlcQuizzes';
 import { parsePlcVideoActivityEntry } from '@/hooks/usePlcVideoActivities';
 import { parsePlcRubricEntry } from '@/hooks/usePlcRubrics';
+import { restorePlcLibraryEntry } from '@/hooks/usePlcLibraryEntries';
 import { parseComment } from '@/hooks/usePlcComments';
 
 const PLCS_COLLECTION = 'plcs';
@@ -369,8 +370,7 @@ async function restorePlcItem(
     case 'quiz':
     case 'videoActivity':
     case 'rubric':
-      // Same write as `restoreRubricInPlc` (hooks/usePlcRubrics.ts).
-      await updateDoc(ref, { deletedAt: null, updatedAt: Date.now() });
+      await restorePlcLibraryEntry(plcId, SUBCOLLECTION_FOR[type], id);
       return;
     case 'comment':
       await updateDoc(ref, { deletedAt: null });

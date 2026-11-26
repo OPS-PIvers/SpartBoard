@@ -146,7 +146,7 @@ const NoteScreen: React.FC<{ lead: boolean }> = ({ lead }) => {
                 {
                   key: 'docs',
                   label: 'Open in Docs',
-                  icon: <FileText className="h-4 w-4" />,
+                  icon: FileText,
                   run: () => undefined,
                 },
               ]}

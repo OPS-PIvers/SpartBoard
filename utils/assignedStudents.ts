@@ -3,6 +3,11 @@ import {
   resolveStudentTargetRef,
   studentTargetRefKey,
 } from '@/utils/studentTargetRef';
+import {
+  compareLastFirst,
+  compareNameText,
+  lastFirst,
+} from '@/utils/studentName';
 
 /** The targeting fields every assignment kind shares. */
 export interface PickedTargetFields {
@@ -28,19 +33,8 @@ export interface PickedStudents {
   unnamed: number;
 }
 
-/** "Last, First", or the one name a roster row has. */
-export const lastFirst = (s: Pick<Student, 'firstName' | 'lastName'>) => {
-  const first = s.firstName?.trim() ?? '';
-  const last = s.lastName?.trim() ?? '';
-  return last && first ? `${last}, ${first}` : last || first;
-};
-
-const byLastName = new Intl.Collator(undefined, { sensitivity: 'base' });
 const sortNames = (rows: Student[]): string[] =>
-  rows
-    .slice()
-    .sort((a, b) => byLastName.compare(lastFirst(a), lastFirst(b)))
-    .map(lastFirst);
+  rows.slice().sort(compareLastFirst).map(lastFirst);
 
 /** Null unless the run went to picked students; each one is listed once, under the first run class that has them. */
 export function pickedStudents(
@@ -113,7 +107,7 @@ export function namesByClassKey(
   const entries = Object.entries(periodAccess ?? {});
   if (entries.length === 0) {
     const all = picked.classes.flatMap((c) => c.names);
-    return { '': all.sort(byLastName.compare) };
+    return { '': all.sort(compareNameText) };
   }
   const out: Record<string, string[]> = {};
   for (const [key, row] of entries) {

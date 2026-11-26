@@ -88,6 +88,7 @@ interface StoredStep {
     showWhen?: unknown;
     doneWhen?: unknown;
     openUrl?: unknown;
+    pickAny?: unknown;
   };
 }
 
@@ -138,6 +139,9 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 
 // Same protocol as CROSS_SITE_PROTOCOL in components/tours/web/extensionProtocol.ts.
 export const CROSS_SITE_PROTOCOL = 14;
+
+// Same protocol as PICK_ANY_PROTOCOL in components/tours/web/extensionProtocol.ts.
+export const PICK_ANY_PROTOCOL = 16;
 
 // Wording approved in docs/plans/WEB_TOURS_CROSS_SITE.md X14.
 export const NEEDS_UPDATE_MESSAGE =
@@ -343,6 +347,8 @@ export interface LoadedTour {
   startPage?: string;
   /** Pages the admin set on steps, by id, beside the steps so an older extension never sees them. */
   openUrls?: Record<string, string>;
+  /** Steps that light every control like their target, by id; only for an extension at PICK_ANY_PROTOCOL. */
+  pickAny?: string[];
   /** Step conditions by id, beside the steps so an extension before protocol 12 never sees them. */
   conditions?: Record<
     string,
@@ -435,8 +441,15 @@ export async function loadTour(
     const url = isTargeted(step) ? openablePage(step.web?.openUrl) : null;
     if (url) openUrls[str(step.id)] = url;
   }
+  const pickAny =
+    protocol >= PICK_ANY_PROTOCOL
+      ? steps
+          .filter((step) => isTargeted(step) && step.web?.pickAny === true)
+          .map((step) => str(step.id))
+      : [];
   const startPage = openablePage(snap.set?.webStartUrl);
   return {
+    ...(pickAny.length > 0 ? { pickAny } : {}),
     ...(Object.keys(conditions).length > 0 ? { conditions } : {}),
     ...(Object.keys(openUrls).length > 0 ? { openUrls } : {}),
     ...(startPage ? { startPage } : {}),

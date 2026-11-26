@@ -12,7 +12,6 @@ import {
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import {
-  DEFAULT_ATTEMPT_POLICY,
   GRADEBOOK_COLLECTIONS,
   gradebookDocId,
   type GradebookClassStateDoc,
@@ -62,21 +61,7 @@ export interface GradebookSource {
   saveClassState: (patch: GradebookClassStatePatch) => Promise<void>;
 }
 
-export function newColumnConfig(
-  base: Pick<GradebookColumnConfig, 'kind' | 'sessionId' | 'ownerUid'>
-): GradebookColumnConfig {
-  return {
-    ...base,
-    editorUids: [],
-    category: null,
-    countsTowardOverall: true,
-    maxPointsOverride: null,
-    attemptPolicy: DEFAULT_ATTEMPT_POLICY,
-    targets: [],
-    hiddenInRosterIds: [],
-    updatedAt: Date.now(),
-  };
-}
+export { newColumnConfig } from '@/utils/gradebook/gradebookCore';
 
 interface Keyed<T> {
   key: string;

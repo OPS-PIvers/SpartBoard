@@ -14,8 +14,11 @@ import {
   isGradable,
   writingMaxPoints,
 } from '@/utils/writingGrading';
+import { useResultsSheetExport } from '@/hooks/useResultsSheetExport';
+import { exportWritingResults } from '@/utils/writingResultsExport';
 import { WritingResultsView } from './WritingResultsView';
 import { WritingGrader } from './WritingGrader';
+import { lastFirst } from '@/utils/studentName';
 
 export const WritingResults: React.FC<{
   sessionId: string;
@@ -47,17 +50,34 @@ export const WritingResults: React.FC<{
   if (grading && !drafts.loading && opened !== grading) setOpened(grading);
   if (!grading && opened !== null) setOpened(null);
   const sessionGrading = session?.grading ?? { mode: 'ungraded' as const };
+  const title = session?.title ?? record?.title ?? 'Writing';
+  const sheet = useResultsSheetExport(
+    (token) =>
+      exportWritingResults(
+        token,
+        title,
+        responses,
+        writingMaxPoints(sessionGrading),
+        {
+          byStudentUid: pseudonyms.byStudentUid,
+          teacherName: user?.displayName ?? undefined,
+        }
+      ),
+    'WritingResults.export'
+  );
 
   return (
     <>
       <WritingResultsView
-        title={session?.title ?? record?.title ?? 'Writing'}
+        title={title}
         rows={rows}
         maxPoints={writingMaxPoints(sessionGrading)}
         loading={loading || pseudonyms.loading}
         error={error || (!loading && !session)}
         onBack={onBack}
         onGrade={setGrading}
+        sheet={sheet}
+        canExport={responses.length > 0}
       />
       {opened && session && (
         <WritingGrader
@@ -80,12 +100,7 @@ export const WritingResults: React.FC<{
             )
           }
           onClose={() => setGrading(null)}
-          nameOf={(uid) => {
-            const n = pseudonyms.byStudentUid.get(uid);
-            return n
-              ? [n.familyName, n.givenName].filter(Boolean).join(', ')
-              : '';
-          }}
+          nameOf={(uid) => lastFirst(pseudonyms.byStudentUid.get(uid))}
         />
       )}
     </>

@@ -77,6 +77,7 @@ interface WebBinding {
   showWhen?: StoredCondition;
   doneWhen?: StoredCondition;
   openUrl?: unknown;
+  pickAny?: unknown;
 }
 type StoredCondition = { kind: 'target' } | { kind: 'url'; pattern: string };
 export interface WebStep {
@@ -250,6 +251,7 @@ export function publicWebStep(step: WebStep, index: number, fix?: StepFix) {
     locator,
     has_picture: typeof web?.picture?.path === 'string',
     ...(openUrl ? { open_url: openUrl } : {}),
+    ...(web?.pickAny === true ? { pick_any: true } : {}),
     ...(showWhen ? { show_when: showWhen } : {}),
     ...(doneWhen ? { done_when: doneWhen } : {}),
     ...(note ? { note } : {}),
@@ -399,6 +401,8 @@ export type WrittenCondition =
 /** A step's page and conditions, as the editor's Step page, Show only when and Move on when set them; null clears a condition and "" the page. */
 export interface StepPlace {
   open_url?: string;
+  /** Lights every control like the target, and any of them moves on (the editor's Which one: Any one like it). */
+  pick_any?: boolean;
   show_when?: WrittenCondition | null;
   done_when?: WrittenCondition | null;
 }
@@ -624,6 +628,14 @@ export function withPlace(
       out.openUrl = openPage(`${at} open_url`, place.open_url, warnings);
     else delete out.openUrl;
   }
+  if (place.pick_any === true) {
+    out.pickAny = true;
+    const loc = out.locator ?? {};
+    if (!str(loc.css) && !(str(loc.role) && str(loc.heading)))
+      warnings.push(
+        `${at} pick_any needs a css that matches every option, or a role with the list's heading. Without one it lights only the one control.`
+      );
+  } else if (place.pick_any === false) delete out.pickAny;
   for (const [key, field] of [
     ['show_when', 'showWhen'],
     ['done_when', 'doneWhen'],
@@ -644,13 +656,14 @@ export function withPlace(
 
 const hasPlace = (place: StepPlace): boolean =>
   place.open_url !== undefined ||
+  place.pick_any !== undefined ||
   place.show_when !== undefined ||
   place.done_when !== undefined;
 
 const onlyClears = (place: StepPlace): boolean =>
   [place.open_url, place.show_when, place.done_when].every(
     (v) => v === undefined || v === null || v === ''
-  );
+  ) && place.pick_any !== true;
 
 const VERB: Record<WebAction, string> = {
   observe: 'Look at',
@@ -761,7 +774,7 @@ export function applyWebStepList(
     if (!out.web && onlyClears(entry)) return out;
     if (!out.web)
       throw new ToolError(
-        `${at} is a message, which plays on whatever page the teacher is on, so it takes no open_url, show_when or done_when.`
+        `${at} is a message, which plays on whatever page the teacher is on, so it takes no open_url, pick_any, show_when or done_when.`
       );
     return { ...out, web: withPlace(at, out.web, entry, warnings) };
   });
@@ -984,7 +997,7 @@ export async function restoreWebTourRevision(
 }
 
 const STEP_LIST =
-  "Each step: id, number, kind (recorded for a step that points at a control on a page, recorded by an admin or written from clues, message for a Message step that says something without pointing at a control and has no action, address, locator or picture), title, tip, action (click, type, select or observe), url_pattern (the page it plays on, ids as *), locator (the role, name, text, nearby heading, page title and stable attrs it finds its control by), has_picture, when set the step's page and conditions (open_url, show_when and done_when, each condition { kind: target } or { kind: url, url_pattern }), and when set the admin's private note for Claude (note, never shown to teachers) and the question SpartBoard's Write with Claude left on the step (question). goal is what the admin said the tour explains. suggested_fix, when present, is what a run of the tour found instead when the step missed or matched weakly: the clues (locator, whose name, text and heading are always the step's own, never words from the page it was found on), which clues differ (changed), where it came from (source: check for the admin's Check tour, admin for an admin's own run, teacher for teachers' runs, shown once at least two agree), and how many runs found it (runs). Claude can recommend a fix; only the admin can use it, in SpartBoard.";
+  "Each step: id, number, kind (recorded for a step that points at a control on a page, recorded by an admin or written from clues, message for a Message step that says something without pointing at a control and has no action, address, locator or picture), title, tip, action (click, type, select or observe), url_pattern (the page it plays on, ids as *), locator (the role, name, text, nearby heading, page title and stable attrs it finds its control by), has_picture, pick_any when the step lights every control like its target (the editor's Which one: Any one like it), when set the step's page and conditions (open_url, show_when and done_when, each condition { kind: target } or { kind: url, url_pattern }), and when set the admin's private note for Claude (note, never shown to teachers) and the question SpartBoard's Write with Claude left on the step (question). goal is what the admin said the tour explains. suggested_fix, when present, is what a run of the tour found instead when the step missed or matched weakly: the clues (locator, whose name, text and heading are always the step's own, never words from the page it was found on), which clues differ (changed), where it came from (source: check for the admin's Check tour, admin for an admin's own run, teacher for teachers' runs, shown once at least two agree), and how many runs found it (runs). Claude can recommend a fix; only the admin can use it, in SpartBoard.";
 
 const CONDITION_SCHEMA = z.union([
   z.object({ kind: z.literal('target') }).strict(),
@@ -1003,6 +1016,12 @@ const PLACE_FIELDS = {
     .optional()
     .describe(
       'Step page: the real https page Go and a start on this step open, with no *. Set it when the step starts a page the teacher reaches from outside the tour; "" clears it, leaving the page guessed from url_pattern.'
+    ),
+  pick_any: z
+    .boolean()
+    .optional()
+    .describe(
+      'Which one: true is Any one like it, which lights every control like the target (same role, same CSS path with row positions dropped, same heading) and moves on when the teacher acts on any of them. Use it for a pick-one-of-many list, like choosing a course, a file or a checkbox row. false is This one.'
     ),
   show_when: CONDITION_SCHEMA.nullable()
     .optional()
@@ -1082,7 +1101,7 @@ const STEP_LIST_SCHEMA = z
   .min(1)
   .max(MAX_WEB_STEPS)
   .describe(
-    'The whole new step list, in play order: { id } keeps a step (with an optional new title, tip, open_url, show_when or done_when), { new_message: true, tip } adds a Message step, { new_step: true, url_pattern, action, locator } adds a step that points at a control.'
+    'The whole new step list, in play order: { id } keeps a step (with an optional new title, tip, open_url, pick_any, show_when or done_when), { new_message: true, tip } adds a Message step, { new_step: true, url_pattern, action, locator } adds a step that points at a control.'
   );
 
 const NEW_STEPS_SCHEMA = z
@@ -1448,7 +1467,7 @@ export function registerWebTourTools(
     'update_web_tour_steps',
     {
       title: "Add, move or remove a web tour's steps",
-      description: `Admins only. Sets the draft's whole step list in its new order. Name each step to keep by id (with an optional new title or tip); add a Message step with new_message: true, a tip and an optional title; add a step that points at a control with new_step: true, its page (url_pattern), action and written locator; any step left out is removed, recorded steps included. A Message step shows a centered tip with no picture and plays on whatever page the teacher is on: use it for an opening, a closing, or before the tour moves to another site, and only when the admin asks for one. A written step plays like a recorded one but has no picture, and nobody has checked its clues against the real page: write them from what the page really shows, prefer a stable attribute or SpartBoard's data-tour selector over words that change, and tell the admin to run Check tour in SpartBoard, since publishing needs every step found. The SpartBoard extension's own Send to SpartBoard tab and Schoology import button can be found from extension version 0.1.51 on. Any other control inside a closed shadow root can't be found by any clue; use a Message step there. A step can take open_url, its Step page: the real page Go and a start on it open, for a step that starts a page the tour doesn't click its way to (without one the extension opens the address url_pattern guesses, which is only the site when it has a *). show_when and done_when set when it plays and when it moves on, as the editor's conditions do. To change where a step points, remove it and add a written one. A tour needs at least one step that points at a control to publish. Saves the draft only and keeps the whole old list, targets and pictures included, as a revision restore_revision puts back exactly. Text that looks like student data is refused. If the tour is open in the SpartBoard editor, the admin reloads it there first, or its next save puts the old steps back.`,
+      description: `Admins only. Sets the draft's whole step list in its new order. Name each step to keep by id (with an optional new title or tip); add a Message step with new_message: true, a tip and an optional title; add a step that points at a control with new_step: true, its page (url_pattern), action and written locator; any step left out is removed, recorded steps included. A Message step shows a centered tip with no picture and plays on whatever page the teacher is on: use it for an opening, a closing, or before the tour moves to another site, and only when the admin asks for one. A written step plays like a recorded one but has no picture, and nobody has checked its clues against the real page: write them from what the page really shows, prefer a stable attribute or SpartBoard's data-tour selector over words that change, and tell the admin to run Check tour in SpartBoard, since publishing needs every step found. The SpartBoard extension's own Send to SpartBoard tab and Schoology import button can be found from extension version 0.1.51 on. Any other control inside a closed shadow root can't be found by any clue; use a Message step there. A step can take open_url, its Step page: the real page Go and a start on it open, for a step that starts a page the tour doesn't click its way to (without one the extension opens the address url_pattern guesses, which is only the site when it has a *). show_when and done_when set when it plays and when it moves on, as the editor's conditions do. pick_any: true lights every option like the step's control, such as each row of a list, and moves on when the teacher picks any one; give such a step a css that matches every option (row positions like :nth-of-type are dropped) or a role with the list's heading; name and text don't narrow it, since they differ per option. Extension versions before 0.1.52 light only the one control. To change where a step points, remove it and add a written one. A tour needs at least one step that points at a control to publish. Saves the draft only and keeps the whole old list, targets and pictures included, as a revision restore_revision puts back exactly. Text that looks like student data is refused. If the tour is open in the SpartBoard editor, the admin reloads it there first, or its next save puts the old steps back.`,
       inputSchema: {
         set_id: z.string().min(1).max(100),
         steps: STEP_LIST_SCHEMA,

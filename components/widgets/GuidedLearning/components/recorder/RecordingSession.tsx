@@ -1,9 +1,8 @@
+import { Modal } from '@/components/common/Modal';
 import React, { useContext, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Circle, EyeOff, ShieldCheck } from 'lucide-react';
 import type { GuidedLearningSet, WidgetData } from '@/types';
-import { Z_INDEX } from '@/config/zIndex';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
@@ -325,17 +324,19 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
     );
   }
 
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="gl-record-start-title"
-      data-tour-ignore=""
-      className="fixed inset-0 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
-      style={{ zIndex: Z_INDEX.tour }}
+  return (
+    <Modal
+      isOpen
+      onClose={cancel}
+      dismissible={false}
+      variant="bare"
+      zIndex="z-tour"
+      ariaLabelledby="gl-record-start-title"
+      rootProps={{ 'data-tour-ignore': '' }}
+      className="rounded-2xl bg-white shadow-2xl"
     >
       <form
-        className="flex w-full max-w-md flex-col gap-4 rounded-2xl bg-white p-5 shadow-2xl"
+        className="flex flex-col gap-4 p-5"
         onSubmit={(e) => {
           e.preventDefault();
           begin();
@@ -396,8 +397,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
           </button>
         </div>
       </form>
-    </div>,
-    document.body
+    </Modal>
   );
 };
 

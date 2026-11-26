@@ -85,9 +85,15 @@ export interface CreateInput {
   steps: CreateStepInput[];
 }
 
+export type HelpAudience = 'teachers' | 'subs' | 'students';
+
 export interface HelpCenterPlacement {
-  category_id: string;
+  /** Needed when the tour has no Help Center item yet. */
+  category_id?: string;
   widget_types?: string[];
+  audience?: HelpAudience;
+  /** "everyone" or an organization id; super admins only. */
+  scope?: string;
 }
 
 /** Where the set is saved: live tours run only from building sets. */

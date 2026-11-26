@@ -31,11 +31,13 @@ import {
   where,
   writeBatch,
   addDoc,
+  deleteField,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { collectDescendantIds } from '@/utils/folderTree';
+import { withPaletteColor } from '@/components/boardsModal/collectionFolders';
 import type { Collection } from '@/types';
 
 const COLLECTIONS_SUBPATH = 'collections';
@@ -141,14 +143,14 @@ export const useCollections = (
       (snap) => {
         const list: Collection[] = snap.docs.map((d) => {
           const data = d.data() as Omit<Collection, 'id'>;
-          return { ...data, id: d.id };
+          return withPaletteColor({ ...data, id: d.id });
         });
         setCollections(list);
         setLoading(false);
       },
       (err) => {
         logError('useCollections.onSnapshot', err, { userId });
-        setError('Failed to load collections');
+        setError('Failed to load folders');
         setLoading(false);
       }
     );
@@ -164,7 +166,7 @@ export const useCollections = (
     ): Promise<string> => {
       if (!userId) throw new Error('Not authenticated');
       const trimmed = name.trim();
-      if (!trimmed) throw new Error('Collection name is required');
+      if (!trimmed) throw new Error('Folder name is required');
 
       const siblingOrders = collections
         .filter((c) => c.parentCollectionId === parentCollectionId)
@@ -218,7 +220,7 @@ export const useCollections = (
     async (collectionId: string, nextName: string): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
       const trimmed = nextName.trim();
-      if (!trimmed) throw new Error('Collection name is required');
+      if (!trimmed) throw new Error('Folder name is required');
 
       if (isAuthBypass) {
         setCollections((prev) =>
@@ -271,15 +273,13 @@ export const useCollections = (
     ): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
       if (collectionId === nextParentCollectionId) {
-        throw new Error('Cannot move a collection into itself');
+        throw new Error('Cannot move a folder into itself');
       }
       if (
         nextParentCollectionId != null &&
         isDescendantOrSelf(nextParentCollectionId, collectionId)
       ) {
-        throw new Error(
-          'Cannot move a collection into one of its own subcollections'
-        );
+        throw new Error('Cannot move a folder into one of its own subfolders');
       }
 
       const siblingOrders = collections
@@ -365,18 +365,26 @@ export const useCollections = (
       const update: Record<string, unknown> = { updatedAt: Date.now() };
       if (patch.name !== undefined) {
         const trimmed = patch.name.trim();
-        if (!trimmed) throw new Error('Collection name is required');
+        if (!trimmed) throw new Error('Folder name is required');
         update.name = trimmed;
       }
-      if (patch.color !== undefined) update.color = patch.color;
+      // An empty colour clears it back to none.
+      const clearColor = patch.color === '';
+      if (patch.color) update.color = patch.color;
       if (patch.icon !== undefined) update.icon = patch.icon;
 
       if (isAuthBypass) {
         setCollections((prev) =>
-          prev.map((c) => (c.id === collectionId ? { ...c, ...update } : c))
+          prev.map((c) => {
+            if (c.id !== collectionId) return c;
+            const next: Collection = { ...c, ...update };
+            if (clearColor) delete next.color;
+            return next;
+          })
         );
         return;
       }
+      if (clearColor) update.color = deleteField();
 
       const batch = writeBatch(db);
       batch.update(
@@ -451,7 +459,7 @@ export const useCollections = (
     async (collectionId: string, mode: DeleteCollectionMode): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
       const target = collections.find((c) => c.id === collectionId);
-      if (!target) throw new Error('Collection not found');
+      if (!target) throw new Error('Folder not found');
 
       const now = Date.now();
       // Phase tracking lets a partial failure log "how far we got" so a

@@ -279,3 +279,67 @@ describe('frame seeker', () => {
     expect(isFrameCommand(null)).toBe(false);
   });
 });
+
+describe('pick-any steps', () => {
+  const anySeek = {
+    type: 'wt:seek' as const,
+    token: 'any1',
+    clues: {
+      role: 'button',
+      css: 'ul > li:nth-of-type(2) > button',
+      any: true as const,
+    },
+    action: 'click' as const,
+  };
+  const list = (n: number) =>
+    `<ul>${Array.from({ length: n }, (_, i) => `<li><button>Course ${i + 1}</button></li>`).join('')}</ul>`;
+
+  it('lights every option and moves on when the learner picks any one', () => {
+    document.body.innerHTML = list(3);
+    const reports: FrameReport[] = [];
+    const listeners: { el: EventTarget; type: string; cb: EventListener }[] =
+      [];
+    const spy = vi
+      .spyOn(EventTarget.prototype, 'addEventListener')
+      .mockImplementation(function (this: EventTarget, type, cb) {
+        listeners.push({ el: this, type, cb: cb as EventListener });
+      });
+    installFrameSeeker(document, (r) => reports.push(r))(anySeek);
+    spy.mockRestore();
+    const target = globalThis.__sbWebTourFrame?.target;
+    expect(target?.els?.map((el) => el.textContent)).toEqual([
+      'Course 1',
+      'Course 2',
+      'Course 3',
+    ]);
+    expect(reports[0]).toMatchObject({ type: 'wt:found', weak: false });
+    const third = document.querySelectorAll('button')[2];
+    const press = listeners.find(
+      (l) => l.el === third && l.type === 'mousedown'
+    );
+    press!.cb(
+      Object.create(MouseEvent.prototype, {
+        isTrusted: { value: true },
+        type: { value: 'mousedown' },
+        button: { value: 0 },
+      }) as MouseEvent
+    );
+    expect(reports.filter((r) => r.type === 'wt:acted')).toHaveLength(1);
+  });
+
+  it('lights options that arrive later and is lost once none are left', async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = list(2);
+    const reports: FrameReport[] = [];
+    installFrameSeeker(document, (r) => reports.push(r))(anySeek);
+    expect(globalThis.__sbWebTourFrame?.target?.els).toHaveLength(2);
+    document
+      .querySelector('ul')!
+      .insertAdjacentHTML('beforeend', '<li><button>Course 3</button></li>');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(globalThis.__sbWebTourFrame?.target?.els).toHaveLength(3);
+    document.body.innerHTML = '';
+    await vi.advanceTimersByTimeAsync(300);
+    expect(reports.at(-1)).toEqual({ type: 'wt:lost', token: 'any1' });
+  });
+});

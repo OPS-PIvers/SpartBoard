@@ -43,7 +43,8 @@ export const orderFlashcardRoster = <T extends FlashcardRosterStudent>(
   students: readonly T[],
   nameFor: (studentUid: string) => string,
   prefs: MonitorRosterPrefs,
-  applyToolbar: boolean
+  applyToolbar: boolean,
+  sortNameFor?: (studentUid: string) => string | undefined
 ): T[] => {
   const sortBy = applyToolbar ? (prefs.monitorSortBy ?? 'first') : 'first';
   // Flashcards never tracks tab switches, so a stored "tabs" filter shows everyone.
@@ -53,6 +54,7 @@ export const orderFlashcardRoster = <T extends FlashcardRosterStudent>(
     students,
     (s) => ({
       name: nameFor(s.studentUid),
+      sortName: sortNameFor?.(s.studentUid),
       status: BUCKET_STATUS[s.bucket],
       score: s.score === null ? null : Math.round(s.score),
       tabWarnings: 0,

@@ -64,6 +64,11 @@ import { MetaItem, PromptFooterToggle, metaValueClass } from './QuestionFields';
 import { PromptFooterContext } from './questionFieldContexts';
 import { StimulusTabFields } from './StimulusTabFields';
 import { StimulusPickerModal } from './StimulusPickerModal';
+import {
+  copyDriveAsset,
+  driveViewUrl,
+  uploadDriveAsset,
+} from '@/utils/driveAssetUpload';
 import { PICKER_ADD, initialPickerSelection } from './stimulusPickerSelection';
 import {
   StimulusTourTypeContext,
@@ -140,20 +145,15 @@ function useStimulusIntake(state: StimulusListState) {
   const shareCopy = useCallback(
     async (fileId: string, name: string): Promise<string | null> => {
       if (!driveService) return null;
-      let copyId: string | null = null;
       try {
-        const copy = await driveService.copyFile(
+        const copy = await copyDriveAsset(driveService, {
           fileId,
-          `stimulus-${Date.now()}-${name.replace(/[^\w.-]+/g, '_')}`,
-          'Assets/QuizStimuli'
-        );
-        copyId = copy.id;
-        await driveService.makePublic(copy.id, undefined);
+          name: `stimulus-${Date.now()}-${name.replace(/[^\w.-]+/g, '_')}`,
+          folder: 'Assets/QuizStimuli',
+          audience: 'anyone',
+        });
         return copy.id;
       } catch {
-        // Don't leave a private copy behind when sharing it failed.
-        if (copyId)
-          await driveService.deleteFile(copyId).catch(() => undefined);
         await showAlert(
           "Couldn't update sharing (you may not own this file). Make sure it's set to \"anyone with the link\" in Drive, or students won't see it.",
           { variant: 'warning' }
@@ -190,18 +190,17 @@ function useStimulusIntake(state: StimulusListState) {
       }
       setBusy(true);
       try {
-        const driveFile = await driveService.uploadFile(
-          file,
-          `stimulus-${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`,
-          'Assets/QuizStimuli'
-        );
-        // undefined domain forces type:'anyone' — anonymous live-session
-        // students have no Workspace identity a domain grant could match.
-        await driveService.makePublic(driveFile.id, undefined);
+        // Anyone with the link: anonymous live-session students have no Workspace identity.
+        const driveFile = await uploadDriveAsset(driveService, {
+          blob: file,
+          name: `stimulus-${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`,
+          folder: 'Assets/QuizStimuli',
+          audience: 'anyone',
+        });
         const stimulus: QuizStimulus = {
           id: crypto.randomUUID(),
           type,
-          url: `https://drive.google.com/file/d/${driveFile.id}/view`,
+          url: driveViewUrl(driveFile.id),
           driveFileId: driveFile.id,
           label: file.name,
         };

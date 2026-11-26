@@ -40,11 +40,9 @@ test.describe('Collections: Stop sharing a Synced collection', () => {
     page,
   }) => {
     const modal = await openBoards(page);
-    await modal.getByRole('button', { name: /new collection/i }).click();
-    const cPrompt = page.getByRole('dialog', { name: /new collection/i });
-    await cPrompt.getByRole('textbox').fill('Stop Test Coll');
-    await cPrompt.getByRole('button', { name: /^create$/i }).click();
-    await page.keyboard.press('Escape');
+    await modal.getByRole('button', { name: /new folder/i }).click();
+    await modal.getByPlaceholder('New folder name').fill('Stop Test Coll');
+    await modal.getByPlaceholder('New folder name').press('Enter');
     await modal.getByText('Stop Test Coll').first().click();
     await modal.getByRole('button', { name: /new board/i }).click();
     const bPrompt = page.getByRole('dialog', { name: /new board/i });
@@ -55,13 +53,13 @@ test.describe('Collections: Stop sharing a Synced collection', () => {
     await expect(
       menu.getByRole('menuitem', { name: /^stop sharing$/i })
     ).toHaveCount(0);
-    await menu.getByRole('menuitem', { name: /share collection/i }).click();
+    await menu.getByRole('menuitem', { name: /share folder/i }).click();
 
-    const shareDialog = page.getByRole('dialog', { name: /share collection/i });
+    const shareDialog = page.getByRole('dialog', { name: /share folder/i });
     await expect(shareDialog).toBeVisible({ timeout: 5000 });
     await shareDialog.getByRole('button', { name: /^synced/i }).click();
     await shareDialog.getByRole('button', { name: /create link/i }).click();
-    const urlInput = shareDialog.getByLabel('Share collection URL');
+    const urlInput = shareDialog.getByLabel('Share folder URL');
     await expect(urlInput).toHaveValue(/\/share\/collection\//, {
       timeout: 10000,
     });
@@ -69,12 +67,12 @@ test.describe('Collections: Stop sharing a Synced collection', () => {
 
     menu = await openCollectionMenu(page, 'Stop Test Coll');
     await expect(
-      menu.getByRole('menuitem', { name: /leave shared collection/i })
+      menu.getByRole('menuitem', { name: /leave shared folder/i })
     ).toHaveCount(0);
     await menu.getByRole('menuitem', { name: /^stop sharing$/i }).click();
 
     const confirm = page.getByRole('dialog').filter({
-      hasText: /stop sharing this collection\?/i,
+      hasText: /stop sharing this folder\?/i,
     });
     await expect(confirm).toBeVisible({ timeout: 5000 });
     await confirm.getByRole('button', { name: /^stop sharing$/i }).click();
@@ -88,7 +86,7 @@ test.describe('Collections: Stop sharing a Synced collection', () => {
       menu.getByRole('menuitem', { name: /^stop sharing$/i })
     ).toHaveCount(0);
     await expect(
-      menu.getByRole('menuitem', { name: /share collection/i })
+      menu.getByRole('menuitem', { name: /share folder/i })
     ).toBeVisible();
   });
 });

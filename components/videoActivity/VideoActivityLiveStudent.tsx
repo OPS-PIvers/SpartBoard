@@ -28,7 +28,7 @@ import {
   ShortAnswerInput,
 } from './QuestionOverlay';
 import { questionOptions } from '@/utils/videoActivityOptions';
-import { VideoActivityPeriodPausedOverlay } from './VideoActivityPeriodLockedScreen';
+import { StudentPeriodPausedOverlay } from '@/components/student/StudentPeriodPausedOverlay';
 import { StopPicture } from './StopPicture';
 
 interface VideoActivityLiveStudentProps {
@@ -279,7 +279,7 @@ export const VideoActivityLiveStudent: React.FC<
           <div className="w-full max-w-xl">{body}</div>
         </div>
       </div>
-      {paused && <VideoActivityPeriodPausedOverlay />}
+      {paused && <StudentPeriodPausedOverlay />}
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import type { Toast } from '@/types';
 import { GradebookSettingsModalView } from './GradebookSettingsModal';
 import type { GradebookScaleOption } from '@/hooks/useGradebookSettings';
 import {
@@ -11,6 +12,17 @@ import {
   resolveClassConfig,
   type GradebookConfigEntry,
 } from '@/utils/gradebook/settingsConfig';
+
+const toasts = vi.hoisted(
+  () => [] as { message: string; action?: Toast['action'] }[]
+);
+const lastToast = () => toasts[toasts.length - 1];
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({
+    addToast: (message: string, _t?: string, action?: Toast['action']) =>
+      toasts.push({ message, action }),
+  }),
+}));
 
 vi.mock('@/utils/plcPath', () => ({
   buildPlcPath: (id: string, s: string) => `/plc/${id}/${s}`,
@@ -85,9 +97,7 @@ describe('GradebookSettingsModalView', () => {
     const key = screen.getByLabelText('Late key');
     fireEvent.change(key, { target: { value: 'M' } });
     fireEvent.blur(key);
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Missing already uses M.'
-    );
+    expect(lastToast().message).toContain('Missing already uses M.');
     expect(actions.saveConfig).not.toHaveBeenCalled();
   });
 
@@ -99,7 +109,8 @@ describe('GradebookSettingsModalView', () => {
       { flags: { key: string; name: string }[] },
     ];
     expect(body.flags.at(-1)).toMatchObject({ key: 'N', name: 'New flag' });
-    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(lastToast().action?.label).toBe('Undo');
+    act(() => lastToast().action?.onClick());
     expect(actions.saveConfig).toHaveBeenCalledTimes(2);
     expect(
       (
@@ -122,15 +133,13 @@ describe('GradebookSettingsModalView', () => {
       source: 'personal',
       configId: 'a',
     });
-    expect(screen.getByRole('status')).toHaveTextContent(
+    expect(lastToast().message).toContain(
       'Moved Period 6 from Honors to My settings'
     );
     fireEvent.click(
       within(menu).getByRole('menuitemcheckbox', { name: /Period 4/ })
     );
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Period 4 now uses My settings'
-    );
+    expect(lastToast().message).toContain('Period 4 now uses My settings');
   });
 
   it('confirms delete in place and names the classes that go back to defaults', () => {

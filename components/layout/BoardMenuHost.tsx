@@ -24,6 +24,7 @@ import {
   modKey,
   replayClipboardAsPaste,
 } from './boardMenuUtils';
+import { copyText } from '@/utils/copyText';
 
 const BackgroundsModal = React.lazy(() =>
   import('@/components/backgroundsModal/BackgroundsModal').then((m) => ({
@@ -277,7 +278,9 @@ export const BoardMenuHost: React.FC = () => {
           }),
         ]);
       } else {
-        await navigator.clipboard.writeText(await linkPromise);
+        if (!(await copyText(await linkPromise))) {
+          throw new Error('Clipboard refused the link');
+        }
       }
       addToast(
         t('boardMenu.toast.linkCopied', {

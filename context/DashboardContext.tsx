@@ -220,7 +220,8 @@ import {
 } from '@/utils/widgetSettingsDefaults';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
 import { seedMaterialsConfig } from '@/utils/materialsPreferences';
-import { isBetaUser, isExcludedUser } from '@/utils/betaAccess';
+import { isBetaUser } from '@/utils/betaAccess';
+import { resolveWidgetAccess } from '@/utils/widgetAccess';
 import { AnnotationState } from './DashboardContextValue';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import { closeWallsToBoard } from '@/utils/activityWallBoardAccess';
@@ -243,6 +244,7 @@ import { STANDARD_COLORS } from '@/config/colors';
 import { IS_DEV_PROJECT } from '@/config/devProject';
 import { DevProdDriveWriteError } from '@/utils/devDriveWriteGuard';
 import type { GoogleDriveService } from '@/utils/googleDriveService';
+import { uploadDriveAsset } from '@/utils/driveAssetUpload';
 import { tourDemoConfig } from '@/config/tourDemoContent';
 import {
   createWidgetHistoryStack,
@@ -255,6 +257,12 @@ import {
   type WidgetHistoryEntry,
   type WidgetHistoryStack,
 } from '@/utils/widgetHistory';
+import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
+import {
+  isLibrarySharePath,
+  parseLibrarySharePath,
+  type LibraryShareLink,
+} from '@/utils/shareRoutes';
 
 // Upper bound on the cloud dock read before the dock falls back to cache/defaults.
 const DOCK_HYDRATION_TIMEOUT_MS = 10000;
@@ -825,6 +833,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     canAccessFeature,
     roleId,
     userRoles,
+    userTier,
     isStudentRole,
     roleResolved,
     refreshGoogleToken,
@@ -872,10 +881,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const path = window.location.pathname;
     // Skip quiz, assignment, and video-activity share URLs — those are
     // handled separately by their dedicated `pending*ShareId` states.
-    if (path.startsWith('/share/quiz/')) return null;
-    if (path.startsWith('/share/assignment/')) return null;
-    if (path.startsWith('/share/video-activity/')) return null;
-    if (path.startsWith('/share/rubric/')) return null;
+    if (isLibrarySharePath(path)) return null;
     if (path.startsWith(LINKED_COLLECTION_SHARE_PREFIX)) return null;
     if (path.startsWith('/share/')) {
       return path.split('/share/')[1] || null;
@@ -883,62 +889,27 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     return null;
   });
 
-  const [pendingQuizShareId, setPendingQuizShareId] = useState<string | null>(
-    () => {
-      if (typeof window === 'undefined') return null;
-      const path = window.location.pathname;
-      if (path.startsWith('/share/quiz/')) {
-        return path.split('/share/quiz/')[1] || null;
-      }
-      return null;
-    }
-  );
-
-  const [pendingAssignmentShareId, setPendingAssignmentShareId] = useState<
-    string | null
-  >(() => {
-    if (typeof window === 'undefined') return null;
-    const path = window.location.pathname;
-    if (path.startsWith('/share/assignment/')) {
-      return path.split('/share/assignment/')[1] || null;
-    }
-    return null;
-  });
-
-  const [pendingVideoActivityShareId, setPendingVideoActivityShareId] =
-    useState<string | null>(() => {
-      if (typeof window === 'undefined') return null;
-      const path = window.location.pathname;
-      if (path.startsWith('/share/video-activity/')) {
-        return path.split('/share/video-activity/')[1] || null;
-      }
-      return null;
-    });
-
-  const [pendingRubricShareId, setPendingRubricShareId] = useState<
-    string | null
-  >(() => {
-    if (typeof window === 'undefined') return null;
-    const path = window.location.pathname;
-    if (path.startsWith('/share/rubric/')) {
-      return path.split('/share/rubric/')[1] || null;
-    }
-    return null;
-  });
+  const [pendingLibraryShare, setPendingLibraryShare] =
+    useState<LibraryShareLink | null>(() =>
+      typeof window === 'undefined'
+        ? null
+        : parseLibrarySharePath(window.location.pathname)
+    );
 
   const clearPendingShare = useCallback(() => {
     setPendingShareId(null);
     window.history.replaceState(null, '', '/');
   }, []);
 
-  // Detect malformed /share-collection/ URLs (present but no ID) so we can
+  // Detect malformed share-collection and library share URLs so we can
   // toast after mount, when addToast is available.
   const [hadEmptyShareCollectionUrl] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     const path = window.location.pathname;
     return (
-      path.startsWith('/share-collection/') &&
-      !path.split('/share-collection/')[1]
+      (path.startsWith('/share-collection/') &&
+        !path.split('/share-collection/')[1]) ||
+      (isLibrarySharePath(path) && !parseLibrarySharePath(path))
     );
   });
 
@@ -958,23 +929,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     window.history.replaceState(null, '', '/');
   }, []);
 
-  const clearPendingQuizShare = useCallback(() => {
-    setPendingQuizShareId(null);
-    window.history.replaceState(null, '', '/');
-  }, []);
-
-  const clearPendingAssignmentShare = useCallback(() => {
-    setPendingAssignmentShareId(null);
-    window.history.replaceState(null, '', '/');
-  }, []);
-
-  const clearPendingVideoActivityShare = useCallback(() => {
-    setPendingVideoActivityShareId(null);
-    window.history.replaceState(null, '', '/');
-  }, []);
-
-  const clearPendingRubricShare = useCallback(() => {
-    setPendingRubricShareId(null);
+  const clearPendingLibraryShare = useCallback(() => {
+    setPendingLibraryShare(null);
     window.history.replaceState(null, '', '/');
   }, []);
 
@@ -1311,13 +1267,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []);
 
+  // Takes a toast id or a replaceKey.
   const removeToast = useCallback((id: string) => {
+    const hit = (t: Toast) => t.id === id || t.replaceKey === id;
     setToasts((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, leaving: true } : t))
+      prev.map((t) => (hit(t) ? { ...t, leaving: true } : t))
     );
     const timer = setTimeout(() => {
       toastTimersRef.current.delete(timer);
-      setToasts((prev) => prev.filter((t) => t.id !== id));
+      setToasts((prev) => prev.filter((t) => !(t.leaving && hit(t))));
     }, TOAST_EXIT_MS);
     toastTimersRef.current.add(timer);
   }, []);
@@ -1326,11 +1284,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (
       message: string,
       type: Toast['type'] = 'info',
-      action?: Toast['action']
+      action?: Toast['action'],
+      options?: { replaceKey?: string; persist?: boolean }
     ) => {
       const id = crypto.randomUUID();
-      setToasts((prev) => [...prev, { id, message, type, action }]);
-      if (action?.persist) return;
+      const replaceKey = options?.replaceKey;
+      setToasts((prev) => [
+        ...(replaceKey
+          ? prev.filter((t) => t.replaceKey !== replaceKey)
+          : prev),
+        { id, message, type, action, replaceKey },
+      ]);
+      if (action?.persist || options?.persist) return;
       // If there's an action, keep it longer (10s) so the user has time to click
       const duration = action ? 10000 : 3000;
       const timer = setTimeout(() => {
@@ -1462,18 +1427,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const getDefaultDockTools = useCallback((): (
     WidgetType | InternalToolType
   )[] => {
-    // Checks whether a FeaturePermission is accessible to the current user; beta check delegates to the shared isBetaUser helper.
-    const isPermAccessible = (perm: FeaturePermission): boolean => {
-      const isEnabled =
-        perm.enabled !== false &&
-        !isExcludedUser(perm.excludedUsers, user?.email);
-      const isAccessibleByRole =
-        perm.accessLevel !== 'admin' || isAdmin === true;
-      const isBetaAccessible =
-        perm.accessLevel !== 'beta' ||
-        isBetaUser(perm.betaUsers, user?.email, userRoles, roleId);
-      return isEnabled && isAccessibleByRole && isBetaAccessible;
+    // Same decision canAccessWidget makes: tiers, buildings and admin-default widgets included.
+    const accessCtx = {
+      isAdmin,
+      email: user?.email,
+      isBetaUser: (betaUsers: string[], email: string | null | undefined) =>
+        isBetaUser(betaUsers, email, userRoles, roleId),
+      userTier,
+      selectedBuildings,
     };
+    const isPermAccessible = (
+      type: WidgetType | InternalToolType,
+      perm: FeaturePermission | undefined
+    ): boolean => resolveWidgetAccess(type, perm, accessCtx);
 
     // Build a Map for O(1) permission look-ups when iterating over TOOLS.
     const permByType = new Map<string, FeaturePermission>(
@@ -1484,10 +1450,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // convention: empty selectedBuildings = no building-based filtering).
     if (selectedBuildings.length === 0) {
       return TOOLS.filter((tool) => {
-        const perm = permByType.get(tool.type);
-        // No permission record → public by default
-        if (!perm) return true;
-        return isPermAccessible(perm);
+        return isPermAccessible(tool.type, permByType.get(tool.type));
       }).map((tool) => tool.type);
     }
 
@@ -1519,7 +1482,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Only include tools that the current user can actually access,
       // mirroring the same checks performed by canAccessWidget / the dock.
-      if (isPermAccessible(perm)) {
+      if (isPermAccessible(perm.widgetType, perm)) {
         tools.push(perm.widgetType);
       }
     });
@@ -1529,7 +1492,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     return tools;
-  }, [featurePermissions, selectedBuildings, isAdmin, user, userRoles, roleId]);
+  }, [
+    featurePermissions,
+    selectedBuildings,
+    isAdmin,
+    user,
+    userRoles,
+    roleId,
+    userTier,
+  ]);
 
   // Empty-dock recovery: whenever the dock is empty after hydration,
   // refill it with building-aware defaults. Earlier iterations of this
@@ -1560,8 +1531,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // escape from. With no building selected, the function falls back to
     // "show all accessible tools" and is safe to call immediately.
     if (
-      selectedBuildings.length > 0 &&
-      (featurePermissions ?? []).length === 0
+      (selectedBuildings.length > 0 &&
+        (featurePermissions ?? []).length === 0) ||
+      isAdmin === null
     ) {
       return;
     }
@@ -1585,6 +1557,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     dockItems.length,
     selectedBuildings,
     featurePermissions,
+    isAdmin,
     getDefaultDockTools,
   ]);
 
@@ -1672,9 +1645,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // before we can apply building-specific defaults.  When no building is
     // selected (empty array = "show all content") we can initialize immediately
     // using all accessible tools without waiting.
+    // Admin status decides admin-default widgets, so wait for it too.
     if (
-      selectedBuildings.length > 0 &&
-      (featurePermissions ?? []).length === 0
+      (selectedBuildings.length > 0 &&
+        (featurePermissions ?? []).length === 0) ||
+      isAdmin === null
     ) {
       // Still loading permissions for a specific building – keep the safety
       // timer running but allow the effect to be cleaned up if the component
@@ -1702,6 +1677,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setupCompleted,
     featurePermissions,
     selectedBuildings,
+    isAdmin,
     getDefaultDockTools,
   ]);
 
@@ -2417,14 +2393,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           // A separate scrubbed copy: the board's own backup file keeps student names and live-syncs.
           const { driveFileId: _backupId, ...shareCopy } =
             scrubDashboardPII(dashboard);
-          const file = await driveService.uploadFile(
-            new Blob([JSON.stringify(shareCopy, null, 2)], {
+          const file = await uploadDriveAsset(driveService, {
+            blob: new Blob([JSON.stringify(shareCopy, null, 2)], {
               type: 'application/json',
             }),
-            `${dashboard.name}.spart`,
-            'Shared Boards'
-          );
-          await driveService.makePublic(file.id, userDomain);
+            name: `${dashboard.name}.spart`,
+            folder: 'Shared Boards',
+            audience: 'domain',
+            domain: userDomain,
+          });
           return `drive-${file.id}`;
         } catch (e) {
           console.error('Drive sharing failed, falling back to Firestore:', e);
@@ -5585,13 +5562,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     }): Promise<string> => {
       if (!user) throw new Error('Not authenticated');
       if (input.boards.some((b) => b.linkedShareId && !b.linkedShareEnded)) {
-        throw new Error('A board in this collection is already shared live');
+        throw new Error('A board in this folder is already shared live');
       }
       if (
         input.boards.length > LINKED_COLLECTION_MAX_BOARDS ||
         input.tree.sections.length - 1 > LINKED_COLLECTION_MAX_SECTIONS
       ) {
-        throw new Error('This collection is too big to share live');
+        throw new Error('This folder is too big to share live');
       }
       // Stamped on each board share before the link doc exists, so no recipient sees a half-made link.
       const linkId = crypto.randomUUID();
@@ -5993,12 +5970,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!result.ok) {
         const message =
           result.reason === 'not-found'
-            ? 'Shared Collection not found.'
+            ? 'Shared folder not found.'
             : result.reason === 'expired'
-              ? 'This shared Collection has expired.'
+              ? 'This shared folder has expired.'
               : result.reason === 'unauthorized'
-                ? "You don't have permission to view this Collection. Reconnect your Google account or ask the host to re-share."
-                : 'Could not load the shared Collection. Check your connection and try again.';
+                ? "You don't have permission to view this folder. Reconnect your Google account or ask the host to re-share."
+                : 'Could not load the shared folder. Check your connection and try again.';
         addToast(message, 'error');
         return null;
       }
@@ -6015,7 +5992,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         meta.boardIds
       );
       if (boards.length === 0) {
-        addToast('Shared Collection is empty', 'error');
+        addToast('Shared folder is empty', 'error');
         return null;
       }
       // Warn if the share was partially available (some board docs missing).
@@ -6163,7 +6140,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           shareId,
           boardCount: boards.length,
         });
-        addToast('Failed to import shared Collection', 'error');
+        addToast('Failed to import shared folder', 'error');
         return null;
       }
     },
@@ -6265,7 +6242,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const duplicated: Dashboard = {
         ...sanitizeBoardSnapshot(structuredClone(dashboard)),
         id: crypto.randomUUID(),
-        name: `${dashboard.name} (Copy)`,
+        name: suggestDuplicateTitle(dashboard.name),
         collectionId: dashboard.collectionId,
         // sanitizeBoardSnapshot strips isDefault; restore it explicitly to
         // false so the copy is never persisted as the default board (an
@@ -6312,13 +6289,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       let newCollectionId: string;
       try {
         newCollectionId = await collectionsApi.createCollection(
-          `${source.name} (Copy)`,
+          suggestDuplicateTitle(source.name),
           source.parentCollectionId ?? null,
           source.color ? { color: source.color } : undefined
         );
       } catch (err) {
         logError('DashboardContext.duplicateCollection', err, { id });
-        addToast('Failed to duplicate collection', 'error');
+        addToast('Failed to duplicate folder', 'error');
         return;
       }
 
@@ -6769,7 +6746,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         });
         addToast(
           i18n.t('linkedCollection.leaveFailed', {
-            defaultValue: 'Failed to leave shared collection',
+            defaultValue: 'Failed to leave shared folder',
           }),
           'error'
         );
@@ -6777,7 +6754,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       addToast(
         i18n.t('linkedCollection.left', {
-          defaultValue: 'Left shared collection',
+          defaultValue: 'Left shared folder',
         }),
         'success'
       );
@@ -7094,12 +7071,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         addToast(
           name
             ? `“${name}” has no boards yet — add one to switch to it.`
-            : 'This Collection has no boards yet — add one to switch to it.',
+            : 'This folder has no boards yet. Add one to switch to it.',
           'info'
         );
         logError(
           'DashboardContext.setActiveCollectionId.noBoardsInCollection',
-          new Error('Target Collection has no resolvable Board'),
+          new Error('This folder has no board to open'),
           { collectionId: nextCollectionId }
         );
         return;
@@ -9387,17 +9364,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       stopSharingDashboard,
       isActiveBoardReadOnly,
       drawingWidgetsMigrating,
-      pendingQuizShareId,
-      clearPendingQuizShare,
-      setPendingQuizShareId,
-      pendingAssignmentShareId,
-      setPendingAssignmentShareId,
-      clearPendingAssignmentShare,
-      pendingVideoActivityShareId,
-      setPendingVideoActivityShareId,
-      clearPendingVideoActivityShare,
-      pendingRubricShareId,
-      clearPendingRubricShare,
+      pendingLibraryShare,
+      setPendingLibraryShare,
+      clearPendingLibraryShare,
       pendingAssignmentSetupId,
       setPendingAssignmentSetup,
       clearPendingAssignmentSetup,
@@ -9527,17 +9496,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       stopSharingDashboard,
       isActiveBoardReadOnly,
       drawingWidgetsMigrating,
-      pendingQuizShareId,
-      clearPendingQuizShare,
-      setPendingQuizShareId,
-      pendingAssignmentShareId,
-      setPendingAssignmentShareId,
-      clearPendingAssignmentShare,
-      pendingVideoActivityShareId,
-      setPendingVideoActivityShareId,
-      clearPendingVideoActivityShare,
-      pendingRubricShareId,
-      clearPendingRubricShare,
+      pendingLibraryShare,
+      setPendingLibraryShare,
+      clearPendingLibraryShare,
       pendingAssignmentSetupId,
       setPendingAssignmentSetup,
       clearPendingAssignmentSetup,

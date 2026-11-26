@@ -4,6 +4,7 @@ import { resolveShortLink } from '@/utils/shortLinksApi';
 import { buildShortUrl } from '@/utils/shortLinkValidation';
 import { logError } from '@/utils/logError';
 import { buildTourUrl, tourShortLinkCode } from './tourLinks';
+import { copyText } from '@/utils/copyText';
 
 /** Copies a web tour's `/r/tour-...` short link, or its `/tour/{setId}` address when no short link can be made. */
 export function useCopyWebTourLink(): (
@@ -38,11 +39,12 @@ export function useCopyWebTourLink(): (
 
   return useCallback(
     async (setId: string, title: string): Promise<boolean> => {
-      try {
-        await navigator.clipboard.writeText(await shareUrl(setId, title));
-        return true;
-      } catch (err) {
+      const log = (err: unknown) =>
         logError('useCopyWebTourLink.clipboard', err, { setId });
+      try {
+        return await copyText(await shareUrl(setId, title), log);
+      } catch (err) {
+        log(err);
         return false;
       }
     },

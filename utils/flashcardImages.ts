@@ -1,4 +1,5 @@
 import type { GoogleDriveService } from './googleDriveService';
+import { driveImageUrl, uploadDriveAsset } from './driveAssetUpload';
 
 /** Keeps card pictures small enough to load quickly on student devices. */
 export const MAX_FLASHCARD_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -54,11 +55,11 @@ export const uploadFlashcardImage = async (
   blob: Blob
 ): Promise<string> => {
   const ext = blob.type.split('/')[1] ?? 'png';
-  const file = await drive.uploadFile(
+  const file = await uploadDriveAsset(drive, {
     blob,
-    `flashcard-${Date.now()}.${ext}`,
-    'Assets/FlashcardImages'
-  );
-  await drive.makePublic(file.id, undefined);
-  return `https://lh3.googleusercontent.com/d/${file.id}`;
+    name: `flashcard-${Date.now()}.${ext}`,
+    folder: 'Assets/FlashcardImages',
+    audience: 'anyone',
+  });
+  return driveImageUrl(file.id);
 };

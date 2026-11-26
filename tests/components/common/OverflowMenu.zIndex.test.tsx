@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { OverflowMenu } from '@/components/common/sessionViews/OverflowMenu';
+import { OverflowMenu } from '@/components/common/OverflowMenu';
 import { Z_INDEX } from '@/config/zIndex';
 
 describe('OverflowMenu stacking', () => {

@@ -119,6 +119,40 @@ describe('step page', () => {
     });
   });
 
+  it('names pick-any steps only for an extension that lights them', () => {
+    const a = step('a', GEMINI);
+    const steps = [
+      { ...a, web: { ...a.web, pickAny: true } },
+      step('b', GEMINI),
+    ];
+    const old = buildStartTour(
+      'set',
+      1,
+      'T',
+      steps as WebTourStep[],
+      new Map(),
+      true,
+      true,
+      true
+    );
+    expect(old.pickAny).toBeUndefined();
+    const now = buildStartTour(
+      'set',
+      1,
+      'T',
+      steps as WebTourStep[],
+      new Map(),
+      true,
+      true,
+      true,
+      true
+    );
+    expect(now.pickAny).toEqual(['a']);
+    expect(parseWebTourStartTour(now)?.pickAny).toEqual(['a']);
+    expect(parseWebTourStartTour({ ...now, pickAny: ['z'] })).toBeNull();
+    expect(parseWebTourStartTour({ ...now, pickAny: ['a', 'a'] })).toBeNull();
+  });
+
   it('refuses a set page for an unknown step or a page that cannot be opened', () => {
     const tour = buildStartTour('set', 1, 'T', [step('a', GEMINI)], new Map());
     expect(

@@ -1,5 +1,5 @@
 import React, { useId, useMemo, useState } from 'react';
-import { Check, Search, Trash2, X } from 'lucide-react';
+import { Check, Trash2, X } from 'lucide-react';
 import { MaterialDefinition } from '@/types';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
@@ -11,6 +11,7 @@ import {
   getContrastingTextColor,
   resolveMaterialIcon,
 } from './constants';
+import { SearchField } from '@/components/common/SearchField';
 
 const ICON_RESULT_LIMIT = 60;
 
@@ -136,22 +137,18 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
 
       <div>
         <SettingsLabel htmlFor={iconSearchId}>{t('icon')}</SettingsLabel>
-        <div className="relative mb-2">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-          <input
-            id={iconSearchId}
-            type="text"
-            value={iconQuery}
-            onChange={(e) => setIconQuery(e.target.value)}
-            placeholder={t('iconSearch')}
-            {...tourAttr(
-              'widget-settings.materials.form-icon-search',
-              tourWidget?.id,
-              tourWidget?.type
-            )}
-            className="w-full py-2 pl-9 pr-3 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-hidden"
-          />
-        </div>
+        <SearchField
+          value={iconQuery}
+          onChange={setIconQuery}
+          placeholder={t('iconSearch')}
+          anchor={tourAttr(
+            'widget-settings.materials.form-icon-search',
+            tourWidget?.id,
+            tourWidget?.type
+          )}
+          className="mb-2"
+          id={iconSearchId}
+        />
         <span id={iconGroupId} className="sr-only">
           {t('materialIcon')}
         </span>

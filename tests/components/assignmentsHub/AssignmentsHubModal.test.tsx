@@ -220,12 +220,14 @@ describe('AssignmentsHubModal', () => {
     setupHooks();
     render(<AssignmentsHubModal onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Filter by type' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Quiz' }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Quiz' }));
     expect(screen.getByText('Fractions Quiz')).toBeInTheDocument();
     expect(screen.queryByText('Volcano Video')).not.toBeInTheDocument();
 
     // Still open — a second type widens the selection rather than replacing it.
-    fireEvent.click(screen.getByRole('option', { name: 'Video Activity' }));
+    fireEvent.click(
+      screen.getByRole('menuitemcheckbox', { name: 'Video Activity' })
+    );
     expect(screen.getByText('Fractions Quiz')).toBeInTheDocument();
     expect(screen.getByText('Volcano Video')).toBeInTheDocument();
     expect(
@@ -233,21 +235,22 @@ describe('AssignmentsHubModal', () => {
     ).toHaveTextContent('Type: 2 selected');
   });
 
-  it('filters by status and closes the single-select on pick', () => {
+  it('filters by status with a select', () => {
     setupHooks();
     render(<AssignmentsHubModal onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Filter by status' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Inactive' }));
+    fireEvent.change(
+      screen.getByRole('combobox', { name: 'Filter by status' }),
+      { target: { value: 'inactive' } }
+    );
     expect(screen.queryByText('Fractions Quiz')).not.toBeInTheDocument();
     expect(screen.getByText('Volcano Video')).toBeInTheDocument();
-    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 
   it('filters by class via the multi-select once more than one class exists', () => {
     setupHooks();
     render(<AssignmentsHubModal onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Filter by class' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Period 3' }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Period 3' }));
     expect(screen.queryByText('Fractions Quiz')).not.toBeInTheDocument();
     expect(screen.getByText('Volcano Video')).toBeInTheDocument();
   });
@@ -255,8 +258,10 @@ describe('AssignmentsHubModal', () => {
   it('clears every filter with the clear action', () => {
     setupHooks();
     render(<AssignmentsHubModal onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Filter by status' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Inactive' }));
+    fireEvent.change(
+      screen.getByRole('combobox', { name: 'Filter by status' }),
+      { target: { value: 'inactive' } }
+    );
     expect(screen.queryByText('Fractions Quiz')).not.toBeInTheDocument();
 
     fireEvent.change(
@@ -305,7 +310,7 @@ describe('AssignmentsHubModal', () => {
     expect(screen.getByText('Volcano Video')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter by type' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Quiz' }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Quiz' }));
     expect(screen.getByText('Fractions Quiz')).toBeInTheDocument();
     expect(screen.queryByText('Volcano Video')).not.toBeInTheDocument();
   });
@@ -328,8 +333,8 @@ describe('AssignmentsHubModal', () => {
     const onClose = vi.fn();
     render(<AssignmentsHubModal onClose={onClose} />);
     fireEvent.click(screen.getByRole('button', { name: 'Filter by type' }));
-    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
-    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
 

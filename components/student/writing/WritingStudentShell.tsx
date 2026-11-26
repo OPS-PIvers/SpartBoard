@@ -21,6 +21,7 @@ import { sanitizeQuizResponse } from '@/utils/security';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { PEER_STUDENT_STRINGS } from './peerReview/peerStrings';
 import { StudentPageShell } from '../StudentPageShell';
+import { StudentOfflineBanner } from '@/components/common/StudentOfflineBanner';
 
 export type WritingShellSession = Pick<
   WritingAssignmentSession,
@@ -41,7 +42,6 @@ export interface WritingShellPiece {
   unsent: UnsentWriting[];
   notice: WritingNotice | null;
   busy: 'turn-in' | 'take-back' | null;
-  online: boolean;
   /** D4/D22: the right-click menu stays on only for spelling help. */
   contextMenuOff: boolean;
   onStart: () => void;
@@ -80,7 +80,7 @@ const WRITING_STRINGS = {
   status: {
     none: 'Not started',
     draft: 'In progress',
-    'turned-in': 'Turned in',
+    'turned-in': 'Submitted',
     returned: 'Returned',
     revising: 'Returned for revision',
   },
@@ -97,8 +97,6 @@ const WRITING_STRINGS = {
     "Your writing isn't saved yet. Keep this tab open, or copy your text somewhere safe.",
   notSavedNotice:
     "Your writing didn't save. Check your connection and try again.",
-  offline:
-    "You're offline. Keep this tab open and your writing will save when you reconnect.",
   takenOverTitle: 'This writing is open in another tab',
   takenOverBody: 'Keep writing there, or continue here.',
   continueHere: 'Continue here',
@@ -110,16 +108,16 @@ const WRITING_STRINGS = {
   dismiss: 'Dismiss',
   pasteBlocked:
     'Paste is off for this assignment. You can still move your own text.',
-  turnIn: 'Turn in',
-  turningIn: 'Turning in...',
+  turnIn: 'Submit',
+  turningIn: 'Submitting',
   tooShort: (min: number, gap: number) =>
-    `Write at least ${min} words to turn in. ${gap} to go.`,
+    `Write at least ${min} words to submit. ${gap} to go.`,
   tooLong: (max: number, gap: number) =>
-    `Your writing is ${gap} ${gap === 1 ? 'word' : 'words'} over the ${max}-word limit. Trim it to turn in.`,
-  tooShortServer: (min: number) => `Write at least ${min} words to turn in.`,
+    `Your writing is ${gap} ${gap === 1 ? 'word' : 'words'} over the ${max}-word limit. Trim it to submit.`,
+  tooShortServer: (min: number) => `Write at least ${min} words to submit.`,
   tooLongServer: (max: number) =>
-    `Your writing is over the ${max}-word limit. Trim it to turn in.`,
-  turnedIn: 'You turned this in.',
+    `Your writing is over the ${max}-word limit. Trim it to submit.`,
+  turnedIn: 'Submitted',
   takeBack: 'Take back',
   takingBack: 'Taking back...',
   takeBackFeedback:
@@ -127,9 +125,9 @@ const WRITING_STRINGS = {
   takeBackPastDue:
     'This is past its due date, so it can no longer be taken back.',
   takeBackFailed: "Couldn't take this back. Try again.",
-  turnInFailed: "Couldn't turn this in. Try again.",
-  tooLarge: 'This piece is too long to turn in. Shorten it and try again.',
-  paused: "Your class isn't open right now. Turn this in when it starts again.",
+  turnInFailed: 'Response could not be submitted. Try again.',
+  tooLarge: 'This piece is too long to submit. Shorten it and try again.',
+  paused: "Your class isn't open right now. Submit this when it starts again.",
   returned: 'Your teacher returned this.',
   revising: 'Your teacher returned this for revision. You can keep writing.',
   closed: 'This assignment is closed.',
@@ -511,14 +509,7 @@ export const WritingStudentShell: React.FC<{
           <p className="text-sm text-slate-700">{S.returned}</p>
         )}
         {piece?.feedback}
-        {view.mode === 'writing' && piece && !piece.online && (
-          <div
-            role="status"
-            className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900"
-          >
-            {S.offline}
-          </div>
-        )}
+        <StudentOfflineBanner hidden={view.mode !== 'writing' || !piece} />
 
         {showEditor && (
           <div

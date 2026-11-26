@@ -15,6 +15,7 @@ import type {
   QuizData,
   StudentOverride,
 } from '@/types';
+import { changedSessionOptions } from '@/utils/changedSessionOptions';
 import type { QuizAssignmentSettingsPatch } from '@/hooks/useQuizAssignments';
 import { AssignAvailabilitySection } from '@/components/common/library/AssignAvailabilitySection';
 import {
@@ -32,7 +33,7 @@ import {
   CollapsibleSection,
   QuizBehaviorSettingsPanel,
 } from '@/components/common/library';
-import { AssignClassPicker } from '@/components/common/AssignClassPicker';
+import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import {
   makeEmptyPickerValue,
   resolveSelectedRosters,
@@ -183,9 +184,10 @@ export const QuizAssignmentSettingsModal: React.FC<
   editContext: givenContext,
   translation,
 }) => {
-  const [options, setOptions] = useState<SettingsOptions>(() =>
+  const [initialOptions] = useState<SettingsOptions>(() =>
     initialOptionsFor(assignment, rosters)
   );
+  const [options, setOptions] = useState<SettingsOptions>(initialOptions);
 
   const [initialBehavior] = useState<QuizBehaviorSettings>(() => ({
     sessionMode: assignment.sessionMode,
@@ -345,8 +347,14 @@ export const QuizAssignmentSettingsModal: React.FC<
         .map((r) => r.id)
         .sort()
         .join() !== initialClassIds.join();
+    const sessionOptionEdits = changedSessionOptions(
+      initialBehavior.sessionOptions,
+      behavior.sessionOptions
+    );
     const patch: QuizAssignmentSettingsPatch = {
-      className: options.className.trim(),
+      ...(options.className.trim() !== initialOptions.className.trim()
+        ? { className: options.className.trim() }
+        : {}),
       ...(classesChanged
         ? {
             rosterIds: targets.rosterIds,
@@ -357,9 +365,8 @@ export const QuizAssignmentSettingsModal: React.FC<
       ...windowFields(),
       ...classRowFields(selectedRosters),
       // Behavior rides the patch only when edited; sessionMode never does.
-      ...(JSON.stringify(behavior.sessionOptions) !==
-      JSON.stringify(initialBehavior.sessionOptions)
-        ? { sessionOptions: behavior.sessionOptions }
+      ...(Object.keys(sessionOptionEdits).length > 0
+        ? { sessionOptionEdits }
         : {}),
       ...(behavior.attemptLimit !== initialBehavior.attemptLimit
         ? { attemptLimit: behavior.attemptLimit }
@@ -620,10 +627,15 @@ export const QuizAssignmentSettingsModal: React.FC<
       onAssign={() => handleAssign()}
       extraSlot={
         <>
-          <AssignClassPicker
+          <ClassChecklist
             rosters={rosters}
-            value={options.picker}
-            onChange={(picker) => setOptions((prev) => ({ ...prev, picker }))}
+            value={{ classIds: options.picker.rosterIds, studentsByClass: {} }}
+            onChange={(v) =>
+              setOptions((prev) => ({
+                ...prev,
+                picker: { rosterIds: v.classIds },
+              }))
+            }
           />
 
           <AssignAvailabilitySection
