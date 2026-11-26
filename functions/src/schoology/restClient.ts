@@ -357,8 +357,11 @@ export async function listColumnGrades(
     const r = asRecord(raw);
     const enrollmentId = asIdString(r.enrollment_id);
     if (!enrollmentId) continue;
+    // Text such as EX stays non-null so Missing never overwrites a teacher's mark.
     const grade =
-      r.grade === null || r.grade === undefined || r.grade === ''
+      r.grade === null ||
+      r.grade === undefined ||
+      (typeof r.grade === 'string' && r.grade.trim() === '')
         ? null
         : asNumber(r.grade);
     out.push({
