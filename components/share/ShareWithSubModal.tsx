@@ -661,7 +661,10 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
                   checked={multiDay}
                   onChange={(e) => {
                     setMultiDay(e.target.checked);
-                    pickDays(firstDay, firstDay);
+                    // Back to one day: the end follows that day again.
+                    if (!e.target.checked && lastDay !== firstDay) {
+                      pickDays(firstDay, firstDay);
+                    }
                   }}
                 />
                 {t('shareWithSub.dates.moreDays', {
