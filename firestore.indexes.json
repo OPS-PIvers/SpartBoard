@@ -1244,6 +1244,12 @@
       "indexes": []
     },
     {
+      "collectionGroup": "ai_usage_refunds",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "counterEvents",
       "fieldPath": "expireAt",
       "ttl": true,
