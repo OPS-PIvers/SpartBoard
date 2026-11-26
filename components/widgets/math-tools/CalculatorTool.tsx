@@ -24,10 +24,10 @@ const initState = (): CalcState => ({
 const formatResult = (n: number): string =>
   Number.isInteger(n) ? String(n) : parseFloat(n.toPrecision(10)).toString();
 
-// Expression after replacing the display value; a finished result restarts it.
+// Expression after replacing the display value; a pending operator takes it as operand 2.
 const syncExpression = (prev: CalcState, next: string): string => {
   if (prev.waitingForOperand) {
-    return prev.operator === null ? next : prev.expression;
+    return prev.operator === null ? next : prev.expression + next;
   }
   return prev.expression.slice(0, -prev.display.length) + next;
 };
@@ -181,7 +181,13 @@ export const CalculatorTool: React.FC = () => {
         ? prev.display.slice(1)
         : '-' + prev.display;
       const expression = syncExpression(prev, toggled);
-      return { ...prev, display: toggled, expression };
+      return {
+        ...prev,
+        display: toggled,
+        expression,
+        waitingForOperand:
+          prev.operator !== null ? false : prev.waitingForOperand,
+      };
     });
   }, []);
 
@@ -191,7 +197,13 @@ export const CalculatorTool: React.FC = () => {
       const val = parseFloat(prev.display) / 100;
       const displayResult = formatResult(val);
       const expression = syncExpression(prev, displayResult);
-      return { ...prev, display: displayResult, expression };
+      return {
+        ...prev,
+        display: displayResult,
+        expression,
+        waitingForOperand:
+          prev.operator !== null ? false : prev.waitingForOperand,
+      };
     });
   }, []);
 
