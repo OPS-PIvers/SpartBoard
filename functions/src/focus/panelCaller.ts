@@ -47,5 +47,6 @@ export async function panelCaller(
     anonymous: false,
     studentRole: user.customClaims?.studentRole === true,
     name: user.displayName ?? null,
+    claims: user.customClaims ?? {},
   };
 }

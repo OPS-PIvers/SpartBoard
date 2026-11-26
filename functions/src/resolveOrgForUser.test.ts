@@ -23,6 +23,7 @@ const domainRole: { value: string | undefined } = { value: 'primary' };
 const inviteTokens: { value: Record<string, unknown>[] } = { value: [] };
 const collectionMock = vi.fn((path: string) => {
   const query = {
+    doc: (id: string) => docMock(`${path}/${id}`),
     where: () => query,
     limit: () => query,
     get: () =>
@@ -513,6 +514,19 @@ describe('resolveOrgForUser auto-enrollment', () => {
     // An admin is never sent to the student page.
     expect(res).toEqual({ orgId: 'orono' });
     expect(docCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('SECURITY: sends a deactivated admin who is a ClassLink student to the student app', async () => {
+    scriptDocs({ memberExists: false, isAdmin: true });
+    fetchOneRosterUsersMock.mockResolvedValue([{ role: 'student' }]);
+    const res = await handler({
+      auth: {
+        ...verifiedAuth,
+        token: { ...verifiedAuth.token, deactivated: true },
+      },
+      data: {},
+    });
+    expect(res).toEqual({ orgId: 'orono', rosterStudent: true });
   });
 
   it('keeps an admin in a mock class in the teacher app when ClassLink is down', async () => {

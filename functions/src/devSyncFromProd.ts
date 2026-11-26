@@ -4,6 +4,7 @@ import {
   HttpsError,
   type CallableRequest,
 } from 'firebase-functions/v2/https';
+import { isLiveAdmin } from './authz';
 import * as admin from './firebaseAdmin';
 import { GoogleAuth, Impersonated } from 'google-auth-library';
 import './functionsInit';
@@ -304,7 +305,7 @@ async function assertDevAdmin(request: CallableRequest): Promise<{
     throw new HttpsError('unauthenticated', 'Sign in with Google first.');
   }
   const db = admin.firestore();
-  if (!(await db.doc(`admins/${email}`).get()).exists) {
+  if (!(await isLiveAdmin(db, email, request.auth.token))) {
     throw new HttpsError('permission-denied', 'Admins only.');
   }
   return { email, devUid: request.auth.uid, db };

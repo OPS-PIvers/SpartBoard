@@ -23,6 +23,7 @@
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { isLiveAdmin } from './authz';
 import * as admin from './firebaseAdmin';
 import {
   PAPER_SETTINGS_PATH,
@@ -721,9 +722,7 @@ export async function handleImportPaperResponses(
   const allowedPages = new Set<string>();
   const transcribe = inkPages.length > 0 && (await transcriptionGranted());
   if (transcribe) {
-    const isAdmin = caller.email
-      ? (await db.collection('admins').doc(caller.email).get()).exists
-      : false;
+    const isAdmin = caller.email ? await isLiveAdmin(db, caller.email) : false;
     const quota = await readPaperHandwritingQuota(db, {
       uid: caller.uid,
       email: caller.email,

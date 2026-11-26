@@ -1,4 +1,5 @@
 import './functionsInit';
+import { hasDeactivatedClaim, isLiveAdmin } from './authz';
 import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { randomUUID } from 'crypto';
@@ -306,8 +307,7 @@ async function getCachedAdminStatus(
     // unique callers doesn't accumulate dead Map entries.
     cachedAdminStatus.delete(emailLower);
   }
-  const doc = await db.collection('admins').doc(emailLower).get();
-  const isAdmin = doc.exists;
+  const isAdmin = await isLiveAdmin(db, emailLower);
   cachedAdminStatus.set(emailLower, { isAdmin, cachedAt: now });
   return isAdmin;
 }
@@ -318,6 +318,7 @@ async function resolveCallerIsAdmin(
   token: { email?: string; email_verified?: boolean }
 ): Promise<boolean> {
   if (token.email_verified !== true || !token.email) return false;
+  if (hasDeactivatedClaim(token)) return false;
   return getCachedAdminStatus(db, token.email.toLowerCase());
 }
 
