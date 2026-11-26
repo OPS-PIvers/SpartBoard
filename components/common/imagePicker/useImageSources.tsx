@@ -74,11 +74,14 @@ export const isImageLink = (raw: string): boolean => {
   }
 };
 
+const LINK_TIMEOUT_MS = 20_000;
+
 // The link's last path part names the saved file, as an upload's own name would.
 const linkFileName = (link: string): string => {
   try {
     const last = new URL(link).pathname.split('/').filter(Boolean).pop();
-    return last ? decodeURIComponent(last) : 'linked-image';
+    const name = last ? decodeURIComponent(last).replace(/[/\\]/g, '-') : '';
+    return name || 'linked-image';
   } catch {
     return 'linked-image';
   }
@@ -230,7 +233,9 @@ export function useImageSources({
           onChange(link);
           return true;
         }
-        const res = await fetch(link).catch(() => null);
+        const res = await fetch(link, {
+          signal: AbortSignal.timeout(LINK_TIMEOUT_MS),
+        }).catch(() => null);
         const blob = res?.ok ? await res.blob() : null;
         const file =
           blob && new File([blob], linkFileName(link), { type: blob.type });

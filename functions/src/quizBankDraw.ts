@@ -6,6 +6,7 @@ import './functionsInit';
 import { ALLOWED_ORIGINS, encodeResponseKeySegment } from './classlinkShared';
 import { withQuizSessionContent } from './quizSessionContent';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { studentTokenReachesSession } from './studentSessionGate';
 
 const SESSIONS = 'quiz_sessions';
 const MAX_ID_LENGTH = 200;
@@ -239,6 +240,7 @@ export async function handleDrawQuizBankQuestions(
   db: admin.firestore.Firestore,
   callerUid: string | null,
   rawInput: unknown,
+  callerClaims: Record<string, unknown> = {},
   randomIndex: RandomIndex = secureIndex
 ): Promise<DrawQuizBankQuestionsResult> {
   if (!callerUid) throw new HttpsError('unauthenticated', 'Sign in required.');
@@ -246,10 +248,17 @@ export async function handleDrawQuizBankQuestions(
   const sessionRef = db.collection(SESSIONS).doc(input.sessionId);
   const sessionSnap = await sessionRef.get();
   if (!sessionSnap.exists) throw new HttpsError('not-found', 'Quiz not found.');
-  const session = await withQuizSessionContent(
-    sessionRef,
-    sessionSnap.data() ?? {}
-  );
+  const sessionDoc = sessionSnap.data() ?? {};
+  if (
+    !studentTokenReachesSession(
+      callerClaims,
+      input.sessionId,
+      sessionDoc,
+      Date.now()
+    )
+  )
+    throw new HttpsError('permission-denied', 'This quiz is not for you.');
+  const session = await withQuizSessionContent(sessionRef, sessionDoc);
   const slots = parseBankSlots(session.bankSlots);
   if (slots.length === 0)
     throw new HttpsError(
@@ -343,7 +352,8 @@ export const drawQuizBankQuestionsV1 = onCall(
     return handleDrawQuizBankQuestions(
       admin.firestore(),
       request.auth?.uid ?? null,
-      request.data
+      request.data,
+      request.auth?.token ?? {}
     );
   }
 );
