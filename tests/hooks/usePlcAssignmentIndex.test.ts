@@ -26,6 +26,11 @@ import {
 import { logError } from '@/utils/logError';
 import type { PlcAssignmentIndexEntry } from '@/types';
 
+vi.mock(
+  '@/utils/plcContentWrites',
+  () => import('@/tests/helpers/plcContentWritesViaFirestore')
+);
+
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   doc: vi.fn(),

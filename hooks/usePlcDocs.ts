@@ -7,7 +7,6 @@ import {
   query,
   runTransaction,
   serverTimestamp,
-  setDoc,
   updateDoc as firestoreUpdateDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
@@ -16,6 +15,11 @@ import { PlcActionItem, PlcDoc } from '@/types';
 import { logError } from '@/utils/logError';
 import { tsToMillis } from '@/utils/plc';
 import { usePlcSubcollection } from '@/context/usePlcContext';
+import {
+  PLC_SERVER_TIME,
+  setPlcContentDoc,
+  updatePlcContentDoc,
+} from '@/utils/plcContentWrites';
 import {
   parseActionItems,
   rebaseActionItems,
@@ -159,14 +163,14 @@ export const usePlcDocs = (plcId: string | null): UsePlcDocsResult => {
       // `PlcDoc.createdAt/updatedAt: number` is the read-side shape after
       // `parseDoc` resolves the Timestamp. The write payload can't be the
       // typed `PlcDoc` (the sentinel isn't a number).
-      await setDoc(ref, {
+      await setPlcContentDoc(plcId, DOCS_SUBCOLLECTION, ref.id, {
         id: ref.id,
         title: input.title,
         url: input.url,
         createdBy: user.uid,
         createdByName: user.displayName ?? '',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: PLC_SERVER_TIME,
+        updatedAt: PLC_SERVER_TIME,
       });
       return ref.id;
     },
@@ -189,13 +193,19 @@ export const usePlcDocs = (plcId: string | null): UsePlcDocsResult => {
       // `keys.hasOnly(...)` check applies to the post-merge doc, so a
       // partial `updateDoc` passes — `id`/`createdBy`/`createdByName`/`createdAt`
       // stay immutable because they're untouched.
+      const { actionItems, actionItemsBase } = patch;
+      if (patch.title !== undefined || patch.url !== undefined) {
+        const renamed: Record<string, unknown> = { updatedAt: PLC_SERVER_TIME };
+        if (patch.title !== undefined) renamed.title = patch.title;
+        if (patch.url !== undefined) renamed.url = patch.url;
+        await updatePlcContentDoc(plcId, DOCS_SUBCOLLECTION, docId, renamed);
+        if (actionItems === undefined) return;
+      }
+      // Action items stay a direct write: they save as typing pauses and rebase in a client transaction.
       const fields: Record<string, unknown> = {
         updatedAt: serverTimestamp(),
       };
-      if (patch.title !== undefined) fields.title = patch.title;
-      if (patch.url !== undefined) fields.url = patch.url;
       const ref = doc(db, PLCS_COLLECTION, plcId, DOCS_SUBCOLLECTION, docId);
-      const { actionItems, actionItemsBase } = patch;
       if (actionItems !== undefined && actionItemsBase !== undefined) {
         await runTransaction(db, async (tx) => {
           const snap = await tx.get(ref);
@@ -222,10 +232,10 @@ export const usePlcDocs = (plcId: string | null): UsePlcDocsResult => {
   const deleteDoc = useCallback(
     async (docId: string): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      await firestoreUpdateDoc(
-        doc(db, PLCS_COLLECTION, plcId, DOCS_SUBCOLLECTION, docId),
-        { deletedAt: serverTimestamp(), updatedAt: serverTimestamp() }
-      );
+      await updatePlcContentDoc(plcId, DOCS_SUBCOLLECTION, docId, {
+        deletedAt: PLC_SERVER_TIME,
+        updatedAt: PLC_SERVER_TIME,
+      });
     },
     [plcId, user]
   );
@@ -233,10 +243,10 @@ export const usePlcDocs = (plcId: string | null): UsePlcDocsResult => {
   const restoreDoc = useCallback(
     async (docId: string): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      await firestoreUpdateDoc(
-        doc(db, PLCS_COLLECTION, plcId, DOCS_SUBCOLLECTION, docId),
-        { deletedAt: null, updatedAt: serverTimestamp() }
-      );
+      await updatePlcContentDoc(plcId, DOCS_SUBCOLLECTION, docId, {
+        deletedAt: null,
+        updatedAt: PLC_SERVER_TIME,
+      });
     },
     [plcId, user]
   );

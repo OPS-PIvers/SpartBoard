@@ -42,6 +42,11 @@ import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplic
 import { logError } from '@/utils/logError';
 import { noDriveMessage } from '@/utils/viewAsDrive';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
+import {
+  deletePlcContentDoc,
+  setPlcContentDoc,
+  updatePlcContentDoc,
+} from '@/utils/plcContentWrites';
 
 export const BANKS_COLLECTION = 'question_banks';
 export const SYNCED_BANKS_COLLECTION = 'synced_question_banks';
@@ -228,7 +233,11 @@ export const useQuestionBanks = (
       await Promise.all(
         sync.plcIds.map(async (plcId) => {
           const snap = await getDocs(plcHeadersQuery(plcId, sync.groupId));
-          await Promise.all(snap.docs.map((d) => updateDoc(d.ref, patch)));
+          await Promise.all(
+            snap.docs.map((d) =>
+              updatePlcContentDoc(plcId, BANKS_COLLECTION, d.id, patch)
+            )
+          );
         })
       );
     },
@@ -280,7 +289,9 @@ export const useQuestionBanks = (
   const deleteHeaders = useCallback(
     async (plcId: string, groupId: string): Promise<void> => {
       const snap = await getDocs(plcHeadersQuery(plcId, groupId));
-      await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+      await Promise.all(
+        snap.docs.map((d) => deletePlcContentDoc(plcId, BANKS_COLLECTION, d.id))
+      );
     },
     []
   );
@@ -395,7 +406,7 @@ export const useQuestionBanks = (
         sharedByName: user?.displayName ?? user?.email ?? '',
         now,
       });
-      await setDoc(doc(db, 'plcs', plcId, BANKS_COLLECTION, header.id), header);
+      await setPlcContentDoc(plcId, BANKS_COLLECTION, header.id, header);
       const metaRef = bankMetaRef(userId, meta.id);
       await viewAsDirectSave(metaRef, ['sync', 'updatedAt'], () =>
         setDoc(metaRef, { ...current, sync, updatedAt: now })

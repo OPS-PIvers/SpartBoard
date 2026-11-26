@@ -13,6 +13,11 @@ import {
   type PlcLibrarySpec,
 } from '@/hooks/usePlcLibraryEntries';
 
+vi.mock(
+  '@/utils/plcContentWrites',
+  () => import('@/tests/helpers/plcContentWritesViaFirestore')
+);
+
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn((_db: unknown, ...segs: string[]) => segs.join('/')),
   doc: vi.fn((_db: unknown, ...segs: string[]) => segs.join('/')),

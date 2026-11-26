@@ -1,13 +1,6 @@
 // One listener plus share, unshare and restore for every PLC library kind.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  updateDoc,
-} from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import {
@@ -16,6 +9,10 @@ import {
   type PlcStoreState,
 } from '@/context/usePlcContext';
 import { logError } from '@/utils/logError';
+import {
+  updatePlcContentDoc,
+  type PlcContentCollection,
+} from '@/utils/plcContentWrites';
 
 const PLCS_COLLECTION = 'plcs';
 
@@ -33,7 +30,7 @@ export function isLivePlcLibraryEntry(entry: {
 
 export interface PlcLibrarySpec<T, S = never, R = void> {
   kind: PlcLibraryKind;
-  subcollection: string;
+  subcollection: PlcContentCollection;
   parse: (id: string, data: Record<string, unknown>) => T | null;
   /** Rows the live library shows (tombstones dropped). */
   keep: (item: T) => boolean;
@@ -115,11 +112,11 @@ export function usePlcSubscription<T>(
 /** Soft delete (Decision 3.1): tombstone only, identity and attribution untouched. */
 export async function softDeletePlcLibraryEntry(
   plcId: string,
-  subcollection: string,
+  subcollection: PlcContentCollection,
   id: string
 ): Promise<void> {
   const now = Date.now();
-  await updateDoc(doc(db, PLCS_COLLECTION, plcId, subcollection, id), {
+  await updatePlcContentDoc(plcId, subcollection, id, {
     deletedAt: now,
     updatedAt: now,
   });
@@ -128,10 +125,10 @@ export async function softDeletePlcLibraryEntry(
 /** Clear the tombstone and bump `updatedAt` so the row resurfaces at the top. */
 export async function restorePlcLibraryEntry(
   plcId: string,
-  subcollection: string,
+  subcollection: PlcContentCollection,
   id: string
 ): Promise<void> {
-  await updateDoc(doc(db, PLCS_COLLECTION, plcId, subcollection, id), {
+  await updatePlcContentDoc(plcId, subcollection, id, {
     deletedAt: null,
     updatedAt: Date.now(),
   });

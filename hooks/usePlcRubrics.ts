@@ -9,14 +9,13 @@
  */
 
 import { useMemo } from 'react';
-import {
-  deleteField,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import {
+  PLC_DELETE_FIELD,
+  setPlcContentDoc,
+  updatePlcContentDoc,
+} from '@/utils/plcContentWrites';
 import type { PlcRubricEntry, Rubric, RubricCriterion } from '@/types';
 import {
   isLivePlcLibraryEntry,
@@ -219,12 +218,12 @@ export async function writePlcRubricEntry(
     const live = (existing.data() as Record<string, unknown>).deletedAt == null;
     if (live && !input.update) return 'already-shared';
     // Content-only revive or update; original attribution stands (PLC-owned model).
-    await updateDoc(ref, {
+    await updatePlcContentDoc(plcId, RUBRICS_SUBCOLLECTION, rubric.id, {
       title: rubric.title,
       criteria: rubric.criteria,
-      description: rubric.description ?? deleteField(),
+      description: rubric.description ?? PLC_DELETE_FIELD,
       updatedAt: now,
-      deletedAt: deleteField(),
+      deletedAt: PLC_DELETE_FIELD,
     });
     return live ? 'updated' : 'restored';
   }
@@ -243,6 +242,6 @@ export async function writePlcRubricEntry(
       ? { description: rubric.description }
       : {}),
   };
-  await setDoc(ref, entry);
+  await setPlcContentDoc(plcId, RUBRICS_SUBCOLLECTION, rubric.id, entry);
   return 'created';
 }
