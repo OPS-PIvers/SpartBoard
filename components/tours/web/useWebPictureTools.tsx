@@ -263,7 +263,6 @@ export function useWebPictureTools(ctx: Ctx) {
           label="Replace"
           accept={STEP_PICTURE_TYPES.join(',')}
           maxBytes={WEB_TOUR_PICTURE_MAX_BYTES}
-          linkAsFile
           tourScope={{ type: 'web-tour-editor', field: 'picture' }}
           tourOverrides={{ open: tourAttr('web-tour-editor.picture-replace') }}
           buttonClassName={toolBtn}

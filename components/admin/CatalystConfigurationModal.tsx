@@ -284,7 +284,7 @@ export const CatalystConfigurationModal: React.FC<
     return preview;
   };
 
-  // A picked file waits as a preview until Save; a picked link is kept as the image itself.
+  // A picked file or link waits as a preview until Save.
   const pickedImage = (url: string, isRoutine: boolean) => {
     if (url === imagePreviewUrlRef.current) return;
     revokePreview();

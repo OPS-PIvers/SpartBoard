@@ -175,7 +175,9 @@ export const WorkSymbolsConfigurationModal: React.FC<
   const removeSymbol = (symbol: WorkSymbol) => {
     if (uploadedThisSessionRef.current.has(symbol.imageUrl)) {
       uploadedThisSessionRef.current.delete(symbol.imageUrl);
-      void deleteFile(symbol.imageUrl);
+      deleteFile(symbol.imageUrl).catch((err: unknown) =>
+        console.warn('[WorkSymbols] Failed to delete removed image', err)
+      );
     }
     setSymbols((prev) => prev.filter((s) => s.id !== symbol.id));
   };
@@ -224,7 +226,9 @@ export const WorkSymbolsConfigurationModal: React.FC<
 
   const handleClose = () => {
     for (const url of uploadedThisSessionRef.current) {
-      void deleteFile(url);
+      deleteFile(url).catch((err: unknown) =>
+        console.warn('[WorkSymbols] Failed to delete unsaved image', err)
+      );
     }
     uploadedThisSessionRef.current.clear();
     onClose();

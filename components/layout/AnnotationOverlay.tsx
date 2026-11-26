@@ -903,7 +903,6 @@ export const AnnotationOverlay: React.FC = () => {
                 layout="button"
                 label="Insert image"
                 maxBytes={INSERT_MAX_BYTES}
-                linkAsFile
                 disabled={isUploadingImage}
                 tourScope={{ type: 'annotation', field: 'insert-image' }}
                 tourOverrides={{ open: tourAttr('annotation.insert-image') }}

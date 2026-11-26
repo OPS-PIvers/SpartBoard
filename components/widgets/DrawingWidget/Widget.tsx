@@ -1599,7 +1599,6 @@ export const DrawingWidget: React.FC<{
               layout="button"
               label="Insert image"
               maxBytes={INSERT_MAX_BYTES}
-              linkAsFile
               disabled={isUploadingImage}
               tourScope={{ type: widget.type, field: 'insert-image' }}
               tourOverrides={{
