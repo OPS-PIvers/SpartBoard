@@ -65,3 +65,14 @@ describe('flashcard answer matcher', () => {
     expect(flashcardEditDistance('friend', 'frined')).toBe(1);
   });
 });
+
+describe('malformed language tags', () => {
+  it.each(['es_ES', 'español de mexico', 'e'])(
+    'does not throw for %s',
+    (language) => {
+      expect(
+        matchFlashcardAnswer('Hola', 'hola', { language, strict: false }).result
+      ).toBe('exact');
+    }
+  );
+});
