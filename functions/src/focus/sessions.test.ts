@@ -224,6 +224,15 @@ describe('focusStartV1', () => {
     await expect(start(coTeacher)).resolves.toMatchObject({ studentCount: 3 });
   });
 
+  it('SECURITY: treats a deactivated admin as a teacher while the row is missing', async () => {
+    await expect(
+      start(teacher({ claims: { deactivated: true } }))
+    ).rejects.toThrow(/not turned on/);
+    await expect(start(teacher({ claims: {} }))).resolves.toMatchObject({
+      studentCount: 3,
+    });
+  });
+
   it('turns off for admins too when the row is disabled', async () => {
     await db
       .doc('feature_permissions/focus')
@@ -288,6 +297,9 @@ describe('focusStartV1', () => {
     await expect(start(coTeacher, { classId: 'mock-1' })).rejects.toThrow(
       /do not teach/
     );
+    await expect(
+      start(teacher({ claims: { deactivated: true } }), { classId: 'mock-1' })
+    ).rejects.toThrow(/do not teach/);
     await expect(
       start(teacher(), { classId: 'mock-1' })
     ).resolves.toMatchObject({ studentCount: 1 });

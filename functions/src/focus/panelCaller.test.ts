@@ -65,6 +65,18 @@ describe('panelCaller', () => {
     });
   });
 
+  it('carries the account claims so a deactivated admin fails the admin checks', async () => {
+    withUser({
+      uid: 'teacher-uid',
+      emailVerified: true,
+      customClaims: { deactivated: true },
+      providerData: [{ providerId: 'google.com', email: EMAIL }],
+    });
+    expect(await panelCaller('t', deps)).toMatchObject({
+      claims: { deactivated: true },
+    });
+  });
+
   it('refuses a password-only or unverified account registered with the address', async () => {
     for (const user of [
       {

@@ -87,6 +87,8 @@ export interface CreateTeammatePaperBatchRequest {
   written?: boolean;
   /** Print matching, ordering and choose all as bubble rows. */
   groups?: boolean;
+  /** Questions whose custom box image loaded here; other image boxes print lines. */
+  boxImageQuestionIds?: string[];
 }
 
 export interface CreateTeammatePaperBatchResult {

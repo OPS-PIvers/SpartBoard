@@ -1,6 +1,7 @@
 // The stimuli a printed test paper carries: inside a question, or once on a lettered resource page.
 import type {
   QuizQuestion,
+  PaperSheetStimulus,
   QuizStimulus,
   QuizStimulusPaperPlacement,
 } from '@/types';
@@ -261,6 +262,32 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 export interface TeammateQuizStimuli {
   stimuli: QuizStimulus[];
   questionsById: Map<string, Pick<QuizQuestion, 'id' | 'stimulusIds'>>;
+}
+
+/** Custom image answer boxes in a teammate's quiz, by question id; the quiz arrives untyped. */
+export function teammateBoxImages(
+  quiz: { questions: readonly unknown[] } | null | undefined
+): Map<string, PaperSheetStimulus> {
+  const out = new Map<string, PaperSheetStimulus>();
+  for (const q of quiz?.questions ?? []) {
+    if (!isRecord(q) || typeof q.id !== 'string') continue;
+    const img = q.paperBoxImage;
+    if (q.paperBoxStyle !== 'image' || !isRecord(img)) continue;
+    if (img.source !== 'image' || typeof img.id !== 'string' || !img.id)
+      continue;
+    const driveFileId =
+      typeof img.driveFileId === 'string' ? img.driveFileId : undefined;
+    const url = typeof img.url === 'string' ? img.url : undefined;
+    if (!driveFileId && !url) continue;
+    out.set(q.id, {
+      id: img.id,
+      label: typeof img.label === 'string' ? img.label : '',
+      source: 'image',
+      ...(driveFileId ? { driveFileId } : {}),
+      ...(url ? { url } : {}),
+    });
+  }
+  return out;
 }
 
 export function teammateQuizStimuli(

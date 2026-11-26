@@ -57,6 +57,7 @@ function callerOf(request: CallableRequest): FocusCaller | null {
     anonymous: auth.token.firebase?.sign_in_provider === 'anonymous',
     studentRole: auth.token.studentRole === true,
     name: typeof auth.token.name === 'string' ? auth.token.name : null,
+    claims: auth.token,
   };
 }
 

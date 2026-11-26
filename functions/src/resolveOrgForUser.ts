@@ -59,6 +59,7 @@ import {
   DEACTIVATED_CLAIM,
   OPERATOR_ORG_ID,
   hasDeactivatedClaim,
+  isLiveAdmin,
   isRevokedMemberStatus,
 } from './authz';
 import {
@@ -268,15 +269,10 @@ async function autoEnrollMember(
   });
   if (rosterRole === 'student') {
     // An admin in a mock class (or during a ClassLink outage) keeps the teacher app.
-    return (await db.doc(`admins/${email}`).get()).exists
-      ? undefined
-      : 'student';
+    return (await isLiveAdmin(db, email, token)) ? undefined : 'student';
   }
   // Students share the staff domain, so an address nobody vouches for as staff joins by invite instead.
-  if (
-    rosterRole !== 'staff' &&
-    !(await db.doc(`admins/${email}`).get()).exists
-  ) {
+  if (rosterRole !== 'staff' && !(await isLiveAdmin(db, email, token))) {
     return;
   }
 
@@ -328,7 +324,7 @@ async function demoteRosterStudent(
     classLinkOnly: true,
   });
   if (role === 'unknown') return false;
-  if (role === 'student' && (await db.doc(`admins/${email}`).get()).exists) {
+  if (role === 'student' && (await isLiveAdmin(db, email))) {
     return false;
   }
   const patch =

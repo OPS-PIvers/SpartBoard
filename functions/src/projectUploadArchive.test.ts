@@ -188,6 +188,7 @@ function makeDeps(
     uploadFileToDrive: vi.fn(() => Promise.resolve({ id: 'drive-big' })),
     discardTempFile: vi.fn(() => Promise.resolve()),
     setDrivePermission: vi.fn(() => Promise.resolve()),
+    deleteDriveFile: vi.fn(() => Promise.resolve()),
     now: () => NOW,
     ...overrides,
   };

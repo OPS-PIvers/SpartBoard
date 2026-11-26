@@ -134,10 +134,10 @@ export async function handleFocusPanel(
   const input = (body ?? {}) as Record<string, unknown>;
   switch (input.action) {
     case 'list': {
-      const canStart = await canUseFocusWidget(db, email);
+      const canStart = await canUseFocusWidget(db, email, caller.claims);
       // Mock classes start only on dev or for admins (taughtClassStudentUids), so list them only then.
       const includeMock =
-        deps.mockClassesOpen() || (await isLiveAdmin(db, email));
+        deps.mockClassesOpen() || (await isLiveAdmin(db, email, caller.claims));
       const classes = await panelClasses(db, caller.uid, includeMock);
       await joinCoTaughtSessions(db, caller, email, classes, deps);
       const sessions = await panelSessions(db, caller.uid, deps.now());
