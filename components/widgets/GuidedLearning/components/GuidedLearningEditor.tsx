@@ -659,7 +659,6 @@ export const GuidedLearningEditorContextPane = React.memo(
                 accept={GL_MEDIA_ACCEPT}
                 maxBytes={GL_MAX_VIDEO_BYTES}
                 multiple
-                linkAsFile
                 tourScope={{ type: 'guided-learning', field: 'slides' }}
                 tourOverrides={{ open: tourAttr('gl-editor.upload') }}
                 buttonClassName="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-colors text-sm disabled:opacity-50"

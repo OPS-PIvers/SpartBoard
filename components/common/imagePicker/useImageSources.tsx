@@ -5,8 +5,8 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { isImageFile, usePasteFiles } from '../fileAdd/usePasteFiles';
 
 export interface ImageSourcesBase {
-  /** Image links are kept as links unless the caller needs the file itself. */
-  linkAsFile?: boolean;
+  /** Keeps an image link as a link; otherwise the link is fetched and saved like an upload. */
+  keepLinks?: boolean;
   /** Which files it takes; images by default. */
   acceptFile?: (file: File) => boolean;
   accept?: string;
@@ -74,11 +74,21 @@ export const isImageLink = (raw: string): boolean => {
   }
 };
 
+// The link's last path part names the saved file, as an upload's own name would.
+const linkFileName = (link: string): string => {
+  try {
+    const last = new URL(link).pathname.split('/').filter(Boolean).pop();
+    return last ? decodeURIComponent(last) : 'linked-image';
+  } catch {
+    return 'linked-image';
+  }
+};
+
 export function useImageSources({
   upload,
   onChange,
   takeFiles,
-  linkAsFile = false,
+  keepLinks = false,
   acceptFile = isImageFile,
   accept,
   allowPdf = false,
@@ -216,14 +226,14 @@ export function useImageSources({
             'Select that image with the Google Drive button.'
           );
         }
-        if (!linkAsFile && onChange) {
+        if (keepLinks && onChange) {
           onChange(link);
           return true;
         }
         const res = await fetch(link).catch(() => null);
         const blob = res?.ok ? await res.blob() : null;
         const file =
-          blob && new File([blob], 'linked-image', { type: blob.type });
+          blob && new File([blob], linkFileName(link), { type: blob.type });
         if (!file || !takes(file)) {
           throw new PickerError(
             "That link can't be used here. Download the image and upload it."
@@ -231,7 +241,7 @@ export function useImageSources({
         }
         return save([file]);
       }),
-    [run, linkAsFile, onChange, takes, save]
+    [run, keepLinks, onChange, takes, save]
   );
 
   const onPasted = useCallback(

@@ -201,7 +201,6 @@ export const StudioStartHub: React.FC<StudioStartHubProps> = ({
               accept={GL_MEDIA_ACCEPT}
               maxBytes={GL_MAX_VIDEO_BYTES}
               multiple
-              linkAsFile
               tourScope={{ type: 'guided-learning', field: 'slides' }}
               tourOverrides={{ open: tourAttr('studio.hub-upload') }}
               buttonClassName={targetClass(false, true)}

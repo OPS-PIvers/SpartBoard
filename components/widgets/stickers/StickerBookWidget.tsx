@@ -626,7 +626,6 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
                 label={t('common.upload')}
                 upload={uploadForPicker}
                 onChange={addCustomSticker}
-                linkAsFile
                 maxBytes={STICKER_MAX_BYTES}
                 disabled={uploading}
                 tourScope={{ type: 'stickers', field: 'upload' }}
@@ -713,7 +712,6 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
               label={t('widgets.stickers.dropOrPaste')}
               upload={uploadForPicker}
               onChange={addCustomSticker}
-              linkAsFile
               maxBytes={STICKER_MAX_BYTES}
               disabled={uploading}
               tourScope={{ type: 'stickers', field: 'upload-zone' }}

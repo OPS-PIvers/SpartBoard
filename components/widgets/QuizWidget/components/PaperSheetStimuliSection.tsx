@@ -401,7 +401,6 @@ export const PaperSheetStimuliSection: React.FC<
               upload={uploadForPicker}
               onChange={addFromPicker}
               allowPdf
-              linkAsFile
               disabled={busy || disabled}
               tourScope={{ type: 'quiz', field: 'sheet-stimuli' }}
               tourOverrides={{

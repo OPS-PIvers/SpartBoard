@@ -94,7 +94,6 @@ export const StudioWelcomePanel: React.FC<{ state: WelcomeState }> = ({
             takeFiles={takeImage}
             onRemove={removeWelcomeImage}
             maxBytes={GL_MAX_IMAGE_BYTES}
-            linkAsFile
             disabled={welcomeImageUploading}
             tourScope={{ type: 'guided-learning', field: 'welcomeImage' }}
             tourOverrides={{

@@ -1453,7 +1453,6 @@ const BackgroundPicker: React.FC<{
           {mode === 'image' && unifiedPicker && (
             <ImagePicker
               value={imageDataUrl ?? undefined}
-              linkAsFile
               tourScope={{ type: 'smartNotebook', field: 'background' }}
               tourOverrides={{
                 upload: tourTypeAttr(

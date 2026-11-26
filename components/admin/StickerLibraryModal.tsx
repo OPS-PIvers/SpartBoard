@@ -198,7 +198,9 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
     // yet, so it's safe to delete the Storage object immediately.
     if (uploadedThisSessionRef.current.has(url)) {
       uploadedThisSessionRef.current.delete(url);
-      void deleteFile(url);
+      deleteFile(url).catch((err: unknown) =>
+        console.warn('[StickerLibrary] Failed to delete image', err)
+      );
     }
     onStickersChange(
       stickers.filter((s) =>
@@ -238,7 +240,9 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
       // never saved to Firestore (i.e. still in the current list but not in
       // the original baseline).
       for (const url of uploadedThisSessionRef.current) {
-        void deleteFile(url);
+        deleteFile(url).catch((err: unknown) =>
+          console.warn('[StickerLibrary] Failed to delete image', err)
+        );
       }
       uploadedThisSessionRef.current.clear();
       // Revert the parent's permission state to the pre-edit baseline so the
