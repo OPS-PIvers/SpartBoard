@@ -201,6 +201,17 @@ describe('handleDrawQuizBankQuestions', () => {
     await expect(
       handleDrawQuizBankQuestions(makeDb(docs), 'stu1', input, pin)
     ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(docs[RESPONSE].servedQuestionIds).toBeUndefined();
+  });
+
+  it('SECURITY: refuses a student token outside a legacy classId session', async () => {
+    const docs = seed();
+    docs[SESSION].classId = 'class-b';
+    const sso = { studentRole: true, classIds: ['class-a'] };
+    await expect(
+      handleDrawQuizBankQuestions(makeDb(docs), 'stu1', input, sso)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(docs[RESPONSE].servedQuestionIds).toBeUndefined();
   });
 
   it("draws for a targeted class, a legacy classId and the PIN token's own session", async () => {
