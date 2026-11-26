@@ -4063,6 +4063,7 @@ describe('index barrel — deployed export set', () => {
     'syncedBankOwnerRegistry',
     'onUserProfileBuildingsChangedV1',
     'plcMembershipV1',
+    'plcTeamItemsV1',
     'orgAdminV1',
     'shareMembershipV1',
     'setPlcNormingFlagV1',
