@@ -30,7 +30,8 @@ const formatResult = (n: number): string =>
 // Expression after replacing the display value; a pending operator takes it as operand 2.
 // True when % or +/− copies operand 1 into a pending operator's empty operand 2.
 const derivesOperand2 = (prev: CalcState): boolean =>
-  prev.operator !== null && (prev.waitingForOperand || prev.replaceWith !== null);
+  prev.operator !== null &&
+  (prev.waitingForOperand || prev.replaceWith !== null);
 
 const syncExpression = (prev: CalcState, next: string): string => {
   if (prev.waitingForOperand) {
@@ -62,8 +63,7 @@ export const CalculatorTool: React.FC = () => {
         return {
           ...prev,
           display: replaced,
-          expression:
-            prev.expression.slice(0, -prev.display.length) + replaced,
+          expression: prev.expression.slice(0, -prev.display.length) + replaced,
           replaceWith: null,
         };
       }
@@ -103,8 +103,7 @@ export const CalculatorTool: React.FC = () => {
         return {
           ...prev,
           display: replaced,
-          expression:
-            prev.expression.slice(0, -prev.display.length) + replaced,
+          expression: prev.expression.slice(0, -prev.display.length) + replaced,
           replaceWith: null,
         };
       }
