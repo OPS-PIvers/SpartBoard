@@ -7,6 +7,7 @@ import { assertViewAsAllowed } from './viewAsGuard';
 import {
   isPlcContentCollection,
   plcContentWriteAllowed,
+  plcMember,
   resolveWrite,
   sentinelOf,
   type ContentWriteDeps,
@@ -44,6 +45,13 @@ function denied(): never {
 const validId = (v: unknown): v is string =>
   typeof v === 'string' && DOC_ID.test(v) && v !== '.' && v !== '..';
 
+/** A sentinel below the top level would be stored literally, so refuse it. */
+function hasNestedSentinel(v: unknown): boolean {
+  if (!v || typeof v !== 'object') return false;
+  const values = Array.isArray(v) ? v : Object.values(v as Data);
+  return values.some((x) => sentinelOf(x) !== null || hasNestedSentinel(x));
+}
+
 export function parsePlcContentWriteRequest(
   raw: unknown
 ): PlcContentWriteRequest {
@@ -75,6 +83,8 @@ export function parsePlcContentWriteRequest(
         bad('Bad field name.');
       if (sentinelOf(v) === 'deleteField' && x.op !== 'update')
         bad('deleteField works only in an update.');
+      if (sentinelOf(v) === null && hasNestedSentinel(v))
+        bad('Server values work only at the top level.');
     }
     return { op: x.op, coll: x.coll, id: x.id, data: data as Data };
   });
@@ -109,8 +119,11 @@ export async function runPlcContentWrites(
     const planned = req.writes.map((w, i) => {
       const snap = snaps[i];
       const existing = snap.exists ? (snap.data() ?? {}) : null;
-      if (w.op === 'update' && !existing)
+      // Only a member learns that a doc is missing; anyone else gets the rules' denial.
+      if (w.op === 'update' && !existing) {
+        if (!plcMember(plc, caller.uid)) denied();
         throw new HttpsError('not-found', 'No document to update.');
+      }
       const method =
         w.op === 'delete' ? 'delete' : existing ? 'update' : 'create';
       const { incoming, payload } =

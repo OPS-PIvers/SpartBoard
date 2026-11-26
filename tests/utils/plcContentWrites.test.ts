@@ -17,6 +17,17 @@ vi.mock('firebase/functions', () => ({
   httpsCallable: vi.fn(() => h.call),
 }));
 vi.mock('@/config/firebase', () => ({ functions: { __mock: 'functions' } }));
+const va = vi.hoisted(() => ({
+  blocks: vi.fn((_paths: readonly string[]) => false),
+  needsAudit: vi.fn((_paths: readonly string[]) => false),
+  record: vi.fn((_writes: unknown[]) => Promise.resolve()),
+}));
+vi.mock('@/utils/viewAsTab', () => ({
+  ViewAsReadOnlyError: class extends Error {},
+  viewAsBlocksRawWrite: va.blocks,
+  viewAsRawWriteNeedsAudit: va.needsAudit,
+}));
+vi.mock('@/utils/viewAsAudit', () => ({ recordViewAsRawWrites: va.record }));
 
 import { httpsCallable } from 'firebase/functions';
 import {
@@ -123,5 +134,24 @@ describe('plcContentWrites', () => {
       code: 'unavailable',
       message: 'offline',
     });
+  });
+});
+
+describe('plcContentWrites in a View as tab', () => {
+  it('blocks a write the raw-write guard would block, without calling the server', async () => {
+    va.blocks.mockReturnValueOnce(true);
+    await expect(
+      deletePlcContentDoc('p', 'quizzes', 'q1')
+    ).rejects.toBeInstanceOf(Error);
+    expect(va.blocks).toHaveBeenCalledWith(['plcs/p/quizzes/q1']);
+    expect(h.call).not.toHaveBeenCalled();
+  });
+
+  it('logs the change in the View as log after the server accepts it', async () => {
+    va.needsAudit.mockReturnValueOnce(true);
+    await updatePlcContentDoc('p', 'rubrics', 'r1', { title: 'T' });
+    expect(va.record).toHaveBeenCalledWith([
+      { op: 'update', path: 'plcs/p/rubrics/r1', data: { title: 'T' } },
+    ]);
   });
 });

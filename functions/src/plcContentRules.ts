@@ -53,8 +53,9 @@ const isTs = (v: unknown): v is TsLike =>
   typeof (v as TsLike).toMillis === 'function';
 const isMapVal = (v: unknown): v is Data =>
   !!v && typeof v === 'object' && !Array.isArray(v) && !isTs(v);
+/** What Firestore stores as integerValue: safe integers other than -0 (the rest become doubles). */
 const isIntVal = (v: unknown): v is number =>
-  typeof v === 'number' && Number.isInteger(v);
+  typeof v === 'number' && Number.isSafeInteger(v) && !Object.is(v, -0);
 
 /** `get(k, dflt)` in rules. */
 const getOr = (d: Data | null, k: string, dflt: unknown): unknown =>
@@ -147,11 +148,12 @@ function memberUids(plc: Data | null): string[] | null {
     : null;
 }
 
-function memberEntry(plc: Data, uid: string): Data {
+/** members.get(uid, {}), or null where the rules' `.get` would error on a non-map. */
+function memberEntry(plc: Data, uid: string): Data | null {
   const members = getOr(plc, 'members', {});
-  if (!isMapVal(members)) return {};
+  if (!isMapVal(members)) return null;
   const entry = getOr(members, uid, {});
-  return isMapVal(entry) ? entry : {};
+  return isMapVal(entry) ? entry : null;
 }
 
 export function plcMember(plc: Data | null, uid: string): boolean {
@@ -162,6 +164,7 @@ export function plcCanEditContent(plc: Data | null, uid: string): boolean {
   return (
     !!plc &&
     plcMember(plc, uid) &&
+    memberEntry(plc, uid) !== null &&
     getOr(memberEntry(plc, uid), 'role', '') !== 'viewer'
   );
 }
@@ -172,6 +175,7 @@ export function isPlcMembershipManager(plc: Data | null, uid: string): boolean {
   if (!Array.isArray(uids) || !uids.includes(uid)) return false;
   if (uid === getOr(plc, 'leadUid', '')) return true;
   const entry = memberEntry(plc, uid);
+  if (!entry) return false;
   const role = getOr(entry, 'role', '');
   return (
     (role === 'lead' || role === 'coLead') &&

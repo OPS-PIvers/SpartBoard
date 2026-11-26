@@ -1,9 +1,13 @@
 // Unit tests for plcContentWriteV1: request parsing, the transaction runner and the caller gates.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const h = vi.hoisted(() => ({
-  db: null,
-  viewAs: vi.fn(() => Promise.resolve(null)),
+interface Hoisted {
+  db: unknown;
+  viewAs: ReturnType<typeof vi.fn<() => Promise<null>>>;
+}
+const h: Hoisted = vi.hoisted(() => ({
+  db: undefined,
+  viewAs: vi.fn<() => Promise<null>>(() => Promise.resolve(null)),
 }));
 
 vi.mock('./firebaseAdmin', () => ({
@@ -128,6 +132,19 @@ describe('parsePlcContentWriteRequest', () => {
       },
     ],
     ['array data', { plcId: 'p', writes: [{ ...ok, data: [] }] }],
+    [
+      'a nested sentinel',
+      {
+        plcId: 'p',
+        writes: [
+          {
+            ...ok,
+            op: 'update',
+            data: { sessionOptions: { a: [{ [SENTINEL_KEY]: 'serverTime' }] } },
+          },
+        ],
+      },
+    ],
   ])('rejects %s', (_label, raw) => {
     expect(() => parsePlcContentWriteRequest(raw)).toThrow();
   });
@@ -370,6 +387,76 @@ describe('runPlcContentWrites', () => {
       deps
     );
     expect(stub.get('plcs/p/flashcard_results/r1')).toBeUndefined();
+  });
+});
+
+describe('review fixes', () => {
+  it('refuses -0 and unsafe integers where the rules want an int', async () => {
+    const { db } = setup();
+    for (const questionCount of [-0, 1e300]) {
+      expect(
+        await codeOf(
+          runPlcContentWrites(
+            db,
+            { uid: 'mem' },
+            {
+              plcId: 'p',
+              writes: [
+                {
+                  op: 'set',
+                  coll: 'quizzes',
+                  id: 'q1',
+                  data: { ...quiz('q1'), questionCount },
+                },
+              ],
+            },
+            deps
+          )
+        )
+      ).toBe('permission-denied');
+    }
+  });
+
+  it('refuses everyone when the members map or the entry is malformed, as the rules error', async () => {
+    for (const members of [{ mem: 'member' }, ['mem']]) {
+      const { db } = setup({ 'plcs/p': { ...plc(), members } });
+      expect(
+        await codeOf(
+          runPlcContentWrites(
+            db,
+            { uid: 'mem' },
+            {
+              plcId: 'p',
+              writes: [
+                { op: 'set', coll: 'quizzes', id: 'q1', data: quiz('q1') },
+              ],
+            },
+            deps
+          )
+        )
+      ).toBe('permission-denied');
+    }
+  });
+
+  it('tells only members that a doc is missing', async () => {
+    const { db } = setup();
+    const req = {
+      plcId: 'p',
+      writes: [
+        {
+          op: 'update' as const,
+          coll: 'quizzes' as const,
+          id: 'nope',
+          data: { title: 'x' },
+        },
+      ],
+    };
+    expect(
+      await codeOf(runPlcContentWrites(db, { uid: 'out' }, req, deps))
+    ).toBe('permission-denied');
+    expect(
+      await codeOf(runPlcContentWrites(db, { uid: 'mem' }, req, deps))
+    ).toBe('not-found');
   });
 });
 
