@@ -39,6 +39,27 @@ vi.mock('@/config/firebase', () => ({
   isAuthBypass: false,
 }));
 
+// The callable's wire format has its own tests; route it back through the mocked SDK writes here.
+vi.mock('@/utils/plcNotesWrite', async () => {
+  const fs = await import('firebase/firestore');
+  const ref = (plcId: string, coll: string, id: string) =>
+    fs.doc({ __mock: 'db' } as never, 'plcs', plcId, coll, id);
+  return {
+    plcNotesCreate: (
+      plcId: string,
+      coll: string,
+      id: string,
+      fields: Record<string, unknown>
+    ) => fs.setDoc(ref(plcId, coll, id), fields),
+    plcNotesUpdate: (
+      plcId: string,
+      coll: string,
+      id: string,
+      fields: Record<string, unknown>
+    ) => fs.updateDoc(ref(plcId, coll, id), fields),
+  };
+});
+
 const useAuthMock =
   vi.fn<
     () => { user: { uid: string; displayName?: string; email?: string } | null }

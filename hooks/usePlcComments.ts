@@ -31,11 +31,10 @@ import {
   onSnapshot,
   query,
   serverTimestamp,
-  setDoc,
-  updateDoc,
   where,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import { plcNotesCreate, plcNotesUpdate } from '@/utils/plcNotesWrite';
 import { useAuth } from '@/context/useAuth';
 import type { PlcComment } from '@/types';
 import { logError } from '@/utils/logError';
@@ -293,7 +292,7 @@ export function usePlcComments(
         mentions,
         createdAt: serverTimestamp(),
       };
-      await setDoc(ref, payload);
+      await plcNotesCreate(plcId, 'comments', ref.id, payload);
 
       // Activity fan-out (Decision 2.2 + 2.6) — fire-and-forget, never blocks
       // or fails the comment. One general event + one per mentioned member.
@@ -315,14 +314,9 @@ export function usePlcComments(
   const softDeleteComment = useCallback(
     async (commentId: string): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      const ref = doc(
-        db,
-        PLCS_COLLECTION,
-        plcId,
-        COMMENTS_SUBCOLLECTION,
-        commentId
-      );
-      await updateDoc(ref, { deletedAt: serverTimestamp() });
+      await plcNotesUpdate(plcId, 'comments', commentId, {
+        deletedAt: serverTimestamp(),
+      });
     },
     [plcId, user]
   );
@@ -330,14 +324,7 @@ export function usePlcComments(
   const restoreComment = useCallback(
     async (commentId: string): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      const ref = doc(
-        db,
-        PLCS_COLLECTION,
-        plcId,
-        COMMENTS_SUBCOLLECTION,
-        commentId
-      );
-      await updateDoc(ref, { deletedAt: null });
+      await plcNotesUpdate(plcId, 'comments', commentId, { deletedAt: null });
     },
     [plcId, user]
   );

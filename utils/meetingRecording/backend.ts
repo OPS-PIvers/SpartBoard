@@ -1,13 +1,8 @@
-import {
-  addDoc,
-  collection,
-  doc,
-  serverTimestamp,
-  updateDoc,
-} from 'firebase/firestore';
+import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions, storage } from '@/config/firebase';
+import { plcNotesCreate, plcNotesUpdate } from '@/utils/plcNotesWrite';
 import type { PlcRecordingPart, PlcRecordingStatus } from '@/types';
 import {
   PLC_RECORDINGS_SUBCOLLECTION,
@@ -39,29 +34,26 @@ export interface MeetingRecordingBackend {
 
 export const firebaseMeetingRecordingBackend: MeetingRecordingBackend = {
   createRecording: async ({ plcId, noteId, recorderUid }) => {
-    const created = await addDoc(
-      collection(db, 'plcs', plcId, PLC_RECORDINGS_SUBCOLLECTION),
-      {
-        noteId,
-        recorderUid,
-        status: 'recording',
-        parts: [],
-        durationMs: 0,
-        lastHeartbeatAt: serverTimestamp(),
-        createdAt: serverTimestamp(),
-      }
-    );
-    return created.id;
+    const id = doc(
+      collection(db, 'plcs', plcId, PLC_RECORDINGS_SUBCOLLECTION)
+    ).id;
+    await plcNotesCreate(plcId, 'recordings', id, {
+      noteId,
+      recorderUid,
+      status: 'recording',
+      parts: [],
+      durationMs: 0,
+      lastHeartbeatAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+    });
+    return id;
   },
   updateRecording: async (plcId, recordingId, patch) => {
     const { heartbeat, ...fields } = patch;
-    await updateDoc(
-      doc(db, 'plcs', plcId, PLC_RECORDINGS_SUBCOLLECTION, recordingId),
-      {
-        ...fields,
-        ...(heartbeat ? { lastHeartbeatAt: serverTimestamp() } : {}),
-      }
-    );
+    await plcNotesUpdate(plcId, 'recordings', recordingId, {
+      ...fields,
+      ...(heartbeat ? { lastHeartbeatAt: serverTimestamp() } : {}),
+    });
   },
   uploadSegment: async (path, blob) => {
     await uploadBytes(ref(storage, path), blob, {

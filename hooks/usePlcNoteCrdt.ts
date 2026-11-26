@@ -7,16 +7,15 @@ import {
   onSnapshot,
   orderBy,
   query,
-  runTransaction,
   serverTimestamp,
   setDoc,
-  updateDoc,
 } from 'firebase/firestore';
 import * as Y from 'yjs';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import type { PlcActionItem } from '@/types';
 import { logError } from '@/utils/logError';
+import { plcNotesMutate } from '@/utils/plcNotesWrite';
 import {
   parseActionItems,
   sanitizeActionItemsForWrite,
@@ -74,7 +73,6 @@ const MIRROR_DEBOUNCE_MS = 2000;
 const COMPACT_THRESHOLD = 150;
 /** Firestore caps a document at 1 MiB; leave room for the mirrored fields. */
 const MAX_SNAPSHOT_BYTES = 700_000;
-const VERSION_WRITE_ATTEMPTS = 5;
 
 export type PlcNoteCrdtStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -131,11 +129,8 @@ export async function writeVersionedNoteFields(
   uid: string,
   build: () => Record<string, unknown>
 ): Promise<void> {
-  const ref = noteRefFor(plcId, noteId);
-  for (let attempt = 0; attempt < VERSION_WRITE_ATTEMPTS; attempt += 1) {
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return;
-    const current = snap.data();
+  await plcNotesMutate(plcId, 'notes', noteId, (current) => {
+    if (!current) return { write: null, result: undefined };
     const fields: Record<string, unknown> = {
       ...build(),
       lastEditedBy: uid,
@@ -146,17 +141,8 @@ export async function writeVersionedNoteFields(
     if (typeof current.version === 'number') {
       fields.version = current.version + 1;
     }
-    try {
-      await updateDoc(ref, fields);
-      return;
-    } catch (err) {
-      if (attempt === VERSION_WRITE_ATTEMPTS - 1) throw err;
-      // Jitter so two clients retrying don't collide in lockstep.
-      await new Promise((resolve) =>
-        setTimeout(resolve, 60 + Math.random() * 140)
-      );
-    }
-  }
+    return { write: { op: 'update', fields }, result: undefined };
+  });
 }
 
 export function usePlcNoteCrdt({
@@ -331,12 +317,10 @@ export function usePlcNoteCrdt({
       // transaction so two teachers opening at once can't both insert the body
       // and converge on a doubled note.
       try {
-        await runTransaction(db, async (tx) => {
-          const ref = noteRefFor(plcId, noteId);
-          const snap = await tx.get(ref);
-          if (!snap.exists()) return;
-          const data = snap.data();
-          if (typeof data.yState === 'string' && data.yState.length > 0) return;
+        await plcNotesMutate(plcId, 'notes', noteId, (data) => {
+          if (!data) return { write: null, result: undefined };
+          if (typeof data.yState === 'string' && data.yState.length > 0)
+            return { write: null, result: undefined };
           const seed = new Y.Doc();
           seedNoteDoc(seed, {
             title: typeof data.title === 'string' ? data.title : '',
@@ -351,7 +335,7 @@ export function usePlcNoteCrdt({
           if (typeof data.version === 'number') {
             fields.version = data.version + 1;
           }
-          tx.update(ref, fields);
+          return { write: { op: 'update', fields }, result: undefined };
         });
       } catch (err) {
         // A lost seeding race is expected and harmless — the winner's snapshot
