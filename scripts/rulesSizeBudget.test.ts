@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { budgetVerdict, RULES_GROWTH_BUDGET } from './rulesSizeBudget.mjs';
+import {
+  budgetVerdict,
+  compileUnits,
+  COMPILE_COST_CEILING,
+  COMPILE_COST_GROWTH_BUDGET,
+  COMPILE_COST_TARGET,
+  estimatedGoogleSeconds,
+  RULES_GROWTH_BUDGET,
+} from './rulesSizeBudget.mjs';
 
 describe('budgetVerdict', () => {
   it('passes growth up to the budget', () => {
@@ -39,5 +47,26 @@ describe('budgetVerdict', () => {
       growth: 4000,
       overridden: true,
     });
+  });
+});
+
+describe('compile work', () => {
+  it('weighs each expanded helper call as three nodes', () => {
+    expect(compileUnits({ nodes: 1000, calls: 100 })).toBe(1300);
+  });
+
+  it('puts the ceiling under the point where the current rules began timing out', () => {
+    expect(COMPILE_COST_TARGET).toBeLessThan(COMPILE_COST_CEILING);
+    expect(estimatedGoogleSeconds(COMPILE_COST_TARGET)).toBeLessThan(3.8);
+  });
+
+  it('budgets compile growth with the same verdict as bytes', () => {
+    expect(
+      budgetVerdict({
+        compiled: 1000 + COMPILE_COST_GROWTH_BUDGET + 1,
+        baseCompiled: 1000,
+        budget: COMPILE_COST_GROWTH_BUDGET,
+      }).ok
+    ).toBe(false);
   });
 });

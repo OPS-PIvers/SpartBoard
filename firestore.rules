@@ -26,24 +26,26 @@ service cloud.firestore {
     // has no uid: the missing-key error denies every owner comparison built on it.
     // A pinLoginV1 token likewise has no uid outside the one session it was proven for.
     // shorthands: off (the raw uid is read only here, in the PIN scope helpers and the PIN pointer get)
+    // The view-as and PIN checks are written out in one body: Google's compiler re-expands every helper call
+    // at each of authUid's ~900 call sites, and that expansion is what times out rules deploys.
+    // View-as: reads until exp, writes only while unlocked (ro == false), cut off once the session has endedAt (see viewAsOk).
+    // PIN: a pre-scope token (no pinSessionId) keeps its old reach for 12h after sign-in; a scoped one reaches only
+    // request.path[4] == its session (quiz or video), its attempt ledger doc, or the clock probe.
     function authUid() {
-      return viewAsOk() && pinSessionOk() ? request.auth.uid : request.auth.token.viewAs.noUid;
-    }
-    // A pre-scope PIN token (no pinSessionId) keeps its old reach for 12h after sign-in so open tabs survive the release.
-    function pinSessionOk() {
       let t = request.auth.token;
-      return t.get('pinLogin', false) != true ||
-             (t.get('pinSessionId', '') == ''
-               ? request.time.toMillis() < t.get('auth_time', 0) * 1000 + 43200000
-               : pinPathOk(t.pinSessionId));
-    }
-    // request.path[4] is the top-level doc id: the session's own docs, its attempt ledger, or the clock probe.
-    function pinPathOk(sid) {
-      return request.path[4] == sid
-        ? request.path[3] in ['quiz_sessions', 'video_activity_sessions']
-        : request.path[3] == 'server_time_probe' ||
-          (request.path[4] == sid + '__' + request.auth.uid &&
-           request.path[3] in ['quiz_attempt_ledger', 'video_activity_attempt_ledger']);
+      return (t.get('viewAs', null) == null ||
+              (request.time.toMillis() < t.viewAs.get('exp', 0) &&
+               get(/databases/$(database)/documents/view_as_sessions/$(t.viewAs.sid)).data.get('endedAt', null) == null &&
+               (request.method in ['get', 'list'] || t.viewAs.get('ro', true) == false))) &&
+             (t.get('pinLogin', false) != true ||
+              (t.get('pinSessionId', '') == ''
+                ? request.time.toMillis() < t.get('auth_time', 0) * 1000 + 43200000
+                : (request.path[4] == t.pinSessionId
+                    ? request.path[3] in ['quiz_sessions', 'video_activity_sessions']
+                    : request.path[3] == 'server_time_probe' ||
+                      (request.path[4] == t.pinSessionId + '__' + request.auth.uid &&
+                       request.path[3] in ['quiz_attempt_ledger', 'video_activity_attempt_ledger']))))
+             ? request.auth.uid : t.viewAs.noUid;
     }
     // shorthands: on
     function unchanged(k) { return request.resource.data[k] == resource.data[k]; }
@@ -88,19 +90,20 @@ service cloud.firestore {
     // write only while unlocked (ro == false) and live; authUid() enforces it for
     // every uid-keyed rule. Admin powers never write from a view-as tab (D3).
     // Ending the session (endedAt set) cuts the token off before exp.
-    function viewAsLive() {
-      return request.time.toMillis() < request.auth.token.viewAs.get('exp', 0) &&
-             get(/databases/$(database)/documents/view_as_sessions/$(request.auth.token.viewAs.sid)).data.get('endedAt', null) == null;
-    }
-    function isReadMethod() { return request.method in ['get', 'list']; }
+    // Written out without helper calls for compile time; authUid() inlines the same check.
     function viewAsOk() {
-      return request.auth.token.get('viewAs', null) == null ||
-             (viewAsLive() &&
-              (isReadMethod() || request.auth.token.viewAs.get('ro', true) == false));
+      let t = request.auth.token;
+      return t.get('viewAs', null) == null ||
+             (request.time.toMillis() < t.viewAs.get('exp', 0) &&
+              get(/databases/$(database)/documents/view_as_sessions/$(t.viewAs.sid)).data.get('endedAt', null) == null &&
+              (request.method in ['get', 'list'] || t.viewAs.get('ro', true) == false));
     }
     function viewAsAdminOk() {
-      return request.auth.token.get('viewAs', null) == null ||
-             (viewAsLive() && isReadMethod());
+      let t = request.auth.token;
+      return t.get('viewAs', null) == null ||
+             (request.time.toMillis() < t.viewAs.get('exp', 0) &&
+              get(/databases/$(database)/documents/view_as_sessions/$(t.viewAs.sid)).data.get('endedAt', null) == null &&
+              request.method in ['get', 'list']);
     }
 
     // District staff: a verified @orono address (email/password sign-in allows a
@@ -553,13 +556,14 @@ service cloud.firestore {
     // access from a deliberately deactivated member. The email guard avoids a CEL
     // throw on tokens with no email claim. The uid-keyed `deactivated` claim
     // (organizationMembersSync) holds whatever email the token carries.
+    // No helper calls inside, for compile time (see authUid); the member get runs once instead of twice.
     function notDeactivated() {
-      return !(signedIn() &&
-               (tok().get('deactivated', false) == true ||
-                (tok().get('email', '') != '' &&
-                 operatorMember() != null &&
-                 !liveStatus(operatorMember().data))));
+      return !(request.auth != null &&
+               (request.auth.token.get('deactivated', false) == true ||
+                (request.auth.token.get('email', '') != '' &&
+                 memberInactive(get(/databases/$(database)/documents/organizations/orono/members/$(request.auth.token.email.lower()))))));
     }
+    function memberInactive(m) { return m != null && !(m.data.get('status', 'active') in ['active', 'invited']); }
 
     // The owner-only boundary on /users/{userId}/**, written once. Same operand
     // order as the inline form it replaces, so the cheap checks still short-circuit

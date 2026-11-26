@@ -34,7 +34,18 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { minifyRules, proveRenamed } from './minifyRules.mjs';
-import { baseRulesText, budgetVerdict, OVERRIDE_LABEL, RULES_GROWTH_BUDGET } from './rulesSizeBudget.mjs';
+import {
+  baseRulesText,
+  budgetVerdict,
+  compileUnits,
+  COMPILE_COST_CEILING,
+  COMPILE_COST_GROWTH_BUDGET,
+  COMPILE_COST_TARGET,
+  COST_OVERRIDE_LABEL,
+  estimatedGoogleSeconds,
+  OVERRIDE_LABEL,
+  RULES_GROWTH_BUDGET,
+} from './rulesSizeBudget.mjs';
 import { findEmulatorJar } from './rulesAst/emulatorJar.mjs';
 import { stripRulesComments } from './stripRulesComments.mjs';
 
@@ -72,18 +83,23 @@ const RULES_PATH = fileURLToPath(
   new URL('../firestore.rules', import.meta.url)
 );
 
-function measureCompiled(text) {
+function measureCompiled(text, mode = 'size') {
   const jar = findEmulatorJar();
   if (!jar) return null;
   const file = path.join(mkdtempSync(path.join(tmpdir(), 'rules-size-')), 'firestore.rules');
   writeFileSync(file, text);
   const tool = fileURLToPath(new URL('./rulesAst/RulesAst.java', import.meta.url));
   try {
-    const out = execFileSync('java', ['-cp', jar, tool, 'size', file], {
+    const out = execFileSync('java', ['-cp', jar, tool, mode, file], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-    return Number(out.trim().split('\n').pop());
+    const last = out.trim().split('\n').pop();
+    if (mode === 'cost') {
+      const [nodes, calls] = last.split(' ').map(Number);
+      return compileUnits({ nodes, calls });
+    }
+    return Number(last);
   } catch (err) {
     if (err.code === 'ENOENT') return null;
     console.error(`\nfirestore.rules failed to compile:\n${err.stderr ?? err}\n`);
@@ -166,7 +182,46 @@ if (compiled === null) {
   );
 }
 
+const cost = compiled === null ? null : measureCompiled(minified.text, 'cost');
+if (cost !== null) {
+  const est = `about ${estimatedGoogleSeconds(cost)} s on Google, which gives up after ~5.2 s`;
+  if (cost > COMPILE_COST_CEILING) {
+    console.error(
+      `\nfirestore.rules takes ${cost} compile units (${est}), over the ${COMPILE_COST_CEILING} ceiling.\n\n` +
+        `Google's compiler re-expands a helper's whole body at every call, so a helper called from many rules ` +
+        `costs its size times its callers. Inline small helpers inside hot ones, check once per rule rather than ` +
+        `once per helper, or move rare writes to a server function. Breakdown: java -cp <emulator jar> ` +
+        `scripts/rulesAst/RulesAst.java cost <rules> 15\n`
+    );
+    process.exit(1);
+  }
+  console.log(`firestore.rules compile work: ${cost} units (${est}; target ${COMPILE_COST_TARGET})`);
+}
+
 const baseRef = process.env.RULES_BASE_REF;
+if (baseRef && cost !== null) {
+  const baseText = baseRulesText(baseRef);
+  const baseCost = baseText === null ? null : measureCompiled(minifyRules(stripRulesComments(baseText)).text, 'cost');
+  if (baseCost !== null) {
+    const verdict = budgetVerdict({
+      compiled: cost,
+      baseCompiled: baseCost,
+      budget: COMPILE_COST_GROWTH_BUDGET,
+      override: process.env.RULES_COST_OK === 'true',
+    });
+    const change = `${verdict.growth >= 0 ? '+' : ''}${verdict.growth} compile units vs ${baseRef} (${baseCost} -> ${cost})`;
+    if (!verdict.ok) {
+      console.error(
+        `\nThis PR grows firestore.rules compile work by ${change}, over the ${COMPILE_COST_GROWTH_BUDGET}-unit per-PR budget.\n\n` +
+          `A new call to authUid(), notDeactivated() or isAdmin() costs about 130, 50 and 140 units each. ` +
+          `If the growth is needed, add the \`${COST_OVERRIDE_LABEL}\` label to the PR and re-run this job.\n`
+      );
+      process.exit(1);
+    }
+    console.log(`rules compile budget: ${change}${verdict.overridden ? ` (allowed by the ${COST_OVERRIDE_LABEL} label)` : ''}`);
+  }
+}
+
 if (baseRef && compiled !== null) {
   const baseText = baseRulesText(baseRef);
   if (baseText === null) {
