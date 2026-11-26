@@ -1512,13 +1512,13 @@ service cloud.firestore {
     // subcollection holds frozen Board snapshots. Mirrors /shared_boards
     // substitute gating + 14-day expiresAt cap.
     match /shared_collections/{shareId} {
-      // Shape the doc must hold after any write: a non-empty, capped board list,
-      // a named collection, and capped tree lists. Enforced on create AND update
-      // because /subs and the host's manager render these fields unguarded.
       // A sub share opens on its first day (availableFrom, absent = now) and closes at expiresAt.
       function subOpen(sh) {
         return sh.get('expiresAt', 0) > nowMs() && sh.get('availableFrom', 0) <= nowMs();
       }
+      // Shape the doc must hold after any write: a non-empty, capped board list,
+      // a named collection, and capped tree lists. Enforced on create AND update
+      // because /subs and the host's manager render these fields unguarded.
       function validCollectionShareShape() {
         return isList('boardIds')
           && incoming().boardIds.size() > 0
