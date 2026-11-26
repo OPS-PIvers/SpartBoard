@@ -270,5 +270,13 @@
     "language": "en-US",
     "strict": false,
     "result": "accepted"
+  },
+  {
+    "name": "treats an underscore tag like es_ES as Spanish",
+    "response": "el Perro",
+    "expected": "perro",
+    "language": "es_ES",
+    "strict": false,
+    "result": "accepted"
   }
 ]
