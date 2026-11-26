@@ -55,7 +55,7 @@ describe('compile work', () => {
     expect(compileUnits({ nodes: 1000, calls: 100 })).toBe(1300);
   });
 
-  it('puts the ceiling under the point where the current rules began timing out', () => {
+  it('keeps the target well under the ~5.2 s Google timeout', () => {
     expect(COMPILE_COST_TARGET).toBeLessThan(COMPILE_COST_CEILING);
     expect(estimatedGoogleSeconds(COMPILE_COST_TARGET)).toBeLessThan(3.8);
   });

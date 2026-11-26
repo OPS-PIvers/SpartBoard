@@ -216,9 +216,13 @@ if (baseRef && cost !== null) {
           `A new call to authUid(), notDeactivated() or isAdmin() costs about 130, 50 and 140 units each. ` +
           `If the growth is needed, add the \`${COST_OVERRIDE_LABEL}\` label to the PR and re-run this job.\n`
       );
-      process.exit(1);
+      process.exitCode = 1;
+    } else {
+      console.log(`rules compile budget: ${change}${verdict.overridden ? ` (allowed by the ${COST_OVERRIDE_LABEL} label)` : ''}`);
     }
-    console.log(`rules compile budget: ${change}${verdict.overridden ? ` (allowed by the ${COST_OVERRIDE_LABEL} label)` : ''}`);
+  } else {
+    console.error(`\nCould not measure compile work on origin/${baseRef} for the per-PR budget.\n`);
+    process.exitCode = 1;
   }
 }
 
