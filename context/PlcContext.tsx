@@ -46,6 +46,12 @@ import {
   type Query,
 } from 'firebase/firestore';
 import { writePlcActivityEvent } from '@/utils/plcActivity';
+import {
+  plcNotesCreate,
+  plcNotesUpdate,
+  plcNotesWrite,
+  type PlcNotesWrite,
+} from '@/utils/plcNotesWrite';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
@@ -706,8 +712,6 @@ function useStableActions(
     presence: PlcPresenceEntry[];
   }>
 ): PlcActions {
-  const noteRef = (noteId: string) =>
-    doc(db, PLCS_COLLECTION, latest.current.plcId, 'notes', noteId);
   const notesRef = () =>
     collection(db, PLCS_COLLECTION, latest.current.plcId, 'notes');
   const docRef = (docId: string) =>
@@ -781,7 +785,7 @@ function useStableActions(
       if (input.actionItems !== undefined) {
         payload.actionItems = sanitizeActionItemsForWrite(input.actionItems);
       }
-      await setDoc(ref, payload);
+      await plcNotesCreate(latest.current.plcId, 'notes', ref.id, payload);
 
       // Activity log (Decision 2.2, §3.4) — native notes is Wave 2's headline
       // feature, so a created note must surface in the "since you were here"
@@ -815,7 +819,6 @@ function useStableActions(
       options?: { expectedVersion?: number }
     ): Promise<void> => {
       const u = requireUser();
-      const ref = noteRef(noteId);
       const expectedVersion = options?.expectedVersion;
       // Optimistic version precondition (Decision 2.4) via a SINGLE
       // non-transactional `updateDoc` — NOT a transaction. A transaction
@@ -844,21 +847,23 @@ function useStableActions(
       if (expectedVersion !== undefined) {
         fields.version = expectedVersion + 1;
       }
-      await updateDoc(ref, fields).catch((err: unknown) => {
-        if (err instanceof PlcNoteVersionConflictError) throw err;
-        const code =
-          typeof err === 'object' && err !== null && 'code' in err
-            ? String(err.code)
-            : '';
-        if (code === 'permission-denied' || code === 'failed-precondition') {
-          throw new PlcNoteVersionConflictError(
-            noteId,
-            expectedVersion ?? null,
-            null
-          );
+      await plcNotesUpdate(latest.current.plcId, 'notes', noteId, fields).catch(
+        (err: unknown) => {
+          if (err instanceof PlcNoteVersionConflictError) throw err;
+          const code =
+            typeof err === 'object' && err !== null && 'code' in err
+              ? String(err.code)
+              : '';
+          if (code === 'permission-denied' || code === 'failed-precondition') {
+            throw new PlcNoteVersionConflictError(
+              noteId,
+              expectedVersion ?? null,
+              null
+            );
+          }
+          throw err instanceof Error ? err : new Error(String(err));
         }
-        throw err instanceof Error ? err : new Error(String(err));
-      });
+      );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
@@ -1083,7 +1088,7 @@ function useStableActions(
         updatedAt: serverTimestamp(),
       };
       if (input?.agenda !== undefined) payload.agenda = input.agenda;
-      await setDoc(ref, payload);
+      await plcNotesCreate(latest.current.plcId, 'meetings', ref.id, payload);
       return ref.id;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1126,7 +1131,7 @@ function useStableActions(
       }
       if (patch.notesBody !== undefined) fields.notesBody = patch.notesBody;
       if (patch.status !== undefined) fields.status = patch.status;
-      await updateDoc(meetingRef(meetingId), fields);
+      await plcNotesUpdate(latest.current.plcId, 'meetings', meetingId, fields);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
@@ -1150,7 +1155,7 @@ function useStableActions(
       if (pending.length === 0) return [];
 
       const now = Date.now();
-      const batch = writeBatch(db);
+      const writes: PlcNotesWrite[] = [];
 
       // Find the live note documenting this meeting, if one exists.
       const notesSnap = await getDocs(
@@ -1187,22 +1192,27 @@ function useStableActions(
         if (existingVersion !== undefined) {
           fields.version = existingVersion + 1;
         }
-        batch.update(noteRef(targetNoteId), fields);
+        writes.push({ coll: 'notes', id: targetNoteId, op: 'update', fields });
       } else {
         const newNoteRef = doc(notesRef());
         targetNoteId = newNoteRef.id;
-        batch.set(newNoteRef, {
+        writes.push({
+          coll: 'notes',
           id: newNoteRef.id,
-          title: 'Meeting notes',
-          body: '',
-          kind: 'meeting',
-          meetingId,
-          createdBy: u.uid,
-          createdAt: serverTimestamp(),
-          lastEditedBy: u.uid,
-          lastEditedAt: serverTimestamp(),
-          version: 0,
-          actionItems: mergedActionItems,
+          op: 'create',
+          fields: {
+            id: newNoteRef.id,
+            title: 'Meeting notes',
+            body: '',
+            kind: 'meeting',
+            meetingId,
+            createdBy: u.uid,
+            createdAt: serverTimestamp(),
+            lastEditedBy: u.uid,
+            lastEditedAt: serverTimestamp(),
+            version: 0,
+            actionItems: mergedActionItems,
+          },
         });
       }
 
@@ -1213,11 +1223,16 @@ function useStableActions(
         meeting.actionItems,
         todoIdByActionItemId
       );
-      batch.update(ref, {
-        actionItems: sanitizeMeetingActionItemsForWrite(nextActionItems),
-        updatedAt: serverTimestamp(),
+      writes.push({
+        coll: 'meetings',
+        id: meetingId,
+        op: 'update',
+        fields: {
+          actionItems: sanitizeMeetingActionItemsForWrite(nextActionItems),
+          updatedAt: serverTimestamp(),
+        },
       });
-      await batch.commit();
+      await plcNotesWrite(latest.current.plcId, writes);
       return incoming.map((item) => item.id);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1273,7 +1288,7 @@ function useStableActions(
         );
       }
       if (input?.notesBody !== undefined) fields.notesBody = input.notesBody;
-      await updateDoc(ref, fields);
+      await plcNotesUpdate(latest.current.plcId, 'meetings', meetingId, fields);
 
       // Activity log (Decision 2.2, §3.4) — holding a meeting is a headline team
       // event. Fire-and-forget (mirrors `createNote`): never blocks/fails save.
@@ -1299,7 +1314,7 @@ function useStableActions(
   const deleteMeeting = useCallback(
     async (meetingId: string): Promise<void> => {
       requireUser();
-      await updateDoc(meetingRef(meetingId), {
+      await plcNotesUpdate(latest.current.plcId, 'meetings', meetingId, {
         deletedAt: Date.now(),
         updatedAt: serverTimestamp(),
       });
@@ -1310,7 +1325,7 @@ function useStableActions(
   const restoreMeeting = useCallback(
     async (meetingId: string): Promise<void> => {
       requireUser();
-      await updateDoc(meetingRef(meetingId), {
+      await plcNotesUpdate(latest.current.plcId, 'meetings', meetingId, {
         deletedAt: null,
         updatedAt: serverTimestamp(),
       });

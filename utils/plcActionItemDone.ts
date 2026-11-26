@@ -20,6 +20,7 @@ import {
 import { writeVersionedNoteFields } from '@/hooks/usePlcNoteCrdt';
 import type { PlcActionItem } from '@/types';
 import { logError } from '@/utils/logError';
+import { plcNotesMutate } from '@/utils/plcNotesWrite';
 import {
   parseActionItems,
   sanitizeActionItemsForWrite,
@@ -110,25 +111,22 @@ async function applyToPlainNote(
   doneById: ReadonlyMap<string, boolean>,
   now: number
 ): Promise<void> {
-  const ref = doc(db, 'plcs', plcId, 'notes', noteId);
   // Re-reading the version on retry is safe here: only the targeted items change.
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists()) return;
-    const data = snap.data();
+  await plcNotesMutate(plcId, 'notes', noteId, (data) => {
+    if (!data) return { write: null, result: undefined };
     const next = flipActionItems(
       parseActionItems(data.actionItems),
       doneById,
       now
     );
-    if (!next) return;
+    if (!next) return { write: null, result: undefined };
     const fields: Record<string, unknown> = {
       actionItems: sanitizeActionItemsForWrite(next),
       lastEditedBy: uid,
       lastEditedAt: serverTimestamp(),
     };
     if (typeof data.version === 'number') fields.version = data.version + 1;
-    tx.update(ref, fields);
+    return { write: { op: 'update', fields }, result: undefined };
   });
 }
 
