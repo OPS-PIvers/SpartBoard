@@ -642,6 +642,59 @@ describe('PlcTeammatePrintModal — printing', () => {
       expect(print).not.toHaveBeenCalled();
     });
 
+    it('prints a custom image answer box and falls back to lines when unshared', async () => {
+      features.add('paper-handwritten-responses');
+      loadableUrls.add(driveImageUrl('drive-box'));
+      const written = (questionId: string) => ({
+        kind: 'written' as const,
+        questionId,
+        label: '1',
+        style: 'image' as const,
+        headerMm: { x: 24, y: 66, w: 154, h: 13 },
+        boxMm: { x: 38, y: 79, w: 140, h: 48 },
+        lines: 6,
+      });
+      createBatch.mockResolvedValue({
+        ...PRINTED,
+        batch: {
+          ...PRINTED.batch,
+          layoutVersion: 2,
+          pageMaps: [
+            {
+              page: 1,
+              grid: 2 as const,
+              items: [written('q-a'), written('q-b')],
+            },
+          ],
+        },
+        testPaper: [],
+      });
+      const box = (id: string, file: string) => ({
+        id: `q-${id}`,
+        paperBoxStyle: 'image',
+        paperBoxImage: { id: `img-${id}`, source: 'image', driveFileId: file },
+      });
+      open(
+        makeContext({
+          quiz: {
+            id: 'their-quiz',
+            title: 'Unit 3 CFA',
+            questions: [box('a', 'drive-box'), box('b', 'drive-nope')],
+          },
+        })
+      );
+      pick('Bob Teacher');
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Period 1' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled()
+      );
+      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+      await waitFor(() => expect(print).toHaveBeenCalled());
+      expect(print.mock.calls[0][0].writtenImages).toEqual({
+        'q-a': driveImageUrl('drive-box'),
+      });
+    });
+
     it('says nothing when the quiz has no sheet images at all', async () => {
       await printBobsPeriod1();
       expect(screen.queryByText(/aren’t shared with the PLC/)).toBeNull();

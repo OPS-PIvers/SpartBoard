@@ -743,6 +743,42 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
     ]);
   });
 
+  it('plans a custom image box as an image box', async () => {
+    const imgQuiz = {
+      questions: [
+        QUESTIONS[0],
+        {
+          id: 'q-label',
+          type: 'free-response',
+          text: 'Label it',
+          correctAnswer: '',
+          paperBoxStyle: 'image',
+          paperBoxImage: {
+            id: 'img-1',
+            label: 'Cell',
+            source: 'image',
+            driveFileId: 'drive-1',
+          },
+        },
+        {
+          id: 'q-gone',
+          type: 'free-response',
+          text: 'No file',
+          correctAnswer: '',
+          paperBoxStyle: 'image',
+          paperBoxImage: { id: 'img-2', source: 'image' },
+        },
+      ],
+    };
+    const { run } = create(writtenState(imgQuiz), writtenDeps(), WRITTEN_INPUT);
+    const result = await run();
+    const items = result.batch.pageMaps?.[0].items ?? [];
+    expect(items.find((i) => i.questionId === 'q-label')?.style).toBe('image');
+    expect(items.find((i) => i.questionId === 'q-gone')?.style).not.toBe(
+      'image'
+    );
+  });
+
   it('prints fill in the blank as lettered write-in lines', async () => {
     const fibQuiz = {
       questions: [

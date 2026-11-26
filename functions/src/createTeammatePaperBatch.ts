@@ -402,6 +402,21 @@ function toPaperQuestion(raw: unknown): PaperQuestion | null {
     ...(isPaperBoxStyle(raw.paperBoxStyle)
       ? { paperBoxStyle: raw.paperBoxStyle }
       : {}),
+    ...(isRecord(raw.paperBoxImage) ? paperBoxImageOf(raw.paperBoxImage) : {}),
+  };
+}
+
+function paperBoxImageOf(img: Record<string, unknown>): {
+  paperBoxImage: NonNullable<PaperQuestion['paperBoxImage']>;
+} | null {
+  const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+  return {
+    paperBoxImage: {
+      id: str(img.id),
+      source: str(img.source),
+      driveFileId: str(img.driveFileId),
+      url: str(img.url),
+    },
   };
 }
 

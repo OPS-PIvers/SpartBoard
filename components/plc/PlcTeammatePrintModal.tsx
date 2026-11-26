@@ -25,6 +25,7 @@ import { usePaperSheetStimulusImages } from '@/hooks/usePaperSheetStimulusImages
 import { usePaperTestStimulusFiles } from '@/hooks/usePaperTestStimulusFiles';
 import {
   teammateTestPaper,
+  teammateBoxImages,
   teammateQuizStimuli,
 } from '@/utils/paperTestStimuli';
 import { useAuth } from '@/context/useAuth';
@@ -134,7 +135,20 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
     () => context?.quiz.paperSheetStimuli ?? [],
     [context?.quiz.paperSheetStimuli]
   );
-  const sheetImages = usePaperSheetStimulusImages(sheetStimuli, {
+  const boxImages = useMemo(
+    () => teammateBoxImages(context?.quiz),
+    [context?.quiz]
+  );
+  const imageStimuli = useMemo(() => {
+    const seen = new Set(sheetStimuli.map((s) => s.id));
+    return [
+      ...sheetStimuli,
+      ...[...boxImages.values()].filter(
+        (s) => !seen.has(s.id) && !!seen.add(s.id)
+      ),
+    ];
+  }, [sheetStimuli, boxImages]);
+  const sheetImages = usePaperSheetStimulusImages(imageStimuli, {
     publicOnly: true,
   });
   // The owner's question stimuli, fetched only through their shared links (D6).
@@ -233,6 +247,13 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
     // stack to take back rather than sheets nothing can import.
     setPrinted(result);
     setPrinting(false);
+    // A box whose image the owner never shared keeps printing as lines.
+    const writtenImages = Object.fromEntries(
+      [...boxImages].flatMap(([id, image]) => {
+        const src = sheetImages.src[image.id];
+        return src ? [[id, src]] : [];
+      })
+    );
     try {
       print({
         batchId: result.batch.id,
@@ -251,6 +272,9 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
               ),
               ...(result.blankAnswers
                 ? { blankAnswers: result.blankAnswers }
+                : {}),
+              ...(Object.keys(writtenImages).length > 0
+                ? { writtenImages }
                 : {}),
             }
           : {}),
