@@ -340,4 +340,32 @@ describe('CalculatorTool', () => {
     clickBtn('+/−');
     expect(getExpression(container).textContent).toBe('−0.05');
   });
+
+  it('keeps percent and sign toggle as the second operand after a pending operator', () => {
+    const { container } = render(<CalculatorTool />);
+    clickBtn('5');
+    clickBtn('×');
+    clickBtn('+/−');
+    expect(getExpression(container).textContent).toBe('5 × −5');
+    clickBtn('=');
+    expect(getDisplay(container).textContent).toBe('−25');
+    clickBtn('AC');
+    clickBtn('5');
+    clickBtn('×');
+    clickBtn('%');
+    expect(getExpression(container).textContent).toBe('5 × 0.05');
+    clickBtn('=');
+    expect(getDisplay(container).textContent).toBe('0.25');
+  });
+
+  it('replaces a % or +/− operand 2 with the next digit, keeping the sign', () => {
+    const { container } = render(<CalculatorTool />);
+    ['5', '+', '+/−', '3'].forEach(clickBtn);
+    expect(getExpression(container).textContent).toBe('5 + −3');
+    clickBtn('=');
+    expect(getDisplay(container).textContent).toBe('2');
+    clickBtn('AC');
+    ['5', '×', '%', '2', '='].forEach(clickBtn);
+    expect(getDisplay(container).textContent).toBe('10');
+  });
 });
