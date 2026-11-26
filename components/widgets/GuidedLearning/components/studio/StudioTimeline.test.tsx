@@ -17,7 +17,11 @@ import { StudioTimeline } from './StudioTimeline';
 import { StudioFilmstrip } from './StudioFilmstrip';
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'test-user' }, isAdmin: true }),
+  useAuth: () => ({
+    user: { uid: 'test-user' },
+    isAdmin: true,
+    canAccessFeature: () => false,
+  }),
 }));
 vi.mock('@/hooks/useStorage', () => ({
   useStorage: () => ({ uploading: false }),

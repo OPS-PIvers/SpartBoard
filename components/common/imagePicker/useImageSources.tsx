@@ -4,18 +4,17 @@ import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { isImageFile, usePasteFiles } from '../fileAdd/usePasteFiles';
 
-export interface ImageSourcesOptions {
-  /** Saves the file wherever the caller keeps its images; resolves to the URL, or null when it can't be used. */
-  upload: (file: File) => Promise<string | null>;
-  onChange: (url: string) => void;
+export interface ImageSourcesBase {
   /** Image links are kept as links unless the caller needs the file itself. */
   linkAsFile?: boolean;
+  /** Which files it takes; images by default. */
+  acceptFile?: (file: File) => boolean;
   accept?: string;
   /** Also takes a PDF from every source; the caller's upload handles it. */
   allowPdf?: boolean;
   maxBytes?: number;
   disabled?: boolean;
-  /** Takes several files at once from upload, drop or paste; each one saves and calls onChange. */
+  /** Takes several files at once from upload, drop or paste; with upload each one saves and calls onChange, with takeFiles they come as one batch. */
   multiple?: boolean;
   /** With multiple, gets each batch's counts and replaces the picker's own error line. */
   onBatchDone?: (result: BatchResult) => void;
@@ -24,6 +23,22 @@ export interface ImageSourcesOptions {
   /** The element paste is scoped to. */
   scopeRef: React.RefObject<HTMLElement | null>;
 }
+
+export type ImageDelivery =
+  | {
+      /** Saves the file wherever the caller keeps its images; resolves to the URL, or null when it can't be used. */
+      upload: (file: File) => Promise<string | null>;
+      onChange: (url: string) => void;
+      takeFiles?: never;
+    }
+  | {
+      /** Hands the files to a caller that saves them itself; resolves true when they were added. */
+      takeFiles: (files: File[]) => Promise<boolean>;
+      upload?: never;
+      onChange?: never;
+    };
+
+export type ImageSourcesOptions = ImageSourcesBase & ImageDelivery;
 
 const DEFAULT_MAX = 10 * 1024 * 1024;
 
@@ -62,7 +77,9 @@ export const isImageLink = (raw: string): boolean => {
 export function useImageSources({
   upload,
   onChange,
+  takeFiles,
   linkAsFile = false,
+  acceptFile = isImageFile,
   accept,
   allowPdf = false,
   maxBytes = DEFAULT_MAX,
@@ -80,21 +97,18 @@ export function useImageSources({
   const { openPicker } = useGooglePicker();
   const { getDriveFileAsBlob } = useGoogleDrive();
   const takes = useCallback(
-    (f: File) => isImageFile(f) || (allowPdf && isPdfFile(f)),
-    [allowPdf]
+    (f: File) => acceptFile(f) || (allowPdf && isPdfFile(f)),
+    [acceptFile, allowPdf]
   );
 
   const run = useCallback(
-    async (work: () => Promise<string | null>): Promise<RunResult> => {
+    async (work: () => Promise<boolean>): Promise<RunResult> => {
       if (inFlight.current || disabled) return 'skipped';
       inFlight.current = true;
       setBusy(true);
       setError(null);
       try {
-        const url = await work();
-        if (!url) return 'skipped';
-        onChange(url);
-        return 'added';
+        return (await work()) ? 'added' : 'skipped';
       } catch (err) {
         setError(
           err instanceof PickerError ? err.message : "The image didn't add."
@@ -105,33 +119,40 @@ export function useImageSources({
         setBusy(false);
       }
     },
-    [disabled, onChange]
+    [disabled]
   );
 
   // Every source goes through the same type and size check before it saves.
   const save = useCallback(
-    (file: File) => {
-      if (!takes(file)) throw new PickerError('Select an image file.');
-      if (file.size > maxBytes) {
-        throw new TooLargeError(
-          `That image is too large. The limit is ${Math.round(maxBytes / 1048576)} MB.`
-        );
+    async (picked: File[]): Promise<boolean> => {
+      // A caller taking several files skips the ones it can't use and checks sizes itself.
+      const batch = takeFiles && multiple;
+      const files = batch ? picked.filter(takes) : picked;
+      if (files.length === 0) throw new PickerError('Select an image file.');
+      for (const file of batch ? [] : files) {
+        if (!takes(file)) throw new PickerError('Select an image file.');
+        if (file.size > maxBytes) {
+          throw new TooLargeError(
+            `That image is too large. The limit is ${Math.round(maxBytes / 1048576)} MB.`
+          );
+        }
       }
-      return upload(file);
+      if (takeFiles) return takeFiles(files);
+      if (!upload || !onChange) return false;
+      const url = await upload(files[0]);
+      if (!url) return false;
+      onChange(url);
+      return true;
     },
-    [upload, maxBytes, takes]
+    [takes, maxBytes, takeFiles, multiple, upload, onChange]
   );
 
-  const addFile = useCallback(
-    (file: File) => run(async () => save(file)),
-    [run, save]
-  );
-
-  // Saves each file in turn; the first problem stays on screen after the rest finish.
+  // A caller taking files gets them in one batch; a caller with upload saves each file in turn, and the first problem stays on screen.
   const addFiles = useCallback(
-    async (files: File[]) => {
-      if (!multiple || (files.length < 2 && !onBatchDone)) {
-        if (files[0]) await addFile(files[0]);
+    async (files: File[]): Promise<void> => {
+      if (files.length === 0) return;
+      if (takeFiles || !multiple || (files.length < 2 && !onBatchDone)) {
+        await run(() => save(multiple ? files : files.slice(0, 1)));
         return;
       }
       if (files.length === 0 || inFlight.current || disabled) return;
@@ -143,11 +164,7 @@ export function useImageSources({
       try {
         for (const file of files) {
           try {
-            const url = await save(file);
-            if (url) {
-              onChange(url);
-              result.added++;
-            }
+            if (await save([file])) result.added++;
           } catch (err) {
             if (err instanceof TooLargeError) result.tooLarge++;
             else result.failed++;
@@ -164,7 +181,7 @@ export function useImageSources({
         setBusy(false);
       }
     },
-    [multiple, onBatchDone, addFile, disabled, save, onChange]
+    [takeFiles, multiple, onBatchDone, run, save, disabled]
   );
 
   const openFile = useCallback(() => inputRef.current?.click(), []);
@@ -179,10 +196,10 @@ export function useImageSources({
             err instanceof Error ? err.message : "Google Drive didn't open."
           );
         });
-        if (!picked) return null;
+        if (!picked) return false;
         const got = await getDriveFileAsBlob(picked.id);
         if (!got) throw new PickerError("That Drive image didn't open.");
-        return save(new File([got.blob], got.name, { type: got.mimeType }));
+        return save([new File([got.blob], got.name, { type: got.mimeType })]);
       }),
     [run, openPicker, getDriveFileAsBlob, save, allowPdf]
   );
@@ -199,24 +216,28 @@ export function useImageSources({
             'Select that image with the Google Drive button.'
           );
         }
-        if (!linkAsFile) return link;
+        if (!linkAsFile && onChange) {
+          onChange(link);
+          return true;
+        }
         const res = await fetch(link).catch(() => null);
         const blob = res?.ok ? await res.blob() : null;
-        if (
-          !blob ||
-          !(blob.type.startsWith('image/') || (allowPdf && isPdfFile(blob)))
-        ) {
+        const file =
+          blob && new File([blob], 'linked-image', { type: blob.type });
+        if (!file || !takes(file)) {
           throw new PickerError(
             "That link can't be used here. Download the image and upload it."
           );
         }
-        return save(new File([blob], 'linked-image', { type: blob.type }));
+        return save([file]);
       }),
-    [run, linkAsFile, save, allowPdf]
+    [run, linkAsFile, onChange, takes, save]
   );
 
   const onPasted = useCallback(
-    (files: File[]) => void addFiles(files),
+    (files: File[]) => {
+      if (files.length > 0) void addFiles(files);
+    },
     [addFiles]
   );
   usePasteFiles(
@@ -246,7 +267,8 @@ export function useImageSources({
       e.preventDefault();
       e.stopPropagation();
       setDragging(false);
-      void addFiles(Array.from(e.dataTransfer.files).filter(takes));
+      const files = Array.from(e.dataTransfer.files).filter(takes);
+      if (files.length > 0 && !disabled) void addFiles(files);
     },
   };
 
@@ -263,7 +285,7 @@ export function useImageSources({
       onChange={(e) => {
         const files = Array.from(e.target.files ?? []);
         e.target.value = '';
-        void addFiles(files);
+        if (files.length > 0) void addFiles(files);
       }}
     />
   );
