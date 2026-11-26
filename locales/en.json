@@ -5529,8 +5529,10 @@
     },
     "panel": {
       "title": "Shared with subs",
-      "summary": "{{boards}} boards · {{subs}} named subs · until {{date}}",
-      "summaryLater": "{{boards}} boards · {{subs}} named subs · opens {{from}} · until {{date}}",
+      "summary": "{{boards}} boards · {{subs}} · until {{date}}",
+      "namedSub": "{{count}} named sub",
+      "namedSubs": "{{count}} named subs",
+      "summaryLater": "{{boards}} boards · {{subs}} · opens {{from}} · until {{date}}",
       "copyLink": "Copy link",
       "copied": "Link copied",
       "copyFailed": "Copy this link by hand: {{url}}",

@@ -68,6 +68,16 @@ export const SubSharesPanel: React.FC<SubSharesPanelProps> = ({
           const busy = busyShareId === share.shareId;
           const boardCount = share.boardIds.length;
           const subCount = share.subEmails?.length ?? 0;
+          const subsLabel =
+            subCount === 1
+              ? t('subShare.panel.namedSub', {
+                  count: subCount,
+                  defaultValue: '{{count}} named sub',
+                })
+              : t('subShare.panel.namedSubs', {
+                  count: subCount,
+                  defaultValue: '{{count}} named subs',
+                });
           return (
             <li
               key={share.shareId}
@@ -91,18 +101,18 @@ export const SubSharesPanel: React.FC<SubSharesPanelProps> = ({
                 {share.availableFrom && share.availableFrom > now
                   ? t('subShare.panel.summaryLater', {
                       boards: boardCount,
-                      subs: subCount,
+                      subs: subsLabel,
                       from: opensLabel(share.availableFrom),
                       date: endsAtLabel(share.expiresAt),
                       defaultValue:
-                        '{{boards}} boards · {{subs}} named subs · opens {{from}} · until {{date}}',
+                        '{{boards}} boards · {{subs}} · opens {{from}} · until {{date}}',
                     })
                   : t('subShare.panel.summary', {
                       boards: boardCount,
-                      subs: subCount,
+                      subs: subsLabel,
                       date: endsAtLabel(share.expiresAt),
                       defaultValue:
-                        '{{boards}} boards · {{subs}} named subs · until {{date}}',
+                        '{{boards}} boards · {{subs}} · until {{date}}',
                     })}
               </span>
               <div className="ml-auto flex items-center gap-1">
