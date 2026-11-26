@@ -20,7 +20,13 @@ export async function callPlcSettings(
   try {
     return (await fn(req)).data;
   } catch (err) {
-    const message = plcMembershipErrorMessage(err);
+    const reason = (err as { details?: { reason?: unknown } } | null)?.details
+      ?.reason;
+    // A malformed write showed the rules' refusal before it moved server-side.
+    const message =
+      reason === 'invalid'
+        ? 'Missing or insufficient permissions.'
+        : plcMembershipErrorMessage(err);
     if (message === null) throw err;
     throw Object.assign(new Error(message), {
       code: (err as { code?: unknown }).code,

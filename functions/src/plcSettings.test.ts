@@ -900,3 +900,94 @@ describe('caller gates', () => {
     ).toBe('notAllowed');
   });
 });
+
+describe('review follow-ups', () => {
+  it('lets a lead missing from memberUids write settings, as the lead rule branch did', async () => {
+    const { stub, run } = setup({
+      'plcs/p': plc({ memberUids: ['co', 'mem'] }),
+    });
+    await run(caller('lead'), {
+      action: 'setFeatures',
+      plcId: 'p',
+      features: { notes: true },
+    });
+    await run(caller('lead'), {
+      action: 'setMeetingNoteTemplate',
+      plcId: 'p',
+      markdown: 'x',
+    });
+    expect(stub.get('plcs/p')).toMatchObject({
+      features: { notes: true },
+      meetingNoteTemplate: 'x',
+    });
+  });
+
+  it('treats clearing the sheet on a deleted PLC as a no-op', async () => {
+    const { run } = setup();
+    expect(
+      await reasonOf(
+        run(caller('mem'), { action: 'clearSharedSheetUrl', plcId: 'gone' })
+      )
+    ).toBe('allowed');
+  });
+
+  it('drops a 201st action item instead of failing', async () => {
+    const items = Array.from({ length: 200 }, (_, i) => ({ id: `i${i}` }));
+    const { stub, run } = setup({
+      'plcs/p': plc({ groupType: 'mentoring' }),
+      'plcs/p/workspaces/mentor_mentee': {
+        mentorUid: 'mentor',
+        menteeUid: 'mentee',
+        memberUids: ['mentor', 'mentee'],
+        actionItems: items,
+      },
+    });
+    await run(caller('mentor'), {
+      action: 'addActionItem',
+      plcId: 'p',
+      workspaceId: 'mentor_mentee',
+      item: {
+        id: 'new',
+        text: 'x',
+        done: false,
+        createdBy: 'mentor',
+        createdAt: 1,
+      },
+    });
+    expect(
+      (stub.get('plcs/p/workspaces/mentor_mentee')!.actionItems as unknown[])
+        .length
+    ).toBe(200);
+  });
+
+  it('refuses inherited member keys, newline URLs and outsiders probing workspaces', async () => {
+    const { run } = setup();
+    expect(
+      await reasonOf(
+        run(caller('co'), {
+          action: 'setMentorRole',
+          plcId: 'p',
+          uid: '__proto__',
+          mentorRole: 'mentor',
+        })
+      )
+    ).toBe('notAllowed');
+    expect(() =>
+      parseSettingsAction({
+        action: 'setCalendar',
+        plcId: 'p',
+        url: 'https://calendar.google.com/calendar/embed?src=a\nb',
+      })
+    ).toThrow(SettingsError);
+    expect(
+      await reasonOf(
+        run(caller('outsider'), {
+          action: 'toggleActionItem',
+          plcId: 'p',
+          workspaceId: 'nope',
+          itemId: 'x',
+        })
+      )
+    ).toBe('notAllowed');
+  });
+});

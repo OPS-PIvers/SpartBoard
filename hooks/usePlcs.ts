@@ -67,8 +67,6 @@ function resolveActorName(user: {
 // event the district ever exceeds 500 PLCs, the dropped tail is an arbitrary
 // rather than the alphabetically-last subset.
 const ADMIN_PLCS_LIMIT = 500;
-// Mirrors the constant in `usePlcInvitations` — kept here so `deletePlc` can
-// sweep outstanding invites in the same batch as the PLC doc.
 
 interface UsePlcsResult {
   plcs: Plc[];

@@ -36,9 +36,9 @@ export const TEACHER_GROUP_TYPES = ['plc', 'department', 'mentoring'] as const;
 type TeacherGroupType = (typeof TEACHER_GROUP_TYPES)[number];
 const GB_METHODS = ['mean', 'recent', 'highest', 'decaying'];
 const CALENDAR_RE =
-  /^https:\/\/calendar[.]google[.]com\/calendar\/(u\/[0-9]+\/)?embed[?].+$/s;
+  /^https:\/\/calendar[.]google[.]com\/calendar\/(u\/[0-9]+\/)?embed[?].+$/;
 const DISTRICT_EMAIL_RE = /^[^@]+@orono[.]k12[.]mn[.]us$/;
-const HTTPS_RE = /^https:\/\/.*/s;
+const HTTPS_RE = /^https:\/\/.*/;
 
 export interface Caller {
   uid: string;
@@ -193,6 +193,9 @@ export interface SettingsResult {
 
 const isObj = (v: unknown): v is Data =>
   !!v && typeof v === 'object' && !Array.isArray(v);
+/** An own entry of a map field, as the rules' `k in m` sees it. */
+const ownEntry = (m: unknown, k: string): Data | undefined =>
+  isObj(m) && Object.hasOwn(m, k) && isObj(m[k]) ? m[k] : undefined;
 const isId = (v: unknown): v is string =>
   typeof v === 'string' && v.length > 0 && v.length <= 200 && !v.includes('/');
 
@@ -552,8 +555,8 @@ function memberUids(p: Data): string[] {
 }
 const isMember = (p: Data, uid: string) => memberUids(p).includes(uid);
 function roleOf(p: Data, uid: string): string {
-  const entry = isObj(p.members) ? p.members[uid] : undefined;
-  return isObj(entry) && typeof entry.role === 'string' ? entry.role : '';
+  const entry = ownEntry(p.members, uid);
+  return entry && typeof entry.role === 'string' ? entry.role : '';
 }
 /** plcCanEditContent: a current member whose role isn't viewer. */
 const canEditContent = (p: Data, uid: string) =>
@@ -561,12 +564,9 @@ const canEditContent = (p: Data, uid: string) =>
 
 /** mentTagged: an active plain member carrying that mentoring tag. */
 function isTagged(p: Data, uid: string, tag: 'mentor' | 'mentee'): boolean {
-  const m = isObj(p.members) ? p.members[uid] : undefined;
+  const m = ownEntry(p.members, uid);
   return (
-    isObj(m) &&
-    m.role === 'member' &&
-    m.status === 'active' &&
-    m.mentorRole === tag
+    !!m && m.role === 'member' && m.status === 'active' && m.mentorRole === tag
   );
 }
 
@@ -670,7 +670,10 @@ export function planRootUpdate(
   uid: string,
   fv: FieldOps
 ): Data | null {
-  const manager = isMembershipManager(p, uid);
+  // The rules' lead branch let the lead write any non-membership field, even outside memberUids.
+  const lead = uid === p.leadUid;
+  const member = lead || isMember(p, uid);
+  const manager = lead || isMembershipManager(p, uid);
   switch (action.action) {
     case 'rename': {
       if (uid !== p.leadUid) deny();
@@ -688,11 +691,11 @@ export function planRootUpdate(
       };
     }
     case 'setFeatures': {
-      if (!isMember(p, uid)) deny();
+      if (!member) deny();
       return { features: action.features, updatedAt: fv.ts() };
     }
     case 'setDigestOptIn': {
-      if (!isMember(p, uid)) deny();
+      if (!member) deny();
       if (p.digestOptIn === action.optIn) return null;
       return { digestOptIn: action.optIn, updatedAt: fv.ts() };
     }
@@ -735,10 +738,10 @@ export function planRootUpdate(
         updatedAt: fv.ts(),
       };
     case 'setMentorRole': {
-      if (!manager) deny();
+      if (!isMembershipManager(p, uid)) deny();
       const members = isObj(p.members) ? p.members : {};
-      const target = members[action.uid];
-      if (action.uid === p.leadUid || !isObj(target)) deny();
+      const target = ownEntry(members, action.uid);
+      if (action.uid === p.leadUid || !target) deny();
       const next: Data = { ...(target as Data) };
       if (action.mentorRole) next.mentorRole = action.mentorRole;
       else delete next.mentorRole;
@@ -857,7 +860,7 @@ export async function runSettingsAction(
     case 'setSharedSheetUrl':
       return db.runTransaction(async (tx) => {
         const { ref, data } = await readPlc(tx, db, action.plcId);
-        if (!isMember(data, uid)) deny();
+        if (!isMember(data, uid) && uid !== data.leadUid) deny();
         const current = data.sharedSheetUrl;
         if (typeof current === 'string' && current) return { url: current };
         tx.update(ref, { sharedSheetUrl: action.url, updatedAt: fv.ts() });
@@ -865,8 +868,12 @@ export async function runSettingsAction(
       });
     case 'clearSharedSheetUrl':
       return db.runTransaction(async (tx) => {
-        const { ref, data } = await readPlc(tx, db, action.plcId);
-        if (!isMember(data, uid)) deny();
+        const ref = db.doc(plcPath(action.plcId));
+        const snap = await tx.get(ref);
+        // A PLC deleted before the clear has nothing to clear.
+        if (!snap.exists) return {};
+        const data = snap.data() as Data;
+        if (!isMember(data, uid) && uid !== data.leadUid) deny();
         const current = data.sharedSheetUrl;
         if (typeof current === 'string' && current)
           tx.update(ref, { sharedSheetUrl: null, updatedAt: fv.ts() });
@@ -1007,7 +1014,10 @@ export async function runSettingsAction(
           action.plcId,
           action.workspaceId
         );
-        if (!ws) return { listed: false };
+        if (!ws) {
+          if (!isMember(p, uid)) deny();
+          return { listed: false };
+        }
         if (!isMembershipManager(p, uid) && !pairEditor(p, ws, uid)) deny();
         const docs = Array.isArray(ws.docs) ? (ws.docs as unknown[]) : [];
         const sameId = (d: unknown) => isObj(d) && d.id === action.link.id;
@@ -1030,13 +1040,18 @@ export async function runSettingsAction(
           action.plcId,
           action.workspaceId
         );
-        if (!ws) return {};
+        if (!ws) {
+          if (!isMember(p, uid)) deny();
+          return {};
+        }
         if (!pairEditor(p, ws, uid)) deny();
         const items = Array.isArray(ws.actionItems)
           ? (ws.actionItems as unknown[])
           : [];
         let next: unknown[];
         if (action.action === 'addActionItem') {
+          // A full list drops the new item, as the client's sanitizer did.
+          if (items.length >= 200) return {};
           next = [...items, action.item];
         } else {
           next = items.map((a) => {
