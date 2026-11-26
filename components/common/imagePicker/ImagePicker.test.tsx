@@ -566,6 +566,29 @@ describe('ImagePicker', () => {
     }
   });
 
+  it('names a linked file without an encoded slash', async () => {
+    const takeFiles = vi.fn().mockResolvedValue(true);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        blob: () => Promise.resolve(new Blob(['x'], { type: 'image/png' })),
+      })
+    );
+    try {
+      render(<ImagePicker tourScope={scope} takeFiles={takeFiles} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Image link' }));
+      fireEvent.change(screen.getByLabelText('Image link'), {
+        target: { value: 'https://example.org/dir%2Fa.png' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+      await waitFor(() => expect(takeFiles).toHaveBeenCalledTimes(1));
+      expect((takeFiles.mock.calls[0][0] as File[])[0].name).toBe('dir-a.png');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('opens a detached picker under any element and closes once added', async () => {
     const handle = createRef<ImagePickerHandle>();
     const takeFiles = vi.fn().mockResolvedValue(true);
