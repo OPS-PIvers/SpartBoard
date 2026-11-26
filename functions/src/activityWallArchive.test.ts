@@ -451,6 +451,7 @@ describe('archiveActivityWallMediaCore', () => {
       'https://drive.google.com/thumbnail?id=drive-1&sz=w2000'
     );
     expect(state?.storagePath).toBeUndefined();
+    expect(deps.deleteDriveFile).not.toHaveBeenCalled();
   });
 
   it('uses an anyone permission when the wall allows guests', async () => {
@@ -642,6 +643,7 @@ describe('archiveActivityWallMediaCore', () => {
       'https://drive.google.com/thumbnail?id=drive-orphaned&sz=w2000'
     );
     expect(state?.storagePath).toBeUndefined();
+    expect(deps.deleteDriveFile).not.toHaveBeenCalled();
   });
 
   it('does not recreate a submission deleted while the upload ran', async () => {
