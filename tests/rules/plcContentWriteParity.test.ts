@@ -507,12 +507,24 @@ afterAll(async () => {
   await testEnv?.cleanup();
 });
 
+// One client per caller: a context per case would start thousands of Firestore clients.
+type ContextDb = ReturnType<
+  ReturnType<RulesTestEnvironment['authenticatedContext']>['firestore']
+>;
+const clients = new Map<Caller, ContextDb>();
+function clientFor(caller: Caller) {
+  let db = clients.get(caller);
+  if (!db) {
+    db = testEnv
+      .authenticatedContext(uidOf(caller), { email: `${uidOf(caller)}@x.edu` })
+      .firestore();
+    clients.set(caller, db);
+  }
+  return db;
+}
+
 async function rulesAllow(c: Case): Promise<boolean> {
-  const db = testEnv
-    .authenticatedContext(uidOf(c.caller), {
-      email: `${uidOf(c.caller)}@x.edu`,
-    })
-    .firestore();
+  const db = clientFor(c.caller);
   const ref = doc(db, `plcs/${PLC_ID}/${c.coll}/${c.docId}`);
   try {
     if (c.op === 'delete') await deleteDoc(ref);
