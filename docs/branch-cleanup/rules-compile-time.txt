@@ -1,0 +1,1 @@
+claude/project-thread-l063qh (Firestore rules compile time)

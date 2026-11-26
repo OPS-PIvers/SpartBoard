@@ -1,5 +1,5 @@
 // Measures and compares firestore.rules with the rules compiler inside the Firestore emulator jar.
-// Run: java -cp <cloud-firestore-emulator.jar> RulesAst.java size <rules> | equiv <before> <after> | renamed <before> <after> <name map>
+// Run: java -cp <cloud-firestore-emulator.jar> RulesAst.java size <rules> | cost <rules> [top] | equiv <before> <after> | renamed <before> <after> <name map>
 import com.google.firebase.rules.lang.FirebaseRulesProtoCompiler;
 import com.google.firebase.rules.lang.common.FirebaseRulesLangOptions;
 import com.google.firebase.rules.v1.Issue;
@@ -135,7 +135,99 @@ public class RulesAst {
     return diffs;
   }
 
+
+  // ---- cost: compile work as Google's rules compiler sees it (every helper call re-expands the helper's body) ----
+  static final class CostScope {
+    final CostScope parent; final Map<String, Message> fns = new HashMap<>();
+    CostScope(CostScope parent) { this.parent = parent; }
+    Message fn(String n) { for (CostScope s = this; s != null; s = s.parent) if (s.fns.containsKey(n)) return s.fns.get(n); return null; }
+  }
+  static final Map<Message, CostScope> fnScopes = new IdentityHashMap<>();
+  static final Map<Message, long[]> fnCost = new IdentityHashMap<>();
+
+  @SuppressWarnings("unchecked")
+  static List<Message> items(Message m, String name) { return (List<Message>) m.getField(field(m, name)); }
+
+  // {expanded nodes, expanded helper calls} of an expression, with every helper call inlined.
+  @SuppressWarnings("unchecked")
+  static long[] expanded(Message e, CostScope sc) {
+    long nodes = 1, calls = 0;
+    Message call = get(e, "call");
+    if (call != null && get(call, "operand") == null && get(call, "package_name") == null) {
+      Message f = sc.fn(name(get(call, "function_name")));
+      if (f != null) {
+        long[] body = fnCost.get(f);
+        if (body == null) { body = expanded(get(f, "body"), fnScopes.get(f)); fnCost.put(f, body); }
+        nodes += body[0]; calls += body[1] + 1;
+      }
+    }
+    for (FieldDescriptor fd : e.getAllFields().keySet()) {
+      if (fd.getType() != FieldDescriptor.Type.MESSAGE || fd.getMessageType().getName().equals("SourcePosition")) continue;
+      List<Message> kids = fd.isRepeated() ? (List<Message>) (List<?>) e.getField(fd) : List.of((Message) e.getField(fd));
+      for (Message k : kids) {
+        long[] c = k.getDescriptorForType().getName().equals("Expression") ? expanded(k, sc) : expandedChildren(k, sc);
+        nodes += c[0]; calls += c[1];
+      }
+    }
+    return new long[] { nodes, calls };
+  }
+  @SuppressWarnings("unchecked")
+  static long[] expandedChildren(Message m, CostScope sc) {
+    long nodes = 0, calls = 0;
+    for (FieldDescriptor fd : m.getAllFields().keySet()) {
+      if (fd.getType() != FieldDescriptor.Type.MESSAGE || fd.getMessageType().getName().equals("SourcePosition")) continue;
+      List<Message> kids = fd.isRepeated() ? (List<Message>) (List<?>) m.getField(fd) : List.of((Message) m.getField(fd));
+      for (Message k : kids) {
+        long[] c = k.getDescriptorForType().getName().equals("Expression") ? expanded(k, sc) : expandedChildren(k, sc);
+        nodes += c[0]; calls += c[1];
+      }
+    }
+    return new long[] { nodes, calls };
+  }
+  static void costMatch(Message match, CostScope parent, String path, Map<String, long[]> out) {
+    CostScope sc = new CostScope(parent);
+    for (Message f : items(match, "functions")) { sc.fns.put(name(get(f, "id")), f); fnScopes.put(f, sc); }
+    StringBuilder p = new StringBuilder(path);
+    for (Message seg : items(get(match, "path"), "segments")) {
+      Message ex = get(seg, "expression"), lit = ex == null ? null : get(ex, "literal");
+      p.append('/').append(lit != null && lit.hasField(field(lit, "string_value")) ? (String) lit.getField(field(lit, "string_value")) : "{}");
+    }
+    for (Message perm : items(match, "permissions")) {
+      long[] c = expanded(get(perm, "allow"), sc), t = out.computeIfAbsent(p.toString(), k -> new long[2]);
+      t[0] += c[0]; t[1] += c[1];
+    }
+    for (Message m : items(match, "match_rules")) costMatch(m, sc, p.toString(), out);
+  }
+
   public static void main(String[] a) throws Exception {
+    if (a[0].equals("cost")) {
+      Message ast = compile(a[1]);
+      CostScope top = new CostScope(null);
+      for (Message f : items(ast, "functions")) { top.fns.put(name(get(f, "id")), f); fnScopes.put(f, top); }
+      Map<String, long[]> byPath = new TreeMap<>();
+      for (Message svc : items(ast, "service_rules")) {
+        CostScope ss = new CostScope(top);
+        for (Message f : items(svc, "functions")) { ss.fns.put(name(get(f, "id")), f); fnScopes.put(f, ss); }
+        for (Message m : items(svc, "match_rules")) costMatch(m, ss, "", byPath);
+      }
+      long nodes = 0, calls = 0;
+      for (long[] v : byPath.values()) { nodes += v[0]; calls += v[1]; }
+      int top_n = a.length > 2 ? Integer.parseInt(a[2]) : 0;
+      if (top_n > 0) {
+        Map<String, long[]> byCollection = new TreeMap<>();
+        for (var e : byPath.entrySet()) {
+          String[] segs = e.getKey().split("/");
+          long[] t = byCollection.computeIfAbsent(segs.length > 4 ? segs[4] : e.getKey(), k -> new long[2]);
+          t[0] += e.getValue()[0]; t[1] += e.getValue()[1];
+        }
+        byCollection.entrySet().stream()
+          .sorted((x, y) -> Long.compare(y.getValue()[0] + 3 * y.getValue()[1], x.getValue()[0] + 3 * x.getValue()[1]))
+          .limit(top_n)
+          .forEach(e -> System.out.println("  " + (e.getValue()[0] + 3 * e.getValue()[1]) + " " + e.getKey()));
+      }
+      System.out.println(nodes + " " + calls);
+      return;
+    }
     if (a[0].equals("size")) {
       System.out.println(stripPositions(compile(a[1])).getSerializedSize());
       return;
