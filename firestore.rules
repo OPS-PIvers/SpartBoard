@@ -1512,6 +1512,10 @@ service cloud.firestore {
     // subcollection holds frozen Board snapshots. Mirrors /shared_boards
     // substitute gating + 14-day expiresAt cap.
     match /shared_collections/{shareId} {
+      // A sub share opens on its first day (availableFrom, absent = now) and closes at expiresAt.
+      function subOpen(sh) {
+        return sh.get('expiresAt', 0) > nowMs() && sh.get('availableFrom', 0) <= nowMs();
+      }
       // Shape the doc must hold after any write: a non-empty, capped board list,
       // a named collection, and capped tree lists. Enforced on create AND update
       // because /subs and the host's manager render these fields unguarded.
@@ -1538,7 +1542,7 @@ service cloud.firestore {
         || isAdmin()
         || (
           isDistrictStaff()
-          && existing().get('expiresAt', 0) > nowMs()
+          && subOpen(existing())
         )
       );
 
@@ -1576,6 +1580,8 @@ service cloud.firestore {
             && isNumber('expiresAt')
             && incoming().expiresAt > nowMs()
             && incoming().expiresAt <= nowMs() + 1209600000
+            && optNumber(incoming(), 'availableFrom')
+            && optNumber(incoming(), 'availableThrough')
             // subEmails DoS cap (one Drive grant per entry, unbounded). Optional;
             // a list of <=20 when present.
             && (optListMax('subEmails', 20))
@@ -1613,10 +1619,12 @@ service cloud.firestore {
               'boards', 'boardIds', 'sections', 'collection', 'defaultBoardId',
               'kind', 'subEmails', 'sharedRosters', 'driveGrants',
               'namesFileId', 'contentVersion', 'updatedAt', 'expiresAt',
-              'calendarIds'
+              'calendarIds', 'availableFrom', 'availableThrough'
             ])
             && isNumber('expiresAt')
             && incoming().expiresAt <= nowMs() + 1209600000
+            && optNumber(incoming(), 'availableFrom')
+            && optNumber(incoming(), 'availableThrough')
           )
         );
 
@@ -1638,7 +1646,7 @@ service cloud.firestore {
           || isAdmin()
           || (
             isDistrictStaff()
-            && shareData().get('expiresAt', 0) > nowMs()
+            && subOpen(shareData())
           )
         );
       }
@@ -1652,7 +1660,7 @@ service cloud.firestore {
           || isAdmin()
           || (
             isDistrictStaff()
-            && shareData().get('expiresAt', 0) > nowMs()
+            && subOpen(shareData())
             && tok().get('email', '').lower()
                in shareData().get('subEmails', [])
           )

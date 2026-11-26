@@ -5507,7 +5507,19 @@
     "missedTitle": "Some widget content did not come along",
     "driveWarningsTitle": "Student names may not reach your sub",
     "driveNotConnected": "Google Drive is not connected, so your sub has to load the class lists by hand. Share again and choose Allow to fix this.",
-    "missedHelp": "Your sub will see these empty. Open the board, check the widget loads, then push your changes again."
+    "missedHelp": "Your sub will see these empty. Open the board, check the widget loads, then push your changes again.",
+    "dates": {
+      "day": "Available",
+      "firstDay": "First day",
+      "lastDay": "Last day",
+      "moreDays": "More than one day",
+      "endsAtHint": "Up to 48 hours after the last day.",
+      "opensOn": "Your sub can open it starting {{date}}.",
+      "badDay": "Select the day your sub needs this.",
+      "lastBeforeFirst": "The last day must be on or after the first day.",
+      "endBeforeOpen": "Select an end time after the first day starts.",
+      "endTooLate": "The share can end up to 48 hours after the last day."
+    }
   },
   "subShare": {
     "menu": {
@@ -5517,7 +5529,10 @@
     },
     "panel": {
       "title": "Shared with subs",
-      "summary": "{{boards}} boards · {{subs}} named subs · until {{date}}",
+      "summary": "{{boards}} boards · {{subs}} · until {{date}}",
+      "namedSub": "{{count}} named sub",
+      "namedSubs": "{{count}} named subs",
+      "summaryLater": "{{boards}} boards · {{subs}} · opens {{from}} · until {{date}}",
       "copyLink": "Copy link",
       "copied": "Link copied",
       "copyFailed": "Copy this link by hand: {{url}}",

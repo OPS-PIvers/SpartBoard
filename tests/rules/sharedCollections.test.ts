@@ -40,6 +40,7 @@ import {
   query,
   where,
   getDocs,
+  documentId,
 } from 'firebase/firestore';
 import {
   NOT_STAFF_DISTRICT_EMAILS,
@@ -355,6 +356,112 @@ describe('shared_collections — read, substitute share expiry', () => {
 
   it('admin can read expired substitute share', async () => {
     await assertSucceeds(getDoc(doc(asAdmin(), sharePath)));
+  });
+});
+
+describe('shared_collections — a sub share whose first day is ahead', () => {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), sharePath),
+        namedSubShareDoc({
+          availableFrom: NOW_MS + DAY_MS,
+          availableThrough: NOW_MS + 2 * DAY_MS,
+        })
+      );
+      await setDoc(doc(ctx.firestore(), boardPath), boardSnapshotDoc());
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+  });
+
+  it('the named sub cannot read the share, its boards, content or keys yet', async () => {
+    const sub = asOronoTeacher();
+    await assertFails(getDoc(doc(sub, sharePath)));
+    await assertFails(getDoc(doc(sub, boardPath)));
+    await assertFails(getDoc(doc(sub, contentPath)));
+    await assertFails(getDoc(doc(sub, keyPath)));
+  });
+
+  it('the host and an admin still read it', async () => {
+    await assertSucceeds(getDoc(doc(asHost(), sharePath)));
+    await assertSucceeds(getDoc(doc(asHost(), boardPath)));
+    await assertSucceeds(getDoc(doc(asAdmin(), sharePath)));
+  });
+
+  it('the sub reads everything once the first day has started', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        availableFrom: NOW_MS - 60_000,
+        updatedAt: NOW_MS,
+      })
+    );
+    const sub = asOronoTeacher();
+    await assertSucceeds(getDoc(doc(sub, sharePath)));
+    await assertSucceeds(getDoc(doc(sub, boardPath)));
+    await assertSucceeds(getDoc(doc(sub, contentPath)));
+    await assertSucceeds(getDoc(doc(sub, keyPath)));
+  });
+
+  it('the host can move the first day later, which closes it again', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), sharePath), {
+        availableFrom: NOW_MS - 60_000,
+      });
+    });
+    await assertSucceeds(getDoc(doc(asOronoTeacher(), sharePath)));
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        availableFrom: NOW_MS + DAY_MS,
+        availableThrough: NOW_MS + 2 * DAY_MS,
+      })
+    );
+    await assertFails(getDoc(doc(asOronoTeacher(), sharePath)));
+  });
+
+  it('the days must be numbers on update', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), { availableFrom: 'tomorrow' })
+    );
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), { availableThrough: true })
+    );
+  });
+
+  it('the sub directory query still lists it, so the link can say when it opens', async () => {
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(asOronoTeacher(), 'shared_collections'),
+          where('intendedMode', '==', 'substitute'),
+          where(documentId(), '==', SHARE_ID)
+        )
+      )
+    );
+  });
+});
+
+describe('shared_collections — create, sub share days', () => {
+  it('a sub share may be created to open on a later day', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asHost(), sharePath),
+        subShareDoc({
+          availableFrom: NOW_MS + 24 * 60 * 60 * 1000,
+          availableThrough: NOW_MS + 2 * 24 * 60 * 60 * 1000,
+        })
+      )
+    );
+  });
+
+  it('the days must be numbers on create', async () => {
+    await assertFails(
+      setDoc(doc(asHost(), sharePath), subShareDoc({ availableFrom: 'soon' }))
+    );
+    await assertFails(
+      setDoc(doc(asHost(), sharePath), subShareDoc({ availableThrough: null }))
+    );
   });
 });
 

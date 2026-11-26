@@ -1947,6 +1947,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'sub-share-dates': {
+    label: 'Sub share dates',
+    icon: CalendarClock,
+    description:
+      'Teachers select the days a sub share opens. The share ends up to 48 hours after the last day.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Server only: functions/src/turnInQueue.ts checks it when a run ends (AB-388).
   'server-turn-in': {
     label: 'Submit work after End',

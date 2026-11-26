@@ -66,6 +66,12 @@ export function useSubCollectionShares(
           const expiresAt =
             typeof data.expiresAt === 'number' ? data.expiresAt : 0;
           if (expiresAt <= now) return;
+          // Not open until its first day; the rules deny its boards until then.
+          if (
+            typeof data.availableFrom === 'number' &&
+            data.availableFrom > now
+          )
+            return;
           docs.push({ ...data, shareId: d.id });
         });
         setSnapshot({
