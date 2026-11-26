@@ -38,12 +38,12 @@ const ARTICLES: Record<string, string[]> = {
 };
 
 const primaryLanguage = (language: string): string =>
-  language.trim().toLocaleLowerCase().split('-')[0] ?? '';
+  language.trim().toLocaleLowerCase().split(/[-_]/u)[0] ?? '';
 
 // A hand-typed tag like es_ES makes toLocaleLowerCase throw.
 const validLocale = (language: string): string | undefined => {
   try {
-    return Intl.getCanonicalLocales(language.trim())[0];
+    return Intl.getCanonicalLocales(language.trim().replace(/_/gu, '-'))[0];
   } catch {
     return undefined;
   }
