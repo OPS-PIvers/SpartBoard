@@ -16,6 +16,8 @@ export interface ImageSourcesBase {
   disabled?: boolean;
   /** Takes several files at once from upload, drop or paste; with upload each one saves and calls onChange, with takeFiles they come as one batch. */
   multiple?: boolean;
+  /** With multiple, gets each batch's counts and replaces the picker's own error line. */
+  onBatchDone?: (result: BatchResult) => void;
   /** Paste reaches the picker anywhere in its dialog, or only inside the picker. */
   pasteScope?: 'dialog' | 'element' | 'off';
   /** The element paste is scoped to. */
@@ -44,6 +46,13 @@ const isPdfFile = (f: File | Blob): boolean => f.type === 'application/pdf';
 
 /** A message the picker shows as written; anything else shows the generic line. */
 class PickerError extends Error {}
+class TooLargeError extends PickerError {}
+
+export interface BatchResult {
+  added: number;
+  failed: number;
+  tooLarge: number;
+}
 
 export type RunResult = 'added' | 'skipped' | 'failed';
 
@@ -76,6 +85,7 @@ export function useImageSources({
   maxBytes = DEFAULT_MAX,
   disabled = false,
   multiple = false,
+  onBatchDone,
   pasteScope = 'dialog',
   scopeRef,
 }: ImageSourcesOptions) {
@@ -122,7 +132,7 @@ export function useImageSources({
       for (const file of batch ? [] : files) {
         if (!takes(file)) throw new PickerError('Select an image file.');
         if (file.size > maxBytes) {
-          throw new PickerError(
+          throw new TooLargeError(
             `That image is too large. The limit is ${Math.round(maxBytes / 1048576)} MB.`
           );
         }
@@ -141,20 +151,23 @@ export function useImageSources({
   const addFiles = useCallback(
     async (files: File[]): Promise<void> => {
       if (files.length === 0) return;
-      if (takeFiles || !multiple || files.length < 2) {
+      if (takeFiles || !multiple || (files.length < 2 && !onBatchDone)) {
         await run(() => save(multiple ? files : files.slice(0, 1)));
         return;
       }
-      if (inFlight.current || disabled) return;
+      if (files.length === 0 || inFlight.current || disabled) return;
       inFlight.current = true;
       setBusy(true);
       setError(null);
       let firstError: string | null = null;
+      const result: BatchResult = { added: 0, failed: 0, tooLarge: 0 };
       try {
         for (const file of files) {
           try {
-            await save([file]);
+            if (await save([file])) result.added++;
           } catch (err) {
+            if (err instanceof TooLargeError) result.tooLarge++;
+            else result.failed++;
             firstError ??=
               err instanceof PickerError
                 ? err.message
@@ -162,12 +175,13 @@ export function useImageSources({
           }
         }
       } finally {
-        setError(firstError);
+        if (onBatchDone) onBatchDone(result);
+        else setError(firstError);
         inFlight.current = false;
         setBusy(false);
       }
     },
-    [takeFiles, multiple, run, save, disabled]
+    [takeFiles, multiple, onBatchDone, run, save, disabled]
   );
 
   const openFile = useCallback(() => inputRef.current?.click(), []);

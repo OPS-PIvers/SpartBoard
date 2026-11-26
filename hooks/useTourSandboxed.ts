@@ -395,6 +395,8 @@ export function useSandboxedActivityWalls(
     },
     clearActivityPosts: (id) =>
       isSandboxed(id) ? Promise.resolve() : api.clearActivityPosts(id),
+    reorderActivities: (ids) =>
+      api.reorderActivities(ids.filter((id) => !isSandboxed(id))),
   });
 }
 

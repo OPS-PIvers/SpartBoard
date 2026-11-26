@@ -36,6 +36,7 @@ export const TOUR_CONDITION_DONE_FACTS: readonly string[] = [
 ];
 
 export const TOUR_CONDITION_FEATURES: readonly string[] = [
+  'activity-wall-library-face',
   'ai-file-context',
   'anonymous-join',
   'assign-open-check',

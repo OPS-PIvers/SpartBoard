@@ -18,6 +18,7 @@ import type { RecordedWebStep } from './recorderProtocol';
 
 const auth = vi.hoisted(() => ({
   connector: true,
+  picker: false,
   onSaved: null as ((set: GuidedLearningSet) => void) | null,
 }));
 const storage = vi.hoisted(() => ({
@@ -70,7 +71,8 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'admin-1' },
     isAdmin: true,
-    canAccessFeature: () => auth.connector,
+    canAccessFeature: (id: string) =>
+      id === 'unified-image-picker' ? auth.picker : auth.connector,
   }),
 }));
 const ext = vi.hoisted(() => ({
@@ -233,6 +235,7 @@ beforeEach(() => {
   rec.link = 'off';
   rec.onStep = null;
   auth.connector = true;
+  auth.picker = false;
   auth.onSaved = null;
 });
 
@@ -1310,6 +1313,36 @@ describe('WebTourEditor picture tools (E5)', () => {
     fireEvent.change(screen.getByTestId('web-picture-replace-file'), {
       target: { files: [file] },
     });
+    await waitFor(() =>
+      expect(savedPicture()).toEqual({
+        path: 'web_tour_pictures/t1/up1.jpg',
+        w: 300,
+        h: 200,
+      })
+    );
+  });
+
+  it('replaces the picture through the shared image picker when it is on', async () => {
+    auth.picker = true;
+    renderEditor(checked(captured(tour('Biology 7'))));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Select picture' })
+    );
+    expect(screen.queryByTestId('web-picture-replace-file')).toBeNull();
+    const replace = screen.getByRole('button', { name: 'Replace' });
+    expect(replace).toHaveAttribute(
+      'data-tour',
+      'web-tour-editor.picture-replace'
+    );
+    fireEvent.click(replace);
+    const panel = await screen.findByRole('dialog', { name: 'Replace' });
+    expect(panel).toBeInTheDocument();
+    const input = document.querySelector<HTMLInputElement>(
+      'input[type="file"][accept="image/png,image/jpeg,image/webp"]'
+    );
+    if (!input) throw new Error('no picker file input');
+    const file = new File(['x'], 'shot.png', { type: 'image/png' });
+    fireEvent.change(input, { target: { files: [file] } });
     await waitFor(() =>
       expect(savedPicture()).toEqual({
         path: 'web_tour_pictures/t1/up1.jpg',

@@ -52616,6 +52616,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ],
     "routes": [
       {
+        "surface": "library.activity-wall",
+        "kind": "widget",
+        "widget_type": "activity-wall",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
         "surface": "library.activity-wall.library",
         "kind": "modal",
         "path": [
@@ -53135,6 +53144,77 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "needs": [
           "library-item",
           "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall.selection-mode",
+    "label": "Select button in the Activity Wall library",
+    "scope": "widget",
+    "requires": "widget-restored",
+    "routes": [
+      {
+        "surface": "library.activity-wall",
+        "kind": "widget",
+        "widget_type": "activity-wall",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall.bulk-move",
+    "label": "Move to folder button in the Activity Wall bulk action bar",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall",
+        "kind": "widget",
+        "widget_type": "activity-wall",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall.bulk-delete",
+    "label": "Delete button in the Activity Wall bulk action bar",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall",
+        "kind": "widget",
+        "widget_type": "activity-wall",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall.bulk-clear",
+    "label": "Clear selection button in the Activity Wall bulk action bar",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall",
+        "kind": "widget",
+        "widget_type": "activity-wall",
+        "path": [],
+        "needs": [
           "widget-on-stage"
         ]
       }

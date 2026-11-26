@@ -234,7 +234,13 @@ const ErrorLine: React.FC<{ src: ImageSources }> = ({ src }) =>
     </p>
   ) : null;
 
-type PanelPos = { top: number; left: number; z: number };
+type PanelPos = {
+  top: number;
+  left: number;
+  z: number;
+  /** Where the button was when the panel was placed. */
+  at: { top: number; left: number };
+};
 
 /** Places the panel under the button, or above it near the bottom of the screen. */
 const panelPos = (el: HTMLElement): PanelPos => {
@@ -245,6 +251,7 @@ const panelPos = (el: HTMLElement): PanelPos => {
     top: below + 220 > window.innerHeight ? Math.max(8, r.top - 226) : below,
     left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)),
     z: layerZ(el),
+    at: { top: r.top, left: r.left },
   };
 };
 
@@ -271,8 +278,17 @@ const Panel: React.FC<{
     closeRef.current = onClose;
   });
   useEffect(() => {
+    // A late scroll from the click's own focus leaves the button where the panel was placed.
+    const moved = () => {
+      const now = anchor.current?.getBoundingClientRect();
+      return (
+        !now ||
+        Math.abs(now.top - pos.at.top) > 1 ||
+        Math.abs(now.left - pos.at.left) > 1
+      );
+    };
     const onScroll = (e: Event) => {
-      if (scrollMovesAnchor(e, anchor.current)) closeRef.current();
+      if (scrollMovesAnchor(e, anchor.current) && moved()) closeRef.current();
     };
     const onResize = () => closeRef.current();
     window.addEventListener('scroll', onScroll, true);
@@ -281,12 +297,13 @@ const Panel: React.FC<{
       window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', onResize);
     };
-  }, [anchor]);
+  }, [anchor, pos.at]);
   return createPortal(
     <div
       ref={panelRef}
       role="dialog"
       aria-label={label}
+      data-image-picker-panel="true"
       data-click-outside-ignore="true"
       onKeyDown={(e) => {
         if (e.key === 'Escape') {

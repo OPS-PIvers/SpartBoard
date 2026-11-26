@@ -151,6 +151,63 @@ describe('ImagePicker', () => {
     );
   });
 
+  it('reports batch counts instead of an error line when asked', async () => {
+    const upload = vi
+      .fn()
+      .mockResolvedValueOnce('https://saved/a')
+      .mockRejectedValueOnce(new Error('network'));
+    const onBatchDone = vi.fn();
+    const { container } = render(
+      <ImagePicker
+        tourScope={scope}
+        upload={upload}
+        onChange={vi.fn()}
+        multiple
+        onBatchDone={onBatchDone}
+        maxBytes={5}
+      />
+    );
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    const big = new File(['123456789'], 'big.png', { type: 'image/png' });
+    fireEvent.change(input, {
+      target: { files: [png('a.png'), big, png('c.png')] },
+    });
+    await waitFor(() =>
+      expect(onBatchDone).toHaveBeenCalledWith({
+        added: 1,
+        failed: 1,
+        tooLarge: 1,
+      })
+    );
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('reports a single file as a batch too', async () => {
+    const onBatchDone = vi.fn();
+    const { container } = render(
+      <ImagePicker
+        tourScope={scope}
+        upload={vi.fn().mockResolvedValue('https://saved/a')}
+        onChange={vi.fn()}
+        multiple
+        onBatchDone={onBatchDone}
+      />
+    );
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [png()] } });
+    await waitFor(() =>
+      expect(onBatchDone).toHaveBeenCalledWith({
+        added: 1,
+        failed: 0,
+        tooLarge: 0,
+      })
+    );
+  });
+
   it('takes only the first file without multiple', async () => {
     const upload = vi.fn().mockResolvedValue('https://saved/1');
     const { container } = render(
@@ -449,6 +506,33 @@ describe('ImagePicker', () => {
     );
     expect(takeFiles).toHaveBeenCalledTimes(1);
     row.remove();
+  });
+
+  it('stays open on a scroll that leaves its button in place, and closes when it moves', () => {
+    render(
+      <div data-testid="host">
+        <ImagePicker
+          layout="button"
+          label="Insert image"
+          buttonContent={() => <span>Replace</span>}
+          tourScope={scope}
+          upload={vi.fn()}
+          onChange={vi.fn()}
+        />
+      </div>
+    );
+    const button = screen.getByRole('button', { name: 'Insert image' });
+    expect(button.textContent).toBe('Replace');
+    let top = 100;
+    button.getBoundingClientRect = () =>
+      ({ top, left: 10, bottom: top + 20, right: 30 }) as DOMRect;
+    fireEvent.click(button);
+    const host = screen.getByTestId('host');
+    fireEvent.scroll(host);
+    expect(screen.getByRole('dialog', { name: 'Insert image' })).toBeTruthy();
+    top = 140;
+    fireEvent.scroll(host);
+    expect(screen.queryByRole('dialog', { name: 'Insert image' })).toBeNull();
   });
 });
 

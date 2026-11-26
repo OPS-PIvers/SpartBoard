@@ -1936,6 +1936,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'activity-wall-library-face': {
+    label: 'Activity Wall library on the widget',
+    icon: LayoutGrid,
+    description:
+      'The wall library opens on the widget, with folders, like Quiz.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Server only: functions/src/turnInQueue.ts checks it when a run ends (AB-388).
   'server-turn-in': {
     label: 'Submit work after End',

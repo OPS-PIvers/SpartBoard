@@ -12539,6 +12539,26 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'activity-wall.selection-mode': {
+    label: 'Select button in the Activity Wall library',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'activity-wall.bulk-move': {
+    label: 'Move to folder button in the Activity Wall bulk action bar',
+    persists: true,
+    panel: true,
+  },
+  'activity-wall.bulk-delete': {
+    label: 'Delete button in the Activity Wall bulk action bar',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall.bulk-clear': {
+    label: 'Clear selection button in the Activity Wall bulk action bar',
+    panel: true,
+  },
   'projects.selection-mode': {
     label: 'Select button in the Projects library',
     perWidget: true,

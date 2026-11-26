@@ -6666,6 +6666,9 @@ service cloud.firestore {
     match /users/{userId}/projects_folders/{folderId} {
       allow read, write: if ownsUserTeacher(userId);
     }
+    match /users/{userId}/activity_wall_folders/{folderId} {
+      allow read, write: if ownsUserTeacher(userId);
+    }
     // A teacher's private filing of items they don't own (LIBRARY_FOLDERS D22-D23),
     // keyed by source key ("building:<id>", "global:<id>", "plcbank:<plcId>:<id>").
     // Filing back to the source folder deletes the doc, so folderId is never null.

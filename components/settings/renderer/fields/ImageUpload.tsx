@@ -6,6 +6,7 @@ import { DriveImagePicker } from '@/components/common/DriveImagePicker';
 import { useStorage } from '@/hooks/useStorage';
 import { useAuth } from '@/context/useAuth';
 import { resolveLabel } from '../resolveLabel';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -14,6 +15,7 @@ export const ImageUpload: React.FC<
   FieldProps<ImageUploadFieldSchema<string>>
 > = ({ field, value, onChange, id, describedBy, labelId, disabled, ctx }) => {
   const { user } = useAuth();
+  const unifiedPicker = ctx.canAccessFeature('unified-image-picker');
   const { deleteFile, uploadDisplayImage } = useStorage();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +63,34 @@ export const ImageUpload: React.FC<
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+
+  if (unifiedPicker) {
+    return (
+      <div
+        id={id}
+        role="group"
+        aria-labelledby={labelId}
+        aria-describedby={describedBy}
+      >
+        <fieldset disabled={disabled} className="contents">
+          <ImagePicker
+            value={url}
+            accept={field.accept}
+            maxBytes={MAX_BYTES}
+            disabled={disabled}
+            pasteScope="element"
+            tourScope={{ type: ctx.widget.type, field: field.key }}
+            upload={(file) => {
+              if (!user) throw new Error('Sign in to upload images.');
+              return uploadDisplayImage(user.uid, file);
+            }}
+            onChange={replaceUrl}
+            onRemove={() => replaceUrl('')}
+          />
+        </fieldset>
+      </div>
+    );
+  }
 
   const buttonClass =
     'flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:border-brand-blue-primary hover:text-brand-blue-primary focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed';
