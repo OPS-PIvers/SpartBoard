@@ -5,6 +5,9 @@ vi.mock('./firebaseAdmin', () => ({
   initializeApp: vi.fn(),
   firestore: Object.assign(() => ({}), {
     FieldValue: { serverTimestamp: () => 'ts' },
+    Timestamp: {
+      fromMillis: (toMillis: number) => ({ toMillis: () => toMillis }),
+    },
   }),
 }));
 vi.mock('firebase-functions/v2', () => ({ setGlobalOptions: vi.fn() }));
@@ -25,6 +28,7 @@ import { refundAiUsage } from './aiGeneration';
 
 function fakeDb(counts: Record<string, number>) {
   const markers = new Set<string>();
+  const markerDocs: Record<string, unknown>[] = [];
   const key = (col: string, id: string) => `${col}/${id}`;
   const db = {
     collection: (col: string) => ({
@@ -46,17 +50,28 @@ function fakeDb(counts: Record<string, number>) {
           ),
         set: (r, d) =>
           writes.push(() => {
-            if (r.col === 'ai_usage_refunds') markers.add(r.id);
-            else counts[r.id] = d.count ?? 0;
+            if (r.col === 'ai_usage_refunds') {
+              markers.add(r.id);
+              markerDocs.push(d);
+            } else counts[r.id] = d.count ?? 0;
           }),
       });
       writes.forEach((w) => w());
     },
   };
-  return { db: db as never, key };
+  return { db: db as never, key, markerDocs };
 }
 
 describe('refundAiUsage', () => {
+  it('stamps the refund marker with an expireAt about 7 days out', async () => {
+    const { db, markerDocs } = fakeDb({ a: 3 });
+    await refundAiUsage(db, { docIds: ['a'], id: 'c1' });
+    const at = markerDocs[0]?.expireAt as { toMillis: () => number };
+    const days = (at.toMillis() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(6.9);
+    expect(days).toBeLessThan(7.1);
+  });
+
   it('refunds a charge once however often it is retried', async () => {
     const counts = { a: 3, b: 2 };
     const { db } = fakeDb(counts);
