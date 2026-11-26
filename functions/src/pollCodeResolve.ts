@@ -6,7 +6,7 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isTeacherShapedToken, type AiCallerToken } from './aiCallerGate';
-import { OPERATOR_ORG_ID } from './authz';
+import { isLiveAdmin, OPERATOR_ORG_ID } from './authz';
 import { isStaffMemberData } from './districtStaff';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { pointerMembers } from './pollCodeMembers';
@@ -369,11 +369,11 @@ export async function isPollStaffCaller(
 ): Promise<boolean> {
   if (!isTeacherShapedToken(token)) return false;
   const email = (token.email as string).toLowerCase();
-  const [member, adminDoc] = await Promise.all([
+  const [member, isAdmin] = await Promise.all([
     db.doc(`organizations/${OPERATOR_ORG_ID}/members/${email}`).get(),
-    db.doc(`admins/${email}`).get(),
+    isLiveAdmin(db, email, token),
   ]);
-  return isStaffMemberData(member.data()) || adminDoc.exists;
+  return isStaffMemberData(member.data()) || isAdmin;
 }
 
 export const mintPollCodeV1 = onCall(

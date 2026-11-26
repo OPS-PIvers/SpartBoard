@@ -94,7 +94,11 @@ function makeDb(seed: Record<string, Record<string, unknown>> = {}) {
   };
   const snap = (path: string) => {
     const data = docs.get(path);
-    return { exists: data !== undefined, data: () => data };
+    return {
+      exists: data !== undefined,
+      data: () => data,
+      get: (field: string) => data?.[field],
+    };
   };
   const db = {
     collection: (name: string) => ({
@@ -1324,6 +1328,22 @@ describe('chargeQuizQuota', () => {
     expect(
       docs.get(`ai_usage/u1_quiz-document-ai-reader_${today}`)?.count
     ).toBe(100);
+  });
+
+  it('SECURITY: holds a deactivated admin to the limit', async () => {
+    const { db } = makeDb({
+      'admins/teacher@school.org': { role: 'admin' },
+      'organizations/orono/members/teacher@school.org': {
+        status: 'deactivated',
+      },
+      [`ai_usage/u1_quiz-document-ai-reader_${today}`]: { count: 3 },
+      'global_permissions/quiz-document-ai-reader': {
+        config: { dailyLimit: 3 },
+      },
+    });
+    await expect(
+      chargeQuizQuota(db, 'u1', 'teacher@school.org', NOW)
+    ).rejects.toThrow(/Daily limit/);
   });
 
   it('honours the limit being switched off entirely', async () => {

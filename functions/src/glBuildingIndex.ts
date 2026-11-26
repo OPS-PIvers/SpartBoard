@@ -1,5 +1,6 @@
 // Guided Learning building-set index (docs/plans/shipped/GUIDED_LEARNING_STUDIO.md P5-1): a slim, server-written library mirror.
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { isLiveAdmin } from './authz';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
@@ -231,17 +232,13 @@ export async function rebuildGlBuildingIndex(
   return { written, removed, failed };
 }
 
-// Same test as the rules' isAdmin(): a verified email with a doc in /admins.
+// Same test as the rules' isAdmin(): a verified, non-deactivated email with a doc in /admins.
 export async function isRulesAdmin(
   db: admin.firestore.Firestore,
   token: { email?: string; email_verified?: boolean } | undefined
 ): Promise<boolean> {
   if (!token || token.email_verified !== true || !token.email) return false;
-  const snap = await db
-    .collection('admins')
-    .doc(token.email.toLowerCase())
-    .get();
-  return snap.exists;
+  return isLiveAdmin(db, token.email, token);
 }
 
 export const rebuildGlBuildingIndexV1 = onCall(

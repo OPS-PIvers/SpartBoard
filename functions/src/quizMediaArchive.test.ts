@@ -2028,6 +2028,7 @@ describe('isQuizWhiteboardResponseGranted', () => {
                   ? id in records
                   : adminEmails.includes(id),
               data: () => (name === 'global_permissions' ? records[id] : {}),
+              get: () => undefined,
             }),
         }),
       }),

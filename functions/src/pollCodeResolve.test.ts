@@ -642,6 +642,28 @@ describe('mintPollCodeV1', () => {
     });
     expect(code).toMatch(/^[A-Z0-9]{5}$/);
   });
+
+  it('SECURITY: refuses a deactivated admin', async () => {
+    await expect(
+      mintAs('boss@example.org', {
+        'admins/boss@example.org': {},
+        'organizations/orono/members/boss@example.org': {
+          roleId: 'super_admin',
+          status: 'deactivated',
+        },
+      })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    const { db } = setup({ 'admins/boss@example.org': {} });
+    vi.mocked(admin.firestore).mockReturnValue(db);
+    await expect(
+      call({
+        auth: {
+          uid: 'u1',
+          token: { ...tokenFor('boss@example.org'), deactivated: true },
+        },
+      })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
 });
 
 describe('claimPollCode', () => {

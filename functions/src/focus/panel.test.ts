@@ -174,6 +174,21 @@ describe('focusPanelV1', () => {
     ).toEqual([{ classId: CLASS, name: 'Period 3 Math' }]);
   });
 
+  it('SECURITY: lists no mock classes for a deactivated admin outside dev', async () => {
+    mockOpen = false;
+    await db
+      .doc('feature_permissions/focus')
+      .set({ enabled: true, accessLevel: 'public' });
+    expect(
+      (
+        (await call(
+          { action: 'list' },
+          teacher({ claims: { deactivated: true } })
+        )) as FocusPanelListReply
+      ).classes
+    ).toEqual([{ classId: CLASS, name: 'Period 3 Math' }]);
+  });
+
   it('refuses student and anonymous callers before any action', async () => {
     await expect(
       call({ action: 'list' }, teacher({ studentRole: true }))
