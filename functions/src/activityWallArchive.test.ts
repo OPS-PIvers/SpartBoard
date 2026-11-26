@@ -215,6 +215,7 @@ function makeDeps(
     uploadFileToDrive: vi.fn(() => Promise.resolve({ id: 'drive-big' })),
     discardTempFile: vi.fn(() => Promise.resolve()),
     setDrivePermission: vi.fn(() => Promise.resolve()),
+    deleteDriveFile: vi.fn(() => Promise.resolve()),
     now: () => NOW,
     ...overrides,
   };
@@ -450,6 +451,7 @@ describe('archiveActivityWallMediaCore', () => {
       'https://drive.google.com/thumbnail?id=drive-1&sz=w2000'
     );
     expect(state?.storagePath).toBeUndefined();
+    expect(deps.deleteDriveFile).not.toHaveBeenCalled();
   });
 
   it('uses an anyone permission when the wall allows guests', async () => {
@@ -641,6 +643,7 @@ describe('archiveActivityWallMediaCore', () => {
       'https://drive.google.com/thumbnail?id=drive-orphaned&sz=w2000'
     );
     expect(state?.storagePath).toBeUndefined();
+    expect(deps.deleteDriveFile).not.toHaveBeenCalled();
   });
 
   it('does not recreate a submission deleted while the upload ran', async () => {
@@ -656,6 +659,20 @@ describe('archiveActivityWallMediaCore', () => {
     expect(result).toEqual({ archiveStatus: 'skipped' });
     expect(writes.some((w) => w.archiveStatus === 'archived')).toBe(false);
     expect(deps.deleteObject).toHaveBeenCalledWith(GOOD_PATH);
+    expect(deps.deleteDriveFile).toHaveBeenCalledWith('token', 'drive-1');
+  });
+
+  it('still skips when deleting the orphaned Drive file fails', async () => {
+    const { db, deleteSubmission } = makeStubDb(baseSeed());
+    const deps = makeDeps(db, {
+      uploadToDrive: vi.fn(() => {
+        deleteSubmission();
+        return Promise.resolve({ id: 'drive-1' });
+      }),
+      deleteDriveFile: vi.fn(() => Promise.reject(new Error('drive 500'))),
+    });
+    expect(await call(deps)).toEqual({ archiveStatus: 'skipped' });
+    expect(deps.deleteDriveFile).toHaveBeenCalled();
   });
 
   it('does not recreate a deleted submission when the upload fails', async () => {
