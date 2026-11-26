@@ -356,6 +356,7 @@ export {
 
 // PLC membership changes (accept, leave, remove, roles, lead) run server-side so rules stay small.
 export { plcMembershipV1 } from './plcMembership';
+export { plcSettingsV1 } from './plcSettings';
 // PLC updates, goals, links, mentoring tasks, to-do archive and activity log writes.
 export { plcTeamItemsV1 } from './plcTeamItems';
 export { orgAdminV1 } from './orgAdmin';
