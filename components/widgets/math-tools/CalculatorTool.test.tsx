@@ -357,4 +357,15 @@ describe('CalculatorTool', () => {
     clickBtn('=');
     expect(getDisplay(container).textContent).toBe('0.25');
   });
+
+  it('replaces a % or +/− operand 2 with the next digit, keeping the sign', () => {
+    const { container } = render(<CalculatorTool />);
+    ['5', '+', '+/−', '3'].forEach(clickBtn);
+    expect(getExpression(container).textContent).toBe('5 + −3');
+    clickBtn('=');
+    expect(getDisplay(container).textContent).toBe('2');
+    clickBtn('AC');
+    ['5', '×', '%', '2', '='].forEach(clickBtn);
+    expect(getDisplay(container).textContent).toBe('10');
+  });
 });

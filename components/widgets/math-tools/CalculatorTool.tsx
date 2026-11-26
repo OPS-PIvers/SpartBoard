@@ -9,6 +9,8 @@ interface CalcState {
   operand1: number | null;
   operator: CalcOp;
   waitingForOperand: boolean;
+  // Sign kept when the next digit replaces a % or +/− operand 2; null when digits append.
+  replaceWith: '' | '-' | null;
   hasError: boolean;
 }
 
@@ -18,6 +20,7 @@ const initState = (): CalcState => ({
   operand1: null,
   operator: null,
   waitingForOperand: false,
+  replaceWith: null,
   hasError: false,
 });
 
@@ -25,6 +28,10 @@ const formatResult = (n: number): string =>
   Number.isInteger(n) ? String(n) : parseFloat(n.toPrecision(10)).toString();
 
 // Expression after replacing the display value; a pending operator takes it as operand 2.
+// True when % or +/− copies operand 1 into a pending operator's empty operand 2.
+const derivesOperand2 = (prev: CalcState): boolean =>
+  prev.operator !== null && (prev.waitingForOperand || prev.replaceWith !== null);
+
 const syncExpression = (prev: CalcState, next: string): string => {
   if (prev.waitingForOperand) {
     return prev.operator === null ? next : prev.expression + next;
@@ -48,6 +55,16 @@ export const CalculatorTool: React.FC = () => {
           display: digit,
           expression: prev.expression + digit,
           waitingForOperand: false,
+        };
+      }
+      if (prev.replaceWith !== null) {
+        const replaced = prev.replaceWith + digit;
+        return {
+          ...prev,
+          display: replaced,
+          expression:
+            prev.expression.slice(0, -prev.display.length) + replaced,
+          replaceWith: null,
         };
       }
       const newDisplay =
@@ -79,6 +96,16 @@ export const CalculatorTool: React.FC = () => {
           display: '0.',
           expression: prev.expression + '0.',
           waitingForOperand: false,
+        };
+      }
+      if (prev.replaceWith !== null) {
+        const replaced = prev.replaceWith + '0.';
+        return {
+          ...prev,
+          display: replaced,
+          expression:
+            prev.expression.slice(0, -prev.display.length) + replaced,
+          replaceWith: null,
         };
       }
       if (prev.display.includes('.')) return prev;
@@ -126,6 +153,7 @@ export const CalculatorTool: React.FC = () => {
           operand1: result,
           operator: op,
           waitingForOperand: true,
+          replaceWith: null,
           hasError: false,
         };
       }
@@ -135,6 +163,7 @@ export const CalculatorTool: React.FC = () => {
         operand1: current,
         operator: op,
         waitingForOperand: true,
+        replaceWith: null,
       };
     });
   }, []);
@@ -167,6 +196,7 @@ export const CalculatorTool: React.FC = () => {
         operand1: null,
         operator: null,
         waitingForOperand: true,
+        replaceWith: null,
         hasError: false,
       };
     });
@@ -185,8 +215,12 @@ export const CalculatorTool: React.FC = () => {
         ...prev,
         display: toggled,
         expression,
-        waitingForOperand:
-          prev.operator !== null ? false : prev.waitingForOperand,
+        waitingForOperand: prev.operator === null && prev.waitingForOperand,
+        replaceWith: derivesOperand2(prev)
+          ? toggled.startsWith('-')
+            ? '-'
+            : ''
+          : prev.replaceWith,
       };
     });
   }, []);
@@ -201,8 +235,8 @@ export const CalculatorTool: React.FC = () => {
         ...prev,
         display: displayResult,
         expression,
-        waitingForOperand:
-          prev.operator !== null ? false : prev.waitingForOperand,
+        waitingForOperand: prev.operator === null && prev.waitingForOperand,
+        replaceWith: derivesOperand2(prev) ? '' : prev.replaceWith,
       };
     });
   }, []);
@@ -214,7 +248,7 @@ export const CalculatorTool: React.FC = () => {
       const newDisplay = cut === '' || cut === '-' || cut === '-0' ? '0' : cut;
       const expression =
         prev.expression.slice(0, -prev.display.length) + newDisplay;
-      return { ...prev, display: newDisplay, expression };
+      return { ...prev, display: newDisplay, expression, replaceWith: null };
     });
   }, []);
 
