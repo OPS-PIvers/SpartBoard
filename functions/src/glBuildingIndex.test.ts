@@ -8,7 +8,11 @@ const h = vi.hoisted(() => {
   const ref = (path: string) => ({
     path,
     id: path.split('/').pop() as string,
-    get: () => Promise.resolve({ exists: store.has(path) }),
+    get: () =>
+      Promise.resolve({
+        exists: store.has(path),
+        get: (field: string) => store.get(path)?.[field],
+      }),
   });
   const collection = (name: string) => {
     const docs = () =>
@@ -359,6 +363,20 @@ describe('rebuildGlBuildingIndexV1 backfill', () => {
         auth: { uid: 'a1', token: { ...admin.token, email_verified: false } },
       })
     ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('SECURITY: refuses a deactivated admin', async () => {
+    h.store.set('admins/admin@orono.k12.mn.us', {});
+    const deactivated = { ...admin.token, deactivated: true };
+    await expect(
+      backfill({ auth: { uid: 'a1', token: deactivated } })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    h.store.set('organizations/orono/members/admin@orono.k12.mn.us', {
+      status: 'deactivated',
+    });
+    await expect(backfill({ auth: admin })).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
   });
 
   it('indexes every set across pages and drops orphaned entries', async () => {

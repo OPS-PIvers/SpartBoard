@@ -1354,10 +1354,21 @@ export const useQuizAssignments = (
       // existing field stays on the doc. Translate explicit-undefined on
       // the `plc` key to `deleteField()` so the doc actually loses PLC
       // mode. (Final-review finding on PR #1442.)
-      const { periodAccessEdits, periodAccessRows, ...settings } = patch;
+      const {
+        periodAccessEdits,
+        periodAccessRows,
+        sessionOptionEdits,
+        ...settings
+      } = patch;
       const rowWrites = periodAccessWrites(periodAccessRows, periodAccessEdits);
       const assignmentPatch: Record<string, unknown> = {
         ...settings,
+        ...Object.fromEntries(
+          Object.entries(sessionOptionEdits ?? {}).map(([key, value]) => [
+            `sessionOptions.${key}`,
+            value ?? null,
+          ])
+        ),
         updatedAt: now,
       };
       const clearingPlc =
@@ -1394,6 +1405,24 @@ export const useQuizAssignments = (
       if ('closeAt' in patch) sessionPatch.closeAt = patch.closeAt ?? null;
       if (clearingPerClassDue) sessionPatch.dueAtByClassId = deleteField();
       else if (dueAtByClassId) sessionPatch.dueAtByClassId = dueAtByClassId;
+      if (sessionOptionEdits && Object.keys(sessionOptionEdits).length > 0) {
+        const editedRow = assignmentsRef.current.find(
+          (a) => a.id === assignmentId
+        );
+        Object.assign(
+          sessionPatch,
+          sessionOptionsToSessionPatch(
+            sessionOptionEdits as QuizSessionOptions,
+            {
+              timeLimitOn,
+              scoreOnSubmitOn,
+              stimulusQuotesOn,
+              pageProtectionsOn,
+              reviewGame: editedRow ? isReviewGame(editedRow) : true,
+            }
+          )
+        );
+      }
       if (patch.sessionOptions) {
         // Mirror only edited keys so flag-gated create-time fields (tab-away) aren't switched on.
         const editedRow = assignmentsRef.current.find(

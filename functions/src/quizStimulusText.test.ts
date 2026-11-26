@@ -86,7 +86,11 @@ function makeDb(seed: Record<string, Record<string, unknown>> = {}) {
   const docRef = (path: string) => ({ path });
   const snap = (path: string) => {
     const data = docs.get(path);
-    return { exists: data !== undefined, data: () => data };
+    return {
+      exists: data !== undefined,
+      data: () => data,
+      get: (field: string) => data?.[field],
+    };
   };
   const db = {
     collection: (name: string) => ({
@@ -522,6 +526,17 @@ describe('chargeOcrQuota', () => {
     await expect(chargeOcrQuota(db, 't1', null, NOW)).rejects.toMatchObject({
       code: 'resource-exhausted',
     });
+  });
+  it('SECURITY: holds a deactivated admin to the limit', async () => {
+    const { db } = makeDb({
+      'global_permissions/ocr': { config: { dailyLimit: 1 } },
+      'ai_usage/t1_ocr_2026-09-08': { count: 1 },
+      'admins/t@school.org': {},
+      'organizations/orono/members/t@school.org': { status: 'deactivated' },
+    });
+    await expect(
+      chargeOcrQuota(db, 't1', 't@school.org', NOW)
+    ).rejects.toMatchObject({ code: 'resource-exhausted' });
   });
   it('ignores the limit for admins and when limiting is disabled', async () => {
     const admin = makeDb({

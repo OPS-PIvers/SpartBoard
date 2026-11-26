@@ -72,6 +72,8 @@ const finalExpiry = (endedAt: number) =>
 
 export interface FocusCaller extends SubShareCaller {
   name: string | null;
+  /** ID-token claims or Auth custom claims, so a deactivated account fails the admin checks. */
+  claims?: unknown;
 }
 
 export interface FocusDeps {
@@ -132,11 +134,12 @@ export function verifyTeacher(caller: FocusCaller | null): {
 /** Mirrors canAccessWidget for the `focus` row, except a missing row fails closed to admins. */
 export async function canUseFocusWidget(
   db: Firestore,
-  emailLower: string
+  emailLower: string,
+  claims?: unknown
 ): Promise<boolean> {
   const [perm, isAdmin] = await Promise.all([
     db.doc(`feature_permissions/${FOCUS_WIDGET_TYPE}`).get(),
-    isLiveAdmin(db, emailLower),
+    isLiveAdmin(db, emailLower, claims),
   ]);
   if (!perm.exists) return isAdmin;
   const data = perm.data() ?? {};
@@ -153,8 +156,12 @@ export async function canUseFocusWidget(
 }
 
 /** Start, Extend and Add site follow the widget permission; Release and End never do, so a session can always be stopped. */
-async function requireFocusWidget(db: Firestore, email: string): Promise<void> {
-  if (!(await canUseFocusWidget(db, email)))
+async function requireFocusWidget(
+  db: Firestore,
+  email: string,
+  claims: unknown
+): Promise<void> {
+  if (!(await canUseFocusWidget(db, email, claims)))
     denied('Focus sessions are not turned on for your account.');
 }
 
@@ -166,7 +173,7 @@ async function loadWindow(db: Firestore): Promise<FocusWindow> {
 /** Pseudonym uids of the class's students when the caller teaches it (ClassLink, or a mock class whose roster they own), else null. */
 export async function taughtClassStudentUids(
   db: Firestore,
-  caller: { uid: string; email: string },
+  caller: { uid: string; email: string; claims?: unknown },
   classId: string,
   deps: FocusDeps
 ): Promise<{ orgId: string; studentUids: string[] } | null> {
@@ -191,7 +198,10 @@ export async function taughtClassStudentUids(
         .get(),
     ]);
     if (!member.exists || owned.empty) return null;
-    if (!deps.mockClassesOpen() && !(await isLiveAdmin(db, caller.email)))
+    if (
+      !deps.mockClassesOpen() &&
+      !(await isLiveAdmin(db, caller.email, caller.claims))
+    )
       return null;
     const raw: unknown = testClass.data()?.memberEmails;
     const emails = Array.isArray(raw)
@@ -230,7 +240,7 @@ async function authorizeSessionTeacher(
   if (session.teacherUids.includes(caller.uid)) return;
   const taught = await taughtClassStudentUids(
     db,
-    { uid: caller.uid, email },
+    { uid: caller.uid, email, claims: caller.claims },
     session.classId,
     deps
   );
@@ -485,7 +495,7 @@ export async function handleFocusStart(
   const minutes = input.minutes;
   if (typeof minutes !== 'number') bad('minutes must be a number.');
 
-  await requireFocusWidget(db, email);
+  await requireFocusWidget(db, email, caller.claims);
 
   const now = deps.now();
   const window = await loadWindow(db);
@@ -498,7 +508,7 @@ export async function handleFocusStart(
 
   const taught = await taughtClassStudentUids(
     db,
-    { uid: caller.uid, email },
+    { uid: caller.uid, email, claims: caller.claims },
     classId,
     deps
   );
@@ -593,7 +603,7 @@ export async function handleFocusExtend(
   const { caller, email } = verifyTeacher(callerIn);
   const { ref, session } = await loadActive(db, data, deps.now());
   await authorizeSessionTeacher(db, ref, session, caller, email, deps);
-  await requireFocusWidget(db, email);
+  await requireFocusWidget(db, email, caller.claims);
   const window = await loadWindow(db);
   const endsAt = await db.runTransaction(async (tx) => {
     const fresh = readSession(await tx.get(ref));
@@ -669,7 +679,7 @@ export async function handleFocusAddSite(
   if (!isFocusSite(input.site)) bad('That is not a web address.');
   const site = input.site as FocusSite;
   await authorizeSessionTeacher(db, ref, session, caller, email, deps);
-  await requireFocusWidget(db, email);
+  await requireFocusWidget(db, email, caller.claims);
   const sites = await db.runTransaction(async (tx) => {
     const fresh = readSession(await tx.get(ref));
     if (!isActive(fresh, deps.now())) precondition('That session has ended.');

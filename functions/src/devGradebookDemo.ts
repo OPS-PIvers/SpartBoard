@@ -1,5 +1,6 @@
 // Dev-only: seeds or removes a demo Gradebook (two test classes, twelve assignments, marks, targets) in the caller's dev account.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { isLiveAdmin } from './authz';
 import * as admin from './firebaseAdmin';
 import { createHmac } from 'crypto';
 import './functionsInit';
@@ -968,7 +969,7 @@ export const gradebookDemoV1 = onCall(
       throw new HttpsError('unauthenticated', 'Sign in with Google first.');
     }
     const db = admin.firestore();
-    if (!(await db.doc(`admins/${email}`).get()).exists) {
+    if (!(await isLiveAdmin(db, email, request.auth.token))) {
       throw new HttpsError('permission-denied', 'Admins only.');
     }
     const domain = normalizeEmailDomain(email);

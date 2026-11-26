@@ -1,6 +1,7 @@
 // Authoring-time text extraction for image/pdf quiz stimuli
 // (docs/plans/shipped/QUIZ_READ_ALOUD.md §4.2): PDF text layer first, Gemini OCR fallback.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { isLiveAdmin } from './authz';
 import * as admin from './firebaseAdmin';
 import axios from 'axios';
 import type { Firestore } from 'firebase-admin/firestore';
@@ -361,9 +362,7 @@ export async function chargeOcrQuota(
   nowMs: number
 ): Promise<void> {
   const today = new Date(nowMs).toISOString().slice(0, 10);
-  const isAdmin = email
-    ? (await db.collection('admins').doc(email.toLowerCase()).get()).exists
-    : false;
+  const isAdmin = email ? await isLiveAdmin(db, email) : false;
   const overallRef = db.collection('ai_usage').doc(`${uid}_${today}`);
   const specificRef = db
     .collection('ai_usage')

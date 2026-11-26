@@ -1,5 +1,6 @@
 // Handwritten paper answers: the per-page transcription worker and the retry callable (plan D23-D31, §4).
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { isLiveAdmin } from './authz';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import { isExcludedFrom } from './permissionExclusion';
@@ -891,12 +892,11 @@ export async function isVerifiedAdmin(uid: string): Promise<boolean> {
   try {
     const user = await admin.auth().getUser(uid);
     if (!user.emailVerified || !user.email) return false;
-    const snap = await admin
-      .firestore()
-      .collection('admins')
-      .doc(user.email.toLowerCase())
-      .get();
-    return snap.exists;
+    return await isLiveAdmin(
+      admin.firestore(),
+      user.email,
+      user.customClaims ?? {}
+    );
   } catch {
     return false;
   }

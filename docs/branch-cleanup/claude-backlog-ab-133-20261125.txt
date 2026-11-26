@@ -1,0 +1,1 @@
+claude/backlog-ab-133-20261125 (AB-133: GL media set-delete GC no longer scans claude_revisions; weekly sweep still does)

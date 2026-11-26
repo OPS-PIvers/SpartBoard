@@ -5,6 +5,7 @@ import { makeStubFirestore, type StubData } from './testing/stubFirestore';
 vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
+  auth: vi.fn(),
   firestore: Object.assign(vi.fn(), {
     FieldValue: { serverTimestamp: () => 'ts' },
   }),
@@ -33,8 +34,10 @@ vi.mock('firebase-functions/v2/https', () => {
   };
 });
 
+import * as admin from './firebaseAdmin';
 import {
   handleRetryPaperTranscription,
+  isVerifiedAdmin,
   parseRetryRequest,
   requeuePaperJob,
   runPaperTranscriptionJob,
@@ -955,5 +958,43 @@ describe('helpers', () => {
     expect(seatFromJobId('scan1_3_1_0', 'scan1')).toBe(3);
     expect(seatFromJobId('a_b_12_2_0', 'a_b')).toBe(12);
     expect(seatFromJobId('other_3_1_0', 'scan1')).toBeNull();
+  });
+});
+
+describe('isVerifiedAdmin', () => {
+  const asUser = (
+    seed: Record<string, StubData>,
+    customClaims?: Record<string, unknown>
+  ) => {
+    const stub = makeStubFirestore(seed);
+    vi.mocked(admin.firestore).mockReturnValue(
+      stub.db as unknown as ReturnType<typeof admin.firestore>
+    );
+    vi.mocked(admin.auth).mockReturnValue({
+      getUser: () =>
+        Promise.resolve({
+          emailVerified: true,
+          email: 'Boss@Orono.k12.mn.us',
+          customClaims,
+        }),
+    } as unknown as ReturnType<typeof admin.auth>);
+  };
+  const ADMIN = { 'admins/boss@orono.k12.mn.us': {} };
+
+  it('lets a verified admin past the page limit', async () => {
+    asUser(ADMIN);
+    expect(await isVerifiedAdmin('u1')).toBe(true);
+  });
+
+  it('SECURITY: refuses a deactivated admin, by claim or member doc', async () => {
+    asUser(ADMIN, { deactivated: true });
+    expect(await isVerifiedAdmin('u1')).toBe(false);
+    asUser({
+      ...ADMIN,
+      'organizations/orono/members/boss@orono.k12.mn.us': {
+        status: 'deactivated',
+      },
+    });
+    expect(await isVerifiedAdmin('u1')).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 // Guided Learning step narration (docs/plans/shipped/GUIDED_LEARNING_STUDIO.md P2-4): admin-only Cloud TTS into the shared quiz cache.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { isLiveAdmin } from './authz';
 import { createHash } from 'node:crypto';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
@@ -103,11 +104,7 @@ export function buildNarrationDeps(): NarrationDeps {
     ...base,
     isCallerAdmin: async (token) => {
       if (token.email_verified !== true || !token.email) return false;
-      const snap = await base.db
-        .collection('admins')
-        .doc(token.email.toLowerCase())
-        .get();
-      return snap.exists;
+      return isLiveAdmin(base.db, token.email, token);
     },
   };
 }

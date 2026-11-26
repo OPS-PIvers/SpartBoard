@@ -1,0 +1,1 @@
+claude/backlog-ab-129-20261125 (AB-129: settings modal saves only changed options; retake and orphan batch judged not worth changing; trimmed to the paper-image wording item)
