@@ -27,12 +27,12 @@ const initState = (): CalcState => ({
 const formatResult = (n: number): string =>
   Number.isInteger(n) ? String(n) : parseFloat(n.toPrecision(10)).toString();
 
-// Expression after replacing the display value; a pending operator takes it as operand 2.
 // True when % or +/− copies operand 1 into a pending operator's empty operand 2.
 const derivesOperand2 = (prev: CalcState): boolean =>
   prev.operator !== null &&
   (prev.waitingForOperand || prev.replaceWith !== null);
 
+// Expression after replacing the display value; a pending operator takes it as operand 2.
 const syncExpression = (prev: CalcState, next: string): string => {
   if (prev.waitingForOperand) {
     return prev.operator === null ? next : prev.expression + next;
