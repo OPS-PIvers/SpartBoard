@@ -137,11 +137,6 @@ export function storedMillis(value: unknown): number | null {
 }
 
 const MUTATE_ATTEMPTS = 5;
-const STAMP_FIELD: Record<'notes' | 'meetings', string> = {
-  notes: 'lastEditedAt',
-  meetings: 'updatedAt',
-};
-
 export type PlcNotesMutation = {
   op: 'create' | 'update';
   fields: Record<string, unknown>;
@@ -150,7 +145,7 @@ export type PlcNotesMutation = {
 /** Read-modify-write that retries on fresh data when a teammate's write lands first, like a transaction. */
 export async function plcNotesMutate<T>(
   plcId: string,
-  coll: 'notes' | 'meetings',
+  coll: 'notes',
   id: string,
   build: (data: Record<string, unknown> | null) => {
     write: PlcNotesMutation;
@@ -158,7 +153,6 @@ export async function plcNotesMutate<T>(
   }
 ): Promise<T> {
   const ref = doc(db, 'plcs', plcId, coll, id);
-  const stamp = STAMP_FIELD[coll];
   for (let attempt = 0; ; attempt += 1) {
     const snap = await getDoc(ref);
     const data = snap.exists() ? snap.data() : null;
@@ -173,7 +167,7 @@ export async function plcNotesMutate<T>(
           fields: write.fields,
           expect: {
             version: storedMillis(data?.version),
-            [stamp]: storedMillis(data?.[stamp]),
+            lastEditedAt: storedMillis(data?.lastEditedAt),
           },
         },
       ]);

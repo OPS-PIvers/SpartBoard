@@ -116,15 +116,6 @@ describe('plcNotesMutate', () => {
     expect(payload.writes[0].expect).toEqual({ version: 2, lastEditedAt: 50 });
   });
 
-  it('uses updatedAt for meetings', async () => {
-    getDocMock.mockResolvedValue(snap({ version: 0, updatedAt: 7 }));
-    await plcNotesMutate('p1', 'meetings', 'm1', build);
-    const { payload } = callMock.mock.calls[0][0] as {
-      payload: { writes: { expect: unknown }[] };
-    };
-    expect(payload.writes[0].expect).toEqual({ version: 0, updatedAt: 7 });
-  });
-
   it('skips the call when there is nothing to write', async () => {
     getDocMock.mockResolvedValue(snap(null));
     await expect(plcNotesMutate('p1', 'notes', 'n1', build)).resolves.toBe(
