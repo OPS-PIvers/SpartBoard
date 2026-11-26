@@ -123,4 +123,30 @@ describe('useQuizAssignments.updateAssignmentSettings — live session mirror', 
     // Unchanged keys stay off the session patch.
     expect(sessionPatch).not.toHaveProperty('shuffleQuestions');
   });
+  it('writes only edited option keys so a live change to another key is left alone', async () => {
+    const { result } = renderHook(() => useQuizAssignments('teacher-1'));
+    await waitFor(() => expect(result.current.assignments).toHaveLength(1));
+    await act(async () => {
+      await result.current.updateAssignmentSettings('a-1', {
+        sessionOptionEdits: { shuffleQuestions: false },
+      });
+    });
+
+    const assignmentPatch = batchUpdate.mock.calls.find(
+      ([ref]) => ref === 'users/teacher-1/quiz_assignments/a-1'
+    )?.[1] as Record<string, unknown>;
+    expect(assignmentPatch['sessionOptions.shuffleQuestions']).toBe(false);
+    expect(assignmentPatch).not.toHaveProperty('sessionOptions');
+    expect(assignmentPatch).not.toHaveProperty(
+      'sessionOptions.showResultToStudent'
+    );
+    const sessionPatch = batchUpdate.mock.calls.find(
+      ([ref]) => ref === 'quiz_sessions/a-1'
+    )?.[1] as Record<string, unknown>;
+    expect(sessionPatch).toEqual(
+      expect.objectContaining({ shuffleQuestions: false })
+    );
+    expect(sessionPatch).not.toHaveProperty('showResultToStudent');
+    expect(sessionPatch).not.toHaveProperty('tabWarningsEnabled');
+  });
 });

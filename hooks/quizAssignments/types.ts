@@ -1,6 +1,7 @@
 import type { PeriodRoster } from '@/utils/periodPlan';
 import type {
   AccessMode,
+  QuizSessionOptions,
   AssignmentMode,
   AudienceSessionFields,
   PeriodAccess,
@@ -163,6 +164,8 @@ export type QuizAssignmentSettingsPatch = Partial<QuizAssignmentSettings> &
     periodAccessEdits?: PeriodAccessWindowEdits;
     /** Whole per-period rows by key for a class change; null removes the row. */
     periodAccessRows?: Record<string, PeriodAccess | null>;
+    /** Only the edited session options, written as `sessionOptions.<key>` paths so a concurrent edit to another key survives. */
+    sessionOptionEdits?: Partial<Record<keyof QuizSessionOptions, unknown>>;
   };
 
 export interface UseQuizAssignmentsResult {
