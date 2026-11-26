@@ -662,6 +662,7 @@ service cloud.firestore {
     // /my-assignments), and this rule is the real boundary against a studentRole
     // user creating a dashboard doc under their own uid via direct Firestore.
     match /users/{userId}/dashboards/{dashboardId} {
+      // read, write: in the shared match /{coll}/{collDocId} under /users/{userId}.
 
       // DrawingWidget objects live in a page-nested subcollection so one write is
       // one object, not the whole canvas. /pages/{pageId} holds page metadata,
@@ -7145,8 +7146,7 @@ service cloud.firestore {
       }
     }
 
-    // Default deny all other collections
-    // /{document=**}: no client access (default deny).
+    // Anything not matched here is denied by default.
     // One rule for the subcollections listed: Google's compiler expands every copy of a rule separately.
     match /{coll}/{collDocId} {
       allow delete: if coll in ['shared_assignments', 'shared_quizzes', 'shared_rubrics', 'shared_video_activity_assignments'] && (signedIn() &&

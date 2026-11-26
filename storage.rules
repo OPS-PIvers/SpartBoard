@@ -40,12 +40,11 @@ service firebase.storage {
               request.auth.token.viewAs.get('ro', true) == false);
     }
 
-    // A pinLoginV1 token is its student only in its own session (pre-scope tokens: 12h grace, as firestore.rules).
+    // A pinLoginV1 token is its student only in its own session, as firestore.rules.
     function pinScopeOk(sessionId) {
       return request.auth.token.get('pinLogin', false) != true ||
-             request.auth.token.get('pinSessionId', '') == sessionId ||
-             (request.auth.token.get('pinSessionId', '') == '' &&
-              request.time.toMillis() < request.auth.token.get('auth_time', 0) * 1000 + 43200000);
+             (request.auth.token.get('pinSessionId', '') != '' &&
+              request.auth.token.get('pinSessionId', '') == sessionId);
     }
 
     // District staff, as firestore.rules isDistrictStaff(): students share the domain, so staff needs an active, non-student Orono member doc.
