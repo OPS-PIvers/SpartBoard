@@ -100,6 +100,9 @@ describe('notes create (rules: plcNotesVersion, plcNotesTodosWave2)', () => {
     ['a non-string yState', { yState: 7 }],
     ['a string deletedAt', { deletedAt: 'x' }],
     ['a map createdAt', { createdAt: { seconds: 1, nanoseconds: 0 } }],
+    ['an unsafe-integer version', { version: 9007199254740992 }],
+    ['a -0 meetingAt', { meetingAt: -0 }],
+    ['a huge int-millis createdAt', { createdAt: 1e300 }],
   ])('denies %s', (_label, patch) => {
     expect(checkWrite('notes', 'n1', null, note(patch), ctx())).toBe('invalid');
   });
@@ -507,6 +510,18 @@ describe('parsePlcNotesWrite', () => {
       'a non-string serverTime',
       { plcId: 'p', writes: [w({ serverTime: [1] })] },
     ],
+    [
+      'a serverTime outside the keys',
+      { plcId: 'p', writes: [w({ serverTime: ['__proto__'] })] },
+    ],
+    [
+      'an expect key outside the keys',
+      { plcId: 'p', writes: [w({ expect: { other: 1 } })] },
+    ],
+    [
+      'a non-finite expect',
+      { plcId: 'p', writes: [w({ expect: { version: Infinity } })] },
+    ],
   ])('rejects %s', (_l, raw) => {
     expect(() => parsePlcNotesWrite(raw)).toThrow(PlcNotesWriteError);
   });
@@ -668,6 +683,27 @@ describe('runPlcNotesWrite', () => {
       version: 4,
       lastEditedBy: 'bob',
     });
+  });
+  it('matches a sub-millisecond stored timestamp against the web SDK millis', async () => {
+    // Admin toMillis floors; the web SDK keeps the fraction.
+    const stored = {
+      seconds: 1764000000,
+      nanoseconds: 123456000,
+      toMillis: () => 1764000000123,
+    };
+    const stub = makeStubFirestore({
+      'plcs/p': PLC,
+      'plcs/p/notes/n1': storedNote({ lastEditedAt: stored }),
+    });
+    const write = op({
+      coll: 'notes',
+      id: 'n1',
+      op: 'update',
+      data: { lastEditedBy: 'bob', version: 4 },
+      serverTime: ['lastEditedAt'],
+      expect: { version: 3, lastEditedAt: 1764000000123.456 },
+    });
+    expect(await reasonOf(run(stub, caller('bob'), [write]))).toBe('ok');
   });
   it('writes a batch all or nothing', async () => {
     const stub = makeStubFirestore({

@@ -103,8 +103,10 @@ describe('plcNotesMutate', () => {
     result: data ? 'wrote' : 'skipped',
   });
 
-  it('sends the version and stamp it read as the precondition', async () => {
-    getDocMock.mockResolvedValue(snap({ version: 2, lastEditedAt: ts(50) }));
+  it('sends the version and floored stamp it read as the precondition', async () => {
+    getDocMock.mockResolvedValue(
+      snap({ version: 2, lastEditedAt: ts(50.456) })
+    );
     await expect(plcNotesMutate('p1', 'notes', 'n1', build)).resolves.toBe(
       'wrote'
     );

@@ -130,8 +130,9 @@ export const plcNotesUpdate = (
 
 /** A stored field as `expect` reads it on the server. */
 export function storedMillis(value: unknown): number | null {
-  if (typeof value === 'number') return value;
-  if (isTimestamp(value)) return value.toMillis();
+  // Floored: the web SDK's toMillis keeps sub-millisecond digits the server drops.
+  if (typeof value === 'number') return Math.floor(value);
+  if (isTimestamp(value)) return Math.floor(value.toMillis());
   return null;
 }
 

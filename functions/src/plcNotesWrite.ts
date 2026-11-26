@@ -109,14 +109,20 @@ export function parsePlcNotesWrite(raw: unknown): PlcNotesWriteInput {
     const serverTime = w.serverTime ?? [];
     if (
       !Array.isArray(serverTime) ||
-      !serverTime.every((f) => typeof f === 'string' && f.length > 0)
+      !serverTime.every(
+        (f) => typeof f === 'string' && keysFor(coll).includes(f)
+      )
     )
       throw bad();
     let expect: Record<string, number | null> | undefined;
     if (w.expect !== undefined) {
       if (!isPlainObject(w.expect)) throw bad();
-      for (const v of Object.values(w.expect))
-        if (v !== null && typeof v !== 'number') throw bad();
+      for (const [k, v] of Object.entries(w.expect))
+        if (
+          !keysFor(coll).includes(k) ||
+          (v !== null && (typeof v !== 'number' || !Number.isFinite(v)))
+        )
+          throw bad();
       expect = w.expect as Record<string, number | null>;
     }
     const key = `${coll}/${w.id}`;
@@ -138,8 +144,9 @@ export function parsePlcNotesWrite(raw: unknown): PlcNotesWriteInput {
 
 const has = (d: Data, k: string) => Object.prototype.hasOwnProperty.call(d, k);
 const isStr = (v: unknown): v is string => typeof v === 'string';
+// Firestore stores only safe integers (and not -0) as int; anything else is a double the rules refuse.
 const isInt = (v: unknown): v is number =>
-  typeof v === 'number' && Number.isInteger(v);
+  typeof v === 'number' && Number.isSafeInteger(v) && !Object.is(v, -0);
 const isList = (v: unknown): v is unknown[] => Array.isArray(v);
 
 function isTimestampLike(v: unknown): boolean {
@@ -226,6 +233,14 @@ const RECORDING_LIVE_KEYS = [
   'lastHeartbeatAt',
 ];
 const NOTE_DOC_KEYS = ['fileId', 'url', 'createdBy', 'createdAt'] as const;
+const keysFor = (coll: PlcNotesCollection): readonly string[] =>
+  ({
+    notes: NOTE_KEYS,
+    meetings: MEETING_KEYS,
+    recordings: RECORDING_KEYS,
+    noteDocs: NOTE_DOC_KEYS,
+    comments: COMMENT_KEYS,
+  })[coll];
 const COMMENT_KEYS = [
   'id', 'targetType', 'targetId', 'authorUid', 'authorName', 'body', 'mentions',
   'createdAt', 'editedAt', 'deletedAt',
@@ -467,9 +482,9 @@ export function canEditPlcContent(plc: Data, uid: string): boolean {
 function storedMillis(d: Data | null, k: string): number | null {
   if (!d || !has(d, k) || d[k] === null) return null;
   const v = d[k];
-  if (typeof v === 'number') return v;
+  if (typeof v === 'number') return Math.floor(v);
   if (isTimestampLike(v) && !(v instanceof ServerTime))
-    return (v as { toMillis: () => number }).toMillis();
+    return Math.floor((v as { toMillis: () => number }).toMillis());
   return null;
 }
 
@@ -538,7 +553,10 @@ export async function runPlcNotesWrite(
         throw new PlcNotesWriteError('alreadyExists');
       if (w.op === 'update' && !prev) throw new PlcNotesWriteError('notFound');
       for (const [field, value] of Object.entries(w.expect ?? {}))
-        if (storedMillis(prev, field) !== value)
+        if (
+          storedMillis(prev, field) !==
+          (value === null ? null : Math.floor(value))
+        )
           throw new PlcNotesWriteError('stale');
       const { check, store } = materialize(w, serverTimestamp);
       const next = prev ? { ...prev, ...check } : check;
