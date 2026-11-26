@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
-import { collection, doc, serverTimestamp, setDoc } from 'firebase/firestore';
-
 import {
   COMMENT_ACTIVITY_TARGET_TYPE,
   MENTION_ACTIVITY_TARGET_TYPE,
@@ -12,35 +10,21 @@ import {
   type PlcActivityEventInput,
 } from '@/utils/plcActivity';
 import { logError } from '@/utils/logError';
+import { callPlcTeamItems } from '@/utils/plcTeamItemsClient';
 import type { PlcActivityEvent } from '@/types';
 
-// Firestore write helpers are stubbed so we can assert the exact ref/payload
-// shape without a live SDK. The REAL `tsToMillis` from `@/utils/plc` is used
-// (that module is pure — imports only `@/types`), so `parseActivity`'s
-// timestamp resolution is exercised faithfully rather than mocked away.
-vi.mock('firebase/firestore', () => ({
-  collection: vi.fn(),
-  doc: vi.fn(),
-  serverTimestamp: vi.fn(),
-  setDoc: vi.fn(),
-}));
-
-vi.mock('@/config/firebase', () => ({
-  db: { __brand: 'db' },
+// The server call is stubbed so we can assert the exact payload. The REAL
+// `tsToMillis` from `@/utils/plc` is used, so `parseActivity` is exercised faithfully.
+vi.mock('@/utils/plcTeamItemsClient', () => ({
+  callPlcTeamItems: vi.fn(),
 }));
 
 vi.mock('@/utils/logError', () => ({
   logError: vi.fn(),
 }));
 
-const mockCollection = collection as unknown as Mock;
-const mockDoc = doc as unknown as Mock;
-const mockServerTimestamp = serverTimestamp as unknown as Mock;
-const mockSetDoc = setDoc as unknown as Mock;
+const mockCall = callPlcTeamItems as unknown as Mock;
 const mockLogError = logError as unknown as Mock;
-
-const GENERATED_ID = 'generated-doc-id';
-const SERVER_TS = { __serverTimestamp: true } as const;
 
 function makeEvent(
   overrides: Partial<PlcActivityEvent> = {}
@@ -61,16 +45,7 @@ describe('plcActivity', () => {
     // from the failure test can never survive into the next test — the mock
     // implementations below are re-established every run regardless.
     vi.resetAllMocks();
-    // collection() → a sentinel encoding its path segments so we can assert on
-    // where the write lands; doc(collectionRef) → an auto-id ref.
-    mockCollection.mockImplementation(
-      (_db: unknown, ...segments: string[]) => ({
-        __collection: segments.join('/'),
-      })
-    );
-    mockDoc.mockReturnValue({ id: GENERATED_ID });
-    mockServerTimestamp.mockReturnValue(SERVER_TS);
-    mockSetDoc.mockResolvedValue(undefined);
+    mockCall.mockResolvedValue({ id: 'generated-doc-id' });
   });
 
   describe('target-type constants', () => {
@@ -362,34 +337,22 @@ describe('plcActivity', () => {
       actorName: 'Alice',
     };
 
-    it('writes a minimal event to plcs/{plcId}/activity with the id pinned to the ref', async () => {
+    it('sends a minimal event to plcTeamItemsV1 for that PLC', async () => {
       await writePlcActivityEvent('plc-1', baseInput);
 
-      expect(mockCollection).toHaveBeenCalledWith(
-        { __brand: 'db' },
-        'plcs',
-        'plc-1',
-        'activity'
-      );
-      expect(mockDoc).toHaveBeenCalledWith({
-        __collection: 'plcs/plc-1/activity',
+      expect(mockCall).toHaveBeenCalledTimes(1);
+      expect(mockCall).toHaveBeenCalledWith({
+        action: 'logActivity',
+        plcId: 'plc-1',
+        event: { type: 'note_created', actorUid: 'u1', actorName: 'Alice' },
       });
-      expect(mockSetDoc).toHaveBeenCalledTimes(1);
-      expect(mockSetDoc).toHaveBeenCalledWith(
-        { id: GENERATED_ID },
-        {
-          id: GENERATED_ID,
-          type: 'note_created',
-          actorUid: 'u1',
-          actorName: 'Alice',
-          createdAt: SERVER_TS,
-        }
-      );
-      // A minimal doc carries no target keys (rules use keys().hasOnly).
-      const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
-      expect(payload).not.toHaveProperty('targetType');
-      expect(payload).not.toHaveProperty('targetId');
-      expect(payload).not.toHaveProperty('targetTitle');
+      // A minimal event carries no target keys (the server uses a closed key list).
+      const { event } = mockCall.mock.calls[0][0] as {
+        event: Record<string, unknown>;
+      };
+      expect(event).not.toHaveProperty('targetType');
+      expect(event).not.toHaveProperty('targetId');
+      expect(event).not.toHaveProperty('targetTitle');
     });
 
     it('includes optional target fields when provided', async () => {
@@ -401,27 +364,18 @@ describe('plcActivity', () => {
         targetTitle: 'Great point',
       });
 
-      // The plcId must route the write — a hard-coded/ignored id would slip
-      // past a payload-only assertion.
-      expect(mockCollection).toHaveBeenCalledWith(
-        { __brand: 'db' },
-        'plcs',
-        'plc-2',
-        'activity'
-      );
-      expect(mockSetDoc).toHaveBeenCalledWith(
-        { id: GENERATED_ID },
-        {
-          id: GENERATED_ID,
+      expect(mockCall).toHaveBeenCalledWith({
+        action: 'logActivity',
+        plcId: 'plc-2',
+        event: {
           type: 'comment_added',
           actorUid: 'u1',
           actorName: 'Alice',
-          createdAt: SERVER_TS,
           targetType: 'comment',
           targetId: 'c-9',
           targetTitle: 'Great point',
-        }
-      );
+        },
+      });
     });
 
     it('carries through only the target fields that are present', async () => {
@@ -430,23 +384,12 @@ describe('plcActivity', () => {
         targetType: 'note',
       });
 
-      expect(mockCollection).toHaveBeenCalledWith(
-        { __brand: 'db' },
-        'plcs',
-        'plc-3',
-        'activity'
-      );
-      const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
-      // Invariant fields must survive the partial-target branch (Firestore
-      // rules require actorName + createdAt), not just the one present target.
-      expect(payload.id).toBe(GENERATED_ID);
-      expect(payload.type).toBe('note_created');
-      expect(payload.actorUid).toBe('u1');
-      expect(payload.actorName).toBe('Alice');
-      expect(payload.createdAt).toBe(SERVER_TS);
-      expect(payload.targetType).toBe('note');
-      expect(payload).not.toHaveProperty('targetId');
-      expect(payload).not.toHaveProperty('targetTitle');
+      const req = mockCall.mock.calls[0][0] as {
+        plcId: string;
+        event: Record<string, unknown>;
+      };
+      expect(req.plcId).toBe('plc-3');
+      expect(req.event).toEqual({ ...baseInput, targetType: 'note' });
     });
 
     it('resolves to undefined and does not call logError on a successful write', async () => {
@@ -458,7 +401,7 @@ describe('plcActivity', () => {
 
     it('swallows a write failure: resolves without throwing and logs the error', async () => {
       const failure = new Error('permission-denied');
-      mockSetDoc.mockRejectedValueOnce(failure);
+      mockCall.mockRejectedValueOnce(failure);
 
       // Fire-and-forget: the canonical write must never fail because of this.
       await expect(

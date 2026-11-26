@@ -1,12 +1,7 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  orderBy,
-  writeBatch,
-} from 'firebase/firestore';
+import { collection, doc, onSnapshot, orderBy } from 'firebase/firestore';
+import { callPlcTeamItems } from '@/utils/plcTeamItemsClient';
 import { usePlcTodos } from '@/hooks/usePlcTodos';
 
 vi.mock('firebase/firestore', () => ({
@@ -17,7 +12,11 @@ vi.mock('firebase/firestore', () => ({
     __orderBy: { field, dir },
   })),
   query: vi.fn((_ref, ...constraints) => ({ __query: constraints })),
-  writeBatch: vi.fn(),
+}));
+
+vi.mock('@/utils/plcTeamItemsClient', () => ({
+  PLC_TODO_ARCHIVE_CHUNK: 100,
+  callPlcTeamItems: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -36,7 +35,7 @@ const mockCollection = collection as Mock;
 const mockDoc = doc as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
 const mockOrderBy = orderBy as Mock;
-const mockWriteBatch = writeBatch as Mock;
+const mockCall = callPlcTeamItems as Mock;
 
 const USER_UID = 'user-1';
 const PLC_ID = 'plc-1';
@@ -136,46 +135,34 @@ describe('usePlcTodos — live filtering', () => {
 });
 
 describe('usePlcTodos — archiveTodos', () => {
-  it('batches deletedAt tombstone writes for the given ids', async () => {
+  it('archives the given ids through plcTeamItemsV1', async () => {
     mockOnSnapshot.mockReturnValue(() => undefined);
-    const batchUpdate = vi.fn();
-    const batchCommit = vi.fn().mockResolvedValue(undefined);
-    mockWriteBatch.mockReturnValue({
-      update: batchUpdate,
-      commit: batchCommit,
-    });
-
     const { result } = renderHook(() => usePlcTodos(PLC_ID));
 
     await act(async () => {
       await result.current.archiveTodos(['t1', 't2']);
     });
 
-    expect(mockWriteBatch).toHaveBeenCalledTimes(1);
-    expect(batchUpdate).toHaveBeenCalledTimes(2);
-    expect(batchCommit).toHaveBeenCalledTimes(1);
-    const [path, patch] = batchUpdate.mock.calls[0] ?? [];
-    expect(path).toBe(`plcs/${PLC_ID}/todos/t1`);
-    expect(patch).toHaveProperty('deletedAt');
+    expect(mockCall).toHaveBeenCalledTimes(1);
+    expect(mockCall).toHaveBeenCalledWith({
+      action: 'archiveTodos',
+      plcId: PLC_ID,
+      ids: ['t1', 't2'],
+    });
   });
 
-  it('chunks archive writes across multiple batches over the 400-id limit', async () => {
+  it('chunks the ids into calls of at most 100', async () => {
     mockOnSnapshot.mockReturnValue(() => undefined);
-    const batchUpdate = vi.fn();
-    const batchCommit = vi.fn().mockResolvedValue(undefined);
-    mockWriteBatch.mockReturnValue({
-      update: batchUpdate,
-      commit: batchCommit,
-    });
-
     const { result } = renderHook(() => usePlcTodos(PLC_ID));
-    const ids = Array.from({ length: 401 }, (_, i) => `t${i}`);
+    const ids = Array.from({ length: 201 }, (_, i) => `t${i}`);
 
     await act(async () => {
       await result.current.archiveTodos(ids);
     });
 
-    expect(mockWriteBatch).toHaveBeenCalledTimes(2);
-    expect(batchCommit).toHaveBeenCalledTimes(2);
+    expect(mockCall).toHaveBeenCalledTimes(3);
+    expect((mockCall.mock.calls[2][0] as { ids: string[] }).ids).toEqual([
+      't200',
+    ]);
   });
 });

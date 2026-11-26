@@ -12,21 +12,15 @@
  *   - returns `Promise<void>` so a caller MAY `void writePlcActivityEvent(...)`
  *     without an unhandled rejection escaping.
  *
- * The doc id is allocated client-side so `event.id` can be pinned to it (the
- * rules require `request.resource.data.id == eventId`). `createdAt` is written
- * with `serverTimestamp()` (Decision 1.3); the listener parser resolves it to
- * millis via `tsToMillis`. `actorUid` MUST be the caller's own uid — the rules
- * reject a forged actor — so callers pass the signed-in uid.
+ * plcTeamItemsV1 allocates the doc id and stamps `createdAt`; the listener parser
+ * resolves it to millis via `tsToMillis`. `actorUid` MUST be the caller's own
+ * uid — the server rejects a forged actor — so callers pass the signed-in uid.
  */
 
-import { collection, doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { callPlcTeamItems } from '@/utils/plcTeamItemsClient';
 import { tsToMillis } from '@/utils/plc';
 import type { PlcActivityEvent, PlcActivityType } from '@/types';
-
-const PLCS_COLLECTION = 'plcs';
-const ACTIVITY_SUBCOLLECTION = 'activity';
 
 /**
  * Sentinel `targetType` on a PER-MENTION `comment_added` activity event
@@ -184,23 +178,22 @@ export async function writePlcActivityEvent(
   event: PlcActivityEventInput
 ): Promise<void> {
   try {
-    // Pre-allocate the doc ref so we can pin `id == eventId` (rules requirement)
-    // — the activity log is append-only, so a plain create is correct.
-    const ref = doc(
-      collection(db, PLCS_COLLECTION, plcId, ACTIVITY_SUBCOLLECTION)
-    );
-    const payload: Record<string, unknown> = {
-      id: ref.id,
-      type: event.type,
-      actorUid: event.actorUid,
-      actorName: event.actorName,
-      createdAt: serverTimestamp(),
-    };
-    if (event.targetType !== undefined) payload.targetType = event.targetType;
-    if (event.targetId !== undefined) payload.targetId = event.targetId;
-    if (event.targetTitle !== undefined)
-      payload.targetTitle = event.targetTitle;
-    await setDoc(ref, payload);
+    await callPlcTeamItems({
+      action: 'logActivity',
+      plcId,
+      event: {
+        type: event.type,
+        actorUid: event.actorUid,
+        actorName: event.actorName,
+        ...(event.targetType !== undefined
+          ? { targetType: event.targetType }
+          : {}),
+        ...(event.targetId !== undefined ? { targetId: event.targetId } : {}),
+        ...(event.targetTitle !== undefined
+          ? { targetTitle: event.targetTitle }
+          : {}),
+      },
+    });
   } catch (err) {
     logError('writePlcActivityEvent', err, { plcId, type: event.type });
   }
