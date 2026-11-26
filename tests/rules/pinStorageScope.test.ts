@@ -12,6 +12,7 @@ import {
   assertFails,
   assertSucceeds,
   type RulesTestEnvironment,
+  type TokenOptions,
 } from '@firebase/rules-unit-testing';
 import { getMetadata, ref, uploadString } from 'firebase/storage';
 
@@ -30,7 +31,7 @@ const hostPort = (envValue: string | undefined, fallbackPort: number) => {
 
 let testEnv: RulesTestEnvironment;
 
-const pinToken = (pinSessionId?: string) => ({
+const pinToken = (pinSessionId?: string): TokenOptions => ({
   pinLogin: true,
   ...(pinSessionId === undefined ? {} : { pinSessionId }),
   auth_time: Math.floor(Date.now() / 1000) - 60,
