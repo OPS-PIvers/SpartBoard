@@ -1,13 +1,7 @@
 /** Team type defaults listener and team layout writes (docs/plans/shipped/TEAMS_REDESIGN.md T2, T3). */
 
 import { useEffect, useState } from 'react';
-import {
-  deleteField,
-  doc,
-  onSnapshot,
-  serverTimestamp,
-  updateDoc,
-} from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { TEAM_TYPE_DEFAULTS_SETTINGS_DOC } from '@/config/teamTypePresets';
 import type {
@@ -19,8 +13,8 @@ import {
   normalizeTeamTypeDefaults,
   toStoredTeamLayout,
 } from '@/utils/teamLayout';
+import { callPlcSettings } from '@/utils/plcSettingsClient';
 
-const PLCS_COLLECTION = 'plcs';
 const EMPTY_DEFAULTS: TeamTypeDefaults = { types: {} };
 
 export interface TeamTypeDefaultsState {
@@ -64,26 +58,21 @@ export function useTeamTypeDefaults(
   return useTeamTypeDefaultsState(enabled).defaults;
 }
 
-/** Lead or co-lead: replace the team layout and the section switches it implies (rules close the write to layout, features, updatedAt). */
+/** Lead or co-lead: replace the team layout and the section switches it implies (the server closes the write to layout, features, updatedAt). */
 export async function saveTeamLayout(
   plcId: string,
   layout: PlcTeamLayout,
   features: Partial<PlcFeatureSettings> = {}
 ): Promise<void> {
-  const switches = Object.fromEntries(
-    Object.entries(features).map(([key, on]) => [`features.${key}`, on])
-  );
-  await updateDoc(doc(db, PLCS_COLLECTION, plcId), {
+  await callPlcSettings({
+    action: 'setLayout',
+    plcId,
     layout: toStoredTeamLayout(layout),
-    ...switches,
-    updatedAt: serverTimestamp(),
+    features,
   });
 }
 
 /** Lead or co-lead: "Reset to district default" drops the team layout. */
 export async function resetTeamLayout(plcId: string): Promise<void> {
-  await updateDoc(doc(db, PLCS_COLLECTION, plcId), {
-    layout: deleteField(),
-    updatedAt: serverTimestamp(),
-  });
+  await callPlcSettings({ action: 'setLayout', plcId, layout: null });
 }

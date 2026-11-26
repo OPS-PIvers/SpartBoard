@@ -18,6 +18,7 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import type { PlcUpdate, PlcUpdateAck } from '@/types';
 import { logError } from '@/utils/logError';
+import { callPlcSettings } from '@/utils/plcSettingsClient';
 import {
   ATTACHMENT_NAME_MAX,
   parsePlcUpdate,
@@ -268,8 +269,5 @@ export async function saveTeamCalendar(
   plcId: string,
   url: string | null
 ): Promise<void> {
-  await updateDoc(doc(db, 'plcs', plcId), {
-    calendarEmbedUrl: url ?? deleteField(),
-    updatedAt: serverTimestamp(),
-  });
+  await callPlcSettings({ action: 'setCalendar', plcId, url });
 }

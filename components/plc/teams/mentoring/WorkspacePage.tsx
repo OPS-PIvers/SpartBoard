@@ -10,7 +10,8 @@ import {
   getMentoringSubmission,
   submitMentoringTask,
   updateCheckIn,
-  updateWorkspaceActionItems,
+  toggleWorkspaceActionItem,
+  addWorkspaceActionItem,
   useWorkspaceCheckIns,
 } from '@/hooks/useMentoring';
 import { useTeamTypeDefaults } from '@/hooks/useTeamLayout';
@@ -190,22 +191,19 @@ export const WorkspaceScreen: React.FC<
             setDialog({ kind: 'checkIn', id, title: c.title, body: c.body });
         }}
         onToggleActionItem={(id) =>
-          void updateWorkspaceActionItems(plc.id, ws.id, (items) =>
-            items.map((a) =>
-              a.id === id
-                ? { ...a, done: !a.done, doneAt: a.done ? null : Date.now() }
-                : a
-            )
-          ).catch((err) => logError('WorkspacePage.toggle', err))
+          void toggleWorkspaceActionItem(plc.id, ws.id, id).catch((err) =>
+            logError('WorkspacePage.toggle', err)
+          )
         }
         onAddActionItem={({ text, assigneeUid, dueDate }) =>
-          void updateWorkspaceActionItems(plc.id, ws.id, (items) => [
-            ...items,
+          void addWorkspaceActionItem(
+            plc.id,
+            ws.id,
             newActionItem(text, uid, Date.now(), {
               assigneeUid,
               dueAt: dueDate ? new Date(`${dueDate}T12:00`).getTime() : null,
-            }),
-          ]).catch((err) => logError('WorkspacePage.addItem', err))
+            })
+          ).catch((err) => logError('WorkspacePage.addItem', err))
         }
         onOpenDoc={(id) => {
           const d = ws.docs.find((x) => x.id === id);
