@@ -41,6 +41,11 @@ import {
 } from '@/hooks/usePlcAssignments';
 import { logError } from '@/utils/logError';
 
+vi.mock(
+  '@/utils/plcContentWrites',
+  () => import('@/tests/helpers/plcContentWritesViaFirestore')
+);
+
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteDoc: vi.fn(),

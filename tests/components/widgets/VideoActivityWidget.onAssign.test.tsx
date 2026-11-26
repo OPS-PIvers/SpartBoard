@@ -37,6 +37,11 @@ import { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
 // Firebase mocks — capture writes/CF calls instead of hitting real Firestore.
 // ---------------------------------------------------------------------------
 
+vi.mock(
+  '@/utils/plcContentWrites',
+  () => import('@/tests/helpers/plcContentWritesViaFirestore')
+);
+
 vi.mock('@/config/firebase', () => ({
   db: { __mock: 'db' },
   functions: { __mock: 'functions' },

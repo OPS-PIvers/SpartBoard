@@ -1,0 +1,1 @@
+claude/project-thread-j3vphc (Move shared PLC content writes to functions)

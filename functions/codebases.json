@@ -209,6 +209,7 @@
       "cascadePlcDeleteV1",
       "onPlcMeetingSegmentUploaded",
       "onUserProfileBuildingsChangedV1",
+      "plcContentWriteV1",
       "plcGoalCoachV1",
       "plcInvitationEmail",
       "plcMembershipV1",

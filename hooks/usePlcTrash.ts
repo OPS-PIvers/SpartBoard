@@ -26,11 +26,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
-  doc,
   onSnapshot,
   query,
   serverTimestamp,
-  updateDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { plcNotesMutate, plcNotesUpdate } from '@/utils/plcNotesWrite';
@@ -53,6 +51,7 @@ import { parsePlcQuizEntry } from '@/hooks/usePlcQuizzes';
 import { parsePlcVideoActivityEntry } from '@/hooks/usePlcVideoActivities';
 import { parsePlcRubricEntry } from '@/hooks/usePlcRubrics';
 import { restorePlcLibraryEntry } from '@/hooks/usePlcLibraryEntries';
+import { PLC_SERVER_TIME, updatePlcContentDoc } from '@/utils/plcContentWrites';
 import { parseComment } from '@/hooks/usePlcComments';
 
 const PLCS_COLLECTION = 'plcs';
@@ -89,15 +88,11 @@ interface UsePlcTrashResult {
   restore: (item: PlcTrashItem) => Promise<void>;
 }
 
-/** Map a trash item type to its Firestore subcollection path segment. */
-const SUBCOLLECTION_FOR: Record<PlcTrashItemType, string> = {
-  note: 'notes',
-  doc: 'docs',
-  comment: 'comments',
+const LIBRARY_SUBCOLLECTION = {
   quiz: 'quizzes',
   videoActivity: 'video_activities',
   rubric: 'rubrics',
-};
+} as const;
 
 /**
  * Resolve a stable author/display name for the signed-in user (prefer display
@@ -359,18 +354,17 @@ async function restorePlcItem(
   id: string,
   uid: string
 ): Promise<void> {
-  const ref = doc(db, PLCS_COLLECTION, plcId, SUBCOLLECTION_FOR[type], id);
   switch (type) {
     case 'doc':
-      await updateDoc(ref, {
+      await updatePlcContentDoc(plcId, 'docs', id, {
         deletedAt: null,
-        updatedAt: serverTimestamp(),
+        updatedAt: PLC_SERVER_TIME,
       });
       return;
     case 'quiz':
     case 'videoActivity':
     case 'rubric':
-      await restorePlcLibraryEntry(plcId, SUBCOLLECTION_FOR[type], id);
+      await restorePlcLibraryEntry(plcId, LIBRARY_SUBCOLLECTION[type], id);
       return;
     case 'comment':
       await plcNotesUpdate(plcId, 'comments', id, { deletedAt: null });

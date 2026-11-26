@@ -1,17 +1,13 @@
 import { useCallback, useMemo } from 'react';
-import {
-  collection,
-  doc,
-  getDocs,
-  query,
-  setDoc,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcQuizEntry, QuizSessionMode, QuizSessionOptions } from '@/types';
 import { logError } from '@/utils/logError';
+import {
+  setPlcContentDoc,
+  updatePlcContentDoc,
+} from '@/utils/plcContentWrites';
 import {
   isLivePlcLibraryEntry,
   usePlcLibraryEntries,
@@ -138,7 +134,11 @@ export async function mirrorPlcQuizHeadersBySyncGroup(
             where('syncGroupId', '==', syncGroupId)
           )
         );
-        await Promise.all(snap.docs.map((d) => updateDoc(d.ref, fields)));
+        await Promise.all(
+          snap.docs.map((d) =>
+            updatePlcContentDoc(plcId, QUIZZES_SUBCOLLECTION, d.id, fields)
+          )
+        );
       } catch (err) {
         logError('usePlcQuizzes.mirrorHeadersBySyncGroup', err, {
           plcId,
@@ -278,8 +278,10 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
     async (plcQuizId: string, patch: PlcQuizHeaderPatch): Promise<void> => {
       if (!plcId || !user) return;
       try {
-        await updateDoc(
-          doc(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION, plcQuizId),
+        await updatePlcContentDoc(
+          plcId,
+          QUIZZES_SUBCOLLECTION,
+          plcQuizId,
           headerPatchFields(patch)
         );
       } catch (err) {
@@ -330,8 +332,5 @@ export async function writePlcQuizEntry(
     updatedAt: now,
     ...runSettingsFields(input),
   };
-  await setDoc(
-    doc(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION, input.plcQuizId),
-    entry
-  );
+  await setPlcContentDoc(plcId, QUIZZES_SUBCOLLECTION, input.plcQuizId, entry);
 }

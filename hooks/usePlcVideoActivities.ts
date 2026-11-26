@@ -1,6 +1,8 @@
 import { useCallback, useMemo } from 'react';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import {
+  setPlcContentDoc,
+  updatePlcContentDoc,
+} from '@/utils/plcContentWrites';
 import { useAuth } from '@/context/useAuth';
 import { PlcVideoActivityEntry } from '@/types';
 import { logError } from '@/utils/logError';
@@ -10,7 +12,6 @@ import {
   type PlcLibrarySpec,
 } from '@/hooks/usePlcLibraryEntries';
 
-const PLCS_COLLECTION = 'plcs';
 const VIDEO_ACTIVITIES_SUBCOLLECTION = 'video_activities';
 
 interface ShareVideoActivityWithPlcInput {
@@ -152,14 +153,10 @@ export const usePlcVideoActivities = (
         }
         if (patch.youtubeUrl !== undefined)
           fields.youtubeUrl = patch.youtubeUrl;
-        await updateDoc(
-          doc(
-            db,
-            PLCS_COLLECTION,
-            plcId,
-            VIDEO_ACTIVITIES_SUBCOLLECTION,
-            plcVideoActivityId
-          ),
+        await updatePlcContentDoc(
+          plcId,
+          VIDEO_ACTIVITIES_SUBCOLLECTION,
+          plcVideoActivityId,
           fields
         );
       } catch (err) {
@@ -220,14 +217,10 @@ export async function writePlcVideoActivityEntry(
     sharedAt: now,
     updatedAt: now,
   };
-  await setDoc(
-    doc(
-      db,
-      PLCS_COLLECTION,
-      plcId,
-      VIDEO_ACTIVITIES_SUBCOLLECTION,
-      input.plcVideoActivityId
-    ),
+  await setPlcContentDoc(
+    plcId,
+    VIDEO_ACTIVITIES_SUBCOLLECTION,
+    input.plcVideoActivityId,
     entry
   );
 }

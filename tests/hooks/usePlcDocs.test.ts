@@ -14,6 +14,11 @@ import { usePlcDocs } from '@/hooks/usePlcDocs';
 // Sentinel so create/update tests can assert serverTimestamp() (Decision 1.3).
 const SERVER_TS = { __serverTimestamp: true };
 
+vi.mock(
+  '@/utils/plcContentWrites',
+  () => import('@/tests/helpers/plcContentWritesViaFirestore')
+);
+
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteDoc: vi.fn(),

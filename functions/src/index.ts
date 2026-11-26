@@ -356,6 +356,8 @@ export {
 
 // PLC membership changes (accept, leave, remove, roles, lead) run server-side so rules stay small.
 export { plcMembershipV1 } from './plcMembership';
+// Shared PLC content writes (library headers, assignments, docs) checked server-side.
+export { plcContentWriteV1 } from './plcContentWrites';
 // PLC meeting, note, recording, note-doc and comment writes, checked server-side so rules stay small.
 export { plcNotesWriteV1 } from './plcNotesWrite';
 export { plcSettingsV1 } from './plcSettings';

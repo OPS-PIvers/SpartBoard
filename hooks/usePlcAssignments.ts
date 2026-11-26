@@ -1,13 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  setDoc,
-} from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import {
@@ -17,6 +9,10 @@ import {
 } from '@/types';
 import { logError } from '@/utils/logError';
 import { notifyPlcWriteFailure } from '@/utils/plcWriteNotifications';
+import {
+  deletePlcContentDoc,
+  setPlcContentDoc,
+} from '@/utils/plcContentWrites';
 
 const PLCS_COLLECTION = 'plcs';
 const ASSIGNMENTS_SUBCOLLECTION = 'assignments';
@@ -199,14 +195,10 @@ export const usePlcAssignments = (
         sharedAt: now,
         updatedAt: now,
       };
-      await setDoc(
-        doc(
-          db,
-          PLCS_COLLECTION,
-          plcId,
-          ASSIGNMENTS_SUBCOLLECTION,
-          input.plcAssignmentId
-        ),
+      await setPlcContentDoc(
+        plcId,
+        ASSIGNMENTS_SUBCOLLECTION,
+        input.plcAssignmentId,
         entry
       );
     },
@@ -216,14 +208,10 @@ export const usePlcAssignments = (
   const deleteAssignmentTemplate = useCallback(
     async (plcAssignmentId: string): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      await deleteDoc(
-        doc(
-          db,
-          PLCS_COLLECTION,
-          plcId,
-          ASSIGNMENTS_SUBCOLLECTION,
-          plcAssignmentId
-        )
+      await deletePlcContentDoc(
+        plcId,
+        ASSIGNMENTS_SUBCOLLECTION,
+        plcAssignmentId
       );
     },
     [plcId, user]
@@ -277,14 +265,10 @@ export async function writePlcAssignmentTemplate(
       sharedAt: now,
       updatedAt: now,
     };
-    await setDoc(
-      doc(
-        db,
-        PLCS_COLLECTION,
-        plcId,
-        ASSIGNMENTS_SUBCOLLECTION,
-        input.plcAssignmentId
-      ),
+    await setPlcContentDoc(
+      plcId,
+      ASSIGNMENTS_SUBCOLLECTION,
+      input.plcAssignmentId,
       entry
     );
   } catch (err) {
