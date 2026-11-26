@@ -357,10 +357,13 @@ export async function listColumnGrades(
     const r = asRecord(raw);
     const enrollmentId = asIdString(r.enrollment_id);
     if (!enrollmentId) continue;
+    const gradeNum = typeof r.grade === 'string' ? Number(r.grade) : r.grade;
     const grade =
-      r.grade === null || r.grade === undefined || r.grade === ''
-        ? null
-        : asNumber(r.grade);
+      typeof gradeNum === 'number' &&
+      Number.isFinite(gradeNum) &&
+      !(typeof r.grade === 'string' && r.grade.trim() === '')
+        ? gradeNum
+        : null;
     out.push({
       enrollmentId,
       grade,

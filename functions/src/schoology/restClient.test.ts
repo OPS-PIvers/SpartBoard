@@ -228,6 +228,23 @@ describe('grades and exceptions', () => {
     ]);
   });
 
+  it('treats a non-numeric or blank-string grade as null, not 0', async () => {
+    stubFetch(
+      json({
+        grades: {
+          grade: [
+            { enrollment_id: 1, grade: 'N/A' },
+            { enrollment_id: 2, grade: '  ' },
+            { enrollment_id: 3, grade: '7.5' },
+            { enrollment_id: 4, grade: 0 },
+          ],
+        },
+      })
+    );
+    const rows = await listColumnGrades(CREDS, SECTION, '99');
+    expect(rows.map((r) => r.grade)).toEqual([null, null, 7.5, 0]);
+  });
+
   it('sets Missing and reports each row', async () => {
     const fetchMock = stubFetch(
       json(
