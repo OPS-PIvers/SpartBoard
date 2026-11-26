@@ -66679,6 +66679,60 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "sub-share.first-day",
+    "label": "Available day box in the sub share dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.share-with-sub",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards.share-board",
+          "share-link.share-with-sub"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sub-share.last-day",
+    "label": "Last day box in the sub share dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.share-with-sub",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards.share-board",
+          "share-link.share-with-sub"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sub-share.more-days",
+    "label": "More than one day checkbox in the sub share dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.share-with-sub",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards.share-board",
+          "share-link.share-with-sub"
+        ]
+      }
+    ]
+  },
+  {
     "id": "sub-share.email-chip",
     "label": "Saved sub email button in the sub share dialog",
     "scope": "board",

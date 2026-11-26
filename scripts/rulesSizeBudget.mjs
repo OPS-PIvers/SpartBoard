@@ -25,3 +25,20 @@ export function baseRulesText(baseRef) {
     return null;
   }
 }
+
+// Compile work: Google's rules compiler re-expands every helper at each call site and gives up after ~5.2 s.
+// Units = expanded nodes + 3 per expanded helper call (fit to local compile times; Google takes ~2x local).
+export const COMPILE_COST_GROWTH_BUDGET = 2000;
+// Ratchet: lower this as each compile-time slice lands. ~247,000 is where Google times out on a typical day.
+export const COMPILE_COST_CEILING = 195000;
+export const COMPILE_COST_TARGET = 155000;
+export const COST_OVERRIDE_LABEL = 'rules-compile-ok';
+
+export function compileUnits({ nodes, calls }) {
+  return nodes + 3 * calls;
+}
+
+/** Rough Google compile time in seconds on a typical day; load swings it by about half either way. */
+export function estimatedGoogleSeconds(units) {
+  return Math.round((0.66 + units * 18.4e-6) * 10) / 10;
+}

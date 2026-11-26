@@ -15355,6 +15355,18 @@ export const TOUR_ANCHORS = {
     label: 'Expiry date box in the sub share dialog',
     panel: true,
   },
+  'sub-share.first-day': {
+    label: 'Available day box in the sub share dialog',
+    panel: true,
+  },
+  'sub-share.last-day': {
+    label: 'Last day box in the sub share dialog',
+    panel: true,
+  },
+  'sub-share.more-days': {
+    label: 'More than one day checkbox in the sub share dialog',
+    panel: true,
+  },
   'sub-share.email-chip': {
     label: 'Saved sub email button in the sub share dialog',
     panel: true,

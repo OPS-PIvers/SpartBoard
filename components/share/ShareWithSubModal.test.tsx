@@ -712,3 +712,94 @@ describe('ShareWithSubModal — what could not be collected', () => {
     expect(screen.queryByText(/did not come along/)).toBeNull();
   });
 });
+
+describe('ShareWithSubModal — the days it opens (sub-share-dates)', () => {
+  beforeEach(() => {
+    flags.add('sub-share-dates');
+    usePresetSubEmailsMock.mockReturnValue({ emails: [], loading: false });
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn(() => Promise.resolve()) },
+    });
+  });
+
+  afterEach(() => {
+    usePresetSubEmailsMock.mockReset();
+    shareSubstituteCollection.mockClear();
+    addToast.mockClear();
+    cleanup();
+  });
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const dayInput = (d: Date) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  it('opens on the picked days and ends 48 hours after the last one', async () => {
+    openModal();
+    const first = new Date();
+    first.setDate(first.getDate() + 2);
+    const last = new Date(first);
+    last.setDate(last.getDate() + 2);
+
+    fireEvent.click(screen.getByLabelText('More than one day'));
+    fireEvent.change(screen.getByLabelText('First day'), {
+      target: { value: dayInput(first) },
+    });
+    fireEvent.change(screen.getByLabelText('Last day'), {
+      target: { value: dayInput(last) },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }));
+
+    await waitFor(() => expect(shareSubstituteCollection).toHaveBeenCalled());
+    const input = shareSubstituteCollection.mock.calls[0]?.[0] as {
+      availableFrom: number;
+      availableThrough: number;
+      expiresAt: number;
+    };
+    expect(input.availableFrom).toBe(
+      new Date(first.getFullYear(), first.getMonth(), first.getDate()).getTime()
+    );
+    const lastEnd = new Date(
+      last.getFullYear(),
+      last.getMonth(),
+      last.getDate(),
+      23,
+      59
+    ).getTime();
+    expect(input.availableThrough).toBe(lastEnd);
+    expect(input.expiresAt).toBe(lastEnd + 48 * 60 * 60 * 1000);
+    expect(
+      await screen.findByText(/Your sub can open it starting/)
+    ).toBeTruthy();
+  });
+
+  it('writes nothing when the end is more than 48 hours after the last day', async () => {
+    openModal();
+    const late = new Date();
+    late.setDate(late.getDate() + 4);
+    fireEvent.change(screen.getByLabelText('Ends'), {
+      target: { value: `${dayInput(late)}T08:00` },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }));
+
+    await waitFor(() =>
+      expect(addToast).toHaveBeenCalledWith(
+        'The share can end up to 48 hours after the last day.',
+        'error'
+      )
+    );
+    expect(shareSubstituteCollection).not.toHaveBeenCalled();
+  });
+
+  it('flag off shows no day fields and writes no days', async () => {
+    flags.delete('sub-share-dates');
+    openModal();
+    expect(screen.queryByLabelText('Available')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }));
+    await waitFor(() => expect(shareSubstituteCollection).toHaveBeenCalled());
+    const input = shareSubstituteCollection.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(input.availableFrom).toBeUndefined();
+  });
+});

@@ -219,10 +219,11 @@ describe('PIN sign-in token scope', () => {
     );
   });
 
-  it('keeps a pre-scope PIN token working for 12h so open tabs survive the release', async () => {
-    const recent = Math.floor(Date.now() / 1000) - 11 * HOUR;
-    await assertSucceeds(getDoc(doc(asPin(null, recent), response('sess-b'))));
-    await assertSucceeds(
+  // pinLoginV1 has set pinSessionId since 2026-10-25, so the 12h grace for older tokens is over.
+  it('denies a PIN token with no session even right after sign-in', async () => {
+    const recent = Math.floor(Date.now() / 1000) - 1 * HOUR;
+    await assertFails(getDoc(doc(asPin(null, recent), response('sess-b'))));
+    await assertFails(
       updateDoc(doc(asPin(null, recent), response('sess-b')), {
         status: 'in-progress',
       })
