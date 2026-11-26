@@ -5,6 +5,7 @@ import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
 import { LearningTarget, LearningTargetList } from '@/types';
 import { logError } from '@/utils/logError';
+import { callPlcSettings } from '@/utils/plcSettingsClient';
 import { normalizeGrades } from '@/utils/gradeMatch';
 import i18n from '@/i18n/index';
 
@@ -100,6 +101,20 @@ function serializeList(list: LearningTargetList): Record<string, unknown> {
   return out;
 }
 
+/** PLC lists are written by plcSettingsV1, which checks the caller can edit the PLC's content. */
+async function savePlcTargets(
+  plcId: string,
+  list: LearningTargetList
+): Promise<void> {
+  const { targets, masteryCutoffs } = serializeList(list);
+  await callPlcSettings({
+    action: 'saveLearningTargets',
+    plcId,
+    targets,
+    ...(masteryCutoffs ? { masteryCutoffs } : {}),
+  });
+}
+
 /** Shared per-doc listener; `path` null ⇒ idle (list null, loading false). */
 function useLearningTargetDoc(path: string[] | null): UseLearningTargetsResult {
   const { user } = useAuth();
@@ -136,6 +151,10 @@ function useLearningTargetDoc(path: string[] | null): UseLearningTargetsResult {
     async (list: LearningTargetList) => {
       if (!key || !user) throw new Error('Not signed in');
       const segments = key.split('/');
+      if (segments[0] === PLCS_COLLECTION) {
+        await savePlcTargets(segments[1], list);
+        return;
+      }
       await setDoc(
         doc(db, segments[0], ...segments.slice(1)),
         serializeList(list)
@@ -153,11 +172,14 @@ export async function saveLearningTargetList(
   owner: { kind: 'personal'; uid: string } | { kind: 'plc'; plcId: string },
   list: LearningTargetList
 ): Promise<void> {
-  const ref =
-    owner.kind === 'personal'
-      ? doc(db, USERS_COLLECTION, owner.uid, 'userProfile', 'learningTargets')
-      : doc(db, PLCS_COLLECTION, owner.plcId, 'meta', 'learningTargets');
-  await setDoc(ref, serializeList(list));
+  if (owner.kind === 'plc') {
+    await savePlcTargets(owner.plcId, list);
+    return;
+  }
+  await setDoc(
+    doc(db, USERS_COLLECTION, owner.uid, 'userProfile', 'learningTargets'),
+    serializeList(list)
+  );
 }
 
 export function usePersonalLearningTargets(): UseLearningTargetsResult {

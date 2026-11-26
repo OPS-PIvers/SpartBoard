@@ -29,12 +29,12 @@ import {
   orderBy,
   query,
   runTransaction,
-  setDoc,
   where,
 } from 'firebase/firestore';
 import { usePlcs } from '@/hooks/usePlcs';
 import { writePlcActivityEvent } from '@/utils/plcActivity';
 import { callPlcMembership } from '@/utils/plcMembershipClient';
+import { callPlcSettings } from '@/utils/plcSettingsClient';
 
 // A distinct sentinel object so tests can assert serverTimestamp() was used
 // (rather than a Date.now() number) for every PLC write.
@@ -71,6 +71,10 @@ vi.mock('@/utils/plcMembershipClient', () => ({
   callPlcMembership: vi.fn(),
 }));
 
+vi.mock('@/utils/plcSettingsClient', () => ({
+  callPlcSettings: vi.fn(),
+}));
+
 vi.mock('@/utils/plcActivity', () => ({
   writePlcActivityEvent: vi.fn(() => Promise.resolve()),
 }));
@@ -102,9 +106,9 @@ const mockLimit = limit as Mock;
 const mockGetDoc = getDoc as Mock;
 const mockDoc = doc as Mock;
 const mockRunTransaction = runTransaction as Mock;
-const mockSetDoc = setDoc as Mock;
 const mockWriteActivity = writePlcActivityEvent as Mock;
 const mockCallMembership = callPlcMembership as Mock;
+const mockCallSettings = callPlcSettings as Mock;
 
 const USER_UID = 'user-1';
 const USER_EMAIL = 'admin@orono.k12.mn.us';
@@ -467,8 +471,8 @@ function render() {
   return renderHook(() => usePlcs());
 }
 
-describe('usePlcs - createPlc writes the members map + indexes', () => {
-  it('writes members map, denormalized indexes, and serverTimestamps', async () => {
+describe('usePlcs - createPlc goes through plcSettingsV1', () => {
+  it('asks the server to create the PLC with the creator tenancy', async () => {
     // An org member (orgId set) — createPlc requires a non-null orgId (W2).
     // Building resolution is exercised separately below; here neither a UI
     // selection nor an org-assigned building is present, so buildingId is null.
@@ -478,30 +482,21 @@ describe('usePlcs - createPlc writes the members map + indexes', () => {
     } as ReturnType<typeof useAuthMock>);
     mockCollection.mockReturnValue('plcs');
     mockDoc.mockReturnValue('plcs/new-id');
-    mockSetDoc.mockResolvedValue(undefined);
+    mockCallSettings.mockResolvedValue({ plcId: 'new-id' });
 
     const { result } = render();
     await act(async () => {
       await result.current.createPlc('My PLC');
     });
 
-    expect(mockSetDoc).toHaveBeenCalledTimes(1);
-    const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
-    // Lead is the sole member, leader, and appears in every index.
-    expect(payload.leadUid).toBe(LEAD_UID);
-    expect(payload.memberUids).toEqual([LEAD_UID]);
-    expect(payload.memberEmails).toEqual({ [LEAD_UID]: 'lead@x.com' });
-    const members = payload.members as Record<string, Record<string, unknown>>;
-    expect(members[LEAD_UID].role).toBe('lead');
-    expect(members[LEAD_UID].status).toBe('active');
-    expect(members[LEAD_UID].email).toBe('lead@x.com'); // lowercased
-    expect(members[LEAD_UID].joinedAt).toBe(SERVER_TS);
-    // All timestamps are serverTimestamp(), not Date.now() numbers.
-    expect(payload.createdAt).toBe(SERVER_TS);
-    expect(payload.updatedAt).toBe(SERVER_TS);
-    expect(payload.orgId).toBe('orono');
-    // No UI-selected or org-assigned building ⇒ untenanted building.
-    expect(payload.buildingId).toBeNull();
+    expect(mockCallSettings).toHaveBeenCalledTimes(1);
+    expect(mockCallSettings).toHaveBeenCalledWith({
+      action: 'create',
+      name: 'My PLC',
+      displayName: 'Lead',
+      orgId: 'orono',
+      buildingId: null,
+    });
   });
 
   it('writes the section switches a frozen layout turns off', async () => {
@@ -511,7 +506,7 @@ describe('usePlcs - createPlc writes the members map + indexes', () => {
     } as ReturnType<typeof useAuthMock>);
     mockCollection.mockReturnValue('plcs');
     mockDoc.mockReturnValue('plcs/new-id');
-    mockSetDoc.mockResolvedValue(undefined);
+    mockCallSettings.mockResolvedValue({ plcId: 'new-id' });
 
     const { result } = render();
     await act(async () => {
@@ -527,7 +522,10 @@ describe('usePlcs - createPlc writes the members map + indexes', () => {
       });
     });
 
-    const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
+    const payload = mockCallSettings.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
     expect(payload.features).toEqual({ notes: false });
   });
 
@@ -541,7 +539,7 @@ describe('usePlcs - createPlc writes the members map + indexes', () => {
     } as ReturnType<typeof useAuthMock>);
     mockCollection.mockReturnValue('plcs');
     mockDoc.mockReturnValue('plcs/new-id');
-    mockSetDoc.mockResolvedValue(undefined);
+    mockCallSettings.mockResolvedValue({ plcId: 'new-id' });
 
     const { result } = render();
 
@@ -551,8 +549,8 @@ describe('usePlcs - createPlc writes the members map + indexes', () => {
       })
     ).rejects.toThrow('plc.errors.orgRequired');
 
-    // No Firestore write happened — the guard fired before setDoc.
-    expect(mockSetDoc).not.toHaveBeenCalled();
+    // Nothing reached the server; the guard fired first.
+    expect(mockCallSettings).not.toHaveBeenCalled();
   });
 
   it('inherits the creator org + building so the PLC is discoverable', async () => {
@@ -567,14 +565,17 @@ describe('usePlcs - createPlc writes the members map + indexes', () => {
     } as ReturnType<typeof useAuthMock>);
     mockCollection.mockReturnValue('plcs');
     mockDoc.mockReturnValue('plcs/new-id');
-    mockSetDoc.mockResolvedValue(undefined);
+    mockCallSettings.mockResolvedValue({ plcId: 'new-id' });
 
     const { result } = render();
     await act(async () => {
       await result.current.createPlc('My PLC');
     });
 
-    const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
+    const payload = mockCallSettings.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
     expect(payload.orgId).toBe('orono');
     expect(payload.buildingId).toBe('high');
   });
@@ -588,14 +589,17 @@ describe('usePlcs - createPlc writes the members map + indexes', () => {
     } as ReturnType<typeof useAuthMock>);
     mockCollection.mockReturnValue('plcs');
     mockDoc.mockReturnValue('plcs/new-id');
-    mockSetDoc.mockResolvedValue(undefined);
+    mockCallSettings.mockResolvedValue({ plcId: 'new-id' });
 
     const { result } = render();
     await act(async () => {
       await result.current.createPlc('My PLC');
     });
 
-    const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
+    const payload = mockCallSettings.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
     expect(payload.orgId).toBe('orono');
     expect(payload.buildingId).toBe('middle');
   });

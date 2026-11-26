@@ -1,0 +1,1 @@
+claude/project-thread-mhnsc0 (PLC settings and workspace writes move to plcSettingsV1)

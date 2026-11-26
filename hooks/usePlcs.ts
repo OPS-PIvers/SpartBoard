@@ -6,14 +6,7 @@ import {
   limit,
   onSnapshot,
   doc,
-  setDoc,
   getDoc,
-  getDocs,
-  writeBatch,
-  runTransaction,
-  serverTimestamp,
-  updateDoc,
-  deleteField,
 } from 'firebase/firestore';
 import { db, isAuthBypass, isEmulatorBackend } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -37,6 +30,7 @@ import {
 } from '@/utils/plcMeetingCadence';
 import { writePlcActivityEvent } from '@/utils/plcActivity';
 import { callPlcMembership } from '@/utils/plcMembershipClient';
+import { callPlcSettings } from '@/utils/plcSettingsClient';
 import { parseNormingLevelLabels } from '@/utils/plcNorming';
 import { featuresForTeamLayout, parseTeamLayout } from '@/utils/teamLayout';
 import { isSuperAdminActor } from '@/utils/superAdmin';
@@ -73,9 +67,6 @@ function resolveActorName(user: {
 // event the district ever exceeds 500 PLCs, the dropped tail is an arbitrary
 // rather than the alphabetically-last subset.
 const ADMIN_PLCS_LIMIT = 500;
-// Mirrors the constant in `usePlcInvitations` — kept here so `deletePlc` can
-// sweep outstanding invites in the same batch as the PLC doc.
-const INVITATIONS_COLLECTION = 'plc_invitations';
 
 interface UsePlcsResult {
   plcs: Plc[];
@@ -524,40 +515,21 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       const newTeamSwitches = layout
         ? featuresForTeamLayout({ groupType }, layout)
         : {};
-      const ref = doc(collection(db, PLCS_COLLECTION));
-      await setDoc(ref, {
+      // plcSettingsV1 writes the creator as the sole member and lead, as the rules required.
+      const { plcId } = await callPlcSettings({
+        action: 'create',
         name: trimmed,
+        displayName,
         orgId,
         buildingId: creatorBuildingId,
         ...(groupType && groupType !== 'plc' ? { groupType } : {}),
-        // Teams redesign: a new team keeps the district default it was created with (T3).
         ...(layout ? { layout } : {}),
         ...(layout && Object.keys(newTeamSwitches).length
           ? { features: newTeamSwitches }
           : {}),
-        // Canonical membership map (Decision 1.2). The creator is the sole
-        // member and the lead. `joinedAt` is a serverTimestamp sentinel
-        // resolved to millis on read by `parsePlcMembers`.
-        members: {
-          [user.uid]: {
-            uid: user.uid,
-            email,
-            displayName,
-            role: 'lead',
-            joinedAt: serverTimestamp(),
-            status: 'active',
-          },
-        },
-        // Denormalized indexes kept in lockstep with `members` on every
-        // membership write (Firestore can't array-contains-query a map; the
-        // PLC list query filters on `memberUids`).
-        leadUid: user.uid,
-        memberUids: [user.uid],
-        memberEmails: { [user.uid]: email },
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
       });
-      return ref.id;
+      if (!plcId) throw new Error(i18n.t('plc.errors.plcNotFound'));
+      return plcId;
     },
     [user, orgId, firstSelectedBuilding, firstBuildingId]
   );
@@ -567,15 +539,12 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       if (!user) return;
       const trimmed = name.trim();
       if (!trimmed) throw new Error(i18n.t('plc.errors.nameRequired'));
-      await setDoc(
-        doc(db, PLCS_COLLECTION, plcId),
-        {
-          name: trimmed,
-          ...(groupType ? { groupType } : {}),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      await callPlcSettings({
+        action: 'rename',
+        plcId,
+        name: trimmed,
+        ...(groupType ? { groupType } : {}),
+      });
     },
     [user]
   );
@@ -707,99 +676,31 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   const deletePlc = useCallback(
     async (plcId: string) => {
       if (!user) return;
-      // Sweep outstanding invitations in the same atomic batch as the PLC
-      // doc. The invite-delete rule does a get() on the parent PLC, so the
-      // invite deletes must commit alongside (not after) the PLC delete —
-      // batch operations evaluate rules against the pre-batch state, so
-      // the PLC is still readable while each invite-delete is authorized.
-      // Without this, pending invites would orphan in /plc_invitations and
-      // become unrevokable.
-      const invitesQuery = query(
-        collection(db, INVITATIONS_COLLECTION),
-        where('plcId', '==', plcId)
-      );
-      const invitesSnap = await getDocs(invitesQuery);
-      const batch = writeBatch(db);
-      invitesSnap.forEach((d) => batch.delete(d.ref));
-      batch.delete(doc(db, PLCS_COLLECTION, plcId));
-      await batch.commit();
+      // The server deletes the PLC and its outstanding invitations together.
+      await callPlcSettings({ action: 'delete', plcId });
     },
     [user]
   );
 
-  // Any member of the PLC can set sharedSheetUrl when it is currently
-  // null/absent. The rule branch restricts the diff to sharedSheetUrl +
-  // updatedAt so one member can't also mutate memberUids on this path.
-  //
-  // Transactional set-if-empty: two members concurrently assigning their
-  // first PLC quiz could both call this. Without the transaction, the
-  // last write wins and one teammate's freshly-created sheet would be
-  // pointed at by the URL while the other's becomes a phantom in their
-  // Drive. With the transaction, we read the current value first; if a
-  // racing teammate has already populated `sharedSheetUrl`, we skip our
-  // write and return the existing URL — the caller then uses that
-  // canonical URL (and reconciles permissions for it) instead of the
-  // sheet they just created.
+  // Any member sets sharedSheetUrl only while it is empty; a teammate who won the race gets their URL back.
   const setPlcSharedSheetUrl = useCallback(
     async (plcId: string, url: string): Promise<string> => {
-      // Throw rather than silently no-op + return the input URL —
-      // returning would mislead the caller into thinking the URL was
-      // persisted, and they'd skip the auto-create retry that should
-      // run on next sign-in. Mirrors the pattern in createPlc / leavePlc.
       if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
-      return runTransaction(db, async (tx) => {
-        const ref = doc(db, PLCS_COLLECTION, plcId);
-        const snap = await tx.get(ref);
-        if (!snap.exists()) {
-          throw new Error(i18n.t('plc.errors.plcNotFound'));
-        }
-        const data = snap.data() as { sharedSheetUrl?: unknown };
-        const existing =
-          typeof data.sharedSheetUrl === 'string' && data.sharedSheetUrl
-            ? data.sharedSheetUrl
-            : null;
-        if (existing) {
-          // Race lost — keep the canonical URL, our own sheet becomes
-          // orphaned (rare; acceptable for a true concurrent-create
-          // collision).
-          return existing;
-        }
-        tx.update(ref, {
-          sharedSheetUrl: url,
-          updatedAt: serverTimestamp(),
-        });
-        return url;
+      const res = await callPlcSettings({
+        action: 'setSharedSheetUrl',
+        plcId,
+        url,
       });
+      return res.url ?? url;
     },
     [user]
   );
 
-  // Idempotent transactional clear: only writes when sharedSheetUrl is
-  // currently a non-empty string. The tightened rule
-  // `isSettingPlcSharedSheetUrl()` requires `sharedSheetUrl` to appear
-  // in `affectedKeys()`, so a redundant null→null write would be
-  // rejected with PERMISSION_DENIED. This guards the 404 recovery
-  // flow against the case where a racing teammate already cleared the
-  // URL between our 404 detection and our own clear call.
+  // Clears sharedSheetUrl only when it is set, so a teammate's earlier clear is a no-op.
   const clearPlcSharedSheetUrl = useCallback(
     async (plcId: string) => {
       if (!user) return;
-      await runTransaction(db, async (tx) => {
-        const ref = doc(db, PLCS_COLLECTION, plcId);
-        const snap = await tx.get(ref);
-        if (!snap.exists()) return;
-        const raw = (snap.data() as { sharedSheetUrl?: unknown })
-          .sharedSheetUrl;
-        const isNonEmptyString = typeof raw === 'string' && raw.length > 0;
-        if (!isNonEmptyString) {
-          // Already null/absent — nothing to clear. Skip the write.
-          return;
-        }
-        tx.update(ref, {
-          sharedSheetUrl: null,
-          updatedAt: serverTimestamp(),
-        });
-      });
+      await callPlcSettings({ action: 'clearSharedSheetUrl', plcId });
     },
     [user]
   );
@@ -825,12 +726,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     []
   );
 
-  // Any current member: write the canonical features map. We always send
-  // the full merged shape (defaults overlaid with the partial caller map)
-  // so partial writes can't leave dangling fields, and so the rule's
-  // `is map` check always sees a complete object. The `isUpdatingPlcFeatures`
-  // rule branch guards the field-set so this can't be used to smuggle
-  // membership/leadership/sheet-URL changes.
+  // Any current member writes the full features map, defaults overlaid with the caller's switches.
   const updatePlcFeatures = useCallback(
     async (plcId: string, features: PlcFeatureSettings) => {
       if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
@@ -838,40 +734,28 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         ...DEFAULT_PLC_FEATURE_SETTINGS,
         ...features,
       };
-      await setDoc(
-        doc(db, PLCS_COLLECTION, plcId),
-        { features: merged, updatedAt: serverTimestamp() },
-        { merge: true }
-      );
+      await callPlcSettings({ action: 'setFeatures', plcId, features: merged });
     },
     [user]
   );
 
-  // Any current member: flip the opt-in weekly digest flag. We write ONLY
-  // `digestOptIn` + `updatedAt` so the `isUpdatingPlcDigestOptIn` rule branch
-  // (which closes the diff to exactly those two keys) admits the write and the
-  // member can't smuggle membership/leadership/feature changes through it.
+  // Any current member flips the opt-in weekly digest flag.
   const updatePlcDigestOptIn = useCallback(
     async (plcId: string, optIn: boolean) => {
       if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
-      await setDoc(
-        doc(db, PLCS_COLLECTION, plcId),
-        { digestOptIn: optIn, updatedAt: serverTimestamp() },
-        { merge: true }
-      );
+      await callPlcSettings({ action: 'setDigestOptIn', plcId, optIn });
     },
     [user]
   );
 
-  // Lead or co-lead: updateDoc replaces the whole map, so pruned overrides really go away.
+  // Lead or co-lead: the server replaces the whole map, so pruned overrides really go away.
   const updatePlcMeetingCadence = useCallback(
     async (plcId: string, cadence: PlcMeetingCadence | null) => {
       if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
-      await updateDoc(doc(db, PLCS_COLLECTION, plcId), {
-        meetingCadence: cadence
-          ? cadenceForWrite(cadence, Date.now())
-          : deleteField(),
-        updatedAt: serverTimestamp(),
+      await callPlcSettings({
+        action: 'setMeetingCadence',
+        plcId,
+        cadence: cadence ? cadenceForWrite(cadence, Date.now()) : null,
       });
     },
     [user]
@@ -881,9 +765,10 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     async (plcId: string, labels: PlcNormingLevelLabels | null) => {
       if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
       const clean = parseNormingLevelLabels(labels);
-      await updateDoc(doc(db, PLCS_COLLECTION, plcId), {
-        normingLevelLabels: clean ?? deleteField(),
-        updatedAt: serverTimestamp(),
+      await callPlcSettings({
+        action: 'setNormingLabels',
+        plcId,
+        labels: clean ?? null,
       });
     },
     [user]
