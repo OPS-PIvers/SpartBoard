@@ -213,6 +213,7 @@
       "plcInvitationEmail",
       "plcMembershipV1",
       "plcNotesWriteV1",
+      "plcTeamItemsV1",
       "plcWeeklyDigest",
       "recomputePlcAssessments",
       "requestPlcMeetingNotesV1",
