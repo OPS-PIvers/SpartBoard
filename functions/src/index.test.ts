@@ -4064,6 +4064,7 @@ describe('index barrel — deployed export set', () => {
     'onUserProfileBuildingsChangedV1',
     'plcMembershipV1',
     'plcContentWriteV1',
+    'plcTeamItemsV1',
     'orgAdminV1',
     'shareMembershipV1',
     'setPlcNormingFlagV1',

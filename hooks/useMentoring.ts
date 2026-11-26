@@ -32,6 +32,7 @@ import type {
   PlcMentorRole,
 } from '@/types';
 import { logError } from '@/utils/logError';
+import { callPlcTeamItems } from '@/utils/plcTeamItemsClient';
 import { sanitizeActionItemsForWrite } from '@/utils/plcActionItems';
 import {
   pairNames,
@@ -426,33 +427,33 @@ export async function postMentoringTask(
   workspaces: readonly MentoringWorkspace[],
   drive: GoogleDriveService | null
 ): Promise<{ taskId: string; failedPairs: string[] }> {
-  const ref = doc(collection(db, PLCS, plc.id, 'tasks'));
-  await setDoc(ref, {
-    id: ref.id,
-    title: input.title,
-    instructions: input.instructions,
-    dueDate: input.dueDate,
-    submitter: input.submitter,
-    templateDoc: input.templateDoc,
-    createdBy: uid,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+  const { id: taskId } = await callPlcTeamItems({
+    action: 'postTask',
+    plcId: plc.id,
+    task: {
+      title: input.title,
+      instructions: input.instructions,
+      dueDate: input.dueDate,
+      submitter: input.submitter,
+      templateDoc: input.templateDoc,
+    },
   });
+  if (!taskId) throw new Error('Task was not posted');
   const failedPairs = await copyTemplateIntoWorkspaces(
     plc,
-    { id: ref.id, title: input.title, templateDoc: input.templateDoc },
+    { id: taskId, title: input.title, templateDoc: input.templateDoc },
     workspaces,
     uid,
     drive
   );
-  return { taskId: ref.id, failedPairs };
+  return { taskId, failedPairs };
 }
 
 export async function deleteMentoringTask(
   plcId: string,
   taskId: string
 ): Promise<void> {
-  await deleteDoc(doc(db, PLCS, plcId, 'tasks', taskId));
+  await callPlcTeamItems({ action: 'deleteTask', plcId, taskId });
 }
 
 /** Hands in a task: the submitter's own submission plus, if still open, its status on the workspace. */
