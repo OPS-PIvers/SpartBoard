@@ -19,7 +19,7 @@ const mockBuildings = [
 ];
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: mockUser }),
+  useAuth: () => ({ user: mockUser, canAccessFeature: () => false }),
 }));
 
 vi.mock('@/hooks/useAdminBuildings', () => ({

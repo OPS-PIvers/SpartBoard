@@ -29,6 +29,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useStudentAuthBootstrap } from '@/hooks/useStudentAuthBootstrap';
+import { usePeriodGate } from '@/hooks/usePeriodGate';
 import { logError } from '@/utils/logError';
 import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import { useDialog } from '@/context/useDialog';
@@ -42,7 +43,6 @@ import { GuidedLearningResponse, GuidedLearningSession } from '@/types';
 import { GuidedLearningPlayer } from '@/components/widgets/GuidedLearning/components/GuidedLearningPlayer';
 import { useServerNow } from '@/hooks/useServerNow';
 import { useStudentWindow } from '@/hooks/useStudentWindow';
-import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
 import { ResultsProtectionGate } from '@/components/student/ResultsProtectionGate';
 import {
@@ -51,11 +51,10 @@ import {
   FullPageLoader,
   StartScreen,
 } from './GuidedLearningStudentScreens';
-import {
-  GuidedLearningClosedScreen,
-  GuidedLearningPeriodLockedScreen,
-  GuidedLearningPeriodPausedOverlay,
-} from './GuidedLearningPeriodLockedScreen';
+import { GuidedLearningClosedScreen } from './GuidedLearningClosedScreen';
+import { StudentPeriodLockedScreen } from '@/components/student/StudentPeriodScreens';
+import { periodLockState } from '@/components/student/periodLockState';
+import { StudentPeriodPausedOverlay } from '@/components/student/StudentPeriodPausedOverlay';
 import {
   deriveGLStudentScreen,
   glFlowReducer,
@@ -254,34 +253,29 @@ const StudentExperience: React.FC<{
   }, []);
 
   // Per-period gate, re-checked as the clock passes a window edge.
-  const perPeriod = hasPeriodAccess(session) && !isViewOnly;
-  const periodNow = useServerNow(perPeriod ? 5000 : null);
   // This student's own Opens and Closes, on sessions saved with them.
   const studentWindow = useStudentWindow(session, pointer);
   const windowGated = studentWindow.enforced && !isViewOnly;
-  const windowOpen = !windowGated || studentWindow.state === 'open';
-  const gated = perPeriod || windowGated;
-  const canEnter =
-    (!perPeriod ||
-      studentCanEnter(session, periodKeys, anonymousUid, periodNow)) &&
-    windowOpen;
-  const gateKey = perPeriod
-    ? JSON.stringify([
-        periodKeys.map((k) => session?.periodAccess?.[k] ?? null),
-        session?.studentAccess?.[anonymousUid] ?? null,
-      ])
-    : '';
-  // A write the server refused as frozen holds the pause until the gate fields change.
-  const [frozenGate, setFrozenGate] = useState<string | null>(null);
-  if (frozenGate !== null && frozenGate !== gateKey) setFrozenGate(null);
-  const periodPaused =
-    (perPeriod && frozenGate === gateKey) || (gated && !canEnter);
-  // Once the player has shown, a later close pauses it in place rather than swapping screens.
-  const [entered, setEntered] = useState(false);
-  if (!entered && gated && started && canEnter && !contentPending) {
-    setEntered(true);
-  }
-  const periodHold = gated && (periodPaused || !entered);
+  const {
+    perPeriod,
+    gated,
+    now: periodNow,
+    canEnter,
+    paused: periodPaused,
+    entered,
+    hold: periodHold,
+    freeze,
+  } = usePeriodGate({
+    session,
+    periodKeys,
+    uid: anonymousUid,
+    active: !isViewOnly,
+    readyToEnter: started && !contentPending,
+    ownWindow: {
+      enforced: studentWindow.enforced,
+      open: studentWindow.state === 'open',
+    },
+  });
   // Close now, Archive and a sub's End all set closeAt; past it the rules refuse student writes.
   const closeAt = session?.closeAt;
   const closeNow = useServerNow(typeof closeAt === 'number' ? 5000 : null);
@@ -335,7 +329,7 @@ const StudentExperience: React.FC<{
     if (isViewOnly || periodPaused) return;
     saveResponse(null).catch((err: unknown) => {
       // Unsaved answers still go out with the next write or the submit.
-      if (perPeriod && isPermissionDenied(err)) setFrozenGate(gateKey);
+      if (perPeriod && isPermissionDenied(err)) freeze();
       else logError('GuidedLearningStudentApp.saveAnswer', err, { sessionId });
     });
   };
@@ -357,7 +351,7 @@ const StudentExperience: React.FC<{
       dispatchFlow({ type: 'submitSucceeded' });
     } catch (err) {
       if (perPeriod && isPermissionDenied(err)) {
-        setFrozenGate(gateKey);
+        freeze();
         dispatchFlow({ type: 'submitRefused' });
       } else {
         logError('GuidedLearningStudentApp.submit', err, { sessionId });
@@ -548,12 +542,15 @@ const StudentExperience: React.FC<{
       );
     case 'periodLocked':
       return (
-        <GuidedLearningPeriodLockedScreen
-          session={session}
-          periodKeys={periodKeys}
-          now={windowGated ? studentWindow.now : periodNow}
-          opensAt={windowGated ? studentWindow.window.openAt : undefined}
-          ownOpen={windowGated && studentWindow.state === 'upcoming'}
+        <StudentPeriodLockedScreen
+          title={session.title}
+          lock={periodLockState(
+            session,
+            periodKeys,
+            windowGated ? studentWindow.now : periodNow,
+            anonymousUid,
+            windowGated ? studentWindow : null
+          )}
         />
       );
     case 'enteringPeriod':
@@ -609,7 +606,11 @@ const StudentExperience: React.FC<{
             onBack={() => dispatchFlow({ type: 'endCardDismissed' })}
           />
         )}
-        {periodPaused && <GuidedLearningPeriodPausedOverlay />}
+        {periodPaused && (
+          <StudentPeriodPausedOverlay
+            closed={windowGated && studentWindow.state === 'closed'}
+          />
+        )}
         <div
           hidden={periodPaused}
           className="absolute right-3 z-40 flex flex-col items-end gap-2"

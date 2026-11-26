@@ -43,6 +43,10 @@ vi.mock('@/hooks/useBuildingSelection', () => ({
 
 import { WorkSymbolsConfigurationModal } from '@/components/admin/WorkSymbolsConfigurationModal';
 
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
+
 const permission: FeaturePermission = {
   widgetType: 'work-symbols',
   accessLevel: 'public',

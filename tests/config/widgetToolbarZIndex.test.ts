@@ -37,7 +37,6 @@ const ALLOWED_LOW_OVERLAYS = new Set([
   'components/layout/DashboardView.tsx:backdrop', // spotlight dim; the spotlit widget keeps its toolbar
   'components/layout/AnnotationOverlay.tsx:annotationChrome', // pointer-events-none annotation chrome
   'components/connections/WidgetConnectionControls.tsx:toolMenu', // click-catcher for its own menu
-  'components/flashcards/CheckTabWarning.tsx:overlay', // student app, no widgets
   'components/student/StudentApp.tsx:overlay', // student app, no widgets
 ]);
 

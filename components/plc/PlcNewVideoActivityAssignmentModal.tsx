@@ -430,6 +430,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
   if (step === 'pick') {
     return (
       <PlcSharePickerModal
+        widgetType="video-activity"
         title={t('plcDashboard.newAssignment.video.groupPickTitle', {
           defaultValue: 'New Team Video Activity Assignment',
         })}

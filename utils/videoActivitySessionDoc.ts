@@ -38,6 +38,8 @@ export interface VideoActivitySessionWindow {
 /** Admin gates the session doc honours, read from `canAccessFeature` by the calling hook. */
 export interface VideoActivitySessionGates {
   tabAwayTimerOn: boolean;
+  /** va-student-tab-rules: the student app applies each student's tab accommodations. */
+  studentTabRulesOn?: boolean;
   pageProtectionsOn: boolean;
   allowAnonymousJoin: boolean;
 }
@@ -151,11 +153,12 @@ export function buildVideoActivitySessionDoc(
     ...(classPeriodByClassId && Object.keys(classPeriodByClassId).length > 0
       ? { classPeriodByClassId }
       : {}),
-    ...(options || gates.tabAwayTimerOn
+    ...(options || gates.tabAwayTimerOn || gates.studentTabRulesOn
       ? {
           sessionOptions: {
             ...withPageProtectionGate(gates.pageProtectionsOn, options ?? {}),
             ...tabAwaySessionFields(gates.tabAwayTimerOn, options ?? {}),
+            ...(gates.studentTabRulesOn ? { studentTabRules: true } : {}),
           },
         }
       : {}),

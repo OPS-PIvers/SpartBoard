@@ -31,6 +31,10 @@ import {
 } from './sessionViewsMocks';
 import { type StudentQuizStateKey } from './devViewStates';
 
+// Each tab exit counts one more warning, like the server.
+let devStrikes = 0;
+const countDevStrike = () => Promise.resolve(++devStrikes);
+
 const noop = (): Promise<void> => Promise.resolve();
 
 const SUPPORTS_OVERRIDE = {
@@ -381,7 +385,7 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
         onAcknowledgeNotice={() => undefined}
         onComplete={noop}
         onSubmitPart={state === 'sq-stop-part' ? noop : undefined}
-        reportTabSwitch={() => Promise.resolve(0)}
+        reportTabSwitch={countDevStrike}
         onSetHandRaised={noop}
         handRaised={false}
         warningCount={0}

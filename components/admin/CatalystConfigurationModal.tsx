@@ -38,6 +38,8 @@ import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { Modal } from '@/components/common/Modal';
 import { SearchField } from '@/components/common/SearchField';
+import { useAuth } from '@/context/useAuth';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 
 const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -106,6 +108,8 @@ export const CatalystConfigurationModal: React.FC<
   const { activeDashboard, addToast } = useDashboard();
   const { uploadCatalystImage, uploading } = useStorage();
   const { showConfirm } = useDialog();
+  const { canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imagePreviewUrlRef = useRef<string | null>(null);
 
@@ -256,11 +260,11 @@ export const CatalystConfigurationModal: React.FC<
   const handleImageChange = (file: File, isRoutine: boolean) => {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       showMessage('error', 'Please select a PNG, JPEG, or WebP image.');
-      return;
+      return null;
     }
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
       showMessage('error', 'Image must be under 2 MB.');
-      return;
+      return null;
     }
     revokePreview();
     const preview = URL.createObjectURL(file);
@@ -277,7 +281,39 @@ export const CatalystConfigurationModal: React.FC<
         prev ? { ...prev, imageFile: file, imagePreview: preview } : null
       );
     }
+    return preview;
   };
+
+  // A picked file waits as a preview until Save; a picked link is kept as the image itself.
+  const pickedImage = (url: string, isRoutine: boolean) => {
+    if (url === imagePreviewUrlRef.current) return;
+    revokePreview();
+    const patch = { imageUrl: url, imageFile: null, imagePreview: null };
+    if (isRoutine) setRoutineEditor((prev) => ({ ...prev, ...patch }));
+    else setSetEditor((prev) => (prev ? { ...prev, ...patch } : null));
+  };
+
+  const renderImagePicker = (
+    editor: { imageUrl: string; imagePreview: string | null },
+    isRoutine: boolean
+  ) => (
+    <ImagePicker
+      value={
+        editor.imagePreview ??
+        (isSafeIconUrl(editor.imageUrl) ? editor.imageUrl : undefined)
+      }
+      accept={ALLOWED_IMAGE_TYPES.join(',')}
+      maxBytes={MAX_IMAGE_SIZE_BYTES}
+      tourScope={{
+        type: 'catalyst',
+        field: isRoutine ? 'routineImage' : 'setImage',
+      }}
+      // eslint-disable-next-line react-hooks/refs -- runs when an image is picked, not during render
+      upload={(file) => Promise.resolve(handleImageChange(file, isRoutine))}
+      // eslint-disable-next-line react-hooks/refs -- runs when an image is picked, not during render
+      onChange={(url) => pickedImage(url, isRoutine)}
+    />
+  );
 
   const handleSaveSet = async () => {
     if (!setEditor) return;
@@ -648,47 +684,51 @@ export const CatalystConfigurationModal: React.FC<
                   <label className="block text-sm font-bold text-slate-700 mb-1.5">
                     Set Image
                   </label>
-                  <div
-                    className="relative border-2 border-dashed border-slate-300 rounded-xl overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors group"
-                    style={{ minHeight: 140 }}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    {setEditor.imagePreview ||
-                    (setEditor.imageUrl &&
-                      isSafeIconUrl(setEditor.imageUrl)) ? (
-                      <>
-                        <img
-                          src={setEditor.imagePreview ?? setEditor.imageUrl}
-                          alt="Preview"
-                          className="absolute inset-0 w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <span className="text-white font-bold text-sm">
-                            Click to change
+                  {unifiedPicker ? (
+                    renderImagePicker(setEditor, false)
+                  ) : (
+                    <div
+                      className="relative border-2 border-dashed border-slate-300 rounded-xl overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors group"
+                      style={{ minHeight: 140 }}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {setEditor.imagePreview ||
+                      (setEditor.imageUrl &&
+                        isSafeIconUrl(setEditor.imageUrl)) ? (
+                        <>
+                          <img
+                            src={setEditor.imagePreview ?? setEditor.imageUrl}
+                            alt="Preview"
+                            className="absolute inset-0 w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="text-white font-bold text-sm">
+                              Click to change
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
+                          <Upload className="w-8 h-8" />
+                          <span className="text-xs font-medium">
+                            Upload image
                           </span>
                         </div>
-                      </>
-                    ) : (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
-                        <Upload className="w-8 h-8" />
-                        <span className="text-xs font-medium">
-                          Upload image
-                        </span>
-                      </div>
-                    )}
-                    <input
-                      // no-tour-anchor: hidden file input opened by its upload button
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImageChange(file, false);
-                      }}
-                    />
-                  </div>
+                      )}
+                      <input
+                        // no-tour-anchor: hidden file input opened by its upload button
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageChange(file, false);
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -921,47 +961,53 @@ export const CatalystConfigurationModal: React.FC<
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Button Image
                 </label>
-                <div
-                  className="relative border-2 border-dashed border-slate-300 rounded-xl overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors group"
-                  style={{ minHeight: 140 }}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {routineEditor.imagePreview ||
-                  (routineEditor.imageUrl &&
-                    isSafeIconUrl(routineEditor.imageUrl)) ? (
-                    <>
-                      <img
-                        src={
-                          routineEditor.imagePreview ?? routineEditor.imageUrl
-                        }
-                        alt="Preview"
-                        className="absolute inset-0 w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">
-                          Click to change
+                {unifiedPicker ? (
+                  renderImagePicker(routineEditor, true)
+                ) : (
+                  <div
+                    className="relative border-2 border-dashed border-slate-300 rounded-xl overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors group"
+                    style={{ minHeight: 140 }}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {routineEditor.imagePreview ||
+                    (routineEditor.imageUrl &&
+                      isSafeIconUrl(routineEditor.imageUrl)) ? (
+                      <>
+                        <img
+                          src={
+                            routineEditor.imagePreview ?? routineEditor.imageUrl
+                          }
+                          alt="Preview"
+                          className="absolute inset-0 w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <span className="text-white font-bold text-sm">
+                            Click to change
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
+                        <Upload className="w-8 h-8" />
+                        <span className="text-xs font-medium">
+                          Upload image
                         </span>
                       </div>
-                    </>
-                  ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
-                      <Upload className="w-8 h-8" />
-                      <span className="text-xs font-medium">Upload image</span>
-                    </div>
-                  )}
-                  <input
-                    // no-tour-anchor: hidden file input opened by its upload button
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleImageChange(file, true);
-                    }}
-                  />
-                </div>
+                    )}
+                    <input
+                      // no-tour-anchor: hidden file input opened by its upload button
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImageChange(file, true);
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

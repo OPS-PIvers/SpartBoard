@@ -37,6 +37,10 @@ import {
 } from '@/config/widgetDefaults';
 import { isTourSandboxActive } from '@/utils/tourSandbox';
 import { prefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
+import {
+  WidgetAccentContext,
+  widgetDialogAccent,
+} from '@/components/common/widgetAccentContext';
 
 const LIVE_SESSION_UPDATE_DEBOUNCE_MS = 800; // Balance between real-time updates and reducing Firestore write costs
 
@@ -396,7 +400,11 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
         )
       }
     >
-      {finalContent}
+      <WidgetAccentContext
+        value={widgetDialogAccent(widget.type, canAccessFeature)}
+      >
+        {finalContent}
+      </WidgetAccentContext>
     </DraggableWindow>
   );
 };

@@ -214,13 +214,13 @@ export const WritingResultsView: React.FC<WritingResultsViewProps> = ({
                   <ResultsSummaryCard
                     label="Class average"
                     value={average !== null ? `${average}%` : 'None yet'}
-                    detail={`${turnedIn} of ${rows.length} turned in · ${returned} returned`}
+                    detail={`${turnedIn} of ${rows.length} submitted · ${returned} returned`}
                   />
                   <ScoreDistributionBars scores={scores} />
                 </>
               ) : (
                 <ResultsSummaryCard
-                  label="Turned in"
+                  label="Submitted"
                   value={`${turnedIn} of ${rows.length}`}
                   detail={`${returned} returned`}
                 />

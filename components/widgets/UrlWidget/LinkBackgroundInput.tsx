@@ -12,6 +12,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
 import { URL_COLORS } from './icons';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -33,7 +34,8 @@ export const LinkBackgroundInput: React.FC<LinkBackgroundInputProps> = ({
   const inFlightRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
   const { addToast } = useDashboard();
   const { uploadSticker, deleteFile } = useStorage();
 
@@ -122,7 +124,7 @@ export const LinkBackgroundInput: React.FC<LinkBackgroundInputProps> = ({
 
   // Paste support — only while the inline image panel is mounted.
   useEffect(() => {
-    if (tab !== 'image') return;
+    if (tab !== 'image' || unifiedPicker) return;
     const onPaste = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (!containerRef.current?.contains(target)) return;
@@ -141,7 +143,7 @@ export const LinkBackgroundInput: React.FC<LinkBackgroundInputProps> = ({
     };
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
-  }, [tab, handleUpload]);
+  }, [tab, handleUpload, unifiedPicker]);
 
   return (
     <div ref={containerRef} className="space-y-2">
@@ -195,7 +197,36 @@ export const LinkBackgroundInput: React.FC<LinkBackgroundInputProps> = ({
         </div>
       )}
 
-      {tab === 'image' && (
+      {tab === 'image' && unifiedPicker && (
+        <ImagePicker
+          value={imageUrl}
+          maxBytes={MAX_BYTES}
+          tourScope={{ type: 'url', field: 'background' }}
+          tourOverrides={{
+            upload: tourFieldAttr('url.upload-image', 'url', 'new'),
+            remove: tourFieldAttr('url.remove-image', 'url', 'image'),
+          }}
+          upload={(file) => {
+            if (!user) throw new Error('Sign in to upload images.');
+            return uploadSticker(user.uid, file);
+          }}
+          onChange={(url) => {
+            const previous = imageUrl;
+            onChange({ color, imageUrl: url });
+            if (previous && previous !== url) {
+              void deleteFile(previous).catch((err: unknown) => {
+                console.warn(
+                  '[LinkBackgroundInput] Failed to delete replaced image.',
+                  err
+                );
+              });
+            }
+          }}
+          onRemove={() => void handleClearImage()}
+        />
+      )}
+
+      {tab === 'image' && !unifiedPicker && (
         <div className="space-y-2">
           {/* no-tour-anchor: hidden file input, opened by the upload buttons */}
           <input

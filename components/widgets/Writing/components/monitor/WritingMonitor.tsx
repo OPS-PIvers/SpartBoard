@@ -84,7 +84,7 @@ const setPeerReview = httpsCallable<Record<string, unknown>, unknown>(
   'setWritingPeerReviewV1'
 );
 const BUCKET_LABELS: Partial<Record<BucketKey, string>> = {
-  done: 'Turned in',
+  done: 'Submitted',
 };
 const fact = { fontSize: 'min(11px, 3.8cqmin)' };
 

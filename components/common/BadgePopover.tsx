@@ -6,6 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { WidgetAccentScope } from '@/components/common/WidgetAccentScope';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Z_INDEX } from '@/config/zIndex';
 import { scrollMovesAnchor } from '@/utils/domHelpers';
@@ -135,32 +136,34 @@ export const BadgePopover: React.FC<BadgePopoverProps> = ({
       {open &&
         pos &&
         createPortal(
-          <div
-            ref={panelRef}
-            role="dialog"
-            aria-label={dialogLabel}
-            tabIndex={-1}
-            onKeyDown={(e) => {
-              if (e.key !== 'Escape') return;
-              // Portalled to <body>: keep Escape away from DashboardView's handler.
-              e.stopPropagation();
-              close();
-            }}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: 'fixed',
-              top: pos.top,
-              bottom: pos.bottom,
-              left: pos.left,
-              maxHeight: pos.maxHeight,
-              width: PANEL_WIDTH,
-              maxWidth: 'calc(100vw - 16px)',
-              zIndex: panelZIndex,
-            }}
-            className="overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-lg focus:outline-hidden"
-          >
-            {panel}
-          </div>,
+          <WidgetAccentScope>
+            <div
+              ref={panelRef}
+              role="dialog"
+              aria-label={dialogLabel}
+              tabIndex={-1}
+              onKeyDown={(e) => {
+                if (e.key !== 'Escape') return;
+                // Portalled to <body>: keep Escape away from DashboardView's handler.
+                e.stopPropagation();
+                close();
+              }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: 'fixed',
+                top: pos.top,
+                bottom: pos.bottom,
+                left: pos.left,
+                maxHeight: pos.maxHeight,
+                width: PANEL_WIDTH,
+                maxWidth: 'calc(100vw - 16px)',
+                zIndex: panelZIndex,
+              }}
+              className="overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-lg focus:outline-hidden"
+            >
+              {panel}
+            </div>
+          </WidgetAccentScope>,
           document.body
         )}
     </span>

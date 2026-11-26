@@ -52616,6 +52616,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ],
     "routes": [
       {
+        "surface": "library.activity-wall",
+        "kind": "widget",
+        "widget_type": "activity-wall",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
         "surface": "library.activity-wall.library",
         "kind": "modal",
         "path": [
@@ -53135,6 +53144,77 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "needs": [
           "library-item",
           "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall.selection-mode",
+    "label": "Select button in the Activity Wall library",
+    "scope": "widget",
+    "requires": "widget-restored",
+    "routes": [
+      {
+        "surface": "library.activity-wall",
+        "kind": "widget",
+        "widget_type": "activity-wall",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall.bulk-move",
+    "label": "Move to folder button in the Activity Wall bulk action bar",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall",
+        "kind": "widget",
+        "widget_type": "activity-wall",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall.bulk-delete",
+    "label": "Delete button in the Activity Wall bulk action bar",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall",
+        "kind": "widget",
+        "widget_type": "activity-wall",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall.bulk-clear",
+    "label": "Clear selection button in the Activity Wall bulk action bar",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall",
+        "kind": "widget",
+        "widget_type": "activity-wall",
+        "path": [],
+        "needs": [
           "widget-on-stage"
         ]
       }
@@ -69172,6 +69252,97 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "image-picker.open",
+    "label": "Add image button that opens the image picker",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.shared-image-picker",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "image-picker.upload",
+    "label": "Upload button in the image picker",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.shared-image-picker",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "image-picker.drive",
+    "label": "Google Drive button in the image picker",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.shared-image-picker",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "image-picker.link",
+    "label": "Image link button in the image picker",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.shared-image-picker",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "image-picker.link-input",
+    "label": "Image link field in the image picker",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.shared-image-picker",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "image-picker.link-add",
+    "label": "Add button for an image link in the image picker",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.shared-image-picker",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "image-picker.remove",
+    "label": "Remove image button in the image picker",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.shared-image-picker",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "url.upload-image",
     "label": "Upload image button in the link picker",
     "scope": "field",
@@ -83938,20 +84109,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "student.quiz.period-confirm",
-    "label": "Continue after picking a class period",
-    "scope": "board",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "student-quiz.page",
-        "kind": "page",
-        "url": "/quiz",
-        "path": []
-      }
-    ]
-  },
-  {
     "id": "student.quiz.period-back",
     "label": "Go back on the class period step",
     "scope": "board",
@@ -84059,7 +84216,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "student.quiz.retry-submit",
-    "label": "Try again when turning in after time is up fails",
+    "label": "Try again button when a quiz could not be submitted",
     "scope": "board",
     "persists": true,
     "routes": [
@@ -87013,23 +87170,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "student.video-activity.period-option",
     "label": "Class option on the student Video Activity class picker",
     "scope": "board",
-    "routes": [
-      {
-        "surface": "student-video.page",
-        "kind": "page",
-        "url": "/activity/{sessionId}",
-        "path": [],
-        "needs": [
-          "live-session"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "student.video-activity.period-continue",
-    "label": "Continue button on the student Video Activity class picker",
-    "scope": "board",
-    "persists": true,
     "routes": [
       {
         "surface": "student-video.page",

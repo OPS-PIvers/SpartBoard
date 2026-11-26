@@ -725,7 +725,7 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
       ? 'Scores published'
       : paper
         ? submitted > 0
-          ? `On paper · ${submitted} turned in`
+          ? `On paper · ${submitted} submitted`
           : 'On paper'
         : undefined;
 

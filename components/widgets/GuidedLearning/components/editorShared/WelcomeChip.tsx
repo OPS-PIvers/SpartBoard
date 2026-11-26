@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { WidgetAccentScope } from '@/components/common/WidgetAccentScope';
 import { ChevronDown, MessageSquare } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Z_INDEX } from '@/config/zIndex';
@@ -73,52 +74,54 @@ export const WelcomeChip: React.FC<WelcomeChipProps> = ({
         // Portal'd to document.body so the popover escapes the modal
         // body's `overflow-hidden` and the chip row's `overflow-x-auto`.
         createPortal(
-          <div
-            ref={popoverRef}
-            role="dialog"
-            aria-label="Welcome screen settings"
-            data-click-outside-ignore="true"
-            data-widget-portal=""
-            className="rounded-xl border border-slate-200 bg-white p-3 shadow-lg"
-            style={{
-              position: 'fixed',
-              top: pos.top,
-              left: pos.left,
-              width: WELCOME_CHIP_POPOVER_WIDTH,
-              zIndex: Z_INDEX.modalContent,
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                e.nativeEvent.stopImmediatePropagation();
-                // Also stop React's synthetic bubble: this popover renders in
-                // the widget settings panel wrapped by DraggableWindow's
-                // onKeyDown, whose flipped-close branch would otherwise fire and
-                // close the whole settings panel along with this popover.
-                e.stopPropagation();
-                setOpen(false);
-              }
-            }}
-          >
-            <label className="flex items-start gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                {...tourAttr('gl-editor.welcome-enabled')}
-                checked={enabled}
-                onChange={(e) => onEnabledChange(e.target.checked)}
-                className="accent-brand-blue-primary w-4 h-4 mt-0.5"
+          <WidgetAccentScope>
+            <div
+              ref={popoverRef}
+              role="dialog"
+              aria-label="Welcome screen settings"
+              data-click-outside-ignore="true"
+              data-widget-portal=""
+              className="rounded-xl border border-slate-200 bg-white p-3 shadow-lg"
+              style={{
+                position: 'fixed',
+                top: pos.top,
+                left: pos.left,
+                width: WELCOME_CHIP_POPOVER_WIDTH,
+                zIndex: Z_INDEX.modalContent,
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.nativeEvent.stopImmediatePropagation();
+                  // Also stop React's synthetic bubble: this popover renders in
+                  // the widget settings panel wrapped by DraggableWindow's
+                  // onKeyDown, whose flipped-close branch would otherwise fire and
+                  // close the whole settings panel along with this popover.
+                  e.stopPropagation();
+                  setOpen(false);
+                }
+              }}
+            >
+              <label className="flex items-start gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  {...tourAttr('gl-editor.welcome-enabled')}
+                  checked={enabled}
+                  onChange={(e) => onEnabledChange(e.target.checked)}
+                  className="accent-brand-blue-primary w-4 h-4 mt-0.5"
+                />
+                <span className="font-bold text-xs">Show welcome screen</span>
+              </label>
+              <textarea
+                {...tourAttr('gl-editor.welcome-message')}
+                value={message}
+                onChange={(e) => onMessageChange(e.target.value)}
+                disabled={!enabled}
+                rows={3}
+                placeholder="What should students know before they begin?"
+                className="mt-2 w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm resize-none disabled:bg-slate-50 disabled:text-slate-400"
               />
-              <span className="font-bold text-xs">Show welcome screen</span>
-            </label>
-            <textarea
-              {...tourAttr('gl-editor.welcome-message')}
-              value={message}
-              onChange={(e) => onMessageChange(e.target.value)}
-              disabled={!enabled}
-              rows={3}
-              placeholder="What should students know before they begin?"
-              className="mt-2 w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm resize-none disabled:bg-slate-50 disabled:text-slate-400"
-            />
-          </div>,
+            </div>
+          </WidgetAccentScope>,
           document.body
         )}
     </div>

@@ -39,6 +39,8 @@ interface WallEditorModalProps {
   save?: (entry: ActivityWallLibraryEntry) => Promise<void>;
   /** On a colleague's wall: classes this teacher can't change, and whether they may add classes. */
   classLock?: { locked: string[]; canAdd: boolean };
+  /** Folder a new wall is filed in. */
+  newFolderId?: string | null;
 }
 
 const inputClass =
@@ -68,6 +70,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
   onSaved,
   save,
   classLock,
+  newFolderId,
 }) => {
   const { user, featurePermissions, selectedBuildings } = useAuth();
   const { saveActivity } = useActivityWallLibrary(user?.uid);
@@ -100,6 +103,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
       showNames: buildingDefaults.showNames ?? blank.showNames,
       maxPostsPerStudent:
         buildingDefaults.maxPostsPerStudent ?? blank.maxPostsPerStudent,
+      ...(newFolderId ? { folderId: newFolderId } : {}),
     };
   };
 

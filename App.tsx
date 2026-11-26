@@ -24,6 +24,7 @@ import {
   RequireStudentAuth,
 } from './context/StudentAuthContext';
 import { StudentIdleTimeoutGuard } from './components/student/StudentIdleTimeoutGuard';
+import { StudentOfflineBanner } from './components/common/StudentOfflineBanner';
 import {
   getStudentPreview,
   getViewAsTabState,
@@ -504,6 +505,14 @@ const ClassStudentPageDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/ClassStudentPageDevHarness').then((module) => ({
         default: module.ClassStudentPageDevHarness,
+      }))
+    )
+  : null;
+// DEV-ONLY: the shared student join, class and locked screens on fixtures.
+const StudentScreensDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/StudentScreensDevHarness').then((m) => ({
+        default: m.StudentScreensDevHarness,
       }))
     )
   : null;
@@ -1655,6 +1664,14 @@ const App: React.FC = () => {
     );
   }
 
+  if (StudentScreensDevHarness && pathname === '/student-screens-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <StudentScreensDevHarness />
+      </Suspense>
+    );
+  }
+
   // The student landing page on fixtures; auth-bypass only, so never on a deployed site.
   if (
     StudentLandingDevHarness &&
@@ -2010,6 +2027,7 @@ const App: React.FC = () => {
     return (
       <DialogProvider>
         <StudentIdleTimeoutGuard />
+        <StudentOfflineBanner />
         <Suspense fallback={<FullPageLoader />}>
           <MiniAppStudentApp />
         </Suspense>
@@ -2121,6 +2139,7 @@ const App: React.FC = () => {
     return (
       <DialogProvider>
         <StudentIdleTimeoutGuard />
+        <StudentOfflineBanner />
         <Suspense fallback={<FullPageLoader />}>
           <ActivityWallStudentApp />
         </Suspense>
@@ -2138,6 +2157,7 @@ const App: React.FC = () => {
     return (
       <DialogProvider>
         <StudentIdleTimeoutGuard />
+        <StudentOfflineBanner />
         <Suspense fallback={<FullPageLoader />}>
           <PollVoteApp />
         </Suspense>
@@ -2153,6 +2173,7 @@ const App: React.FC = () => {
     return (
       <DialogProvider>
         <StudentIdleTimeoutGuard />
+        <StudentOfflineBanner />
         <Suspense fallback={<FullPageLoader />}>
           <GuidedLearningStudentApp />
         </Suspense>
@@ -2201,6 +2222,7 @@ const App: React.FC = () => {
       <DialogProvider>
         <StudentAuthProvider>
           <RequireStudentAuth>
+            <StudentOfflineBanner />
             <Suspense fallback={<FullPageLoader />}>
               <ProjectStudentPage />
             </Suspense>

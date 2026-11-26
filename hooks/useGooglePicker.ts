@@ -65,7 +65,14 @@ const STIMULUS_MIME_TYPES = [
 /** Options for `openPicker`. Default mode is `'docs'`. */
 export interface OpenPickerOptions {
   mode?:
-    'docs' | 'images' | 'sheets' | 'slides' | 'scans' | 'documents' | 'stimuli';
+    | 'docs'
+    | 'images'
+    | 'images-pdf'
+    | 'sheets'
+    | 'slides'
+    | 'scans'
+    | 'documents'
+    | 'stimuli';
   /**
    * Optional OAuth token override. When supplied, the Picker authenticates with
    * this instead of the hook's render-time `googleAccessToken`. Lets a caller
@@ -216,6 +223,11 @@ export const useGooglePicker = () => {
                           ? STIMULUS_MIME_TYPES
                           : SUPPORTED_MIME_TYPES;
 
+            // Images and PDFs, for pickers that also take a PDF.
+            const viewMimes =
+              mode === 'images-pdf'
+                ? `${IMAGE_MIME_TYPES},application/pdf`
+                : mimeTypes;
             const fileIds = options?.fileIds ?? [];
             const docsView =
               fileIds.length > 0
@@ -226,8 +238,8 @@ export const useGooglePicker = () => {
                     // Enable folder navigation for docs AND sheets so teachers can
                     // browse into Drive subfolders (the app itself files quizzes under
                     // `SpartBoard/Quizzes/`); only the image picker stays flat.
-                    .setIncludeFolders(mode !== 'images')
-                    .setMimeTypes(mimeTypes)
+                    .setIncludeFolders(!mode.startsWith('images'))
+                    .setMimeTypes(viewMimes)
                     .setMode(google.picker.DocsViewMode.LIST);
 
             // Only the dedicated Google API key is valid for Picker — the
@@ -240,7 +252,7 @@ export const useGooglePicker = () => {
 
             const title =
               options?.title ??
-              (mode === 'images'
+              (mode === 'images' || mode === 'images-pdf'
                 ? 'Select an image from Drive'
                 : mode === 'sheets'
                   ? 'Select a Google Sheet'

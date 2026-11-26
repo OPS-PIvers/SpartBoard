@@ -5,6 +5,10 @@ import { render, cleanup, fireEvent } from '@testing-library/react';
 
 import { RecessGearConfigurationPanel } from '@/components/admin/RecessGearConfigurationPanel';
 
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
+
 afterEach(cleanup);
 
 describe('RecessGearConfigurationPanel — update frequency field', () => {

@@ -321,6 +321,7 @@ export const useVideoActivityAssignments = (
   const canAccessFeature = useContext(AuthContext)?.canAccessFeature;
   const allowAnonymousJoin = canAccessFeature?.('anonymous-join') !== false;
   const tabAwayTimerOn = canAccessFeature?.('tab-away-timer') === true;
+  const studentTabRulesOn = canAccessFeature?.('va-student-tab-rules') === true;
   const pageProtectionsOn =
     canAccessFeature?.(PAGE_PROTECTIONS_FEATURE) === true;
   const { setAssignmentTargets } = useSetAssignmentTargets();
@@ -448,7 +449,12 @@ export const useVideoActivityAssignments = (
         sessionOptions: settings.sessionOptions,
         status: initialStatus === 'active' ? 'active' : 'ended',
         now,
-        gates: { tabAwayTimerOn, pageProtectionsOn, allowAnonymousJoin },
+        gates: {
+          tabAwayTimerOn,
+          studentTabRulesOn,
+          pageProtectionsOn,
+          allowAnonymousJoin,
+        },
         mode,
         classIds: targetClassIds,
         periodNames: targetPeriodNames,
@@ -495,7 +501,13 @@ export const useVideoActivityAssignments = (
 
       return { id: assignmentId };
     },
-    [userId, allowAnonymousJoin, tabAwayTimerOn, pageProtectionsOn]
+    [
+      userId,
+      allowAnonymousJoin,
+      tabAwayTimerOn,
+      studentTabRulesOn,
+      pageProtectionsOn,
+    ]
   );
 
   const setStatus = useCallback(

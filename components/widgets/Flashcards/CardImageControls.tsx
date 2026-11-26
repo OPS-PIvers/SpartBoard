@@ -2,7 +2,9 @@ import React, { useRef, useState } from 'react';
 import { ImagePlus, Loader2, Trash2 } from 'lucide-react';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { ImageLightbox } from '@/components/common/ImageLightbox';
-import type { CardImageState } from './useCardImage';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
+import { useAuth } from '@/context/useAuth';
+import type { CardImageState, CardImageUploader } from './useCardImage';
 
 const ICON = { width: 'min(15px, 4cqmin)', height: 'min(15px, 4cqmin)' };
 const THUMB = 'min(26px, 6.5cqmin)';
@@ -13,8 +15,14 @@ interface ButtonProps {
   label: string;
   side: 'term' | 'definition';
   fieldKey: string;
+  upload: CardImageUploader | null;
+  onPick: (url: string) => void;
   onRemove: () => void;
 }
+
+const ACCEPT = 'image/png,image/jpeg,image/webp,image/gif';
+// Photos are shrunk before they save, so the picker takes any size like the old button did.
+const NO_SIZE_CAP = Number.MAX_SAFE_INTEGER;
 
 /** Inside the field: picks a picture, or shows it small and opens a preview. */
 export const CardImageButton: React.FC<ButtonProps> = ({
@@ -23,10 +31,14 @@ export const CardImageButton: React.FC<ButtonProps> = ({
   label,
   side,
   fieldKey,
+  upload,
+  onPick,
   onRemove,
 }) => {
   const input = useRef<HTMLInputElement>(null);
   const [previewing, setPreviewing] = useState(false);
+  const { canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
   const anchor =
     side === 'term'
       ? tourFieldAttr('flashcards.card-term-image', 'flashcards', fieldKey)
@@ -77,15 +89,41 @@ export const CardImageButton: React.FC<ButtonProps> = ({
       </>
     );
   }
+  const buttonClassName = `rounded-lg hover:bg-slate-100 hover:text-slate-700 disabled:cursor-wait ${
+    image.failed ? 'text-rose-600' : 'text-slate-400'
+  }`;
+  if (unifiedPicker && upload && !image.uploading) {
+    return (
+      <ImagePicker
+        layout="button"
+        label={`Add image to ${label}`}
+        accept={ACCEPT}
+        maxBytes={NO_SIZE_CAP}
+        tourScope={{ type: 'flashcards', field: fieldKey }}
+        tourOverrides={{ open: anchor }}
+        buttonClassName={buttonClassName}
+        buttonStyle={{ padding: 'min(5px, 1.2cqmin)' }}
+        iconStyle={ICON}
+        linkAsFile
+        upload={async (file) => {
+          const url = await image.track(upload(file));
+          if (!url) throw new Error("Image didn't upload");
+          return url;
+        }}
+        onChange={(url) => {
+          image.clearFailed();
+          onPick(url);
+        }}
+      />
+    );
+  }
   return (
     <>
       <button
         type="button"
         onClick={() => input.current?.click()}
         disabled={image.uploading}
-        className={`rounded-lg hover:bg-slate-100 hover:text-slate-700 disabled:cursor-wait ${
-          image.failed ? 'text-rose-600' : 'text-slate-400'
-        }`}
+        className={buttonClassName}
         style={{ padding: 'min(5px, 1.2cqmin)' }}
         aria-label={`Add image to ${label}`}
         title={image.failed ? "Image didn't upload" : 'Add image'}

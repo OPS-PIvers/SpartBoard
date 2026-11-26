@@ -36,6 +36,7 @@ export const TOUR_CONDITION_DONE_FACTS: readonly string[] = [
 ];
 
 export const TOUR_CONDITION_FEATURES: readonly string[] = [
+  'activity-wall-library-face',
   'ai-file-context',
   'anonymous-join',
   'assign-open-check',
@@ -119,6 +120,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'plc-docs-toolbar',
   'plc-goal-coach',
   'plc-meeting-ai-notes',
+  'plc-update-shared-copy',
   'question-bank-ai',
   'quiz',
   'quiz-blank-types',
@@ -165,7 +167,9 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'subs-live-tours',
   'substitute-sharing',
   'tab-away-timer',
+  'unified-image-picker',
   'universal-import',
+  'va-student-tab-rules',
   'video-activity-ai',
   'video-activity-audio-transcription',
   'video-activity-live',
@@ -175,6 +179,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'web-tours',
   'webcam-ai',
   'whiteboard-pro',
+  'widget-colored-dialogs',
   'writing-peer-review',
 ];
 

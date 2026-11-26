@@ -4,15 +4,9 @@ import type {
   MiniAppSession,
   VideoActivitySession,
 } from '@/types';
-import {
-  VideoActivityPeriodLockedScreen,
-  VideoActivityPeriodPausedOverlay,
-} from '@/components/videoActivity/VideoActivityPeriodLockedScreen';
-import {
-  MiniAppPeriodLockedScreen,
-  MiniAppPeriodPausedOverlay,
-} from '@/components/miniApp/MiniAppPeriodLockedScreen';
-import { GuidedLearningPeriodLockedScreen } from '@/components/guidedLearning/GuidedLearningPeriodLockedScreen';
+import { StudentPeriodLockedScreen } from '@/components/student/StudentPeriodScreens';
+import { periodLockState } from '@/components/student/periodLockState';
+import { StudentPeriodPausedOverlay } from '@/components/student/StudentPeriodPausedOverlay';
 
 const NOW = Date.now();
 const OPENS = NOW + 26 * 3_600_000;
@@ -27,50 +21,43 @@ const mini = {
 } as MiniAppSession;
 const gl = { id: 'gl', title: 'Parts of a cell' } as GuidedLearningSession;
 
+const upcoming = { window: { openAt: OPENS }, state: 'upcoming' } as const;
+const closed = { window: { closeAt: NOW - 1 }, state: 'closed' } as const;
+
 const VIEWS: Record<string, React.ReactNode> = {
   'va-upcoming': (
-    <VideoActivityPeriodLockedScreen
-      session={va}
-      periodKeys={[]}
-      now={NOW}
-      started={false}
-      ownWindow={{ window: { openAt: OPENS }, state: 'upcoming' }}
+    <StudentPeriodLockedScreen
+      title={va.activityTitle}
+      lock={periodLockState(va, [], NOW, null, upcoming)}
     />
   ),
   'va-closed': (
-    <VideoActivityPeriodLockedScreen
-      session={va}
-      periodKeys={[]}
-      now={NOW}
+    <StudentPeriodLockedScreen
+      title={va.activityTitle}
       started
-      ownWindow={{ window: { closeAt: NOW - 1 }, state: 'closed' }}
+      lock={periodLockState(va, [], NOW, null, closed)}
     />
   ),
   'va-closed-overlay': (
     <div className="relative h-screen bg-black">
-      <VideoActivityPeriodPausedOverlay closed />
+      <StudentPeriodPausedOverlay closed />
     </div>
   ),
   'mini-upcoming': (
-    <MiniAppPeriodLockedScreen
-      session={mini}
-      periodKeys={[]}
-      now={NOW}
-      opensAt={OPENS}
+    <StudentPeriodLockedScreen
+      title={mini.appTitle}
+      lock={periodLockState(mini, [], NOW, null, upcoming)}
     />
   ),
   'mini-closed-overlay': (
     <div className="relative h-screen bg-slate-900">
-      <MiniAppPeriodPausedOverlay closed />
+      <StudentPeriodPausedOverlay closed />
     </div>
   ),
   'gl-upcoming': (
-    <GuidedLearningPeriodLockedScreen
-      session={gl}
-      periodKeys={[]}
-      now={NOW}
-      opensAt={OPENS}
-      ownOpen
+    <StudentPeriodLockedScreen
+      title={gl.title}
+      lock={periodLockState(gl, [], NOW, null, upcoming)}
     />
   ),
 };

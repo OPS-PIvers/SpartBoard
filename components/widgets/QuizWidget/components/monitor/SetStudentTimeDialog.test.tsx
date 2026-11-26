@@ -41,7 +41,9 @@ describe('SetStudentTimeDialog', () => {
       />
     );
     expect(
-      screen.getByText('Work turned in after the due date shows as Late.')
+      screen.getByText(
+        'Any work submitted after the due date will be marked Late.'
+      )
     ).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Closes time'), {
       target: { value: '07:00' },

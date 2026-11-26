@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type { QuizQuestion, QuizResponse, QuizSession } from '@/types';
 import {
   buildReviewRanking,
+  classAverage,
+  classStatResponses,
   classFirstTryAccuracy,
   gameFirstTry,
   isResultsFinished,
@@ -79,6 +81,73 @@ describe('reviewResults', () => {
       ['b', 1],
       ['a', 2],
       ['c', 2],
+    ]);
+  });
+});
+
+describe('classAverage (AB-389)', () => {
+  const qs = [
+    questions[0],
+    {
+      id: 'q2',
+      type: 'free-response',
+      text: 'Explain',
+      correctAnswer: '',
+      incorrectAnswers: [],
+      timeLimit: 0,
+      points: 1,
+    },
+  ] as QuizQuestion[];
+  const done = (answers: QuizResponse['answers'], grading = {}) =>
+    ({
+      studentUid: 'u',
+      status: 'completed',
+      answers,
+      grading,
+    }) as unknown as QuizResponse;
+  const graded = done(
+    [
+      { questionId: 'q1', answer: 'a' },
+      { questionId: 'q2', answer: 'Because' },
+    ] as QuizResponse['answers'],
+    { q2: { pointsAwarded: 1, gradedBy: 't', gradedAt: 1 } }
+  );
+  const ungraded = done([
+    { questionId: 'q1', answer: 'a' },
+    { questionId: 'q2', answer: 'Because' },
+  ] as QuizResponse['answers']);
+
+  it('counts an ungraded answer as 0 and marks the average provisional', () => {
+    expect(classAverage([graded, ungraded], qs, paced, null, false)).toEqual({
+      average: 75,
+      provisional: true,
+      skipped: 0,
+    });
+  });
+
+  it('skips students awaiting a grade when asked', () => {
+    expect(classAverage([graded, ungraded], qs, paced, null, true)).toEqual({
+      average: 100,
+      provisional: false,
+      skipped: 1,
+    });
+  });
+
+  it('has no average when every student is awaiting a grade', () => {
+    expect(classAverage([ungraded], qs, paced, null, true)).toEqual({
+      average: null,
+      provisional: false,
+      skipped: 1,
+    });
+  });
+
+  it('leaves the same students out of the score distribution', () => {
+    expect(classStatResponses([graded, ungraded], qs, paced, true)).toEqual([
+      graded,
+    ]);
+    expect(classStatResponses([graded, ungraded], qs, paced, false)).toEqual([
+      graded,
+      ungraded,
     ]);
   });
 });

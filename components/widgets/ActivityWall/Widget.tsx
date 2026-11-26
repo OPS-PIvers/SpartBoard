@@ -72,6 +72,7 @@ import {
 import { WallEditorModal } from './editor/WallEditorModal';
 import { LAYOUT_OPTIONS } from './editor/layoutOptions';
 import { WallLibraryModal } from './WallLibraryModal';
+import { ActivityWallManager } from './ActivityWallManager';
 import { ModerationDrawer } from './ModerationDrawer';
 import { ActivityWallShareModal } from './ShareModal';
 import { useActivityWallSession } from './hooks/useActivityWallSession';
@@ -147,6 +148,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const { showConfirm } = useDialog();
   const claudeReview = useClaudeReview('activity_wall_activities');
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
+  const libraryOnFace = canAccessFeature('activity-wall-library-face');
   const config = widget.config as ActivityWallConfig;
   const imageSize = isWallImageSize(config.imageSize)
     ? config.imageSize
@@ -178,6 +180,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     saveActivity,
     deleteActivity,
     clearActivityPosts,
+    reorderActivities,
   } = useActivityWallLibrary(inSubShare ? undefined : user?.uid);
 
   const ownEntry = useMemo(
@@ -256,6 +259,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const [editorEntry, setEditorEntry] = useState<
     ActivityWallLibraryEntry | null | undefined
   >(undefined);
+  const [newWallFolderId, setNewWallFolderId] = useState<string | null>(null);
+  const createWall = (folderId: string | null = null) => {
+    setNewWallFolderId(folderId);
+    setEditorEntry(null);
+  };
   const handleEditEntry = (entry: ActivityWallLibraryEntry) => {
     claudeReview.markReviewed(entry);
     setEditorEntry(entry);
@@ -375,11 +383,34 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         config: {
           activeActivityId: entryId,
           activeActivityOwnerUid: entryId ? (user?.uid ?? null) : null,
+          ...(libraryOnFace ? { libraryOverWallId: null } : {}),
         },
       });
     },
-    [updateWidget, user?.uid, widget.id]
+    [libraryOnFace, updateWidget, user?.uid, widget.id]
   );
+
+  // A View-Only board can't save the widget, so it keeps the dialog.
+  const libraryDialog = !libraryOnFace || isActiveBoardReadOnly;
+  const openLibrary = useCallback(() => {
+    if (libraryDialog) {
+      setLibraryOpen(true);
+    } else {
+      updateWidget(widget.id, {
+        config: { libraryOverWallId: config.activeActivityId ?? null },
+      });
+    }
+  }, [config.activeActivityId, libraryDialog, updateWidget, widget.id]);
+
+  // The library is the widget face until a wall is opened, as in Quiz and Video Activity.
+  const showLibraryFace =
+    libraryOnFace &&
+    !inShare &&
+    // Tied to the open wall, so a wall opened from anywhere else shows at once.
+    ((!!config.activeActivityId &&
+      config.libraryOverWallId === config.activeActivityId) ||
+      (!foreignOwnerUid &&
+        (!config.activeActivityId || (!libraryLoading && !activeEntry))));
 
   // Import's Activity Wall Conversion lands here: the wall is saved, then shown.
   const importHandoff = useImportHandoff(widget.id);
@@ -569,6 +600,26 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     [config.activeActivityId, deleteActivity, setActiveEntry]
   );
 
+  const openWallOnBoard = (entryId: string) => {
+    const open = () => {
+      setActiveEntry(entryId);
+      setLibraryOpen(false);
+    };
+    const entry = entries.find((e) => e.id === entryId);
+    if (entry) claudeReview.whenReviewed(entry, open, 'Open anyway');
+    else open();
+  };
+  const wallBadgesFor = (entry: ActivityWallLibraryEntry) => {
+    const review = claudeReview.badge(entry, () => handleEditEntry(entry));
+    return review ? [review] : [];
+  };
+  const confirmDelete = (message: string) =>
+    showConfirm(message, {
+      title: 'Delete',
+      variant: 'danger',
+      confirmLabel: 'Delete',
+    });
+
   const connectDrive = useCallback(async () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
       string | undefined;
@@ -668,7 +719,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     {
       label: 'Open wall library',
       icon: LibraryBig,
-      run: () => setLibraryOpen(true),
+      run: openLibrary,
       disabled: false,
       tourAttrs: tourAttr('activity-wall.library', widget.id, widget.type),
     },
@@ -905,7 +956,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
               widget.id,
               widget.type
             )}
-            onClick={() => setLibraryOpen(true)}
+            onClick={openLibrary}
             className="rounded-lg bg-brand-blue-primary font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
             style={{
               padding: 'min(8px, 2cqmin) min(14px, 3.4cqmin)',
@@ -1002,16 +1053,46 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 
   return (
     <>
-      <WidgetLayout
-        padding="p-0"
-        content={
-          <div className="flex h-full w-full flex-col overflow-hidden">
-            {header}
-            {driveBanner}
-            <div className="min-h-0 flex-1">{body}</div>
-          </div>
-        }
-      />
+      {showLibraryFace ? (
+        <WidgetLayout
+          padding="p-0"
+          contentClassName="flex-1 min-h-0"
+          content={
+            <ActivityWallManager
+              widget={widget}
+              uid={user?.uid}
+              entries={entries}
+              loading={libraryLoading}
+              activeEntryId={config.activeActivityId ?? null}
+              readOnly={isActiveBoardReadOnly}
+              onOpenOnBoard={openWallOnBoard}
+              onCreate={createWall}
+              onEdit={handleEditEntry}
+              badgesFor={wallBadgesFor}
+              onDuplicate={wallDuplicate.duplicate}
+              onDelete={removeWall}
+              onClearPosts={clearActivityPosts}
+              onReorder={reorderActivities}
+              onConfigChange={(updates) =>
+                updateWidget(widget.id, { config: updates })
+              }
+              addToast={addToast}
+              confirm={confirmDelete}
+            />
+          }
+        />
+      ) : (
+        <WidgetLayout
+          padding="p-0"
+          content={
+            <div className="flex h-full w-full flex-col overflow-hidden">
+              {header}
+              {driveBanner}
+              <div className="min-h-0 flex-1">{body}</div>
+            </div>
+          }
+        />
+      )}
 
       {!inShare && importHandoff?.target === 'activityWall' && (
         <ImportWizard
@@ -1031,6 +1112,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         <WallEditorModal
           open
           entry={editorEntry}
+          newFolderId={newWallFolderId}
           widgetId={widget.id}
           widgetType={widget.type}
           onClose={() => setEditorEntry(undefined)}
@@ -1055,7 +1137,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         />
       )}
 
-      {!inShare && (
+      {!inShare && libraryDialog && (
         <WallLibraryModal
           open={libraryOpen}
           onClose={() => setLibraryOpen(false)}
@@ -1063,34 +1145,15 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           entries={entries}
           activeEntryId={config.activeActivityId ?? null}
           readOnly={isActiveBoardReadOnly}
-          onOpenOnBoard={(entryId) => {
-            const open = () => {
-              setActiveEntry(entryId);
-              setLibraryOpen(false);
-            };
-            const entry = entries.find((e) => e.id === entryId);
-            if (entry) claudeReview.whenReviewed(entry, open, 'Open anyway');
-            else open();
-          }}
-          onCreate={() => setEditorEntry(null)}
+          onOpenOnBoard={openWallOnBoard}
+          onCreate={() => createWall()}
           onEdit={handleEditEntry}
-          badgesFor={(entry) => {
-            const review = claudeReview.badge(entry, () =>
-              handleEditEntry(entry)
-            );
-            return review ? [review] : [];
-          }}
+          badgesFor={wallBadgesFor}
           onDuplicate={wallDuplicate.duplicate}
           onDelete={removeWall}
           onClearPosts={clearActivityPosts}
           addToast={addToast}
-          confirm={(message) =>
-            showConfirm(message, {
-              title: 'Delete',
-              variant: 'danger',
-              confirmLabel: 'Delete',
-            })
-          }
+          confirm={confirmDelete}
         />
       )}
 

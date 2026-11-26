@@ -12539,6 +12539,26 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'activity-wall.selection-mode': {
+    label: 'Select button in the Activity Wall library',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'activity-wall.bulk-move': {
+    label: 'Move to folder button in the Activity Wall bulk action bar',
+    persists: true,
+    panel: true,
+  },
+  'activity-wall.bulk-delete': {
+    label: 'Delete button in the Activity Wall bulk action bar',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall.bulk-clear': {
+    label: 'Clear selection button in the Activity Wall bulk action bar',
+    panel: true,
+  },
   'projects.selection-mode': {
     label: 'Select button in the Projects library',
     perWidget: true,
@@ -16010,6 +16030,41 @@ export const TOUR_ANCHORS = {
     label: 'Background color swatch in the link picker',
     perField: true,
     panel: true,
+  },
+  'image-picker.open': {
+    label: 'Add image button that opens the image picker',
+    perField: true,
+  },
+  'image-picker.upload': {
+    label: 'Upload button in the image picker',
+    perField: true,
+    panel: true,
+  },
+  'image-picker.drive': {
+    label: 'Google Drive button in the image picker',
+    perField: true,
+    panel: true,
+  },
+  'image-picker.link': {
+    label: 'Image link button in the image picker',
+    perField: true,
+    panel: true,
+  },
+  'image-picker.link-input': {
+    label: 'Image link field in the image picker',
+    perField: true,
+    panel: true,
+  },
+  'image-picker.link-add': {
+    label: 'Add button for an image link in the image picker',
+    perField: true,
+    panel: true,
+  },
+  'image-picker.remove': {
+    label: 'Remove image button in the image picker',
+    perField: true,
+    panel: true,
+    destructive: true,
   },
   'url.upload-image': {
     label: 'Upload image button in the link picker',
@@ -19586,10 +19641,6 @@ export const TOUR_ANCHORS = {
   'student.quiz.period': {
     label: 'A class period button when joining a quiz',
   },
-  'student.quiz.period-confirm': {
-    label: 'Continue after picking a class period',
-    persists: true,
-  },
   'student.quiz.period-back': {
     label: 'Go back on the class period step',
   },
@@ -19617,7 +19668,7 @@ export const TOUR_ANCHORS = {
     label: 'Resume button after a quiz is unlocked',
   },
   'student.quiz.retry-submit': {
-    label: 'Try again when turning in after time is up fails',
+    label: 'Try again button when a quiz could not be submitted',
     persists: true,
   },
   'student.quiz.tab-warning-dismiss': {
@@ -20370,10 +20421,6 @@ export const TOUR_ANCHORS = {
   },
   'student.video-activity.period-option': {
     label: 'Class option on the student Video Activity class picker',
-  },
-  'student.video-activity.period-continue': {
-    label: 'Continue button on the student Video Activity class picker',
-    persists: true,
   },
   'student.video-activity.period-back': {
     label: 'Go Back button on the student Video Activity class picker',

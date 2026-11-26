@@ -61,12 +61,14 @@ export function useFileDrop(
     },
     onDrop: (e: React.DragEvent) => {
       if (!takes(e)) return;
+      // A picker inside the zone already took this drop.
+      const taken = e.defaultPrevented;
       e.preventDefault();
       e.stopPropagation();
       depthRef.current = 0;
       setActive(false);
       const files = Array.from(e.dataTransfer.files ?? []);
-      if (files.length > 0) onFiles(files);
+      if (!taken && files.length > 0) onFiles(files);
     },
   };
 

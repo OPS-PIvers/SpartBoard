@@ -139,7 +139,7 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
     // Poll for each next button: getUserMedia resolves on a later microtask.
     const steps =
       state === 'take-limit'
-        ? [/Stop recording/, /^Turn in$/]
+        ? [/Stop recording/, /^Submit$/]
         : [/Stop recording/];
     let tries = 0;
     const id = window.setInterval(() => {

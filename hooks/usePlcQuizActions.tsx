@@ -974,6 +974,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
       )}
       {sharePickerOpen && (
         <PlcSharePickerModal
+          widgetType="quiz"
           title={t('plcDashboard.quizLibrary.sharePicker.title', {
             defaultValue: 'Share a quiz with this PLC',
           })}

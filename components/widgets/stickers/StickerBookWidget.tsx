@@ -1,4 +1,10 @@
-import React, { useCallback, useRef, useEffect, useState } from 'react';
+import React, {
+  useCallback,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { Z_INDEX } from '@/config/zIndex';
@@ -31,6 +37,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useImageUpload } from '@/hooks/useImageUpload';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
+import { ImagePicker } from '@/components/common/imagePicker/ImagePicker';
 
 const DEFAULT_STICKERS = [
   // Star
@@ -48,6 +55,9 @@ const DEFAULT_STICKERS = [
 ];
 
 import { WidgetLayout } from '../WidgetLayout';
+
+// Stickers never had a size limit; this only stops runaway files.
+const STICKER_MAX_BYTES = 50 * 1024 * 1024;
 
 const SortableSticker: React.FC<{
   sticker: { id: string; url: string; type: 'default' | 'global' | 'custom' };
@@ -174,7 +184,8 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
   const { t } = useTranslation();
   const { updateWidget, clearAllStickers, addWidget, addToast } =
     useDashboard();
-  const { featurePermissions, userGradeLevels } = useAuth();
+  const { featurePermissions, userGradeLevels, canAccessFeature } = useAuth();
+  const unifiedPicker = canAccessFeature('unified-image-picker');
   const { processAndUploadImage, uploading } = useImageUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -295,19 +306,40 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
     });
   };
 
+  // Two uploads can finish out of order, so each adds to the latest list.
+  const latestConfig = useRef(config);
+  useLayoutEffect(() => {
+    latestConfig.current = config;
+  });
+  const addCustomSticker = useCallback(
+    (url: string) => {
+      const current = latestConfig.current;
+      const next = {
+        ...current,
+        uploadedUrls: [...(current.uploadedUrls ?? []), url],
+      };
+      latestConfig.current = next;
+      updateWidget(widget.id, { config: next });
+    },
+    [updateWidget, widget.id]
+  );
+
   const processFile = useCallback(
     async (file: File) => {
       const url = await processAndUploadImage(file);
-      if (url) {
-        updateWidget(widget.id, {
-          config: {
-            ...config,
-            uploadedUrls: [...customStickers, url],
-          },
-        });
-      }
+      if (url) addCustomSticker(url);
     },
-    [config, customStickers, updateWidget, processAndUploadImage, widget.id]
+    [addCustomSticker, processAndUploadImage]
+  );
+
+  // The picker shows its own error line when the upload gives back nothing.
+  const uploadForPicker = useCallback(
+    async (file: File) => {
+      const url = await processAndUploadImage(file);
+      if (!url) throw new Error('Sticker upload failed');
+      return url;
+    },
+    [processAndUploadImage]
   );
 
   // Handle global paste events when this widget is mounted
@@ -322,6 +354,8 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
       ) {
         return;
       }
+      // An open image picker panel takes its own paste.
+      if (unifiedPicker && target.closest('[role="dialog"]')) return;
 
       const items = e.clipboardData?.items;
       if (!items) return;
@@ -351,7 +385,7 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
     return () => {
       window.removeEventListener('paste', handlePaste, true);
     };
-  }, [processFile]);
+  }, [processFile, unifiedPicker]);
 
   const handleDragStart = (e: React.DragEvent, url: string) => {
     const img = e.currentTarget.querySelector('img');
@@ -471,6 +505,87 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
     ]
   );
 
+  const uploadButtonClass =
+    'flex items-center bg-blue-600 text-white rounded-full font-black uppercase tracking-widest cursor-pointer hover:bg-blue-700 transition-all shadow-md shadow-blue-500/20';
+  const uploadButtonStyle: React.CSSProperties = {
+    gap: 'min(8px, 2cqmin)',
+    fontSize: 'min(10px, 2.5cqmin)',
+    padding: 'min(6px, 1.5cqmin) min(16px, 3.5cqmin)',
+  };
+  const uploadButtonContent = (busy: boolean) => (
+    <>
+      {busy ? (
+        <Loader2
+          className="animate-spin"
+          style={{
+            width: 'min(12px, 3cqmin)',
+            height: 'min(12px, 3cqmin)',
+          }}
+        />
+      ) : (
+        <Upload
+          style={{
+            width: 'min(12px, 3cqmin)',
+            height: 'min(12px, 3cqmin)',
+          }}
+        />
+      )}
+      {busy ? t('widgets.stickers.wait') : t('common.upload')}
+    </>
+  );
+  const zoneClass =
+    'border-2 border-dashed border-slate-200 rounded-2xl bg-white flex flex-col items-center justify-center transition-all hover:bg-blue-50 hover:border-blue-200 group shadow-xs';
+  const zoneStyle: React.CSSProperties = {
+    marginBottom: 'min(24px, 5cqmin)',
+    padding: 'min(20px, 4cqmin)',
+    gap: 'min(8px, 2cqmin)',
+  };
+  const zoneContent = (busy: boolean) => (
+    <>
+      {busy ? (
+        <Loader2
+          className="text-blue-400 animate-spin"
+          style={{
+            width: 'min(32px, 8cqmin)',
+            height: 'min(32px, 8cqmin)',
+          }}
+        />
+      ) : (
+        <span
+          className="flex items-center"
+          style={{ gap: 'min(16px, 3.5cqmin)' }}
+        >
+          <span
+            className="bg-slate-50 rounded-xl group-hover:bg-blue-100 transition-colors"
+            style={{ padding: 'min(12px, 2.5cqmin)' }}
+          >
+            <Upload
+              className="text-slate-400 group-hover:text-blue-600"
+              style={{
+                width: 'min(24px, 6cqmin)',
+                height: 'min(24px, 6cqmin)',
+              }}
+            />
+          </span>
+          <span className="text-left">
+            <span
+              className="block font-black uppercase text-slate-500 group-hover:text-blue-600 tracking-tight"
+              style={{ fontSize: 'min(12px, 3cqmin)' }}
+            >
+              {t('widgets.stickers.dropOrPaste')}
+            </span>
+            <span
+              className="block font-bold text-slate-400 uppercase tracking-widest"
+              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+            >
+              {t('widgets.stickers.toAddCustom')}
+            </span>
+          </span>
+        </span>
+      )}
+    </>
+  );
+
   return (
     <WidgetLayout
       padding="p-0"
@@ -505,42 +620,41 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
               />
               {t('common.clearAll')}
             </button>
-            <label
-              {...tourAttr('stickers.upload', widget.id, widget.type)}
-              className={`flex items-center bg-blue-600 text-white rounded-full font-black uppercase tracking-widest cursor-pointer hover:bg-blue-700 transition-all shadow-md shadow-blue-500/20 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
-              style={{
-                gap: 'min(8px, 2cqmin)',
-                fontSize: 'min(10px, 2.5cqmin)',
-                padding: 'min(6px, 1.5cqmin) min(16px, 3.5cqmin)',
-              }}
-            >
-              {uploading ? (
-                <Loader2
-                  className="animate-spin"
-                  style={{
-                    width: 'min(12px, 3cqmin)',
-                    height: 'min(12px, 3cqmin)',
-                  }}
-                />
-              ) : (
-                <Upload
-                  style={{
-                    width: 'min(12px, 3cqmin)',
-                    height: 'min(12px, 3cqmin)',
-                  }}
-                />
-              )}
-              {uploading ? t('widgets.stickers.wait') : t('common.upload')}
-              {/* no-tour-anchor: hidden file input inside the Upload label */}
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept="image/*"
-                className="hidden"
-                onChange={handleUpload}
+            {unifiedPicker ? (
+              <ImagePicker
+                layout="button"
+                label={t('common.upload')}
+                upload={uploadForPicker}
+                onChange={addCustomSticker}
+                linkAsFile
+                maxBytes={STICKER_MAX_BYTES}
                 disabled={uploading}
+                tourScope={{ type: 'stickers', field: 'upload' }}
+                tourOverrides={{
+                  open: tourAttr('stickers.upload', widget.id, widget.type),
+                }}
+                buttonClassName={uploadButtonClass}
+                buttonStyle={uploadButtonStyle}
+                buttonContent={(busy) => uploadButtonContent(busy || uploading)}
               />
-            </label>
+            ) : (
+              <label
+                {...tourAttr('stickers.upload', widget.id, widget.type)}
+                className={`${uploadButtonClass} ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+                style={uploadButtonStyle}
+              >
+                {uploadButtonContent(uploading)}
+                {/* no-tour-anchor: hidden file input inside the Upload label */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleUpload}
+                  disabled={uploading}
+                />
+              </label>
+            )}
           </div>
         </div>
       }
@@ -593,60 +707,35 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
           </div>
 
           {/* Drop/Paste Zone - Integrated and obvious */}
-          <div
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-            className={`border-2 border-dashed border-slate-200 rounded-2xl bg-white flex flex-col items-center justify-center transition-all hover:bg-blue-50 hover:border-blue-200 group shadow-xs ${uploading ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}`}
-            style={{
-              marginBottom: 'min(24px, 5cqmin)',
-              padding: 'min(20px, 4cqmin)',
-              gap: 'min(8px, 2cqmin)',
-            }}
-            onClick={() => fileInputRef.current?.click()}
-            {...tourAttr('stickers.upload-zone', widget.id, widget.type)}
-          >
-            {uploading ? (
-              <Loader2
-                className="text-blue-400 animate-spin"
-                style={{
-                  width: 'min(32px, 8cqmin)',
-                  height: 'min(32px, 8cqmin)',
-                }}
-              />
-            ) : (
-              <div
-                className="flex items-center"
-                style={{ gap: 'min(16px, 3.5cqmin)' }}
-              >
-                <div
-                  className="bg-slate-50 rounded-xl group-hover:bg-blue-100 transition-colors"
-                  style={{ padding: 'min(12px, 2.5cqmin)' }}
-                >
-                  <Upload
-                    className="text-slate-400 group-hover:text-blue-600"
-                    style={{
-                      width: 'min(24px, 6cqmin)',
-                      height: 'min(24px, 6cqmin)',
-                    }}
-                  />
-                </div>
-                <div className="text-left">
-                  <p
-                    className="font-black uppercase text-slate-500 group-hover:text-blue-600 tracking-tight"
-                    style={{ fontSize: 'min(12px, 3cqmin)' }}
-                  >
-                    {t('widgets.stickers.dropOrPaste')}
-                  </p>
-                  <p
-                    className="font-bold text-slate-400 uppercase tracking-widest"
-                    style={{ fontSize: 'min(10px, 2.5cqmin)' }}
-                  >
-                    {t('widgets.stickers.toAddCustom')}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+          {unifiedPicker ? (
+            <ImagePicker
+              layout="button"
+              label={t('widgets.stickers.dropOrPaste')}
+              upload={uploadForPicker}
+              onChange={addCustomSticker}
+              linkAsFile
+              maxBytes={STICKER_MAX_BYTES}
+              disabled={uploading}
+              tourScope={{ type: 'stickers', field: 'upload-zone' }}
+              tourOverrides={{
+                open: tourAttr('stickers.upload-zone', widget.id, widget.type),
+              }}
+              buttonClassName={`${zoneClass} w-full cursor-pointer`}
+              buttonStyle={zoneStyle}
+              buttonContent={(busy) => zoneContent(busy || uploading)}
+            />
+          ) : (
+            <div
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              className={`${zoneClass} ${uploading ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}`}
+              style={zoneStyle}
+              onClick={() => fileInputRef.current?.click()}
+              {...tourAttr('stickers.upload-zone', widget.id, widget.type)}
+            >
+              {zoneContent(uploading)}
+            </div>
+          )}
 
           <DndContext
             sensors={sensors}

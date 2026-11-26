@@ -2288,19 +2288,15 @@
     "join": {
       "joining": "Quiz wird betreten…",
       "unableToConnect": "Verbindung nicht möglich. Lade die Seite neu und versuche es noch einmal.",
-      "studentQuiz": "Schüler-Quiz",
       "title": "Quiz beitreten",
       "intro": "Gib den Code und die PIN von deiner Lehrkraft ein.",
       "codePlaceholder": "Quiz-Code (XXXXXX)",
       "pinPlaceholder": "Deine PIN",
-      "periodTitle": "Wähle deine Klasse",
-      "periodIntro": "In welcher Klasse bist du?",
       "goBack": "Zurück",
       "signInTitle": "Melde dich an, um beizutreten",
       "signInIntro": "Nutze dein Google-Konto der Schule.",
       "usePin": "Anmeldung klappt nicht? Nutze eine PIN",
       "join": "Beitreten",
-      "continue": "Weiter",
       "signInGoogle": "Mit Google anmelden",
       "closed": "Dieses Quiz ist geschlossen.",
       "loadFailed": "Wir konnten dein Quiz nicht laden. Lade die Seite neu und versuche es noch einmal."
@@ -2319,16 +2315,6 @@
       "title": "Pause. Augen nach vorn.",
       "saved": "Deine Antworten sind gespeichert.",
       "keepOpen": "Lass diesen Tab offen."
-    },
-    "locked": {
-      "opensSoon": "Öffnet sich, wenn deine Lehrkraft es startet.",
-      "keepOpen": "Lass diesen Tab offen. Das Quiz erscheint hier, sobald deine Klasse hineindarf."
-    },
-    "autoSubmit": {
-      "unlocked": "Dein entsperrter Versuch wurde abgegeben.",
-      "strikes": "Du hast die Seite zu oft verlassen. Deine Aufgabe wurde abgegeben. Frag deine Lehrkraft, falls das ein Versehen war.",
-      "title": "Quiz automatisch abgegeben",
-      "awayTooLong": "Du warst zu lange weg vom Quiz, deshalb wurde es abgegeben."
     },
     "errors": {
       "saveAnswer": "Deine Antwort konnte nicht gespeichert werden. Tippe, um es noch einmal zu versuchen.",
@@ -2366,13 +2352,6 @@
     "closed": {
       "submitted": "Diese Aufgabe ist beendet. Deine Antworten wurden abgegeben.",
       "submitFailed": "Abgabe nicht möglich. Prüfe deine Verbindung und versuche es noch einmal, oder bitte deine Lehrkraft um mehr Zeit."
-    },
-    "tabWarning": {
-      "title": "TAB-WECHSEL ERKANNT",
-      "body": "Du hast das Quiz verlassen. Das wurde festgehalten.",
-      "warningN": "Warnung {{n}}.",
-      "autoSubmit": "Bei zu vielen Tab-Wechseln wird dein Quiz automatisch abgegeben.",
-      "dismiss": "Verstanden, zurück zum Quiz"
     },
     "timer": {
       "secondsLeft_one": "Noch {{count}} Sekunde",
@@ -2466,7 +2445,6 @@
     "allItemsPlaced": "Alle Elemente platziert."
   },
   "quizSubmit": {
-    "offline": "Du bist offline. Lass diesen Tab offen, dann werden deine Antworten gespeichert, sobald du wieder verbunden bist.",
     "undo": "Rückgängig",
     "confirmTitle": "Quiz abgeben?",
     "confirmBody": "Danach kannst du deine Antworten nicht mehr ändern.",
@@ -2643,7 +2621,7 @@
       "record": "Record",
       "stop": "Stop recording",
       "stopAndSubmit": "Stop and submit",
-      "commit": "Turn in",
+      "commit": "Abgeben",
       "retryUpload": "Try again",
       "playPlayback": "Play your recording",
       "pausePlayback": "Pause your recording",
@@ -2653,7 +2631,7 @@
       "notSubmittedFailed": "Deine Aufnahme wurde nicht gesendet. Wähle Erneut versuchen.",
       "notSubmittedFailedFinal": "Deine Aufnahme wurde nicht gesendet und kann von diesem Gerät nicht gesendet werden. Nimm erneut auf, um eine neue Aufnahme zu senden.",
       "redo": "Redo",
-      "submittedLabel": "Turned in"
+      "submittedLabel": "Abgegeben"
     },
     "whiteboard": {
       "title": "Whiteboard answer",
@@ -2687,7 +2665,7 @@
       "expiryArmed": "Student presses Record",
       "takeLimitLabel": "Attempts allowed",
       "takeLimitUnlimited": "Unlimited",
-      "takeLimitHint": "How many times a student can record this answer. Each new recording replaces the last, and only the final one is turned in.",
+      "takeLimitHint": "How many times a student can record this answer. Each new recording replaces the previous attempt. The final recording is submitted.",
       "reviewLabel": "Students review before submitting",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
@@ -3913,24 +3891,17 @@
       "correctOf": "{{correct}} von {{total}} richtig",
       "answersTitle": "Deine Antworten",
       "noResponse": "Keine Antwort",
-      "periodClosedBody": "Lass diesen Tab geöffnet. Das Set erscheint hier, sobald deine Lehrkraft deine Klasse freigibt.",
       "periodPausedTitle": "Für deine Klasse pausiert",
       "periodPausedBody": "Dein Fortschritt bleibt auf dieser Seite. Lass diesen Tab offen.",
       "notInPeriod": "Du bist in keiner Klasse, der dieses Set zugewiesen wurde. Frage deine Lehrkraft.",
       "seatError": "Du konntest deiner Klasse nicht beitreten. Lade die Seite neu, um es noch einmal zu versuchen.",
-      "tabTitle": "Du hast die Seite verlassen",
-      "tabBody": "Deine Lehrkraft kann das sehen.",
-      "tabWarning": "Warnung {{count}}.",
-      "tabSubmits": "Nach {{limit}} Warnungen wird deine Aufgabe abgegeben.",
-      "tabReturn": "Zurück zu meiner Aufgabe",
       "raiseHand": "Hand heben",
       "handRaised": "Hand gehoben",
       "timeUpTitle": "Die Zeit ist um",
       "tabSubmitTitle": "Du hast die Seite zu oft verlassen",
       "submittingAnswers": "Deine Antworten werden abgegeben…",
       "forcedTab": "Du hast die Seite zu oft verlassen. Deine Aufgabe wurde abgegeben. Sprich mit deiner Lehrkraft, wenn du denkst, dass das ein Fehler war.",
-      "tryAgainError": "Ein neuer Versuch konnte nicht gestartet werden. Versuche es erneut.",
-      "tabWarningOf": "Warnung {{count}} von {{limit}}."
+      "tryAgainError": "Ein neuer Versuch konnte nicht gestartet werden. Versuche es erneut."
     },
     "speak": {
       "player": {
@@ -4760,7 +4731,6 @@
     "start": {
       "selectClass": "Wähle deine Klasse",
       "whichPeriod": "In welcher Stunde bist du?",
-      "pickOne": "Wähle eine aus, um fortzufahren. Deine PIN kannst du danach eingeben.",
       "steps_one": "{{count}} Schritt",
       "steps_other": "{{count}} Schritte",
       "class": "Klasse",
@@ -4790,7 +4760,7 @@
     },
     "locked": {
       "title": "Noch nicht geöffnet",
-      "body": "Lass diesen Tab geöffnet. Die Aktivität erscheint hier, sobald deine Klasse freigeschaltet ist.",
+      "body": "Lass diesen Tab geöffnet. Die Aktivität erscheint hier, sobald deine Lehrkraft sie öffnet.",
       "bodyOwn": "Lass diesen Tab geöffnet. Die Aktivität erscheint hier, sobald sie geöffnet ist.",
       "paused": "Pausiert",
       "closed": "Geschlossen",
@@ -5136,5 +5106,27 @@
     "help": "Hilfe",
     "menuLabel": "Hilfe",
     "record": "Tour aufnehmen"
+  },
+  "studentJoin": {
+    "title": "Aktivität beitreten",
+    "pinIntro": "Gib die PIN von deiner Lehrkraft ein.",
+    "liveTitle": "Unterricht live",
+    "liveIntro": "Tritt der Sitzung deiner Lehrkraft bei",
+    "roomCode": "Lehrkraft-ID / Raumcode"
+  },
+  "studentTab": {
+    "title": "Du hast die Seite verlassen",
+    "body": "Deine Lehrkraft kann das sehen.",
+    "warning": "Warnung {{count}}.",
+    "warningOf": "Warnung {{count}} von {{limit}}.",
+    "submits": "Nach {{limit}} Warnungen wird deine Aufgabe abgegeben.",
+    "return": "Zurück zu meiner Aufgabe",
+    "submittedTitle": "Aufgabe abgegeben",
+    "strikes": "Du hast die Seite zu oft verlassen. Deine Aufgabe wurde abgegeben. Frag deine Lehrkraft, falls das ein Versehen war.",
+    "unlocked": "Dein entsperrter Versuch wurde abgegeben.",
+    "awayTooLong": "Du warst zu lange weg. Deine Aufgabe wurde abgegeben."
+  },
+  "studentOffline": {
+    "banner": "Du bist offline. Lass diesen Tab offen, bis du wieder verbunden bist."
   }
 }

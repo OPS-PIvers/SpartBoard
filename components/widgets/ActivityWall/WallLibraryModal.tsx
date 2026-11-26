@@ -1,20 +1,7 @@
 // Wall library — browse, open, edit, duplicate, clear, and delete walls.
 
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  Copy,
-  Eraser,
-  LayoutGrid,
-  Pencil,
-  PlayCircle,
-  Trash2,
-} from 'lucide-react';
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getCountFromServer,
-} from 'firebase/firestore';
+import React, { useState } from 'react';
+import { LayoutGrid } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
@@ -25,16 +12,17 @@ import type {
   LibraryBadge,
   LibrarySortDir,
 } from '@/components/common/library/types';
-import { db } from '@/config/firebase';
 import type { ActivityWallLibraryEntry } from '@/types';
-import { ACTIVITY_WALL_DEFAULT_APPEARANCE } from '@/types';
-import { LAYOUT_OPTIONS } from './editor/layoutOptions';
-import { activityWallSessionId } from '@/utils/activityWallLinks';
-import { WallStillClosedError } from '@/utils/activityWallErrors';
 import { tourTypeAttr } from '@/config/tourAnchors';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
-import { useLibraryDelete } from '@/components/common/library/useLibraryDelete';
-import { LIBRARY_ITEM_NOUNS } from '@/components/common/library/useLibraryDeleteConfirm';
+import { WallThumbnail } from './WallThumbnail';
+import {
+  useWallLibraryActions,
+  wallBadges,
+  wallMenuActions,
+  wallOpenAction,
+  wallSubtitle,
+} from './wallLibraryShared';
 
 interface WallLibraryModalProps {
   open: boolean;
@@ -54,34 +42,6 @@ interface WallLibraryModalProps {
   addToast: (message: string, tone: 'success' | 'error' | 'info') => void;
   confirm: (message: string) => Promise<boolean>;
 }
-
-const layoutSketch = (entry: ActivityWallLibraryEntry): React.ReactNode =>
-  LAYOUT_OPTIONS.find((option) => option.layout === entry.layout)?.sketch ??
-  null;
-
-const layoutLabel = (entry: ActivityWallLibraryEntry): string =>
-  LAYOUT_OPTIONS.find((option) => option.layout === entry.layout)?.label ??
-  'Wall';
-
-/** Appearance swatch + layout sketch shown as the card thumbnail. */
-const WallThumbnail: React.FC<{ entry: ActivityWallLibraryEntry }> = ({
-  entry,
-}) => {
-  const appearance = entry.appearance ?? ACTIVITY_WALL_DEFAULT_APPEARANCE;
-  const isImage = appearance.kind === 'image';
-  return (
-    <div
-      className={`flex h-full w-full items-center justify-center rounded-lg bg-cover bg-center ${
-        isImage ? '' : appearance.value
-      }`}
-      style={
-        isImage ? { backgroundImage: `url(${appearance.value})` } : undefined
-      }
-    >
-      <div className="h-10 w-16 text-white/90">{layoutSketch(entry)}</div>
-    </div>
-  );
-};
 
 export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
   open,
@@ -105,94 +65,15 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
     key: 'recent',
     dir: 'desc',
   });
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const [countedWhileOpen, setCountedWhileOpen] = useState(open);
-
-  // Each open starts a fresh count pass so a reopened library never shows stale post totals.
-  if (countedWhileOpen !== open) {
-    setCountedWhileOpen(open);
-    if (open) setCounts({});
-  }
-
-  // One aggregate count per wall, cached by entry id so re-sorting never re-bills it.
-  const uncountedKey = entries
-    .map((entry) => entry.id)
-    .filter((id) => !(id in counts))
-    .join(',');
-  useEffect(() => {
-    if (!open || !uid || !uncountedKey) return;
-    let cancelled = false;
-    void (async () => {
-      const ids = uncountedKey.split(',');
-      const resolved = await Promise.all(
-        ids.map(async (id) => {
-          try {
-            const snap = await getCountFromServer(
-              collection(
-                db,
-                'activity_wall_sessions',
-                activityWallSessionId(uid, id),
-                'submissions'
-              )
-            );
-            return [id, snap.data().count] as const;
-          } catch {
-            return [id, 0] as const;
-          }
-        })
-      );
-      if (cancelled) return;
-      setCounts((prev) => ({ ...prev, ...Object.fromEntries(resolved) }));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, uid, uncountedKey]);
-
-  const handleClearPosts = useCallback(
-    async (entry: ActivityWallLibraryEntry) => {
-      if (!uid) return;
-      if (
-        !(await confirm(`Delete every post on "${entry.title || 'Untitled'}"?`))
-      ) {
-        return;
-      }
-      try {
-        await onClearPosts(entry.id);
-        setCounts((prev) => ({ ...prev, [entry.id]: 0 }));
-        addToast('Posts cleared.', 'success');
-      } catch (err) {
-        if (err instanceof WallStillClosedError) {
-          setCounts((prev) => ({ ...prev, [entry.id]: 0 }));
-          addToast('Posts cleared. Open the wall again for students.', 'error');
-          return;
-        }
-        console.error('[ActivityWall] Failed to clear posts:', err);
-        addToast('Could not clear posts.', 'error');
-      }
-    },
-    [addToast, confirm, onClearPosts, uid]
-  );
-
-  const wallDelete = useLibraryDelete<ActivityWallLibraryEntry>({
-    noun: LIBRARY_ITEM_NOUNS.activityWall,
-    titleOf: (entry) => entry.title || 'Untitled',
-    detail: () => 'Its posts are deleted with it.',
-    remove: async (entry) => {
-      if (!uid) throw new Error('Not signed in.');
-      await onDelete(entry.id);
-      await deleteDoc(
-        doc(db, 'activity_wall_sessions', activityWallSessionId(uid, entry.id))
-      ).catch(() => {
-        // Rules deny deleting the session doc; clearing posts + entry retires a wall.
-      });
-    },
+  const { counts, clearPosts, wallDelete } = useWallLibraryActions({
+    active: open,
+    uid,
+    entries,
+    onDelete,
+    onClearPosts,
     addToast,
-    onError: (err) =>
-      console.error('[ActivityWall] Failed to delete wall:', err),
+    confirm,
   });
-  const handleDelete = (entry: ActivityWallLibraryEntry) =>
-    wallDelete.deleteOne(entry);
 
   if (!open) return null;
 
@@ -218,7 +99,7 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
       onClose={onClose}
       title="Activity Walls"
       maxWidth="max-w-4xl"
-      contentClassName="px-0 pb-0 flex flex-col"
+      contentClassName="-mt-4 px-0 pb-0 flex flex-col"
     >
       <LibraryShell
         widgetLabel="Activity Wall"
@@ -288,65 +169,23 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
               title={entry.title || 'Untitled wall'}
               tourIndex={index}
               tourWidgetType="activity-wall"
-              subtitle={`${layoutLabel(entry)} · ${
-                counts[entry.id] ?? 0
-              } post${counts[entry.id] === 1 ? '' : 's'}`}
+              subtitle={wallSubtitle(entry, counts[entry.id])}
               thumbnail={<WallThumbnail entry={entry} />}
               sortable={false}
-              badges={[
-                ...(badgesFor?.(entry) ?? []),
-                {
-                  label: entry.acceptingResponses === false ? 'Closed' : 'Open',
-                  tone:
-                    entry.acceptingResponses === false ? 'neutral' : 'success',
-                },
-                ...(entry.id === activeEntryId
-                  ? ([{ label: 'On board', tone: 'info' }] as const)
-                  : []),
-              ]}
-              primaryAction={{
-                label: 'Open on board',
-                icon: PlayCircle,
-                onClick: () => onOpenOnBoard(entry.id),
-                disabled: readOnly,
-                disabledReason: 'This board is view-only.',
-              }}
+              badges={wallBadges(entry, activeEntryId, badgesFor?.(entry))}
+              primaryAction={wallOpenAction(
+                () => onOpenOnBoard(entry.id),
+                readOnly
+              )}
               secondaryActions={
                 readOnly
                   ? []
-                  : [
-                      {
-                        id: 'edit',
-                        label: 'Edit',
-                        icon: Pencil,
-                        onClick: () => onEdit(entry),
-                      },
-                      {
-                        id: 'duplicate',
-                        label: 'Duplicate',
-                        icon: Copy,
-                        onClick: () => {
-                          void onDuplicate(entry);
-                        },
-                      },
-                      {
-                        id: 'clear',
-                        label: 'Clear posts',
-                        icon: Eraser,
-                        onClick: () => {
-                          void handleClearPosts(entry);
-                        },
-                      },
-                      {
-                        id: 'delete',
-                        label: 'Delete',
-                        icon: Trash2,
-                        destructive: true,
-                        onClick: () => {
-                          void handleDelete(entry);
-                        },
-                      },
-                    ]
+                  : wallMenuActions({
+                      onEdit: () => onEdit(entry),
+                      onDuplicate: () => void onDuplicate(entry),
+                      onClearPosts: () => void clearPosts(entry),
+                      onDelete: () => void wallDelete.deleteOne(entry),
+                    })
               }
             />
           )}

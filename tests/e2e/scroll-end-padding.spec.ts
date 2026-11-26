@@ -95,6 +95,7 @@ const LIBRARY_VIEWS = [
   'mini-app',
   'flashcards',
   'activity-wall',
+  'activity-wall-face',
 ];
 
 for (const view of LIBRARY_VIEWS) {

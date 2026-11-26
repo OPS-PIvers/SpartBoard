@@ -2722,6 +2722,10 @@ export interface ActivityWallLibraryEntry {
   allowLikes?: boolean;
   allowComments?: boolean;
   allowCommentResponses?: boolean;
+  /** Library folder; absent or null at the top level. */
+  folderId?: string | null;
+  /** Manual library order. */
+  order?: number;
 }
 
 export interface ActivityWallBuildingConfig {
@@ -2765,6 +2769,10 @@ export interface ActivityWallConfig {
   activeActivityId?: string | null;
   /** Whose library the active wall is in, so other members of a shared board can find it. */
   activeActivityOwnerUid?: string | null;
+  /** The wall the library was opened over; the library shows while that wall stays open. */
+  libraryOverWallId?: string | null;
+  libraryViewMode?: 'grid' | 'list';
+  folderPanelMode?: 'auto' | 'full' | 'rail' | 'hidden';
   draftActivity?: ActivityWallActivity;
   /** Photo size on the widget face. */
   imageSize?: 'small' | 'medium' | 'large';
@@ -8297,6 +8305,8 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
   dueAtHasTime?: boolean;
   /** Stamped by assigns that carry their own rules; only then does the player honor shuffle, right/wrong and reveal answer. */
   answerRulesSet?: boolean;
+  /** Stamped with the va-student-tab-rules flag: each student's tab accommodations apply. */
+  studentTabRules?: boolean;
 }
 
 /** VA counterpart of QuizBehaviorSettings. */
@@ -11903,6 +11913,8 @@ export type GlobalFeature =
   | 'freshservice-sync'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
+  /** Video Activity honors each student's tab-warning and away-limit accommodations. */
+  | 'va-student-tab-rules'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
   | 'quiz-stimulus-quotes'
   /** Students cross out multiple-choice options while they work; display only, never graded. */
@@ -11997,12 +12009,18 @@ export type GlobalFeature =
   | 'help-center-ai'
   /** Video Activity share links offer Synced or Make a copy, like quiz assignment links. */
   | 'video-activity-share-sync'
+  /** Flashcards and Rubrics shared with a group can push the teacher's edits to the shared copy. */
+  | 'plc-update-shared-copy'
   /** Every Classroom and Schoology grade push sends the gradebook final score, built on the server (AB-389). */
   | 'lms-push-final-scores'
   /** Class Close, End and sub End turn open work in from the server, with no teacher tab open (AB-388). */
   | 'server-turn-in'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
+  /** Dialogs opened from a widget take its library color for the header and brand-blue buttons. */
+  | 'widget-colored-dialogs'
+  /** One shared image picker everywhere an image is added: upload, paste, drop, Google Drive or an image link. */
+  | 'unified-image-picker'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Fill in the blank: Dropdown and Drag blank types beside Typed (docs/plans/QUIZ_MCA_PRACTICE.md M6). */
@@ -12073,7 +12091,8 @@ export type GlobalFeature =
   | 'student-set-time'
   /** Per-student Opens and Closes hold in every student app, and a later close for one student no longer keeps the class open. */
   | 'student-windows'
-  | 'library-duplicate-more';
+  | 'library-duplicate-more'
+  | 'activity-wall-library-face';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {
@@ -13313,7 +13332,8 @@ export type LibraryFolderWidget =
   | 'miniapp'
   | 'flashcards'
   | 'projects'
-  | 'writing';
+  | 'writing'
+  | 'activity_wall';
 
 /**
  * A folder record stored at

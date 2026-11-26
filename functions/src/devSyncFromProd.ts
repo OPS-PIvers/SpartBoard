@@ -17,6 +17,7 @@ const PROD_DOCS = `https://firestore.googleapis.com/v1/projects/${PROD_PROJECT_I
 // The teacher's own materials and settings. OAuth tokens, assignments, PLC state and alert schedules (dev would email twice) stay out.
 export const SYNCED_USER_COLLECTIONS = [
   'activity_wall_activities',
+  'activity_wall_folders',
   'collections',
   'dashboards',
   'flashcard_folders',

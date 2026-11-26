@@ -544,6 +544,22 @@ describe('useTabAwayTracker', () => {
       expect(onLeave).toHaveBeenCalledTimes(1);
     });
 
+    it('back-dates a held focus loss when the page then hides', async () => {
+      const { onLeave, lastSaved } = setup();
+      beginPermissionPrompt();
+      leave();
+      act(() => {
+        vi.advanceTimersByTime(3_000);
+      });
+      visibility = 'hidden';
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await flush();
+      expect(onLeave).toHaveBeenCalledTimes(1);
+      expect(lastSaved()[0].leftAt).toBe(1_000_000);
+    });
+
     it('gives no grace to a request made while focus is already away', async () => {
       const { onLeave } = setup();
       hasFocus = false;

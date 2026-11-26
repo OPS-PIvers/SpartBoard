@@ -32,13 +32,9 @@ const FULL_SCREEN_OVERLAYS: Record<string, { count: number; why: string }> = {
     count: 2,
     why: 'page lock covers',
   },
-  'components/flashcards/CheckTabWarning.tsx': {
-    count: 1,
-    why: 'student tab-away cover',
-  },
   'components/quiz/QuizStudentApp.tsx': {
-    count: 2,
-    why: 'quiz lock and tab-away covers',
+    count: 1,
+    why: 'quiz lock cover',
   },
   'components/student/StudentApp.tsx': { count: 1, why: 'student lock screen' },
   'components/plc/PlcRouteHost.tsx': {

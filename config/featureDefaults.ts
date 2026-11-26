@@ -67,6 +67,8 @@ import {
   Users,
   UserCheck,
   CopyX,
+  Palette,
+  ImagePlus,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -615,6 +617,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Video Activity reads students' tab accommodations. Admin-only until Paul has tested it in prod.
+  'va-student-tab-rules': {
+    label: 'Video Activity tab accommodations',
+    icon: Timer,
+    description:
+      "Video Activity follows each student's tab-switch accommodations.",
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1351,11 +1365,32 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'plc-update-shared-copy': {
+    label: 'Groups: Update the shared copy',
+    icon: RefreshCw,
+    description:
+      'Teachers can send their edits to a flashcard set or rubric they shared with a group.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'lms-push-final-scores': {
     label: 'Grade push: Send final scores',
     icon: Send,
     description:
       'Classroom and Schoology pushes send the score shown in the gradebook.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'widget-colored-dialogs': {
+    label: 'Widget colors in dialogs',
+    icon: Palette,
+    description: 'Dialogs opened from a widget use its color.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1901,12 +1936,34 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'activity-wall-library-face': {
+    label: 'Activity Wall library on the widget',
+    icon: LayoutGrid,
+    description:
+      'The wall library opens on the widget, with folders, like Quiz.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Server only: functions/src/turnInQueue.ts checks it when a run ends (AB-388).
   'server-turn-in': {
-    label: 'Turn in work after End',
+    label: 'Submit work after End',
     icon: ClipboardCheck,
     description:
-      'Open work turns in after End or Close. The teacher tab can be closed.',
+      'A Quiz, Video Activity or Guided Learning activity is submitted when it ends.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'unified-image-picker': {
+    label: 'One image picker',
+    icon: ImagePlus,
+    description:
+      'Upload, paste, drop, Google Drive or an image link wherever an image is added.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
