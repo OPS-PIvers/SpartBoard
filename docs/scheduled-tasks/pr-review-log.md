@@ -5211,3 +5211,11 @@ rather than "no data") is also still open.
 - Reviews posted: 3
   - Ready: #6706 (the description overstates the exponent-form fix: `formatResult(1e-8)` still shows `1e-8`), #6707 (per-widget fields have no test), #6708 (merge after #6706 and #6707).
 - Notes: CI `summary` was green on all three and none had merge conflicts. Nothing was changed, so I didn't run lint, type-check or tests locally.
+
+## 2026-11-26
+- PRs reviewed: #6799 docs(debugger): log nightly run 135; #6798 fix(flashcards): answer matching no longer throws on a language tag like es_ES; #6797 fix(schoology): read non-numeric column grades as null, not 0; #6796 fix(calculator): % and +/− after a pending operator become the second operand; #6793 Unifier run 158: aligned (log only)
+- Comments processed: 2 total, 0 fixed, 0 replied to. Both were Claude bot "no issues found" summaries (on #6796 and #6797) with no inline threads, so there was nothing to act on.
+- Fixes pushed: none.
+- Reviews posted: 5
+  - Ready: #6793, #6796 (a digit after `5 × %` now appends to `0.05`; optional test), #6797, #6798 (the `functions/` mirror has no parity test), #6799 (merge after #6796–#6798).
+- Notes: CI `summary` was green on the three code PRs and none had merge conflicts. Other locale-casing call sites take the closed `SpeakLanguage` type, so the #6798 bug class doesn't reach them. Nothing was changed, so I didn't run lint, type-check or tests locally.
