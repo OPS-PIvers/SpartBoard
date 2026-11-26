@@ -4932,11 +4932,11 @@ service cloud.firestore {
           function parentStudentUid() {
             return dbGet4('quiz_sessions', sessionId, 'responses', responseKey).data.studentUid;
           }
-          // Read: teacher, admin, or the owning student.
+          // Read: teacher, admin, or the owning student (class-gated like the parent response).
           allow read: if signedIn() && (
             isSiteAdmin() ||
             liveUid(sessionTeacherUid()) ||
-            authUid() == parentStudentUid()
+            (authUid() == parentStudentUid() && passesStudentClassGateList(sessionClassIds()))
           );
           // Create: only the owning student of the parent response; strict shape;
           // snapshotAt == request.time forces server stamping.

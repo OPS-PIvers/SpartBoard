@@ -185,6 +185,54 @@ describe('handleDrawQuizBankQuestions', () => {
     });
   });
 
+  it('SECURITY: refuses a student token whose classes the session does not target', async () => {
+    const docs = seed();
+    docs[SESSION].classIds = ['class-b'];
+    const sso = { studentRole: true, classIds: ['class-a'] };
+    await expect(
+      handleDrawQuizBankQuestions(makeDb(docs), 'stu1', input, sso)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(docs[RESPONSE].servedQuestionIds).toBeUndefined();
+  });
+
+  it('SECURITY: refuses a PIN token scoped to another session', async () => {
+    const docs = seed();
+    const pin = { pinLogin: true, pinSessionId: 'other' };
+    await expect(
+      handleDrawQuizBankQuestions(makeDb(docs), 'stu1', input, pin)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(docs[RESPONSE].servedQuestionIds).toBeUndefined();
+  });
+
+  it('SECURITY: refuses a student token outside a legacy classId session', async () => {
+    const docs = seed();
+    docs[SESSION].classId = 'class-b';
+    const sso = { studentRole: true, classIds: ['class-a'] };
+    await expect(
+      handleDrawQuizBankQuestions(makeDb(docs), 'stu1', input, sso)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(docs[RESPONSE].servedQuestionIds).toBeUndefined();
+  });
+
+  it("draws for a targeted class, a legacy classId and the PIN token's own session", async () => {
+    const sso = { studentRole: true, classIds: ['class-b'] };
+    const listed = seed();
+    listed[SESSION].classIds = ['class-b'];
+    await handleDrawQuizBankQuestions(makeDb(listed), 'stu1', input, sso);
+    expect(listed[RESPONSE].servedQuestionIds).toHaveLength(4);
+    const legacy = seed();
+    legacy[SESSION].classId = 'class-b';
+    await handleDrawQuizBankQuestions(makeDb(legacy), 'stu1', input, sso);
+    expect(legacy[RESPONSE].servedQuestionIds).toHaveLength(4);
+    const pinned = seed();
+    pinned[SESSION].classIds = ['class-b'];
+    await handleDrawQuizBankQuestions(makeDb(pinned), 'stu1', input, {
+      pinLogin: true,
+      pinSessionId: 's1',
+    });
+    expect(pinned[RESPONSE].servedQuestionIds).toHaveLength(4);
+  });
+
   it('refuses a quiz without bank slots', async () => {
     const docs = seed();
     docs[SESSION].bankSlots = [];

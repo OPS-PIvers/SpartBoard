@@ -68,6 +68,7 @@ function makeDb(docs: Record<string, Doc>) {
       Promise.resolve({
         exists: docs[path] !== undefined,
         data: () => docs[path],
+        get: (field: string) => docs[path]?.[field],
       }),
     set: (data: Doc, opts?: { merge?: boolean }) => {
       apply([{ path, data, merge: opts?.merge === true }]);
@@ -1499,6 +1500,30 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
       }
     );
     expect(admin.result).toMatchObject({ pagesQueued: 2, pagesOverQuota: 0 });
+  });
+
+  it('SECURITY: holds a deactivated admin to the daily page quota', async () => {
+    const docs = v2Docs();
+    docs[`ai_usage/${UID}_paper-handwritten-responses_2026-09-18`] = {
+      count: 300,
+    };
+    docs['admins/paul@example.org'] = { roleId: 'super_admin' };
+    docs['organizations/orono/members/paul@example.org'] = {
+      status: 'deactivated',
+    };
+    const inked = v2Sheet(1, {
+      written: [{ questionId: 'q2', page: 1, state: 'ink' }],
+    });
+    const out = await callV2(
+      docs,
+      [inked],
+      {},
+      {
+        ...teacher,
+        email: 'paul@example.org',
+      }
+    );
+    expect(out.result).toMatchObject({ pagesQueued: 0, pagesOverQuota: 1 });
   });
 
   it('with transcription off, still queues the crops but counts no page as queued or over quota', async () => {

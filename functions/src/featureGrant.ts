@@ -1,4 +1,5 @@
 import type * as admin from './firebaseAdmin';
+import { isLiveAdmin } from './authz';
 import { canonicalizeBuildingIdsServer } from './buildingIds';
 import { normalizeEmailDomain, resolveOrgIdForDomain } from './classlinkShared';
 import { missingDocAccess } from './featureMissingDoc';
@@ -85,7 +86,7 @@ export async function isGlobalFeatureGranted(
   const snap = await db.collection('global_permissions').doc(featureId).get();
   const email = (teacherEmail ?? '').toLowerCase();
   const isAdmin = async (): Promise<boolean> =>
-    !!email && (await db.collection('admins').doc(email).get()).exists;
+    !!email && (await isLiveAdmin(db, email));
   if (!snap.exists) {
     const access = missingDocAccess(featureId);
     if (access.audience === 'nobody') return false;
@@ -147,11 +148,10 @@ export async function isWidgetGranted(
   teacherUid: string
 ): Promise<boolean> {
   const email = (teacherEmail ?? '').toLowerCase();
-  const [snap, adminDoc] = await Promise.all([
+  const [snap, isAdmin] = await Promise.all([
     db.collection('feature_permissions').doc(widgetType).get(),
-    email ? db.collection('admins').doc(email).get() : null,
+    email ? isLiveAdmin(db, email) : false,
   ]);
-  const isAdmin = !!adminDoc?.exists;
   if (!snap.exists) {
     if (isAdmin) return true;
     // Lazy: only a widget with no permission doc needs the generated defaults.

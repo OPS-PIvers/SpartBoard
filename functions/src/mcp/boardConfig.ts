@@ -1,5 +1,6 @@
 // Builds a new widget's config the way the app's addWidget does, and checks the teacher may add it (AI_BOARDS D14, D15).
 import type * as admin from '../firebaseAdmin';
+import { isLiveAdmin } from '../authz';
 import { canonicalizeBuildingIdsServer } from '../buildingIds';
 import { isExcludedFrom } from '../permissionExclusion';
 import { WIDGET_CONFIG_RUNTIME } from './widgetConfigRuntime.gen';
@@ -36,8 +37,8 @@ export async function loadWidgetAccessContext(
   email: string
 ): Promise<WidgetAccessContext> {
   const lower = email.toLowerCase();
-  const [adminDoc, perms, profile] = await Promise.all([
-    lower ? db.collection('admins').doc(lower).get() : null,
+  const [isAdmin, perms, profile] = await Promise.all([
+    lower ? isLiveAdmin(db, lower) : false,
     db.collection('feature_permissions').get(),
     db.doc(`users/${uid}/userProfile/profile`).get(),
   ]);
@@ -49,7 +50,7 @@ export async function loadWidgetAccessContext(
     db,
     uid,
     email: lower,
-    isAdmin: !!adminDoc?.exists,
+    isAdmin,
     featurePermissions: perms.docs.map((d) => d.data()),
     selectedBuildings: Array.isArray(rawBuildings)
       ? canonicalizeBuildingIdsServer(rawBuildings)
