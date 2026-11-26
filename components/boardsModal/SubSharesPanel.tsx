@@ -39,6 +39,13 @@ const endsAtLabel = (expiresAt: number | undefined): string =>
       })
     : '';
 
+const opensLabel = (ms: number): string =>
+  new Date(ms).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+
 export const SubSharesPanel: React.FC<SubSharesPanelProps> = ({
   shares,
   busyShareId,
@@ -48,6 +55,7 @@ export const SubSharesPanel: React.FC<SubSharesPanelProps> = ({
   onEnd,
 }) => {
   const { t } = useTranslation();
+  const [now] = React.useState(() => Date.now());
   if (shares.length === 0) return null;
 
   return (
@@ -80,13 +88,22 @@ export const SubSharesPanel: React.FC<SubSharesPanelProps> = ({
                 {share.collection.name}
               </span>
               <span className="text-xs text-slate-500">
-                {t('subShare.panel.summary', {
-                  boards: boardCount,
-                  subs: subCount,
-                  date: endsAtLabel(share.expiresAt),
-                  defaultValue:
-                    '{{boards}} boards · {{subs}} named subs · until {{date}}',
-                })}
+                {share.availableFrom && share.availableFrom > now
+                  ? t('subShare.panel.summaryLater', {
+                      boards: boardCount,
+                      subs: subCount,
+                      from: opensLabel(share.availableFrom),
+                      date: endsAtLabel(share.expiresAt),
+                      defaultValue:
+                        '{{boards}} boards · {{subs}} named subs · opens {{from}} · until {{date}}',
+                    })
+                  : t('subShare.panel.summary', {
+                      boards: boardCount,
+                      subs: subCount,
+                      date: endsAtLabel(share.expiresAt),
+                      defaultValue:
+                        '{{boards}} boards · {{subs}} named subs · until {{date}}',
+                    })}
               </span>
               <div className="ml-auto flex items-center gap-1">
                 <button
