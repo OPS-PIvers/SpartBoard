@@ -141,12 +141,13 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
   );
   const imageStimuli = useMemo(() => {
     const seen = new Set(sheetStimuli.map((s) => s.id));
-    return [
-      ...sheetStimuli,
-      ...[...boxImages.values()].filter(
-        (s) => !seen.has(s.id) && !!seen.add(s.id)
-      ),
-    ];
+    const out = [...sheetStimuli];
+    for (const s of boxImages.values()) {
+      if (seen.has(s.id)) continue;
+      seen.add(s.id);
+      out.push(s);
+    }
+    return out;
   }, [sheetStimuli, boxImages]);
   const sheetImages = usePaperSheetStimulusImages(imageStimuli, {
     publicOnly: true,
@@ -160,6 +161,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
     publicOnly: true,
   });
   const failedStimulusNames = sheetImages.failed
+    .filter((stimulus) => stimulus.label)
     .map((stimulus) => `“${stimulus.label}”`)
     .join(', ');
   const printableStimuli = sheetStimuli.filter(
@@ -213,6 +215,13 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
     if (!context || !targetUid) return;
     setPrinting(true);
     setPrintError(null);
+    // A box whose image the owner never shared keeps printing as lines.
+    const writtenImages = Object.fromEntries(
+      [...boxImages].flatMap(([id, image]) => {
+        const src = sheetImages.src[image.id];
+        return src ? [[id, src]] : [];
+      })
+    );
     let result: CreateTeammatePaperBatchResult;
     try {
       result = await createTeammatePaperBatch({
@@ -227,6 +236,9 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
         spareCount,
         written: writtenOn,
         groups: true,
+        ...(Object.keys(writtenImages).length > 0
+          ? { boxImageQuestionIds: Object.keys(writtenImages) }
+          : {}),
       });
     } catch (err) {
       logError('PlcTeammatePrintModal.create', err, {
@@ -247,13 +259,6 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
     // stack to take back rather than sheets nothing can import.
     setPrinted(result);
     setPrinting(false);
-    // A box whose image the owner never shared keeps printing as lines.
-    const writtenImages = Object.fromEntries(
-      [...boxImages].flatMap(([id, image]) => {
-        const src = sheetImages.src[image.id];
-        return src ? [[id, src]] : [];
-      })
-    );
     try {
       print({
         batchId: result.batch.id,

@@ -743,7 +743,7 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
     ]);
   });
 
-  it('plans a custom image box as an image box', async () => {
+  describe('custom image boxes', () => {
     const imgQuiz = {
       questions: [
         QUESTIONS[0],
@@ -760,23 +760,34 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
             driveFileId: 'drive-1',
           },
         },
-        {
-          id: 'q-gone',
-          type: 'free-response',
-          text: 'No file',
-          correctAnswer: '',
-          paperBoxStyle: 'image',
-          paperBoxImage: { id: 'img-2', source: 'image' },
-        },
       ],
     };
-    const { run } = create(writtenState(imgQuiz), writtenDeps(), WRITTEN_INPUT);
-    const result = await run();
-    const items = result.batch.pageMaps?.[0].items ?? [];
-    expect(items.find((i) => i.questionId === 'q-label')?.style).toBe('image');
-    expect(items.find((i) => i.questionId === 'q-gone')?.style).not.toBe(
-      'image'
-    );
+    const styleFor = async (extra: Record<string, unknown>) => {
+      const { run } = create(writtenState(imgQuiz), writtenDeps(), {
+        ...WRITTEN_INPUT,
+        ...extra,
+      });
+      const result = await run();
+      const items = result.batch.pageMaps?.[0].items ?? [];
+      const item = items.find((it) => it.questionId === 'q-label');
+      return item?.kind === 'written' ? item.style : undefined;
+    };
+
+    it('plans an image box where the client loaded the picture', async () => {
+      expect(await styleFor({ boxImageQuestionIds: ['q-label'] })).toBe(
+        'image'
+      );
+    });
+
+    it('plans lines for an image the client could not load', async () => {
+      expect(await styleFor({ boxImageQuestionIds: ['q-other'] })).not.toBe(
+        'image'
+      );
+    });
+
+    it('plans lines when an older client sends no list', async () => {
+      expect(await styleFor({})).not.toBe('image');
+    });
   });
 
   it('prints fill in the blank as lettered write-in lines', async () => {

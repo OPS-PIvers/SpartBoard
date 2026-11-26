@@ -690,6 +690,9 @@ describe('PlcTeammatePrintModal — printing', () => {
       );
       fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
       await waitFor(() => expect(print).toHaveBeenCalled());
+      expect(createBatch).toHaveBeenCalledWith(
+        expect.objectContaining({ boxImageQuestionIds: ['q-a'] })
+      );
       expect(print.mock.calls[0][0].writtenImages).toEqual({
         'q-a': driveImageUrl('drive-box'),
       });

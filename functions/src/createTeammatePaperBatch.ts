@@ -89,6 +89,8 @@ export interface CreateTeammatePaperBatchInput {
   written: boolean;
   /** The caller's client can print matching, ordering and choose all rows. */
   groups?: boolean;
+  /** Question ids whose custom box image the client loaded; any other image box prints lines. */
+  boxImageQuestionIds?: string[];
 }
 
 export interface WithdrawTeammatePaperBatchInput {
@@ -252,6 +254,11 @@ export function parseCreateTeammatePaperBatchInput(
     spareCount,
     written: raw.written === true,
     groups: raw.groups === true,
+    boxImageQuestionIds: Array.isArray(raw.boxImageQuestionIds)
+      ? raw.boxImageQuestionIds
+          .filter((id): id is string => typeof id === 'string')
+          .slice(0, MAX_QUESTIONS)
+      : [],
   };
 }
 
@@ -408,7 +415,7 @@ function toPaperQuestion(raw: unknown): PaperQuestion | null {
 
 function paperBoxImageOf(img: Record<string, unknown>): {
   paperBoxImage: NonNullable<PaperQuestion['paperBoxImage']>;
-} | null {
+} {
   const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
   return {
     paperBoxImage: {
@@ -669,9 +676,17 @@ export async function handleCreateTeammatePaperBatch(
   }
   if (!content) content = await canonical();
 
+  // An image box plans as an image only where this client loaded the picture.
+  const loadedBoxImages = new Set(input.boxImageQuestionIds ?? []);
   const questions = content.questions
     .map(toPaperQuestion)
-    .filter((q): q is PaperQuestion => q !== null);
+    .filter((q): q is PaperQuestion => q !== null)
+    .map((q) => {
+      if (!q.paperBoxImage || loadedBoxImages.has(q.id)) return q;
+      const rest = { ...q };
+      delete rest.paperBoxImage;
+      return rest;
+    });
   // Handwritten boxes need a client that can draw page maps and a caller the
   // feature is on for; otherwise the stack prints exactly as it always has.
   const writtenOn =
