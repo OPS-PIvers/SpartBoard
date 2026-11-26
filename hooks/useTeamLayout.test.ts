@@ -13,36 +13,36 @@ type SnapshotCb = (snap: {
 }) => void;
 type ErrorCb = (err: Error) => void;
 
-const { listeners, onSnapshot, unsubscribe, updateDoc } = vi.hoisted(() => {
-  const listeners: { next: SnapshotCb; error: ErrorCb }[] = [];
-  const unsubscribe = vi.fn();
-  return {
-    listeners,
-    unsubscribe,
-    updateDoc: vi.fn(() => Promise.resolve()),
-    onSnapshot: vi.fn((_ref: unknown, next: SnapshotCb, error: ErrorCb) => {
-      listeners.push({ next, error });
-      return unsubscribe;
-    }),
-  };
-});
+const { listeners, onSnapshot, unsubscribe, callPlcSettings } = vi.hoisted(
+  () => {
+    const listeners: { next: SnapshotCb; error: ErrorCb }[] = [];
+    const unsubscribe = vi.fn();
+    return {
+      listeners,
+      unsubscribe,
+      callPlcSettings: vi.fn(() => Promise.resolve({})),
+      onSnapshot: vi.fn((_ref: unknown, next: SnapshotCb, error: ErrorCb) => {
+        listeners.push({ next, error });
+        return unsubscribe;
+      }),
+    };
+  }
+);
 
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((_db: unknown, ...segments: string[]) => ({
     path: segments.join('/'),
   })),
   onSnapshot,
-  updateDoc,
-  deleteField: vi.fn(() => '__delete__'),
-  serverTimestamp: vi.fn(() => '__ts__'),
 }));
 vi.mock('@/config/firebase', () => ({ db: { __mock: 'db' } }));
+vi.mock('@/utils/plcSettingsClient', () => ({ callPlcSettings }));
 
 beforeEach(() => {
   listeners.length = 0;
   onSnapshot.mockClear();
   unsubscribe.mockClear();
-  updateDoc.mockClear();
+  callPlcSettings.mockClear();
 });
 
 describe('useTeamTypeDefaults', () => {
@@ -109,32 +109,32 @@ describe('useTeamTypeDefaults', () => {
 });
 
 describe('saveTeamLayout / resetTeamLayout', () => {
-  it('writes only layout and updatedAt', async () => {
+  it('sends only the stored layout and the switches', async () => {
     await saveTeamLayout('p1', {
       pages: [{ id: 'hub', enabled: true }],
       landing: 'hub',
       cards: ['hero'],
       hero: { mode: 'default', ref: { kind: 'calendar' } },
     });
-    expect(updateDoc).toHaveBeenCalledWith(
-      { path: 'plcs/p1' },
-      {
-        layout: {
-          pages: [{ id: 'hub', enabled: true }],
-          landing: 'hub',
-          cards: ['hero'],
-          hero: { mode: 'default' },
-        },
-        updatedAt: '__ts__',
-      }
-    );
+    expect(callPlcSettings).toHaveBeenCalledWith({
+      action: 'setLayout',
+      plcId: 'p1',
+      layout: {
+        pages: [{ id: 'hub', enabled: true }],
+        landing: 'hub',
+        cards: ['hero'],
+        hero: { mode: 'default' },
+      },
+      features: {},
+    });
   });
 
-  it('reset deletes the layout field', async () => {
+  it('reset clears the layout', async () => {
     await resetTeamLayout('p1');
-    expect(updateDoc).toHaveBeenCalledWith(
-      { path: 'plcs/p1' },
-      { layout: '__delete__', updatedAt: '__ts__' }
-    );
+    expect(callPlcSettings).toHaveBeenCalledWith({
+      action: 'setLayout',
+      plcId: 'p1',
+      layout: null,
+    });
   });
 });

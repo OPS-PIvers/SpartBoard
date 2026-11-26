@@ -1,12 +1,7 @@
 // Transactional note writes for blocks and pre-created meeting notes (TEAMS_REDESIGN T13, T14, T24).
 
-import {
-  deleteField,
-  doc,
-  serverTimestamp,
-  updateDoc,
-} from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { serverTimestamp } from 'firebase/firestore';
+import { callPlcSettings } from '@/utils/plcSettingsClient';
 import type { Plc, PlcNoteBlock } from '@/types';
 import { parseNoteBlocks, sanitizeBlocksForWrite } from '@/utils/plcNoteBlocks';
 import { plcNotesMutate } from '@/utils/plcNotesWrite';
@@ -92,8 +87,9 @@ export async function saveTeamMeetingNoteTemplate(
   plc: Pick<Plc, 'id'>,
   markdown: string | null
 ): Promise<void> {
-  await updateDoc(doc(db, 'plcs', plc.id), {
-    meetingNoteTemplate: markdown ?? deleteField(),
-    updatedAt: serverTimestamp(),
+  await callPlcSettings({
+    action: 'setMeetingNoteTemplate',
+    plcId: plc.id,
+    markdown,
   });
 }

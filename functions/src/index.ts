@@ -358,6 +358,7 @@ export {
 export { plcMembershipV1 } from './plcMembership';
 // PLC meeting, note, recording, note-doc and comment writes, checked server-side so rules stay small.
 export { plcNotesWriteV1 } from './plcNotesWrite';
+export { plcSettingsV1 } from './plcSettings';
 // PLC updates, goals, links, mentoring tasks, to-do archive and activity log writes.
 export { plcTeamItemsV1 } from './plcTeamItems';
 export { orgAdminV1 } from './orgAdmin';

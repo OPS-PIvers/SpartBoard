@@ -1,14 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  deleteDoc,
-  doc,
-  onSnapshot,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { logError } from '@/utils/logError';
+import { callPlcSettings } from '@/utils/plcSettingsClient';
 import {
   DEFAULT_PROFICIENCY_SCALE,
   ORG_GRADEBOOK_SETTINGS_ID,
@@ -29,8 +24,6 @@ interface State {
   /** undefined while loading, null when the PLC has no set. */
   body: GradebookSettingsBody | null | undefined;
   cutoffs: Cutoffs | null;
-  /** The learningTargets doc exists, so a cutoff edit can update it in place. */
-  targetsDoc: boolean;
 }
 
 /** D16 PLC Gradebook subsection: `meta/gradebookSettings` plus the cutoffs on `meta/learningTargets`. */
@@ -42,7 +35,6 @@ export function usePlcGradebookSettings(plcId: string, plcName: string) {
     plcId: null,
     body: undefined,
     cutoffs: null,
-    targetsDoc: false,
   });
   const [districtScale, setDistrictScale] = useState<ProficiencyScale>(
     DEFAULT_PROFICIENCY_SCALE
@@ -54,9 +46,7 @@ export function usePlcGradebookSettings(plcId: string, plcName: string) {
       doc(db, 'plcs', plcId, 'meta', PLC_GRADEBOOK_META_ID),
       (snap) =>
         setState((prev) => ({
-          ...(prev.plcId === plcId
-            ? prev
-            : { cutoffs: null, targetsDoc: false }),
+          ...(prev.plcId === plcId ? prev : { cutoffs: null }),
           plcId,
           body: snap.exists() ? parseSettingsBody(snap.data(), plcName) : null,
         })),
@@ -79,7 +69,6 @@ export function usePlcGradebookSettings(plcId: string, plcName: string) {
           ...(prev.plcId === plcId ? prev : { body: undefined }),
           plcId,
           cutoffs,
-          targetsDoc: snap.exists(),
         }));
       },
       (err) => logError('usePlcGradebookSettings.cutoffs', err, { plcId })
@@ -101,37 +90,31 @@ export function usePlcGradebookSettings(plcId: string, plcName: string) {
   const save = useCallback(
     async (body: GradebookSettingsBody) => {
       if (!uid) throw new Error('Not signed in');
-      await setDoc(doc(db, 'plcs', plcId, 'meta', PLC_GRADEBOOK_META_ID), {
-        ...pickSettingsBody(body),
-        updatedBy: uid,
-        updatedAt: Date.now(),
+      await callPlcSettings({
+        action: 'saveGradebookSettings',
+        plcId,
+        body: pickSettingsBody(body),
       });
     },
     [plcId, uid]
   );
 
   const remove = useCallback(async () => {
-    await deleteDoc(doc(db, 'plcs', plcId, 'meta', PLC_GRADEBOOK_META_ID));
+    await callPlcSettings({ action: 'deleteGradebookSettings', plcId });
   }, [plcId]);
 
-  const targetsDoc = current && state.targetsDoc;
   const saveCutoffs = useCallback(
     async (cutoffs: Cutoffs) => {
-      const ref = doc(db, 'plcs', plcId, 'meta', 'learningTargets');
-      const masteryCutoffs = {
-        proficient: Math.round(cutoffs.proficient),
-        approaching: Math.round(cutoffs.approaching),
-      };
-      if (targetsDoc)
-        await updateDoc(ref, { masteryCutoffs, updatedAt: Date.now() });
-      else
-        await setDoc(ref, {
-          targets: [],
-          masteryCutoffs,
-          updatedAt: Date.now(),
-        });
+      await callPlcSettings({
+        action: 'setMasteryCutoffs',
+        plcId,
+        cutoffs: {
+          proficient: Math.round(cutoffs.proficient),
+          approaching: Math.round(cutoffs.approaching),
+        },
+      });
     },
-    [plcId, targetsDoc]
+    [plcId]
   );
 
   return {
