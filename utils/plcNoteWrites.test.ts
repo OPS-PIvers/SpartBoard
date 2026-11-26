@@ -3,28 +3,42 @@ import type { PlcNoteBlock } from '@/types';
 
 const store = new Map<string, Record<string, unknown> | undefined>();
 const writes: {
-  op: 'set' | 'update';
+  op: 'create' | 'update';
   path: string;
   data: Record<string, unknown>;
 }[] = [];
 
-vi.mock('@/config/firebase', () => ({ db: {} }));
+vi.mock('@/config/firebase', () => ({ db: {}, functions: {} }));
 vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, ...parts: string[]) => ({ path: parts.join('/') }),
   serverTimestamp: () => 'SERVER_TS',
   deleteField: () => 'DELETE',
   updateDoc: vi.fn(),
-  runTransaction: async (_db: unknown, fn: (tx: unknown) => Promise<unknown>) =>
-    fn({
-      get: (ref: { path: string }) => {
-        const data = store.get(ref.path);
-        return Promise.resolve({ exists: () => !!data, data: () => data });
-      },
-      set: (ref: { path: string }, data: Record<string, unknown>) =>
-        writes.push({ op: 'set', path: ref.path, data }),
-      update: (ref: { path: string }, data: Record<string, unknown>) =>
-        writes.push({ op: 'update', path: ref.path, data }),
-    }),
+  getDoc: (ref: { path: string }) => {
+    const data = store.get(ref.path);
+    return Promise.resolve({ exists: () => !!data, data: () => data });
+  },
+}));
+vi.mock('firebase/functions', () => ({
+  httpsCallable:
+    () =>
+    (payload: {
+      plcId: string;
+      writes: {
+        coll: string;
+        id: string;
+        op: 'create' | 'update';
+        data: Record<string, unknown>;
+      }[];
+    }) => {
+      for (const w of payload.writes)
+        writes.push({
+          op: w.op,
+          path: `plcs/${payload.plcId}/${w.coll}/${w.id}`,
+          data: w.data,
+        });
+      return Promise.resolve({ data: { ok: true } });
+    },
 }));
 
 const { ensureMeetingNote, mutateNoteBlocks } = await import('./plcNoteWrites');
@@ -58,7 +72,7 @@ describe('ensureMeetingNote', () => {
     );
     expect(writes).toHaveLength(1);
     expect(writes[0]).toMatchObject({
-      op: 'set',
+      op: 'create',
       path: PATH,
       data: {
         kind: 'meeting',

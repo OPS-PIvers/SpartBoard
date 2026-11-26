@@ -29,11 +29,11 @@ import {
   doc,
   onSnapshot,
   query,
-  runTransaction,
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import { plcNotesMutate, plcNotesUpdate } from '@/utils/plcNotesWrite';
 import { useAuth } from '@/context/useAuth';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
@@ -373,7 +373,7 @@ async function restorePlcItem(
       await restorePlcLibraryEntry(plcId, SUBCOLLECTION_FOR[type], id);
       return;
     case 'comment':
-      await updateDoc(ref, { deletedAt: null });
+      await plcNotesUpdate(plcId, 'comments', id, { deletedAt: null });
       return;
     case 'note':
       // Restore a note honoring the optimistic version precondition: clear the
@@ -382,10 +382,8 @@ async function restorePlcItem(
       // version introduced). lastEditedBy is left untouched (it stays whoever
       // last edited the note's content); the rule does NOT require restamping it
       // on a deletedAt-only flip because the membership gate covers the writer.
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(ref);
-        if (!snap.exists()) throw new Error('Note not found');
-        const data = snap.data() as Record<string, unknown>;
+      await plcNotesMutate(plcId, 'notes', id, (data) => {
+        if (!data) throw new Error('Note not found');
         const currentVersion =
           typeof data.version === 'number' ? data.version : null;
         const fields: Record<string, unknown> = {
@@ -396,7 +394,7 @@ async function restorePlcItem(
           lastEditedAt: serverTimestamp(),
         };
         if (currentVersion !== null) fields.version = currentVersion + 1;
-        tx.update(ref, fields);
+        return { write: { op: 'update', fields }, result: undefined };
       });
       return;
   }

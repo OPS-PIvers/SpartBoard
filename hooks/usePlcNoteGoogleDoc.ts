@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { plcNotesCreate } from '@/utils/plcNotesWrite';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import type { Plc, PlcActionItem, PlcNote } from '@/types';
@@ -99,7 +100,7 @@ export const usePlcNoteGoogleDoc = (plc: Plc) => {
       });
 
       try {
-        await setDoc(noteDocRef(plc.id, note.id), {
+        await plcNotesCreate(plc.id, 'noteDocs', note.id, {
           fileId: file.id,
           url: file.webViewLink,
           createdBy: user.uid,
