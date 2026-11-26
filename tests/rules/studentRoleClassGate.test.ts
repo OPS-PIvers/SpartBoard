@@ -445,6 +445,48 @@ describe('quiz_sessions/responses — student-role gate', () => {
     await assertSucceeds(getDoc(doc(asStudentA(), legacyResp)));
   });
 
+  describe('answer history read', () => {
+    const LEGACY = 'session-legacy-history';
+    const histPath = (session: string) => `${respPath(session)}/history/h1`;
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        const db = ctx.firestore();
+        await setDoc(doc(db, `quiz_sessions/${LEGACY}`), {
+          teacherUid: TEACHER_UID,
+          classId: CLASS_B,
+          status: 'active',
+        });
+        for (const s of [SESSION_A, SESSION_B, LEGACY]) {
+          await setDoc(doc(db, respPath(s)), baseResp());
+          await setDoc(doc(db, histPath(s)), {
+            questionId: 'q1',
+            answer: 'A',
+            answeredAt: 1000,
+            status: 'draft',
+            snapshotAt: 1000,
+          });
+        }
+      });
+    });
+
+    it('lets the owning student in the session class read it', async () => {
+      await assertSucceeds(getDoc(doc(asStudentA(), histPath(SESSION_A))));
+    });
+
+    it('hides it from the owning student once out of the session class', async () => {
+      await assertFails(getDoc(doc(asStudentA(), histPath(SESSION_B))));
+    });
+
+    it('treats a classId-only session as untargeted, like the parent read', async () => {
+      await assertSucceeds(getDoc(doc(asStudentA(), histPath(LEGACY))));
+    });
+
+    it('still lets the session teacher read it', async () => {
+      await assertSucceeds(getDoc(doc(asTeacher(), histPath(SESSION_B))));
+    });
+  });
+
   it('anonymous PIN student can create response without studentRole restriction', async () => {
     // Anon students use deterministic doc keys matching
     // `^pin-[a-z0-9_]+-[a-z0-9_]+$` (see `encodeResponseKeySegment` /
