@@ -2595,7 +2595,7 @@ export const pinLoginV1 = onCall(
         studentRole: true,
         orgId: matched.orgId,
         classIds: [matched.classId],
-        // Rules keep a PIN-proven token to this one session (see pinSessionOk).
+        // Rules keep a PIN-proven token to this one session (see authUid in firestore.rules).
         pinLogin: true,
         pinSessionId: sessionRef.id,
       });
