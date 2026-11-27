@@ -186,7 +186,6 @@ service cloud.firestore {
     function optInt(d, k) { return !(k in d) || d[k] is int; }
     function optBool(d, k) { return !(k in d) || d[k] is bool; }
     function optNumber(d, k) { return !(k in d) || d[k] is number; }
-    // A whole percent, 0 to 100 (goal baseline/current/target).
     // The 200-character form used across the activity-wall item validators.
     function optShortString(d, k) {
       return !(k in d) || (d[k] is string && d[k].size() <= 200);
