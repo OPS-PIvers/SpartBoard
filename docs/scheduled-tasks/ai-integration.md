@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
 _Last audited: 2026-11-23_
-_Last action: 2026-10-30 — MEDIUM `transcribeVideoWithGemini` kill-switch gap verified already fixed in code; moved to Completed (journal only). Prior: 2026-09-18 — MEDIUM per-feature AI permission enforcement gap resolved: `generateWithAI`'s `specificFeatureId` branch now enforces `enabled`/`accessLevel`/`betaUsers` server-side, mirroring the existing global `gemini-functions` check, so a disabled/admin-only/beta-restricted feature (e.g. `embed-mini-app`) can no longer be reached by calling the Cloud Function directly. Moved to Completed._
+_Last action: 2026-11-27 — MEDIUM unconfigurable per-feature AI rate-limit docs verified already fixed (quiz, blooms-ai, dashboard-layout, instructional-routine, ocr and the video/mini-app/drawing/webcam/flashcards switches are now `GlobalFeature` ids with `FEATURE_DEFAULTS` rows; `widget-builder`/`widget-explainer` no longer exist server-side); moved to Completed (journal only). Prior: 2026-10-30 — MEDIUM `transcribeVideoWithGemini` kill-switch gap verified already fixed in code; moved to Completed (journal only). Prior: 2026-09-18 — MEDIUM per-feature AI permission enforcement gap resolved: `generateWithAI`'s `specificFeatureId` branch now enforces `enabled`/`accessLevel`/`betaUsers` server-side, mirroring the existing global `gemini-functions` check, so a disabled/admin-only/beta-restricted feature (e.g. `embed-mini-app`) can no longer be reached by calling the Cloud Function directly. Moved to Completed._
 
 ---
 
@@ -54,14 +54,6 @@ _Nothing currently in progress._
 ## Open
 
 _2026-11-13: Daily audit (Friday). Weekly light pass. Gemini model strings in `functions/src` are centralized in `aiModelConfig.ts` (gemini-3.7-flash / 3.5-flash-lite); no per-type hardcoded model strings outside shared.ts legacy references. Per-type rate limit / UI state / permission gate and AI opportunity scans not re-run. 0 new issues._
-
-### MEDIUM 8 of 10 per-feature AI rate-limit docs are unconfigurable, and `dashboard-layout` reads a different doc than the `magic-layout` toggle
-
-- **Detected:** 2026-08-24
-- **File:** `functions/src/aiGeneration.ts:397-408`; `components/admin/GlobalPermissionsManager.tsx:206-212` (`GEMINI_FEATURES`); `types.ts:6355-6373` (`GlobalFeature`)
-- **Detail:** The admin UI can only create/edit permission docs for the `GlobalFeature` union, and only seeds `config.dailyLimit` for the five `GEMINI_FEATURES` (`gemini-functions`, `smart-poll`, `embed-mini-app`, `video-activity-audio-transcription`, `ai-file-context`). The server, however, rate-limits against `global_permissions/quiz`, `/ocr`, `/blooms-ai`, `/dashboard-layout`, `/instructional-routine`, `/widget-builder`, `/widget-explainer`, `/video-activity-recommend` — none of which are `GlobalFeature` ids and none of which any component, script, or seed writes (verified: only `components/admin/Analytics/aiFeatureLabels.ts` mentions them, and that is a display-label map). Because `specPermDoc.exists` is false, the per-feature branch is a no-op for all eight: only the global 20/day cap applies and admins have no lever to throttle a runaway feature. This also makes the Completed claim for `dashboard-layout` ("now applies per-feature rate limiting via the `global_permissions/dashboard-layout` doc") inaccurate — the admin-facing toggle for that feature is `magic-layout` (`Dock.tsx:761` gates on `magic-layout`), a **different doc id** the server never reads.
-- **Updated:** 2026-09-28 — `GEMINI_FEATURES` moved from `GlobalPermissionsManager.tsx` to `components/admin/access/useGlobalPermissionsEditor.ts:21-28` (Admin Access reorg, PR #3476); same 5 ids, plus a new unrelated 6th (`PAPER_HANDWRITTEN_FEATURE`, for the handwritten-paper-answers feature, not an AI-generation type). Finding and fix unchanged.
-- **Fix:** Either (a) add these ids to `GlobalFeature` + `GEMINI_FEATURES` + `GLOBAL_FEATURES` so admins get real per-feature toggles and caps (which also unblocks the fix above), or (b) at minimum rename the server's `dashboard-layout` id to `magic-layout` so the existing toggle governs it, and document that the other seven are usage-tracking suffixes with no configurable cap.
 
 ### LOW Client `AIGenerationType` union diverges from the server `AIData['type']` union in both directions
 
@@ -176,6 +168,11 @@ The following widgets have structured config schemas well-suited for AI content 
 ---
 
 ## Completed
+
+### [RESOLVED 2026-11-27] MEDIUM 8 of 10 per-feature AI rate-limit docs were unconfigurable
+
+- **Resolution:** Verified in code: `types.ts` `GlobalFeature` now lists `quiz`, `blooms-ai`, `dashboard-layout`, `instructional-routine`, `ocr`, `video-activity-ai`, `mini-app-ai`, `drawing-ai`, `webcam-ai`, `flashcards-ai`; `config/featureDefaults.ts` has rows (incl. `dashboard-layout` at :1276); `specificFeatureIdFor` in `functions/src/aiGeneration.ts` returns only those ids. No code change.
+
 
 ### Resolved 2026-11-13: `transcribeVideoWithGemini` now applies `gemini-functions` accessLevel/betaUsers/audience for non-admins via `assertPermissionAllows`/`assertAudienceAllows` (`functions/src/aiGeneration.ts`). Client `isAdmin` check left in place. Server-side admin-only requirement not added. PR opened to `dev-paul`.
 
