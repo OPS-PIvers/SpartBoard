@@ -2,6 +2,7 @@
 // Usage: affected-functions.mjs <repo-root> < changed-paths; prints ALL, nothing, or the affected exports (any doubt is ALL).
 // AFFECTED_FUNCTIONS_OLD_INDEX names a copy of the deployed index.ts, so an index.ts that only adds or repoints exports names just those.
 // AFFECTED_FUNCTIONS_OLD_FEATURE_MISSING_DOC does the same for featureMissingDoc.ts, so a new feature id names only the code that uses it.
+// AFFECTED_FUNCTIONS_OLD_PACKAGE and AFFECTED_FUNCTIONS_OLD_LOCKFILE do the same for functions/package.json and its lockfile, so a dependency bump names only the code that imports it.
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -24,6 +25,166 @@ const NO_RUNTIME_EFFECT = [
 ];
 
 class Ambiguous extends Error {}
+
+const PACKAGE_JSON = 'functions/package.json';
+const LOCKFILE = 'functions/pnpm-lock.yaml';
+// The functions runtime loads these itself, so a bump reaches every function.
+const RUNTIME_PACKAGES = new Set([
+  'firebase-functions',
+  'firebase-admin',
+  '@google-cloud/functions-framework',
+]);
+
+// Install hooks run during the Cloud Build install, so they ship even though other scripts don't.
+const INSTALL_HOOKS = ['preinstall', 'install', 'postinstall', 'prepare'];
+
+// Runtime dependencies whose entry changed since the deployed package.json; any other runtime-relevant edit is ambiguous.
+function packageJsonChanges() {
+  const oldFile = process.env.AFFECTED_FUNCTIONS_OLD_PACKAGE;
+  if (!oldFile || !existsSync(oldFile)) throw new Ambiguous(PACKAGE_JSON);
+  const before = JSON.parse(read(oldFile));
+  const after = JSON.parse(read(join(repoRoot, PACKAGE_JSON)));
+  // devDependencies never reach deployed code: tsc runs in CI, and the lockfile check below catches shared transitive moves.
+  const IGNORED = new Set(['scripts', 'devDependencies', 'dependencies']);
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  for (const key of keys) {
+    if (IGNORED.has(key)) continue;
+    if (JSON.stringify(before[key]) !== JSON.stringify(after[key]))
+      throw new Ambiguous(`${PACKAGE_JSON} changed "${key}"`);
+  }
+  for (const hook of INSTALL_HOOKS) {
+    if (before.scripts?.[hook] !== after.scripts?.[hook])
+      throw new Ambiguous(`${PACKAGE_JSON} changed the ${hook} script`);
+  }
+  const oldDeps = before.dependencies ?? {};
+  const newDeps = after.dependencies ?? {};
+  return [
+    ...new Set([...Object.keys(oldDeps), ...Object.keys(newDeps)]),
+  ].filter((name) => oldDeps[name] !== newDeps[name]);
+}
+
+const unquote = (text) => text.trim().replace(/^'(.*)'$/, '$1');
+// A snapshot key from a name and its resolved version; an npm alias resolves to `real-name@version`.
+const snapshotKey = (name, version) =>
+  /^\d/.test(version) ? `${name}@${version}` : version;
+
+// pnpm-lock.yaml v9: the runtime roots (importer `.` dependencies) and each snapshot's runtime children.
+function parseLock(text) {
+  const lines = text.split('\n');
+  if (!/^lockfileVersion: '9\.\d+'$/.test(lines[0] ?? ''))
+    throw new Ambiguous(`${LOCKFILE} is not lockfile v9`);
+  const sections = new Map();
+  let current = null;
+  for (const line of lines) {
+    const top = /^([A-Za-z]\w*):/.exec(line);
+    if (top) {
+      current = top[1];
+      sections.set(current, []);
+    } else if (current) sections.get(current).push(line);
+  }
+  const roots = new Map();
+  let importer = null;
+  let group = null;
+  let name = null;
+  for (const line of sections.get('importers') ?? []) {
+    let m;
+    if ((m = /^ {2}(\S.*):$/.exec(line))) {
+      importer = unquote(m[1]);
+      if (importer !== '.')
+        throw new Ambiguous(`${LOCKFILE} has importer ${importer}`);
+    } else if ((m = /^ {4}(\w+):$/.exec(line))) group = m[1];
+    else if ((m = /^ {6}(\S.*):$/.exec(line))) name = unquote(m[1]);
+    else if ((m = /^ {8}version: (.+)$/.exec(line))) {
+      if (group === 'dependencies' || group === 'optionalDependencies')
+        roots.set(name, snapshotKey(name, unquote(m[1])));
+    }
+  }
+  const graph = new Map();
+  let key = null;
+  for (const line of sections.get('snapshots') ?? []) {
+    let m;
+    if ((m = /^ {2}(\S.*?):(?: \{\})?$/.exec(line))) {
+      key = unquote(m[1]);
+      graph.set(key, []);
+    } else if ((m = /^ {4}(\w+):$/.exec(line))) group = m[1];
+    else if ((m = /^ {6}(\S.*?): (.+)$/.exec(line))) {
+      if (group === 'dependencies' || group === 'optionalDependencies')
+        graph.get(key).push(snapshotKey(unquote(m[1]), unquote(m[2])));
+    }
+  }
+  if (roots.size === 0 || graph.size === 0)
+    throw new Ambiguous(`${LOCKFILE} could not be read`);
+  // Settings and overrides shape every install.
+  const shared = ['settings', 'overrides', 'patchedDependencies']
+    .map((section) => (sections.get(section) ?? []).join('\n'))
+    .join('\n---\n');
+  return { roots, graph, shared };
+}
+
+function runtimeClosure(lock, root) {
+  const seen = new Set();
+  const stack = [root];
+  while (stack.length > 0) {
+    const key = stack.pop();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const children = lock.graph.get(key);
+    // link:, file: and anything misread have no snapshot, so their tree is unknown.
+    if (!children)
+      throw new Ambiguous(`${LOCKFILE} has no snapshot for ${key}`);
+    stack.push(...children);
+  }
+  return seen;
+}
+
+// Direct dependencies whose installed tree differs between the deployed and current lockfile, peers included.
+function lockfileChanges() {
+  const oldFile = process.env.AFFECTED_FUNCTIONS_OLD_LOCKFILE;
+  if (!oldFile || !existsSync(oldFile)) throw new Ambiguous(LOCKFILE);
+  const before = parseLock(read(oldFile));
+  const after = parseLock(read(join(repoRoot, LOCKFILE)));
+  if (before.shared !== after.shared)
+    throw new Ambiguous(`${LOCKFILE} changed settings or overrides`);
+  const names = new Set([...before.roots.keys(), ...after.roots.keys()]);
+  const changed = [];
+  for (const name of names) {
+    const a = before.roots.get(name);
+    const b = after.roots.get(name);
+    if (a === undefined || b === undefined || a !== b) {
+      changed.push(name);
+      continue;
+    }
+    const x = runtimeClosure(before, a);
+    const y = runtimeClosure(after, b);
+    if (x.size !== y.size || [...x].some((k) => !y.has(k))) changed.push(name);
+  }
+  return changed;
+}
+
+// Changed runtime dependencies from package.json and the lockfile together.
+function changedDependencies(relevant) {
+  const names = new Set();
+  if (relevant.includes(PACKAGE_JSON))
+    packageJsonChanges().forEach((name) => names.add(name));
+  if (relevant.includes(LOCKFILE))
+    lockfileChanges().forEach((name) => names.add(name));
+  for (const name of names) {
+    if (RUNTIME_PACKAGES.has(name))
+      throw new Ambiguous(`${PACKAGE_JSON} changed ${name}`);
+  }
+  return [...names].sort();
+}
+
+// Bare package names a file loads, without subpaths or node: builtins.
+function packageImports(file) {
+  const names = new Set();
+  for (const { spec } of specifiers(read(file))) {
+    if (spec.startsWith('.') || spec.startsWith('node:')) continue;
+    const parts = spec.split('/');
+    names.add(spec.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0]);
+  }
+  return names;
+}
 
 // Feature ids are data here: a new id can only reach code that names it, unless the caller builds the id at runtime.
 const FEATURE_MISSING_DOC = 'functions/src/featureMissingDoc.ts';
@@ -82,7 +243,12 @@ function reachesFeatureIds(files, ids) {
     const path = toRepo(file);
     if (path === FEATURE_MISSING_DOC) continue;
     if (RUNTIME_FEATURE_ID_CALLERS.includes(path)) return true;
-    if (/\b(?:ADMIN_PREVIEW_FEATURES|PUBLIC_MISSING_DOC_FEATURES)\b/.test(read(file))) return true;
+    if (
+      /\b(?:ADMIN_PREVIEW_FEATURES|PUBLIC_MISSING_DOC_FEATURES)\b/.test(
+        read(file)
+      )
+    )
+      return true;
     const source = read(file);
     if (
       ids.some((id) =>
@@ -109,7 +275,8 @@ function typeOnly(statement) {
     .map((name) => name.trim())
     .filter(Boolean);
   return (
-    names.length > 0 && names.every((name) => /^type\s+(?!as\b)[A-Za-z_$]/.test(name))
+    names.length > 0 &&
+    names.every((name) => /^type\s+(?!as\b)[A-Za-z_$]/.test(name))
   );
 }
 
@@ -235,12 +402,20 @@ function changedBarrelExports(exports) {
 }
 
 function affected(changed) {
-  const relevant = changed.filter(
+  let relevant = changed.filter(
     (path) =>
       path.startsWith('functions/') &&
       !NO_RUNTIME_EFFECT.some((re) => re.test(path))
   );
-  if (relevant.length === 0) return [];
+  // A dependency change names the functions that import it; the lockfile shows transitive and peer moves.
+  let deps = [];
+  if (relevant.includes(PACKAGE_JSON) || relevant.includes(LOCKFILE)) {
+    deps = changedDependencies(relevant);
+    relevant = relevant.filter(
+      (path) => path !== PACKAGE_JSON && path !== LOCKFILE
+    );
+  }
+  if (relevant.length === 0 && deps.length === 0) return [];
 
   const changedSources = new Set();
   for (const path of relevant) {
@@ -262,8 +437,10 @@ function affected(changed) {
   const featureFile = join(repoRoot, FEATURE_MISSING_DOC);
   const addedIds = changedSources.has(featureFile) ? addedFeatureIds() : null;
   const unattributed = new Set(changedSources);
+  const unimported = new Set(deps);
+  const imports = new Map();
   for (const [name, { module }] of exports) {
-    if (names.includes(name)) continue;
+    if (names.includes(name) && deps.length === 0) continue;
     if (!closures.has(module)) closures.set(module, closure(module));
     const files = closures.get(module);
     const hits = [...changedSources].filter((file) => files.has(file));
@@ -274,8 +451,24 @@ function affected(changed) {
         addedIds === null ||
         reachesFeatureIds(files, addedIds)
     );
-    if (real.length > 0) names.push(name);
+    let usesDep = false;
+    for (const file of deps.length > 0 ? files : []) {
+      if (!file.endsWith('.ts')) continue;
+      if (!imports.has(file)) imports.set(file, packageImports(file));
+      for (const dep of deps) {
+        if (imports.get(file).has(dep)) {
+          usesDep = true;
+          unimported.delete(dep);
+        }
+      }
+    }
+    if ((real.length > 0 || usesDep) && !names.includes(name)) names.push(name);
   }
+  // A dependency no deployed code imports by name may still be loaded another way (a peer, require.resolve).
+  if (unimported.size > 0)
+    throw new Ambiguous(
+      `${PACKAGE_JSON} changed ${[...unimported].join(', ')}, which no function imports by name`
+    );
   // A non-TS file no function imports may still be read at runtime (fs, __dirname).
   for (const file of unattributed) {
     if (!file.endsWith('.ts'))
