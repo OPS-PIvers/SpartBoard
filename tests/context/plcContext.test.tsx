@@ -499,11 +499,19 @@ describe('usePlcActions — mount-stable identity', () => {
       });
     });
     expect(write).toHaveBeenCalledTimes(1);
-    const [plcId, writes] = write.mock.calls[0];
+    const [plcId, writes] = write.mock.calls[0] as [string, unknown[]];
     expect(plcId).toBe(PLC_ID);
     expect(writes).toHaveLength(2);
-    expect(writes[0]).toMatchObject({ coll: 'quizzes', id: 'q1', data: { archived: true } });
-    expect(writes[1]).toMatchObject({ coll: 'assessments', id: 'a1', data: { status: 'closed' } });
+    expect(writes[0]).toMatchObject({
+      coll: 'quizzes',
+      id: 'q1',
+      data: { archived: true },
+    });
+    expect(writes[1]).toMatchObject({
+      coll: 'assessments',
+      id: 'a1',
+      data: { status: 'closed' },
+    });
   });
 
   it('archiveQuiz writes only the quiz doc when assessmentId is null (never-assigned quiz)', async () => {
@@ -526,7 +534,10 @@ describe('usePlcActions — mount-stable identity', () => {
       });
     });
     expect(write.mock.calls[0][1]).toEqual([
-      expect.objectContaining({ coll: 'quizzes', data: expect.objectContaining({ archived: true }) }),
+      expect.objectContaining({
+        coll: 'quizzes',
+        data: expect.objectContaining({ archived: true }),
+      }),
     ]);
   });
 
@@ -549,9 +560,15 @@ describe('usePlcActions — mount-stable identity', () => {
         assessmentId: 'a1',
       });
     });
-    const writes = write.mock.calls[0][1];
-    expect(writes[0]).toMatchObject({ coll: 'quizzes', data: { archived: false } });
-    expect(writes[1]).toMatchObject({ coll: 'assessments', data: { status: 'active' } });
+    const writes = write.mock.calls[0][1] as unknown[];
+    expect(writes[0]).toMatchObject({
+      coll: 'quizzes',
+      data: { archived: false },
+    });
+    expect(writes[1]).toMatchObject({
+      coll: 'assessments',
+      data: { status: 'active' },
+    });
   });
 });
 

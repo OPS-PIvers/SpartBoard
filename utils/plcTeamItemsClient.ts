@@ -103,10 +103,10 @@ function viewAsWrites(req: PlcTeamItemRequest): ViewAsRawWrite[] {
     req.action === 'archiveTodos'
       ? req.ids
       : [
-          ('updateId' in req && req.updateId) ||
-            ('goalId' in req && req.goalId) ||
-            ('linkId' in req && req.linkId) ||
-            ('taskId' in req && req.taskId) ||
+          ('updateId' in req ? req.updateId : undefined) ??
+            ('goalId' in req ? req.goalId : undefined) ??
+            ('linkId' in req ? req.linkId : undefined) ??
+            ('taskId' in req ? req.taskId : undefined) ??
             'new',
         ];
   return ids.map((id) => ({

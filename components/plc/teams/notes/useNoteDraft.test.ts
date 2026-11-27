@@ -9,7 +9,9 @@ vi.mock('react-i18next', () => ({
     t: (_k: string, o?: { defaultValue?: string }) => o?.defaultValue ?? _k,
   }),
 }));
-vi.mock('@/context/useDashboard', () => ({ useDashboard: () => ({ addToast }) }));
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast }),
+}));
 vi.mock('@/hooks/usePlcNoteCrdt', () => ({
   usePlcNoteCrdt: () => ({ status: 'off' }),
 }));

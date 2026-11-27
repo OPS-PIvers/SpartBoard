@@ -91,6 +91,7 @@ export function useNoteDraft(params: {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef<Promise<void> | null>(null);
   const retriesRef = useRef(0);
+  const flushRef = useRef<() => void>(() => undefined);
 
   // A teammate's save lands: adopt it while this draft holds no unsaved work.
   const [seenEditAt, setSeenEditAt] = useState(note.lastEditedAt);
@@ -181,14 +182,13 @@ export function useNoteDraft(params: {
       for (const [k, v] of Object.entries(patch)) {
         if (!(k in retry)) retry[k] = k in latest ? latest[k] : v;
       }
-      pendingRef.current = retry as Patch;
+      pendingRef.current = retry;
       const delay = 1000 * 2 ** retriesRef.current;
       retriesRef.current += 1;
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => flushRef.current(), delay);
     });
   }, [addToast, note.id, plcId, t, updateNote]);
-  const flushRef = useRef(flush);
   useLayoutEffect(() => {
     flushRef.current = flush;
   }, [flush]);
