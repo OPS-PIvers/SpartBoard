@@ -22,7 +22,7 @@
     "lint:functions": "pnpm -C functions run lint",
     "lint:extension": "pnpm -C extension run lint",
     "build:extension": "pnpm -C extension run package",
-    "lint:fix": "eslint . --fix && pnpm -C functions run lint:fix && pnpm -C extension run lint:fix",
+    "lint:fix": "eslint -c eslint.config.js . --fix && pnpm -C functions run lint:fix && pnpm -C extension run lint:fix",
     "type-check": "node node_modules/typescript-7/bin/tsc --noEmit",
     "type-check:ts6": "node --max-old-space-size=8192 node_modules/typescript/bin/tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
@@ -119,9 +119,9 @@
     "yjs": "^13.6.33"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.5",
+    "@eslint/js": "^10.0.1",
     "@firebase/rules-unit-testing": "^6.0.0",
-    "@google/genai": "^2.32.0",
+    "@google/genai": "^3.6.1",
     "@modelcontextprotocol/ext-apps": "^1.7.5",
     "@playwright/test": "~1.64.1",
     "@tailwindcss/postcss": "^4.3.5",
@@ -149,7 +149,7 @@
     "cors": "^2.8.6",
     "cross-env": "^10.1.0",
     "crypto-js": "^4.2.0",
-    "eslint": "^9.39.5",
+    "eslint": "^10.16.0",
     "eslint-config-prettier": "^10.1.9",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "7.1.1",
@@ -185,7 +185,7 @@
       "prettier --write"
     ],
     "*.{ts,tsx}": [
-      "eslint --fix --no-warn-ignored --max-warnings 0",
+      "eslint -c eslint.config.js --fix --no-warn-ignored --max-warnings 0",
       "prettier --write"
     ],
     "*.{js,jsx,json,css,md}": [
