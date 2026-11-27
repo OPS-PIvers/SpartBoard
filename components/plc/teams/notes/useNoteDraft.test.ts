@@ -25,7 +25,9 @@ const note = {
   lastEditedAt: 1,
 } as unknown as PlcNote;
 
-function setup(updateNote: ReturnType<typeof vi.fn>) {
+type UpdateNote = Parameters<typeof useNoteDraft>[0]['updateNote'];
+
+function setup(updateNote: ReturnType<typeof vi.fn<UpdateNote>>) {
   return renderHook(() =>
     useNoteDraft({
       plcId: 'p1',
@@ -47,7 +49,7 @@ describe('useNoteDraft failed saves', () => {
 
   it('retries a save the server did not take, keeping the patch', async () => {
     const updateNote = vi
-      .fn()
+      .fn<UpdateNote>()
       .mockRejectedValueOnce(new Error('internal'))
       .mockResolvedValue(undefined);
     const { result } = setup(updateNote);
@@ -66,7 +68,9 @@ describe('useNoteDraft failed saves', () => {
   });
 
   it('shows the error toast after the retries run out', async () => {
-    const updateNote = vi.fn().mockRejectedValue(new Error('internal'));
+    const updateNote = vi
+      .fn<UpdateNote>()
+      .mockRejectedValue(new Error('internal'));
     const { result } = setup(updateNote);
     act(() => result.current.setTitle('New title'));
     await act(async () => {
@@ -88,7 +92,7 @@ describe('useNoteDraft retry ordering', () => {
   it('never re-sends older text over a newer save queued behind the failed one', async () => {
     let rejectA: (e: Error) => void = () => undefined;
     const updateNote = vi
-      .fn()
+      .fn<UpdateNote>()
       .mockImplementationOnce(
         () => new Promise<void>((_, reject) => (rejectA = reject))
       )
