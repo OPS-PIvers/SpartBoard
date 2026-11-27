@@ -2,7 +2,7 @@
 // Usage: affected-functions.mjs <repo-root> < changed-paths; prints ALL, nothing, or the affected exports (any doubt is ALL).
 // AFFECTED_FUNCTIONS_OLD_INDEX names a copy of the deployed index.ts, so an index.ts that only adds or repoints exports names just those.
 // AFFECTED_FUNCTIONS_OLD_FEATURE_MISSING_DOC does the same for featureMissingDoc.ts, so a new feature id names only the code that uses it.
-// AFFECTED_FUNCTIONS_OLD_PACKAGE does the same for functions/package.json, so a dependency bump names only the code that imports it.
+// AFFECTED_FUNCTIONS_OLD_PACKAGE and AFFECTED_FUNCTIONS_OLD_LOCKFILE do the same for functions/package.json and its lockfile, so a dependency bump names only the code that imports it.
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -35,13 +35,16 @@ const RUNTIME_PACKAGES = new Set([
   '@google-cloud/functions-framework',
 ]);
 
+// Install hooks run during the Cloud Build install, so they ship even though other scripts don't.
+const INSTALL_HOOKS = ['preinstall', 'install', 'postinstall', 'prepare'];
+
 // Runtime dependencies whose entry changed since the deployed package.json; any other runtime-relevant edit is ambiguous.
-function changedDependencies() {
+function packageJsonChanges() {
   const oldFile = process.env.AFFECTED_FUNCTIONS_OLD_PACKAGE;
   if (!oldFile || !existsSync(oldFile)) throw new Ambiguous(PACKAGE_JSON);
   const before = JSON.parse(read(oldFile));
   const after = JSON.parse(read(join(repoRoot, PACKAGE_JSON)));
-  // scripts and devDependencies never reach deployed code: tsc runs in CI, and runtime code imports only dependencies.
+  // devDependencies never reach deployed code: tsc runs in CI, and the lockfile check below catches shared transitive moves.
   const IGNORED = new Set(['scripts', 'devDependencies', 'dependencies']);
   const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
   for (const key of keys) {
@@ -49,16 +52,120 @@ function changedDependencies() {
     if (JSON.stringify(before[key]) !== JSON.stringify(after[key]))
       throw new Ambiguous(`${PACKAGE_JSON} changed "${key}"`);
   }
+  for (const hook of INSTALL_HOOKS) {
+    if (before.scripts?.[hook] !== after.scripts?.[hook])
+      throw new Ambiguous(`${PACKAGE_JSON} changed the ${hook} script`);
+  }
   const oldDeps = before.dependencies ?? {};
   const newDeps = after.dependencies ?? {};
-  const names = [...new Set([...Object.keys(oldDeps), ...Object.keys(newDeps)])]
-    .filter((name) => oldDeps[name] !== newDeps[name])
-    .sort();
+  return [
+    ...new Set([...Object.keys(oldDeps), ...Object.keys(newDeps)]),
+  ].filter((name) => oldDeps[name] !== newDeps[name]);
+}
+
+const unquote = (text) => text.trim().replace(/^'(.*)'$/, '$1');
+
+// pnpm-lock.yaml v9: the runtime roots (importer `.` dependencies) and each snapshot's runtime children.
+function parseLock(text) {
+  const lines = text.split('\n');
+  if (!/^lockfileVersion: '9\.\d+'$/.test(lines[0] ?? ''))
+    throw new Ambiguous(`${LOCKFILE} is not lockfile v9`);
+  const sections = new Map();
+  let current = null;
+  for (const line of lines) {
+    const top = /^([A-Za-z]\w*):/.exec(line);
+    if (top) {
+      current = top[1];
+      sections.set(current, []);
+    } else if (current) sections.get(current).push(line);
+  }
+  const roots = new Map();
+  let importer = null;
+  let group = null;
+  let name = null;
+  for (const line of sections.get('importers') ?? []) {
+    let m;
+    if ((m = /^ {2}(\S.*):$/.exec(line))) {
+      importer = unquote(m[1]);
+      if (importer !== '.')
+        throw new Ambiguous(`${LOCKFILE} has importer ${importer}`);
+    } else if ((m = /^ {4}(\w+):$/.exec(line))) group = m[1];
+    else if ((m = /^ {6}(\S.*):$/.exec(line))) name = unquote(m[1]);
+    else if ((m = /^ {8}version: (.+)$/.exec(line))) {
+      if (group === 'dependencies' || group === 'optionalDependencies')
+        roots.set(name, `${name}@${unquote(m[1])}`);
+    }
+  }
+  const graph = new Map();
+  let key = null;
+  for (const line of sections.get('snapshots') ?? []) {
+    let m;
+    if ((m = /^ {2}(\S.*?):(?: \{\})?$/.exec(line))) {
+      key = unquote(m[1]);
+      graph.set(key, []);
+    } else if ((m = /^ {4}(\w+):$/.exec(line))) group = m[1];
+    else if ((m = /^ {6}(\S.*?): (.+)$/.exec(line))) {
+      if (group === 'dependencies' || group === 'optionalDependencies')
+        graph.get(key).push(`${unquote(m[1])}@${unquote(m[2])}`);
+    }
+  }
+  if (roots.size === 0 || graph.size === 0)
+    throw new Ambiguous(`${LOCKFILE} could not be read`);
+  // Settings and overrides shape every install.
+  const shared = ['settings', 'overrides', 'patchedDependencies']
+    .map((section) => (sections.get(section) ?? []).join('\n'))
+    .join('\n---\n');
+  return { roots, graph, shared };
+}
+
+function runtimeClosure(lock, root) {
+  const seen = new Set();
+  const stack = [root];
+  while (stack.length > 0) {
+    const key = stack.pop();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    stack.push(...(lock.graph.get(key) ?? []));
+  }
+  return seen;
+}
+
+// Direct dependencies whose installed tree differs between the deployed and current lockfile, peers included.
+function lockfileChanges() {
+  const oldFile = process.env.AFFECTED_FUNCTIONS_OLD_LOCKFILE;
+  if (!oldFile || !existsSync(oldFile)) throw new Ambiguous(LOCKFILE);
+  const before = parseLock(read(oldFile));
+  const after = parseLock(read(join(repoRoot, LOCKFILE)));
+  if (before.shared !== after.shared)
+    throw new Ambiguous(`${LOCKFILE} changed settings or overrides`);
+  const names = new Set([...before.roots.keys(), ...after.roots.keys()]);
+  const changed = [];
+  for (const name of names) {
+    const a = before.roots.get(name);
+    const b = after.roots.get(name);
+    if (a === undefined || b === undefined || a !== b) {
+      changed.push(name);
+      continue;
+    }
+    const x = runtimeClosure(before, a);
+    const y = runtimeClosure(after, b);
+    if (x.size !== y.size || [...x].some((k) => !y.has(k))) changed.push(name);
+  }
+  return changed;
+}
+
+// Changed runtime dependencies from package.json and the lockfile together.
+function changedDependencies(relevant) {
+  const names = new Set();
+  if (relevant.includes(PACKAGE_JSON))
+    packageJsonChanges().forEach((name) => names.add(name));
+  if (relevant.includes(LOCKFILE))
+    lockfileChanges().forEach((name) => names.add(name));
   for (const name of names) {
     if (RUNTIME_PACKAGES.has(name))
       throw new Ambiguous(`${PACKAGE_JSON} changed ${name}`);
   }
-  return names;
+  return [...names].sort();
 }
 
 // Bare package names a file loads, without subpaths or node: builtins.
@@ -293,10 +400,10 @@ function affected(changed) {
       path.startsWith('functions/') &&
       !NO_RUNTIME_EFFECT.some((re) => re.test(path))
   );
-  // A lockfile change is attributed to the package.json change beside it; alone it could be anything.
+  // A dependency change names the functions that import it; the lockfile shows transitive and peer moves.
   let deps = [];
-  if (relevant.includes(PACKAGE_JSON)) {
-    deps = changedDependencies();
+  if (relevant.includes(PACKAGE_JSON) || relevant.includes(LOCKFILE)) {
+    deps = changedDependencies(relevant);
     relevant = relevant.filter(
       (path) => path !== PACKAGE_JSON && path !== LOCKFILE
     );

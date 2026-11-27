@@ -26,12 +26,14 @@ function affected(
   root = repoRoot,
   oldIndex?: string,
   oldFeatureMissingDoc?: string,
-  oldPackage?: string
+  oldPackage?: string,
+  oldLockfile?: string
 ): string[] | 'ALL' {
   const env = { ...process.env };
   delete env.AFFECTED_FUNCTIONS_OLD_INDEX;
   delete env.AFFECTED_FUNCTIONS_OLD_FEATURE_MISSING_DOC;
   delete env.AFFECTED_FUNCTIONS_OLD_PACKAGE;
+  delete env.AFFECTED_FUNCTIONS_OLD_LOCKFILE;
   const deployedCopy = (name: string, content: string) => {
     const file = join(mkdtempSync(join(tmpdir(), 'deployed-')), name);
     writeFileSync(file, content);
@@ -50,6 +52,12 @@ function affected(
     env.AFFECTED_FUNCTIONS_OLD_PACKAGE = deployedCopy(
       'package.json',
       oldPackage
+    );
+  }
+  if (oldLockfile !== undefined) {
+    env.AFFECTED_FUNCTIONS_OLD_LOCKFILE = deployedCopy(
+      'pnpm-lock.yaml',
+      oldLockfile
     );
   }
   const result = spawnSync('node', [affectedScript, root], {
@@ -341,6 +349,78 @@ describe('affected-functions.mjs dependency changes', () => {
       devDependencies: { typescript: '~6.0.0' },
       ...extra,
     });
+  // A pnpm v9 lockfile: axios and ajv share follow-redirects; sdk peers on zod.
+  const lock = (v: {
+    axios?: string;
+    ajv?: string;
+    redirects?: string;
+    zod?: string;
+    overrides?: string;
+  }) => {
+    const axios = v.axios ?? '1.1.0';
+    const ajv = v.ajv ?? '8.0.0';
+    const redirects = v.redirects ?? '1.15.0';
+    const zod = v.zod ?? '4.0.0';
+    return [
+      "lockfileVersion: '9.0'",
+      '',
+      'settings:',
+      '  autoInstallPeers: true',
+      '',
+      ...(v.overrides ? ['overrides:', `  hono: ${v.overrides}`, ''] : []),
+      'importers:',
+      '',
+      '  .:',
+      '    dependencies:',
+      '      ajv:',
+      '        specifier: ^8.0.0',
+      `        version: ${ajv}`,
+      '      axios:',
+      '        specifier: ^1.0.0',
+      `        version: ${axios}`,
+      "      'firebase-admin':",
+      '        specifier: ^13.0.0',
+      '        version: 13.0.0',
+      "      '@x/sdk':",
+      '        specifier: ^1.0.0',
+      `        version: 1.0.0(zod@${zod})`,
+      '      zod:',
+      '        specifier: ^4.0.0',
+      `        version: ${zod}`,
+      '    devDependencies:',
+      '      typescript:',
+      '        specifier: ~6.0.0',
+      '        version: 6.0.0',
+      '',
+      'packages:',
+      '',
+      '  ajv@8.0.0:',
+      '    resolution: {integrity: sha512-x}',
+      '',
+      'snapshots:',
+      '',
+      `  ajv@${ajv}:`,
+      '    dependencies:',
+      `      follow-redirects: ${redirects}`,
+      '',
+      `  axios@${axios}:`,
+      '    dependencies:',
+      `      follow-redirects: ${redirects}`,
+      '',
+      "  'firebase-admin@13.0.0': {}",
+      '',
+      `  follow-redirects@${redirects}: {}`,
+      '',
+      `  '@x/sdk@1.0.0(zod@${zod})':`,
+      '    optionalDependencies:',
+      `      zod: ${zod}`,
+      '',
+      '  typescript@6.0.0: {}',
+      '',
+      `  zod@${zod}: {}`,
+      '',
+    ].join('\n');
+  };
   const files = {
     'functions/src/index.ts': [
       "export { a } from './a';",
@@ -357,26 +437,43 @@ describe('affected-functions.mjs dependency changes', () => {
       "import Ajv from 'ajv/dist/2020';\nexport const b = new Ajv();",
     'functions/src/c.ts':
       "import { readFile } from 'node:fs';\nexport const c = readFile;",
-    'functions/src/d.ts': 'export const d = 1;',
-    'functions/src/e.ts': 'export const e = 1;',
+    'functions/src/d.ts': "import { s } from '@x/sdk';\nexport const d = s;",
+    'functions/src/e.ts': "import { z } from 'zod';\nexport const e = z;",
     'functions/package.json': pkg({ axios: '^1.1.0' }),
+    'functions/pnpm-lock.yaml': lock({}),
   };
   const both = ['functions/package.json', 'functions/pnpm-lock.yaml'];
+  const lockOnly = ['functions/pnpm-lock.yaml'];
+  const run = (
+    changed: string[],
+    root: string,
+    oldPkg?: string,
+    oldLock?: string
+  ) => affected(changed, root, undefined, undefined, oldPkg, oldLock);
 
   it('names only the functions that import a bumped dependency', () => {
     withFixture(files, (root) => {
-      expect(affected(both, root, undefined, undefined, pkg({}))).toEqual([
-        'a',
-      ]);
+      expect(run(both, root, pkg({}), lock({ axios: '1.0.0' }))).toEqual(['a']);
       expect(
-        affected(
-          both,
+        run(
+          ['functions/package.json'],
           root,
-          undefined,
-          undefined,
           pkg({ axios: '^1.1.0', ajv: '^7.0.0' })
         )
       ).toEqual(['b']);
+    });
+  });
+
+  it('names every importer of a dependency whose tree moved, peers included', () => {
+    withFixture(files, (root) => {
+      expect(
+        run(lockOnly, root, undefined, lock({ redirects: '1.14.0' }))
+      ).toEqual(['a', 'b']);
+      expect(run(lockOnly, root, undefined, lock({ zod: '3.9.0' }))).toEqual([
+        'd',
+        'e',
+      ]);
+      expect(run(lockOnly, root, undefined, lock({}))).toEqual([]);
     });
   });
 
@@ -388,38 +485,40 @@ describe('affected-functions.mjs dependency changes', () => {
       };
       old.scripts.build = 'tsc -p .';
       old.devDependencies.typescript = '~5.9.0';
-      expect(
-        affected(both, root, undefined, undefined, JSON.stringify(old))
-      ).toEqual([]);
+      expect(run(both, root, JSON.stringify(old), lock({}))).toEqual([]);
     });
   });
 
   it('deploys everything when the change could reach code it cannot trace', () => {
     withFixture(files, (root) => {
-      const cases: Array<[string, string[]]> = [
+      const old = pkg({ axios: '^1.1.0' });
+      const hook = JSON.parse(old) as { scripts: Record<string, string> };
+      hook.scripts.postinstall = 'node setup.js';
+      const cases: Array<[string | undefined, string | undefined, string[]]> = [
         [
           pkg({ axios: '^1.1.0' }, { pnpm: { overrides: { hono: '^4.0.0' } } }),
+          lock({}),
           both,
         ],
-        [pkg({ axios: '^1.1.0' }, { packageManager: 'pnpm@9.0.0' }), both],
-        [pkg({ axios: '^1.1.0', 'firebase-admin': '^12.0.0' }), both],
-        [pkg({ axios: '^1.1.0', unused: '^1.0.0' }), both],
+        [
+          pkg({ axios: '^1.1.0' }, { packageManager: 'pnpm@9.0.0' }),
+          lock({}),
+          both,
+        ],
+        [pkg({ axios: '^1.1.0', 'firebase-admin': '^12.0.0' }), lock({}), both],
+        [pkg({ axios: '^1.1.0', unused: '^1.0.0' }), lock({}), both],
+        [JSON.stringify(hook), lock({}), both],
+        [old, undefined, both],
+        [undefined, undefined, both],
+        [undefined, lock({ overrides: '^4.0.0' }), lockOnly],
+        [undefined, 'lockfileVersion: 6.0\n', lockOnly],
       ];
-      for (const [old, changed] of cases) {
-        expect(affected(changed, root, undefined, undefined, old), old).toBe(
-          'ALL'
-        );
+      for (const [oldPkg, oldLock, changed] of cases) {
+        expect(
+          run(changed, root, oldPkg, oldLock),
+          `${oldPkg} ${oldLock}`
+        ).toBe('ALL');
       }
-      expect(affected(both, root)).toBe('ALL');
-      expect(
-        affected(
-          ['functions/pnpm-lock.yaml'],
-          root,
-          undefined,
-          undefined,
-          pkg({})
-        )
-      ).toBe('ALL');
     });
   });
 });

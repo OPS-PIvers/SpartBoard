@@ -14,7 +14,7 @@
 # For dev-paul and main the diff base is the last successfully deployed commit, so a cancelled or
 # failed run's backend changes carry into the next run instead of being dropped.
 # Writes key=value lines to $GITHUB_OUTPUT (or stdout). CHANGED_FILES and
-# CONTAINS_DEV_PAUL override the git lookups, for tests; OLD_INDEX_FILE and OLD_PACKAGE_FILE stand in for the base commit's index.ts and functions/package.json.
+# CONTAINS_DEV_PAUL override the git lookups, for tests; OLD_INDEX_FILE, OLD_PACKAGE_FILE and OLD_LOCKFILE_FILE stand in for the base commit's copies.
 
 set -euo pipefail
 
@@ -95,8 +95,14 @@ else
     elif ! git show "${BASE_SHA}:functions/package.json" >"$old_package" 2>/dev/null; then
       rm -f "$old_package"
     fi
-    names="$(grep '^functions/' <<<"$FILES" | AFFECTED_FUNCTIONS_OLD_INDEX="$old_index" AFFECTED_FUNCTIONS_OLD_FEATURE_MISSING_DOC="$old_flags" AFFECTED_FUNCTIONS_OLD_PACKAGE="$old_package" node "$(dirname "$0")/affected-functions.mjs" "$root")" || names=ALL
-    rm -f "$old_index" "$old_flags" "$old_package"
+    old_lock="$(mktemp)"
+    if [[ -n "${OLD_LOCKFILE_FILE:-}" ]]; then
+      cp "$OLD_LOCKFILE_FILE" "$old_lock"
+    elif ! git show "${BASE_SHA}:functions/pnpm-lock.yaml" >"$old_lock" 2>/dev/null; then
+      rm -f "$old_lock"
+    fi
+    names="$(grep '^functions/' <<<"$FILES" | AFFECTED_FUNCTIONS_OLD_INDEX="$old_index" AFFECTED_FUNCTIONS_OLD_FEATURE_MISSING_DOC="$old_flags" AFFECTED_FUNCTIONS_OLD_PACKAGE="$old_package" AFFECTED_FUNCTIONS_OLD_LOCKFILE="$old_lock" node "$(dirname "$0")/affected-functions.mjs" "$root")" || names=ALL
+    rm -f "$old_index" "$old_flags" "$old_package" "$old_lock"
     if [[ -z "$names" ]]; then
       FUNCTIONS=false
     elif [[ "$names" != "ALL" ]]; then
