@@ -305,6 +305,36 @@ describe('applyAttemptWrite', () => {
     expect(stub.get(RESPONSE)?.grading).toBe(DELETE);
   });
 
+  it('clears attempt 1 paper edits and held rescans at a retake so the next scan lands', async () => {
+    const P = `${RESPONSE}/paperPrivate/q1`;
+    const stub = seed({
+      [P]: {
+        scanId: 's1',
+        status: 'done',
+        editedAt: 5,
+        editedBy: 't1',
+        newerScan: { scanId: 's2' },
+      },
+    });
+    const graded = done();
+    await apply(stub, write(undefined, graded));
+    await apply(stub, write(graded, reset()));
+    const p = stub.get(P);
+    expect(p?.editedAt).toBe(DELETE);
+    expect(p?.editedBy).toBe(DELETE);
+    expect(p?.newerScan).toBe(DELETE);
+    expect(p?.scanId).toBe('s1');
+  });
+
+  it('keeps paper edits when the doc moved on before the retake event arrived', async () => {
+    const P = `${RESPONSE}/paperPrivate/q1`;
+    const stub = seed({ [P]: { scanId: 's1', editedAt: 5 } });
+    const graded = done();
+    stub.store.set(RESPONSE, done({ completedAttempts: 2 }));
+    await applyAttemptWrite(stub.db as unknown as Db, write(graded, reset()));
+    expect(stub.get(P)?.editedAt).toBe(5);
+  });
+
   it('leaves grades alone when the doc moved on before the event arrived', async () => {
     const grading = { q1: { points: 1 } };
     const stub = seed();
