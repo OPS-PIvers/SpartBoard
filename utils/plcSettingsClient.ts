@@ -1,6 +1,7 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import { plcMembershipErrorMessage } from '@/utils/plcMembershipClient';
+import { guardPlcCallable } from '@/utils/plcViewAsCallable';
 
 type Data = Record<string, unknown>;
 
@@ -16,6 +17,22 @@ export interface PlcSettingsResult {
 export async function callPlcSettings(
   req: { action: string } & Data
 ): Promise<PlcSettingsResult> {
+  const plcId = typeof req.plcId === 'string' ? req.plcId : 'new';
+  const ws =
+    typeof req.workspaceId === 'string' ? `/workspaces/${req.workspaceId}` : '';
+  return guardPlcCallable(
+    [
+      {
+        op: req.action === 'delete' ? 'delete' : 'set',
+        path: `plcs/${plcId}${ws}`,
+        data: req,
+      },
+    ],
+    () => run(req)
+  );
+}
+
+async function run(req: { action: string } & Data): Promise<PlcSettingsResult> {
   const fn = httpsCallable<Data, PlcSettingsResult>(functions, 'plcSettingsV1');
   try {
     return (await fn(req)).data;
