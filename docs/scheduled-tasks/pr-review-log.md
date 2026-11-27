@@ -5219,3 +5219,12 @@ rather than "no data") is also still open.
 - Reviews posted: 5
   - Ready: #6793, #6796 (a digit after `5 × %` now appends to `0.05`; optional test), #6797, #6798 (the `functions/` mirror has no parity test), #6799 (merge after #6796–#6798).
 - Notes: CI `summary` was green on the three code PRs and none had merge conflicts. Other locale-casing call sites take the closed `SpeakLanguage` type, so the #6798 bug class doesn't reach them. Nothing was changed, so I didn't run lint, type-check or tests locally.
+
+## 2026-11-27
+- PRs reviewed: #6834 debugger: run 136 log (four fixes, Widgets clean); #6833 getPseudonymsForAssignmentV1: page every ClassLink list so classes over 100 students keep their names; #6832 Custom widget number setting no longer snaps to 0 while typing; #6831 Assignments hub: clear read-aloud and language state when another assignment is selected; #6830 Writing grader: stop waiting on a student copy listener that errored; #6827 unifier: run 159 log (aligned)
+- Comments processed: 4 total, 0 fixed, 0 replied to. All four were Claude bot "no issues found" summaries (on #6830–#6833) with no inline threads, so there was nothing to act on.
+- Fixes pushed: none.
+- Reviews posted: 6
+  - Ready: #6827, #6830, #6831, #6833.
+  - Ready with minor notes: #6832 (a numeric-string default or saved value now displays as `0`, where `String(value)` used to show it), #6834 (the backlog lists the Countdown grid loop as both fixed and still open).
+- Notes: Nothing was changed, so I didn't run lint, type-check or tests locally.
