@@ -2,11 +2,11 @@
   "name": "functions",
   "packageManager": "pnpm@10.30.2",
   "scripts": {
-    "type-check": "tsc --noEmit",
+    "type-check": "node node_modules/typescript-7/bin/tsc --noEmit",
     "lint": "node ../node_modules/eslint/bin/eslint.js . --max-warnings 0",
     "lint:fix": "node ../node_modules/eslint/bin/eslint.js . --fix",
-    "build": "tsc && node scripts/build-codebases.mjs",
-    "build:watch": "tsc --watch",
+    "build": "node node_modules/typescript-7/bin/tsc && node scripts/build-codebases.mjs",
+    "build:watch": "node node_modules/typescript-7/bin/tsc --watch",
     "serve": "pnpm run build && firebase emulators:start --only functions",
     "shell": "pnpm run build && firebase functions:shell",
     "start": "pnpm run shell",
@@ -46,6 +46,7 @@
     "@types/crypto-js": "^4.2.2",
     "@types/fluent-ffmpeg": "^2.1.28",
     "typescript": "~6.0.3",
+    "typescript-7": "npm:typescript@~7.0.2",
     "vite": "^8.4.0",
     "vitest": "^5.1.2"
   },
