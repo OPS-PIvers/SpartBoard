@@ -369,11 +369,13 @@ export async function isPollStaffCaller(
 ): Promise<boolean> {
   if (!isTeacherShapedToken(token)) return false;
   const email = (token.email as string).toLowerCase();
-  const [member, isAdmin] = await Promise.all([
-    db.doc(`organizations/${OPERATOR_ORG_ID}/members/${email}`).get(),
-    isLiveAdmin(db, email, token),
-  ]);
-  return isStaffMemberData(member.data()) || isAdmin;
+  const member = await db
+    .doc(`organizations/${OPERATOR_ORG_ID}/members/${email}`)
+    .get();
+  return (
+    isStaffMemberData(member.data()) ||
+    (await isLiveAdmin(db, email, token, member))
+  );
 }
 
 export const mintPollCodeV1 = onCall(
