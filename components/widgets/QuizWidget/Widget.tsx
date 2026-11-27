@@ -3259,13 +3259,26 @@ const TeacherQuizWidget: React.FC<{
           // type-narrowed to exclude the targeting fields — a future
           // targeting field added to the patch can't silently leak into
           // `updateAssignmentSettings`.
+          // Sync both docs to the Tab warnings value the modal showed (the live session's).
+          const shownTab =
+            withLiveTabWarnings(target).sessionOptions.tabWarningsEnabled;
           const {
             rosterIds,
             periodName: _periodName,
             periodNames: _periodNames,
             periodAccessRows,
             ...settingsPatch
-          } = patch;
+          } = shownTab !== undefined &&
+          shownTab !== target.sessionOptions.tabWarningsEnabled &&
+          !('tabWarningsEnabled' in (patch.sessionOptionEdits ?? {}))
+            ? {
+                ...patch,
+                sessionOptionEdits: {
+                  ...patch.sessionOptionEdits,
+                  tabWarningsEnabled: shownTab,
+                },
+              }
+            : patch;
           // These are two separate writeBatch.commit()s, not one
           // transaction. To keep the non-atomic window benign, apply the
           // secondary settings FIRST and the class targeting LAST. Targeting

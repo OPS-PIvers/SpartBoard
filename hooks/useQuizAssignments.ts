@@ -1409,27 +1409,18 @@ export const useQuizAssignments = (
         const editedRow = assignmentsRef.current.find(
           (a) => a.id === assignmentId
         );
-        // Tab warnings always re-sync: the monitor switch once wrote only the session, so the two can differ.
-        const tabWarnings =
-          'tabWarningsEnabled' in sessionOptionEdits
-            ? sessionOptionEdits.tabWarningsEnabled
-            : editedRow?.sessionOptions?.tabWarningsEnabled;
         Object.assign(
           sessionPatch,
           sessionOptionsToSessionPatch(
-            {
-              ...(sessionOptionEdits as QuizSessionOptions),
-              ...(typeof tabWarnings === 'boolean'
-                ? { tabWarningsEnabled: tabWarnings }
-                : {}),
-            },
+            sessionOptionEdits as QuizSessionOptions,
             {
               timeLimitOn,
               scoreOnSubmitOn,
               stimulusQuotesOn,
               pageProtectionsOn,
               reviewGame: editedRow ? isReviewGame(editedRow) : true,
-            }
+            },
+            true
           )
         );
       }
