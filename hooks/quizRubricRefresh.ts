@@ -232,8 +232,9 @@ async function rescoreSessionResponses(opts: {
     const data = d.data() as QuizResponse;
     return !!data.grading || typeof data.score === 'number';
   });
+  const failures: unknown[] = [];
   for (let i = 0; i < touched.length; i += 20) {
-    await Promise.all(
+    const results = await Promise.allSettled(
       touched.slice(i, i + 20).map((d) =>
         runTransaction(db, async (tx) => {
           const data = (await tx.get(d.ref)).data() as QuizResponse | undefined;
@@ -276,7 +277,11 @@ async function rescoreSessionResponses(opts: {
         })
       )
     );
+    for (const r of results)
+      if (r.status === 'rejected') failures.push(r.reason);
   }
+  // One bad response never stops the rest; the first failure is still reported.
+  if (failures.length) throw failures[0];
 }
 
 /** Whether a session still serves other points for this rubric, and the rubric its grades were made against. */
@@ -300,7 +305,7 @@ async function servedRubricState(
   };
 }
 
-/** Refreshes one assignment for a rubric edit; the rescore runs even when the refresh fails. */
+/** Refreshes one assignment for a rubric edit; it stays stale until every response is rescored, so a retry repairs it. */
 export async function refreshRubricForSession(opts: {
   sessionId: string;
   rubric: Rubric;
@@ -314,12 +319,8 @@ export async function refreshRubricForSession(opts: {
     opts.before
   );
   if (!stale) return;
-  const results = await Promise.allSettled([
-    refreshAssignmentRubric(opts),
-    rescoreSessionResponses({ ...opts, before }),
-  ]);
-  const failed = results.find((r) => r.status === 'rejected');
-  if (failed) throw failed.reason;
+  await rescoreSessionResponses({ ...opts, before });
+  await refreshAssignmentRubric(opts);
 }
 
 /** Reads and rewrites an assignment's frozen Drive copy. */

@@ -107,6 +107,7 @@ vi.mock('firebase/firestore', async (importOriginal) => {
       });
       const session = reads[0]?.match(/^quiz_sessions\/([^/]+)$/)?.[1];
       if (session && failRefreshFor.has(session)) throw new Error('offline');
+      if (reads[0] && failRefreshFor.has(reads[0])) throw new Error('offline');
       for (const [path, args] of pending) applyUpdate(path, args);
     },
   };
@@ -370,6 +371,40 @@ describe('refreshRubricForSession', () => {
       })
     ).rejects.toThrow('offline');
     expect(response('a1').grading.w1.pointsAwarded).toBe(7);
+  });
+
+  it('rescores the other responses when one fails, and a retry repairs it', async () => {
+    seedSession('a1');
+    store.set('quiz_sessions/a1/responses/s2', {
+      ...store.get('quiz_sessions/a1/responses/s1'),
+      studentUid: 's2',
+    });
+    failRefreshFor.add('quiz_sessions/a1/responses/s1');
+    const run = () =>
+      refreshRubricForSession({
+        sessionId: 'a1',
+        rubric: rubric(5),
+        before: rubric(2),
+        quiz: edited(5),
+      });
+    await expect(run()).rejects.toThrow('offline');
+    const s2 = store.get('quiz_sessions/a1/responses/s2') as ReturnType<
+      typeof response
+    >;
+    expect(s2.grading.w1.pointsAwarded).toBe(7);
+    expect(points('a1')).toBe(4);
+    failRefreshFor.clear();
+    await run();
+    expect(response('a1').grading.w1.pointsAwarded).toBe(7);
+    // Already rescored on the first pass, so the retry leaves it alone.
+    expect(
+      (
+        store.get('quiz_sessions/a1/responses/s2') as ReturnType<
+          typeof response
+        >
+      ).grading.w1.pointsAwarded
+    ).toBe(7);
+    expect(points('a1')).toBe(7);
   });
 
   const rescore = (r: Rubric = rubric(5)) =>
