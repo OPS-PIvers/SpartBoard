@@ -159,8 +159,13 @@ export async function archiveProjectUploadCore(
     const message =
       error instanceof Error ? error.message : 'Drive archive failed';
     const needsConsent = isNeedsConsentError(error);
-    return db.runTransaction(async (tx) => {
+    let gone = false;
+    const lost = await db.runTransaction(async (tx) => {
       const fresh = await tx.get(uploadRef);
+      if (!fresh.exists) {
+        gone = true;
+        return false;
+      }
       const data = (fresh.data() ?? {}) as Record<string, unknown>;
       const previous =
         typeof data.attemptCount === 'number' ? data.attemptCount : 0;
@@ -180,6 +185,13 @@ export async function archiveProjectUploadCore(
       );
       return status === 'lost';
     });
+    if (gone && driveFileId && accessToken) {
+      // The upload was deleted mid-archive, so its Drive copy is orphaned.
+      await deps
+        .deleteDriveFile(accessToken, driveFileId)
+        .catch(() => undefined);
+    }
+    return lost;
   };
 
   let mimeType = '';

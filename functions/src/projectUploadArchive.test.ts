@@ -115,7 +115,8 @@ function makeStubDb(seed: SeedOptions) {
       }),
     set: (data: Bag) => {
       writes.push(data);
-      if (state) mergeInto(state, data);
+      if (!state) state = {};
+      mergeInto(state, data);
       return Promise.resolve();
     },
   };
@@ -524,6 +525,27 @@ describe('archiveProjectUploadCore', () => {
     expect(state()).toBeNull();
     expect(writes.some((w) => w.archiveStatus === 'archived')).toBe(false);
     expect(deps.deleteDriveFile).toHaveBeenCalledWith('token', 'drive-1');
+  });
+
+  it('does not recreate an upload deleted before a failed archive settles', async () => {
+    const { db, state, deleteUpload } = makeStubDb({
+      upload: firebaseUpload(),
+    });
+    const deps = makeDeps(db, {
+      uploadToDrive: vi.fn(() => {
+        deleteUpload();
+        return Promise.reject(new Error('drive down'));
+      }),
+    });
+
+    await expect(
+      archiveProjectUploadCore(deps, {
+        runId: RUN_ID,
+        groupId: GROUP_ID,
+        uploadId: UPLOAD_ID,
+      })
+    ).rejects.toThrow();
+    expect(state()).toBeNull();
   });
 
   it('skips an upload another worker is already moving', async () => {
