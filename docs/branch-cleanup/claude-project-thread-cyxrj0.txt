@@ -1,0 +1,1 @@
+claude/project-thread-cyxrj0 (TypeScript 7 for type checks and functions build)
