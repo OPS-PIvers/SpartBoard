@@ -103,7 +103,7 @@ function makeStubDb(seed: SeedOptions) {
       : seed.run;
   const group = seed.group === undefined ? { name: 'Otters' } : seed.group;
   const uploadSeed = seed.upload === undefined ? null : seed.upload;
-  const state: Bag | null = uploadSeed ? { ...uploadSeed } : null;
+  let state: Bag | null = uploadSeed ? { ...uploadSeed } : null;
   const writes: Bag[] = [];
 
   const uploadRef = {
@@ -167,7 +167,10 @@ function makeStubDb(seed: SeedOptions) {
       return next;
     },
   };
-  return { db, writes, state: () => state };
+  const deleteUpload = () => {
+    state = null;
+  };
+  return { db, writes, state: () => state, deleteUpload };
 }
 
 function makeDeps(
@@ -498,6 +501,29 @@ describe('archiveProjectUploadCore', () => {
 
     expect(result.archiveStatus).toBe('archived');
     expect(state()?.storageCleanupPending).toBe(true);
+  });
+
+  it('does not recreate an upload deleted mid-archive and removes its Drive file', async () => {
+    const { db, state, writes, deleteUpload } = makeStubDb({
+      upload: firebaseUpload(),
+    });
+    const deps = makeDeps(db, {
+      uploadToDrive: vi.fn(() => {
+        deleteUpload();
+        return Promise.resolve({ id: 'drive-1' });
+      }),
+    });
+
+    const result = await archiveProjectUploadCore(deps, {
+      runId: RUN_ID,
+      groupId: GROUP_ID,
+      uploadId: UPLOAD_ID,
+    });
+
+    expect(result).toEqual({ archiveStatus: 'skipped' });
+    expect(state()).toBeNull();
+    expect(writes.some((w) => w.archiveStatus === 'archived')).toBe(false);
+    expect(deps.deleteDriveFile).toHaveBeenCalledWith('token', 'drive-1');
   });
 
   it('skips an upload another worker is already moving', async () => {

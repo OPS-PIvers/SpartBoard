@@ -152,6 +152,7 @@ export async function archiveProjectUploadCore(
   let driveFileId: string | null =
     claim.kind === 'resume' ? claim.driveFileId : null;
   let drivePermissionValue: DrivePermissionValue = 'domain';
+  let accessToken = '';
 
   /** Resolves true when this attempt settled the upload at 'lost'. */
   const writeFailure = async (error: unknown): Promise<boolean> => {
@@ -197,7 +198,7 @@ export async function archiveProjectUploadCore(
     // takes the domain-restricted share: the group has to be able to open it.
     const resolved = resolveDrivePermission('domain', teacherEmail);
     drivePermissionValue = resolved.value;
-    const accessToken = await deps.getAccessToken(teacherUid);
+    accessToken = await deps.getAccessToken(teacherUid);
 
     if (!driveFileId) {
       const runTitle =
@@ -263,26 +264,42 @@ export async function archiveProjectUploadCore(
 
   const driveUrl = buildDriveUrl(archivableTypeForMime(mimeType), uploadedId);
   try {
-    await uploadRef.set(
-      {
-        driveFileId: uploadedId,
-        driveUrl,
-        drivePermission: drivePermissionValue,
-        archiveStatus: 'archived',
-        archivedAt: deps.now(),
-        storagePath: admin.firestore.FieldValue.delete(),
-        archiveStartedAt: admin.firestore.FieldValue.delete(),
-        archiveError: admin.firestore.FieldValue.delete(),
-      },
-      { merge: true }
-    );
+    const written = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(uploadRef);
+      // An upload deleted mid-archive must not be recreated by the merge.
+      if (!snap.exists) return false;
+      tx.set(
+        uploadRef,
+        {
+          driveFileId: uploadedId,
+          driveUrl,
+          drivePermission: drivePermissionValue,
+          archiveStatus: 'archived',
+          archivedAt: deps.now(),
+          storagePath: admin.firestore.FieldValue.delete(),
+          archiveStartedAt: admin.firestore.FieldValue.delete(),
+          archiveError: admin.firestore.FieldValue.delete(),
+        },
+        { merge: true }
+      );
+      return true;
+    });
     // Separate step: the Drive copy is durable, the transit delete is retryable.
     try {
       await deps.deleteObject(storagePath);
     } catch {
-      await uploadRef
-        .set({ storageCleanupPending: true }, { merge: true })
+      if (written) {
+        await uploadRef
+          .set({ storageCleanupPending: true }, { merge: true })
+          .catch(() => undefined);
+      }
+    }
+    if (!written) {
+      // The Drive copy is now unreferenced, so remove it (best effort).
+      await deps
+        .deleteDriveFile(accessToken, uploadedId)
         .catch(() => undefined);
+      return { archiveStatus: 'skipped' };
     }
     return { archiveStatus: 'archived', driveFileId: uploadedId };
   } catch (error: unknown) {
