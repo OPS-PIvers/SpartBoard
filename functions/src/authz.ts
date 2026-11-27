@@ -135,11 +135,17 @@ export async function isLiveCaller(
 export async function isLiveAdmin(
   db: admin.firestore.Firestore,
   email: string,
-  token?: unknown
+  token?: unknown,
+  operatorMember?: admin.firestore.DocumentSnapshot
 ): Promise<boolean> {
   if (token !== undefined && hasDeactivatedClaim(token)) return false;
   const lower = email.trim().toLowerCase();
   if (!lower || !(await db.collection('admins').doc(lower).get()).exists)
     return false;
+  if (operatorMember)
+    return !(
+      operatorMember.exists &&
+      isRevokedMemberStatus(operatorMember.get('status'))
+    );
   return !(await isDeactivatedOperatorMember(db, lower));
 }

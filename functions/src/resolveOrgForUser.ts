@@ -252,7 +252,9 @@ async function autoEnrollMember(
       // The token still carries the claim, so nothing is activated until the next sign-in.
       return;
     }
-    if (await demoteRosterStudent(db, orgId, email, memberRef, memberSnap)) {
+    if (
+      await demoteRosterStudent(db, orgId, email, memberRef, memberSnap, token)
+    ) {
       return 'student';
     }
     await activateInvitedMember(db, orgId, email, memberRef, memberSnap, uid);
@@ -309,7 +311,8 @@ async function demoteRosterStudent(
   orgId: string,
   email: string,
   memberRef: admin.firestore.DocumentReference,
-  memberSnap: admin.firestore.DocumentSnapshot
+  memberSnap: admin.firestore.DocumentSnapshot,
+  token: { email?: string; [claim: string]: unknown }
 ): Promise<boolean> {
   if (
     memberSnap.get('addedBySource') !== AUTO_ENROLL_SOURCE ||
@@ -324,7 +327,7 @@ async function demoteRosterStudent(
     classLinkOnly: true,
   });
   if (role === 'unknown') return false;
-  if (role === 'student' && (await isLiveAdmin(db, email))) {
+  if (role === 'student' && (await isLiveAdmin(db, email, token))) {
     return false;
   }
   const patch =

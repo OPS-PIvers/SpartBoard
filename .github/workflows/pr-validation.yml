@@ -95,7 +95,7 @@ jobs:
       - id: quiz_e2e
         run: |
           quiz=false
-          grep -qE '^(components/widgets/QuizWidget/|components/common/library/|components/quiz/|hooks/use(Quiz|PeriodAccess|Rosters|Firestore)|utils/(quiz|mockQuizDriveService|periodPlan)|config/(firebase|featureDefaults)\.ts$|context/AuthContext\.tsx$|tests/e2e-emulator/|playwright\.emulator\.config\.ts$|package\.json$|pnpm-lock\.yaml$|\.github/workflows/pr-validation\.yml$)' changed-files.txt && quiz=true
+          grep -qE '^(components/widgets/QuizWidget/|components/common/library/|components/quiz/|hooks/use(Quiz|PeriodAccess|Rosters|Firestore|Plc)|utils/(quiz|mockQuizDriveService|periodPlan|plc)|functions/src/plc|config/(firebase|featureDefaults)\.ts$|context/AuthContext\.tsx$|tests/e2e-emulator/|playwright\.emulator\.config\.ts$|package\.json$|pnpm-lock\.yaml$|\.github/workflows/pr-validation\.yml$)' changed-files.txt && quiz=true
           [[ "${{ steps.classify.outputs.complete }}" == true ]] || quiz=true
           echo "Quiz flow test needed: $quiz"
           echo "quiz_e2e=$quiz" >> "$GITHUB_OUTPUT"
