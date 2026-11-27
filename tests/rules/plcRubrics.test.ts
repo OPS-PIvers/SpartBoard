@@ -1,12 +1,7 @@
 // Firestore security-rules regression for `/plcs/{plcId}/rubrics/{id}`
 // (M12 Phase 3-I — PLC Rubric Library). Mirrors the plcQuizzes invariants:
 //   - membership-gated reads
-//   - non-viewer members create / update / delete (PLC-owned model)
-//   - schema lock-down (`keys().hasOnly([...])`)
-//   - identity + attribution immutable on update (`id`, `sharedBy`,
-//     `sharedByEmail`, `sharedByName`, `sharedAt`, `createdAt`)
-//   - `sharedBy` must equal the caller on create (no impersonation)
-//   - viewer-role members are denied writes (plcCanEditContent)
+//   - no client writes: plcContentWriteV1 (Admin SDK) creates, edits and deletes entries
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -136,25 +131,12 @@ describe('plcs/{plcId}/rubrics — read', () => {
   });
 });
 
-describe('plcs/{plcId}/rubrics — create', () => {
-  it('a non-viewer member can create a valid entry', async () => {
-    await assertSucceeds(setDoc(doc(asMemberA(), rubricPath), validEntry()));
-  });
-
-  it('a viewer-role member cannot create (plcCanEditContent)', async () => {
+describe('plcs/{plcId}/rubrics — client writes refused', () => {
+  it('no member, viewer or non-member can create an entry', async () => {
+    await assertFails(setDoc(doc(asMemberA(), rubricPath), validEntry()));
     await assertFails(
-      setDoc(
-        doc(asViewer(), rubricPath),
-        validEntry({
-          sharedBy: VIEWER_UID,
-          sharedByEmail: 'viewer@example.com',
-          sharedByName: 'Viewer',
-        })
-      )
+      setDoc(doc(asViewer(), rubricPath), validEntry({ sharedBy: VIEWER_UID }))
     );
-  });
-
-  it('a non-member cannot fabricate an entry', async () => {
     await assertFails(
       setDoc(
         doc(asNonMember(), rubricPath),
@@ -163,123 +145,39 @@ describe('plcs/{plcId}/rubrics — create', () => {
     );
   });
 
-  it('rejects when sharedBy != caller (no impersonation)', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMemberA(), rubricPath),
-        validEntry({ sharedBy: MEMBER_B_UID })
-      )
-    );
-  });
-
-  it('rejects when path id != entry.id (path/payload mismatch)', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMemberA(), `plcs/${PLC_ID}/rubrics/different-id`),
-        validEntry({ id: PLC_RUBRIC_ID })
-      )
-    );
-  });
-
-  it('rejects extra unknown fields (schema lock-down)', async () => {
-    await assertFails(
-      setDoc(doc(asMemberA(), rubricPath), {
-        ...validEntry(),
-        unexpected: 'extra',
-      })
-    );
-  });
-
-  it('rejects non-list criteria', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMemberA(), rubricPath),
-        validEntry({ criteria: 'not-a-list' })
-      )
-    );
-  });
-});
-
-describe('plcs/{plcId}/rubrics — update', () => {
-  beforeEach(async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), rubricPath), validEntry());
+  describe('with an existing entry', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), rubricPath), validEntry());
+      });
     });
-  });
 
-  it('any non-viewer member can mirror content fields', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asMemberB(), rubricPath), {
-        title: 'Renamed',
-        criteria: [],
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('a viewer-role member cannot update', async () => {
-    await assertFails(
-      updateDoc(doc(asViewer(), rubricPath), { title: 'Hijacked' })
-    );
-  });
-
-  it('rejects an attempt to change sharedBy (attribution immutability)', async () => {
-    await assertFails(
-      updateDoc(doc(asMemberB(), rubricPath), { sharedBy: MEMBER_B_UID })
-    );
-  });
-
-  it('rejects an attempt to mutate id (immutability)', async () => {
-    await assertFails(
-      updateDoc(doc(asMemberA(), rubricPath), { id: 'different-id' })
-    );
-  });
-
-  it('rejects an attempt to mutate sharedAt (immutability)', async () => {
-    await assertFails(
-      updateDoc(doc(asMemberA(), rubricPath), { sharedAt: 9999999 })
-    );
-  });
-
-  it('rejects an attempt to mutate createdAt (immutability)', async () => {
-    await assertFails(
-      updateDoc(doc(asMemberA(), rubricPath), { createdAt: 9999999 })
-    );
-  });
-
-  it('rejects an update introducing an extra field (schema lock-down)', async () => {
-    await assertFails(
-      updateDoc(doc(asMemberA(), rubricPath), { unexpected: 'extra-field' })
-    );
-  });
-
-  it('a non-member cannot update an entry', async () => {
-    await assertFails(
-      updateDoc(doc(asNonMember(), rubricPath), { title: 'Hijacked' })
-    );
-  });
-});
-
-describe('plcs/{plcId}/rubrics — delete', () => {
-  beforeEach(async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), rubricPath), validEntry());
+    it('a member can no longer mirror content fields', async () => {
+      await assertFails(
+        updateDoc(doc(asMemberB(), rubricPath), {
+          title: 'Renamed',
+          updatedAt: 2000,
+        })
+      );
+      await assertFails(
+        setDoc(doc(asMemberA(), rubricPath), validEntry({ title: 'Renamed' }))
+      );
     });
-  });
 
-  it('the original sharer can unshare', async () => {
-    await assertSucceeds(deleteDoc(doc(asMemberA(), rubricPath)));
-  });
+    it('a viewer and a non-member cannot update', async () => {
+      await assertFails(
+        updateDoc(doc(asViewer(), rubricPath), { title: 'x', updatedAt: 2000 })
+      );
+      await assertFails(
+        updateDoc(doc(asNonMember(), rubricPath), { title: 'x' })
+      );
+    });
 
-  it('any non-viewer teammate can unshare (PLC-owned model)', async () => {
-    await assertSucceeds(deleteDoc(doc(asMemberB(), rubricPath)));
-  });
-
-  it('a viewer-role member cannot delete', async () => {
-    await assertFails(deleteDoc(doc(asViewer(), rubricPath)));
-  });
-
-  it('a non-member cannot delete', async () => {
-    await assertFails(deleteDoc(doc(asNonMember(), rubricPath)));
+    it('no one can unshare it', async () => {
+      await assertFails(deleteDoc(doc(asMemberA(), rubricPath)));
+      await assertFails(deleteDoc(doc(asMemberB(), rubricPath)));
+      await assertFails(deleteDoc(doc(asViewer(), rubricPath)));
+      await assertFails(deleteDoc(doc(asNonMember(), rubricPath)));
+    });
   });
 });

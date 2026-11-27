@@ -165,16 +165,16 @@ describe('PLC Gradebook subsection', () => {
     await assertFails(getDoc(doc(studentDb(), PLC_SET)));
   });
 
-  it('lets the lead and co-leads edit and stop sharing it', async () => {
-    await assertSucceeds(
+  it('refuses every client edit or stop-sharing of it (plcSettingsV1 writes it)', async () => {
+    await assertFails(
       setDoc(doc(coLeadDb(), PLC_SET), {
         ...settingsBody,
         method: 'mean',
         updatedBy: CO_LEAD,
       })
     );
-    await assertSucceeds(deleteDoc(doc(leadDb(), PLC_SET)));
-    await assertSucceeds(
+    await assertFails(deleteDoc(doc(leadDb(), PLC_SET)));
+    await assertFails(
       setDoc(doc(leadDb(), PLC_SET), { ...settingsBody, updatedBy: LEAD })
     );
   });
@@ -187,31 +187,18 @@ describe('PLC Gradebook subsection', () => {
       setDoc(doc(viewerDb(), PLC_SET), { ...settingsBody, updatedBy: VIEWER })
     );
     await assertFails(deleteDoc(doc(memberDb(), PLC_SET)));
-    await assertFails(
-      setDoc(doc(coLeadDb(), PLC_SET), { ...settingsBody, updatedBy: LEAD })
-    );
   });
 
-  it('edits the PLC cutoffs in place on learningTargets', async () => {
-    await assertSucceeds(
-      updateDoc(doc(leadDb(), PLC_TARGETS), {
-        masteryCutoffs: { proficient: 85, approaching: 70 },
-        updatedAt: 2,
-      })
-    );
+  it('refuses every client edit of the PLC cutoffs on learningTargets', async () => {
     await assertSucceeds(getDoc(doc(viewerDb(), PLC_TARGETS)));
-    await assertFails(
-      updateDoc(doc(leadDb(), PLC_TARGETS), {
-        masteryCutoffs: { proficient: 60, approaching: 70 },
-        updatedAt: 3,
-      })
-    );
-    await assertFails(
-      updateDoc(doc(viewerDb(), PLC_TARGETS), {
-        masteryCutoffs: { proficient: 90, approaching: 70 },
-        updatedAt: 3,
-      })
-    );
+    for (const db of [leadDb(), coLeadDb(), memberDb(), viewerDb()]) {
+      await assertFails(
+        updateDoc(doc(db, PLC_TARGETS), {
+          masteryCutoffs: { proficient: 85, approaching: 70 },
+          updatedAt: 2,
+        })
+      );
+    }
   });
 });
 

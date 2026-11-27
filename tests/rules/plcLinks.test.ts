@@ -1,5 +1,5 @@
 // Rules coverage for My Groups links at plcs/{plcId}/links: members read,
-// non-viewer members write, outsiders and viewers are refused.
+// outsiders are refused, and no client writes (plcTeamItemsV1 does).
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -123,49 +123,27 @@ describe('read', () => {
   });
 });
 
-describe('create', () => {
-  it('lets the lead and an editor create', async () => {
-    await assertSucceeds(setDoc(doc(as(LEAD), LINK_PATH), link(LEAD)));
-    const { note: _note, ...noNote } = link(EDITOR, { id: 'l2' });
-    await assertSucceeds(
-      setDoc(doc(as(EDITOR), `plcs/${PLC_ID}/links/l2`), noNote)
-    );
-  });
-
-  it('refuses viewers and outsiders', async () => {
+describe('client writes refused (plcTeamItemsV1 writes links)', () => {
+  it('refuses create for the lead, an editor, viewers and outsiders', async () => {
+    await assertFails(setDoc(doc(as(LEAD), LINK_PATH), link(LEAD)));
+    await assertFails(setDoc(doc(as(EDITOR), LINK_PATH), link(EDITOR)));
     await assertFails(setDoc(doc(as(VIEWER), LINK_PATH), link(VIEWER)));
     await assertFails(setDoc(doc(as(OUTSIDER), LINK_PATH), link(OUTSIDER)));
   });
 
-  it('refuses a forged author, a non-https link and extra keys', async () => {
-    await assertFails(setDoc(doc(as(EDITOR), LINK_PATH), link(LEAD)));
-    await assertFails(
-      setDoc(
-        doc(as(EDITOR), LINK_PATH),
-        link(EDITOR, { url: 'javascript:alert(1)' })
-      )
-    );
-    await assertFails(
-      setDoc(doc(as(EDITOR), LINK_PATH), link(EDITOR, { pinned: true }))
-    );
-  });
-});
-
-describe('update and delete', () => {
-  it('lets an editor edit but not change the author', async () => {
+  it('refuses update for everyone', async () => {
     await seedLink();
-    await assertSucceeds(
-      updateDoc(doc(as(EDITOR), LINK_PATH), { title: 'Renamed' })
-    );
-    await assertFails(
-      updateDoc(doc(as(EDITOR), LINK_PATH), { createdBy: EDITOR })
-    );
+    for (const uid of [LEAD, EDITOR, VIEWER, OUTSIDER]) {
+      await assertFails(
+        updateDoc(doc(as(uid), LINK_PATH), { title: 'Renamed' })
+      );
+    }
   });
 
-  it('lets an editor delete and refuses a viewer', async () => {
+  it('refuses delete for everyone', async () => {
     await seedLink();
-    await assertFails(deleteDoc(doc(as(VIEWER), LINK_PATH)));
-    await assertFails(updateDoc(doc(as(VIEWER), LINK_PATH), { title: 'x' }));
-    await assertSucceeds(deleteDoc(doc(as(EDITOR), LINK_PATH)));
+    for (const uid of [LEAD, EDITOR, VIEWER, OUTSIDER]) {
+      await assertFails(deleteDoc(doc(as(uid), LINK_PATH)));
+    }
   });
 });

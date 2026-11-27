@@ -1,5 +1,5 @@
 // Rules coverage for My Groups goals at plcs/{plcId}/goals: members read,
-// non-viewer members write, outsiders and viewers are refused.
+// outsiders are refused, and no client writes (plcTeamItemsV1 does).
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -127,206 +127,64 @@ describe('read', () => {
   });
 });
 
-describe('create', () => {
-  it('lets the lead and an editor create', async () => {
-    await assertSucceeds(setDoc(doc(as(LEAD), GOAL_PATH), goal(LEAD)));
-    await assertSucceeds(
-      setDoc(doc(as(EDITOR), `plcs/${PLC_ID}/goals/g2`), {
-        ...goal(EDITOR),
-        id: 'g2',
-      })
-    );
-  });
+const nums = { baseline: 58, current: 64, target: 80 };
+const pieces = {
+  dueDate: '2027-05-14',
+  students: 'our 7th graders',
+  outcome: 'write a claim with two pieces of evidence',
+  title: 'By May 14, 2027, write a claim.',
+};
 
-  it('lets an editor create a goal without a measure', async () => {
-    const { measure: _measure, ...rest } = goal(EDITOR);
-    await assertSucceeds(setDoc(doc(as(EDITOR), GOAL_PATH), rest));
+describe('members read a goal with numbers and SMART pieces', () => {
+  it('lets members read it and denies outsiders', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), GOAL_PATH),
+        goal(LEAD, { ...nums, ...pieces })
+      );
+    });
+    for (const uid of [LEAD, EDITOR, VIEWER]) {
+      await assertSucceeds(getDoc(doc(as(uid), GOAL_PATH)));
+    }
+    await assertFails(getDoc(doc(as(OUTSIDER), GOAL_PATH)));
   });
+});
 
-  it('refuses viewers and outsiders', async () => {
+describe('client writes refused (plcTeamItemsV1 writes goals)', () => {
+  it('refuses create for the lead, an editor, viewers and outsiders', async () => {
+    await assertFails(setDoc(doc(as(LEAD), GOAL_PATH), goal(LEAD)));
+    await assertFails(setDoc(doc(as(EDITOR), GOAL_PATH), goal(EDITOR, nums)));
+    await assertFails(setDoc(doc(as(EDITOR), GOAL_PATH), goal(EDITOR, pieces)));
     await assertFails(setDoc(doc(as(VIEWER), GOAL_PATH), goal(VIEWER)));
     await assertFails(setDoc(doc(as(OUTSIDER), GOAL_PATH), goal(OUTSIDER)));
   });
 
-  it('refuses a forged author, a mismatched id and unknown fields', async () => {
-    await assertFails(setDoc(doc(as(EDITOR), GOAL_PATH), goal(LEAD)));
-    await assertFails(
-      setDoc(doc(as(EDITOR), GOAL_PATH), goal(EDITOR, { id: 'other' }))
-    );
-    await assertFails(
-      setDoc(doc(as(EDITOR), GOAL_PATH), goal(EDITOR, { pinned: true }))
-    );
-  });
-
-  it('refuses too many practices or a non-list', async () => {
-    const many = Array.from({ length: 21 }, (_, i) => ({
-      id: `p${i}`,
-      text: 'x',
-    }));
-    await assertFails(
-      setDoc(doc(as(EDITOR), GOAL_PATH), goal(EDITOR, { practices: many }))
-    );
-    await assertFails(
-      setDoc(doc(as(EDITOR), GOAL_PATH), goal(EDITOR, { practices: 'x' }))
-    );
-  });
-});
-
-describe('progress numbers', () => {
-  const nums = { baseline: 58, current: 64, target: 80 };
-
-  it('lets the lead and an editor create a goal with numbers', async () => {
-    await assertSucceeds(setDoc(doc(as(LEAD), GOAL_PATH), goal(LEAD, nums)));
-    await assertSucceeds(
-      setDoc(doc(as(EDITOR), `plcs/${PLC_ID}/goals/g2`), {
-        ...goal(EDITOR, nums),
-        id: 'g2',
-      })
-    );
-  });
-
-  it('refuses viewers and outsiders writing numbers', async () => {
-    await assertFails(setDoc(doc(as(VIEWER), GOAL_PATH), goal(VIEWER, nums)));
-    await assertFails(
-      setDoc(doc(as(OUTSIDER), GOAL_PATH), goal(OUTSIDER, nums))
-    );
+  it('refuses update, including numbers and pieces, for everyone', async () => {
     await seedGoal();
-    await assertFails(
-      updateDoc(doc(as(VIEWER), GOAL_PATH), { current: 70, updatedAt: 2 })
-    );
-    await assertFails(
-      updateDoc(doc(as(OUTSIDER), GOAL_PATH), { current: 70, updatedAt: 2 })
-    );
-  });
-
-  it('refuses out-of-range and non-integer numbers', async () => {
-    for (const bad of [
-      { target: 101 },
-      { baseline: -1 },
-      { current: 64.5 },
-      { current: '64' },
-    ]) {
-      await assertFails(setDoc(doc(as(EDITOR), GOAL_PATH), goal(EDITOR, bad)));
+    for (const uid of [LEAD, EDITOR, VIEWER, OUTSIDER]) {
+      await assertFails(
+        updateDoc(doc(as(uid), GOAL_PATH), { title: 'New title', updatedAt: 2 })
+      );
+      await assertFails(
+        updateDoc(doc(as(uid), GOAL_PATH), { ...nums, updatedAt: 2 })
+      );
+      await assertFails(
+        updateDoc(doc(as(uid), GOAL_PATH), { ...pieces, updatedAt: 2 })
+      );
     }
-    await seedGoal();
     await assertFails(
-      updateDoc(doc(as(EDITOR), GOAL_PATH), { target: 150, updatedAt: 2 })
-    );
-  });
-
-  it('lets an editor set and then clear the numbers', async () => {
-    await seedGoal();
-    await assertSucceeds(
-      updateDoc(doc(as(EDITOR), GOAL_PATH), { ...nums, updatedAt: 2 })
-    );
-    await assertSucceeds(
       updateDoc(doc(as(EDITOR), GOAL_PATH), {
         baseline: deleteField(),
-        current: deleteField(),
-        target: deleteField(),
+        measure: deleteField(),
         updatedAt: 3,
       })
     );
   });
 
-  it('lets members read a goal with numbers and denies outsiders', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), GOAL_PATH), goal(LEAD, nums));
-    });
-    for (const uid of [LEAD, EDITOR, VIEWER]) {
-      await assertSucceeds(getDoc(doc(as(uid), GOAL_PATH)));
+  it('refuses delete for everyone', async () => {
+    await seedGoal();
+    for (const uid of [LEAD, EDITOR, VIEWER, OUTSIDER]) {
+      await assertFails(deleteDoc(doc(as(uid), GOAL_PATH)));
     }
-    await assertFails(getDoc(doc(as(OUTSIDER), GOAL_PATH)));
-  });
-});
-
-describe('SMART frame pieces', () => {
-  const pieces = {
-    dueDate: '2027-05-14',
-    students: 'our 7th graders',
-    outcome: 'write a claim with two pieces of evidence',
-    title: `By May 14, 2027, ${'x'.repeat(400)}.`,
-  };
-
-  it('lets an editor create and update a goal with the pieces', async () => {
-    await assertSucceeds(
-      setDoc(doc(as(EDITOR), GOAL_PATH), goal(EDITOR, pieces))
-    );
-    await assertSucceeds(
-      updateDoc(doc(as(EDITOR), GOAL_PATH), {
-        dueDate: deleteField(),
-        students: 'all 7th graders',
-        updatedAt: 2,
-      })
-    );
-  });
-
-  it('refuses viewers and outsiders writing the pieces', async () => {
-    await assertFails(setDoc(doc(as(VIEWER), GOAL_PATH), goal(VIEWER, pieces)));
-    await assertFails(
-      setDoc(doc(as(OUTSIDER), GOAL_PATH), goal(OUTSIDER, pieces))
-    );
-    await seedGoal();
-    await assertFails(
-      updateDoc(doc(as(VIEWER), GOAL_PATH), { outcome: 'x', updatedAt: 2 })
-    );
-  });
-
-  it('refuses a bad date, long pieces and an over-long sentence', async () => {
-    for (const bad of [
-      { dueDate: 'May 14' },
-      { dueDate: 20270514 },
-      { students: 'x'.repeat(201) },
-      { outcome: 'x'.repeat(301) },
-      { outcome: 5 },
-      { title: 'x'.repeat(601) },
-    ]) {
-      await assertFails(setDoc(doc(as(EDITOR), GOAL_PATH), goal(EDITOR, bad)));
-    }
-  });
-
-  it('lets members read a goal with the pieces and denies outsiders', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), GOAL_PATH), goal(LEAD, pieces));
-    });
-    for (const uid of [LEAD, EDITOR, VIEWER]) {
-      await assertSucceeds(getDoc(doc(as(uid), GOAL_PATH)));
-    }
-    await assertFails(getDoc(doc(as(OUTSIDER), GOAL_PATH)));
-  });
-});
-
-describe('update and delete', () => {
-  it('lets an editor change the title, practices and clear the measure', async () => {
-    await seedGoal();
-    await assertSucceeds(
-      updateDoc(doc(as(EDITOR), GOAL_PATH), {
-        title: 'New title',
-        practices: [],
-        measure: deleteField(),
-        updatedAt: 2,
-      })
-    );
-  });
-
-  it('refuses rewriting the author or creation time', async () => {
-    await seedGoal();
-    await assertFails(
-      updateDoc(doc(as(EDITOR), GOAL_PATH), { createdBy: EDITOR })
-    );
-    await assertFails(updateDoc(doc(as(EDITOR), GOAL_PATH), { createdAt: 5 }));
-  });
-
-  it('refuses viewer edits and deletes', async () => {
-    await seedGoal();
-    await assertFails(
-      updateDoc(doc(as(VIEWER), GOAL_PATH), { title: 'x', updatedAt: 2 })
-    );
-    await assertFails(deleteDoc(doc(as(VIEWER), GOAL_PATH)));
-  });
-
-  it('lets an editor delete', async () => {
-    await seedGoal();
-    await assertSucceeds(deleteDoc(doc(as(EDITOR), GOAL_PATH)));
   });
 });

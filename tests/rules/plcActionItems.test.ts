@@ -1,8 +1,7 @@
 // Firestore security rules regression coverage for PLC meeting-note action
 // items (Decision 3.5/7.4, docs/plans/shipped/PLC_ASSESSMENT_DATA.md §3.5 / §7.4):
-//   - notes accept the new optional `actionItems` list (capped at 200).
-//   - todos are legacy: create is now denied, and update accepts ONLY the
-//     `deletedAt` tombstone (archiving an imported to-do).
+//   - notes carrying `actionItems` stay readable; clients can no longer write them (plcNotesWriteV1 does).
+//   - todos are legacy: clients can no longer create, archive or edit them (plcTeamItemsV1 archives).
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -15,7 +14,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, updateDoc, doc } from 'firebase/firestore';
+import { setDoc, getDoc, updateDoc, doc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-plc-action-items-rules';
 const PLC_ID = 'p1';
@@ -121,9 +120,22 @@ const note = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-describe('plcs/{plcId}/notes — actionItems', () => {
-  it('accepts a valid actionItems list on create', async () => {
+describe('plcs/{plcId}/notes — actionItems (writes are server-only)', () => {
+  it('a member and a viewer read a note that carries action items', async () => {
+    await seed(
+      `plcs/${PLC_ID}/notes/${NOTE_ID}`,
+      note({ actionItems: [actionItem()] })
+    );
     await assertSucceeds(
+      getDoc(doc(asEditor(), `plcs/${PLC_ID}/notes/${NOTE_ID}`))
+    );
+    await assertSucceeds(
+      getDoc(doc(asViewer(), `plcs/${PLC_ID}/notes/${NOTE_ID}`))
+    );
+  });
+
+  it('a member can no longer create a note with an actionItems list', async () => {
+    await assertFails(
       setDoc(
         doc(asEditor(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
         note({ actionItems: [actionItem()] })
@@ -131,36 +143,15 @@ describe('plcs/{plcId}/notes — actionItems', () => {
     );
   });
 
-  it('accepts a valid actionItems list on update', async () => {
+  it('a member can no longer update a note to add action items', async () => {
     await seed(`plcs/${PLC_ID}/notes/${NOTE_ID}`, note());
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asEditor(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
         lastEditedBy: EDITOR_UID,
         lastEditedAt: 2,
         version: 1,
         actionItems: [actionItem()],
       })
-    );
-  });
-
-  it('rejects actionItems as a string', async () => {
-    await assertFails(
-      setDoc(
-        doc(asEditor(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
-        note({ actionItems: 'not-a-list' })
-      )
-    );
-  });
-
-  it('rejects an actionItems list over the 200-item cap', async () => {
-    const items = Array.from({ length: 201 }, (_, i) =>
-      actionItem({ id: `ai${i}` })
-    );
-    await assertFails(
-      setDoc(
-        doc(asEditor(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
-        note({ actionItems: items })
-      )
     );
   });
 });
@@ -181,9 +172,9 @@ describe('plcs/{plcId}/todos — legacy, read-only-ish', () => {
     );
   });
 
-  it('allows an editor to archive (soft-delete) a legacy todo', async () => {
+  it('denies an editor archiving (soft-deleting) a legacy todo', async () => {
     await seed(`plcs/${PLC_ID}/todos/${TODO_ID}`, todo());
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asEditor(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
         deletedAt: Date.now(),
       })

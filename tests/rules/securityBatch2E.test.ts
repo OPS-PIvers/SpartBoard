@@ -104,15 +104,16 @@ describe('removed PLC member on assessments and aggregates', () => {
     await assertFails(deleteDoc(ref(REMOVED)));
   });
 
-  it('a current member still reads, creates, updates and deletes', async () => {
+  it('a current member still reads, and may file it, but cannot create, rename or delete it', async () => {
     await assertSucceeds(getDoc(ref(MEMBER)));
     await assertSucceeds(
       getDoc(doc(as(MEMBER), `plcs/${PLC_ID}/aggregates/${ASSESSMENT_ID}`))
     );
-    await assertSucceeds(
+    await assertFails(
       setDoc(ref(MEMBER, 'a2'), { ...assessment(MEMBER), id: 'a2' })
     );
-    await assertSucceeds(updateDoc(ref(MEMBER), { title: 'Renamed' }));
-    await assertSucceeds(deleteDoc(ref(MEMBER, 'a2')));
+    await assertFails(updateDoc(ref(MEMBER), { title: 'Renamed' }));
+    await assertSucceeds(updateDoc(ref(MEMBER), { folderId: 'f1' }));
+    await assertFails(deleteDoc(ref(MEMBER)));
   });
 });

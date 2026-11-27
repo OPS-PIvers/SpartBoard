@@ -1,4 +1,4 @@
-// Rules for the team layout on plcs/{id} (lead and co-lead only) and admin_settings/team_type_defaults.
+// Rules for the team layout on plcs/{id} (readable by members, writes run in plcSettingsV1) and admin_settings/team_type_defaults.
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
 import { readFileSync } from 'fs';
@@ -145,33 +145,29 @@ const writeLayout = (uid: string, extra: Record<string, unknown> = {}) =>
   });
 
 describe('plcs/{plcId} layout', () => {
-  it('the lead and a co-lead can set the layout', async () => {
-    await assertSucceeds(writeLayout(LEAD));
-    await assertSucceeds(writeLayout(CO_LEAD));
+  it('nobody can set the layout directly (plcSettingsV1 does)', async () => {
+    for (const uid of [LEAD, CO_LEAD, MEMBER, VIEWER, OUTSIDER]) {
+      await assertFails(writeLayout(uid));
+    }
   });
 
-  it('a co-lead can reset the layout to the district default', async () => {
-    await assertSucceeds(writeLayout(CO_LEAD));
-    await assertSucceeds(
+  it('nobody can reset the layout or the section switches with it', async () => {
+    await assertFails(
       updateDoc(doc(as(CO_LEAD), PLC_PATH), {
         layout: deleteField(),
         updatedAt: 2,
       })
     );
-  });
-
-  it('plain members, viewers and non-members cannot set it', async () => {
-    await assertFails(writeLayout(MEMBER));
-    await assertFails(writeLayout(VIEWER));
-    await assertFails(writeLayout(OUTSIDER));
-  });
-
-  it('a member cannot clear a layout the lead set', async () => {
-    await assertSucceeds(writeLayout(LEAD));
     await assertFails(
       updateDoc(doc(as(MEMBER), PLC_PATH), {
         layout: deleteField(),
         updatedAt: 2,
+      })
+    );
+    await assertFails(
+      writeLayout(CO_LEAD, {
+        'features.notes': false,
+        'features.quizzes': true,
       })
     );
   });
@@ -181,55 +177,17 @@ describe('plcs/{plcId} layout', () => {
     await assertFails(writeLayout(CO_LEAD, { digestOptIn: true }));
   });
 
-  it('a co-lead keeps the section switches in step with the layout', async () => {
-    await assertSucceeds(
-      writeLayout(CO_LEAD, {
-        'features.notes': false,
-        'features.quizzes': true,
-      })
-    );
-    await assertFails(writeLayout(CO_LEAD, { features: 'off' }));
-  });
-
-  it('a co-lead cannot delete the section switches with a layout save', async () => {
-    await testEnv.withSecurityRulesDisabled((ctx) =>
-      updateDoc(doc(ctx.firestore(), PLC_PATH), { features: { notes: false } })
-    );
-    await assertFails(writeLayout(CO_LEAD, { features: deleteField() }));
-    await assertSucceeds(writeLayout(CO_LEAD, { 'features.notes': true }));
-  });
-
-  it('a plain member cannot write switches alongside a layout', async () => {
-    await assertFails(writeLayout(MEMBER, { 'features.notes': false }));
-  });
-
-  it('rejects a malformed layout from a co-lead', async () => {
-    const bad = [
-      'dataOverview',
-      { ...layout, extra: true },
-      { ...layout, pages: 'dataOverview' },
-      { ...layout, landing: 3 },
-      { ...layout, cards: {} },
-      { ...layout, hero: 'pinned' },
-      { ...layout, hero: { mode: 'sticky' } },
-      { pages: [], landing: 'hub', cards: [] },
-    ];
-    for (const value of bad) {
-      await assertFails(
-        updateDoc(doc(as(CO_LEAD), PLC_PATH), { layout: value, updatedAt: 2 })
-      );
-    }
-  });
-
   it('members and viewers read the layout; non-members cannot', async () => {
-    await assertSucceeds(writeLayout(LEAD));
+    await testEnv.withSecurityRulesDisabled((ctx) =>
+      updateDoc(doc(ctx.firestore(), PLC_PATH), { layout })
+    );
     await assertSucceeds(getDoc(doc(as(MEMBER), PLC_PATH)));
     await assertSucceeds(getDoc(doc(as(VIEWER), PLC_PATH)));
     await assertFails(getDoc(doc(as(OUTSIDER), PLC_PATH)));
   });
 
-  it('a member can still toggle the legacy features map', async () => {
-    await assertSucceeds(
+  it('a member can no longer toggle the legacy features map', async () => {
+    await assertFails(
       updateDoc(doc(as(MEMBER), PLC_PATH), {
         features: { notes: false },
         updatedAt: 2,
@@ -255,28 +213,10 @@ describe('plcs/{plcId} create with a layout', () => {
   const create = (extra: Record<string, unknown> = {}) =>
     setDoc(doc(staffDb(OUTSIDER), 'plcs/new-team'), newTeam(extra));
 
-  it('a teacher creates a team with or without a valid layout', async () => {
-    await assertSucceeds(create());
-    await testEnv.clearFirestore();
-    await seedStaff([OUTSIDER]);
-    await assertSucceeds(create({ layout }));
-    await testEnv.clearFirestore();
-    await seedStaff([OUTSIDER]);
-    await assertSucceeds(create({ layout, features: { notes: false } }));
-  });
-
-  it('rejects a create with a malformed layout', async () => {
-    const bad = [
-      'dataOverview',
-      null,
-      { ...layout, extra: true },
-      { ...layout, cards: {} },
-      { ...layout, hero: { mode: 'sticky' } },
-      { pages: [], landing: 'hub', cards: [] },
-    ];
-    for (const value of bad) {
-      await assertFails(create({ layout: value }));
-    }
+  it('a teacher can no longer create a team directly, with or without a layout', async () => {
+    await assertFails(create());
+    await assertFails(create({ layout }));
+    await assertFails(create({ layout, features: { notes: false } }));
   });
 });
 

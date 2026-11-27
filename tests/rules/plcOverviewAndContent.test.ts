@@ -155,19 +155,12 @@ describe('plcs/{plcId}/notes — write', () => {
     ...overrides,
   });
 
-  it('any current member can create a note', async () => {
-    await assertSucceeds(
-      setDoc(doc(asMemberA(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), validNote())
-    );
-  });
-
-  // Decision 1.3: writes carry serverTimestamp() for the time fields. The
-  // rules dual-accept `int || timestamp` so both the legacy (number) and the
-  // new (Timestamp) shape pass during rollout.
-  it('accepts serverTimestamp() for createdAt / lastEditedAt (dual-accept)', async () => {
-    await assertSucceeds(
+  it('a member can no longer create a note, with either time format', async () => {
+    const ref = doc(asMemberA(), `plcs/${PLC_ID}/notes/${NOTE_ID}`);
+    await assertFails(setDoc(ref, validNote()));
+    await assertFails(
       setDoc(
-        doc(asMemberA(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
+        ref,
         validNote({
           createdAt: serverTimestamp(),
           lastEditedAt: serverTimestamp(),
@@ -176,38 +169,11 @@ describe('plcs/{plcId}/notes — write', () => {
     );
   });
 
-  it('rejects a non-int / non-timestamp createdAt', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMemberA(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
-        validNote({ createdAt: 'yesterday' })
-      )
-    );
-  });
-
-  it('rejects creation by a non-member', async () => {
+  it('a non-member cannot create a note either', async () => {
     await assertFails(
       setDoc(
         doc(asNonMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
         validNote({ createdBy: NON_MEMBER_UID, lastEditedBy: NON_MEMBER_UID })
-      )
-    );
-  });
-
-  it('rejects extra unknown fields (schema lock-down)', async () => {
-    await assertFails(
-      setDoc(doc(asMemberA(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
-        ...validNote(),
-        unexpected: 'extra-field',
-      })
-    );
-  });
-
-  it('rejects when path id != payload id', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMemberA(), `plcs/${PLC_ID}/notes/different-id`),
-        validNote({ id: NOTE_ID })
       )
     );
   });
@@ -222,51 +188,18 @@ describe('plcs/{plcId}/notes — write', () => {
       });
     });
 
-    it('a different member can edit (any-member-edits model)', async () => {
-      await assertSucceeds(
+    it('a member can no longer edit a note, as author or teammate', async () => {
+      await assertFails(
         updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
-          body: 'edited by B',
-          lastEditedBy: MEMBER_B_UID,
-          lastEditedAt: 2,
-        })
-      );
-    });
-
-    it('accepts a serverTimestamp() lastEditedAt on update (dual-accept)', async () => {
-      await assertSucceeds(
-        updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
-          body: 'edited by B',
+          body: 'Edited',
           lastEditedBy: MEMBER_B_UID,
           lastEditedAt: serverTimestamp(),
         })
       );
-    });
-
-    it('rejects when lastEditedBy != caller (no impersonation)', async () => {
       await assertFails(
-        updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
-          body: 'edited',
-          lastEditedBy: MEMBER_A_UID, // pretending to be A
-          lastEditedAt: 2,
-        })
-      );
-    });
-
-    it('rejects createdBy mutation (immutability)', async () => {
-      await assertFails(
-        updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
-          createdBy: MEMBER_B_UID,
-          lastEditedBy: MEMBER_B_UID,
-          lastEditedAt: 2,
-        })
-      );
-    });
-
-    it('rejects createdAt mutation (immutability)', async () => {
-      await assertFails(
-        updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
-          createdAt: 9999,
-          lastEditedBy: MEMBER_B_UID,
+        updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
+          body: 'Edited',
+          lastEditedBy: MEMBER_A_UID,
           lastEditedAt: 2,
         })
       );
@@ -275,7 +208,7 @@ describe('plcs/{plcId}/notes — write', () => {
     it('a non-member cannot edit', async () => {
       await assertFails(
         updateDoc(doc(asNonMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
-          body: 'leaked',
+          body: 'Edited',
           lastEditedBy: NON_MEMBER_UID,
           lastEditedAt: 2,
         })
@@ -311,7 +244,7 @@ describe('plcs/{plcId}/notes — write', () => {
 // plcs/{plcId}/todos
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}/todos — write (legacy: create denied, update deletedAt-only)', () => {
+describe('plcs/{plcId}/todos — writes refused (legacy, plcTeamItemsV1 archives them)', () => {
   const validTodo = (overrides: Record<string, unknown> = {}) => ({
     id: TODO_ID,
     text: 'Do the thing',
@@ -327,24 +260,6 @@ describe('plcs/{plcId}/todos — write (legacy: create denied, update deletedAt-
     );
   });
 
-  it('denies creation with a serverTimestamp() createdAt', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMemberA(), `plcs/${PLC_ID}/todos/${TODO_ID}`),
-        validTodo({ createdAt: serverTimestamp() })
-      )
-    );
-  });
-
-  it('rejects a non-int / non-timestamp createdAt (create denied regardless)', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMemberA(), `plcs/${PLC_ID}/todos/${TODO_ID}`),
-        validTodo({ createdAt: 'soon' })
-      )
-    );
-  });
-
   it('rejects creation by a non-member', async () => {
     await assertFails(
       setDoc(
@@ -354,16 +269,7 @@ describe('plcs/{plcId}/todos — write (legacy: create denied, update deletedAt-
     );
   });
 
-  it('rejects extra unknown fields (create denied anyway)', async () => {
-    await assertFails(
-      setDoc(doc(asMemberA(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
-        ...validTodo(),
-        assignedTo: 'someone',
-      })
-    );
-  });
-
-  describe('update', () => {
+  describe('with an existing todo', () => {
     beforeEach(async () => {
       await testEnv.withSecurityRulesDisabled(async (ctx) => {
         await setDoc(
@@ -373,43 +279,35 @@ describe('plcs/{plcId}/todos — write (legacy: create denied, update deletedAt-
       });
     });
 
-    it("rejects a different member marking a teammate's todo done (not deletedAt-only)", async () => {
+    it('a member can no longer mark it done or archive it', async () => {
       await assertFails(
         updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
           done: true,
         })
       );
-    });
-
-    it('a member can archive (soft-delete) an existing todo via deletedAt only', async () => {
-      await assertSucceeds(
+      await assertFails(
         updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
           deletedAt: Date.now(),
         })
       );
     });
 
-    it('rejects createdBy mutation', async () => {
-      await assertFails(
-        updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
-          createdBy: MEMBER_B_UID,
-        })
-      );
-    });
-
-    it('a non-member cannot edit', async () => {
+    it('a non-member cannot edit or archive', async () => {
       await assertFails(
         updateDoc(doc(asNonMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
           done: true,
         })
       );
-    });
-
-    it('a non-member cannot archive (soft-delete)', async () => {
       await assertFails(
         updateDoc(doc(asNonMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
           deletedAt: Date.now(),
         })
+      );
+    });
+
+    it('no one can hard-delete it', async () => {
+      await assertFails(
+        deleteDoc(doc(asMemberA(), `plcs/${PLC_ID}/todos/${TODO_ID}`))
       );
     });
   });
