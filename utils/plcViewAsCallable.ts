@@ -11,6 +11,7 @@ export async function guardPlcCallable<T>(
   writes: readonly ViewAsRawWrite[],
   run: () => Promise<T>
 ): Promise<T> {
+  if (writes.length === 0) return run();
   const paths = writes.map((w) => w.path);
   if (viewAsBlocksRawWrite(paths)) throw new ViewAsReadOnlyError();
   const out = await run();

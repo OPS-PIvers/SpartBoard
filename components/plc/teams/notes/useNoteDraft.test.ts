@@ -75,3 +75,41 @@ describe('useNoteDraft failed saves', () => {
     expect(addToast.mock.calls[0][1]).toBe('error');
   });
 });
+
+describe('useNoteDraft retry ordering', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    addToast.mockReset();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('never re-sends older text over a newer save queued behind the failed one', async () => {
+    let rejectA: (e: Error) => void = () => undefined;
+    const updateNote = vi
+      .fn()
+      .mockImplementationOnce(
+        () => new Promise<void>((_, reject) => (rejectA = reject))
+      )
+      .mockResolvedValue(undefined);
+    const { result } = setup(updateNote);
+    act(() => result.current.setBody('v1'));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    act(() => result.current.setBody('v2'));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    await act(async () => {
+      rejectA(new Error('internal'));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(updateNote.mock.calls[1][1]).toEqual({ body: 'v2' });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    const last = updateNote.mock.calls[updateNote.mock.calls.length - 1];
+    expect(last[1]).toEqual({ body: 'v2' });
+    expect(last[2]).toEqual({ expectedVersion: 4 });
+  });
+});

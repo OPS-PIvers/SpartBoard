@@ -159,8 +159,11 @@ export function useNoteDraft(params: {
         return;
       }
       logError('useNoteDraft.save', err, { plcId, noteId: note.id });
+      const code = (err as { code?: unknown } | null)?.code;
       if (
         err instanceof ViewAsReadOnlyError ||
+        code === 'not-found' ||
+        code === 'invalid-argument' ||
         retriesRef.current >= SAVE_RETRIES
       ) {
         retriesRef.current = 0;
@@ -172,8 +175,13 @@ export function useNoteDraft(params: {
         );
         return;
       }
-      // Newer edits win over the failed patch's copy of the same field.
-      pendingRef.current = { ...patch, ...pendingRef.current };
+      // Re-send the failed fields at their latest value, so a queued or newer save is never undone.
+      const latest = draftRef.current as unknown as Record<string, unknown>;
+      const retry: Record<string, unknown> = { ...pendingRef.current };
+      for (const [k, v] of Object.entries(patch)) {
+        if (!(k in retry)) retry[k] = k in latest ? latest[k] : v;
+      }
+      pendingRef.current = retry as Patch;
       const delay = 1000 * 2 ** retriesRef.current;
       retriesRef.current += 1;
       if (timerRef.current) clearTimeout(timerRef.current);
