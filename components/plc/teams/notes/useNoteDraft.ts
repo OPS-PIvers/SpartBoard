@@ -1,6 +1,12 @@
 // One note's edit state: CRDT when real-time editing is on, else a debounced, version-checked draft like NotesBody.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PlcActionItem, PlcNote, PlcNoteBlock } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
@@ -12,8 +18,11 @@ import {
 import { usePlcNoteCrdt } from '@/hooks/usePlcNoteCrdt';
 import { mutateNoteBlocks } from '@/utils/plcNoteWrites';
 import { logError } from '@/utils/logError';
+import { ViewAsReadOnlyError } from '@/utils/viewAsTab';
 
 const SAVE_DEBOUNCE_MS = 500;
+// A save the server didn't take (offline, cold start) is retried with backoff before the error toast.
+const SAVE_RETRIES = 6;
 
 interface Draft {
   title: string;
@@ -81,6 +90,7 @@ export function useNoteDraft(params: {
   const pendingRef = useRef<Patch>({});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef<Promise<void> | null>(null);
+  const retriesRef = useRef(0);
 
   // A teammate's save lands: adopt it while this draft holds no unsaved work.
   const [seenEditAt, setSeenEditAt] = useState(note.lastEditedAt);
@@ -120,6 +130,7 @@ export function useNoteDraft(params: {
           versionRef.current = expectedVersion + 1;
         }
         baselineRef.current = sent;
+        retriesRef.current = 0;
       });
     };
     const prior = inFlightRef.current;
@@ -148,8 +159,31 @@ export function useNoteDraft(params: {
         return;
       }
       logError('useNoteDraft.save', err, { plcId, noteId: note.id });
+      if (
+        err instanceof ViewAsReadOnlyError ||
+        retriesRef.current >= SAVE_RETRIES
+      ) {
+        retriesRef.current = 0;
+        addToast(
+          t('plcDashboard.notes.saveFailed', {
+            defaultValue: "Couldn't save your changes. Please try again.",
+          }),
+          'error'
+        );
+        return;
+      }
+      // Newer edits win over the failed patch's copy of the same field.
+      pendingRef.current = { ...patch, ...pendingRef.current };
+      const delay = 1000 * 2 ** retriesRef.current;
+      retriesRef.current += 1;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => flushRef.current(), delay);
     });
   }, [addToast, note.id, plcId, t, updateNote]);
+  const flushRef = useRef(flush);
+  useLayoutEffect(() => {
+    flushRef.current = flush;
+  }, [flush]);
 
   useEffect(() => flush, [flush]);
 
