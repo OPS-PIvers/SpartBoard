@@ -463,7 +463,7 @@ describe('GuidedLearningStage calm motion', () => {
     });
     expect(calloutLayer()).toHaveAttribute('data-camera', 'settled');
     expect(calloutLayer().style.visibility).toBe('');
-    expect(calloutLayer().style.animation).toContain('gl-callout-in 280ms');
+    expect(calloutLayer().style.animation).toMatch(/^280ms .*gl-callout-in$/);
     expect(screen.getByTestId('gl-tooltip-card')).toBeInTheDocument();
   });
 
@@ -497,7 +497,7 @@ describe('GuidedLearningStage calm motion', () => {
       vi.advanceTimersByTime(100);
     });
     expect(calloutLayer()).toHaveAttribute('data-camera', 'settled');
-    expect(calloutLayer().style.animation).toContain('gl-callout-in 560ms');
+    expect(calloutLayer().style.animation).toMatch(/^560ms .*gl-callout-in$/);
   });
 
   it('cuts straight to the callout under reduced motion', () => {

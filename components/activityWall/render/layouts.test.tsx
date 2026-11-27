@@ -185,7 +185,7 @@ describe('wall layouts', () => {
       />
     );
     expect(screen.getByTitle('curious (1)').style.fontSize).toBe(
-      'clamp(11px, 15.00cqmin, 96px)'
+      'clamp(11px, 15cqmin, 96px)'
     );
   });
 

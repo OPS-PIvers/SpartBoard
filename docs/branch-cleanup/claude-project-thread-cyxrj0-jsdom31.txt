@@ -1,0 +1,1 @@
+claude/project-thread-cyxrj0-jsdom31 (Upgrade jsdom 31 for tests)

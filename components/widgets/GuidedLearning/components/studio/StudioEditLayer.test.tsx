@@ -335,7 +335,8 @@ describe('Studio edit layer', () => {
       clientY: 420,
     });
     frames.step();
-    const [x, y] = (card?.style.translate ?? '').split(' ').map(parseFloat);
+    // A zero y is dropped when the browser serializes translate.
+    const [x, y = 0] = (card?.style.translate ?? '').split(' ').map(parseFloat);
     expect(x).toBeCloseTo(20);
     expect(y).toBeCloseTo(0);
     fireEvent.pointerUp(layer(), {
