@@ -43,7 +43,7 @@ export function baseRulesText(baseRef) {
 // Units = expanded nodes + 3 per expanded helper call (fit to local compile times; Google takes ~2x local).
 export const COMPILE_COST_GROWTH_BUDGET = 2000;
 // Ratchet: lower this as each compile-time slice lands. ~247,000 is where Google times out on a typical day.
-export const COMPILE_COST_CEILING = 167000;
+export const COMPILE_COST_CEILING = 160000;
 export const COMPILE_COST_TARGET = 155000;
 export const COST_OVERRIDE_LABEL = 'rules-compile-ok';
 

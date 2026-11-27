@@ -213,7 +213,7 @@ if (baseRef && cost !== null) {
     if (!verdict.ok) {
       console.error(
         `\nThis PR grows firestore.rules compile work by ${change}, over the ${COMPILE_COST_GROWTH_BUDGET}-unit per-PR budget.\n\n` +
-          `A new call to authUid(), notDeactivated() or isAdmin() costs about 130, 50 and 140 units each. ` +
+          `A new call to authUid(), notDeactivated() or isAdmin() costs about 70, 50 and 140 units each; pass one authUid() into a helper taking u instead. ` +
           `If the growth is needed, add the \`${COST_OVERRIDE_LABEL}\` label to the PR and re-run this job.\n`
       );
       process.exitCode = 1;
