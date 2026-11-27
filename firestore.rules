@@ -2386,15 +2386,6 @@ service cloud.firestore {
       return v is timestamp || v is int;
     }
 
-    // Soft-delete tombstone (`deletedAt`, Decision 3.1) well-formed: absent, null,
-    // timestamp, or legacy int millis. Carried by notes/todos/docs/quizzes/
-    // video_activities/comments. Hard-deletion (>30d) is server-side via
-    // gcPlcOrphans; these rules govern only the soft-delete/restore flips.
-    function plcSubDeletedAtOk() {
-      let v = request.resource.data.get('deletedAt', null);
-      return v == null || v is timestamp || v is int;
-    }
-
     // Slim, PII-free discovery mirror of each PLC root, server-written by
     // mirrorPlcIndex (Decision 1.1). Powers the "PLCs in my building" directory
     // without exposing teacher emails/names — only name/orgId/buildingId/opaque
