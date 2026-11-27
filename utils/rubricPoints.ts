@@ -193,8 +193,14 @@ export const rescoreRubricGrades = (
 export const RUBRIC_MIN_LEVELS = 2;
 export const RUBRIC_MAX_LEVELS = 6;
 
+/** The rubric saved, but something after it did not; scores are still rescored. */
+export class RubricSavedError extends Error {}
+
 /** The quiz saved but the library rubric did not. */
-export class RubricLibraryError extends Error {}
+export class RubricLibraryError extends RubricSavedError {}
+
+export const RUBRIC_SCORES_FAILED =
+  'Rubric saved, but some scores did not update.';
 
 // The library content a failed write meant to replace, per rubric id, so a retry still overwrites it.
 const pendingLibraryBaselines = new Map<string, Rubric>();
@@ -240,11 +246,11 @@ export const saveRubricThenRescore = async (
   save: () => Promise<void>,
   rescore: () => Promise<void>
 ): Promise<void> => {
-  let libraryError: RubricLibraryError | undefined;
+  let libraryError: RubricSavedError | undefined;
   try {
     await save();
   } catch (err) {
-    if (!(err instanceof RubricLibraryError)) throw err;
+    if (!(err instanceof RubricSavedError)) throw err;
     libraryError = err;
   }
   await rescore();

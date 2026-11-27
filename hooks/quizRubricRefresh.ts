@@ -1,15 +1,62 @@
-import { doc, runTransaction } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  FieldPath,
+  getDoc,
+  getDocs,
+  runTransaction,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import type { QuizPublicQuestion, QuizSession, Rubric } from '@/types';
+import type {
+  QuizAssignment,
+  QuizData,
+  QuizPublicQuestion,
+  QuizResponse,
+  QuizSession,
+  Rubric,
+} from '@/types';
 import { projectRubricForStudents } from '@/hooks/useQuizSession';
-import { QUIZ_SESSIONS_COLLECTION } from '@/hooks/quizSession/collections';
+import {
+  QUIZ_SESSIONS_COLLECTION,
+  RESPONSES_COLLECTION,
+} from '@/hooks/quizSession/collections';
 import { QUIZ_ASSIGNMENTS_COLLECTION } from '@/hooks/quizAssignments/writers';
+import {
+  buildResponseGradingContext,
+  gradeResponseForPublish,
+  publishScoreFields,
+  refreshedKeyFields,
+} from '@/hooks/quizAssignments/publishGrading';
 import {
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
 } from '@/utils/quizSessionContent';
 import { SCORE_ON_SUBMIT_KEY_DOC } from '@/utils/quizScoreOnSubmit';
-import { rubricMaxPoints, sameRubric } from '@/utils/rubricPoints';
+import { assignmentFrozenFileId } from '@/utils/quizAssignBankDraw';
+import {
+  rescoreRubricGrades,
+  rubricMaxPoints,
+  sameRubric,
+} from '@/utils/rubricPoints';
+
+/** A translated rubric keeps its wording; each level takes the edited rubric's points. */
+function repointRubricLevels(translated: Rubric, edited: Rubric): Rubric {
+  const points = new Map(
+    edited.criteria.flatMap((c) =>
+      c.levels.map((l): [string, number] => [`${c.id}|${l.id}`, l.points])
+    )
+  );
+  return {
+    ...translated,
+    criteria: translated.criteria.map((c) => ({
+      ...c,
+      levels: c.levels.map((l) => ({
+        ...l,
+        points: points.get(`${c.id}|${l.id}`) ?? l.points,
+      })),
+    })),
+  };
+}
 
 /** Swaps an edited rubric into served questions; ids whose points follow the new total are returned. */
 export function applyRubricEditToPublicQuestions(
@@ -24,9 +71,27 @@ export function applyRubricEditToPublicQuestions(
     if (!isMain && !isModified) return q;
     const projected = projectRubricForStudents(rubric, q.rubricHidden === true);
     if (isMain) repointedIds.push(q.id);
+    const localized =
+      isMain && q.localized
+        ? Object.fromEntries(
+            Object.entries(q.localized).map(([loc, strings]) => [
+              loc,
+              strings.rubricSnapshot
+                ? {
+                    ...strings,
+                    rubricSnapshot: repointRubricLevels(
+                      strings.rubricSnapshot,
+                      rubric
+                    ),
+                  }
+                : strings,
+            ])
+          )
+        : undefined;
     return {
       ...q,
       ...(isMain ? { rubricSnapshot: projected, points: total } : {}),
+      ...(localized ? { localized } : {}),
       ...(isModified ? { modifiedRubricSnapshot: projected } : {}),
     };
   });
@@ -88,9 +153,14 @@ export async function refreshAssignmentRubric(opts: {
       opts.rubric
     );
     if (questions.every((q, i) => q === served?.[i])) return;
-    tx.update(inContent ? contentRef : sessionRef, {
-      publicQuestions: questions,
-    });
+    // The session write wakes the gradebook and PLC triggers, which never watch the content doc.
+    const touched = { rubricRefreshedAt: Date.now() };
+    if (inContent) {
+      tx.update(contentRef, { publicQuestions: questions });
+      tx.update(sessionRef, touched);
+    } else {
+      tx.update(sessionRef, { publicQuestions: questions, ...touched });
+    }
     if (!keySnap.exists()) return;
     const key = repointScoreKey(
       keySnap.data()?.questions,
@@ -99,4 +169,123 @@ export async function refreshAssignmentRubric(opts: {
     );
     if (key.changed) tx.update(keyRef, { questions: key.questions });
   });
+}
+
+type FieldUpdate = [string | FieldPath, unknown];
+
+/** Rescores picked rubric levels, then the published score of a scored response, against the new total. */
+async function rescoreSessionResponses(opts: {
+  sessionId: string;
+  rubric: Rubric;
+  before: Rubric;
+  quiz: QuizData;
+}): Promise<void> {
+  const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, opts.sessionId);
+  const session = (await getDoc(sessionRef)).data() as QuizSession | undefined;
+  if (!session) return;
+  const assignmentSnap = await getDoc(
+    doc(
+      db,
+      'users',
+      session.teacherUid,
+      QUIZ_ASSIGNMENTS_COLLECTION,
+      session.assignmentId ?? opts.sessionId
+    )
+  );
+  const ctx = {
+    ...buildResponseGradingContext(opts.quiz, assignmentSnap.data()),
+    sections: session.sections?.length ? session.sections : undefined,
+  };
+  const responses = await getDocs(collection(sessionRef, RESPONSES_COLLECTION));
+  const touched = responses.docs.filter((d) => {
+    const data = d.data() as QuizResponse;
+    return !!data.grading || typeof data.score === 'number';
+  });
+  for (let i = 0; i < touched.length; i += 20) {
+    await Promise.all(
+      touched.slice(i, i + 20).map((d) =>
+        runTransaction(db, async (tx) => {
+          const data = (await tx.get(d.ref)).data() as QuizResponse | undefined;
+          if (!data) return;
+          const regraded = data.grading
+            ? rescoreRubricGrades(opts.before, opts.rubric, data.grading)
+            : [];
+          const fields: FieldUpdate[] = regraded.map(([key, grade]) => [
+            new FieldPath('grading', key),
+            grade,
+          ]);
+          if (typeof data.score === 'number') {
+            const next: QuizResponse = regraded.length
+              ? {
+                  ...data,
+                  grading: { ...data.grading, ...Object.fromEntries(regraded) },
+                }
+              : data;
+            const graded = gradeResponseForPublish(next, ctx, d.id);
+            // A slot still owed a grade keeps the saved score until the teacher grades it.
+            if (graded.score !== null)
+              fields.push(
+                ...Object.entries({
+                  ...publishScoreFields(graded),
+                  ...refreshedKeyFields(next, graded, opts.quiz, d.id, ctx),
+                })
+              );
+          }
+          if (fields.length === 0) return;
+          const [[field, value], ...rest] = fields;
+          tx.update(d.ref, field, value, ...rest.flat());
+        })
+      )
+    );
+  }
+}
+
+/** Refreshes one assignment for a rubric edit; the rescore runs even when the refresh fails. */
+export async function refreshRubricForSession(opts: {
+  sessionId: string;
+  rubric: Rubric;
+  before: Rubric;
+  /** The quiz this assignment grades against, with the edit applied. */
+  quiz: QuizData;
+}): Promise<void> {
+  const results = await Promise.allSettled([
+    refreshAssignmentRubric(opts),
+    rescoreSessionResponses(opts),
+  ]);
+  const failed = results.find((r) => r.status === 'rejected');
+  if (failed) throw failed.reason;
+}
+
+/** Refreshes the teacher's other live, unfrozen assignments of a quiz; false when any failed. */
+export async function refreshRubricPeers(
+  assignments: readonly QuizAssignment[],
+  opts: {
+    quizId: string;
+    activeAssignmentId?: string | null;
+    teacherUid: string;
+    rubric: Rubric;
+    before: Rubric;
+    /** The library quiz with the edit applied, which unfrozen assignments grade against. */
+    quiz: QuizData;
+  }
+): Promise<boolean> {
+  const peers = assignments.filter(
+    (a) =>
+      a.quizId === opts.quizId &&
+      a.id !== opts.activeAssignmentId &&
+      a.teacherUid === opts.teacherUid &&
+      a.status !== 'inactive' &&
+      !assignmentFrozenFileId(a)
+  );
+  const results = await Promise.allSettled(
+    peers.map((a) =>
+      refreshRubricForSession({
+        sessionId: a.id,
+        rubric: opts.rubric,
+        before: opts.before,
+        quiz: opts.quiz,
+      })
+    )
+  );
+  return results.every((r) => r.status === 'fulfilled');
 }

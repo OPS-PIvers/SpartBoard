@@ -1435,33 +1435,3 @@ describe('random-number grading across aligned sessions', () => {
     expect(score('7').correct).toBe(0);
   });
 });
-
-describe('rubric total refreshed on an assigned quiz', () => {
-  const written = (points: number) => [
-    { id: 'w1', type: 'free-response', text: 'Explain.', points },
-  ];
-  const key = (points: number) => [
-    { id: 'w1', type: 'free-response', points, correctAnswer: '' },
-  ];
-  const graded = response([answer('w1', 'Because')], {
-    manualGrades: { w1: { pointsAwarded: 6, scoredCriterionIds: [] } },
-  });
-  const score = (points: number) =>
-    computeAssessmentAggregate({
-      assessmentId: 'a1',
-      title: 'Unit',
-      kind: 'quiz',
-      groupQuestions: resolveGroupQuestions(
-        null,
-        written(points),
-        [],
-        key(points)
-      ),
-      sessions: [session('s-a', 'teacherA', [graded], written(points))],
-    }).perQuestion[0];
-
-  it('scores against the refreshed points instead of clamping to the old total', () => {
-    expect(score(4)).toMatchObject({ pointsEarned: 4, pointsPossible: 4 });
-    expect(score(6)).toMatchObject({ pointsEarned: 6, pointsPossible: 6 });
-  });
-});

@@ -147,7 +147,13 @@ import {
   type VersionImportBuild,
 } from '@/utils/quizDocumentImport/versionPlan';
 import { getRubricDoc, saveRubricDoc } from '@/hooks/useRubrics';
-import { applyRubricEdit, updateLibraryRubrics } from '@/utils/rubricPoints';
+import {
+  applyRubricEdit,
+  RUBRIC_SCORES_FAILED,
+  RubricSavedError,
+  updateLibraryRubrics,
+} from '@/utils/rubricPoints';
+import { refreshRubricPeers } from '@/hooks/quizRubricRefresh';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
@@ -3037,6 +3043,17 @@ const TeacherQuizWidget: React.FC<{
                   }
                 : prev
             );
+            // Other live assignments graded from this library file follow the new total too.
+            const peersOk = before
+              ? await refreshRubricPeers(assignments, {
+                  quizId: meta.id,
+                  activeAssignmentId: config.activeAssignmentId,
+                  teacherUid: user.uid,
+                  rubric,
+                  before,
+                  quiz: { ...stored, questions: inQuiz.questions },
+                })
+              : true;
             const { kept: libraryKept } = await updateLibraryRubrics(
               [...libraryIds],
               rubric,
@@ -3046,6 +3063,7 @@ const TeacherQuizWidget: React.FC<{
                 save: (next) => saveRubricDoc(user.uid, next),
               }
             );
+            if (!peersOk) throw new RubricSavedError(RUBRIC_SCORES_FAILED);
             addToast(
               libraryKept
                 ? 'Rubric saved to this quiz. Your library copy has newer edits, so it was left as is.'
