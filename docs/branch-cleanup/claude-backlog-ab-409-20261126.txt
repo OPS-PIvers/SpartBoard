@@ -1,0 +1,1 @@
+claude/backlog-ab-409-20261126 (AB-409, AB-410: drop dead whole-object sessionOptions save path; re-sync tab warnings, null-safe option diff)
