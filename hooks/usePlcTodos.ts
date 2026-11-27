@@ -1,23 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  writeBatch,
-} from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcTodo } from '@/types';
 import { logError } from '@/utils/logError';
+import {
+  callPlcTeamItems,
+  PLC_TODO_ARCHIVE_CHUNK,
+} from '@/utils/plcTeamItemsClient';
 import { tsToMillis } from '@/utils/plc';
 
 const PLCS_COLLECTION = 'plcs';
 const TODOS_SUBCOLLECTION = 'todos';
-
-/** Max ids per `writeBatch` — Firestore's hard batch-write limit is 500. */
-const ARCHIVE_BATCH_SIZE = 400;
 
 interface UsePlcTodosResult {
   /** Live (non-soft-deleted) legacy to-dos, oldest first. */
@@ -30,7 +24,7 @@ interface UsePlcTodosResult {
   error: Error | null;
   /**
    * Soft-delete (archive) the given legacy to-dos (Decision 3.1): writes a
-   * `deletedAt` tombstone to each in batches of `ARCHIVE_BATCH_SIZE`. Legacy
+   * `deletedAt` tombstone to each, `PLC_TODO_ARCHIVE_CHUNK` per server call. Legacy
    * to-dos are read-only otherwise (§7.4) — imported into note action items.
    */
   archiveTodos: (ids: string[]) => Promise<void>;
@@ -137,16 +131,12 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
   const archiveTodos = useCallback(
     async (ids: string[]): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      for (let i = 0; i < ids.length; i += ARCHIVE_BATCH_SIZE) {
-        const chunk = ids.slice(i, i + ARCHIVE_BATCH_SIZE);
-        const batch = writeBatch(db);
-        for (const id of chunk) {
-          batch.update(
-            doc(db, PLCS_COLLECTION, plcId, TODOS_SUBCOLLECTION, id),
-            { deletedAt: Date.now() }
-          );
-        }
-        await batch.commit();
+      for (let i = 0; i < ids.length; i += PLC_TODO_ARCHIVE_CHUNK) {
+        await callPlcTeamItems({
+          action: 'archiveTodos',
+          plcId,
+          ids: ids.slice(i, i + PLC_TODO_ARCHIVE_CHUNK),
+        });
       }
     },
     [plcId, user]

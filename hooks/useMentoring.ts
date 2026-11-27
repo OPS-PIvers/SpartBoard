@@ -3,21 +3,13 @@
 import { useEffect, useState } from 'react';
 import {
   collection,
-  deleteDoc,
-  deleteField,
   doc,
   getDoc,
-  getDocs,
   onSnapshot,
   orderBy,
   query,
   type QuerySnapshot,
-  runTransaction,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
   where,
-  writeBatch,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import type {
@@ -32,6 +24,8 @@ import type {
   PlcMentorRole,
 } from '@/types';
 import { logError } from '@/utils/logError';
+import { callPlcSettings } from '@/utils/plcSettingsClient';
+import { callPlcTeamItems } from '@/utils/plcTeamItemsClient';
 import { sanitizeActionItemsForWrite } from '@/utils/plcActionItems';
 import {
   pairNames,
@@ -174,20 +168,13 @@ export function useWorkspaceCheckIns(
   return useLiveList(key, subscribeCheckIns);
 }
 
-const wsRef = (plcId: string, workspaceId: string) =>
-  doc(db, PLCS, plcId, 'workspaces', workspaceId);
-
 /** Facilitators tag a member as mentor or mentee, or clear the tag (T29). */
 export async function setMemberMentorRole(
   plcId: string,
   uid: string,
   mentorRole: PlcMentorRole | null
 ): Promise<void> {
-  await updateDoc(doc(db, PLCS, plcId), {
-    [`members.${uid}.mentorRole`]: mentorRole ?? deleteField(),
-    roleChangeUid: uid,
-    updatedAt: serverTimestamp(),
-  });
+  await callPlcSettings({ action: 'setMentorRole', plcId, uid, mentorRole });
 }
 
 /** A pairing is its workspace; the id is deterministic so a pair has one. */
@@ -196,47 +183,29 @@ export async function createPairing(
   mentorUid: string,
   menteeUid: string
 ): Promise<string> {
-  const id = workspaceIdFor(mentorUid, menteeUid);
   const names = pairNames(plc, {
     mentorUid,
     menteeUid,
     mentorName: '',
     menteeName: '',
   });
-  await setDoc(wsRef(plc.id, id), {
+  const { workspaceId } = await callPlcSettings({
+    action: 'createPairing',
+    plcId: plc.id,
     mentorUid,
     menteeUid,
-    memberUids: [mentorUid, menteeUid],
     mentorName: names.mentor,
     menteeName: names.mentee,
-    actionItems: [],
-    docs: [],
-    taskStatus: {},
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
   });
-  return id;
+  return workspaceId ?? workspaceIdFor(mentorUid, menteeUid);
 }
-
-export const BATCH_LIMIT = 450;
 
 /** Deletes the workspace with its check-ins and submissions, so re-pairing starts clean. */
 export async function removePairing(
   plcId: string,
   workspaceId: string
 ): Promise<void> {
-  const ws = wsRef(plcId, workspaceId);
-  const [checkIns, submissions] = await Promise.all([
-    getDocs(collection(ws, 'checkins')),
-    getDocs(collection(ws, 'submissions')),
-  ]);
-  const refs = [...checkIns.docs, ...submissions.docs].map((d) => d.ref);
-  for (let i = 0; i < refs.length; i += BATCH_LIMIT) {
-    const batch = writeBatch(db);
-    for (const r of refs.slice(i, i + BATCH_LIMIT)) batch.delete(r);
-    await batch.commit();
-  }
-  await deleteDoc(ws);
+  await callPlcSettings({ action: 'removePairing', plcId, workspaceId });
 }
 
 export interface MentoringTaskInput {
@@ -254,19 +223,19 @@ async function appendWorkspaceDoc(
   link: MentoringDocLink,
   ifAbsent = false
 ): Promise<boolean> {
-  return runTransaction(db, async (tx) => {
-    const ref = wsRef(plcId, workspaceId);
-    const snap = await tx.get(ref);
-    if (!snap.exists()) return false;
-    const ws = parseMentoringWorkspace(snap.id, snap.data());
-    if (!ws) return false;
-    if (ifAbsent && ws.docs.some((d) => d.id === link.id)) return false;
-    tx.update(ref, {
-      docs: [...ws.docs.filter((d) => d.id !== link.id), link],
-      updatedAt: serverTimestamp(),
-    });
-    return true;
+  const { listed } = await callPlcSettings({
+    action: 'addWorkspaceDoc',
+    plcId,
+    workspaceId,
+    link: {
+      id: link.id,
+      title: link.title,
+      url: link.url,
+      ...(link.taskId ? { taskId: link.taskId } : {}),
+    },
+    ifAbsent,
   });
+  return listed === true;
 }
 
 const COPY_CONCURRENCY = 4;
@@ -426,33 +395,33 @@ export async function postMentoringTask(
   workspaces: readonly MentoringWorkspace[],
   drive: GoogleDriveService | null
 ): Promise<{ taskId: string; failedPairs: string[] }> {
-  const ref = doc(collection(db, PLCS, plc.id, 'tasks'));
-  await setDoc(ref, {
-    id: ref.id,
-    title: input.title,
-    instructions: input.instructions,
-    dueDate: input.dueDate,
-    submitter: input.submitter,
-    templateDoc: input.templateDoc,
-    createdBy: uid,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+  const { id: taskId } = await callPlcTeamItems({
+    action: 'postTask',
+    plcId: plc.id,
+    task: {
+      title: input.title,
+      instructions: input.instructions,
+      dueDate: input.dueDate,
+      submitter: input.submitter,
+      templateDoc: input.templateDoc,
+    },
   });
+  if (!taskId) throw new Error('Task was not posted');
   const failedPairs = await copyTemplateIntoWorkspaces(
     plc,
-    { id: ref.id, title: input.title, templateDoc: input.templateDoc },
+    { id: taskId, title: input.title, templateDoc: input.templateDoc },
     workspaces,
     uid,
     drive
   );
-  return { taskId: ref.id, failedPairs };
+  return { taskId, failedPairs };
 }
 
 export async function deleteMentoringTask(
   plcId: string,
   taskId: string
 ): Promise<void> {
-  await deleteDoc(doc(db, PLCS, plcId, 'tasks', taskId));
+  await callPlcTeamItems({ action: 'deleteTask', plcId, taskId });
 }
 
 /** Hands in a task: the submitter's own submission plus, if still open, its status on the workspace. */
@@ -462,30 +431,13 @@ export async function submitMentoringTask(
   task: MentoringTask,
   user: { uid: string; displayName: string | null }
 ): Promise<void> {
-  const docUrl = workspace.docs.find((d) => d.taskId === task.id)?.url;
-  const id = submissionIdFor(task.id, user.uid);
-  const batch = writeBatch(db);
-  batch.set(
-    doc(db, PLCS, plcId, 'workspaces', workspace.id, 'submissions', id),
-    {
-      id,
-      taskId: task.id,
-      submittedBy: user.uid,
-      submittedByName: user.displayName ?? '',
-      submittedAt: serverTimestamp(),
-      ...(docUrl ? { docUrl } : {}),
-    }
-  );
-  if (!workspace.taskStatus[id]) {
-    batch.update(wsRef(plcId, workspace.id), {
-      [`taskStatus.${id}`]: {
-        submittedAt: serverTimestamp(),
-        submittedBy: user.uid,
-      },
-      updatedAt: serverTimestamp(),
-    });
-  }
-  await batch.commit();
+  await callPlcSettings({
+    action: 'submitTask',
+    plcId,
+    workspaceId: workspace.id,
+    taskId: task.id,
+    name: user.displayName ?? '',
+  });
 }
 
 /** The latest submission handed in for this task on this workspace. */
@@ -535,22 +487,33 @@ export async function addWorkspaceDoc(
   });
 }
 
-/** Replaces the action items inside a transaction so concurrent edits by the partner are kept. */
-export async function updateWorkspaceActionItems(
+/** Toggles one action item on the server, keeping the partner's concurrent edits. */
+export async function toggleWorkspaceActionItem(
   plcId: string,
   workspaceId: string,
-  change: (items: PlcActionItem[]) => PlcActionItem[]
+  itemId: string
 ): Promise<void> {
-  await runTransaction(db, async (tx) => {
-    const ref = wsRef(plcId, workspaceId);
-    const snap = await tx.get(ref);
-    if (!snap.exists()) return;
-    const ws = parseMentoringWorkspace(snap.id, snap.data());
-    if (!ws) return;
-    tx.update(ref, {
-      actionItems: sanitizeActionItemsForWrite(change(ws.actionItems)),
-      updatedAt: serverTimestamp(),
-    });
+  await callPlcSettings({
+    action: 'toggleActionItem',
+    plcId,
+    workspaceId,
+    itemId,
+  });
+}
+
+/** Appends one action item on the server, keeping the partner's concurrent edits. */
+export async function addWorkspaceActionItem(
+  plcId: string,
+  workspaceId: string,
+  item: PlcActionItem
+): Promise<void> {
+  const [clean] = sanitizeActionItemsForWrite([item]);
+  if (!clean) return;
+  await callPlcSettings({
+    action: 'addActionItem',
+    plcId,
+    workspaceId,
+    item: clean,
   });
 }
 
@@ -560,19 +523,15 @@ export async function createCheckIn(
   input: { title: string; body: string },
   user: { uid: string; displayName: string | null }
 ): Promise<string> {
-  const ref = doc(
-    collection(db, PLCS, plcId, 'workspaces', workspaceId, 'checkins')
-  );
-  await setDoc(ref, {
-    id: ref.id,
+  const { checkInId } = await callPlcSettings({
+    action: 'createCheckIn',
+    plcId,
+    workspaceId,
     title: input.title,
     body: input.body,
-    createdBy: user.uid,
-    createdByName: user.displayName ?? '',
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    name: user.displayName ?? '',
   });
-  return ref.id;
+  return checkInId ?? '';
 }
 
 export async function updateCheckIn(
@@ -581,8 +540,11 @@ export async function updateCheckIn(
   checkInId: string,
   patch: { title?: string; body?: string }
 ): Promise<void> {
-  await updateDoc(
-    doc(db, PLCS, plcId, 'workspaces', workspaceId, 'checkins', checkInId),
-    { ...patch, updatedAt: serverTimestamp() }
-  );
+  await callPlcSettings({
+    action: 'updateCheckIn',
+    plcId,
+    workspaceId,
+    checkInId,
+    ...patch,
+  });
 }

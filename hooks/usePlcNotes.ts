@@ -6,8 +6,6 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
-  updateDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -16,6 +14,7 @@ import { logError } from '@/utils/logError';
 import { tsToMillis } from '@/utils/plc';
 import { usePlcSubcollection } from '@/context/usePlcContext';
 import { writePlcActivityEvent } from '@/utils/plcActivity';
+import { plcNotesCreate, plcNotesUpdate } from '@/utils/plcNotesWrite';
 import { parseNoteBlocks, sanitizeBlocksForWrite } from '@/utils/plcNoteBlocks';
 import {
   parseActionItems,
@@ -308,7 +307,7 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
         payload.blocks = sanitizeBlocksForWrite(input.blocks);
       }
       if (input.meetingAt != null) payload.meetingAt = input.meetingAt;
-      await setDoc(ref, payload);
+      await plcNotesCreate(plcId, 'notes', ref.id, payload);
 
       // Activity log (Decision 2.2, §3.4) — native notes is Wave 2's headline
       // feature, so a created note must surface in the "since you were here"
@@ -337,7 +336,6 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
       options?: UpdateNoteOptions
     ): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      const ref = doc(db, PLCS_COLLECTION, plcId, NOTES_SUBCOLLECTION, noteId);
       const uid = user.uid;
       const expectedVersion = options?.expectedVersion;
 
@@ -381,13 +379,15 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
         fields.version = expectedVersion + 1;
       }
 
-      await updateDoc(ref, fields).catch((err: unknown) => {
-        // The rule rejecting the version precondition (a teammate bumped past
-        // `expectedVersion`) surfaces as permission-denied / failed-
-        // precondition. Normalize the loss-of-race into the typed conflict so
-        // the caller's catch can branch on it.
-        throw normalizeNoteWriteError(noteId, expectedVersion ?? null, err);
-      });
+      await plcNotesUpdate(plcId, 'notes', noteId, fields).catch(
+        (err: unknown) => {
+          // The rule rejecting the version precondition (a teammate bumped past
+          // `expectedVersion`) surfaces as permission-denied / failed-
+          // precondition. Normalize the loss-of-race into the typed conflict so
+          // the caller's catch can branch on it.
+          throw normalizeNoteWriteError(noteId, expectedVersion ?? null, err);
+        }
+      );
     },
     [plcId, user]
   );

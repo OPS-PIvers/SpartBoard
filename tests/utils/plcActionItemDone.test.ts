@@ -70,7 +70,24 @@ vi.mock('firebase/firestore', () => ({
   serverTimestamp: () => 'SERVER_TS',
 }));
 
-vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
+vi.mock('firebase/functions', () => ({
+  httpsCallable:
+    () =>
+    (payload: {
+      plcId: string;
+      writes: { coll: string; id: string; data: Record<string, unknown> }[];
+    }) => {
+      for (const w of payload.writes)
+        applyUpdate(`plcs/${payload.plcId}/${w.coll}/${w.id}`, w.data);
+      return Promise.resolve({ data: { ok: true } });
+    },
+}));
+
+vi.mock('@/config/firebase', () => ({
+  db: {},
+  functions: {},
+  isAuthBypass: false,
+}));
 vi.mock('@/context/useAuth', () => ({ useAuth: () => ({ user: null }) }));
 const logErrorMock = vi.fn<(...args: unknown[]) => void>();
 vi.mock('@/utils/logError', () => ({

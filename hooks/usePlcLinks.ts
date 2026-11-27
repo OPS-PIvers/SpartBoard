@@ -1,18 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-} from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import type { PlcLink } from '@/types';
 import { logError } from '@/utils/logError';
+import { callPlcTeamItems } from '@/utils/plcTeamItemsClient';
 import { tsToMillis } from '@/utils/plc';
 import { ensureProtocol } from '@/utils/urlHelpers';
 
@@ -94,17 +86,14 @@ export const usePlcLinks = (plcId: string | null, enabled = true) => {
   const addLink = useCallback(
     async (draft: PlcLinkDraft): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      const ref = doc(collection(db, 'plcs', plcId, 'links'));
-      const note = draft.note.trim();
-      await setDoc(ref, {
-        id: ref.id,
-        title: draft.title.trim(),
-        url: ensureProtocol(draft.url).replace(/^https?:\/\//i, 'https://'),
-        ...(note.length > 0 ? { note } : {}),
-        createdBy: user.uid,
-        createdByName: user.displayName ?? user.email ?? '',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      await callPlcTeamItems({
+        action: 'addLink',
+        plcId,
+        link: {
+          title: draft.title.trim(),
+          url: ensureProtocol(draft.url).replace(/^https?:\/\//i, 'https://'),
+          note: draft.note.trim(),
+        },
       });
     },
     [plcId, user]
@@ -113,7 +102,7 @@ export const usePlcLinks = (plcId: string | null, enabled = true) => {
   const removeLink = useCallback(
     async (linkId: string): Promise<void> => {
       if (!plcId) return;
-      await deleteDoc(doc(db, 'plcs', plcId, 'links', linkId));
+      await callPlcTeamItems({ action: 'deleteLink', plcId, linkId });
     },
     [plcId]
   );

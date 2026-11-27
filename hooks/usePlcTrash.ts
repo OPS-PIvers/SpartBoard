@@ -26,14 +26,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
-  doc,
   onSnapshot,
   query,
-  runTransaction,
   serverTimestamp,
-  updateDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import { plcNotesMutate, plcNotesUpdate } from '@/utils/plcNotesWrite';
 import { useAuth } from '@/context/useAuth';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
@@ -53,6 +51,7 @@ import { parsePlcQuizEntry } from '@/hooks/usePlcQuizzes';
 import { parsePlcVideoActivityEntry } from '@/hooks/usePlcVideoActivities';
 import { parsePlcRubricEntry } from '@/hooks/usePlcRubrics';
 import { restorePlcLibraryEntry } from '@/hooks/usePlcLibraryEntries';
+import { PLC_SERVER_TIME, updatePlcContentDoc } from '@/utils/plcContentWrites';
 import { parseComment } from '@/hooks/usePlcComments';
 
 const PLCS_COLLECTION = 'plcs';
@@ -89,15 +88,11 @@ interface UsePlcTrashResult {
   restore: (item: PlcTrashItem) => Promise<void>;
 }
 
-/** Map a trash item type to its Firestore subcollection path segment. */
-const SUBCOLLECTION_FOR: Record<PlcTrashItemType, string> = {
-  note: 'notes',
-  doc: 'docs',
-  comment: 'comments',
+const LIBRARY_SUBCOLLECTION = {
   quiz: 'quizzes',
   videoActivity: 'video_activities',
   rubric: 'rubrics',
-};
+} as const;
 
 /**
  * Resolve a stable author/display name for the signed-in user (prefer display
@@ -359,21 +354,20 @@ async function restorePlcItem(
   id: string,
   uid: string
 ): Promise<void> {
-  const ref = doc(db, PLCS_COLLECTION, plcId, SUBCOLLECTION_FOR[type], id);
   switch (type) {
     case 'doc':
-      await updateDoc(ref, {
+      await updatePlcContentDoc(plcId, 'docs', id, {
         deletedAt: null,
-        updatedAt: serverTimestamp(),
+        updatedAt: PLC_SERVER_TIME,
       });
       return;
     case 'quiz':
     case 'videoActivity':
     case 'rubric':
-      await restorePlcLibraryEntry(plcId, SUBCOLLECTION_FOR[type], id);
+      await restorePlcLibraryEntry(plcId, LIBRARY_SUBCOLLECTION[type], id);
       return;
     case 'comment':
-      await updateDoc(ref, { deletedAt: null });
+      await plcNotesUpdate(plcId, 'comments', id, { deletedAt: null });
       return;
     case 'note':
       // Restore a note honoring the optimistic version precondition: clear the
@@ -382,10 +376,8 @@ async function restorePlcItem(
       // version introduced). lastEditedBy is left untouched (it stays whoever
       // last edited the note's content); the rule does NOT require restamping it
       // on a deletedAt-only flip because the membership gate covers the writer.
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(ref);
-        if (!snap.exists()) throw new Error('Note not found');
-        const data = snap.data() as Record<string, unknown>;
+      await plcNotesMutate(plcId, 'notes', id, (data) => {
+        if (!data) throw new Error('Note not found');
         const currentVersion =
           typeof data.version === 'number' ? data.version : null;
         const fields: Record<string, unknown> = {
@@ -396,7 +388,7 @@ async function restorePlcItem(
           lastEditedAt: serverTimestamp(),
         };
         if (currentVersion !== null) fields.version = currentVersion + 1;
-        tx.update(ref, fields);
+        return { write: { op: 'update', fields }, result: undefined };
       });
       return;
   }

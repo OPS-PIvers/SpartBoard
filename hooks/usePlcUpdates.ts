@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
-  deleteDoc,
   deleteField,
   doc,
   limit,
@@ -18,6 +17,8 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import type { PlcUpdate, PlcUpdateAck } from '@/types';
 import { logError } from '@/utils/logError';
+import { callPlcSettings } from '@/utils/plcSettingsClient';
+import { callPlcTeamItems } from '@/utils/plcTeamItemsClient';
 import {
   ATTACHMENT_NAME_MAX,
   parsePlcUpdate,
@@ -107,14 +108,10 @@ export function usePlcUpdates(plcId: string | null, enabled = true) {
   const postUpdate = useCallback(
     async (draft: PlcUpdateDraft): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      await setDoc(doc(updatesCol(plcId)), {
-        ...draftFields(draft),
-        pinned: false,
-        reactions: {},
-        authorUid: user.uid,
-        authorName: user.displayName ?? user.email ?? '',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      await callPlcTeamItems({
+        action: 'postUpdate',
+        plcId,
+        draft: draftFields(draft),
       });
     },
     [plcId, user]
@@ -123,11 +120,11 @@ export function usePlcUpdates(plcId: string | null, enabled = true) {
   const editUpdate = useCallback(
     async (updateId: string, draft: PlcUpdateDraft): Promise<void> => {
       if (!plcId) return;
-      await updateDoc(doc(updatesCol(plcId), updateId), {
-        ...draftFields(draft),
-        linkUrl: draft.linkUrl ?? deleteField(),
-        attachment: draft.attachment ?? deleteField(),
-        updatedAt: serverTimestamp(),
+      await callPlcTeamItems({
+        action: 'editUpdate',
+        plcId,
+        updateId,
+        draft: draftFields(draft),
       });
     },
     [plcId]
@@ -136,10 +133,7 @@ export function usePlcUpdates(plcId: string | null, enabled = true) {
   const setPinned = useCallback(
     async (updateId: string, pinned: boolean): Promise<void> => {
       if (!plcId) return;
-      await updateDoc(doc(updatesCol(plcId), updateId), {
-        pinned,
-        updatedAt: serverTimestamp(),
-      });
+      await callPlcTeamItems({ action: 'pinUpdate', plcId, updateId, pinned });
     },
     [plcId]
   );
@@ -147,7 +141,7 @@ export function usePlcUpdates(plcId: string | null, enabled = true) {
   const removeUpdate = useCallback(
     async (updateId: string): Promise<void> => {
       if (!plcId) return;
-      await deleteDoc(doc(updatesCol(plcId), updateId));
+      await callPlcTeamItems({ action: 'deleteUpdate', plcId, updateId });
     },
     [plcId]
   );
@@ -268,8 +262,5 @@ export async function saveTeamCalendar(
   plcId: string,
   url: string | null
 ): Promise<void> {
-  await updateDoc(doc(db, 'plcs', plcId), {
-    calendarEmbedUrl: url ?? deleteField(),
-    updatedAt: serverTimestamp(),
-  });
+  await callPlcSettings({ action: 'setCalendar', plcId, url });
 }

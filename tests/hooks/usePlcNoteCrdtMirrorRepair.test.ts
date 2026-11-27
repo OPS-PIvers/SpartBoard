@@ -25,7 +25,17 @@ vi.mock('firebase/firestore', () => ({
   serverTimestamp: () => 'SERVER_TS',
 }));
 
-vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
+vi.mock('firebase/functions', () => ({
+  httpsCallable:
+    () => (payload: { writes: { data: Record<string, unknown> }[] }) =>
+      updateDocMock(null, payload.writes[0].data),
+}));
+
+vi.mock('@/config/firebase', () => ({
+  db: {},
+  functions: {},
+  isAuthBypass: false,
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'me' } }),
 }));
