@@ -30,6 +30,7 @@ import * as admin from './firebaseAdmin';
 
 import {
   claimPollCode,
+  isPollStaffCaller,
   mintPollCode,
   mintPollCodeV1,
   normalizePollCodeInput,
@@ -885,5 +886,60 @@ describe('claimPollCode', () => {
     await expect(claim(seed(board()), 'tB', 'a/b')).rejects.toMatchObject({
       code: 'invalid-argument',
     });
+  });
+});
+
+describe('isPollStaffCaller', () => {
+  const token = {
+    email: 'A@orono.k12.mn.us',
+    email_verified: true,
+    firebase: { sign_in_provider: 'google.com' },
+  };
+  const makeDb = (member: Record<string, unknown> | null, isAdmin: boolean) => {
+    const memberGets = vi.fn();
+    const db = {
+      doc: vi.fn(() => ({
+        get: () => {
+          memberGets();
+          return Promise.resolve({
+            exists: member !== null,
+            data: () => member ?? undefined,
+            get: (k: string) => member?.[k],
+          });
+        },
+      })),
+      collection: vi.fn(() => ({
+        doc: () => ({ get: () => Promise.resolve({ exists: isAdmin }) }),
+      })),
+    };
+    return {
+      db: db as unknown as Parameters<typeof isPollStaffCaller>[0],
+      memberGets,
+    };
+  };
+
+  it('reads the member doc once for an admin without a staff doc', async () => {
+    const { db, memberGets } = makeDb(null, true);
+    expect(await isPollStaffCaller(db, token)).toBe(true);
+    expect(memberGets).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses an admin whose member doc is revoked', async () => {
+    const { db } = makeDb({ status: 'deactivated', roleId: 'teacher' }, true);
+    expect(await isPollStaffCaller(db, token)).toBe(false);
+  });
+
+  it('refuses an admin carrying the deactivation claim', async () => {
+    const { db } = makeDb(null, true);
+    expect(await isPollStaffCaller(db, { ...token, deactivated: true })).toBe(
+      false
+    );
+  });
+
+  it('refuses a non-admin without a staff doc, and accepts an active staff doc', async () => {
+    expect(await isPollStaffCaller(makeDb(null, false).db, token)).toBe(false);
+    expect(
+      await isPollStaffCaller(makeDb({ roleId: 'teacher' }, false).db, token)
+    ).toBe(true);
   });
 });

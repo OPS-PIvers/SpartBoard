@@ -6,7 +6,11 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isTeacherShapedToken, type AiCallerToken } from './aiCallerGate';
-import { isLiveAdmin, OPERATOR_ORG_ID } from './authz';
+import {
+  hasDeactivatedClaim,
+  isRevokedMemberStatus,
+  OPERATOR_ORG_ID,
+} from './authz';
 import { isStaffMemberData } from './districtStaff';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { pointerMembers } from './pollCodeMembers';
@@ -369,11 +373,17 @@ export async function isPollStaffCaller(
 ): Promise<boolean> {
   if (!isTeacherShapedToken(token)) return false;
   const email = (token.email as string).toLowerCase();
-  const [member, isAdmin] = await Promise.all([
+  const [member, adminDoc] = await Promise.all([
     db.doc(`organizations/${OPERATOR_ORG_ID}/members/${email}`).get(),
-    isLiveAdmin(db, email, token),
+    db.collection('admins').doc(email).get(),
   ]);
-  return isStaffMemberData(member.data()) || isAdmin;
+  if (isStaffMemberData(member.data())) return true;
+  // As isLiveAdmin, reusing the member read for the deactivation check.
+  return (
+    adminDoc.exists &&
+    !hasDeactivatedClaim(token) &&
+    !(member.exists && isRevokedMemberStatus(member.get('status')))
+  );
 }
 
 export const mintPollCodeV1 = onCall(
