@@ -3610,10 +3610,11 @@ service cloud.firestore {
             liveUidPin(sessionTeacherUid()) ||
             (pinUid() == parentStudentUid() && passesStudentClassGateList(sessionClassIds()))
           );
-          // Create: only the owning student of the parent response; strict shape;
+          // Create: only the owning student of the parent response (class-gated like the read); strict shape;
           // snapshotAt == request.time forces server stamping.
           allow create: if signedIn() &&
             pinUid() == parentStudentUid() &&
+            passesStudentClassGateList(sessionClassIds()) &&
             newKeys().hasOnly(
               ['questionId', 'answer', 'answeredAt', 'status', 'snapshotAt']
             ) &&
