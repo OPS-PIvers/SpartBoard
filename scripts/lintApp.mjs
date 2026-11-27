@@ -33,10 +33,13 @@ export function parseShard(arg) {
   return { index, count };
 }
 
+const ROOT_CONFIG = 'eslint.config.js';
+
 /** Tracked files `eslint .` would lint: ESLint reports unmatched and ignored files alike as ignored. */
 export async function lintableFiles() {
   const { ESLint } = await import('eslint');
-  const eslint = new ESLint();
+  // ESLint 10 looks up the nearest config per file; pin the root one so functions/ and extension/ stay ignored.
+  const eslint = new ESLint({ overrideConfigFile: ROOT_CONFIG });
   const tracked = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
     .split('\0')
     .filter(Boolean);
@@ -72,7 +75,16 @@ async function main() {
     : ['--max-old-space-size=6144'];
   const result = spawnSync(
     process.execPath,
-    [...heapFlag, eslintBin, ...targets, '--max-warnings', '0', ...args],
+    [
+      ...heapFlag,
+      eslintBin,
+      '-c',
+      ROOT_CONFIG,
+      ...targets,
+      '--max-warnings',
+      '0',
+      ...args,
+    ],
     { stdio: 'inherit' }
   );
   process.exitCode = result.status ?? 1;

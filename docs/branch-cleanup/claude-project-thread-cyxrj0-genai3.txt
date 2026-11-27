@@ -1,0 +1,1 @@
+claude/project-thread-cyxrj0-genai3 (Google GenAI SDK 3)
