@@ -10,13 +10,12 @@
 //
 //   - a viewer CAN read,
 //   - a viewer is DENIED create / update / delete,
-//   - a non-viewer member CAN create / update / delete,
-//   - a coLead and the lead CAN create (spot-checked — they share the same
-//     `plcCanEditContent` edit gate).
+//   - non-viewer members and the lead are refused create too (server-only),
+//     and keep only the direct writes still in rules: a folder move on
+//     assessments and quizzes, action items on docs, hard delete of meetings
+//     and notes.
 //
-// `todos` is legacy (create always denied, update accepts ONLY the
-// `deletedAt` tombstone) and gets its own bespoke describe block below
-// instead of the generic matrix.
+// `todos` is legacy and server-only; it gets its own describe block below.
 //
 // Plus the viewer-writable carve-outs the task preserves:
 //   - a viewer CAN write their OWN presence doc,
@@ -157,6 +156,11 @@ interface ContentCase {
   // Comments are soft-delete-only — hard deleteDoc is denied for everyone, so a
   // member "deletes" by writing a deletedAt tombstone instead.
   softDeleteOnly?: boolean;
+  // The patch is a direct write that stays in rules; `refusedPatch` is an edit that no longer is.
+  directPatch?: boolean;
+  refusedPatch?: Record<string, unknown>;
+  // Hard delete stays in rules for meetings and notes (the shared delete rule).
+  hardDelete?: boolean;
 }
 
 const DOC_ID = 'c1';
@@ -175,7 +179,9 @@ const cases: ContentCase[] = [
       createdAt: 1000,
       updatedAt: 1000,
     }),
-    patch: () => ({ status: 'active', updatedAt: 2000 }),
+    patch: () => ({ folderId: 'f1', updatedAt: 2000 }),
+    directPatch: true,
+    refusedPatch: { status: 'active', updatedAt: 2000 },
   },
   {
     name: 'meetings',
@@ -193,6 +199,7 @@ const cases: ContentCase[] = [
       updatedAt: 1000,
     }),
     patch: () => ({ status: 'completed', updatedAt: 2000 }),
+    hardDelete: true,
   },
   {
     name: 'quizzes',
@@ -208,7 +215,9 @@ const cases: ContentCase[] = [
       sharedAt: 1000,
       updatedAt: 1000,
     }),
-    patch: () => ({ title: 'Quiz (edited)', updatedAt: 2000 }),
+    patch: () => ({ folderId: 'f1', updatedAt: 2000 }),
+    directPatch: true,
+    refusedPatch: { title: 'Quiz (edited)', updatedAt: 2000 },
   },
   {
     name: 'video_activities',
@@ -266,6 +275,7 @@ const cases: ContentCase[] = [
       lastEditedBy: MEMBER_UID,
       lastEditedAt: 2000,
     }),
+    hardDelete: true,
   },
   {
     name: 'docs',
@@ -279,7 +289,9 @@ const cases: ContentCase[] = [
       createdAt: 1000,
       updatedAt: 1000,
     }),
-    patch: () => ({ title: 'Doc (edited)', updatedAt: 2000 }),
+    patch: () => ({ actionItems: [], updatedAt: 2000 }),
+    directPatch: true,
+    refusedPatch: { title: 'Doc (edited)', updatedAt: 2000 },
   },
   // `todos` is legacy (create denied, update accepts ONLY `deletedAt`) and is
   // exercised separately below rather than through this generic read/write
@@ -337,40 +349,50 @@ for (const c of cases) {
       });
     });
 
-    describe('non-viewer members can write', () => {
-      it('a plain member CAN create', async () => {
-        await assertSucceeds(
+    describe('non-viewer members', () => {
+      it('a plain member, co-lead and the lead can no longer create (server writes it)', async () => {
+        await assertFails(
           setDoc(ref(asMember(), 'member-doc'), c.doc('member-doc', MEMBER_UID))
         );
-      });
-
-      it('a co-lead CAN create', async () => {
-        await assertSucceeds(
+        await assertFails(
           setDoc(ref(asCoLead(), 'colead-doc'), c.doc('colead-doc', COLEAD_UID))
         );
-      });
-
-      it('the lead CAN create', async () => {
-        await assertSucceeds(
+        await assertFails(
           setDoc(ref(asLead(), 'lead-doc'), c.doc('lead-doc', LEAD_UID))
         );
       });
 
-      it('a plain member CAN update', async () => {
-        await seed(c.path(DOC_ID), c.doc(DOC_ID, MEMBER_UID));
-        await assertSucceeds(updateDoc(ref(asMember()), c.patch()));
-      });
+      if (c.directPatch) {
+        it('a plain member CAN still make the direct update', async () => {
+          await seed(c.path(DOC_ID), c.doc(DOC_ID, MEMBER_UID));
+          await assertSucceeds(updateDoc(ref(asMember()), c.patch()));
+        });
 
-      it('a plain member CAN delete', async () => {
-        await seed(c.path(DOC_ID), c.doc(DOC_ID, MEMBER_UID));
-        if (c.softDeleteOnly) {
-          // Hard delete is denied for everyone on this collection; a member
-          // tombstones via a deletedAt patch instead.
-          await assertSucceeds(updateDoc(ref(asMember()), { deletedAt: 2000 }));
-        } else {
-          await assertSucceeds(deleteDoc(ref(asMember())));
+        it('a plain member can no longer edit the other fields', async () => {
+          await seed(c.path(DOC_ID), c.doc(DOC_ID, MEMBER_UID));
+          await assertFails(updateDoc(ref(asMember()), c.refusedPatch ?? {}));
+        });
+      } else {
+        it('a plain member can no longer update', async () => {
+          await seed(c.path(DOC_ID), c.doc(DOC_ID, MEMBER_UID));
+          await assertFails(updateDoc(ref(asMember()), c.patch()));
+        });
+      }
+
+      it(
+        c.hardDelete
+          ? 'a plain member CAN still hard-delete'
+          : 'a plain member can no longer delete or tombstone',
+        async () => {
+          await seed(c.path(DOC_ID), c.doc(DOC_ID, MEMBER_UID));
+          if (c.hardDelete) {
+            await assertSucceeds(deleteDoc(ref(asMember())));
+          } else {
+            await assertFails(deleteDoc(ref(asMember())));
+            await assertFails(updateDoc(ref(asMember()), { deletedAt: 2000 }));
+          }
         }
-      });
+      );
     });
   });
 }
@@ -379,7 +401,7 @@ for (const c of cases) {
 // plcs/{plcId}/todos — legacy collection (create denied, update deletedAt-only)
 // ===========================================================================
 
-describe('plcs/{plcId}/todos — viewer write-gate (legacy)', () => {
+describe('plcs/{plcId}/todos — viewer write-gate (legacy, writes server-only)', () => {
   const todoDoc = (id: string, creator: string) => ({
     id,
     text: 'Todo',
@@ -417,15 +439,15 @@ describe('plcs/{plcId}/todos — viewer write-gate (legacy)', () => {
     );
   });
 
-  describe('update — only the deletedAt tombstone is allowed', () => {
+  describe('update — refused for everyone', () => {
     beforeEach(() => seed(path(DOC_ID), todoDoc(DOC_ID, MEMBER_UID)));
 
     it('a viewer CANNOT archive (soft-delete)', async () => {
       await assertFails(updateDoc(ref(asViewer()), { deletedAt: 2000 }));
     });
 
-    it('a plain member CAN archive (soft-delete) via deletedAt only', async () => {
-      await assertSucceeds(updateDoc(ref(asMember()), { deletedAt: 2000 }));
+    it('a plain member can no longer archive (plcTeamItemsV1 does)', async () => {
+      await assertFails(updateDoc(ref(asMember()), { deletedAt: 2000 }));
     });
 
     it('a plain member CANNOT update any other field', async () => {
@@ -440,8 +462,8 @@ describe('plcs/{plcId}/todos — viewer write-gate (legacy)', () => {
       await assertFails(deleteDoc(ref(asViewer())));
     });
 
-    it('a plain member CAN delete', async () => {
-      await assertSucceeds(deleteDoc(ref(asMember())));
+    it('a plain member can no longer delete', async () => {
+      await assertFails(deleteDoc(ref(asMember())));
     });
   });
 });

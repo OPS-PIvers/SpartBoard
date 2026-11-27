@@ -1,4 +1,4 @@
-// Rules coverage for mentoring programs (TEAMS_REDESIGN T29 to T33): tasks, workspaces, check-ins, submissions.
+// Rules coverage for mentoring programs (TEAMS_REDESIGN T29 to T33): tasks, workspaces, check-ins, submissions. Reads only; every client write is refused (plcSettingsV1 and plcTeamItemsV1 write them).
 //
 // Requires a running Firestore emulator; invoke via `pnpm run test:rules`.
 
@@ -176,41 +176,34 @@ const seedProgram = async () => {
   await seed(`${PLC}/workspaces/${WS_B}`, workspace(MENTOR_B, MENTEE_B));
 };
 
+const EVERYONE = [
+  LEAD,
+  COLEAD,
+  MENTOR,
+  MENTEE,
+  MENTOR_B,
+  MENTEE_B,
+  MEMBER,
+  VIEWER,
+  OUTSIDER,
+];
+
 describe('mentor roles on member records', () => {
-  it('lets facilitators tag a member as mentor or mentee', async () => {
-    for (const uid of [LEAD, COLEAD]) {
-      await assertSucceeds(
+  it('refuses every client tagging a member as mentor or mentee (plcSettingsV1 does it)', async () => {
+    for (const uid of EVERYONE) {
+      await assertFails(
         updateDoc(doc(as(uid), PLC), {
           [`members.${MEMBER}.mentorRole`]: 'mentee',
           roleChangeUid: MEMBER,
           updatedAt: 2,
         })
       );
-      await assertSucceeds(
-        updateDoc(doc(as(uid), PLC), {
-          [`members.${MEMBER}.mentorRole`]: deleteField(),
-          roleChangeUid: MEMBER,
-          updatedAt: 3,
-        })
-      );
-    }
-  });
-
-  it('refuses members, mentors and outsiders tagging anyone', async () => {
-    for (const uid of [MEMBER, MENTOR, MENTEE, VIEWER, OUTSIDER]) {
-      await assertFails(
-        updateDoc(doc(as(uid), PLC), {
-          [`members.${MEMBER}.mentorRole`]: 'mentor',
-          roleChangeUid: MEMBER,
-          updatedAt: 2,
-        })
-      );
     }
     await assertFails(
-      updateDoc(doc(as(MENTEE), PLC), {
-        [`members.${MENTEE}.mentorRole`]: 'mentor',
-        roleChangeUid: MENTEE,
-        updatedAt: 2,
+      updateDoc(doc(as(LEAD), PLC), {
+        [`members.${MEMBER}.mentorRole`]: deleteField(),
+        roleChangeUid: MEMBER,
+        updatedAt: 3,
       })
     );
   });
@@ -226,59 +219,25 @@ describe('tasks', () => {
     await assertFails(getDoc(doc(as(OUTSIDER), TASK_PATH)));
   });
 
-  it('lets facilitators post, edit and remove tasks', async () => {
-    await assertSucceeds(setDoc(doc(as(LEAD), TASK_PATH), task()));
-    await assertSucceeds(
-      updateDoc(doc(as(COLEAD), TASK_PATH), { dueDate: '2026-10-31' })
-    );
-    await assertSucceeds(
-      setDoc(
-        doc(as(COLEAD), `${PLC}/tasks/t2`),
-        task({ id: 't2', createdBy: COLEAD, templateDoc: null })
-      )
-    );
-    const picked = { title: 'T', url: 'https://docs.google.com/d/x' };
-    await assertSucceeds(
-      setDoc(
-        doc(as(LEAD), `${PLC}/tasks/t3`),
-        task({ id: 't3', templateDoc: { ...picked, fileId: 'abc123' } })
-      )
-    );
-    await assertFails(
-      setDoc(
-        doc(as(LEAD), `${PLC}/tasks/t4`),
-        task({ id: 't4', templateDoc: { ...picked, fileId: 7 } })
-      )
-    );
-    await assertSucceeds(deleteDoc(doc(as(COLEAD), TASK_PATH)));
-  });
-
-  it('refuses everyone else, and bad shapes', async () => {
-    for (const uid of [MENTOR, MENTEE, MEMBER, VIEWER, OUTSIDER]) {
+  it('refuses every client post (plcTeamItemsV1 writes tasks), facilitators included', async () => {
+    for (const uid of EVERYONE) {
       await assertFails(
         setDoc(doc(as(uid), TASK_PATH), task({ createdBy: uid }))
       );
     }
     await assertFails(
-      setDoc(doc(as(LEAD), TASK_PATH), task({ submitter: 'everyone' }))
-    );
-    await assertFails(
-      setDoc(doc(as(LEAD), TASK_PATH), task({ dueDate: 'Oct 24' }))
-    );
-    await assertFails(
-      setDoc(doc(as(LEAD), TASK_PATH), task({ createdBy: COLEAD }))
-    );
-    await assertFails(
       setDoc(
-        doc(as(LEAD), TASK_PATH),
-        task({ templateDoc: { title: 'x', url: 'javascript:alert(1)' } })
+        doc(as(COLEAD), `${PLC}/tasks/t2`),
+        task({ id: 't2', createdBy: COLEAD, templateDoc: null })
       )
     );
-    await assertFails(setDoc(doc(as(LEAD), TASK_PATH), task({ extra: 1 })));
+  });
+
+  it('refuses every client edit and removal, facilitators included', async () => {
     await seed(TASK_PATH, task());
-    for (const uid of [MENTOR, MENTEE, MEMBER, VIEWER]) {
+    for (const uid of EVERYONE) {
       await assertFails(
-        updateDoc(doc(as(uid), TASK_PATH), { title: 'Changed' })
+        updateDoc(doc(as(uid), TASK_PATH), { dueDate: '2026-10-31' })
       );
       await assertFails(deleteDoc(doc(as(uid), TASK_PATH)));
     }
@@ -312,156 +271,7 @@ describe('workspaces', () => {
     await assertFails(getDocs(collection(as(MEMBER), `${PLC}/workspaces`)));
   });
 
-  it('lets facilitators pair a tagged mentor and mentee', async () => {
-    await assertSucceeds(setDoc(doc(as(LEAD), WS_PATH), workspace()));
-    await assertSucceeds(
-      setDoc(
-        doc(as(COLEAD), `${PLC}/workspaces/${WS_B}`),
-        workspace(MENTOR_B, MENTEE_B)
-      )
-    );
-    await assertSucceeds(deleteDoc(doc(as(COLEAD), WS_PATH)));
-  });
-
-  it('refuses untagged, viewer, swapped or mismatched pairings', async () => {
-    const bad: [string, string][] = [
-      [MEMBER, MENTEE],
-      [MENTOR, VIEWER],
-      [MENTEE, MENTOR],
-      [MENTOR, MENTOR],
-    ];
-    for (const [a, b] of bad) {
-      await assertFails(
-        setDoc(doc(as(LEAD), `${PLC}/workspaces/${a}_${b}`), workspace(a, b))
-      );
-    }
-    await assertFails(
-      setDoc(doc(as(LEAD), `${PLC}/workspaces/other-id`), workspace())
-    );
-    await assertFails(
-      setDoc(doc(as(LEAD), WS_PATH), {
-        ...workspace(),
-        memberUids: [MENTOR, MENTEE, MEMBER],
-      })
-    );
-  });
-
-  it('refuses pairing in a team that is not a mentoring program', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await updateDoc(doc(ctx.firestore(), PLC), { groupType: 'plc' });
-    });
-    await assertFails(setDoc(doc(as(LEAD), WS_PATH), workspace()));
-  });
-
-  it('refuses pairing by anyone but facilitators', async () => {
-    for (const uid of [MENTOR, MENTEE, MEMBER, VIEWER, OUTSIDER]) {
-      await assertFails(setDoc(doc(as(uid), WS_PATH), workspace()));
-    }
-    await seedProgram();
-    for (const uid of [MENTOR, MENTEE, MEMBER, VIEWER, OUTSIDER]) {
-      await assertFails(deleteDoc(doc(as(uid), WS_PATH)));
-    }
-  });
-
-  it('lets the pair edit its content but not the pairing', async () => {
-    await seedProgram();
-    for (const uid of [MENTOR, MENTEE]) {
-      await assertSucceeds(
-        updateDoc(doc(as(uid), WS_PATH), {
-          actionItems: [],
-          docs: [{ id: 'd', title: 'Goals', url: 'https://docs.google.com/d' }],
-          updatedAt: 2,
-        })
-      );
-      await assertFails(
-        updateDoc(doc(as(uid), WS_PATH), { menteeUid: MEMBER })
-      );
-      await assertFails(
-        updateDoc(doc(as(uid), WS_PATH), {
-          memberUids: [MENTOR, MENTEE, MEMBER],
-        })
-      );
-      await assertFails(updateDoc(doc(as(uid), WS_PATH), { mentorName: 'x' }));
-    }
-  });
-
-  it('refuses edits from another pair, members, viewers and outsiders', async () => {
-    await seedProgram();
-    for (const uid of [MENTOR_B, MENTEE_B, MEMBER, VIEWER, OUTSIDER]) {
-      await assertFails(
-        updateDoc(doc(as(uid), WS_PATH), { docs: [], updatedAt: 2 })
-      );
-    }
-  });
-
-  it('lets facilitators add docs but not edit the pair content', async () => {
-    await seedProgram();
-    await assertSucceeds(
-      updateDoc(doc(as(LEAD), WS_PATH), {
-        docs: [
-          { id: 'd', title: 'Template', url: 'https://docs.google.com/d' },
-        ],
-        updatedAt: 2,
-      })
-    );
-    await assertFails(
-      updateDoc(doc(as(COLEAD), WS_PATH), {
-        taskStatus: { t1: { submittedAt: 2, submittedBy: COLEAD } },
-      })
-    );
-  });
-
-  it('accepts only https doc links, from the pair, facilitators or a new pairing', async () => {
-    await seedProgram();
-    const link = (url: string, id = 'd') => ({ id, title: 'Doc', url });
-    const kept = link('https://docs.google.com/kept', 'k');
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await deleteDoc(doc(ctx.firestore(), `${PLC}/workspaces/${WS_B}`));
-    });
-    await assertSucceeds(
-      updateDoc(doc(as(MENTEE), WS_PATH), { docs: [kept], updatedAt: 2 })
-    );
-    for (const url of [
-      'javascript:alert(1)',
-      'http://docs.google.com/d',
-      'data:text/html,x',
-    ]) {
-      for (const uid of [MENTOR, LEAD]) {
-        await assertFails(
-          updateDoc(doc(as(uid), WS_PATH), {
-            docs: [kept, link(url)],
-            updatedAt: 3,
-          })
-        );
-      }
-      await assertFails(
-        setDoc(doc(as(LEAD), `${PLC}/workspaces/${WS_B}`), {
-          ...workspace(MENTOR_B, MENTEE_B),
-          docs: [link(url)],
-        })
-      );
-    }
-    await assertFails(
-      updateDoc(doc(as(MENTOR), WS_PATH), {
-        docs: [kept, { ...kept, id: 'k2', url: 'javascript:alert(1)' }],
-        updatedAt: 3,
-      })
-    );
-    await assertSucceeds(
-      updateDoc(doc(as(LEAD), WS_PATH), {
-        docs: [kept, link('https://docs.google.com/tpl', 't')],
-        updatedAt: 3,
-      })
-    );
-    await assertSucceeds(
-      setDoc(doc(as(LEAD), `${PLC}/workspaces/${WS_B}`), {
-        ...workspace(MENTOR_B, MENTEE_B),
-        docs: [link('https://docs.google.com/b')],
-      })
-    );
-  });
-
-  it('locks out a pair member who became a viewer', async () => {
+  it('keeps a pair member who became a viewer able to read', async () => {
     await seedProgram();
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await updateDoc(doc(ctx.firestore(), PLC), {
@@ -469,60 +279,81 @@ describe('workspaces', () => {
       });
     });
     await assertSucceeds(getDoc(doc(as(MENTEE), WS_PATH)));
+  });
+
+  it('refuses every client pairing, facilitators included (plcSettingsV1 does it)', async () => {
+    for (const uid of EVERYONE) {
+      await assertFails(setDoc(doc(as(uid), WS_PATH), workspace()));
+    }
     await assertFails(
-      updateDoc(doc(as(MENTEE), WS_PATH), { docs: [], updatedAt: 2 })
+      setDoc(
+        doc(as(COLEAD), `${PLC}/workspaces/${WS_B}`),
+        workspace(MENTOR_B, MENTEE_B)
+      )
     );
+  });
+
+  it('refuses every client edit and removal, the pair and facilitators included', async () => {
+    await seedProgram();
+    for (const uid of EVERYONE) {
+      await assertFails(
+        updateDoc(doc(as(uid), WS_PATH), {
+          docs: [{ id: 'd', title: 'Goals', url: 'https://docs.google.com/d' }],
+          updatedAt: 2,
+        })
+      );
+      await assertFails(
+        updateDoc(doc(as(uid), WS_PATH), { actionItems: [], updatedAt: 2 })
+      );
+      await assertFails(deleteDoc(doc(as(uid), WS_PATH)));
+    }
   });
 });
 
 describe('check-ins', () => {
   const C_PATH = `${WS_PATH}/checkins/c1`;
 
-  it('lets the pair write and facilitators read', async () => {
+  it('lets facilitators read; nobody outside the pair', async () => {
     await seedProgram();
-    await assertSucceeds(setDoc(doc(as(MENTEE), C_PATH), checkin(MENTEE)));
-    await assertSucceeds(
-      updateDoc(doc(as(MENTOR), C_PATH), { body: 'Updated', updatedAt: 2 })
-    );
-    for (const uid of [LEAD, COLEAD, MENTOR, MENTEE]) {
+    await seed(C_PATH, checkin(MENTEE));
+    for (const uid of [LEAD, COLEAD]) {
       await assertSucceeds(getDoc(doc(as(uid), C_PATH)));
       await assertSucceeds(getDocs(collection(as(uid), `${WS_PATH}/checkins`)));
     }
-    await assertSucceeds(deleteDoc(doc(as(MENTOR), C_PATH)));
-  });
-
-  it('refuses everyone else', async () => {
-    await seedProgram();
-    for (const uid of [LEAD, COLEAD, MENTOR_B, MEMBER, VIEWER, OUTSIDER]) {
-      await assertFails(setDoc(doc(as(uid), C_PATH), checkin(uid)));
-    }
-    await seed(C_PATH, checkin(MENTEE));
     for (const uid of [MENTOR_B, MENTEE_B, MEMBER, VIEWER, OUTSIDER]) {
       await assertFails(getDoc(doc(as(uid), C_PATH)));
     }
-    for (const uid of [LEAD, MENTOR_B, MEMBER]) {
-      await assertFails(updateDoc(doc(as(uid), C_PATH), { body: 'x' }));
+  });
+
+  it('lets the pair read', async () => {
+    await seedProgram();
+    await seed(C_PATH, checkin(MENTEE));
+    for (const uid of [MENTOR, MENTEE]) {
+      await assertSucceeds(getDoc(doc(as(uid), C_PATH)));
+      await assertSucceeds(getDocs(collection(as(uid), `${WS_PATH}/checkins`)));
     }
-    for (const uid of [MENTOR_B, MEMBER, VIEWER, OUTSIDER]) {
+  });
+
+  it('refuses every client write, the pair included (plcSettingsV1 does it)', async () => {
+    await seedProgram();
+    for (const uid of EVERYONE) {
+      await assertFails(setDoc(doc(as(uid), C_PATH), checkin(uid)));
+    }
+    await seed(C_PATH, checkin(MENTEE));
+    for (const uid of EVERYONE) {
+      await assertFails(updateDoc(doc(as(uid), C_PATH), { body: 'x' }));
       await assertFails(deleteDoc(doc(as(uid), C_PATH)));
     }
-    await assertSucceeds(deleteDoc(doc(as(COLEAD), C_PATH)));
-    await assertFails(
-      setDoc(
-        doc(as(MENTOR), `${WS_PATH}/checkins/c2`),
-        checkin(MENTEE, { id: 'c2' })
-      )
-    );
   });
 });
 
 describe('submissions', () => {
   const S_PATH = subPath(MENTEE);
 
-  it('lets the named submitter submit, and facilitators and the pair read', async () => {
+  it('lets facilitators read; nobody outside the pair', async () => {
     await seedProgram();
-    await assertSucceeds(setDoc(doc(as(MENTEE), S_PATH), submission(MENTEE)));
-    for (const uid of [LEAD, COLEAD, MENTOR, MENTEE]) {
+    await seed(S_PATH, submission(MENTEE));
+    for (const uid of [LEAD, COLEAD]) {
       await assertSucceeds(getDoc(doc(as(uid), S_PATH)));
     }
     for (const uid of [MENTOR_B, MENTEE_B, MEMBER, VIEWER, OUTSIDER]) {
@@ -530,59 +361,30 @@ describe('submissions', () => {
     }
   });
 
-  it('refuses the wrong submitter, other pairs and facilitators', async () => {
+  it('lets the pair read', async () => {
     await seedProgram();
-    await assertFails(
-      setDoc(doc(as(MENTOR), subPath(MENTOR)), submission(MENTOR))
-    );
-    for (const uid of [LEAD, COLEAD, MENTEE_B, MEMBER, VIEWER, OUTSIDER]) {
-      await assertFails(setDoc(doc(as(uid), subPath(uid)), submission(uid)));
+    await seed(S_PATH, submission(MENTEE));
+    for (const uid of [MENTOR, MENTEE]) {
+      await assertSucceeds(getDoc(doc(as(uid), S_PATH)));
     }
-    await assertFails(setDoc(doc(as(MENTEE), S_PATH), submission(MENTOR)));
-    await assertFails(
-      setDoc(
-        doc(as(MENTEE), S_PATH),
-        submission(MENTEE, { docUrl: 'javascript:x' })
-      )
-    );
   });
 
-  it('lets each partner write only their own submission on a task both submit', async () => {
+  it('refuses every client submit, the named submitter included (plcSettingsV1 does it)', async () => {
     await seedProgram();
     await seed(TASK_PATH, task({ submitter: 'both' }));
-    for (const uid of [MENTOR, MENTEE]) {
-      await assertSucceeds(setDoc(doc(as(uid), subPath(uid)), submission(uid)));
+    for (const uid of EVERYONE) {
+      await assertFails(setDoc(doc(as(uid), subPath(uid)), submission(uid)));
     }
-    await assertSucceeds(
-      updateDoc(doc(as(MENTOR), subPath(MENTOR)), { submittedAt: 3 })
-    );
-    await assertFails(
-      setDoc(doc(as(MENTOR), subPath(MENTEE)), submission(MENTEE))
-    );
-    await assertFails(
-      setDoc(doc(as(MENTOR), subPath(MENTEE)), {
-        ...submission(MENTOR),
-        id: `t1_${MENTEE}`,
-      })
-    );
-    await assertFails(
-      updateDoc(doc(as(MENTOR), subPath(MENTEE)), { submittedAt: 4 })
-    );
-    await assertFails(
-      setDoc(doc(as(MENTOR), `${WS_PATH}/submissions/t1`), {
-        ...submission(MENTOR),
-        id: 't1',
-      })
-    );
+    await assertFails(setDoc(doc(as(MENTEE), S_PATH), submission(MENTEE)));
   });
 
-  it('lets only facilitators delete a submission', async () => {
+  it('refuses every client edit and delete of a submission', async () => {
     await seedProgram();
-    await seed(subPath(MENTEE), submission(MENTEE));
-    for (const uid of [MENTOR, MENTEE, MENTOR_B, MEMBER, VIEWER, OUTSIDER]) {
+    await seed(S_PATH, submission(MENTEE));
+    for (const uid of EVERYONE) {
+      await assertFails(updateDoc(doc(as(uid), S_PATH), { submittedAt: 3 }));
       await assertFails(deleteDoc(doc(as(uid), S_PATH)));
     }
-    await assertSucceeds(deleteDoc(doc(as(LEAD), S_PATH)));
   });
 });
 
@@ -590,104 +392,26 @@ describe('task status on the workspace', () => {
   const mark = (uid: string, at = 2) => ({
     [`t1_${uid}`]: { submittedAt: at, submittedBy: uid },
   });
-  const submitWithStatus = (uid: string, status = mark(uid)) => {
-    const fs = as(uid);
+
+  it('refuses marking a task with its submission, in a batch or on its own', async () => {
+    await seedProgram();
+    const fs = as(MENTEE);
     const batch = writeBatch(fs);
-    batch.set(doc(fs, subPath(uid)), submission(uid));
-    batch.update(doc(fs, WS_PATH), { taskStatus: status, updatedAt: 2 });
-    return batch.commit();
-  };
-
-  it('lets the named submitter mark a task with its submission', async () => {
-    await seedProgram();
-    await assertSucceeds(submitWithStatus(MENTEE));
-  });
-
-  it('refuses a mentor marking a mentee-only task', async () => {
-    await seedProgram();
-    await assertFails(submitWithStatus(MENTOR));
+    batch.set(doc(fs, subPath(MENTEE)), submission(MENTEE));
+    batch.update(doc(fs, WS_PATH), { taskStatus: mark(MENTEE), updatedAt: 2 });
+    await assertFails(batch.commit());
     await seed(subPath(MENTEE), submission(MENTEE));
-    await assertFails(
-      updateDoc(doc(as(MENTOR), WS_PATH), {
-        taskStatus: mark(MENTOR),
-        updatedAt: 2,
-      })
-    );
-  });
-
-  it('lets the second partner submit and mark a task both submit', async () => {
-    await seedProgram();
-    await seed(TASK_PATH, task({ submitter: 'both' }));
-    await assertSucceeds(submitWithStatus(MENTEE));
-    await assertSucceeds(
-      submitWithStatus(MENTOR, { ...mark(MENTEE), ...mark(MENTOR) })
-    );
-  });
-
-  it('refuses a partner marking the other partner done', async () => {
-    await seedProgram();
-    await seed(TASK_PATH, task({ submitter: 'both' }));
-    await seed(subPath(MENTEE), submission(MENTEE));
-    await assertFails(
-      updateDoc(doc(as(MENTOR), WS_PATH), {
-        taskStatus: {
-          [`t1_${MENTEE}`]: { submittedAt: 2, submittedBy: MENTOR },
-        },
-        updatedAt: 2,
-      })
-    );
-    await assertFails(
-      updateDoc(doc(as(MENTOR), WS_PATH), {
-        taskStatus: {
-          [`t1_${MENTEE}`]: { submittedAt: 2, submittedBy: MENTEE },
-        },
-        updatedAt: 2,
-      })
-    );
-    await seed(WS_PATH, { ...workspace(), taskStatus: mark(MENTEE) });
-    await assertFails(
-      updateDoc(doc(as(MENTOR), WS_PATH), {
-        taskStatus: mark(MENTEE, 5),
-        updatedAt: 3,
-      })
-    );
-  });
-
-  it('refuses marking submitted without a submission', async () => {
-    await seedProgram();
     for (const uid of [MENTOR, MENTEE]) {
       await assertFails(
         updateDoc(doc(as(uid), WS_PATH), {
-          taskStatus: mark(uid),
-          updatedAt: 2,
+          taskStatus: mark(MENTEE),
+          updatedAt: 3,
         })
       );
     }
   });
 
-  it('refuses a status that does not match the submission, or clearing one', async () => {
-    await seedProgram();
-    await assertFails(submitWithStatus(MENTEE, mark(MENTEE, 99)));
-    await seed(subPath(MENTEE), submission(MENTEE));
-    await seed(WS_PATH, { ...workspace(), taskStatus: mark(MENTEE) });
-    await assertFails(
-      updateDoc(doc(as(MENTEE), WS_PATH), { taskStatus: {}, updatedAt: 3 })
-    );
-    await assertFails(
-      updateDoc(doc(as(MENTEE), WS_PATH), {
-        taskStatus: {
-          ...mark(MENTEE),
-          t2: { submittedAt: 2, submittedBy: MENTEE },
-        },
-        updatedAt: 3,
-      })
-    );
-  });
-
   it('refuses a new pairing that arrives already marked', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await deleteDoc(doc(ctx.firestore(), WS_PATH));
-    });
     await assertFails(
       setDoc(doc(as(LEAD), WS_PATH), {
         ...workspace(),

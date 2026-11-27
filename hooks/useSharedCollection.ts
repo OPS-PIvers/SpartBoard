@@ -595,6 +595,12 @@ export const useSharedCollection = () => {
         boardIds: input.boards.map((b) => b.id),
         createdAt: now,
         expiresAt: input.expiresAt,
+        ...(input.availableFrom !== undefined && {
+          availableFrom: input.availableFrom,
+        }),
+        ...(input.availableThrough !== undefined && {
+          availableThrough: input.availableThrough,
+        }),
         buildingId: input.buildingId,
         ...(input.subEmails && input.subEmails.length > 0
           ? { subEmails: input.subEmails }
@@ -670,6 +676,8 @@ export const useSharedCollection = () => {
         collection: CollectionType;
         boards: Dashboard[];
         expiresAt?: number;
+        availableFrom?: number;
+        availableThrough?: number;
         subEmails?: string[];
         driveGrants?: SubstituteShareDriveGrant[];
         sharedRosters?: SubstituteShareRoster[];
@@ -742,6 +750,12 @@ export const useSharedCollection = () => {
         },
         updatedAt: now,
         expiresAt: input.expiresAt ?? current.expiresAt,
+        ...(input.availableFrom !== undefined && {
+          availableFrom: input.availableFrom,
+        }),
+        ...(input.availableThrough !== undefined && {
+          availableThrough: input.availableThrough,
+        }),
         ...(input.defaultBoardId !== undefined && {
           defaultBoardId: input.defaultBoardId,
         }),

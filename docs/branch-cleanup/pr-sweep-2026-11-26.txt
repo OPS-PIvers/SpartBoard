@@ -1,0 +1,7 @@
+claude/elegant-hypatia-v9fqeg (#6800 safe dependency updates)
+nightly/debugger-log-2026-11-26 (#6799 debugger log run 135)
+nightly/state-2026-11-26 (#6798 flashcards es_ES matching)
+nightly/build-2026-11-26 (#6797 Schoology column grades)
+nightly/widgets-2026-11-26 (#6796 calculator % and +/-)
+nightly/unifier-log-2026-11-26 (#6793 unifier run 158)
+claude/project-thread-s2mkx5 (this sweep's follow-ups)

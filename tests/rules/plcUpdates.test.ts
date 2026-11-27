@@ -139,71 +139,37 @@ describe('plcs/{plcId}/updates reads', () => {
 });
 
 describe('plcs/{plcId}/updates writes', () => {
-  it('the lead and a co-lead post updates', async () => {
-    await assertSucceeds(
-      setDoc(doc(as(LEAD), `${UPDATES}/u1`), newUpdate(LEAD))
-    );
-    await assertSucceeds(
+  it('nobody can post an update directly (plcTeamItemsV1 does)', async () => {
+    for (const uid of [LEAD, CO_LEAD, MEMBER, VIEWER, OUTSIDER]) {
+      await assertFails(
+        setDoc(doc(as(uid), `${UPDATES}/x-${uid}`), newUpdate(uid))
+      );
+    }
+    await assertFails(
       setDoc(
         doc(as(CO_LEAD), `${UPDATES}/u2`),
         newUpdate(CO_LEAD, {
           requiresAck: true,
           linkUrl: 'https://example.com/page',
-          attachment: {
-            name: 'Schedule.pdf',
-            url: 'https://drive.google.com/file/d/abc/view',
-          },
         })
       )
     );
   });
 
-  it('members, viewers and non-members cannot post', async () => {
-    for (const uid of [MEMBER, VIEWER, OUTSIDER]) {
-      await assertFails(
-        setDoc(doc(as(uid), `${UPDATES}/x-${uid}`), newUpdate(uid))
-      );
-    }
-  });
-
-  it('rejects a post authored as someone else or with a bad shape', async () => {
-    const bad = [
-      newUpdate(MEMBER),
-      newUpdate(LEAD, { title: '' }),
-      newUpdate(LEAD, { title: 'x'.repeat(201) }),
-      newUpdate(LEAD, { linkUrl: 'javascript:alert(1)' }),
-      newUpdate(LEAD, {
-        attachment: { name: 'f', url: 'https://evil.example.com/f' },
-      }),
-      newUpdate(LEAD, { reactions: { [LEAD]: true } }),
-      newUpdate(LEAD, { requiresAck: 'yes' }),
-      newUpdate(LEAD, { extra: 1 }),
-      newUpdate(LEAD, { createdAt: 5 }),
-    ];
-    let i = 0;
-    for (const value of bad) {
-      await assertFails(setDoc(doc(as(LEAD), `${UPDATES}/bad-${i++}`), value));
-    }
-  });
-
-  it('the lead and a co-lead edit, pin and delete; members cannot', async () => {
+  it('nobody, leads included, can edit, pin or delete an update directly', async () => {
     const edit = {
       title: 'Edited',
       pinned: true,
       updatedAt: serverTimestamp(),
     };
-    await assertSucceeds(updateDoc(doc(as(CO_LEAD), PLAIN_UPDATE), edit));
-    await assertSucceeds(updateDoc(doc(as(LEAD), PLAIN_UPDATE), edit));
-    await assertFails(updateDoc(doc(as(MEMBER), PLAIN_UPDATE), edit));
-    await assertFails(updateDoc(doc(as(VIEWER), PLAIN_UPDATE), edit));
-    await assertFails(updateDoc(doc(as(OUTSIDER), PLAIN_UPDATE), edit));
-    await assertFails(deleteDoc(doc(as(MEMBER), PLAIN_UPDATE)));
-    await assertFails(deleteDoc(doc(as(VIEWER), PLAIN_UPDATE)));
-    await assertSucceeds(deleteDoc(doc(as(CO_LEAD), PLAIN_UPDATE)));
-    await assertSucceeds(deleteDoc(doc(as(LEAD), ACK_UPDATE)));
+    for (const uid of [LEAD, CO_LEAD, MEMBER, VIEWER, OUTSIDER]) {
+      await assertFails(updateDoc(doc(as(uid), PLAIN_UPDATE), edit));
+      await assertFails(deleteDoc(doc(as(uid), PLAIN_UPDATE)));
+    }
+    await assertFails(deleteDoc(doc(as(LEAD), ACK_UPDATE)));
   });
 
-  it('a lead edit cannot rewrite the author or reactions', async () => {
+  it('a lead cannot rewrite the author or reactions', async () => {
     await assertFails(
       updateDoc(doc(as(CO_LEAD), PLAIN_UPDATE), {
         authorUid: CO_LEAD,
@@ -318,10 +284,11 @@ describe('plcs/{plcId} calendarEmbedUrl', () => {
       updatedAt: serverTimestamp(),
     });
 
-  it('the lead and a co-lead attach and clear a Google Calendar embed', async () => {
-    await assertSucceeds(setCal(CO_LEAD, CAL));
-    await assertSucceeds(setCal(LEAD, CAL.replace('embed?', 'u/0/embed?')));
-    await assertSucceeds(
+  it('nobody can set or clear the calendar directly (plcSettingsV1 does)', async () => {
+    for (const uid of [LEAD, CO_LEAD, MEMBER, VIEWER, OUTSIDER]) {
+      await assertFails(setCal(uid, CAL));
+    }
+    await assertFails(
       updateDoc(doc(as(CO_LEAD), PLC_PATH), {
         calendarEmbedUrl: deleteField(),
         updatedAt: 2,
@@ -329,37 +296,12 @@ describe('plcs/{plcId} calendarEmbedUrl', () => {
     );
   });
 
-  it('members, viewers and non-members cannot', async () => {
-    await assertFails(setCal(MEMBER, CAL));
-    await assertFails(setCal(VIEWER, CAL));
-    await assertFails(setCal(OUTSIDER, CAL));
-  });
-
-  it('rejects a URL that is not a Google Calendar embed, from the lead too', async () => {
-    for (const bad of [
-      'https://example.com/calendar/embed?src=x',
-      'http://calendar.google.com/calendar/embed?src=x',
-      'https://calendar.google.com/calendar/r?src=x',
-      'https://calendar.google.com.evil.com/calendar/embed?src=x',
-      42,
-    ]) {
-      await assertFails(setCal(CO_LEAD, bad));
-      await assertFails(setCal(LEAD, bad));
-    }
-  });
-
-  it('a co-lead cannot smuggle another field with the calendar', async () => {
-    await assertFails(
-      updateDoc(doc(as(CO_LEAD), PLC_PATH), {
-        calendarEmbedUrl: CAL,
-        name: 'Renamed',
-        updatedAt: 2,
-      })
-    );
-  });
-
   it('members read the calendar on the team doc', async () => {
-    await assertSucceeds(setCal(LEAD, CAL));
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), PLC_PATH), {
+        calendarEmbedUrl: CAL,
+      });
+    });
     await assertSucceeds(getDoc(doc(as(MEMBER), PLC_PATH)));
     await assertSucceeds(getDoc(doc(as(VIEWER), PLC_PATH)));
   });

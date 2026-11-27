@@ -1,27 +1,27 @@
 // Firestore security rules regression coverage for the opt-in weekly-digest
 // flag on the PLC root doc (`plcs/{plcId}.digestOptIn`, Decision 2.3, §5/§8).
 //
-// Pins the `isUpdatingPlcDigestOptIn()` rules branch:
-//   - ANY current member may toggle `digestOptIn` (true/false) — it's shared
-//     opt-in config, not lead-only (mirrors `isUpdatingPlcFeatures`).
-//   - The diff is closed to exactly `digestOptIn` + `updatedAt`: a member
-//     CANNOT smuggle other field changes (name / leadUid / members /
-//     memberUids / features / sharedSheetUrl) through this branch.
-//   - `digestOptIn` must be a boolean.
-//   - A non-member cannot toggle it.
+// Pins that members read `digestOptIn` and that no client can toggle it any
+// more (plcSettingsV1 writes the flag).
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   initializeTestEnvironment,
   assertSucceeds,
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import {
+  setDoc,
+  getDoc,
+  updateDoc,
+  doc,
+  serverTimestamp,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-plc-digest-rules';
 const PLC_ID = 'p1';
@@ -110,53 +110,51 @@ beforeEach(async () => {
 });
 
 // ---------------------------------------------------------------------------
-// Allowed toggles
+// Reads stay open to members
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}.digestOptIn — any member can toggle', () => {
-  it('the lead can turn the digest ON', async () => {
-    await assertSucceeds(
+describe('plcs/{plcId}.digestOptIn — read', () => {
+  it('a member reads the flag; a non-member cannot', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        digestOptIn: true,
+      });
+    });
+    const snap = await assertSucceeds(
+      getDoc(doc(asMember(), `plcs/${PLC_ID}`))
+    );
+    expect(snap.data()?.digestOptIn).toBe(true);
+    await assertFails(getDoc(doc(asNonMember(), `plcs/${PLC_ID}`)));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Toggles are refused for clients (plcSettingsV1 writes the flag)
+// ---------------------------------------------------------------------------
+
+describe('plcs/{plcId}.digestOptIn — client toggles refused', () => {
+  it('the lead and a member can no longer turn the digest on or off', async () => {
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         digestOptIn: true,
         updatedAt: serverTimestamp(),
       })
     );
-  });
-
-  it('a non-lead member can turn the digest ON', async () => {
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
         digestOptIn: true,
         updatedAt: serverTimestamp(),
       })
     );
-  });
-
-  it('a member can turn the digest OFF (false is a valid boolean)', async () => {
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
         digestOptIn: false,
-        updatedAt: serverTimestamp(),
-      })
-    );
-  });
-
-  it('accepts a legacy numeric updatedAt (dual-accept during rollout)', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
-        digestOptIn: true,
         updatedAt: 2,
       })
     );
   });
-});
 
-// ---------------------------------------------------------------------------
-// Rejected — non-member
-// ---------------------------------------------------------------------------
-
-describe('plcs/{plcId}.digestOptIn — non-member denied', () => {
-  it('a non-member cannot toggle the flag', async () => {
+  it('a non-member cannot toggle the flag either', async () => {
     await assertFails(
       updateDoc(doc(asNonMember(), `plcs/${PLC_ID}`), {
         digestOptIn: true,
@@ -164,84 +162,20 @@ describe('plcs/{plcId}.digestOptIn — non-member denied', () => {
       })
     );
   });
-});
 
-// ---------------------------------------------------------------------------
-// Rejected — field smuggling / bad value
-// ---------------------------------------------------------------------------
-
-describe('plcs/{plcId}.digestOptIn — diff is closed (no smuggling)', () => {
-  it('cannot rename the PLC alongside the toggle', async () => {
+  it('the toggle cannot carry another change (name, leadUid, features, members)', async () => {
     await assertFails(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
         digestOptIn: true,
-        name: 'Hijacked',
-        updatedAt: serverTimestamp(),
+        name: 'Renamed',
+        updatedAt: 2,
       })
     );
-  });
-
-  it('cannot seize leadUid alongside the toggle', async () => {
     await assertFails(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
         digestOptIn: true,
         leadUid: MEMBER_UID,
-        updatedAt: serverTimestamp(),
-      })
-    );
-  });
-
-  it('cannot change the features map alongside the toggle', async () => {
-    await assertFails(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
-        digestOptIn: true,
-        features: {
-          quizzes: false,
-          videoActivities: true,
-          notes: true,
-          todos: true,
-          sharedBoards: true,
-        },
-        updatedAt: serverTimestamp(),
-      })
-    );
-  });
-
-  it('cannot evict a teammate from memberUids alongside the toggle', async () => {
-    await assertFails(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
-        digestOptIn: true,
-        memberUids: [MEMBER_UID],
-        updatedAt: serverTimestamp(),
-      })
-    );
-  });
-
-  it('cannot set sharedSheetUrl alongside the toggle', async () => {
-    await assertFails(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
-        digestOptIn: true,
-        sharedSheetUrl: 'https://docs.google.com/spreadsheets/d/abc',
-        updatedAt: serverTimestamp(),
-      })
-    );
-  });
-
-  it('rejects a non-boolean digestOptIn value', async () => {
-    await assertFails(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
-        digestOptIn: 'yes',
-        updatedAt: serverTimestamp(),
-      })
-    );
-  });
-
-  it('rejects an updatedAt-only ping that does not touch digestOptIn', async () => {
-    // hasAny(['digestOptIn']) guards this — an updatedAt-only write must not
-    // pass through this branch (it would let a member reset mtime silently).
-    await assertFails(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
-        updatedAt: serverTimestamp(),
+        updatedAt: 2,
       })
     );
   });

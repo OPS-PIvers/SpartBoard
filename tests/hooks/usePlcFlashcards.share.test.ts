@@ -5,6 +5,11 @@ import type { FlashcardSet } from '@/types';
 
 const DELETE_FIELD = { __deleteField: true };
 
+vi.mock(
+  '@/utils/plcContentWrites',
+  () => import('@/tests/helpers/plcContentWritesViaFirestore')
+);
+
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteDoc: vi.fn(),

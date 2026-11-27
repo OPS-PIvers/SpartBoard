@@ -158,7 +158,9 @@ export interface AssignmentQuizRef {
 }
 
 /** Editable settings plus the open/close window the edit modal changes. */
-export type QuizAssignmentSettingsPatch = Partial<QuizAssignmentSettings> &
+export type QuizAssignmentSettingsPatch = Partial<
+  Omit<QuizAssignmentSettings, 'sessionOptions'>
+> &
   Pick<QuizAssignment, 'openAt' | 'closeAt'> & {
     /** Window changes per `periodAccess` row key, written to both docs. */
     periodAccessEdits?: PeriodAccessWindowEdits;

@@ -208,16 +208,25 @@ describe('plc_invitations list by plcId', () => {
 });
 
 describe('deletePlc batch', () => {
-  it('the lead who created the PLC can dissolve it with pending invites', async () => {
-    await assertSucceeds(dissolve(as(LEAD_UID, LEAD_EMAIL), PLC_ID));
+  it('the lead can still sweep the pending invites (plcSettingsV1 deletes the PLC)', async () => {
+    const db = as(LEAD_UID, LEAD_EMAIL);
+    const snap = await assertSucceeds(invitesFor(db, PLC_ID));
+    const batch = writeBatch(db);
+    snap.forEach((d) => batch.delete(d.ref));
+    await assertSucceeds(batch.commit());
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const left = await invitesFor(ctx.firestore(), PLC_ID);
       if (!left.empty) throw new Error('invites were not swept');
     });
   });
 
-  it('an in-org admin who is not a member can dissolve it for recovery', async () => {
-    await assertSucceeds(dissolve(as(ADMIN_UID, ADMIN_EMAIL), PLC_ID));
+  it('the lead can no longer delete the PLC doc itself in the batch', async () => {
+    await assertFails(dissolve(as(LEAD_UID, LEAD_EMAIL), PLC_ID));
+  });
+
+  it('an in-org admin who is not a member can list the invites but no longer dissolve the PLC', async () => {
+    await assertSucceeds(invitesFor(as(ADMIN_UID, ADMIN_EMAIL), PLC_ID));
+    await assertFails(dissolve(as(ADMIN_UID, ADMIN_EMAIL), PLC_ID));
   });
 
   it('an admin from another org cannot list or dissolve it', async () => {

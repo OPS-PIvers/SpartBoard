@@ -1,16 +1,13 @@
 // PLC Flashcards: shared sets at plcs/{plcId}/flashcard_sets and class results at plcs/{plcId}/flashcard_results.
 import { useMemo } from 'react';
-import {
-  collection,
-  deleteDoc,
-  deleteField,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import {
+  PLC_DELETE_FIELD,
+  deletePlcContentDoc,
+  setPlcContentDoc,
+  updatePlcContentDoc,
+} from '@/utils/plcContentWrites';
 import type {
   FlashcardCard,
   FlashcardSession,
@@ -242,18 +239,18 @@ export async function writePlcFlashcardSetEntry(
   if (existing.exists()) {
     const live = (existing.data() as Record<string, unknown>).deletedAt == null;
     if (live && !input.update) return 'already-shared';
-    await updateDoc(ref, {
+    await updatePlcContentDoc(plcId, PLC_FLASHCARD_SETS, set.id, {
       title: set.title,
       termLanguage: set.termLanguage,
       definitionLanguage: set.definitionLanguage,
       cards,
-      description: set.description?.trim() ? set.description : deleteField(),
+      description: set.description?.trim() ? set.description : PLC_DELETE_FIELD,
       updatedAt: now,
-      deletedAt: deleteField(),
+      deletedAt: PLC_DELETE_FIELD,
     });
     return live ? 'updated' : 'restored';
   }
-  await setDoc(ref, {
+  await setPlcContentDoc(plcId, PLC_FLASHCARD_SETS, set.id, {
     id: set.id,
     title: set.title,
     termLanguage: set.termLanguage,
@@ -332,8 +329,10 @@ export async function writePlcFlashcardResult(
     sharedAt: input.sharedAt ?? now,
     updatedAt: now,
   };
-  await setDoc(
-    doc(db, PLCS, plcId, PLC_FLASHCARD_RESULTS, input.assignmentId),
+  await setPlcContentDoc(
+    plcId,
+    PLC_FLASHCARD_RESULTS,
+    input.assignmentId,
     entry
   );
 }
@@ -345,7 +344,7 @@ export async function deletePlcFlashcardResult(
 ): Promise<void> {
   const ref = doc(db, PLCS, plcId, PLC_FLASHCARD_RESULTS, assignmentId);
   try {
-    await deleteDoc(ref);
+    await deletePlcContentDoc(plcId, PLC_FLASHCARD_RESULTS, assignmentId);
   } catch (error) {
     if ((await getDoc(ref)).exists()) throw error;
   }

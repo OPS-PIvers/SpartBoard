@@ -23,6 +23,11 @@ import type { PlcRubricEntry, Rubric } from '@/types';
 
 const DELETE_FIELD = { __deleteField: true };
 
+vi.mock(
+  '@/utils/plcContentWrites',
+  () => import('@/tests/helpers/plcContentWritesViaFirestore')
+);
+
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteField: vi.fn(() => DELETE_FIELD),

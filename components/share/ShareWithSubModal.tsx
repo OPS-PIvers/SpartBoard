@@ -36,6 +36,15 @@ import {
 } from '@/utils/bundleSubShareContent';
 import type { Collection, Dashboard, SharedCollection } from '@/types';
 import { copyText } from '@/utils/copyText';
+import {
+  latestEnd,
+  lastPickableDay,
+  resolveSubShareDates,
+  toDateInput,
+  toDateTimeInput,
+  SUB_SHARE_GRACE_MS,
+  type SubShareDatesError,
+} from '@/utils/subShareDates';
 
 /** What the teacher chose to hand over. */
 export type SubShareTarget =
@@ -70,6 +79,9 @@ function defaultExpirationIso(): string {
     new Date(Date.now() + DEFAULT_SUB_EXPIRATION_HOURS * 60 * 60 * 1000)
   );
 }
+
+/** Read when the dialog seeds, not on every render. */
+const seedClock = () => Date.now();
 
 function isValidOronoEmail(email: string): boolean {
   return /^[^\s@]+@orono\.k12\.mn\.us$/i.test(email.trim());
@@ -163,6 +175,13 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
   const buildingId =
     buildingIdPick ?? existing?.buildingId ?? defaultBuildingId;
   const [expiresAtIso, setExpiresAtIso] = useState(defaultExpirationIso);
+  // Flag sub-share-dates: the days the share opens; the end follows the last day.
+  const pickDates = canAccessFeature('sub-share-dates');
+  const [firstDay, setFirstDay] = useState(() => toDateInput(Date.now()));
+  const [lastDay, setLastDay] = useState(() => toDateInput(Date.now()));
+  const [multiDay, setMultiDay] = useState(false);
+  const [openedFrom, setOpenedFrom] = useState<number | null>(null);
+  const [seededAt, setSeededAt] = useState(seedClock);
   const [emails, setEmails] = useState<string[] | null>(null);
   const [emailDraft, setEmailDraft] = useState('');
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -203,8 +222,24 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     setExpiresAtIso(
       existing?.expiresAt
         ? formatLocalDateTime(new Date(existing.expiresAt))
-        : defaultExpirationIso()
+        : pickDates
+          ? toDateTimeInput(latestEnd(toDateInput(seedClock()), seedClock()))
+          : defaultExpirationIso()
     );
+    {
+      const now = seedClock();
+      setSeededAt(now);
+      const first = toDateInput(existing?.availableFrom ?? now);
+      const last = existing?.availableThrough
+        ? toDateInput(existing.availableThrough)
+        : existing?.expiresAt
+          ? toDateInput(Math.max(now, existing.expiresAt - SUB_SHARE_GRACE_MS))
+          : first;
+      setFirstDay(first);
+      setLastDay(last < first ? first : last);
+      setMultiDay(last > first);
+    }
+    setOpenedFrom(null);
     setEmailDraft('');
     setEmailError(null);
     setCreatedUrl(null);
@@ -214,6 +249,14 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     setCalendarTicked(existing?.calendarIds ?? []);
   }
   const selectedEmails = useMemo(() => emails ?? [], [emails]);
+
+  // Picking a day moves the end to 48 hours after the last day.
+  const pickDays = useCallback((first: string, last: string) => {
+    const end = last < first ? first : last;
+    setFirstDay(first);
+    setLastDay(end);
+    if (first) setExpiresAtIso(toDateTimeInput(latestEnd(end, Date.now())));
+  }, []);
 
   const addEmail = useCallback(() => {
     const trimmed = emailDraft.trim();
@@ -244,6 +287,35 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     );
   }, []);
 
+  const datesErrorText = useCallback(
+    (error: SubShareDatesError): string => {
+      switch (error) {
+        case 'badDay':
+          return t('shareWithSub.dates.badDay', {
+            defaultValue: 'Select the day your sub needs this.',
+          });
+        case 'lastBeforeFirst':
+          return t('shareWithSub.dates.lastBeforeFirst', {
+            defaultValue: 'The last day must be on or after the first day.',
+          });
+        case 'endPast':
+          return t('shareWithSub.expiryPast', {
+            defaultValue: 'Pick an end time in the future.',
+          });
+        case 'endBeforeOpen':
+          return t('shareWithSub.dates.endBeforeOpen', {
+            defaultValue: 'Select an end time after the first day starts.',
+          });
+        case 'endTooLate':
+          return t('shareWithSub.dates.endTooLate', {
+            defaultValue:
+              'The share can end up to 48 hours after the last day.',
+          });
+      }
+    },
+    [t]
+  );
+
   const handleSave = useCallback(async () => {
     if (!target || !tree) return;
     if (!buildingId) {
@@ -263,6 +335,28 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
         'error'
       );
       return;
+    }
+    let dates: { availableFrom: number; availableThrough: number } | null =
+      null;
+    if (pickDates) {
+      const savedEnd = existing?.expiresAt
+        ? Math.floor(existing.expiresAt / 60000) * 60000
+        : undefined;
+      const picked = resolveSubShareDates(
+        firstDay,
+        multiDay ? lastDay : firstDay,
+        expiresAtIso,
+        Date.now(),
+        savedEnd
+      );
+      if (!picked.ok) {
+        addToast(datesErrorText(picked.error), 'error');
+        return;
+      }
+      dates = {
+        availableFrom: picked.availableFrom,
+        availableThrough: picked.availableThrough,
+      };
     }
     const expiresAt = new Date(expiresAtIso).getTime();
     if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
@@ -341,6 +435,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
           boardEntries: tree.boards,
           ...(defaultBoardId !== undefined && { defaultBoardId }),
           expiresAt,
+          ...(dates ?? {}),
           // Always stated on an update, so taking every sub off the share
           // reaches Firestore instead of reading as "unchanged".
           subEmails: selectedEmails,
@@ -360,6 +455,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
           boardEntries: tree.boards,
           ...(defaultBoardId !== undefined && { defaultBoardId }),
           expiresAt,
+          ...(dates ?? {}),
           buildingId,
           ...(selectedEmails.length > 0 ? { subEmails: selectedEmails } : {}),
           ...(sharedRosters.length > 0 ? { sharedRosters } : {}),
@@ -370,6 +466,9 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
         setDriveWarnings((prev) => [...grantWarnings, ...prev]);
       }
       const url = `${window.location.origin}/subs/s/${shareId}`;
+      setOpenedFrom(
+        dates && dates.availableFrom > Date.now() ? dates.availableFrom : null
+      );
       setCreatedUrl(url);
       if (
         await copyText(url, (err) =>
@@ -402,6 +501,11 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     tree,
     buildingId,
     expiresAtIso,
+    pickDates,
+    firstDay,
+    lastDay,
+    multiDay,
+    datesErrorText,
     selectedEmails,
     approvedCalendarIds,
     rosters,
@@ -491,6 +595,85 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
             </select>
           </div>
 
+          {pickDates && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1">
+                  <label
+                    htmlFor={`${headingId}-first-day`}
+                    className="block text-xs font-bold text-slate-500 uppercase tracking-wider"
+                  >
+                    {multiDay
+                      ? t('shareWithSub.dates.firstDay', {
+                          defaultValue: 'First day',
+                        })
+                      : t('shareWithSub.dates.day', {
+                          defaultValue: 'Available',
+                        })}
+                  </label>
+                  <input
+                    id={`${headingId}-first-day`}
+                    {...tourAttr('sub-share.first-day')}
+                    type="date"
+                    value={firstDay}
+                    min={
+                      existing?.availableFrom
+                        ? undefined
+                        : toDateInput(seededAt)
+                    }
+                    max={lastPickableDay(seededAt)}
+                    onChange={(e) =>
+                      pickDays(
+                        e.target.value,
+                        multiDay ? lastDay : e.target.value
+                      )
+                    }
+                    className="px-2 py-1.5 text-sm border border-slate-300 rounded-sm bg-white"
+                  />
+                </div>
+                {multiDay && (
+                  <div className="space-y-1">
+                    <label
+                      htmlFor={`${headingId}-last-day`}
+                      className="block text-xs font-bold text-slate-500 uppercase tracking-wider"
+                    >
+                      {t('shareWithSub.dates.lastDay', {
+                        defaultValue: 'Last day',
+                      })}
+                    </label>
+                    <input
+                      id={`${headingId}-last-day`}
+                      {...tourAttr('sub-share.last-day')}
+                      type="date"
+                      value={lastDay}
+                      min={firstDay}
+                      max={lastPickableDay(seededAt)}
+                      onChange={(e) => pickDays(firstDay, e.target.value)}
+                      className="px-2 py-1.5 text-sm border border-slate-300 rounded-sm bg-white"
+                    />
+                  </div>
+                )}
+              </div>
+              <label className="flex items-center gap-2 text-xs text-slate-700">
+                <input
+                  type="checkbox"
+                  {...tourAttr('sub-share.more-days')}
+                  checked={multiDay}
+                  onChange={(e) => {
+                    setMultiDay(e.target.checked);
+                    // Back to one day: the end follows that day again.
+                    if (!e.target.checked && lastDay !== firstDay) {
+                      pickDays(firstDay, firstDay);
+                    }
+                  }}
+                />
+                {t('shareWithSub.dates.moreDays', {
+                  defaultValue: 'More than one day',
+                })}
+              </label>
+            </div>
+          )}
+
           <div className="space-y-1">
             <label
               htmlFor={`${headingId}-expires`}
@@ -507,9 +690,13 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
               className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-sm bg-white"
             />
             <p className="text-[10px] text-slate-500">
-              {t('shareWithSub.endsAtHint', {
-                defaultValue: 'Up to 14 days.',
-              })}
+              {pickDates
+                ? t('shareWithSub.dates.endsAtHint', {
+                    defaultValue: 'Up to 48 hours after the last day.',
+                  })
+                : t('shareWithSub.endsAtHint', {
+                    defaultValue: 'Up to 14 days.',
+                  })}
             </p>
           </div>
 
@@ -696,6 +883,18 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
                     'Send this link to your sub — they sign in with their school account and land on this straight away.',
                 })}
           </p>
+          {openedFrom !== null && (
+            <p className="text-sm font-bold text-slate-700">
+              {t('shareWithSub.dates.opensOn', {
+                date: new Date(openedFrom).toLocaleDateString(undefined, {
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric',
+                }),
+                defaultValue: 'Your sub can open it starting {{date}}.',
+              })}
+            </p>
+          )}
           {driveWarnings.length > 0 && (
             <div
               role="alert"

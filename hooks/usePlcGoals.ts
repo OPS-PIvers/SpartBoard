@@ -1,20 +1,12 @@
 // Live goals for one group (My Groups) plus the member write path.
 
 import { useCallback, useEffect, useState } from 'react';
-import {
-  collection,
-  deleteDoc,
-  deleteField,
-  doc,
-  onSnapshot,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import type { PlcGoal, PlcGoalPractice } from '@/types';
 import { logError } from '@/utils/logError';
+import { callPlcTeamItems } from '@/utils/plcTeamItemsClient';
 import { tsToMillis } from '@/utils/plc';
 
 export const PLC_GOAL_MAX_PRACTICES = 20;
@@ -162,40 +154,20 @@ export function usePlcGoals(plcId: string | null) {
         const v = progress?.[key];
         if (isGoalPercent(v)) numbers[key] = v;
       }
-      const fields = {
-        title: draft.title.trim(),
-        practices,
-        order: draft.order,
-        updatedAt: serverTimestamp(),
-      };
-      if (draft.id) {
-        const ref = doc(db, 'plcs', plcId, 'goals', draft.id);
-        await updateDoc(ref, {
-          ...fields,
-          ...Object.fromEntries(
-            PLC_GOAL_TEXT_KEYS.map((k) => [k, text[k] ?? deleteField()])
-          ),
-          ...(progress
-            ? Object.fromEntries(
-                PLC_GOAL_PROGRESS_KEYS.map((k) => [
-                  k,
-                  k in numbers ? numbers[k] : deleteField(),
-                ])
-              )
-            : {}),
-        });
-        return ref.id;
-      }
-      const ref = doc(collection(db, 'plcs', plcId, 'goals'));
-      await setDoc(ref, {
-        id: ref.id,
-        ...fields,
-        ...text,
-        ...numbers,
-        createdBy: uid,
-        createdAt: serverTimestamp(),
+      const { id } = await callPlcTeamItems({
+        action: 'saveGoal',
+        plcId,
+        ...(draft.id ? { goalId: draft.id } : {}),
+        goal: {
+          title: draft.title.trim(),
+          ...text,
+          ...(progress ? { progress: numbers } : {}),
+          practices,
+          order: draft.order,
+        },
       });
-      return ref.id;
+      if (!id) throw new Error('Goal was not saved');
+      return id;
     },
     [plcId, uid]
   );
@@ -203,7 +175,7 @@ export function usePlcGoals(plcId: string | null) {
   const deleteGoal = useCallback(
     async (goalId: string) => {
       if (!plcId || !uid) return;
-      await deleteDoc(doc(db, 'plcs', plcId, 'goals', goalId));
+      await callPlcTeamItems({ action: 'deleteGoal', plcId, goalId });
     },
     [plcId, uid]
   );

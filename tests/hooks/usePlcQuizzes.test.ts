@@ -27,6 +27,11 @@ import {
 } from '@/hooks/usePlcQuizzes';
 import { logError } from '@/utils/logError';
 
+vi.mock(
+  '@/utils/plcContentWrites',
+  () => import('@/tests/helpers/plcContentWritesViaFirestore')
+);
+
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteDoc: vi.fn(),
@@ -600,8 +605,8 @@ describe('usePlcQuizzes - mutators', () => {
         docs:
           mockGetDocs.mock.calls.length === 1
             ? [
-                { ref: 'plcs/plc-1/quizzes/pq-a' },
-                { ref: 'plcs/plc-1/quizzes/pq-b' },
+                { id: 'pq-a', ref: 'plcs/plc-1/quizzes/pq-a' },
+                { id: 'pq-b', ref: 'plcs/plc-1/quizzes/pq-b' },
               ]
             : [],
       });

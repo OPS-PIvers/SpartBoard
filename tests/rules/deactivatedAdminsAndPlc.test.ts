@@ -140,7 +140,7 @@ describe('a deactivated member loses /admins grants', () => {
 
 describe('a deactivated member loses PLC access', () => {
   for (const c of CASES) {
-    it(`${c.name}: reads the group, lists their groups, reads and edits notes`, async () => {
+    it(`${c.name}: reads the group, lists their groups, reads notes and files a folder`, async () => {
       const db = as(c.email);
       await expectRule(c.allowed, getDoc(doc(db, `plcs/${PLC_ID}`)));
       await expectRule(
@@ -155,10 +155,12 @@ describe('a deactivated member loses PLC access', () => {
       await expectRule(c.allowed, getDoc(doc(db, `plcs/${PLC_ID}/notes/n1`)));
       await expectRule(
         c.allowed,
-        updateDoc(doc(db, `plcs/${PLC_ID}/notes/n1`), {
-          title: 'Agenda v2',
-          lastEditedBy: uidFor(c.email),
-          lastEditedAt: 2,
+        setDoc(doc(db, `plcs/${PLC_ID}/folders/f1`), {
+          name: 'Unit 1',
+          parentId: null,
+          order: 0,
+          createdAt: 1,
+          updatedAt: 1,
         })
       );
     });

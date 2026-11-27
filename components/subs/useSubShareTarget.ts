@@ -13,7 +13,15 @@
  */
 
 import { useEffect, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  documentId,
+  getDoc,
+  getDocs,
+  query,
+  where,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import type { SharedCollection } from '@/types';
@@ -70,6 +78,26 @@ function resolveCollection(
     boardId: landing,
     buildingId: share.buildingId,
   };
+}
+
+/** A share that is denied only because its first day is still ahead; the directory query may list it. */
+async function notOpenYetMessage(shareId: string): Promise<string | null> {
+  const snap = await getDocs(
+    query(
+      collection(db, 'shared_collections'),
+      where('intendedMode', '==', 'substitute'),
+      where(documentId(), '==', shareId)
+    )
+  );
+  const from = (snap.docs[0]?.data() as SharedCollection | undefined)
+    ?.availableFrom;
+  if (typeof from !== 'number' || from <= Date.now()) return null;
+  const day = new Date(from).toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+  return `This share opens on ${day}.`;
 }
 
 /** Everything but `loading`, which is derived from the key instead. */
@@ -140,6 +168,12 @@ export function useSubShareTarget(link: SubsDeepLink | null): SubShareTarget {
         });
       } catch (err) {
         if (cancelled) return;
+        const notOpen = await notOpenYetMessage(shareId).catch(() => null);
+        if (cancelled) return;
+        if (notOpen) {
+          setTarget({ status: 'error', message: notOpen });
+          return;
+        }
         logError('useSubShareTarget', err, { shareId });
         // A denied read is what an ended share looks like from here, so say
         // that rather than something the sub cannot act on.

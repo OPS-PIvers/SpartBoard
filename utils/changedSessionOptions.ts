@@ -1,4 +1,4 @@
-/** Keys whose value differs from the seed; a removed key reads as null. */
+/** Keys whose value differs from the seed, treating absent and null as equal; a removed key reads as undefined. */
 export function changedSessionOptions(
   seedOptions: object,
   nowOptions: object
@@ -11,8 +11,8 @@ export function changedSessionOptions(
   );
   const out: Record<string, unknown> = {};
   for (const key of new Set([...Object.keys(seed), ...Object.keys(now)])) {
-    if (JSON.stringify(seed[key]) !== JSON.stringify(now[key]))
-      out[key] = now[key] ?? null;
+    if (JSON.stringify(seed[key] ?? null) !== JSON.stringify(now[key] ?? null))
+      out[key] = now[key] ?? undefined;
   }
   return out;
 }

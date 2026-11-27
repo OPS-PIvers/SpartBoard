@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MentoringTask, MentoringWorkspace, Plc } from '@/types';
 import type { GoogleDriveService } from '@/utils/googleDriveService';
 import {
-  BATCH_LIMIT,
   copyTemplateIntoWorkspaces,
   ensureWorkspaceTemplates,
   resetTemplateAttempts,
@@ -12,16 +11,9 @@ import {
 
 const fs = vi.hoisted(() => {
   const txUpdates: { path: string; data: Record<string, unknown> }[] = [];
-  const batches: {
-    deletes: string[];
-    sets: string[];
-    updates: Record<string, unknown>[];
-    commit: ReturnType<typeof vi.fn>;
-  }[] = [];
-  const subcollections: Record<string, number> = {};
-  const order: string[] = [];
   const existingDocs: Record<string, { id: string; url: string }[]> = {};
-  return { txUpdates, batches, subcollections, order, existingDocs };
+  const calls: Record<string, unknown>[] = [];
+  return { txUpdates, existingDocs, calls };
 });
 
 vi.mock('firebase/firestore', () => {
@@ -37,61 +29,25 @@ vi.mock('firebase/firestore', () => {
     collection: vi.fn((parent: unknown, ...segs: string[]) =>
       ref(parent, segs)
     ),
-    getDocs: vi.fn((col: { path: string }) => {
-      const n = fs.subcollections[col.path] ?? 0;
-      return Promise.resolve({
-        docs: Array.from({ length: n }, (_, i) => ({
-          ref: { path: `${col.path}/d${i}` },
-        })),
-      });
-    }),
-    writeBatch: vi.fn(() => {
-      const batch = {
-        deletes: [] as string[],
-        sets: [] as string[],
-        updates: [] as Record<string, unknown>[],
-        set: (r: { path: string }) => batch.sets.push(r.path),
-        update: (_r: unknown, d: Record<string, unknown>) =>
-          batch.updates.push(d),
-        commit: vi.fn(() => {
-          fs.order.push('commit');
-          return Promise.resolve();
-        }),
-        delete: (r: { path: string }) => batch.deletes.push(r.path),
-      };
-      fs.batches.push(batch);
-      return batch;
-    }),
-    deleteDoc: vi.fn((r: { path: string }) => {
-      fs.order.push(`delete:${r.path}`);
-      return Promise.resolve();
-    }),
-    runTransaction: vi.fn(
-      async (
-        _db: unknown,
-        fn: (tx: {
-          get: (r: { path: string }) => Promise<unknown>;
-          update: (r: { path: string }, d: Record<string, unknown>) => void;
-        }) => Promise<unknown>
-      ) =>
-        fn({
-          get: (r) =>
-            Promise.resolve({
-              id: r.path.split('/').pop(),
-              exists: () => true,
-              data: () => ({
-                mentorUid: 'm',
-                menteeUid: 'e',
-                docs: fs.existingDocs[r.path] ?? [],
-              }),
-            }),
-          update: (r, data) => fs.txUpdates.push({ path: r.path, data }),
-        })
-    ),
+    deleteDoc: vi.fn(() => Promise.resolve()),
     serverTimestamp: vi.fn(() => '__ts__'),
   };
 });
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
+vi.mock('@/utils/plcSettingsClient', () => ({
+  callPlcSettings: vi.fn((req: Record<string, unknown>) => {
+    fs.calls.push(req);
+    if (req.action !== 'addWorkspaceDoc') return Promise.resolve({});
+    const path = `plcs/${String(req.plcId)}/workspaces/${String(req.workspaceId)}`;
+    const link = req.link as { id: string; url: string };
+    const listed = !(
+      req.ifAbsent &&
+      (fs.existingDocs[path] ?? []).some((d) => d.id === link.id)
+    );
+    if (listed) fs.txUpdates.push({ path, data: { docs: [link] } });
+    return Promise.resolve({ listed });
+  }),
+}));
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 
 const member = (uid: string, email = `${uid}@x.org`) => ({
@@ -177,9 +133,7 @@ beforeEach(() => {
   resetTemplateAttempts();
   for (const k of Object.keys(fs.existingDocs)) delete fs.existingDocs[k];
   fs.txUpdates.length = 0;
-  fs.batches.length = 0;
-  fs.order.length = 0;
-  for (const k of Object.keys(fs.subcollections)) delete fs.subcollections[k];
+  fs.calls.length = 0;
 });
 
 describe('copyTemplateIntoWorkspaces', () => {
@@ -264,19 +218,11 @@ describe('copyTemplateIntoWorkspaces', () => {
 });
 
 describe('removePairing', () => {
-  it('deletes check-ins and submissions in batches before the workspace', async () => {
-    const ws = 'plcs/p/workspaces/m_e';
-    fs.subcollections[`${ws}/checkins`] = BATCH_LIMIT + 40;
-    fs.subcollections[`${ws}/submissions`] = 30;
+  it('asks the server to remove the workspace with its notes and submissions', async () => {
     await removePairing('p', 'm_e');
-    expect(fs.batches.map((b) => b.deletes.length)).toEqual([BATCH_LIMIT, 70]);
-    expect(fs.order).toEqual(['commit', 'commit', `delete:${ws}`]);
-  });
-
-  it('deletes just the workspace when it has no notes or submissions', async () => {
-    await removePairing('p', 'm_e');
-    expect(fs.batches).toHaveLength(0);
-    expect(fs.order).toEqual(['delete:plcs/p/workspaces/m_e']);
+    expect(fs.calls).toEqual([
+      { action: 'removePairing', plcId: 'p', workspaceId: 'm_e' },
+    ]);
   });
 });
 
@@ -297,27 +243,22 @@ describe('submitMentoringTask', () => {
     taskStatus,
   });
 
-  it('lets the second partner hand in their own submission and mark', async () => {
+  it('sends the task and the submitter name; the server writes the submission and status', async () => {
     await submitMentoringTask(
       'p',
       ws({ t1_e0: { submittedAt: 1, submittedBy: 'e0' } }),
       both,
       { uid: 'm0', displayName: 'M' }
     );
-    const [batch] = fs.batches;
-    expect(batch.sets).toEqual(['plcs/p/workspaces/m0_e0/submissions/t1_m0']);
-    expect(Object.keys(batch.updates[0])).toContain('taskStatus.t1_m0');
-  });
-
-  it('does not re-mark a partner who already handed in', async () => {
-    await submitMentoringTask(
-      'p',
-      ws({ t1_m0: { submittedAt: 1, submittedBy: 'm0' } }),
-      both,
-      { uid: 'm0', displayName: 'M' }
-    );
-    expect(fs.batches[0].sets).toHaveLength(1);
-    expect(fs.batches[0].updates).toHaveLength(0);
+    expect(fs.calls).toEqual([
+      {
+        action: 'submitTask',
+        plcId: 'p',
+        workspaceId: 'm0_e0',
+        taskId: 't1',
+        name: 'M',
+      },
+    ]);
   });
 });
 

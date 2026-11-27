@@ -9,8 +9,9 @@
 //   (1) reassign lead — an in-org admin CAN move the crown (lockstep); the
 //       membership set is unchanged; the diff is closed to the lead-reassign
 //       field-set.
-//   (2) dissolve — an in-org admin CAN delete the PLC; the sitting lead still
-//       can delete; a member CANNOT delete; an out-of-org admin CANNOT delete.
+//   (2) dissolve — no client can delete the PLC any more (plcSettingsV1 does
+//       it): the in-org admin, the sitting lead, a member and an out-of-org
+//       admin are all refused.
 //   (3) scoping — a same-org NON-admin canNOT reassign; an admin in a DIFFERENT
 //       org canNOT reassign; an admin canNOT reassign an org-LESS PLC.
 //   (4) invariant preservation — an admin reassign that leaves TWO leads (old
@@ -362,12 +363,12 @@ describe('plcs/{plcId} — admin reassign scoping', () => {
 // ===========================================================================
 
 describe('plcs/{plcId} — dissolve (delete)', () => {
-  it('an in-org site admin CAN dissolve (delete) the PLC', async () => {
-    await assertSucceeds(deleteDoc(doc(asAdmin(), `plcs/${ORG_PLC_ID}`)));
+  it('client write refused (plcSettingsV1 does it): an in-org site admin can no longer dissolve the PLC directly', async () => {
+    await assertFails(deleteDoc(doc(asAdmin(), `plcs/${ORG_PLC_ID}`)));
   });
 
-  it('the sitting lead CAN still dissolve the PLC (existing path preserved)', async () => {
-    await assertSucceeds(deleteDoc(doc(asLead(), `plcs/${ORG_PLC_ID}`)));
+  it('client write refused (plcSettingsV1 does it): the sitting lead can no longer dissolve the PLC directly', async () => {
+    await assertFails(deleteDoc(doc(asLead(), `plcs/${ORG_PLC_ID}`)));
   });
 
   it('a plain member canNOT dissolve the PLC', async () => {

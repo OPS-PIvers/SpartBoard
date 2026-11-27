@@ -7,14 +7,16 @@ import {
   onSnapshot,
   orderBy,
   query,
-  setDoc,
-  updateDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcAssignmentIndexEntry, QuizAssignmentStatus } from '@/types';
 import { logError } from '@/utils/logError';
 import { notifyPlcWriteFailure } from '@/utils/plcWriteNotifications';
+import {
+  setPlcContentDoc,
+  updatePlcContentDoc,
+} from '@/utils/plcContentWrites';
 
 const PLCS_COLLECTION = 'plcs';
 const ASSIGNMENT_INDEX_SUBCOLLECTION = 'assignment_index';
@@ -164,8 +166,10 @@ export async function writePlcAssignmentIndexEntry(
   entry: PlcAssignmentIndexEntry
 ): Promise<void> {
   try {
-    await setDoc(
-      doc(db, PLCS_COLLECTION, plcId, ASSIGNMENT_INDEX_SUBCOLLECTION, entry.id),
+    await setPlcContentDoc(
+      plcId,
+      ASSIGNMENT_INDEX_SUBCOLLECTION,
+      entry.id,
       entry
     );
   } catch (err) {
@@ -204,7 +208,12 @@ export async function mirrorPlcAssignmentStatus(
     assignmentId
   );
   try {
-    await updateDoc(ref, { status });
+    await updatePlcContentDoc(
+      plcId,
+      ASSIGNMENT_INDEX_SUBCOLLECTION,
+      assignmentId,
+      { status }
+    );
   } catch (err) {
     const code = errorCode(err);
     if (code === 'not-found') return;

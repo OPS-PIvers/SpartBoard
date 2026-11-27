@@ -1245,7 +1245,7 @@ export const useQuizSessionTeacher = (
       // deletes, so without this the snapshots orphan — and because the
       // response key is deterministic (`auth.uid` for SSO, `pin-…` for
       // anonymous), a removed student who rejoins lands on the same key
-      // and the history read rule (`request.auth.uid == parentStudentUid`)
+      // and the history read rule (owner uid plus the session class gate)
       // would let them read their own prior-attempt drafts. The teacher's
       // archive preserves the final answers; the intermediate-draft
       // history is intentionally discarded on removal.

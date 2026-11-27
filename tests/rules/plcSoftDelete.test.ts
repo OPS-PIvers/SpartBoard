@@ -1,16 +1,6 @@
 // Firestore security-rules coverage for the Wave-2 soft-delete / restore flips
-// (Decision 3.1, §3.10) on PLC notes + to-dos. Proves:
-//   - A member may SET `deletedAt` (soft-delete) and CLEAR it back to null
-//     (restore) within the widened `keys().hasOnly([...])` schema lock.
-//   - `deletedAt` accepts a Firestore timestamp, an int (Date.now() rollout),
-//     and null; a non-int/non-timestamp value is rejected (plcSubDeletedAtOk).
-//   - Identity stays immutable through a soft-delete/restore: a tombstone write
-//     that also mutates `id` / `createdBy` / `createdAt` is rejected.
-//   - The note version precondition still applies on a soft-delete that flips
-//     `deletedAt` (version must bump +1 on a versioned note; both-absent rollout
-//     escape hatch still works).
-//   - Non-members can't soft-delete or restore.
-//   - Todos are legacy: `deletedAt` is the ONLY field an update may touch.
+// (Decision 3.1, §3.10) on PLC notes + to-dos. Proves the client can no longer
+// flip `deletedAt` on either: plcNotesWriteV1 and plcTeamItemsV1 do it now.
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -19,7 +9,6 @@ import { fileURLToPath } from 'url';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import {
   initializeTestEnvironment,
-  assertSucceeds,
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
@@ -114,24 +103,24 @@ beforeEach(async () => {
 });
 
 // ---------------------------------------------------------------------------
-// Notes — soft-delete / restore
+// Notes — soft-delete / restore are server-only (plcNotesWriteV1)
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}/notes — soft-delete / restore', () => {
-  it('member can soft-delete a note (set deletedAt, version+1)', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
+describe('plcs/{plcId}/notes — soft-delete / restore refused', () => {
+  const noteRef = (db: ReturnType<typeof asMember>) =>
+    doc(db, `plcs/${PLC_ID}/notes/${NOTE_ID}`);
+
+  it('a member can no longer soft-delete a note, with either time format', async () => {
+    await assertFails(
+      updateDoc(noteRef(asMember()), {
         deletedAt: serverTimestamp(),
         lastEditedBy: MEMBER_UID,
         lastEditedAt: serverTimestamp(),
         version: 1,
       })
     );
-  });
-
-  it('accepts an int (Date.now()) deletedAt (rollout dual-accept)', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
+    await assertFails(
+      updateDoc(noteRef(asMember()), {
         deletedAt: 1717000000000,
         lastEditedBy: MEMBER_UID,
         lastEditedAt: 2000,
@@ -140,90 +129,26 @@ describe('plcs/{plcId}/notes — soft-delete / restore', () => {
     );
   });
 
-  it('member can restore a note (clear deletedAt to null, version+1)', async () => {
-    // First soft-delete (version 0 -> 1).
+  it('a member can no longer restore a note', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
         validNote({ deletedAt: 1717000000000, version: 1 })
       );
     });
-    await assertSucceeds(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
+    await assertFails(
+      updateDoc(noteRef(asMember()), {
         deletedAt: null,
         lastEditedBy: MEMBER_UID,
-        lastEditedAt: 3000,
+        lastEditedAt: 2000,
         version: 2,
       })
     );
   });
 
-  it('rejects a soft-delete whose version does not bump +1', async () => {
+  it('a non-member cannot soft-delete a note', async () => {
     await assertFails(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
-        deletedAt: 1717000000000,
-        lastEditedBy: MEMBER_UID,
-        lastEditedAt: 2000,
-        version: 0, // stale — must be old+1 == 1
-      })
-    );
-  });
-
-  it('soft-delete works on an un-versioned note (both-absent rollout escape hatch)', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      const { version: _v, ...legacy } = validNote();
-      await setDoc(
-        doc(ctx.firestore(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
-        legacy
-      );
-    });
-    await assertSucceeds(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
-        deletedAt: 1717000000000,
-        lastEditedBy: MEMBER_UID,
-        lastEditedAt: 2000,
-      })
-    );
-  });
-
-  it('rejects a non-int / non-timestamp deletedAt (plcSubDeletedAtOk)', async () => {
-    await assertFails(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
-        deletedAt: 'soon',
-        lastEditedBy: MEMBER_UID,
-        lastEditedAt: 2000,
-        version: 1,
-      })
-    );
-  });
-
-  it('rejects a soft-delete that also mutates createdBy (identity immutable)', async () => {
-    await assertFails(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
-        deletedAt: 1717000000000,
-        createdBy: NON_MEMBER_UID,
-        lastEditedBy: MEMBER_UID,
-        lastEditedAt: 2000,
-        version: 1,
-      })
-    );
-  });
-
-  it('rejects a soft-delete that also mutates createdAt (identity immutable)', async () => {
-    await assertFails(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
-        deletedAt: 1717000000000,
-        createdAt: 9999,
-        lastEditedBy: MEMBER_UID,
-        lastEditedAt: 2000,
-        version: 1,
-      })
-    );
-  });
-
-  it('non-member cannot soft-delete a note (membership gate)', async () => {
-    await assertFails(
-      updateDoc(doc(asNonMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
+      updateDoc(noteRef(asNonMember()), {
         deletedAt: 1717000000000,
         lastEditedBy: NON_MEMBER_UID,
         lastEditedAt: 2000,
@@ -234,80 +159,35 @@ describe('plcs/{plcId}/notes — soft-delete / restore', () => {
 });
 
 // ---------------------------------------------------------------------------
-// To-dos — soft-delete / restore
+// To-dos — soft-delete / restore are server-only (plcTeamItemsV1)
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}/todos — soft-delete / restore (legacy: deletedAt is the ONLY writable field)', () => {
-  it('member can soft-delete a to-do (set deletedAt)', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
-        deletedAt: serverTimestamp(),
-      })
+describe('plcs/{plcId}/todos — soft-delete / restore refused (legacy)', () => {
+  const todoRef = (db: ReturnType<typeof asMember>) =>
+    doc(db, `plcs/${PLC_ID}/todos/${TODO_ID}`);
+
+  it('a member can no longer soft-delete a to-do, with either time format', async () => {
+    await assertFails(
+      updateDoc(todoRef(asMember()), { deletedAt: serverTimestamp() })
+    );
+    await assertFails(
+      updateDoc(todoRef(asMember()), { deletedAt: 1717000000000 })
     );
   });
 
-  it('accepts an int deletedAt (rollout dual-accept)', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
-        deletedAt: 1717000000000,
-      })
-    );
-  });
-
-  it('member can restore a to-do (clear deletedAt to null)', async () => {
+  it('a member can no longer restore a to-do', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), `plcs/${PLC_ID}/todos/${TODO_ID}`),
         validTodo({ deletedAt: 1717000000000 })
       );
     });
-    await assertSucceeds(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
-        deletedAt: null,
-      })
-    );
+    await assertFails(updateDoc(todoRef(asMember()), { deletedAt: null }));
   });
 
-  it('rejects a non-int / non-timestamp deletedAt (plcSubDeletedAtOk)', async () => {
+  it('a non-member cannot soft-delete a to-do', async () => {
     await assertFails(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
-        deletedAt: 'later',
-      })
-    );
-  });
-
-  it('rejects a soft-delete that also mutates createdBy (deletedAt-only schema lock)', async () => {
-    await assertFails(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
-        deletedAt: 1717000000000,
-        createdBy: NON_MEMBER_UID,
-      })
-    );
-  });
-
-  it('rejects a soft-delete that also mutates createdAt (deletedAt-only schema lock)', async () => {
-    await assertFails(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
-        deletedAt: 1717000000000,
-        createdAt: 9999,
-      })
-    );
-  });
-
-  it('rejects a soft-delete that also mutates id (deletedAt-only schema lock)', async () => {
-    await assertFails(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
-        deletedAt: 1717000000000,
-        id: 'different-id',
-      })
-    );
-  });
-
-  it('non-member cannot soft-delete a to-do (membership gate)', async () => {
-    await assertFails(
-      updateDoc(doc(asNonMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
-        deletedAt: 1717000000000,
-      })
+      updateDoc(todoRef(asNonMember()), { deletedAt: 1717000000000 })
     );
   });
 });

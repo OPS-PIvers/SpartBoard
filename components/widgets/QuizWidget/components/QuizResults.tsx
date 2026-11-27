@@ -194,7 +194,11 @@ import {
   type StudentReportTarget,
 } from '@/utils/quizStudentReportPrint';
 import { resolveRubricForResponse } from '@/utils/rubricOverrideResolution';
-import { rescoreRubricGrades, sameRubric } from '@/utils/rubricPoints';
+import {
+  rescoreRubricGrades,
+  applyRubricEdit,
+  saveRubricThenRescore,
+} from '@/utils/rubricPoints';
 import { ResultsPrintModal } from './ResultsPrintModal';
 import {
   computeQuestionDrilldowns,
@@ -941,22 +945,24 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // Students graded at a level take its new points; typed overrides keep theirs.
   const saveRubricAndRescore = onSaveRubric
     ? async (rubric: import('@/types').Rubric) => {
-        const before = quiz.questions
-          .flatMap((q) => [q.rubricSnapshot, q.modifiedRubricSnapshot])
-          .find((r) => r && sameRubric(r, rubric));
-        await onSaveRubric(rubric);
-        if (!before || !session || user?.uid !== session.teacherUid) return;
-        const writes = responses.flatMap((r) => {
-          const key = r._responseKey ?? r.studentUid;
-          if (!key || !r.grading) return [];
-          return rescoreRubricGrades(before, rubric, r.grading).map(
-            ([gradingKeyStr, grade]) =>
-              saveWrittenGrade(key, gradingKeyStr, grade)
-          );
-        });
-        const results = await Promise.allSettled(writes);
-        if (results.some((x) => x.status === 'rejected'))
-          throw new Error('Rubric saved, but some scores did not update.');
+        const { before } = applyRubricEdit(quiz.questions, rubric);
+        await saveRubricThenRescore(
+          () => onSaveRubric(rubric),
+          async () => {
+            if (!before || !session || user?.uid !== session.teacherUid) return;
+            const writes = responses.flatMap((r) => {
+              const key = r._responseKey ?? r.studentUid;
+              if (!key || !r.grading) return [];
+              return rescoreRubricGrades(before, rubric, r.grading).map(
+                ([gradingKeyStr, grade]) =>
+                  saveWrittenGrade(key, gradingKeyStr, grade)
+              );
+            });
+            const results = await Promise.allSettled(writes);
+            if (results.some((x) => x.status === 'rejected'))
+              throw new Error('Rubric saved, but some scores did not update.');
+          }
+        );
       }
     : undefined;
 

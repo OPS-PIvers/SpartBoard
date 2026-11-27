@@ -64,7 +64,8 @@ export const applyRubricEdit = <
   requiredTotal?: number;
 } => {
   let changed = false;
-  let before: Rubric | undefined;
+  let mainBefore: Rubric | undefined;
+  let modifiedBefore: Rubric | undefined;
   let requiredTotal: number | undefined;
   const total = rubricMaxPoints(rubric);
   const libraryIds = new Set<string>();
@@ -73,22 +74,28 @@ export const applyRubricEdit = <
     const isMain = sameRubric(q.rubricSnapshot, rubric);
     const isModified = sameRubric(q.modifiedRubricSnapshot, rubric);
     if (isMain) {
-      before ??= q.rubricSnapshot;
+      mainBefore ??= q.rubricSnapshot;
       out = { ...out, rubricSnapshot: rubric, points: total };
       // Only the main rubric goes back to the library; a modified copy shares its id.
       if (q.rubricId) libraryIds.add(q.rubricId);
     }
     if (isModified) {
-      before ??= q.modifiedRubricSnapshot;
+      modifiedBefore ??= q.modifiedRubricSnapshot;
       out = { ...out, modifiedRubricSnapshot: rubric };
     }
-    const other =
+    const [edited, other] =
       isMain && !isModified
-        ? q.modifiedRubricSnapshot
+        ? [q.rubricSnapshot, q.modifiedRubricSnapshot]
         : isModified && !isMain
-          ? q.rubricSnapshot
-          : undefined;
-    if (other && rubricMaxPoints(other) !== total)
+          ? [q.modifiedRubricSnapshot, q.rubricSnapshot]
+          : [undefined, undefined];
+    // Only totals that matched must keep matching; legacy questions that already differ stay editable.
+    if (
+      edited &&
+      other &&
+      rubricMaxPoints(other) !== total &&
+      rubricMaxPoints(other) === rubricMaxPoints(edited)
+    )
       requiredTotal ??= rubricMaxPoints(other);
     if (out !== q) changed = true;
     return out;
@@ -97,7 +104,8 @@ export const applyRubricEdit = <
     questions: next,
     changed,
     libraryIds: [...libraryIds],
-    before,
+    // The library holds the main rubric, so a modified copy is only the fallback.
+    before: mainBefore ?? modifiedBefore,
     requiredTotal,
   };
 };
@@ -184,3 +192,61 @@ export const rescoreRubricGrades = (
 
 export const RUBRIC_MIN_LEVELS = 2;
 export const RUBRIC_MAX_LEVELS = 6;
+
+/** The quiz saved but the library rubric did not. */
+export class RubricLibraryError extends Error {}
+
+// The library content a failed write meant to replace, per rubric id, so a retry still overwrites it.
+const pendingLibraryBaselines = new Map<string, Rubric>();
+
+/** Writes an edit to each library rubric still matching what the quiz held; reports whether any had newer edits. */
+export const updateLibraryRubrics = async (
+  ids: string[],
+  edited: Rubric,
+  before: Rubric | undefined,
+  io: {
+    get: (id: string) => Promise<Rubric | null | undefined>;
+    save: (rubric: Rubric) => Promise<void>;
+  }
+): Promise<{ kept: boolean }> => {
+  const pending = pendingLibraryBaselines.get(edited.id);
+  const baselines = [pending, before].filter((r): r is Rubric => !!r);
+  const results = await Promise.allSettled(
+    ids.map(async (id) => {
+      const current = await io.get(id);
+      // Missing (deleted or another teacher's): leave the library alone.
+      if (!current) return 'skipped';
+      if (sameRubricContent(current, edited)) return 'saved';
+      if (!baselines.some((b) => sameRubricContent(current, b))) return 'kept';
+      await io.save({ ...edited, id, createdAt: current.createdAt });
+      return 'saved';
+    })
+  );
+  if (results.some((r) => r.status === 'rejected')) {
+    const baseline = pending ?? before;
+    if (baseline) pendingLibraryBaselines.set(edited.id, baseline);
+    throw new RubricLibraryError(
+      'Saved to this quiz, but your library rubric did not update.'
+    );
+  }
+  pendingLibraryBaselines.delete(edited.id);
+  return {
+    kept: results.some((r) => r.status === 'fulfilled' && r.value === 'kept'),
+  };
+};
+
+/** Rescores after a save, even when only the library write failed, then reports that failure. */
+export const saveRubricThenRescore = async (
+  save: () => Promise<void>,
+  rescore: () => Promise<void>
+): Promise<void> => {
+  let libraryError: RubricLibraryError | undefined;
+  try {
+    await save();
+  } catch (err) {
+    if (!(err instanceof RubricLibraryError)) throw err;
+    libraryError = err;
+  }
+  await rescore();
+  if (libraryError) throw libraryError;
+};

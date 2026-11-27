@@ -95,7 +95,7 @@ jobs:
       - id: quiz_e2e
         run: |
           quiz=false
-          grep -qE '^(components/widgets/QuizWidget/|components/common/library/|components/quiz/|hooks/use(Quiz|PeriodAccess|Rosters|Firestore)|utils/(quiz|mockQuizDriveService|periodPlan)|config/(firebase|featureDefaults)\.ts$|context/AuthContext\.tsx$|tests/e2e-emulator/|playwright\.emulator\.config\.ts$|package\.json$|pnpm-lock\.yaml$|\.github/workflows/pr-validation\.yml$)' changed-files.txt && quiz=true
+          grep -qE '^(components/widgets/QuizWidget/|components/common/library/|components/quiz/|hooks/use(Quiz|PeriodAccess|Rosters|Firestore|Plc)|utils/(quiz|mockQuizDriveService|periodPlan|plc)|functions/src/plc|config/(firebase|featureDefaults)\.ts$|context/AuthContext\.tsx$|tests/e2e-emulator/|playwright\.emulator\.config\.ts$|package\.json$|pnpm-lock\.yaml$|\.github/workflows/pr-validation\.yml$)' changed-files.txt && quiz=true
           [[ "${{ steps.classify.outputs.complete }}" == true ]] || quiz=true
           echo "Quiz flow test needed: $quiz"
           echo "quiz_e2e=$quiz" >> "$GITHUB_OUTPUT"
@@ -552,7 +552,7 @@ jobs:
           key: firebase-emulators-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: firebase-emulators-${{ runner.os }}-
 
-      # Labels are read live, so re-running this job after adding rules-size-ok lets the growth through.
+      # Labels are read live, so re-running this job after adding rules-size-ok (bytes) or rules-compile-ok (compile work) lets the growth through.
       - name: Check rules growth against the base branch
         env:
           RULES_BASE_REF: ${{ github.base_ref }}
@@ -562,6 +562,8 @@ jobs:
           pnpm exec firebase setup:emulators:firestore
           RULES_SIZE_OK=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | index("rules-size-ok") != null' || echo false)
           export RULES_SIZE_OK
+          RULES_COST_OK=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | index("rules-compile-ok") != null' || echo false)
+          export RULES_COST_OK
           node scripts/checkRulesSize.mjs
 
   build:

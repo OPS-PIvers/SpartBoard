@@ -82,10 +82,12 @@ const invite = (email: string, byUid: string) => ({
   status: 'pending',
 });
 
-const learningTargets = {
-  targets: [],
-  masteryCutoffs: { proficient: 1, approaching: 0 },
-  updatedAt: 2,
+const folder = {
+  name: 'Unit 1',
+  parentId: null,
+  order: 0,
+  createdAt: 1,
+  updatedAt: 1,
 };
 
 beforeAll(async () => {
@@ -177,13 +179,8 @@ describe('removed PLC members lose content access', () => {
     await assertFails(getDocs(collection(asEx(), `plcs/${PLC_ID}/aggregates`)));
   });
 
-  it('denies rewriting meta/learningTargets', async () => {
-    await assertFails(
-      setDoc(
-        doc(asEx(), `plcs/${PLC_ID}/meta/learningTargets`),
-        learningTargets
-      )
-    );
+  it('denies rewriting meta/folder', async () => {
+    await assertFails(setDoc(doc(asEx(), `plcs/${PLC_ID}/folders/f1`), folder));
   });
 
   it('denies deleting assessments, meetings and notes', async () => {
@@ -196,9 +193,7 @@ describe('removed PLC members lose content access', () => {
     const db = as(MEMBER_UID, MEMBER_EMAIL);
     await assertSucceeds(getDoc(doc(db, `plcs/${PLC_ID}`)));
     await assertSucceeds(getDoc(doc(db, `plcs/${PLC_ID}/aggregates/a1`)));
-    await assertSucceeds(
-      setDoc(doc(db, `plcs/${PLC_ID}/meta/learningTargets`), learningTargets)
-    );
+    await assertSucceeds(setDoc(doc(db, `plcs/${PLC_ID}/folders/f1`), folder));
     await assertSucceeds(deleteDoc(doc(db, `plcs/${PLC_ID}/notes/n1`)));
   });
 });
@@ -325,9 +320,7 @@ describe('current members keep their access', () => {
     await assertSucceeds(getDoc(doc(db, `plcs/${PLC_ID}`)));
     await assertSucceeds(getDoc(doc(db, `plcs/${PLC_ID}/aggregates/a1`)));
     await assertSucceeds(getDocs(collection(db, `plcs/${PLC_ID}/aggregates`)));
-    await assertFails(
-      setDoc(doc(db, `plcs/${PLC_ID}/meta/learningTargets`), learningTargets)
-    );
+    await assertFails(setDoc(doc(db, `plcs/${PLC_ID}/folders/f1`), folder));
     await assertFails(deleteDoc(doc(db, `plcs/${PLC_ID}/notes/n1`)));
   });
 
@@ -335,9 +328,7 @@ describe('current members keep their access', () => {
     const db = as(UNKEYED_UID, UNKEYED_EMAIL);
     await assertSucceeds(getDoc(doc(db, `plcs/${PLC_ID}`)));
     await assertSucceeds(getDoc(doc(db, `plcs/${PLC_ID}/aggregates/a1`)));
-    await assertSucceeds(
-      setDoc(doc(db, `plcs/${PLC_ID}/meta/learningTargets`), learningTargets)
-    );
+    await assertSucceeds(setDoc(doc(db, `plcs/${PLC_ID}/folders/f1`), folder));
     await assertSucceeds(deleteDoc(doc(db, `plcs/${PLC_ID}/notes/n1`)));
   });
 });

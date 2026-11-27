@@ -483,6 +483,8 @@ export interface DashboardContextValue {
       collection: Collection;
       boards: Dashboard[];
       expiresAt?: number;
+      availableFrom?: number;
+      availableThrough?: number;
       subEmails?: string[];
       sharedRosters?: SubstituteShareRoster[];
       onBundle?: (bundle: SubShareBundle) => void;

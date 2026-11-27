@@ -147,7 +147,7 @@ import {
   type VersionImportBuild,
 } from '@/utils/quizDocumentImport/versionPlan';
 import { getRubricDoc, saveRubricDoc } from '@/hooks/useRubrics';
-import { applyRubricEdit, sameRubricContent } from '@/utils/rubricPoints';
+import { applyRubricEdit, updateLibraryRubrics } from '@/utils/rubricPoints';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
@@ -3037,28 +3037,15 @@ const TeacherQuizWidget: React.FC<{
                   }
                 : prev
             );
-            const library = await Promise.allSettled(
-              [...libraryIds].map(async (id) => {
-                const current = await getRubricDoc(user.uid, id);
-                // Missing (deleted or another teacher's) or edited since: leave the library alone.
-                if (!current) return 'skipped';
-                if (!before || !sameRubricContent(current, before))
-                  return 'kept';
-                await saveRubricDoc(user.uid, {
-                  ...rubric,
-                  id,
-                  createdAt: current.createdAt,
-                });
-                return 'saved';
-              })
+            const { kept: libraryKept } = await updateLibraryRubrics(
+              [...libraryIds],
+              rubric,
+              before,
+              {
+                get: (id) => getRubricDoc(user.uid, id),
+                save: (next) => saveRubricDoc(user.uid, next),
+              }
             );
-            const libraryKept = library.some(
-              (r) => r.status === 'fulfilled' && r.value === 'kept'
-            );
-            if (library.some((r) => r.status === 'rejected'))
-              throw new Error(
-                'Saved to this quiz, but your library rubric did not update.'
-              );
             addToast(
               libraryKept
                 ? 'Rubric saved to this quiz. Your library copy has newer edits, so it was left as is.'
@@ -3259,13 +3246,26 @@ const TeacherQuizWidget: React.FC<{
           // type-narrowed to exclude the targeting fields — a future
           // targeting field added to the patch can't silently leak into
           // `updateAssignmentSettings`.
+          // Sync both docs to the Tab warnings value the modal showed (the live session's).
+          const shownTab =
+            withLiveTabWarnings(target).sessionOptions?.tabWarningsEnabled;
           const {
             rosterIds,
             periodName: _periodName,
             periodNames: _periodNames,
             periodAccessRows,
             ...settingsPatch
-          } = patch;
+          } = shownTab !== undefined &&
+          shownTab !== target.sessionOptions?.tabWarningsEnabled &&
+          !('tabWarningsEnabled' in (patch.sessionOptionEdits ?? {}))
+            ? {
+                ...patch,
+                sessionOptionEdits: {
+                  ...patch.sessionOptionEdits,
+                  tabWarningsEnabled: shownTab,
+                },
+              }
+            : patch;
           // These are two separate writeBatch.commit()s, not one
           // transaction. To keep the non-atomic window benign, apply the
           // secondary settings FIRST and the class targeting LAST. Targeting

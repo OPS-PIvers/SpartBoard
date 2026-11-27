@@ -12092,7 +12092,9 @@ export type GlobalFeature =
   /** Per-student Opens and Closes hold in every student app, and a later close for one student no longer keeps the class open. */
   | 'student-windows'
   | 'library-duplicate-more'
-  | 'activity-wall-library-face';
+  | 'activity-wall-library-face'
+  /** Share with a sub: the teacher picks the days the share opens, and it ends up to 48 hours after. */
+  | 'sub-share-dates';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {
@@ -13507,6 +13509,10 @@ export interface SharedCollection {
   createdAt: number;
   /** Substitute-only: ms epoch when this share expires. */
   expiresAt?: number;
+  /** Substitute-only: ms epoch the sub may open it from (start of the first day); absent means now. */
+  availableFrom?: number;
+  /** Substitute-only: ms epoch at the end of the last day the teacher picked, for display. */
+  availableThrough?: number;
   /** Substitute-only: building id (config/buildings.ts) for /subs scoping. */
   buildingId?: string;
   /** Substitute-only: @orono.k12.mn.us emails granted Drive roster access. */
@@ -13787,6 +13793,9 @@ export interface SubShareFlashcardPayload {
 export interface CollectionSubstituteShareInput {
   collectionId: string;
   expiresAt: number;
+  /** Start of the first day the sub may open it; omitted means now. */
+  availableFrom?: number;
+  availableThrough?: number;
   buildingId: string;
   subEmails?: string[];
   /** Rosters whose Drive files are granted to `subEmails` (active roster first). */

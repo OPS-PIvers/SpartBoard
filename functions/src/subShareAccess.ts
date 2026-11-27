@@ -105,6 +105,9 @@ export async function verifySubShare(
   const expiresAt =
     typeof share.expiresAt === 'number' ? share.expiresAt : null;
   if (expiresAt === null || expiresAt <= now) denied('That share has expired.');
+  if (typeof share.availableFrom === 'number' && share.availableFrom > now) {
+    denied('That share is not open yet.');
+  }
   const subEmails = Array.isArray(share.subEmails) ? share.subEmails : [];
   if (!subEmails.some((e: unknown) => String(e).toLowerCase() === email)) {
     denied('This share does not name you as a substitute.');

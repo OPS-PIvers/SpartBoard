@@ -15,6 +15,7 @@ import {
   setFeatureOverrides,
   teacherFeatureOverrides,
 } from './helpers/quiz';
+import { serveCallables } from './helpers/callables';
 
 // Pins the PLC-shared assignment variant (docs/plans/QUIZ_WIDGET_STRUCTURE.md S1, D5) with default teacher flags.
 // A seeded team reaches the PLC picker, the Sharing step and Share results; exporting the team's Google Sheet stays out of reach.
@@ -207,6 +208,7 @@ const ROW_MENU = [
 ];
 
 test.beforeEach(async ({ page }) => {
+  await serveCallables(page);
   await setFeatureOverrides(page, teacherFeatureOverrides());
   await openBoard(page);
 });

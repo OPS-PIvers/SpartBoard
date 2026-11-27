@@ -5805,6 +5805,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         collection: Collection;
         boards: Dashboard[];
         expiresAt?: number;
+        availableFrom?: number;
+        availableThrough?: number;
         subEmails?: string[];
         sharedRosters?: SubstituteShareRoster[];
         onBundle?: (bundle: SubShareBundle) => void;
