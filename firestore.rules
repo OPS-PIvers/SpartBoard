@@ -186,7 +186,6 @@ service cloud.firestore {
     function optBool(d, k) { return !(k in d) || d[k] is bool; }
     function optNumber(d, k) { return !(k in d) || d[k] is number; }
     // A whole percent, 0 to 100 (goal baseline/current/target).
-    function optPct(d, k) { return !(k in d) || (d[k] is int && d[k] >= 0 && d[k] <= 100); }
     // The 200-character form used across the activity-wall item validators.
     function optShortString(d, k) {
       return !(k in d) || (d[k] is string && d[k].size() <= 200);
@@ -2886,46 +2885,13 @@ service cloud.firestore {
         function updManager() {
           return isPlcMembershipManager(dbGet('plcs', plcId).data);
         }
-        function updShapeOk(d) {
-          return d.keys().hasOnly(['title', 'body', 'linkUrl', 'attachment', 'requiresAck',
-                 'inDigest', 'pinned', 'reactions', 'authorUid', 'authorName', 'createdAt', 'updatedAt'])
-            && d.title is string && d.title.size() > 0 && d.title.size() <= 200
-            && d.body is string && d.body.size() <= 5000
-            && (!('linkUrl' in d) || (d.linkUrl is string && d.linkUrl.size() <= 2000 && d.linkUrl.matches('^https://.+$')))
-            && (!('attachment' in d) || (
-                 d.attachment is map
-                 && d.attachment.keys().hasOnly(['name', 'url'])
-                 && d.attachment.name is string && d.attachment.name.size() <= 200
-                 && d.attachment.url is string && d.attachment.url.size() <= 2000
-                 && d.attachment.url.matches('^https://(drive|docs)[.]google[.]com/.+$')))
-            && d.requiresAck is bool && d.inDigest is bool && d.pinned is bool
-            && d.reactions is map
-            && d.authorName is string && d.authorName.size() <= 200
-            && d.updatedAt == request.time;
-        }
         allow read: if plcRd();
-        allow create: if signedIn()
-          && updManager()
-          && myAuthorUid()
-          && incoming().createdAt == request.time
-          && incoming().reactions.size() == 0
-          && updShapeOk(incoming());
-        allow update: if signedIn() && (
-          (
-            changedOnly(['reactions'])
-            && plcMember(plcId)
-            && incoming().reactions.diff(existing().reactions).affectedKeys().hasOnly([authUid()])
-            && incoming().reactions.get(authUid(), true) == true
-          )
-          || (
-            updManager()
-            && unchanged('authorUid')
-            && unchanged('createdAt')
-            && unchanged('reactions')
-            && updShapeOk(incoming())
-          )
-        );
-        allow delete: if signedIn() && updManager();
+        // Posts, edits and deletes run in plcTeamItemsV1; members toggle only their own reaction here.
+        allow update: if signedIn()
+          && changedOnly(['reactions'])
+          && plcMember(plcId)
+          && incoming().reactions.diff(existing().reactions).affectedKeys().hasOnly([authUid()])
+          && incoming().reactions.get(authUid(), true) == true;
 
         // One ack per member, doc id = their uid; leads and co-leads read the full list.
         match /acks/{ackUid} {
@@ -3095,38 +3061,7 @@ service cloud.firestore {
 
       // My Groups goals: members read; non-viewer members write. A practice is an
       // opaque map (routineId or free text) validated by the client parser.
-      match /goals/{goalId} {
-
-        allow create, update: if plcEd()
-          && newKeys().hasOnly([
-               'id', 'title', 'measure', 'practices', 'order',
-               'baseline', 'current', 'target',
-               'dueDate', 'students', 'outcome',
-               'createdBy', 'createdAt', 'updatedAt'
-             ])
-          && incoming().id == goalId
-          && optPct(incoming(), 'baseline')
-          && optPct(incoming(), 'current')
-          && optPct(incoming(), 'target')
-          && isStr('title')
-          && incoming().title.size() <= 600
-          && (!('measure' in incoming()) || isStr('measure'))
-          && (!('dueDate' in incoming())
-                || (isStr('dueDate') && incoming().dueDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
-          && optShortString(incoming(), 'students')
-          && (!('outcome' in incoming())
-                || (isStr('outcome') && incoming().outcome.size() <= 300))
-          && isList('practices')
-          && incoming().practices.size() <= 20
-          && optInt(incoming(), 'order')
-          && isStr('createdBy')
-          && (noDoc()
-                ? myCreatedBy()
-                : unchanged('createdBy') && unchanged('createdAt'))
-          && plcSubTimeFieldOk('createdAt')
-          && plcSubTimeFieldOk('updatedAt');
-
-      }
+      // goals: reads in the shared match /{coll}/{collDocId}; writes run in plcTeamItemsV1.
 
       // PLC Quiz Library (Phase 2). Lightweight headers pointing at canonical
       // /synced_quizzes/{groupId} docs (questions live there). Any member shares /
@@ -3706,39 +3641,9 @@ service cloud.firestore {
           && plcSubTimeFieldOk('createdAt');
       }
 
-      // My Groups resources: links posted by a non-viewer member.
-      match /links/{linkId} {
-        allow create, update: if plcEd()
-          && newKeys().hasOnly([
-               'id', 'title', 'url', 'note', 'createdBy', 'createdByName', 'createdAt', 'updatedAt'
-             ])
-          && incoming().id == linkId
-          && isStr('title') && incoming().title.size() <= 200
-          && isStr('url') && incoming().url.size() <= 2000
-          && incoming().url.matches('https://.*')
-          && (!('note' in incoming()) || (isStr('note') && incoming().note.size() <= 500))
-          && isStr('createdByName')
-          && (request.method == 'create'
-            ? myCreatedBy()
-            : unchanged('createdBy') && unchanged('createdAt'))
-          && plcSubTimeFieldOk('createdAt')
-          && plcSubTimeFieldOk('updatedAt');
-      }
+      // links: reads in the shared match /{coll}/{collDocId}; writes run in plcTeamItemsV1.
 
-      // PLC shared to-do list (Phase 5). One doc per todo (concurrent toggles
-      // don't serialize). Any member CRUDs any todo.
-      match /todos/{todoId} {
-
-        // Legacy; imported into note action items (§7.4) — no new to-dos.
-
-        // Legacy; only the soft-delete tombstone may still be written (§7.4) —
-        // used to archive a to-do once it's been imported into a note.
-        allow update: if plcEd()
-          && changedOnly(['deletedAt'])
-          && plcSubDeletedAtOk();
-
-        // A viewer (Decision 3.2) is denied via plcCanEditContent.
-      }
+      // todos: legacy, read-only here; the tombstone write runs in plcTeamItemsV1.
 
       // ---- Mentoring program (TEAMS_REDESIGN T29 to T33) ----
       // Facilitators (lead, co-lead) run the program; a workspace is private to its pair and the facilitators.
@@ -3764,28 +3669,6 @@ service cloud.firestore {
       }
       function mentHttps(v) {
         return v is string && v.size() <= 2000 && v.matches('https://.*');
-      }
-      function mentTaskOk(taskId) {
-        let d = incoming();
-        let tpl = d.get('templateDoc', null);
-        return d.keys().hasOnly([
-               'id', 'title', 'instructions', 'dueDate', 'submitter', 'templateDoc',
-               'createdBy', 'createdAt', 'updatedAt'
-             ])
-          && d.id == taskId
-          && isStr('title') && d.title.size() > 0 && d.title.size() <= 200
-          && optString(d, 'instructions') && d.get('instructions', '').size() <= 5000
-          && isStr('dueDate') && d.dueDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-          && d.submitter in ['mentee', 'mentor', 'both']
-          && (tpl == null
-            || (tpl is map && tpl.keys().hasOnly(['title', 'url', 'fileId'])
-              && tpl.get('title', '') is string && mentHttps(tpl.get('url', null))
-              && tpl.get('fileId', '') is string))
-          && (request.method == 'create'
-            ? d.createdBy == authUid()
-            : unchanged('createdBy') && unchanged('createdAt'))
-          && plcSubTimeFieldOk('createdAt')
-          && plcSubTimeFieldOk('updatedAt');
       }
       // One doc link added per write, and only an https link.
       function mentDocsOk(before) {
@@ -3828,11 +3711,7 @@ service cloud.firestore {
           && plcSubTimeFieldOk('updatedAt');
       }
 
-      // Tasks: every member reads; facilitators post, edit and remove.
-      match /tasks/{taskId} {
-        allow create, update: if mentFacilitator(plcId) && mentTaskOk(taskId);
-        allow delete: if mentFacilitator(plcId);
-      }
+      // tasks: every member reads (shared match); facilitator writes run in plcTeamItemsV1.
 
       // A pairing is its workspace: facilitators create and remove it; the pair edits its content.
       match /workspaces/{workspaceId} {
@@ -3934,44 +3813,7 @@ service cloud.firestore {
           && authUid() == presenceUid;
       }
 
-      // PLC activity log (Decision 2.2, §3.4). Append-only event feed written
-      // fire-and-forget. Any member reads; any member creates an event but only
-      // one whose actorUid == their uid (no forging). Clients never update/delete
-      // (immutable; ~90d trimming is gcPlcOrphans). Shape locked via hasOnly([...]);
-      // type pinned to the PlcActivityType union; optional target* validated.
-      match /activity/{eventId} {
-
-        allow create: if plcRd()
-          && newKeys().hasOnly([
-               'id', 'type', 'actorUid', 'actorName',
-               'targetType', 'targetId', 'targetTitle', 'createdAt'
-             ])
-          && incoming().id == eventId
-          && incoming().actorUid == authUid()
-          && incoming().type in [
-               'member_joined', 'member_left', 'role_changed',
-               'assessment_created', 'assessment_shared',
-               'assessment_results_ready', 'meeting_held',
-               'note_created', 'comment_added',
-               'item_deleted', 'item_restored', 'paper_printed'
-             ]
-          && isStr('actorName')
-          && (
-               !('targetType' in incoming())
-               || isStr('targetType')
-             )
-          && (
-               !('targetId' in incoming())
-               || isStr('targetId')
-             )
-          && (
-               !('targetTitle' in incoming())
-               || isStr('targetTitle')
-             )
-          && plcSubTimeFieldOk('createdAt');
-
-        // No client update/delete — see the block comment above (Wave-4 GC).
-      }
+      // activity: append-only feed, member-readable (shared match); events are written by plcTeamItemsV1.
 
       // PLC comments + @mentions (Decision 2.6, §3.5). Scoped to dataCard /
       // assessment / note targets. Any member reads. Create: any member, authorUid
@@ -4035,7 +3877,7 @@ service cloud.firestore {
       }
       // One rule for the subcollections listed: Google's compiler expands every copy of a rule separately.
       match /{coll}/{collDocId} {
-        allow delete: if coll in ['assessments', 'assignments', 'docs', 'flashcard_sets', 'folders', 'goals', 'links', 'meetings', 'noteDocs', 'notes', 'quizzes', 'rubrics', 'todos', 'video_activities'] && (plcEd());
+        allow delete: if coll in ['assessments', 'assignments', 'docs', 'flashcard_sets', 'folders', 'meetings', 'noteDocs', 'notes', 'quizzes', 'rubrics', 'video_activities'] && (plcEd());
         allow read: if coll in ['activity', 'assessments', 'assignment_index', 'assignments', 'comments', 'docs', 'flashcard_results', 'flashcard_sets', 'folders', 'goals', 'links', 'meetings', 'meta', 'norming', 'noteDocs', 'notes', 'presence', 'question_banks', 'quizzes', 'recordings', 'rubrics', 'tasks', 'todos', 'video_activities'] && (plcRd());
       }
     }
