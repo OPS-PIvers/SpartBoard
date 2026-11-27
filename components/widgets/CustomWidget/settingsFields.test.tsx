@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { CustomWidgetSettingsField } from './settingsFields';
@@ -34,7 +33,7 @@ describe('CustomWidgetSettingsField number input', () => {
         <CustomWidgetSettingsField ctx={ctx} />
       </CustomWidgetsContext.Provider>
     );
-    const input = screen.getByLabelText('Count') as HTMLInputElement;
+    const input = screen.getByLabelText<HTMLInputElement>('Count');
     expect(input.value).toBe('5');
     fireEvent.change(input, { target: { value: '' } });
     expect(input.value).toBe('');
