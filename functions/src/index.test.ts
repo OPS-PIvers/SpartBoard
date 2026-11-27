@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import axios from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
 
 interface MockDocInput {
   id: string;
@@ -3017,7 +3017,7 @@ describe('getPseudonymsForAssignmentV1', () => {
       familyName: String(i),
     }));
     vi.mocked(axios.get).mockImplementation(
-      (url: string, cfg?: { params?: Record<string, string> }) => {
+      (url: string, cfg?: AxiosRequestConfig) => {
         if (url.endsWith('/ims/oneroster/v1p1/users')) {
           return Promise.resolve({
             data: { users: [{ sourcedId: 't', role: 'teacher' }] },
@@ -3027,8 +3027,9 @@ describe('getPseudonymsForAssignmentV1', () => {
           return Promise.resolve({ data: { classes: [{ sourcedId: 'c-1' }] } });
         }
         // ClassLink serves 100 rows unless told otherwise.
-        const limit = Number(cfg?.params?.limit ?? 100);
-        const offset = Number(cfg?.params?.offset ?? 0);
+        const params = (cfg?.params ?? {}) as Record<string, string>;
+        const limit = Number(params.limit ?? 100);
+        const offset = Number(params.offset ?? 0);
         return Promise.resolve({
           data: { users: roster.slice(offset, offset + limit) },
         });
