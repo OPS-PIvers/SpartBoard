@@ -143,19 +143,33 @@ async function addRevisionReferences(
   db: Firestore,
   into: Set<string>,
   now: number,
-  only?: IgnoredPersonalSet
+  only?: IgnoredPersonalSet | RevisionOwners
 ): Promise<void> {
+  const visit = (doc: admin.firestore.QueryDocumentSnapshot) => {
+    const createdAt: unknown = doc.get('createdAt');
+    if (typeof createdAt !== 'number' || createdAt < now - REVISION_KEEP_MS)
+      return;
+    collectReferences(doc.data(), into);
+  };
+  if (only && 'ownerUids' in only) {
+    await Promise.all(
+      only.ownerUids.map((uid) =>
+        scan(db.collection(`users/${uid}/${REVISIONS_COLLECTION}`), visit)
+      )
+    );
+    return;
+  }
   const query = only
     ? db
         .collection(`users/${only.uid}/${REVISIONS_COLLECTION}`)
         .where('itemId', '==', only.setId)
     : db.collectionGroup(REVISIONS_COLLECTION);
-  await scan(query, (doc) => {
-    const createdAt: unknown = doc.get('createdAt');
-    if (typeof createdAt !== 'number' || createdAt < now - REVISION_KEEP_MS)
-      return;
-    collectReferences(doc.data(), into);
-  });
+  await scan(query, visit);
+}
+
+/** Scan every recent revision of these uploaders, whichever set it belongs to. */
+export interface RevisionOwners {
+  ownerUids: string[];
 }
 
 export interface ReferenceScanOptions {
@@ -163,7 +177,7 @@ export interface ReferenceScanOptions {
   ignoreBuildingSetId?: string;
   now?: number;
   /** Also scan Claude revisions: every one, or only those of one personal set. */
-  revisions?: 'all' | IgnoredPersonalSet;
+  revisions?: 'all' | IgnoredPersonalSet | RevisionOwners;
 }
 
 /** Building and Help Center sets, published tours, sessions, sub-share keys, open tombstones and, when asked, recent Claude revisions. */

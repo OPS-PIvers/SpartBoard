@@ -132,17 +132,29 @@ describe('gcOrphanedSlidePaths', () => {
     expect(await gcOrphanedSlidePaths([P1, P2])).toEqual([]);
   });
 
-  it('does not scan Claude revisions on a set delete', async () => {
+  it('keeps a path another set’s recent revision names on a set delete', async () => {
     setup({
       'users/t1/claude_revisions/r1': {
+        itemId: 's2',
         createdAt: Date.now(),
+        data: { steps: [{ audioStoragePath: P1 }] },
+      },
+    });
+    expect(await gcOrphanedSlidePaths([P1])).toEqual([]);
+  });
+
+  it('ignores a revision past its 30 days', async () => {
+    setup({
+      'users/t1/claude_revisions/r1': {
+        itemId: 's2',
+        createdAt: Date.now() - 31 * 24 * 60 * 60 * 1000,
         data: { imagePaths: [P1] },
       },
     });
     expect(await gcOrphanedSlidePaths([P1])).toEqual([P1]);
   });
 
-  it('keeps a path the released set’s own recent revision names', async () => {
+  it('keeps paths any of the owner’s recent revisions name on release', async () => {
     setup({
       'users/t1/claude_revisions/r1': {
         itemId: 's1',
@@ -159,7 +171,7 @@ describe('gcOrphanedSlidePaths', () => {
       await gcOrphanedSlidePaths([P1, P2], {
         ignorePersonal: { uid: 't1', setId: 's1' },
       })
-    ).toEqual([P2]);
+    ).toEqual([]);
   });
 
   it('keeps a path a recent revision names when a building set is released', async () => {
