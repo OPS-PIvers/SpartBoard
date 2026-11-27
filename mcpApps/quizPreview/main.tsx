@@ -5,7 +5,7 @@ import ReactDOM from 'react-dom/client';
 import {
   App,
   type McpUiHostContext,
-} from '@modelcontextprotocol/ext-apps/app-with-deps';
+} from '@modelcontextprotocol/ext-apps';
 import '@/index.css';
 import '@/i18n';
 import { DialogProvider } from '@/context/DialogContext';
