@@ -23,6 +23,13 @@ import { ViewAsReadOnlyError } from '@/utils/viewAsTab';
 const SAVE_DEBOUNCE_MS = 500;
 // A save the server didn't take (offline, cold start) is retried with backoff before the error toast.
 const SAVE_RETRIES = 6;
+const HOPELESS_CODES = new Set([
+  'not-found',
+  'invalid-argument',
+  'permission-denied',
+  'unauthenticated',
+  'failed-precondition',
+]);
 
 interface Draft {
   title: string;
@@ -163,8 +170,7 @@ export function useNoteDraft(params: {
       const code = (err as { code?: unknown } | null)?.code;
       if (
         err instanceof ViewAsReadOnlyError ||
-        code === 'not-found' ||
-        code === 'invalid-argument' ||
+        (typeof code === 'string' && HOPELESS_CODES.has(code)) ||
         retriesRef.current >= SAVE_RETRIES
       ) {
         retriesRef.current = 0;
