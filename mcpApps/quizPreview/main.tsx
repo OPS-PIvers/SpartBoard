@@ -2,10 +2,7 @@
 /* eslint-disable react-refresh/only-export-components -- an entry file, never hot-swapped as a module */
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom/client';
-import {
-  App,
-  type McpUiHostContext,
-} from '@modelcontextprotocol/ext-apps';
+import { App, type McpUiHostContext } from '@modelcontextprotocol/ext-apps';
 import '@/index.css';
 import '@/i18n';
 import { DialogProvider } from '@/context/DialogContext';
