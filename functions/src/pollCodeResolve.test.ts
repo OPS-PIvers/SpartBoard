@@ -897,19 +897,30 @@ describe('isPollStaffCaller', () => {
   };
   const makeDb = (member: Record<string, unknown> | null, isAdmin: boolean) => {
     const memberGets = vi.fn();
+    const snap = () =>
+      Promise.resolve({
+        exists: member !== null,
+        data: () => member ?? undefined,
+        get: (k: string) => member?.[k],
+      });
+    const countRead = (path: string) => {
+      if (path.startsWith('organizations/orono/members')) memberGets();
+    };
     const db = {
-      doc: vi.fn(() => ({
+      doc: vi.fn((path: string) => ({
         get: () => {
-          memberGets();
-          return Promise.resolve({
-            exists: member !== null,
-            data: () => member ?? undefined,
-            get: (k: string) => member?.[k],
-          });
+          countRead(path);
+          return snap();
         },
       })),
-      collection: vi.fn(() => ({
-        doc: () => ({ get: () => Promise.resolve({ exists: isAdmin }) }),
+      collection: vi.fn((path: string) => ({
+        doc: () => ({
+          get: () => {
+            if (path === 'admins') return Promise.resolve({ exists: isAdmin });
+            countRead(path);
+            return snap();
+          },
+        }),
       })),
     };
     return {
