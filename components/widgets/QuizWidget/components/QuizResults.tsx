@@ -172,6 +172,7 @@ import { FinalScoreNote } from '@/components/gradebook/FinalScoreNote';
 import { CountedChoicesPicker } from './results/CountedChoicesPicker';
 import { saveCountedChoices } from '@/hooks/quizCountedChoicesWrite';
 import { acceptFibAnswer } from '@/hooks/quizAcceptFibAnswer';
+import { refreshAssignmentRubric } from '@/hooks/quizRubricRefresh';
 import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { overAnsweredResponseSections } from '@/utils/quizSections';
 import {
@@ -950,6 +951,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           () => onSaveRubric(rubric),
           async () => {
             if (!before || !session || user?.uid !== session.teacherUid) return;
+            // Served questions and the server key score against the new total.
+            await refreshAssignmentRubric({ sessionId: session.id, rubric });
             const writes = responses.flatMap((r) => {
               const key = r._responseKey ?? r.studentUid;
               if (!key || !r.grading) return [];

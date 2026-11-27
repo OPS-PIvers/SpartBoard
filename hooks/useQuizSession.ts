@@ -314,6 +314,10 @@ function rubricForScoredResults(rubric: Rubric): Rubric {
   };
 }
 
+/** A rubric as students see it: scored-results fields only while hidden, never its examples. */
+export const projectRubricForStudents = (rubric: Rubric, hidden: boolean) =>
+  hidden ? rubricForScoredResults(rubric) : stripRubricExamples(rubric);
+
 /**
  * Convert a full QuizQuestion (with correctAnswer) to a student-safe
  * QuizPublicQuestion. Each shuffle permutation is computed ONCE and applied to
@@ -463,22 +467,25 @@ export function toPublicQuestion(
     const hideRubric = q.rubricVisibleToStudents !== true;
     if (q.rubricSnapshot) {
       // Example responses are an answer key; they reach students only through published results.
-      base.rubricSnapshot = hideRubric
-        ? rubricForScoredResults(q.rubricSnapshot)
-        : stripRubricExamples(q.rubricSnapshot);
+      base.rubricSnapshot = projectRubricForStudents(
+        q.rubricSnapshot,
+        hideRubric
+      );
       if (hideRubric) base.rubricHidden = true;
       if (q.modifiedRubricSnapshot)
-        base.modifiedRubricSnapshot = hideRubric
-          ? rubricForScoredResults(q.modifiedRubricSnapshot)
-          : stripRubricExamples(q.modifiedRubricSnapshot);
+        base.modifiedRubricSnapshot = projectRubricForStudents(
+          q.modifiedRubricSnapshot,
+          hideRubric
+        );
     }
     for (const [loc, tr] of entries) {
       if (base.placeholder && tr.placeholder)
         localized[loc].placeholder = tr.placeholder;
       if (base.rubricSnapshot && tr.rubricSnapshot)
-        localized[loc].rubricSnapshot = hideRubric
-          ? rubricForScoredResults(tr.rubricSnapshot)
-          : stripRubricExamples(tr.rubricSnapshot);
+        localized[loc].rubricSnapshot = projectRubricForStudents(
+          tr.rubricSnapshot,
+          hideRubric
+        );
     }
   }
   if (isMultiBlank(q)) base.blankCount = fibBlankCount(q);
