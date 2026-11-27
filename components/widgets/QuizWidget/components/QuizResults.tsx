@@ -196,7 +196,7 @@ import {
 import { resolveRubricForResponse } from '@/utils/rubricOverrideResolution';
 import {
   rescoreRubricGrades,
-  sameRubric,
+  applyRubricEdit,
   saveRubricThenRescore,
 } from '@/utils/rubricPoints';
 import { ResultsPrintModal } from './ResultsPrintModal';
@@ -945,9 +945,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // Students graded at a level take its new points; typed overrides keep theirs.
   const saveRubricAndRescore = onSaveRubric
     ? async (rubric: import('@/types').Rubric) => {
-        const before = quiz.questions
-          .flatMap((q) => [q.rubricSnapshot, q.modifiedRubricSnapshot])
-          .find((r) => r && sameRubric(r, rubric));
+        const { before } = applyRubricEdit(quiz.questions, rubric);
         await saveRubricThenRescore(
           () => onSaveRubric(rubric),
           async () => {

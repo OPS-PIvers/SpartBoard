@@ -5,6 +5,7 @@ import {
   RubricLibraryError,
   sameRubricContent,
   saveRubricThenRescore,
+  updateLibraryRubrics,
 } from './rubricPoints';
 
 const rubric = (criterionIds: string[], top: number, id = 'lib-1'): Rubric => ({
@@ -185,5 +186,90 @@ describe('saveRubricThenRescore', () => {
         () => Promise.reject(new Error('scores'))
       )
     ).rejects.toThrow('scores');
+  });
+});
+
+describe('updateLibraryRubrics', () => {
+  const edited = { ...main, id: 'snap-1', title: 'Essay v2' };
+  const libraryOf = (r: Rubric) => ({ ...r, id: 'lib-1' });
+
+  it('writes the edit when the library still matches the quiz', async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    const out = await updateLibraryRubrics(['lib-1'], edited, main, {
+      get: () => Promise.resolve(libraryOf(main)),
+      save,
+    });
+    expect(out.kept).toBe(false);
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'lib-1', title: 'Essay v2' })
+    );
+  });
+
+  it('keeps a library copy with newer edits', async () => {
+    const save = vi.fn();
+    const out = await updateLibraryRubrics(['lib-1'], edited, main, {
+      get: () => Promise.resolve(libraryOf({ ...main, title: 'Mine' })),
+      save,
+    });
+    expect(out.kept).toBe(true);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('turns a failed library write into a RubricLibraryError and still rescores', async () => {
+    const rescore = vi.fn().mockResolvedValue(undefined);
+    const failing = updateLibraryRubrics(
+      ['lib-1'],
+      { ...edited, id: 'snap-fail' },
+      main,
+      {
+        get: () => Promise.resolve(libraryOf(main)),
+        save: () => Promise.reject(new Error('offline')),
+      }
+    );
+    await expect(failing).rejects.toBeInstanceOf(RubricLibraryError);
+    await expect(
+      saveRubricThenRescore(
+        () =>
+          updateLibraryRubrics(
+            ['lib-1'],
+            { ...edited, id: 'snap-fail2' },
+            main,
+            {
+              get: () => Promise.resolve(libraryOf(main)),
+              save: () => Promise.reject(new Error('offline')),
+            }
+          ).then(() => undefined),
+        rescore
+      )
+    ).rejects.toBeInstanceOf(RubricLibraryError);
+    expect(rescore).toHaveBeenCalledTimes(1);
+  });
+
+  it('still overwrites the old library copy on a retry, when the quiz already holds the edit', async () => {
+    const retried = { ...edited, id: 'snap-retry' };
+    const library = libraryOf(main);
+    await expect(
+      updateLibraryRubrics(['lib-1'], retried, main, {
+        get: () => Promise.resolve(library),
+        save: () => Promise.reject(new Error('offline')),
+      })
+    ).rejects.toBeInstanceOf(RubricLibraryError);
+    const save = vi.fn().mockResolvedValue(undefined);
+    const out = await updateLibraryRubrics(['lib-1'], retried, retried, {
+      get: () => Promise.resolve(library),
+      save,
+    });
+    expect(out.kept).toBe(false);
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats a library copy that already equals the edit as up to date', async () => {
+    const save = vi.fn();
+    const out = await updateLibraryRubrics(['lib-1'], edited, edited, {
+      get: () => Promise.resolve(libraryOf(edited)),
+      save,
+    });
+    expect(out.kept).toBe(false);
+    expect(save).not.toHaveBeenCalled();
   });
 });
