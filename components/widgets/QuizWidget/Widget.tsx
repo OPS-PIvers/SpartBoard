@@ -150,10 +150,14 @@ import { getRubricDoc, saveRubricDoc } from '@/hooks/useRubrics';
 import {
   applyRubricEdit,
   RUBRIC_SCORES_FAILED,
+  rubricPointsChanged,
   RubricSavedError,
   updateLibraryRubrics,
 } from '@/utils/rubricPoints';
-import { refreshRubricPeers } from '@/hooks/quizRubricRefresh';
+import {
+  refreshRubricPeers,
+  writeRubricToFrozenCopy,
+} from '@/hooks/quizRubricRefresh';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
@@ -3019,6 +3023,24 @@ const TeacherQuizWidget: React.FC<{
               throw new Error(
                 `Both versions of this rubric must total ${requiredTotal} points.`
               );
+            const before = inQuiz.before ?? shownNow.before;
+            const frozenCopies = {
+              load: loadQuizData,
+              save: saveDriveSnapshot,
+            };
+            // The open assignment's frozen copy grades it on reload and publish, so it takes the edit first.
+            const activeFrozenId = assignmentFrozenFileId(activeAssignment);
+            if (
+              before &&
+              rubricPointsChanged(before, rubric) &&
+              activeFrozenId &&
+              activeFrozenId !== meta.driveFileId
+            )
+              await writeRubricToFrozenCopy(
+                activeFrozenId,
+                rubric,
+                frozenCopies
+              );
             if (inQuiz.changed) {
               await saveQuiz(
                 {
@@ -3029,7 +3051,6 @@ const TeacherQuizWidget: React.FC<{
                 meta.driveFileId
               );
             }
-            const before = inQuiz.before ?? shownNow.before;
             const libraryIds = new Set([
               ...inQuiz.libraryIds,
               ...shownNow.libraryIds,
@@ -3043,15 +3064,17 @@ const TeacherQuizWidget: React.FC<{
                   }
                 : prev
             );
-            // Every other unfrozen assignment of this library file, ended ones too, follows the new total.
+            // Every other assignment of this quiz, ended or frozen, follows the new total.
             const peersOk = before
               ? await refreshRubricPeers(assignments, {
                   quizId: meta.id,
+                  libraryDriveFileId: meta.driveFileId,
                   activeAssignmentId: config.activeAssignmentId,
                   teacherUid: user.uid,
                   rubric,
                   before,
-                  quiz: { ...stored, questions: inQuiz.questions },
+                  frozenCopies,
+                  loadGradingQuiz: (a) => loadAnswerKeyQuizQuietly(meta, a),
                 })
               : true;
             const { kept: libraryKept } = await updateLibraryRubrics(

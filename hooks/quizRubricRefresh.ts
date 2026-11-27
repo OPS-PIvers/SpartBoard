@@ -34,8 +34,10 @@ import {
 import { SCORE_ON_SUBMIT_KEY_DOC } from '@/utils/quizScoreOnSubmit';
 import { assignmentFrozenFileId } from '@/utils/quizAssignBankDraw';
 import {
+  applyRubricEdit,
   rescoreRubricGrades,
   rubricMaxPoints,
+  rubricPointsChanged,
   sameRubric,
 } from '@/utils/rubricPoints';
 
@@ -223,13 +225,21 @@ async function rescoreSessionResponses(opts: {
               : data;
             const graded = gradeResponseForPublish(next, ctx, d.id);
             // A slot still owed a grade keeps the saved score until the teacher grades it.
-            if (graded.score !== null)
+            if (graded.score !== null) {
               fields.push(
                 ...Object.entries({
                   ...publishScoreFields(graded),
                   ...refreshedKeyFields(next, graded, opts.quiz, d.id, ctx),
                 })
               );
+              // Verdicts a student can already see follow the new total; hidden ones stay hidden.
+              if (
+                (data.answers ?? []).some(
+                  (a) => typeof a.isCorrect === 'boolean'
+                )
+              )
+                fields.push(['answers', graded.answers]);
+            }
           }
           if (fields.length === 0) return;
           const [[field, value], ...rest] = fields;
@@ -248,6 +258,7 @@ export async function refreshRubricForSession(opts: {
   /** The quiz this assignment grades against, with the edit applied. */
   quiz: QuizData;
 }): Promise<void> {
+  if (!rubricPointsChanged(opts.before, opts.rubric)) return;
   const results = await Promise.allSettled([
     refreshAssignmentRubric(opts),
     rescoreSessionResponses(opts),
@@ -256,35 +267,74 @@ export async function refreshRubricForSession(opts: {
   if (failed) throw failed.reason;
 }
 
-/** Refreshes the teacher's other unfrozen assignments of a quiz, ended ones included; false when any failed. */
+/** Reads and rewrites an assignment's frozen Drive copy. */
+export interface FrozenCopyIo {
+  load: (driveFileId: string) => Promise<QuizData>;
+  save: (quiz: QuizData, driveFileId: string) => Promise<unknown>;
+}
+
+/** Writes the edited rubric and its total into a frozen copy's matching questions only; false when none match. */
+export async function writeRubricToFrozenCopy(
+  driveFileId: string,
+  rubric: Rubric,
+  io: FrozenCopyIo
+): Promise<boolean> {
+  const frozen = await io.load(driveFileId);
+  const edit = applyRubricEdit(frozen.questions, rubric);
+  if (!edit.before) return false;
+  await io.save({ ...frozen, questions: edit.questions }, driveFileId);
+  return true;
+}
+
+/** Refreshes the teacher's other assignments of a quiz one at a time, frozen copies included; false when any failed. */
 export async function refreshRubricPeers(
   assignments: readonly QuizAssignment[],
   opts: {
     quizId: string;
+    libraryDriveFileId: string;
     activeAssignmentId?: string | null;
     teacherUid: string;
     rubric: Rubric;
     before: Rubric;
-    /** The library quiz with the edit applied, which unfrozen assignments grade against. */
-    quiz: QuizData;
+    frozenCopies: FrozenCopyIo;
+    /** The quiz an assignment grades against, read after its frozen copy is written. */
+    loadGradingQuiz: (assignment: QuizAssignment) => Promise<QuizData | null>;
   }
 ): Promise<boolean> {
-  const peers = assignments.filter(
-    (a) =>
-      a.quizId === opts.quizId &&
-      a.id !== opts.activeAssignmentId &&
-      a.teacherUid === opts.teacherUid &&
-      !assignmentFrozenFileId(a)
-  );
-  const results = await Promise.allSettled(
-    peers.map((a) =>
-      refreshRubricForSession({
+  if (!rubricPointsChanged(opts.before, opts.rubric)) return true;
+  let ok = true;
+  for (const a of assignments) {
+    if (
+      a.quizId !== opts.quizId ||
+      a.id === opts.activeAssignmentId ||
+      a.teacherUid !== opts.teacherUid
+    )
+      continue;
+    try {
+      const frozenId = assignmentFrozenFileId(a);
+      if (frozenId && frozenId !== opts.libraryDriveFileId) {
+        const held = await writeRubricToFrozenCopy(
+          frozenId,
+          opts.rubric,
+          opts.frozenCopies
+        );
+        // A bank draw that never dealt this question has nothing to refresh.
+        if (!held && a.resolvedDriveFileId) continue;
+      }
+      const quiz = await opts.loadGradingQuiz(a);
+      if (!quiz) {
+        ok = false;
+        continue;
+      }
+      await refreshRubricForSession({
         sessionId: a.id,
         rubric: opts.rubric,
         before: opts.before,
-        quiz: opts.quiz,
-      })
-    )
-  );
-  return results.every((r) => r.status === 'fulfilled');
+        quiz,
+      });
+    } catch {
+      ok = false;
+    }
+  }
+  return ok;
 }

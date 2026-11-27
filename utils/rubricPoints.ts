@@ -132,6 +132,16 @@ const rubricContent = (r: Rubric): string =>
 export const sameRubricContent = (a: Rubric, b: Rubric): boolean =>
   rubricContent(a) === rubricContent(b);
 
+const levelPointsKey = (r: Rubric): string =>
+  JSON.stringify(
+    r.criteria.flatMap((c) => c.levels.map((l) => [c.id, l.id, l.points]))
+  );
+
+/** False for an edit that keeps every level's points, such as a label-only edit. */
+export const rubricPointsChanged = (before: Rubric, after: Rubric): boolean =>
+  rubricMaxPoints(before) !== rubricMaxPoints(after) ||
+  levelPointsKey(before) !== levelPointsKey(after);
+
 /** Grades whose picked levels changed points; typed overrides (points not equal to the old level) are left alone. */
 export const rescoreRubricGrades = (
   before: Rubric,
