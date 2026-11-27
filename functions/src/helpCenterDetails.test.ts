@@ -40,7 +40,7 @@ const deps = (over: Partial<DetailsDeps> = {}): DetailsDeps => ({
   loadItem: vi.fn(() => Promise.resolve(item)),
   loadSet: vi.fn(() => Promise.resolve(set)),
   loadCategories: vi.fn(() => Promise.resolve(categories)),
-  charge: vi.fn(() => Promise.resolve(['doc-1'])),
+  charge: vi.fn(() => Promise.resolve({ docIds: ['doc-1'], id: 'c1' })),
   refund: vi.fn(() => Promise.resolve(undefined)),
   generate: vi.fn(() =>
     Promise.resolve(
@@ -128,7 +128,7 @@ describe('runHelpDetails', () => {
     await expect(runHelpDetails(req, 'u1', token, d)).rejects.toThrow(
       /couldn't fill/
     );
-    expect(d.refund).toHaveBeenCalledWith(['doc-1']);
+    expect(d.refund).toHaveBeenCalledWith({ docIds: ['doc-1'], id: 'c1' });
   });
 
   it('passes the daily limit error through', async () => {

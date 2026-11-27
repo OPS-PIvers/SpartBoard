@@ -401,6 +401,13 @@ export const AssignmentDetailPane: React.FC<{
   >(null);
   // Locales the live session actually serves — the §10 advisory's baseline.
   const [servedLocales, setServedLocales] = useState<string[] | null>(null);
+  // The next row's session starts blank instead of showing the last row's status.
+  const [prevSessionId, setPrevSessionId] = useState(row.sessionId);
+  if (prevSessionId !== row.sessionId) {
+    setPrevSessionId(row.sessionId);
+    setReadAloudStatus(null);
+    setServedLocales(null);
+  }
   const translationAvailable =
     row.kind === 'quiz' && canAccessFeature('quiz-translation');
   // Subscribed only when a flag needs it, so existing users open no new listener.

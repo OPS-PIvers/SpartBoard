@@ -2,11 +2,16 @@
 import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { randomUUID } from 'node:crypto';
 import { Type, type Schema } from '@google/genai';
 import * as admin from './firebaseAdmin';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isStrictSuperAdmin } from './authz';
-import { refundAiUsage, resolveCallerIsAdmin } from './aiGeneration';
+import {
+  refundAiUsage,
+  resolveCallerIsAdmin,
+  type AiUsageCharge,
+} from './aiGeneration';
 import { generateAi } from './aiRouter';
 import { isExcludedFrom } from './permissionExclusion';
 import { parseGeminiJson } from './parseGeminiJson';
@@ -213,8 +218,8 @@ export interface DetailsDeps {
   loadItem: (itemId: string) => Promise<Data | null>;
   loadSet: (setId: string) => Promise<Data | undefined>;
   loadCategories: () => Promise<{ id: string; name: string }[]>;
-  charge: (token: Token, uid: string) => Promise<string[]>;
-  refund: (docIds: string[]) => Promise<void>;
+  charge: (token: Token, uid: string) => Promise<AiUsageCharge>;
+  refund: (charge: AiUsageCharge) => Promise<void>;
   generate: (prompt: string, schema: Schema) => Promise<string>;
 }
 
@@ -268,7 +273,7 @@ async function chargeDaily(
   db: Firestore,
   token: Token,
   uid: string
-): Promise<string[]> {
+): Promise<AiUsageCharge> {
   const perm = await db
     .collection('global_permissions')
     .doc(HELP_CENTER_AI_FEATURE_ID)
@@ -306,7 +311,7 @@ async function chargeDaily(
       )
     );
   });
-  return ids;
+  return { docIds: ids, id: randomUUID() };
 }
 
 function defaultDeps(db: Firestore): DetailsDeps {
@@ -343,7 +348,7 @@ function defaultDeps(db: Firestore): DetailsDeps {
     loadCategories: async () =>
       parseCategories((await db.doc('help_center/config').get()).data()),
     charge: (token, uid) => chargeDaily(db, token, uid),
-    refund: (docIds) => refundAiUsage(db, { docIds }),
+    refund: (charge) => refundAiUsage(db, charge),
     generate: async (prompt, schema) => {
       const result = await generateAi(db, {
         integration: 'help-center-details',

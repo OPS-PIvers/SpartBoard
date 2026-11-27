@@ -147,10 +147,10 @@ export const behaviorToFlashcardRules = (
   }
   if (o.timeLimitMinutes != null)
     sessionOptions.timeLimitMinutes = o.timeLimitMinutes;
-  if (o.tabWarningThreshold !== undefined)
+  if (o.tabWarningThreshold != null)
     sessionOptions.tabWarningThreshold = o.tabWarningThreshold;
-  if (o.tabAwayLimitSeconds !== undefined)
+  if (o.tabAwayLimitSeconds != null)
     sessionOptions.tabAwayLimitSeconds = o.tabAwayLimitSeconds;
-  if (o.focusLevel !== undefined) sessionOptions.focusLevel = o.focusLevel;
+  if (o.focusLevel != null) sessionOptions.focusLevel = o.focusLevel;
   return { attemptLimit: behavior.attemptLimit, sessionOptions };
 };

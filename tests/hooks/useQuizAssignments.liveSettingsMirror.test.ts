@@ -3,6 +3,8 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { collection, doc, onSnapshot, writeBatch } from 'firebase/firestore';
+import { createElement } from 'react';
+import { AuthContext } from '@/context/AuthContextValue';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 
 const setAssignmentTargets = vi.fn();
@@ -60,6 +62,17 @@ vi.mock('@/hooks/usePlcAssignments', () => ({
   writePlcAssignmentTemplate: vi.fn().mockResolvedValue(undefined),
 }));
 
+const timeLimitWrapper = ({ children }: { children: React.ReactNode }) =>
+  createElement(
+    AuthContext.Provider,
+    {
+      value: {
+        canAccessFeature: (id: string) => id === 'quiz-time-limit',
+      } as unknown as NonNullable<React.ContextType<typeof AuthContext>>,
+    },
+    children
+  );
+
 const LIVE = {
   id: 'a-1',
   createdAt: 1,
@@ -93,36 +106,60 @@ describe('useQuizAssignments.updateAssignmentSettings — live session mirror', 
     });
   });
 
-  it('copies edited rules to the session students are working in', async () => {
+  it('writes an edited tab warnings value to both docs', async () => {
     const { result } = renderHook(() => useQuizAssignments('teacher-1'));
     await waitFor(() => expect(result.current.assignments).toHaveLength(1));
     await act(async () => {
       await result.current.updateAssignmentSettings('a-1', {
-        attemptLimit: 3,
-        sessionOptions: {
-          tabWarningsEnabled: true,
-          shuffleQuestions: true,
-          blockCopyPaste: true,
-          showResultToStudent: true,
-        },
+        sessionOptionEdits: { blockCopyPaste: true, tabWarningsEnabled: false },
       });
     });
-
     const sessionPatch = batchUpdate.mock.calls.find(
       ([ref]) => ref === 'quiz_sessions/a-1'
     )?.[1] as Record<string, unknown>;
     expect(sessionPatch).toEqual(
       expect.objectContaining({
-        attemptLimit: 3,
         blockCopyPaste: true,
-        showResultToStudent: true,
-        // Mirrored even though unchanged on the assignment, so a session the old monitor switch changed is corrected.
-        tabWarningsEnabled: true,
+        tabWarningsEnabled: false,
       })
     );
-    // Unchanged keys stay off the session patch.
     expect(sessionPatch).not.toHaveProperty('shuffleQuestions');
   });
+
+  it('deletes a removed option key instead of writing null', async () => {
+    const { result } = renderHook(() => useQuizAssignments('teacher-1'));
+    await waitFor(() => expect(result.current.assignments).toHaveLength(1));
+    await act(async () => {
+      await result.current.updateAssignmentSettings('a-1', {
+        sessionOptionEdits: { focusLevel: undefined },
+      });
+    });
+    const assignmentPatch = batchUpdate.mock.calls.find(
+      ([ref]) => ref === 'users/teacher-1/quiz_assignments/a-1'
+    )?.[1] as Record<string, unknown>;
+    expect(assignmentPatch['sessionOptions.focusLevel']).toEqual({
+      __deleteFieldSentinel: true,
+    });
+  });
+
+  it('clears the session time limit when the limit is turned off', async () => {
+    const { result } = renderHook(() => useQuizAssignments('teacher-1'), {
+      wrapper: timeLimitWrapper,
+    });
+    await waitFor(() => expect(result.current.assignments).toHaveLength(1));
+    await act(async () => {
+      await result.current.updateAssignmentSettings('a-1', {
+        sessionOptionEdits: { timeLimitMinutes: undefined },
+      });
+    });
+    const sessionPatch = batchUpdate.mock.calls.find(
+      ([ref]) => ref === 'quiz_sessions/a-1'
+    )?.[1] as Record<string, unknown>;
+    expect(sessionPatch.timeLimitMinutes).toEqual({
+      __deleteFieldSentinel: true,
+    });
+  });
+
   it('writes only edited option keys so a live change to another key is left alone', async () => {
     const { result } = renderHook(() => useQuizAssignments('teacher-1'));
     await waitFor(() => expect(result.current.assignments).toHaveLength(1));

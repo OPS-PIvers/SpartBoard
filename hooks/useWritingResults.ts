@@ -176,7 +176,16 @@ export function useWritingAllDrafts(
               ),
             },
           })),
-        (err) => logError('useWritingAllDrafts', err, { sessionId })
+        (err) => {
+          logError('useWritingAllDrafts', err, { sessionId });
+          setState((prev) => ({
+            key: k,
+            byStudent: {
+              ...(prev.key === k ? prev.byStudent : {}),
+              [uid]: [],
+            },
+          }));
+        }
       )
     );
     return () => offs.forEach((off) => off());

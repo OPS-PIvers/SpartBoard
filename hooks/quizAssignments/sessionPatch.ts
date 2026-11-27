@@ -35,7 +35,9 @@ export function sessionOptionsToSessionPatch(
     pageProtectionsOn: boolean;
     /** False for a Quiz assessment: game extras are written off. */
     reviewGame: boolean;
-  }
+  },
+  /** Edit path: a key present with no value clears the session field. */
+  clearRemoved = false
 ): Record<string, unknown> {
   const patch: Record<string, unknown> = {};
   if (o.tabWarningsEnabled !== undefined)
@@ -83,8 +85,19 @@ export function sessionOptionsToSessionPatch(
   if (o.readAloudAll !== undefined) patch.readAloudAll = o.readAloudAll;
   if (o.showScoreOnSubmit !== undefined && gates.scoreOnSubmitOn)
     patch.showScoreOnSubmit = o.showScoreOnSubmit;
-  if (o.timeLimitMinutes !== undefined && gates.timeLimitOn)
+  if (o.timeLimitMinutes != null && gates.timeLimitOn)
     patch.timeLimitMinutes = clampQuizTimeLimitMinutes(o.timeLimitMinutes);
+  else if (
+    clearRemoved &&
+    gates.timeLimitOn &&
+    'timeLimitMinutes' in o &&
+    o.timeLimitMinutes == null
+  )
+    patch.timeLimitMinutes = deleteField();
+  if (clearRemoved) {
+    for (const key of ['tabWarningThreshold', 'tabAwayLimitSeconds'] as const)
+      if (key in o && o[key] == null) patch[key] = deleteField();
+  }
   // `handRaiseEnabled` is deliberately NOT mirrored: it is resolved against the
   // admin gate at create time only, so a later patch (e.g. a PLC sync) can't
   // switch raise hand on inside a force-off building. Running sessions keep
