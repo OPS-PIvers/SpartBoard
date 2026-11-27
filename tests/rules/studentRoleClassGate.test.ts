@@ -36,6 +36,7 @@ import {
   query,
   where,
   writeBatch,
+  serverTimestamp,
   type CollectionReference,
 } from 'firebase/firestore';
 import { seedDistrictStaff } from './districtStaffSeed';
@@ -445,7 +446,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
     await assertSucceeds(getDoc(doc(asStudentA(), legacyResp)));
   });
 
-  describe('answer history read', () => {
+  describe('answer history', () => {
     const LEGACY = 'session-legacy-history';
     const histPath = (session: string) => `${respPath(session)}/history/h1`;
 
@@ -484,6 +485,82 @@ describe('quiz_sessions/responses — student-role gate', () => {
 
     it('still lets the session teacher read it', async () => {
       await assertSucceeds(getDoc(doc(asTeacher(), histPath(SESSION_B))));
+    });
+
+    it('still lets a site admin read it', async () => {
+      const asAdmin = testEnv
+        .authenticatedContext('admin-uid', {
+          email: ADMIN_EMAIL,
+          email_verified: true,
+          studentRole: false,
+          classIds: [],
+          firebase: { sign_in_provider: 'google.com' },
+        })
+        .firestore();
+      await assertSucceeds(getDoc(doc(asAdmin, histPath(SESSION_B))));
+    });
+
+    it('lets an anonymous PIN owner read their own history', async () => {
+      const anonHist = `quiz_sessions/${SESSION_A}/responses/pin-p1-5678/history/h1`;
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        const db = ctx.firestore();
+        await setDoc(
+          doc(db, `quiz_sessions/${SESSION_A}/responses/pin-p1-5678`),
+          { ...baseResp('5678'), studentUid: ANON_UID }
+        );
+        await setDoc(doc(db, anonHist), {
+          questionId: 'q1',
+          answer: 'A',
+          answeredAt: 1000,
+          status: 'draft',
+          snapshotAt: 1000,
+        });
+      });
+      await assertSucceeds(getDoc(doc(asAnonStudent(), anonHist)));
+    });
+
+    it('denies a different student in the same class', async () => {
+      const asClassmate = testEnv
+        .authenticatedContext('student-c-uid', {
+          email: '',
+          studentRole: true,
+          classIds: [CLASS_A],
+          firebase: { sign_in_provider: 'custom' },
+        })
+        .firestore();
+      await assertFails(getDoc(doc(asClassmate, histPath(SESSION_A))));
+    });
+
+    const newHist = () => ({
+      questionId: 'q1',
+      answer: 'B',
+      answeredAt: 2000,
+      status: 'draft',
+      snapshotAt: serverTimestamp(),
+    });
+
+    it('lets the owning student in the session class create it', async () => {
+      await assertSucceeds(
+        setDoc(
+          doc(asStudentA(), `${respPath(SESSION_A)}/history/h2`),
+          newHist()
+        )
+      );
+    });
+
+    it('refuses a create from the owning student once out of the session class', async () => {
+      await assertFails(
+        setDoc(
+          doc(asStudentA(), `${respPath(SESSION_B)}/history/h2`),
+          newHist()
+        )
+      );
+    });
+
+    it('still lets the owner create under a classId-only session', async () => {
+      await assertSucceeds(
+        setDoc(doc(asStudentA(), `${respPath(LEGACY)}/history/h2`), newHist())
+      );
     });
   });
 
