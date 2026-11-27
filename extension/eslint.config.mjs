@@ -10,7 +10,9 @@ import { createRequire } from 'module';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // eslint-plugin-react 7.37 calls APIs ESLint 10 removed: 'detect' crashes, and so would jsx-filename-extension, forward-ref-uses-ref and the jsx spacing rules.
-const reactVersion = createRequire(import.meta.url)('react/package.json').version;
+const reactVersion = createRequire(import.meta.url)(
+  'react/package.json'
+).version;
 
 // The extension's own pass (D4): its tsconfig carries the Chrome types the root program doesn't have.
 export default tseslint.config(
