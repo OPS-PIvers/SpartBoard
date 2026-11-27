@@ -2461,13 +2461,6 @@ service cloud.firestore {
         'createdAt'
       ]);
     }
-    function plcMeetingKeysOk() {
-      return newKeys().hasOnly([
-        'id', 'heldAt', 'facilitatorUid', 'attendeeUids', 'assessmentIds', 'agenda',
-        'decisions', 'actionItems', 'notesBody', 'status', 'createdBy', 'updatedAt',
-        'deletedAt'
-      ]);
-    }
     function plcBankKeysOk() {
       return newKeys().hasOnly([
         'id', 'title', 'questionCount', 'syncGroupId', 'targetIds', 'sharedBy',
@@ -2500,27 +2493,6 @@ service cloud.firestore {
         'updatedAt'
       ]);
     }
-    function plcNoteKeysOk() {
-      return newKeys().hasOnly([
-        'id', 'title', 'body', 'kind', 'meetingId', 'actionItems', 'createdBy',
-        'createdAt', 'lastEditedBy', 'lastEditedAt', 'version', 'deletedAt', 'yState',
-        'blocks', 'meetingAt'
-      ]);
-    }
-    // Note blocks (TEAMS_REDESIGN T13, T14) cap at 100; meetingAt is a scheduled time in ms or null.
-    function plcNoteBlocksOk() {
-      return (optListMax('blocks', 100))
-        && (!('meetingAt' in incoming()) || incoming().meetingAt == null || isInt('meetingAt'));
-    }
-    // Live recording fields: at most 200 parts and 61 minutes of recorded time.
-    function plcRecordingLiveOk() {
-      return isList('parts')
-        && incoming().parts.size() <= 200
-        && isInt('durationMs')
-        && incoming().durationMs >= 0
-        && incoming().durationMs <= 3660000
-        && plcSubTimeFieldOk('lastHeartbeatAt');
-    }
     function plcDocKeysOk() {
       return newKeys().hasOnly([
         'id', 'title', 'url', 'createdBy', 'createdByName', 'createdAt', 'updatedAt',
@@ -2530,12 +2502,6 @@ service cloud.firestore {
     // A linked doc's action items: same 200-item cap as a note's.
     function plcDocActionItemsOk() {
       return optListMax('actionItems', 200);
-    }
-    function plcCommentKeysOk() {
-      return newKeys().hasOnly([
-        'id', 'targetType', 'targetId', 'authorUid', 'authorName', 'body', 'mentions',
-        'createdAt', 'editedAt', 'deletedAt'
-      ]);
     }
 
     match /plcs/{plcId} {
@@ -2761,59 +2727,7 @@ service cloud.firestore {
       // The `decisions`/`actionItems` lists carry opaque interior maps whose shape varies;
       // CEL can't `.every()` over a list, so the rule validates the list TYPE and leans on
       // the client parser - blast radius is one membership-gated PLC's own record.
-      match /meetings/{meetingId} {
-
-        // Create: any non-viewer member, doc id pinned, createdBy must equal the
-        // caller. A viewer (Decision 3.2) is denied via plcCanEditContent.
-        allow create: if plcEd()
-          && plcMeetingKeysOk()
-          && incoming().id == meetingId
-          && myCreatedBy()
-          && isStr('facilitatorUid')
-          && isList('attendeeUids')
-          && isList('assessmentIds')
-          && isList('decisions')
-          && isList('actionItems')
-          && (
-               !('agenda' in incoming())
-               || isStr('agenda')
-             )
-          && (
-               !('notesBody' in incoming())
-               || isStr('notesBody')
-             )
-          && incoming().status in ['in-progress', 'completed']
-          && plcSubDeletedAtOk()
-          && plcSubTimeFieldOk('heldAt')
-          && plcSubTimeFieldOk('updatedAt');
-
-        // Update: non-viewer member mutates working fields or soft-deletes via
-        // deletedAt. id/createdBy/heldAt/facilitatorUid immutable; viewers denied.
-        allow update: if plcEd()
-          && plcMeetingKeysOk()
-          && sameId()
-          && unchanged('createdBy')
-          && unchanged('heldAt')
-          && unchanged('facilitatorUid')
-          && isList('attendeeUids')
-          && isList('assessmentIds')
-          && isList('decisions')
-          && isList('actionItems')
-          && (
-               !('agenda' in incoming())
-               || isStr('agenda')
-             )
-          && (
-               !('notesBody' in incoming())
-               || isStr('notesBody')
-             )
-          && incoming().status in ['in-progress', 'completed']
-          && plcSubDeletedAtOk()
-          && plcSubTimeFieldOk('updatedAt');
-
-        // Non-viewer member can hard-delete (PLC-owned); soft-delete via deletedAt
-        // is typical, tombstone GC is gcPlcOrphans. Viewers denied.
-      }
+      // meetings: reads and deletes in the shared match /{coll}/{collDocId}; writes run in plcNotesWriteV1.
 
       // My Groups goals: members read; non-viewer members write. A practice is an
       // opaque map (routineId or free text) validated by the client parser.
@@ -3173,90 +3087,8 @@ service cloud.firestore {
 
       // PLC shared notes (Phase 5). Collaborative notebook — any member CRUDs any
       // note; LWW via lastEditedBy/lastEditedAt. Shape locked via hasOnly([...]).
+      // notes: reads and deletes in the shared match; create and update run in plcNotesWriteV1.
       match /notes/{noteId} {
-
-        // Create: non-viewer member (plcCanEditContent). Optional fields: kind
-        // ('freeform'|'meeting'), meetingId, version (Decision 2.4), deletedAt
-        // tombstone — all OPTIONAL so legacy notes validate; hasOnly([...]) closes
-        // the shape.
-        allow create: if plcEd()
-          && plcNoteKeysOk()
-          && incoming().id == noteId
-          && myCreatedBy()
-          && incoming().lastEditedBy == authUid()
-          && isStr('title')
-          && isStr('body')
-          && (
-               !('kind' in incoming())
-               || incoming().kind in ['freeform', 'meeting']
-             )
-          && (
-               optNullStr('meetingId')
-             )
-          && (
-               optListMax('actionItems', 200)
-             )
-          && (
-               !('yState' in incoming())
-               || isStr('yState')
-             )
-          && plcNoteBlocksOk()
-          // A fresh note may omit `version` (legacy/no-version) or start it at
-          // an int (clients seed 0/1). The update branch enforces the +1 bump.
-          && (
-               !('version' in incoming())
-               || isInt('version')
-             )
-          && plcSubDeletedAtOk()
-          && plcSubTimeFieldOk('createdAt')
-          && plcSubTimeFieldOk('lastEditedAt');
-
-        // Update: any non-viewer member edits any note; id/createdBy/createdAt
-        // immutable, editor stamps lastEditedBy. Optimistic concurrency (Decision
-        // 2.4): incoming version must be old+1 (stale writer is rejected → conflict
-        // toast); during rollout both-absent version is also accepted. Viewers
-        // denied.
-        allow update: if plcEd()
-          && plcNoteKeysOk()
-          && sameId()
-          && unchanged('createdBy')
-          && unchanged('createdAt')
-          && incoming().lastEditedBy == authUid()
-          && plcSubTimeFieldOk('lastEditedAt')
-          && isStr('title')
-          && isStr('body')
-          && (
-               !('kind' in incoming())
-               || incoming().kind in ['freeform', 'meeting']
-             )
-          && (
-               optNullStr('meetingId')
-             )
-          && (
-               optListMax('actionItems', 200)
-             )
-          && (
-               !('yState' in incoming())
-               || isStr('yState')
-             )
-          && plcNoteBlocksOk()
-          && plcSubDeletedAtOk()
-          // Version precondition: new == old + 1, OR both absent (rollout).
-          && (
-               (
-                 'version' in incoming()
-                 && 'version' in existing()
-                 && incoming().version == existing().version + 1
-               )
-               || (
-                 !('version' in incoming())
-                 && !('version' in existing())
-               )
-             );
-
-        // Non-viewer member can delete (PLC-owned, not creator-owned); viewers
-        // denied.
-
         // Yjs CRDT update log — one base64 update per doc, replayed on top of
         // the note's compacted `yState`. Append-only for clients: an update is
         // never rewritten, only deleted once compaction has folded it into the
@@ -3279,38 +3111,8 @@ service cloud.firestore {
       // Meeting recordings (docs/plans/shipped/PLC_MEETING_RECORDING.md). Members read. The
       // recorder writes only the live fields while recording or paused; 'finalizing' is
       // the server's merge lock, and every other change goes through Cloud Functions.
+      // recordings: reads in the shared match; create and update run in plcNotesWriteV1.
       match /recordings/{recordingId} {
-
-        allow create: if plcEd()
-          && newKeys().hasAll([
-               'noteId', 'recorderUid', 'status', 'parts', 'durationMs',
-               'lastHeartbeatAt', 'createdAt'
-             ])
-          && newKeys().hasOnly([
-               'noteId', 'recorderUid', 'status', 'parts', 'durationMs',
-               'lastHeartbeatAt', 'createdAt', 'audioExpiresAt'
-             ])
-          && isStr('noteId')
-          && dbExists4('plcs', plcId, 'notes', incoming().noteId)
-          && incoming().recorderUid == authUid()
-          && incoming().status == 'recording'
-          && plcRecordingLiveOk()
-          && plcSubTimeFieldOk('createdAt')
-          && (
-               !('audioExpiresAt' in incoming())
-               || (isInt('audioExpiresAt')
-                    && incoming().audioExpiresAt <= nowMs() + 2592000000)
-             );
-
-        allow update: if plcEd()
-          && existing().recorderUid == authUid()
-          && existing().status in ['recording', 'paused']
-          && incoming().status in ['recording', 'paused']
-          && incoming().diff(existing()).affectedKeys().hasOnly([
-               'status', 'parts', 'durationMs', 'lastHeartbeatAt'
-             ])
-          && plcRecordingLiveOk();
-
         // Speaker-labelled transcript; only the server writes it.
         match /transcript/{docId} {
           allow read: if plcRd();
@@ -3352,15 +3154,7 @@ service cloud.firestore {
 
       // A note's Google Doc from "Open in Docs". Create-only, so the first
       // teammate to make it wins and later clicks open that same doc.
-      match /noteDocs/{noteId} {
-        allow create: if plcEd()
-          && newKeys().hasOnly(['fileId', 'url', 'createdBy', 'createdAt'])
-          && isStr('fileId')
-          && isStr('url')
-          && incoming().url.matches('https://docs[.]google[.]com/.*')
-          && myCreatedBy()
-          && plcSubTimeFieldOk('createdAt');
-      }
+      // noteDocs: reads and deletes in the shared match; writes run in plcNotesWriteV1.
 
       // links: reads in the shared match /{coll}/{collDocId}; writes run in plcTeamItemsV1.
 
@@ -3422,66 +3216,7 @@ service cloud.firestore {
 
       // activity: append-only feed, member-readable (shared match); events are written by plcTeamItemsV1.
 
-      // PLC comments + @mentions (Decision 2.6, §3.5). Scoped to dataCard /
-      // assessment / note targets. Any member reads. Create: any member, authorUid
-      // == caller, id pinned, schema locked. Update: author may edit body/editedAt
-      // and/or soft-delete; any member may flip deletedAt; identity/attribution/
-      // targeting/mentions immutable. Hard-delete is gcPlcOrphans.
-      match /comments/{commentId} {
-
-        // A viewer (Decision 3.2) is denied content writes via plcCanEditContent
-        // (reads stay open above).
-        allow create: if plcEd()
-          && plcCommentKeysOk()
-          && incoming().id == commentId
-          && myAuthorUid()
-          && incoming().targetType in ['dataCard', 'assessment', 'note']
-          && isStr('targetId')
-          && isStr('authorName')
-          && isStr('body')
-          && isList('mentions')
-          && (
-               !('editedAt' in incoming())
-               || incoming().editedAt == null
-               || isInt('editedAt')
-               || isTimestamp('editedAt')
-             )
-          && plcSubDeletedAtOk()
-          && plcSubTimeFieldOk('createdAt');
-
-        // Update: identity/attribution/targeting/mentions immutable. Author edits
-        // body/editedAt and/or soft-deletes; any non-viewer may flip deletedAt (a
-        // non-author can only ever change deletedAt). Viewers denied.
-        allow update: if plcEd()
-          && plcCommentKeysOk()
-          && sameId()
-          && unchanged('targetType')
-          && unchanged('targetId')
-          && unchanged('authorUid')
-          && unchanged('authorName')
-          && unchanged('createdAt')
-          && unchanged('mentions')
-          && isStr('body')
-          && (
-               !('editedAt' in incoming())
-               || incoming().editedAt == null
-               || isInt('editedAt')
-               || isTimestamp('editedAt')
-             )
-          && plcSubDeletedAtOk()
-          // Only the author may change body/editedAt; a non-author update must
-          // leave body + editedAt untouched (i.e. it may only flip deletedAt).
-          && (
-               authUid() == existing().authorUid
-               || (
-                 unchanged('body')
-                 && incoming().get('editedAt', null)
-                      == existing().get('editedAt', null)
-               )
-             );
-
-        // Hard delete is server-only (GC). Clients soft-delete via `deletedAt`.
-      }
+      // comments: reads in the shared match; create and update run in plcNotesWriteV1 (hard delete is GC).
       // One rule for the subcollections listed: Google's compiler expands every copy of a rule separately.
       match /{coll}/{collDocId} {
         allow delete: if coll in ['assessments', 'assignments', 'docs', 'flashcard_sets', 'folders', 'meetings', 'noteDocs', 'notes', 'quizzes', 'rubrics', 'video_activities'] && (plcEd());
