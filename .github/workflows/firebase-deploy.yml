@@ -69,7 +69,7 @@ jobs:
               fi
             done
           fi
-          if [[ -n "$head2" && "$reuse" != "true" ]]; then
+          if [[ -n "$head2" && "$(git rev-parse 'HEAD^{tree}')" != "$(git rev-parse "${head2}^{tree}")" ]]; then
             # Files main has that the PR head lacks (or the reverse): the shipped tree was never tested as a PR.
             echo "Merge tree differs from PR head ${head2}:" | tee -a "$GITHUB_STEP_SUMMARY"
             git diff --stat "$head2" HEAD | tee -a "$GITHUB_STEP_SUMMARY"

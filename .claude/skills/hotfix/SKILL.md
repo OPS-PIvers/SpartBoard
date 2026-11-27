@@ -67,7 +67,7 @@ git push -u origin hotfix/<short-slug>-to-dev
 gh pr create --base dev-paul --title "hotfix: <what broke> (back to dev-paul)" --body "Merges main (#<hotfix PR>) back into dev-paul."
 ```
 
-Merge that PR with a merge commit (`gh pr merge --merge`), never squash, or main stops being an ancestor again.
+Don't rebase this branch, even where CLAUDE.md says to rebase onto dev-paul. Merge that PR with a merge commit (`gh pr merge --merge`), never squash, or main stops being an ancestor again.
 
 ## 7. Tell teachers only if they noticed
 
