@@ -10,7 +10,7 @@ Every PR goes into `dev-paul`, never `main`. Paul promotes dev-paul to prod.
 ## 1. Ready?
 
 - `git status` is clean and every commit belongs to this change.
-- `git fetch origin && git rebase origin/dev-paul`.
+- `git fetch origin && git rebase origin/dev-paul`, unless the branch merges `origin/main` back in (a hotfix carry-back): never rebase that, and merge it with `--merge` below.
 - `pnpm exec vitest related --run <changed source and test files>` passes.
 - User-facing change? It's behind a feature flag (see `/new-feature`). A new What's New entry waits until the flag opens to everyone. Notes go in a new `changelog.d/<name>.json` file, never in `public/changelog.json` itself.
 
@@ -38,6 +38,8 @@ When `summary` is green and every review finding is answered:
 ```bash
 gh pr merge <number> --squash --delete-branch
 ```
+
+A branch that merges `origin/main` back in uses `--merge` instead, so main stays an ancestor of dev-paul.
 
 If it's still red after two real attempts, stop. Summarize what fails and what you tried, and suggest sending it to Paul.
 
